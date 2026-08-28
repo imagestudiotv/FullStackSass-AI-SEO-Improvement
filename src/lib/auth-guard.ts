@@ -1,11 +1,16 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { cache } from "react";
 
 import { auth } from "@/lib/auth";
 
-export async function getSession() {
+/**
+ * Memoised per request: a single render may call this several times
+ * (layout guard, requireOrg, page) and it should hit the database once.
+ */
+export const getSession = cache(async () => {
   return auth.api.getSession({ headers: await headers() });
-}
+});
 
 /**
  * Use in the (app) layout AND in every server action / route handler that
