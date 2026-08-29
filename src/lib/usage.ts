@@ -106,10 +106,43 @@ export type LimitCheck = {
   reason: string | null;
 };
 
-/** Start of the org's current billing period, or the calendar month. */
-function periodStart(currentPeriodEnd: Date | null): Date {
+/**
+ * Statuses that grant access. Stripe keeps a subscription alive through
+ * payment retries as "past_due", so treating any non-"active" value as
+ * cancelled would lock out customers mid-dunning; "trialing" is a paying
+ * customer in waiting. Anything else (canceled, unpaid, incomplete*) does not
+ * grant access.
+ */
+const ENTITLED_STATUSES = new Set(["active", "trialing", "past_due"]);
+
+/**
+ * Start of the org's current billing period, or the calendar month.
+ *
+ * Prefers the period start recorded by the webhook. The fallback derives one
+ * from the period end, clamping the day to the target month's length: a naive
+ * `setMonth(getMonth() - 1)` overflows FORWARD on long months — for a period
+ * ending 31 Mar it yields 3 Mar (Feb has no 31st), so nearly the whole period
+ * would fall outside the `createdAt >= from` window and usage would be
+ * undercounted, handing out quota for free. Clamping yields 28 Feb instead.
+ */
+function periodStart(
+  currentPeriodStart: Date | null,
+  currentPeriodEnd: Date | null,
+): Date {
+  if (currentPeriodStart) {
+    return currentPeriodStart;
+  }
   if (currentPeriodEnd) {
     const start = new Date(currentPeriodEnd);
+    const day = start.getDate();
+    // Day 0 of month N+1 is the last day of month N — i.e. its length.
+    const daysInPrevMonth = new Date(
+      start.getFullYear(),
+      start.getMonth(),
+      0,
+    ).getDate();
+    // Set the day before the month so the intermediate value cannot overflow.
+    start.setDate(Math.min(day, daysInPrevMonth));
     start.setMonth(start.getMonth() - 1);
     return start;
   }
@@ -130,6 +163,7 @@ export async function checkLimit(
 ): Promise<LimitCheck> {
   const [sub] = await db
     .select({
+      currentPeriodStart: subscriptions.currentPeriodStart,
       currentPeriodEnd: subscriptions.currentPeriodEnd,
       status: subscriptions.status,
       articleLimit: plans.articleLimit,
@@ -151,12 +185,18 @@ export async function checkLimit(
     return { allowed: false, used: 0, limit: 0, reason: "no_active_plan" };
   }
 
+  // A plan row alone is not entitlement: a cancelled or unpaid subscription
+  // still points at the plan it used to have.
+  if (!ENTITLED_STATUSES.has(sub.status)) {
+    return { allowed: false, used: 0, limit: 0, reason: "subscription_inactive" };
+  }
+
   const planLimits = {
     articles: sub.articleLimit,
     keywords: sub.keywordLimit,
     websites: sub.siteLimit,
   };
-  const from = periodStart(sub.currentPeriodEnd);
+  const from = periodStart(sub.currentPeriodStart, sub.currentPeriodEnd);
 
   let used: number;
   let limit: number;
@@ -210,4 +250,45 @@ export async function checkLimit(
     limit,
     reason: allowed ? null : "limit_reached",
   };
+}
+
+/** Thrown when an action would exceed the organization's plan limit. */
+export class LimitExceededError extends Error {
+  readonly status = 402;
+  constructor(
+    readonly kind: LimitKind,
+    readonly check: LimitCheck,
+  ) {
+    super(
+      check.reason === "no_active_plan" ||
+        check.reason === "subscription_inactive"
+        ? "This workspace has no active subscription"
+        : `Plan limit reached for ${kind} (${check.used}/${check.limit})`,
+    );
+    this.name = "LimitExceededError";
+  }
+}
+
+/**
+ * Enforcing counterpart to checkLimit: throws instead of reporting.
+ *
+ * Call this at the START of every create path for a limited resource, before
+ * any external spend. checkLimit alone only reports — a caller that forgets to
+ * read `allowed` silently grants unlimited usage, so paths that must enforce
+ * should use this and let the error propagate.
+ *
+ * NOT race-proof on its own: two concurrent requests can both pass the check
+ * before either inserts. That is acceptable for article/site/keyword counts
+ * (worst case one extra), but anything billable per unit needs a database
+ * constraint or a transaction as well.
+ */
+export async function requireWithinLimit(
+  orgId: string,
+  kind: LimitKind,
+): Promise<LimitCheck> {
+  const check = await checkLimit(orgId, kind);
+  if (!check.allowed) {
+    throw new LimitExceededError(kind, check);
+  }
+  return check;
 }

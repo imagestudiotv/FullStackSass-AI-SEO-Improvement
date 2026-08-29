@@ -1,7 +1,13 @@
 /**
- * Seeds the plans table. Idempotent — matches on name, so it is safe to re-run
- * and will be needed again for the production database.
- * stripePriceId stays null until Stripe products exist (Day 3).
+ * Seeds the plans table. Idempotent - upserts on (tier, interval), so it is
+ * safe to re-run and will be needed again for the production database.
+ *
+ * Prices are the agreed EUR line-up. Annual rows are ten months' money for
+ * twelve months of service (~17% off), which is the usual prepay incentive.
+ *
+ * stripePriceId stays null until `npm run stripe:setup` creates the Stripe
+ * products and writes the ids back. Checkout refuses any plan without one, so
+ * a half-configured plan cannot take money.
  */
 import nextEnv from "@next/env";
 import postgres from "postgres";
@@ -9,30 +15,109 @@ import postgres from "postgres";
 nextEnv.loadEnvConfig(process.cwd());
 const sql = postgres(process.env.DIRECT_URL, { connect_timeout: 30 });
 
-const PLANS = [
-  { name: "Starter",  priceCents:   100, articleLimit:  1, keywordLimit:   10, siteLimit:  1, monthlyCredits:  1 },
-  { name: "Basic",    priceCents:  9900, articleLimit: 10, keywordLimit:  100, siteLimit:  1, monthlyCredits: 10 },
-  { name: "Pro",      priceCents: 18900, articleLimit: 25, keywordLimit:  300, siteLimit:  3, monthlyCredits: 25 },
-  { name: "Advanced", priceCents: 26900, articleLimit: 50, keywordLimit: 1000, siteLimit: 10, monthlyCredits: 50 },
+const CURRENCY = "eur";
+
+/** Monthly price per tier, in minor units. Annual is derived as x10. */
+const TIERS = [
+  {
+    tier: "launch",
+    name: "Launch",
+    monthlyCents: 2900,
+    articleLimit: 5,
+    keywordLimit: 50,
+    siteLimit: 1,
+    monthlyCredits: 5,
+    sortOrder: 1,
+  },
+  {
+    tier: "grow",
+    name: "Grow",
+    monthlyCents: 9900,
+    articleLimit: 25,
+    keywordLimit: 300,
+    siteLimit: 3,
+    monthlyCredits: 25,
+    sortOrder: 2,
+  },
+  {
+    tier: "scale",
+    name: "Scale",
+    monthlyCents: 29900,
+    articleLimit: 100,
+    keywordLimit: 1500,
+    siteLimit: 10,
+    monthlyCredits: 100,
+    sortOrder: 3,
+  },
 ];
 
-for (const p of PLANS) {
-  const existing = await sql`select id from plans where name = ${p.name}`;
-  if (existing.length) {
-    await sql`update plans set
-      price_cents=${p.priceCents}, article_limit=${p.articleLimit},
-      keyword_limit=${p.keywordLimit}, site_limit=${p.siteLimit},
-      monthly_credits=${p.monthlyCredits}, is_active=true, updated_at=now()
-      where id=${existing[0].id}`;
-    console.log(`updated ${p.name}`);
-  } else {
-    await sql`insert into plans
-      (name, price_cents, article_limit, keyword_limit, site_limit, monthly_credits)
-      values (${p.name}, ${p.priceCents}, ${p.articleLimit}, ${p.keywordLimit}, ${p.siteLimit}, ${p.monthlyCredits})`;
-    console.log(`inserted ${p.name}`);
-  }
+/** Annual = 10 months' price. Limits are per month and do not change. */
+const ANNUAL_MONTHS = 10;
+
+const rows = TIERS.flatMap((t) => [
+  {
+    tier: t.tier,
+    name: t.name,
+    interval: "month",
+    priceCents: t.monthlyCents,
+    articleLimit: t.articleLimit,
+    keywordLimit: t.keywordLimit,
+    siteLimit: t.siteLimit,
+    monthlyCredits: t.monthlyCredits,
+    sortOrder: t.sortOrder,
+  },
+  {
+    tier: t.tier,
+    name: `${t.name} (Annual)`,
+    interval: "year",
+    priceCents: t.monthlyCents * ANNUAL_MONTHS,
+    articleLimit: t.articleLimit,
+    keywordLimit: t.keywordLimit,
+    siteLimit: t.siteLimit,
+    monthlyCredits: t.monthlyCredits,
+    sortOrder: t.sortOrder,
+  },
+]);
+
+for (const p of rows) {
+  await sql`
+    insert into plans
+      (name, tier, interval, currency, price_cents, article_limit,
+       keyword_limit, site_limit, monthly_credits, sort_order, is_active)
+    values
+      (${p.name}, ${p.tier}, ${p.interval}, ${CURRENCY}, ${p.priceCents},
+       ${p.articleLimit}, ${p.keywordLimit}, ${p.siteLimit},
+       ${p.monthlyCredits}, ${p.sortOrder}, true)
+    on conflict (tier, interval) do update set
+      name = excluded.name,
+      currency = excluded.currency,
+      price_cents = excluded.price_cents,
+      article_limit = excluded.article_limit,
+      keyword_limit = excluded.keyword_limit,
+      site_limit = excluded.site_limit,
+      monthly_credits = excluded.monthly_credits,
+      sort_order = excluded.sort_order,
+      is_active = true,
+      updated_at = now()
+  `;
+  console.log(`upserted ${p.tier}/${p.interval}`);
 }
 
-const rows = await sql`select name, price_cents, article_limit, keyword_limit, site_limit, monthly_credits, stripe_price_id, is_active from plans order by price_cents`;
-console.table(rows.map(r => ({ ...r })));
+/**
+ * Any plan seeded before tiers existed keeps tier "legacy" and is retired
+ * here, so the pricing page shows exactly the line-up above.
+ */
+const retired = await sql`
+  update plans set is_active = false, updated_at = now()
+  where tier like 'legacy%' and is_active = true
+  returning name
+`;
+for (const r of retired) console.log(`retired legacy plan: ${r.name}`);
+
+const all = await sql`
+  select name, tier, interval, currency, price_cents, article_limit,
+         keyword_limit, site_limit, monthly_credits, stripe_price_id, is_active
+  from plans order by sort_order, price_cents
+`;
+console.table(all.map((r) => ({ ...r })));
 await sql.end();

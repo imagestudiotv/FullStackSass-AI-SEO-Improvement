@@ -1,6 +1,7 @@
 import {
   BarChart3,
   CalendarDays,
+  CreditCard,
   FileText,
   Globe,
   LayoutDashboard,
@@ -24,5 +25,6 @@ export const navItems: NavItem[] = [
   { title: "Articles", href: "/articles", icon: FileText, disabled: true },
   { title: "Backlinks", href: "/backlinks", icon: Link2, disabled: true },
   { title: "Analytics", href: "/analytics", icon: BarChart3, disabled: true },
+  { title: "Billing", href: "/billing", icon: CreditCard },
   { title: "Settings", href: "/settings", icon: Settings },
 ];
