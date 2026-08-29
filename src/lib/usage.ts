@@ -37,18 +37,26 @@ export type UsageKind =
  *  - seo_api:         USD per API call
  *  - geo_query:       USD per prompt checked per engine
  *
- * TODO: real numbers once providers are chosen (Day 5 onward). Zeroes are
- * deliberate placeholders — they make cost reporting read as "unknown" rather
- * than inventing a figure.
+ * These are LIST prices and will drift. They exist so cost per tenant is
+ * recorded from the first metered call; re-check them against the providers'
+ * pricing pages before quoting margins to anyone.
  */
 export const PRICING = {
   llm: {
-    // TODO: set once the generation model is chosen.
-    "claude-sonnet-4-5": { inputPer1k: 0, outputPer1k: 0 },
+    /**
+     * Article generation. Sonnet 5 is the default: at roughly 12k input and
+     * 6k output tokens per article it costs about $0.08, under 3% of even the
+     * entry plan's revenue, so quality is worth more here than saving cents.
+     * Haiku handles cheap structured extraction (brand, industry, language)
+     * during onboarding. Opus is listed for jobs that justify it.
+     */
+    "claude-sonnet-5": { inputPer1k: 0.002, outputPer1k: 0.01 },
+    "claude-haiku-4-5": { inputPer1k: 0.001, outputPer1k: 0.005 },
+    "claude-opus-5": { inputPer1k: 0.005, outputPer1k: 0.025 },
   },
   embedding: {
-    // TODO: set once the embedding provider is chosen (Day 12).
-    "text-embedding-3-small": { per1k: 0 },
+    // OpenAI text-embedding-3-small: $0.02 per 1M tokens.
+    "text-embedding-3-small": { per1k: 0.00002 },
   },
   image: {
     // TODO: set once the image provider is chosen.
@@ -59,8 +67,19 @@ export const PRICING = {
     default: { perPage: 0 },
   },
   seo_api: {
-    // TODO: DataForSEO endpoint pricing varies per endpoint.
-    dataforseo: { perCall: 0 },
+    /**
+     * DataForSEO, priced per endpoint rather than per call, so these are the
+     * three shapes we actually use.
+     *
+     * rankTrackingPerKeyword is charged EVERY time a keyword is checked, which
+     * makes check frequency — not plan size — the real cost driver: 1,500
+     * keywords daily is ~$27/mo (8% of Scale's revenue), the same keywords
+     * weekly is ~$3.60 (1%). Track weekly and cache; rankings do not move
+     * enough day to day to justify 7x the spend.
+     */
+    dataforseo: { perCall: 0.002 },
+    dataforseoKeywordsPer1kRows: { perCall: 0.02 },
+    dataforseoRankTrackingPerKeyword: { perCall: 0.0006 },
   },
   geo_query: {
     // TODO: cost per engine differs; set per engine when wired up.
