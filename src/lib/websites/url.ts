@@ -121,3 +121,22 @@ export function normalizeWebsiteUrl(input: string): NormalizedUrl {
     domain,
   };
 }
+
+/**
+ * True when a URL is a public http(s) address we are willing to fetch.
+ *
+ * Used to re-check every redirect hop during crawling: normalizeWebsiteUrl
+ * guards the address the user typed, but a site can redirect anywhere, and an
+ * open redirect would otherwise reach exactly the private addresses that guard
+ * exists to block.
+ */
+export function isPublicWebsiteUrl(candidate: string): boolean {
+  let parsed: URL;
+  try {
+    parsed = new URL(candidate);
+  } catch {
+    return false;
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return false;
+  return !isPrivateHost(parsed.hostname.toLowerCase());
+}

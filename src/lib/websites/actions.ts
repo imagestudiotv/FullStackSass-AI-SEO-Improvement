@@ -3,6 +3,7 @@
 import { and, desc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
+import { inngest } from "@/inngest/client";
 import { db } from "@/lib/db";
 import { websites } from "@/lib/db/schema";
 import { requireOrg, requireWebsite } from "@/lib/tenant";
@@ -104,6 +105,16 @@ export async function addWebsite(
       status: "pending",
     })
     .returning({ id: websites.id });
+
+  /**
+   * Analysis runs in the background: fetching a homepage and calling a model
+   * takes seconds to tens of seconds, which is far too long to hold a form
+   * submission open. The row is already visible as "pending".
+   */
+  await inngest.send({
+    name: "website/analyze.requested",
+    data: { websiteId: created.id, organizationId: orgId },
+  });
 
   revalidatePath("/websites");
   return { ok: true, data: { id: created.id } };
