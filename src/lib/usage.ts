@@ -1,6 +1,7 @@
 import { and, count, eq, gte } from "drizzle-orm";
 
 import { db } from "@/lib/db";
+import { UNLIMITED, type LimitCheck } from "@/lib/usage-shared";
 import {
   articles,
   keywords,
@@ -113,17 +114,10 @@ export async function track(orgId: string, event: TrackInput): Promise<void> {
 
 export type LimitKind = "articles" | "websites" | "keywords" | UsageKind;
 
-/** Sentinel for "no limit applies". Infinity is not JSON-serialisable — it
- *  becomes null over the wire — so unlimited is represented explicitly. */
-export const UNLIMITED = -1;
-
-export type LimitCheck = {
-  allowed: boolean;
-  used: number;
-  /** Plan limit, or UNLIMITED (-1) when the kind is metered but not capped. */
-  limit: number;
-  reason: string | null;
-};
+// Defined in usage-shared.ts so client components can import them without
+// pulling in the database driver; re-exported here for server callers.
+export { UNLIMITED } from "@/lib/usage-shared";
+export type { LimitCheck } from "@/lib/usage-shared";
 
 /**
  * Statuses that grant access. Stripe keeps a subscription alive through
