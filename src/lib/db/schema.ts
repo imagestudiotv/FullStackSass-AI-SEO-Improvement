@@ -43,28 +43,103 @@ const websiteId = () =>
 /* Billing and plans                                                          */
 /* ------------------------------------------------------------------------- */
 
-export const plans = pgTable("plans", {
-  id: pk(),
-  name: text("name").notNull(),
-  stripePriceId: text("stripe_price_id"),
-  priceCents: integer("price_cents").notNull(),
-  articleLimit: integer("article_limit").notNull(),
-  keywordLimit: integer("keyword_limit").notNull(),
-  siteLimit: integer("site_limit").notNull(),
-  monthlyCredits: integer("monthly_credits").notNull(),
-  isActive: boolean("is_active").default(true).notNull(),
-  ...timestamps,
-});
+/**
+ * A plan is one purchasable price point: a tier at a billing interval. Monthly
+ * and annual Growth are therefore two ROWS sharing a `tier`, not one row with
+ * two prices — Stripe prices are immutable and per-interval, so this mirrors
+ * the objects we create there and keeps the mapping one-to-one.
+ *
+ * `priceCents` is in `currency`. Do not mix currencies across rows: Stripe
+ * prices are currency-locked at creation, so a change means new prices.
+ */
+export const plans = pgTable(
+  "plans",
+  {
+    id: pk(),
+    name: text("name").notNull(),
+    /** Stable key shared by a tier's monthly and annual rows ("growth"). */
+    tier: text("tier").notNull().default("legacy"),
+    /** "month" | "year". */
+    interval: text("interval").notNull().default("month"),
+    /** ISO 4217, lowercase, as Stripe expects ("eur"). */
+    currency: text("currency").notNull().default("eur"),
+    stripePriceId: text("stripe_price_id"),
+    paypalPlanId: text("paypal_plan_id"),
+    priceCents: integer("price_cents").notNull(),
+    articleLimit: integer("article_limit").notNull(),
+    keywordLimit: integer("keyword_limit").notNull(),
+    siteLimit: integer("site_limit").notNull(),
+    monthlyCredits: integer("monthly_credits").notNull(),
+    /** Ordering on the pricing page; lowest first. */
+    sortOrder: integer("sort_order").default(0).notNull(),
+    isActive: boolean("is_active").default(true).notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    // One row per tier+interval. Makes the seed script an idempotent upsert
+    // keyed on meaning rather than on the display name, which may change.
+    uniqueIndex("plans_tier_interval_uidx").on(table.tier, table.interval),
+  ],
+);
 
-export const subscriptions = pgTable("subscriptions", {
-  id: pk(),
-  organizationId: organizationId(),
-  stripeCustomerId: text("stripe_customer_id"),
-  stripeSubscriptionId: text("stripe_subscription_id"),
-  planId: uuid("plan_id").references(() => plans.id, { onDelete: "restrict" }),
-  status: text("status").default("inactive").notNull(),
-  currentPeriodEnd: timestamp("current_period_end"),
-  ...timestamps,
+/**
+ * One subscription row per organization, enforced by the unique index.
+ *
+ * Without it, two concurrent first-time billing requests each insert a row and
+ * create a separate Stripe customer, after which getOrCreateCustomer (newest
+ * row) and checkLimit (unordered) can read DIFFERENT subscriptions for the
+ * same org — splitting billing from limits. The database is the only reliable
+ * place to enforce this; an application-level check still races.
+ */
+export const subscriptions = pgTable(
+  "subscriptions",
+  {
+    id: pk(),
+    organizationId: organizationId(),
+    /** "stripe" | "paypal". Which processor owns this subscription. */
+    provider: text("provider").default("stripe").notNull(),
+    stripeCustomerId: text("stripe_customer_id"),
+    stripeSubscriptionId: text("stripe_subscription_id"),
+    /** PayPal has no customer object; only the subscription id is stored. */
+    paypalSubscriptionId: text("paypal_subscription_id"),
+    planId: uuid("plan_id").references(() => plans.id, { onDelete: "restrict" }),
+    status: text("status").default("inactive").notNull(),
+    /**
+     * Read from the webhook, never derived. Deriving a period start by
+     * subtracting a month from the end is what produced the date-overflow bug
+     * in usage.ts; storing both ends removes the guesswork entirely.
+     */
+    currentPeriodStart: timestamp("current_period_start"),
+    currentPeriodEnd: timestamp("current_period_end"),
+    cancelAtPeriodEnd: boolean("cancel_at_period_end").default(false).notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("subscriptions_organization_id_uidx").on(table.organizationId),
+    // Webhooks arrive keyed by the processor's id, never by organization.
+    index("subscriptions_stripe_subscription_id_idx").on(
+      table.stripeSubscriptionId,
+    ),
+    index("subscriptions_paypal_subscription_id_idx").on(
+      table.paypalSubscriptionId,
+    ),
+  ],
+);
+
+/**
+ * Every webhook event we have already handled, by the processor's own event id.
+ *
+ * Stripe and PayPal both retry on non-2xx and can deliver duplicates even on
+ * success, so handlers MUST be idempotent. The primary key is the event id:
+ * inserting it is the lock, and a conflict means "already processed, skip".
+ */
+export const webhookEvents = pgTable("webhook_events", {
+  /** The processor's event id, e.g. Stripe "evt_...". */
+  id: text("id").primaryKey(),
+  provider: text("provider").notNull(),
+  type: text("type").notNull(),
+  payload: jsonb("payload"),
+  processedAt: timestamp("processed_at").defaultNow().notNull(),
 });
 
 export const usageEvents = pgTable(

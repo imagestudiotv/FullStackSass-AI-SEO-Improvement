@@ -15,6 +15,20 @@
       "when": 1787879976505,
       "tag": "0001_lumpy_captain_flint",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787981100817,
+      "tag": "0002_gifted_agent_zero",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1787992653967,
+      "tag": "0003_nostalgic_stranger",
+      "breakpoints": true
     }
   ]
 }
