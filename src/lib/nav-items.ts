@@ -20,7 +20,7 @@ export type NavItem = {
 
 export const navItems: NavItem[] = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { title: "Websites", href: "/websites", icon: Globe, disabled: true },
+  { title: "Websites", href: "/websites", icon: Globe },
   { title: "Content", href: "/content", icon: CalendarDays, disabled: true },
   { title: "Articles", href: "/articles", icon: FileText, disabled: true },
   { title: "Backlinks", href: "/backlinks", icon: Link2, disabled: true },
