@@ -186,13 +186,25 @@ export const websites = pgTable("websites", {
   ...timestamps,
 });
 
-export const competitors = pgTable("competitors", {
-  id: pk(),
-  websiteId: websiteId(),
-  domain: text("domain").notNull(),
-  source: text("source"),
-  ...timestamps,
-});
+export const competitors = pgTable(
+  "competitors",
+  {
+    id: pk(),
+    websiteId: websiteId(),
+    domain: text("domain").notNull(),
+    source: text("source"),
+    ...timestamps,
+  },
+  (table) => [
+    // Analysis re-runs (a retry, or the user re-analysing) suggest the same
+    // rivals again. Without this, onConflictDoNothing has no conflict target
+    // to match and silently inserts a duplicate every time.
+    uniqueIndex("competitors_website_domain_uidx").on(
+      table.websiteId,
+      table.domain,
+    ),
+  ],
+);
 
 export const crawls = pgTable("crawls", {
   id: pk(),
@@ -227,7 +239,12 @@ export const pages = pgTable(
     embedding: vector("embedding", { dimensions: 1536 }),
     crawledAt: timestamp("crawled_at"),
   },
-  (table) => [index("pages_website_idx").on(table.websiteId)],
+  (table) => [
+    index("pages_website_idx").on(table.websiteId),
+    // One row per URL per site: a re-crawl must update the existing snapshot,
+    // not append a second copy that later queries would double-count.
+    uniqueIndex("pages_website_url_uidx").on(table.websiteId, table.url),
+  ],
 );
 
 export const audits = pgTable("audits", {

@@ -168,6 +168,33 @@ export async function updateWebsiteDetails(
   return { ok: true, data: null };
 }
 
+/**
+ * Re-runs analysis for a website whose last attempt failed or stalled.
+ *
+ * Without this a transient failure (the site was down, a model call errored)
+ * leaves the row permanently on "Analysis failed" and the only way forward is
+ * to delete and re-add it — which also throws away anything already attached.
+ */
+export async function reanalyzeWebsite(
+  websiteId: string,
+): Promise<ActionResult<null>> {
+  const { site, orgId } = await requireWebsite(websiteId);
+
+  await db
+    .update(websites)
+    .set({ status: "pending", updatedAt: new Date() })
+    .where(eq(websites.id, site.id));
+
+  await inngest.send({
+    name: "website/analyze.requested",
+    data: { websiteId: site.id, organizationId: orgId },
+  });
+
+  revalidatePath("/websites");
+  revalidatePath(`/websites/${site.id}`);
+  return { ok: true, data: null };
+}
+
 export async function deleteWebsite(
   websiteId: string,
 ): Promise<ActionResult<null>> {

@@ -1,6 +1,6 @@
 "use client";
 
-import { Globe, Loader2, Plus, Trash2 } from "lucide-react";
+import { Globe, Loader2, Plus, RefreshCw, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -25,7 +25,12 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { addWebsite, deleteWebsite, type WebsiteSummary } from "@/lib/websites/actions";
+import {
+  addWebsite,
+  deleteWebsite,
+  reanalyzeWebsite,
+  type WebsiteSummary,
+} from "@/lib/websites/actions";
 import { UNLIMITED, type LimitCheck } from "@/lib/usage-shared";
 
 type WebsitesClientProps = {
@@ -47,6 +52,7 @@ export function WebsitesClient({ websites, limit }: WebsitesClientProps) {
   const [url, setUrl] = useState("");
   const [pending, startTransition] = useTransition();
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
 
   const atLimit = limit.limit !== UNLIMITED && websites.length >= limit.limit;
 
@@ -61,6 +67,20 @@ export function WebsitesClient({ websites, limit }: WebsitesClientProps) {
       setUrl("");
       setOpen(false);
       toast.success("Website added");
+      router.refresh();
+    });
+  }
+
+  function handleRetry(id: string) {
+    setRetryingId(id);
+    startTransition(async () => {
+      const result = await reanalyzeWebsite(id);
+      setRetryingId(null);
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success("Analysis restarted");
       router.refresh();
     });
   }
@@ -156,6 +176,23 @@ export function WebsitesClient({ websites, limit }: WebsitesClientProps) {
                       {site.industry ? ` · ${site.industry}` : ""}
                     </CardDescription>
                   </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                  {site.status === "failed" ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      aria-label={`Retry analysis for ${site.domain}`}
+                      disabled={pending && retryingId === site.id}
+                      onClick={() => handleRetry(site.id)}
+                    >
+                      {pending && retryingId === site.id ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <RefreshCw className="size-4" />
+                      )}
+                      Retry
+                    </Button>
+                  ) : null}
                   <Button
                     variant="ghost"
                     size="icon"
@@ -169,6 +206,7 @@ export function WebsitesClient({ websites, limit }: WebsitesClientProps) {
                       <Trash2 className="size-4" />
                     )}
                   </Button>
+                  </div>
                 </CardHeader>
               </Card>
             );

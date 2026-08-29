@@ -76,9 +76,7 @@ export const analyzeWebsite = inngest.createFunction(
     });
 
     await step.run("record-page", async () => {
-      await db.insert(pages).values({
-        websiteId,
-        url: snapshot.finalUrl,
+      const pageRow = {
         title: snapshot.title,
         metaDescription: snapshot.metaDescription,
         h1: snapshot.h1,
@@ -87,7 +85,17 @@ export const analyzeWebsite = inngest.createFunction(
         statusCode: snapshot.statusCode,
         internalLinks: snapshot.internalLinks,
         crawledAt: new Date(),
-      });
+      };
+
+      // Upsert: re-analysing a site must refresh the snapshot for that URL,
+      // not append a second row that later page counts would double-count.
+      await db
+        .insert(pages)
+        .values({ websiteId, url: snapshot.finalUrl, ...pageRow })
+        .onConflictDoUpdate({
+          target: [pages.websiteId, pages.url],
+          set: pageRow,
+        });
 
       await track(organizationId, {
         kind: "crawl",
@@ -148,7 +156,11 @@ export const analyzeWebsite = inngest.createFunction(
               source: "ai_suggested",
             })),
           )
-          .onConflictDoNothing();
+          // Needs an explicit target: without one there is no constraint to
+          // match and every re-run inserts the same rivals again.
+          .onConflictDoNothing({
+            target: [competitors.websiteId, competitors.domain],
+          });
       }
     });
 
