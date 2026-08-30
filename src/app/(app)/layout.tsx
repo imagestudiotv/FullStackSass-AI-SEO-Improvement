@@ -10,6 +10,14 @@ import { db } from "@/lib/db";
 import { organization } from "@/lib/db/schema";
 import { requireOrg } from "@/lib/tenant";
 
+/**
+ * Every authenticated route is per-request by definition: it reads the
+ * caller's session and their organization's data. Without this Next tries to
+ * prerender them at build time, which needs the auth secrets and fails a
+ * deploy on any host where they are set as runtime-only variables.
+ */
+export const dynamic = "force-dynamic";
+
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const session = await requireSession();
   const { orgId, role } = await requireOrg();
