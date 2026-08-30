@@ -20,6 +20,8 @@ import type { ActionResult } from "@/lib/websites/actions";
 
 export type ArticleRow = {
   id: string;
+  /** Lets the calendar show "Open" instead of a second "Write" button. */
+  calendarItemId: string | null;
   title: string;
   slug: string | null;
   targetKeyword: string | null;
@@ -35,6 +37,7 @@ export async function listArticles(websiteId: string): Promise<ArticleRow[]> {
   return db
     .select({
       id: articles.id,
+      calendarItemId: articles.calendarItemId,
       title: articles.title,
       slug: articles.slug,
       targetKeyword: articles.targetKeyword,
@@ -68,6 +71,7 @@ export async function getArticle(
 
   return {
     id: row.id,
+    calendarItemId: row.calendarItemId,
     title: row.title,
     slug: row.slug,
     targetKeyword: row.targetKeyword,

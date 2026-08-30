@@ -1,6 +1,15 @@
 "use client";
 
-import { CalendarDays, Loader2, Search, Sparkles, Trash2 } from "lucide-react";
+import {
+  CalendarDays,
+  FileText,
+  Loader2,
+  PenLine,
+  Search,
+  Sparkles,
+  Trash2,
+} from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -32,13 +41,30 @@ import {
   type CalendarRow,
   type KeywordRow,
 } from "@/lib/keywords/actions";
+import {
+  deleteArticle,
+  generateFromCalendarItem,
+  type ArticleRow,
+} from "@/lib/articles/actions";
 
 type ResearchTabsProps = {
   websiteId: string;
   keywords: KeywordRow[];
   calendar: CalendarRow[];
+  articles: ArticleRow[];
   /** True while a research run is in flight, so the UI can say so. */
   researching: boolean;
+};
+
+const ARTICLE_STATUS: Record<
+  string,
+  { label: string; variant: "default" | "secondary" | "destructive" }
+> = {
+  queued: { label: "Queued", variant: "secondary" },
+  generating: { label: "Writing…", variant: "secondary" },
+  draft: { label: "Draft", variant: "default" },
+  published: { label: "Published", variant: "default" },
+  failed: { label: "Failed", variant: "destructive" },
 };
 
 const INTENT_VARIANT: Record<string, "default" | "secondary" | "outline"> = {
@@ -61,6 +87,7 @@ export function ResearchTabs({
   websiteId,
   keywords,
   calendar,
+  articles,
   researching,
 }: ResearchTabsProps) {
   const router = useRouter();
@@ -95,6 +122,34 @@ export function ResearchTabs({
     });
   }
 
+  function handleGenerate(calendarItemId: string) {
+    setBusyId(calendarItemId);
+    startTransition(async () => {
+      const result = await generateFromCalendarItem(websiteId, calendarItemId);
+      setBusyId(null);
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success("Writing the article — this takes about a minute");
+      router.refresh();
+    });
+  }
+
+  function handleDeleteArticle(id: string) {
+    setBusyId(id);
+    startTransition(async () => {
+      const result = await deleteArticle(websiteId, id);
+      setBusyId(null);
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success("Article deleted");
+      router.refresh();
+    });
+  }
+
   function handleDeleteItem(id: string) {
     setBusyId(id);
     startTransition(async () => {
@@ -121,6 +176,14 @@ export function ResearchTabs({
       router.refresh();
     });
   }
+
+  // A calendar item that already has an article links to it instead of
+  // offering to generate a second one.
+  const articleByItem = new Map(
+    articles
+      .filter((article) => article.calendarItemId !== null)
+      .map((article) => [article.calendarItemId as string, article]),
+  );
 
   const empty = keywords.length === 0 && calendar.length === 0;
 
@@ -164,6 +227,10 @@ export function ResearchTabs({
             <CalendarDays className="size-4" />
             Content plan ({calendar.length})
           </TabsTrigger>
+          <TabsTrigger value="articles">
+            <FileText className="size-4" />
+            Articles ({articles.length})
+          </TabsTrigger>
           <TabsTrigger value="keywords">
             <Search className="size-4" />
             Keywords ({keywords.length})
@@ -200,6 +267,7 @@ export function ResearchTabs({
                   <TableHead className="w-28">Date</TableHead>
                   <TableHead>Title</TableHead>
                   <TableHead className="hidden md:table-cell">Keyword</TableHead>
+                  <TableHead className="w-32" />
                   <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
@@ -240,6 +308,41 @@ export function ResearchTabs({
                       {item.targetKeyword ?? "—"}
                     </TableCell>
                     <TableCell>
+                      {(() => {
+                        const article = articleByItem.get(item.id);
+                        if (article) {
+                          return (
+                            <Button variant="outline" size="sm" asChild>
+                              <Link
+                                href={`/websites/${websiteId}/articles/${article.id}`}
+                              >
+                                <FileText className="size-4" />
+                                {article.status === "generating" ||
+                                article.status === "queued"
+                                  ? "Writing…"
+                                  : "Open"}
+                              </Link>
+                            </Button>
+                          );
+                        }
+                        return (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={pending && busyId === item.id}
+                            onClick={() => handleGenerate(item.id)}
+                          >
+                            {pending && busyId === item.id ? (
+                              <Loader2 className="size-4 animate-spin" />
+                            ) : (
+                              <PenLine className="size-4" />
+                            )}
+                            Write
+                          </Button>
+                        );
+                      })()}
+                    </TableCell>
+                    <TableCell>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -258,6 +361,80 @@ export function ResearchTabs({
                 ))}
               </TableBody>
             </Table>
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      <TabsContent value="articles" className="mt-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Articles</CardTitle>
+            <CardDescription>
+              Written from your content plan. Open one to read, edit or rewrite
+              it.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="overflow-x-auto">
+            {articles.length === 0 ? (
+              <p className="py-4 text-sm text-muted-foreground">
+                Nothing written yet. Use <strong>Write</strong> on a planned
+                article to start.
+              </p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Title</TableHead>
+                    <TableHead className="w-28">Status</TableHead>
+                    <TableHead className="hidden w-24 sm:table-cell">
+                      Words
+                    </TableHead>
+                    <TableHead className="w-10" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {articles.map((article) => {
+                    const status = ARTICLE_STATUS[article.status] ?? {
+                      label: article.status,
+                      variant: "secondary" as const,
+                    };
+                    return (
+                      <TableRow key={article.id}>
+                        <TableCell>
+                          <Link
+                            href={`/websites/${websiteId}/articles/${article.id}`}
+                            className="hover:underline"
+                          >
+                            {article.title}
+                          </Link>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={status.variant}>{status.label}</Badge>
+                        </TableCell>
+                        <TableCell className="hidden text-muted-foreground sm:table-cell">
+                          {article.wordCount?.toLocaleString() ?? "—"}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label={`Delete ${article.title}`}
+                            disabled={pending && busyId === article.id}
+                            onClick={() => handleDeleteArticle(article.id)}
+                          >
+                            {pending && busyId === article.id ? (
+                              <Loader2 className="size-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="size-4" />
+                            )}
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
       </TabsContent>
