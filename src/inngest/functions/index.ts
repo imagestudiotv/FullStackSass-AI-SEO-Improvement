@@ -6,6 +6,7 @@
  */
 import { analyzeWebsite } from "./analyze-website";
 import { generateArticle } from "./generate-article";
+import { publishArticleJob } from "./publish-article";
 import { researchKeywords } from "./research-keywords";
 import { testRetry } from "./test-retry";
 
@@ -13,5 +14,6 @@ export const functions = [
   analyzeWebsite,
   researchKeywords,
   generateArticle,
+  publishArticleJob,
   testRetry,
 ];

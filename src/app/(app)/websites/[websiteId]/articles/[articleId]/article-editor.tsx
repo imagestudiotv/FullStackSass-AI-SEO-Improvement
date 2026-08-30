@@ -1,6 +1,14 @@
 "use client";
 
-import { ArrowLeft, Eye, Loader2, Pencil, RefreshCw } from "lucide-react";
+import {
+  ArrowLeft,
+  ExternalLink,
+  Eye,
+  Loader2,
+  Pencil,
+  RefreshCw,
+  Upload,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
@@ -24,6 +32,10 @@ import {
   updateArticle,
   type ArticleDetail,
 } from "@/lib/articles/actions";
+import {
+  publishArticle,
+  type PublishLogRow,
+} from "@/lib/publishing/actions";
 
 const STATUS: Record<
   string,
@@ -44,9 +56,13 @@ const STEP_LABEL: Record<string, string> = {
 export function ArticleEditor({
   websiteId,
   article,
+  canPublish,
+  publishLogs,
 }: {
   websiteId: string;
   article: ArticleDetail;
+  canPublish: boolean;
+  publishLogs: PublishLogRow[];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -80,6 +96,20 @@ export function ArticleEditor({
         return;
       }
       toast.success("Saved");
+      router.refresh();
+    });
+  }
+
+  function handlePublish(status: "publish" | "draft") {
+    startTransition(async () => {
+      const result = await publishArticle(websiteId, article.id, status);
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success(
+        status === "publish" ? "Publishing to WordPress…" : "Sending as a draft…",
+      );
       router.refresh();
     });
   }
@@ -155,6 +185,50 @@ export function ArticleEditor({
         </Card>
       ) : null}
 
+      {publishLogs.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Publishing history</CardTitle>
+            <CardDescription>
+              Every attempt is recorded, so a failure is visible rather than
+              silent.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-2 text-sm">
+              {publishLogs.map((log) => (
+                <li key={log.id} className="flex flex-wrap items-center gap-2">
+                  <Badge
+                    variant={
+                      log.status === "published" ? "default" : "destructive"
+                    }
+                  >
+                    {log.status}
+                  </Badge>
+                  <span className="text-muted-foreground">
+                    {new Date(log.createdAt).toLocaleString()}
+                  </span>
+                  {log.remoteUrl ? (
+                    <a
+                      href={log.remoteUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 hover:underline"
+                    >
+                      View post
+                      <ExternalLink className="size-3" />
+                    </a>
+                  ) : null}
+                  {log.error ? (
+                    <span className="text-destructive">{log.error}</span>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      ) : null}
+
       {article.bodyHtml ? (
         <Tabs defaultValue="preview">
           <div className="flex items-center justify-between gap-4">
@@ -168,15 +242,37 @@ export function ArticleEditor({
                 Edit
               </TabsTrigger>
             </TabsList>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRegenerate}
-              disabled={pending || working}
-            >
-              <RefreshCw className="size-4" />
-              Rewrite
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRegenerate}
+                disabled={pending || working}
+              >
+                <RefreshCw className="size-4" />
+                Rewrite
+              </Button>
+              {canPublish ? (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePublish("draft")}
+                    disabled={pending || working}
+                  >
+                    Send as draft
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => handlePublish("publish")}
+                    disabled={pending || working}
+                  >
+                    <Upload className="size-4" />
+                    {article.status === "published" ? "Update post" : "Publish"}
+                  </Button>
+                </>
+              ) : null}
+            </div>
           </div>
 
           <TabsContent value="preview" className="mt-4">

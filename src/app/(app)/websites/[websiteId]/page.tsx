@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/auth-guard";
 import { requireWebsite, WebsiteNotFoundError } from "@/lib/tenant";
 import { listArticles } from "@/lib/articles/actions";
+import { getIntegration } from "@/lib/publishing/actions";
+import { WordPressPanel } from "./wordpress-panel";
 import { listCalendar, listKeywords } from "@/lib/keywords/actions";
 import { ResearchTabs } from "./research-tabs";
 import { WebsiteDetailClient } from "./website-detail-client";
@@ -30,10 +32,11 @@ export default async function WebsiteDetailPage({
     throw error;
   }
 
-  const [keywordRows, calendarRows, articleRows] = await Promise.all([
+  const [keywordRows, calendarRows, articleRows, integration] = await Promise.all([
     listKeywords(site.id),
     listCalendar(site.id),
     listArticles(site.id),
+    getIntegration(site.id),
   ]);
 
   return (
@@ -52,6 +55,9 @@ export default async function WebsiteDetailPage({
         status: site.status,
       }}
     />
+    <div className="mx-auto mt-6 max-w-3xl">
+      <WordPressPanel websiteId={site.id} integration={integration} />
+    </div>
     <div className="mx-auto mt-6 max-w-3xl">
       <ResearchTabs
         websiteId={site.id}
