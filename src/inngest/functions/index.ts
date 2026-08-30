@@ -5,12 +5,14 @@
  * runs — no error, no warning — so register it here and nowhere else.
  */
 import { analyzeWebsite } from "./analyze-website";
+import { auditWebsite } from "./audit-website";
 import { generateArticle } from "./generate-article";
 import { researchKeywords } from "./research-keywords";
 import { testRetry } from "./test-retry";
 
 export const functions = [
   analyzeWebsite,
+  auditWebsite,
   researchKeywords,
   generateArticle,
   testRetry,
