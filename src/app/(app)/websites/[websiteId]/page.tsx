@@ -3,6 +3,12 @@ import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/auth-guard";
 import { requireWebsite, WebsiteNotFoundError } from "@/lib/tenant";
 import { listArticles } from "@/lib/articles/actions";
+import {
+  getNetworkStatus,
+  listGiven,
+  listRequests,
+} from "@/lib/backlinks/actions";
+import { BacklinksPanel } from "./backlinks-panel";
 import { listCalendar, listKeywords } from "@/lib/keywords/actions";
 import { ResearchTabs } from "./research-tabs";
 import { WebsiteDetailClient } from "./website-detail-client";
@@ -30,11 +36,15 @@ export default async function WebsiteDetailPage({
     throw error;
   }
 
-  const [keywordRows, calendarRows, articleRows] = await Promise.all([
-    listKeywords(site.id),
-    listCalendar(site.id),
-    listArticles(site.id),
-  ]);
+  const [keywordRows, calendarRows, articleRows, network, requests, given] =
+    await Promise.all([
+      listKeywords(site.id),
+      listCalendar(site.id),
+      listArticles(site.id),
+      getNetworkStatus(site.id),
+      listRequests(site.id),
+      listGiven(site.id),
+    ]);
 
   return (
     <>
@@ -52,6 +62,14 @@ export default async function WebsiteDetailPage({
         status: site.status,
       }}
     />
+    <div className="mx-auto mt-6 max-w-3xl">
+      <BacklinksPanel
+        websiteId={site.id}
+        status={network}
+        requests={requests}
+        given={given}
+      />
+    </div>
     <div className="mx-auto mt-6 max-w-3xl">
       <ResearchTabs
         websiteId={site.id}
