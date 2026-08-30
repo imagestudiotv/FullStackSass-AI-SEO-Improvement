@@ -8,10 +8,12 @@ import { analyzeWebsite } from "./analyze-website";
 import { generateArticle } from "./generate-article";
 import { researchKeywords } from "./research-keywords";
 import { testRetry } from "./test-retry";
+import { verifyBacklinks } from "./verify-backlinks";
 
 export const functions = [
   analyzeWebsite,
   researchKeywords,
   generateArticle,
+  verifyBacklinks,
   testRetry,
 ];

@@ -17,6 +17,8 @@ import {
   type ArticleBrief,
 } from "@/lib/articles/generate";
 import { checkLimit, PRICING, track } from "@/lib/usage";
+import { backlinkRequests, placements } from "@/lib/db/schema";
+import { recordCredit } from "@/lib/backlinks/credits";
 
 /**
  * Article generation.
@@ -116,6 +118,26 @@ export const generateArticle = inngest.createFunction(
         customInstructions = item?.instructions ?? null;
       }
 
+      /**
+       * A backlink waiting on this site. Taken at brief time so the same
+       * placement cannot be handed to two articles running concurrently.
+       */
+      const [pending] = await db
+        .select({
+          placementId: placements.id,
+          targetUrl: backlinkRequests.targetUrl,
+          anchor: placements.anchor,
+        })
+        .from(placements)
+        .innerJoin(backlinkRequests, eq(placements.requestId, backlinkRequests.id))
+        .where(
+          and(
+            eq(placements.hostWebsiteId, article.websiteId),
+            eq(placements.status, "pending"),
+          ),
+        )
+        .limit(1);
+
       await db
         .update(articles)
         .set({
@@ -146,7 +168,11 @@ export const generateArticle = inngest.createFunction(
           customInstructions,
           tone: voice?.tone ?? null,
           avoid: voice?.avoid ?? null,
+          backlink: pending
+            ? { url: pending.targetUrl, anchor: pending.anchor }
+            : null,
         } satisfies ArticleBrief,
+        placementId: pending?.placementId ?? null,
       };
     });
 
@@ -221,6 +247,64 @@ export const generateArticle = inngest.createFunction(
           .update(calendarItems)
           .set({ status: "generated", updatedAt: new Date() })
           .where(eq(calendarItems.id, brief.calendarItemId));
+      }
+
+      /**
+       * The placement only counts once the link is actually in the article.
+       * Credits move here rather than at match time: paying for a link that
+       * was promised but never written would be paying for nothing.
+       *
+       * Verified against the generated HTML — if the model omitted the link,
+       * the placement stays pending for the next article rather than silently
+       * awarding a credit for a link nobody can see.
+       */
+      if (brief.placementId && brief.brief.backlink) {
+        const included = written.bodyHtml.includes(brief.brief.backlink.url);
+
+        if (included) {
+          await db
+            .update(placements)
+            .set({ articleId, status: "live", updatedAt: new Date() })
+            .where(eq(placements.id, brief.placementId));
+
+          const [placement] = await db
+            .select({
+              requestId: placements.requestId,
+              credits: placements.credits,
+            })
+            .from(placements)
+            .where(eq(placements.id, brief.placementId))
+            .limit(1);
+
+          if (placement) {
+            await db
+              .update(backlinkRequests)
+              .set({ status: "live", updatedAt: new Date() })
+              .where(eq(backlinkRequests.id, placement.requestId));
+
+            const [requester] = await db
+              .select({ organizationId: websites.organizationId })
+              .from(backlinkRequests)
+              .innerJoin(websites, eq(backlinkRequests.websiteId, websites.id))
+              .where(eq(backlinkRequests.id, placement.requestId))
+              .limit(1);
+
+            if (requester) {
+              await recordCredit(requester.organizationId, {
+                type: "link_received",
+                amount: -placement.credits,
+                referenceId: brief.placementId,
+                note: "Backlink placed",
+              });
+            }
+            await recordCredit(organizationId, {
+              type: "link_given",
+              amount: placement.credits,
+              referenceId: brief.placementId,
+              note: "Hosted a backlink",
+            });
+          }
+        }
       }
     });
 

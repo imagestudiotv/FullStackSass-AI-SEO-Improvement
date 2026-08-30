@@ -32,6 +32,12 @@ export type ArticleBrief = {
   /** Brand voice, when the site has one configured. */
   tone: string | null;
   avoid: string | null;
+  /**
+   * A backlink this article must include, when one has been matched. The link
+   * has to read as a natural citation, not an obvious paid placement — an
+   * article that visibly exists to carry a link helps nobody's rankings.
+   */
+  backlink: { url: string; anchor: string | null } | null;
 };
 
 export type ArticleOutline = {
@@ -97,6 +103,13 @@ function briefContext(brief: ArticleBrief): string {
     brief.avoid ? `Avoid: ${brief.avoid}` : null,
     brief.customInstructions
       ? `Specific instructions: ${brief.customInstructions}`
+      : null,
+    brief.backlink
+      ? `Include exactly one link to ${brief.backlink.url}${
+          brief.backlink.anchor
+            ? ` using wording close to "${brief.backlink.anchor}"`
+            : ""
+        }. Place it where a writer would naturally cite an outside source, in the body of a relevant section. Do not add a "resources" list for it, do not mention it twice, and do not describe the linked business beyond what the sentence needs.`
       : null,
   ]
     .filter(Boolean)
