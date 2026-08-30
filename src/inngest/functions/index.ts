@@ -5,6 +5,7 @@
  * runs — no error, no warning — so register it here and nowhere else.
  */
 import { analyzeWebsite } from "./analyze-website";
+import { researchKeywords } from "./research-keywords";
 import { testRetry } from "./test-retry";
 
-export const functions = [analyzeWebsite, testRetry];
+export const functions = [analyzeWebsite, researchKeywords, testRetry];

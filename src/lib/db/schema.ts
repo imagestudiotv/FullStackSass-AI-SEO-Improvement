@@ -296,7 +296,12 @@ export const keywords = pgTable(
     source: text("source"),
     ...timestamps,
   },
-  (table) => [index("keywords_website_idx").on(table.websiteId)],
+  (table) => [
+    index("keywords_website_idx").on(table.websiteId),
+    // Research re-runs return overlapping terms; without this the upsert has
+    // no conflict target and every run duplicates the whole keyword set.
+    uniqueIndex("keywords_website_term_uidx").on(table.websiteId, table.term),
+  ],
 );
 
 export const calendarItems = pgTable("calendar_items", {
