@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/auth-guard";
 import { requireWebsite, WebsiteNotFoundError } from "@/lib/tenant";
 import { listArticles } from "@/lib/articles/actions";
+import { getAnalyticsConnection, getPerformance } from "@/lib/analytics/actions";
+import { AnalyticsPanel } from "./analytics-panel";
 import { listCalendar, listKeywords } from "@/lib/keywords/actions";
 import { ResearchTabs } from "./research-tabs";
 import { WebsiteDetailClient } from "./website-detail-client";
@@ -30,11 +32,14 @@ export default async function WebsiteDetailPage({
     throw error;
   }
 
-  const [keywordRows, calendarRows, articleRows] = await Promise.all([
-    listKeywords(site.id),
-    listCalendar(site.id),
-    listArticles(site.id),
-  ]);
+  const [keywordRows, calendarRows, articleRows, connection, performance] =
+    await Promise.all([
+      listKeywords(site.id),
+      listCalendar(site.id),
+      listArticles(site.id),
+      getAnalyticsConnection(site.id),
+      getPerformance(site.id),
+    ]);
 
   return (
     <>
@@ -52,6 +57,13 @@ export default async function WebsiteDetailPage({
         status: site.status,
       }}
     />
+    <div className="mx-auto mt-6 max-w-3xl">
+      <AnalyticsPanel
+        websiteId={site.id}
+        connection={connection}
+        performance={performance}
+      />
+    </div>
     <div className="mx-auto mt-6 max-w-3xl">
       <ResearchTabs
         websiteId={site.id}
