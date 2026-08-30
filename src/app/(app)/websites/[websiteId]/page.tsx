@@ -2,6 +2,9 @@ import { notFound } from "next/navigation";
 
 import { requireSession } from "@/lib/auth-guard";
 import { requireWebsite, WebsiteNotFoundError } from "@/lib/tenant";
+import { listArticles } from "@/lib/articles/actions";
+import { listCalendar, listKeywords } from "@/lib/keywords/actions";
+import { ResearchTabs } from "./research-tabs";
 import { WebsiteDetailClient } from "./website-detail-client";
 
 export const metadata = { title: "Website" };
@@ -27,7 +30,14 @@ export default async function WebsiteDetailPage({
     throw error;
   }
 
+  const [keywordRows, calendarRows, articleRows] = await Promise.all([
+    listKeywords(site.id),
+    listCalendar(site.id),
+    listArticles(site.id),
+  ]);
+
   return (
+    <>
     <WebsiteDetailClient
       website={{
         id: site.id,
@@ -42,5 +52,15 @@ export default async function WebsiteDetailPage({
         status: site.status,
       }}
     />
+    <div className="mx-auto mt-6 max-w-3xl">
+      <ResearchTabs
+        websiteId={site.id}
+        keywords={keywordRows}
+        calendar={calendarRows}
+        articles={articleRows}
+        researching={site.status === "researching"}
+      />
+    </div>
+    </>
   );
 }

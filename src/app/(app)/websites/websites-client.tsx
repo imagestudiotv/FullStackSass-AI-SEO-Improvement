@@ -42,6 +42,7 @@ type WebsitesClientProps = {
 const STATUS_LABEL: Record<string, { label: string; variant: "default" | "secondary" | "destructive" }> = {
   pending: { label: "Waiting to analyse", variant: "secondary" },
   crawling: { label: "Analysing", variant: "secondary" },
+  researching: { label: "Researching keywords", variant: "secondary" },
   ready: { label: "Ready", variant: "default" },
   failed: { label: "Analysis failed", variant: "destructive" },
 };
