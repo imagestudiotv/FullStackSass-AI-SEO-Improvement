@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 
 import { requireSession } from "@/lib/auth-guard";
 import { getArticle } from "@/lib/articles/actions";
+import { getIntegration, listPublishLogs } from "@/lib/publishing/actions";
 import { WebsiteNotFoundError } from "@/lib/tenant";
 import { ArticleEditor } from "./article-editor";
 
@@ -32,5 +33,17 @@ export default async function ArticlePage({
     notFound();
   }
 
-  return <ArticleEditor websiteId={websiteId} article={article} />;
+  const [integration, logs] = await Promise.all([
+    getIntegration(websiteId),
+    listPublishLogs(websiteId, article.id),
+  ]);
+
+  return (
+    <ArticleEditor
+      websiteId={websiteId}
+      article={article}
+      canPublish={integration?.status === "connected"}
+      publishLogs={logs}
+    />
+  );
 }

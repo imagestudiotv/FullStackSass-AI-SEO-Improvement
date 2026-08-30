@@ -4,10 +4,12 @@ import { requireSession } from "@/lib/auth-guard";
 import { requireWebsite, WebsiteNotFoundError } from "@/lib/tenant";
 import { listArticles } from "@/lib/articles/actions";
 import { getLatestAudit } from "@/lib/audit/actions";
-import { AuditPanel } from "./audit-panel";
 import { listCalendar, listKeywords } from "@/lib/keywords/actions";
+import { getIntegration } from "@/lib/publishing/actions";
+import { AuditPanel } from "./audit-panel";
 import { ResearchTabs } from "./research-tabs";
 import { WebsiteDetailClient } from "./website-detail-client";
+import { WordPressPanel } from "./wordpress-panel";
 
 export const metadata = { title: "Website" };
 
@@ -32,45 +34,56 @@ export default async function WebsiteDetailPage({
     throw error;
   }
 
-  const [keywordRows, calendarRows, articleRows, auditData] = await Promise.all([
-    listKeywords(site.id),
-    listCalendar(site.id),
-    listArticles(site.id),
-    getLatestAudit(site.id),
-  ]);
+  /**
+   * Every panel's data is loaded together. Each feature branch appends its own
+   * entry here, so a merge conflict in this block must KEEP BOTH SIDES —
+   * choosing one silently deletes a working feature from the page rather than
+   * failing loudly.
+   */
+  const [keywordRows, calendarRows, articleRows, auditData, integration] =
+    await Promise.all([
+      listKeywords(site.id),
+      listCalendar(site.id),
+      listArticles(site.id),
+      getLatestAudit(site.id),
+      getIntegration(site.id),
+    ]);
 
   return (
     <>
-    <WebsiteDetailClient
-      website={{
-        id: site.id,
-        url: site.url,
-        domain: site.domain,
-        brandName: site.brandName,
-        industry: site.industry,
-        country: site.country,
-        language: site.language,
-        description: site.description,
-        targetAudience: site.targetAudience,
-        status: site.status,
-      }}
-    />
-    <div className="mx-auto mt-6 max-w-3xl">
-      <AuditPanel
-        websiteId={site.id}
-        audit={auditData.audit}
-        crawl={auditData.crawl}
+      <WebsiteDetailClient
+        website={{
+          id: site.id,
+          url: site.url,
+          domain: site.domain,
+          brandName: site.brandName,
+          industry: site.industry,
+          country: site.country,
+          language: site.language,
+          description: site.description,
+          targetAudience: site.targetAudience,
+          status: site.status,
+        }}
       />
-    </div>
-    <div className="mx-auto mt-6 max-w-3xl">
-      <ResearchTabs
-        websiteId={site.id}
-        keywords={keywordRows}
-        calendar={calendarRows}
-        articles={articleRows}
-        researching={site.status === "researching"}
-      />
-    </div>
+      <div className="mx-auto mt-6 max-w-3xl">
+        <AuditPanel
+          websiteId={site.id}
+          audit={auditData.audit}
+          crawl={auditData.crawl}
+        />
+      </div>
+      <div className="mx-auto mt-6 max-w-3xl">
+        <WordPressPanel websiteId={site.id} integration={integration} />
+      </div>
+      <div className="mx-auto mt-6 max-w-3xl">
+        <ResearchTabs
+          websiteId={site.id}
+          keywords={keywordRows}
+          calendar={calendarRows}
+          articles={articleRows}
+          researching={site.status === "researching"}
+        />
+      </div>
     </>
   );
 }
