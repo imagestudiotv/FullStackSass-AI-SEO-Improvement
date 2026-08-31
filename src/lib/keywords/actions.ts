@@ -54,6 +54,7 @@ export type CalendarRow = {
   intent: string | null;
   scheduledFor: Date | null;
   status: string;
+  customInstructions: string | null;
   clusterName: string | null;
 };
 
@@ -67,6 +68,7 @@ export async function listCalendar(websiteId: string): Promise<CalendarRow[]> {
       intent: calendarItems.intent,
       scheduledFor: calendarItems.scheduledFor,
       status: calendarItems.status,
+      customInstructions: calendarItems.customInstructions,
       clusterName: clusters.name,
     })
     .from(calendarItems)
@@ -99,7 +101,12 @@ export async function startResearch(
 export async function updateCalendarItem(
   websiteId: string,
   itemId: string,
-  input: { title?: string; scheduledFor?: string | null },
+  input: {
+    title?: string;
+    scheduledFor?: string | null;
+    /** Free-text steer for this one article; the generator already reads it. */
+    customInstructions?: string | null;
+  },
 ): Promise<ActionResult<null>> {
   const { site } = await requireWebsite(websiteId);
 
@@ -113,6 +120,10 @@ export async function updateCalendarItem(
     patch.scheduledFor = input.scheduledFor
       ? new Date(input.scheduledFor)
       : null;
+  }
+  if (input.customInstructions !== undefined) {
+    const note = input.customInstructions?.trim();
+    patch.customInstructions = note ? note.slice(0, 1000) : null;
   }
 
   // Scoped by websiteId as well as id: without it, a valid item id from

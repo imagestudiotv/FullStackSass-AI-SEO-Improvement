@@ -12,6 +12,7 @@ import {
   getPerformance,
 } from "@/lib/analytics/actions";
 import { listArticles } from "@/lib/articles/actions";
+import { getBrandVoice } from "@/lib/brand/actions";
 import { getLatestAudit } from "@/lib/audit/actions";
 import {
   getNetworkStatus,
@@ -68,6 +69,7 @@ export default async function WebsiteDetailPage({
     network,
     requests,
     given,
+    voice,
   ] = await Promise.all([
     listKeywords(site.id),
     listCalendar(site.id),
@@ -79,6 +81,7 @@ export default async function WebsiteDetailPage({
     getNetworkStatus(site.id),
     listRequests(site.id),
     listGiven(site.id),
+    getBrandVoice(site.id),
   ]);
 
   const analysed = site.status === "ready";
@@ -161,6 +164,7 @@ export default async function WebsiteDetailPage({
           targetAudience: site.targetAudience,
           status: site.status,
         }}
+        voice={voice}
       />
     </PageShell>
   );

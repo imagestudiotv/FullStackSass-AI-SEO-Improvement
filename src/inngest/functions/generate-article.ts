@@ -103,7 +103,7 @@ export const generateArticle = inngest.createFunction(
       }
 
       const [voice] = await db
-        .select({ tone: brandVoice.tone, avoid: brandVoice.avoid })
+        .select()
         .from(brandVoice)
         .where(eq(brandVoice.websiteId, article.websiteId))
         .limit(1);
@@ -168,6 +168,17 @@ export const generateArticle = inngest.createFunction(
           customInstructions,
           tone: voice?.tone ?? null,
           avoid: voice?.avoid ?? null,
+          vocabulary: voice?.vocabulary ?? null,
+          /**
+           * jsonb columns are typed as unknown, so each is narrowed before
+           * use. A malformed value degrades to an empty list rather than
+           * reaching the prompt as "[object Object]".
+           */
+          usps: Array.isArray(voice?.usps) ? (voice.usps as string[]) : [],
+          facts: Array.isArray(voice?.facts) ? (voice.facts as string[]) : [],
+          socialLinks: Array.isArray(voice?.socialLinks)
+            ? (voice.socialLinks as { platform: string; url: string }[])
+            : [],
           backlink: pending
             ? { url: pending.targetUrl, anchor: pending.anchor }
             : null,
