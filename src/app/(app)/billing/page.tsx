@@ -1,5 +1,6 @@
 import { getSubscription, isEntitled, listPlans } from "@/lib/billing";
 import { requireSession } from "@/lib/auth-guard";
+import { isPayPalAvailable } from "@/lib/paypal/actions";
 import { requireOrg } from "@/lib/tenant";
 import { BillingClient } from "./billing-client";
 
@@ -14,9 +15,10 @@ export default async function BillingPage({
   await requireSession();
   const { orgId } = await requireOrg();
 
-  const [plans, subscription] = await Promise.all([
+  const [plans, subscription, paypalAvailable] = await Promise.all([
     listPlans(),
     getSubscription(orgId),
+    isPayPalAvailable(),
   ]);
 
   const params = await searchParams;
@@ -28,6 +30,7 @@ export default async function BillingPage({
       plans={plans}
       subscription={subscription}
       entitled={isEntitled(subscription?.status)}
+      paypalAvailable={paypalAvailable}
       checkout={checkout}
     />
   );
