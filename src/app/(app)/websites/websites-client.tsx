@@ -8,13 +8,7 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -25,6 +19,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PageHeader, PageShell } from "@/components/ui/page-header";
+import { EmptyState } from "@/components/ui/states";
 import {
   addWebsite,
   deleteWebsite,
@@ -38,13 +34,21 @@ type WebsitesClientProps = {
   limit: LimitCheck;
 };
 
-/** Maps the stored status to something a customer can read. */
-const STATUS_LABEL: Record<string, { label: string; variant: "default" | "secondary" | "destructive" }> = {
-  pending: { label: "Waiting to analyse", variant: "secondary" },
-  crawling: { label: "Analysing", variant: "secondary" },
-  researching: { label: "Researching keywords", variant: "secondary" },
+/**
+ * Status in the customer's language.
+ *
+ * Stored values are internal job names. A small-business owner should read
+ * what is happening to their site, not what our worker is called.
+ */
+const STATUS: Record<
+  string,
+  { label: string; variant: "default" | "secondary" | "destructive" }
+> = {
+  pending: { label: "Waiting to start", variant: "secondary" },
+  crawling: { label: "Reading your site", variant: "secondary" },
+  researching: { label: "Finding opportunities", variant: "secondary" },
   ready: { label: "Ready", variant: "default" },
-  failed: { label: "Analysis failed", variant: "destructive" },
+  failed: { label: "Needs attention", variant: "destructive" },
 };
 
 export function WebsitesClient({ websites, limit }: WebsitesClientProps) {
@@ -52,8 +56,7 @@ export function WebsitesClient({ websites, limit }: WebsitesClientProps) {
   const [open, setOpen] = useState(false);
   const [url, setUrl] = useState("");
   const [pending, startTransition] = useTransition();
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   const atLimit = limit.limit !== UNLIMITED && websites.length >= limit.limit;
 
@@ -67,30 +70,16 @@ export function WebsitesClient({ websites, limit }: WebsitesClientProps) {
       }
       setUrl("");
       setOpen(false);
-      toast.success("Website added");
-      router.refresh();
-    });
-  }
-
-  function handleRetry(id: string) {
-    setRetryingId(id);
-    startTransition(async () => {
-      const result = await reanalyzeWebsite(id);
-      setRetryingId(null);
-      if (!result.ok) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success("Analysis restarted");
+      toast.success("Website added — we are reading it now");
       router.refresh();
     });
   }
 
   function handleDelete(id: string, domain: string) {
-    setDeletingId(id);
+    setBusyId(id);
     startTransition(async () => {
       const result = await deleteWebsite(id);
-      setDeletingId(null);
+      setBusyId(null);
       if (!result.ok) {
         toast.error(result.error);
         return;
@@ -100,115 +89,131 @@ export function WebsitesClient({ websites, limit }: WebsitesClientProps) {
     });
   }
 
+  function handleRetry(id: string) {
+    setBusyId(id);
+    startTransition(async () => {
+      const result = await reanalyzeWebsite(id);
+      setBusyId(null);
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success("Trying again");
+      router.refresh();
+    });
+  }
+
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Websites</h1>
-          <p className="text-sm text-muted-foreground">
-            {limit.limit === UNLIMITED
-              ? `${websites.length} connected`
-              : `${websites.length} of ${limit.limit} used on your plan`}
-          </p>
-        </div>
-        <Button onClick={() => setOpen(true)} disabled={atLimit}>
-          <Plus className="size-4" />
-          Add website
-        </Button>
-      </div>
+    <PageShell>
+      <PageHeader
+        title="Websites"
+        description={
+          limit.limit === UNLIMITED
+            ? `${websites.length} connected`
+            : `${websites.length} of ${limit.limit} included in your plan`
+        }
+        actions={
+          <Button size="sm" onClick={() => setOpen(true)} disabled={atLimit}>
+            <Plus className="size-4" />
+            Add website
+          </Button>
+        }
+      />
 
       {atLimit ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Plan limit reached</CardTitle>
-            <CardDescription>
-              Your plan includes {limit.limit}{" "}
-              {limit.limit === 1 ? "website" : "websites"}.{" "}
-              <Link href="/billing" className="underline underline-offset-4">
-                Upgrade
-              </Link>{" "}
-              to add more.
-            </CardDescription>
-          </CardHeader>
-        </Card>
+        <div className="rounded-lg border bg-background px-4 py-3 text-sm">
+          <span className="text-muted-foreground">
+            Your plan includes {limit.limit}{" "}
+            {limit.limit === 1 ? "website" : "websites"}.{" "}
+          </span>
+          <Link href="/billing" className="font-medium underline underline-offset-4">
+            Upgrade to add more
+          </Link>
+        </div>
       ) : null}
 
       {websites.length === 0 ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Globe className="size-4" />
-              No websites yet
-            </CardTitle>
-            <CardDescription>
-              Add your website and we will analyse it, then build a keyword
-              strategy and content plan around it.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+        <EmptyState
+          icon={Globe}
+          title="No websites yet"
+          description="Add your website and we will read it, work out what your business does, and find the search terms worth going after."
+          action={
             <Button onClick={() => setOpen(true)} disabled={atLimit}>
               <Plus className="size-4" />
               Add your first website
             </Button>
-          </CardContent>
-        </Card>
+          }
+        />
       ) : (
         <div className="grid gap-3">
           {websites.map((site) => {
-            const status = STATUS_LABEL[site.status] ?? {
+            const status = STATUS[site.status] ?? {
               label: site.status,
               variant: "secondary" as const,
             };
+            const busy = pending && busyId === site.id;
+
             return (
-              <Card key={site.id}>
-                <CardHeader className="flex-row items-center justify-between gap-4 space-y-0">
-                  <div className="min-w-0">
-                    <CardTitle className="flex items-center gap-2 text-base">
-                      <Link
-                        href={`/websites/${site.id}`}
-                        className="truncate hover:underline"
-                      >
-                        {site.brandName || site.domain}
-                      </Link>
-                      <Badge variant={status.variant}>{status.label}</Badge>
-                    </CardTitle>
-                    <CardDescription className="truncate">
-                      {site.url}
-                      {site.industry ? ` · ${site.industry}` : ""}
-                    </CardDescription>
+              <Card
+                key={site.id}
+                className="transition-colors hover:border-foreground/20"
+              >
+                <CardContent className="flex flex-wrap items-center gap-4 py-4">
+                  <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted">
+                    <Globe
+                      className="size-4 text-muted-foreground"
+                      aria-hidden="true"
+                    />
                   </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                  {site.status === "failed" ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      aria-label={`Retry analysis for ${site.domain}`}
-                      disabled={pending && retryingId === site.id}
-                      onClick={() => handleRetry(site.id)}
+
+                  <div className="min-w-0 flex-1">
+                    <Link
+                      href={`/websites/${site.id}`}
+                      className="block truncate font-medium hover:underline"
                     >
-                      {pending && retryingId === site.id ? (
+                      {site.brandName || site.domain}
+                    </Link>
+                    <p className="truncate text-sm text-muted-foreground">
+                      {site.domain}
+                      {site.industry ? ` · ${site.industry}` : ""}
+                    </p>
+                  </div>
+
+                  <Badge variant={status.variant} className="shrink-0">
+                    {status.label}
+                  </Badge>
+
+                  <div className="flex shrink-0 items-center gap-1">
+                    {site.status === "failed" ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={busy}
+                        onClick={() => handleRetry(site.id)}
+                      >
+                        {busy ? (
+                          <Loader2 className="size-4 animate-spin" />
+                        ) : (
+                          <RefreshCw className="size-4" />
+                        )}
+                        Try again
+                      </Button>
+                    ) : null}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Remove ${site.domain}`}
+                      disabled={busy}
+                      onClick={() => handleDelete(site.id, site.domain)}
+                    >
+                      {busy && site.status !== "failed" ? (
                         <Loader2 className="size-4 animate-spin" />
                       ) : (
-                        <RefreshCw className="size-4" />
+                        <Trash2 className="size-4" />
                       )}
-                      Retry
                     </Button>
-                  ) : null}
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`Remove ${site.domain}`}
-                    disabled={pending && deletingId === site.id}
-                    onClick={() => handleDelete(site.id, site.domain)}
-                  >
-                    {pending && deletingId === site.id ? (
-                      <Loader2 className="size-4 animate-spin" />
-                    ) : (
-                      <Trash2 className="size-4" />
-                    )}
-                  </Button>
                   </div>
-                </CardHeader>
+                </CardContent>
               </Card>
             );
           })}
@@ -221,8 +226,8 @@ export function WebsitesClient({ websites, limit }: WebsitesClientProps) {
             <DialogHeader>
               <DialogTitle>Add a website</DialogTitle>
               <DialogDescription>
-                Enter the address of the site you want to rank. We will read it
-                and fill in the details for you.
+                Enter the address of the site you want found on Google. We will
+                read it and fill in the details for you.
               </DialogDescription>
             </DialogHeader>
 
@@ -247,12 +252,19 @@ export function WebsitesClient({ websites, limit }: WebsitesClientProps) {
                 Cancel
               </Button>
               <Button type="submit" disabled={pending}>
-                {pending ? "Adding…" : "Add website"}
+                {pending ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" />
+                    Adding…
+                  </>
+                ) : (
+                  "Add website"
+                )}
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageShell>
   );
 }

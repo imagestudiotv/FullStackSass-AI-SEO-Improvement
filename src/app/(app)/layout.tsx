@@ -30,24 +30,32 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   });
 
   return (
-    <div className="flex min-h-svh flex-col">
-      <header className="sticky top-0 z-40 flex h-14 items-center gap-2 border-b bg-background px-4">
+    <div className="flex min-h-svh flex-col bg-muted/30">
+      <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <MobileNav />
-        <Link href="/dashboard" className="font-semibold tracking-tight">
-          AI SEO Platform
+        <Link
+          href="/dashboard"
+          className="flex items-center gap-2 font-semibold tracking-tight"
+        >
+          <span className="flex size-6 items-center justify-center rounded-md bg-primary text-[11px] font-bold text-primary-foreground">
+            AI
+          </span>
+          <span className="hidden sm:inline">SEO Platform</span>
         </Link>
-        <div className="ml-2 hidden sm:block">
+
+        <div className="hidden sm:block">
           <OrgSwitcher
             currentOrgId={orgId}
             currentOrgName={org?.name ?? "Workspace"}
             role={role}
           />
         </div>
-        <div className="ml-auto flex items-center gap-2">
+
+        <div className="ml-auto flex items-center gap-1">
           {admin ? (
             <Link
               href="/admin"
-              className="rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+              className="rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
             >
               Admin
             </Link>
@@ -61,12 +69,19 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       </header>
 
       <div className="flex flex-1">
-        <aside className="hidden w-60 shrink-0 border-r md:block">
-          <div className="sticky top-14">
+        <aside className="hidden w-60 shrink-0 border-r bg-background md:block">
+          <div className="sticky top-14 py-4">
             <SidebarNav />
           </div>
         </aside>
-        <main className="flex-1 p-4 md:p-6">{children}</main>
+        {/*
+          The page content sits on a slightly tinted ground while cards are
+          plain background, so cards read as raised surfaces without needing
+          heavy shadows.
+        */}
+        <main className="min-w-0 flex-1 px-4 py-6 md:px-8 md:py-8">
+          {children}
+        </main>
       </div>
     </div>
   );

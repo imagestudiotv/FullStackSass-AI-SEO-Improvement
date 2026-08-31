@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PageShell } from "@/components/ui/page-header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   updateAnyArticle,
@@ -57,7 +58,7 @@ export function AdminArticleEditor({
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <PageShell>
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-2">
           <Link href="/admin/articles">
@@ -143,6 +144,6 @@ export function AdminArticleEditor({
           </Card>
         </TabsContent>
       </Tabs>
-    </div>
+    </PageShell>
   );
 }

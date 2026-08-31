@@ -1,4 +1,11 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { PageHeader, PageShell } from "@/components/ui/page-header";
 import { requireSession } from "@/lib/auth-guard";
 
 export const metadata = { title: "Settings" };
@@ -7,13 +14,11 @@ export default async function SettingsPage() {
   const session = await requireSession();
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
-        <p className="text-sm text-muted-foreground">
-          Account and workspace configuration.
-        </p>
-      </div>
+    <PageShell>
+      <PageHeader
+        title="Settings"
+        description="Your account details."
+      />
 
       <Card>
         <CardHeader>
@@ -21,18 +26,18 @@ export default async function SettingsPage() {
           <CardDescription>Signed in as {session.user.email}</CardDescription>
         </CardHeader>
         <CardContent>
-          <dl className="grid gap-3 text-sm sm:grid-cols-2">
-            <div>
+          <dl className="grid gap-4 text-sm sm:grid-cols-2">
+            <div className="space-y-0.5">
               <dt className="text-muted-foreground">Name</dt>
-              <dd>{session.user.name || "—"}</dd>
+              <dd className="font-medium">{session.user.name || "—"}</dd>
             </div>
-            <div>
+            <div className="space-y-0.5">
               <dt className="text-muted-foreground">Email</dt>
-              <dd>{session.user.email}</dd>
+              <dd className="font-medium">{session.user.email}</dd>
             </div>
           </dl>
         </CardContent>
       </Card>
-    </div>
+    </PageShell>
   );
 }

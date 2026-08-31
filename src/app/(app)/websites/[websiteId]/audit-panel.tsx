@@ -63,7 +63,7 @@ export function AuditPanel({ websiteId, audit, crawl }: AuditPanelProps) {
         toast.error(result.error);
         return;
       }
-      toast.success("Checking your site…");
+      toast.success("Checking your website…");
       router.refresh();
     });
   }
@@ -74,11 +74,10 @@ export function AuditPanel({ websiteId, audit, crawl }: AuditPanelProps) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Loader2 className="size-4 animate-spin" />
-            Checking your site
+            Checking your website
           </CardTitle>
           <CardDescription>
-            {crawl.pagesCrawled} of {crawl.pagesFound} pages checked. This takes
-            a minute or two.
+            {crawl.pagesCrawled} of {crawl.pagesFound} pages checked so far.
           </CardDescription>
         </CardHeader>
       </Card>
@@ -91,16 +90,16 @@ export function AuditPanel({ websiteId, audit, crawl }: AuditPanelProps) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Stethoscope className="size-4" />
-            SEO health check
+            Website health
           </CardTitle>
           <CardDescription>
-            We will crawl your pages and list what is holding your rankings
-            back, with the exact page each problem is on.
+            We check your pages and list what is holding your website back on
+            Google, with the exact page each problem is on.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Button onClick={handleAudit} disabled={pending}>
-            {pending ? "Starting…" : "Run health check"}
+            {pending ? "Starting…" : "Check my website"}
           </Button>
           {crawl?.status === "failed" && crawl.error ? (
             <p className="mt-3 text-sm text-destructive">{crawl.error}</p>
@@ -120,7 +119,7 @@ export function AuditPanel({ websiteId, audit, crawl }: AuditPanelProps) {
           <div>
             <CardTitle className="flex items-center gap-2 text-base">
               <ShieldCheck className="size-4" />
-              SEO health check
+              Website health
             </CardTitle>
             <CardDescription>
               {audit.summary?.pagesCrawled ?? 0} pages checked on{" "}
@@ -149,7 +148,7 @@ export function AuditPanel({ websiteId, audit, crawl }: AuditPanelProps) {
 
         {audit.issues.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            No problems found. Re-run the check after you make changes.
+            Nothing needs attention. Check again after you make changes.
           </p>
         ) : (
           <ul className="divide-y">
@@ -203,7 +202,7 @@ export function AuditPanel({ websiteId, audit, crawl }: AuditPanelProps) {
             onClick={handleAudit}
             disabled={pending}
           >
-            {pending ? "Starting…" : "Re-run check"}
+            {pending ? "Starting…" : "Check again"}
           </Button>
         </div>
       </CardContent>

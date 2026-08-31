@@ -47,11 +47,11 @@ const REQUEST_STATUS: Record<
   string,
   { label: string; variant: "default" | "secondary" | "destructive" }
 > = {
-  pending: { label: "Looking for a match", variant: "secondary" },
-  matched: { label: "Matched, awaiting article", variant: "secondary" },
+  pending: { label: "Finding a website", variant: "secondary" },
+  matched: { label: "Waiting for their next article", variant: "secondary" },
   live: { label: "Live", variant: "default" },
   cancelled: { label: "Cancelled", variant: "destructive" },
-  removed: { label: "Removed, credit refunded", variant: "destructive" },
+  removed: { label: "Removed — credit returned", variant: "destructive" },
 };
 
 export function BacklinksPanel({ websiteId, status, requests, given }: Props) {
@@ -123,17 +123,17 @@ export function BacklinksPanel({ websiteId, status, requests, given }: Props) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Link2 className="size-4" />
-            Backlink network
+            Links from other websites
           </CardTitle>
           <CardDescription>
-            Host a link in your articles for another business, and earn a credit
-            to get a link back from a different site. Nobody links to the person
-            who linked to them, so the links stay natural.
+            Google trusts a website more when other sites link to it. Mention
+            another business in your articles to earn a credit, then spend it to
+            get a mention on someone else’s site.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="max-w-40 space-y-1.5">
-            <Label htmlFor="cap">Links you will host per month</Label>
+            <Label htmlFor="cap">Mentions you will include each month</Label>
             <Input
               id="cap"
               type="number"
@@ -143,13 +143,14 @@ export function BacklinksPanel({ websiteId, status, requests, given }: Props) {
               onChange={(e) => setCap(e.target.value)}
             />
             <p className="text-xs text-muted-foreground">
-              Keep this low. A site full of outbound links looks manipulated.
+              Keep this low. A page full of links to other businesses looks
+              suspicious to Google.
             </p>
           </div>
         </CardContent>
         <CardFooter>
           <Button onClick={() => handleJoin(true)} disabled={pending}>
-            Join the network
+            Join
           </Button>
         </CardFooter>
       </Card>
@@ -163,7 +164,7 @@ export function BacklinksPanel({ websiteId, status, requests, given }: Props) {
           <div>
             <CardTitle className="flex items-center gap-2 text-base">
               <Link2 className="size-4" />
-              Backlink network
+              Links from other websites
               <Badge>In the network</Badge>
             </CardTitle>
             <CardDescription>
@@ -193,7 +194,7 @@ export function BacklinksPanel({ websiteId, status, requests, given }: Props) {
               Links to you ({requests.length})
             </TabsTrigger>
             <TabsTrigger value="given">
-              Links you host ({given.length})
+              Links you give ({given.length})
             </TabsTrigger>
           </TabsList>
 
@@ -201,7 +202,7 @@ export function BacklinksPanel({ websiteId, status, requests, given }: Props) {
             {showRequest ? (
               <form onSubmit={handleRequest} className="space-y-3 rounded-lg border p-4">
                 <div className="space-y-1.5">
-                  <Label htmlFor="target">Page you want links to</Label>
+                  <Label htmlFor="target">Which of your pages should be linked to?</Label>
                   <Input
                     id="target"
                     value={targetUrl}
@@ -246,7 +247,7 @@ export function BacklinksPanel({ websiteId, status, requests, given }: Props) {
 
             {status.available < 1 && !showRequest ? (
               <p className="text-sm text-muted-foreground">
-                No credits left. Host a link for someone else to earn one, or
+                No credits left. Include a link for someone else to earn one, or
                 wait for next month&apos;s allowance.
               </p>
             ) : null}
@@ -323,8 +324,8 @@ export function BacklinksPanel({ websiteId, status, requests, given }: Props) {
           <TabsContent value="given" className="mt-4">
             {given.length === 0 ? (
               <p className="py-2 text-sm text-muted-foreground">
-                You have not hosted any links yet. When one of your articles is
-                written, a link may be included and you will earn a credit.
+                None yet. When we write your next article, a link to another
+                business may be included and you will earn a credit.
               </p>
             ) : (
               <div className="overflow-x-auto">
@@ -371,7 +372,7 @@ export function BacklinksPanel({ websiteId, status, requests, given }: Props) {
           onClick={() => handleJoin(false)}
           disabled={pending}
         >
-          Leave the network
+          Leave
         </Button>
       </CardFooter>
     </Card>

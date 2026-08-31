@@ -74,13 +74,18 @@ const INTENT_VARIANT: Record<string, "default" | "secondary" | "outline"> = {
   navigational: "outline",
 };
 
-/** Difficulty is 0-100; the bands are the usual SEO reading of it. */
+/**
+ * Competition in words, not a 0-100 score.
+ *
+ * "34" means nothing to a dentist. "Low" tells them whether it is worth
+ * going after, which is the only decision they need to make.
+ */
 function difficultyLabel(value: number | null): string {
   if (value === null) return "—";
-  if (value < 30) return `${value} · easy`;
-  if (value < 50) return `${value} · medium`;
-  if (value < 70) return `${value} · hard`;
-  return `${value} · very hard`;
+  if (value < 30) return "Low";
+  if (value < 50) return "Medium";
+  if (value < 70) return "High";
+  return "Very high";
 }
 
 export function ResearchTabs({
@@ -193,11 +198,11 @@ export function ResearchTabs({
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Sparkles className="size-4" />
-            No keyword research yet
+            No opportunities found yet
           </CardTitle>
           <CardDescription>
-            We will find the keywords worth targeting, group them into topics,
-            and turn those into a content plan.
+            We will find the search terms your customers use, group them into
+            topics, and turn those into a plan of articles to publish.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -205,12 +210,12 @@ export function ResearchTabs({
             {researching ? (
               <>
                 <Loader2 className="size-4 animate-spin" />
-                Researching…
+                Looking…
               </>
             ) : (
               <>
                 <Search className="size-4" />
-                Research keywords
+                Find opportunities
               </>
             )}
           </Button>
@@ -233,7 +238,7 @@ export function ResearchTabs({
           </TabsTrigger>
           <TabsTrigger value="keywords">
             <Search className="size-4" />
-            Keywords ({keywords.length})
+            Opportunities ({keywords.length})
           </TabsTrigger>
         </TabsList>
         <Button
@@ -247,7 +252,7 @@ export function ResearchTabs({
           ) : (
             <Search className="size-4" />
           )}
-          {researching ? "Researching…" : "Re-run research"}
+          {researching ? "Looking…" : "Refresh"}
         </Button>
       </div>
 
@@ -444,8 +449,8 @@ export function ResearchTabs({
           <CardHeader>
             <CardTitle className="text-base">Keywords</CardTitle>
             <CardDescription>
-              Ranked by opportunity: search demand weighed against how hard the
-              term is to rank for, and whether the searcher intends to buy.
+              Ranked by what you can realistically win. A term with fewer searches
+              you can rank for beats a popular one you cannot.
             </CardDescription>
           </CardHeader>
           <CardContent className="overflow-x-auto">
@@ -453,10 +458,10 @@ export function ResearchTabs({
               <TableHeader>
                 <TableRow>
                   <TableHead>Keyword</TableHead>
-                  <TableHead className="w-20">Score</TableHead>
-                  <TableHead className="w-24">Volume</TableHead>
+                  <TableHead className="w-24">Opportunity</TableHead>
+                  <TableHead className="w-28">Searches / mo</TableHead>
                   <TableHead className="hidden w-32 sm:table-cell">
-                    Difficulty
+                    Competition
                   </TableHead>
                   <TableHead className="hidden md:table-cell">Topic</TableHead>
                   <TableHead className="w-10" />

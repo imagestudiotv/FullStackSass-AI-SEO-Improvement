@@ -1,5 +1,10 @@
+import { ArrowLeft, ExternalLink } from "lucide-react";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { PageHeader, PageShell } from "@/components/ui/page-header";
 import { requireSession } from "@/lib/auth-guard";
 import { requireWebsite, WebsiteNotFoundError } from "@/lib/tenant";
 import {
@@ -76,8 +81,73 @@ export default async function WebsiteDetailPage({
     listGiven(site.id),
   ]);
 
+  const analysed = site.status === "ready";
+
   return (
-    <>
+    /**
+     * One shell, one header, then the panels in order of what the customer
+     * cares about first: what is wrong, what is working, then the plumbing.
+     * Each panel previously repeated its own centred container, so the page
+     * was a stack of disconnected cards rather than one page.
+     */
+    <PageShell>
+      <div className="space-y-3">
+        <Button variant="ghost" size="sm" asChild className="-ml-2">
+          <Link href="/websites">
+            <ArrowLeft className="size-4" />
+            All websites
+          </Link>
+        </Button>
+
+        <PageHeader
+          title={site.brandName || site.domain}
+          actions={
+            !analysed ? (
+              <Badge variant="secondary">Still setting up</Badge>
+            ) : null
+          }
+        />
+
+        <a
+          href={site.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:underline"
+        >
+          {site.domain}
+          <ExternalLink className="size-3" aria-hidden="true" />
+        </a>
+      </div>
+
+      <AuditPanel
+        websiteId={site.id}
+        audit={auditData.audit}
+        crawl={auditData.crawl}
+      />
+
+      <ResearchTabs
+        websiteId={site.id}
+        keywords={keywordRows}
+        calendar={calendarRows}
+        articles={articleRows}
+        researching={site.status === "researching"}
+      />
+
+      <AnalyticsPanel
+        websiteId={site.id}
+        connection={connection}
+        performance={performance}
+      />
+
+      <BacklinksPanel
+        websiteId={site.id}
+        status={network}
+        requests={requests}
+        given={given}
+      />
+
+      <WordPressPanel websiteId={site.id} integration={integration} />
+
       <WebsiteDetailClient
         website={{
           id: site.id,
@@ -92,40 +162,6 @@ export default async function WebsiteDetailPage({
           status: site.status,
         }}
       />
-      <div className="mx-auto mt-6 max-w-3xl">
-        <AuditPanel
-          websiteId={site.id}
-          audit={auditData.audit}
-          crawl={auditData.crawl}
-        />
-      </div>
-      <div className="mx-auto mt-6 max-w-3xl">
-        <AnalyticsPanel
-          websiteId={site.id}
-          connection={connection}
-          performance={performance}
-        />
-      </div>
-      <div className="mx-auto mt-6 max-w-3xl">
-        <WordPressPanel websiteId={site.id} integration={integration} />
-      </div>
-      <div className="mx-auto mt-6 max-w-3xl">
-        <BacklinksPanel
-          websiteId={site.id}
-          status={network}
-          requests={requests}
-          given={given}
-        />
-      </div>
-      <div className="mx-auto mt-6 max-w-3xl">
-        <ResearchTabs
-          websiteId={site.id}
-          keywords={keywordRows}
-          calendar={calendarRows}
-          articles={articleRows}
-          researching={site.status === "researching"}
-        />
-      </div>
-    </>
+    </PageShell>
   );
 }

@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { listAllArticles } from "@/lib/admin/actions";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader, PageShell } from "@/components/ui/page-header";
 import {
   Card,
   CardContent,
@@ -33,13 +34,11 @@ export default async function AdminArticlesPage({
   const rows = await listAllArticles({ search, status });
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Articles</h1>
-        <p className="text-sm text-muted-foreground">
-          Every article on the platform. Open one to read or edit it.
-        </p>
-      </div>
+    <PageShell width="wide">
+      <PageHeader
+        title="Articles"
+        description="Every article on the platform. Open one to read or edit it."
+      />
 
       <div className="flex flex-wrap items-center gap-3">
         <AdminSearch
@@ -119,6 +118,6 @@ export default async function AdminArticlesPage({
           </Table>
         </CardContent>
       </Card>
-    </div>
+    </PageShell>
   );
 }

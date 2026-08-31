@@ -294,24 +294,32 @@ export function scoreAudit(issues: Issue[], pagesCrawled: number): AuditSummary 
   return { score, pagesCrawled, counts, topIssues };
 }
 
-/** Human labels for issue types, used by the UI. */
+/**
+ * Labels shown to the customer.
+ *
+ * Deliberately free of SEO vocabulary. A dentist does not know what a
+ * canonical tag is and should not have to; they need to know what is wrong
+ * with their website in words they can act on. The technical detail still
+ * lives in each issue's `detail` text for anyone who wants it.
+ */
 export const ISSUE_LABELS: Record<string, string> = {
-  noindex: "Blocked from search engines",
-  broken_page: "Page returns an error",
-  missing_title: "Missing title tag",
-  title_too_long: "Title too long",
-  title_too_short: "Title too short",
-  missing_meta_description: "Missing meta description",
-  meta_description_too_long: "Meta description too long",
-  meta_description_too_short: "Meta description too short",
-  missing_h1: "Missing H1 heading",
-  multiple_h1: "More than one H1",
+  noindex: "Hidden from Google",
+  broken_page: "Page is broken",
+  unreachable_page: "Page could not be opened",
+  missing_title: "Page has no title",
+  title_too_long: "Title is too long",
+  title_too_short: "Title is very short",
+  missing_meta_description: "No description for search results",
+  meta_description_too_long: "Search description is too long",
+  meta_description_too_short: "Search description is very short",
+  missing_h1: "No main heading",
+  multiple_h1: "More than one main heading",
   thin_content: "Not enough content",
-  images_missing_alt: "Images without alt text",
-  missing_canonical: "No canonical link",
-  missing_lang: "No language set",
-  large_page: "Page is heavy",
-  duplicate_title: "Duplicate titles",
-  duplicate_meta_description: "Duplicate meta descriptions",
-  no_internal_links: "No internal links",
+  images_missing_alt: "Images have no description",
+  missing_canonical: "Duplicate page addresses",
+  missing_lang: "Page language not set",
+  large_page: "Page is slow to load",
+  duplicate_title: "Two pages share a title",
+  duplicate_meta_description: "Two pages share a description",
+  no_internal_links: "Pages are not linked together",
 };

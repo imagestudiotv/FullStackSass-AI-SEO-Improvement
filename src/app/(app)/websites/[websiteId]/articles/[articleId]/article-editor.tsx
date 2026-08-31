@@ -25,6 +25,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { PageShell } from "@/components/ui/page-header";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -41,15 +42,15 @@ const STATUS: Record<
   string,
   { label: string; variant: "default" | "secondary" | "destructive" }
 > = {
-  queued: { label: "Queued", variant: "secondary" },
-  generating: { label: "Writing…", variant: "secondary" },
+  queued: { label: "Waiting", variant: "secondary" },
+  generating: { label: "Being written", variant: "secondary" },
   draft: { label: "Draft", variant: "default" },
   published: { label: "Published", variant: "default" },
   failed: { label: "Failed", variant: "destructive" },
 };
 
 const STEP_LABEL: Record<string, string> = {
-  outline: "Planning the structure",
+  outline: "Planning what to cover",
   body: "Writing the article",
 };
 
@@ -132,7 +133,7 @@ export function ArticleEditor({
   };
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <PageShell>
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-2">
           <Link href={`/websites/${websiteId}`}>
@@ -162,7 +163,7 @@ export function ArticleEditor({
                 : "Starting"}
             </CardTitle>
             <CardDescription>
-              This takes about a minute. The page updates on its own.
+              This usually takes about a minute. The page updates on its own.
             </CardDescription>
           </CardHeader>
         </Card>
@@ -171,7 +172,7 @@ export function ArticleEditor({
       {article.status === "failed" ? (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Generation failed</CardTitle>
+            <CardTitle className="text-base">We could not write this one</CardTitle>
             <CardDescription>
               {article.error ?? "Something went wrong writing this article."}
             </CardDescription>
@@ -324,7 +325,7 @@ export function ArticleEditor({
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="body">Body (HTML)</Label>
+                  <Label htmlFor="body">Article content</Label>
                   <textarea
                     id="body"
                     rows={20}
@@ -343,6 +344,6 @@ export function ArticleEditor({
           </TabsContent>
         </Tabs>
       ) : null}
-    </div>
+    </PageShell>
   );
 }

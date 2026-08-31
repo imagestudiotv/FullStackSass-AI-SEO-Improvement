@@ -150,11 +150,11 @@ export function AnalyticsPanel({ websiteId, connection, performance }: Props) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <BarChart3 className="size-4" />
-            Search performance
+            Google results
           </CardTitle>
           <CardDescription>
-            Connect Google Search Console and Analytics to see what your pages
-            actually rank for and how much traffic they bring.
+            Connect Google to see which searches bring people to your website,
+            and how that changes as we publish.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -178,12 +178,12 @@ export function AnalyticsPanel({ websiteId, connection, performance }: Props) {
           <div>
             <CardTitle className="flex items-center gap-2 text-base">
               <BarChart3 className="size-4" />
-              Search performance
+              Google results
               <Badge>Connected</Badge>
             </CardTitle>
             <CardDescription>
               {performance.hasData
-                ? "Last 28 days from Search Console and Analytics."
+                ? "Last 28 days."
                 : "Choose your properties below, then import."}
             </CardDescription>
           </div>
@@ -198,13 +198,17 @@ export function AnalyticsPanel({ websiteId, connection, performance }: Props) {
                 <div className="text-2xl font-semibold tabular-nums">
                   {formatNumber(performance.clicks)}
                 </div>
-                <div className="text-xs text-muted-foreground">Clicks</div>
+                <div className="text-xs text-muted-foreground">
+                  Visitors from Google
+                </div>
               </div>
               <div>
                 <div className="text-2xl font-semibold tabular-nums">
                   {formatNumber(performance.impressions)}
                 </div>
-                <div className="text-xs text-muted-foreground">Impressions</div>
+                <div className="text-xs text-muted-foreground">
+                  Times you appeared
+                </div>
               </div>
               <div>
                 <div className="text-2xl font-semibold tabular-nums">
@@ -212,26 +216,30 @@ export function AnalyticsPanel({ websiteId, connection, performance }: Props) {
                     ? performance.averagePosition.toFixed(1)
                     : "—"}
                 </div>
-                <div className="text-xs text-muted-foreground">Avg position</div>
+                <div className="text-xs text-muted-foreground">
+                  Average ranking
+                </div>
               </div>
               <div>
                 <div className="text-2xl font-semibold tabular-nums">
                   {formatNumber(performance.sessions)}
                 </div>
-                <div className="text-xs text-muted-foreground">Sessions</div>
+                <div className="text-xs text-muted-foreground">Website visits</div>
               </div>
             </div>
 
             {performance.topQueries.length > 0 ? (
               <div className="overflow-x-auto">
-                <p className="mb-2 text-sm font-medium">Top search terms</p>
+                <p className="mb-2 text-sm font-medium">
+                  What people searched to find you
+                </p>
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Query</TableHead>
-                      <TableHead className="w-24">Clicks</TableHead>
+                      <TableHead className="w-24">Visitors</TableHead>
                       <TableHead className="hidden w-28 sm:table-cell">
-                        Impressions
+                        Appeared
                       </TableHead>
                     </TableRow>
                   </TableHeader>

@@ -10,7 +10,7 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
 
   return (
-    <nav className="flex flex-col gap-1 p-2">
+    <nav className="flex flex-col gap-0.5 px-3" aria-label="Main">
       {navItems.map((item) => {
         const Icon = item.icon;
         const active = pathname === item.href;
@@ -20,9 +20,11 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
             <span
               key={item.title}
               aria-disabled="true"
-              className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground/50 cursor-not-allowed select-none"
+              // Shown but not clickable: the feature is coming, and hiding it
+              // entirely would make the product look less capable than it is.
+              className="flex cursor-not-allowed select-none items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground/40"
             >
-              <Icon className="size-4 shrink-0" />
+              <Icon className="size-4 shrink-0" aria-hidden="true" />
               {item.title}
             </span>
           );
@@ -37,11 +39,11 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
             className={cn(
               "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
               active
-                ? "bg-accent text-accent-foreground font-medium"
-                : "text-foreground/80 hover:bg-accent hover:text-accent-foreground",
+                ? "bg-accent font-medium text-accent-foreground"
+                : "text-muted-foreground hover:bg-accent/60 hover:text-accent-foreground",
             )}
           >
-            <Icon className="size-4 shrink-0" />
+            <Icon className="size-4 shrink-0" aria-hidden="true" />
             {item.title}
           </Link>
         );
