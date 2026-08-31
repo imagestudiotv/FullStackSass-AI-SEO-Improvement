@@ -1,4 +1,5 @@
 import { LegalPage } from "../legal-page";
+import { SUPPORT_EMAIL } from "@/lib/config/site";
 
 export const metadata = {
   title: "Refund Policy",
@@ -67,7 +68,7 @@ export default function RefundsPage() {
 
       <h2>How to request a refund</h2>
       <p>
-        Email <a href="mailto:support@example.com">support@example.com</a> from
+        Email <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> from
         the address on your account. We will reply within two working days, and
         approved refunds reach your card within 5–10 working days depending on
         your bank.

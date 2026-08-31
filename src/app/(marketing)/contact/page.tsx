@@ -1,4 +1,5 @@
 import { Mail } from "lucide-react";
+import { SUPPORT_EMAIL } from "@/lib/config/site";
 
 export const metadata = {
   title: "Contact",
@@ -29,10 +30,10 @@ export default function ContactPage() {
           <div>
             <p className="font-medium">Email</p>
             <a
-              href="mailto:support@example.com"
+              href={`mailto:${SUPPORT_EMAIL}`}
               className="text-sm text-muted-foreground underline underline-offset-4"
             >
-              support@example.com
+              {SUPPORT_EMAIL}
             </a>
             <p className="mt-2 text-sm text-muted-foreground">
               If you are writing about your account, please send it from the

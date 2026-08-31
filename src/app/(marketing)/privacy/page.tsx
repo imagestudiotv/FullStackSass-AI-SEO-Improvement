@@ -1,4 +1,5 @@
 import { LegalPage } from "../legal-page";
+import { SUPPORT_EMAIL } from "@/lib/config/site";
 
 export const metadata = {
   title: "Privacy Policy",
@@ -33,7 +34,7 @@ export default function PrivacyPage() {
         researches search terms, writes articles, and publishes them to that
         customer&apos;s own website. If you have a question about this policy or
         about your data, contact us at{" "}
-        <a href="mailto:support@example.com">support@example.com</a>.
+        <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.
       </p>
 
       <h2>What we collect</h2>
@@ -187,7 +188,7 @@ export default function PrivacyPage() {
       <p>
         You can ask us for a copy of your data, ask us to correct it, or ask us
         to delete it. Email{" "}
-        <a href="mailto:support@example.com">support@example.com</a> and we will
+        <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> and we will
         respond within 30 days. If you are in the EU or UK, you also have the
         right to complain to your local data protection authority.
       </p>
