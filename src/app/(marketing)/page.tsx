@@ -31,14 +31,17 @@ export default function HomePage() {
         </p>
 
         <div className="mt-8 flex flex-wrap justify-center gap-3">
+          {/* The free check leads: it costs the visitor nothing and shows
+              real problems on their own site, which sells better than a
+              sign-up form. */}
           <Button size="lg" asChild>
-            <Link href="/sign-up">
-              Get started
+            <Link href="/audit">
+              Check my website free
               <ArrowRight className="size-4" />
             </Link>
           </Button>
           <Button size="lg" variant="outline" asChild>
-            <Link href="/sign-in">Sign in</Link>
+            <Link href="/sign-up">Get started</Link>
           </Button>
         </div>
       </section>

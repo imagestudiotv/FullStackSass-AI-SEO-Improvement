@@ -19,6 +19,7 @@ export default function MarketingLayout({ children }: LayoutProps<"/">) {
           {/* Only pages that exist. Every link here resolves. */}
           <nav className="ml-auto hidden items-center gap-1 sm:flex">
             {[
+              { href: "/audit", label: "Free check" },
               { href: "/pricing", label: "Pricing" },
               { href: "/faq", label: "FAQ" },
               { href: "/about", label: "About" },
@@ -65,6 +66,7 @@ export default function MarketingLayout({ children }: LayoutProps<"/">) {
               <div className="space-y-2">
                 <p className="font-medium text-foreground">Product</p>
                 {[
+                  { href: "/audit", label: "Free website check" },
                   { href: "/pricing", label: "Pricing" },
                   { href: "/faq", label: "FAQ" },
                   { href: "/about", label: "About" },
