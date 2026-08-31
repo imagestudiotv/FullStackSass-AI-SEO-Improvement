@@ -453,26 +453,92 @@ export const gaMetrics = pgTable(
   ],
 );
 
-export const geoPrompts = pgTable("geo_prompts", {
-  id: pk(),
-  websiteId: websiteId(),
-  prompt: text("prompt").notNull(),
-  active: boolean("active").default(true).notNull(),
-  ...timestamps,
-});
+/**
+ * A question we ask an AI assistant on the customer's behalf.
+ *
+ * Customers increasingly find a business by asking an assistant "who is the
+ * best dentist in Utrecht" rather than by searching. That answer is not a
+ * ranking anyone can look up: no API reports whether a brand gets mentioned, so
+ * the only honest way to measure it is to ask the question and read the reply.
+ *
+ * Prompts are stored rather than regenerated per run because changing the
+ * question changes the answer, which would make a trend meaningless.
+ */
+export const geoPrompts = pgTable(
+  "geo_prompts",
+  {
+    id: pk(),
+    websiteId: websiteId(),
+    /** The question, phrased as a customer would ask it. */
+    prompt: text("prompt").notNull(),
+    /** Set when we suggested it rather than the customer typing it. */
+    isSuggested: boolean("is_suggested").default(false).notNull(),
+    active: boolean("active").default(true).notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    index("geo_prompts_website_idx").on(table.websiteId),
+    // The same question twice would double its weight in the score.
+    uniqueIndex("geo_prompts_website_prompt_key").on(
+      table.websiteId,
+      table.prompt,
+    ),
+  ],
+);
 
-export const geoResults = pgTable("geo_results", {
-  id: pk(),
-  geoPromptId: uuid("geo_prompt_id")
-    .notNull()
-    .references(() => geoPrompts.id, { onDelete: "cascade" }),
-  engine: text("engine").notNull(),
-  mentioned: boolean("mentioned").default(false).notNull(),
-  cited: boolean("cited").default(false).notNull(),
-  sourceUrl: text("source_url"),
-  competitors: jsonb("competitors"),
-  checkedAt: timestamp("checked_at").defaultNow().notNull(),
-});
+/**
+ * One assistant's answer to one prompt, at one moment.
+ *
+ * Append-only: a check is a measurement, and overwriting yesterday's would
+ * destroy the trend that makes this worth paying for.
+ *
+ * `mentioned` is the headline, but `position` carries most of the value —
+ * being named third is materially worse than first, and a brand sliding down
+ * needs to know before it disappears entirely.
+ */
+export const geoResults = pgTable(
+  "geo_results",
+  {
+    id: pk(),
+    geoPromptId: uuid("geo_prompt_id")
+      .notNull()
+      .references(() => geoPrompts.id, { onDelete: "cascade" }),
+    /** Denormalised so website-wide queries avoid a join on every read. */
+    websiteId: websiteId(),
+    /** Which assistant answered. */
+    engine: text("engine").notNull(),
+    mentioned: boolean("mentioned").default(false).notNull(),
+    /** 1-based rank among the brands named; null when not mentioned. */
+    position: integer("position"),
+    /** True when the answer pointed at the customer's own domain. */
+    cited: boolean("cited").default(false).notNull(),
+    sourceUrl: text("source_url"),
+    /** Every brand named, in order, for competitive context. */
+    competitors: jsonb("competitors").$type<string[]>().default([]).notNull(),
+    /** The sentence naming the brand, so the customer sees the evidence. */
+    excerpt: text("excerpt"),
+    checkedAt: timestamp("checked_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("geo_results_website_idx").on(table.websiteId, table.checkedAt),
+    index("geo_results_prompt_idx").on(table.geoPromptId, table.checkedAt),
+  ],
+);
+
+export const geoPromptsRelations = relations(geoPrompts, ({ one, many }) => ({
+  website: one(websites, {
+    fields: [geoPrompts.websiteId],
+    references: [websites.id],
+  }),
+  results: many(geoResults),
+}));
+
+export const geoResultsRelations = relations(geoResults, ({ one }) => ({
+  prompt: one(geoPrompts, {
+    fields: [geoResults.geoPromptId],
+    references: [geoPrompts.id],
+  }),
+}));
 
 /* ------------------------------------------------------------------------- */
 /* Backlink network                                                           */

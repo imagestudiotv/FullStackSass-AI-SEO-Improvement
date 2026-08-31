@@ -13,6 +13,7 @@ import {
 } from "@/lib/analytics/actions";
 import { listArticles } from "@/lib/articles/actions";
 import { getBrandVoice } from "@/lib/brand/actions";
+import { getGeoOverview } from "@/lib/geo/actions";
 import { getLatestAudit } from "@/lib/audit/actions";
 import {
   getNetworkStatus,
@@ -24,6 +25,7 @@ import { getIntegration } from "@/lib/publishing/actions";
 import { AnalyticsPanel } from "./analytics-panel";
 import { AuditPanel } from "./audit-panel";
 import { BacklinksPanel } from "./backlinks-panel";
+import { GeoPanel } from "./geo-panel";
 import { ResearchTabs } from "./research-tabs";
 import { WebsiteDetailClient } from "./website-detail-client";
 import { WordPressPanel } from "./wordpress-panel";
@@ -70,6 +72,7 @@ export default async function WebsiteDetailPage({
     requests,
     given,
     voice,
+    geoOverview,
   ] = await Promise.all([
     listKeywords(site.id),
     listCalendar(site.id),
@@ -82,6 +85,7 @@ export default async function WebsiteDetailPage({
     listRequests(site.id),
     listGiven(site.id),
     getBrandVoice(site.id),
+    getGeoOverview(site.id),
   ]);
 
   const analysed = site.status === "ready";
@@ -141,6 +145,8 @@ export default async function WebsiteDetailPage({
         connection={connection}
         performance={performance}
       />
+
+      <GeoPanel websiteId={site.id} overview={geoOverview} />
 
       <BacklinksPanel
         websiteId={site.id}

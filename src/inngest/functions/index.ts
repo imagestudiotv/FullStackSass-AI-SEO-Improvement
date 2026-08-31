@@ -6,6 +6,7 @@
  */
 import { analyzeWebsite } from "./analyze-website";
 import { auditWebsite } from "./audit-website";
+import { checkGeo } from "./check-geo";
 import { generateArticle } from "./generate-article";
 import { importAnalytics } from "./import-analytics";
 import { publishArticleJob } from "./publish-article";
@@ -19,6 +20,7 @@ export const functions = [
   researchKeywords,
   generateArticle,
   verifyBacklinks,
+  checkGeo,
   publishArticleJob,
   importAnalytics,
   testRetry,
