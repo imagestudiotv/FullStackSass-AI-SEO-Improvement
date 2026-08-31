@@ -10,6 +10,7 @@
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
+    "doctor": "node scripts/doctor.mjs",
     "db:seed": "node scripts/seed-plans.mjs",
     "stripe:setup": "node scripts/stripe-setup.mjs",
     "paypal:setup": "node scripts/paypal-setup.mjs"

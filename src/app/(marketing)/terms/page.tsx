@@ -1,4 +1,5 @@
 import { LegalPage } from "../legal-page";
+import { SUPPORT_EMAIL } from "@/lib/config/site";
 
 export const metadata = {
   title: "Terms of Service",
@@ -136,7 +137,7 @@ export default function TermsPage() {
       <h2>Contact</h2>
       <p>
         Questions about these terms:{" "}
-        <a href="mailto:support@example.com">support@example.com</a>.
+        <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.
       </p>
     </LegalPage>
   );
