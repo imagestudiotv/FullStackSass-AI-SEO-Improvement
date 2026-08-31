@@ -58,35 +58,83 @@ export async function ensureOrganization(user: {
   });
 }
 
-export const auth = betterAuth({
-  appName: "AI SEO Platform",
-  secret: required("BETTER_AUTH_SECRET"),
-  baseURL: required("BETTER_AUTH_URL"),
-  database: drizzleAdapter(db, {
-    provider: "pg",
-    schema,
-  }),
-  emailAndPassword: {
-    enabled: true,
-  },
-  socialProviders: {
-    google: {
-      clientId: required("GOOGLE_CLIENT_ID"),
-      clientSecret: required("GOOGLE_CLIENT_SECRET"),
+/**
+ * Better Auth instance, built on first use.
+ *
+ * Deferred for the same reason as the database and Stripe clients: `next
+ * build` evaluates every route module to collect page data, and a
+ * module-scope `required()` throw fails the whole build on any machine
+ * without the secrets — a fresh Vercel deploy, CI, or a new clone. The
+ * secrets are still mandatory; they are simply demanded when a request needs
+ * them rather than when the file is imported.
+ */
+function createAuth() {
+  return betterAuth({
+    appName: "AI SEO Platform",
+    secret: required("BETTER_AUTH_SECRET"),
+    baseURL: required("BETTER_AUTH_URL"),
+    database: drizzleAdapter(db, {
+      provider: "pg",
+      schema,
+    }),
+    emailAndPassword: {
+      enabled: true,
     },
-  },
-  databaseHooks: {
-    user: {
-      create: {
-        after: async (user) => {
-          await ensureOrganization(user);
+    socialProviders: {
+      google: {
+        clientId: required("GOOGLE_CLIENT_ID"),
+        clientSecret: required("GOOGLE_CLIENT_SECRET"),
+      },
+    },
+    databaseHooks: {
+      user: {
+        create: {
+          after: async (user) => {
+            await ensureOrganization(user);
+          },
         },
       },
     },
+    plugins: [
+      organization({
+        allowUserToCreateOrganization: true,
+      }),
+    ],
+  });
+}
+
+type Auth = ReturnType<typeof createAuth>;
+
+let instance: Auth | null = null;
+
+function getAuth(): Auth {
+  if (!instance) {
+    instance = createAuth();
+  }
+  return instance;
+}
+
+/**
+ * Proxy so `auth.api.getSession(...)` and `toNextJsHandler(auth)` keep working
+ * unchanged while construction stays deferred to first use.
+ *
+ * The target is a FUNCTION, not an object literal. Better Auth's handler is
+ * callable, and toNextJsHandler invokes it directly — a Proxy wrapping `{}`
+ * has no [[Call]] behaviour and fails at runtime with "auth is not a
+ * function", which no build or type check catches.
+ */
+export const auth = new Proxy(function () {} as unknown as Auth, {
+  get(_target, property, receiver) {
+    return Reflect.get(getAuth(), property, receiver);
   },
-  plugins: [
-    organization({
-      allowUserToCreateOrganization: true,
-    }),
-  ],
+  has(_target, property) {
+    return Reflect.has(getAuth(), property);
+  },
+  apply(_target, thisArg, args) {
+    return Reflect.apply(
+      getAuth() as unknown as (...a: unknown[]) => unknown,
+      thisArg,
+      args,
+    );
+  },
 });

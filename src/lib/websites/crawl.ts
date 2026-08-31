@@ -48,6 +48,18 @@ export type PageSnapshot = {
   /** Outbound hosts — a weak but free competitor/partner signal. */
   externalHosts: string[];
   wordCount: number;
+  /* --- audit signals ------------------------------------------------- */
+  /** Absolute internal URLs, for crawling beyond the first page. */
+  internalUrls: string[];
+  /** Images with whether they carry alt text. */
+  images: { src: string; alt: string | null }[];
+  canonical: string | null;
+  /** Counted, not just the first: multiple H1s is itself the finding. */
+  h1Count: number;
+  /** True when a robots meta tag asks engines not to index the page. */
+  noindex: boolean;
+  /** Bytes of HTML, a rough page-weight signal. */
+  htmlBytes: number;
 };
 
 /**
@@ -187,6 +199,8 @@ export async function fetchHomepage(
 
   const origin = new URL(finalUrl).origin;
   const internal = new Set<string>();
+  // Absolute form, so the audit crawler can fetch these directly.
+  const internalAbsolute = new Set<string>();
   const external = new Set<string>();
 
   $("a[href]").each((_, element) => {
@@ -202,12 +216,34 @@ export async function fetchHomepage(
 
     if (resolved.origin === origin) {
       if (internal.size < 100) internal.add(resolved.pathname);
+      if (internalAbsolute.size < 200) {
+        // Fragments and queries point at the same document.
+        resolved.hash = "";
+        resolved.search = "";
+        internalAbsolute.add(resolved.toString());
+      }
     } else if (external.size < 50) {
       external.add(resolved.hostname.replace(/^www\./, ""));
     }
   });
 
   const text = $("body").text().replace(/\s+/g, " ").trim();
+
+  const images: { src: string; alt: string | null }[] = [];
+  $("img").each((_, element) => {
+    if (images.length >= 100) return;
+    const src = $(element).attr("src");
+    if (!src) return;
+    const alt = $(element).attr("alt");
+    images.push({
+      src: src.slice(0, 500),
+      // An empty alt is valid for decorative images, so "" and a missing
+      // attribute are recorded differently.
+      alt: alt === undefined ? null : alt.trim(),
+    });
+  });
+
+  const robots = ($('meta[name="robots"]').attr("content") ?? "").toLowerCase();
 
   return {
     finalUrl,
@@ -225,5 +261,11 @@ export async function fetchHomepage(
     internalLinks: [...internal],
     externalHosts: [...external],
     wordCount: text ? text.split(/\s+/).length : 0,
+    internalUrls: [...internalAbsolute],
+    images,
+    canonical: $('link[rel="canonical"]').attr("href")?.trim() || null,
+    h1Count: $("h1").length,
+    noindex: robots.includes("noindex"),
+    htmlBytes: html.length,
   };
 }
