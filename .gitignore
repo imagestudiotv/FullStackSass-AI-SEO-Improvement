@@ -43,3 +43,6 @@ next-env.d.ts
 
 .vercel
 .env*
+
+# Output of `npm run check:images`.
+image-check.png

@@ -86,6 +86,19 @@ function buildPrompt(title: string, industry: string | null): string {
   ].join(" ");
 }
 
+/**
+ * OpenAI image model.
+ *
+ * Overridable by env so a newer model can be adopted without a deploy: OpenAI
+ * ships these faster than we release, and hardcoding one means a code change
+ * every time. An unknown id fails loudly on the first call rather than
+ * silently falling back to an older, cheaper model the customer did not ask
+ * for.
+ */
+function openAiModel(): string {
+  return process.env.OPENAI_IMAGE_MODEL?.trim() || "gpt-image-1";
+}
+
 async function generateWithOpenAi(prompt: string): Promise<Buffer> {
   const response = await fetch("https://api.openai.com/v1/images/generations", {
     method: "POST",
@@ -94,7 +107,7 @@ async function generateWithOpenAi(prompt: string): Promise<Buffer> {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "gpt-image-1",
+      model: openAiModel(),
       prompt,
       n: 1,
       size: "1024x1024",

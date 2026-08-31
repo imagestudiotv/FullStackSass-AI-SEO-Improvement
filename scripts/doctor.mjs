@@ -101,7 +101,16 @@ if (imageProvider === "openai" && !hasOpenAi) {
     "Set IMAGE_PROVIDER to choose; until then image generation stays off rather than guessing.",
   );
 } else if (hasOpenAi || hasReplicate) {
-  ok(`Article images enabled (${imageProvider ?? (hasOpenAi ? "openai" : "replicate")})`);
+  const chosen = imageProvider ?? (hasOpenAi ? "openai" : "replicate");
+  const model =
+    chosen === "openai"
+      ? ` using ${env.OPENAI_IMAGE_MODEL?.trim() || "gpt-image-1"}`
+      : "";
+  ok(`Article images enabled (${chosen}${model})`);
+  caution(
+    "Image generation has not been proven against the live API",
+    "Run `npm run check:images` once. A wrong model id only fails at publish time, inside a job, after the article is written.",
+  );
 } else {
   caution(
     "No image provider configured",
