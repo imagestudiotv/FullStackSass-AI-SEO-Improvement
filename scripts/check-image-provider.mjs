@@ -22,7 +22,7 @@ nextEnv.loadEnvConfig(process.cwd());
 
 const key = process.env.OPENAI_API_KEY;
 const replicate = process.env.REPLICATE_API_TOKEN;
-const model = process.env.OPENAI_IMAGE_MODEL?.trim() || "gpt-image-1";
+const model = process.env.OPENAI_IMAGE_MODEL?.trim() || "gpt-image-2";
 
 if (!key && !replicate) {
   console.error(
@@ -71,7 +71,7 @@ if (!response.ok) {
     console.error(
       `  This usually means the model id "${model}" is wrong or not available\n` +
         `  on this account. Set OPENAI_IMAGE_MODEL in .env.local to the exact id\n` +
-        `  from OpenAI's docs, or leave it unset to use gpt-image-1.\n`,
+        `  from OpenAI's docs, or leave it unset to use gpt-image-2.\n`,
     );
   }
   if (response.status === 401) {
@@ -103,6 +103,15 @@ if (!first) {
 const shape = first.b64_json ? "b64_json" : first.url ? "url" : "unknown";
 let bytes = 0;
 
+/**
+ * OpenAI bills these by token, so the real cost is on the response. Printed
+ * here because a per-image estimate from a pricing page is not what the bill
+ * will say.
+ */
+const outputTokens = body.usage?.output_tokens;
+const costUsd =
+  typeof outputTokens === "number" ? (outputTokens / 1_000_000) * 30 : null;
+
 if (first.b64_json) {
   const buffer = Buffer.from(first.b64_json, "base64");
   bytes = buffer.length;
@@ -117,5 +126,10 @@ if (first.b64_json) {
 console.log(`  OK — image generated in ${elapsed}s`);
 console.log(`  Response field: ${shape}`);
 console.log(`  Size: ${(bytes / 1024).toFixed(0)} KB`);
+console.log(
+  costUsd === null
+    ? "  Cost: not reported by the API on this response"
+    : `  Cost: $${costUsd.toFixed(4)} (${outputTokens} output tokens at $30/1M)`,
+);
 console.log(`  Saved to: image-check.png (open it to check quality)\n`);
 console.log("  Article images will work with this configuration.\n");

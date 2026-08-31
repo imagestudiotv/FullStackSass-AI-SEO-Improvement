@@ -10,8 +10,11 @@
  * Two providers are supported because they are the realistic choices and their
  * APIs are small enough that supporting both costs little:
  *
- *   IMAGE_PROVIDER=openai     OPENAI_API_KEY=...    (gpt-image-1)
+ *   IMAGE_PROVIDER=openai     OPENAI_API_KEY=...      (gpt-image-2)
  *   IMAGE_PROVIDER=replicate  REPLICATE_API_TOKEN=... (flux-schnell)
+ *
+ * Verify any model change with `npm run check:images`: a wrong model id fails
+ * inside the publish job, after the article is written, where nobody sees it.
  *
  * Images are returned as raw bytes rather than a provider URL. Provider-hosted
  * URLs expire — often within the hour — so storing one would give the customer
@@ -32,14 +35,26 @@ export type GeneratedImage = {
 };
 
 /**
- * List prices per image, USD. Re-check before quoting margins: these drift.
- *  - OpenAI gpt-image-1, 1024x1024 standard quality
- *  - Replicate flux-schnell, roughly per run
+ * OpenAI bills image generation by TOKEN, not per image — output tokens vary
+ * with resolution and quality, so there is no fixed per-image price to hard
+ * code. $30 per 1M output tokens is the published gpt-image-2 rate; the actual
+ * token count comes back on each response, so cost is measured rather than
+ * assumed.
+ *
+ * Re-check before quoting margins: these drift.
  */
-const COST_PER_IMAGE: Record<ImageProvider, number> = {
-  openai: 0.04,
-  replicate: 0.003,
-};
+const OPENAI_OUTPUT_PER_1M_USD = 30;
+
+/**
+ * Fallback when a response omits usage. Roughly a medium-quality 1024x1024
+ * image. Only used so a missing field records an approximate cost instead of
+ * a free one — an image that appears to cost nothing quietly breaks unit
+ * economics, which is the whole reason usage is tracked.
+ */
+const OPENAI_FALLBACK_USD = 0.04;
+
+/** Replicate flux-schnell bills per run, so a flat rate is accurate there. */
+const REPLICATE_PER_IMAGE_USD = 0.003;
 
 /** The configured provider, or null when none is set up. */
 export function activeProvider(): ImageProvider | null {
@@ -96,10 +111,12 @@ function buildPrompt(title: string, industry: string | null): string {
  * for.
  */
 function openAiModel(): string {
-  return process.env.OPENAI_IMAGE_MODEL?.trim() || "gpt-image-1";
+  return process.env.OPENAI_IMAGE_MODEL?.trim() || "gpt-image-2";
 }
 
-async function generateWithOpenAi(prompt: string): Promise<Buffer> {
+async function generateWithOpenAi(
+  prompt: string,
+): Promise<{ data: Buffer; costUsd: number }> {
   const response = await fetch("https://api.openai.com/v1/images/generations", {
     method: "POST",
     headers: {
@@ -107,9 +124,19 @@ async function generateWithOpenAi(prompt: string): Promise<Buffer> {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
+      /**
+       * Always sent. The endpoint still defaults to dall-e-2, so omitting this
+       * would quietly generate a far worse image rather than erroring.
+       */
       model: openAiModel(),
       prompt,
       n: 1,
+      /**
+       * gpt-image-2 accepts arbitrary resolutions, but 1024x1024 is the one
+       * size every image model supports, so switching models never breaks the
+       * request. `response_format` is deliberately NOT sent: it is a dall-e
+       * parameter, and the GPT image models reject it.
+       */
       size: "1024x1024",
     }),
   });
@@ -123,28 +150,43 @@ async function generateWithOpenAi(prompt: string): Promise<Buffer> {
 
   const body = (await response.json()) as {
     data?: { b64_json?: string; url?: string }[];
+    usage?: { output_tokens?: number; total_tokens?: number };
   };
   const first = body.data?.[0];
 
+  /**
+   * Cost is read from the response rather than assumed. Output tokens vary
+   * with resolution and quality, so a hardcoded per-image figure would drift
+   * from the real bill as soon as either changes.
+   */
+  const outputTokens = body.usage?.output_tokens;
+  const costUsd =
+    typeof outputTokens === "number"
+      ? (outputTokens / 1_000_000) * OPENAI_OUTPUT_PER_1M_USD
+      : OPENAI_FALLBACK_USD;
+
   if (first?.b64_json) {
-    return Buffer.from(first.b64_json, "base64");
+    return { data: Buffer.from(first.b64_json, "base64"), costUsd };
   }
 
   /**
-   * Some responses return a URL instead. Fetched immediately rather than
-   * stored: these links expire, and a stored one becomes a broken image on the
-   * customer's site later.
+   * The GPT image models always return base64 and never a url — `url` is
+   * dall-e only. Handled anyway so that pointing OPENAI_IMAGE_MODEL at a
+   * dall-e model still works. Downloaded immediately rather than stored: those
+   * links expire, and a stored one becomes a broken image on a live page.
    */
   if (first?.url) {
     const image = await fetch(first.url);
     if (!image.ok) throw new Error("Could not download the generated image");
-    return Buffer.from(await image.arrayBuffer());
+    return { data: Buffer.from(await image.arrayBuffer()), costUsd };
   }
 
   throw new Error("Image provider returned no image");
 }
 
-async function generateWithReplicate(prompt: string): Promise<Buffer> {
+async function generateWithReplicate(
+  prompt: string,
+): Promise<{ data: Buffer; costUsd: number }> {
   /**
    * Prefer=wait blocks until the prediction finishes, so no polling loop is
    * needed. Replicate caps that wait at 60s and then returns the prediction
@@ -190,7 +232,10 @@ async function generateWithReplicate(prompt: string): Promise<Buffer> {
 
   const image = await fetch(url);
   if (!image.ok) throw new Error("Could not download the generated image");
-  return Buffer.from(await image.arrayBuffer());
+  return {
+    data: Buffer.from(await image.arrayBuffer()),
+    costUsd: REPLICATE_PER_IMAGE_USD,
+  };
 }
 
 /**
@@ -210,14 +255,14 @@ export async function generateArticleImage(
   }
 
   const prompt = buildPrompt(title, industry);
-  const data =
+  const generated =
     provider === "openai"
       ? await generateWithOpenAi(prompt)
       : await generateWithReplicate(prompt);
 
   return {
-    data,
-    // Both providers return PNG for these models.
+    data: generated.data,
+    // Both providers return PNG by default for these models.
     contentType: "image/png",
     /**
      * Alt text describes the article subject rather than the picture. A
@@ -225,6 +270,7 @@ export async function generateArticleImage(
      * read this too.
      */
     alt: title,
-    costUsd: COST_PER_IMAGE[provider],
+    // Measured from the response where the provider reports it.
+    costUsd: generated.costUsd,
   };
 }

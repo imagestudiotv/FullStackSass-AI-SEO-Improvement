@@ -104,7 +104,7 @@ if (imageProvider === "openai" && !hasOpenAi) {
   const chosen = imageProvider ?? (hasOpenAi ? "openai" : "replicate");
   const model =
     chosen === "openai"
-      ? ` using ${env.OPENAI_IMAGE_MODEL?.trim() || "gpt-image-1"}`
+      ? ` using ${env.OPENAI_IMAGE_MODEL?.trim() || "gpt-image-2"}`
       : "";
   ok(`Article images enabled (${chosen}${model})`);
   caution(
