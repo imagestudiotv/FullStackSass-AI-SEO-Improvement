@@ -21,6 +21,7 @@ import {
   type CurrentSubscription,
   type PlanRow,
 } from "@/lib/billing-shared";
+import { createPayPalCheckout } from "@/lib/paypal/actions";
 import { createCheckoutSession } from "@/lib/stripe/actions";
 import { createPortalSession } from "@/lib/stripe/portal";
 
@@ -28,6 +29,8 @@ type BillingClientProps = {
   plans: PlanRow[];
   subscription: CurrentSubscription | null;
   entitled: boolean;
+  /** False until PayPal credentials exist; the button is hidden entirely. */
+  paypalAvailable: boolean;
   checkout?: string;
 };
 
@@ -53,6 +56,7 @@ export function BillingClient({
   plans,
   subscription,
   entitled,
+  paypalAvailable,
   checkout,
 }: BillingClientProps) {
   const [interval, setInterval] = useState<"month" | "year">(
@@ -88,6 +92,22 @@ export function BillingClient({
       window.location.assign(result.url);
     } catch {
       toast.error("Could not start checkout. Please try again.");
+      setPendingPlanId(null);
+    }
+  }
+
+  async function handlePayPal(planId: string) {
+    setPendingPlanId(planId);
+    try {
+      const result = await createPayPalCheckout(planId);
+      if ("error" in result) {
+        toast.error(result.error);
+        setPendingPlanId(null);
+        return;
+      }
+      window.location.assign(result.url);
+    } catch {
+      toast.error("Could not start PayPal checkout. Please try again.");
       setPendingPlanId(null);
     }
   }
@@ -211,25 +231,47 @@ export function BillingClient({
               </CardContent>
 
               <CardFooter>
-                <Button
-                  className="w-full"
-                  variant={isCurrent ? "outline" : "default"}
-                  disabled={isCurrent || pendingPlanId !== null}
-                  onClick={() => handleSelect(plan.id)}
-                >
-                  {isCurrent
-                    ? "Current plan"
-                    : pendingPlanId === plan.id
-                      ? "Redirecting…"
-                      : entitled
-                        ? "Switch to this plan"
-                        : "Choose plan"}
-                </Button>
+                <div className="w-full space-y-2">
+                  <Button
+                    className="w-full"
+                    variant={isCurrent ? "outline" : "default"}
+                    disabled={isCurrent || pendingPlanId !== null}
+                    onClick={() => handleSelect(plan.id)}
+                  >
+                    {isCurrent
+                      ? "Current plan"
+                      : pendingPlanId === plan.id
+                        ? "Redirecting…"
+                        : entitled
+                          ? "Switch to this plan"
+                          : "Pay by card"}
+                  </Button>
+
+                  {/* Only rendered once PayPal credentials exist, so the
+                      customer is never offered a route that cannot complete. */}
+                  {paypalAvailable && !isCurrent ? (
+                    <Button
+                      className="w-full"
+                      variant="outline"
+                      disabled={pendingPlanId !== null}
+                      onClick={() => handlePayPal(plan.id)}
+                    >
+                      Pay with PayPal
+                    </Button>
+                  ) : null}
+                </div>
               </CardFooter>
             </Card>
           );
         })}
       </div>
+
+      {paypalAvailable ? (
+        <p className="text-center text-xs text-muted-foreground">
+          Promo codes can be entered at card checkout. PayPal does not support
+          discount codes.
+        </p>
+      ) : null}
 
       {visible.length === 0 ? (
         <p className="text-sm text-muted-foreground">
