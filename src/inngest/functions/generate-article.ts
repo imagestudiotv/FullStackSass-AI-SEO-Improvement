@@ -19,6 +19,11 @@ import {
 import { checkLimit, PRICING, track } from "@/lib/usage";
 import { backlinkRequests, placements } from "@/lib/db/schema";
 import { recordCredit } from "@/lib/backlinks/credits";
+import { addInternalLinks } from "@/lib/articles/internal-links";
+import {
+  generateArticleImage,
+  isImageGenerationConfigured,
+} from "@/lib/images/generate";
 
 /**
  * Article generation.
@@ -229,11 +234,68 @@ export const generateArticle = inngest.createFunction(
       return result;
     });
 
+    /**
+     * A header image, when an image provider is configured. Skipped entirely
+     * otherwise, and a failure never fails the article: an article without an
+     * image is still the thing the customer paid for, whereas a failed run
+     * would lose the writing too.
+     *
+     * The image is uploaded to the customer's own CMS at publish time, not
+     * here — the provider URL expires within hours.
+     */
+    const image = await step.run("generate-image", async () => {
+      if (!isImageGenerationConfigured()) return null;
+
+      try {
+        const generated = await generateArticleImage(
+          brief.brief.title,
+          brief.brief.industry,
+        );
+
+        await track(organizationId, {
+          kind: "image",
+          websiteId: brief.websiteId,
+          provider: "image",
+          costUsd: generated.costUsd,
+          metadata: { purpose: "article_header", articleId },
+        });
+
+        /**
+         * Base64 rather than a Buffer: step.run results are serialised to
+         * JSON, and a Buffer would come back as an unusable object.
+         */
+        return {
+          base64: generated.data.toString("base64"),
+          contentType: generated.contentType,
+          alt: generated.alt,
+        };
+      } catch {
+        return null;
+      }
+    });
+
+    /**
+     * Internal links are added after the body is written, never asked for in
+     * the prompt: a model asked to link invents URLs that do not exist, and a
+     * broken link on a live site is worse than no link. Every href here comes
+     * from a page we actually crawled.
+     */
+    const linkedHtml = await step.run("add-internal-links", async () => {
+      const { html, linked } = await addInternalLinks(
+        brief.websiteId,
+        brief.brief.title,
+        brief.brief.targetKeyword ?? null,
+        written.bodyHtml,
+      );
+      return { html, count: linked.length };
+    });
+
     await step.run("save-article", async () => {
       await db
         .update(articles)
         .set({
-          bodyHtml: written.bodyHtml,
+          bodyHtml: linkedHtml.html,
+          imageAlt: image?.alt ?? null,
           metaDescription: written.metaDescription,
           slug: written.slug,
           wordCount: written.wordCount,
@@ -250,7 +312,7 @@ export const generateArticle = inngest.createFunction(
        */
       await db.insert(articleVersions).values({
         articleId,
-        bodyHtml: written.bodyHtml,
+        bodyHtml: linkedHtml.html,
       });
 
       if (brief.calendarItemId) {
@@ -270,7 +332,7 @@ export const generateArticle = inngest.createFunction(
        * awarding a credit for a link nobody can see.
        */
       if (brief.placementId && brief.brief.backlink) {
-        const included = written.bodyHtml.includes(brief.brief.backlink.url);
+        const included = linkedHtml.html.includes(brief.brief.backlink.url);
 
         if (included) {
           await db

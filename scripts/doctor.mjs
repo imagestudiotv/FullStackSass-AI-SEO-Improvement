@@ -80,6 +80,35 @@ else bad("ANTHROPIC_API_KEY is missing", "Article generation cannot run.");
 if (has("ADMIN_EMAILS")) ok(`ADMIN_EMAILS is set (${env.ADMIN_EMAILS})`);
 else caution("ADMIN_EMAILS is not set", "Nobody can reach /admin.");
 
+/**
+ * Images need a second AI vendor: Anthropic does not generate them. Absence is
+ * a warning, not a blocker — articles publish fine without a header image.
+ */
+const imageProvider = env.IMAGE_PROVIDER?.trim().toLowerCase();
+const hasOpenAi = has("OPENAI_API_KEY");
+const hasReplicate = has("REPLICATE_API_TOKEN");
+
+if (imageProvider === "openai" && !hasOpenAi) {
+  bad("IMAGE_PROVIDER is openai but OPENAI_API_KEY is missing", "Articles publish without images.");
+} else if (imageProvider === "replicate" && !hasReplicate) {
+  bad(
+    "IMAGE_PROVIDER is replicate but REPLICATE_API_TOKEN is missing",
+    "Articles publish without images.",
+  );
+} else if (hasOpenAi && hasReplicate && !imageProvider) {
+  caution(
+    "Both OPENAI_API_KEY and REPLICATE_API_TOKEN are set",
+    "Set IMAGE_PROVIDER to choose; until then image generation stays off rather than guessing.",
+  );
+} else if (hasOpenAi || hasReplicate) {
+  ok(`Article images enabled (${imageProvider ?? (hasOpenAi ? "openai" : "replicate")})`);
+} else {
+  caution(
+    "No image provider configured",
+    "Articles publish without a header image. Set OPENAI_API_KEY or REPLICATE_API_TOKEN to enable.",
+  );
+}
+
 // ------------------------------------------------------------- support
 
 const supportEmail = env.NEXT_PUBLIC_SUPPORT_EMAIL;

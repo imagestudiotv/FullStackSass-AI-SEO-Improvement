@@ -77,9 +77,11 @@ async function request<T>(
       ...init,
       signal: controller.signal,
       headers: {
+        // content-type first so a caller can override it: the media endpoint
+        // takes raw image bytes rather than JSON.
+        "content-type": "application/json",
         ...init.headers,
         authorization: authHeader(credentials),
-        "content-type": "application/json",
         accept: "application/json",
       },
     });
@@ -208,6 +210,8 @@ export type PublishInput = {
   excerpt?: string | null;
   /** "publish" makes it live; "draft" leaves it for review. */
   status: "publish" | "draft";
+  /** Media library id of the header image, from uploadMedia(). */
+  featuredMediaId?: number | null;
 };
 
 export type PublishResult = {
@@ -232,6 +236,11 @@ export async function publishPost(
       status: input.status,
       ...(input.slug ? { slug: input.slug } : {}),
       ...(input.excerpt ? { excerpt: input.excerpt } : {}),
+      // Omitted rather than sent as null: WordPress reads an explicit null as
+      // "remove the image", which would strip one an editor set by hand.
+      ...(input.featuredMediaId
+        ? { featured_media: input.featuredMediaId }
+        : {}),
     }),
   });
 
@@ -258,6 +267,9 @@ export async function updatePost(
         content: input.contentHtml,
         status: input.status,
         ...(input.excerpt ? { excerpt: input.excerpt } : {}),
+        ...(input.featuredMediaId
+          ? { featured_media: input.featuredMediaId }
+          : {}),
       }),
     },
   );
@@ -267,4 +279,52 @@ export async function updatePost(
     remoteUrl: post.link,
     status: post.status,
   };
+}
+
+/**
+ * Uploads an image to the site's media library.
+ *
+ * WordPress takes raw bytes here rather than JSON, with the filename in a
+ * Content-Disposition header. It goes through the same request() helper as
+ * everything else so it inherits the SSRF guard, the timeout and the error
+ * messages — a media upload to an internal address would be exactly the
+ * request that guard exists to stop.
+ *
+ * Returns the media id and the public URL. The id is what a post needs to set
+ * a featured image; the URL is what an <img> tag needs.
+ */
+export async function uploadMedia(
+  credentials: WordPressCredentials,
+  file: { data: Buffer; contentType: string; filename: string; alt: string },
+): Promise<{ id: number; url: string }> {
+  const media = await request<{ id: number; source_url: string }>(
+    credentials,
+    "/media",
+    {
+      method: "POST",
+      headers: {
+        "content-type": file.contentType,
+        // Sanitised: a filename is attacker-influenced via the article title,
+        // and quotes or newlines here would let it break out of the header.
+        "content-disposition": `attachment; filename="${file.filename.replace(/[^a-zA-Z0-9._-]/g, "-")}"`,
+      },
+      body: new Uint8Array(file.data),
+    },
+  );
+
+  /**
+   * Alt text is a second call: WordPress ignores it on the upload itself.
+   * Failing here would leave a perfectly good image unused, so a failure is
+   * swallowed — the image is still correct, just missing its description.
+   */
+  try {
+    await request(credentials, `/media/${media.id}`, {
+      method: "POST",
+      body: JSON.stringify({ alt_text: file.alt }),
+    });
+  } catch {
+    // Non-fatal: the image uploaded, only its alt text did not stick.
+  }
+
+  return { id: media.id, url: media.source_url };
 }
