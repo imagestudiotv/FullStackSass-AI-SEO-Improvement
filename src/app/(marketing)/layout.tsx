@@ -21,6 +21,7 @@ export default function MarketingLayout({ children }: LayoutProps<"/">) {
             {[
               { href: "/audit", label: "Free check" },
               { href: "/pricing", label: "Pricing" },
+              { href: "/blog", label: "Blog" },
               { href: "/faq", label: "FAQ" },
               { href: "/about", label: "About" },
             ].map((item) => (
@@ -68,6 +69,7 @@ export default function MarketingLayout({ children }: LayoutProps<"/">) {
                 {[
                   { href: "/audit", label: "Free website check" },
                   { href: "/pricing", label: "Pricing" },
+                  { href: "/blog", label: "Blog" },
                   { href: "/faq", label: "FAQ" },
                   { href: "/about", label: "About" },
                   { href: "/contact", label: "Contact" },
