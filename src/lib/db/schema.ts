@@ -337,6 +337,13 @@ export const articles = pgTable(
     status: text("status").default("draft").notNull(),
     generationStep: text("generation_step"),
     publishedUrl: text("published_url"),
+    /**
+     * Header image. Stored as the CMS's own URL after upload rather than the
+     * provider's: provider links expire within hours, which would leave the
+     * customer with a broken image on a live page.
+     */
+    imageUrl: text("image_url"),
+    imageAlt: text("image_alt"),
     error: text("error"),
     ...timestamps,
   },

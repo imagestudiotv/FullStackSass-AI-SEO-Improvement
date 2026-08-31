@@ -2,11 +2,16 @@ import { and, desc, eq } from "drizzle-orm";
 
 import { inngest } from "@/inngest/client";
 import { db } from "@/lib/db";
-import { articles, publishLogs } from "@/lib/db/schema";
+import { articles, publishLogs, websites } from "@/lib/db/schema";
 import { loadCredentials } from "@/lib/publishing/actions";
+import {
+  generateArticleImage,
+  isImageGenerationConfigured,
+} from "@/lib/images/generate";
 import {
   publishPost,
   updatePost,
+  uploadMedia,
   WordPressError,
 } from "@/lib/publishing/wordpress";
 
@@ -56,6 +61,13 @@ export const publishArticleJob = inngest.createFunction(
       if (!article) throw new Error(`Article ${articleId} not found`);
       if (!article.bodyHtml) throw new Error("Article has no content to publish");
 
+      // Industry lives on the website, and steers the header image prompt.
+      const [site] = await db
+        .select({ industry: websites.industry })
+        .from(websites)
+        .where(eq(websites.id, websiteId))
+        .limit(1);
+
       const integration = await loadCredentials(websiteId);
       if (!integration) throw new Error("WordPress is not connected");
 
@@ -81,6 +93,8 @@ export const publishArticleJob = inngest.createFunction(
         integrationId: integration.integrationId,
         credentials: integration.credentials,
         remoteId: previous?.remoteId ?? null,
+        // Used to steer the header image toward the customer's sector.
+        industry: site?.industry ?? null,
         post: {
           title: article.title,
           contentHtml: article.bodyHtml,
@@ -91,11 +105,46 @@ export const publishArticleJob = inngest.createFunction(
       };
     });
 
+    /**
+     * The header image is generated here rather than carried from article
+     * generation: image bytes are far too large to hold in a job result, and
+     * provider URLs expire within hours. Uploading to the customer's own
+     * media library is what makes the image permanent.
+     *
+     * Entirely optional. No provider, or a failure, publishes the article
+     * without an image rather than not publishing it.
+     */
+    const featuredMedia = await step.run("upload-image", async () => {
+      if (!isImageGenerationConfigured()) return null;
+
+      try {
+        const generated = await generateArticleImage(
+          prepared.post.title,
+          prepared.industry,
+        );
+        const media = await uploadMedia(prepared.credentials, {
+          data: generated.data,
+          contentType: generated.contentType,
+          filename: `${prepared.post.slug ?? "header"}.png`,
+          alt: generated.alt,
+        });
+        return { id: media.id, url: media.url };
+      } catch {
+        return null;
+      }
+    });
+
     const result = await step.run("send-to-wordpress", async () => {
       try {
         return prepared.remoteId
-          ? await updatePost(prepared.credentials, prepared.remoteId, prepared.post)
-          : await publishPost(prepared.credentials, prepared.post);
+          ? await updatePost(prepared.credentials, prepared.remoteId, {
+              ...prepared.post,
+              featuredMediaId: featuredMedia?.id ?? null,
+            })
+          : await publishPost(prepared.credentials, {
+              ...prepared.post,
+              featuredMediaId: featuredMedia?.id ?? null,
+            });
       } catch (error) {
         if (error instanceof WordPressError) {
           // Recorded with the reason so the UI can show something actionable
@@ -127,6 +176,9 @@ export const publishArticleJob = inngest.createFunction(
           // A WordPress draft is not live, so the article is not "published".
           status: result.status === "publish" ? "published" : "draft",
           publishedUrl: result.remoteUrl,
+          // The CMS's own URL, which does not expire the way the provider's
+          // does. Left untouched when no image was uploaded this run.
+          ...(featuredMedia ? { imageUrl: featuredMedia.url } : {}),
           error: null,
           updatedAt: new Date(),
         })
