@@ -32,6 +32,20 @@ export type ArticleBrief = {
   /** Brand voice, when the site has one configured. */
   tone: string | null;
   avoid: string | null;
+  /** Preferred wording, e.g. "we say treatment, not procedure". */
+  vocabulary: string | null;
+  /** What makes this business different from its competitors. */
+  usps: string[];
+  /**
+   * Verified facts the owner supplied — founding year, staff, opening hours.
+   *
+   * The prompt forbids inventing facts, which leaves articles vague about the
+   * business itself. These are the only specifics the model is allowed to
+   * state, because a human confirmed them.
+   */
+  facts: string[];
+  /** Social profiles to mention where it reads naturally. */
+  socialLinks: { platform: string; url: string }[];
   /**
    * A backlink this article must include, when one has been matched. The link
    * has to read as a natural citation, not an obvious paid placement — an
@@ -101,6 +115,18 @@ function briefContext(brief: ArticleBrief): string {
     brief.language ? `Language: ${brief.language}` : null,
     brief.tone ? `Brand tone: ${brief.tone}` : null,
     brief.avoid ? `Avoid: ${brief.avoid}` : null,
+    brief.vocabulary ? `Preferred wording: ${brief.vocabulary}` : null,
+    brief.usps.length
+      ? `What makes this business different: ${brief.usps.join("; ")}`
+      : null,
+    brief.facts.length
+      ? `Verified facts about the business (these are confirmed and may be stated directly): ${brief.facts.join("; ")}`
+      : null,
+    brief.socialLinks.length
+      ? `Social profiles, to mention once where it reads naturally: ${brief.socialLinks
+          .map((link) => `${link.platform} ${link.url}`)
+          .join(", ")}`
+      : null,
     brief.customInstructions
       ? `Specific instructions: ${brief.customInstructions}`
       : null,
@@ -127,7 +153,8 @@ Rules:
   section (costs, how to choose, what to ask) rather than only theory.
 - Do NOT invent statistics, prices, dates, studies or quotes. If a point needs
   a specific figure the business has not supplied, phrase it so the writer
-  describes the factors instead of stating a number.
+  describes the factors instead of stating a number. Verified facts given in
+  the brief are the exception and may be used.
 - The meta description must read as a sentence, not a list of keywords.`;
 
 const BODY_SYSTEM = `You write the final SEO article body as HTML.
@@ -145,6 +172,9 @@ Writing rules:
 - Write for someone deciding what to do, not for a search engine.
 - NEVER invent statistics, prices, dates, studies, quotes or customer names.
   Describe the factors that determine a price rather than stating one.
+- The ONLY exception is the verified facts listed in the brief. Those were
+  supplied by the business owner, so you may state them directly. Everything
+  not listed there is still off limits.
 - No filler openings ("In today's fast-paced world"), no restating the title,
   no concluding summary that repeats the article back.
 - Do not claim the business offers something not listed in its services.`;

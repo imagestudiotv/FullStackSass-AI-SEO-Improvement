@@ -15,7 +15,10 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import type { BrandVoiceView } from "@/lib/brand/shared";
 import { updateWebsiteDetails } from "@/lib/websites/actions";
+import { BrandVoiceForm } from "./brand-voice-form";
 
 type WebsiteDetail = {
   id: string;
@@ -46,7 +49,13 @@ const FIELDS = [
   { key: "targetAudience", label: "Target audience", placeholder: "Homeowners aged 30-55" },
 ] as const;
 
-export function WebsiteDetailClient({ website }: { website: WebsiteDetail }) {
+export function WebsiteDetailClient({
+  website,
+  voice,
+}: {
+  website: WebsiteDetail;
+  voice: BrandVoiceView;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [form, setForm] = useState({
@@ -75,7 +84,21 @@ export function WebsiteDetailClient({ website }: { website: WebsiteDetail }) {
 
   return (
     <>
+      {/*
+        Brand voice sits beside the profile rather than in its own card: the
+        page already carries five panels, and both tabs answer the same
+        question — what should we know about this business.
+      */}
       <Card>
+        <Tabs defaultValue="profile">
+          <div className="border-b px-6 pt-4">
+            <TabsList>
+              <TabsTrigger value="profile">Business details</TabsTrigger>
+              <TabsTrigger value="voice">How we write</TabsTrigger>
+            </TabsList>
+          </div>
+
+          <TabsContent value="profile" className="mt-0">
         <form onSubmit={handleSubmit}>
           <CardHeader>
             <CardTitle className="text-base">Website profile</CardTitle>
@@ -128,6 +151,12 @@ export function WebsiteDetailClient({ website }: { website: WebsiteDetail }) {
             </Button>
           </CardFooter>
         </form>
+          </TabsContent>
+
+          <TabsContent value="voice" className="mt-0">
+            <BrandVoiceForm websiteId={website.id} voice={voice} />
+          </TabsContent>
+        </Tabs>
       </Card>
     </>
   );
