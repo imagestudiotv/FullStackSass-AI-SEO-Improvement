@@ -14,6 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { PageHeader, PageShell } from "@/components/ui/page-header";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   formatPrice,
@@ -33,10 +34,10 @@ type BillingClientProps = {
 function planFeatures(plan: PlanRow): string[] {
   const unlimited = (n: number) => (n < 0 ? "Unlimited" : n.toLocaleString());
   return [
-    `${unlimited(plan.articleLimit)} articles per month`,
-    `${unlimited(plan.keywordLimit)} tracked keywords`,
+    `${unlimited(plan.articleLimit)} articles written each month`,
+    `${unlimited(plan.keywordLimit)} search terms tracked`,
     `${unlimited(plan.siteLimit)} ${plan.siteLimit === 1 ? "website" : "websites"}`,
-    `${unlimited(plan.monthlyCredits)} backlink credits per month`,
+    `${unlimited(plan.monthlyCredits)} link credits each month`,
   ];
 }
 
@@ -114,13 +115,11 @@ export function BillingClient({
   const hasAnnual = plans.some((p) => p.interval === "year");
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Billing</h1>
-        <p className="text-sm text-muted-foreground">
-          Manage your subscription and plan limits.
-        </p>
-      </div>
+    <PageShell>
+      <PageHeader
+        title="Billing"
+        description="Your plan, and what it includes."
+      />
 
       <Card>
         <CardHeader>
@@ -237,6 +236,6 @@ export function BillingClient({
           No plans are available yet.
         </p>
       ) : null}
-    </div>
+    </PageShell>
   );
 }

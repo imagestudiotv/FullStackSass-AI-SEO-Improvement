@@ -1,5 +1,6 @@
 import { listOrganizations } from "@/lib/admin/actions";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader, PageShell } from "@/components/ui/page-header";
 import {
   Card,
   CardContent,
@@ -27,13 +28,11 @@ export default async function AdminOrganizationsPage({
   const rows = await listOrganizations(search);
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Organizations</h1>
-        <p className="text-sm text-muted-foreground">
-          Every customer workspace, newest first.
-        </p>
-      </div>
+    <PageShell width="wide">
+      <PageHeader
+        title="Organizations"
+        description="Every customer workspace, newest first."
+      />
 
       <AdminSearch placeholder="Search by name" defaultValue={search} />
 
@@ -95,6 +94,6 @@ export default async function AdminOrganizationsPage({
           </Table>
         </CardContent>
       </Card>
-    </div>
+    </PageShell>
   );
 }

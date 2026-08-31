@@ -90,7 +90,7 @@ export function WordPressPanel({
             <CardDescription>
               {connected
                 ? `Publishing to ${integration.siteName ?? "your site"} as ${integration.username}`
-                : "Connect your site to publish articles directly from here."}
+                : "Connect WordPress and we can publish articles straight to your site."}
             </CardDescription>
           </div>
         </div>
@@ -99,7 +99,7 @@ export function WordPressPanel({
       {connected && !open ? (
         <CardFooter className="gap-2">
           <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
-            Change credentials
+            Change details
           </Button>
           <Button
             variant="ghost"

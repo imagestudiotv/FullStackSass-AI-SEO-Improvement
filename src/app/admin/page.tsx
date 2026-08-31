@@ -1,4 +1,5 @@
 import { getPlatformStats } from "@/lib/admin/actions";
+import { PageHeader, PageShell } from "@/components/ui/page-header";
 import {
   Card,
   CardDescription,
@@ -39,13 +40,11 @@ export default async function AdminOverviewPage() {
   ];
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>
-        <p className="text-sm text-muted-foreground">
-          Everything on the platform, across all customers.
-        </p>
-      </div>
+    <PageShell width="default">
+      <PageHeader
+        title="Overview"
+        description="Everything on the platform, across all customers."
+      />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {tiles.map((tile) => (
@@ -59,6 +58,6 @@ export default async function AdminOverviewPage() {
           </Card>
         ))}
       </div>
-    </div>
+    </PageShell>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { Loader2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -46,9 +47,17 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
     event.preventDefault();
     setPending(true);
 
+    /**
+     * Trimmed before sending. Pasted credentials routinely carry a trailing
+     * space, which fails the browser's own email validation and shows an
+     * "Invalid email" tooltip before the request is ever made — a confusing
+     * dead end for the customer.
+     */
+    const cleanEmail = email.trim();
+
     const { error } = isSignUp
-      ? await authClient.signUp.email({ name, email, password })
-      : await authClient.signIn.email({ email, password });
+      ? await authClient.signUp.email({ name: name.trim(), email: cleanEmail, password })
+      : await authClient.signIn.email({ email: cleanEmail, password });
 
     if (error) {
       setPending(false);
@@ -61,12 +70,14 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
   }
 
   return (
-    <Card className="w-full max-w-sm">
+    <Card className="w-full max-w-sm shadow-sm">
       <CardHeader>
-        <CardTitle>{isSignUp ? "Create an account" : "Welcome back"}</CardTitle>
+        <CardTitle className="text-xl">
+          {isSignUp ? "Create your account" : "Welcome back"}
+        </CardTitle>
         <CardDescription>
           {isSignUp
-            ? "Start automating your SEO content."
+            ? "Get your business found on Google."
             : "Sign in to your workspace."}
         </CardDescription>
       </CardHeader>
@@ -79,7 +90,14 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
           onClick={handleGoogle}
           disabled={googlePending || pending}
         >
-          {googlePending ? "Redirecting…" : "Continue with Google"}
+          {googlePending ? (
+            <>
+              <Loader2 className="size-4 animate-spin" />
+              Redirecting…
+            </>
+          ) : (
+            "Continue with Google"
+          )}
         </Button>
 
         <div className="flex items-center gap-3">
@@ -128,7 +146,16 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
           </div>
 
           <Button type="submit" className="w-full" disabled={pending || googlePending}>
-            {pending ? "Please wait…" : isSignUp ? "Create account" : "Sign in"}
+            {pending ? (
+              <>
+                <Loader2 className="size-4 animate-spin" />
+                {isSignUp ? "Creating your account…" : "Signing you in…"}
+              </>
+            ) : isSignUp ? (
+              "Create account"
+            ) : (
+              "Sign in"
+            )}
           </Button>
         </form>
 

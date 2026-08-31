@@ -1,4 +1,5 @@
 import { listUsers } from "@/lib/admin/actions";
+import { PageHeader, PageShell } from "@/components/ui/page-header";
 import {
   Card,
   CardContent,
@@ -26,13 +27,11 @@ export default async function AdminUsersPage({
   const rows = await listUsers(search);
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Users</h1>
-        <p className="text-sm text-muted-foreground">
-          Everyone with an account, newest first.
-        </p>
-      </div>
+    <PageShell width="default">
+      <PageHeader
+        title="Users"
+        description="Everyone with an account, newest first."
+      />
 
       <AdminSearch placeholder="Search email or name" defaultValue={search} />
 
@@ -76,6 +75,6 @@ export default async function AdminUsersPage({
           </Table>
         </CardContent>
       </Card>
-    </div>
+    </PageShell>
   );
 }

@@ -1,12 +1,9 @@
 "use client";
 
-import { ArrowLeft, ExternalLink } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -77,31 +74,7 @@ export function WebsiteDetailClient({ website }: { website: WebsiteDetail }) {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
-      <div>
-        <Button variant="ghost" size="sm" asChild className="-ml-2 mb-2">
-          <Link href="/websites">
-            <ArrowLeft className="size-4" />
-            All websites
-          </Link>
-        </Button>
-        <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {website.brandName || website.domain}
-          </h1>
-          {!analysed ? <Badge variant="secondary">Not analysed yet</Badge> : null}
-        </div>
-        <a
-          href={website.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:underline"
-        >
-          {website.url}
-          <ExternalLink className="size-3" />
-        </a>
-      </div>
-
+    <>
       <Card>
         <form onSubmit={handleSubmit}>
           <CardHeader>
@@ -156,6 +129,6 @@ export function WebsiteDetailClient({ website }: { website: WebsiteDetail }) {
           </CardFooter>
         </form>
       </Card>
-    </div>
+    </>
   );
 }
