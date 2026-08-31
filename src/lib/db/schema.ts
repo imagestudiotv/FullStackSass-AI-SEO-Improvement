@@ -415,19 +415,43 @@ export const gscMetrics = pgTable(
   },
   (table) => [
     index("gsc_metrics_website_date_idx").on(table.websiteId, table.date),
+    /**
+     * Imports re-fetch overlapping date ranges — Search Console revises the
+     * last few days as data settles — so the same row arrives repeatedly.
+     * Without this the upsert has no conflict target and every import
+     * duplicates the window, silently inflating every total.
+     */
+    uniqueIndex("gsc_metrics_unique_idx").on(
+      table.websiteId,
+      table.date,
+      table.pageUrl,
+      table.query,
+    ),
   ],
 );
 
-export const gaMetrics = pgTable("ga_metrics", {
-  id: pk(),
-  websiteId: websiteId(),
-  pageUrl: text("page_url"),
-  sessions: integer("sessions").default(0).notNull(),
-  users: integer("users").default(0).notNull(),
-  engagementRate: real("engagement_rate"),
-  conversions: integer("conversions").default(0).notNull(),
-  date: date("date").notNull(),
-});
+export const gaMetrics = pgTable(
+  "ga_metrics",
+  {
+    id: pk(),
+    websiteId: websiteId(),
+    pageUrl: text("page_url"),
+    sessions: integer("sessions").default(0).notNull(),
+    users: integer("users").default(0).notNull(),
+    engagementRate: real("engagement_rate"),
+    conversions: integer("conversions").default(0).notNull(),
+    date: date("date").notNull(),
+  },
+  (table) => [
+    index("ga_metrics_website_date_idx").on(table.websiteId, table.date),
+    // Same reasoning as gsc_metrics: re-imported ranges must update in place.
+    uniqueIndex("ga_metrics_unique_idx").on(
+      table.websiteId,
+      table.date,
+      table.pageUrl,
+    ),
+  ],
+);
 
 export const geoPrompts = pgTable("geo_prompts", {
   id: pk(),

@@ -43,6 +43,13 @@
       "when": 1788051086304,
       "tag": "0005_fixed_redwing",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788080607024,
+      "tag": "0006_demonic_skullbuster",
+      "breakpoints": true
     }
   ]
 }
