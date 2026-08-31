@@ -18,11 +18,8 @@ export const functions = [
   auditWebsite,
   researchKeywords,
   generateArticle,
-<<<<<<< HEAD
   verifyBacklinks,
-=======
   publishArticleJob,
   importAnalytics,
->>>>>>> aa289ef0e89da3626d7e49757f2f1b4f776374c1
   testRetry,
 ];
