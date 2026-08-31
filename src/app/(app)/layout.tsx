@@ -5,6 +5,7 @@ import { MobileNav } from "@/components/mobile-nav";
 import { OrgSwitcher } from "@/components/org-switcher";
 import { SidebarNav } from "@/components/sidebar-nav";
 import { UserMenu } from "@/components/user-menu";
+import { isAdmin } from "@/lib/admin/guard";
 import { requireSession } from "@/lib/auth-guard";
 import { db } from "@/lib/db";
 import { organization } from "@/lib/db/schema";
@@ -21,6 +22,8 @@ export const dynamic = "force-dynamic";
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const session = await requireSession();
   const { orgId, role } = await requireOrg();
+  // Only admins see the link; the area itself 404s for everyone else.
+  const admin = await isAdmin();
 
   const org = await db.query.organization.findFirst({
     where: eq(organization.id, orgId),
@@ -40,7 +43,15 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             role={role}
           />
         </div>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
+          {admin ? (
+            <Link
+              href="/admin"
+              className="rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+            >
+              Admin
+            </Link>
+          ) : null}
           <UserMenu
             name={session.user.name}
             email={session.user.email}
