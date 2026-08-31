@@ -1,9 +1,7 @@
 import {
-  BarChart3,
   CreditCard,
   Globe,
   LayoutDashboard,
-  Link2,
   Settings,
   type LucideIcon,
 } from "lucide-react";
@@ -16,11 +14,18 @@ export type NavItem = {
   disabled?: boolean;
 };
 
+/*
+ * Backlinks and Analytics are deliberately absent.
+ *
+ * Both are per-website features and live on a website's own page, so a
+ * top-level link would have to guess which site the user meant. They were
+ * previously listed as permanently greyed-out items pointing at routes that
+ * do not exist — which reads as broken rather than forthcoming.
+ */
+
 export const navItems: NavItem[] = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { title: "Websites", href: "/websites", icon: Globe },
-  { title: "Backlinks", href: "/backlinks", icon: Link2, disabled: true },
-  { title: "Analytics", href: "/analytics", icon: BarChart3, disabled: true },
   { title: "Billing", href: "/billing", icon: CreditCard },
   { title: "Settings", href: "/settings", icon: Settings },
 ];
