@@ -18,10 +18,12 @@ import { PageHeader, PageShell } from "@/components/ui/page-header";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   formatPrice,
+  isEntitled,
   type CurrentSubscription,
   type PlanRow,
 } from "@/lib/billing-shared";
 import { createPayPalCheckout } from "@/lib/paypal/actions";
+import { SUPPORT_EMAIL } from "@/lib/config/site";
 import { createCheckoutSession } from "@/lib/stripe/actions";
 import { createPortalSession } from "@/lib/stripe/portal";
 
@@ -176,6 +178,45 @@ export function BillingClient({
               {portalPending ? "Opening…" : "Manage billing"}
               <ExternalLink className="size-4" />
             </Button>
+          </CardFooter>
+        ) : subscription?.provider === "paypal" ? (
+          /**
+           * PayPal has no portal API we can open on the customer's behalf, so
+           * this points at where their subscription and receipts actually live.
+           * Without it a PayPal subscriber has no route to an invoice or a
+           * cancellation at all: the Stripe button above never applies to them,
+           * because they have no Stripe customer.
+           */
+          <CardFooter className="flex-col items-start gap-2">
+            <Button variant="outline" asChild>
+              <a
+                href="https://www.paypal.com/myaccount/autopay/"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Manage in PayPal
+                <ExternalLink className="size-4" />
+              </a>
+            </Button>
+            <p className="text-xs text-muted-foreground">
+              Your receipts and cancellation live in your PayPal account.
+            </p>
+          </CardFooter>
+        ) : subscription && isEntitled(subscription.status) ? (
+          /**
+           * Entitled, but with no processor record to send them to — a
+           * subscription granted by hand, or one whose webhook never linked a
+           * customer. Rare, but silence here reads as "there is no way to
+           * cancel", so it points at a human instead of showing nothing.
+           */
+          <CardFooter>
+            <p className="text-xs text-muted-foreground">
+              This subscription is managed for you. Contact{" "}
+              <a href={`mailto:${SUPPORT_EMAIL}`} className="underline">
+                {SUPPORT_EMAIL}
+              </a>{" "}
+              for receipts or to make a change.
+            </p>
           </CardFooter>
         ) : null}
       </Card>

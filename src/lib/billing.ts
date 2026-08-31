@@ -35,6 +35,7 @@ export async function getSubscription(
       currentPeriodEnd: subscriptions.currentPeriodEnd,
       cancelAtPeriodEnd: subscriptions.cancelAtPeriodEnd,
       stripeCustomerId: subscriptions.stripeCustomerId,
+      provider: subscriptions.provider,
     })
     .from(subscriptions)
     .leftJoin(plans, eq(subscriptions.planId, plans.id))
@@ -52,5 +53,6 @@ export async function getSubscription(
     currentPeriodEnd: row.currentPeriodEnd,
     cancelAtPeriodEnd: row.cancelAtPeriodEnd,
     hasCustomer: Boolean(row.stripeCustomerId),
+    provider: row.provider,
   };
 }

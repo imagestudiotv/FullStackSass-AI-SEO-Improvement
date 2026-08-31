@@ -20,6 +20,8 @@ export type CurrentSubscription = {
   currentPeriodEnd: Date | null;
   cancelAtPeriodEnd: boolean;
   hasCustomer: boolean;
+  /** "stripe" | "paypal". Decides where the customer manages billing. */
+  provider: string;
 };
 
 /** Statuses that grant access. Mirrors ENTITLED_STATUSES in lib/usage.ts. */
