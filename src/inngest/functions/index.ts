@@ -11,12 +11,14 @@ import { importAnalytics } from "./import-analytics";
 import { publishArticleJob } from "./publish-article";
 import { researchKeywords } from "./research-keywords";
 import { testRetry } from "./test-retry";
+import { verifyBacklinks } from "./verify-backlinks";
 
 export const functions = [
   analyzeWebsite,
   auditWebsite,
   researchKeywords,
   generateArticle,
+  verifyBacklinks,
   publishArticleJob,
   importAnalytics,
   testRetry,

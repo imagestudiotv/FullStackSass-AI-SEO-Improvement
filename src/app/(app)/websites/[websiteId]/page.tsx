@@ -8,10 +8,16 @@ import {
 } from "@/lib/analytics/actions";
 import { listArticles } from "@/lib/articles/actions";
 import { getLatestAudit } from "@/lib/audit/actions";
+import {
+  getNetworkStatus,
+  listGiven,
+  listRequests,
+} from "@/lib/backlinks/actions";
 import { listCalendar, listKeywords } from "@/lib/keywords/actions";
 import { getIntegration } from "@/lib/publishing/actions";
 import { AnalyticsPanel } from "./analytics-panel";
 import { AuditPanel } from "./audit-panel";
+import { BacklinksPanel } from "./backlinks-panel";
 import { ResearchTabs } from "./research-tabs";
 import { WebsiteDetailClient } from "./website-detail-client";
 import { WordPressPanel } from "./wordpress-panel";
@@ -43,7 +49,8 @@ export default async function WebsiteDetailPage({
    * Every panel's data is loaded together. Each feature branch appends its own
    * entry here, so a merge conflict in this block must KEEP BOTH SIDES —
    * choosing one silently deletes a working feature from the page rather than
-   * failing loudly.
+   * failing loudly. After resolving one, check that the panels rendered below
+   * still cover every feature the branch is supposed to have.
    */
   const [
     keywordRows,
@@ -53,6 +60,9 @@ export default async function WebsiteDetailPage({
     integration,
     connection,
     performance,
+    network,
+    requests,
+    given,
   ] = await Promise.all([
     listKeywords(site.id),
     listCalendar(site.id),
@@ -61,6 +71,9 @@ export default async function WebsiteDetailPage({
     getIntegration(site.id),
     getAnalyticsConnection(site.id),
     getPerformance(site.id),
+    getNetworkStatus(site.id),
+    listRequests(site.id),
+    listGiven(site.id),
   ]);
 
   return (
@@ -95,6 +108,14 @@ export default async function WebsiteDetailPage({
       </div>
       <div className="mx-auto mt-6 max-w-3xl">
         <WordPressPanel websiteId={site.id} integration={integration} />
+      </div>
+      <div className="mx-auto mt-6 max-w-3xl">
+        <BacklinksPanel
+          websiteId={site.id}
+          status={network}
+          requests={requests}
+          given={given}
+        />
       </div>
       <div className="mx-auto mt-6 max-w-3xl">
         <ResearchTabs
