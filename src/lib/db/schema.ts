@@ -849,3 +849,61 @@ export const referralCodesRelations = relations(referralCodes, ({ one }) => ({
     references: [organization.id],
   }),
 }));
+
+/* ------------------------------------------------------------------------- */
+/* WordPress plugin                                                           */
+/* ------------------------------------------------------------------------- */
+
+/**
+ * An Integration Key, pasted into our WordPress plugin.
+ *
+ * The existing WordPress connection asks the customer for a username and an
+ * application password, which means finding a screen buried in WordPress admin
+ * and understanding that an application password is not their login password.
+ * The brief asks for the other direction: install the plugin, paste one key,
+ * done.
+ *
+ * That inverts who holds credentials. Instead of us storing write access to
+ * their site, THEY hold a key that identifies them to us, and the plugin pulls
+ * articles rather than us pushing them. A leaked key can publish to one
+ * website; it cannot read anything else, and revoking it is one row.
+ *
+ * Only a HASH is stored. The key is shown once at creation and never again —
+ * if our database leaks, the keys in it are useless, which is the entire point
+ * of hashing a credential we do not need to read back.
+ */
+export const integrationKeys = pgTable(
+  "integration_keys",
+  {
+    id: pk(),
+    websiteId: websiteId(),
+    /** SHA-256 of the key. The key itself is never stored. */
+    keyHash: text("key_hash").notNull(),
+    /** First characters, so the customer can tell two keys apart. */
+    keyPrefix: text("key_prefix").notNull(),
+    /** Free-text label, e.g. which site it was installed on. */
+    label: text("label"),
+    /** Set on first successful use, so an unused key is visible as unused. */
+    lastUsedAt: timestamp("last_used_at"),
+    /** Reported by the plugin, for support: "6.4.3 / plugin 1.0.0". */
+    siteInfo: text("site_info"),
+    /** Null until revoked. Revoked keys are kept for the audit trail. */
+    revokedAt: timestamp("revoked_at"),
+    ...timestamps,
+  },
+  (table) => [
+    // Every authenticated plugin request is a lookup by hash.
+    uniqueIndex("integration_keys_hash_key").on(table.keyHash),
+    index("integration_keys_website_idx").on(table.websiteId),
+  ],
+);
+
+export const integrationKeysRelations = relations(
+  integrationKeys,
+  ({ one }) => ({
+    website: one(websites, {
+      fields: [integrationKeys.websiteId],
+      references: [websites.id],
+    }),
+  }),
+);

@@ -26,6 +26,7 @@ import {
   listAvailableProviders,
   listIntegrations,
 } from "@/lib/publishing/actions";
+import { getIntegrationKeys } from "@/lib/plugin/actions";
 import { AnalyticsPanel } from "./analytics-panel";
 import { AuditPanel } from "./audit-panel";
 import { BacklinksPanel } from "./backlinks-panel";
@@ -72,6 +73,7 @@ export default async function WebsiteDetailPage({
     auditData,
     cmsIntegrations,
     cmsProviders,
+    pluginKeys,
     connection,
     performance,
     network,
@@ -87,6 +89,7 @@ export default async function WebsiteDetailPage({
     getLatestAudit(site.id),
     listIntegrations(site.id),
     listAvailableProviders(),
+    getIntegrationKeys(site.id),
     getAnalyticsConnection(site.id),
     getPerformance(site.id),
     getNetworkStatus(site.id),
@@ -170,6 +173,7 @@ export default async function WebsiteDetailPage({
         websiteId={site.id}
         providers={cmsProviders}
         integrations={cmsIntegrations}
+        pluginKeys={pluginKeys}
       />
 
       <WebsiteDetailClient

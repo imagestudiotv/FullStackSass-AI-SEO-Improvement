@@ -22,6 +22,8 @@ import {
   disconnectProvider,
 } from "@/lib/publishing/actions";
 import type { IntegrationView, ProviderInfo } from "@/lib/publishing/shared";
+import type { IntegrationKeyView } from "@/lib/plugin/keys";
+import { PluginKeys } from "./plugin-keys";
 
 /**
  * Where articles get published.
@@ -34,10 +36,12 @@ export function PublishingPanel({
   websiteId,
   providers,
   integrations,
+  pluginKeys,
 }: {
   websiteId: string;
   providers: ProviderInfo[];
   integrations: IntegrationView[];
+  pluginKeys: IntegrationKeyView[];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -250,6 +254,7 @@ export function PublishingPanel({
             </p>
           </div>
         )}
+        <PluginKeys websiteId={websiteId} keys={pluginKeys} />
       </CardContent>
     </Card>
   );
