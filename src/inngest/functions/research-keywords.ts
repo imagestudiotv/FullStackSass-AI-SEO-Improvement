@@ -15,6 +15,7 @@ import {
   type KeywordMetrics,
 } from "@/lib/providers/dataforseo";
 import { checkLimit, PRICING, track, UNLIMITED } from "@/lib/usage";
+import { notify } from "@/lib/notifications/create";
 
 /**
  * Keyword research and content planning.
@@ -36,12 +37,24 @@ export const researchKeywords = inngest.createFunction(
     // One research run per website: concurrent runs would double-spend and
     // race each other writing the same keyword rows.
     concurrency: { key: "event.data.websiteId", limit: 1 },
-    onFailure: async ({ event }) => {
+    onFailure: async ({ event, error }) => {
       const websiteId = event.data.event.data.websiteId as string;
       await db
         .update(websites)
         .set({ status: "ready", updatedAt: new Date() })
         .where(eq(websites.id, websiteId));
+
+      /**
+       * Without this the status quietly returns to "ready" and the customer is
+       * left believing research ran, with no keywords and no explanation.
+       */
+      await notify({
+        organizationId: event.data.event.data.organizationId as string,
+        type: "keywords.failed",
+        title: "Search term research could not be completed",
+        body: error.message.slice(0, 200),
+        href: `/websites/${websiteId}`,
+      });
     },
   },
   async ({ event, step }) => {
@@ -337,6 +350,16 @@ export const researchKeywords = inngest.createFunction(
         .update(websites)
         .set({ status: "ready", updatedAt: new Date() })
         .where(eq(websites.id, websiteId));
+    });
+
+    await step.run("notify-ready", async () => {
+      await notify({
+        organizationId,
+        type: "keywords.ready",
+        title: "Your search terms are ready",
+        body: `${stored.length} terms found, and ${planned.length} ${planned.length === 1 ? "article" : "articles"} planned.`,
+        href: `/websites/${websiteId}`,
+      });
     });
 
     return {

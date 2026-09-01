@@ -4,6 +4,7 @@ import { inngest } from "@/inngest/client";
 import { db } from "@/lib/db";
 import { articles, publishLogs, websites } from "@/lib/db/schema";
 import { loadCredentials } from "@/lib/publishing/actions";
+import { notify } from "@/lib/notifications/create";
 import {
   generateArticleImage,
   isImageGenerationConfigured,
@@ -42,6 +43,22 @@ export const publishArticleJob = inngest.createFunction(
         .update(articles)
         .set({ error: error.message.slice(0, 500), updatedAt: new Date() })
         .where(eq(articles.id, articleId));
+
+      /**
+       * Worth telling them about even more than a generation failure: the
+       * customer believes their article is live on their own website, and it
+       * is not.
+       */
+      const websiteId = event.data.event.data.websiteId as string | undefined;
+      await notify({
+        organizationId: event.data.event.data.organizationId as string,
+        type: "article.failed",
+        title: "An article could not be published",
+        body: error.message.slice(0, 200),
+        href: websiteId
+          ? `/websites/${websiteId}/articles/${articleId}`
+          : null,
+      });
     },
   },
   async ({ event, step }) => {
@@ -183,6 +200,21 @@ export const publishArticleJob = inngest.createFunction(
           updatedAt: new Date(),
         })
         .where(eq(articles.id, articleId));
+    });
+
+    await step.run("notify-published", async () => {
+      const live = result.status === "publish";
+      await notify({
+        organizationId: event.data.organizationId as string,
+        type: "article.published",
+        // A WordPress draft is not live, and saying otherwise would have the
+        // customer believing a page exists that nobody can visit.
+        title: live
+          ? `"${prepared.post.title}" is live`
+          : `"${prepared.post.title}" was saved as a draft`,
+        body: live ? result.remoteUrl : "Publish it from WordPress when ready.",
+        href: `/websites/${websiteId}/articles/${articleId}`,
+      });
     });
 
     return { articleId, remoteUrl: result.remoteUrl, status: result.status };

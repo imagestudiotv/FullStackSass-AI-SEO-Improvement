@@ -1,14 +1,15 @@
-import { eq } from "drizzle-orm";
+import { and, eq, isNull, sql as raw } from "drizzle-orm";
 import Link from "next/link";
 
 import { MobileNav } from "@/components/mobile-nav";
+import { NotificationBell } from "@/components/notification-bell";
 import { OrgSwitcher } from "@/components/org-switcher";
 import { SidebarNav } from "@/components/sidebar-nav";
 import { UserMenu } from "@/components/user-menu";
 import { isAdmin } from "@/lib/admin/guard";
 import { requireSession } from "@/lib/auth-guard";
 import { db } from "@/lib/db";
-import { organization } from "@/lib/db/schema";
+import { notifications, organization } from "@/lib/db/schema";
 import { requireOrg } from "@/lib/tenant";
 
 /**
@@ -28,6 +29,22 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const org = await db.query.organization.findFirst({
     where: eq(organization.id, orgId),
   });
+
+  /**
+   * Queried here rather than inside the bell so the badge is right on first
+   * paint — a count that appears a moment after the page reads as a glitch.
+   * The layout is already force-dynamic, so this adds a query, not a render.
+   */
+  const [unreadRow] = await db
+    .select({ n: raw<number>`count(*)::int` })
+    .from(notifications)
+    .where(
+      and(
+        eq(notifications.organizationId, orgId),
+        isNull(notifications.readAt),
+      ),
+    );
+  const unread = unreadRow?.n ?? 0;
 
   return (
     <div className="flex min-h-svh flex-col bg-muted/30">
@@ -60,6 +77,11 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
               Admin
             </Link>
           ) : null}
+          {/*
+            Count is rendered on the server so the badge is correct on first
+            paint. The list itself loads when the bell is opened.
+          */}
+          <NotificationBell initialUnread={unread} />
           <UserMenu
             name={session.user.name}
             email={session.user.email}

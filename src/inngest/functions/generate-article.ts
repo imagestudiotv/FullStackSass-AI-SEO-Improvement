@@ -24,6 +24,7 @@ import {
   generateArticleImage,
   isImageGenerationConfigured,
 } from "@/lib/images/generate";
+import { notify } from "@/lib/notifications/create";
 
 /**
  * Article generation.
@@ -54,6 +55,21 @@ export const generateArticle = inngest.createFunction(
           updatedAt: new Date(),
         })
         .where(eq(articles.id, articleId));
+
+      /**
+       * The failure the customer most needs to hear about: they asked for an
+       * article, and there is no article. Read from the event rather than
+       * re-queried, since the row update above already succeeded.
+       */
+      const organizationId = event.data.event.data.organizationId as string;
+      const websiteId = event.data.event.data.websiteId as string | undefined;
+      await notify({
+        organizationId,
+        type: "article.failed",
+        title: "An article could not be written",
+        body: error.message.slice(0, 200),
+        href: websiteId ? `/websites/${websiteId}` : null,
+      });
     },
   },
   async ({ event, step }) => {
@@ -379,6 +395,16 @@ export const generateArticle = inngest.createFunction(
           }
         }
       }
+    });
+
+    await step.run("notify-ready", async () => {
+      await notify({
+        organizationId,
+        type: "article.ready",
+        title: `"${brief.brief.title}" is ready to review`,
+        body: `${written.wordCount} words. Read it before publishing.`,
+        href: `/websites/${brief.websiteId}/articles/${articleId}`,
+      });
     });
 
     return {
