@@ -131,13 +131,31 @@ export const analyzeWebsite = inngest.createFunction(
     });
 
     await step.run("save-profile", async () => {
+      /**
+       * A language the customer set by hand wins over detection.
+       *
+       * Detection reads whichever version of the site was served, which is not
+       * always the one they write for — a business may run an English site
+       * while wanting Spanish articles for a Spanish market. Overwriting their
+       * choice on every re-analysis would silently switch their content back,
+       * and they would have no idea why.
+       *
+       * Every other field is refreshed: those are descriptions of the site as
+       * it is now, where newer detection is genuinely better.
+       */
+      const [current] = await db
+        .select({ language: websites.language })
+        .from(websites)
+        .where(eq(websites.id, websiteId))
+        .limit(1);
+
       await db
         .update(websites)
         .set({
           brandName: profile.brandName,
           industry: profile.industry,
           country: profile.country,
-          language: profile.language,
+          language: current?.language ?? profile.language,
           description: profile.description,
           targetAudience: profile.targetAudience,
           services: profile.services,

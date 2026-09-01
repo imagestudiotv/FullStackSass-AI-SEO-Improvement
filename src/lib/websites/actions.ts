@@ -9,6 +9,7 @@ import { websites } from "@/lib/db/schema";
 import { requireOrg, requireWebsite } from "@/lib/tenant";
 import { LimitExceededError, requireWithinLimit } from "@/lib/usage";
 import { InvalidUrlError, normalizeWebsiteUrl } from "@/lib/websites/url";
+import { normalizeLanguage } from "@/lib/websites/languages";
 
 /**
  * Website CRUD.
@@ -156,7 +157,13 @@ export async function updateWebsiteDetails(
       brandName: clean(input.brandName),
       industry: clean(input.industry),
       country: clean(input.country),
-      language: clean(input.language),
+      /**
+       * Normalised so "spanish", "Español" and "es" all store "Spanish". The
+       * stored string goes straight into the article prompt, and an unrecognised
+       * spelling silently produces an English article. Falls back to the raw
+       * value rather than null so an unusual but valid language is not discarded.
+       */
+      language: normalizeLanguage(input.language ?? null) ?? clean(input.language),
       description: clean(input.description),
       targetAudience: clean(input.targetAudience),
       updatedAt: new Date(),

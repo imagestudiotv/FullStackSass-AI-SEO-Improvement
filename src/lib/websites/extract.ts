@@ -1,5 +1,6 @@
 import { anthropic, isAiConfigured, MODELS } from "@/lib/ai/client";
 import type { PageSnapshot } from "@/lib/websites/crawl";
+import { normalizeLanguage } from "@/lib/websites/languages";
 
 /**
  * Turns a homepage snapshot into the website profile shown during onboarding.
@@ -181,7 +182,11 @@ export async function extractProfile(
     brandName: cleanText(parsed.brandName, 120),
     industry: cleanText(parsed.industry, 120),
     country: cleanText(parsed.country, 80),
-    language: cleanText(parsed.language, 80),
+    // Detection returns free text ("es", "Español"); normalised so the stored
+    // value matches what the picker offers and the prompt expects.
+    language:
+      normalizeLanguage(cleanText(parsed.language, 80)) ??
+      cleanText(parsed.language, 80),
     description: cleanText(parsed.description, 1000),
     targetAudience: cleanText(parsed.targetAudience, 300),
     services: cleanList(parsed.services, 8),
