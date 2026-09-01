@@ -11,6 +11,7 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "check:images": "node scripts/check-image-provider.mjs",
+    "plugin:build": "node wordpress-plugin/build.mjs",
     "doctor": "node scripts/doctor.mjs",
     "db:seed": "node scripts/seed-plans.mjs",
     "stripe:setup": "node scripts/stripe-setup.mjs",
