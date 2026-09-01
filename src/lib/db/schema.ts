@@ -642,16 +642,49 @@ export const providerCache = pgTable(
   ],
 );
 
-export const notifications = pgTable("notifications", {
-  id: pk(),
-  organizationId: organizationId(),
-  userId: userId(),
-  type: text("type").notNull(),
-  title: text("title").notNull(),
-  body: text("body"),
-  readAt: timestamp("read_at"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+/**
+ * Something finished, or failed, while the customer was not looking.
+ *
+ * Article generation, audits and keyword research all run as background jobs
+ * taking minutes. Until now the only signal was a toast, which exists solely
+ * while the tab is open — so someone who starts a job and closes the tab never
+ * learns it finished, and worse, never learns it failed.
+ *
+ * Scoped to the ORGANISATION rather than the user, because the work belongs to
+ * the workspace: when a colleague generates an article, everyone sharing that
+ * workspace should see it. `userId` records who triggered it, for attribution
+ * in the text, not for filtering.
+ */
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: pk(),
+    organizationId: organizationId(),
+    userId: userId(),
+    /** Machine-readable kind, e.g. "article.ready" | "audit.failed". */
+    type: text("type").notNull(),
+    /** One line, written for the customer rather than for a log. */
+    title: text("title").notNull(),
+    /** Optional detail. A failure says what to do next. */
+    body: text("body"),
+    /** Where clicking goes. Relative, always inside the app. */
+    href: text("href"),
+    /** Null until read; the timestamp doubles as the read flag. */
+    readAt: timestamp("read_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    /**
+     * Every read is "this org, newest first", and the badge filters on
+     * read_at. One index serves both.
+     */
+    index("notifications_org_idx").on(
+      table.organizationId,
+      table.readAt,
+      table.createdAt,
+    ),
+  ],
+);
 
 /* ------------------------------------------------------------------------- */
 /* Relations (only the joins actually used)                                   */

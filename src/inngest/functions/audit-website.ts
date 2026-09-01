@@ -6,6 +6,7 @@ import { auditPage, auditSite, scoreAudit } from "@/lib/audit/rules";
 import { db } from "@/lib/db";
 import { audits, crawls, issues, pages, websites } from "@/lib/db/schema";
 import { PRICING, track } from "@/lib/usage";
+import { notify } from "@/lib/notifications/create";
 
 /**
  * Site audit: crawl, apply rules, store the findings.
@@ -38,6 +39,14 @@ export const auditWebsite = inngest.createFunction(
           finishedAt: new Date(),
         })
         .where(eq(crawls.websiteId, websiteId));
+
+      await notify({
+        organizationId: event.data.event.data.organizationId as string,
+        type: "audit.failed",
+        title: "A website check could not be completed",
+        body: error.message.slice(0, 200),
+        href: `/websites/${websiteId}`,
+      });
     },
   },
   async ({ event, step }) => {
@@ -164,6 +173,22 @@ export const auditWebsite = inngest.createFunction(
         .where(eq(crawls.id, crawlRow.crawlId));
 
       return audit.id;
+    });
+
+    await step.run("notify-ready", async () => {
+      const critical = findings.summary.counts.critical;
+      await notify({
+        organizationId,
+        type: "audit.ready",
+        title: "Your website check is ready",
+        // States what was actually found rather than "complete", so the
+        // notification is worth reading on its own.
+        body:
+          critical > 0
+            ? `Score ${findings.summary.score}/100, with ${critical} serious ${critical === 1 ? "problem" : "problems"} to fix.`
+            : `Score ${findings.summary.score}/100 across ${crawled.pages.length} ${crawled.pages.length === 1 ? "page" : "pages"}.`,
+        href: `/websites/${websiteId}`,
+      });
     });
 
     return {
