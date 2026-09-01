@@ -9,12 +9,8 @@ import {
   generateArticleImage,
   isImageGenerationConfigured,
 } from "@/lib/images/generate";
-import {
-  publishPost,
-  updatePost,
-  uploadMedia,
-  WordPressError,
-} from "@/lib/publishing/wordpress";
+import { ProviderError } from "@/lib/publishing/provider";
+import { getProvider } from "@/lib/publishing/registry";
 
 /**
  * Publishes an article to the connected WordPress site.
@@ -86,7 +82,7 @@ export const publishArticleJob = inngest.createFunction(
         .limit(1);
 
       const integration = await loadCredentials(websiteId);
-      if (!integration) throw new Error("WordPress is not connected");
+      if (!integration) throw new Error("No publishing integration is connected");
 
       /**
        * A previous successful publish means this is an UPDATE, not a new post.
@@ -108,6 +104,7 @@ export const publishArticleJob = inngest.createFunction(
 
       return {
         integrationId: integration.integrationId,
+        providerId: integration.providerId,
         credentials: integration.credentials,
         remoteId: previous?.remoteId ?? null,
         // Used to steer the header image toward the customer's sector.
@@ -139,7 +136,13 @@ export const publishArticleJob = inngest.createFunction(
           prepared.post.title,
           prepared.industry,
         );
-        const media = await uploadMedia(prepared.credentials, {
+        const provider = getProvider(prepared.providerId);
+        // Not every CMS takes uploads. Shopify and the webhook adapter both
+        // reference an image by URL instead, so publishing continues without
+        // one rather than failing on a step that is optional by design.
+        if (!provider?.uploadMedia) return null;
+
+        const media = await provider.uploadMedia(prepared.credentials, {
           data: generated.data,
           contentType: generated.contentType,
           filename: `${prepared.post.slug ?? "header"}.png`,
@@ -151,19 +154,26 @@ export const publishArticleJob = inngest.createFunction(
       }
     });
 
-    const result = await step.run("send-to-wordpress", async () => {
+    const result = await step.run("send-to-cms", async () => {
+      const provider = getProvider(prepared.providerId);
+      if (!provider) {
+        throw new Error(
+          `No integration named ${prepared.providerId} is available`,
+        );
+      }
+
       try {
         return prepared.remoteId
-          ? await updatePost(prepared.credentials, prepared.remoteId, {
+          ? await provider.updatePost(prepared.credentials, prepared.remoteId, {
               ...prepared.post,
               featuredMediaId: featuredMedia?.id ?? null,
             })
-          : await publishPost(prepared.credentials, {
+          : await provider.createPost(prepared.credentials, {
               ...prepared.post,
               featuredMediaId: featuredMedia?.id ?? null,
             });
       } catch (error) {
-        if (error instanceof WordPressError) {
+        if (error instanceof ProviderError) {
           // Recorded with the reason so the UI can show something actionable
           // rather than "publish failed".
           await db.insert(publishLogs).values({

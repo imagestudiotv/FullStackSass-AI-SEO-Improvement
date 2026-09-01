@@ -22,7 +22,10 @@ import {
   listRequests,
 } from "@/lib/backlinks/actions";
 import { listCalendar, listKeywords } from "@/lib/keywords/actions";
-import { getIntegration } from "@/lib/publishing/actions";
+import {
+  listAvailableProviders,
+  listIntegrations,
+} from "@/lib/publishing/actions";
 import { AnalyticsPanel } from "./analytics-panel";
 import { AuditPanel } from "./audit-panel";
 import { BacklinksPanel } from "./backlinks-panel";
@@ -30,7 +33,7 @@ import { GeoPanel } from "./geo-panel";
 import { RefreshPanel } from "./refresh-panel";
 import { ResearchTabs } from "./research-tabs";
 import { WebsiteDetailClient } from "./website-detail-client";
-import { WordPressPanel } from "./wordpress-panel";
+import { PublishingPanel } from "./publishing-panel";
 
 export const metadata = { title: "Website" };
 
@@ -67,7 +70,8 @@ export default async function WebsiteDetailPage({
     calendarRows,
     articleRows,
     auditData,
-    integration,
+    cmsIntegrations,
+    cmsProviders,
     connection,
     performance,
     network,
@@ -81,7 +85,8 @@ export default async function WebsiteDetailPage({
     listCalendar(site.id),
     listArticles(site.id),
     getLatestAudit(site.id),
-    getIntegration(site.id),
+    listIntegrations(site.id),
+    listAvailableProviders(),
     getAnalyticsConnection(site.id),
     getPerformance(site.id),
     getNetworkStatus(site.id),
@@ -161,7 +166,11 @@ export default async function WebsiteDetailPage({
         given={given}
       />
 
-      <WordPressPanel websiteId={site.id} integration={integration} />
+      <PublishingPanel
+        websiteId={site.id}
+        providers={cmsProviders}
+        integrations={cmsIntegrations}
+      />
 
       <WebsiteDetailClient
         website={{
