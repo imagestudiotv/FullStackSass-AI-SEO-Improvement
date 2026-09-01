@@ -19,6 +19,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { BrandVoiceView } from "@/lib/brand/shared";
 import { updateWebsiteDetails } from "@/lib/websites/actions";
 import { BrandVoiceForm } from "./brand-voice-form";
+import {
+  isSupportedLanguage,
+  SUPPORTED_LANGUAGES,
+} from "@/lib/websites/languages";
 
 type WebsiteDetail = {
   id: string;
@@ -45,7 +49,6 @@ const FIELDS = [
   { key: "brandName", label: "Brand name", placeholder: "Acme Ltd" },
   { key: "industry", label: "Industry", placeholder: "Dental clinic" },
   { key: "country", label: "Primary market", placeholder: "Ireland" },
-  { key: "language", label: "Main language", placeholder: "English" },
   { key: "targetAudience", label: "Target audience", placeholder: "Homeowners aged 30-55" },
 ] as const;
 
@@ -128,6 +131,39 @@ export function WebsiteDetailClient({
                   />
                 </div>
               ))}
+
+              {/*
+                A picker, not free text. The stored value goes straight into
+                the article prompt, so a typo like "Spansh" quietly produced an
+                English article with no way for the customer to tell why.
+              */}
+              <div className="space-y-1.5">
+                <Label htmlFor="language">Main language</Label>
+                <select
+                  id="language"
+                  value={form.language}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, language: e.target.value }))
+                  }
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                >
+                  {/*
+                    An unrecognised stored value is kept as its own option
+                    rather than silently switching the customer to English.
+                  */}
+                  {form.language && !isSupportedLanguage(form.language) ? (
+                    <option value={form.language}>{form.language}</option>
+                  ) : null}
+                  {SUPPORTED_LANGUAGES.map((lang) => (
+                    <option key={lang.value} value={lang.value}>
+                      {lang.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground">
+                  Your articles are written in this language.
+                </p>
+              </div>
             </div>
 
             <div className="space-y-1.5">

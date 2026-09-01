@@ -79,7 +79,18 @@ async function fetchOnce(url: string): Promise<Response> {
       headers: {
         "user-agent": USER_AGENT,
         accept: "text/html,application/xhtml+xml",
-        "accept-language": "en",
+        /**
+         * Any language, no preference.
+         *
+         * This asked for "en". On a multilingual site that served us the
+         * English version, which we then auto-detected as English and wrote
+         * over the customer's real language — so a Spanish business was
+         * analysed, and had its articles planned, as though it were English.
+         *
+         * No preference means the site serves its own default: the version its
+         * customers actually see, and therefore the one we should read.
+         */
+        "accept-language": "*",
       },
     });
   } catch (error) {

@@ -100,6 +100,18 @@ const OUTLINE_SCHEMA = {
 
 function briefContext(brief: ArticleBrief): string {
   return [
+    /**
+     * Language leads, as an instruction rather than a fact.
+     *
+     * It was previously eleventh in a list of sixteen context lines, phrased
+     * as "Language: Spanish". A model mostly infers the right language from
+     * the title and keyword anyway — but "mostly" is not good enough for the
+     * one property a customer would notice instantly and could not fix
+     * themselves. Stating it first, as a directive, removes the guess.
+     */
+    brief.language
+      ? `Write everything in ${brief.language}. The headings, the body, and the meta description must all be in ${brief.language}, not translated from English but written natively.`
+      : null,
     `Title: ${brief.title}`,
     `Target keyword: ${brief.targetKeyword}`,
     brief.intent ? `Search intent: ${brief.intent}` : null,
@@ -112,7 +124,6 @@ function briefContext(brief: ArticleBrief): string {
     brief.services.length ? `Services offered: ${brief.services.join(", ")}` : null,
     brief.targetAudience ? `Audience: ${brief.targetAudience}` : null,
     brief.country ? `Market: ${brief.country}` : null,
-    brief.language ? `Language: ${brief.language}` : null,
     brief.tone ? `Brand tone: ${brief.tone}` : null,
     brief.avoid ? `Avoid: ${brief.avoid}` : null,
     brief.vocabulary ? `Preferred wording: ${brief.vocabulary}` : null,
