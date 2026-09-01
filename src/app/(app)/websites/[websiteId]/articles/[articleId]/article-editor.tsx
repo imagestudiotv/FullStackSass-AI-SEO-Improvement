@@ -58,11 +58,19 @@ export function ArticleEditor({
   websiteId,
   article,
   canPublish,
+  destinationName,
   publishLogs,
 }: {
   websiteId: string;
   article: ArticleDetail;
   canPublish: boolean;
+  /**
+   * Where this article publishes, e.g. "Ghost". Null when nothing is
+   * connected. Named rather than assumed: the product now publishes to four
+   * different systems, and telling someone their article went to WordPress
+   * when it went to Shopify is worse than saying nothing.
+   */
+  destinationName: string | null;
   publishLogs: PublishLogRow[];
 }) {
   const router = useRouter();
@@ -109,7 +117,9 @@ export function ArticleEditor({
         return;
       }
       toast.success(
-        status === "publish" ? "Publishing to WordPress…" : "Sending as a draft…",
+        status === "publish"
+          ? `Publishing to ${destinationName ?? "your site"}…`
+          : "Sending as a draft…",
       );
       router.refresh();
     });

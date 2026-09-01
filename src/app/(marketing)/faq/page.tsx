@@ -35,7 +35,7 @@ const FAQS: { question: string; answer: string }[] = [
   {
     question: "Do the articles go on my website automatically?",
     answer:
-      "Only if you connect WordPress and choose to publish. Otherwise they stay as drafts for you to review, edit, or copy elsewhere.",
+      "Only if you connect your website and choose to publish. We support WordPress, Ghost and Shopify, plus a webhook for anything else. Otherwise they stay as drafts for you to review, edit, or copy elsewhere.",
   },
   {
     question: "What are link credits?",
