@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
+import { LiveChat } from "@/components/live-chat";
 
 export default function MarketingLayout({ children }: LayoutProps<"/">) {
   return (
@@ -108,6 +109,14 @@ export default function MarketingLayout({ children }: LayoutProps<"/">) {
           </p>
         </div>
       </footer>
+
+      {/*
+        Marketing pages only. Loading chat inside the signed-in app would send
+        a third party the pages where customers' own data is displayed, for no
+        benefit — someone already signed in has support routes that identify
+        them properly.
+      */}
+      <LiveChat />
     </div>
   );
 }
