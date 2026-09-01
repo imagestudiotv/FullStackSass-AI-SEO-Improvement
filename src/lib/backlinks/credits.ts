@@ -25,6 +25,8 @@ export type CreditType =
   | "refund"
   /** Bought as an add-on. */
   | "purchase"
+  /** Earned because someone you referred started paying. */
+  | "referral"
   /** Manual adjustment by an admin. */
   | "adjustment";
 

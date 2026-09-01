@@ -767,3 +767,85 @@ export const integrationsRelations = relations(integrations, ({ one }) => ({
     references: [websites.id],
   }),
 }));
+
+/* ------------------------------------------------------------------------- */
+/* Referrals                                                                  */
+/* ------------------------------------------------------------------------- */
+
+/**
+ * A workspace's referral code.
+ *
+ * One per organisation, created on demand rather than for everyone up front:
+ * most customers never refer anyone, and a table of unused codes is noise.
+ *
+ * Rewards are paid as ACCOUNT CREDIT, not cash. Cash payouts mean tax
+ * reporting, a payout rail, and a fraud surface where a stolen card buys a
+ * subscription that pays out real money before the chargeback lands. Credit
+ * costs us margin instead of cash, cannot be withdrawn, and is worthless to a
+ * fraudster — while still being worth something real to a genuine customer.
+ */
+export const referralCodes = pgTable(
+  "referral_codes",
+  {
+    id: pk(),
+    organizationId: organizationId(),
+    /** The shareable code. Short, unambiguous, case-insensitive on lookup. */
+    code: text("code").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    // One code per workspace, and no two workspaces share a code.
+    uniqueIndex("referral_codes_org_key").on(table.organizationId),
+    uniqueIndex("referral_codes_code_key").on(table.code),
+  ],
+);
+
+/**
+ * One referred signup.
+ *
+ * Created when someone signs up with a code, and only becomes payable once
+ * that workspace actually pays for something. Rewarding a signup would pay for
+ * throwaway accounts; rewarding a payment cannot be gamed without a real card
+ * charge, which is the point.
+ *
+ * `status` moves pending -> rewarded, or pending -> rejected. Rows are never
+ * deleted: a referral that was declined should stay auditable, because the
+ * question "why did I not get paid for this" needs an answer.
+ */
+export const referrals = pgTable(
+  "referrals",
+  {
+    id: pk(),
+    /** Who gets the reward. */
+    referrerOrgId: text("referrer_org_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    /** Who signed up. */
+    referredOrgId: text("referred_org_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    /** "pending" | "rewarded" | "rejected". */
+    status: text("status").default("pending").notNull(),
+    /** Why a referral was rejected, for the referrer and for support. */
+    rejectedReason: text("rejected_reason"),
+    /** Credits awarded, once paid. */
+    rewardCredits: integer("reward_credits"),
+    rewardedAt: timestamp("rewarded_at"),
+    ...timestamps,
+  },
+  (table) => [
+    /**
+     * A workspace can only ever be referred once. Without this, cancelling and
+     * resubscribing would pay the referrer repeatedly for one customer.
+     */
+    uniqueIndex("referrals_referred_key").on(table.referredOrgId),
+    index("referrals_referrer_idx").on(table.referrerOrgId, table.status),
+  ],
+);
+
+export const referralCodesRelations = relations(referralCodes, ({ one }) => ({
+  organization: one(organization, {
+    fields: [referralCodes.organizationId],
+    references: [organization.id],
+  }),
+}));

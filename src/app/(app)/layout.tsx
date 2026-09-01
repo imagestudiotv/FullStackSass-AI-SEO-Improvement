@@ -10,6 +10,11 @@ import { isAdmin } from "@/lib/admin/guard";
 import { requireSession } from "@/lib/auth-guard";
 import { db } from "@/lib/db";
 import { notifications, organization } from "@/lib/db/schema";
+import {
+  clearReferralCode,
+  readReferralCode,
+} from "@/lib/referrals/cookie";
+import { attachReferral } from "@/lib/referrals/core";
 import { requireOrg } from "@/lib/tenant";
 
 /**
@@ -29,6 +34,24 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const org = await db.query.organization.findFirst({
     where: eq(organization.id, orgId),
   });
+
+  /**
+   * Attach a referral code left by a /?ref=CODE visit.
+   *
+   * Done here rather than in the auth hook because that hook runs inside
+   * Better Auth's config and cannot read request cookies. Every authenticated
+   * page passes through this layout, so the first one after signup catches it.
+   *
+   * Cheap in the normal case: no cookie means no work at all. The cookie is
+   * cleared either way, so a code that cannot attach — self-referral, an
+   * unknown code, an already-referred workspace — is not retried on every
+   * subsequent page load.
+   */
+  const referralCode = await readReferralCode();
+  if (referralCode) {
+    await attachReferral(orgId, referralCode);
+    await clearReferralCode();
+  }
 
   /**
    * Queried here rather than inside the bell so the badge is right on first
