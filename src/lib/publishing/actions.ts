@@ -7,11 +7,9 @@ import { inngest } from "@/inngest/client";
 import { decryptSecret, encryptSecret, maskSecret } from "@/lib/crypto";
 import { db } from "@/lib/db";
 import { articles, integrations, publishLogs } from "@/lib/db/schema";
-import {
-  testConnection,
-  WordPressError,
-  type WordPressCredentials,
-} from "@/lib/publishing/wordpress";
+import { ProviderError, type Credentials } from "@/lib/publishing/provider";
+import { getProvider, listProviders, providerInfo } from "@/lib/publishing/registry";
+import type { IntegrationView, ProviderInfo } from "@/lib/publishing/shared";
 import { requireWebsite } from "@/lib/tenant";
 import { normalizeWebsiteUrl, InvalidUrlError } from "@/lib/websites/url";
 import type { ActionResult } from "@/lib/websites/actions";
@@ -23,108 +21,155 @@ import type { ActionResult } from "@/lib/websites/actions";
  * encrypted before storage and NEVER returned to the client — not even to the
  * owner. The UI shows a masked hint and the site name, which is enough to
  * confirm which account is connected.
+ *
+ * Everything here is provider-agnostic: which fields exist, which are secret,
+ * and how a connection is verified all come from the provider itself. Adding a
+ * CMS means writing an adapter and registering it, not editing this file.
  */
 
-export type IntegrationView = {
-  id: string;
-  kind: string;
-  status: string;
-  verifiedAt: Date | null;
-  siteName: string | null;
-  username: string | null;
-  /** "••••abcd" — enough to recognise, useless to an attacker. */
-  passwordHint: string | null;
-};
-
+/**
+ * Stored credential values, keyed by the provider's field names. Secret fields
+ * hold ciphertext; a parallel `_hints` map holds their masked forms so the UI
+ * can show which value is connected without ever seeing it.
+ */
 type StoredCredentials = {
-  siteUrl: string;
-  username: string;
-  /** Encrypted. Never leaves the server in this form or any other. */
-  applicationPassword: string;
-  passwordHint: string;
+  /** Masked forms of the secret fields, for display only. */
+  _hints?: Record<string, string>;
+  /** Field values. Secrets hold ciphertext. */
+  [key: string]: string | Record<string, string> | undefined;
 };
 
-export async function getIntegration(
-  websiteId: string,
-): Promise<IntegrationView | null> {
-  const { site } = await requireWebsite(websiteId);
-
-  const [row] = await db
-    .select()
-    .from(integrations)
-    .where(
-      and(eq(integrations.websiteId, site.id), eq(integrations.kind, "wordpress")),
-    )
-    .limit(1);
-
-  if (!row) return null;
-
-  const creds = (row.credentials as StoredCredentials | null) ?? null;
-  const meta = (row.meta as { siteName?: string } | null) ?? null;
-
-  return {
-    id: row.id,
-    kind: row.kind,
-    status: row.status,
-    verifiedAt: row.verifiedAt,
-    siteName: meta?.siteName ?? null,
-    username: creds?.username ?? null,
-    passwordHint: creds?.passwordHint ?? null,
-  };
+/** Every provider the product supports, for the connect UI. */
+export async function listAvailableProviders(): Promise<ProviderInfo[]> {
+  return listProviders().map(providerInfo);
 }
 
 /**
- * Verifies credentials against the live site, then stores them encrypted.
+ * Every integration on a website.
  *
- * Tested BEFORE saving so a typo is reported immediately rather than
- * discovered on the first publish, when the article is already written.
+ * A website can publish to more than one place — a WordPress blog and a
+ * webhook into something else — so this returns a list rather than the single
+ * integration the WordPress-only version assumed.
  */
-export async function connectWordPress(
+export async function listIntegrations(
   websiteId: string,
-  input: { siteUrl: string; username: string; applicationPassword: string },
+): Promise<IntegrationView[]> {
+  const { site } = await requireWebsite(websiteId);
+
+  const rows = await db
+    .select()
+    .from(integrations)
+    .where(eq(integrations.websiteId, site.id))
+    .orderBy(desc(integrations.createdAt));
+
+  /**
+   * The integrations table also holds non-CMS connections — Google Analytics
+   * and Search Console live here too. Filtered by the registry rather than by
+   * an exclusion list, so a future non-publishing integration cannot appear in
+   * the publishing panel by default.
+   */
+  return rows.flatMap((row) => {
+    const provider = getProvider(row.kind);
+    if (!provider) return [];
+
+    const stored = (row.credentials as StoredCredentials | null) ?? null;
+    const meta = (row.meta as { siteName?: string; accountLabel?: string } | null) ?? null;
+
+    return [{
+      id: row.id,
+      kind: row.kind,
+      providerName: provider.name,
+      status: row.status,
+      verifiedAt: row.verifiedAt,
+      siteName: meta?.siteName ?? null,
+      accountLabel: meta?.accountLabel ?? null,
+      /** "••••abcd" — enough to recognise, useless to an attacker. */
+      secretHints: stored?._hints ?? {},
+    }];
+  });
+}
+
+/**
+ * Connects, or reconnects, a CMS.
+ *
+ * The connection is TESTED before anything is stored. Storing first would
+ * leave a customer with an integration that looks connected and fails on every
+ * publish, discovered days later when an article silently does not appear.
+ */
+export async function connectProvider(
+  websiteId: string,
+  providerId: string,
+  values: Record<string, string>,
 ): Promise<ActionResult<{ siteName: string }>> {
   const { site } = await requireWebsite(websiteId);
 
-  let siteUrl: string;
-  try {
-    siteUrl = normalizeWebsiteUrl(input.siteUrl).url;
-  } catch (error) {
-    if (error instanceof InvalidUrlError) return { ok: false, error: error.message };
-    throw error;
+  const provider = getProvider(providerId);
+  if (!provider) {
+    return { ok: false, error: "That integration is not available" };
   }
 
-  const username = input.username.trim();
-  const applicationPassword = input.applicationPassword.trim();
-  if (!username || !applicationPassword) {
-    return { ok: false, error: "Username and application password are required" };
-  }
+  /**
+   * Only the fields the provider declares are read. A crafted request cannot
+   * smuggle extra keys into stored credentials this way.
+   */
+  const credentials: Credentials = {};
+  for (const field of provider.fields) {
+    const raw = (values[field.key] ?? "").trim();
 
-  const credentials: WordPressCredentials = {
-    siteUrl,
-    username,
-    applicationPassword,
-  };
+    if (field.url) {
+      // Normalised and SSRF-checked here as well as at call time, so a bad
+      // address is rejected while the customer is looking at the form.
+      if (!raw) {
+        return { ok: false, error: `${field.label} is required` };
+      }
+      try {
+        credentials[field.key] = normalizeWebsiteUrl(raw).url;
+      } catch (error) {
+        if (error instanceof InvalidUrlError) {
+          return { ok: false, error: `${field.label}: ${error.message}` };
+        }
+        throw error;
+      }
+      continue;
+    }
+
+    /**
+     * Optional fields are allowed through empty — Shopify's blog id is one,
+     * and demanding it would force a customer to look up a value the provider
+     * can work out itself.
+     */
+    if (!raw && field.secret) {
+      return { ok: false, error: `${field.label} is required` };
+    }
+    credentials[field.key] = raw;
+  }
 
   let info;
   try {
-    info = await testConnection(credentials);
+    info = await provider.testConnection(credentials);
   } catch (error) {
-    if (error instanceof WordPressError) return { ok: false, error: error.message };
+    if (error instanceof ProviderError) return { ok: false, error: error.message };
     throw error;
   }
 
-  const stored: StoredCredentials = {
-    siteUrl,
-    username,
-    applicationPassword: encryptSecret(applicationPassword),
-    passwordHint: maskSecret(applicationPassword),
-  };
+  // Secrets are encrypted; their masked hints are stored alongside so the UI
+  // can show which value is in use without ever holding the value.
+  const stored: StoredCredentials = { _hints: {} };
+  for (const field of provider.fields) {
+    const value = credentials[field.key] ?? "";
+    if (field.secret && value) {
+      stored[field.key] = encryptSecret(value);
+      stored._hints![field.key] = maskSecret(value);
+    } else {
+      stored[field.key] = value;
+    }
+  }
 
-  const values = {
+  const row = {
     credentials: stored,
     status: "connected",
     verifiedAt: new Date(),
-    meta: { siteName: info.name, userLogin: info.userLogin },
+    meta: { siteName: info.siteName, accountLabel: info.accountLabel },
     updatedAt: new Date(),
   };
 
@@ -132,63 +177,91 @@ export async function connectWordPress(
     .select({ id: integrations.id })
     .from(integrations)
     .where(
-      and(eq(integrations.websiteId, site.id), eq(integrations.kind, "wordpress")),
+      and(
+        eq(integrations.websiteId, site.id),
+        eq(integrations.kind, provider.id),
+      ),
     )
     .limit(1);
 
   if (existing) {
-    await db.update(integrations).set(values).where(eq(integrations.id, existing.id));
+    await db.update(integrations).set(row).where(eq(integrations.id, existing.id));
   } else {
     await db
       .insert(integrations)
-      .values({ websiteId: site.id, kind: "wordpress", ...values });
+      .values({ websiteId: site.id, kind: provider.id, ...row });
   }
 
   revalidatePath(`/websites/${site.id}`);
-  return { ok: true, data: { siteName: info.name } };
+  return { ok: true, data: { siteName: info.siteName } };
 }
 
-export async function disconnectWordPress(
+export async function disconnectProvider(
   websiteId: string,
+  providerId: string,
 ): Promise<ActionResult<null>> {
   const { site } = await requireWebsite(websiteId);
 
-  // Deleted, not merely marked disconnected: keeping a credential we no longer
-  // use is a liability with no benefit.
+  // Scoped by website as well as kind, so an id from another tenant deletes
+  // nothing rather than disconnecting someone else's site.
   await db
     .delete(integrations)
     .where(
-      and(eq(integrations.websiteId, site.id), eq(integrations.kind, "wordpress")),
+      and(
+        eq(integrations.websiteId, site.id),
+        eq(integrations.kind, providerId),
+      ),
     );
 
   revalidatePath(`/websites/${site.id}`);
   return { ok: true, data: null };
 }
 
-/** Decrypts stored credentials. Server-only; never expose the result. */
-export async function loadCredentials(
-  websiteId: string,
-): Promise<{ credentials: WordPressCredentials; integrationId: string } | null> {
-  const [row] = await db
+/**
+ * Decrypted credentials for a publish, with the provider that owns them.
+ *
+ * Server-only by construction: this returns plaintext secrets, so it must
+ * never be reachable from a client component. It is called from the publish
+ * job alone.
+ */
+export async function loadCredentials(websiteId: string): Promise<{
+  integrationId: string;
+  providerId: string;
+  credentials: Credentials;
+} | null> {
+  const rows = await db
     .select()
     .from(integrations)
     .where(
-      and(eq(integrations.websiteId, websiteId), eq(integrations.kind, "wordpress")),
+      and(
+        eq(integrations.websiteId, websiteId),
+        eq(integrations.status, "connected"),
+      ),
     )
-    .limit(1);
+    .orderBy(desc(integrations.verifiedAt));
 
-  if (!row) return null;
-  const stored = row.credentials as StoredCredentials | null;
-  if (!stored) return null;
+  for (const row of rows) {
+    const provider = getProvider(row.kind);
+    if (!provider) continue;
 
-  return {
-    integrationId: row.id,
-    credentials: {
-      siteUrl: stored.siteUrl,
-      username: stored.username,
-      applicationPassword: decryptSecret(stored.applicationPassword),
-    },
-  };
+    const stored = row.credentials as StoredCredentials | null;
+    if (!stored) continue;
+
+    const credentials: Credentials = {};
+    for (const field of provider.fields) {
+      const value = stored[field.key];
+      if (typeof value !== "string") continue;
+      credentials[field.key] = field.secret ? decryptSecret(value) : value;
+    }
+
+    return {
+      integrationId: row.id,
+      providerId: provider.id,
+      credentials,
+    };
+  }
+
+  return null;
 }
 
 export type PublishLogRow = {
@@ -240,9 +313,19 @@ export async function publishArticle(
     return { ok: false, error: "This article has not been written yet" };
   }
 
-  const integration = await getIntegration(site.id);
-  if (!integration || integration.status !== "connected") {
-    return { ok: false, error: "Connect WordPress first" };
+  const [connected] = await db
+    .select({ id: integrations.id })
+    .from(integrations)
+    .where(
+      and(
+        eq(integrations.websiteId, site.id),
+        eq(integrations.status, "connected"),
+      ),
+    )
+    .limit(1);
+
+  if (!connected) {
+    return { ok: false, error: "Connect somewhere to publish to first" };
   }
 
   await inngest.send({

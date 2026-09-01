@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 
 import { requireSession } from "@/lib/auth-guard";
 import { getArticle } from "@/lib/articles/actions";
-import { getIntegration, listPublishLogs } from "@/lib/publishing/actions";
+import { listIntegrations, listPublishLogs } from "@/lib/publishing/actions";
 import { WebsiteNotFoundError } from "@/lib/tenant";
 import { ArticleEditor } from "./article-editor";
 
@@ -33,8 +33,8 @@ export default async function ArticlePage({
     notFound();
   }
 
-  const [integration, logs] = await Promise.all([
-    getIntegration(websiteId),
+  const [cmsIntegrations, logs] = await Promise.all([
+    listIntegrations(websiteId),
     listPublishLogs(websiteId, article.id),
   ]);
 
@@ -42,7 +42,8 @@ export default async function ArticlePage({
     <ArticleEditor
       websiteId={websiteId}
       article={article}
-      canPublish={integration?.status === "connected"}
+      // Any connected destination is enough to offer publishing.
+      canPublish={cmsIntegrations.some((i) => i.status === "connected")}
       publishLogs={logs}
     />
   );
