@@ -7,11 +7,25 @@ import {
 } from "@/components/ui/card";
 import { PageHeader, PageShell } from "@/components/ui/page-header";
 import { requireSession } from "@/lib/auth-guard";
+import { getReferralSummary } from "@/lib/referrals/actions";
+import { REFERRAL_REWARD_CREDITS } from "@/lib/referrals/core";
+import { ReferralCard } from "./referral-card";
 
 export const metadata = { title: "Settings" };
 
 export default async function SettingsPage() {
   const session = await requireSession();
+  const referrals = await getReferralSummary();
+
+  /**
+   * Falls back to the production domain rather than emitting a localhost link
+   * a customer would then share with someone else.
+   */
+  const configured = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "");
+  const appUrl =
+    configured && !configured.includes("localhost")
+      ? configured
+      : "https://seovision.io";
 
   return (
     <PageShell>
@@ -38,6 +52,12 @@ export default async function SettingsPage() {
           </dl>
         </CardContent>
       </Card>
+
+      <ReferralCard
+        summary={referrals}
+        rewardCredits={REFERRAL_REWARD_CREDITS}
+        appUrl={appUrl}
+      />
     </PageShell>
   );
 }

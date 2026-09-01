@@ -6,6 +6,7 @@ import type Stripe from "stripe";
 import { db } from "@/lib/db";
 import { plans, subscriptions, webhookEvents } from "@/lib/db/schema";
 import { stripe } from "@/lib/stripe/client";
+import { convertReferral } from "@/lib/referrals/core";
 
 /**
  * Stripe webhook. THE ONLY PLACE SUBSCRIPTION STATE CHANGES.
@@ -218,6 +219,33 @@ export async function POST(request: Request) {
         // it back rather than inferring status from the invoice.
         const subscription = await stripe.subscriptions.retrieve(subscriptionId);
         await upsertSubscription(subscription);
+
+        /**
+         * A referral converts on a PAID invoice, never on an active
+         * subscription: a subscription is active during a trial with nothing
+         * charged, and paying a referrer for a trial that never converts hands
+         * out credit against no revenue.
+         *
+         * Guarded on the event type because payment_failed shares this branch.
+         *
+         * convertReferral is idempotent and no-ops when nothing is pending, so
+         * a webhook retry or next month's invoice cannot pay twice. Failure is
+         * swallowed: the subscription is already recorded, and throwing would
+         * make Stripe retry a payment we handled correctly.
+         */
+        if (event.type === "invoice.paid") {
+          const orgId = await organizationIdFor(subscription);
+          if (orgId) {
+            try {
+              await convertReferral(orgId);
+            } catch (error) {
+              console.error(
+                "[stripe-webhook] referral conversion failed",
+                error,
+              );
+            }
+          }
+        }
         break;
       }
 

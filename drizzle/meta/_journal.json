@@ -71,6 +71,13 @@
       "when": 1788222767095,
       "tag": "0009_magical_vertigo",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1788224160423,
+      "tag": "0010_nostalgic_kinsey_walden",
+      "breakpoints": true
     }
   ]
 }

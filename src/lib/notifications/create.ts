@@ -25,7 +25,8 @@ export type NotificationType =
   | "audit.failed"
   | "keywords.ready"
   | "keywords.failed"
-  | "geo.ready";
+  | "geo.ready"
+  | "referral.rewarded";
 
 export type NewNotification = {
   organizationId: string;
