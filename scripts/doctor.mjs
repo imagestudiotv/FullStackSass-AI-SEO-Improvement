@@ -118,6 +118,24 @@ if (imageProvider === "openai" && !hasOpenAi) {
   );
 }
 
+/**
+ * Live chat is optional and marketing-only, so an unset id is a note rather
+ * than a warning — the site works perfectly without it.
+ */
+const crispId = env.NEXT_PUBLIC_CRISP_WEBSITE_ID?.trim();
+if (crispId) {
+  const validId =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      crispId,
+    );
+  if (validId) ok("Live chat is enabled");
+  else
+    bad(
+      "NEXT_PUBLIC_CRISP_WEBSITE_ID is not a valid Crisp id",
+      "It should be a UUID from Crisp → Settings → Website Settings. The widget is skipped entirely until it is.",
+    );
+}
+
 // ------------------------------------------------------------- support
 
 const supportEmail = env.NEXT_PUBLIC_SUPPORT_EMAIL;
