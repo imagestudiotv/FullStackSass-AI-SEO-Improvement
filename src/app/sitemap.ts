@@ -27,6 +27,18 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${base}/`, lastModified: now, priority: 1 },
     { url: `${base}/audit`, lastModified: now, priority: 0.9 },
     { url: `${base}/pricing`, lastModified: now, priority: 0.8 },
+    { url: `${base}/tools`, lastModified: now, priority: 0.8 },
+    {
+      url: `${base}/tools/snippet-preview`,
+      lastModified: now,
+      priority: 0.6,
+    },
+    // The results page takes a query parameter, so only the form is listed.
+    {
+      url: `${base}/tools/robots-checker`,
+      lastModified: now,
+      priority: 0.6,
+    },
     { url: `${base}/blog`, lastModified: now, priority: 0.8 },
     { url: `${base}/faq`, lastModified: now, priority: 0.6 },
     { url: `${base}/about`, lastModified: now, priority: 0.5 },
