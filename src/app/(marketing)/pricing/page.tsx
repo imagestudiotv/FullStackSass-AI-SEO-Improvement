@@ -51,10 +51,16 @@ export default async function PricingPage() {
           Pricing is not available right now. Please check back shortly.
         </p>
       ) : (
-        <div className="mt-12 grid gap-6 md:grid-cols-3">
-          {monthly.map((plan, index) => {
-            // The middle plan is the one most customers should pick.
-            const featured = index === 1;
+        // Four tiers since Starter: two up at tablet width, four on desktop.
+        <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {monthly.map((plan) => {
+            /**
+             * Named rather than positional. This was `index === 1`, which
+             * silently moved to Launch when Starter was added at the front — a
+             * highlight that follows array order rather than the actual
+             * recommendation is wrong the first time the line-up changes.
+             */
+            const featured = plan.tier === "grow";
             return (
               <Card
                 key={plan.id}
@@ -83,10 +89,13 @@ export default async function PricingPage() {
                 <CardContent>
                   <ul className="space-y-2.5 text-sm">
                     {[
-                      `${plan.articleLimit} articles written each month`,
-                      `${plan.keywordLimit.toLocaleString()} search terms tracked`,
+                      // Pluralised per count: Starter has a limit of one for
+                      // three of these, and "1 articles" on the entry plan is
+                      // the first thing a prospective customer reads.
+                      `${plan.articleLimit} ${plan.articleLimit === 1 ? "article" : "articles"} written each month`,
+                      `${plan.keywordLimit.toLocaleString()} ${plan.keywordLimit === 1 ? "search term" : "search terms"} tracked`,
                       `${plan.siteLimit} ${plan.siteLimit === 1 ? "website" : "websites"}`,
-                      `${plan.monthlyCredits} link credits each month`,
+                      `${plan.monthlyCredits} ${plan.monthlyCredits === 1 ? "link credit" : "link credits"} each month`,
                       "Website health checks",
                       "Publish straight to WordPress",
                     ].map((feature) => (

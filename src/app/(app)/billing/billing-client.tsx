@@ -38,11 +38,19 @@ type BillingClientProps = {
 
 function planFeatures(plan: PlanRow): string[] {
   const unlimited = (n: number) => (n < 0 ? "Unlimited" : n.toLocaleString());
+  /**
+   * Pluralised per count. Starter has a limit of one for three of these, and
+   * "1 articles written each month" on the entry plan is the first thing a
+   * prospective customer reads.
+   */
+  const plural = (n: number, one: string, many: string) =>
+    n === 1 ? one : many;
+
   return [
-    `${unlimited(plan.articleLimit)} articles written each month`,
-    `${unlimited(plan.keywordLimit)} search terms tracked`,
-    `${unlimited(plan.siteLimit)} ${plan.siteLimit === 1 ? "website" : "websites"}`,
-    `${unlimited(plan.monthlyCredits)} link credits each month`,
+    `${unlimited(plan.articleLimit)} ${plural(plan.articleLimit, "article", "articles")} written each month`,
+    `${unlimited(plan.keywordLimit)} ${plural(plan.keywordLimit, "search term", "search terms")} tracked`,
+    `${unlimited(plan.siteLimit)} ${plural(plan.siteLimit, "website", "websites")}`,
+    `${unlimited(plan.monthlyCredits)} ${plural(plan.monthlyCredits, "link credit", "link credits")} each month`,
   ];
 }
 
@@ -133,7 +141,23 @@ export function BillingClient({
   const monthlyByTier = new Map(
     plans.filter((p) => p.interval === "month").map((p) => [p.tier, p]),
   );
-  const visible = plans.filter((p) => p.interval === interval);
+  /**
+   * Tiers that exist only monthly — Starter — still show on the annual tab.
+   *
+   * Filtering strictly by interval would make the cheapest plan vanish the
+   * moment someone clicks "Annual", with no explanation. Falling back to the
+   * monthly row keeps the full line-up visible; the card shows its real
+   * monthly price, which is the only price it has.
+   */
+  const annualTiers = new Set(
+    plans.filter((p) => p.interval === "year").map((p) => p.tier),
+  );
+  const visible = plans.filter((p) =>
+    interval === "year"
+      ? p.interval === "year" ||
+        (p.interval === "month" && !annualTiers.has(p.tier))
+      : p.interval === "month",
+  );
   const hasAnnual = plans.some((p) => p.interval === "year");
 
   return (
@@ -233,7 +257,8 @@ export function BillingClient({
         </Tabs>
       ) : null}
 
-      <div className="grid gap-4 md:grid-cols-3">
+      {/* Four tiers since Starter: two up at tablet width, four across on desktop. */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {visible.map((plan) => {
           const isCurrent = subscription?.planId === plan.id && entitled;
           const saving =
