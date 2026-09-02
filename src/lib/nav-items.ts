@@ -1,5 +1,6 @@
 import {
   CreditCard,
+  Rocket,
   Globe,
   LayoutDashboard,
   Settings,
@@ -25,6 +26,7 @@ export type NavItem = {
 
 export const navItems: NavItem[] = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { title: "Get started", href: "/onboarding", icon: Rocket },
   { title: "Websites", href: "/websites", icon: Globe },
   { title: "Billing", href: "/billing", icon: CreditCard },
   { title: "Settings", href: "/settings", icon: Settings },
