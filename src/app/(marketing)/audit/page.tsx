@@ -1,27 +1,17 @@
-import { AlertTriangle, ArrowRight, Info, Lock } from "lucide-react";
-import Link from "next/link";
+import { Bot, FileSearch, ListChecks } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { ISSUE_LABELS } from "@/lib/audit/rules";
 import { runPublicAudit } from "@/lib/audit/public-audit";
 import { AuditForm } from "./audit-form";
+import { AuditResult } from "./audit-result";
 
 export const metadata = {
   title: "Free website check",
   description:
-    "See what is holding your website back on Google. No account needed.",
+    "See what is holding your website back on Google and whether AI assistants can read your site. No account needed.",
 };
 
 // Crawls a live website per request, so it can never be prerendered.
 export const dynamic = "force-dynamic";
-
-function scoreTone(score: number): string {
-  if (score >= 80) return "text-emerald-600 dark:text-emerald-400";
-  if (score >= 50) return "text-amber-600 dark:text-amber-400";
-  return "text-red-600 dark:text-red-400";
-}
 
 /**
  * Free public audit — the lead magnet.
@@ -40,157 +30,73 @@ export default async function AuditPage({
   const outcome = domain ? await runPublicAudit(domain) : null;
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-16">
+    <div className="mx-auto max-w-4xl px-4 py-16 sm:py-20">
       <div className="text-center">
-        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-          How healthy is your website?
+        <p className="text-xs font-semibold tracking-[0.14em] text-primary uppercase">
+          Free website check
+        </p>
+        <h1 className="mt-3 text-3xl font-semibold tracking-tight text-balance sm:text-5xl">
+          Your free <span className="text-primary">growth plan</span>
         </h1>
-        <p className="mx-auto mt-3 max-w-md text-muted-foreground">
-          We will check your pages and show you what is holding you back on
-          Google. Free, and no account needed.
+        <p className="mx-auto mt-4 max-w-xl text-pretty text-muted-foreground sm:text-lg">
+          Enter your website and we will read your pages, score them, and show
+          you what is holding you back on Google — and whether AI assistants can
+          read your site at all.
         </p>
       </div>
 
-      <div className="mt-8">
+      <div className="mx-auto mt-8 max-w-xl">
         <AuditForm key={domain} defaultValue={domain} />
+        <p className="mt-3 text-center text-xs text-muted-foreground">
+          No account, no card. Takes about a minute.
+        </p>
       </div>
+
+      {/*
+        What the check actually does. Shown only before a result, where the
+        reference runs its three-step build animation — the same reassurance
+        that something real is happening, without pretending to a progress bar
+        we cannot honestly drive from a server component.
+      */}
+      {!outcome ? (
+        <div className="mt-16 grid gap-4 sm:grid-cols-3">
+          {[
+            {
+              icon: FileSearch,
+              title: "We read your pages",
+              body: "Up to five of them, the way a search engine would — titles, headings, images, links.",
+            },
+            {
+              icon: ListChecks,
+              title: "We score what we find",
+              body: "Every problem comes with what to change and roughly how long it takes.",
+            },
+            {
+              icon: Bot,
+              title: "We check AI access",
+              body: "Whether ChatGPT, Claude, Perplexity and Gemini are allowed to read and cite you.",
+            },
+          ].map((step) => (
+            <div key={step.title} className="rounded-xl border bg-card p-5">
+              <step.icon className="size-5 text-primary" aria-hidden="true" />
+              <p className="mt-3 font-medium">{step.title}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{step.body}</p>
+            </div>
+          ))}
+        </div>
+      ) : null}
 
       {outcome && !outcome.ok ? (
         <div
-          className="mt-8 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm"
+          className="mx-auto mt-8 max-w-xl rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm"
           role="alert"
         >
           <p className="font-medium">We could not check that website</p>
-          <p className="mt-1 text-muted-foreground">
-            {outcome.error.message}
-          </p>
+          <p className="mt-1 text-muted-foreground">{outcome.error.message}</p>
         </div>
       ) : null}
 
-      {outcome?.ok ? (
-        <div className="mt-10 space-y-6">
-          <Card>
-            <CardContent className="flex flex-wrap items-center justify-between gap-4 py-6">
-              <div>
-                <p className="font-medium">{outcome.result.domain}</p>
-                <p className="text-sm text-muted-foreground">
-                  {outcome.result.pagesChecked}{" "}
-                  {outcome.result.pagesChecked === 1 ? "page" : "pages"} checked
-                </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Badge variant="destructive">
-                    {outcome.result.counts.critical} critical
-                  </Badge>
-                  <Badge>{outcome.result.counts.warning} warnings</Badge>
-                  <Badge variant="secondary">
-                    {outcome.result.counts.info} suggestions
-                  </Badge>
-                </div>
-              </div>
-              <div className="text-right">
-                <div
-                  className={`text-4xl font-semibold tabular-nums ${scoreTone(outcome.result.score)}`}
-                >
-                  {outcome.result.score}
-                </div>
-                <div className="text-xs text-muted-foreground">out of 100</div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {outcome.result.issues.length === 0 ? (
-            <Card>
-              <CardContent className="py-6 text-sm text-muted-foreground">
-                We found nothing wrong on the pages we checked. Sign up and we
-                will check your whole site, then start finding the searches your
-                customers use.
-              </CardContent>
-            </Card>
-          ) : (
-            <Card>
-              <CardContent className="py-2">
-                <ul className="divide-y">
-                  {outcome.result.issues.map((issue, index) => (
-                    <li
-                      key={`${issue.type}-${index}`}
-                      className="flex gap-3 py-4"
-                    >
-                      {issue.severity === "critical" ? (
-                        <AlertTriangle
-                          className="mt-0.5 size-4 shrink-0 text-destructive"
-                          aria-hidden="true"
-                        />
-                      ) : (
-                        <Info
-                          className="mt-0.5 size-4 shrink-0 text-muted-foreground"
-                          aria-hidden="true"
-                        />
-                      )}
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium">
-                          {ISSUE_LABELS[issue.type] ?? issue.type}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {issue.detail}
-                        </p>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-          )}
-
-          {/*
-            The gate. It states a real number from the real crawl — never an
-            invented "47 issues found" — so the visitor can trust it.
-          */}
-          {outcome.result.hiddenIssues > 0 ? (
-            <Card className="border-primary/30">
-              <CardContent className="flex flex-wrap items-center justify-between gap-4 py-6">
-                <div className="flex items-start gap-3">
-                  <Lock
-                    className="mt-0.5 size-4 shrink-0 text-muted-foreground"
-                    aria-hidden="true"
-                  />
-                  <div>
-                    <p className="font-medium">
-                      {outcome.result.hiddenIssues} more{" "}
-                      {outcome.result.hiddenIssues === 1 ? "thing" : "things"} to
-                      fix
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      Sign up free to see the full list, and we will start
-                      writing the pages that fix them.
-                    </p>
-                  </div>
-                </div>
-                <Button asChild>
-                  <Link href="/sign-up">
-                    See the full report
-                    <ArrowRight className="size-4" />
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="text-center">
-              <Button asChild>
-                <Link href="/sign-up">
-                  Get started free
-                  <ArrowRight className="size-4" />
-                </Link>
-              </Button>
-            </div>
-          )}
-
-          {outcome.result.cached ? (
-            <p className="text-center text-xs text-muted-foreground">
-              Showing a check from the last 24 hours.
-            </p>
-          ) : null}
-        </div>
-      ) : null}
+      {outcome?.ok ? <AuditResult result={outcome.result} /> : null}
     </div>
   );
 }

@@ -5,6 +5,11 @@ import { crawlSite } from "@/lib/audit/crawler";
 import { db } from "@/lib/db";
 import { providerCache } from "@/lib/db/schema";
 import { normalizeWebsiteUrl, InvalidUrlError } from "@/lib/websites/url";
+import {
+  detectPlatform,
+  parseCrawlerAccess,
+  type CrawlerAccess,
+} from "@/lib/audit/ai-crawlers";
 
 /**
  * Free public audit — the lead magnet.
@@ -40,16 +45,76 @@ export const PUBLIC_ISSUE_LIMIT = 5;
  */
 const HOURLY_LIMIT = 60;
 
+/**
+ * One kind of problem, with every page it affects.
+ *
+ * The audit reports per page, which is right for fixing but wrong for reading:
+ * five pages each missing a description produced five identical rows, so the
+ * free result spent its whole five-finding budget saying one thing. Grouping
+ * shows five DIFFERENT problems and names the pages under each.
+ */
+export type GroupedIssue = {
+  type: string;
+  severity: Issue["severity"];
+  /** Detail from the first occurrence — they read the same within a type. */
+  detail: string;
+  /** Pages affected, capped for display. */
+  urls: string[];
+  /** Total affected, including any beyond `urls`. */
+  pageCount: number;
+};
+
+/** Pages listed under a single grouped finding before it says "and N more". */
+const URLS_PER_ISSUE = 3;
+
+/** Groups per-page issues by type, preserving severity order. */
+function groupIssues(issues: Issue[]): GroupedIssue[] {
+  const groups = new Map<string, GroupedIssue>();
+
+  for (const issue of issues) {
+    const existing = groups.get(issue.type);
+    if (existing) {
+      existing.pageCount += 1;
+      if (issue.url && existing.urls.length < URLS_PER_ISSUE) {
+        existing.urls.push(issue.url);
+      }
+      continue;
+    }
+    groups.set(issue.type, {
+      type: issue.type,
+      severity: issue.severity,
+      detail: issue.detail,
+      urls: issue.url ? [issue.url] : [],
+      pageCount: 1,
+    });
+  }
+
+  return [...groups.values()];
+}
+
 export type PublicAuditResult = {
   domain: string;
   score: number;
   pagesChecked: number;
   counts: { critical: number; warning: number; info: number };
-  /** Trimmed to PUBLIC_ISSUE_LIMIT. */
-  issues: Issue[];
+  /** Grouped by type and trimmed to PUBLIC_ISSUE_LIMIT. */
+  issues: GroupedIssue[];
   /** How many findings exist beyond the ones shown. */
   hiddenIssues: number;
   cached: boolean;
+
+  /* --- context, all read from the site itself ------------------------- */
+
+  /** Site name from og:site_name or the homepage title. */
+  siteName: string | null;
+  /** Language the page declares, when it declares one. */
+  language: string | null;
+  /** Platform guessed from markup fingerprints; null when unrecognised. */
+  platform: string | null;
+  /** Which AI crawlers robots.txt lets through. */
+  crawlers: CrawlerAccess[];
+  /** Outbound hosts the site links to — a weak but free competitor signal. */
+  linkedHosts: string[];
 };
 
 export type PublicAuditError =
@@ -63,7 +128,10 @@ export type PublicAuditOutcome =
 
 /** Cache key. provider_cache is already unique on params_hash. */
 function cacheKeyFor(domain: string): string {
-  return `public-audit:${domain}`;
+  // Versioned: cached entries hold a shaped result, so a change to
+  // PublicAuditResult must not be read back into the new UI. Bump on shape
+  // changes — v2 added grouped issues and the crawler/platform context.
+  return `public-audit:v2:${domain}`;
 }
 
 async function readCached(domain: string): Promise<PublicAuditResult | null> {
@@ -161,6 +229,15 @@ export async function runPublicAudit(
     };
   }
 
+  /**
+   * robots.txt, for the AI crawler check. Fetched separately and tolerated on
+   * failure: a missing robots.txt means everything is allowed, which is a real
+   * answer rather than an error.
+   */
+  const robotsTxt = await fetchRobotsTxt(normalized.url);
+
+  const home = crawl.pages[0];
+
   const issues = [
     ...crawl.pages.flatMap(auditPage),
     ...auditSite(crawl.pages),
@@ -172,9 +249,21 @@ export async function runPublicAudit(
    * than whichever happened to be found first.
    */
   const rank: Record<string, number> = { critical: 0, warning: 1, info: 2 };
-  const ordered = [...issues].sort(
-    (a, b) => (rank[a.severity] ?? 9) - (rank[b.severity] ?? 9),
+  const ordered = groupIssues(
+    [...issues].sort((a, b) => (rank[a.severity] ?? 9) - (rank[b.severity] ?? 9)),
   );
+
+  /**
+   * Hosts the site links out to, most linked first. A genuinely weak signal —
+   * it catches partners and payment providers as readily as competitors — so
+   * the UI labels it "sites you link to" rather than claiming these are rivals.
+   */
+  const hostCounts = new Map<string, number>();
+  for (const page of crawl.pages) {
+    for (const host of page.externalHosts ?? []) {
+      hostCounts.set(host, (hostCounts.get(host) ?? 0) + 1);
+    }
+  }
 
   const result: PublicAuditResult = {
     domain: normalized.domain,
@@ -184,6 +273,20 @@ export async function runPublicAudit(
     issues: ordered.slice(0, PUBLIC_ISSUE_LIMIT),
     hiddenIssues: Math.max(ordered.length - PUBLIC_ISSUE_LIMIT, 0),
     cached: false,
+    siteName: home?.ogSiteName ?? home?.title ?? null,
+    language: home?.lang ?? null,
+    // Asset and link URLs carry the fingerprints; visible text does not.
+    platform: home
+      ? detectPlatform([
+          ...(home.images ?? []).map((i) => i.src),
+          ...(home.internalUrls ?? []),
+        ])
+      : null,
+    crawlers: parseCrawlerAccess(robotsTxt),
+    linkedHosts: [...hostCounts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6)
+      .map(([host]) => host),
   };
 
   // Cached under the same table the paid providers use; the unique index on
@@ -207,4 +310,31 @@ export async function runPublicAudit(
     });
 
   return { ok: true, result };
+}
+
+/**
+ * Fetches robots.txt, returning null when there is none.
+ *
+ * Short timeout and a small cap: this is one extra request on a page a visitor
+ * is already waiting on, and a site that hangs serving robots.txt should not
+ * hold up the whole audit.
+ */
+async function fetchRobotsTxt(siteUrl: string): Promise<string | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+  try {
+    const response = await fetch(
+      `${new URL(siteUrl).origin}/robots.txt`,
+      {
+        signal: controller.signal,
+        headers: { accept: "text/plain", "user-agent": "SEOVisionBot/1.0" },
+      },
+    );
+    if (!response.ok) return null;
+    return (await response.text()).slice(0, 200_000);
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
 }
