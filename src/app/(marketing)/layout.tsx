@@ -75,6 +75,8 @@ export default function MarketingLayout({ children }: LayoutProps<"/">) {
                   { href: "/blog", label: "Blog" },
                   { href: "/faq", label: "FAQ" },
                   { href: "/about", label: "About" },
+                  { href: "/backlink-exchange", label: "Backlink exchange" },
+                  { href: "/affiliate", label: "Refer a business" },
                   { href: "/contact", label: "Contact" },
                 ].map((item) => (
                   <Link
