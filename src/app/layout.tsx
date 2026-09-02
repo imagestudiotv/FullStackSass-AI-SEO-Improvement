@@ -13,7 +13,28 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+/**
+ * Absolute base for canonical and hreflang URLs.
+ *
+ * Without this Next emits them relative ("/es/pricing"), and search engines
+ * ignore a relative hreflang entirely — the translations would be treated as
+ * duplicates of each other rather than alternates, which is the exact problem
+ * hreflang exists to prevent.
+ *
+ * Falls back to the production domain rather than localhost so a missing env
+ * var cannot publish canonical tags pointing at a developer machine.
+ */
+function siteUrl(): URL {
+  const configured = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "");
+  return new URL(
+    configured && !configured.includes("localhost")
+      ? configured
+      : "https://seovision.io",
+  );
+}
+
 export const metadata: Metadata = {
+  metadataBase: siteUrl(),
   title: {
     default: "AI SEO Platform",
     template: "%s | AI SEO Platform",

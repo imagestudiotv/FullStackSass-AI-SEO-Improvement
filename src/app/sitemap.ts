@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 
 import { listPosts } from "@/lib/blog/posts";
+import { localePath, PREFIXED_LOCALES } from "@/lib/i18n/config";
 
 /**
  * Sitemap.
@@ -63,5 +64,18 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.7,
   }));
 
-  return [...pages, ...posts];
+  /**
+   * Translated pages. Listed so search engines find them without having to
+   * discover the prefix by following a switcher link, which they may not.
+   * Only the paths that actually exist in every locale.
+   */
+  const translated: MetadataRoute.Sitemap = PREFIXED_LOCALES.flatMap((locale) =>
+    ["/", "/pricing"].map((path) => ({
+      url: `${base}${localePath(locale, path)}`,
+      lastModified: now,
+      priority: path === "/" ? 0.9 : 0.7,
+    })),
+  );
+
+  return [...pages, ...posts, ...translated];
 }

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { LegalPage } from "../legal-page";
 import { SUPPORT_EMAIL } from "@/lib/config/site";
 
@@ -101,7 +102,7 @@ export default function TermsPage() {
         You can cancel at any time from the billing page. Cancelling stops the
         next renewal; your access continues until the end of the period you have
         already paid for. See our{" "}
-        <a href="/refunds">refund policy</a> for refunds.
+        <Link href="/refunds">refund policy</Link> for refunds.
       </p>
 
       <h2>Availability</h2>

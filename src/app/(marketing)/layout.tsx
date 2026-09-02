@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
+import { LanguageSwitcher } from "@/components/language-switcher";
 import { LiveChat } from "@/components/live-chat";
 
 export default function MarketingLayout({ children }: LayoutProps<"/">) {
@@ -38,6 +39,8 @@ export default function MarketingLayout({ children }: LayoutProps<"/">) {
           </nav>
 
           <div className="ml-auto flex items-center gap-2 sm:ml-4">
+            {/* Hidden on pages that exist in English only. */}
+            <LanguageSwitcher />
             <Button variant="ghost" size="sm" asChild>
               <Link href="/sign-in">Sign in</Link>
             </Button>
