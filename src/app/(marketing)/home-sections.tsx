@@ -52,25 +52,25 @@ const HERO_CARDS: {
     icon: Search,
     label: "Google rankings",
     detail: "Tracked daily",
-    className: "left-0 top-6",
+    className: "left-[6%] top-10 -rotate-6",
   },
   {
     icon: Bot,
     label: "AI assistants",
     detail: "Are you cited?",
-    className: "left-4 top-52",
+    className: "left-[2%] top-56 rotate-3",
   },
   {
     icon: Link2,
     label: "Backlinks",
     detail: "Earned, not bought",
-    className: "right-0 top-10",
+    className: "right-[6%] top-8 rotate-6",
   },
   {
     icon: FileText,
     label: "Articles",
     detail: "Written and published",
-    className: "right-4 top-56",
+    className: "right-[2%] top-60 -rotate-3",
   },
 ];
 
@@ -93,13 +93,22 @@ export function Hero() {
         </p>
 
         <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
-          <Button size="lg" asChild>
+          <Button
+            size="lg"
+            asChild
+            className="h-12 rounded-full px-7 text-base"
+          >
             <Link href="/audit">
               Check my website free
               <ArrowRight className="size-4" />
             </Link>
           </Button>
-          <Button size="lg" variant="outline" asChild>
+          <Button
+            size="lg"
+            variant="outline"
+            asChild
+            className="h-12 rounded-full px-7 text-base"
+          >
             <Link href="/sign-up">Start for free</Link>
           </Button>
         </div>
@@ -125,7 +134,7 @@ export function Hero() {
         {HERO_CARDS.map((card) => (
           <div
             key={card.label}
-            className={`absolute w-44 rounded-xl border bg-card p-3 shadow-sm ${card.className}`}
+            className={`absolute w-48 rounded-xl border bg-card p-3.5 shadow-lg ${card.className}`}
           >
             <div className="flex items-center gap-2">
               <card.icon className="size-4 text-primary" />
@@ -190,7 +199,11 @@ export function AuditBand() {
           second copy of all of it.
         */}
         <div className="mt-7">
-          <Button size="lg" asChild className="w-full sm:w-auto">
+          <Button
+            size="lg"
+            asChild
+            className="h-12 w-full rounded-full px-7 text-base sm:w-auto"
+          >
             <Link href="/audit">
               Check my website
               <ArrowRight className="size-4" />
@@ -531,7 +544,12 @@ export function ClosingCta() {
         </p>
 
         <div className="mt-8 flex flex-wrap justify-center gap-3">
-          <Button size="lg" variant="secondary" asChild>
+          <Button
+            size="lg"
+            variant="secondary"
+            asChild
+            className="h-12 rounded-full px-7 text-base"
+          >
             <Link href="/audit">
               Check my website free
               <ArrowRight className="size-4" />

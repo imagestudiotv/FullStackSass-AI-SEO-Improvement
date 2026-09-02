@@ -85,9 +85,14 @@
 }
 
 @theme inline {
-  --font-sans: var(--font-sans);
+  /*
+   * Points at the variable the root layout actually sets. This read
+   * `var(--font-sans)` — itself — so it never resolved and every heading
+   * fell back to the browser's default serif.
+   */
+  --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  --font-heading: var(--font-geist-sans);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
