@@ -16,6 +16,21 @@ import { formatPrice, listPlans } from "@/lib/billing";
 export const metadata = {
   title: "Pricing",
   description: "Simple monthly pricing. Cancel any time.",
+  /**
+   * Declared from the English side too. hreflang has to be reciprocal — a
+   * translation that points at the original while the original ignores it is
+   * treated as a duplicate rather than an alternate.
+   */
+  alternates: {
+    canonical: "/pricing",
+    languages: {
+      en: "/pricing",
+      es: "/es/pricing",
+      fr: "/fr/pricing",
+      it: "/it/pricing",
+      de: "/de/pricing",
+    },
+  },
 };
 
 /**
