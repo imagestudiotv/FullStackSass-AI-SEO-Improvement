@@ -26,6 +26,8 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { PageShell } from "@/components/ui/page-header";
+import { Stat } from "@/components/ui/states";
+import { articleStats } from "@/lib/articles/stats";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -59,6 +61,7 @@ export function ArticleEditor({
   article,
   canPublish,
   destinationName,
+  websiteDomain,
   publishLogs,
 }: {
   websiteId: string;
@@ -71,9 +74,15 @@ export function ArticleEditor({
    * when it went to Shopify is worse than saying nothing.
    */
   destinationName: string | null;
+  /** Decides which links count as internal. */
+  websiteDomain: string | null;
   publishLogs: PublishLogRow[];
 }) {
   const router = useRouter();
+  const stats = articleStats(article.bodyHtml, {
+    domain: websiteDomain,
+    targetKeyword: article.targetKeyword,
+  });
   const [pending, startTransition] = useTransition();
   const [title, setTitle] = useState(article.title);
   const [meta, setMeta] = useState(article.metaDescription ?? "");
@@ -159,9 +168,32 @@ export function ArticleEditor({
         </div>
         <p className="text-sm text-muted-foreground">
           {article.targetKeyword ? `Target: ${article.targetKeyword}` : null}
-          {article.wordCount ? ` · ${article.wordCount} words` : null}
         </p>
       </div>
+
+      {/*
+        Article details, counted from the body rather than stored. The customer
+        can edit at any time, and a stored count would immediately be wrong.
+        Hidden until there is a body: zeros on an article still being written
+        read as failure rather than as progress.
+      */}
+      {article.bodyHtml ? (
+        <Card>
+          <CardContent className="grid grid-cols-2 gap-4 py-5 sm:grid-cols-4 lg:grid-cols-7">
+            <Stat label="Words" value={stats.words} />
+            <Stat label="Headings" value={stats.headings} />
+            <Stat
+              label="Keyword uses"
+              value={stats.keywordUses}
+              hint={article.targetKeyword ?? undefined}
+            />
+            <Stat label="Internal links" value={stats.internalLinks} />
+            <Stat label="External links" value={stats.externalLinks} />
+            <Stat label="Images" value={stats.images} />
+            <Stat label="Social mentions" value={stats.socialMentions} />
+          </CardContent>
+        </Card>
+      ) : null}
 
       {working ? (
         <Card>

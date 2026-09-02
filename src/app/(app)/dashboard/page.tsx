@@ -8,6 +8,9 @@ import { PageHeader, PageShell } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/states";
 import { requireSession } from "@/lib/auth-guard";
 import { listWebsites } from "@/lib/websites/actions";
+import { redirect } from "next/navigation";
+import { getOnboardingState } from "@/lib/onboarding/steps";
+import { requireOrg } from "@/lib/tenant";
 
 export const metadata = { title: "Dashboard" };
 
@@ -34,6 +37,21 @@ const STATUS: Record<
 export default async function DashboardPage() {
   const session = await requireSession();
   const firstName = session.user.name?.split(" ")[0] || session.user.email;
+
+  /**
+   * A customer who has not finished setting up goes to the guided flow rather
+   * than an empty dashboard. Redirected here rather than from sign-up so it
+   * also catches someone who left halfway and came back days later.
+   *
+   * Only while nothing exists yet: once there is a website, the dashboard is
+   * genuinely more useful than a checklist, and forcing someone back through
+   * setup they have half-finished would be worse than letting them work.
+   */
+  const { orgId } = await requireOrg();
+  const onboarding = await getOnboardingState(orgId);
+  if (!onboarding.websiteId && !onboarding.complete) {
+    redirect("/onboarding");
+  }
 
   const websites = await listWebsites();
 

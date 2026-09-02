@@ -22,6 +22,10 @@ import { describeNetwork, findHost } from "@/lib/backlinks/matching";
 import { requireWebsite } from "@/lib/tenant";
 import { InvalidUrlError, normalizeWebsiteUrl } from "@/lib/websites/url";
 import type { ActionResult } from "@/lib/websites/actions";
+import {
+  findLinkTargets,
+  type SitemapPage,
+} from "@/lib/backlinks/sitemap";
 
 /**
  * Backlink network actions.
@@ -348,3 +352,27 @@ export async function getLedger(websiteId: string): Promise<LedgerRow[]> {
 }
 
 export { recordCredit };
+
+/**
+ * Suggests pages on the customer's own site worth linking to.
+ *
+ * Read from their sitemap rather than our crawl: the crawl follows links and
+ * stops at 25 pages, while a sitemap is the owner's own list of everything
+ * they want indexed — including pages no internal link reaches, which are
+ * exactly the ones a backlink helps most.
+ *
+ * Returns a typed failure rather than throwing. A site with no sitemap is a
+ * normal outcome, not an error, and the customer can still type a URL.
+ */
+export async function suggestLinkTargets(
+  websiteId: string,
+): Promise<ActionResult<SitemapPage[]>> {
+  const { site } = await requireWebsite(websiteId);
+
+  const outcome = await findLinkTargets(site.url);
+  if (!outcome.ok) {
+    return { ok: false, error: outcome.error };
+  }
+
+  return { ok: true, data: outcome.pages };
+}
