@@ -20,6 +20,25 @@ const CURRENCY = "eur";
 /** Monthly price per tier, in minor units. Annual is derived as x10. */
 const TIERS = [
   {
+    /**
+     * The entry tier from the brief: "one article and one backlink, to attract
+     * to subscribe, and later upgrade the plans".
+     *
+     * Monthly only. An annual Starter would be EUR 10 for a year of service,
+     * which undercuts every other plan and gives someone no reason to move up
+     * — the opposite of what an entry tier is for.
+     */
+    tier: "starter",
+    name: "Starter",
+    monthlyCents: 100,
+    articleLimit: 1,
+    keywordLimit: 25,
+    siteLimit: 1,
+    monthlyCredits: 1,
+    sortOrder: 0,
+    monthlyOnly: true,
+  },
+  {
     tier: "launch",
     name: "Launch",
     monthlyCents: 2900,
@@ -66,17 +85,22 @@ const rows = TIERS.flatMap((t) => [
     monthlyCredits: t.monthlyCredits,
     sortOrder: t.sortOrder,
   },
-  {
-    tier: t.tier,
-    name: `${t.name} (Annual)`,
-    interval: "year",
-    priceCents: t.monthlyCents * ANNUAL_MONTHS,
-    articleLimit: t.articleLimit,
-    keywordLimit: t.keywordLimit,
-    siteLimit: t.siteLimit,
-    monthlyCredits: t.monthlyCredits,
-    sortOrder: t.sortOrder,
-  },
+  // A tier can opt out of an annual row; see Starter above.
+  ...(t.monthlyOnly
+    ? []
+    : [
+        {
+          tier: t.tier,
+          name: `${t.name} (Annual)`,
+          interval: "year",
+          priceCents: t.monthlyCents * ANNUAL_MONTHS,
+          articleLimit: t.articleLimit,
+          keywordLimit: t.keywordLimit,
+          siteLimit: t.siteLimit,
+          monthlyCredits: t.monthlyCredits,
+          sortOrder: t.sortOrder,
+        },
+      ]),
 ]);
 
 for (const p of rows) {
