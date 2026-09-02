@@ -85,6 +85,13 @@
       "when": 1788228749221,
       "tag": "0011_perfect_pete_wisdom",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1788315196938,
+      "tag": "0012_fair_black_tarantula",
+      "breakpoints": true
     }
   ]
 }

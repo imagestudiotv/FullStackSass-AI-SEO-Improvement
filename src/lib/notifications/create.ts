@@ -26,7 +26,8 @@ export type NotificationType =
   | "keywords.ready"
   | "keywords.failed"
   | "geo.ready"
-  | "referral.rewarded";
+  | "referral.rewarded"
+  | "addon.purchased";
 
 export type NewNotification = {
   organizationId: string;

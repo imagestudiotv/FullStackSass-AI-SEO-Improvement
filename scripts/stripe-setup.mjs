@@ -150,4 +150,97 @@ console.log(
     : `\n${missing.length} plan(s) still missing a price id.`,
 );
 
+/* -------------------------------------------------------------------------- */
+/* Add-ons                                                                     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * One-off prices, not subscriptions. Same idempotency rules as plans above: a
+ * price whose amount and currency still match is reused, and a changed amount
+ * means a NEW price with the old one deactivated, because Stripe prices are
+ * immutable. Anyone who already paid is unaffected - they bought once.
+ */
+const addons = await sql`
+  select id, slug, name, price_cents, currency, stripe_price_id
+  from addons where is_active = true order by sort_order
+`;
+
+if (addons.length > 0) console.log("\nAdd-ons\n");
+
+for (const addon of addons) {
+  console.log(`${addon.name} (${addon.slug})`);
+
+  if (addon.stripe_price_id) {
+    try {
+      const price = await stripe.prices.retrieve(addon.stripe_price_id);
+      const matches =
+        price.active &&
+        price.unit_amount === addon.price_cents &&
+        price.currency === addon.currency &&
+        // A one-off price has no recurring block; a subscription price does.
+        !price.recurring;
+
+      if (matches) {
+        console.log(`  price unchanged: ${price.id}\n`);
+        continue;
+      }
+      console.log(`  price changed - creating a replacement`);
+      await stripe.prices.update(price.id, { active: false });
+    } catch {
+      console.log(`  stored price id not found in this mode - recreating`);
+    }
+  }
+
+  /**
+   * One product per add-on, looked up by metadata.addonSlug. list() rather
+   * than search() for the same reason as plans: the search index is eventually
+   * consistent and would create a duplicate product on every re-run.
+   */
+  let product;
+  for await (const candidate of stripe.products.list({ limit: 100 })) {
+    if (candidate.metadata?.addonSlug === addon.slug && candidate.active) {
+      product = candidate;
+      break;
+    }
+  }
+  if (product) {
+    console.log(`  product exists: ${product.id}`);
+  } else {
+    product = await stripe.products.create({
+      name: addon.name,
+      metadata: { addonSlug: addon.slug },
+    });
+    console.log(`  product created: ${product.id}`);
+  }
+
+  const price = await stripe.prices.create({
+    product: product.id,
+    currency: addon.currency,
+    unit_amount: addon.price_cents,
+    // No `recurring`: this is a one-time payment.
+    metadata: { addonSlug: addon.slug, addonId: addon.id },
+  });
+
+  await sql`
+    update addons set stripe_price_id = ${price.id}, updated_at = now()
+    where id = ${addon.id}
+  `;
+  console.log(`  price created: ${price.id}\n`);
+}
+
+if (addons.length > 0) {
+  const finalAddons = await sql`
+    select slug, name, currency, price_cents, stripe_price_id
+    from addons where is_active = true order by sort_order
+  `;
+  console.table(finalAddons.map((r) => ({ ...r })));
+
+  const missingAddons = finalAddons.filter((r) => !r.stripe_price_id);
+  console.log(
+    missingAddons.length === 0
+      ? "All add-ons have a Stripe price."
+      : `${missingAddons.length} add-on(s) still missing a price id.`,
+  );
+}
+
 await sql.end();

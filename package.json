@@ -13,6 +13,7 @@
     "check:images": "node scripts/check-image-provider.mjs",
     "plugin:build": "node wordpress-plugin/build.mjs",
     "doctor": "node scripts/doctor.mjs",
+    "db:seed-addons": "node scripts/seed-addons.mjs",
     "db:seed": "node scripts/seed-plans.mjs",
     "stripe:setup": "node scripts/stripe-setup.mjs",
     "paypal:setup": "node scripts/paypal-setup.mjs"

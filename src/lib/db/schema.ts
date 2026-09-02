@@ -907,3 +907,88 @@ export const integrationKeysRelations = relations(
     }),
   }),
 );
+
+/* ------------------------------------------------------------------------- */
+/* Add-ons                                                                    */
+/* ------------------------------------------------------------------------- */
+
+/**
+ * A one-off purchase, separate from the subscription.
+ *
+ * Two kinds exist today: extra link credits, and services we deliver by hand
+ * (the brief's "Top 250 live USA Local Citations"). They share a table because
+ * they share everything that matters — a price, a Stripe product, and a record
+ * that someone paid.
+ *
+ * Rows rather than constants because the prices are a commercial decision that
+ * will change, and a price change should not need a deploy. `stripePriceId`
+ * stays null until `npm run stripe:setup` creates the price, and checkout
+ * refuses an add-on without one, so a half-configured add-on cannot take money.
+ */
+export const addons = pgTable(
+  "addons",
+  {
+    id: pk(),
+    /** Stable key used in code and Stripe metadata, e.g. "credits_50". */
+    slug: text("slug").notNull(),
+    name: text("name").notNull(),
+    description: text("description"),
+    priceCents: integer("price_cents").notNull(),
+    currency: text("currency").default("eur").notNull(),
+    stripePriceId: text("stripe_price_id"),
+    /**
+     * Link credits granted on purchase, or 0 for a service we fulfil by hand.
+     * The webhook reads this to decide whether anything is granted
+     * automatically — a manual service must not silently do nothing.
+     */
+    creditsGranted: integer("credits_granted").default(0).notNull(),
+    /** "credits" | "service". Decides what happens after payment. */
+    kind: text("kind").default("credits").notNull(),
+    sortOrder: integer("sort_order").default(0).notNull(),
+    isActive: boolean("is_active").default(true).notNull(),
+    ...timestamps,
+  },
+  (table) => [uniqueIndex("addons_slug_key").on(table.slug)],
+);
+
+/**
+ * One completed add-on purchase.
+ *
+ * Written by the Stripe webhook, never by the checkout redirect: someone can
+ * close the tab before the redirect loads, or visit the success URL by hand.
+ * If it is not recorded here, it was not paid for.
+ *
+ * Kept even after fulfilment, because "what did I buy and when" needs an
+ * answer, and a manual service needs somewhere to track that it was delivered.
+ */
+export const addonPurchases = pgTable(
+  "addon_purchases",
+  {
+    id: pk(),
+    organizationId: organizationId(),
+    addonId: uuid("addon_id")
+      .notNull()
+      .references(() => addons.id, { onDelete: "restrict" }),
+    /** Stripe checkout session id. Unique, so a replayed webhook cannot double. */
+    stripeSessionId: text("stripe_session_id").notNull(),
+    /** What was actually charged, in case the price changes later. */
+    pricePaidCents: integer("price_paid_cents").notNull(),
+    currency: text("currency").notNull(),
+    /** "paid" for credits; "paid" then "fulfilled" for a manual service. */
+    status: text("status").default("paid").notNull(),
+    fulfilledAt: timestamp("fulfilled_at"),
+    ...timestamps,
+  },
+  (table) => [
+    // The idempotency guarantee: one purchase per Stripe session, ever.
+    uniqueIndex("addon_purchases_session_key").on(table.stripeSessionId),
+    index("addon_purchases_org_idx").on(table.organizationId),
+  ],
+);
+
+export const addonPurchasesRelations = relations(addonPurchases, ({ one }) => ({
+  addon: one(addons, {
+    fields: [addonPurchases.addonId],
+    references: [addons.id],
+  }),
+}));
