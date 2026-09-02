@@ -4,6 +4,7 @@ import { isEntitled } from "@/lib/billing-shared";
 import { db } from "@/lib/db";
 import { articles, geoPrompts, websites } from "@/lib/db/schema";
 import { getSubscription } from "@/lib/billing";
+import { isAgencyWorkspace } from "@/lib/agency/core";
 
 /**
  * Where a new customer is in setting up.
@@ -49,8 +50,12 @@ export type OnboardingState = {
 export async function getOnboardingState(
   orgId: string,
 ): Promise<OnboardingState> {
-  const [subscription, sites] = await Promise.all([
+  const [subscription, agency, sites] = await Promise.all([
     getSubscription(orgId),
+    // An agency workspace is ours rather than sold, so it has no subscription
+    // and never needs one. Without this it would sit on "choose a plan"
+    // forever, and every later step would stay locked behind it.
+    isAgencyWorkspace(orgId),
     db
       .select({
         id: websites.id,
@@ -77,7 +82,7 @@ export async function getOnboardingState(
       ])
     : [[{ n: 0 }], [{ n: 0 }]];
 
-  const hasPlan = isEntitled(subscription?.status);
+  const hasPlan = agency || isEntitled(subscription?.status);
   const hasWebsite = site !== null;
   /**
    * The profile step is done once analysis has finished, not once the customer
@@ -94,7 +99,9 @@ export async function getOnboardingState(
     {
       id: "plan",
       title: "Choose a plan",
-      description: "Start from EUR 1 a month. Cancel any time.",
+      description: agency
+        ? "This workspace is set up by us — no plan needed."
+        : "Start from EUR 1 a month. Cancel any time.",
       done: hasPlan,
       href: "/billing",
     },
