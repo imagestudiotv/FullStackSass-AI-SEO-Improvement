@@ -140,6 +140,7 @@ export default async function WebsiteDetailPage({
 
       <AuditPanel
         websiteId={site.id}
+        domain={site.domain}
         audit={auditData.audit}
         crawl={auditData.crawl}
       />
