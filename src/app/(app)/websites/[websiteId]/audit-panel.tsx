@@ -16,9 +16,13 @@ import {
 } from "@/components/ui/card";
 import { startAudit, type AuditView, type CrawlProgress } from "@/lib/audit/actions";
 import { ISSUE_LABELS } from "@/lib/audit/rules";
+import { countNeedingDeveloper, fixFor } from "@/lib/audit/fixes";
+import { FixRequest } from "./fix-request";
 
 type AuditPanelProps = {
   websiteId: string;
+  /** Used to fill in the quote request. */
+  domain: string;
   audit: AuditView | null;
   crawl: CrawlProgress;
 };
@@ -39,7 +43,12 @@ function scoreTone(score: number): string {
   return "text-red-600 dark:text-red-400";
 }
 
-export function AuditPanel({ websiteId, audit, crawl }: AuditPanelProps) {
+export function AuditPanel({
+  websiteId,
+  domain,
+  audit,
+  crawl,
+}: AuditPanelProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [showAll, setShowAll] = useState(false);
@@ -170,6 +179,23 @@ export function AuditPanel({ websiteId, audit, crawl }: AuditPanelProps) {
                     <p className="text-sm text-muted-foreground">
                       {issue.detail}
                     </p>
+                    {/*
+                      How to fix it. The audit named problems without ever
+                      saying what to do about them, which turns a list of
+                      faults into anxiety rather than a to-do list.
+                    */}
+                    {fixFor(issue.type) ? (
+                      <p className="mt-1.5 border-l-2 border-primary/30 pl-2.5 text-sm">
+                        {fixFor(issue.type)!.fix}
+                        <span className="ml-1 text-xs text-muted-foreground">
+                          ({fixFor(issue.type)!.effort}
+                          {fixFor(issue.type)!.needsDeveloper
+                            ? ", may need your developer"
+                            : ""}
+                          )
+                        </span>
+                      </p>
+                    ) : null}
                     {issue.url ? (
                       <a
                         href={issue.url}
@@ -187,6 +213,21 @@ export function AuditPanel({ websiteId, audit, crawl }: AuditPanelProps) {
             })}
           </ul>
         )}
+
+        {/*
+          Offered after the findings, not before: someone should read what is
+          wrong before being asked whether they want it fixed for them.
+        */}
+        <FixRequest
+          domain={domain}
+          issueCount={audit.issues.length}
+          criticalCount={
+            audit.issues.filter((i) => i.severity === "critical").length
+          }
+          developerCount={countNeedingDeveloper(
+            audit.issues.map((i) => i.type),
+          )}
+        />
 
         <div className="flex flex-wrap gap-2">
           {audit.issues.length > 10 ? (
