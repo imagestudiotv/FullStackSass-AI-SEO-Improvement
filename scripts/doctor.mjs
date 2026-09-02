@@ -228,6 +228,28 @@ if (has("DIRECT_URL")) {
         }
       }
 
+      /**
+       * Add-ons are mode-scoped exactly like plan prices, and fail the same
+       * silent way: the button works, checkout opens, and the payment dies
+       * against a price the live key cannot see.
+       */
+      const addonRows = await sql`
+        select slug, stripe_price_id from addons where is_active = true
+      `;
+      const noAddonPrice = addonRows.filter((a) => !a.stripe_price_id);
+      if (stripeKey && addonRows.length > 0) {
+        if (noAddonPrice.length > 0) {
+          bad(
+            `${noAddonPrice.length} add-on(s) have no Stripe price id`,
+            `Run \`npm run stripe:setup${stripeLive ? " -- --live" : ""}\`. Affected: ${noAddonPrice
+              .map((a) => a.slug)
+              .join(", ")}`,
+          );
+        } else {
+          ok(`${addonRows.length} add-on(s) have a Stripe price`);
+        }
+      }
+
       const noPaypal = plans.filter((p) => !p.paypal_plan_id);
       if (has("PAYPAL_CLIENT_ID") && noPaypal.length)
         bad(

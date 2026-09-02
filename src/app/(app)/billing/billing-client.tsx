@@ -34,6 +34,8 @@ type BillingClientProps = {
   /** False until PayPal credentials exist; the button is hidden entirely. */
   paypalAvailable: boolean;
   checkout?: string;
+  /** "success" | "cancelled" after an add-on checkout. */
+  addonResult?: string;
 };
 
 function planFeatures(plan: PlanRow): string[] {
@@ -60,6 +62,7 @@ export function BillingClient({
   entitled,
   paypalAvailable,
   checkout,
+  addonResult,
 }: BillingClientProps) {
   const [interval, setInterval] = useState<"month" | "year">(
     subscription?.interval === "year" ? "year" : "month",
@@ -78,6 +81,19 @@ export function BillingClient({
       toast("Checkout cancelled.");
     }
   }, [checkout]);
+
+  /**
+   * Add-ons land back on the same page with their own parameter. Like the
+   * subscription message above, this says "received" rather than "added" —
+   * the webhook grants the credits, and it may not have arrived yet.
+   */
+  useEffect(() => {
+    if (addonResult === "success") {
+      toast.success("Payment received - your purchase will appear shortly.");
+    } else if (addonResult === "cancelled") {
+      toast("Purchase cancelled.");
+    }
+  }, [addonResult]);
 
   async function handleSelect(planId: string) {
     setPendingPlanId(planId);

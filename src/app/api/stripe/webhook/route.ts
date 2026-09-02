@@ -6,6 +6,7 @@ import type Stripe from "stripe";
 import { db } from "@/lib/db";
 import { plans, subscriptions, webhookEvents } from "@/lib/db/schema";
 import { stripe } from "@/lib/stripe/client";
+import { fulfilAddonPurchase } from "@/lib/addons/fulfil";
 import { convertReferral } from "@/lib/referrals/core";
 
 /**
@@ -181,7 +182,39 @@ export async function POST(request: Request) {
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object;
-        // Subscription mode only; one-off payments are handled elsewhere.
+
+        /**
+         * One-off payments are add-ons: extra link credits, or a service we
+         * deliver by hand. This is the ONLY place they are recorded — the
+         * success redirect cannot be trusted, since a customer can close the
+         * tab before it loads or visit the URL by hand.
+         *
+         * Both ids come from session metadata, because a payment-mode session
+         * has no subscription object to carry them on.
+         */
+        if (session.mode === "payment") {
+          const organizationId = session.metadata?.organizationId;
+          const addonId = session.metadata?.addonId;
+
+          if (!organizationId || !addonId) {
+            // Money taken with no way to know who for. Logged rather than
+            // thrown: a retry cannot add metadata that was never sent.
+            console.error(
+              `[stripe-webhook] payment session ${session.id} has no addon metadata`,
+            );
+            break;
+          }
+
+          await fulfilAddonPurchase({
+            organizationId,
+            addonId,
+            stripeSessionId: session.id,
+            amountTotal: session.amount_total,
+            currency: session.currency,
+          });
+          break;
+        }
+
         if (session.mode !== "subscription" || !session.subscription) break;
 
         const subscriptionId =
