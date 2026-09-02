@@ -992,3 +992,43 @@ export const addonPurchasesRelations = relations(addonPurchases, ({ one }) => ({
     references: [addons.id],
   }),
 }));
+/* Agency workspaces                                                          */
+/* ------------------------------------------------------------------------- */
+
+/**
+ * A workspace operated by us rather than sold to a customer.
+ *
+ * The brief: "For the start we will be using also 20-30 of our websites, in
+ * this way we serve the users with backlinks until the platform grows. So we
+ * need to make an account like agency level, where I insert all my websites
+ * that will partecipate in backlink exchange."
+ *
+ * A row here rather than a plan tier, because this is not something anyone
+ * buys. Inventing a price and a checkout for an internal account would be
+ * ceremony around a decision that is really "this workspace is ours".
+ *
+ * A separate table rather than a column on organization: that table belongs to
+ * Better Auth, and adding our columns to it makes every future auth upgrade a
+ * merge conflict.
+ */
+export const agencyWorkspaces = pgTable(
+  "agency_workspaces",
+  {
+    id: pk(),
+    organizationId: organizationId(),
+    /**
+     * Websites this workspace may add. Agencies seed the network before it has
+     * enough customers to sustain itself, so this is far above any plan.
+     */
+    siteLimit: integer("site_limit").default(50).notNull(),
+    articleLimit: integer("article_limit").default(500).notNull(),
+    keywordLimit: integer("keyword_limit").default(5000).notNull(),
+    /** Why this workspace is an agency, for whoever finds the row later. */
+    note: text("note"),
+    ...timestamps,
+  },
+  (table) => [
+    // One agency record per workspace.
+    uniqueIndex("agency_workspaces_org_key").on(table.organizationId),
+  ],
+);
