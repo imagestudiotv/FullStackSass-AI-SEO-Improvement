@@ -85,63 +85,67 @@ export default async function HomePage() {
               {monthly.map((plan) => {
                 const featured = plan.tier === "grow";
                 return (
-                  <Card
-                    key={plan.id}
-                    className={
-                      featured
-                        ? "relative border-primary/40 shadow-sm"
-                        : "relative"
-                    }
-                  >
+                  /*
+                    The badge sits on a WRAPPER, not the Card. Card carries
+                    overflow-hidden so images clip to its rounded corners, which
+                    also cut this badge in half at the border.
+                  */
+                  <div key={plan.id} className="relative pt-2.5">
                     {featured ? (
-                      <Badge className="absolute -top-2.5 left-6">
+                      <Badge className="absolute top-0 left-6 z-10 shadow-sm">
                         Most popular
                       </Badge>
                     ) : null}
+                    <Card
+                      className={`h-full ${featured ? "border-primary/40 shadow-sm" : ""}`}
+                    >
+                      <CardHeader>
+                        <CardTitle className="text-base">{plan.name}</CardTitle>
+                        <CardDescription>
+                          <span className="text-3xl font-semibold text-foreground">
+                            {formatPrice(plan.priceCents, plan.currency)}
+                          </span>
+                          <span className="text-muted-foreground">
+                            {" "}
+                            / month
+                          </span>
+                        </CardDescription>
+                      </CardHeader>
 
-                    <CardHeader>
-                      <CardTitle className="text-base">{plan.name}</CardTitle>
-                      <CardDescription>
-                        <span className="text-3xl font-semibold text-foreground">
-                          {formatPrice(plan.priceCents, plan.currency)}
-                        </span>
-                        <span className="text-muted-foreground"> / month</span>
-                      </CardDescription>
-                    </CardHeader>
+                      <CardContent>
+                        <ul className="space-y-2.5 text-sm">
+                          {[
+                            `${plan.articleLimit} ${plan.articleLimit === 1 ? "article" : "articles"} each month`,
+                            `${plan.siteLimit} ${plan.siteLimit === 1 ? "website" : "websites"}`,
+                            `${plan.monthlyCredits} ${plan.monthlyCredits === 1 ? "link credit" : "link credits"}`,
+                          ].map((feature) => (
+                            <li
+                              key={feature}
+                              className="flex items-start gap-2.5"
+                            >
+                              <Check
+                                className="mt-0.5 size-4 shrink-0 text-primary"
+                                aria-hidden="true"
+                              />
+                              <span className="text-muted-foreground">
+                                {feature}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </CardContent>
 
-                    <CardContent>
-                      <ul className="space-y-2.5 text-sm">
-                        {[
-                          `${plan.articleLimit} ${plan.articleLimit === 1 ? "article" : "articles"} each month`,
-                          `${plan.siteLimit} ${plan.siteLimit === 1 ? "website" : "websites"}`,
-                          `${plan.monthlyCredits} ${plan.monthlyCredits === 1 ? "link credit" : "link credits"}`,
-                        ].map((feature) => (
-                          <li
-                            key={feature}
-                            className="flex items-start gap-2.5"
-                          >
-                            <Check
-                              className="mt-0.5 size-4 shrink-0 text-primary"
-                              aria-hidden="true"
-                            />
-                            <span className="text-muted-foreground">
-                              {feature}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    </CardContent>
-
-                    <CardFooter>
-                      <Button
-                        asChild
-                        className="w-full"
-                        variant={featured ? "default" : "outline"}
-                      >
-                        <Link href="/sign-up">Get started</Link>
-                      </Button>
-                    </CardFooter>
-                  </Card>
+                      <CardFooter>
+                        <Button
+                          asChild
+                          className="w-full"
+                          variant={featured ? "default" : "outline"}
+                        >
+                          <Link href="/sign-up">Get started</Link>
+                        </Button>
+                      </CardFooter>
+                    </Card>
+                  </div>
                 );
               })}
             </div>

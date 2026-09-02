@@ -29,7 +29,9 @@ import { getMessages } from "@/lib/i18n/messages";
  */
 export const dynamic = "force-dynamic";
 
-export async function generateMetadata({ params }: PageProps<"/[locale]/pricing">) {
+export async function generateMetadata({
+  params,
+}: PageProps<"/[locale]/pricing">) {
   const { locale } = await params;
   if (!isLocale(locale)) return {};
 
@@ -79,64 +81,69 @@ export default async function LocalisedPricingPage({
           {monthly.map((plan) => {
             const featured = plan.tier === "grow";
             return (
-              <Card
-                key={plan.id}
-                className={
-                  featured ? "relative border-primary/40 shadow-sm" : "relative"
-                }
-              >
+              /*
+                The badge sits on a WRAPPER, not the Card. Card carries
+                overflow-hidden so images clip to its rounded corners, which
+                also cut this badge in half at the border.
+              */
+              <div key={plan.id} className="relative pt-2.5">
                 {featured ? (
-                  <Badge className="absolute -top-2.5 left-6">
+                  <Badge className="absolute top-0 left-6 z-10 shadow-sm">
                     {t.pricing.mostPopular}
                   </Badge>
                 ) : null}
+                <Card
+                  className={`h-full ${featured ? "border-primary/40 shadow-sm" : ""}`}
+                >
+                  <CardHeader>
+                    {/* Plan names are product names, not words to translate. */}
+                    <CardTitle className="text-base">{plan.name}</CardTitle>
+                    <CardDescription>
+                      <span className="text-3xl font-semibold text-foreground">
+                        {formatPrice(plan.priceCents, plan.currency)}
+                      </span>
+                      <span className="text-muted-foreground">
+                        {t.pricing.perMonth}
+                      </span>
+                    </CardDescription>
+                  </CardHeader>
 
-                <CardHeader>
-                  {/* Plan names are product names, not words to translate. */}
-                  <CardTitle className="text-base">{plan.name}</CardTitle>
-                  <CardDescription>
-                    <span className="text-3xl font-semibold text-foreground">
-                      {formatPrice(plan.priceCents, plan.currency)}
-                    </span>
-                    <span className="text-muted-foreground">
-                      {t.pricing.perMonth}
-                    </span>
-                  </CardDescription>
-                </CardHeader>
+                  <CardContent>
+                    <ul className="space-y-2.5 text-sm">
+                      {[
+                        t.pricing.features.articles(plan.articleLimit),
+                        t.pricing.features.keywords(
+                          plan.keywordLimit.toLocaleString(locale),
+                        ),
+                        t.pricing.features.websites(plan.siteLimit),
+                        t.pricing.features.credits(plan.monthlyCredits),
+                        t.pricing.features.healthChecks,
+                        t.pricing.features.publishing,
+                      ].map((feature) => (
+                        <li key={feature} className="flex items-start gap-2.5">
+                          <Check
+                            className="mt-0.5 size-4 shrink-0 text-primary"
+                            aria-hidden="true"
+                          />
+                          <span className="text-muted-foreground">
+                            {feature}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
 
-                <CardContent>
-                  <ul className="space-y-2.5 text-sm">
-                    {[
-                      t.pricing.features.articles(plan.articleLimit),
-                      t.pricing.features.keywords(
-                        plan.keywordLimit.toLocaleString(locale),
-                      ),
-                      t.pricing.features.websites(plan.siteLimit),
-                      t.pricing.features.credits(plan.monthlyCredits),
-                      t.pricing.features.healthChecks,
-                      t.pricing.features.publishing,
-                    ].map((feature) => (
-                      <li key={feature} className="flex items-start gap-2.5">
-                        <Check
-                          className="mt-0.5 size-4 shrink-0 text-primary"
-                          aria-hidden="true"
-                        />
-                        <span className="text-muted-foreground">{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-
-                <CardFooter>
-                  <Button
-                    asChild
-                    className="w-full"
-                    variant={featured ? "default" : "outline"}
-                  >
-                    <Link href="/sign-up">{t.pricing.getStarted}</Link>
-                  </Button>
-                </CardFooter>
-              </Card>
+                  <CardFooter>
+                    <Button
+                      asChild
+                      className="w-full"
+                      variant={featured ? "default" : "outline"}
+                    >
+                      <Link href="/sign-up">{t.pricing.getStarted}</Link>
+                    </Button>
+                  </CardFooter>
+                </Card>
+              </div>
             );
           })}
         </div>

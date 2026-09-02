@@ -231,17 +231,26 @@ export function HowItWorks() {
 
         <div className="mt-10 grid gap-4 md:grid-cols-3">
           {STEPS.map((step, index) => (
-            <Card key={step.title} className="relative">
-              <CardContent className="pt-8 pb-6">
-                <span className="absolute -top-3 left-6 flex size-7 items-center justify-center rounded-md bg-primary text-sm font-semibold text-primary-foreground">
-                  {index + 1}
-                </span>
-                <p className="text-lg font-medium">{step.title}</p>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  {step.body}
-                </p>
-              </CardContent>
-            </Card>
+            /*
+              The badge sits on a WRAPPER rather than on the Card. Card carries
+              overflow-hidden — it needs it so images clip to the rounded
+              corners — so a badge positioned outside the card is cut in half
+              at the border. Overlapping the wrapper instead keeps the card's
+              clipping intact and lets the badge hang over the edge.
+            */
+            <div key={step.title} className="relative pt-3">
+              <span className="absolute top-0 left-6 z-10 flex size-7 items-center justify-center rounded-md bg-primary text-sm font-semibold text-primary-foreground shadow-sm">
+                {index + 1}
+              </span>
+              <Card className="h-full">
+                <CardContent className="pt-6 pb-6">
+                  <p className="text-lg font-medium">{step.title}</p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {step.body}
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
           ))}
         </div>
       </div>
@@ -470,7 +479,11 @@ export function ClosingCta() {
  * concrete.
  */
 const TRACKED = [
-  { icon: BarChart3, label: "Rankings and clicks", detail: "From Search Console" },
+  {
+    icon: BarChart3,
+    label: "Rankings and clicks",
+    detail: "From Search Console",
+  },
   { icon: Bot, label: "AI visibility", detail: "Whether assistants name you" },
   { icon: Link2, label: "Backlinks earned", detail: "Checked every day" },
   { icon: FileText, label: "Articles published", detail: "And what they did" },
