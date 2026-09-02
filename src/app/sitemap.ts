@@ -28,6 +28,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${base}/audit`, lastModified: now, priority: 0.9 },
     { url: `${base}/pricing`, lastModified: now, priority: 0.8 },
     { url: `${base}/blog`, lastModified: now, priority: 0.8 },
+    {
+      url: `${base}/backlink-exchange`,
+      lastModified: now,
+      priority: 0.7,
+    },
+    { url: `${base}/affiliate`, lastModified: now, priority: 0.6 },
     { url: `${base}/faq`, lastModified: now, priority: 0.6 },
     { url: `${base}/about`, lastModified: now, priority: 0.5 },
     { url: `${base}/contact`, lastModified: now, priority: 0.4 },

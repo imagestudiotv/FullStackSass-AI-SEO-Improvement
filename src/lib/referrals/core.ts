@@ -4,6 +4,7 @@ import { recordCredit } from "@/lib/backlinks/credits";
 import { db } from "@/lib/db";
 import { referralCodes, referrals } from "@/lib/db/schema";
 import { notify } from "@/lib/notifications/create";
+import { REFERRAL_REWARD_CREDITS } from "@/lib/referrals/shared";
 
 /**
  * Referrals.
@@ -24,8 +25,9 @@ import { notify } from "@/lib/notifications/create";
  * it carries no "use server" directive.
  */
 
-/** Credits awarded to the referrer when a referral converts. */
-export const REFERRAL_REWARD_CREDITS = 10;
+// Re-exported so existing imports keep working; defined in shared.ts so a
+// page can read the figure without pulling in the database client.
+export { REFERRAL_REWARD_CREDITS } from "@/lib/referrals/shared";
 
 /**
  * Characters used in generated codes.

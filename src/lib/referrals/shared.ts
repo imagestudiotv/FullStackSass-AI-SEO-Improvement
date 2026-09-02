@@ -24,3 +24,12 @@ export type ReferralSummary = {
   pending: number;
   referrals: ReferralRow[];
 };
+
+/**
+ * Credits awarded when a referral converts.
+ *
+ * Declared here rather than in core.ts so a page can show the figure without
+ * importing the database client — the public affiliate page needs the number,
+ * not the machinery.
+ */
+export const REFERRAL_REWARD_CREDITS = 10;
