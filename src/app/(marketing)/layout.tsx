@@ -1,8 +1,10 @@
-import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 
-import { Button } from "@/components/ui/button";
-import { LanguageSwitcher } from "@/components/language-switcher";
+import {
+  MarketingFooterLinks,
+  MarketingNav,
+  MarketingTagline,
+} from "@/components/marketing-nav";
 import { LiveChat } from "@/components/live-chat";
 
 export default function MarketingLayout({ children }: LayoutProps<"/">) {
@@ -19,39 +21,7 @@ export default function MarketingLayout({ children }: LayoutProps<"/">) {
             </span>
             SEO Platform
           </Link>
-          {/* Only pages that exist. Every link here resolves. */}
-          <nav className="ml-auto hidden items-center gap-1 sm:flex">
-            {[
-              { href: "/#how-it-works", label: "How it works" },
-              { href: "/audit", label: "Free check" },
-              { href: "/tools", label: "Tools" },
-              { href: "/pricing", label: "Pricing" },
-              { href: "/blog", label: "Blog" },
-              { href: "/contact", label: "Contact" },
-            ].map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-
-          <div className="ml-auto flex items-center gap-2 sm:ml-4">
-            {/* Hidden on pages that exist in English only. */}
-            <LanguageSwitcher />
-            <Button variant="ghost" size="sm" asChild>
-              <Link href="/sign-in">Sign in</Link>
-            </Button>
-            <Button size="sm" asChild>
-              <Link href="/sign-up">
-                Start for free
-                <ArrowRight className="size-3.5" />
-              </Link>
-            </Button>
-          </div>
+          <MarketingNav />
         </div>
       </header>
 
@@ -67,53 +37,9 @@ export default function MarketingLayout({ children }: LayoutProps<"/">) {
                 </span>
                 SEO Platform
               </div>
-              <p className="mt-2 max-w-xs text-sm text-muted-foreground">
-                SEO results for small businesses, without the agency.
-              </p>
+              <MarketingTagline />
             </div>
-
-            <div className="flex gap-12 text-sm">
-              <div className="space-y-2">
-                <p className="font-medium text-foreground">Product</p>
-                {[
-                  { href: "/audit", label: "Free website check" },
-                  { href: "/tools", label: "Free tools" },
-                  { href: "/pricing", label: "Pricing" },
-                  { href: "/blog", label: "Blog" },
-                  { href: "/faq", label: "FAQ" },
-                  { href: "/about", label: "About" },
-                  { href: "/backlink-exchange", label: "Backlink exchange" },
-                  { href: "/publishers", label: "Monetize your blog" },
-                  { href: "/affiliate", label: "Refer a business" },
-                  { href: "/contact", label: "Contact" },
-                ].map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className="block text-muted-foreground hover:text-foreground"
-                  >
-                    {item.label}
-                  </Link>
-                ))}
-              </div>
-
-              <div className="space-y-2">
-                <p className="font-medium text-foreground">Legal</p>
-                {[
-                  { href: "/privacy", label: "Privacy" },
-                  { href: "/terms", label: "Terms" },
-                  { href: "/refunds", label: "Refunds" },
-                ].map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className="block text-muted-foreground hover:text-foreground"
-                  >
-                    {item.label}
-                  </Link>
-                ))}
-              </div>
-            </div>
+            <MarketingFooterLinks />
           </div>
 
           <p className="mt-10 border-t pt-6 text-sm text-muted-foreground">
