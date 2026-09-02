@@ -45,6 +45,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified: now,
       priority: 0.7,
     },
+    { url: `${base}/publishers`, lastModified: now, priority: 0.7 },
     { url: `${base}/affiliate`, lastModified: now, priority: 0.6 },
     { url: `${base}/faq`, lastModified: now, priority: 0.6 },
     { url: `${base}/about`, lastModified: now, priority: 0.5 },
