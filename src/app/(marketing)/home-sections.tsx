@@ -164,8 +164,8 @@ const AUDIT_INCLUDES = [
 export function AuditBand() {
   return (
     <section className="px-4 pb-20">
-      <div className="mx-auto max-w-4xl rounded-2xl border bg-card p-6 shadow-sm sm:p-8">
-        <p className="text-center text-xs font-semibold tracking-[0.14em] text-primary uppercase">
+      <div className="mx-auto max-w-6xl rounded-2xl border bg-card p-6 shadow-sm sm:p-8">
+        <p className="text-xs font-semibold tracking-[0.14em] text-primary uppercase">
           Free with your audit
         </p>
 
@@ -189,7 +189,7 @@ export function AuditBand() {
           limiting and the SSRF guard, and a second entry point would be a
           second copy of all of it.
         */}
-        <div className="mt-7 flex justify-center">
+        <div className="mt-7">
           <Button size="lg" asChild className="w-full sm:w-auto">
             <Link href="/audit">
               Check my website
@@ -224,8 +224,8 @@ const STEPS = [
 export function HowItWorks() {
   return (
     <section id="how-it-works" className="scroll-mt-20 border-t px-4 py-20">
-      <div className="mx-auto max-w-5xl">
-        <h2 className="text-center text-3xl font-semibold tracking-tight">
+      <div className="mx-auto max-w-6xl">
+        <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
           How it works
         </h2>
 
@@ -259,6 +259,84 @@ export function HowItWorks() {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Problem / solution                                                         */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The design's two-column problem-and-solution section.
+ *
+ * Problems on the left as separate cards, our answer on the right as one solid
+ * orange panel. The asymmetry is the point: three scattered complaints against
+ * one consolidated answer is the argument the section is making, and centring
+ * it would flatten that into a list.
+ *
+ * The design puts a customer photo beside each problem. Those are real people
+ * from a real product, so these carry no avatars rather than stock faces
+ * pretending to be customers.
+ */
+const PROBLEMS = [
+  "Paid ads drain your budget every month — and stop the moment you do.",
+  "Hours lost juggling audits, keywords, content and a stack of separate tools.",
+  "AI assistants recommend your competitors, and you never find out.",
+];
+
+const SOLUTION = [
+  "Full SEO and AI-readiness audit",
+  "AI visibility tracking across assistants",
+  "Keyword and market research",
+  "Articles written for you, published automatically",
+  "Backlinks earned from real businesses",
+];
+
+export function ProblemSolution() {
+  return (
+    <section className="border-t px-4 py-20">
+      <div className="mx-auto max-w-6xl">
+        <p className="text-xs font-semibold tracking-[0.14em] text-primary uppercase">
+          Problems &amp; solution
+        </p>
+        <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
+          Your problem
+          <br />
+          <span className="text-primary">Our solution</span>
+        </h2>
+
+        <div className="mt-10 grid gap-6 md:grid-cols-2 md:gap-10">
+          <div className="space-y-4">
+            {PROBLEMS.map((problem) => (
+              <div key={problem} className="rounded-xl border bg-card p-4">
+                <p className="text-sm text-muted-foreground">{problem}</p>
+              </div>
+            ))}
+          </div>
+
+          {/*
+            One solid panel against three separate cards. The visual weight is
+            the argument: scattered problems, one consolidated answer.
+          */}
+          <div className="rounded-2xl bg-primary p-6 text-primary-foreground sm:p-8">
+            <p className="font-medium">Everything you need, in one place</p>
+            <ul className="mt-5 space-y-3">
+              {SOLUTION.map((item) => (
+                <li key={item} className="flex items-start gap-2.5">
+                  <Check
+                    className="mt-0.5 size-4 shrink-0"
+                    aria-hidden="true"
+                  />
+                  <span className="text-sm text-primary-foreground/95">
+                    {item}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
 /* One subscription replaces your stack                                       */
 /* -------------------------------------------------------------------------- */
 
@@ -284,17 +362,33 @@ const REPLACES = [
 export function OneSubscription() {
   return (
     <section className="border-t px-4 py-20">
-      <div className="mx-auto max-w-3xl text-center">
-        <h2 className="text-3xl font-semibold tracking-tight text-balance">
-          One subscription replaces{" "}
-          <span className="text-primary">your whole SEO stack</span>
-        </h2>
-        <p className="mx-auto mt-4 max-w-xl text-muted-foreground">
-          Audit, AI visibility, research, content, publishing, backlinks and
-          reporting — in one place, for less than the tools cost separately.
-        </p>
+      {/*
+        Two columns rather than a centred stack. The design keeps its section
+        headings on the left with content beside or below them; centring
+        everything was flattening that into one narrow column down the middle.
+      */}
+      <div className="mx-auto grid max-w-6xl gap-10 md:grid-cols-2 md:gap-16">
+        <div>
+          <p className="text-xs font-semibold tracking-[0.14em] text-primary uppercase">
+            Us vs. a stack of tools
+          </p>
+          <h2 className="mt-4 text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
+            One subscription replaces{" "}
+            <span className="text-primary">your whole SEO stack</span>
+          </h2>
+          <p className="mt-4 text-muted-foreground">
+            Audit, AI visibility, research, content, publishing, backlinks and
+            reporting — in one place, for less than the tools cost separately.
+          </p>
+          <Button asChild className="mt-7">
+            <Link href="/pricing">
+              See pricing
+              <ArrowRight className="size-4" />
+            </Link>
+          </Button>
+        </div>
 
-        <ul className="mx-auto mt-9 grid max-w-xl gap-3 text-left sm:grid-cols-2">
+        <ul className="grid gap-3 self-center">
           {REPLACES.map((item) => (
             <li key={item} className="flex items-start gap-2.5">
               <span
@@ -307,13 +401,6 @@ export function OneSubscription() {
             </li>
           ))}
         </ul>
-
-        <Button asChild className="mt-9">
-          <Link href="/pricing">
-            See pricing
-            <ArrowRight className="size-4" />
-          </Link>
-        </Button>
       </div>
     </section>
   );
@@ -329,16 +416,23 @@ const PLATFORMS = ["WordPress", "Ghost", "Shopify", "Any site via webhook"];
 export function Publishing() {
   return (
     <section className="border-t px-4 py-20">
-      <div className="mx-auto max-w-3xl text-center">
-        <h2 className="text-3xl font-semibold tracking-tight text-balance">
-          Publishes <span className="text-primary">directly</span> to your site
-        </h2>
-        <p className="mx-auto mt-4 max-w-lg text-muted-foreground">
-          Connect once. No manual uploads, no copy-paste — articles appear on
-          your site automatically, with their images.
-        </p>
+      <div className="mx-auto grid max-w-6xl gap-10 md:grid-cols-2 md:gap-16">
+        <div>
+          <h2 className="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
+            Publishes <span className="text-primary">directly</span> to your
+            site
+          </h2>
+          <p className="mt-4 text-muted-foreground">
+            Connect once. No manual uploads, no copy-paste — articles appear on
+            your site automatically, with their images.
+          </p>
+          <p className="mt-4 text-sm text-muted-foreground">
+            Our WordPress plugin connects with one key, and works even if your
+            host blocks the WordPress API.
+          </p>
+        </div>
 
-        <div className="mt-8 flex flex-wrap justify-center gap-2.5">
+        <div className="flex flex-wrap content-center gap-2.5">
           {PLATFORMS.map((platform) => (
             <span
               key={platform}
@@ -348,11 +442,6 @@ export function Publishing() {
             </span>
           ))}
         </div>
-
-        <p className="mt-6 text-sm text-muted-foreground">
-          Our WordPress plugin connects with one key, and works even if your
-          host blocks the WordPress API.
-        </p>
       </div>
     </section>
   );
@@ -372,7 +461,7 @@ const NETWORK_POINTS = [
 export function BacklinkNetwork() {
   return (
     <section className="border-t px-4 py-20">
-      <div className="mx-auto max-w-4xl">
+      <div className="mx-auto max-w-6xl">
         <p className="text-xs font-semibold tracking-[0.14em] text-primary uppercase">
           A vetted backlink network
         </p>
@@ -432,7 +521,7 @@ export function BacklinkNetwork() {
 export function ClosingCta() {
   return (
     <section className="border-t px-4 py-20">
-      <div className="mx-auto max-w-3xl rounded-2xl bg-primary px-6 py-14 text-center text-primary-foreground sm:px-10">
+      <div className="mx-auto max-w-6xl rounded-2xl bg-primary px-6 py-14 text-center text-primary-foreground sm:px-10">
         <h2 className="text-3xl font-semibold tracking-tight text-balance">
           Start growing on autopilot today
         </h2>
@@ -492,11 +581,11 @@ const TRACKED = [
 export function WhatYouSee() {
   return (
     <section className="border-t px-4 py-20">
-      <div className="mx-auto max-w-4xl text-center">
-        <h2 className="text-3xl font-semibold tracking-tight">
+      <div className="mx-auto max-w-6xl">
+        <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
           You see exactly what changed
         </h2>
-        <p className="mx-auto mt-4 max-w-lg text-muted-foreground">
+        <p className="mt-4 max-w-lg text-muted-foreground">
           Not a monthly PDF. A dashboard reading your own Search Console and
           Analytics data.
         </p>
@@ -505,10 +594,7 @@ export function WhatYouSee() {
           {TRACKED.map((item) => (
             <Card key={item.label}>
               <CardContent className="py-6">
-                <item.icon
-                  className="mx-auto size-5 text-primary"
-                  aria-hidden="true"
-                />
+                <item.icon className="size-5 text-primary" aria-hidden="true" />
                 <p className="mt-3 text-sm font-medium">{item.label}</p>
                 <p className="mt-1 text-xs text-muted-foreground">
                   {item.detail}

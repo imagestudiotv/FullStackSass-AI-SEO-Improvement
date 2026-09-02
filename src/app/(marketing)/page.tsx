@@ -19,6 +19,7 @@ import {
   Hero,
   HowItWorks,
   OneSubscription,
+  ProblemSolution,
   Publishing,
   WhatYouSee,
 } from "./home-sections";
@@ -49,6 +50,7 @@ export default async function HomePage() {
       <Hero />
       <AuditBand />
       <HowItWorks />
+      <ProblemSolution />
       <OneSubscription />
       <Publishing />
       <WhatYouSee />
@@ -60,16 +62,16 @@ export default async function HomePage() {
         the checkout will not honour.
       */}
       <section id="pricing" className="scroll-mt-20 border-t px-4 py-20">
-        <div className="mx-auto max-w-5xl">
-          <div className="text-center">
+        <div className="mx-auto max-w-6xl">
+          <div>
             <p className="text-xs font-semibold tracking-[0.14em] text-primary uppercase">
               Pricing
             </p>
-            <h2 className="mt-4 text-3xl font-semibold tracking-tight text-balance">
+            <h2 className="mt-4 text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
               Start small.{" "}
               <span className="text-primary">Grow when you are ready.</span>
             </h2>
-            <p className="mx-auto mt-4 max-w-lg text-muted-foreground">
+            <p className="mt-4 max-w-lg text-muted-foreground">
               A free check to start, no contract, and cancel whenever you like.
             </p>
           </div>
@@ -151,7 +153,7 @@ export default async function HomePage() {
             </div>
           )}
 
-          <p className="mt-8 text-center text-sm text-muted-foreground">
+          <p className="mt-8 text-sm text-muted-foreground">
             <Link href="/pricing" className="underline underline-offset-4">
               See everything included in each plan
             </Link>
