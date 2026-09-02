@@ -1,3 +1,4 @@
+import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
@@ -21,12 +22,12 @@ export default function MarketingLayout({ children }: LayoutProps<"/">) {
           {/* Only pages that exist. Every link here resolves. */}
           <nav className="ml-auto hidden items-center gap-1 sm:flex">
             {[
+              { href: "/#how-it-works", label: "How it works" },
               { href: "/audit", label: "Free check" },
               { href: "/tools", label: "Tools" },
               { href: "/pricing", label: "Pricing" },
               { href: "/blog", label: "Blog" },
-              { href: "/faq", label: "FAQ" },
-              { href: "/about", label: "About" },
+              { href: "/contact", label: "Contact" },
             ].map((item) => (
               <Link
                 key={item.href}
@@ -45,7 +46,10 @@ export default function MarketingLayout({ children }: LayoutProps<"/">) {
               <Link href="/sign-in">Sign in</Link>
             </Button>
             <Button size="sm" asChild>
-              <Link href="/sign-up">Get started</Link>
+              <Link href="/sign-up">
+                Start for free
+                <ArrowRight className="size-3.5" />
+              </Link>
             </Button>
           </div>
         </div>
