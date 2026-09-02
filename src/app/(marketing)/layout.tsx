@@ -21,6 +21,7 @@ export default function MarketingLayout({ children }: LayoutProps<"/">) {
           <nav className="ml-auto hidden items-center gap-1 sm:flex">
             {[
               { href: "/audit", label: "Free check" },
+              { href: "/tools", label: "Tools" },
               { href: "/pricing", label: "Pricing" },
               { href: "/blog", label: "Blog" },
               { href: "/faq", label: "FAQ" },
@@ -69,6 +70,7 @@ export default function MarketingLayout({ children }: LayoutProps<"/">) {
                 <p className="font-medium text-foreground">Product</p>
                 {[
                   { href: "/audit", label: "Free website check" },
+                  { href: "/tools", label: "Free tools" },
                   { href: "/pricing", label: "Pricing" },
                   { href: "/blog", label: "Blog" },
                   { href: "/faq", label: "FAQ" },
