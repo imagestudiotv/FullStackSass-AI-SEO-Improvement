@@ -26,11 +26,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import type { SitemapPage } from "@/lib/backlinks/sitemap";
 import {
   cancelRequest,
   joinNetwork,
   leaveNetwork,
   requestBacklink,
+  suggestLinkTargets,
   type GivenRow,
   type NetworkStatus,
   type RequestRow,
@@ -60,6 +62,24 @@ export function BacklinksPanel({ websiteId, status, requests, given }: Props) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [showRequest, setShowRequest] = useState(false);
   const [targetUrl, setTargetUrl] = useState("");
+  const [suggestions, setSuggestions] = useState<SitemapPage[]>([]);
+  const [suggesting, setSuggesting] = useState(false);
+
+  async function handleSuggest() {
+    setSuggesting(true);
+    try {
+      const result = await suggestLinkTargets(websiteId);
+      if (!result.ok) {
+        // A missing sitemap is a normal outcome, so this informs rather than
+        // errors — the field still works by hand.
+        toast.info(result.error);
+        return;
+      }
+      setSuggestions(result.data);
+    } finally {
+      setSuggesting(false);
+    }
+  }
   const [anchor, setAnchor] = useState("");
   const [cap, setCap] = useState(String(status.monthlyCap));
 
@@ -201,8 +221,20 @@ export function BacklinksPanel({ websiteId, status, requests, given }: Props) {
           <TabsContent value="received" className="mt-4 space-y-3">
             {showRequest ? (
               <form onSubmit={handleRequest} className="space-y-3 rounded-lg border p-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="target">Which of your pages should be linked to?</Label>
+              <div className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <Label htmlFor="target">
+                      Which of your pages should be linked to?
+                    </Label>
+                    <button
+                      type="button"
+                      onClick={handleSuggest}
+                      disabled={suggesting}
+                      className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground disabled:opacity-50"
+                    >
+                      {suggesting ? "Reading your sitemap…" : "Suggest my pages"}
+                    </button>
+                  </div>
                   <Input
                     id="target"
                     value={targetUrl}
@@ -210,6 +242,27 @@ export function BacklinksPanel({ websiteId, status, requests, given }: Props) {
                     placeholder={`https://${"example.com"}/services`}
                     required
                   />
+                  {/*
+                    Suggestions fill the field rather than replacing it. Someone
+                    who knows exactly which page they want should not have to
+                    find it in a list, and a site with no sitemap still works.
+                  */}
+                  {suggestions.length > 0 ? (
+                    <div className="max-h-40 space-y-1 overflow-y-auto rounded-md border p-2">
+                      {suggestions.map((page) => (
+                        <button
+                          key={page.url}
+                          type="button"
+                          onClick={() => setTargetUrl(page.url)}
+                          className={`block w-full truncate rounded px-2 py-1 text-left text-xs hover:bg-accent ${
+                            targetUrl === page.url ? "bg-accent" : ""
+                          }`}
+                        >
+                          {page.path}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="anchor">Preferred wording (optional)</Label>
