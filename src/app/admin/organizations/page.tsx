@@ -17,6 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { AdminSearch } from "../admin-search";
+import { AgencyToggle } from "./agency-toggle";
 
 export const dynamic = "force-dynamic";
 
@@ -57,6 +58,7 @@ export default async function AdminOrganizationsPage({
                 <TableHead className="hidden w-28 sm:table-cell">
                   Joined
                 </TableHead>
+                <TableHead className="w-32">Agency</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -87,6 +89,13 @@ export default async function AdminOrganizationsPage({
                   </TableCell>
                   <TableCell className="hidden text-muted-foreground sm:table-cell">
                     {new Date(row.createdAt).toLocaleDateString()}
+                  </TableCell>
+                  <TableCell>
+                    <AgencyToggle
+                      organizationId={row.id}
+                      organizationName={row.name}
+                      isAgency={row.isAgency}
+                    />
                   </TableCell>
                 </TableRow>
               ))}

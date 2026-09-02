@@ -98,6 +98,8 @@ export type AdminOrganization = {
   planName: string | null;
   status: string | null;
   ownerEmail: string | null;
+  /** True when this is one of our own workspaces, not a customer's. */
+  isAgency: boolean;
 };
 
 export async function listOrganizations(
@@ -119,6 +121,10 @@ export async function listOrganizations(
         join websites w on w.id = a.website_id
         where w.organization_id = ${organization.id}
       )::int`,
+      isAgency: raw<boolean>`exists(
+        select 1 from agency_workspaces ag
+        where ag.organization_id = ${organization.id}
+      )`,
       ownerEmail: raw<string | null>`(
         select u.email from member m
         join "user" u on u.id = m.user_id

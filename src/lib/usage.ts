@@ -2,6 +2,7 @@ import { and, count, eq, gte } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { UNLIMITED, type LimitCheck } from "@/lib/usage-shared";
+import { agencyLimits } from "@/lib/agency/core";
 import {
   articles,
   keywords,
@@ -174,6 +175,17 @@ export async function checkLimit(
   orgId: string,
   kind: LimitKind,
 ): Promise<LimitCheck> {
+  /**
+   * Agency workspaces are ours, not sold, so they have no subscription and
+   * would otherwise fail the entitlement check below. Their limits come from
+   * their own row — real numbers rather than unlimited, so an internal
+   * workspace still cannot run away with cost.
+   *
+   * Checked first because the two branches are mutually exclusive: an agency
+   * workspace never has a plan to fall back to.
+   */
+  const agency = await agencyLimits(orgId);
+
   const [sub] = await db
     .select({
       currentPeriodStart: subscriptions.currentPeriodStart,
@@ -190,26 +202,35 @@ export async function checkLimit(
 
   // leftJoin makes every plan column nullable; no plan row means no plan.
   if (
-    !sub ||
-    sub.articleLimit === null ||
-    sub.keywordLimit === null ||
-    sub.siteLimit === null
+    !agency &&
+    (!sub ||
+      sub.articleLimit === null ||
+      sub.keywordLimit === null ||
+      sub.siteLimit === null)
   ) {
     return { allowed: false, used: 0, limit: 0, reason: "no_active_plan" };
   }
 
   // A plan row alone is not entitlement: a cancelled or unpaid subscription
   // still points at the plan it used to have.
-  if (!ENTITLED_STATUSES.has(sub.status)) {
+  if (!agency && sub && !ENTITLED_STATUSES.has(sub.status)) {
     return { allowed: false, used: 0, limit: 0, reason: "subscription_inactive" };
   }
 
-  const planLimits = {
-    articles: sub.articleLimit,
-    keywords: sub.keywordLimit,
-    websites: sub.siteLimit,
+  const planLimits = agency ?? {
+    articles: sub!.articleLimit!,
+    keywords: sub!.keywordLimit!,
+    websites: sub!.siteLimit!,
   };
-  const from = periodStart(sub.currentPeriodStart, sub.currentPeriodEnd);
+
+  /**
+   * An agency workspace has no billing period, so its monthly counts run from
+   * the calendar month. Without this, periodStart would be given two nulls
+   * and every article ever written would count against the monthly limit.
+   */
+  const from = agency
+    ? new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+    : periodStart(sub!.currentPeriodStart, sub!.currentPeriodEnd);
 
   let used: number;
   let limit: number;
