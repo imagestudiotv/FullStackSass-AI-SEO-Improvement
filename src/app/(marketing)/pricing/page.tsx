@@ -88,7 +88,7 @@ export default async function PricingPage() {
                       `${plan.siteLimit} ${plan.siteLimit === 1 ? "website" : "websites"}`,
                       `${plan.monthlyCredits} link credits each month`,
                       "Website health checks",
-                      "Publish straight to WordPress",
+                      "Publish to WordPress, Ghost or Shopify",
                     ].map((feature) => (
                       <li key={feature} className="flex items-start gap-2.5">
                         <Check

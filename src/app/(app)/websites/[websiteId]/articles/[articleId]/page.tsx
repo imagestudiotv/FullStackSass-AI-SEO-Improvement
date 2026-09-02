@@ -48,6 +48,10 @@ export default async function ArticlePage({
       article={article}
       // Any connected destination is enough to offer publishing.
       canPublish={cmsIntegrations.some((i) => i.status === "connected")}
+      destinationName={
+        cmsIntegrations.find((i) => i.status === "connected")?.providerName ??
+        null
+      }
       websiteDomain={websiteCtx.site.domain}
       publishLogs={logs}
     />

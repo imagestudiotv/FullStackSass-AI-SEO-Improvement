@@ -56,8 +56,9 @@ export default function PrivacyPage() {
         you how your pages perform. See &quot;Google user data&quot; below.
       </p>
       <p>
-        <strong>Integration credentials.</strong> If you connect WordPress or
-        Google, we store the credentials needed to keep that connection working.
+        <strong>Integration credentials.</strong> If you connect your website —
+        WordPress, Ghost, Shopify or your own webhook — or a Google account, we
+        store the credentials needed to keep that connection working.
       </p>
       <p>
         <strong>Payment information.</strong> Payments are processed by Stripe.
@@ -132,7 +133,7 @@ export default function PrivacyPage() {
 
       <h2>How we protect your data</h2>
       <p>
-        Integration credentials — WordPress application passwords and Google
+        Integration credentials — publishing keys and passwords, and Google
         refresh tokens — are encrypted before they are stored, using AES-256-GCM
         with a key held separately from the database. They are never shown back
         to you or to anyone else, in any form.
