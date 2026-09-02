@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 
 import { requireSession } from "@/lib/auth-guard";
 import { getArticle } from "@/lib/articles/actions";
+import { requireWebsite } from "@/lib/tenant";
 import { listIntegrations, listPublishLogs } from "@/lib/publishing/actions";
 import { WebsiteNotFoundError } from "@/lib/tenant";
 import { ArticleEditor } from "./article-editor";
@@ -33,9 +34,12 @@ export default async function ArticlePage({
     notFound();
   }
 
-  const [cmsIntegrations, logs] = await Promise.all([
+  const [cmsIntegrations, logs, websiteCtx] = await Promise.all([
     listIntegrations(websiteId),
     listPublishLogs(websiteId, article.id),
+    // Scopes to the caller's organisation and throws for anything else.
+    // Needed only for the domain, to tell internal links from external.
+    requireWebsite(websiteId),
   ]);
 
   return (
@@ -44,6 +48,7 @@ export default async function ArticlePage({
       article={article}
       // Any connected destination is enough to offer publishing.
       canPublish={cmsIntegrations.some((i) => i.status === "connected")}
+      websiteDomain={websiteCtx.site.domain}
       publishLogs={logs}
     />
   );

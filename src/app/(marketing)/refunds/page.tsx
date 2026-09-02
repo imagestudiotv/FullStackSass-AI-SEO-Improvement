@@ -18,7 +18,7 @@ export const metadata = {
 export default function RefundsPage() {
   return (
     <LegalPage title="Refund Policy" updated="31 August 2026">
-      <h2>14-day money-back guarantee</h2>
+      <h2 id="guarantee">14-day money-back guarantee</h2>
       <p>
         If you are not happy with the service, email us within{" "}
         <strong>14 days</strong> of your first payment and we will refund it in

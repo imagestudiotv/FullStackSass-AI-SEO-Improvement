@@ -46,7 +46,17 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="mt-16 border-t pt-10">
+      {/*
+        Anchored because the brief links to /#how-it-works from elsewhere.
+        scroll-mt keeps the heading clear of the sticky header when jumped to.
+      */}
+      <section id="how-it-works" className="mt-16 scroll-mt-20 border-t pt-10">
+        <h2 className="text-center text-2xl font-semibold tracking-tight">
+          How it works
+        </h2>
+        <p className="mx-auto mt-3 max-w-md text-center text-muted-foreground">
+          Four steps, and we do all of them.
+        </p>
         <ul className="mx-auto grid max-w-lg gap-3 text-left">
           {included.map((item) => (
             <li key={item} className="flex items-start gap-3">
@@ -60,6 +70,34 @@ export default function HomePage() {
             </li>
           ))}
         </ul>
+      </section>
+
+      {/* Anchored for /#pricing, which the brief links to. */}
+      <section id="pricing" className="mt-16 scroll-mt-20 border-t pt-10">
+        <h2 className="text-center text-2xl font-semibold tracking-tight">
+          Pricing
+        </h2>
+        <p className="mx-auto mt-3 max-w-md text-center text-muted-foreground">
+          Everything is included in every plan. The difference is how much we
+          write for you each month, starting at EUR 1.
+        </p>
+        <div className="mt-6 flex flex-wrap justify-center gap-3">
+          <Button asChild>
+            <Link href="/pricing">
+              See all plans
+              <ArrowRight className="size-4" />
+            </Link>
+          </Button>
+          {/*
+            The guarantee is a reason to start, so it belongs beside the
+            pricing link rather than buried in the footer. It links to the
+            refund policy rather than restating the terms, so there is one
+            place those terms live.
+          */}
+          <Button variant="outline" asChild>
+            <Link href="/refunds#guarantee">14-day money-back guarantee</Link>
+          </Button>
+        </div>
       </section>
     </div>
   );
