@@ -1,13 +1,16 @@
-import { AlertTriangle, ArrowLeft, ArrowRight, Check, Info } from "lucide-react";
-import Link from "next/link";
+import { AlertTriangle, Check, Info } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { DomainToolForm } from "@/components/domain-tool-form";
+import {
+  MoreTools,
+  ToolCta,
+  ToolExplainer,
+  ToolHero,
+} from "@/components/tool-page";
 import { checkRobots } from "@/lib/tools/robots";
-import { RobotsForm } from "./robots-form";
 
 export const metadata = {
-  title: "robots.txt checker",
+  title: "Robots.txt Checker",
   description:
     "Check whether your robots.txt is accidentally blocking search engines from your website. Free, no account needed.",
   alternates: { canonical: "/tools/robots-checker" },
@@ -15,6 +18,8 @@ export const metadata = {
 
 // Fetches a live website per request, so it can never be prerendered.
 export const dynamic = "force-dynamic";
+
+const HREF = "/tools/robots-checker";
 
 export default async function RobotsCheckerPage({
   searchParams,
@@ -25,47 +30,39 @@ export default async function RobotsCheckerPage({
   const outcome = domain ? await checkRobots(domain) : null;
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-16">
-      <Button variant="ghost" size="sm" asChild className="-ml-2 mb-6">
-        <Link href="/tools">
-          <ArrowLeft className="size-4" />
-          All tools
-        </Link>
-      </Button>
+    <div>
+      <ToolHero
+        title="Robots.txt Checker"
+        description="A robots.txt file tells search engines which parts of your site they may read. A single wrong line can hide your entire website from Google, and you cannot tell by looking at the site."
+      >
+        <DomainToolForm
+          key={domain}
+          action={HREF}
+          defaultValue={domain}
+          submitLabel="Check robots.txt"
+        />
+      </ToolHero>
 
-      <h1 className="text-3xl font-semibold tracking-tight">
-        robots.txt checker
-      </h1>
-      <p className="mt-3 text-muted-foreground">
-        A robots.txt file tells search engines which parts of your site they may
-        read. A single wrong line can hide your entire website from Google, and
-        you cannot tell by looking at the site.
-      </p>
+      <div className="mx-auto max-w-5xl px-4">
+        {outcome && !outcome.ok ? (
+          <div
+            className="mt-10 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm"
+            role="alert"
+          >
+            <p className="font-medium">We could not check that website</p>
+            <p className="mt-1 text-muted-foreground">{outcome.error}</p>
+          </div>
+        ) : null}
 
-      <div className="mt-8">
-        <RobotsForm key={domain} defaultValue={domain} />
-      </div>
-
-      {outcome && !outcome.ok ? (
-        <div
-          className="mt-8 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm"
-          role="alert"
-        >
-          <p className="font-medium">We could not check that website</p>
-          <p className="mt-1 text-muted-foreground">{outcome.error}</p>
-        </div>
-      ) : null}
-
-      {outcome?.ok ? (
-        <div className="mt-10 space-y-4">
-          {/*
-            The headline verdict. "Disallow: /" for all crawlers is the one
-            finding that matters more than everything else on the page, so it
-            is stated first and unmistakably.
-          */}
-          {outcome.result.blocksEverything ? (
-            <Card className="border-destructive/40">
-              <CardContent className="flex gap-3 py-5">
+        {outcome?.ok ? (
+          <div className="mt-10 space-y-4">
+            {/*
+              The headline verdict. "Disallow: /" for all crawlers is the one
+              finding that matters more than everything else on the page, so it
+              is stated first and unmistakably.
+            */}
+            {outcome.result.blocksEverything ? (
+              <div className="flex gap-3 rounded-xl border border-destructive/40 bg-destructive/5 p-5">
                 <AlertTriangle
                   className="mt-0.5 size-5 shrink-0 text-destructive"
                   aria-hidden="true"
@@ -81,11 +78,9 @@ export default async function RobotsCheckerPage({
                     nothing here can rank.
                   </p>
                 </div>
-              </CardContent>
-            </Card>
-          ) : !outcome.result.found ? (
-            <Card>
-              <CardContent className="flex gap-3 py-5">
+              </div>
+            ) : !outcome.result.found ? (
+              <div className="flex gap-3 rounded-xl border bg-card p-5">
                 <Info
                   className="mt-0.5 size-5 shrink-0 text-muted-foreground"
                   aria-hidden="true"
@@ -97,11 +92,9 @@ export default async function RobotsCheckerPage({
                     everything. Adding one lets you point them at your sitemap.
                   </p>
                 </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card>
-              <CardContent className="flex gap-3 py-5">
+              </div>
+            ) : (
+              <div className="flex gap-3 rounded-xl border bg-card p-5">
                 <Check
                   className="mt-0.5 size-5 shrink-0 text-emerald-600 dark:text-emerald-400"
                   aria-hidden="true"
@@ -114,18 +107,19 @@ export default async function RobotsCheckerPage({
                     Nothing in robots.txt stops crawlers reading your pages.
                   </p>
                 </div>
-              </CardContent>
-            </Card>
-          )}
+              </div>
+            )}
 
-          <Card>
-            <CardContent className="space-y-4 py-5 text-sm">
+            <div className="space-y-4 rounded-xl border bg-card p-5 text-sm">
               <div>
                 <p className="font-medium">Sitemap</p>
                 {outcome.result.sitemaps.length > 0 ? (
                   <ul className="mt-1 space-y-1">
                     {outcome.result.sitemaps.map((sitemap) => (
-                      <li key={sitemap} className="truncate text-muted-foreground">
+                      <li
+                        key={sitemap}
+                        className="truncate text-muted-foreground"
+                      >
                         {sitemap}
                       </li>
                     ))}
@@ -164,30 +158,36 @@ export default async function RobotsCheckerPage({
                 <a
                   href={outcome.result.robotsUrl}
                   target="_blank"
-                  rel="noopener noreferrer"
+                  rel="noopener noreferrer nofollow"
                   className="underline underline-offset-4"
                 >
                   {outcome.result.robotsUrl}
                 </a>
               </p>
-            </CardContent>
-          </Card>
-
-          <div className="rounded-lg border bg-muted/30 p-6">
-            <p className="font-medium">Check the rest of your site</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              robots.txt is one of many things that can keep a site out of
-              Google. Our free check reads your pages and reports the rest.
-            </p>
-            <Button asChild className="mt-4">
-              <Link href={`/audit?domain=${encodeURIComponent(outcome.result.domain)}`}>
-                Check my website
-                <ArrowRight className="size-4" />
-              </Link>
-            </Button>
+            </div>
           </div>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
+
+      <ToolExplainer
+        columns={[
+          {
+            heading: "What this checks",
+            body: "We fetch your robots.txt and look for the one thing that matters most: a rule blocking every crawler from the whole site. We also list any sitemaps it declares and the paths it blocks, and show you the raw file's address so you can read exactly what we read.",
+          },
+          {
+            heading: "The failure nobody notices",
+            body: "A site launches, and the \"Disallow: /\" from the staging server comes with it. The website works perfectly. Every page loads. Nothing in any dashboard complains. It simply never appears in Google, and by the time somebody thinks to check this file, months of content have been published into a site search engines were told to ignore.",
+          },
+        ]}
+      />
+
+      <MoreTools currentHref={HREF} />
+
+      <ToolCta
+        headline="Check the rest of your site"
+        body="robots.txt is one of many things that can keep a site out of Google. Our free check reads your pages and reports the rest."
+      />
     </div>
   );
 }

@@ -1,18 +1,12 @@
-import {
-  ArrowRight,
-  FileSearch,
-  Gauge,
-  ShieldCheck,
-  type LucideIcon,
-} from "lucide-react";
+import { Check } from "lucide-react";
 import Link from "next/link";
 
-import { Card, CardContent } from "@/components/ui/card";
+import { TOOL_CATEGORIES, toolsByCategory } from "@/lib/tools/registry";
 
 export const metadata = {
-  title: "Free SEO tools",
+  title: "Free SEO & AI visibility tools",
   description:
-    "Free tools to check your website: a full health check, search snippet preview, and a robots.txt checker. No account needed.",
+    "Free tools to check your site: SEO score, robots.txt, sitemaps, AI crawler access, llms.txt, keyword density and more. No signup, real results.",
 };
 
 /**
@@ -22,95 +16,66 @@ export const metadata = {
  * and to give them something genuinely useful before asking for anything. Every
  * one works without an account — a "free tool" behind a signup form is a lead
  * form wearing a costume, and people can tell.
- *
- * The audit is listed first because it is the real product doing real work; the
- * others are small and instant.
  */
-
-type Tool = {
-  href: string;
-  title: string;
-  description: string;
-  icon: LucideIcon;
-  /** Set for the one that does the most. */
-  featured?: boolean;
-};
-
-const TOOLS: Tool[] = [
-  {
-    href: "/audit",
-    title: "Website health check",
-    description:
-      "We read your pages and show you what is holding you back on Google — missing titles, thin pages, duplicate descriptions and more.",
-    icon: Gauge,
-    featured: true,
-  },
-  {
-    href: "/tools/snippet-preview",
-    title: "Search result preview",
-    description:
-      "See how your title and description will look on Google, and whether they are about to be cut short.",
-    icon: FileSearch,
-  },
-  {
-    href: "/tools/robots-checker",
-    title: "robots.txt checker",
-    description:
-      "Check whether your site is accidentally telling search engines to stay away — a common leftover from a staging site.",
-    icon: ShieldCheck,
-  },
-];
-
 export default function ToolsPage() {
   return (
-    <div className="mx-auto max-w-4xl px-4 py-16">
-      <div className="text-center">
-        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-          Free SEO tools
-        </h1>
-        <p className="mx-auto mt-3 max-w-lg text-muted-foreground">
-          Useful on their own, no account needed. They use the same checks as
-          our paid product.
+    <div>
+      {/* Tinted hero, matching the tool pages themselves. */}
+      <div className="bg-primary/[0.04]">
+        <div className="mx-auto max-w-5xl px-4 py-16 text-center sm:py-20">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 px-3 py-1 text-xs font-medium text-primary">
+            <Check className="size-3" aria-hidden="true" />
+            Free tools
+          </span>
+          <h1 className="mt-6 text-3xl font-semibold tracking-tight text-balance sm:text-5xl">
+            Try our free SEO &amp; AI visibility tools
+          </h1>
+          <p className="mx-auto mt-4 max-w-xl text-pretty text-muted-foreground">
+            No signup required — every tool runs a real check and shows the full
+            result instantly.
+          </p>
+        </div>
+      </div>
+
+      <div className="mx-auto max-w-5xl space-y-12 px-4 py-16">
+        {TOOL_CATEGORIES.map((category) => (
+          <section key={category}>
+            <h2 className="text-xs font-semibold tracking-[0.14em] text-primary uppercase">
+              {category}
+            </h2>
+
+            <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {toolsByCategory(category).map((tool) => (
+                <Link
+                  key={tool.href}
+                  href={tool.href}
+                  className="flex gap-3 rounded-xl border bg-card p-4 transition-colors hover:border-primary/40"
+                >
+                  <span
+                    className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-lg"
+                    aria-hidden="true"
+                  >
+                    {tool.emoji}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block font-medium">{tool.title}</span>
+                    <span className="mt-0.5 block text-sm text-muted-foreground">
+                      {tool.blurb}
+                    </span>
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </section>
+        ))}
+
+        <p className="text-center text-sm text-muted-foreground">
+          Want all of this running automatically, with articles written for you?{" "}
+          <Link href="/pricing" className="underline underline-offset-4">
+            See pricing
+          </Link>
         </p>
       </div>
-
-      <div className="mt-12 grid gap-4 sm:grid-cols-2">
-        {TOOLS.map((tool) => (
-          <Link
-            key={tool.href}
-            href={tool.href}
-            // The featured tool takes the full row on wider screens.
-            className={tool.featured ? "sm:col-span-2" : undefined}
-          >
-            <Card className="h-full transition-colors hover:border-primary/40">
-              <CardContent className="flex gap-4 py-6">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted">
-                  <tool.icon
-                    className="size-5 text-muted-foreground"
-                    aria-hidden="true"
-                  />
-                </div>
-                <div className="min-w-0">
-                  <p className="flex items-center gap-1.5 font-medium">
-                    {tool.title}
-                    <ArrowRight className="size-3.5" aria-hidden="true" />
-                  </p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {tool.description}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-        ))}
-      </div>
-
-      <p className="mt-12 text-center text-sm text-muted-foreground">
-        Want all of this running automatically, with articles written for you?{" "}
-        <Link href="/pricing" className="underline underline-offset-4">
-          See pricing
-        </Link>
-      </p>
     </div>
   );
 }
