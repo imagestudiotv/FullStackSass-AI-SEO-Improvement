@@ -5,6 +5,7 @@ import { desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { subscriptions } from "@/lib/db/schema";
 import { isStripeConfigured, stripe } from "@/lib/stripe/client";
+import { stripeErrorMessage } from "@/lib/stripe/errors";
 import { requireOrg } from "@/lib/tenant";
 
 function appUrl(): string {
@@ -47,10 +48,17 @@ export async function createPortalSession(): Promise<PortalResult> {
     return { error: "No billing account yet. Choose a plan first." };
   }
 
-  const session = await stripe.billingPortal.sessions.create({
-    customer: row.customerId,
-    return_url: `${appUrl()}/billing`,
-  });
+  try {
+    const session = await stripe.billingPortal.sessions.create({
+      customer: row.customerId,
+      return_url: `${appUrl()}/billing`,
+    });
 
-  return { url: session.url };
+    return { url: session.url };
+  } catch (error) {
+    // A customer id from the other Stripe mode fails here exactly as it does
+    // in checkout, and would otherwise surface as an opaque 500.
+    console.error("[stripe] billing portal failed", error);
+    return { error: stripeErrorMessage(error) };
+  }
 }

@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { addonPurchases, addons } from "@/lib/db/schema";
 import { getOrCreateCustomer } from "@/lib/stripe/customer";
 import { isStripeConfigured, stripe } from "@/lib/stripe/client";
+import { stripeErrorMessage } from "@/lib/stripe/errors";
 import { requireOrg } from "@/lib/tenant";
 import type { AddonRow, PurchaseRow } from "@/lib/addons/shared";
 
@@ -105,26 +106,34 @@ export async function buyAddon(addonId: string): Promise<CheckoutResult> {
     return { error: `"${addon.name}" has no price configured yet` };
   }
 
-  const customerId = await getOrCreateCustomer(orgId);
-  const base = appUrl();
+  // See createCheckoutSession: an error escaping a server action reaches the
+  // browser as a 500 plus React error #441, with Stripe's actual explanation
+  // stripped out by the production build.
+  try {
+    const customerId = await getOrCreateCustomer(orgId);
+    const base = appUrl();
 
-  const session = await stripe.checkout.sessions.create({
-    mode: "payment",
-    customer: customerId,
-    line_items: [{ price: addon.stripePriceId, quantity: 1 }],
-    success_url: `${base}/billing?addon=success`,
-    cancel_url: `${base}/billing?addon=cancelled`,
-    /**
-     * The webhook reads both of these. Without them a completed payment
-     * arrives with no way to tell which workspace bought what, and the money
-     * is taken with nothing granted.
-     */
-    metadata: { organizationId: orgId, addonId: addon.id },
-  });
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      customer: customerId,
+      line_items: [{ price: addon.stripePriceId, quantity: 1 }],
+      success_url: `${base}/billing?addon=success`,
+      cancel_url: `${base}/billing?addon=cancelled`,
+      /**
+       * The webhook reads both of these. Without them a completed payment
+       * arrives with no way to tell which workspace bought what, and the money
+       * is taken with nothing granted.
+       */
+      metadata: { organizationId: orgId, addonId: addon.id },
+    });
 
-  if (!session.url) {
-    return { error: "Could not start checkout. Please try again." };
+    if (!session.url) {
+      return { error: "Could not start checkout. Please try again." };
+    }
+
+    return { url: session.url };
+  } catch (error) {
+    console.error("[addons] checkout session failed", error);
+    return { error: stripeErrorMessage(error) };
   }
-
-  return { url: session.url };
 }

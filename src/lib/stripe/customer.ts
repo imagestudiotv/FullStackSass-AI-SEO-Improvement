@@ -20,8 +20,31 @@ export async function getOrCreateCustomer(orgId: string): Promise<string> {
     .orderBy(desc(subscriptions.createdAt))
     .limit(1);
 
+  /**
+   * A stored customer is reused only if it still exists in the CURRENT mode.
+   *
+   * Test and live are separate datasets. Switching keys — which is normal when
+   * setting up a sandbox — leaves a customer id here that the new key cannot
+   * see, and passing it to Checkout fails with "No such customer". Verifying
+   * first lets us recreate rather than dying on a stale id.
+   *
+   * Only a genuine "not found" falls through to creation. A network blip or an
+   * auth failure is re-thrown, so a transient outage cannot quietly produce a
+   * duplicate customer for an organization that already has one.
+   */
   if (existing?.customerId) {
-    return existing.customerId;
+    try {
+      const customer = await stripe.customers.retrieve(existing.customerId);
+      // A deleted customer comes back as an object with deleted: true rather
+      // than an error, and cannot be used for checkout.
+      if (!customer.deleted) return existing.customerId;
+    } catch (error) {
+      const code = (error as { code?: string })?.code;
+      if (code !== "resource_missing") throw error;
+      console.warn(
+        `[stripe] customer ${existing.customerId} not found in this mode; creating a new one for org ${orgId}`,
+      );
+    }
   }
 
   const [org] = await db
