@@ -2,6 +2,7 @@ import { Check } from "lucide-react";
 import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
+import { STARTER_TIER } from "@/lib/plans/features";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -54,6 +55,7 @@ export function PricingPreview({
           <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {monthly.map((plan) => {
               const featured = plan.tier === "grow";
+              const isStarter = plan.tier === STARTER_TIER;
               return (
                 /*
                   The badge sits on a WRAPPER, not the Card. Card carries
@@ -66,8 +68,22 @@ export function PricingPreview({
                       {t.mostPopular}
                     </Badge>
                   ) : null}
+                  {isStarter ? (
+                    <Badge
+                      variant="secondary"
+                      className="absolute top-0 left-6 z-10 border border-emerald-500/40 text-emerald-700 shadow-sm dark:text-emerald-400"
+                    >
+                      {t.tryItFirst}
+                    </Badge>
+                  ) : null}
                   <Card
-                    className={`h-full ${featured ? "border-primary/40 shadow-sm" : ""}`}
+                    className={`h-full ${
+                      featured
+                        ? "border-primary/40 shadow-sm"
+                        : isStarter
+                          ? "border-emerald-500/40"
+                          : ""
+                    }`}
                   >
                     <CardHeader>
                       <CardTitle className="text-base">{plan.name}</CardTitle>

@@ -6,9 +6,11 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { formatPrice } from "@/lib/billing-shared";
-import { buyStarterTrial } from "@/lib/onboarding/actions";
 import { createCheckoutSession } from "@/lib/stripe/actions";
 import { createPayPalCheckout } from "@/lib/paypal/actions";
+import { planFeatures, STARTER_TIER, type PickerPlan } from "@/lib/plans/features";
+
+export type { PickerPlan };
 
 /**
  * Choosing a plan, following the reference design.
@@ -17,72 +19,30 @@ import { createPayPalCheckout } from "@/lib/paypal/actions";
  * package "where onboardings is receiving one article and one backlink, to
  * attrack to subscribe, and later upgrade the plans".
  *
- * Starter is a one-off payment rather than a subscription, matching the
- * reference's "$1 /one-time" and "No subscription required" — the barrier to
- * trying is lowest when there is nothing to cancel.
+ * Starter is a EUR 1/month subscription like every other tier, so it needs no
+ * special path through checkout — it is simply the cheapest row, marked so it
+ * reads as the try-it-first option rather than a worse plan.
  */
-
-export type PickerPlan = {
-  id: string;
-  tier: string;
-  name: string;
-  priceCents: number;
-  currency: string;
-  interval: string;
-  articleLimit: number;
-  keywordLimit: number;
-  siteLimit: number;
-  monthlyCredits: number;
-};
-
-export type StarterOffer = {
-  priceCents: number;
-  currency: string;
-  /** False once this workspace has used it, so it is never sold twice. */
-  available: boolean;
-};
-
-/** What every subscription plan includes, in the customer's terms. */
-function planFeatures(plan: PickerPlan): string[] {
-  return [
-    `${plan.articleLimit} articles with images a month`,
-    `${plan.monthlyCredits} backlink credits a month`,
-    `${plan.keywordLimit} keywords researched`,
-    plan.siteLimit === 1 ? "1 website" : `${plan.siteLimit} websites`,
-    "AI visibility tracking",
-    "Titles, metadata and schema on every page",
-  ];
-}
-
-const STARTER_FEATURES = [
-  "1 SEO article with images",
-  "1 niche-relevant backlink",
-  "Keyword & search intent research",
-  "SEO title + metadata",
-  "AI search optimisation",
-  "No subscription required",
-];
-
 export function PlanPicker({
   monthlyPlans,
   annualPlans,
-  starter,
   paypalAvailable,
 }: {
   monthlyPlans: PickerPlan[];
   annualPlans: PickerPlan[];
-  starter: StarterOffer | null;
   paypalAvailable: boolean;
 }) {
   const [annual, setAnnual] = useState(false);
   const [selected, setSelected] = useState<string>(
-    starter?.available ? "starter" : (monthlyPlans[1]?.id ?? monthlyPlans[0]?.id ?? ""),
+    // Defaults to the tier most people should be on, not the cheapest.
+    monthlyPlans.find((plan) => plan.tier === "grow")?.id ??
+      monthlyPlans[0]?.id ??
+      "",
   );
   const [pending, setPending] = useState<string | null>(null);
 
   const plans = annual && annualPlans.length > 0 ? annualPlans : monthlyPlans;
   const selectedPlan = plans.find((plan) => plan.id === selected) ?? null;
-  const starterSelected = selected === "starter";
 
   /**
    * The real saving from paying annually, worked out from the two prices we
@@ -90,7 +50,8 @@ export function PlanPicker({
    */
   const annualSaving = (() => {
     if (monthlyPlans.length === 0 || annualPlans.length === 0) return null;
-    const monthly = monthlyPlans.find((p) => p.tier === "grow") ?? monthlyPlans[0];
+    const monthly =
+      monthlyPlans.find((p) => p.tier === "grow") ?? monthlyPlans[0];
     const yearly = annualPlans.find((p) => p.tier === monthly.tier);
     if (!yearly) return null;
     const full = monthly.priceCents * 12;
@@ -99,20 +60,6 @@ export function PlanPicker({
   })();
 
   async function handleCheckout(provider: "stripe" | "paypal") {
-    if (starterSelected) {
-      setPending(provider);
-      const result = await buyStarterTrial();
-      if ("error" in result) {
-        setPending(null);
-        toast.error(result.error);
-        return;
-      }
-      // assign() rather than `location.href = ...`: the React Compiler
-      // treats the latter as mutating a value it does not own.
-      window.location.assign(result.url);
-      return;
-    }
-
     if (!selectedPlan) return;
     setPending(provider);
 
@@ -126,6 +73,8 @@ export function PlanPicker({
       toast.error(result.error);
       return;
     }
+    // assign() rather than `location.href = ...`: the React Compiler treats
+    // the latter as mutating a value it does not own.
     window.location.assign(result.url);
   }
 
@@ -161,14 +110,16 @@ export function PlanPicker({
                      * Selection follows the switch by tier, so flipping to
                      * yearly keeps the plan you were looking at rather than
                      * silently resetting to the first one.
+                     *
+                     * Starter is monthly-only, so switching to yearly while it
+                     * is selected falls back to the cheapest annual plan
+                     * instead of leaving nothing selected.
                      */
                     const current = plans.find((p) => p.id === selected);
-                    if (current) {
-                      const next = (option.value ? annualPlans : monthlyPlans).find(
-                        (p) => p.tier === current.tier,
-                      );
-                      if (next) setSelected(next.id);
-                    }
+                    const target = option.value ? annualPlans : monthlyPlans;
+                    const next =
+                      target.find((p) => p.tier === current?.tier) ?? target[0];
+                    if (next) setSelected(next.id);
                   }}
                   className={`rounded-full px-5 py-2 text-sm font-medium transition-colors ${
                     annual === option.value
@@ -184,86 +135,12 @@ export function PlanPicker({
         ) : null}
 
         <div className="mt-6 space-y-4">
-          {/* The Starter offer, first and visually distinct. */}
-          {starter?.available ? (
-            <button
-              type="button"
-              onClick={() => setSelected("starter")}
-              aria-pressed={starterSelected}
-              className={`w-full rounded-2xl border-2 p-5 text-left transition-colors ${
-                starterSelected
-                  ? "border-emerald-500 bg-emerald-500/[0.06]"
-                  : "border-border bg-card hover:border-emerald-500/40"
-              }`}
-            >
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="flex items-center gap-2.5">
-                  <span
-                    className={`flex size-5 shrink-0 items-center justify-center rounded-full border-2 ${
-                      starterSelected
-                        ? "border-emerald-500 bg-emerald-500 text-white"
-                        : "border-muted-foreground/30"
-                    }`}
-                  >
-                    {starterSelected ? (
-                      <Check className="size-3" aria-hidden="true" />
-                    ) : null}
-                  </span>
-                  <Rocket
-                    className="size-5 text-emerald-600 dark:text-emerald-400"
-                    aria-hidden="true"
-                  />
-                  <span className="text-lg font-semibold">Starter</span>
-                  <span className="rounded-full border border-emerald-500/40 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-                    TRY IT FIRST
-                  </span>
-                </div>
-
-                <div className="text-right">
-                  <div className="text-3xl font-semibold">
-                    {formatPrice(starter.priceCents, starter.currency)}
-                  </div>
-                  <div className="text-xs text-muted-foreground">/one-time</div>
-                </div>
-              </div>
-
-              <p className="mt-3 text-sm text-muted-foreground">
-                Try us with a real article and a real backlink before choosing a
-                plan.
-              </p>
-
-              <ul className="mt-4 flex flex-wrap gap-2">
-                {STARTER_FEATURES.map((feature) => (
-                  <li
-                    key={feature}
-                    className="flex items-center gap-1.5 rounded-lg border bg-background px-2.5 py-1.5 text-xs"
-                  >
-                    <Check
-                      className="size-3 shrink-0 text-emerald-600 dark:text-emerald-400"
-                      aria-hidden="true"
-                    />
-                    {feature}
-                  </li>
-                ))}
-              </ul>
-
-              <p className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
-                <ShieldCheck className="size-3.5" aria-hidden="true" />
-                {formatPrice(starter.priceCents, starter.currency)} introductory
-                offer
-                <span aria-hidden="true">·</span>
-                One per workspace
-                <span aria-hidden="true">·</span>
-                No subscription required
-              </p>
-            </button>
-          ) : null}
-
-          {/* Subscription plans. */}
           {plans.map((plan) => {
             const isSelected = plan.id === selected;
+            const isStarter = plan.tier === STARTER_TIER;
             // The mid tier is the one most people should be on.
             const popular = plan.tier === "grow";
+            const features = planFeatures(plan);
 
             return (
               <button
@@ -273,8 +150,14 @@ export function PlanPicker({
                 aria-pressed={isSelected}
                 className={`w-full rounded-2xl border-2 p-5 text-left transition-colors ${
                   isSelected
-                    ? "border-primary bg-primary/[0.05]"
-                    : "border-border bg-card hover:border-primary/40"
+                    ? isStarter
+                      ? "border-emerald-500 bg-emerald-500/[0.06]"
+                      : "border-primary bg-primary/[0.05]"
+                    : `border-border bg-card ${
+                        isStarter
+                          ? "hover:border-emerald-500/40"
+                          : "hover:border-primary/40"
+                      }`
                 }`}
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -282,7 +165,9 @@ export function PlanPicker({
                     <span
                       className={`flex size-5 shrink-0 items-center justify-center rounded-full border-2 ${
                         isSelected
-                          ? "border-primary bg-primary text-primary-foreground"
+                          ? isStarter
+                            ? "border-emerald-500 bg-emerald-500 text-white"
+                            : "border-primary bg-primary text-primary-foreground"
                           : "border-muted-foreground/30"
                       }`}
                     >
@@ -290,7 +175,18 @@ export function PlanPicker({
                         <Check className="size-3" aria-hidden="true" />
                       ) : null}
                     </span>
+                    {isStarter ? (
+                      <Rocket
+                        className="size-5 text-emerald-600 dark:text-emerald-400"
+                        aria-hidden="true"
+                      />
+                    ) : null}
                     <span className="text-lg font-semibold">{plan.name}</span>
+                    {isStarter ? (
+                      <span className="rounded-full border border-emerald-500/40 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                        TRY IT FIRST
+                      </span>
+                    ) : null}
                     {popular ? (
                       <span className="rounded-full bg-primary px-2.5 py-0.5 text-xs font-semibold text-primary-foreground">
                         MOST POPULAR
@@ -324,20 +220,27 @@ export function PlanPicker({
                   </div>
                 </div>
 
+                {isStarter ? (
+                  <p className="mt-3 text-sm text-muted-foreground">
+                    Try us with a real article and a real backlink before moving
+                    up. Cancel any time.
+                  </p>
+                ) : null}
+
                 <ul className="mt-4 flex flex-wrap gap-2">
-                  {planFeatures(plan)
-                    .slice(0, 3)
-                    .map((feature) => (
-                      <li
-                        key={feature}
-                        className="rounded-lg border bg-background px-2.5 py-1.5 text-xs"
-                      >
-                        {feature}
-                      </li>
-                    ))}
-                  <li className="px-1 py-1.5 text-xs font-medium text-primary">
-                    +{planFeatures(plan).length - 3} more
-                  </li>
+                  {features.slice(0, 3).map((feature) => (
+                    <li
+                      key={feature}
+                      className="rounded-lg border bg-background px-2.5 py-1.5 text-xs"
+                    >
+                      {feature}
+                    </li>
+                  ))}
+                  {features.length > 3 ? (
+                    <li className="px-1 py-1.5 text-xs font-medium text-primary">
+                      +{features.length - 3} more
+                    </li>
+                  ) : null}
                 </ul>
               </button>
             );
@@ -354,23 +257,14 @@ export function PlanPicker({
 
         <div className="mt-4 rounded-xl bg-muted/50 p-4">
           <p className="font-semibold">
-            {starterSelected ? "Starter" : (selectedPlan?.name ?? "Choose a plan")}
+            {selectedPlan?.name ?? "Choose a plan"}
           </p>
           <p className="text-sm text-muted-foreground">
-            {starterSelected
-              ? "One-time payment"
-              : annual
-                ? "Billed yearly"
-                : "Billed monthly"}
+            {annual ? "Billed yearly" : "Billed monthly"}
           </p>
 
           <ul className="mt-4 space-y-2">
-            {(starterSelected
-              ? STARTER_FEATURES
-              : selectedPlan
-                ? planFeatures(selectedPlan)
-                : []
-            ).map((feature) => (
+            {(selectedPlan ? planFeatures(selectedPlan) : []).map((feature) => (
               <li key={feature} className="flex items-start gap-2 text-sm">
                 <Check
                   className="mt-0.5 size-3.5 shrink-0 text-emerald-600 dark:text-emerald-400"
@@ -385,17 +279,15 @@ export function PlanPicker({
         <div className="mt-4 flex items-baseline justify-between border-t pt-4">
           <span className="font-medium">Total today</span>
           <span className="text-2xl font-semibold">
-            {starterSelected && starter
-              ? formatPrice(starter.priceCents, starter.currency)
-              : selectedPlan
-                ? formatPrice(selectedPlan.priceCents, selectedPlan.currency)
-                : "—"}
+            {selectedPlan
+              ? formatPrice(selectedPlan.priceCents, selectedPlan.currency)
+              : "—"}
           </span>
         </div>
 
         <Button
           className="mt-4 h-11 w-full rounded-full"
-          disabled={pending !== null || (!starterSelected && !selectedPlan)}
+          disabled={pending !== null || !selectedPlan}
           onClick={() => handleCheckout("stripe")}
         >
           {pending === "stripe" ? (
@@ -412,13 +304,8 @@ export function PlanPicker({
           PayPal, per the brief: "We include also PayPal payments, not just
           Cards". Shown only when it is actually configured — a button that
           returns "not configured" is worse than no button.
-
-          Hidden for Starter: PayPal is wired for subscriptions here, and the
-          Starter offer is deliberately a one-off payment. Offering it would
-          either fail or quietly create a subscription, which is the one thing
-          this offer promises not to do.
         */}
-        {paypalAvailable && !starterSelected ? (
+        {paypalAvailable ? (
           <Button
             variant="outline"
             className="mt-2 h-11 w-full rounded-full"
@@ -436,13 +323,10 @@ export function PlanPicker({
           </Button>
         ) : null}
 
-        <ul className="mt-4 space-y-1.5 text-xs text-muted-foreground">
-          <li className="flex items-center gap-1.5">
-            <ShieldCheck className="size-3.5" aria-hidden="true" />
-            Secure checkout.{" "}
-            {starterSelected ? "No subscription." : "Cancel any time."}
-          </li>
-        </ul>
+        <p className="mt-4 flex items-center gap-1.5 text-xs text-muted-foreground">
+          <ShieldCheck className="size-3.5" aria-hidden="true" />
+          Secure checkout. Cancel any time.
+        </p>
       </aside>
     </div>
   );

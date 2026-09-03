@@ -16,12 +16,7 @@ import {
   generateOutline,
   type ArticleBrief,
 } from "@/lib/articles/generate";
-import {
-  checkLimit,
-  consumeStarterTrialArticle,
-  PRICING,
-  track,
-} from "@/lib/usage";
+import { checkLimit, PRICING, track } from "@/lib/usage";
 import { backlinkRequests, placements } from "@/lib/db/schema";
 import { recordCredit } from "@/lib/backlinks/credits";
 import { addInternalLinks } from "@/lib/articles/internal-links";
@@ -470,19 +465,6 @@ export async function queueArticleForCalendarItem(
   if (existing) {
     articleId = existing.id;
   } else {
-    /**
-     * A Starter trial grants one article and is spent here, before the article
-     * row exists.
-     *
-     * Counted rather than derived from article rows: deleting a trial article
-     * must not hand the grant back, or the EUR 1 offer becomes unlimited for
-     * anyone willing to delete as they go. The conditional UPDATE is also the
-     * concurrency guard — two requests cannot both spend the same grant.
-     *
-     * A subscriber has no trial row, so this is a no-op for them.
-     */
-    const spentTrial = await consumeStarterTrialArticle(organizationId);
-
     const [created] = await db
       .insert(articles)
       .values({
@@ -494,12 +476,6 @@ export async function queueArticleForCalendarItem(
       })
       .returning({ id: articles.id });
     articleId = created.id;
-
-    if (spentTrial) {
-      console.info(
-        `[articles] org ${organizationId} spent its Starter trial article on ${articleId}`,
-      );
-    }
   }
 
   await inngest.send({

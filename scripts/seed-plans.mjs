@@ -20,6 +20,29 @@ const CURRENCY = "eur";
 /** Monthly price per tier, in minor units. Annual is derived as x10. */
 const TIERS = [
   {
+    /**
+     * The entry tier from the brief: "one article and one backlink, to attract
+     * to subscribe, and later upgrade the plans".
+     *
+     * Monthly only. An annual Starter would be EUR 10 for a year of service,
+     * which undercuts every other plan and gives someone no reason to move up
+     * — the opposite of what an entry tier is for.
+     *
+     * Note on economics: at EUR 1/month, card fees (roughly EUR 0.25 + 1.5%)
+     * take about a quarter of the revenue. That is a deliberate acquisition
+     * cost rather than an oversight — this tier exists to convert, not to earn.
+     */
+    tier: "starter",
+    name: "Starter",
+    monthlyCents: 100,
+    articleLimit: 1,
+    keywordLimit: 25,
+    siteLimit: 1,
+    monthlyCredits: 1,
+    sortOrder: 0,
+    monthlyOnly: true,
+  },
+  {
     tier: "launch",
     name: "Launch",
     monthlyCents: 2900,
@@ -111,17 +134,10 @@ for (const p of rows) {
 /**
  * Any plan seeded before tiers existed keeps tier "legacy" and is retired
  * here, so the pricing page shows exactly the line-up above.
- *
- * "starter" is retired for a different reason: it used to be a EUR 1/month
- * subscription, and is now the one-off Starter offer in the addons table
- * ("$1 /one-time", "No subscription required" in the reference design). The
- * row is deactivated rather than deleted — anyone who subscribed to it while
- * it existed keeps a plan their subscription can still point at, which is what
- * their limits are read from.
  */
 const retired = await sql`
   update plans set is_active = false, updated_at = now()
-  where (tier like 'legacy%' or tier = 'starter') and is_active = true
+  where tier like 'legacy%' and is_active = true
   returning name
 `;
 for (const r of retired) console.log(`retired legacy plan: ${r.name}`);

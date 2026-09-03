@@ -117,6 +117,8 @@ export type Messages = {
     pricingSub: string;
     seeAllPlans: string;
     mostPopular: string;
+    /** Badge on the entry tier in the homepage pricing preview. */
+    tryItFirst: string;
     getStartedPlan: string;
     perMonth: string;
     unavailable: string;
@@ -135,6 +137,9 @@ export type Messages = {
     perMonth: string;
     getStarted: string;
     mostPopular: string;
+    /** Badge on the entry tier, which exists to be tried rather than compared. */
+    tryItFirst: string;
+    starterTagline: string;
     unavailable: string;
     annualNote: string;
     refundPolicy: string;
@@ -290,6 +295,7 @@ const en: Messages = {
       "A free check to start, no contract, and cancel whenever you like.",
     seeAllPlans: "See everything included in each plan",
     mostPopular: "Most popular",
+    tryItFirst: "Try it first",
     getStartedPlan: "Get started",
     perMonth: " / month",
     unavailable:
@@ -310,6 +316,9 @@ const en: Messages = {
     perMonth: " / month",
     getStarted: "Get started",
     mostPopular: "Most popular",
+    tryItFirst: "Try it first",
+    starterTagline:
+      "Try us with a real article and a real backlink before moving up.",
     unavailable:
       "Pricing is not available right now. Please check back shortly.",
     annualNote:
@@ -470,6 +479,7 @@ const es: Messages = {
       "Un análisis gratuito para empezar, sin contrato y cancele cuando quiera.",
     seeAllPlans: "Ver todo lo que incluye cada plan",
     mostPopular: "Más popular",
+    tryItFirst: "Pruébalo primero",
     getStartedPlan: "Empezar",
     perMonth: " / mes",
     unavailable:
@@ -491,6 +501,9 @@ const es: Messages = {
     perMonth: " / mes",
     getStarted: "Empezar",
     mostPopular: "Más popular",
+    tryItFirst: "Pruébalo primero",
+    starterTagline:
+      "Pruébanos con un artículo real y un enlace real antes de subir de plan.",
     unavailable:
       "Los precios no están disponibles en este momento. Vuelva a intentarlo en breve.",
     annualNote:
@@ -651,6 +664,7 @@ const fr: Messages = {
       "Une analyse gratuite pour commencer, sans engagement, et annulez quand vous voulez.",
     seeAllPlans: "Voir tout ce que comprend chaque formule",
     mostPopular: "Le plus choisi",
+    tryItFirst: "Essayez d'abord",
     getStartedPlan: "Commencer",
     perMonth: " / mois",
     unavailable:
@@ -672,6 +686,9 @@ const fr: Messages = {
     perMonth: " / mois",
     getStarted: "Commencer",
     mostPopular: "Le plus choisi",
+    tryItFirst: "Essayez d'abord",
+    starterTagline:
+      "Essayez-nous avec un vrai article et un vrai lien avant de passer au niveau supérieur.",
     unavailable:
       "Les tarifs ne sont pas disponibles pour le moment. Merci de réessayer sous peu.",
     annualNote:
@@ -832,6 +849,7 @@ const it: Messages = {
       "Un'analisi gratuita per iniziare, senza vincoli, e disdica quando vuole.",
     seeAllPlans: "Vedi tutto ciò che include ogni piano",
     mostPopular: "Il più scelto",
+    tryItFirst: "Provalo prima",
     getStartedPlan: "Inizia",
     perMonth: " / mese",
     unavailable:
@@ -852,6 +870,9 @@ const it: Messages = {
     perMonth: " / mese",
     getStarted: "Inizia",
     mostPopular: "Il più scelto",
+    tryItFirst: "Provalo prima",
+    starterTagline:
+      "Provaci con un articolo vero e un backlink vero prima di passare a un piano superiore.",
     unavailable:
       "I prezzi non sono disponibili in questo momento. Riprovi tra poco.",
     annualNote:
@@ -1015,6 +1036,7 @@ const de: Messages = {
       "Eine kostenlose Prüfung zum Start, kein Vertrag, jederzeit kündbar.",
     seeAllPlans: "Alle Leistungen jedes Tarifs ansehen",
     mostPopular: "Am beliebtesten",
+    tryItFirst: "Erst ausprobieren",
     getStartedPlan: "Loslegen",
     perMonth: " / Monat",
     unavailable:
@@ -1035,6 +1057,9 @@ const de: Messages = {
     perMonth: " / Monat",
     getStarted: "Loslegen",
     mostPopular: "Am beliebtesten",
+    tryItFirst: "Erst ausprobieren",
+    starterTagline:
+      "Testen Sie uns mit einem echten Artikel und einem echten Backlink, bevor Sie aufsteigen.",
     unavailable:
       "Die Preise sind derzeit nicht verfügbar. Bitte versuchen Sie es in Kürze erneut.",
     annualNote:
