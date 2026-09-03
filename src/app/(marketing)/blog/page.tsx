@@ -1,64 +1,86 @@
 import Link from "next/link";
 
-import { listPosts } from "@/lib/blog/posts";
+import { PostCard } from "@/components/post-card";
+import { BLOG_CATEGORIES, categoryCounts, listPosts } from "@/lib/blog/posts";
 
 export const metadata = {
   title: "Blog",
   description:
-    "Plain-English guides to getting found on Google and in AI assistants, for people who run a business rather than a marketing team.",
+    "Guides, comparisons and playbooks for getting found on Google and cited by AI assistants — written for people who run a business, not a marketing team.",
 };
-
-/** Long-form dates, since a blog index read by humans is not a log file. */
-function formatDate(iso: string): string {
-  return new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    timeZone: "UTC",
-  });
-}
 
 export default function BlogIndexPage() {
   const posts = listPosts();
+  const counts = categoryCounts();
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-16">
-      <header>
-        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-          Blog
-        </h1>
-        <p className="mt-3 max-w-xl text-muted-foreground">
-          Plain-English guides to getting found on Google and in AI assistants,
-          written for people who run a business rather than a marketing team.
-        </p>
-      </header>
+    <div>
+      {/* Tinted hero, matching the tools pages. */}
+      <div className="bg-primary/[0.04]">
+        <div className="mx-auto max-w-5xl px-4 py-14 sm:py-16">
+          <p className="flex items-center gap-2 text-xs font-semibold tracking-[0.14em] text-primary uppercase">
+            <span className="size-1.5 rounded-full bg-primary" aria-hidden="true" />
+            Blog
+          </p>
 
-      <ul className="mt-12 space-y-10">
-        {posts.map((post) => (
-          <li key={post.slug}>
-            <article>
-              {/*
-                The whole card is not a link: a nested link to a post's own
-                content would be unreachable by keyboard. The title is the
-                link, which is also what a screen reader announces.
-              */}
-              <h2 className="text-xl font-medium tracking-tight">
-                <Link href={`/blog/${post.slug}`} className="hover:underline">
-                  {post.title}
+          <h1 className="mt-4 text-3xl font-semibold tracking-tight text-balance sm:text-5xl">
+            The SEO Platform <span className="text-primary">Blog</span>
+          </h1>
+          <p className="mt-4 max-w-2xl text-pretty text-muted-foreground sm:text-lg">
+            Guides, comparisons and playbooks for the new era of search. How to
+            get found on Google, and how to get your business named by ChatGPT,
+            Claude, Gemini and Perplexity.
+          </p>
+
+          {/*
+            Counts are real, read from the posts themselves. A category chip
+            claiming a number the index cannot fill is the first thing a
+            reader notices.
+          */}
+          <ul className="mt-7 flex flex-wrap gap-2.5">
+            {/*
+              Empty categories are hidden rather than shown with a zero. A chip
+              reading "Comparisons 0" advertises a section with nothing in it and
+              makes the whole blog look abandoned; the category page still exists
+              for when the first post lands.
+            */}
+            {BLOG_CATEGORIES.filter(
+              (category) => counts[category.name] > 0,
+            ).map((category) => (
+              <li key={category.slug}>
+                <Link
+                  href={`/blog/category/${category.slug}`}
+                  className="flex items-center gap-2 rounded-full border bg-card px-4 py-2 text-sm font-medium transition-colors hover:border-primary/40"
+                >
+                  {category.name}
+                  <span className="text-muted-foreground tabular-nums">
+                    {counts[category.name]}
+                  </span>
                 </Link>
-              </h2>
-              <p className="mt-2 text-muted-foreground">{post.description}</p>
-              <p className="mt-3 text-xs text-muted-foreground">
-                <time dateTime={post.publishedAt}>
-                  {formatDate(post.publishedAt)}
-                </time>
-                <span className="mx-2">·</span>
-                {post.readingMinutes} min read
-              </p>
-            </article>
-          </li>
-        ))}
-      </ul>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      <div className="mx-auto max-w-5xl px-4 py-14">
+        <div className="flex flex-wrap items-baseline justify-between gap-3">
+          <h2 className="text-2xl font-semibold tracking-tight">
+            Latest articles
+          </h2>
+          <p className="text-sm text-muted-foreground tabular-nums">
+            {posts.length} {posts.length === 1 ? "article" : "articles"}
+          </p>
+        </div>
+
+        <ul className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {posts.map((post) => (
+            <li key={post.slug}>
+              <PostCard post={post} />
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   );
 }

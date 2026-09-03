@@ -14,12 +14,58 @@
  * every link and discards whatever ranking the post has earned.
  */
 
+/**
+ * Sections of the blog.
+ *
+ * Three, matching how the posts actually differ: an explainer, a comparison,
+ * and a step-by-step. More categories than there are posts to fill them makes
+ * an index look abandoned, so these stay few until the writing justifies more.
+ */
+export type BlogCategory = "Guides" | "Comparisons" | "Playbooks";
+
+export const BLOG_CATEGORIES: {
+  name: BlogCategory;
+  slug: string;
+  blurb: string;
+}[] = [
+  {
+    name: "Guides",
+    slug: "guides",
+    blurb:
+      "Plain-English explanations of how search and AI assistants actually work.",
+  },
+  {
+    name: "Comparisons",
+    slug: "comparisons",
+    blurb: "How the options differ, and which one fits the job you have.",
+  },
+  {
+    name: "Playbooks",
+    slug: "playbooks",
+    blurb: "Step-by-step work you can do this week, in the order to do it.",
+  },
+];
+
+/** A question and its answer, rendered as an expandable block. */
+export type BlogFaq = {
+  question: string;
+  /** HTML, same trust model as `body`. */
+  answer: string;
+};
+
+/** An external reference backing a claim in the post. */
+export type BlogSource = {
+  label: string;
+  url: string;
+};
+
 export type BlogPost = {
   /** URL segment. Permanent once published. */
   slug: string;
   title: string;
   /** Meta description and card summary. Kept under ~160 characters. */
   description: string;
+  category: BlogCategory;
   /** ISO date. Drives ordering and the sitemap. */
   publishedAt: string;
   /** ISO date, when meaningfully revised. Search engines read this. */
@@ -28,6 +74,17 @@ export type BlogPost = {
   author: string;
   /** Rough read time in minutes. */
   readingMinutes: number;
+  /**
+   * The one-paragraph answer, shown above the article.
+   *
+   * This is the part an assistant can quote whole, and the part a reader who
+   * will not scroll actually needs. Writing it forces the post to have a point.
+   */
+  shortAnswer?: string;
+  /** Questions appended to the post, and emitted as FAQPage structured data. */
+  faqs?: BlogFaq[];
+  /** Where the claims come from. Absent when a post makes none worth citing. */
+  sources?: BlogSource[];
   /**
    * Body as HTML. Written here by us, never user input, so it is rendered
    * directly — the usual injection concern does not apply to a constant in our
@@ -44,11 +101,41 @@ const POSTS: BlogPost[] = [
   {
     slug: "why-your-website-isnt-on-google",
     title: "Why your website isn't showing up on Google",
+    category: "Guides",
     description:
       "The four reasons small business websites stay invisible on Google, and how to tell which one is yours.",
     publishedAt: "2026-08-12",
     author: "The SEO Platform team",
     readingMinutes: 6,
+    shortAnswer:
+      "A small business website usually stays invisible on Google for one of four reasons: search engines cannot read its pages properly, it covers subjects nobody searches for, nothing links to it, or customers are getting their answer from an AI assistant without ever visiting. The fixes differ completely, so it is worth knowing which one applies before spending anything.",
+    faqs: [
+      {
+        question: "How long before a new page shows up on Google?",
+        answer:
+          "<p>Days to weeks for the page to be indexed, and often months before it ranks anywhere useful. Fixing a title on a page Google already knows is the fastest change on the list; earning links is the slowest. Anyone promising results in days is selling something else.</p>",
+      },
+      {
+        question: "Do I need to submit my site to Google?",
+        answer:
+          "<p>No. Google finds sites by following links, and a sitemap helps it find pages nothing links to yet. Submitting a URL can nudge things along, but it does not make a page rank and it is not the reason a site is invisible.</p>",
+      },
+      {
+        question: "Is it worth paying someone to fix this?",
+        answer:
+          "<p>It depends which of the four problems you have. Titles and descriptions are an afternoon of work most owners can do themselves. Choosing the right subjects to write about, and then writing them, is where paid help earns its money.</p>",
+      },
+    ],
+    sources: [
+      {
+        label: "Google Search Central — SEO Starter Guide",
+        url: "https://developers.google.com/search/docs/fundamentals/seo-starter-guide",
+      },
+      {
+        label: "Google Search Central — Link spam policies",
+        url: "https://developers.google.com/search/docs/essentials/spam-policies#link-spam",
+      },
+    ],
     body: `
 <p>If you have a website and it brings you no enquiries, you are not doing anything unusual. Most small business websites are invisible on Google, and almost always for one of four reasons. They are worth knowing apart, because the fix for each is completely different.</p>
 
@@ -75,11 +162,31 @@ const POSTS: BlogPost[] = [
   {
     slug: "how-ai-assistants-recommend-businesses",
     title: "How AI assistants decide which businesses to recommend",
+    category: "Guides",
     description:
       "People increasingly ask ChatGPT instead of searching Google. Here is what actually determines whether your business gets named.",
     publishedAt: "2026-08-20",
     author: "The SEO Platform team",
     readingMinutes: 5,
+    shortAnswer:
+      "AI assistants name a business when it has been described clearly and consistently across sources the model has seen, and when those descriptions are easy to quote. You cannot buy a position and there is no tag to add. What you can do is measure it — ask the assistant the questions your customers ask, and see whether you come up.",
+    faqs: [
+      {
+        question: "Can I pay to appear in ChatGPT's answers?",
+        answer:
+          "<p>Not in the organic answer. There is no placement to buy and no submission form. Anyone offering to guarantee a mention is describing something they cannot control.</p>",
+      },
+      {
+        question: "Does blocking AI crawlers hurt me?",
+        answer:
+          "<p>It prevents an assistant reading your site when it searches the web mid-answer, so you cannot be cited from your own pages. Plenty of sites block these agents by accident via a security plugin. Our <a href=\"/tools/ai-crawler-checker\">AI crawler checker</a> tells you in a few seconds.</p>",
+      },
+      {
+        question: "How do I know if AI already mentions my business?",
+        answer:
+          "<p>Ask it. Use the questions a customer would actually type, not your business name — being named when someone asks for you is not the same as being named when someone asks for what you sell. Repeat them over time, since answers drift as models update.</p>",
+      },
+    ],
     body: `
 <p>Ask an assistant "who is the best plumber in Bristol" and you get three or four names. Ask about a product category and you get a shortlist. For a growing number of people, that shortlist has replaced the first page of Google entirely.</p>
 <p>If your business is not on it, nothing tells you. There is no ranking to check, no impression count, no drop in a report. You are simply not mentioned, and you never learn it happened.</p>
@@ -106,11 +213,26 @@ const POSTS: BlogPost[] = [
   {
     slug: "what-to-fix-first",
     title: "What to fix first on a website that gets no traffic",
+    category: "Playbooks",
     description:
       "A practical order of work for a site with no rankings, starting with what costs an afternoon rather than six months.",
     publishedAt: "2026-08-27",
     author: "The SEO Platform team",
     readingMinutes: 7,
+    shortAnswer:
+      "Fix titles and descriptions first, because it costs an afternoon and is the only change that can show a difference within a week. Then make sure every page is reachable, find out what customers actually search for, write pages that answer those questions, link your own pages together, and only then chase links from other sites.",
+    faqs: [
+      {
+        question: "What if I only have one afternoon?",
+        answer:
+          "<p>Spend it on titles and meta descriptions, starting with any two pages that share one. Duplicates make Google choose between your own pages, and it often shows neither.</p>",
+      },
+      {
+        question: "Should I delete old pages that get no traffic?",
+        answer:
+          "<p>Usually merge rather than delete. A thin page folded into a fuller one, with a redirect from the old address, keeps whatever links and history it had. Deleting outright throws that away.</p>",
+      },
+    ],
     body: `
 <p>Most SEO advice is a list of everything that could matter, which is useless when you have a limited amount of time. This is an order of work, cheapest and fastest first.</p>
 
@@ -157,8 +279,87 @@ export function getPost(slug: string): BlogPost | null {
  * Deliberately simple: the newest others. With a handful of posts, a relevance
  * score would be dressing up an arbitrary choice as an informed one.
  */
-export function relatedPosts(slug: string, limit = 2): BlogPost[] {
-  return listPosts()
-    .filter((post) => post.slug !== slug)
-    .slice(0, limit);
+export function relatedPosts(slug: string, limit = 3): BlogPost[] {
+  const current = getPost(slug);
+  const others = listPosts().filter((post) => post.slug !== slug);
+  if (!current) return others.slice(0, limit);
+
+  // Same category first — someone reading a playbook wants the next playbook —
+  // then anything else, so the section is never short on a small blog.
+  return [
+    ...others.filter((post) => post.category === current.category),
+    ...others.filter((post) => post.category !== current.category),
+  ].slice(0, limit);
+}
+
+/** Posts in one category, newest first. */
+export function postsByCategory(category: BlogCategory): BlogPost[] {
+  return listPosts().filter((post) => post.category === category);
+}
+
+/** A category by its URL slug, or null when the slug is unknown. */
+export function categoryBySlug(
+  slug: string,
+): (typeof BLOG_CATEGORIES)[number] | null {
+  return BLOG_CATEGORIES.find((category) => category.slug === slug) ?? null;
+}
+
+/** How many posts each category holds, for the index's filter chips. */
+export function categoryCounts(): Record<BlogCategory, number> {
+  const counts = { Guides: 0, Comparisons: 0, Playbooks: 0 };
+  for (const post of POSTS) counts[post.category] += 1;
+  return counts;
+}
+
+export type TocEntry = { id: string; text: string };
+
+/**
+ * Turns a heading into a URL fragment.
+ *
+ * Shared by the extractor and the renderer so an anchor and its link cannot
+ * drift apart — the failure mode is a table of contents whose links go nowhere,
+ * which is worse than having none.
+ */
+export function headingId(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/<[^>]+>/g, "")
+    .replace(/&[a-z]+;/g, " ")
+    .replace(/[^\p{L}\p{N}]+/gu, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+/**
+ * Pulls the h2 headings out of a post body for the table of contents.
+ *
+ * Regex rather than a parser: the input is our own constant, we need only the
+ * h2 text, and adding a DOM dependency to a static page for this would be
+ * disproportionate.
+ */
+export function tableOfContents(body: string): TocEntry[] {
+  const entries: TocEntry[] = [];
+  for (const match of body.matchAll(/<h2[^>]*>([\s\S]*?)<\/h2>/gi)) {
+    const text = match[1].replace(/<[^>]+>/g, "").trim();
+    if (text) entries.push({ id: headingId(text), text });
+  }
+  return entries;
+}
+
+/**
+ * Adds an id to every h2 so the contents list can link to it.
+ *
+ * Done at render time rather than stored in the body, so the ids always match
+ * whatever `headingId` currently produces.
+ */
+export function withHeadingIds(body: string): string {
+  return body.replace(
+    /<h2([^>]*)>([\s\S]*?)<\/h2>/gi,
+    (whole, attrs: string, inner: string) => {
+      // Never overwrite an id a post set deliberately.
+      if (/\bid\s*=/.test(attrs)) return whole;
+      const text = inner.replace(/<[^>]+>/g, "").trim();
+      if (!text) return whole;
+      return `<h2${attrs} id="${headingId(text)}">${inner}</h2>`;
+    },
+  );
 }
