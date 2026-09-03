@@ -12,6 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { formatPrice, listPlans } from "@/lib/billing";
+import { planTagline, STARTER_TIER } from "@/lib/plans/features";
 
 export const metadata = {
   title: "Pricing",
@@ -76,6 +77,13 @@ export default async function PricingPage() {
              * recommendation is wrong the first time the line-up changes.
              */
             const featured = plan.tier === "grow";
+            /**
+             * Starter is the lead-in from the brief — "one article and one
+             * backlink, to attract to subscribe, and later upgrade the plans".
+             * Marked so it reads as the try-it-first option rather than simply
+             * the weakest plan on the row.
+             */
+            const isStarter = plan.tier === STARTER_TIER;
             return (
               /*
                 The badge sits on a WRAPPER, not the Card. Card carries
@@ -88,8 +96,22 @@ export default async function PricingPage() {
                     Most popular
                   </Badge>
                 ) : null}
+                {isStarter ? (
+                  <Badge
+                    variant="secondary"
+                    className="absolute top-0 left-6 z-10 border border-emerald-500/40 text-emerald-700 shadow-sm dark:text-emerald-400"
+                  >
+                    Try it first
+                  </Badge>
+                ) : null}
                 <Card
-                  className={`h-full ${featured ? "border-primary/40 shadow-sm" : ""}`}
+                  className={`h-full ${
+                    featured
+                      ? "border-primary/40 shadow-sm"
+                      : isStarter
+                        ? "border-emerald-500/40"
+                        : ""
+                  }`}
                 >
                   <CardHeader>
                     <CardTitle className="text-base">{plan.name}</CardTitle>
@@ -98,6 +120,11 @@ export default async function PricingPage() {
                         {formatPrice(plan.priceCents, plan.currency)}
                       </span>
                       <span className="text-muted-foreground"> / month</span>
+                      {isStarter ? (
+                        <span className="mt-2 block text-muted-foreground">
+                          {planTagline(plan.tier)}
+                        </span>
+                      ) : null}
                     </CardDescription>
                   </CardHeader>
 

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
+import { STARTER_TIER } from "@/lib/plans/features";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -285,10 +286,24 @@ export function BillingClient({
           return (
             <Card key={plan.id} className="flex flex-col">
               <CardHeader>
-                <CardTitle className="flex items-center justify-between text-base">
+                <CardTitle className="flex flex-wrap items-center gap-2 text-base">
                   {plan.name}
+                  {/*
+                    Starter is the lead-in from the brief, not simply the
+                    weakest plan on the row.
+                  */}
+                  {plan.tier === STARTER_TIER ? (
+                    <Badge
+                      variant="secondary"
+                      className="border border-emerald-500/40 text-emerald-700 dark:text-emerald-400"
+                    >
+                      Try it first
+                    </Badge>
+                  ) : null}
                   {saving > 0 ? (
-                    <Badge variant="secondary">Save {saving}%</Badge>
+                    <Badge variant="secondary" className="ml-auto">
+                      Save {saving}%
+                    </Badge>
                   ) : null}
                 </CardTitle>
                 <CardDescription>

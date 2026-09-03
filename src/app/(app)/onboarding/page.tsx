@@ -1,6 +1,5 @@
 import { ArrowRight, Check, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { eq } from "drizzle-orm";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,13 +7,11 @@ import { PageHeader, PageShell } from "@/components/ui/page-header";
 import { requireSession } from "@/lib/auth-guard";
 import { listPlans, getSubscription } from "@/lib/billing";
 import { isEntitled } from "@/lib/billing-shared";
-import { db } from "@/lib/db";
-import { addons } from "@/lib/db/schema";
 import { getOnboardingState } from "@/lib/onboarding/steps";
-import { hasStarterTrial, STARTER_TRIAL_SLUG } from "@/lib/onboarding/shared";
 import { isPayPalAvailable } from "@/lib/paypal/actions";
 import { requireOrg } from "@/lib/tenant";
-import { PlanPicker, type PickerPlan } from "./plan-picker";
+import { toPickerPlan } from "@/lib/plans/features";
+import { PlanPicker } from "./plan-picker";
 
 export const metadata = { title: "Get started" };
 
@@ -35,40 +32,18 @@ export const dynamic = "force-dynamic";
  * A parallel set of onboarding-only forms would be a second copy of the same
  * logic, and the two would drift.
  */
-export default async function OnboardingPage({
-  searchParams,
-}: PageProps<"/onboarding">) {
+export default async function OnboardingPage() {
   await requireSession();
   const { orgId } = await requireOrg();
-  const params = await searchParams;
 
-  const [state, subscription, trialUsed, paypalAvailable, allPlans, starterRow] =
-    await Promise.all([
-      getOnboardingState(orgId),
-      getSubscription(orgId),
-      hasStarterTrial(orgId),
-      isPayPalAvailable(),
-      listPlans(),
-      db
-        .select({
-          priceCents: addons.priceCents,
-          currency: addons.currency,
-          isActive: addons.isActive,
-          stripePriceId: addons.stripePriceId,
-        })
-        .from(addons)
-        .where(eq(addons.slug, STARTER_TRIAL_SLUG))
-        .limit(1),
-    ]);
+  const [state, subscription, paypalAvailable, allPlans] = await Promise.all([
+    getOnboardingState(orgId),
+    getSubscription(orgId),
+    isPayPalAvailable(),
+    listPlans(),
+  ]);
 
-  /**
-   * Whether this workspace can do anything yet.
-   *
-   * A used Starter trial counts: they have paid for an article, so sending
-   * them back to the plan picker would be asking them to buy what they already
-   * own. The checklist below then walks them through spending it.
-   */
-  const hasAccess = isEntitled(subscription?.status) || trialUsed;
+  const hasAccess = isEntitled(subscription?.status);
 
   if (!hasAccess) {
     const monthlyPlans = allPlans
@@ -78,23 +53,12 @@ export default async function OnboardingPage({
       .filter((plan) => plan.interval === "year")
       .map(toPickerPlan);
 
-    const starter = starterRow[0];
-
     return (
       <PageShell>
         <PageHeader
           title="Select your plan"
           description="Pick a plan and we start working on your site today."
         />
-
-        {params.starter === "cancelled" ? (
-          <Card>
-            <CardContent className="py-4 text-sm text-muted-foreground">
-              Checkout was cancelled — nothing has been charged. Pick an option
-              whenever you are ready.
-            </CardContent>
-          </Card>
-        ) : null}
 
         {monthlyPlans.length === 0 ? (
           // Real state, not a placeholder: with no plans configured we say so
@@ -108,17 +72,6 @@ export default async function OnboardingPage({
           <PlanPicker
             monthlyPlans={monthlyPlans}
             annualPlans={annualPlans}
-            starter={
-              // Offered only when it is genuinely purchasable: active, priced
-              // in Stripe, and not already used by this workspace.
-              starter?.isActive && starter.stripePriceId && !trialUsed
-                ? {
-                    priceCents: starter.priceCents,
-                    currency: starter.currency,
-                    available: true,
-                  }
-                : null
-            }
             paypalAvailable={paypalAvailable}
           />
         )}
@@ -138,22 +91,6 @@ export default async function OnboardingPage({
             : "A few steps, and we do most of the work."
         }
       />
-
-      {/*
-        Confirms the one-off purchase landed. The webhook grants it, so by the
-        time this renders the trial row already exists.
-      */}
-      {params.starter === "success" ? (
-        <Card className="border-primary/40">
-          <CardContent className="py-4 text-sm">
-            <p className="font-medium">Your Starter article is paid for.</p>
-            <p className="mt-1 text-muted-foreground">
-              Add your website below and we will write it, then place your
-              backlink.
-            </p>
-          </CardContent>
-        </Card>
-      ) : null}
 
       <div className="flex items-center gap-3">
         <div
@@ -255,31 +192,6 @@ export default async function OnboardingPage({
         })}
       </ol>
 
-      {/*
-        A trial customer has one article and no renewal. Saying so here, where
-        they can see how far they have got, is the moment the upgrade actually
-        makes sense to them.
-      */}
-      {trialUsed && !isEntitled(subscription?.status) ? (
-        <Card className="border-primary/40">
-          <CardContent className="flex flex-wrap items-center justify-between gap-4 py-5">
-            <div>
-              <p className="font-medium">You are on the Starter offer</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                One article and one backlink, no subscription. Choose a plan
-                when you want us to keep writing every month.
-              </p>
-            </div>
-            <Button asChild>
-              <Link href="/billing">
-                See plans
-                <ArrowRight className="size-4" />
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
-      ) : null}
-
       {state.complete ? (
         <div className="text-center">
           <Button asChild>
@@ -292,32 +204,4 @@ export default async function OnboardingPage({
       ) : null}
     </PageShell>
   );
-}
-
-/** Narrows a plan row to what the picker needs, keeping it a server concern. */
-function toPickerPlan(plan: {
-  id: string;
-  tier: string;
-  name: string;
-  priceCents: number;
-  currency: string;
-  interval: string;
-  articleLimit: number;
-  keywordLimit: number;
-  siteLimit: number;
-  monthlyCredits: number;
-}): PickerPlan {
-  return {
-    id: plan.id,
-    tier: plan.tier,
-    // Annual rows are named "Grow (Annual)"; the interval is already shown.
-    name: plan.name.replace(/\s*\(Annual\)\s*$/i, ""),
-    priceCents: plan.priceCents,
-    currency: plan.currency,
-    interval: plan.interval,
-    articleLimit: plan.articleLimit,
-    keywordLimit: plan.keywordLimit,
-    siteLimit: plan.siteLimit,
-    monthlyCredits: plan.monthlyCredits,
-  };
 }

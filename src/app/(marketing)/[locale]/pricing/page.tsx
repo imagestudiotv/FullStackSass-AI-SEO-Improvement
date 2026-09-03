@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { Badge } from "@/components/ui/badge";
+import { STARTER_TIER } from "@/lib/plans/features";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -80,6 +81,7 @@ export default async function LocalisedPricingPage({
         <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {monthly.map((plan) => {
             const featured = plan.tier === "grow";
+            const isStarter = plan.tier === STARTER_TIER;
             return (
               /*
                 The badge sits on a WRAPPER, not the Card. Card carries
@@ -92,8 +94,22 @@ export default async function LocalisedPricingPage({
                     {t.pricing.mostPopular}
                   </Badge>
                 ) : null}
+                {isStarter ? (
+                  <Badge
+                    variant="secondary"
+                    className="absolute top-0 left-6 z-10 border border-emerald-500/40 text-emerald-700 shadow-sm dark:text-emerald-400"
+                  >
+                    {t.pricing.tryItFirst}
+                  </Badge>
+                ) : null}
                 <Card
-                  className={`h-full ${featured ? "border-primary/40 shadow-sm" : ""}`}
+                  className={`h-full ${
+                    featured
+                      ? "border-primary/40 shadow-sm"
+                      : isStarter
+                        ? "border-emerald-500/40"
+                        : ""
+                  }`}
                 >
                   <CardHeader>
                     {/* Plan names are product names, not words to translate. */}
@@ -105,6 +121,11 @@ export default async function LocalisedPricingPage({
                       <span className="text-muted-foreground">
                         {t.pricing.perMonth}
                       </span>
+                      {isStarter ? (
+                        <span className="mt-2 block text-muted-foreground">
+                          {t.pricing.starterTagline}
+                        </span>
+                      ) : null}
                     </CardDescription>
                   </CardHeader>
 

@@ -22,33 +22,6 @@ const CURRENCY = "eur";
 
 const ADDONS = [
   /**
-   * The Starter trial.
-   *
-   * The brief: "I just want to add one more package here - Starter (where
-   * onboardings is receiving one article and one backlink, to attrack to
-   * subscribe, and later upgrade the plans)".
-   *
-   * A one-off payment rather than a subscription, matching the reference
-   * design's "$1 /one-time" and "No subscription required". That wording is
-   * the whole point of the offer: the barrier to trying is lowest when there
-   * is nothing to cancel, and upgrading afterwards stays a separate, clean
-   * decision rather than a change to something already running.
-   *
-   * kind "trial" so fulfilment grants BOTH the link credit and the article
-   * allowance. The existing "credits" kind grants only credits, which would
-   * have given someone a backlink and no article.
-   */
-  {
-    slug: "starter_trial",
-    name: "Starter",
-    description:
-      "One SEO article with images and one niche-relevant backlink. No subscription.",
-    priceCents: 100,
-    creditsGranted: 1,
-    kind: "trial",
-    sortOrder: 0,
-  },
-  /**
    * Credit packs. Priced so a bigger pack is better value per credit, which is
    * the usual reason to buy the bigger one.
    */

@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 
 import { recordCredit } from "@/lib/backlinks/credits";
 import { db } from "@/lib/db";
-import { addonPurchases, addons, starterTrials } from "@/lib/db/schema";
+import { addonPurchases, addons } from "@/lib/db/schema";
 import { notify } from "@/lib/notifications/create";
 
 /**
@@ -78,27 +78,7 @@ export async function fulfilAddonPurchase(
   // Already recorded: a replay. Nothing more to do, and nothing granted twice.
   if (inserted.length === 0) return false;
 
-  /**
-   * The Starter trial grants an article as well as the link credit, so it
-   * needs its own row — entitlement is otherwise derived from a subscription,
-   * which a trial buyer does not have.
-   *
-   * onConflictDoNothing on the per-org unique index: someone who somehow pays
-   * twice keeps their money's credits (granted below) but does not get a
-   * second article grant, and the second payment is visible in purchases for a
-   * human to refund.
-   */
-  if (addon.kind === "trial") {
-    await db
-      .insert(starterTrials)
-      .values({
-        organizationId: input.organizationId,
-        purchaseId: inserted[0].id,
-      })
-      .onConflictDoNothing({ target: starterTrials.organizationId });
-  }
-
-  if (addon.creditsGranted > 0 && addon.kind !== "service") {
+  if (addon.kind === "credits" && addon.creditsGranted > 0) {
     await recordCredit(input.organizationId, {
       type: "purchase",
       amount: addon.creditsGranted,
@@ -106,24 +86,12 @@ export async function fulfilAddonPurchase(
       note: `Bought ${addon.name}`,
     });
 
-    /**
-     * The trial buyer gets a different message and a different destination.
-     * "1 link credits added" is both ungrammatical and the wrong thing to
-     * emphasise — they bought an article, and the next thing they should do is
-     * set up the site we will write it for.
-     */
     await notify({
       organizationId: input.organizationId,
       type: "addon.purchased",
-      title:
-        addon.kind === "trial"
-          ? "Your Starter article is ready to set up"
-          : `${addon.creditsGranted} link credits added`,
-      body:
-        addon.kind === "trial"
-          ? "Add your website and we will write your article and place your backlink."
-          : `Your purchase of ${addon.name} is ready to use.`,
-      href: addon.kind === "trial" ? "/onboarding" : "/billing",
+      title: `${addon.creditsGranted} link credits added`,
+      body: `Your purchase of ${addon.name} is ready to use.`,
+      href: "/billing",
     });
   } else {
     /**
