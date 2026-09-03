@@ -247,6 +247,37 @@ if (has("DIRECT_URL")) {
       }
 
       /**
+       * Stored CUSTOMER ids are mode-scoped too, and are the half of this that
+       * is easy to miss: prices are rewritten by `stripe:setup`, but customer
+       * ids are written by checkout itself and nothing re-checks them. A
+       * database that has seen both keys ends up with live prices and test
+       * customers (or the reverse), and every affected workspace fails at
+       * checkout while a freshly created one works.
+       */
+      const customerRows = await sql`
+        select stripe_customer_id from subscriptions
+        where stripe_customer_id is not null limit 5
+      `;
+      if (stripeKey && customerRows.length > 0) {
+        let stale = 0;
+        for (const row of customerRows) {
+          const res = await fetch(
+            `https://api.stripe.com/v1/customers/${row.stripe_customer_id}`,
+            { headers: { Authorization: `Bearer ${stripeKey}` } },
+          );
+          if (res.status === 404) stale += 1;
+        }
+        if (stale === 0) {
+          ok(`Stored Stripe customer ids resolve under the current ${stripeLive ? "live" : "test"} key`);
+        } else {
+          bad(
+            `${stale} of ${customerRows.length} stored Stripe customer id(s) do not exist under the current ${stripeLive ? "LIVE" : "TEST"} key`,
+            "Left over from the other mode. Those workspaces cannot check out until the id is cleared: `update subscriptions set stripe_customer_id = null where stripe_customer_id = '<id>';` — a new customer is created automatically on the next attempt.",
+          );
+        }
+      }
+
+      /**
        * Add-ons are mode-scoped exactly like plan prices, and fail the same
        * silent way: the button works, checkout opens, and the payment dies
        * against a price the live key cannot see.
