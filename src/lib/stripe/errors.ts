@@ -58,12 +58,24 @@ export function stripeErrorMessage(error: unknown): string {
 
   if (code === "resource_missing") {
     const mode = usingTestKey() ? "test" : "live";
-    const other = usingTestKey() ? "live" : "test";
+
+    /**
+     * Stripe's own message states which mode the object actually lives in
+     * ("a similar object exists in live mode, but a test mode key was used").
+     * An earlier version of this guessed instead, and guessed the wrong way
+     * round when the key was live and the stored id was test — pointing at the
+     * database when the key was at fault. Stripe's wording is authoritative,
+     * so it is quoted rather than restated.
+     */
     return (
-      `Stripe could not find ${param ? `the ${param}` : "that object"} in ${mode} mode. ` +
-      `It was most likely created in ${other} mode — test and live are separate, ` +
-      `so IDs from one never work in the other. ` +
-      `Re-run \`npm run stripe:setup\`${mode === "live" ? " -- --live" : ""} with the ${mode} key to recreate it.`
+      `Stripe rejected ${param ? `${param}` : "an object"} because it does not exist ` +
+      `in the mode this deployment is using. ` +
+      `The key in use is a ${mode.toUpperCase()} key (STRIPE_SECRET_KEY starts with sk_${mode}_). ` +
+      `Stripe said: "${message ?? "no such object"}" — ` +
+      `test and live are separate, so an id from one never works in the other. ` +
+      `Either point this environment at its matching key, or re-run ` +
+      `\`npm run stripe:setup${mode === "live" ? " -- --live" : ""}\` to recreate the ids for this mode. ` +
+      `\`npm run doctor\` reports which side is out of step.`
     );
   }
 
