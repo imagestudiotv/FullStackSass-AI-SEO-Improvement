@@ -992,6 +992,42 @@ export const addonPurchasesRelations = relations(addonPurchases, ({ one }) => ({
     references: [addons.id],
   }),
 }));
+
+/**
+ * A one-off Starter trial, bought without a subscription.
+ *
+ * The brief's Starter package "receives one article and one backlink, to
+ * attrack to subscribe, and later upgrade the plans", and the reference design
+ * states "No subscription required".
+ *
+ * That combination needs its own row. Entitlement is otherwise derived from an
+ * active subscription, so a trial buyer has nothing granting them the article
+ * they just paid for. The backlink needs nothing extra — link credits already
+ * live in their own ledger.
+ *
+ * One row per organization, enforced by a unique index: the offer is "one per
+ * website" in the reference, and without the constraint a customer could buy a
+ * EUR 1 article repeatedly instead of ever subscribing.
+ */
+export const starterTrials = pgTable(
+  "starter_trials",
+  {
+    id: pk(),
+    organizationId: organizationId(),
+    /** The purchase that paid for it, for support and refunds. */
+    purchaseId: uuid("purchase_id")
+      .notNull()
+      .references(() => addonPurchases.id, { onDelete: "restrict" }),
+    /** Articles the trial grants. One, but stored rather than assumed. */
+    articleGrant: integer("article_grant").default(1).notNull(),
+    /** Articles written against it, so the grant is spent exactly once. */
+    articlesUsed: integer("articles_used").default(0).notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("starter_trials_org_uidx").on(table.organizationId),
+  ],
+);
 /* Agency workspaces                                                          */
 /* ------------------------------------------------------------------------- */
 

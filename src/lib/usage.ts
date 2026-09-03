@@ -1,4 +1,4 @@
-import { and, count, eq, gte } from "drizzle-orm";
+import { and, count, eq, gte, lt, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { UNLIMITED, type LimitCheck } from "@/lib/usage-shared";
@@ -7,6 +7,7 @@ import {
   articles,
   keywords,
   plans,
+  starterTrials,
   subscriptions,
   usageEvents,
   websites,
@@ -171,6 +172,56 @@ function periodStart(
  * articles, websites and keywords. The signature is fixed now so callers do
  * not need changing later.
  */
+/**
+ * Keywords a Starter trial may research.
+ *
+ * Enough to choose what the one article should be about. The trial is meant to
+ * demonstrate the product, and research is cheap next to the article itself.
+ */
+export const STARTER_TRIAL_KEYWORDS = 25;
+
+/** The org's unspent Starter trial, or null when it has none. */
+async function starterTrialLimits(
+  orgId: string,
+): Promise<{ articleGrant: number; articlesUsed: number } | null> {
+  const [row] = await db
+    .select({
+      articleGrant: starterTrials.articleGrant,
+      articlesUsed: starterTrials.articlesUsed,
+    })
+    .from(starterTrials)
+    .where(eq(starterTrials.organizationId, orgId))
+    .limit(1);
+
+  return row ?? null;
+}
+
+/**
+ * Marks one article of the Starter trial as used.
+ *
+ * A stored counter rather than counting article rows: a trial article that is
+ * later deleted must not hand back the grant, or the offer becomes unlimited
+ * for anyone willing to delete as they go.
+ */
+export async function consumeStarterTrialArticle(
+  orgId: string,
+): Promise<boolean> {
+  const updated = await db
+    .update(starterTrials)
+    .set({ articlesUsed: sql`${starterTrials.articlesUsed} + 1` })
+    // The WHERE is the guard: two concurrent requests cannot both pass it, so
+    // the grant cannot be spent twice.
+    .where(
+      and(
+        eq(starterTrials.organizationId, orgId),
+        lt(starterTrials.articlesUsed, starterTrials.articleGrant),
+      ),
+    )
+    .returning({ id: starterTrials.id });
+
+  return updated.length > 0;
+}
+
 export async function checkLimit(
   orgId: string,
   kind: LimitKind,
@@ -199,6 +250,69 @@ export async function checkLimit(
     .leftJoin(plans, eq(subscriptions.planId, plans.id))
     .where(eq(subscriptions.organizationId, orgId))
     .limit(1);
+
+  const entitledBySubscription =
+    Boolean(sub) &&
+    sub.articleLimit !== null &&
+    sub.keywordLimit !== null &&
+    sub.siteLimit !== null &&
+    ENTITLED_STATUSES.has(sub.status);
+
+  /**
+   * The Starter trial: a one-off purchase with no subscription behind it.
+   *
+   * Checked only when nothing else entitles this workspace, so someone who
+   * later subscribes is governed by their plan rather than by a spent trial.
+   * Without this branch a trial buyer is told they have no active plan — for
+   * the article they have just paid for.
+   */
+  if (!agency && !entitledBySubscription) {
+    const trial = await starterTrialLimits(orgId);
+    if (trial) {
+      if (kind === "articles") {
+        return {
+          allowed: trial.articlesUsed < trial.articleGrant,
+          used: trial.articlesUsed,
+          limit: trial.articleGrant,
+          reason:
+            trial.articlesUsed < trial.articleGrant ? null : "limit_reached",
+        };
+      }
+      /**
+       * The trial covers one website and the keywords needed to write for it.
+       * Keywords are research rather than spend — capping them below what one
+       * article needs would block the article itself.
+       */
+      if (kind === "websites") {
+        const [row] = await db
+          .select({ n: count() })
+          .from(websites)
+          .where(eq(websites.organizationId, orgId));
+        const used = row?.n ?? 0;
+        return {
+          allowed: used < 1,
+          used,
+          limit: 1,
+          reason: used < 1 ? null : "limit_reached",
+        };
+      }
+      if (kind === "keywords") {
+        // Keywords belong to a website, not directly to the org.
+        const [row] = await db
+          .select({ n: count() })
+          .from(keywords)
+          .innerJoin(websites, eq(keywords.websiteId, websites.id))
+          .where(eq(websites.organizationId, orgId));
+        const used = row?.n ?? 0;
+        return {
+          allowed: used < STARTER_TRIAL_KEYWORDS,
+          used,
+          limit: STARTER_TRIAL_KEYWORDS,
+          reason: used < STARTER_TRIAL_KEYWORDS ? null : "limit_reached",
+        };
+      }
+    }
+  }
 
   // leftJoin makes every plan column nullable; no plan row means no plan.
   if (
