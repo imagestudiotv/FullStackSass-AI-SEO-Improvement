@@ -15,6 +15,7 @@
  *
  * Read-only: it never writes to the database or to the payment providers.
  */
+import { readFile } from "node:fs/promises";
 import nextEnv from "@next/env";
 import postgres from "postgres";
 
@@ -204,6 +205,46 @@ if (has("STRIPE_WEBHOOK_SECRET")) {
         ok(
           `STRIPE_WEBHOOK_SECRET is set; ${endpoints.length} endpoint(s) registered in this mode (${urls})`,
         );
+
+        /**
+         * An endpoint subscribed to fewer events than the code handles fails
+         * silently: Stripe never sends the event, the handler never runs, and
+         * nothing anywhere reports an error. invoice.paid is the one that
+         * matters most — it is what converts a referral, so without it a
+         * referrer is simply never paid.
+         *
+         * Read from the route file rather than a second hardcoded list, so
+         * adding a handler cannot leave this check behind.
+         */
+        const routeSource = await readFile(
+          "src/app/api/stripe/webhook/route.ts",
+          "utf8",
+        ).catch(() => "");
+        const handled = [
+          ...new Set(
+            [...routeSource.matchAll(/case "((?:checkout|customer|invoice)\.[a-z_.]+)"/g)].map(
+              (m) => m[1],
+            ),
+          ),
+        ];
+        const subscribed = new Set(
+          endpoints.flatMap((e) => e.enabled_events ?? []),
+        );
+        const wildcard = subscribed.has("*");
+        const missing = wildcard
+          ? []
+          : handled.filter((eventName) => !subscribed.has(eventName));
+
+        if (handled.length === 0) {
+          // Could not read the route; say nothing rather than guess.
+        } else if (missing.length === 0) {
+          ok(`All ${handled.length} handled webhook events are subscribed`);
+        } else {
+          caution(
+            `${missing.length} webhook event(s) the code handles are not subscribed`,
+            `Stripe will never send: ${missing.join(", ")}. These handlers never run and nothing reports an error. Add them to the endpoint in the Stripe dashboard.`,
+          );
+        }
       }
     } else {
       ok("STRIPE_WEBHOOK_SECRET is set");
