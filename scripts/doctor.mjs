@@ -230,8 +230,27 @@ if (has("DIRECT_URL")) {
           { headers: { Authorization: `Bearer ${stripeKey}` } },
         );
         if (res.ok) {
+          /**
+           * Which ACCOUNT the key belongs to, printed alongside.
+           *
+           * Mode is only half the story: two different Stripe accounts each
+           * have their own test mode, and objects are never shared between
+           * them. A price can therefore be perfectly valid here and missing on
+           * a deployment whose key belongs to a different account — which this
+           * check would otherwise pass while checkout fails. Printing the
+           * account id makes the two environments directly comparable.
+           */
+          let account = "";
+          const acctRes = await fetch("https://api.stripe.com/v1/account", {
+            headers: { Authorization: `Bearer ${stripeKey}` },
+          });
+          if (acctRes.ok) {
+            const acct = await acctRes.json();
+            const name = acct.settings?.dashboard?.display_name;
+            account = ` on account ${acct.id}${name ? ` (${name})` : ""}`;
+          }
           ok(
-            `Stored Stripe price ids resolve under the current ${stripeLive ? "live" : "test"} key`,
+            `Stored Stripe price ids resolve under the current ${stripeLive ? "live" : "test"} key${account}`,
           );
         } else if (res.status === 404) {
           bad(
