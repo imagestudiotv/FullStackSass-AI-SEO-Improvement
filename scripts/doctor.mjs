@@ -169,8 +169,49 @@ if (!stripeKey) {
   );
 }
 
-if (has("STRIPE_WEBHOOK_SECRET")) ok("STRIPE_WEBHOOK_SECRET is set");
-else if (stripeKey)
+if (has("STRIPE_WEBHOOK_SECRET")) {
+  /**
+   * A whsec_ string carries no account or mode marker, so it cannot be
+   * validated by inspection — the only check available is whether the account
+   * the KEY authenticates as has a webhook endpoint registered at all.
+   *
+   * Worth doing, because a secret from the wrong account or the wrong mode
+   * fails in the most expensive way there is: Stripe takes the payment, the
+   * signature check here rejects the event, and the subscription never
+   * activates. The customer is charged and gets nothing.
+   */
+  const secret = env.STRIPE_WEBHOOK_SECRET ?? "";
+  if (!secret.startsWith("whsec_")) {
+    bad(
+      "STRIPE_WEBHOOK_SECRET is not a signing secret",
+      'It must start with "whsec_". An API key or a restricted key here silently rejects every event.',
+    );
+  } else if (stripeKey) {
+    const res = await fetch(
+      "https://api.stripe.com/v1/webhook_endpoints?limit=100",
+      { headers: { Authorization: `Bearer ${stripeKey}` } },
+    );
+    if (res.ok) {
+      const body = await res.json();
+      const endpoints = body.data ?? [];
+      if (endpoints.length === 0) {
+        caution(
+          `No webhook endpoint is registered in ${stripeLive ? "LIVE" : "TEST"} mode on this account`,
+          `STRIPE_WEBHOOK_SECRET is set, but this account has no endpoint in this mode — so the secret came from somewhere else (another account, the other mode, or a \`stripe listen\` session that has since ended). Payments would succeed and never activate. Add an endpoint in the Stripe dashboard for this mode and use ITS signing secret.`,
+        );
+      } else {
+        const urls = endpoints.map((e) => e.url).join(", ");
+        ok(
+          `STRIPE_WEBHOOK_SECRET is set; ${endpoints.length} endpoint(s) registered in this mode (${urls})`,
+        );
+      }
+    } else {
+      ok("STRIPE_WEBHOOK_SECRET is set");
+    }
+  } else {
+    ok("STRIPE_WEBHOOK_SECRET is set");
+  }
+} else if (stripeKey)
   bad(
     "STRIPE_WEBHOOK_SECRET is missing",
     "Payments would succeed at Stripe but never activate the subscription here.",
