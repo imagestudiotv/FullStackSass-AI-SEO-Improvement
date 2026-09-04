@@ -93,8 +93,6 @@ export async function getOnboardingState(
   const hasPrompts = (promptCount[0]?.n ?? 0) > 0;
   const hasArticles = (articleCount[0]?.n ?? 0) > 0;
 
-  const websiteHref = site ? `/websites/${site.id}` : null;
-
   const steps: OnboardingStep[] = [
     {
       id: "plan",
@@ -112,7 +110,7 @@ export async function getOnboardingState(
       done: hasWebsite,
       // Not reachable until there is a plan: adding a website without one
       // fails the limit check with a billing error, which reads as a bug.
-      href: hasPlan ? "/websites" : null,
+      href: hasPlan ? "/onboarding/website" : null,
     },
     {
       id: "profile",
@@ -120,7 +118,9 @@ export async function getOnboardingState(
       description:
         "Your brand, industry, market and services. Correct anything we got wrong.",
       done: hasWebsite && analysed,
-      href: hasWebsite ? websiteHref : null,
+      // The wizard screen, not the website page: this is where the extracted
+      // fields are laid out for correction.
+      href: hasWebsite ? "/onboarding/profile" : null,
     },
     {
       id: "visibility",
@@ -128,7 +128,7 @@ export async function getOnboardingState(
       description:
         "The questions your customers would ask an assistant. We check whether you get named.",
       done: hasPrompts,
-      href: hasWebsite && analysed ? websiteHref : null,
+      href: hasWebsite && analysed ? "/onboarding/visibility" : null,
     },
     {
       id: "content",
@@ -136,7 +136,7 @@ export async function getOnboardingState(
       description:
         "We research the terms worth going after and write the page that answers them.",
       done: hasArticles,
-      href: hasWebsite && analysed ? websiteHref : null,
+      href: hasWebsite && analysed ? "/onboarding/content" : null,
     },
   ];
 

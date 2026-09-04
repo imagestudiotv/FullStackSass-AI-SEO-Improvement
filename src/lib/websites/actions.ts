@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 
 import { inngest } from "@/inngest/client";
 import { db } from "@/lib/db";
-import { websites } from "@/lib/db/schema";
+import { competitors, websites } from "@/lib/db/schema";
 import { requireOrg, requireWebsite } from "@/lib/tenant";
 import { LimitExceededError, requireWithinLimit } from "@/lib/usage";
 import { InvalidUrlError, normalizeWebsiteUrl } from "@/lib/websites/url";
@@ -171,6 +171,98 @@ export async function updateWebsiteDetails(
     .where(eq(websites.id, site.id));
 
   revalidatePath("/websites");
+  revalidatePath(`/websites/${site.id}`);
+  return { ok: true, data: null };
+}
+
+/**
+ * Replaces the services list.
+ *
+ * Separate from updateWebsiteDetails because it is a jsonb array rather than a
+ * text column, and because the profile screen edits it on its own — sending
+ * every scalar field along with a services edit would let a stale form
+ * overwrite a correction the customer made a moment earlier.
+ */
+export async function updateWebsiteServices(
+  websiteId: string,
+  services: string[],
+): Promise<ActionResult<null>> {
+  const { site } = await requireWebsite(websiteId);
+
+  // Trimmed, blanks dropped, de-duplicated case-insensitively: the UI adds a
+  // row per keystroke-completed entry and it is easy to submit the same
+  // service twice with different capitalisation.
+  const seen = new Set<string>();
+  const cleaned: string[] = [];
+  for (const raw of services) {
+    const value = raw.trim();
+    if (!value) continue;
+    const key = value.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    cleaned.push(value);
+  }
+
+  await db
+    .update(websites)
+    .set({ services: cleaned, updatedAt: new Date() })
+    .where(eq(websites.id, site.id));
+
+  revalidatePath(`/websites/${site.id}`);
+  return { ok: true, data: null };
+}
+
+/**
+ * Adds a competitor the customer named themselves.
+ *
+ * source "manual" distinguishes these from the ones analysis suggested, so a
+ * re-run cannot quietly delete a rival the customer added by hand.
+ */
+export async function addCompetitor(
+  websiteId: string,
+  rawDomain: string,
+): Promise<ActionResult<null>> {
+  const { site } = await requireWebsite(websiteId);
+
+  let domain: string;
+  try {
+    // Accepts "example.com", "https://example.com/path" and everything
+    // between, storing just the host.
+    domain = normalizeWebsiteUrl(rawDomain).domain;
+  } catch (error) {
+    if (error instanceof InvalidUrlError) {
+      return { ok: false, error: error.message };
+    }
+    throw error;
+  }
+
+  if (domain === site.domain) {
+    return { ok: false, error: "That is your own website." };
+  }
+
+  await db
+    .insert(competitors)
+    .values({ websiteId: site.id, domain, source: "manual" })
+    // The unique index makes re-adding a no-op rather than a duplicate.
+    .onConflictDoNothing();
+
+  revalidatePath(`/websites/${site.id}`);
+  return { ok: true, data: null };
+}
+
+/** Removes a competitor, whether we suggested it or the customer added it. */
+export async function removeCompetitor(
+  websiteId: string,
+  domain: string,
+): Promise<ActionResult<null>> {
+  const { site } = await requireWebsite(websiteId);
+
+  await db
+    .delete(competitors)
+    .where(
+      and(eq(competitors.websiteId, site.id), eq(competitors.domain, domain)),
+    );
+
   revalidatePath(`/websites/${site.id}`);
   return { ok: true, data: null };
 }
