@@ -60,22 +60,44 @@ export function stripeErrorMessage(error: unknown): string {
     const mode = usingTestKey() ? "test" : "live";
 
     /**
-     * Stripe's own message states which mode the object actually lives in
-     * ("a similar object exists in live mode, but a test mode key was used").
-     * An earlier version of this guessed instead, and guessed the wrong way
-     * round when the key was live and the stored id was test — pointing at the
-     * database when the key was at fault. Stripe's wording is authoritative,
-     * so it is quoted rather than restated.
+     * There are TWO ways an id goes missing, and they need different fixes.
+     *
+     * Stripe distinguishes them for us. When the object exists in the other
+     * MODE of the same account it says so explicitly ("a similar object exists
+     * in live mode, but a test mode key was used"). When that sentence is
+     * absent the object is not in this account at all — usually because the
+     * environment holds a key for a different Stripe ACCOUNT, which has its
+     * own separate test mode.
+     *
+     * Naming only the mode sends people to re-run stripe:setup when the real
+     * fault is the key, which wastes a debugging cycle and rewrites ids that
+     * were never wrong.
      */
+    const stripeSaysOtherMode = /similar object exists in (live|test) mode/i.test(
+      message ?? "",
+    );
+
+    const shared =
+      `Stripe rejected ${param ? param : "an object"}. ` +
+      `Stripe said: "${message ?? "no such object"}" ` +
+      `This deployment is using a ${mode.toUpperCase()} key.`;
+
+    if (stripeSaysOtherMode) {
+      return (
+        `${shared} The id belongs to the other mode of this same account, so the ` +
+        `stored ids and the key disagree. Either point this environment at its ` +
+        `matching key, or re-run \`npm run stripe:setup${mode === "live" ? " -- --live" : ""}\` ` +
+        `to recreate the ids for this mode.`
+      );
+    }
+
     return (
-      `Stripe rejected ${param ? `${param}` : "an object"} because it does not exist ` +
-      `in the mode this deployment is using. ` +
-      `The key in use is a ${mode.toUpperCase()} key (STRIPE_SECRET_KEY starts with sk_${mode}_). ` +
-      `Stripe said: "${message ?? "no such object"}" — ` +
-      `test and live are separate, so an id from one never works in the other. ` +
-      `Either point this environment at its matching key, or re-run ` +
-      `\`npm run stripe:setup${mode === "live" ? " -- --live" : ""}\` to recreate the ids for this mode. ` +
-      `\`npm run doctor\` reports which side is out of step.`
+      `${shared} Stripe did not report the id as belonging to the other mode, so it ` +
+      `most likely belongs to a DIFFERENT Stripe account — every account has its own ` +
+      `separate test mode, and ids are never shared between accounts. ` +
+      `Compare the account this deployment uses (visit /api/stripe/whoami as an admin) ` +
+      `with the one \`npm run doctor\` prints; if they differ, this environment has the ` +
+      `wrong STRIPE_SECRET_KEY.`
     );
   }
 
