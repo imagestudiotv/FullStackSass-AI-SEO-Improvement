@@ -151,24 +151,46 @@ export async function updateWebsiteDetails(
   // Throws WebsiteNotFoundError for another tenant's id, so no extra check.
   const { site } = await requireWebsite(websiteId);
 
-  await db
-    .update(websites)
-    .set({
-      brandName: clean(input.brandName),
-      industry: clean(input.industry),
-      country: clean(input.country),
-      /**
-       * Normalised so "spanish", "Español" and "es" all store "Spanish". The
-       * stored string goes straight into the article prompt, and an unrecognised
-       * spelling silently produces an English article. Falls back to the raw
-       * value rather than null so an unusual but valid language is not discarded.
-       */
-      language: normalizeLanguage(input.language ?? null) ?? clean(input.language),
-      description: clean(input.description),
-      targetAudience: clean(input.targetAudience),
-      updatedAt: new Date(),
-    })
-    .where(eq(websites.id, site.id));
+  /**
+   * Only the fields actually PASSED are written.
+   *
+   * This used to set all six columns unconditionally, so a caller sending one
+   * field wiped the other five: `clean(undefined)` returns null, and the update
+   * happily wrote that null over real data. The full-form editor on the website
+   * page always sent every field, so the bug stayed hidden until the setup
+   * wizard began saving one card at a time — entering a description there blanked
+   * the brand name, industry, market and language a moment after they were set.
+   *
+   * `undefined` now means "leave alone" and an explicit `null` still means
+   * "clear it", which is the distinction the callers need and the reason this
+   * cannot simply drop nullish values.
+   */
+  const patch: Record<string, unknown> = { updatedAt: new Date() };
+
+  if (input.brandName !== undefined) patch.brandName = clean(input.brandName);
+  if (input.industry !== undefined) patch.industry = clean(input.industry);
+  if (input.country !== undefined) patch.country = clean(input.country);
+  if (input.description !== undefined) {
+    patch.description = clean(input.description);
+  }
+  if (input.targetAudience !== undefined) {
+    patch.targetAudience = clean(input.targetAudience);
+  }
+  if (input.language !== undefined) {
+    /**
+     * Normalised so "spanish", "Español" and "es" all store "Spanish". The
+     * stored string goes straight into the article prompt, and an unrecognised
+     * spelling silently produces an English article. Falls back to the raw
+     * value rather than null so an unusual but valid language is not discarded.
+     */
+    patch.language =
+      normalizeLanguage(input.language ?? null) ?? clean(input.language);
+  }
+
+  // Nothing but the timestamp: no field was supplied, so there is nothing to do.
+  if (Object.keys(patch).length === 1) return { ok: true, data: null };
+
+  await db.update(websites).set(patch).where(eq(websites.id, site.id));
 
   revalidatePath("/websites");
   revalidatePath(`/websites/${site.id}`);
