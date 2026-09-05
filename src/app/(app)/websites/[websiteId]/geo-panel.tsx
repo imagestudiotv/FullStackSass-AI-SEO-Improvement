@@ -2,7 +2,7 @@
 
 import { Bot, Check, Loader2, Plus, Sparkles, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -50,6 +50,43 @@ export function GeoPanel({
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [suggesting, setSuggesting] = useState(false);
 
+  /**
+   * How many prompts had a result when this render began.
+   *
+   * runGeoCheck only QUEUES the job — each question is two model calls, so
+   * answers land over the following minutes. Without something watching for
+   * them the panel keeps saying "Not checked" until the customer reloads by
+   * hand, which is exactly what someone who just pressed a button will not
+   * think to do.
+   */
+  const checkedCount = overview.prompts.filter((p) => p.latest !== null).length;
+  const [waitingFrom, setWaitingFrom] = useState<number | null>(null);
+
+  /**
+   * Derived, not stored. Clearing the baseline from inside the effect would be
+   * a setState during render, which the React Compiler rightly rejects — and
+   * the comparison alone already answers "are we still waiting", so no second
+   * source of truth is needed.
+   */
+  const awaitingResults =
+    waitingFrom !== null && checkedCount <= waitingFrom;
+
+  useEffect(() => {
+    if (!awaitingResults) return;
+
+    const timer = setInterval(() => router.refresh(), 5000);
+    return () => clearInterval(timer);
+  }, [awaitingResults, router]);
+
+  /**
+   * Re-read on arrival. Next's client Router Cache would otherwise serve the
+   * copy rendered before a check finished, showing "Not checked" on questions
+   * that have since been answered.
+   */
+  useEffect(() => {
+    router.refresh();
+  }, [router]);
+
   function handleAdd(prompt: string) {
     startTransition(async () => {
       const result = await addGeoPrompt(websiteId, prompt);
@@ -84,6 +121,7 @@ export function GeoPanel({
       }
       // Queued, not finished: the job asks every question, which takes a
       // while. Promising results "now" would be a lie the customer notices.
+      setWaitingFrom(checkedCount);
       toast.success("Checking — results appear here in a few minutes");
     });
   }
@@ -132,13 +170,23 @@ export function GeoPanel({
             </CardDescription>
           </div>
           {overview.prompts.length > 0 ? (
-            <Button size="sm" onClick={handleRun} disabled={pending}>
-              {pending ? (
+            <Button
+              size="sm"
+              onClick={handleRun}
+              disabled={pending || awaitingResults}
+            >
+              {pending || awaitingResults ? (
                 <Loader2 className="size-4 animate-spin" />
               ) : (
                 <Sparkles className="size-4" />
               )}
-              Check now
+              {/*
+                The queue returns in milliseconds; the answers take minutes.
+                Saying "Checking" for that whole window is the honest label —
+                "Check now" reappearing straight away reads as a click that
+                did nothing.
+              */}
+              {awaitingResults ? "Checking…" : "Check now"}
             </Button>
           ) : null}
         </div>
