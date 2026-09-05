@@ -5,7 +5,12 @@ import { revalidatePath } from "next/cache";
 
 import { db } from "@/lib/db";
 import { articles } from "@/lib/db/schema";
-import { findDecayedPages, type DecayedPage } from "@/lib/articles/decay";
+import {
+  findDecayedPages,
+  getTrafficSeries,
+  type DecayedPage,
+  type TrafficPoint,
+} from "@/lib/articles/decay";
 import { inngest } from "@/inngest/client";
 import { requireWebsite } from "@/lib/tenant";
 import { checkLimit } from "@/lib/usage";
@@ -25,6 +30,20 @@ export async function getDecayedPages(
 ): Promise<DecayedPage[]> {
   const { site } = await requireWebsite(websiteId);
   return findDecayedPages(site.id);
+}
+
+/**
+ * Daily clicks for the traffic chart.
+ *
+ * Tenant-scoped through requireWebsite like everything else here: a server
+ * action takes its website id from the caller, so it is never trusted before
+ * being checked against the caller's organization.
+ */
+export async function getTrafficChart(
+  websiteId: string,
+): Promise<TrafficPoint[]> {
+  const { site } = await requireWebsite(websiteId);
+  return getTrafficSeries(site.id);
 }
 
 /**

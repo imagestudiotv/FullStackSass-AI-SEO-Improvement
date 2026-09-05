@@ -14,7 +14,7 @@ import {
 import { listArticles } from "@/lib/articles/actions";
 import { getBrandVoice } from "@/lib/brand/actions";
 import { getGeoOverview } from "@/lib/geo/actions";
-import { getDecayedPages } from "@/lib/articles/refresh-actions";
+import { getDecayedPages, getTrafficChart } from "@/lib/articles/refresh-actions";
 import { getLatestAudit } from "@/lib/audit/actions";
 import {
   getNetworkStatus,
@@ -82,6 +82,7 @@ export default async function WebsiteDetailPage({
     voice,
     geoOverview,
     decayedPages,
+    trafficSeries,
   ] = await Promise.all([
     listKeywords(site.id),
     listCalendar(site.id),
@@ -98,6 +99,7 @@ export default async function WebsiteDetailPage({
     getBrandVoice(site.id),
     getGeoOverview(site.id),
     getDecayedPages(site.id),
+    getTrafficChart(site.id),
   ]);
 
   const analysed = site.status === "ready";
@@ -159,7 +161,11 @@ export default async function WebsiteDetailPage({
         performance={performance}
       />
 
-      <RefreshPanel websiteId={site.id} pages={decayedPages} />
+      <RefreshPanel
+        websiteId={site.id}
+        pages={decayedPages}
+        series={trafficSeries}
+      />
 
       <GeoPanel websiteId={site.id} overview={geoOverview} />
 

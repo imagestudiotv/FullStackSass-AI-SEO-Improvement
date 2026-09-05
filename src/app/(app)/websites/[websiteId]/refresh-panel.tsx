@@ -15,7 +15,8 @@ import {
 } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/states";
 import { refreshArticle } from "@/lib/articles/refresh-actions";
-import type { DecayedPage } from "@/lib/articles/decay";
+import type { DecayedPage, TrafficPoint } from "@/lib/articles/decay";
+import { TrafficChart } from "@/components/traffic-chart";
 
 /**
  * Pages losing traffic.
@@ -31,9 +32,12 @@ import type { DecayedPage } from "@/lib/articles/decay";
 export function RefreshPanel({
   websiteId,
   pages,
+  series,
 }: {
   websiteId: string;
   pages: DecayedPage[];
+  /** Daily clicks across both windows. Empty when Search Console is unlinked. */
+  series: TrafficPoint[];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -66,7 +70,14 @@ export function RefreshPanel({
         </CardDescription>
       </CardHeader>
 
-      <CardContent>
+      <CardContent className="space-y-4">
+        {/*
+          The chart first. It answers "is my traffic falling, and when did it
+          turn" — which the per-page list below cannot show, because two totals
+          have no shape.
+        */}
+        {series.length > 1 ? <TrafficChart series={series} /> : null}
+
         {pages.length === 0 ? (
           <EmptyState
             icon={TrendingDown}

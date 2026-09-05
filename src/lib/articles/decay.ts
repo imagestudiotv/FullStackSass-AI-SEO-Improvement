@@ -138,3 +138,61 @@ export async function findDecayedPages(
   // Worst first: the customer should see the biggest loss at the top.
   return decayed.sort((a, b) => b.before - a.before).slice(0, 20);
 }
+
+/** One day's clicks for the whole site. */
+export type TrafficPoint = {
+  /** ISO date, YYYY-MM-DD. */
+  date: string;
+  clicks: number;
+};
+
+/**
+ * Daily clicks across both comparison windows.
+ *
+ * The decay list says which pages fell and by how much, but a pair of totals
+ * cannot show WHEN it happened — a steady slide and a cliff after one algorithm
+ * update need different responses, and the numbers alone look identical.
+ *
+ * Site-wide rather than per page: a chart per row would be eight sparklines of
+ * mostly-zero data, and the question this answers is "is my traffic falling",
+ * which is a property of the site.
+ *
+ * Returns a point for EVERY day in the window, including days Search Console
+ * reported nothing. Without the zero-fill a gap in reporting is drawn as a
+ * straight line between the days either side, which reads as traffic that held
+ * steady when in fact nothing was recorded.
+ */
+export async function getTrafficSeries(
+  websiteId: string,
+): Promise<TrafficPoint[]> {
+  const from = daysAgo(WINDOW_DAYS * 2);
+
+  const rows = await db
+    .select({
+      date: gscMetrics.date,
+      clicks: raw<number>`sum(${gscMetrics.clicks})::int`,
+    })
+    .from(gscMetrics)
+    .where(
+      and(
+        eq(gscMetrics.websiteId, websiteId),
+        gte(gscMetrics.date, from),
+        // Page-level rows only; query-level rows would double every total.
+        raw`${gscMetrics.pageUrl} is not null`,
+      ),
+    )
+    .groupBy(gscMetrics.date)
+    .orderBy(gscMetrics.date);
+
+  if (rows.length === 0) return [];
+
+  const byDate = new Map(rows.map((row) => [row.date, row.clicks]));
+  const series: TrafficPoint[] = [];
+
+  for (let i = WINDOW_DAYS * 2; i >= 0; i -= 1) {
+    const date = daysAgo(i);
+    series.push({ date, clicks: byDate.get(date) ?? 0 });
+  }
+
+  return series;
+}

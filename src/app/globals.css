@@ -18,6 +18,12 @@
   /* Orange from the landing design. Every component reads this token, so
      buttons, badges and focus rings all follow. */
   --primary: oklch(0.646 0.196 41.5);
+  /**
+   * Chart line. The brand hue at a step validated against this surface —
+   * inside the 0.43-0.77 lightness band a light background requires, above the
+   * chroma floor, and over 3:1 against the card.
+   */
+  --chart-line: oklch(0.646 0.196 41.5);
   --primary-foreground: oklch(1 0 0);
   /* Tinted ring so focus states match the brand rather than staying grey. */
   --ring: oklch(0.646 0.196 41.5 / 40%);
@@ -58,6 +64,12 @@
   /* Slightly lighter orange in dark mode: the light-theme value does not
      carry enough contrast against a dark ground. */
   --primary: oklch(0.70 0.185 41.5);
+  /**
+   * Deliberately NOT --primary. Dark mode wants L 0.48-0.67 and the primary
+   * token sits at 0.70, which fails the band; this steps it to 0.655 in the
+   * same hue so the line stays readable on the dark card.
+   */
+  --chart-line: oklch(0.655 0.185 41.5);
   --primary-foreground: oklch(0.145 0 0);
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
