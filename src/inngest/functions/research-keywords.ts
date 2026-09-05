@@ -133,18 +133,50 @@ export const researchKeywords = inngest.createFunction(
       const location = site.country || "United States";
       const language = site.language || "English";
 
+      /**
+       * Both provider calls tolerate failure.
+       *
+       * keywordIdeas used to throw straight out of the step, so any provider
+       * problem — an unverified account, an expired card, a 5xx — failed the
+       * whole run after three retries and the customer got no plan at all. The
+       * seeds are already in hand at this point, so the honest degradation is
+       * the same one used when no credentials are configured: keep the terms,
+       * lose the volume and difficulty figures.
+       */
       const [ideas, ranked] = await Promise.all([
         keywordIdeas(
           seeds.map((seed) => seed.term),
           location,
           language,
-        ),
+        ).catch((error) => {
+          console.error("[research] keywordIdeas failed", error);
+          return { metrics: [] as KeywordMetrics[], cached: true, failed: true };
+        }),
         // Terms the site already ranks for are usually the cheapest wins.
         keywordsForSite(site.domain, location, language).catch(() => ({
           metrics: [] as KeywordMetrics[],
           cached: true,
         })),
       ]);
+
+      /**
+       * Nothing came back from the provider. Fall through to seed-only rows
+       * rather than storing an empty keyword set, which would leave the
+       * calendar with nothing to plan from.
+       */
+      if (ideas.metrics.length === 0 && ranked.metrics.length === 0) {
+        return {
+          configured: false,
+          rows: seeds.map((seed) => ({
+            term: seed.term,
+            volume: null,
+            difficulty: null,
+            cpc: null,
+            intent: seed.intent as SearchIntent,
+            source: "ai_seed",
+          })) satisfies KeywordMetrics[],
+        };
+      }
 
       // Only uncached calls cost money.
       const billable = (ideas.cached ? 0 : 1) + (ranked.cached ? 0 : 1);
