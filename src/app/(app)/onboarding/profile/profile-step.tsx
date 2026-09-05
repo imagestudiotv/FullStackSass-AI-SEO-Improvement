@@ -2,7 +2,7 @@
 
 import { ArrowRight, Check, Loader2, Plus, RefreshCw, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -171,6 +171,15 @@ export function ProfileStep({
   const [rivals, setRivals] = useState(initialCompetitors);
   const [newRival, setNewRival] = useState("");
   const [busy, setBusy] = useState(false);
+
+  /**
+   * Re-read on arrival. Next's client Router Cache would otherwise serve the
+   * copy rendered before analysis finished — showing "Needs you" on fields the
+   * crawler has since filled in.
+   */
+  useEffect(() => {
+    router.refresh();
+  }, [router]);
 
   async function saveField(field: string, next: string) {
     const result = await updateWebsiteDetails(website.id, {

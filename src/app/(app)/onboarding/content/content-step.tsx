@@ -48,6 +48,19 @@ export function ContentStep({
   const building = status === "queued" && !hasKeywords && !hasPlan;
 
   /**
+   * Re-read the server state once on arrival.
+   *
+   * Next's client Router Cache serves a previously-visited page from memory, so
+   * navigating back here with router.push showed the copy rendered BEFORE the
+   * plan finished — "Ready to build" with the plan already sitting in the
+   * database. `dynamic = "force-dynamic"` governs the server render and does
+   * nothing about that cache. A refresh on mount discards it.
+   */
+  useEffect(() => {
+    router.refresh();
+  }, [router]);
+
+  /**
    * While the job runs, ask the server for its result.
    *
    * Without this the page only updates if the customer reloads it themselves,
