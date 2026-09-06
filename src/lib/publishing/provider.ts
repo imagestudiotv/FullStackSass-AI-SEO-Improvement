@@ -17,7 +17,13 @@
  */
 
 /** Stable identifier, stored in integrations.kind. Never change one in place. */
-export type ProviderId = "wordpress" | "ghost" | "shopify" | "webhook";
+export type ProviderId =
+  | "wordpress"
+  | "ghost"
+  | "shopify"
+  | "webflow"
+  | "wix"
+  | "webhook";
 
 /**
  * One credential a provider needs.

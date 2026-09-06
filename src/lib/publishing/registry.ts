@@ -1,6 +1,8 @@
 import type { CmsProvider, ProviderId } from "@/lib/publishing/provider";
 import { ghostProvider } from "@/lib/publishing/providers/ghost-provider";
 import { shopifyProvider } from "@/lib/publishing/providers/shopify-provider";
+import { webflowProvider } from "@/lib/publishing/providers/webflow-provider";
+import { wixProvider } from "@/lib/publishing/providers/wix-provider";
 import { webhookProvider } from "@/lib/publishing/providers/webhook-provider";
 import { wordpressProvider } from "@/lib/publishing/providers/wordpress-provider";
 
@@ -18,6 +20,8 @@ const PROVIDERS: CmsProvider[] = [
   wordpressProvider,
   ghostProvider,
   shopifyProvider,
+  webflowProvider,
+  wixProvider,
   webhookProvider,
 ];
 

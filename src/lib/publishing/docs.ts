@@ -166,6 +166,93 @@ export const INTEGRATION_DOCS: IntegrationDoc[] = [
       "https://help.shopify.com/en/manual/apps/app-types/custom-apps",
   },
   {
+    slug: "webflow",
+    name: "Webflow",
+    summary:
+      "Publish into a CMS collection on your Webflow site using a Site API token.",
+    requirements: [
+      "A Webflow site on a paid plan — the CMS API is not available on the free tier",
+      "A CMS collection for your blog, with a rich text field for the body",
+      "Permission to create API tokens on that site",
+    ],
+    steps: [
+      {
+        title: "Create a Site API token",
+        body: "In Webflow, open Site settings → Apps & integrations → API access, then Generate API token. Give it CMS read and write — a read-only token connects fine and then fails at the first publish.",
+      },
+      {
+        title: "Copy the token",
+        body: "Webflow shows it once. Copy the whole value before closing the dialog.",
+      },
+      {
+        title: "Find your blog collection ID",
+        body: "Open the collection in the Designer. The id is the last part of the URL, a long string of letters and numbers.",
+      },
+      {
+        title: "Connect it here",
+        body: "Open Publishing on your website page, choose Webflow, and enter the token and collection id. We check the collection has somewhere to put an article body before accepting it.",
+      },
+      {
+        title: "Publish a test article",
+        body: "Press Publish test article. We create a real item in the collection so you can confirm it lands where you expect.",
+      },
+    ],
+    troubleshooting: [
+      {
+        problem: '"That collection has no rich text field"',
+        fix: "Webflow collections are whatever the designer built, and an article needs somewhere to put its body. Add a Rich Text field to the collection, or point us at your blog collection rather than another one.",
+      },
+      {
+        problem: "The article does not appear on the live site",
+        fix: "Webflow items created through the API only go live once the site is published. Press Publish in the Designer, or turn on auto-publishing for the collection.",
+      },
+      {
+        problem: '"That token cannot write to the CMS"',
+        fix: "The token was created without cms:write. Tokens cannot be edited after creation — generate a new one with both CMS scopes.",
+      },
+    ],
+    officialUrl:
+      "https://developers.webflow.com/data/reference/token/authorization",
+  },
+  {
+    slug: "wix",
+    name: "Wix",
+    summary: "Publish to the blog on your Wix site using an API key.",
+    requirements: [
+      "A Wix site with the Blog app installed",
+      "Owner or admin access, so you can create API keys",
+    ],
+    steps: [
+      {
+        title: "Open the API keys page",
+        body: "In the Wix dashboard, go to Settings → API keys, then Generate API key.",
+      },
+      {
+        title: "Give it blog permissions",
+        body: "Assign a role that includes Blog — without it the key authenticates but cannot create posts.",
+      },
+      {
+        title: "Copy the key and the Site ID",
+        body: "The key is shown once. The Site ID is listed beside the site on the same screen. Both are needed: one Wix account can own several sites, so the key alone does not say which.",
+      },
+      {
+        title: "Connect it here",
+        body: "Open Publishing, choose Wix, and enter both values. We list your existing posts to confirm the key can reach the blog.",
+      },
+    ],
+    troubleshooting: [
+      {
+        problem: '"Wix could not find that site, or the site has no blog"',
+        fix: "Either the Site ID belongs to a different site, or the Blog app is not installed. Add Blog from the Wix App Market and try again.",
+      },
+      {
+        problem: "The article body shows as one block in the editor",
+        fix: "Expected. Wix stores rich content in its own format; we send the article as a single HTML block, which renders correctly on the published page but appears as one embedded element while editing.",
+      },
+    ],
+    officialUrl: "https://dev.wix.com/docs/rest/articles/getting-started/api-keys",
+  },
+  {
     slug: "webhook",
     name: "Custom (webhook)",
     summary:
