@@ -1,6 +1,8 @@
 import type { MetadataRoute } from "next";
 
 import { listPosts } from "@/lib/blog/posts";
+import { INTEGRATION_DOCS } from "@/lib/publishing/docs";
+import { TOOLS } from "@/lib/tools/registry";
 import { localePath, PREFIXED_LOCALES } from "@/lib/i18n/config";
 
 /**
@@ -29,18 +31,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${base}/audit`, lastModified: now, priority: 0.9 },
     { url: `${base}/pricing`, lastModified: now, priority: 0.8 },
     { url: `${base}/tools`, lastModified: now, priority: 0.8 },
-    {
-      url: `${base}/tools/snippet-preview`,
-      lastModified: now,
-      priority: 0.6,
-    },
-    // The results page takes a query parameter, so only the form is listed.
-    {
-      url: `${base}/tools/robots-checker`,
-      lastModified: now,
-      priority: 0.6,
-    },
     { url: `${base}/blog`, lastModified: now, priority: 0.8 },
+    { url: `${base}/docs/integrations`, lastModified: now, priority: 0.7 },
     {
       url: `${base}/backlink-exchange`,
       lastModified: now,
@@ -55,6 +47,27 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${base}/terms`, lastModified: now, priority: 0.2 },
     { url: `${base}/refunds`, lastModified: now, priority: 0.2 },
   ];
+
+  /**
+   * Free tools, from the same registry the hub renders from. Listed here
+   * rather than by hand: three of them were missing before, because a tool
+   * added to the registry never reached a hardcoded list. The results pages
+   * take a query parameter, so only the forms are listed.
+   */
+  const tools: MetadataRoute.Sitemap = TOOLS.filter((tool) =>
+    tool.href.startsWith("/tools/"),
+  ).map((tool) => ({
+    url: `${base}${tool.href}`,
+    lastModified: now,
+    priority: 0.6,
+  }));
+
+  /** One page per publishing integration, for the same reason. */
+  const docs: MetadataRoute.Sitemap = INTEGRATION_DOCS.map((doc) => ({
+    url: `${base}/docs/integrations/${doc.slug}`,
+    lastModified: now,
+    priority: 0.5,
+  }));
 
   const posts: MetadataRoute.Sitemap = listPosts().map((post) => ({
     url: `${base}/blog/${post.slug}`,
@@ -77,5 +90,5 @@ export default function sitemap(): MetadataRoute.Sitemap {
     })),
   );
 
-  return [...pages, ...posts, ...translated];
+  return [...pages, ...tools, ...docs, ...posts, ...translated];
 }

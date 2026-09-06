@@ -20,6 +20,7 @@ import { EmptyState } from "@/components/ui/states";
 import {
   connectProvider,
   disconnectProvider,
+  publishTestArticle,
 } from "@/lib/publishing/actions";
 import type { IntegrationView, ProviderInfo } from "@/lib/publishing/shared";
 import type { IntegrationKeyView } from "@/lib/plugin/keys";
@@ -64,6 +65,31 @@ export function PublishingPanel({
       setValues({});
       router.refresh();
     });
+  }
+
+  /** Which integration is mid-test, so only that row shows a spinner. */
+  const [testing, setTesting] = useState<string | null>(null);
+
+  async function handleTest(integrationId: string) {
+    setTesting(integrationId);
+    const result = await publishTestArticle(websiteId, integrationId);
+    setTesting(null);
+
+    if (!result.ok) {
+      toast.error(result.error);
+      return;
+    }
+
+    /**
+     * The URL matters more than the confirmation. "It worked" is a claim; a
+     * link the customer can open is proof, and it is also how they find the
+     * draft to delete.
+     */
+    toast.success(
+      result.data.remoteUrl
+        ? `Draft published — open it at ${result.data.remoteUrl}`
+        : "Draft published successfully. Check your site's drafts.",
+    );
   }
 
   function handleDisconnect(kind: string, name: string) {
@@ -138,6 +164,36 @@ export function PublishingPanel({
                   ) : null}
                 </div>
 
+                <div className="flex items-center gap-2">
+                  {/*
+                    Only offered on a live connection. testConnection already
+                    proved the credentials work, but only a real write finds the
+                    failures customers actually hit — a plugin rejecting the
+                    payload, a media upload timing out — and finding them now
+                    beats finding them when the first scheduled article
+                    silently fails overnight.
+                  */}
+                  {integration.status === "connected" ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleTest(integration.id)}
+                      disabled={pending || testing !== null}
+                    >
+                      {testing === integration.id ? (
+                        <>
+                          <Loader2
+                            className="size-3.5 animate-spin"
+                            aria-hidden="true"
+                          />
+                          Publishing…
+                        </>
+                      ) : (
+                        "Publish test article"
+                      )}
+                    </Button>
+                  ) : null}
+
                 <Button
                   variant="ghost"
                   size="sm"
@@ -152,6 +208,7 @@ export function PublishingPanel({
                   <X className="size-4" />
                   Disconnect
                 </Button>
+                </div>
               </li>
             ))}
           </ul>

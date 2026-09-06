@@ -336,3 +336,93 @@ export async function publishArticle(
   revalidatePath(`/websites/${site.id}/articles/${articleId}`);
   return { ok: true, data: null };
 }
+
+/**
+ * Publishes a real post to prove a connection works end to end.
+ *
+ * The brief: "Once we connect, there is an option to publish test article,
+ * just to double check all is working fine".
+ *
+ * testConnection already checks that the account can create posts, but it does
+ * that with a dry run — it never writes anything. The failures customers
+ * actually hit come later: a plugin that rejects the payload, a category that
+ * does not exist, an image upload that times out. Only a real write finds
+ * those, and finding them now beats finding them when the first scheduled
+ * article silently fails at 6am.
+ *
+ * Published as a DRAFT. A visible "Test post" on a customer's live blog is a
+ * bad way to learn we shipped this: the draft proves every step of the path
+ * and stays out of sight.
+ */
+export async function publishTestArticle(
+  websiteId: string,
+  integrationId: string,
+): Promise<ActionResult<{ remoteUrl: string | null }>> {
+  const { site } = await requireWebsite(websiteId);
+
+  const [row] = await db
+    .select({
+      id: integrations.id,
+      kind: integrations.kind,
+      credentials: integrations.credentials,
+      status: integrations.status,
+    })
+    .from(integrations)
+    .where(
+      and(
+        eq(integrations.id, integrationId),
+        // Scoped by website as well as id: the id comes from the caller, so an
+        // id belonging to another tenant must resolve to nothing.
+        eq(integrations.websiteId, site.id),
+      ),
+    )
+    .limit(1);
+
+  if (!row) return { ok: false, error: "Integration not found" };
+  if (row.status !== "connected") {
+    return { ok: false, error: "Connect this integration first" };
+  }
+
+  const provider = getProvider(row.kind);
+  if (!provider) {
+    return { ok: false, error: `We no longer support ${row.kind}` };
+  }
+
+  let credentials: Credentials;
+  try {
+    credentials = JSON.parse(decryptSecret(row.credentials as string));
+  } catch {
+    return {
+      ok: false,
+      error: "Stored credentials could not be read. Reconnect this integration.",
+    };
+  }
+
+  const brand = site.brandName ?? site.domain;
+  const stamp = new Date().toISOString().slice(0, 16).replace("T", " ");
+
+  try {
+    const result = await provider.createPost(credentials, {
+      title: `Connection test — ${brand}`,
+      // Slugged with a timestamp so repeated tests never collide on the CMS.
+      slug: `seovision-connection-test-${Date.now()}`,
+      contentHtml: `<p>This is a test post published by SEO Platform at ${stamp} to confirm the connection to ${brand} works.</p><p>It was created as a draft and is safe to delete.</p>`,
+      excerpt: "A test post confirming the publishing connection works.",
+      // Draft, never live: see the note above.
+      status: "draft",
+    });
+
+
+    revalidatePath(`/websites/${site.id}`);
+    return { ok: true, data: { remoteUrl: result.remoteUrl ?? null } };
+  } catch (error) {
+    const message =
+      error instanceof ProviderError
+        ? error.message
+        : "The test post could not be published. Check the connection details.";
+
+
+    revalidatePath(`/websites/${site.id}`);
+    return { ok: false, error: message };
+  }
+}
