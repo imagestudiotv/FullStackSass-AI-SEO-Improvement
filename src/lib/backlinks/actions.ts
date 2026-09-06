@@ -1,6 +1,6 @@
 "use server";
 
-import { and, desc, eq, sql as raw } from "drizzle-orm";
+import { and, desc, eq, ne, sql as raw } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/lib/db";
@@ -184,7 +184,27 @@ export async function listRequests(websiteId: string): Promise<RequestRow[]> {
       liveUrl: placements.liveUrl,
     })
     .from(backlinkRequests)
-    .leftJoin(placements, eq(placements.requestId, backlinkRequests.id))
+    /**
+     * Removed placements are excluded from the join, not just from the count.
+     *
+     * The brief is explicit: "it's important that it disappear from the
+     * backlink dashboard received, if not they will ask in the future that
+     * again a backlink disappear". Without the status filter a removed
+     * placement still supplied its host domain and live URL, so a request that
+     * had correctly returned to pending kept showing the old host beside a
+     * link that no longer exists — the customer clicks it, finds nothing, and
+     * reports the same disappearance twice.
+     *
+     * A request can accumulate several placements over its life (removed, then
+     * rematched), so this keeps only the one that currently counts.
+     */
+    .leftJoin(
+      placements,
+      and(
+        eq(placements.requestId, backlinkRequests.id),
+        ne(placements.status, "removed"),
+      ),
+    )
     .leftJoin(websites, eq(placements.hostWebsiteId, websites.id))
     .where(eq(backlinkRequests.websiteId, site.id))
     .orderBy(desc(backlinkRequests.createdAt));
