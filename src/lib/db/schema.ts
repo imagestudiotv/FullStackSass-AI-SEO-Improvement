@@ -961,6 +961,53 @@ export const addons = pgTable(
  * Kept even after fulfilment, because "what did I buy and when" needs an
  * answer, and a manual service needs somewhere to track that it was delivered.
  */
+/**
+ * A subscription payment, from either processor.
+ *
+ * The brief asks for an invoice page. Stripe customers already have one — the
+ * customer portal lists every invoice with a PDF — but a PayPal subscriber has
+ * nothing: PayPal offers no portal API we can open on their behalf, so their
+ * only record lives inside their own PayPal account.
+ *
+ * Recording payments as they arrive gives both providers the same in-app
+ * history. Stripe's own invoice PDF stays the authoritative document and is
+ * linked when we have its URL; this table is the index, not a replacement for
+ * it. Nothing is reconstructed after the fact — a row exists only because a
+ * webhook told us the money moved.
+ */
+export const payments = pgTable(
+  "payments",
+  {
+    id: pk(),
+    organizationId: organizationId(),
+    /** "stripe" | "paypal". */
+    provider: text("provider").notNull(),
+    /**
+     * The processor's own id for this payment. Unique per provider, so a
+     * replayed webhook updates rather than duplicating — the same guarantee
+     * addon_purchases gets from its session id.
+     */
+    externalId: text("external_id").notNull(),
+    amountCents: integer("amount_cents").notNull(),
+    currency: text("currency").notNull(),
+    /** "paid" | "failed" | "refunded". */
+    status: text("status").notNull(),
+    /** Stripe's hosted invoice or receipt, when the event carries one. */
+    invoiceUrl: text("invoice_url"),
+    /** What it was for, in the customer's terms. */
+    description: text("description"),
+    paidAt: timestamp("paid_at").defaultNow().notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("payments_provider_external_uidx").on(
+      table.provider,
+      table.externalId,
+    ),
+    index("payments_org_paid_idx").on(table.organizationId, table.paidAt),
+  ],
+);
+
 export const addonPurchases = pgTable(
   "addon_purchases",
   {

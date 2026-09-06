@@ -1,9 +1,15 @@
-import { getSubscription, isEntitled, listPlans } from "@/lib/billing";
+import {
+  getSubscription,
+  isEntitled,
+  listPayments,
+  listPlans,
+} from "@/lib/billing";
 import { requireSession } from "@/lib/auth-guard";
 import { isPayPalAvailable } from "@/lib/paypal/actions";
 import { requireOrg } from "@/lib/tenant";
 import { listAddons, listPurchases } from "@/lib/addons/actions";
 import { AddonsPanel } from "./addons-panel";
+import { PaymentsPanel } from "./payments-panel";
 import { BillingClient } from "./billing-client";
 
 export const metadata = { title: "Billing" };
@@ -17,13 +23,14 @@ export default async function BillingPage({
   await requireSession();
   const { orgId } = await requireOrg();
 
-  const [plans, subscription, paypalAvailable, addons, purchases] =
+  const [plans, subscription, paypalAvailable, addons, purchases, paymentRows] =
     await Promise.all([
       listPlans(),
       getSubscription(orgId),
       isPayPalAvailable(),
       listAddons(),
       listPurchases(),
+      listPayments(orgId),
     ]);
 
   const params = await searchParams;
@@ -47,6 +54,8 @@ export default async function BillingPage({
       */}
       <div className="mt-8">
         <AddonsPanel addons={addons} purchases={purchases} />
+
+        <PaymentsPanel payments={paymentRows} />
       </div>
     </>
   );

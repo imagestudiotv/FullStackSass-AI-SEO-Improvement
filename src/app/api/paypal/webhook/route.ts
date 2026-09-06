@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { db } from "@/lib/db";
-import { plans, subscriptions, webhookEvents } from "@/lib/db/schema";
+import { payments, plans, subscriptions, webhookEvents } from "@/lib/db/schema";
 import { isPayPalConfigured, payPalRequest } from "@/lib/paypal/client";
 import { getSubscription, mapStatus } from "@/lib/paypal/subscriptions";
 
@@ -213,6 +213,50 @@ export async function POST(request: Request) {
           mapStatus(live.status),
           live.billing_info?.next_billing_time ?? null,
         );
+
+        /**
+         * Record the payment.
+         *
+         * This is the half that had nowhere to live. PayPal offers no portal
+         * API we can open for a customer, so without this row their only
+         * record of a charge is inside their own PayPal account — and a
+         * customer asking "what did you bill me last month" had no answer
+         * anywhere in the product.
+         */
+        const sale = resource as {
+          id?: string;
+          amount?: { total?: string; currency?: string };
+        };
+        if (sale.id) {
+          // PayPal reports decimal strings ("29.00"); everything else in the
+          // product is minor units, so convert once here rather than at every
+          // read site.
+          const total = Number.parseFloat(sale.amount?.total ?? "0");
+          await db
+            .insert(payments)
+            .values({
+              organizationId: live.custom_id,
+              provider: "paypal",
+              externalId: sale.id,
+              amountCents: Number.isFinite(total) ? Math.round(total * 100) : 0,
+              currency: (sale.amount?.currency ?? "EUR").toLowerCase(),
+              status:
+                event.event_type === "PAYMENT.SALE.COMPLETED"
+                  ? "paid"
+                  : "failed",
+              description: "Subscription payment",
+            })
+            .onConflictDoUpdate({
+              target: [payments.provider, payments.externalId],
+              set: {
+                status:
+                  event.event_type === "PAYMENT.SALE.COMPLETED"
+                    ? "paid"
+                    : "failed",
+                updatedAt: new Date(),
+              },
+            });
+        }
         break;
       }
 

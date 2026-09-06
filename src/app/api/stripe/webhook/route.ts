@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 
 import { db } from "@/lib/db";
-import { plans, subscriptions, webhookEvents } from "@/lib/db/schema";
+import { payments, plans, subscriptions, webhookEvents } from "@/lib/db/schema";
 import { stripe } from "@/lib/stripe/client";
 import { fulfilAddonPurchase } from "@/lib/addons/fulfil";
 import { convertReferral } from "@/lib/referrals/core";
@@ -266,6 +266,46 @@ export async function POST(request: Request) {
          * swallowed: the subscription is already recorded, and throwing would
          * make Stripe retry a payment we handled correctly.
          */
+        /**
+         * Record the payment either way.
+         *
+         * Stripe's portal already lists invoices, but a PayPal subscriber has
+         * no portal at all — recording both here gives every customer the same
+         * in-app history. Stripe's hosted invoice stays the authoritative
+         * document and is linked when the event carries a URL.
+         */
+        {
+          const orgId = await organizationIdFor(subscription);
+          if (orgId && invoice.id) {
+            await db
+              .insert(payments)
+              .values({
+                organizationId: orgId,
+                provider: "stripe",
+                externalId: invoice.id,
+                amountCents: invoice.amount_paid ?? invoice.amount_due ?? 0,
+                currency: invoice.currency ?? "eur",
+                status: event.type === "invoice.paid" ? "paid" : "failed",
+                invoiceUrl:
+                  invoice.hosted_invoice_url ?? invoice.invoice_pdf ?? null,
+                description: invoice.lines?.data?.[0]?.description ?? null,
+                paidAt: invoice.status_transitions?.paid_at
+                  ? new Date(invoice.status_transitions.paid_at * 1000)
+                  : new Date(),
+              })
+              // A retry updates rather than duplicating; the unique index on
+              // (provider, external_id) is the guard.
+              .onConflictDoUpdate({
+                target: [payments.provider, payments.externalId],
+                set: {
+                  status:
+                    event.type === "invoice.paid" ? "paid" : "failed",
+                  updatedAt: new Date(),
+                },
+              });
+          }
+        }
+
         if (event.type === "invoice.paid") {
           const orgId = await organizationIdFor(subscription);
           if (orgId) {
