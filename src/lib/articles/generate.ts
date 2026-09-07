@@ -1,4 +1,5 @@
 import { anthropic, isAiConfigured, MODELS } from "@/lib/ai/client";
+import { sanitizeHtml } from "@/lib/articles/sanitize";
 
 /**
  * Article generation.
@@ -296,26 +297,10 @@ export function countWords(html: string): number {
 }
 
 /**
- * Removes anything the model should not have emitted.
- *
- * The prompt forbids these, but prompts are not a security boundary: this HTML
- * is published to a customer's live site, so scripts, event handlers and
- * document-level tags are stripped rather than trusted not to appear.
+ * Re-exported so existing callers keep one import site while the
+ * implementation lives in its own module. See sanitize.ts for why.
  */
-export function sanitizeHtml(html: string): string {
-  return html
-    .replace(/<(script|style|iframe|object|embed)[^>]*>[\s\S]*?<\/\1>/gi, "")
-    .replace(/<\/?(html|head|body|!doctype)[^>]*>/gi, "")
-    // A second H1 competes with the title for the page's main heading.
-    .replace(/<h1[^>]*>/gi, "<h2>")
-    .replace(/<\/h1>/gi, "</h2>")
-    .replace(/\son\w+\s*=\s*"[^"]*"/gi, "")
-    .replace(/\son\w+\s*=\s*'[^']*'/gi, "")
-    .replace(/javascript:/gi, "")
-    .replace(/```html\s*/gi, "")
-    .replace(/```\s*$/g, "")
-    .trim();
-}
+export { sanitizeHtml };
 
 export async function generateBody(
   brief: ArticleBrief,

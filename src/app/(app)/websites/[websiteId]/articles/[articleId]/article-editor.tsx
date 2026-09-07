@@ -16,6 +16,7 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { RichTextEditor } from "@/components/rich-text-editor";
 import {
   Card,
   CardContent,
@@ -367,14 +368,13 @@ export function ArticleEditor({
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="body">Article content</Label>
-                  <textarea
-                    id="body"
-                    rows={20}
-                    value={body}
-                    onChange={(e) => setBody(e.target.value)}
-                    className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 font-mono text-xs shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                  />
+                  {/*
+                    A plain label, not <Label htmlFor>: the editor is a
+                    contenteditable div, which htmlFor cannot focus. The
+                    editor carries its own aria-label instead.
+                  */}
+                  <p className="text-sm font-medium">Article content</p>
+                  <RichTextEditor value={body} onChange={setBody} />
                 </div>
               </CardContent>
               <CardFooter>
