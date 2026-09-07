@@ -5,7 +5,13 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { CardContent, CardFooter } from "@/components/ui/card";
+import {
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { updateBrandVoice } from "@/lib/brand/actions";
@@ -62,8 +68,28 @@ export function BrandVoiceForm({
   const textarea =
     "flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50";
 
+  /**
+   * flex + gap on the form because the card's own gap-(--card-spacing) applies
+   * to its direct children, and this form is the single child wrapping both
+   * the header and the fields — without it the description ran straight into
+   * the first label.
+   */
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handleSubmit} className="flex flex-col gap-(--card-spacing)">
+      {/*
+        The other tab opens with a title and a line saying what the fields are
+        for; this one went straight into an input, so the panel looked like it
+        had lost its heading. Both tabs now introduce themselves the same way.
+      */}
+      <CardHeader>
+        <CardTitle className="text-base">How we write</CardTitle>
+        <CardDescription>
+          The difference between an article that could belong to any business
+          in your industry and one that sounds like yours. Everything here is
+          optional.
+        </CardDescription>
+      </CardHeader>
+
       <CardContent className="space-y-5">
         <div className="space-y-1.5">
           <Label htmlFor="tone">How should your articles sound?</Label>
@@ -132,13 +158,24 @@ export function BrandVoiceForm({
             Mentioned once in an article where it reads naturally. Leave blank
             to skip.
           </p>
-          <div className="grid gap-2 sm:grid-cols-2">
+          {/*
+            gap-4 to match every other field group on this form; gap-2 packed
+            the six rows tighter than the fields above them.
+
+            A real <label> rather than a span, so the platform name focuses its
+            own input — the aria-label alone left the visible text inert.
+          */}
+          <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
             {SOCIAL_PLATFORMS.map((platform) => (
-              <div key={platform} className="flex items-center gap-2">
-                <span className="w-20 shrink-0 text-sm text-muted-foreground">
+              <div key={platform} className="flex items-center gap-3">
+                <Label
+                  htmlFor={`social-${platform}`}
+                  className="w-20 shrink-0 font-normal text-muted-foreground"
+                >
                   {platform}
-                </span>
+                </Label>
                 <Input
+                  id={`social-${platform}`}
                   aria-label={`${platform} profile URL`}
                   value={social[platform] ?? ""}
                   onChange={(e) =>
@@ -157,7 +194,7 @@ export function BrandVoiceForm({
 
       <CardFooter>
         <Button type="submit" disabled={pending}>
-          {pending ? "Saving…" : "Save"}
+          {pending ? "Saving…" : "Save how we write"}
         </Button>
       </CardFooter>
     </form>
