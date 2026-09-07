@@ -5,18 +5,17 @@ import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PageHeader, PageShell } from "@/components/ui/page-header";
-import { WebsiteNav } from "@/components/website-nav";
 import { requireSession } from "@/lib/auth-guard";
 import { requireWebsite, WebsiteNotFoundError } from "@/lib/tenant";
 
 /**
  * Shell for one website's area.
  *
- * The header and sub-navigation live here so every section renders only its
- * own panel. Previously all eight panels shared one page, which meant a visit
- * to any of them loaded the data for all eight — an audit, keyword research,
- * analytics, decay detection, AI visibility, the backlink network, publishing
- * integrations and the profile.
+ * The header lives here and the section links live in the main sidebar, so
+ * every section renders only its own panel. All eight previously shared one
+ * page, which meant a visit to any of them loaded the data for all eight — an
+ * audit, keyword research, analytics, decay detection, AI visibility, the
+ * backlink network, publishing integrations and the profile.
  *
  * The website is resolved here as well, so a bad id 404s once rather than in
  * each of eight pages.
@@ -70,10 +69,11 @@ export default async function WebsiteLayout({
         </a>
       </div>
 
-      <div className="flex flex-col gap-6 lg:flex-row">
-        <WebsiteNav websiteId={site.id} />
-        <div className="min-w-0 flex-1 space-y-6">{children}</div>
-      </div>
+      {/*
+        The sections live in the main sidebar, nested under Websites, so there
+        is one navigation rather than two competing for the same job.
+      */}
+      <div className="space-y-6">{children}</div>
     </PageShell>
   );
 }
