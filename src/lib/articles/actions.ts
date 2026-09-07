@@ -55,6 +55,13 @@ export async function listArticles(websiteId: string): Promise<ArticleRow[]> {
 export type ArticleDetail = ArticleRow & {
   bodyHtml: string | null;
   metaDescription: string | null;
+  /**
+   * The article's illustration. Generated with the article and uploaded to the
+   * customer's CMS on publish, but never shown back to them here — so the one
+   * part of the article they cannot check before it goes live was the picture.
+   */
+  imageUrl: string | null;
+  imageAlt: string | null;
 };
 
 export async function getArticle(
@@ -82,6 +89,8 @@ export async function getArticle(
     updatedAt: row.updatedAt,
     bodyHtml: row.bodyHtml,
     metaDescription: row.metaDescription,
+    imageUrl: row.imageUrl,
+    imageAlt: row.imageAlt,
   };
 }
 

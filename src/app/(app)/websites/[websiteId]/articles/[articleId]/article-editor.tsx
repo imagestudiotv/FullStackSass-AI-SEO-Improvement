@@ -80,10 +80,20 @@ export function ArticleEditor({
   publishLogs: PublishLogRow[];
 }) {
   const router = useRouter();
-  const stats = articleStats(article.bodyHtml, {
+  const bodyStats = articleStats(article.bodyHtml, {
     domain: websiteDomain,
     targetKeyword: article.targetKeyword,
   });
+
+  /**
+   * The featured image counts too. articleStats reads the body HTML, where the
+   * illustration does not appear — it is a separate column, attached to the
+   * post on publish — so an article with a picture still reported "Images 0".
+   */
+  const stats = {
+    ...bodyStats,
+    images: bodyStats.images + (article.imageUrl ? 1 : 0),
+  };
   const [pending, startTransition] = useTransition();
   const [title, setTitle] = useState(article.title);
   const [meta, setMeta] = useState(article.metaDescription ?? "");
@@ -322,6 +332,26 @@ export function ArticleEditor({
           <TabsContent value="preview" className="mt-4">
             <Card>
               <CardContent className="pt-6">
+                {/*
+                  The illustration, above the body, where it sits on the
+                  published page. It was generated with the article and
+                  uploaded to the customer's site on publish, but never shown
+                  here — so the one part they could not check before it went
+                  live was the picture.
+
+                  A plain <img>: the file lives on the customer's own CMS, so
+                  next/image would need every customer domain in
+                  remotePatterns, and a domain added after deploy would break.
+                */}
+                {article.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={article.imageUrl}
+                    alt={article.imageAlt ?? article.title}
+                    className="mb-6 w-full rounded-lg border object-cover"
+                  />
+                ) : null}
+
                 {/**
                  * The body is sanitised on generation AND on every save, so
                  * what reaches here has already had scripts, handlers and
