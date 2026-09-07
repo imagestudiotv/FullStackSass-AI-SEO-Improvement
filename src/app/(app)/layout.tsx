@@ -5,11 +5,12 @@ import { MobileNav } from "@/components/mobile-nav";
 import { NotificationBell } from "@/components/notification-bell";
 import { OrgSwitcher } from "@/components/org-switcher";
 import { SidebarNav } from "@/components/sidebar-nav";
+import { SidebarUsage } from "@/components/sidebar-usage";
 import { UserMenu } from "@/components/user-menu";
 import { isAdmin } from "@/lib/admin/guard";
 import { requireSession } from "@/lib/auth-guard";
 import { db } from "@/lib/db";
-import { notifications, organization } from "@/lib/db/schema";
+import { notifications, organization, websites } from "@/lib/db/schema";
 import {
   clearReferralCode,
   readReferralCode,
@@ -28,6 +29,19 @@ export const dynamic = "force-dynamic";
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const session = await requireSession();
   const { orgId, role } = await requireOrg();
+
+  /**
+   * The sidebar's article and credit links are per-website, so they need a
+   * site to point at. The first is the right default: most customers have one,
+   * and anyone with several reaches the rest through Websites.
+   */
+  const [firstWebsite] = await db
+    .select({ id: websites.id })
+    .from(websites)
+    .where(eq(websites.organizationId, orgId))
+    .orderBy(websites.createdAt)
+    .limit(1);
+  const firstWebsiteId = firstWebsite?.id ?? null;
   // Only admins see the link; the area itself 404s for everyone else.
   const admin = await isAdmin();
 
@@ -117,6 +131,14 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         <aside className="hidden w-60 shrink-0 border-r bg-background md:block">
           <div className="sticky top-14 py-4">
             <SidebarNav />
+            {/*
+              Plan usage under the navigation: what is left this month, and
+              where to go when it runs out.
+            */}
+            <SidebarUsage
+              organizationId={orgId}
+              firstWebsiteId={firstWebsiteId}
+            />
           </div>
         </aside>
         {/*

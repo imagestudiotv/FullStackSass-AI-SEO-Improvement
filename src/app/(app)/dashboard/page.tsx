@@ -1,16 +1,24 @@
-import { ArrowRight, Globe, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
-import { Badge } from "@/components/ui/badge";
+import { ActivityFeed } from "@/components/dashboard/activity-feed";
+import { AuthorityPanel } from "@/components/dashboard/authority-panel";
+import {
+  AchievementsPanel,
+  BestArticlesPanel,
+  SearchPerformancePanel,
+} from "@/components/dashboard/performance-panels";
+import { TodaysArticlePanel } from "@/components/dashboard/todays-article";
+import { WebsiteSwitcher } from "@/components/dashboard/website-switcher";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { PageHeader, PageShell } from "@/components/ui/page-header";
+import { PageShell } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/states";
 import { requireSession } from "@/lib/auth-guard";
-import { listWebsites } from "@/lib/websites/actions";
-import { redirect } from "next/navigation";
+import { getDashboardOverview } from "@/lib/dashboard/overview";
 import { getOnboardingState } from "@/lib/onboarding/steps";
 import { requireOrg } from "@/lib/tenant";
+import { listWebsites } from "@/lib/websites/actions";
 
 export const metadata = { title: "Dashboard" };
 
@@ -18,34 +26,28 @@ export const metadata = { title: "Dashboard" };
 export const dynamic = "force-dynamic";
 
 /**
- * Plain-language status for each website, in the customer's terms.
+ * The dashboard.
  *
- * The stored values are internal ("crawling", "researching"); a small-business
- * owner should read what the product is doing for them, not our job names.
+ * This listed website names and nothing else, which the client fairly called
+ * confusing: the platform had been working for weeks and the first screen said
+ * nothing about what it had done. It now answers, in order — what authority
+ * the site has, what is being written now, what changed this week, what is
+ * performing, and what all of it has been worth.
+ *
+ * One website at a time, chosen in the switcher. Showing every site at once
+ * would mean five copies of six panels on a plan with five sites, and no
+ * single number on the page would mean anything without first asking which
+ * site it belonged to.
  */
-const STATUS: Record<
-  string,
-  { label: string; variant: "default" | "secondary" | "destructive" }
-> = {
-  pending: { label: "Waiting to start", variant: "secondary" },
-  crawling: { label: "Reading your site", variant: "secondary" },
-  researching: { label: "Finding opportunities", variant: "secondary" },
-  ready: { label: "Ready", variant: "default" },
-  failed: { label: "Needs attention", variant: "destructive" },
-};
-
-export default async function DashboardPage() {
-  const session = await requireSession();
-  const firstName = session.user.name?.split(" ")[0] || session.user.email;
+export default async function DashboardPage({
+  searchParams,
+}: PageProps<"/dashboard">) {
+  await requireSession();
 
   /**
    * A customer who has not finished setting up goes to the guided flow rather
    * than an empty dashboard. Redirected here rather than from sign-up so it
    * also catches someone who left halfway and came back days later.
-   *
-   * Only while nothing exists yet: once there is a website, the dashboard is
-   * genuinely more useful than a checklist, and forcing someone back through
-   * setup they have half-finished would be worse than letting them work.
    */
   const { orgId } = await requireOrg();
   const onboarding = await getOnboardingState(orgId);
@@ -55,75 +57,109 @@ export default async function DashboardPage() {
 
   const websites = await listWebsites();
 
-  return (
-    <PageShell>
-      <PageHeader
-        title={`Welcome back, ${firstName}`}
-        description={
-          websites.length === 0
-            ? "Add your website and we will start finding the search terms your customers actually use."
-            : "Here is what we are working on for your business."
-        }
-        actions={
-          websites.length > 0 ? (
-            <Button asChild size="sm">
-              <Link href="/websites">
+  if (websites.length === 0) {
+    return (
+      <PageShell>
+        <EmptyState
+          title="No website connected yet"
+          description="Add your website and we will start finding the search terms your customers actually use."
+          action={
+            <Button asChild>
+              <Link href="/websites/new">
                 <Plus className="size-4" />
                 Add website
               </Link>
             </Button>
-          ) : null
-        }
-      />
-
-      {websites.length === 0 ? (
-        <EmptyState
-          icon={Globe}
-          title="No website connected yet"
-          description="Once you add your website we read it, work out what your business does, and find the search terms worth going after."
-          action={
-            <Button asChild>
-              <Link href="/websites">
-                Add your website
-                <ArrowRight className="size-4" />
-              </Link>
-            </Button>
           }
         />
-      ) : (
-        <div className="grid gap-3">
-          {websites.map((site) => {
-            const status = STATUS[site.status] ?? {
-              label: site.status,
-              variant: "secondary" as const,
-            };
-            return (
-              <Card key={site.id} className="transition-colors hover:border-foreground/20">
-                <CardContent className="flex items-center gap-4 py-4">
-                  <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted">
-                    <Globe className="size-4 text-muted-foreground" aria-hidden="true" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <Link
-                      href={`/websites/${site.id}`}
-                      className="block truncate font-medium hover:underline"
-                    >
-                      {site.brandName || site.domain}
-                    </Link>
-                    <p className="truncate text-sm text-muted-foreground">
-                      {site.domain}
-                      {site.industry ? ` · ${site.industry}` : ""}
-                    </p>
-                  </div>
-                  <Badge variant={status.variant} className="shrink-0">
-                    {status.label}
-                  </Badge>
-                </CardContent>
-              </Card>
-            );
-          })}
+      </PageShell>
+    );
+  }
+
+  /**
+   * The requested site, falling back to the first. An id from another
+   * organization simply does not match, so it falls back too rather than
+   * confirming the id exists.
+   */
+  const params = await searchParams;
+  const requested = typeof params.site === "string" ? params.site : null;
+
+  /**
+   * Oldest first for the default. listWebsites returns newest first, which
+   * would land a returning customer on whichever site they added most
+   * recently rather than their main one — and it disagreed with the sidebar,
+   * whose article and credit links point at the oldest.
+   */
+  const ordered = [...websites].sort(
+    (a, b) => a.createdAt.getTime() - b.createdAt.getTime(),
+  );
+  const current =
+    ordered.find((site) => site.id === requested) ?? ordered[0];
+
+  const overview = await getDashboardOverview(orgId, current.id);
+
+  if (!overview) {
+    return (
+      <PageShell>
+        <EmptyState
+          title="We could not load this website"
+          description="Try again, or pick a different website."
+        />
+      </PageShell>
+    );
+  }
+
+  return (
+    <PageShell>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <WebsiteSwitcher
+          websites={ordered.map((site) => ({
+            id: site.id,
+            domain: site.domain,
+            brandName: site.brandName,
+          }))}
+          current={{
+            id: current.id,
+            domain: current.domain,
+            brandName: current.brandName,
+          }}
+        />
+      </div>
+
+      {/*
+        Authority and today's article side by side: one is the site's standing,
+        the other is the work in progress. The activity feed sits under
+        authority because both answer "what has changed lately".
+      */}
+      <div className="grid items-start gap-4 lg:grid-cols-2">
+        <div className="space-y-4">
+          <AuthorityPanel
+            websiteId={overview.websiteId}
+            verifiedBacklinks={overview.authority.verifiedBacklinks}
+            availableCredits={overview.authority.availableCredits}
+            chart={overview.authority.chart}
+          />
+          <ActivityFeed items={overview.activity} />
         </div>
-      )}
+
+        <div className="space-y-4">
+          <TodaysArticlePanel
+            websiteId={overview.websiteId}
+            article={overview.todaysArticle}
+          />
+          <BestArticlesPanel
+            websiteId={overview.websiteId}
+            articles={overview.bestArticles}
+          />
+        </div>
+      </div>
+
+      <SearchPerformancePanel
+        websiteId={overview.websiteId}
+        performance={overview.performance}
+      />
+
+      <AchievementsPanel achievements={overview.achievements} />
     </PageShell>
   );
 }
