@@ -7,7 +7,11 @@ import { inngest } from "@/inngest/client";
 import { decryptSecret, encryptSecret, maskSecret } from "@/lib/crypto";
 import { db } from "@/lib/db";
 import { articles, integrations, publishLogs } from "@/lib/db/schema";
-import { ProviderError, type Credentials } from "@/lib/publishing/provider";
+import {
+  ProviderError,
+  type CmsProvider,
+  type Credentials,
+} from "@/lib/publishing/provider";
 import { getProvider, listProviders, providerInfo } from "@/lib/publishing/registry";
 import type { IntegrationView, ProviderInfo } from "@/lib/publishing/shared";
 import { requireWebsite } from "@/lib/tenant";
@@ -218,6 +222,34 @@ export async function disconnectProvider(
 }
 
 /**
+ * Rebuilds usable credentials from what is stored on an integration row.
+ *
+ * The column is jsonb holding one object per provider field, with only the
+ * secret fields encrypted individually — not one encrypted blob. Two callers
+ * decoded that inline and one of them guessed the shape wrong, treating the
+ * whole object as a single ciphertext string; `as string` made it compile and
+ * it failed at runtime for every customer who pressed "Publish test article".
+ * One function now owns the format so the two paths cannot disagree again.
+ */
+function readStoredCredentials(
+  provider: CmsProvider,
+  stored: StoredCredentials | null,
+): Credentials | null {
+  if (!stored || typeof stored !== "object") return null;
+
+  const credentials: Credentials = {};
+  for (const field of provider.fields) {
+    const value = stored[field.key];
+    if (typeof value !== "string") continue;
+    credentials[field.key] = field.secret ? decryptSecret(value) : value;
+  }
+
+  // Nothing readable means the row predates this format, or the encryption
+  // key changed: either way the customer has to reconnect.
+  return Object.keys(credentials).length > 0 ? credentials : null;
+}
+
+/**
  * Decrypted credentials for a publish, with the provider that owns them.
  *
  * Server-only by construction: this returns plaintext secrets, so it must
@@ -244,15 +276,11 @@ export async function loadCredentials(websiteId: string): Promise<{
     const provider = getProvider(row.kind);
     if (!provider) continue;
 
-    const stored = row.credentials as StoredCredentials | null;
-    if (!stored) continue;
-
-    const credentials: Credentials = {};
-    for (const field of provider.fields) {
-      const value = stored[field.key];
-      if (typeof value !== "string") continue;
-      credentials[field.key] = field.secret ? decryptSecret(value) : value;
-    }
+    const credentials = readStoredCredentials(
+      provider,
+      row.credentials as StoredCredentials | null,
+    );
+    if (!credentials) continue;
 
     return {
       integrationId: row.id,
@@ -388,10 +416,18 @@ export async function publishTestArticle(
     return { ok: false, error: `We no longer support ${row.kind}` };
   }
 
-  let credentials: Credentials;
+  let credentials: Credentials | null;
   try {
-    credentials = JSON.parse(decryptSecret(row.credentials as string));
+    credentials = readStoredCredentials(
+      provider,
+      row.credentials as StoredCredentials | null,
+    );
   } catch {
+    // decryptSecret throws when the encryption key no longer matches.
+    credentials = null;
+  }
+
+  if (!credentials) {
     return {
       ok: false,
       error: "Stored credentials could not be read. Reconnect this integration.",
