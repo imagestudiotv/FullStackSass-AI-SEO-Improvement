@@ -94,7 +94,17 @@ export function WebsiteDetailClient({
       */}
       <Card>
         <Tabs defaultValue="profile">
-          <div className="border-b px-6 pt-4">
+          {/*
+            px-(--card-spacing) rather than a hardcoded px-6: the card sets its
+            own padding token, so a fixed value left the tab strip inset by a
+            different amount than the fields under it — the misalignment was
+            visible down the left edge of both tabs.
+
+            -mt-(--card-spacing) pulls the strip up to the card's top edge. The
+            card adds its own top padding, which put a band of empty space
+            above the tabs and made them look detached from the panel.
+          */}
+          <div className="-mt-(--card-spacing) border-b px-(--card-spacing) pt-3">
             <TabsList>
               <TabsTrigger value="profile">Business details</TabsTrigger>
               <TabsTrigger value="voice">How we write</TabsTrigger>
@@ -102,9 +112,15 @@ export function WebsiteDetailClient({
           </div>
 
           <TabsContent value="profile" className="mt-0">
-        <form onSubmit={handleSubmit}>
+        {/* See the note in brand-voice-form.tsx on this gap. */}
+        <form onSubmit={handleSubmit} className="flex flex-col gap-(--card-spacing)">
           <CardHeader>
-            <CardTitle className="text-base">Website profile</CardTitle>
+            {/*
+              "Business details" rather than "Website profile": the tab above
+              already says Business details, and two different names for the
+              same panel reads as two different things.
+            */}
+            <CardTitle className="text-base">Business details</CardTitle>
             <CardDescription>
               These details shape your keywords and every article we write.
               {analysed
