@@ -18,9 +18,21 @@ import {
  * research, analytics, decay detection, AI visibility, the backlink network,
  * publishing integrations and the profile — to look at one of them.
  *
- * Split into routes, each page loads only what it shows. The order is the one
- * the stacked page used and is worth keeping: what is wrong, then what is
- * working, then the plumbing.
+ * Split into routes, each page loads only what it shows.
+ *
+ * The order follows the dependency, not the stacked page's old top-to-bottom.
+ * The profile is an input to the two sections after it: keyword research and
+ * article generation both read industry, description and target audience. It
+ * also sits beside Website health because the same analysis job writes both —
+ * the findings and the profile are two halves of one pass over the site.
+ *
+ * It used to be last, after Publishing, which read as a trailing settings
+ * screen to visit once articles were already going out. A wrong industry or
+ * audience never errors; it quietly produces off-target keywords and then
+ * months of off-target articles. That review belongs before the first one.
+ *
+ * So: what is wrong, what we understand about you, what we will write, how it
+ * is performing, then the plumbing.
  */
 
 export type WebsiteSection = {
@@ -39,6 +51,13 @@ export const WEBSITE_SECTIONS: WebsiteSection[] = [
     description:
       "What is holding this site back on Google, with the exact page each problem is on.",
     icon: Stethoscope,
+  },
+  {
+    segment: "profile",
+    title: "Website profile",
+    description:
+      "What we understand about this business. Everything here shapes what we write.",
+    icon: Globe,
   },
   {
     segment: "content",
@@ -81,13 +100,6 @@ export const WEBSITE_SECTIONS: WebsiteSection[] = [
     description:
       "Where finished articles are published, and the connection that carries them.",
     icon: Send,
-  },
-  {
-    segment: "profile",
-    title: "Website profile",
-    description:
-      "What we understand about this business. Everything here shapes what we write.",
-    icon: Globe,
   },
 ];
 
