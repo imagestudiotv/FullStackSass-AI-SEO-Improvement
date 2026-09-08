@@ -1,4 +1,5 @@
 import { count, eq } from "drizzle-orm";
+import { cache } from "react";
 
 import { isEntitled } from "@/lib/billing-shared";
 import { db } from "@/lib/db";
@@ -47,7 +48,13 @@ export type OnboardingState = {
   analysing: boolean;
 };
 
-export async function getOnboardingState(
+/**
+ * Deduplicated per request with React's cache: the sidebar reads this to decide
+ * whether to show "Get started", and the dashboard reads it again to decide
+ * whether to redirect. Without this the four queries below ran twice on every
+ * dashboard load.
+ */
+export const getOnboardingState = cache(async function getOnboardingState(
   orgId: string,
 ): Promise<OnboardingState> {
   const [subscription, agency, sites] = await Promise.all([
@@ -150,4 +157,4 @@ export async function getOnboardingState(
     // "pending" and "crawling" both mean we are still working on it.
     analysing: hasWebsite && !analysed,
   };
-}
+});

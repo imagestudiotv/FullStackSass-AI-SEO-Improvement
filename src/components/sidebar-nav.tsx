@@ -33,13 +33,28 @@ function websiteIdFrom(pathname: string): string | null {
   return match[1] === "new" ? null : match[1];
 }
 
-export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
+export function SidebarNav({
+  onNavigate,
+  onboardingComplete = false,
+}: {
+  onNavigate?: () => void;
+  /**
+   * Hides "Get started" once setup is finished. The routes stay — they hold
+   * plan selection and checkout — but a permanent link to a checklist with
+   * nothing left on it is clutter every customer carries forever.
+   */
+  onboardingComplete?: boolean;
+}) {
   const pathname = usePathname();
   const websiteId = websiteIdFrom(pathname);
 
+  const items = onboardingComplete
+    ? navItems.filter((item) => item.href !== "/onboarding")
+    : navItems;
+
   return (
     <nav className="flex flex-col gap-0.5 px-3" aria-label="Main">
-      {navItems.map((item) => {
+      {items.map((item) => {
         const Icon = item.icon;
         /**
          * Websites stays highlighted while any of its sections is open —

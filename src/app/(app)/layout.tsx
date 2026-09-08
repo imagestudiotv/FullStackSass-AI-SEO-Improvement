@@ -16,6 +16,7 @@ import {
   readReferralCode,
 } from "@/lib/referrals/cookie";
 import { attachReferral } from "@/lib/referrals/core";
+import { getOnboardingState } from "@/lib/onboarding/steps";
 import { requireOrg } from "@/lib/tenant";
 
 /**
@@ -42,6 +43,13 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     .orderBy(websites.createdAt)
     .limit(1);
   const firstWebsiteId = firstWebsite?.id ?? null;
+
+  /**
+   * Whether to keep "Get started" in the sidebar. The onboarding routes are
+   * not going anywhere — they carry plan selection and checkout — but once the
+   * checklist is finished the link points at a page with nothing left to do.
+   */
+  const onboarding = await getOnboardingState(orgId);
   // Only admins see the link; the area itself 404s for everyone else.
   const admin = await isAdmin();
 
@@ -86,7 +94,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   return (
     <div className="flex min-h-svh flex-col bg-muted/30">
       <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-        <MobileNav />
+        <MobileNav onboardingComplete={onboarding.complete} />
         <Link
           href="/dashboard"
           className="flex items-center gap-2 font-semibold tracking-tight"
@@ -130,7 +138,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       <div className="flex flex-1">
         <aside className="hidden w-60 shrink-0 border-r bg-background md:block">
           <div className="sticky top-14 py-4">
-            <SidebarNav />
+            <SidebarNav onboardingComplete={onboarding.complete} />
             {/*
               Plan usage under the navigation: what is left this month, and
               where to go when it runs out.

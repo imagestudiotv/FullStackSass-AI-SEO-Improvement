@@ -13,7 +13,11 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 
-export function MobileNav() {
+export function MobileNav({
+  onboardingComplete = false,
+}: {
+  onboardingComplete?: boolean;
+}) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -27,7 +31,10 @@ export function MobileNav() {
         <SheetHeader className="border-b p-4">
           <SheetTitle className="text-left">AI SEO Platform</SheetTitle>
         </SheetHeader>
-        <SidebarNav onNavigate={() => setOpen(false)} />
+        <SidebarNav
+          onNavigate={() => setOpen(false)}
+          onboardingComplete={onboardingComplete}
+        />
       </SheetContent>
     </Sheet>
   );
