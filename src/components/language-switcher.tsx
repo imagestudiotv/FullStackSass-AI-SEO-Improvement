@@ -32,8 +32,19 @@ import {
  * offering the switch, so the list is explicit.
  */
 
-/** Paths that exist in every locale. */
-const TRANSLATED_PATHS = new Set(["/", "/pricing"]);
+/**
+ * Paths that exist in every locale.
+ *
+ * Add a path here only once its localised route exists, or the switcher offers
+ * a link that 404s in the other language.
+ */
+const TRANSLATED_PATHS = new Set([
+  "/",
+  "/pricing",
+  "/about",
+  "/faq",
+  "/contact",
+]);
 
 export function LanguageSwitcher() {
   const pathname = usePathname();

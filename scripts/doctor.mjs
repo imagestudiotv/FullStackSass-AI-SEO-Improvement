@@ -383,8 +383,10 @@ if (has("DIRECT_URL")) {
        * silent way: the button works, checkout opens, and the payment dies
        * against a price the live key cannot see.
        */
+      // Quoted services have no Stripe price by design - see stripe-setup.mjs.
       const addonRows = await sql`
-        select slug, stripe_price_id from addons where is_active = true
+        select slug, stripe_price_id from addons
+        where is_active = true and kind <> 'quote'
       `;
       const noAddonPrice = addonRows.filter((a) => !a.stripe_price_id);
       if (stripeKey && addonRows.length > 0) {

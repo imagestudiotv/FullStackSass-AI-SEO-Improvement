@@ -1,9 +1,12 @@
-import { Mail } from "lucide-react";
 import { SUPPORT_EMAIL } from "@/lib/config/site";
+import { getMessages } from "@/lib/i18n/messages";
+import { ContactContent } from "../static-pages";
+
+const t = getMessages("en");
 
 export const metadata = {
-  title: "Contact",
-  description: "How to get in touch with AI SEO Platform.",
+  title: t.contact.metaTitle,
+  description: t.contact.metaDescription,
 };
 
 /**
@@ -13,35 +16,33 @@ export const metadata = {
  * backend endpoint, spam handling and a delivery mechanism — none of which
  * exist yet, and a form that silently fails is worse than no form.
  */
-export default function ContactPage() {
-  return (
-    <div className="mx-auto max-w-2xl px-4 py-16">
-      <h1 className="text-3xl font-semibold tracking-tight">Contact us</h1>
-      <p className="mt-3 text-muted-foreground">
-        Questions about the product, your account, or billing — we read every
-        message and reply within two working days.
-      </p>
+export default async function ContactPage({
+  searchParams,
+}: PageProps<"/contact">) {
+  /**
+   * Billing links here with ?about=audit_fix when someone asks for a quote on
+   * a service we price by hand. Without acknowledging it the page would look
+   * like a plain contact page, and the person would have to explain from
+   * scratch what they had just clicked.
+   */
+  const params = await searchParams;
+  const quote = params.about === "audit_fix";
 
-      <div className="mt-8 rounded-lg border bg-background p-6">
-        <div className="flex items-start gap-4">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-muted">
-            <Mail className="size-5 text-muted-foreground" aria-hidden="true" />
-          </div>
-          <div>
-            <p className="font-medium">Email</p>
-            <a
-              href={`mailto:${SUPPORT_EMAIL}`}
-              className="text-sm text-muted-foreground underline underline-offset-4"
-            >
-              {SUPPORT_EMAIL}
-            </a>
-            <p className="mt-2 text-sm text-muted-foreground">
-              If you are writing about your account, please send it from the
-              address you signed up with.
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
+  return (
+    <ContactContent
+      t={t}
+      supportEmail={SUPPORT_EMAIL}
+      subject={
+        quote
+          ? "Quote for fixing my website errors"
+          : "Question about AI SEO Platform"
+      }
+      title={quote ? "Ask us to fix it for you" : undefined}
+      subtitle={
+        quote
+          ? "Send us your website address and we will look at what the audit found, tell you what it takes to fix, and quote a price before doing any work."
+          : undefined
+      }
+    />
   );
 }

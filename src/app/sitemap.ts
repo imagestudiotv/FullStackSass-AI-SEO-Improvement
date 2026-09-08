@@ -83,10 +83,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
    * Only the paths that actually exist in every locale.
    */
   const translated: MetadataRoute.Sitemap = PREFIXED_LOCALES.flatMap((locale) =>
-    ["/", "/pricing"].map((path) => ({
+    ["/", "/pricing", "/about", "/faq", "/contact"].map((path) => ({
       url: `${base}${localePath(locale, path)}`,
       lastModified: now,
-      priority: path === "/" ? 0.9 : 0.7,
+      // The homepage first, then pricing; the rest are supporting pages.
+      priority: path === "/" ? 0.9 : path === "/pricing" ? 0.7 : 0.5,
     })),
   );
 

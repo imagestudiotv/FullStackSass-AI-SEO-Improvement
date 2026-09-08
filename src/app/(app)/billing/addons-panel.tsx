@@ -1,6 +1,7 @@
 "use client";
 
-import { Check, Loader2, Package, Sparkles } from "lucide-react";
+import { Check, Loader2, Package, Sparkles, Wrench } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -56,7 +57,16 @@ export function AddonsPanel({
   if (addons.length === 0) return null;
 
   const credits = addons.filter((a) => a.kind === "credits");
-  const services = addons.filter((a) => a.kind !== "credits");
+  /**
+   * "quote" is a service whose price depends on what we find, so it cannot be
+   * bought from a fixed Stripe price the way a citations package can. It gets
+   * a "Request a quote" link instead of a Buy button — offering checkout for
+   * something we have not priced yet would take money for undefined work.
+   */
+  const services = addons.filter(
+    (a) => a.kind !== "credits" && a.kind !== "quote",
+  );
+  const quotes = addons.filter((a) => a.kind === "quote");
 
   return (
     <div className="space-y-6">
@@ -134,6 +144,35 @@ export function AddonsPanel({
                 <Loader2 className="size-4 animate-spin" />
               ) : null}
               {addon.purchasable ? "Buy this" : "Unavailable"}
+            </Button>
+          </CardContent>
+        </Card>
+      ))}
+
+      {quotes.map((addon) => (
+        <Card key={addon.id}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Wrench className="size-4" aria-hidden="true" />
+              {addon.name}
+            </CardTitle>
+            <CardDescription>{addon.description}</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap items-center justify-between gap-4">
+            {/*
+              A guide price, not a total. The work depends on what the audit
+              found, and quoting a single figure for "fix my site" would be a
+              number we could not stand behind.
+            */}
+            <p className="text-sm text-muted-foreground">
+              {addon.priceCents > 0
+                ? `From ${formatPrice(addon.priceCents, addon.currency)}. We quote for the work after reviewing your audit.`
+                : "We quote for the work after reviewing your audit."}
+            </p>
+            <Button variant="outline" asChild>
+              <Link href={`/contact?about=${encodeURIComponent(addon.slug)}`}>
+                Request a quote
+              </Link>
             </Button>
           </CardContent>
         </Card>

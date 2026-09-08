@@ -160,9 +160,14 @@ console.log(
  * means a NEW price with the old one deactivated, because Stripe prices are
  * immutable. Anyone who already paid is unaffected - they bought once.
  */
+/**
+ * kind "quote" is excluded: its price depends on what we find, so it is sold
+ * by conversation rather than checkout. Creating a Stripe price would let
+ * someone pay a flat fee for work we have not scoped.
+ */
 const addons = await sql`
   select id, slug, name, price_cents, currency, stripe_price_id
-  from addons where is_active = true order by sort_order
+  from addons where is_active = true and kind <> 'quote' order by sort_order
 `;
 
 if (addons.length > 0) console.log("\nAdd-ons\n");

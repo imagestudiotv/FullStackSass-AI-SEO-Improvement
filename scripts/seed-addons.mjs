@@ -67,6 +67,27 @@ const ADDONS = [
     kind: "service",
     sortOrder: 10,
   },
+  /**
+   * Fixing what the audit found, quoted per site.
+   *
+   * kind "quote" rather than "service": the work depends entirely on what the
+   * audit turned up, so there is no fixed price to sell. Billing shows a
+   * "Request a quote" link instead of a Buy button, and no Stripe price is
+   * created for it — an add-on with a price would let someone pay a flat fee
+   * for undefined work, which we could not honour.
+   *
+   * priceCents is a guide figure shown as "from", not a total.
+   */
+  {
+    slug: "audit_fix",
+    name: "We fix the errors for you",
+    description:
+      "Your audit lists what is holding the site back. Send it to us and we will tell you what it takes to fix, quote a price, and do the work once you agree.",
+    priceCents: 14900,
+    creditsGranted: 0,
+    kind: "quote",
+    sortOrder: 20,
+  },
 ];
 
 for (const addon of ADDONS) {
@@ -98,7 +119,8 @@ const rows = await sql`
 `;
 console.table(rows.map((r) => ({ ...r })));
 
-const missing = rows.filter((r) => !r.stripe_price_id);
+// A quoted service has no Stripe price on purpose, so it is not "missing" one.
+const missing = rows.filter((r) => !r.stripe_price_id && r.kind !== "quote");
 console.log(
   missing.length === 0
     ? "\nAll add-ons have a Stripe price."
