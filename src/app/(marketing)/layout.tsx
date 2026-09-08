@@ -49,10 +49,8 @@ export default function MarketingLayout({ children }: LayoutProps<"/">) {
       </footer>
 
       {/*
-        Marketing pages only. Loading chat inside the signed-in app would send
-        a third party the pages where customers' own data is displayed, for no
-        benefit — someone already signed in has support routes that identify
-        them properly.
+        Anonymous visitors. The signed-in app mounts its own copy with the
+        customer attached, so a message arrives already identified.
       */}
       <LiveChat />
     </div>

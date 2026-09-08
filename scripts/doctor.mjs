@@ -135,6 +135,13 @@ if (crispId) {
       "NEXT_PUBLIC_CRISP_WEBSITE_ID is not a valid Crisp id",
       "It should be a UUID from Crisp → Settings → Website Settings. The widget is skipped entirely until it is.",
     );
+} else {
+  // Said out loud rather than passed over: "no chat anywhere" is easy to
+  // mistake for a broken widget when nobody remembers the id was never set.
+  caution(
+    "Live chat is off (NEXT_PUBLIC_CRISP_WEBSITE_ID is not set)",
+    "Crisp → Settings → Website Settings → Setup instructions. Everything else works; no widget loads until it is set.",
+  );
 }
 
 // ------------------------------------------------------------- support

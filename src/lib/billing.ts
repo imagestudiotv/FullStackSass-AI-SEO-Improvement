@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { asc, desc, eq } from "drizzle-orm";
 
 import { db } from "@/lib/db";
@@ -22,7 +23,12 @@ export async function listPlans(): Promise<PlanRow[]> {
     .orderBy(asc(plans.sortOrder), asc(plans.priceCents));
 }
 
-export async function getSubscription(
+/**
+ * Deduplicated per request. The app layout reads it for the chat widget and
+ * getOnboardingState reads it again on the same render, so without this the
+ * join below ran twice on every signed-in page.
+ */
+export const getSubscription = cache(async function getSubscription(
   orgId: string,
 ): Promise<CurrentSubscription | null> {
   const [row] = await db
@@ -55,7 +61,7 @@ export async function getSubscription(
     hasCustomer: Boolean(row.stripeCustomerId),
     provider: row.provider,
   };
-}
+});
 
 export type PaymentRow = {
   id: string;

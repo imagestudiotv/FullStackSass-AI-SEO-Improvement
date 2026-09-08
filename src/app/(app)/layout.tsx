@@ -4,6 +4,7 @@ import Link from "next/link";
 import { MobileNav } from "@/components/mobile-nav";
 import { NotificationBell } from "@/components/notification-bell";
 import { OrgSwitcher } from "@/components/org-switcher";
+import { LiveChat } from "@/components/live-chat";
 import { SidebarNav } from "@/components/sidebar-nav";
 import { SidebarUsage } from "@/components/sidebar-usage";
 import { UserMenu } from "@/components/user-menu";
@@ -17,6 +18,7 @@ import {
 } from "@/lib/referrals/cookie";
 import { attachReferral } from "@/lib/referrals/core";
 import { getOnboardingState } from "@/lib/onboarding/steps";
+import { getSubscription } from "@/lib/billing";
 import { requireOrg } from "@/lib/tenant";
 
 /**
@@ -50,6 +52,9 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
    * checklist is finished the link points at a page with nothing left to do.
    */
   const onboarding = await getOnboardingState(orgId);
+
+  /** Plan name for the chat widget, so support can see what they pay for. */
+  const subscription = await getSubscription(orgId);
   // Only admins see the link; the area itself 404s for everyone else.
   const admin = await isAdmin();
 
@@ -158,6 +163,24 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           {children}
         </main>
       </div>
+
+      {/*
+        Chat here as well as on the marketing site — the brief asks for it on
+        the whole website, and a customer with a problem is more likely to ask
+        from inside the product than to find the contact page.
+
+        Identified, unlike the anonymous marketing widget. Crisp sees the
+        email, name, workspace and plan, and nothing else: page contents are
+        never sent, so a customer's own data stays out of a third party.
+      */}
+      <LiveChat
+        user={{
+          email: session.user.email,
+          name: session.user.name,
+          organization: org?.name ?? null,
+          plan: subscription?.planName ?? null,
+        }}
+      />
     </div>
   );
 }
