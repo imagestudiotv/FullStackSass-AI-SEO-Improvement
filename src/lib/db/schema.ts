@@ -183,6 +183,15 @@ export const websites = pgTable("websites", {
   services: jsonb("services"),
   targetAudience: text("target_audience"),
   status: text("status").default("pending").notNull(),
+  /**
+   * Whether a finished article goes live by itself.
+   *
+   * Off by default, deliberately. Publishing to someone's live website without
+   * them looking first is not a default to opt people out of — the first
+   * article they never saw is the one that reads wrong, and it is already
+   * public. On, articles publish; off, they are sent as drafts for review.
+   */
+  autoPublish: boolean("auto_publish").default(false).notNull(),
   ...timestamps,
 });
 
@@ -374,6 +383,24 @@ export const brandVoice = pgTable("brand_voice", {
   usps: jsonb("usps"),
   facts: jsonb("facts"),
   socialLinks: jsonb("social_links"),
+  /**
+   * A standing instruction applied to every article for this site.
+   *
+   * Separate from calendar_items.custom_instructions, which steers ONE
+   * article. The two answer different questions: "make this piece about X" is
+   * per-article, "never mention a year in a title" is a rule, and retyping a
+   * rule on every article is how it gets forgotten.
+   */
+  articleInstructions: text("article_instructions"),
+  /**
+   * Up to three of the customer's own articles they are happy with.
+   *
+   * Asked for instead of "describe your tone", which people answer with
+   * adjectives that mean nothing to a model. Three real URLs are evidence,
+   * and the generator reads them rather than guessing what "professional but
+   * approachable" means.
+   */
+  exampleArticleUrls: jsonb("example_article_urls"),
   ...timestamps,
 });
 

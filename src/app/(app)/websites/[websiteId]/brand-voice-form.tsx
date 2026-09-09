@@ -39,6 +39,12 @@ export function BrandVoiceForm({
   const [avoid, setAvoid] = useState(voice.avoid ?? "");
   const [usps, setUsps] = useState(voice.usps.join("\n"));
   const [facts, setFacts] = useState(voice.facts.join("\n"));
+  const [instructions, setInstructions] = useState(
+    voice.articleInstructions ?? "",
+  );
+  const [examples, setExamples] = useState(
+    voice.exampleArticleUrls.join(String.fromCharCode(10)),
+  );
   const [social, setSocial] = useState<Record<string, string>>(() =>
     Object.fromEntries(voice.socialLinks.map((l) => [l.platform, l.url])),
   );
@@ -52,6 +58,8 @@ export function BrandVoiceForm({
         avoid,
         usps,
         facts,
+        articleInstructions: instructions,
+        exampleArticleUrls: examples,
         socialLinks: Object.entries(social)
           .filter(([, url]) => url.trim())
           .map(([platform, url]) => ({ platform, url })),
@@ -99,6 +107,46 @@ export function BrandVoiceForm({
             onChange={(e) => setTone(e.target.value)}
             placeholder="Friendly and reassuring, not clinical"
           />
+        </div>
+
+        {/*
+          Example articles first: they set the style for everything else, and
+          answering "which of your articles do you like" is far easier than
+          describing a tone from nothing.
+        */}
+        <div className="space-y-1.5">
+          <Label htmlFor="examples">Articles you are happy with</Label>
+          <textarea
+            id="examples"
+            rows={3}
+            value={examples}
+            onChange={(e) => setExamples(e.target.value)}
+            placeholder={[
+              "https://yoursite.com/blog/a-post-you-like",
+              "https://yoursite.com/blog/another-one",
+            ].join(String.fromCharCode(10))}
+            className={textarea}
+          />
+          <p className="text-xs text-muted-foreground">
+            Up to three, one per line. We read them to match how you already
+            write, which works better than describing it.
+          </p>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="instructions">Rules for every article</Label>
+          <textarea
+            id="instructions"
+            rows={3}
+            value={instructions}
+            onChange={(e) => setInstructions(e.target.value)}
+            placeholder="Never put a year in the title. Always mention we offer free delivery."
+            className={textarea}
+          />
+          <p className="text-xs text-muted-foreground">
+            Standing rules, applied to everything we write. For one specific
+            article, use the instructions on that article instead.
+          </p>
         </div>
 
         <div className="space-y-1.5">

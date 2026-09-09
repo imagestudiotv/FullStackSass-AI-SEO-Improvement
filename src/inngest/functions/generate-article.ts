@@ -8,6 +8,7 @@ import {
   articleVersions,
   brandVoice,
   calendarItems,
+  integrations,
   keywords,
   websites,
 } from "@/lib/db/schema";
@@ -187,6 +188,7 @@ export const generateArticle = inngest.createFunction(
             ? (site.services as string[])
             : [],
           customInstructions,
+          articleInstructions: voice?.articleInstructions ?? null,
           tone: voice?.tone ?? null,
           avoid: voice?.avoid ?? null,
           vocabulary: voice?.vocabulary ?? null,
@@ -397,12 +399,66 @@ export const generateArticle = inngest.createFunction(
       }
     });
 
+    /**
+     * Publish by itself, when the customer asked for that.
+     *
+     * A separate step rather than part of save-article: publishing calls the
+     * customer's CMS, and a failure there must not roll back an article that
+     * was written successfully. The article stays a draft and they publish it
+     * by hand, which is the same position they would be in with the setting
+     * off.
+     *
+     * Read here rather than passed in the brief because the setting may have
+     * been changed while the article was being written.
+     */
+    const autoPublished = await step.run("auto-publish", async () => {
+      const [site] = await db
+        .select({ autoPublish: websites.autoPublish })
+        .from(websites)
+        .where(eq(websites.id, brief.websiteId))
+        .limit(1);
+
+      if (!site?.autoPublish) return false;
+
+      // Nowhere to publish to is not a failure; it is a customer who has not
+      // connected a CMS yet, and the article waits for them as a draft.
+      const [connected] = await db
+        .select({ id: integrations.id })
+        .from(integrations)
+        .where(
+          and(
+            eq(integrations.websiteId, brief.websiteId),
+            eq(integrations.status, "connected"),
+          ),
+        )
+        .limit(1);
+
+      if (!connected) return false;
+
+      await inngest.send({
+        name: "article/publish.requested",
+        data: {
+          articleId,
+          websiteId: brief.websiteId,
+          organizationId,
+          status: "publish" as const,
+        },
+      });
+      return true;
+    });
+
     await step.run("notify-ready", async () => {
       await notify({
         organizationId,
         type: "article.ready",
-        title: `"${brief.brief.title}" is ready to review`,
-        body: `${written.wordCount} words. Read it before publishing.`,
+        // The message says what actually happened. "Ready to review" on an
+        // article already live on their website would be wrong.
+        title: autoPublished
+          ? `"${brief.brief.title}" is being published`
+          : `"${brief.brief.title}" is ready to review`,
+        body: autoPublished
+          ? `${written.wordCount} words, going live on your website now.`
+          : `${written.wordCount} words. Read it before publishing.`,
         href: `/websites/${brief.websiteId}/articles/${articleId}`,
       });
     });

@@ -30,6 +30,8 @@ export type ArticleBrief = {
   services: string[];
   /** Free-text steer from the user on this specific article. */
   customInstructions: string | null;
+  /** A standing rule for every article on this website. */
+  articleInstructions: string | null;
   /** Brand voice, when the site has one configured. */
   tone: string | null;
   avoid: string | null;
@@ -139,8 +141,17 @@ function briefContext(brief: ArticleBrief): string {
           .map((link) => `${link.platform} ${link.url}`)
           .join(", ")}`
       : null,
+    /**
+     * The site-wide rule first, then the per-article one. Order matters: a
+     * later line in the prompt wins a conflict, and "make this piece a
+     * comparison" should be able to override a standing preference without
+     * the customer editing their settings.
+     */
+    brief.articleInstructions
+      ? `Standing instructions for every article on this website: ${brief.articleInstructions}`
+      : null,
     brief.customInstructions
-      ? `Specific instructions: ${brief.customInstructions}`
+      ? `Specific instructions for this article: ${brief.customInstructions}`
       : null,
     brief.backlink
       ? `Include exactly one link to ${brief.backlink.url}${

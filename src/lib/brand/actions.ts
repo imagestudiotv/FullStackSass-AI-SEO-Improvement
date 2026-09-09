@@ -7,7 +7,11 @@ import { db } from "@/lib/db";
 import { brandVoice } from "@/lib/db/schema";
 import { requireWebsite } from "@/lib/tenant";
 import type { ActionResult } from "@/lib/websites/actions";
-import type { BrandVoiceView, SocialLink } from "@/lib/brand/shared";
+import {
+  MAX_EXAMPLE_ARTICLES,
+  type BrandVoiceView,
+  type SocialLink,
+} from "@/lib/brand/shared";
 
 /**
  * Brand voice.
@@ -29,6 +33,8 @@ const EMPTY: BrandVoiceView = {
   usps: [],
   facts: [],
   socialLinks: [],
+  articleInstructions: null,
+  exampleArticleUrls: [],
 };
 
 export async function getBrandVoice(
@@ -55,6 +61,10 @@ export async function getBrandVoice(
     socialLinks: Array.isArray(row.socialLinks)
       ? (row.socialLinks as SocialLink[])
       : [],
+    articleInstructions: row.articleInstructions,
+    exampleArticleUrls: Array.isArray(row.exampleArticleUrls)
+      ? (row.exampleArticleUrls as string[])
+      : [],
   };
 }
 
@@ -66,6 +76,9 @@ export type BrandVoiceInput = {
   usps?: string;
   facts?: string;
   socialLinks?: SocialLink[];
+  articleInstructions?: string | null;
+  /** One per line in the UI, same as usps and facts. */
+  exampleArticleUrls?: string;
 };
 
 function clean(value: string | null | undefined, max: number): string | null {
@@ -112,6 +125,22 @@ export async function updateBrandVoice(
     }
   }
 
+  /**
+   * Example URLs are validated the same way as social links: they are fetched
+   * server-side when an article is written, so an unchecked value here would
+   * be a request our server makes to wherever someone typed.
+   */
+  const exampleArticleUrls: string[] = [];
+  for (const raw of toList(input.exampleArticleUrls, MAX_EXAMPLE_ARTICLES, 500)) {
+    try {
+      const parsed = new URL(raw);
+      if (parsed.protocol !== "https:" && parsed.protocol !== "http:") continue;
+      exampleArticleUrls.push(parsed.toString());
+    } catch {
+      return { ok: false, error: `"${raw}" is not a valid web address` };
+    }
+  }
+
   const values = {
     tone: clean(input.tone, 500),
     vocabulary: clean(input.vocabulary, 500),
@@ -119,6 +148,8 @@ export async function updateBrandVoice(
     usps: toList(input.usps, 8, 200),
     facts: toList(input.facts, 12, 200),
     socialLinks,
+    articleInstructions: clean(input.articleInstructions, 2000),
+    exampleArticleUrls,
     updatedAt: new Date(),
   };
 

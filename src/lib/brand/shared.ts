@@ -16,7 +16,17 @@ export type BrandVoiceView = {
   usps: string[];
   facts: string[];
   socialLinks: SocialLink[];
+  /** A standing rule applied to every article for this website. */
+  articleInstructions: string | null;
+  /** Up to MAX_EXAMPLE_ARTICLES of the customer's own articles. */
+  exampleArticleUrls: string[];
 };
+
+/**
+ * Three is enough to show a pattern and few enough that people actually fill
+ * them in. One example reads as an accident; ten is a research project.
+ */
+export const MAX_EXAMPLE_ARTICLES = 3;
 
 /** Platforms offered in the UI, ordered by how common they are for SMBs. */
 export const SOCIAL_PLATFORMS = [

@@ -235,6 +235,29 @@ export async function updateWebsiteServices(
 }
 
 /**
+ * Turns automatic publishing on or off.
+ *
+ * Off means a finished article is saved as a draft for review; on means it
+ * goes to the connected CMS by itself. Off is the default and stays the
+ * default: publishing to someone's live website without them seeing it first
+ * is not something to opt people out of.
+ */
+export async function setAutoPublish(
+  websiteId: string,
+  enabled: boolean,
+): Promise<ActionResult<null>> {
+  const { site } = await requireWebsite(websiteId);
+
+  await db
+    .update(websites)
+    .set({ autoPublish: enabled, updatedAt: new Date() })
+    .where(eq(websites.id, site.id));
+
+  revalidatePath(`/websites/${site.id}/publishing`);
+  return { ok: true, data: null };
+}
+
+/**
  * Adds a competitor the customer named themselves.
  *
  * source "manual" distinguishes these from the ones analysis suggested, so a
