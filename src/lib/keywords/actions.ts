@@ -56,6 +56,13 @@ export type CalendarRow = {
   status: string;
   customInstructions: string | null;
   clusterName: string | null;
+  /**
+   * Difficulty and volume for the target keyword, shown on upcoming items so
+   * someone can see why a topic was chosen before it is written. Null when the
+   * keyword is not one we researched — a title typed by hand has no metrics.
+   */
+  difficulty: number | null;
+  volume: number | null;
 };
 
 export async function listCalendar(websiteId: string): Promise<CalendarRow[]> {
@@ -70,9 +77,24 @@ export async function listCalendar(websiteId: string): Promise<CalendarRow[]> {
       status: calendarItems.status,
       customInstructions: calendarItems.customInstructions,
       clusterName: clusters.name,
+      difficulty: keywords.difficulty,
+      volume: keywords.volume,
     })
     .from(calendarItems)
     .leftJoin(clusters, eq(calendarItems.clusterId, clusters.id))
+    /**
+     * Metrics come from the keyword row, matched on the term. A left join so
+     * an item whose keyword was since deleted still appears — losing a planned
+     * article because its keyword row went away would be worse than showing it
+     * without numbers.
+     */
+    .leftJoin(
+      keywords,
+      and(
+        eq(keywords.websiteId, calendarItems.websiteId),
+        eq(keywords.term, calendarItems.targetKeyword),
+      ),
+    )
     .where(eq(calendarItems.websiteId, site.id))
     .orderBy(asc(calendarItems.scheduledFor));
 }
