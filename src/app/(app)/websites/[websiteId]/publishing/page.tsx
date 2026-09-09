@@ -4,7 +4,7 @@ import {
   listIntegrations,
 } from "@/lib/publishing/actions";
 import { getIntegrationKeys } from "@/lib/plugin/actions";
-import { AutoPublishToggle } from "../auto-publish-toggle";
+import { GenerationPanel } from "../generation-panel";
 import { PublishingPanel } from "../publishing-panel";
 
 export const metadata = { title: "Publishing" };
@@ -26,12 +26,18 @@ export default async function WebsitePublishingPage({
   return (
     <div className="space-y-6">
       {/*
-        The setting above the connections, because it decides what happens to
-        every article and the connections are how it happens.
+        The settings above the connections, because they decide what happens
+        to every article and the connections are how it happens.
       */}
-      <AutoPublishToggle
+      <GenerationPanel
         websiteId={site.id}
-        enabled={site.autoPublish}
+        mode={site.generationMode === "manual" ? "manual" : "automatic"}
+        days={
+          Array.isArray(site.publishingDays)
+            ? (site.publishingDays as number[])
+            : []
+        }
+        autoPublish={site.autoPublish}
         hasIntegration={integrations.some((i) => i.status === "connected")}
       />
 

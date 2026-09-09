@@ -21,6 +21,8 @@ export type NotificationType =
   | "article.ready"
   | "article.failed"
   | "article.published"
+  /** Scheduled writing stopped because the plan's articles are used up. */
+  | "articles.limit_reached"
   | "audit.ready"
   | "audit.failed"
   | "keywords.ready"

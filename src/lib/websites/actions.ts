@@ -258,6 +258,41 @@ export async function setAutoPublish(
 }
 
 /**
+ * Chooses whether articles are written on a schedule or only on request.
+ *
+ * "automatic" is what the product is sold as; "manual" is for someone who
+ * wants to decide each time. Manual generation keeps working either way — the
+ * button never goes away, so choosing automatic adds a behaviour rather than
+ * removing one.
+ */
+export async function setGenerationMode(
+  websiteId: string,
+  mode: "automatic" | "manual",
+  /** Weekdays to write on, 0 = Sunday. Empty means every day. */
+  publishingDays?: number[],
+): Promise<ActionResult<null>> {
+  const { site } = await requireWebsite(websiteId);
+
+  // Bounded and de-duplicated: the value comes from a form and ends up
+  // driving a scheduled job.
+  const days = Array.from(
+    new Set((publishingDays ?? []).filter((d) => Number.isInteger(d) && d >= 0 && d <= 6)),
+  ).sort();
+
+  await db
+    .update(websites)
+    .set({
+      generationMode: mode,
+      publishingDays: days.length > 0 ? days : null,
+      updatedAt: new Date(),
+    })
+    .where(eq(websites.id, site.id));
+
+  revalidatePath(`/websites/${site.id}/publishing`);
+  return { ok: true, data: null };
+}
+
+/**
  * Adds a competitor the customer named themselves.
  *
  * source "manual" distinguishes these from the ones analysis suggested, so a

@@ -192,6 +192,25 @@ export const websites = pgTable("websites", {
    * public. On, articles publish; off, they are sent as drafts for review.
    */
   autoPublish: boolean("auto_publish").default(false).notNull(),
+  /**
+   * Whether articles are written on a schedule or only when asked.
+   *
+   * "automatic" is the default for a new website: the product is sold as
+   * autopilot, and a customer on a 30-article plan should not have to
+   * remember to click thirty times a month.
+   *
+   * The migration sets existing rows to "manual" rather than taking the
+   * default. Turning generation on for sites that were created before the
+   * feature existed would start spending someone's plan without them asking.
+   */
+  generationMode: text("generation_mode").default("automatic").notNull(),
+  /**
+   * Weekdays articles may be generated on, 0 = Sunday. Null means every day.
+   *
+   * A B2B site usually does not want articles appearing on a Sunday, and a
+   * schedule nobody can shape gets turned off entirely.
+   */
+  publishingDays: jsonb("publishing_days"),
   ...timestamps,
 });
 

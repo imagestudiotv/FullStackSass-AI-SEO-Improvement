@@ -11,6 +11,7 @@ import { generateArticle } from "./generate-article";
 import { importAnalytics } from "./import-analytics";
 import { publishArticleJob } from "./publish-article";
 import { researchKeywords } from "./research-keywords";
+import { scheduledArticles } from "./scheduled-articles";
 import { testRetry } from "./test-retry";
 import { verifyBacklinks } from "./verify-backlinks";
 
@@ -22,6 +23,7 @@ export const functions = [
   verifyBacklinks,
   checkGeo,
   publishArticleJob,
+  scheduledArticles,
   importAnalytics,
   testRetry,
 ];
