@@ -3,7 +3,7 @@
 import { Check, ChevronsUpDown, Globe, Plus } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
 import { selectWebsite } from "@/lib/websites/actions";
@@ -31,6 +31,7 @@ export function WebsiteSwitcher({
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
+  const rootRef = useRef<HTMLDivElement>(null);
 
   /**
    * Prefer the website in the address over the one passed in.
@@ -42,6 +43,36 @@ export function WebsiteSwitcher({
    */
   const fromPath = /^\/websites\/([0-9a-f-]{36})/.exec(pathname)?.[1];
   const active = websites.find((site) => site.id === fromPath) ?? current;
+
+  /**
+   * Close on a click outside, or on Escape.
+   *
+   * This was a full-screen button behind the menu, which stopped working when
+   * the switcher moved into the header: the header has backdrop-blur, and
+   * backdrop-filter makes an element a containing block for fixed children.
+   * The "full-screen" backdrop was therefore the size of the header, so
+   * clicking the page below never reached it and the menu stayed open.
+   *
+   * A pointerdown listener has no such problem — it does not care where in the
+   * tree the menu lives.
+   */
+  useEffect(() => {
+    if (!open) return;
+
+    function onPointerDown(event: PointerEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false);
+    }
+
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
 
   /**
    * Remember the choice, then go where it applies.
@@ -75,7 +106,7 @@ export function WebsiteSwitcher({
   }
 
   return (
-    <div className="relative">
+    <div className="relative" ref={rootRef}>
       <Button
         variant="outline"
         onClick={() => setOpen((previous) => !previous)}
@@ -100,19 +131,7 @@ export function WebsiteSwitcher({
       </Button>
 
       {open ? (
-        <>
-          {/*
-            A full-screen button behind the menu closes it on any outside
-            click. Cheaper than a document listener, and it keeps the dismissal
-            reachable from the keyboard.
-          */}
-          <button
-            type="button"
-            aria-label="Close website menu"
-            className="fixed inset-0 z-40 cursor-default"
-            onClick={() => setOpen(false)}
-          />
-          <div
+        <div
             role="listbox"
             className="absolute left-0 z-50 mt-2 w-72 overflow-hidden rounded-lg border bg-popover p-1 shadow-md"
           >
@@ -153,8 +172,7 @@ export function WebsiteSwitcher({
               <Plus className="size-4 shrink-0" aria-hidden="true" />
               Add a website
             </Link>
-          </div>
-        </>
+        </div>
       ) : null}
     </div>
   );
