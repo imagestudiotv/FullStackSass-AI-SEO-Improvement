@@ -141,11 +141,33 @@ export function GenerationPanel({
     });
   }
 
+  /**
+   * Turns one day on or off.
+   *
+   * An empty list means "every day", and the buttons render as all-on to say
+   * so. That made the first click do the opposite of what it looked like:
+   * with nothing stored, clicking Saturday to switch it OFF added Saturday to
+   * an empty list and produced Saturday-only. Someone removing weekends got
+   * weekends-only, which is the worst possible outcome of that gesture.
+   *
+   * Expanding the empty list to all seven before removing makes the first
+   * click mean what the buttons show.
+   */
   function toggleDay(day: number) {
-    const next = selectedDays.includes(day)
-      ? selectedDays.filter((d) => d !== day)
-      : [...selectedDays, day].sort();
-    saveMode(auto, next);
+    const current =
+      selectedDays.length === 0 ? DAYS.map((d) => d.value) : selectedDays;
+
+    const next = current.includes(day)
+      ? current.filter((d) => d !== day)
+      : [...current, day];
+
+    /**
+     * Turning the last day off would stop generation with the buttons still
+     * reading "any day", so it is treated as clearing the restriction
+     * instead. A schedule that silently writes nothing is worse than one that
+     * writes on days the customer did not pick.
+     */
+    saveMode(auto, next.length === 0 ? [] : next.sort((a, b) => a - b));
   }
 
   return (
