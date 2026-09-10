@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect } from "react";
 
 import { navItems } from "@/lib/nav-items";
+import { selectWebsite } from "@/lib/websites/actions";
 import { cn } from "@/lib/utils";
 import { WEBSITE_SECTIONS, sectionHref } from "@/lib/websites/sections";
 
@@ -36,8 +38,19 @@ function websiteIdFrom(pathname: string): string | null {
 export function SidebarNav({
   onNavigate,
   onboardingComplete = false,
+  selectedWebsiteId = null,
 }: {
   onNavigate?: () => void;
+  /**
+   * The website whose sections to show when the URL does not name one.
+   *
+   * Resolved on the server from the address, then the remembered choice, then
+   * the customer's first website. Passed in rather than worked out here
+   * because the sections used to vanish the moment you left a website page —
+   * the sidebar could only read the URL, and /dashboard carries the site in a
+   * query parameter while /billing carries it nowhere.
+   */
+  selectedWebsiteId?: string | null;
   /**
    * Hides "Get started" once setup is finished. The routes stay — they hold
    * plan selection and checkout — but a permanent link to a checklist with
@@ -46,7 +59,27 @@ export function SidebarNav({
   onboardingComplete?: boolean;
 }) {
   const pathname = usePathname();
-  const websiteId = websiteIdFrom(pathname);
+  const fromPath = websiteIdFrom(pathname);
+  // The URL still wins: someone on /websites/abc/publishing is looking at abc
+  // whatever they last chose in the switcher.
+  const websiteId = fromPath ?? selectedWebsiteId;
+
+  /**
+   * Record the website when the address names one.
+   *
+   * Done here rather than in the website layout because Next only allows
+   * cookies to be written from a server action, and a layout is not one.
+   * Without it, opening a site's page and then going to Billing would fall
+   * back to whichever site was last picked in the switcher — the address and
+   * the remembered choice would disagree.
+   *
+   * Skipped when it already matches, so ordinary navigation inside one
+   * website does not post on every page change.
+   */
+  useEffect(() => {
+    if (!fromPath || fromPath === selectedWebsiteId) return;
+    void selectWebsite(fromPath);
+  }, [fromPath, selectedWebsiteId]);
 
   const items = onboardingComplete
     ? navItems.filter((item) => item.href !== "/onboarding")
@@ -65,7 +98,14 @@ export function SidebarNav({
         const active = isWebsites
           ? pathname === item.href
           : pathname === item.href;
-        const withinWebsites = isWebsites && websiteId !== null;
+        /**
+         * Highlighted only while actually on a website page. The sections are
+         * now visible from anywhere, so highlighting the parent whenever one
+         * is selected would leave Websites lit on the dashboard.
+         */
+        const withinWebsites =
+          isWebsites && websiteIdFrom(pathname) !== null;
+        const showSections = isWebsites && websiteId !== null;
 
         if (item.disabled) {
           return (
@@ -100,7 +140,7 @@ export function SidebarNav({
             </Link>
 
             {/* The open website's sections, nested under Websites. */}
-            {withinWebsites ? (
+            {showSections ? (
               <ul className="mt-0.5 space-y-0.5 border-l pl-4 ml-[1.4rem]">
                 {WEBSITE_SECTIONS.map((section) => {
                   const href = sectionHref(websiteId, section.segment);

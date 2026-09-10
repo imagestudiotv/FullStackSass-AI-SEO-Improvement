@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { competitors, websites } from "@/lib/db/schema";
 import { requireOrg, requireWebsite } from "@/lib/tenant";
 import { LimitExceededError, requireWithinLimit } from "@/lib/usage";
+import { writeSelectedWebsite } from "@/lib/websites/selected";
 import { InvalidUrlError, normalizeWebsiteUrl } from "@/lib/websites/url";
 import { normalizeLanguage } from "@/lib/websites/languages";
 
@@ -254,6 +255,25 @@ export async function setAutoPublish(
     .where(eq(websites.id, site.id));
 
   revalidatePath(`/websites/${site.id}/publishing`);
+  return { ok: true, data: null };
+}
+
+/**
+ * Remembers which website the customer is working on.
+ *
+ * Ownership is checked before storing: the cookie drives which sections the
+ * sidebar shows, and a value pointing at somebody else's website would render
+ * eight links that all 404. requireWebsite throws for an id this workspace
+ * does not own.
+ */
+export async function selectWebsite(
+  websiteId: string,
+): Promise<ActionResult<null>> {
+  const { site } = await requireWebsite(websiteId);
+  await writeSelectedWebsite(site.id);
+
+  // The sidebar is rendered by the layout, so the whole shell re-renders.
+  revalidatePath("/", "layout");
   return { ok: true, data: null };
 }
 

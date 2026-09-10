@@ -2,10 +2,11 @@
 
 import { Check, ChevronsUpDown, Globe, Plus } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
+import { selectWebsite } from "@/lib/websites/actions";
 import { cn } from "@/lib/utils";
 
 /**
@@ -19,18 +20,58 @@ import { cn } from "@/lib/utils";
 export function WebsiteSwitcher({
   websites,
   current,
+  compact = false,
 }: {
   websites: { id: string; domain: string; brandName: string | null }[];
   current: { id: string; domain: string; brandName: string | null };
+  /** Smaller, for the header, where it sits beside the workspace picker. */
+  compact?: boolean;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [pending, startTransition] = useTransition();
 
+  /**
+   * Prefer the website in the address over the one passed in.
+   *
+   * The prop comes from a cookie the sidebar writes after the page renders,
+   * so on the first load of a website page it still names the previous site —
+   * the header would say "First Site" while the sidebar showed the second
+   * one's sections. Reading the URL here keeps the two labels in step.
+   */
+  const fromPath = /^\/websites\/([0-9a-f-]{36})/.exec(pathname)?.[1];
+  const active = websites.find((site) => site.id === fromPath) ?? current;
+
+  /**
+   * Remember the choice, then go where it applies.
+   *
+   * Saved server-side because the sidebar's sections are rendered on the
+   * server and need the answer before the page paints. Without this the
+   * sections disappeared as soon as you left a website page, even though the
+   * switcher still named a site.
+   *
+   * On a website page we move to the same section of the newly chosen site,
+   * so switching from Image Studio's publishing settings lands on the other
+   * site's publishing settings rather than throwing you back to a dashboard.
+   */
   function choose(id: string) {
     setOpen(false);
-    // A query parameter, not a route: the dashboard is one page showing one
-    // site at a time, and a per-site path would duplicate every panel's route.
-    router.push(id === websites[0]?.id ? "/dashboard" : `/dashboard?site=${id}`);
+    if (id === active.id) return;
+
+    startTransition(async () => {
+      await selectWebsite(id);
+
+      const section = /^\/websites\/[^/]+(\/.*)?$/.exec(pathname);
+      if (section) {
+        router.push(`/websites/${id}${section[1] ?? ""}`);
+      } else {
+        // A query parameter, not a route: the dashboard is one page showing
+        // one site at a time.
+        router.push(id === websites[0]?.id ? "/dashboard" : `/dashboard?site=${id}`);
+      }
+      router.refresh();
+    });
   }
 
   return (
@@ -40,11 +81,17 @@ export function WebsiteSwitcher({
         onClick={() => setOpen((previous) => !previous)}
         aria-expanded={open}
         aria-haspopup="listbox"
-        className="h-11 gap-2 rounded-full pl-3 pr-2 text-base font-medium"
+        disabled={pending}
+        className={cn(
+          "gap-2 font-medium",
+          compact
+            ? "h-8 rounded-md px-2 text-sm"
+            : "h-11 rounded-full pl-3 pr-2 text-base",
+        )}
       >
         <Globe className="size-4 text-muted-foreground" aria-hidden="true" />
-        <span className="max-w-[16rem] truncate">
-          {current.brandName || current.domain}
+        <span className={cn("truncate", compact ? "max-w-40" : "max-w-[16rem]")}>
+          {active.brandName || active.domain}
         </span>
         <ChevronsUpDown
           className="size-4 text-muted-foreground"
@@ -74,11 +121,11 @@ export function WebsiteSwitcher({
                 key={site.id}
                 type="button"
                 role="option"
-                aria-selected={site.id === current.id}
+                aria-selected={site.id === active.id}
                 onClick={() => choose(site.id)}
                 className={cn(
                   "flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm transition-colors",
-                  site.id === current.id
+                  site.id === active.id
                     ? "bg-accent text-accent-foreground"
                     : "hover:bg-accent/60",
                 )}
@@ -90,7 +137,7 @@ export function WebsiteSwitcher({
                 <span className="min-w-0 flex-1 truncate">
                   {site.brandName || site.domain}
                 </span>
-                {site.id === current.id ? (
+                {site.id === active.id ? (
                   <Check className="size-4 shrink-0" aria-hidden="true" />
                 ) : null}
               </button>

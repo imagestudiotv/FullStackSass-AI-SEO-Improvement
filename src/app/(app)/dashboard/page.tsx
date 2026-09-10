@@ -10,7 +10,6 @@ import {
   SearchPerformancePanel,
 } from "@/components/dashboard/performance-panels";
 import { TodaysArticlePanel } from "@/components/dashboard/todays-article";
-import { WebsiteSwitcher } from "@/components/dashboard/website-switcher";
 import { Button } from "@/components/ui/button";
 import { PageShell } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/states";
@@ -111,21 +110,6 @@ export default async function DashboardPage({
 
   return (
     <PageShell>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <WebsiteSwitcher
-          websites={ordered.map((site) => ({
-            id: site.id,
-            domain: site.domain,
-            brandName: site.brandName,
-          }))}
-          current={{
-            id: current.id,
-            domain: current.domain,
-            brandName: current.brandName,
-          }}
-        />
-      </div>
-
       {/*
         Authority and today's article side by side: one is the site's standing,
         the other is the work in progress. The activity feed sits under

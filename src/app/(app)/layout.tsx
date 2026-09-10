@@ -8,6 +8,7 @@ import { LiveChat } from "@/components/live-chat";
 import { SidebarNav } from "@/components/sidebar-nav";
 import { SidebarUsage } from "@/components/sidebar-usage";
 import { UserMenu } from "@/components/user-menu";
+import { WebsiteSwitcher } from "@/components/dashboard/website-switcher";
 import { isAdmin } from "@/lib/admin/guard";
 import { requireSession } from "@/lib/auth-guard";
 import { db } from "@/lib/db";
@@ -20,6 +21,10 @@ import { attachReferral } from "@/lib/referrals/core";
 import { getOnboardingState } from "@/lib/onboarding/steps";
 import { getSubscription } from "@/lib/billing";
 import { requireOrg } from "@/lib/tenant";
+import {
+  readSelectedWebsite,
+  resolveWebsiteId,
+} from "@/lib/websites/selected";
 
 /**
  * Every authenticated route is per-request by definition: it reads the
@@ -34,17 +39,38 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const { orgId, role } = await requireOrg();
 
   /**
-   * The sidebar's article and credit links are per-website, so they need a
-   * site to point at. The first is the right default: most customers have one,
-   * and anyone with several reaches the rest through Websites.
+   * Every website, for the switcher in the header and to work out which one
+   * the sidebar's sections belong to. Oldest first, so "the first website" is
+   * a stable idea rather than whichever was added most recently.
    */
-  const [firstWebsite] = await db
-    .select({ id: websites.id })
+  const ownedWebsites = await db
+    .select({
+      id: websites.id,
+      domain: websites.domain,
+      brandName: websites.brandName,
+    })
     .from(websites)
     .where(eq(websites.organizationId, orgId))
-    .orderBy(websites.createdAt)
-    .limit(1);
-  const firstWebsiteId = firstWebsite?.id ?? null;
+    .orderBy(websites.createdAt);
+
+  const firstWebsiteId = ownedWebsites[0]?.id ?? null;
+
+  /**
+   * The website to fall back to when the address does not name one.
+   *
+   * The last one chosen, or the first they own. The sidebar prefers the id in
+   * the URL and only uses this when there is none — it knows the pathname on
+   * the client, and a layout cannot read it without adding middleware for one
+   * value.
+   */
+  const remembered = await readSelectedWebsite();
+  const fallbackWebsiteId = resolveWebsiteId(
+    null,
+    remembered,
+    ownedWebsites.map((site) => site.id),
+  );
+  const selected =
+    ownedWebsites.find((site) => site.id === fallbackWebsiteId) ?? null;
 
   /**
    * Whether to keep "Get started" in the sidebar. The onboarding routes are
@@ -118,6 +144,25 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           />
         </div>
 
+        {/*
+          The website switcher sits beside the workspace picker, in the header
+          rather than on the dashboard, because the sidebar now shows a
+          website's sections everywhere — and changing site from the sidebar
+          would otherwise mean going back to the dashboard first.
+
+          Hidden with no websites: an empty menu offering nothing to switch to
+          is worse than no menu.
+        */}
+        {selected ? (
+          <div className="hidden md:block">
+            <WebsiteSwitcher
+              websites={ownedWebsites}
+              current={selected}
+              compact
+            />
+          </div>
+        ) : null}
+
         <div className="ml-auto flex items-center gap-1">
           {admin ? (
             <Link
@@ -143,7 +188,10 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       <div className="flex flex-1">
         <aside className="hidden w-60 shrink-0 border-r bg-background md:block">
           <div className="sticky top-14 py-4">
-            <SidebarNav onboardingComplete={onboarding.complete} />
+            <SidebarNav
+              onboardingComplete={onboarding.complete}
+              selectedWebsiteId={fallbackWebsiteId}
+            />
             {/*
               Plan usage under the navigation: what is left this month, and
               where to go when it runs out.
