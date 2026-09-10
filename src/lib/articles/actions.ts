@@ -62,6 +62,8 @@ export type ArticleDetail = ArticleRow & {
    */
   imageUrl: string | null;
   imageAlt: string | null;
+  /** Regenerations already used, so the UI can say how many remain. */
+  imageAttempts: number;
 };
 
 export async function getArticle(
@@ -91,6 +93,7 @@ export async function getArticle(
     metaDescription: row.metaDescription,
     imageUrl: row.imageUrl,
     imageAlt: row.imageAlt,
+    imageAttempts: row.imageAttempts,
   };
 }
 
@@ -143,7 +146,12 @@ export async function regenerateArticle(
 export async function updateArticle(
   websiteId: string,
   articleId: string,
-  input: { title?: string; bodyHtml?: string; metaDescription?: string },
+  input: {
+    title?: string;
+    bodyHtml?: string;
+    metaDescription?: string;
+    slug?: string;
+  },
 ): Promise<ActionResult<null>> {
   const { site } = await requireWebsite(websiteId);
 
@@ -163,6 +171,23 @@ export async function updateArticle(
   }
   if (typeof input.metaDescription === "string") {
     patch.metaDescription = input.metaDescription.trim().slice(0, 300) || null;
+  }
+  if (typeof input.slug === "string") {
+    /**
+     * Normalised rather than rejected. A slug is the article's address on the
+     * customer's site, and someone typing "Wedding Films Italy!" means
+     * wedding-films-italy — refusing the input would teach them a rule they
+     * should not need to know.
+     *
+     * Empty clears it, and the CMS derives one from the title instead.
+     */
+    const slug = input.slug
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 120);
+    patch.slug = slug || null;
   }
   if (typeof input.bodyHtml === "string") {
     /**

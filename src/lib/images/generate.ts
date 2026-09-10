@@ -248,13 +248,26 @@ async function generateWithReplicate(
 export async function generateArticleImage(
   title: string,
   industry: string | null,
+  /**
+   * What the customer asked for, when they are replacing an image they did
+   * not like. Their words are used instead of the generated description —
+   * "a night-time shot, no people" cannot be expressed by tweaking a title.
+   *
+   * The no-text rule is still appended, because a header image with letters
+   * in it is wrong whoever asked for it, and the model invents unreadable
+   * pseudo-text given the chance.
+   */
+  customPrompt?: string | null,
 ): Promise<GeneratedImage> {
   const provider = activeProvider();
   if (!provider) {
     throw new Error("No image provider is configured");
   }
 
-  const prompt = buildPrompt(title, industry);
+  const wanted = customPrompt?.trim();
+  const prompt = wanted
+    ? `${wanted.slice(0, 500)} No text, no words, no letters, no logos, no watermarks in the image.`
+    : buildPrompt(title, industry);
   const generated =
     provider === "openai"
       ? await generateWithOpenAi(prompt)

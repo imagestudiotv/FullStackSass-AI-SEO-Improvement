@@ -144,6 +144,26 @@ if (crispId) {
   );
 }
 
+/**
+ * Image storage is optional: without it articles still publish, they just
+ * cannot hold a picture between being written and going live.
+ */
+const storageUrl = env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+const storageKey = env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+if (storageUrl && storageKey) {
+  ok("Article image storage is configured");
+} else if (storageUrl || storageKey) {
+  bad(
+    "Image storage is half configured",
+    "Both NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are needed. With one missing, replacing or uploading an article image fails.",
+  );
+} else {
+  caution(
+    "Article image storage is off (Supabase Storage is not configured)",
+    "Create a public bucket named article-images, then set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY. Articles still publish without it.",
+  );
+}
+
 // ------------------------------------------------------------- support
 
 const supportEmail = env.NEXT_PUBLIC_SUPPORT_EMAIL;

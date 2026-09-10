@@ -372,6 +372,14 @@ export const articles = pgTable(
      */
     imageUrl: text("image_url"),
     imageAlt: text("image_alt"),
+    /**
+     * How many times the customer has asked for a different picture.
+     *
+     * Each regeneration costs a few cents and earns nothing, so it is capped.
+     * Counted per article rather than per workspace: someone with thirty
+     * articles a month is not abusing anything by trying twice on each.
+     */
+    imageAttempts: integer("image_attempts").default(0).notNull(),
     error: text("error"),
     ...timestamps,
   },

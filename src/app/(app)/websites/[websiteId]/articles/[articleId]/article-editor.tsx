@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { RichTextEditor } from "@/components/rich-text-editor";
+import { FeaturedImage } from "./featured-image";
 import {
   Card,
   CardContent,
@@ -97,6 +98,7 @@ export function ArticleEditor({
   const [pending, startTransition] = useTransition();
   const [title, setTitle] = useState(article.title);
   const [meta, setMeta] = useState(article.metaDescription ?? "");
+  const [slug, setSlug] = useState(article.slug ?? "");
   const [body, setBody] = useState(article.bodyHtml ?? "");
 
   const working = article.status === "generating" || article.status === "queued";
@@ -118,6 +120,7 @@ export function ArticleEditor({
       const result = await updateArticle(websiteId, article.id, {
         title,
         metaDescription: meta,
+        slug,
         bodyHtml: body,
       });
       if (!result.ok) {
@@ -366,6 +369,12 @@ export function ArticleEditor({
           </TabsContent>
 
           <TabsContent value="edit" className="mt-4">
+            {/*
+              The picture beside the words, not buried under them. It is the
+              part a customer is most likely to want changed, and on a wide
+              screen it costs nothing to show both at once.
+            */}
+            <div className="grid items-start gap-4 lg:grid-cols-[1fr_20rem]">
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Edit article</CardTitle>
@@ -398,6 +407,25 @@ export function ArticleEditor({
                 </div>
 
                 <div className="space-y-1.5">
+                  <Label htmlFor="slug">Address on your website</Label>
+                  <Input
+                    id="slug"
+                    value={slug}
+                    onChange={(e) => setSlug(e.target.value)}
+                    placeholder="wedding-films-italy"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {/*
+                      Tidied on save rather than validated as you type:
+                      someone typing a real title means the slug version of
+                      it, and correcting them mid-keystroke is hostile.
+                    */}
+                    Spaces and punctuation become dashes. Leave empty and your
+                    website will choose one from the title.
+                  </p>
+                </div>
+
+                <div className="space-y-1.5">
                   {/*
                     A plain label, not <Label htmlFor>: the editor is a
                     contenteditable div, which htmlFor cannot focus. The
@@ -413,6 +441,15 @@ export function ArticleEditor({
                 </Button>
               </CardFooter>
             </Card>
+
+            <FeaturedImage
+              websiteId={websiteId}
+              articleId={article.id}
+              imageUrl={article.imageUrl}
+              imageAlt={article.imageAlt}
+              attempts={article.imageAttempts}
+            />
+            </div>
           </TabsContent>
         </Tabs>
       ) : null}
