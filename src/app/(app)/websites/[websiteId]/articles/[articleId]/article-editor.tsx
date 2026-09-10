@@ -361,7 +361,7 @@ export function ArticleEditor({
                  * document tags stripped.
                  */}
                 <div
-                  className="prose prose-sm max-w-none dark:prose-invert [&_h2]:mt-6 [&_h2]:text-lg [&_h2]:font-semibold [&_li]:my-1 [&_p]:my-3 [&_ul]:list-disc [&_ul]:pl-6"
+                  className="prose prose-sm max-w-none dark:prose-invert [&_h2]:mt-6 [&_h2]:text-lg [&_h2]:font-semibold [&_li]:my-1 [&_p]:my-3 [&_ul]:list-disc [&_ul]:pl-6 [&_img]:my-6 [&_img]:block [&_img]:w-full [&_img]:max-w-2xl [&_img]:mx-auto [&_img]:rounded-lg [&_img]:border [&_img]:aspect-video [&_img]:object-cover"
                   dangerouslySetInnerHTML={{ __html: article.bodyHtml }}
                 />
               </CardContent>
