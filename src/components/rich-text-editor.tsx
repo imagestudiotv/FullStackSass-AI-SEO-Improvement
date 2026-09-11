@@ -7,6 +7,8 @@ import StarterKit from "@tiptap/starter-kit";
 import {
   Bold,
   Code,
+  ImagePlus,
+  Loader2,
   Heading2,
   Heading3,
   Italic,
@@ -19,7 +21,7 @@ import {
   Strikethrough,
   Undo2,
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -81,7 +83,16 @@ function ToolbarButton({
   );
 }
 
-function Toolbar({ editor }: { editor: Editor }) {
+function Toolbar({
+  editor,
+  onInsertImage,
+  uploading,
+}: {
+  editor: Editor;
+  /** Opens the file picker. Absent when the page cannot store images. */
+  onInsertImage?: () => void;
+  uploading: boolean;
+}) {
   const setLink = useCallback(() => {
     const previous = editor.getAttributes("link").href as string | undefined;
     const url = window.prompt("Link URL", previous ?? "https://");
@@ -197,6 +208,23 @@ function Toolbar({ editor }: { editor: Editor }) {
 
       <div className="mx-1 h-5 w-px bg-border" aria-hidden="true" />
 
+      {onInsertImage ? (
+        <>
+          <ToolbarButton
+            label="Insert image"
+            onClick={onInsertImage}
+            disabled={uploading}
+          >
+            {uploading ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <ImagePlus className="size-4" />
+            )}
+          </ToolbarButton>
+          <div className="mx-1 h-5 w-px bg-border" aria-hidden="true" />
+        </>
+      ) : null}
+
       <ToolbarButton
         label="Undo"
         onClick={() => editor.chain().focus().undo().run()}
@@ -219,10 +247,20 @@ export function RichTextEditor({
   value,
   onChange,
   ariaLabel = "Article content",
+  onUploadImage,
 }: {
   value: string;
   onChange: (html: string) => void;
   ariaLabel?: string;
+  /**
+   * Stores an image and returns a URL to put in the body.
+   *
+   * Without it, pasting or dropping a picture inserts a data: URL, which the
+   * sanitiser strips on save — the image looked fine while editing and was
+   * gone afterwards, with nothing to say why. A data URL can carry an SVG
+   * with script in it, so that rule stays and the bytes are uploaded instead.
+   */
+  onUploadImage?: (file: File) => Promise<string | null>;
 }) {
   /**
    * The raw HTML stays reachable behind a toggle. Someone occasionally needs
@@ -230,6 +268,35 @@ export function RichTextEditor({
    * toolbar would be a net loss for the people who could already do it.
    */
   const [showSource, setShowSource] = useState(false);
+  /** True while a pasted or chosen image is being stored. */
+  const [uploading, setUploading] = useState(false);
+
+  /**
+   * Uploads a file and puts the resulting image in the document.
+   *
+   * Declared with useCallback and read through a ref inside the editor's
+   * handlers, because those close over the first render otherwise and would
+   * call a stale editor instance.
+   */
+  const editorRef = useRef<Editor | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const insertUploaded = useCallback(
+    async (file: File) => {
+      if (!onUploadImage) return;
+
+      setUploading(true);
+      try {
+        const url = await onUploadImage(file);
+        if (url) {
+          editorRef.current?.chain().focus().setImage({ src: url }).run();
+        }
+      } finally {
+        setUploading(false);
+      }
+    },
+    [onUploadImage],
+  );
 
   const editor = useEditor({
     extensions: [
@@ -252,6 +319,33 @@ export function RichTextEditor({
     // hydration mismatch on every article page.
     immediatelyRender: false,
     editorProps: {
+      /**
+       * Intercept pasted and dropped images.
+       *
+       * Returning true tells Tiptap we handled it, so its default — inserting
+       * the file as a data: URL — never runs. The upload is asynchronous and
+       * the image appears when it lands; a placeholder would be nicer, and is
+       * worth adding if anyone complains about the wait.
+       */
+      handlePaste(view, event) {
+        const files = Array.from(event.clipboardData?.files ?? []);
+        const image = files.find((file) => file.type.startsWith("image/"));
+        if (!image || !onUploadImage) return false;
+
+        event.preventDefault();
+        void insertUploaded(image);
+        return true;
+      },
+      handleDrop(view, event) {
+        const dropped = event as DragEvent;
+        const files = Array.from(dropped.dataTransfer?.files ?? []);
+        const image = files.find((file) => file.type.startsWith("image/"));
+        if (!image || !onUploadImage) return false;
+
+        dropped.preventDefault();
+        void insertUploaded(image);
+        return true;
+      },
       attributes: {
         "aria-label": ariaLabel,
         /**
@@ -272,6 +366,17 @@ export function RichTextEditor({
    * source textarea being edited. Guarded on inequality: writing the editor's
    * own output back would move the cursor to the start on every keystroke.
    */
+  /**
+   * The paste and drop handlers read the editor through this ref: they are
+   * created once and would otherwise hold the first render's instance.
+   *
+   * In an effect rather than during render — writing a ref while rendering is
+   * a side effect, and React may render twice without committing.
+   */
+  useEffect(() => {
+    editorRef.current = editor;
+  }, [editor]);
+
   useEffect(() => {
     if (editor && !editor.isDestroyed && value !== editor.getHTML()) {
       editor.commands.setContent(value, { emitUpdate: false });
@@ -287,7 +392,13 @@ export function RichTextEditor({
 
   return (
     <div>
-      <Toolbar editor={editor} />
+      <Toolbar
+        editor={editor}
+        uploading={uploading}
+        onInsertImage={
+          onUploadImage ? () => fileRef.current?.click() : undefined
+        }
+      />
 
       {showSource ? (
         <textarea
@@ -303,6 +414,23 @@ export function RichTextEditor({
           className="rounded-b-md border border-input bg-transparent shadow-xs focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50"
         />
       )}
+
+      {/*
+        Hidden but real: the toolbar button opens it, and the browser handles
+        picking a file. Cleared after each choice, or picking the same file
+        twice does nothing the second time — no change event fires.
+      */}
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp"
+        className="hidden"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          event.target.value = "";
+          if (file) void insertUploaded(file);
+        }}
+      />
 
       <div className="mt-1.5 flex items-center justify-between">
         <p className="text-xs text-muted-foreground">

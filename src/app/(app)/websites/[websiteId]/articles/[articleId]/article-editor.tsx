@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { RichTextEditor } from "@/components/rich-text-editor";
+import { uploadInlineImage } from "@/lib/articles/image-actions";
 import { FeaturedImage } from "./featured-image";
 import {
   Card,
@@ -146,6 +147,24 @@ export function ArticleEditor({
       );
       router.refresh();
     });
+  }
+
+  /**
+   * Stores a pasted, dropped or chosen image and hands back its URL.
+   *
+   * Returns null on failure so the editor inserts nothing rather than a
+   * broken image, and the toast explains why.
+   */
+  async function handleInlineUpload(file: File): Promise<string | null> {
+    const body = new FormData();
+    body.set("file", file);
+
+    const result = await uploadInlineImage(websiteId, article.id, body);
+    if (!result.ok) {
+      toast.error(result.error);
+      return null;
+    }
+    return result.data.url;
   }
 
   function handleRegenerate() {
@@ -432,7 +451,11 @@ export function ArticleEditor({
                     editor carries its own aria-label instead.
                   */}
                   <p className="text-sm font-medium">Article content</p>
-                  <RichTextEditor value={body} onChange={setBody} />
+                  <RichTextEditor
+                    value={body}
+                    onChange={setBody}
+                    onUploadImage={handleInlineUpload}
+                  />
                 </div>
               </CardContent>
               <CardFooter>

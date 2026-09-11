@@ -196,6 +196,59 @@ export async function uploadArticleImage(
   return { ok: true, data: { imageUrl: stored } };
 }
 
+/**
+ * Stores an image for use INSIDE the article body, and returns its URL.
+ *
+ * Separate from uploadArticleImage, which replaces the featured image. This
+ * one changes no article row: the editor inserts the returned URL into the
+ * body itself.
+ *
+ * It exists because a pasted or dragged image arrives as a data: URL, and the
+ * sanitiser strips those — a data URL can carry an SVG with script inside, so
+ * that rule stays. The effect was that pasting a picture looked fine in the
+ * editor and then vanished on save, with nothing to explain it. Uploading the
+ * bytes and inserting a real URL keeps both the paste and the rule.
+ */
+export async function uploadInlineImage(
+  websiteId: string,
+  articleId: string,
+  formData: FormData,
+): Promise<ActionResult<{ url: string }>> {
+  const { site, article } = await loadArticle(websiteId, articleId);
+  if (!article) return { ok: false, error: "Article not found" };
+
+  if (!isImageStorageConfigured()) {
+    return { ok: false, error: "Image storage is not set up yet" };
+  }
+
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    return { ok: false, error: "Choose an image to upload" };
+  }
+  if (!ALLOWED_IMAGE_TYPES.includes(file.type as never)) {
+    return { ok: false, error: "Use a PNG, JPEG or WebP image" };
+  }
+  if (file.size > MAX_IMAGE_BYTES) {
+    return {
+      ok: false,
+      error: `That image is ${Math.round(file.size / 1024 / 1024)}MB. The limit is ${MAX_IMAGE_BYTES / 1024 / 1024}MB.`,
+    };
+  }
+
+  const url = await storeArticleImage(
+    site.id,
+    article.id,
+    Buffer.from(await file.arrayBuffer()),
+    file.type,
+  );
+
+  /**
+   * No revalidatePath: the body is client state being edited, and refreshing
+   * the route would replace what the customer has typed since their last save.
+   */
+  return { ok: true, data: { url } };
+}
+
 export async function removeArticleImage(
   websiteId: string,
   articleId: string,
