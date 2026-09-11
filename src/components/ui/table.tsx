@@ -4,7 +4,24 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
-function Table({ className, ...props }: React.ComponentProps<"table">) {
+/**
+ * The container already scrolls horizontally, so callers must NOT wrap this in
+ * their own `overflow-x-auto` div: nesting two scrollers produces an inner
+ * scrollbar that moves nothing while the outer one does the work.
+ *
+ * `minWidth` exists because cells are `whitespace-nowrap`. Below the width the
+ * columns actually need, the browser shrinks them anyway and text is clipped
+ * rather than scrolled. Setting a floor makes the table overflow honestly and
+ * the container scroll, which is the behaviour a phone needs. Pass a wider
+ * value for a table with many columns; pass none for two or three, where
+ * scrolling would be worse than fitting.
+ */
+function Table({
+  className,
+  minWidth,
+  style,
+  ...props
+}: React.ComponentProps<"table"> & { minWidth?: string }) {
   return (
     <div
       data-slot="table-container"
@@ -13,6 +30,9 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
       <table
         data-slot="table"
         className={cn("w-full caption-bottom text-sm", className)}
+        // Merged rather than spread after {...props}, so a caller passing its
+        // own style does not silently drop minWidth.
+        style={minWidth ? { minWidth, ...style } : style}
         {...props}
       />
     </div>

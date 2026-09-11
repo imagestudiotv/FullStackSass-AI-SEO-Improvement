@@ -46,8 +46,8 @@ export default async function AdminOrganizationsPage({
             Showing up to 100. Use search to narrow the list.
           </CardDescription>
         </CardHeader>
-        <CardContent className="overflow-x-auto">
-          <Table>
+        <CardContent>
+          <Table minWidth="40rem">
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>

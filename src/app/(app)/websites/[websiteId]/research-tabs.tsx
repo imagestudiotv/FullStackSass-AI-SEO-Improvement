@@ -236,7 +236,7 @@ export function ResearchTabs({
               it.
             </CardDescription>
           </CardHeader>
-          <CardContent className="overflow-x-auto">
+          <CardContent>
             {articles.length === 0 ? (
               <p className="py-4 text-sm text-muted-foreground">
                 Nothing written yet. Use <strong>Write</strong> on a planned
@@ -310,8 +310,8 @@ export function ResearchTabs({
               you can rank for beats a popular one you cannot.
             </CardDescription>
           </CardHeader>
-          <CardContent className="overflow-x-auto">
-            <Table>
+          <CardContent>
+            <Table minWidth="34rem">
               <TableHeader>
                 <TableRow>
                   <TableHead>Keyword</TableHead>

@@ -42,8 +42,8 @@ export default async function AdminUsersPage({
           </CardTitle>
           <CardDescription>Showing up to 100.</CardDescription>
         </CardHeader>
-        <CardContent className="overflow-x-auto">
-          <Table>
+        <CardContent>
+          <Table minWidth="32rem">
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
