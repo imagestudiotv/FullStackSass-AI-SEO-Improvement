@@ -99,6 +99,66 @@ export async function storeArticleImage(
 }
 
 /**
+ * Images already used somewhere on this website.
+ *
+ * Offered when inserting a picture into an article, because the useful set is
+ * almost always one the customer already has: a photographer reuses the same
+ * venue shots, a dentist the same surgery. Buying or generating a new picture
+ * for every article is the expensive way to answer a question they have
+ * usually already answered.
+ *
+ * Listed per article folder rather than recursively, because Supabase returns
+ * directories rather than descending, and a flat listing of the website prefix
+ * gives back folder names with no files in them.
+ */
+export async function listWebsiteImages(
+  websiteId: string,
+  limit = 24,
+): Promise<{ url: string; name: string }[]> {
+  if (!isImageStorageConfigured()) return [];
+
+  const supabase = client();
+
+  const { data: folders, error } = await supabase.storage
+    .from(BUCKET)
+    .list(websiteId, { limit: 40, sortBy: { column: "created_at", order: "desc" } });
+
+  if (error || !folders) return [];
+
+  const found: { url: string; name: string; at: string }[] = [];
+
+  for (const folder of folders) {
+    if (found.length >= limit) break;
+    // A file at this level has metadata; a folder does not.
+    if (folder.metadata) continue;
+
+    const { data: files } = await supabase.storage
+      .from(BUCKET)
+      .list(`${websiteId}/${folder.name}`, {
+        limit: 10,
+        sortBy: { column: "created_at", order: "desc" },
+      });
+
+    for (const file of files ?? []) {
+      if (!file.metadata) continue;
+      const path = `${websiteId}/${folder.name}/${file.name}`;
+      const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
+      found.push({
+        url: data.publicUrl,
+        name: file.name,
+        at: (file.created_at as string) ?? "",
+      });
+    }
+  }
+
+  // Newest first across every article, not just within each one.
+  return found
+    .sort((a, b) => b.at.localeCompare(a.at))
+    .slice(0, limit)
+    .map(({ url, name }) => ({ url, name }));
+}
+
+/**
  * Deletes a stored image, given the public URL we handed out.
  *
  * Best effort: a failure here leaves an orphaned file, which costs a little

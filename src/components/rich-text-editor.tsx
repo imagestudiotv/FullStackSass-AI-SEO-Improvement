@@ -24,6 +24,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { ImagePicker, type PickerImage } from "@/components/image-picker";
 import { cn } from "@/lib/utils";
 
 /**
@@ -248,6 +249,7 @@ export function RichTextEditor({
   onChange,
   ariaLabel = "Article content",
   onUploadImage,
+  onListImages,
 }: {
   value: string;
   onChange: (html: string) => void;
@@ -261,6 +263,8 @@ export function RichTextEditor({
    * with script in it, so that rule stays and the bytes are uploaded instead.
    */
   onUploadImage?: (file: File) => Promise<string | null>;
+  /** Pictures this website has used before, optionally filtered. */
+  onListImages?: (term: string) => Promise<PickerImage[]>;
 }) {
   /**
    * The raw HTML stays reachable behind a toggle. Someone occasionally needs
@@ -270,6 +274,30 @@ export function RichTextEditor({
   const [showSource, setShowSource] = useState(false);
   /** True while a pasted or chosen image is being stored. */
   const [uploading, setUploading] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerImages, setPickerImages] = useState<PickerImage[]>([]);
+  const [pickerLoading, setPickerLoading] = useState(false);
+
+  /**
+   * Loads suggestions when the panel opens, and again on each search.
+   *
+   * Held here rather than in the picker so the picker stays a presentational
+   * component: it knows how to lay out images and nothing about where they
+   * come from, which is what lets a stock provider be added later without
+   * touching it.
+   */
+  const loadImages = useCallback(
+    async (term: string) => {
+      if (!onListImages) return;
+      setPickerLoading(true);
+      try {
+        setPickerImages(await onListImages(term));
+      } finally {
+        setPickerLoading(false);
+      }
+    },
+    [onListImages],
+  );
 
   /**
    * Uploads a file and puts the resulting image in the document.
@@ -279,7 +307,6 @@ export function RichTextEditor({
    * call a stale editor instance.
    */
   const editorRef = useRef<Editor | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
 
   const insertUploaded = useCallback(
     async (file: File) => {
@@ -396,9 +423,23 @@ export function RichTextEditor({
         editor={editor}
         uploading={uploading}
         onInsertImage={
-          onUploadImage ? () => fileRef.current?.click() : undefined
+          onUploadImage ? () => setPickerOpen(true) : undefined
         }
       />
+
+      {pickerOpen && onUploadImage ? (
+        <ImagePicker
+          images={pickerImages}
+          loading={pickerLoading}
+          onSearch={loadImages}
+          onUpload={onUploadImage}
+          onInsert={(url) => {
+            editor.chain().focus().setImage({ src: url }).run();
+            setPickerOpen(false);
+          }}
+          onClose={() => setPickerOpen(false)}
+        />
+      ) : null}
 
       {showSource ? (
         <textarea
@@ -414,23 +455,6 @@ export function RichTextEditor({
           className="rounded-b-md border border-input bg-transparent shadow-xs focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50"
         />
       )}
-
-      {/*
-        Hidden but real: the toolbar button opens it, and the browser handles
-        picking a file. Cleared after each choice, or picking the same file
-        twice does nothing the second time — no change event fires.
-      */}
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/png,image/jpeg,image/webp"
-        className="hidden"
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          event.target.value = "";
-          if (file) void insertUploaded(file);
-        }}
-      />
 
       <div className="mt-1.5 flex items-center justify-between">
         <p className="text-xs text-muted-foreground">

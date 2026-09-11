@@ -13,6 +13,7 @@ import {
   ALLOWED_IMAGE_TYPES,
   deleteArticleImage,
   isImageStorageConfigured,
+  listWebsiteImages,
   MAX_IMAGE_BYTES,
   storeArticleImage,
 } from "@/lib/images/storage";
@@ -247,6 +248,32 @@ export async function uploadInlineImage(
    * the route would replace what the customer has typed since their last save.
    */
   return { ok: true, data: { url } };
+}
+
+/**
+ * Pictures this website has used before, for the insert panel.
+ *
+ * Filtered by a search term against the file name. That is a weak search — the
+ * names are timestamps — but it costs nothing and is honest about what it is;
+ * a real library search needs a stock provider, which is a separate decision.
+ */
+export async function listReusableImages(
+  websiteId: string,
+  query?: string,
+): Promise<ActionResult<{ images: { url: string; name: string }[] }>> {
+  const { site } = await requireWebsite(websiteId);
+
+  const all = await listWebsiteImages(site.id);
+  const term = query?.trim().toLowerCase();
+
+  return {
+    ok: true,
+    data: {
+      images: term
+        ? all.filter((image) => image.name.toLowerCase().includes(term))
+        : all,
+    },
+  };
 }
 
 export async function removeArticleImage(

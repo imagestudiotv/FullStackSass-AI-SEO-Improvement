@@ -11,13 +11,16 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { RichTextEditor } from "@/components/rich-text-editor";
-import { uploadInlineImage } from "@/lib/articles/image-actions";
+import {
+  listReusableImages,
+  uploadInlineImage,
+} from "@/lib/articles/image-actions";
 import { FeaturedImage } from "./featured-image";
 import {
   Card,
@@ -166,6 +169,21 @@ export function ArticleEditor({
     }
     return result.data.url;
   }
+
+  /**
+   * Pictures this website has used before, for the insert panel.
+   *
+   * useCallback because the picker debounces on this function's identity: a
+   * new one each render reset the timer on every render, so the first fetch
+   * never fired and the panel stayed empty.
+   */
+  const handleListImages = useCallback(
+    async (term: string) => {
+      const result = await listReusableImages(websiteId, term);
+      return result.ok ? result.data.images : [];
+    },
+    [websiteId],
+  );
 
   function handleRegenerate() {
     startTransition(async () => {
@@ -455,6 +473,7 @@ export function ArticleEditor({
                     value={body}
                     onChange={setBody}
                     onUploadImage={handleInlineUpload}
+                    onListImages={handleListImages}
                   />
                 </div>
               </CardContent>
