@@ -288,6 +288,14 @@ export function RichTextEditor({
    * Null means insert at the caret instead.
    */
   const [editingImage, setEditingImage] = useState<string | null>(null);
+  /**
+   * Document position of the image being edited.
+   *
+   * Needed because returning true from handleClickOn stops Tiptap making its
+   * own selection: without a position, Replace and Remove had nothing to act
+   * on and silently did nothing.
+   */
+  const editingPosRef = useRef<number | null>(null);
   const [pickerImages, setPickerImages] = useState<PickerImage[]>([]);
   const [pickerLoading, setPickerLoading] = useState(false);
 
@@ -414,9 +422,13 @@ export function RichTextEditor({
       handleClickOn(view, pos, node, nodePos, event) {
         if (node.type.name !== "image" || !onUploadImage) return false;
 
-        const target = event.target as HTMLElement;
+        editingPosRef.current = nodePos;
+
+        // Below the image, not over it: anchoring to the top covered the very
+        // picture the customer is deciding about.
+        const box = (event.target as HTMLElement).getBoundingClientRect();
         openPickerRef.current?.(
-          target.getBoundingClientRect().top,
+          box.bottom + 8,
           (node.attrs.src as string) ?? undefined,
         );
         return true;
@@ -515,18 +527,42 @@ export function RichTextEditor({
             onSearch={loadImages}
             onUpload={onUploadImage}
             onInsert={(url) => {
-              const chain = editor.chain().focus();
-              // Replacing keeps the image where it is; inserting puts a new
-              // one at the caret.
-              if (editingImage) chain.updateAttributes("image", { src: url });
-              else chain.setImage({ src: url });
-              chain.run();
+              const at = editingPosRef.current;
+
+              /**
+               * Replacing targets the clicked node by position rather than
+               * "the current selection". handleClickOn returns true, which
+               * stops Tiptap selecting the image, so there was no selection to
+               * update and Replace quietly did nothing.
+               */
+              if (editingImage && at !== null) {
+                editor
+                  .chain()
+                  .focus()
+                  .setNodeSelection(at)
+                  .updateAttributes("image", { src: url })
+                  .run();
+              } else {
+                editor.chain().focus().setImage({ src: url }).run();
+              }
+
+              editingPosRef.current = null;
               setPickerOpen(false);
             }}
             onRemove={
               editingImage
                 ? () => {
-                    editor.chain().focus().deleteSelection().run();
+                    const at = editingPosRef.current;
+                    if (at !== null) {
+                      // Select the node first, for the same reason as above.
+                      editor
+                        .chain()
+                        .focus()
+                        .setNodeSelection(at)
+                        .deleteSelection()
+                        .run();
+                    }
+                    editingPosRef.current = null;
                     setPickerOpen(false);
                   }
                 : undefined
