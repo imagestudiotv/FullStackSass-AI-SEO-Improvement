@@ -12,6 +12,11 @@ import { cn } from "@/lib/utils";
  *
  * The copy rule throughout: say what is happening in the customer's language,
  * never in SEO jargon, and never promise an action that does not exist.
+ *
+ * Corners are rounded-xl to match Card, which is what the marketing site uses
+ * throughout. These states sit beside cards on nearly every page, and at
+ * rounded-lg they read as a slightly different surface — most visibly at the
+ * moment someone signs in and the whole product appears to change shape.
  */
 
 export function EmptyState({
@@ -32,7 +37,7 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center rounded-lg border border-dashed px-6 py-12 text-center",
+        "flex flex-col items-center justify-center rounded-xl border border-dashed px-6 py-12 text-center",
         className,
       )}
     >
@@ -71,7 +76,7 @@ export function LoadingState({
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center rounded-lg border border-dashed px-6 py-12 text-center",
+        "flex flex-col items-center justify-center rounded-xl border border-dashed px-6 py-12 text-center",
         className,
       )}
       // Announced to screen readers, since the only visual cue is a spinner.
@@ -108,7 +113,7 @@ export function ErrorState({
   return (
     <div
       className={cn(
-        "rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3",
+        "rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3",
         className,
       )}
       role="alert"
@@ -133,11 +138,18 @@ export function Stat({
   value,
   hint,
   tone = "default",
+  trend,
 }: {
   label: string;
   value: string | number;
   hint?: string;
   tone?: "default" | "positive" | "warning" | "critical";
+  /**
+   * Movement against the previous period, as a <Trend/>. Passed in rather than
+   * computed here so this component keeps no opinion about what a comparison
+   * period is — that differs per metric.
+   */
+  trend?: ReactNode;
 }) {
   const toneClass = {
     default: "text-foreground",
@@ -152,6 +164,7 @@ export function Stat({
         {value}
       </div>
       <div className="text-xs text-muted-foreground">{label}</div>
+      {trend ? <div>{trend}</div> : null}
       {hint ? (
         <div className="text-xs text-muted-foreground/80">{hint}</div>
       ) : null}
