@@ -276,14 +276,6 @@ export function RichTextEditor({
   const [uploading, setUploading] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   /**
-   * Where to draw the panel, measured from the top of the editor.
-   *
-   * It used to render between the toolbar and the text, so pressing Insert
-   * halfway down a long article opened a panel at the top — out of sight, and
-   * nowhere near the place the picture was going.
-   */
-  const [pickerTop, setPickerTop] = useState(0);
-  /**
    * The image being replaced, when the panel was opened by clicking one.
    * Null means insert at the caret instead.
    */
@@ -328,16 +320,12 @@ export function RichTextEditor({
    * call a stale editor instance.
    */
   const editorRef = useRef<Editor | null>(null);
-  /** The editor's outer box, which the panel is positioned inside. */
-  const surfaceRef = useRef<HTMLDivElement>(null);
   /**
    * editorProps is captured when the editor is created, so a handler defined
    * there closes over the first render's openPicker. Reading through a ref
    * keeps clicking an image working after any re-render.
    */
-  const openPickerRef = useRef<
-    ((atY: number, replacing?: string) => void) | null
-  >(null);
+  const openPickerRef = useRef<((replacing?: string) => void) | null>(null);
 
   const insertUploaded = useCallback(
     async (file: File) => {
@@ -363,9 +351,7 @@ export function RichTextEditor({
    * because the panel is absolutely positioned inside it — a viewport
    * coordinate would drift as soon as the page scrolled.
    */
-  const openPicker = useCallback((atY: number, replacing?: string) => {
-    const box = surfaceRef.current?.getBoundingClientRect();
-    setPickerTop(box ? Math.max(atY - box.top, 0) : 0);
+  const openPicker = useCallback((replacing?: string) => {
     setEditingImage(replacing ?? null);
     setPickerOpen(true);
   }, []);
@@ -375,15 +361,7 @@ export function RichTextEditor({
   }, [openPicker]);
 
   /** Opens at the caret, for the toolbar button. */
-  const openPickerAtCaret = useCallback(() => {
-    const view = editorRef.current?.view;
-    if (!view) return openPicker(0);
-
-    // coordsAtPos gives the caret's screen position, which is what "here"
-    // means to someone who just clicked into a paragraph.
-    const { top } = view.coordsAtPos(view.state.selection.from);
-    openPicker(top);
-  }, [openPicker]);
+  const openPickerAtCaret = useCallback(() => openPicker(), [openPicker]);
 
   const editor = useEditor({
     extensions: [
@@ -419,18 +397,11 @@ export function RichTextEditor({
        * removed. Without this an image was final once inserted: the only way
        * to replace one was to delete it by hand and start again.
        */
-      handleClickOn(view, pos, node, nodePos, event) {
+      handleClickOn(view, pos, node, nodePos) {
         if (node.type.name !== "image" || !onUploadImage) return false;
 
         editingPosRef.current = nodePos;
-
-        // Below the image, not over it: anchoring to the top covered the very
-        // picture the customer is deciding about.
-        const box = (event.target as HTMLElement).getBoundingClientRect();
-        openPickerRef.current?.(
-          box.bottom + 8,
-          (node.attrs.src as string) ?? undefined,
-        );
+        openPickerRef.current?.((node.attrs.src as string) ?? undefined);
         return true;
       },
       handlePaste(view, event) {
@@ -497,8 +468,7 @@ export function RichTextEditor({
   }
 
   return (
-    // relative, so the image panel can be positioned against the caret.
-    <div ref={surfaceRef} className="relative">
+    <div>
       <Toolbar
         editor={editor}
         uploading={uploading}
@@ -509,17 +479,29 @@ export function RichTextEditor({
 
       {pickerOpen && onUploadImage ? (
         /*
-          Absolutely positioned at the caret rather than rendered above the
-          text. It used to sit between the toolbar and the editor, so pressing
-          Insert halfway down a long article opened a panel out of view.
+          Fixed to the viewport rather than absolutely placed over the text.
+          Overlaying covered whatever it opened next to — clicking an image
+          hid that image behind the panel, which read as the picture being
+          deleted.
 
-          z-20 and a solid background because it overlays the text it is
-          anchored to.
+          Centred near the top of the screen, so it is always fully visible
+          whatever part of a long article you were looking at, and the article
+          stays readable behind it.
         */
-        <div
-          className="absolute left-0 right-0 z-20 px-3"
-          style={{ top: pickerTop }}
-        >
+        <>
+          {/* Dimmed backdrop: makes it obvious the panel is a layer over the
+              article, and gives a click target for dismissing it. */}
+          <div
+            className="fixed inset-0 z-40 bg-foreground/20"
+            onClick={() => setPickerOpen(false)}
+            aria-hidden="true"
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Choose an image"
+            className="fixed left-1/2 top-16 z-50 w-[min(42rem,calc(100vw-2rem))] -translate-x-1/2"
+          >
           <ImagePicker
             images={pickerImages}
             loading={pickerLoading}
@@ -569,7 +551,8 @@ export function RichTextEditor({
             }
             onClose={() => setPickerOpen(false)}
           />
-        </div>
+          </div>
+        </>
       ) : null}
 
       {showSource ? (
