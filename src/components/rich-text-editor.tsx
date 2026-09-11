@@ -275,6 +275,19 @@ export function RichTextEditor({
   /** True while a pasted or chosen image is being stored. */
   const [uploading, setUploading] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  /**
+   * Where to draw the panel, measured from the top of the editor.
+   *
+   * It used to render between the toolbar and the text, so pressing Insert
+   * halfway down a long article opened a panel at the top — out of sight, and
+   * nowhere near the place the picture was going.
+   */
+  const [pickerTop, setPickerTop] = useState(0);
+  /**
+   * The image being replaced, when the panel was opened by clicking one.
+   * Null means insert at the caret instead.
+   */
+  const [editingImage, setEditingImage] = useState<string | null>(null);
   const [pickerImages, setPickerImages] = useState<PickerImage[]>([]);
   const [pickerLoading, setPickerLoading] = useState(false);
 
@@ -307,6 +320,16 @@ export function RichTextEditor({
    * call a stale editor instance.
    */
   const editorRef = useRef<Editor | null>(null);
+  /** The editor's outer box, which the panel is positioned inside. */
+  const surfaceRef = useRef<HTMLDivElement>(null);
+  /**
+   * editorProps is captured when the editor is created, so a handler defined
+   * there closes over the first render's openPicker. Reading through a ref
+   * keeps clicking an image working after any re-render.
+   */
+  const openPickerRef = useRef<
+    ((atY: number, replacing?: string) => void) | null
+  >(null);
 
   const insertUploaded = useCallback(
     async (file: File) => {
@@ -324,6 +347,35 @@ export function RichTextEditor({
     },
     [onUploadImage],
   );
+
+  /**
+   * Opens the panel beside whatever the customer is pointing at.
+   *
+   * The offset is measured from the editor's own box rather than the viewport,
+   * because the panel is absolutely positioned inside it — a viewport
+   * coordinate would drift as soon as the page scrolled.
+   */
+  const openPicker = useCallback((atY: number, replacing?: string) => {
+    const box = surfaceRef.current?.getBoundingClientRect();
+    setPickerTop(box ? Math.max(atY - box.top, 0) : 0);
+    setEditingImage(replacing ?? null);
+    setPickerOpen(true);
+  }, []);
+
+  useEffect(() => {
+    openPickerRef.current = openPicker;
+  }, [openPicker]);
+
+  /** Opens at the caret, for the toolbar button. */
+  const openPickerAtCaret = useCallback(() => {
+    const view = editorRef.current?.view;
+    if (!view) return openPicker(0);
+
+    // coordsAtPos gives the caret's screen position, which is what "here"
+    // means to someone who just clicked into a paragraph.
+    const { top } = view.coordsAtPos(view.state.selection.from);
+    openPicker(top);
+  }, [openPicker]);
 
   const editor = useEditor({
     extensions: [
@@ -354,6 +406,21 @@ export function RichTextEditor({
        * the image appears when it lands; a placeholder would be nicer, and is
        * worth adding if anyone complains about the wait.
        */
+      /**
+       * Clicking an image opens the panel for it, so it can be changed or
+       * removed. Without this an image was final once inserted: the only way
+       * to replace one was to delete it by hand and start again.
+       */
+      handleClickOn(view, pos, node, nodePos, event) {
+        if (node.type.name !== "image" || !onUploadImage) return false;
+
+        const target = event.target as HTMLElement;
+        openPickerRef.current?.(
+          target.getBoundingClientRect().top,
+          (node.attrs.src as string) ?? undefined,
+        );
+        return true;
+      },
       handlePaste(view, event) {
         const files = Array.from(event.clipboardData?.files ?? []);
         const image = files.find((file) => file.type.startsWith("image/"));
@@ -418,27 +485,55 @@ export function RichTextEditor({
   }
 
   return (
-    <div>
+    // relative, so the image panel can be positioned against the caret.
+    <div ref={surfaceRef} className="relative">
       <Toolbar
         editor={editor}
         uploading={uploading}
         onInsertImage={
-          onUploadImage ? () => setPickerOpen(true) : undefined
+          onUploadImage ? openPickerAtCaret : undefined
         }
       />
 
       {pickerOpen && onUploadImage ? (
-        <ImagePicker
-          images={pickerImages}
-          loading={pickerLoading}
-          onSearch={loadImages}
-          onUpload={onUploadImage}
-          onInsert={(url) => {
-            editor.chain().focus().setImage({ src: url }).run();
-            setPickerOpen(false);
-          }}
-          onClose={() => setPickerOpen(false)}
-        />
+        /*
+          Absolutely positioned at the caret rather than rendered above the
+          text. It used to sit between the toolbar and the editor, so pressing
+          Insert halfway down a long article opened a panel out of view.
+
+          z-20 and a solid background because it overlays the text it is
+          anchored to.
+        */
+        <div
+          className="absolute left-0 right-0 z-20 px-3"
+          style={{ top: pickerTop }}
+        >
+          <ImagePicker
+            images={pickerImages}
+            loading={pickerLoading}
+            selected={editingImage}
+            onSearch={loadImages}
+            onUpload={onUploadImage}
+            onInsert={(url) => {
+              const chain = editor.chain().focus();
+              // Replacing keeps the image where it is; inserting puts a new
+              // one at the caret.
+              if (editingImage) chain.updateAttributes("image", { src: url });
+              else chain.setImage({ src: url });
+              chain.run();
+              setPickerOpen(false);
+            }}
+            onRemove={
+              editingImage
+                ? () => {
+                    editor.chain().focus().deleteSelection().run();
+                    setPickerOpen(false);
+                  }
+                : undefined
+            }
+            onClose={() => setPickerOpen(false)}
+          />
+        </div>
       ) : null}
 
       {showSource ? (

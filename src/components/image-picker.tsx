@@ -1,6 +1,6 @@
 "use client";
 
-import { ImageIcon, Loader2, Search, Upload, X } from "lucide-react";
+import { ImageIcon, Loader2, Search, Trash2, Upload, X } from "lucide-react";
 import { useEffect, useRef, useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -29,20 +29,29 @@ export type PickerImage = { url: string; name: string };
 export function ImagePicker({
   images,
   loading,
+  selected: initial = null,
   onSearch,
   onUpload,
   onInsert,
+  onRemove,
   onClose,
 }: {
   images: PickerImage[];
   loading: boolean;
+  /**
+   * The image already in place, when the panel was opened by clicking one.
+   * It starts selected so the preview shows what is being replaced.
+   */
+  selected?: string | null;
   onSearch: (term: string) => void;
   /** Stores a file and returns its URL, or null when it failed. */
   onUpload: (file: File) => Promise<string | null>;
   onInsert: (url: string) => void;
+  /** Deletes the image being edited. Absent when inserting a new one. */
+  onRemove?: () => void;
   onClose: () => void;
 }) {
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(initial);
   const [term, setTerm] = useState("");
   const [uploading, startUpload] = useTransition();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -201,17 +210,30 @@ export function ImagePicker({
         }}
       />
 
-      <div className="mt-4 flex justify-end gap-2 border-t pt-3">
+      <div className="mt-4 flex items-center justify-end gap-2 border-t pt-3">
+        {onRemove ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={onRemove}
+            className="mr-auto text-muted-foreground hover:text-destructive"
+          >
+            <Trash2 className="size-4" />
+            Remove
+          </Button>
+        ) : null}
+
         <Button type="button" variant="ghost" size="sm" onClick={onClose}>
           Cancel
         </Button>
         <Button
           type="button"
           size="sm"
-          disabled={!selected}
+          disabled={!selected || selected === initial}
           onClick={() => selected && onInsert(selected)}
         >
-          Insert image
+          {initial ? "Replace image" : "Insert image"}
         </Button>
       </div>
     </div>
