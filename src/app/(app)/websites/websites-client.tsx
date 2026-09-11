@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -20,6 +19,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageHeader, PageShell } from "@/components/ui/page-header";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/states";
 import {
   addWebsite,
@@ -32,23 +32,6 @@ import { UNLIMITED, type LimitCheck } from "@/lib/usage-shared";
 type WebsitesClientProps = {
   websites: WebsiteSummary[];
   limit: LimitCheck;
-};
-
-/**
- * Status in the customer's language.
- *
- * Stored values are internal job names. A small-business owner should read
- * what is happening to their site, not what our worker is called.
- */
-const STATUS: Record<
-  string,
-  { label: string; variant: "default" | "secondary" | "destructive" }
-> = {
-  pending: { label: "Waiting to start", variant: "secondary" },
-  crawling: { label: "Reading your site", variant: "secondary" },
-  researching: { label: "Finding opportunities", variant: "secondary" },
-  ready: { label: "Ready", variant: "default" },
-  failed: { label: "Needs attention", variant: "destructive" },
 };
 
 export function WebsitesClient({ websites, limit }: WebsitesClientProps) {
@@ -121,7 +104,7 @@ export function WebsitesClient({ websites, limit }: WebsitesClientProps) {
       />
 
       {atLimit ? (
-        <div className="rounded-lg border bg-background px-4 py-3 text-sm">
+        <div className="rounded-xl border bg-background px-4 py-3 text-sm">
           <span className="text-muted-foreground">
             Your plan includes {limit.limit}{" "}
             {limit.limit === 1 ? "website" : "websites"}.{" "}
@@ -147,10 +130,6 @@ export function WebsitesClient({ websites, limit }: WebsitesClientProps) {
       ) : (
         <div className="grid gap-3">
           {websites.map((site) => {
-            const status = STATUS[site.status] ?? {
-              label: site.status,
-              variant: "secondary" as const,
-            };
             const busy = pending && busyId === site.id;
 
             return (
@@ -179,9 +158,7 @@ export function WebsitesClient({ websites, limit }: WebsitesClientProps) {
                     </p>
                   </div>
 
-                  <Badge variant={status.variant} className="shrink-0">
-                    {status.label}
-                  </Badge>
+                  <StatusBadge status={site.status} className="shrink-0" />
 
                   <div className="flex shrink-0 items-center gap-1">
                     {site.status === "failed" ? (

@@ -7,6 +7,8 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { EmptyState } from "@/components/ui/states";
 import {
   Card,
   CardContent,
@@ -45,15 +47,21 @@ type Props = {
   given: GivenRow[];
 };
 
-const REQUEST_STATUS: Record<
-  string,
-  { label: string; variant: "default" | "secondary" | "destructive" }
-> = {
-  pending: { label: "Finding a website", variant: "secondary" },
-  matched: { label: "Waiting for their next article", variant: "secondary" },
-  live: { label: "Live", variant: "default" },
-  cancelled: { label: "Cancelled", variant: "destructive" },
-  removed: { label: "Removed — credit returned", variant: "destructive" },
+/**
+ * Request-specific wording.
+ *
+ * Only the sentence: StatusBadge owns the colour and icon for every status in
+ * the product, so this map cannot drift from the rest of the app. These read
+ * as a narrative of an exchange rather than generic job states, which is what
+ * the backlink table needs — "Finding a website" says more here than "Waiting
+ * to start" would.
+ */
+const REQUEST_LABEL: Record<string, string> = {
+  pending: "Finding a website",
+  matched: "Waiting for their next article",
+  live: "Live",
+  cancelled: "Cancelled",
+  removed: "Removed — credit returned",
 };
 
 export function BacklinksPanel({ websiteId, status, requests, given }: Props) {
@@ -220,7 +228,7 @@ export function BacklinksPanel({ websiteId, status, requests, given }: Props) {
 
           <TabsContent value="received" className="mt-4 space-y-3">
             {showRequest ? (
-              <form onSubmit={handleRequest} className="space-y-3 rounded-lg border p-4">
+              <form onSubmit={handleRequest} className="space-y-3 rounded-xl border p-4">
               <div className="space-y-1.5">
                   <div className="flex items-center justify-between gap-2">
                     <Label htmlFor="target">
@@ -306,71 +314,73 @@ export function BacklinksPanel({ websiteId, status, requests, given }: Props) {
             ) : null}
 
             {requests.length === 0 ? (
-              <p className="py-2 text-sm text-muted-foreground">
-                No requests yet.
-              </p>
+              <EmptyState
+                icon={Link2}
+                title="No link requests yet"
+                description="Request a link and we find another business in the network to publish it in their next article. Each live link costs one credit."
+              />
             ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Your page</TableHead>
-                      <TableHead className="w-48">Status</TableHead>
-                      <TableHead className="hidden md:table-cell">From</TableHead>
-                      <TableHead className="w-10" />
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {requests.map((request) => {
-                      const meta =
-                        REQUEST_STATUS[request.status] ?? REQUEST_STATUS.pending;
-                      return (
-                        <TableRow key={request.id}>
-                          <TableCell className="max-w-56 truncate">
-                            {request.targetUrl.replace(/^https?:\/\//, "")}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={meta.variant}>{meta.label}</Badge>
-                          </TableCell>
-                          <TableCell className="hidden text-muted-foreground md:table-cell">
-                            {request.liveUrl ? (
-                              <a
-                                href={request.liveUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 hover:underline"
-                              >
-                                {request.hostDomain}
-                                <ExternalLink className="size-3" />
-                              </a>
-                            ) : (
-                              (request.hostDomain ?? "—")
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {request.status === "pending" ||
-                            request.status === "matched" ? (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                aria-label="Cancel request"
-                                disabled={pending && busyId === request.id}
-                                onClick={() => handleCancel(request.id)}
-                              >
-                                {pending && busyId === request.id ? (
-                                  <Loader2 className="size-4 animate-spin" />
-                                ) : (
-                                  <X className="size-4" />
-                                )}
-                              </Button>
-                            ) : null}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
+              <Table minWidth="32rem">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Your page</TableHead>
+                    <TableHead className="w-48">Status</TableHead>
+                    <TableHead className="hidden md:table-cell">From</TableHead>
+                    <TableHead className="w-10" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {requests.map((request) => {
+
+                    return (
+                      <TableRow key={request.id}>
+                        <TableCell className="max-w-56 truncate">
+                          {request.targetUrl.replace(/^https?:\/\//, "")}
+                        </TableCell>
+                        <TableCell>
+                          <StatusBadge
+                            status={request.status}
+                            label={REQUEST_LABEL[request.status]}
+                          />
+                        </TableCell>
+                        <TableCell className="hidden text-muted-foreground md:table-cell">
+                          {request.liveUrl ? (
+                            <a
+                              href={request.liveUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 hover:underline"
+                            >
+                              {request.hostDomain}
+                              <ExternalLink className="size-3" />
+                            </a>
+                          ) : (
+                            (request.hostDomain ?? "—")
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {request.status === "pending" ||
+                          request.status === "matched" ? (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              aria-label="Cancel request"
+                              disabled={pending && busyId === request.id}
+                              onClick={() => handleCancel(request.id)}
+                            >
+                              {pending && busyId === request.id ? (
+                                <Loader2 className="size-4 animate-spin" />
+                              ) : (
+                                <X className="size-4" />
+                              )}
+                            </Button>
+                          ) : null}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
             )}
           </TabsContent>
 
@@ -381,38 +391,30 @@ export function BacklinksPanel({ websiteId, status, requests, given }: Props) {
                 business may be included and you will earn a credit.
               </p>
             ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Links to</TableHead>
-                      <TableHead className="w-28">Status</TableHead>
-                      <TableHead className="w-20">Earned</TableHead>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Links to</TableHead>
+                    <TableHead className="w-28">Status</TableHead>
+                    <TableHead className="w-20">Earned</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {given.map((row) => (
+                    <TableRow key={row.id}>
+                      <TableCell className="max-w-56 truncate">
+                        {row.targetUrl.replace(/^https?:\/\//, "")}
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge status={row.status} />
+                      </TableCell>
+                      <TableCell className="tabular-nums">
+                        +{row.credits}
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {given.map((row) => (
-                      <TableRow key={row.id}>
-                        <TableCell className="max-w-56 truncate">
-                          {row.targetUrl.replace(/^https?:\/\//, "")}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={
-                              row.status === "live" ? "default" : "secondary"
-                            }
-                          >
-                            {row.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="tabular-nums">
-                          +{row.credits}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+                  ))}
+                </TableBody>
+              </Table>
             )}
           </TabsContent>
         </Tabs>

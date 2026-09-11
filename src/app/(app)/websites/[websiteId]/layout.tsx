@@ -2,9 +2,9 @@ import { ArrowLeft, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PageHeader, PageShell } from "@/components/ui/page-header";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { requireSession } from "@/lib/auth-guard";
 import { requireWebsite, WebsiteNotFoundError } from "@/lib/tenant";
 
@@ -52,9 +52,7 @@ export default async function WebsiteLayout({
         <PageHeader
           title={site.brandName || site.domain}
           actions={
-            !analysed ? (
-              <Badge variant="secondary">Still setting up</Badge>
-            ) : null
+            !analysed ? <StatusBadge status={site.status} /> : null
           }
         />
 

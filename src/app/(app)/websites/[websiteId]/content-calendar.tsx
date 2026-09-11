@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { StatusBadge } from "@/components/ui/status-badge";
 import type { ArticleRow } from "@/lib/articles/actions";
 import { generateFromCalendarItem } from "@/lib/articles/actions";
 import {
@@ -82,35 +83,22 @@ function monthGrid(month: Date): Date[] {
   });
 }
 
-type ItemState = {
-  label: string;
-  /** Tailwind classes for the status pill. */
-  tone: string;
-};
-
 /**
- * What the customer sees on the card.
+ * Which status the card shows.
  *
  * Derived from the article when one exists, because that is the newer truth:
  * a calendar item stays "generated" while its article moves on to published.
+ * Returns a stored status value rather than a label or colour — StatusBadge
+ * owns how every status in the product is worded and coloured.
  */
-function stateFor(
-  item: CalendarRow,
-  article: ArticleRow | undefined,
-): ItemState {
-  if (article?.status === "published") {
-    return { label: "Published", tone: "bg-primary/10 text-primary" };
-  }
-  if (article?.status === "draft") {
-    return { label: "Written", tone: "bg-primary/10 text-primary" };
-  }
+function statusFor(article: ArticleRow | undefined): string {
+  if (article?.status === "published") return "published";
+  if (article?.status === "draft") return "draft";
   if (article?.status === "generating" || article?.status === "queued") {
-    return { label: "Writing", tone: "bg-muted text-muted-foreground" };
+    return "generating";
   }
-  if (article?.status === "failed") {
-    return { label: "Failed", tone: "bg-destructive/10 text-destructive" };
-  }
-  return { label: "Planned", tone: "bg-muted text-muted-foreground" };
+  if (article?.status === "failed") return "failed";
+  return "planned";
 }
 
 export function ContentCalendar({
@@ -247,7 +235,7 @@ export function ContentCalendar({
 
   function renderItem(item: CalendarRow) {
     const article = articleByItem.get(item.id);
-    const state = stateFor(item, article);
+    const status = statusFor(article);
     const busy = busyId === item.id;
 
     return (
@@ -255,14 +243,7 @@ export function ContentCalendar({
         key={item.id}
         className="group/item rounded-md border bg-card p-2 text-left"
       >
-        <span
-          className={cn(
-            "inline-block rounded px-1.5 py-0.5 text-[0.65rem] font-medium",
-            state.tone,
-          )}
-        >
-          {state.label}
-        </span>
+        <StatusBadge status={status} />
 
         {editingId === item.id ? (
           <Input

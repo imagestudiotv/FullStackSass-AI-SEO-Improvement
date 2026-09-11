@@ -1,8 +1,8 @@
 import Link from "next/link";
 
 import { listAllArticles } from "@/lib/admin/actions";
-import { Badge } from "@/components/ui/badge";
 import { PageHeader, PageShell } from "@/components/ui/page-header";
+import { StatusBadge } from "@/components/ui/status-badge";
 import {
   Card,
   CardContent,
@@ -70,8 +70,8 @@ export default async function AdminArticlesPage({
           </CardTitle>
           <CardDescription>Showing up to 100, newest first.</CardDescription>
         </CardHeader>
-        <CardContent className="overflow-x-auto">
-          <Table>
+        <CardContent>
+          <Table minWidth="36rem">
             <TableHeader>
               <TableRow>
                 <TableHead>Title</TableHead>
@@ -97,17 +97,10 @@ export default async function AdminArticlesPage({
                     {row.domain}
                   </TableCell>
                   <TableCell>
-                    <Badge
-                      variant={
-                        row.status === "published"
-                          ? "default"
-                          : row.status === "failed"
-                            ? "destructive"
-                            : "secondary"
-                      }
-                    >
-                      {row.status}
-                    </Badge>
+                    <StatusBadge
+                      status={row.status}
+                      label={row.status === "failed" ? "Failed" : undefined}
+                    />
                   </TableCell>
                   <TableCell className="hidden tabular-nums sm:table-cell">
                     {row.wordCount?.toLocaleString() ?? "—"}

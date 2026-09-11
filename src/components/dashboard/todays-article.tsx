@@ -1,8 +1,8 @@
 import { ExternalLink, FileText } from "lucide-react";
 import Link from "next/link";
 
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { StatusBadge } from "@/components/ui/status-badge";
 import type { TodaysArticle } from "@/lib/dashboard/overview";
 
 /**
@@ -69,9 +69,7 @@ export function TodaysArticlePanel({
                 <ExternalLink className="size-3 shrink-0" aria-hidden="true" />
               </a>
             ) : (
-              <Badge variant="secondary">
-                {article.status === "draft" ? "Draft" : article.status}
-              </Badge>
+              <StatusBadge status={article.status} />
             )}
           </div>
 

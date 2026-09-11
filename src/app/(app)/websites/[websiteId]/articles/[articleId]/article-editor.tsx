@@ -14,8 +14,10 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { explainGenerationError } from "@/lib/articles/explain";
+import { explainPublishError } from "@/lib/publishing/explain";
 import { RichTextEditor } from "@/components/rich-text-editor";
 import {
   listReusableImages,
@@ -45,17 +47,6 @@ import {
   publishArticle,
   type PublishLogRow,
 } from "@/lib/publishing/actions";
-
-const STATUS: Record<
-  string,
-  { label: string; variant: "default" | "secondary" | "destructive" }
-> = {
-  queued: { label: "Waiting", variant: "secondary" },
-  generating: { label: "Being written", variant: "secondary" },
-  draft: { label: "Draft", variant: "default" },
-  published: { label: "Published", variant: "default" },
-  failed: { label: "Failed", variant: "destructive" },
-};
 
 const STEP_LABEL: Record<string, string> = {
   outline: "Planning what to cover",
@@ -197,11 +188,6 @@ export function ArticleEditor({
     });
   }
 
-  const status = STATUS[article.status] ?? {
-    label: article.status,
-    variant: "secondary" as const,
-  };
-
   return (
     <PageShell>
       <div>
@@ -215,7 +201,7 @@ export function ArticleEditor({
           <h1 className="text-2xl font-semibold tracking-tight">
             {article.title}
           </h1>
-          <Badge variant={status.variant}>{status.label}</Badge>
+          <StatusBadge status={article.status} />
         </div>
         <p className="text-sm text-muted-foreground">
           {article.targetKeyword ? `Target: ${article.targetKeyword}` : null}
@@ -267,7 +253,8 @@ export function ArticleEditor({
           <CardHeader>
             <CardTitle className="text-base">We could not write this one</CardTitle>
             <CardDescription>
-              {article.error ?? "Something went wrong writing this article."}
+              {explainGenerationError(article.error).summary}{" "}
+              {explainGenerationError(article.error).action}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -292,13 +279,10 @@ export function ArticleEditor({
             <ul className="space-y-2 text-sm">
               {publishLogs.map((log) => (
                 <li key={log.id} className="flex flex-wrap items-center gap-2">
-                  <Badge
-                    variant={
-                      log.status === "published" ? "default" : "destructive"
-                    }
-                  >
-                    {log.status}
-                  </Badge>
+                  <StatusBadge
+                    status={log.status}
+                    label={log.status === "failed" ? "Failed" : undefined}
+                  />
                   <span className="text-muted-foreground">
                     {new Date(log.createdAt).toLocaleString()}
                   </span>
@@ -314,7 +298,9 @@ export function ArticleEditor({
                     </a>
                   ) : null}
                   {log.error ? (
-                    <span className="text-destructive">{log.error}</span>
+                    <span className="text-destructive">
+                      {explainPublishError(log.error).summary}
+                    </span>
                   ) : null}
                 </li>
               ))}

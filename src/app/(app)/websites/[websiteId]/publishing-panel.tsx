@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { StatusBadge } from "@/components/ui/status-badge";
 import {
   Card,
   CardContent,
@@ -125,7 +125,7 @@ export function PublishingPanel({
             description="Connect your website and we can publish finished articles straight to it. Until then, you can still copy them out by hand."
           />
         ) : (
-          <ul className="divide-y rounded-lg border">
+          <ul className="divide-y rounded-xl border">
             {integrations.map((integration) => (
               <li
                 key={integration.id}
@@ -137,14 +137,9 @@ export function PublishingPanel({
                       {integration.providerName}
                     </span>
                     {integration.status === "connected" ? (
-                      <Badge className="gap-1">
-                        <Check className="size-3" aria-hidden="true" />
-                        Connected
-                      </Badge>
+                      <StatusBadge status="connected" />
                     ) : (
-                      <Badge variant="destructive">
-                        {integration.status}
-                      </Badge>
+                      <StatusBadge status={integration.status} />
                     )}
                   </div>
                   <p className="mt-0.5 truncate text-sm text-muted-foreground">
@@ -240,7 +235,7 @@ export function PublishingPanel({
             The form is generated from the provider's declared fields, so a new
             CMS needs no UI work — only an adapter and a registry entry.
           */
-          <div className="space-y-4 rounded-lg border p-4">
+          <div className="space-y-4 rounded-xl border p-4">
             <div>
               <p className="font-medium">Connect {selected.name}</p>
               <p className="text-sm text-muted-foreground">

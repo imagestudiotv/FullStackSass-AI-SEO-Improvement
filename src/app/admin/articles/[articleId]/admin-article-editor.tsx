@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
 import { RichTextEditor } from "@/components/rich-text-editor";
 import {
@@ -71,7 +71,10 @@ export function AdminArticleEditor({
           <h1 className="text-2xl font-semibold tracking-tight">
             {article.title}
           </h1>
-          <Badge variant="secondary">{article.status}</Badge>
+          <StatusBadge
+            status={article.status}
+            label={article.status === "failed" ? "Failed" : undefined}
+          />
         </div>
         <p className="text-sm text-muted-foreground">
           {article.organizationName} · {article.domain}
