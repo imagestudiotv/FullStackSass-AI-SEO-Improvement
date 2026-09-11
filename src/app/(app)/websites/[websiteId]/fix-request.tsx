@@ -45,7 +45,7 @@ export function FixRequest({
   const href = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 
   return (
-    <div className="rounded-lg border bg-muted/30 p-4">
+    <div className="rounded-xl border bg-muted/30 p-4">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="min-w-0">
           <p className="flex items-center gap-2 font-medium">

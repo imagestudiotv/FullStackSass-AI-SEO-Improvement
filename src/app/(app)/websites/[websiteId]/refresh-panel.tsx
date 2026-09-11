@@ -85,7 +85,7 @@ export function RefreshPanel({
             description="We compare the last 28 days against the 28 before. Nothing has dropped enough to worry about — or there is not enough Search Console history yet."
           />
         ) : (
-          <ul className="divide-y rounded-lg border">
+          <ul className="divide-y rounded-xl border">
             {pages.map((page) => (
               <li
                 key={page.pageUrl}

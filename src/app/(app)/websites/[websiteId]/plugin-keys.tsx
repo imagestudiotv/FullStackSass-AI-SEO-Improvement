@@ -77,7 +77,7 @@ export function PluginKeys({
   }
 
   return (
-    <div className="space-y-4 rounded-lg border p-4">
+    <div className="space-y-4 rounded-xl border p-4">
       <div>
         <p className="flex items-center gap-2 font-medium">
           <KeyRound className="size-4" aria-hidden="true" />
@@ -133,7 +133,7 @@ export function PluginKeys({
       ) : null}
 
       {keys.length > 0 ? (
-        <ul className="divide-y rounded-lg border">
+        <ul className="divide-y rounded-xl border">
           {keys.map((key) => (
             <li
               key={key.id}

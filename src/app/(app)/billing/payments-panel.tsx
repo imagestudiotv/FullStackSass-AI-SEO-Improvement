@@ -42,7 +42,7 @@ export function PaymentsPanel({ payments }: { payments: PaymentRow[] }) {
       </CardHeader>
 
       <CardContent>
-        <ul className="divide-y rounded-lg border">
+        <ul className="divide-y rounded-xl border">
           {payments.map((payment) => (
             <li
               key={payment.id}

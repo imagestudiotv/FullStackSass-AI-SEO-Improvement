@@ -101,7 +101,7 @@ export function ReferralCard({
         {summary.referrals.length > 0 ? (
           <div>
             <p className="mb-2 text-sm font-medium">People you referred</p>
-            <ul className="divide-y rounded-lg border">
+            <ul className="divide-y rounded-xl border">
               {summary.referrals.map((row) => (
                 <li
                   key={row.id}

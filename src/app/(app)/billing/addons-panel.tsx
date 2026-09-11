@@ -86,7 +86,7 @@ export function AddonsPanel({
             {credits.map((addon) => (
               <div
                 key={addon.id}
-                className="flex flex-col rounded-lg border p-4"
+                className="flex flex-col rounded-xl border p-4"
               >
                 <p className="font-medium">{addon.name}</p>
                 <p className="mt-1 text-2xl font-semibold tabular-nums">
@@ -184,7 +184,7 @@ export function AddonsPanel({
             <CardTitle className="text-base">Your purchases</CardTitle>
           </CardHeader>
           <CardContent>
-            <ul className="divide-y rounded-lg border">
+            <ul className="divide-y rounded-xl border">
               {purchases.map((purchase) => (
                 <li
                   key={purchase.id}

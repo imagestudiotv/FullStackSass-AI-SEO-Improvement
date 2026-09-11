@@ -4,6 +4,7 @@ import {
   listPayments,
   listPlans,
 } from "@/lib/billing";
+import { PageShell } from "@/components/ui/page-header";
 import { requireSession } from "@/lib/auth-guard";
 import { isPayPalAvailable } from "@/lib/paypal/actions";
 import { requireOrg } from "@/lib/tenant";
@@ -51,12 +52,16 @@ export default async function BillingPage({
       {/*
         Below the plans: an add-on is something you buy in addition to a
         subscription, so it should not compete with choosing one.
+
+        Wrapped in the same shell as BillingClient above: without it these
+        panels ran the full width of the main area while the plans stayed
+        centred, so the content column changed width mid-page.
       */}
-      <div className="mt-8">
+      <PageShell className="mt-8">
         <AddonsPanel addons={addons} purchases={purchases} />
 
         <PaymentsPanel payments={paymentRows} />
-      </div>
+      </PageShell>
     </>
   );
 }
