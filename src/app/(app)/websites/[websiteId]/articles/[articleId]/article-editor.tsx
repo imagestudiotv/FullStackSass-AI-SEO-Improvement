@@ -412,7 +412,12 @@ export function ArticleEditor({
               screen it costs nothing to show both at once.
             */}
             <div className="grid items-start gap-4 lg:grid-cols-[1fr_20rem]">
-            <Card>
+            {/*
+              overflow-visible overrides Card's own overflow-hidden, which
+              clips position:sticky — without it the editor's toolbar scrolls
+              away with the text instead of staying put.
+            */}
+            <Card className="overflow-visible">
               <CardHeader>
                 <CardTitle className="text-base">Edit article</CardTitle>
                 <CardDescription>

@@ -114,7 +114,19 @@ function Toolbar({
   }, [editor]);
 
   return (
-    <div className="flex flex-wrap items-center gap-0.5 rounded-t-md border border-b-0 border-input bg-muted/40 p-1">
+    /*
+      Sticky, because an article runs to a few thousand words and the toolbar
+      scrolled out of view — bolding a word halfway down meant scrolling back
+      to the top and losing your place.
+
+      top-14 clears the app header, which is h-14 and sticky itself; z-30 sits
+      under that header (z-40) so the toolbar slides beneath it rather than
+      over it, and above the article text.
+
+      An opaque background, not the muted/40 it had: a translucent bar over
+      scrolling text is unreadable.
+    */
+    <div className="sticky top-14 z-30 flex flex-wrap items-center gap-0.5 rounded-t-md border border-b-0 border-input bg-muted p-1">
       <ToolbarButton
         label="Bold"
         onClick={() => editor.chain().focus().toggleBold().run()}
