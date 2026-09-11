@@ -11,7 +11,7 @@ import {
 } from "@/components/dashboard/performance-panels";
 import { TodaysArticlePanel } from "@/components/dashboard/todays-article";
 import { Button } from "@/components/ui/button";
-import { PageShell } from "@/components/ui/page-header";
+import { PageHeader, PageShell } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/states";
 import { requireSession } from "@/lib/auth-guard";
 import { getDashboardOverview } from "@/lib/dashboard/overview";
@@ -111,9 +111,39 @@ export default async function DashboardPage({
   return (
     <PageShell>
       {/*
-        Authority and today's article side by side: one is the site's standing,
-        the other is the work in progress. The activity feed sits under
-        authority because both answer "what has changed lately".
+        Which site these numbers describe. Every figure below belongs to one
+        website, and without the domain on the page a customer with several
+        sites has to remember what the switcher is set to.
+      */}
+      <PageHeader
+        title="SEO overview"
+        description={`How ${current.domain} is performing in search.`}
+        actions={
+          <Button asChild variant="outline" size="sm">
+            <Link href={`/websites/${current.id}`}>Open website</Link>
+          </Button>
+        }
+      />
+
+      {/*
+        Search performance first.
+
+        The page is meant to answer "how is my SEO doing?", and this is the
+        only panel that answers it directly — clicks, impressions and the
+        movement in both. It sat third, below the credit balance and the
+        in-progress article, so the outcome the customer pays for was the
+        last thing they read.
+      */}
+      <SearchPerformancePanel
+        websiteId={overview.websiteId}
+        performance={overview.performance}
+      />
+
+      {/*
+        Then the work: authority and today's article side by side — one is the
+        site's standing, the other is what is being written now. The activity
+        feed sits under authority because both answer "what has changed
+        lately".
       */}
       <div className="grid items-start gap-4 lg:grid-cols-2">
         <div className="space-y-4">
@@ -138,11 +168,10 @@ export default async function DashboardPage({
         </div>
       </div>
 
-      <SearchPerformancePanel
-        websiteId={overview.websiteId}
-        performance={overview.performance}
-      />
-
+      {/*
+        Last: what all of it has been worth. A summary of months of work reads
+        as a closing statement, not an opening one.
+      */}
       <AchievementsPanel achievements={overview.achievements} />
     </PageShell>
   );
