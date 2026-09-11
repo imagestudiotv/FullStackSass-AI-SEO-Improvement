@@ -15,6 +15,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { startAudit, type AuditView, type CrawlProgress } from "@/lib/audit/actions";
+import { explainCrawlError } from "@/lib/audit/explain";
 import { ISSUE_LABELS } from "@/lib/audit/rules";
 import { countNeedingDeveloper, fixFor } from "@/lib/audit/fixes";
 import { FixRequest } from "./fix-request";
@@ -111,7 +112,10 @@ export function AuditPanel({
             {pending ? "Starting…" : "Check my website"}
           </Button>
           {crawl?.status === "failed" && crawl.error ? (
-            <p className="mt-3 text-sm text-destructive">{crawl.error}</p>
+            <p className="mt-3 text-sm text-destructive">
+              {explainCrawlError(crawl.error).summary}{" "}
+              {explainCrawlError(crawl.error).action}
+            </p>
           ) : null}
         </CardContent>
       </Card>
