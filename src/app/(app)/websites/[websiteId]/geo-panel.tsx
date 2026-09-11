@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { EmptyState, Stat } from "@/components/ui/states";
+import { Trend } from "@/components/ui/trend";
 import {
   addGeoPrompt,
   removeGeoPrompt,
@@ -200,6 +201,13 @@ export function GeoPanel({
               value={overview.score}
               tone={scoreTone}
               hint="Weighted by position"
+              trend={
+                <Trend
+                  current={overview.score}
+                  previous={overview.previousScore}
+                  label="vs last check"
+                />
+              }
             />
             <Stat
               label="Questions naming you"
@@ -297,7 +305,7 @@ export function GeoPanel({
             description="Add the questions your customers would ask an AI assistant, then check whether your business gets named in the answer."
           />
         ) : (
-          <ul className="divide-y rounded-lg border">
+          <ul className="divide-y rounded-xl border">
             {overview.prompts.map((p) => (
               <li key={p.id} className="flex items-start gap-3 p-3">
                 <div className="mt-0.5 shrink-0">

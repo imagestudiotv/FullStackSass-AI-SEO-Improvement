@@ -27,6 +27,43 @@ import type { ActionResult } from "@/lib/websites/actions";
  */
 
 /**
+ * How far apart two results may be and still count as the same run.
+ *
+ * A check of twenty prompts is forty model calls and takes minutes, so rows
+ * from one run are spread out; runs themselves are days or weeks apart on the
+ * weekly cron. An hour separates the two cases with room to spare.
+ */
+const RUN_GAP_MS = 60 * 60 * 1000;
+
+/**
+ * The results belonging to the run before the most recent one.
+ *
+ * `rows` must be newest first. Walks forward to the first gap larger than
+ * RUN_GAP_MS (the end of the latest run), then collects until the next gap.
+ */
+function rowsBeforeLatestRun<T extends { checkedAt: Date }>(rows: T[]): T[] {
+  let cut = -1;
+  for (let i = 1; i < rows.length; i += 1) {
+    const gap = rows[i - 1].checkedAt.getTime() - rows[i].checkedAt.getTime();
+    if (gap > RUN_GAP_MS) {
+      cut = i;
+      break;
+    }
+  }
+  if (cut === -1) return [];
+
+  const previous: T[] = [];
+  for (let i = cut; i < rows.length; i += 1) {
+    if (i > cut) {
+      const gap = rows[i - 1].checkedAt.getTime() - rows[i].checkedAt.getTime();
+      if (gap > RUN_GAP_MS) break;
+    }
+    previous.push(rows[i]);
+  }
+  return previous;
+}
+
+/**
  * Overview for the panel: the score, and every tracked prompt with its most
  * recent result.
  *
@@ -51,6 +88,7 @@ export async function getGeoOverview(websiteId: string): Promise<GeoOverview> {
       topCompetitors: [],
       prompts: [],
       lastCheckedAt: null,
+      previousScore: null,
     };
   }
 
@@ -112,10 +150,38 @@ export async function getGeoOverview(websiteId: string): Promise<GeoOverview> {
     })),
   );
 
+  /**
+   * The run before this one, scored the same way.
+   *
+   * Checks are queued together, so a "run" is a cluster of rows written within
+   * a few minutes of each other rather than a stored batch id. Rows are split
+   * on the first gap longer than RUN_GAP_MS, walking the already-sorted list —
+   * no extra query, and no schema change to record something the timestamps
+   * already imply.
+   *
+   * Null unless the previous run actually checked something, so a website
+   * checked once shows a score with no change indicator rather than a rise
+   * from zero it never had.
+   */
+  const previousRun = rowsBeforeLatestRun(rows);
+  const previousScore =
+    previousRun.length > 0
+      ? summarise(
+          previousRun.map((r) => ({
+            mentioned: r.mentioned,
+            position: r.position,
+            competitors: r.competitors ?? [],
+            excerpt: r.excerpt,
+            cited: r.cited,
+          })),
+        ).score
+      : null;
+
   return {
     ...summary,
     prompts,
     lastCheckedAt: rows[0]?.checkedAt ?? null,
+    previousScore,
   };
 }
 

@@ -29,6 +29,14 @@ export type GeoOverview = {
   prompts: GeoPromptView[];
   /** When the most recent check ran; null before the first run. */
   lastCheckedAt: Date | null;
+  /**
+   * Score from the run before the most recent one, for a change indicator.
+   *
+   * Null until a website has been checked twice — the first run has nothing to
+   * compare against, and showing "+42" for it would invent a rise from zero
+   * that never happened.
+   */
+  previousScore: number | null;
 };
 
 /** Prompts one website may track. Each is an AI call per run. */

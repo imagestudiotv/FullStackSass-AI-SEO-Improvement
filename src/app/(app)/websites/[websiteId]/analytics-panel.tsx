@@ -16,6 +16,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { Stat } from "@/components/ui/states";
+import { Trend } from "@/components/ui/trend";
 import {
   Select,
   SelectContent,
@@ -193,47 +195,69 @@ export function AnalyticsPanel({ websiteId, connection, performance }: Props) {
       <CardContent className="space-y-5">
         {performance.hasData ? (
           <>
+            {/*
+              Each figure carries its movement against the preceding window of
+              the same length, which is the difference between a number and a
+              result. Trend renders nothing when there is no earlier window, so
+              a newly connected site shows totals without invented growth.
+            */}
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <div>
-                <div className="text-2xl font-semibold tabular-nums">
-                  {formatNumber(performance.clicks)}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  Visitors from Google
-                </div>
-              </div>
-              <div>
-                <div className="text-2xl font-semibold tabular-nums">
-                  {formatNumber(performance.impressions)}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  Times you appeared
-                </div>
-              </div>
-              <div>
-                <div className="text-2xl font-semibold tabular-nums">
-                  {performance.averagePosition
+              <Stat
+                label="Visitors from Google"
+                value={formatNumber(performance.clicks)}
+                trend={
+                  <Trend
+                    current={performance.clicks}
+                    previous={performance.previous?.clicks ?? null}
+                  />
+                }
+              />
+              <Stat
+                label="Times you appeared"
+                value={formatNumber(performance.impressions)}
+                trend={
+                  <Trend
+                    current={performance.impressions}
+                    previous={performance.previous?.impressions ?? null}
+                  />
+                }
+              />
+              <Stat
+                label="Average ranking"
+                value={
+                  performance.averagePosition
                     ? performance.averagePosition.toFixed(1)
-                    : "—"}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  Average ranking
-                </div>
-              </div>
-              <div>
-                <div className="text-2xl font-semibold tabular-nums">
-                  {formatNumber(performance.sessions)}
-                </div>
-                <div className="text-xs text-muted-foreground">Website visits</div>
-              </div>
+                    : "—"
+                }
+                trend={
+                  performance.averagePosition !== null ? (
+                    <Trend
+                      current={performance.averagePosition}
+                      previous={performance.previous?.averagePosition ?? null}
+                      /* Position 3 beats position 8, so lower is better. */
+                      higherIsBetter={false}
+                    />
+                  ) : null
+                }
+              />
+              <Stat
+                label="Website visits"
+                value={formatNumber(performance.sessions)}
+                trend={
+                  <Trend
+                    current={performance.sessions}
+                    previous={performance.previous?.sessions ?? null}
+                  />
+                }
+              />
             </div>
 
             {performance.topQueries.length > 0 ? (
-              <div className="overflow-x-auto">
+              <div>
                 <p className="mb-2 text-sm font-medium">
                   What people searched to find you
                 </p>
-                <Table>
+                <Table minWidth="28rem">
                   <TableHeader>
                     <TableRow>
                       <TableHead>Query</TableHead>

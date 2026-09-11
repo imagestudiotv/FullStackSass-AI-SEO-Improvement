@@ -1,6 +1,6 @@
 "use server";
 
-import { and, desc, eq, gte, sql as raw } from "drizzle-orm";
+import { and, desc, eq, gte, lt, sql as raw } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { inngest } from "@/inngest/client";
@@ -180,6 +180,21 @@ export type PerformanceSummary = {
   topQueries: { query: string; clicks: number; impressions: number }[];
   topPages: { pageUrl: string; clicks: number }[];
   hasData: boolean;
+  /**
+   * The same figures for the period immediately before this one, so the page
+   * can show movement rather than a bare total.
+   *
+   * Null when that earlier window holds no rows at all — a site whose first
+   * import only covers the current period has nothing to compare against, and
+   * treating absent history as zero would report every number as a gain.
+   */
+  previous: {
+    clicks: number;
+    impressions: number;
+    averagePosition: number | null;
+    sessions: number;
+    users: number;
+  } | null;
 };
 
 /** Aggregated performance for the last `days` days. */
@@ -192,6 +207,14 @@ export async function getPerformance(
   const since = new Date();
   since.setDate(since.getDate() - days);
   const sinceDate = since.toISOString().slice(0, 10);
+
+  /**
+   * The window of equal length ending where the current one starts, so
+   * "last 28 days" compares against the 28 before it.
+   */
+  const previousSince = new Date(since);
+  previousSince.setDate(previousSince.getDate() - days);
+  const previousSinceDate = previousSince.toISOString().slice(0, 10);
 
   const [totals] = await db
     .select({
@@ -217,6 +240,44 @@ export async function getPerformance(
     })
     .from(gaMetrics)
     .where(and(eq(gaMetrics.websiteId, site.id), gte(gaMetrics.date, sinceDate)));
+
+  /**
+   * The preceding window, queried the same way so the comparison is like for
+   * like — same weighting on position, same coalesce to zero.
+   */
+  const [previousTotals] = await db
+    .select({
+      clicks: raw<number>`coalesce(sum(${gscMetrics.clicks}), 0)::int`,
+      impressions: raw<number>`coalesce(sum(${gscMetrics.impressions}), 0)::int`,
+      rows: raw<number>`count(*)::int`,
+      position: raw<number | null>`
+        case when sum(${gscMetrics.impressions}) > 0
+        then sum(${gscMetrics.position} * ${gscMetrics.impressions}) / sum(${gscMetrics.impressions})
+        else null end`,
+    })
+    .from(gscMetrics)
+    .where(
+      and(
+        eq(gscMetrics.websiteId, site.id),
+        gte(gscMetrics.date, previousSinceDate),
+        lt(gscMetrics.date, sinceDate),
+      ),
+    );
+
+  const [previousGa] = await db
+    .select({
+      sessions: raw<number>`coalesce(sum(${gaMetrics.sessions}), 0)::int`,
+      users: raw<number>`coalesce(sum(${gaMetrics.users}), 0)::int`,
+      rows: raw<number>`count(*)::int`,
+    })
+    .from(gaMetrics)
+    .where(
+      and(
+        eq(gaMetrics.websiteId, site.id),
+        gte(gaMetrics.date, previousSinceDate),
+        lt(gaMetrics.date, sinceDate),
+      ),
+    );
 
   const topQueries = await db
     .select({
@@ -253,12 +314,29 @@ export async function getPerformance(
     .orderBy(desc(raw`sum(${gscMetrics.clicks})`))
     .limit(10);
 
+  /**
+   * Only offered when the earlier window actually holds rows. Absent history
+   * is not zero traffic, and reporting it as such would show a first-time
+   * customer a fictional across-the-board gain.
+   */
+  const hasPrevious =
+    (previousTotals?.rows ?? 0) > 0 || (previousGa?.rows ?? 0) > 0;
+
   return {
     clicks: totals?.clicks ?? 0,
     impressions: totals?.impressions ?? 0,
     averagePosition: totals?.position ?? null,
     sessions: gaTotals?.sessions ?? 0,
     users: gaTotals?.users ?? 0,
+    previous: hasPrevious
+      ? {
+          clicks: previousTotals?.clicks ?? 0,
+          impressions: previousTotals?.impressions ?? 0,
+          averagePosition: previousTotals?.position ?? null,
+          sessions: previousGa?.sessions ?? 0,
+          users: previousGa?.users ?? 0,
+        }
+      : null,
     topQueries: topQueries
       .filter((row): row is { query: string; clicks: number; impressions: number } =>
         row.query !== null,

@@ -1,7 +1,8 @@
-import { ArrowUpRight, Sparkles, TrendingDown, TrendingUp } from "lucide-react";
+import { ArrowUpRight, Sparkles } from "lucide-react";
 import Link from "next/link";
 
 import { Card, CardContent } from "@/components/ui/card";
+import { Delta } from "@/components/ui/trend";
 import type {
   Achievements,
   BestArticle,
@@ -102,20 +103,6 @@ export function BestArticlesPanel({
   );
 }
 
-function Delta({ value }: { value: number }) {
-  if (value === 0) return null;
-  const up = value > 0;
-  const Icon = up ? TrendingUp : TrendingDown;
-  return (
-    <span
-      className={`inline-flex items-center gap-0.5 text-xs ${up ? "text-primary" : "text-muted-foreground"}`}
-    >
-      <Icon className="size-3" aria-hidden="true" />
-      {up ? "+" : ""}
-      {compact(Math.abs(value))} vs last month
-    </span>
-  );
-}
 
 export function SearchPerformancePanel({
   websiteId,
@@ -168,14 +155,14 @@ export function SearchPerformancePanel({
                   <dd className="mt-1 text-xl font-semibold tabular-nums">
                     {compact(performance.clicks)}
                   </dd>
-                  <Delta value={performance.clicksDelta} />
+                  <Delta value={performance.clicksDelta} format={compact} label="vs last month" />
                 </div>
                 <div>
                   <dt className="text-xs text-muted-foreground">Impressions</dt>
                   <dd className="mt-1 text-xl font-semibold tabular-nums">
                     {compact(performance.impressions)}
                   </dd>
-                  <Delta value={performance.impressionsDelta} />
+                  <Delta value={performance.impressionsDelta} format={compact} label="vs last month" />
                 </div>
                 <div>
                   <dt className="text-xs text-muted-foreground">
