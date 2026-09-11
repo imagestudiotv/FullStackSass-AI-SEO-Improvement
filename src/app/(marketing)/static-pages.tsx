@@ -49,8 +49,36 @@ export function AboutContent({ t }: { t: Messages }) {
 }
 
 export function FaqContent({ t }: { t: Messages }) {
+  /**
+   * FAQPage structured data, built from the same items the page renders — so
+   * the markup can never describe questions the page does not show, and every
+   * locale gets it without a second copy of the content.
+   *
+   * Guarded on a non-empty list: an FAQPage with no mainEntity is a structured
+   * data error rather than a missed opportunity.
+   */
+  const faqSchema =
+    t.faq.items.length > 0
+      ? {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          mainEntity: t.faq.items.map((item) => ({
+            "@type": "Question",
+            name: item.question,
+            acceptedAnswer: { "@type": "Answer", text: item.answer },
+          })),
+        }
+      : null;
+
   return (
     <div className="mx-auto max-w-2xl px-4 py-16">
+      {faqSchema ? (
+        <script
+          type="application/ld+json"
+          // Serialised from our own translation files, never user input.
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+        />
+      ) : null}
       <h1 className="text-3xl font-semibold tracking-tight">{t.faq.title}</h1>
       <p className="mt-3 text-muted-foreground">{t.faq.subtitle}</p>
 

@@ -12,6 +12,7 @@ import {
   WhatYouSee,
 } from "./home-sections";
 import { PricingPreview } from "./pricing-preview";
+import { OrganizationSchema } from "./organization-schema";
 
 /**
  * Marketing homepage, following the supplied landing design.
@@ -30,8 +31,20 @@ export default async function HomePage() {
   // English is unprefixed; the localised pages pass a prefixing builder.
   const href = (path: string) => path;
 
+  /**
+   * Matches the metadataBase in the root layout, which falls back to the
+   * production domain rather than localhost so a missing variable cannot
+   * publish structured data pointing at a developer machine.
+   */
+  const siteUrl =
+    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") &&
+    !process.env.NEXT_PUBLIC_APP_URL.includes("localhost")
+      ? process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "")
+      : "https://seovision.io";
+
   return (
     <>
+      <OrganizationSchema siteUrl={siteUrl} />
       <Hero t={t} href={href} />
       <AuditBand t={t} href={href} />
       <HowItWorks t={t} href={href} />
