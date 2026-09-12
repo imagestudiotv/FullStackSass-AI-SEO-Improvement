@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { BrandLogo } from "@/components/brand-logo";
 import { AuthShowcase } from "@/components/auth-showcase";
 
 /**
@@ -25,14 +26,8 @@ export default function AuthLayout({ children }: LayoutProps<"/">) {
             The mark links home. This is often the first page a customer sees,
             and a logo that goes nowhere is a dead end on a page with no nav.
           */}
-          <Link
-            href="/"
-            className="mb-10 inline-flex items-center gap-2.5 text-xl font-semibold tracking-tight"
-          >
-            <span className="flex size-9 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
-              AI
-            </span>
-            SEO Platform
+          <Link href="/" aria-label="RepGet home" className="mb-10 inline-flex">
+            <BrandLogo height={30} priority />
           </Link>
 
           {children}

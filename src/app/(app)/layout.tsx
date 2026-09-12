@@ -4,6 +4,7 @@ import Link from "next/link";
 import { MobileNav } from "@/components/mobile-nav";
 import { NotificationBell } from "@/components/notification-bell";
 import { OrgSwitcher } from "@/components/org-switcher";
+import { BrandLogo, BrandMark } from "@/components/brand-logo";
 import { LiveChat } from "@/components/live-chat";
 import { SidebarNav } from "@/components/sidebar-nav";
 import { SidebarUsage } from "@/components/sidebar-usage";
@@ -128,12 +129,15 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         <MobileNav onboardingComplete={onboarding.complete} />
         <Link
           href="/dashboard"
-          className="flex items-center gap-2 font-semibold tracking-tight"
+          aria-label="RepGet dashboard"
+          className="flex items-center"
         >
-          <span className="flex size-6 items-center justify-center rounded-md bg-primary text-[11px] font-bold text-primary-foreground">
-            AI
+          <span className="sm:hidden">
+            <BrandMark size={24} />
           </span>
-          <span className="hidden sm:inline">SEO Platform</span>
+          <span className="hidden sm:inline-flex">
+            <BrandLogo height={22} priority />
+          </span>
         </Link>
 
         <div className="hidden sm:block">

@@ -5,6 +5,7 @@ import {
   MarketingNav,
   MarketingTagline,
 } from "@/components/marketing-nav";
+import { BrandLogo } from "@/components/brand-logo";
 import { LiveChat } from "@/components/live-chat";
 
 export default function MarketingLayout({ children }: LayoutProps<"/">) {
@@ -12,14 +13,9 @@ export default function MarketingLayout({ children }: LayoutProps<"/">) {
     <div className="flex min-h-svh flex-col">
       <header className="border-b bg-background">
         <div className="mx-auto flex h-14 max-w-6xl items-center gap-4 px-4">
-          <Link
-            href="/"
-            className="flex items-center gap-2 font-semibold tracking-tight"
-          >
-            <span className="flex size-6 items-center justify-center rounded-md bg-primary text-[11px] font-bold text-primary-foreground">
-              AI
-            </span>
-            SEO Platform
+          <Link href="/" aria-label="RepGet home" className="flex items-center">
+            {/* The page's primary logo, so it is not lazy-loaded. */}
+            <BrandLogo height={24} priority />
           </Link>
           <MarketingNav />
         </div>
@@ -31,12 +27,7 @@ export default function MarketingLayout({ children }: LayoutProps<"/">) {
         <div className="mx-auto max-w-6xl px-4 py-10">
           <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <div className="flex items-center gap-2 font-semibold tracking-tight">
-                <span className="flex size-6 items-center justify-center rounded-md bg-primary text-[11px] font-bold text-primary-foreground">
-                  AI
-                </span>
-                SEO Platform
-              </div>
+              <BrandLogo height={22} />
               <MarketingTagline />
             </div>
             <MarketingFooterLinks />
