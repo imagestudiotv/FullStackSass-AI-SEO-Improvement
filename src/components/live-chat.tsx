@@ -20,6 +20,12 @@ import { splitLocale } from "@/lib/i18n/config";
  *
  * Renders nothing when unconfigured, so the site works normally before the
  * account exists and no placeholder widget appears in the corner.
+ *
+ * The launcher bubble's icon is NOT settable from here. Crisp's SDK exposes
+ * only the visitor's own avatar; the website avatar and the bubble image are
+ * uploaded in the Crisp dashboard, under Settings > Website Settings >
+ * Chatbox Appearance. Use public/icon-512.png so the bubble matches the
+ * favicon. Nothing in this file can do it, so do not add code that appears to.
  */
 /**
  * Crisp website ids are UUIDs. Validated because the value is interpolated
@@ -39,6 +45,11 @@ declare global {
   interface Window {
     $crisp?: [string, string?, unknown?][];
     CRISP_WEBSITE_ID?: string;
+    /**
+     * Read by Crisp as its script boots. disable_full_view cannot be changed
+     * afterwards, so it has to be here rather than in the command queue.
+     */
+    CRISP_RUNTIME_CONFIG?: { disable_full_view?: boolean };
   }
 }
 
@@ -111,6 +122,20 @@ export function LiveChat({
     (window.$crisp ??= []).push(["set", "session:locale", [pathLocale]]);
   }, [enabled, pathLocale]);
 
+  /**
+   * Warm the widget to match the brand.
+   *
+   * Crisp defaults to its own blue, which was the last blue left anywhere in
+   * the product once the status badges moved to the brand orange. "deep_orange"
+   * is the nearest value Crisp offers — the palette is a fixed list, not a hex
+   * field, so this is as close as the widget can be steered from code.
+   */
+  useEffect(() => {
+    if (!enabled) return;
+    (window.$crisp ??= []).push(["config", "color:theme", ["deep_orange"]]);
+  }, [enabled]);
+
+
   if (!enabled) return null;
 
   return (
@@ -119,9 +144,15 @@ export function LiveChat({
       // afterInteractive, not beforeInteractive: chat is never why someone
       // came to the page, and loading it earlier would delay the content they
       // actually want on a slow connection.
+      //
+      // disable_full_view keeps the widget a small box in the corner. Crisp
+      // otherwise takes over the whole screen below its own mobile breakpoint,
+      // so tapping the bubble replaced the page the customer was reading —
+      // the pricing page and the audit results among them, which is exactly
+      // where someone stops to ask a question.
       strategy="afterInteractive"
     >
-      {`window.$crisp=window.$crisp||[];window.CRISP_WEBSITE_ID="${websiteId}";(function(){var d=document,s=d.createElement("script");s.src="https://client.crisp.chat/l.js";s.async=1;d.getElementsByTagName("head")[0].appendChild(s);})();`}
+      {`window.$crisp=window.$crisp||[];window.CRISP_WEBSITE_ID="${websiteId}";window.CRISP_RUNTIME_CONFIG={disable_full_view:true};(function(){var d=document,s=d.createElement("script");s.src="https://client.crisp.chat/l.js";s.async=1;d.getElementsByTagName("head")[0].appendChild(s);})();`}
     </Script>
   );
 }

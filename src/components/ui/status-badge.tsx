@@ -134,8 +134,14 @@ const STATUS: Record<string, StatusMeta> = {
  */
 const TONE_CLASS: Record<StatusTone, string> = {
   neutral: "bg-muted text-muted-foreground border-transparent",
-  active:
-    "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-900",
+  /**
+   * Work in progress reads in the brand's own orange rather than a blue that
+   * belongs to no other part of the product. It was the only blue left in the
+   * app, and next to the warm palette it looked like a component borrowed from
+   * somewhere else. Uses the theme token, so it follows --primary if the brand
+   * colour ever moves.
+   */
+  active: "border-primary/25 bg-primary/10 text-primary",
   positive:
     "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900",
   warning:
