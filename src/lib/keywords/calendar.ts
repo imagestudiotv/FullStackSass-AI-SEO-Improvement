@@ -57,19 +57,38 @@ Rules:
 - Return one article per supplied keyword, in the order given.`;
 
 /**
- * Spreads articles evenly across the month.
+ * Fills consecutive days, several per day where the plan allows it.
  *
- * Publishing a plan's whole allowance on day one looks automated and gives
- * search engines a burst then silence; a steady cadence reads as an active site.
+ * This used to spread the month's allowance evenly — `30 / count` days apart —
+ * which left a five-article plan showing one article every six days and five
+ * empty boxes between each. The calendar is the screen a customer judges the
+ * product on, and a mostly empty month reads as a product that is not working.
+ *
+ * So: start tomorrow, fill every day in order, and put more than one on a day
+ * only when the monthly allowance is larger than a month. A plan with fewer
+ * articles than days simply runs out partway through the month rather than
+ * rationing itself across it — an article a day for a fortnight is a better
+ * start than one a week forever, and the next month's research refills it.
+ *
  * Starts tomorrow so the first item is never already overdue.
  */
-function scheduleDates(count: number, from: Date = new Date()): Date[] {
-  if (count === 0) return [];
-  const spacingDays = Math.max(1, Math.floor(30 / count));
+export function scheduleDates(count: number, from: Date = new Date()): Date[] {
+  if (count <= 0) return [];
+
+  /**
+   * Articles per day. Ceiling against a 30-day month, so 60 becomes 2 and 90
+   * becomes 3, while anything at or below 30 stays at one a day.
+   */
+  const perDay = Math.max(1, Math.ceil(count / 30));
+
   return Array.from({ length: count }, (_, index) => {
     const date = new Date(from);
-    date.setDate(date.getDate() + 1 + index * spacingDays);
-    date.setHours(9, 0, 0, 0);
+    date.setDate(date.getDate() + 1 + Math.floor(index / perDay));
+    /**
+     * Staggered through the working day when several share a date, so the
+     * order within a day is stable and a reader can tell them apart.
+     */
+    date.setHours(9 + (index % perDay) * 3, 0, 0, 0);
     return date;
   });
 }

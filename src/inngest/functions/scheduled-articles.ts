@@ -29,14 +29,31 @@ import { UNLIMITED } from "@/lib/usage-shared";
 /** How many websites one run will look at. */
 const WEBSITE_BATCH = 200;
 /**
+ * How many days ahead of today a calendar item may be written.
+ *
+ * Articles are written before their date, not on it, so a customer always has
+ * finished work waiting rather than an empty page while a job runs. Three
+ * days is the window the product promises: today plus the next two are
+ * "generating", everything beyond that stays queued and can still be
+ * reordered, retitled or dropped.
+ *
+ * Writing further ahead would take that away — an article already written is
+ * an article the customer can no longer change their mind about.
+ */
+const LOOKAHEAD_DAYS = 3;
+
+/**
  * Articles queued per website per run.
  *
  * A cap rather than "everything due", because a calendar that was paused for
  * a fortnight comes back with fourteen items due at once. Publishing two
  * weeks of articles in one morning is not what the customer asked for, and it
  * would empty their monthly allowance in a single day.
+ *
+ * Scaled by the plan's daily cadence below: a customer on three a day needs
+ * nine in flight to keep three days ahead, where one a day needs three.
  */
-const MAX_PER_WEBSITE = 2;
+const MAX_PER_WEBSITE = 3;
 
 /** 0 = Sunday, matching Date.getUTCDay(). */
 function isPublishingDay(days: unknown, today: number): boolean {
@@ -122,8 +139,27 @@ export const scheduledArticles = inngest.createFunction(
           limit.limit === UNLIMITED
             ? MAX_PER_WEBSITE
             : Math.max(limit.limit - limit.used, 0);
-        const take = Math.min(MAX_PER_WEBSITE, remaining);
+
+        /**
+         * Articles per day this plan pays for, derived the same way the
+         * calendar spaces them: a monthly allowance over a 30-day month. A
+         * customer on three a day needs three times as many in flight to
+         * stay the same number of days ahead.
+         */
+        const perDay =
+          limit.limit === UNLIMITED
+            ? 1
+            : Math.max(1, Math.ceil(limit.limit / 30));
+        const take = Math.min(MAX_PER_WEBSITE * perDay, remaining);
         if (take === 0) return { queued: 0, limited: true };
+
+        /**
+         * End of the look-ahead window. Items dated inside it are written
+         * now; anything later stays queued and editable.
+         */
+        const horizon = new Date();
+        horizon.setDate(horizon.getDate() + LOOKAHEAD_DAYS);
+        horizon.setHours(23, 59, 59, 999);
 
         const items = await db
           .select({ id: calendarItems.id })
@@ -132,9 +168,15 @@ export const scheduledArticles = inngest.createFunction(
             and(
               eq(calendarItems.websiteId, site.websiteId),
               eq(calendarItems.status, "planned"),
+              /**
+               * Inside the look-ahead window, not merely overdue. Picking
+               * only `<= now` meant nothing was ever written in advance, so
+               * an article was generating on the morning it was due and the
+               * customer had nothing ready to read.
+               */
               or(
                 isNull(calendarItems.scheduledFor),
-                lte(calendarItems.scheduledFor, new Date()),
+                lte(calendarItems.scheduledFor, horizon),
               ),
             ),
           )
