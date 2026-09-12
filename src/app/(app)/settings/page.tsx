@@ -6,16 +6,43 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { PageHeader, PageShell } from "@/components/ui/page-header";
+import { eq } from "drizzle-orm";
 import { requireSession } from "@/lib/auth-guard";
 import { getReferralSummary } from "@/lib/referrals/actions";
 import { REFERRAL_REWARD_CREDITS } from "@/lib/referrals/core";
+import { db } from "@/lib/db";
+import { websites } from "@/lib/db/schema";
+import { requireOrg } from "@/lib/tenant";
+import {
+  readSelectedWebsite,
+  resolveWebsiteId,
+} from "@/lib/websites/selected";
 import { ReferralCard } from "./referral-card";
+import { SettingsLinks } from "./settings-links";
 
 export const metadata = { title: "Settings" };
 
 export default async function SettingsPage() {
   const session = await requireSession();
   const referrals = await getReferralSummary();
+
+  /**
+   * The website the per-site settings links point at. Resolved the same way
+   * the sidebar does it — the remembered choice, then the first website — so
+   * both agree about which site "Publishing" means.
+   */
+  const { orgId } = await requireOrg();
+  const owned = await db
+    .select({ id: websites.id })
+    .from(websites)
+    .where(eq(websites.organizationId, orgId))
+    .orderBy(websites.createdAt);
+  const remembered = await readSelectedWebsite();
+  const websiteId = resolveWebsiteId(
+    null,
+    remembered,
+    owned.map((site) => site.id),
+  );
 
   /**
    * Falls back to the production domain rather than emitting a localhost link
@@ -31,7 +58,7 @@ export default async function SettingsPage() {
     <PageShell>
       <PageHeader
         title="Settings"
-        description="Your account details."
+        description="Your account, your plan, and the connections that carry your articles."
       />
 
       <Card>
@@ -52,6 +79,8 @@ export default async function SettingsPage() {
           </dl>
         </CardContent>
       </Card>
+
+      <SettingsLinks websiteId={websiteId} />
 
       <ReferralCard
         summary={referrals}

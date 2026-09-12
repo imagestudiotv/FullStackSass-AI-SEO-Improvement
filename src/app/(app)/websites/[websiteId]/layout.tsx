@@ -68,8 +68,9 @@ export default async function WebsiteLayout({
       </div>
 
       {/*
-        The sections live in the main sidebar, nested under Websites, so there
-        is one navigation rather than two competing for the same job.
+        No sub-navigation here. The sections are top-level items in the main
+        sidebar, so a second column repeating them would be two navigations
+        competing for the same job.
       */}
       <div className="space-y-6">{children}</div>
     </PageShell>
