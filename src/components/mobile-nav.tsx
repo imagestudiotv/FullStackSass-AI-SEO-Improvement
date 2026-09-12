@@ -3,6 +3,7 @@
 import { Menu } from "lucide-react";
 import { useState } from "react";
 
+import { BrandLogo } from "@/components/brand-logo";
 import { SidebarNav } from "@/components/sidebar-nav";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,8 +16,15 @@ import {
 
 export function MobileNav({
   onboardingComplete = false,
+  selectedWebsiteId = null,
 }: {
   onboardingComplete?: boolean;
+  /**
+   * Forwarded to SidebarNav. Without it the per-website items are hidden on
+   * every page that does not name a site in its URL, so a phone showed a
+   * two-item menu on the dashboard.
+   */
+  selectedWebsiteId?: string | null;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -29,11 +37,14 @@ export function MobileNav({
       </SheetTrigger>
       <SheetContent side="left" className="w-64 p-0">
         <SheetHeader className="border-b p-4">
-          <SheetTitle className="text-left">AI SEO Platform</SheetTitle>
+          <SheetTitle className="text-left">
+            <BrandLogo height={20} />
+          </SheetTitle>
         </SheetHeader>
         <SidebarNav
           onNavigate={() => setOpen(false)}
           onboardingComplete={onboardingComplete}
+          selectedWebsiteId={selectedWebsiteId}
         />
       </SheetContent>
     </Sheet>

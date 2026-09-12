@@ -153,7 +153,10 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   return (
     <div className="flex min-h-svh flex-col bg-muted/30">
       <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-        <MobileNav onboardingComplete={onboarding.complete} />
+        <MobileNav
+          onboardingComplete={onboarding.complete}
+          selectedWebsiteId={fallbackWebsiteId}
+        />
         <Link
           href="/dashboard"
           aria-label="RepGet dashboard"
