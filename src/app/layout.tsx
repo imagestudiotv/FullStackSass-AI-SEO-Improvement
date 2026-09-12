@@ -41,6 +41,27 @@ export const metadata: Metadata = {
   },
   description:
     "Automated SEO analysis, AI content generation, publishing and backlinks for small businesses.",
+
+  /**
+   * Icons are declared against their literal paths in public/ rather than
+   * left to the app/ file convention, which serves them from hashed URLs
+   * (/icon?abc123). Those change whenever the file does, and Google asks
+   * specifically that a favicon URL stay put so it can keep serving the one
+   * it has already crawled. These paths are permanent.
+   *
+   * 48px is the size Google's own guidance asks for (a multiple of 48);
+   * 192 and 512 cover Android home screens and the manifest.
+   */
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon-48.png", type: "image/png", sizes: "48x48" },
+      { url: "/icon-192.png", type: "image/png", sizes: "192x192" },
+      { url: "/icon-512.png", type: "image/png", sizes: "512x512" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
+  },
+  manifest: "/manifest.webmanifest",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
