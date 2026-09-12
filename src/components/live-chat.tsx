@@ -30,13 +30,18 @@ import { splitLocale } from "@/lib/i18n/config";
  *    Appearance. Upload public/icon-512.png so the bubble matches the
  *    favicon. Do not add code here that appears to do it.
  *
- *  - THE LAUNCHER HIDING WHILE THE CHAT IS OPEN. Crisp replaces the bubble
- *    with the chatbox by design, and no `config` option changes it —
- *    position:reverse, container:index, layout:theme and tile were all
- *    checked. It could only be forced with CSS against Crisp's generated
- *    class names, which are content hashes they rotate without notice, so
- *    that fix would break silently on one of their deploys. The chatbox has
- *    its own close control; the launcher returns as soon as it closes.
+ * DO NOT set CRISP_RUNTIME_CONFIG.disable_full_view here. It was added once
+ * to stop Crisp taking over the whole screen on a phone, and it also hides
+ * the launcher button whenever the chatbox is open — their own stylesheet
+ * carries the rule:
+ *
+ *   .cc-165wh[data-disable-full-view=true] .cc-lk42u .cc-13wro[data-maximized=true]
+ *     { display: none !important }
+ *
+ * The two behaviours share one flag, and the button matters more: without it
+ * the only way to collapse the chat is a chevron inside the panel, and the
+ * widget reads as stuck open. Full view applies only below Crisp's own mobile
+ * breakpoint, and even there it keeps the launcher and simply repositions it.
  */
 /**
  * Crisp website ids are UUIDs. Validated because the value is interpolated
@@ -56,11 +61,6 @@ declare global {
   interface Window {
     $crisp?: [string, string?, unknown?][];
     CRISP_WEBSITE_ID?: string;
-    /**
-     * Read by Crisp as its script boots. disable_full_view cannot be changed
-     * afterwards, so it has to be here rather than in the command queue.
-     */
-    CRISP_RUNTIME_CONFIG?: { disable_full_view?: boolean };
   }
 }
 
@@ -162,15 +162,10 @@ export function LiveChat({
       // afterInteractive, not beforeInteractive: chat is never why someone
       // came to the page, and loading it earlier would delay the content they
       // actually want on a slow connection.
-      //
-      // disable_full_view keeps the widget a small box in the corner. Crisp
-      // otherwise takes over the whole screen below its own mobile breakpoint,
-      // so tapping the bubble replaced the page the customer was reading —
-      // the pricing page and the audit results among them, which is exactly
-      // where someone stops to ask a question.
+
       strategy="afterInteractive"
     >
-      {`window.$crisp=window.$crisp||[];window.CRISP_WEBSITE_ID="${websiteId}";window.CRISP_RUNTIME_CONFIG={disable_full_view:true};(function(){var d=document,s=d.createElement("script");s.src="https://client.crisp.chat/l.js";s.async=1;d.getElementsByTagName("head")[0].appendChild(s);})();`}
+      {`window.$crisp=window.$crisp||[];window.CRISP_WEBSITE_ID="${websiteId}";(function(){var d=document,s=d.createElement("script");s.src="https://client.crisp.chat/l.js";s.async=1;d.getElementsByTagName("head")[0].appendChild(s);})();`}
     </Script>
   );
 }
