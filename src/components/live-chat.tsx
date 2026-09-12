@@ -21,11 +21,22 @@ import { splitLocale } from "@/lib/i18n/config";
  * Renders nothing when unconfigured, so the site works normally before the
  * account exists and no placeholder widget appears in the corner.
  *
- * The launcher bubble's icon is NOT settable from here. Crisp's SDK exposes
- * only the visitor's own avatar; the website avatar and the bubble image are
- * uploaded in the Crisp dashboard, under Settings > Website Settings >
- * Chatbox Appearance. Use public/icon-512.png so the bubble matches the
- * favicon. Nothing in this file can do it, so do not add code that appears to.
+ * Two things about this widget cannot be changed from code, both verified
+ * against Crisp's own SDK reference rather than assumed:
+ *
+ *  - THE BUBBLE ICON. The SDK exposes `user:avatar`, which is the visitor's
+ *    own picture, and nothing for the launcher or the website avatar. Those
+ *    are uploaded in the dashboard: Settings > Website Settings > Chatbox
+ *    Appearance. Upload public/icon-512.png so the bubble matches the
+ *    favicon. Do not add code here that appears to do it.
+ *
+ *  - THE LAUNCHER HIDING WHILE THE CHAT IS OPEN. Crisp replaces the bubble
+ *    with the chatbox by design, and no `config` option changes it —
+ *    position:reverse, container:index, layout:theme and tile were all
+ *    checked. It could only be forced with CSS against Crisp's generated
+ *    class names, which are content hashes they rotate without notice, so
+ *    that fix would break silently on one of their deploys. The chatbox has
+ *    its own close control; the launcher returns as soon as it closes.
  */
 /**
  * Crisp website ids are UUIDs. Validated because the value is interpolated
@@ -132,7 +143,14 @@ export function LiveChat({
    */
   useEffect(() => {
     if (!enabled) return;
-    (window.$crisp ??= []).push(["config", "color:theme", ["deep_orange"]]);
+    const queue = (window.$crisp ??= []);
+    queue.push(["config", "color:theme", ["deep_orange"]]);
+    /**
+     * No tooltip beside the launcher. It covers the bubble with a speech
+     * balloon on load, which hides the brand mark the bubble is there to
+     * show, and it says nothing the bubble does not.
+     */
+    queue.push(["config", "availability:tooltip", [false]]);
   }, [enabled]);
 
 
