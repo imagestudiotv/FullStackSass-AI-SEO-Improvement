@@ -90,7 +90,27 @@ function createAuth() {
       user: {
         create: {
           after: async (user) => {
-            await ensureOrganization(user);
+            /**
+             * Never fail signup over this.
+             *
+             * Better Auth runs this after the user row is committed, so a
+             * throw here leaves an account that exists but cannot be used,
+             * and the hook fires once and never retries. That is how a user
+             * ended up with no organization and a blank page after every
+             * sign-in.
+             *
+             * (app)/layout.tsx now creates the workspace on the next request
+             * if this did not, so losing it here is recoverable rather than
+             * permanent. Logged loudly because it should not happen.
+             */
+            try {
+              await ensureOrganization(user);
+            } catch (error) {
+              console.error(
+                "[auth] could not create a workspace at signup; the app layout will retry",
+                error,
+              );
+            }
           },
         },
       },

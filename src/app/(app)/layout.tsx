@@ -12,6 +12,7 @@ import { UserMenu } from "@/components/user-menu";
 import { WebsiteSwitcher } from "@/components/dashboard/website-switcher";
 import { isAdmin } from "@/lib/admin/guard";
 import { requireSession } from "@/lib/auth-guard";
+import { ensureOrganization } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { notifications, organization, websites } from "@/lib/db/schema";
 import {
@@ -21,7 +22,7 @@ import {
 import { attachReferral } from "@/lib/referrals/core";
 import { getOnboardingState } from "@/lib/onboarding/steps";
 import { getSubscription } from "@/lib/billing";
-import { requireOrg } from "@/lib/tenant";
+import { NoOrganizationError, requireOrg } from "@/lib/tenant";
 import {
   readSelectedWebsite,
   resolveWebsiteId,
@@ -37,7 +38,33 @@ export const dynamic = "force-dynamic";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const session = await requireSession();
-  const { orgId, role } = await requireOrg();
+
+  /**
+   * Recover a signed-in user who has no organization.
+   *
+   * ensureOrganization runs in Better Auth's user.create.after hook, so it
+   * fires exactly once and never again. Any account that got past signup
+   * without a membership row — one created before that hook existed, or one
+   * whose hook lost its database write — was then locked out permanently:
+   * requireOrg throws NoOrganizationError here, and a LAYOUT that throws
+   * cannot be caught by error.tsx in its own segment, so the whole app
+   * rendered as a blank browser error page immediately after a successful
+   * sign-in.
+   *
+   * Creating the workspace is the same work signup would have done, and
+   * ensureOrganization already returns early when a membership exists, so
+   * this is a no-op on every normal request. Only the retry is new.
+   */
+  let ctx;
+  try {
+    ctx = await requireOrg();
+  } catch (error) {
+    if (!(error instanceof NoOrganizationError)) throw error;
+    await ensureOrganization(session.user);
+    // Once. A second failure is a real fault and must surface, not loop.
+    ctx = await requireOrg();
+  }
+  const { orgId, role } = ctx;
 
   /**
    * Every website, for the switcher in the header and to work out which one
