@@ -14,7 +14,6 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -152,15 +151,33 @@ export function ContentCalendar({
     return { byDay: map, undated: loose };
   }, [calendar]);
 
+  /**
+   * The three states the header reports, counted across the whole plan rather
+   * than the visible month: "27 queued" means the pipeline is full, which is
+   * not a fact about September.
+   *
+   * Drafted is counted with published under "written", because from the
+   * customer's side both mean the article exists and can be read. The box
+   * itself still distinguishes them.
+   */
   const counts = useMemo(() => {
     let published = 0;
+    let generating = 0;
     let queued = 0;
     for (const item of calendar) {
       const article = articleByItem.get(item.id);
-      if (article?.status === "published") published += 1;
-      else queued += 1;
+      if (article?.status === "published" || article?.status === "draft") {
+        published += 1;
+      } else if (
+        article?.status === "generating" ||
+        article?.status === "queued"
+      ) {
+        generating += 1;
+      } else {
+        queued += 1;
+      }
     }
-    return { published, queued };
+    return { published, generating, queued };
   }, [calendar, articleByItem]);
 
   const days = useMemo(() => monthGrid(month), [month]);
@@ -238,6 +255,19 @@ export function ContentCalendar({
     const status = statusFor(article);
     const busy = busyId === item.id;
 
+    /**
+     * Writing has started, so the topic is settled.
+     *
+     * A model is already part-way through an outline against this title; a
+     * rename or a reschedule now would produce an article that does not match
+     * its own calendar entry, and cancelling would bill for work thrown away.
+     * The card says so rather than offering controls that would fail.
+     */
+    const inProgress =
+      article?.status === "generating" || article?.status === "queued";
+    /** Nothing written yet: still fully editable. */
+    const editable = !article;
+
     return (
       <div
         key={item.id}
@@ -257,6 +287,15 @@ export function ContentCalendar({
             }}
             className="mt-1 h-7 text-xs"
           />
+        ) : inProgress ? (
+          /**
+           * The topic, not the title. The headline is part of what is being
+           * written, so presenting the planned one as final would show the
+           * customer something that is about to change.
+           */
+          <p className="mt-1 line-clamp-2 text-xs font-medium">
+            {item.targetKeyword ?? item.title}
+          </p>
         ) : article ? (
           <Link
             href={`/websites/${websiteId}/articles/${article.id}`}
@@ -289,7 +328,14 @@ export function ContentCalendar({
           for keyboard and touch — focus-within keeps them reachable by Tab,
           which display:none on hover alone would not.
         */}
-        {!article ? (
+        {inProgress ? (
+          <p className="mt-1.5 rounded-md bg-muted/60 px-2 py-1.5 text-[0.65rem] leading-snug text-muted-foreground">
+            This article can no longer be rescheduled or edited as it is in
+            progress.
+          </p>
+        ) : null}
+
+        {editable ? (
           <div className="mt-1.5 flex items-center gap-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover/item:opacity-100">
             <Button
               type="button"
@@ -373,9 +419,16 @@ export function ContentCalendar({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <Badge variant="secondary">{counts.published} published</Badge>
-          <Badge variant="secondary">{counts.queued} planned</Badge>
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusBadge
+            status="published"
+            label={`${counts.published} Published`}
+          />
+          <StatusBadge
+            status="generating"
+            label={`${counts.generating} Generating`}
+          />
+          <StatusBadge status="queued" label={`${counts.queued} Queued`} />
         </div>
 
         <div className="flex items-center gap-1">
@@ -389,7 +442,7 @@ export function ContentCalendar({
             <ChevronLeft className="size-4" />
           </Button>
           <span className="min-w-32 text-center text-sm font-medium">
-            {month.toLocaleDateString(undefined, {
+            {month.toLocaleDateString("en-GB", {
               month: "long",
               year: "numeric",
             })}
