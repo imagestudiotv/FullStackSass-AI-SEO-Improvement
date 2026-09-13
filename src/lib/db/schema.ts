@@ -1133,3 +1133,50 @@ export const agencyWorkspaces = pgTable(
     uniqueIndex("agency_workspaces_org_key").on(table.organizationId),
   ],
 );
+
+
+/* ------------------------------------------------------------------------- */
+/* Administration                                                             */
+/* ------------------------------------------------------------------------- */
+
+/**
+ * What an administrator did, and to whom.
+ *
+ * Written before the admin area could move money or delete accounts, because
+ * a refund with no record is unanswerable: when a customer says they were
+ * never refunded, or two operators both think the other handled it, the only
+ * thing that settles it is a row written at the time.
+ *
+ * Append only. Nothing in the product updates or deletes these, which is the
+ * point — a log that can be edited proves nothing. The actor is recorded as an
+ * EMAIL rather than a user id foreign key, so removing a staff account cannot
+ * erase what they did.
+ */
+export const adminAuditLog = pgTable(
+  "admin_audit_log",
+  {
+    id: pk(),
+    /** Who acted, from the ADMIN_EMAILS allowlist at the time. */
+    actorEmail: text("actor_email").notNull(),
+    /** Machine-readable kind: "payment.refunded", "credits.adjusted". */
+    action: text("action").notNull(),
+    /**
+     * What was acted on. Deliberately loose text, not a foreign key: the row
+     * must survive the thing it describes being deleted, which is exactly the
+     * case an account deletion creates.
+     */
+    targetType: text("target_type").notNull(),
+    targetId: text("target_id"),
+    /** The affected workspace, when there is one. Text, like every org id. */
+    organizationId: text("organization_id"),
+    /** One line a human can read months later without opening the code. */
+    summary: text("summary").notNull(),
+    /** Anything worth keeping that does not fit the columns above. */
+    detail: jsonb("detail"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("admin_audit_log_created_idx").on(table.createdAt),
+    index("admin_audit_log_org_idx").on(table.organizationId, table.createdAt),
+  ],
+);
