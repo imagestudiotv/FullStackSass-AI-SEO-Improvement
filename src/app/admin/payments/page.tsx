@@ -12,7 +12,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import Link from "next/link";
+
 import { listPayments } from "@/lib/admin/actions";
+import { AdminSearch } from "../admin-search";
 import { RefundButton } from "./refund-button";
 
 export const metadata = { title: "Payments" };
@@ -35,14 +38,47 @@ function money(cents: number, currency: string): string {
  * then correcting the local record by hand. Two systems, no record of who did
  * it.
  */
-export default async function AdminPaymentsPage() {
-  const rows = await listPayments();
+export default async function AdminPaymentsPage({
+  searchParams,
+}: PageProps<"/admin/payments">) {
+  const params = await searchParams;
+  const search = typeof params.q === "string" ? params.q : "";
+  /** Set when arriving from a workspace, to see one customer's payments. */
+  const organizationId =
+    typeof params.org === "string" ? params.org : undefined;
+
+  const rows = await listPayments({ search, organizationId });
+
+  /**
+   * Named from the rows rather than a second query. No rows means no
+   * confirmed name, so the banner is hidden rather than guessing.
+   */
+  const filteredTo = organizationId ? rows[0]?.organizationName : undefined;
 
   return (
     <PageShell width="wide">
       <PageHeader
         title="Payments"
         description="Every payment taken, newest first. Refunds go back through Stripe and are recorded in the admin log."
+      />
+
+      {filteredTo ? (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-muted/40 px-3 py-2 text-sm">
+          <span className="text-muted-foreground">Showing payments for</span>
+          <span className="font-medium">{filteredTo}</span>
+          <Link
+            href="/admin/payments"
+            className="ml-auto text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+          >
+            Show all customers
+          </Link>
+        </div>
+      ) : null}
+
+      <AdminSearch
+        placeholder="Search customer or description"
+        defaultValue={search}
+        extraParams={organizationId ? { org: organizationId } : {}}
       />
 
       <Card>
@@ -73,7 +109,14 @@ export default async function AdminPaymentsPage() {
                   const name = row.organizationName ?? "Unknown workspace";
                   return (
                     <TableRow key={row.id}>
-                      <TableCell className="font-medium">{name}</TableCell>
+                      <TableCell className="max-w-48 truncate font-medium">
+                        <Link
+                          href={`/admin/payments?org=${row.organizationId}`}
+                          className="hover:underline"
+                        >
+                          {name}
+                        </Link>
+                      </TableCell>
                       <TableCell className="hidden max-w-56 truncate text-muted-foreground md:table-cell">
                         {row.description ?? "—"}
                       </TableCell>

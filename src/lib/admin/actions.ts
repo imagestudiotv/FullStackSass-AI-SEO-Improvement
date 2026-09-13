@@ -151,6 +151,7 @@ export type AdminArticle = {
   updatedAt: Date;
   websiteId: string;
   domain: string;
+  organizationId: string;
   organizationName: string;
 };
 
@@ -163,21 +164,32 @@ export type AdminArticle = {
 export async function listAllArticles(options: {
   search?: string;
   status?: string;
+  organizationId?: string;
   limit?: number;
 }): Promise<AdminArticle[]> {
   await requireAdmin();
 
   const conditions = [];
   if (options.search) {
+    /**
+     * Matches the customer too, not just the article. An operator handling a
+     * support conversation knows the workspace name, not the domain or the
+     * headline, and searching for it returned nothing before.
+     */
     conditions.push(
       or(
         ilike(articles.title, `%${options.search}%`),
         ilike(websites.domain, `%${options.search}%`),
+        ilike(organization.name, `%${options.search}%`),
       ),
     );
   }
   if (options.status && options.status !== "all") {
     conditions.push(eq(articles.status, options.status));
+  }
+  /** Every article belonging to one workspace, for reviewing a customer. */
+  if (options.organizationId) {
+    conditions.push(eq(websites.organizationId, options.organizationId));
   }
 
   return db
@@ -189,6 +201,7 @@ export async function listAllArticles(options: {
       updatedAt: articles.updatedAt,
       websiteId: articles.websiteId,
       domain: websites.domain,
+      organizationId: websites.organizationId,
       organizationName: organization.name,
     })
     .from(articles)
@@ -219,6 +232,7 @@ export async function getAdminArticle(
       updatedAt: articles.updatedAt,
       websiteId: articles.websiteId,
       domain: websites.domain,
+      organizationId: websites.organizationId,
       organizationName: organization.name,
       bodyHtml: articles.bodyHtml,
       metaDescription: articles.metaDescription,
@@ -271,7 +285,15 @@ export type AdminUser = {
   name: string;
   email: string;
   createdAt: Date;
+  /**
+   * One ROW PER MEMBERSHIP, not per person: someone who belongs to three
+   * workspaces appears three times, because the thing an operator acts on is
+   * the workspace, not the account.
+   */
+  organizationId: string | null;
   organizationName: string | null;
+  /** The workspace's subscription status, so suspension is visible here too. */
+  organizationStatus: string | null;
 };
 
 export async function listUsers(search = ""): Promise<AdminUser[]> {
@@ -283,11 +305,17 @@ export async function listUsers(search = ""): Promise<AdminUser[]> {
       name: user.name,
       email: user.email,
       createdAt: user.createdAt,
+      organizationId: organization.id,
       organizationName: organization.name,
+      organizationStatus: subscriptions.status,
     })
     .from(user)
     .leftJoin(member, eq(member.userId, user.id))
     .leftJoin(organization, eq(member.organizationId, organization.id))
+    .leftJoin(
+      subscriptions,
+      eq(subscriptions.organizationId, organization.id),
+    )
     .where(
       search
         ? or(ilike(user.email, `%${search}%`), ilike(user.name, `%${search}%`))
@@ -318,8 +346,29 @@ export type AdminPayment = {
  * Reads across organizations like everything else in this file, so it starts
  * at requireAdmin().
  */
-export async function listPayments(limit = 100): Promise<AdminPayment[]> {
+export async function listPayments(options: {
+  search?: string;
+  organizationId?: string;
+  limit?: number;
+} = {}): Promise<AdminPayment[]> {
   await requireAdmin();
+
+  const conditions = [];
+  if (options.search) {
+    /**
+     * By customer or by what the payment was for. An operator handling a
+     * refund knows the workspace name, not the Stripe id.
+     */
+    conditions.push(
+      or(
+        ilike(organization.name, `%${options.search}%`),
+        ilike(payments.description, `%${options.search}%`),
+      ),
+    );
+  }
+  if (options.organizationId) {
+    conditions.push(eq(payments.organizationId, options.organizationId));
+  }
 
   return db
     .select({
@@ -337,6 +386,7 @@ export async function listPayments(limit = 100): Promise<AdminPayment[]> {
     })
     .from(payments)
     .leftJoin(organization, eq(payments.organizationId, organization.id))
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(desc(payments.paidAt))
-    .limit(limit);
+    .limit(options.limit ?? 100);
 }
