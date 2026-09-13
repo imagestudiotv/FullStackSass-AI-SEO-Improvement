@@ -15,7 +15,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { AdminSearch } from "../admin-search";
+import { WorkspaceActions } from "../organizations/workspace-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -43,7 +45,7 @@ export default async function AdminUsersPage({
           <CardDescription>Showing up to 100.</CardDescription>
         </CardHeader>
         <CardContent>
-          <Table minWidth="32rem">
+          <Table minWidth="42rem">
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
@@ -51,14 +53,16 @@ export default async function AdminUsersPage({
                 <TableHead className="hidden md:table-cell">
                   Organization
                 </TableHead>
+                <TableHead className="w-32">Status</TableHead>
                 <TableHead className="hidden w-28 sm:table-cell">
                   Joined
                 </TableHead>
+                <TableHead className="w-12" />
               </TableRow>
             </TableHeader>
             <TableBody>
               {rows.map((row) => (
-                <TableRow key={row.id}>
+                <TableRow key={`${row.id}:${row.organizationId ?? "none"}`}>
                   <TableCell className="font-medium">{row.name}</TableCell>
                   <TableCell className="max-w-56 truncate text-muted-foreground">
                     {row.email}
@@ -66,8 +70,27 @@ export default async function AdminUsersPage({
                   <TableCell className="hidden text-muted-foreground md:table-cell">
                     {row.organizationName ?? "—"}
                   </TableCell>
+                  <TableCell>
+                    {row.organizationStatus ? (
+                      <StatusBadge status={row.organizationStatus} />
+                    ) : null}
+                  </TableCell>
                   <TableCell className="hidden text-muted-foreground sm:table-cell">
                     {new Date(row.createdAt).toLocaleDateString()}
+                  </TableCell>
+                  <TableCell>
+                    {/*
+                      Scoped to the WORKSPACE, not the person. Suspension stops
+                      generation and publishing for a workspace, and someone in
+                      three of them cannot be suspended as an individual.
+                    */}
+                    {row.organizationId ? (
+                      <WorkspaceActions
+                        organizationId={row.organizationId}
+                        organizationName={row.organizationName ?? row.email}
+                        status={row.organizationStatus}
+                      />
+                    ) : null}
                   </TableCell>
                 </TableRow>
               ))}
