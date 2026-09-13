@@ -9,6 +9,7 @@ import {
   articles,
   member,
   organization,
+  payments,
   plans,
   subscriptions,
   usageEvents,
@@ -294,4 +295,48 @@ export async function listUsers(search = ""): Promise<AdminUser[]> {
     )
     .orderBy(desc(user.createdAt))
     .limit(100);
+}
+
+
+export type AdminPayment = {
+  id: string;
+  organizationId: string;
+  organizationName: string | null;
+  provider: string;
+  externalId: string;
+  amountCents: number;
+  currency: string;
+  status: string;
+  description: string | null;
+  invoiceUrl: string | null;
+  paidAt: Date;
+};
+
+/**
+ * Every payment, newest first, for the refund screen.
+ *
+ * Reads across organizations like everything else in this file, so it starts
+ * at requireAdmin().
+ */
+export async function listPayments(limit = 100): Promise<AdminPayment[]> {
+  await requireAdmin();
+
+  return db
+    .select({
+      id: payments.id,
+      organizationId: payments.organizationId,
+      organizationName: organization.name,
+      provider: payments.provider,
+      externalId: payments.externalId,
+      amountCents: payments.amountCents,
+      currency: payments.currency,
+      status: payments.status,
+      description: payments.description,
+      invoiceUrl: payments.invoiceUrl,
+      paidAt: payments.paidAt,
+    })
+    .from(payments)
+    .leftJoin(organization, eq(payments.organizationId, organization.id))
+    .orderBy(desc(payments.paidAt))
+    .limit(limit);
 }

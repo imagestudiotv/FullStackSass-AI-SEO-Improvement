@@ -1,4 +1,12 @@
-import { BarChart3, Building2, FileText, ShieldAlert, Users } from "lucide-react";
+import {
+  BarChart3,
+  Building2,
+  FileText,
+  Receipt,
+  ScrollText,
+  ShieldAlert,
+  Users,
+} from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -23,6 +31,8 @@ const NAV = [
   { href: "/admin/organizations", label: "Organizations", icon: Building2 },
   { href: "/admin/articles", label: "Articles", icon: FileText },
   { href: "/admin/users", label: "Users", icon: Users },
+  { href: "/admin/payments", label: "Payments", icon: Receipt },
+  { href: "/admin/activity", label: "Activity", icon: ScrollText },
 ];
 
 export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
