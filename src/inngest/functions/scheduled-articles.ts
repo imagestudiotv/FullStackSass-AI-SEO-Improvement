@@ -77,6 +77,19 @@ export const scheduledArticles = inngest.createFunction(
   async ({ step }) => {
     const today = new Date().getUTCDay();
 
+    /**
+     * End of the look-ahead window: today plus the next two days.
+     *
+     * Used by BOTH queries below. The outer one decides which websites are
+     * worth looking at, so if it asked for items due now while the inner one
+     * accepted anything inside the window, a site whose next article was due
+     * tomorrow would never be selected — and the look-ahead would only ever
+     * apply to sites that were already overdue.
+     */
+    const horizon = new Date();
+    horizon.setDate(horizon.getDate() + LOOKAHEAD_DAYS);
+    horizon.setHours(23, 59, 59, 999);
+
     const due = await step.run("select-websites", async () => {
       /**
        * One query for websites that have something to do, rather than reading
@@ -102,13 +115,13 @@ export const scheduledArticles = inngest.createFunction(
             eq(websites.status, "ready"),
             eq(calendarItems.status, "planned"),
             /**
-             * Due now, or undated. An item with no date is one the customer
-             * added by hand; leaving those unwritten forever would be a
-             * silent failure.
+             * Due inside the look-ahead window, or undated. An item with no
+             * date is one the customer added by hand; leaving those unwritten
+             * forever would be a silent failure.
              */
             or(
               isNull(calendarItems.scheduledFor),
-              lte(calendarItems.scheduledFor, new Date()),
+              lte(calendarItems.scheduledFor, horizon),
             ),
           ),
         )
@@ -152,14 +165,6 @@ export const scheduledArticles = inngest.createFunction(
             : Math.max(1, Math.ceil(limit.limit / 30));
         const take = Math.min(MAX_PER_WEBSITE * perDay, remaining);
         if (take === 0) return { queued: 0, limited: true };
-
-        /**
-         * End of the look-ahead window. Items dated inside it are written
-         * now; anything later stays queued and editable.
-         */
-        const horizon = new Date();
-        horizon.setDate(horizon.getDate() + LOOKAHEAD_DAYS);
-        horizon.setHours(23, 59, 59, 999);
 
         const items = await db
           .select({ id: calendarItems.id })
