@@ -55,8 +55,34 @@ export async function readReferralCode(): Promise<string | null> {
   return normalizeCode(jar.get(COOKIE_NAME)?.value);
 }
 
-/** Clears the code once it has been attached to an account. */
-export async function clearReferralCode(): Promise<void> {
-  const jar = await cookies();
-  jar.delete(COOKIE_NAME);
+/**
+ * Clears the code once it has been attached to an account.
+ *
+ * Deleting a cookie is a WRITE, and Next allows those only in a Server Action
+ * or Route Handler. The app layout calls this while rendering, which threw —
+ * and because the throw happened before the delete, the cookie survived and
+ * every subsequent page render hit the same error. A customer who arrived
+ * through a referral link was locked out of the product entirely.
+ *
+ * Swallowed rather than moved: attribution has already been recorded by the
+ * time this runs, so failing to tidy the cookie costs nothing. The alternative
+ * — a redirect to a route handler purely to delete a cookie — would add a
+ * round trip to every first page load after signup.
+ *
+ * Returns whether it was actually cleared, so a caller that needs to know can
+ * check instead of assuming.
+ */
+export async function clearReferralCode(): Promise<boolean> {
+  try {
+    const jar = await cookies();
+    jar.delete(COOKIE_NAME);
+    return true;
+  } catch {
+    /**
+     * Called from a render. The cookie stays for now and is cleared on the
+     * next real write — or simply expires. attachReferral is idempotent, so
+     * the retry on the following page load is harmless.
+     */
+    return false;
+  }
 }
