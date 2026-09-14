@@ -64,6 +64,30 @@ declare global {
   }
 }
 
+/**
+ * Sends one command to Crisp without letting it break the page.
+ *
+ * Crisp does not ignore a command it does not recognise — it THROWS. A single
+ * mistyped namespace ("set"/"session:locale" instead of "config"/"locale")
+ * therefore escaped a useEffect, unmounted the React tree, and left every
+ * signed-in customer looking at the global error screen instead of their
+ * dashboard. The chat widget is a convenience; it must never be able to take
+ * the product down with it.
+ *
+ * Once the real script has loaded, $crisp is Crisp's own object and push()
+ * validates. Before that it is a plain array and anything queues silently,
+ * which is why this only ever fails after load — and why it went unnoticed
+ * locally where the widget is usually unconfigured.
+ */
+function pushToCrisp(command: [string, string?, unknown?]): void {
+  try {
+    (window.$crisp ??= []).push(command);
+  } catch (error) {
+    // Logged, never rethrown. A rejected chat setting is not worth a blank page.
+    console.error("[live-chat] Crisp rejected", command[1] ?? command[0], error);
+  }
+}
+
 export type ChatUser = {
   email: string;
   name: string | null;
@@ -99,11 +123,10 @@ export function LiveChat({
   useEffect(() => {
     if (!enabled || !user) return;
 
-    const queue = (window.$crisp ??= []);
-    queue.push(["set", "user:email", [user.email]]);
-    if (user.name) queue.push(["set", "user:nickname", [user.name]]);
+    pushToCrisp(["set", "user:email", [user.email]]);
+    if (user.name) pushToCrisp(["set", "user:nickname", [user.name]]);
     if (user.organization) {
-      queue.push(["set", "user:company", [user.organization]]);
+      pushToCrisp(["set", "user:company", [user.organization]]);
     }
 
     /**
@@ -114,7 +137,7 @@ export function LiveChat({
     const data: [string, string][] = [];
     if (user.plan) data.push(["plan", user.plan]);
     if (user.organization) data.push(["workspace", user.organization]);
-    if (data.length > 0) queue.push(["set", "session:data", [data]]);
+    if (data.length > 0) pushToCrisp(["set", "session:data", [data]]);
   }, [enabled, user]);
 
   /**
@@ -130,7 +153,9 @@ export function LiveChat({
 
   useEffect(() => {
     if (!enabled || !pathLocale) return;
-    (window.$crisp ??= []).push(["set", "session:locale", [pathLocale]]);
+    // ["config", "locale", ...] — NOT ["set", "session:locale", ...]. That
+    // namespace does not exist, and see pushToCrisp for what it cost.
+    pushToCrisp(["config", "locale", [pathLocale]]);
   }, [enabled, pathLocale]);
 
   /**
@@ -143,14 +168,13 @@ export function LiveChat({
    */
   useEffect(() => {
     if (!enabled) return;
-    const queue = (window.$crisp ??= []);
-    queue.push(["config", "color:theme", ["deep_orange"]]);
+    pushToCrisp(["config", "color:theme", ["deep_orange"]]);
     /**
      * No tooltip beside the launcher. It covers the bubble with a speech
      * balloon on load, which hides the brand mark the bubble is there to
      * show, and it says nothing the bubble does not.
      */
-    queue.push(["config", "availability:tooltip", [false]]);
+    pushToCrisp(["config", "availability:tooltip", [false]]);
   }, [enabled]);
 
 
