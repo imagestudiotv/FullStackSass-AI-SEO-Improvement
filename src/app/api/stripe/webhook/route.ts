@@ -241,12 +241,44 @@ export async function POST(request: Request) {
       case "invoice.payment_failed":
       case "invoice.paid": {
         const invoice = event.data.object;
+
+        /**
+         * Where the subscription id lives on an invoice.
+         *
+         * It used to be on the line item. Stripe moved it to
+         * `parent.subscription_details.subscription`, and reading only the old
+         * place meant subscriptionId was undefined on every real invoice — the
+         * handler then hit the guard below and returned BEFORE recording the
+         * payment. Three invoice.paid events were processed successfully and
+         * the payments table stayed empty, so the admin refund screen had
+         * nothing to show and no error said why.
+         *
+         * Both locations are read rather than only the new one: invoices
+         * already in flight when Stripe's version changes still carry the old
+         * shape, and an operator pinning an older apiVersion would otherwise
+         * silently lose payments again.
+         */
         const line = invoice.lines?.data?.[0];
+        const fromParent = invoice.parent?.subscription_details?.subscription;
         const subscriptionId =
-          typeof line?.subscription === "string"
+          (typeof fromParent === "string"
+            ? fromParent
+            : (fromParent?.id ?? null)) ??
+          (typeof line?.subscription === "string"
             ? line.subscription
-            : (line?.subscription?.id ?? null);
-        if (!subscriptionId) break;
+            : (line?.subscription?.id ?? null));
+
+        if (!subscriptionId) {
+          /**
+           * Logged rather than silent. This branch is how the bug above went
+           * unnoticed: a break with no trace looks identical to an event that
+           * was handled correctly.
+           */
+          console.error(
+            `[stripe-webhook] ${event.type} ${invoice.id} carries no subscription id`,
+          );
+          break;
+        }
 
         // Stripe has already moved the subscription to past_due / active; read
         // it back rather than inferring status from the invoice.

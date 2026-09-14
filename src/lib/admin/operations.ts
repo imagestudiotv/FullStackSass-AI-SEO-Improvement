@@ -117,15 +117,45 @@ export async function refundPayment(
 
   try {
     /**
-     * The stored external id is whatever the webhook carried — a payment
-     * intent for a one-off, a charge for some invoice events. Stripe accepts
-     * either, addressed by the right parameter, so the prefix decides.
+     * What the stored id actually is decides how the refund is addressed.
+     *
+     * Subscription payments are recorded under the INVOICE id (in_...), which
+     * Stripe cannot refund: refunds take a charge or a payment intent, and
+     * passing an invoice id returned "No such payment_intent". The invoice
+     * carries neither field any more either — Stripe moved the link to
+     * `payments.data[].payment.payment_intent`, and that is only present when
+     * expanded, so it has to be fetched rather than read from the webhook
+     * payload we already have.
+     *
+     * One-off add-ons store a payment intent directly, and older rows may
+     * hold a charge, so both are still handled by prefix.
      */
-    await stripe.refunds.create(
-      row.externalId.startsWith("ch_")
-        ? { charge: row.externalId }
-        : { payment_intent: row.externalId },
-    );
+    let target: { charge: string } | { payment_intent: string };
+
+    if (row.externalId.startsWith("in_")) {
+      const invoice = await stripe.invoices.retrieve(row.externalId, {
+        expand: ["payments"],
+      });
+      const payment = invoice.payments?.data?.[0]?.payment;
+      const intent =
+        payment?.type === "payment_intent" ? payment.payment_intent : null;
+      const intentId = typeof intent === "string" ? intent : (intent?.id ?? null);
+
+      if (!intentId) {
+        return {
+          ok: false,
+          error:
+            "This invoice has no refundable payment on Stripe. Refund it in the Stripe dashboard.",
+        };
+      }
+      target = { payment_intent: intentId };
+    } else if (row.externalId.startsWith("ch_")) {
+      target = { charge: row.externalId };
+    } else {
+      target = { payment_intent: row.externalId };
+    }
+
+    await stripe.refunds.create(target);
   } catch (error) {
     /**
      * The audit row stays. It records an attempt, which is the honest
