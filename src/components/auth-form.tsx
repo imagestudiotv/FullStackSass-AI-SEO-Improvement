@@ -3,7 +3,8 @@
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
-import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth-client";
@@ -12,6 +13,23 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 const CALLBACK_URL = "/dashboard";
+
+/**
+ * What Better Auth's OAuth error codes mean to a customer.
+ *
+ * Its own codes read like internals — "account_not_linked" tells someone
+ * nothing about what to do next. Anything unmapped falls back to a plain
+ * sentence rather than showing the raw code.
+ */
+const OAUTH_ERRORS: Record<string, string> = {
+  account_not_linked:
+    "That email already has a password account. Sign in with your password, or contact support to link Google.",
+  email_does_not_match:
+    "That Google account uses a different email than the one on file.",
+  account_already_linked_to_different_user:
+    "That Google account is already connected to another account.",
+  unable_to_link_account: "Google sign-in could not be linked to your account.",
+};
 
 /**
  * Sign-in and sign-up, following the reference design.
@@ -38,11 +56,39 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
   const [pending, setPending] = useState(false);
   const [googlePending, setGooglePending] = useState(false);
 
+  /**
+   * Report a failure that happened during the OAuth round trip.
+   *
+   * Better Auth redirects back with ?error=<code>. Nothing read it, so a
+   * refused sign-in looked like nothing happening at all. Shown once and then
+   * stripped from the address, so a reload does not repeat it.
+   */
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    const code = searchParams.get("error");
+    if (!code) return;
+    toast.error(OAUTH_ERRORS[code] ?? "Sign-in did not complete. Try again.");
+    window.history.replaceState(null, "", window.location.pathname);
+  }, [searchParams]);
+
   async function handleGoogle() {
     setGooglePending(true);
     const { error } = await authClient.signIn.social({
       provider: "google",
       callbackURL: CALLBACK_URL,
+      /**
+       * Where a failure DURING the OAuth round trip lands.
+       *
+       * Without this it defaults to the site root, so a failed Google sign-in
+       * dropped the customer on the marketing homepage with ?error=... in the
+       * address bar and nothing reading it — they simply appeared not to be
+       * signed in, with no reason given. Sending it back to the sign-in page
+       * puts the message beside the buttons that produced it.
+       *
+       * The `error` returned here does NOT cover that case: it only catches
+       * failures before the browser leaves for Google.
+       */
+      errorCallbackURL: "/sign-in",
     });
     if (error) {
       setGooglePending(false);

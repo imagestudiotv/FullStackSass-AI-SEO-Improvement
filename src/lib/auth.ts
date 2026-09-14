@@ -86,6 +86,33 @@ function createAuth() {
         clientSecret: required("GOOGLE_CLIENT_SECRET"),
       },
     },
+
+    /**
+     * Let someone who signed up with a password also sign in with Google.
+     *
+     * Without this, "Continue with Google" on an address that already has a
+     * password account bounced to /?error=account_not_linked and signed
+     * nobody in. Better Auth refuses to attach a second provider to an
+     * existing user unless the provider is trusted or the email arrives
+     * verified — see the check in its oauth callback:
+     *
+     *   !trustedProviders.includes(provider.id) && !userInfo.emailVerified
+     *
+     * Trusting Google is safe here in a way trusting an arbitrary provider
+     * would not be: Google verifies the mailbox itself, so proving control of
+     * the Google account proves control of the address the password account
+     * was opened with. The risk this check guards against — a provider that
+     * lets anyone claim any email — does not apply to it.
+     *
+     * allowDifferentEmails stays off. Linking is only ever the SAME address;
+     * a different one is a different person until they say otherwise.
+     */
+    account: {
+      accountLinking: {
+        enabled: true,
+        trustedProviders: ["google"],
+      },
+    },
     databaseHooks: {
       user: {
         create: {
