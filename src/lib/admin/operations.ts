@@ -6,6 +6,8 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/admin/guard";
 import { recordAdminAction } from "@/lib/admin/audit";
 import { recordCredit, getBalance } from "@/lib/backlinks/credits";
+import { checkLimit } from "@/lib/usage";
+import { UNLIMITED } from "@/lib/usage-shared";
 import { db } from "@/lib/db";
 import {
   agencyWorkspaces,
@@ -35,6 +37,73 @@ import type { ActionResult } from "@/lib/websites/actions";
 /* ------------------------------------------------------------------------- */
 
 /**
+ * What a payment is worth refunding, given what the customer already used.
+ *
+ * Usage based rather than time based: a customer who generated most of their
+ * articles and then asked for their money back has had most of what they paid
+ * for, and refunding by calendar days would ignore that entirely.
+ *
+ * Only articles are counted. They are the plan's headline entitlement and the
+ * only one with a real per-unit cost to us; keywords and websites are limits
+ * rather than consumption.
+ *
+ * Returns the FULL amount when there is nothing to prorate against — no plan,
+ * an unlimited allowance, or a limit of zero. Refusing to guess is the right
+ * answer there: a wrong proration takes money from a customer who is already
+ * asking for it back.
+ */
+export async function quoteRefund(
+  paymentId: string,
+): Promise<
+  ActionResult<{
+    fullCents: number;
+    suggestedCents: number;
+    articlesUsed: number;
+    articleLimit: number;
+    currency: string;
+  }>
+> {
+  await requireAdmin();
+
+  const [row] = await db
+    .select({
+      organizationId: payments.organizationId,
+      amountCents: payments.amountCents,
+      currency: payments.currency,
+    })
+    .from(payments)
+    .where(eq(payments.id, paymentId))
+    .limit(1);
+  if (!row) return { ok: false, error: "Payment not found." };
+
+  const usage = await checkLimit(row.organizationId, "articles");
+
+  /**
+   * UNLIMITED is -1 and a zero limit cannot be divided by, so both fall back
+   * to the full amount rather than producing a nonsense fraction.
+   */
+  const prorated =
+    usage.limit === UNLIMITED || usage.limit <= 0
+      ? row.amountCents
+      : Math.round(
+          row.amountCents *
+            (Math.max(usage.limit - usage.used, 0) / usage.limit),
+        );
+
+  return {
+    ok: true,
+    data: {
+      fullCents: row.amountCents,
+      suggestedCents: prorated,
+      articlesUsed: usage.used,
+      articleLimit: usage.limit,
+      currency: row.currency,
+    },
+  };
+}
+
+
+/**
  * Refunds a payment through the processor that took it.
  *
  * Stripe only. PayPal refunds need the order id and a different capture flow,
@@ -49,7 +118,13 @@ import type { ActionResult } from "@/lib/websites/actions";
 export async function refundPayment(
   paymentId: string,
   reason: string,
-): Promise<ActionResult<{ refunded: number }>> {
+  options: {
+    /** Amount to send back. Omit to refund the whole payment. */
+    amountCents?: number;
+    /** Also end the subscription, for a customer who is leaving. */
+    cancelSubscription?: boolean;
+  } = {},
+): Promise<ActionResult<{ refunded: number; cancelled: boolean }>> {
   const admin = await requireAdmin();
 
   const note = reason.trim();
@@ -94,6 +169,20 @@ export async function refundPayment(
   }
 
   /**
+   * Default to the whole payment. A partial amount is validated here as well
+   * as in the dialog, because a server action is a public endpoint and the
+   * caller chooses the number.
+   */
+  const amountCents = options.amountCents ?? row.amountCents;
+  if (!Number.isInteger(amountCents) || amountCents <= 0) {
+    return { ok: false, error: "Enter an amount greater than zero." };
+  }
+  if (amountCents > row.amountCents) {
+    return { ok: false, error: "That is more than the customer paid." };
+  }
+  const partial = amountCents < row.amountCents;
+
+  /**
    * Logged BEFORE the money moves. A Stripe refund cannot be undone, so the
    * ordering matters: if the log write fails nothing has happened yet, but if
    * the refund succeeded and the log then failed there would be money out the
@@ -105,11 +194,16 @@ export async function refundPayment(
     targetType: "payment",
     targetId: row.id,
     organizationId: row.organizationId,
-    summary: `Refunded ${(row.amountCents / 100).toFixed(2)} ${row.currency.toUpperCase()} — ${note}`,
+    summary: `Refunded ${(amountCents / 100).toFixed(2)} ${row.currency.toUpperCase()}${
+      partial ? ` of ${(row.amountCents / 100).toFixed(2)}` : ""
+    }${options.cancelSubscription ? ", subscription cancelled" : ""} — ${note}`,
     detail: {
       provider: row.provider,
       externalId: row.externalId,
-      amountCents: row.amountCents,
+      amountCents,
+      originalAmountCents: row.amountCents,
+      partial,
+      cancelSubscription: Boolean(options.cancelSubscription),
       description: row.description,
       reason: note,
     },
@@ -155,7 +249,8 @@ export async function refundPayment(
       target = { payment_intent: row.externalId };
     }
 
-    await stripe.refunds.create(target);
+    // Omitting amount would refund the whole charge, so it is always sent.
+    await stripe.refunds.create({ ...target, amount: amountCents });
   } catch (error) {
     /**
      * The audit row stays. It records an attempt, which is the honest
@@ -166,13 +261,66 @@ export async function refundPayment(
     return { ok: false, error: message.slice(0, 200) };
   }
 
+  /**
+   * Marked refunded even on a partial. The status answers "was money sent
+   * back", which is what stops it being refunded twice; the exact amount
+   * lives on the audit entry.
+   */
   await db
     .update(payments)
     .set({ status: "refunded", updatedAt: new Date() })
     .where(eq(payments.id, row.id));
 
+  let cancelled = false;
+  if (options.cancelSubscription) {
+    /**
+     * Cancelled AFTER the money is back. If cancelling failed first, the
+     * operator would be left with a stopped account and no refund — the worse
+     * of the two halves to get stuck with.
+     *
+     * Failure here does not fail the action: the refund succeeded and is
+     * already recorded, and telling the operator it failed would invite them
+     * to refund again. The subscription can still be suspended by hand, and
+     * the audit entry says a cancellation was intended.
+     */
+    try {
+      const [current] = await db
+        .select({
+          id: subscriptions.id,
+          stripeSubscriptionId: subscriptions.stripeSubscriptionId,
+        })
+        .from(subscriptions)
+        .where(eq(subscriptions.organizationId, row.organizationId))
+        .orderBy(desc(subscriptions.createdAt))
+        .limit(1);
+
+      if (current?.stripeSubscriptionId) {
+        await stripe.subscriptions.cancel(current.stripeSubscriptionId);
+      }
+      if (current) {
+        /**
+         * Set locally as well as in Stripe. The webhook will say the same
+         * thing shortly, but every limit check reads this row, and waiting
+         * for the webhook would leave the customer able to generate articles
+         * they have just been refunded for.
+         */
+        await db
+          .update(subscriptions)
+          .set({ status: "canceled", updatedAt: new Date() })
+          .where(eq(subscriptions.id, current.id));
+        cancelled = true;
+      }
+    } catch (error) {
+      console.error(
+        "[admin] refund succeeded but cancelling the subscription failed",
+        error,
+      );
+    }
+  }
+
   revalidatePath("/admin/payments");
-  return { ok: true, data: { refunded: row.amountCents } };
+  revalidatePath("/admin/organizations");
+  return { ok: true, data: { refunded: amountCents, cancelled } };
 }
 
 /* ------------------------------------------------------------------------- */
