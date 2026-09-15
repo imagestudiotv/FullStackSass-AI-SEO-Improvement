@@ -28,7 +28,7 @@ import {
   vector,
 } from "drizzle-orm/pg-core";
 
-import { organization } from "./auth-tables";
+import { organization, user } from "./auth-tables";
 import { organizationId, pk, timestamps, userId } from "./columns";
 
 export * from "./auth-tables";
@@ -96,6 +96,20 @@ export const subscriptions = pgTable(
   {
     id: pk(),
     organizationId: organizationId(),
+    /**
+     * The website this subscription pays for.
+     *
+     * Each website is billed separately, so a workspace with three sites has
+     * three subscriptions rather than one plan covering all of them. The
+     * organization is kept alongside because Stripe customers, invoices and
+     * the credit ledger still belong to the person paying, not to one site.
+     *
+     * Nullable only so existing rows survive the migration; a subscription
+     * created from here on always names its website.
+     */
+    websiteId: uuid("website_id").references(() => websites.id, {
+      onDelete: "cascade",
+    }),
     /** "stripe" | "paypal". Which processor owns this subscription. */
     provider: text("provider").default("stripe").notNull(),
     stripeCustomerId: text("stripe_customer_id"),
@@ -115,7 +129,12 @@ export const subscriptions = pgTable(
     ...timestamps,
   },
   (table) => [
-    uniqueIndex("subscriptions_organization_id_uidx").on(table.organizationId),
+    /**
+     * One subscription per WEBSITE, not per organization. The old unique index
+     * on organization_id is what made a second paid site impossible.
+     */
+    uniqueIndex("subscriptions_website_id_uidx").on(table.websiteId),
+    index("subscriptions_organization_id_idx").on(table.organizationId),
     // Webhooks arrive keyed by the processor's id, never by organization.
     index("subscriptions_stripe_subscription_id_idx").on(
       table.stripeSubscriptionId,
@@ -1178,5 +1197,54 @@ export const adminAuditLog = pgTable(
   (table) => [
     index("admin_audit_log_created_idx").on(table.createdAt),
     index("admin_audit_log_org_idx").on(table.organizationId, table.createdAt),
+  ],
+);
+
+
+/* ------------------------------------------------------------------------- */
+/* Website access                                                             */
+/* ------------------------------------------------------------------------- */
+
+/**
+ * Who may work on one website, and in what capacity.
+ *
+ * Membership of the workspace says someone belongs to the account; this says
+ * which sites they may touch. A freelance editor brought in for one client's
+ * site should not see the others, and workspace membership alone cannot
+ * express that.
+ *
+ * Roles:
+ *   owner   the person who added the site; billing and deletion
+ *   editor  may write, edit and publish articles on this site
+ *   viewer  may read only
+ *
+ * The owner is NOT stored here. Ownership follows websites.organization_id
+ * and the workspace's own owner, so it cannot be revoked by deleting a row
+ * and leaving a site nobody controls.
+ */
+export const websiteMembers = pgTable(
+  "website_members",
+  {
+    id: pk(),
+    websiteId: websiteId(),
+    /** Text, like every user reference: Better Auth ids are text. */
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    /** "editor" | "viewer". */
+    role: text("role").default("editor").notNull(),
+    /** Who granted it, for the same reason the admin log records an actor. */
+    invitedBy: text("invited_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    ...timestamps,
+  },
+  (table) => [
+    // One role per person per site; a second grant updates rather than stacks.
+    uniqueIndex("website_members_site_user_uidx").on(
+      table.websiteId,
+      table.userId,
+    ),
+    index("website_members_user_idx").on(table.userId),
   ],
 );
