@@ -15,6 +15,8 @@ import {
 import Link from "next/link";
 
 import { listPayments } from "@/lib/admin/actions";
+import { pageFrom } from "@/lib/admin/shared";
+import { Pagination } from "../pagination";
 import { AdminSearch } from "../admin-search";
 import { RefundButton } from "./refund-button";
 
@@ -47,7 +49,12 @@ export default async function AdminPaymentsPage({
   const organizationId =
     typeof params.org === "string" ? params.org : undefined;
 
-  const rows = await listPayments({ search, organizationId });
+  const page = pageFrom(params.page);
+  const { rows, total, pageSize } = await listPayments({
+    search,
+    organizationId,
+    page,
+  });
 
   /**
    * Named from the rows rather than a second query. No rows means no
@@ -154,6 +161,14 @@ export default async function AdminPaymentsPage({
           )}
         </CardContent>
       </Card>
+
+      <Pagination
+        page={page}
+        pageSize={pageSize}
+        total={total}
+        params={{ q: search || undefined, org: organizationId }}
+        basePath="/admin/payments"
+      />
     </PageShell>
   );
 }

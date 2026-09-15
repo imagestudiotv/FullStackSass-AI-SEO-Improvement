@@ -1,6 +1,8 @@
 import Link from "next/link";
 
 import { listAllArticles } from "@/lib/admin/actions";
+import { pageFrom } from "@/lib/admin/shared";
+import { Pagination } from "../pagination";
 import { PageHeader, PageShell } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
 import {
@@ -34,7 +36,13 @@ export default async function AdminArticlesPage({
   const organizationId =
     typeof params.org === "string" ? params.org : undefined;
 
-  const rows = await listAllArticles({ search, status, organizationId });
+  const page = pageFrom(params.page);
+  const { rows, total, pageSize } = await listAllArticles({
+    search,
+    status,
+    organizationId,
+    page,
+  });
 
   /**
    * The workspace being filtered to, taken from the rows rather than a second
@@ -94,9 +102,9 @@ export default async function AdminArticlesPage({
       <Card>
         <CardHeader>
           <CardTitle className="text-base">
-            {rows.length} article{rows.length === 1 ? "" : "s"}
+            {total} article{total === 1 ? "" : "s"}
           </CardTitle>
-          <CardDescription>Showing up to 100, newest first.</CardDescription>
+          <CardDescription>Newest first.</CardDescription>
         </CardHeader>
         <CardContent>
           <Table minWidth="36rem">
@@ -155,6 +163,18 @@ export default async function AdminArticlesPage({
           </Table>
         </CardContent>
       </Card>
+
+      <Pagination
+        page={page}
+        pageSize={pageSize}
+        total={total}
+        params={{
+          q: search || undefined,
+          status: status !== "all" ? status : undefined,
+          org: organizationId,
+        }}
+        basePath="/admin/articles"
+      />
     </PageShell>
   );
 }

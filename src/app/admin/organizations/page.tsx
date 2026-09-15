@@ -1,4 +1,6 @@
 import { listOrganizations } from "@/lib/admin/actions";
+import { pageFrom } from "@/lib/admin/shared";
+import { Pagination } from "../pagination";
 import { PageHeader, PageShell } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
 import {
@@ -34,7 +36,8 @@ export default async function AdminOrganizationsPage({
 }: PageProps<"/admin/organizations">) {
   const params = await searchParams;
   const search = typeof params.q === "string" ? params.q : "";
-  const rows = await listOrganizations(search);
+  const page = pageFrom(params.page);
+  const { rows, total, pageSize } = await listOrganizations(search, page);
 
   return (
     <BulkSelectionProvider>
@@ -51,10 +54,10 @@ export default async function AdminOrganizationsPage({
       <Card>
         <CardHeader>
           <CardTitle className="text-base">
-            {rows.length} organization{rows.length === 1 ? "" : "s"}
+            {total} organization{total === 1 ? "" : "s"}
           </CardTitle>
           <CardDescription>
-            Showing up to 100. Use search to narrow the list.
+            Newest first. Use search to find one by name.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -151,6 +154,14 @@ export default async function AdminOrganizationsPage({
           </Table>
         </CardContent>
       </Card>
+
+      <Pagination
+        page={page}
+        pageSize={pageSize}
+        total={total}
+        params={{ q: search || undefined }}
+        basePath="/admin/organizations"
+      />
     </PageShell>
     </BulkSelectionProvider>
   );

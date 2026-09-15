@@ -4,6 +4,7 @@ import { and, desc, eq, ilike, or, sql as raw } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { requireAdmin } from "@/lib/admin/guard";
+import { ADMIN_PAGE_SIZE, type Page } from "@/lib/admin/shared";
 import { db } from "@/lib/db";
 import {
   articles,
@@ -105,8 +106,15 @@ export type AdminOrganization = {
 
 export async function listOrganizations(
   search = "",
-): Promise<AdminOrganization[]> {
+  page = 1,
+): Promise<Page<AdminOrganization>> {
   await requireAdmin();
+
+  const where = search ? ilike(organization.name, `%${search}%`) : undefined;
+  const [counted] = await db
+    .select({ n: raw<number>`count(*)::int` })
+    .from(organization)
+    .where(where);
 
   const rows = await db
     .select({
@@ -136,11 +144,12 @@ export async function listOrganizations(
     .from(organization)
     .leftJoin(subscriptions, eq(subscriptions.organizationId, organization.id))
     .leftJoin(plans, eq(subscriptions.planId, plans.id))
-    .where(search ? ilike(organization.name, `%${search}%`) : undefined)
+    .where(where)
     .orderBy(desc(organization.createdAt))
-    .limit(100);
+    .limit(ADMIN_PAGE_SIZE)
+    .offset((page - 1) * ADMIN_PAGE_SIZE);
 
-  return rows;
+  return { rows, total: counted?.n ?? 0, page, pageSize: ADMIN_PAGE_SIZE };
 }
 
 export type AdminArticle = {
@@ -165,8 +174,8 @@ export async function listAllArticles(options: {
   search?: string;
   status?: string;
   organizationId?: string;
-  limit?: number;
-}): Promise<AdminArticle[]> {
+  page?: number;
+}): Promise<Page<AdminArticle>> {
   await requireAdmin();
 
   const conditions = [];
@@ -192,7 +201,17 @@ export async function listAllArticles(options: {
     conditions.push(eq(websites.organizationId, options.organizationId));
   }
 
-  return db
+  const page = options.page ?? 1;
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const [counted] = await db
+    .select({ n: raw<number>`count(*)::int` })
+    .from(articles)
+    .innerJoin(websites, eq(articles.websiteId, websites.id))
+    .innerJoin(organization, eq(websites.organizationId, organization.id))
+    .where(where);
+
+  const rows = await db
     .select({
       id: articles.id,
       title: articles.title,
@@ -207,9 +226,12 @@ export async function listAllArticles(options: {
     .from(articles)
     .innerJoin(websites, eq(articles.websiteId, websites.id))
     .innerJoin(organization, eq(websites.organizationId, organization.id))
-    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .where(where)
     .orderBy(desc(articles.updatedAt))
-    .limit(options.limit ?? 100);
+    .limit(ADMIN_PAGE_SIZE)
+    .offset((page - 1) * ADMIN_PAGE_SIZE);
+
+  return { rows, total: counted?.n ?? 0, page, pageSize: ADMIN_PAGE_SIZE };
 }
 
 export type AdminArticleDetail = AdminArticle & {
@@ -296,10 +318,27 @@ export type AdminUser = {
   organizationStatus: string | null;
 };
 
-export async function listUsers(search = ""): Promise<AdminUser[]> {
+export async function listUsers(
+  search = "",
+  page = 1,
+): Promise<Page<AdminUser>> {
   await requireAdmin();
 
-  return db
+  const where = search
+    ? or(ilike(user.email, `%${search}%`), ilike(user.name, `%${search}%`))
+    : undefined;
+
+  /**
+   * Counts PEOPLE, not rows. The query below joins memberships, so someone in
+   * three workspaces produces three rows — counting those would tell an
+   * operator there are more accounts than exist.
+   */
+  const [counted] = await db
+    .select({ n: raw<number>`count(*)::int` })
+    .from(user)
+    .where(where);
+
+  const rows = await db
     .select({
       id: user.id,
       name: user.name,
@@ -316,13 +355,12 @@ export async function listUsers(search = ""): Promise<AdminUser[]> {
       subscriptions,
       eq(subscriptions.organizationId, organization.id),
     )
-    .where(
-      search
-        ? or(ilike(user.email, `%${search}%`), ilike(user.name, `%${search}%`))
-        : undefined,
-    )
+    .where(where)
     .orderBy(desc(user.createdAt))
-    .limit(100);
+    .limit(ADMIN_PAGE_SIZE)
+    .offset((page - 1) * ADMIN_PAGE_SIZE);
+
+  return { rows, total: counted?.n ?? 0, page, pageSize: ADMIN_PAGE_SIZE };
 }
 
 
@@ -349,8 +387,8 @@ export type AdminPayment = {
 export async function listPayments(options: {
   search?: string;
   organizationId?: string;
-  limit?: number;
-} = {}): Promise<AdminPayment[]> {
+  page?: number;
+} = {}): Promise<Page<AdminPayment>> {
   await requireAdmin();
 
   const conditions = [];
@@ -370,7 +408,16 @@ export async function listPayments(options: {
     conditions.push(eq(payments.organizationId, options.organizationId));
   }
 
-  return db
+  const page = options.page ?? 1;
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const [counted] = await db
+    .select({ n: raw<number>`count(*)::int` })
+    .from(payments)
+    .leftJoin(organization, eq(payments.organizationId, organization.id))
+    .where(where);
+
+  const rows = await db
     .select({
       id: payments.id,
       organizationId: payments.organizationId,
@@ -386,7 +433,10 @@ export async function listPayments(options: {
     })
     .from(payments)
     .leftJoin(organization, eq(payments.organizationId, organization.id))
-    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .where(where)
     .orderBy(desc(payments.paidAt))
-    .limit(options.limit ?? 100);
+    .limit(ADMIN_PAGE_SIZE)
+    .offset((page - 1) * ADMIN_PAGE_SIZE);
+
+  return { rows, total: counted?.n ?? 0, page, pageSize: ADMIN_PAGE_SIZE };
 }

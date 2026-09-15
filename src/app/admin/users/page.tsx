@@ -1,4 +1,6 @@
 import { listUsers } from "@/lib/admin/actions";
+import { pageFrom } from "@/lib/admin/shared";
+import { Pagination } from "../pagination";
 import { PageHeader, PageShell } from "@/components/ui/page-header";
 import {
   Card,
@@ -32,7 +34,8 @@ export default async function AdminUsersPage({
 }: PageProps<"/admin/users">) {
   const params = await searchParams;
   const search = typeof params.q === "string" ? params.q : "";
-  const rows = await listUsers(search);
+  const page = pageFrom(params.page);
+  const { rows, total, pageSize } = await listUsers(search, page);
 
   return (
     <BulkSelectionProvider>
@@ -49,9 +52,9 @@ export default async function AdminUsersPage({
       <Card>
         <CardHeader>
           <CardTitle className="text-base">
-            {rows.length} user{rows.length === 1 ? "" : "s"}
+            {total} user{total === 1 ? "" : "s"}
           </CardTitle>
-          <CardDescription>Showing up to 100.</CardDescription>
+          <CardDescription>Newest first.</CardDescription>
         </CardHeader>
         <CardContent>
           <Table minWidth="46rem">
@@ -131,6 +134,14 @@ export default async function AdminUsersPage({
           </Table>
         </CardContent>
       </Card>
+
+      <Pagination
+        page={page}
+        pageSize={pageSize}
+        total={total}
+        params={{ q: search || undefined }}
+        basePath="/admin/users"
+      />
     </PageShell>
     </BulkSelectionProvider>
   );
