@@ -45,15 +45,21 @@ if (!hasColumn) {
 }
 
 /**
- * Rows created before the change legitimately have no website; the migration
- * backfills what it can, but a workspace with no site at the time keeps null.
- * Anything newer is a real fault.
+ * What counts as excusable.
+ *
+ * This used to date the change from the oldest subscription that names a
+ * website, falling back to now(). Both halves were wrong. With no row yet
+ * carrying a website the fallback made the cutoff now(), so EVERY row sorted
+ * as "created before the change" and the script reported success while not one
+ * subscription named a site. A check that passes when nothing works is worse
+ * than no check.
+ *
+ * The real question is not when a row was made, it is whether it CAN name a
+ * website: a subscription whose account owns a site and still points at none
+ * is broken regardless of its age, because checkLimit reads website_id and
+ * that customer gets no allowance. An account with no website has nothing to
+ * point at and is genuinely excusable.
  */
-const [{ applied_at: cutoff }] = await sql`
-  select coalesce(
-    (select min(created_at) from subscriptions where website_id is not null),
-    now()
-  ) as applied_at`;
 
 const rows = await sql`
   select
@@ -66,7 +72,11 @@ const rows = await sql`
     o.name as workspace,
     p.name as plan,
     s.stripe_subscription_id,
-    s.paypal_subscription_id
+    s.paypal_subscription_id,
+    (select count(*) from websites w2 where w2.organization_id = s.organization_id)
+      as owned_sites,
+    (select string_agg(w2.domain, ', ') from websites w2
+      where w2.organization_id = s.organization_id) as owned_domains
   from subscriptions s
   join organization o on o.id = s.organization_id
   left join websites w on w.id = s.website_id
@@ -90,22 +100,28 @@ for (const row of rows) {
   }
 
   /**
-   * Old rows are reported but not counted as failures: they predate the
-   * change and cannot be fixed by re-running a checkout.
+   * No website to point at. Nothing is broken and nothing can be fixed here:
+   * there is no site to grant an allowance to, and connecting one later is
+   * what attaches the subscription.
    */
-  const legacy = row.created_at < cutoff;
-  if (legacy) {
+  if (Number(row.owned_sites) === 0) {
     console.log(
-      `  legacy   ${row.provider.padEnd(6)} ${row.status.padEnd(9)} ${row.workspace} ` +
-        `has no website (created before per-site billing)  ${ref}`,
+      `  none     ${row.provider.padEnd(6)} ${row.status.padEnd(9)} ${row.workspace} ` +
+        `has no website at all  ${ref}`,
     );
     continue;
   }
 
+  /**
+   * The real fault, whatever the row's age: an account that owns a site, with
+   * a subscription naming none of them. checkLimit reads website_id, so this
+   * customer pays and gets nothing.
+   */
   missing += 1;
   console.log(
     `  MISSING  ${row.provider.padEnd(6)} ${row.status.padEnd(9)} ${row.workspace} ` +
-      `has NO website — this site gets no allowance  ${ref}`,
+      `owns ${row.owned_sites} site(s) [${row.owned_domains}] but names none ` +
+      `— they get NO allowance  ${ref}`,
   );
 }
 
@@ -124,9 +140,12 @@ console.log("");
 
 if (missing > 0) {
   console.error(
-    `${missing} subscription(s) created after per-website billing have no website.\n` +
-      `The identifier did not survive the processor round trip: check the\n` +
-      `metadata written in lib/stripe/actions.ts or lib/paypal/subscriptions.ts.`,
+    `${missing} subscription(s) own a website but do not name one.\n\n` +
+      `For rows that predate per-website billing, attach them:\n` +
+      `  node scripts/attach-subscriptions.mjs --apply\n\n` +
+      `For one created by a NEW checkout, the identifier did not survive the\n` +
+      `processor round trip: check the metadata written in lib/stripe/actions.ts\n` +
+      `or lib/paypal/subscriptions.ts.`,
   );
   await sql.end();
   process.exit(1);
