@@ -59,6 +59,16 @@ function sameDay(a: Date, b: Date): boolean {
 }
 
 /** Local YYYY-MM-DD, used to bucket items by day. */
+/** Reads a dayKey back as a local date and names it for the panel heading. */
+function dayLabel(key: string): string {
+  const [year, month, day] = key.split("-").map(Number);
+  return new Date(year, month - 1, day).toLocaleDateString("en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+}
+
 function dayKey(date: Date): string {
   const month = `${date.getMonth() + 1}`.padStart(2, "0");
   const day = `${date.getDate()}`.padStart(2, "0");
@@ -117,6 +127,11 @@ export function ContentCalendar({
   const [busyId, setBusyId] = useState<string | null>(null);
   /** Which item has its instructions box open, and what is typed in it. */
   const [notesId, setNotesId] = useState<string | null>(null);
+  /**
+   * The day whose articles are listed beside the calendar. Null until a day is
+   * clicked, so the panel starts on today rather than an arbitrary date.
+   */
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [draftNotes, setDraftNotes] = useState("");
 
   const articleByItem = useMemo(
@@ -335,8 +350,14 @@ export function ContentCalendar({
           </p>
         ) : null}
 
+        {/*
+          Actions are always visible now the cards sit in a side panel with
+          room for them. Hiding them until hover suited a cramped date cell
+          and suited a touch screen not at all — there is no hover there, so
+          they were simply unreachable.
+        */}
         {editable ? (
-          <div className="mt-1.5 flex items-center gap-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover/item:opacity-100">
+          <div className="mt-1.5 flex items-center gap-1">
             <Button
               type="button"
               variant="ghost"
@@ -428,7 +449,7 @@ export function ContentCalendar({
             status="generating"
             label={`${counts.generating} Generating`}
           />
-          <StatusBadge status="queued" label={`${counts.queued} Queued`} />
+          <StatusBadge status="planned" label={`${counts.queued} Planned`} />
         </div>
 
         <div className="flex items-center gap-1">
@@ -459,51 +480,121 @@ export function ContentCalendar({
         </div>
       </div>
 
-      <div className="overflow-x-auto">
-        <div className="min-w-[52rem]">
-          <div className="grid grid-cols-7 border-b">
-            {WEEKDAYS.map((day) => (
-              <div
-                key={day}
-                className="px-2 py-2 text-center text-xs font-medium text-muted-foreground"
-              >
-                {day}
-              </div>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-7">
-            {days.map((date) => {
-              const items = byDay.get(dayKey(date)) ?? [];
-              const inMonth = date.getMonth() === month.getMonth();
-              const isToday = sameDay(date, today);
-
-              return (
+      {/*
+        Calendar and day list side by side.
+        
+        Every article used to render inside its own date cell, so a day with
+        four of them stretched that row and left the rest of the week mostly
+        empty. The grid now shows only how many are due on each day; picking a
+        day lists them in full beside it, which keeps the month readable at a
+        glance and gives the articles room to be read.
+      */}
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="overflow-x-auto">
+          <div className="min-w-[34rem]">
+            <div className="grid grid-cols-7 border-b">
+              {WEEKDAYS.map((day) => (
                 <div
-                  key={date.toISOString()}
-                  className={cn(
-                    "min-h-28 space-y-1.5 border-b border-r p-1.5",
-                    // Days outside the month are context, not content.
-                    !inMonth && "bg-muted/30",
-                  )}
+                  key={day}
+                  className="px-2 py-2 text-center text-xs font-medium text-muted-foreground"
                 >
-                  <div
+                  {day}
+                </div>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-7">
+              {days.map((date) => {
+                const key = dayKey(date);
+                const items = byDay.get(key) ?? [];
+                const inMonth = date.getMonth() === month.getMonth();
+                const isToday = sameDay(date, today);
+                const isSelected = selectedDay
+                  ? selectedDay === key
+                  : isToday;
+
+                return (
+                  <button
+                    key={date.toISOString()}
+                    type="button"
+                    onClick={() => setSelectedDay(key)}
+                    aria-pressed={isSelected}
+                    aria-label={`${date.toDateString()}, ${items.length} article${items.length === 1 ? "" : "s"}`}
                     className={cn(
-                      "flex size-6 items-center justify-center rounded-full text-xs",
-                      isToday
-                        ? "bg-primary font-semibold text-primary-foreground"
-                        : inMonth
-                          ? "text-foreground"
-                          : "text-muted-foreground",
+                      "flex min-h-20 flex-col items-center gap-1 border-b border-r p-2 text-left transition-colors",
+                      "hover:bg-accent/60 focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-ring",
+                      !inMonth && "bg-muted/30",
+                      /*
+                        The selected day is a filled block rather than a tinted
+                        one: it has to be findable at a glance in a grid of
+                        forty-two cells, which a faint background is not.
+                      */
+                      isSelected && "bg-primary/10 ring-2 ring-inset ring-primary",
                     )}
                   >
-                    {date.getDate()}
-                  </div>
-                  {items.map(renderItem)}
-                </div>
-              );
-            })}
+                    <span
+                      className={cn(
+                        "flex size-7 shrink-0 items-center justify-center rounded-full text-xs",
+                        isToday
+                          ? "bg-primary font-semibold text-primary-foreground"
+                          : isSelected
+                            ? "font-semibold text-primary"
+                            : inMonth
+                              ? "text-foreground"
+                              : "text-muted-foreground",
+                      )}
+                    >
+                      {date.getDate()}
+                    </span>
+
+                    {/*
+                      A count, not the articles. Dots up to three so the shape
+                      of the month reads without counting, with the number for
+                      anything busier.
+                    */}
+                    {items.length > 0 ? (
+                      items.length <= 3 ? (
+                        <span className="flex gap-0.5">
+                          {items.map((item) => (
+                            <span
+                              key={item.id}
+                              className="size-1.5 rounded-full bg-primary"
+                              aria-hidden="true"
+                            />
+                          ))}
+                        </span>
+                      ) : (
+                        <span className="text-[0.65rem] font-medium text-primary">
+                          {items.length}
+                        </span>
+                      )
+                    ) : null}
+                  </button>
+                );
+              })}
+            </div>
           </div>
+        </div>
+
+        {/* The chosen day, in full. */}
+        <div className="space-y-2">
+          <p className="text-sm font-medium">
+            {/*
+              Parsed part by part, not with new Date(key). A bare "YYYY-MM-DD"
+              is read as UTC, so west of Greenwich the heading would name the
+              previous day while the grid highlighted the right one.
+            */}
+            {dayLabel(selectedDay ?? dayKey(today))}
+          </p>
+          {(byDay.get(selectedDay ?? dayKey(today)) ?? []).length === 0 ? (
+            <p className="rounded-xl border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
+              Nothing planned for this day.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {(byDay.get(selectedDay ?? dayKey(today)) ?? []).map(renderItem)}
+            </div>
+          )}
         </div>
       </div>
 
