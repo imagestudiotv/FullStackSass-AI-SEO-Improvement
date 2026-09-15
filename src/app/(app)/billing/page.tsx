@@ -7,6 +7,13 @@ import {
 import { PageShell } from "@/components/ui/page-header";
 import { requireSession } from "@/lib/auth-guard";
 import { isPayPalAvailable } from "@/lib/paypal/actions";
+import { eq } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { websites } from "@/lib/db/schema";
+import {
+  readSelectedWebsite,
+  resolveWebsiteId,
+} from "@/lib/websites/selected";
 import { requireOrg } from "@/lib/tenant";
 import { listAddons, listPurchases } from "@/lib/addons/actions";
 import { AddonsPanel } from "./addons-panel";
@@ -23,6 +30,22 @@ export default async function BillingPage({
 }: PageProps<"/billing">) {
   await requireSession();
   const { orgId } = await requireOrg();
+
+  /**
+   * The website a new plan would pay for: the one the switcher is on,
+   * resolved exactly as the sidebar does so the two agree.
+   */
+  const owned = await db
+    .select({ id: websites.id })
+    .from(websites)
+    .where(eq(websites.organizationId, orgId))
+    .orderBy(websites.createdAt);
+  const remembered = await readSelectedWebsite();
+  const websiteId = resolveWebsiteId(
+    null,
+    remembered,
+    owned.map((site) => site.id),
+  );
 
   const [plans, subscription, paypalAvailable, addons, purchases, paymentRows] =
     await Promise.all([
@@ -48,7 +71,8 @@ export default async function BillingPage({
         paypalAvailable={paypalAvailable}
         checkout={checkout}
         addonResult={addonResult}
-      />
+        websiteId={websiteId}
+        />
       {/*
         Below the plans: an add-on is something you buy in addition to a
         subscription, so it should not compete with choosing one.

@@ -90,6 +90,31 @@ async function organizationIdFor(
   return row?.organizationId ?? null;
 }
 
+/**
+ * Finds the website a subscription pays for.
+ *
+ * Written into subscription metadata at checkout, for the same reason the
+ * organization is: session metadata does not propagate, so a
+ * customer.subscription.updated arriving weeks later has only what was put on
+ * the subscription itself.
+ *
+ * Falls back to the row we already stored, which covers a subscription
+ * created before per-website billing or by hand in the Stripe dashboard.
+ */
+async function websiteIdFor(
+  subscription: Stripe.Subscription,
+): Promise<string | null> {
+  const fromMetadata = subscription.metadata?.websiteId;
+  if (fromMetadata) return fromMetadata;
+
+  const [row] = await db
+    .select({ websiteId: subscriptions.websiteId })
+    .from(subscriptions)
+    .where(eq(subscriptions.stripeSubscriptionId, subscription.id))
+    .limit(1);
+  return row?.websiteId ?? null;
+}
+
 async function upsertSubscription(subscription: Stripe.Subscription) {
   const orgId = await organizationIdFor(subscription);
   if (!orgId) {
@@ -109,6 +134,13 @@ async function upsertSubscription(subscription: Stripe.Subscription) {
   const planId = await planIdForSubscription(subscription);
   const { currentPeriodStart, currentPeriodEnd } = periodFor(subscription);
 
+  /**
+   * Which website this pays for. Null is tolerated rather than fatal: a
+   * subscription made before per-website billing has no website in its
+   * metadata, and refusing it would stop recording a real payment.
+   */
+  const websiteId = await websiteIdFor(subscription);
+
   const values = {
     provider: "stripe",
     stripeCustomerId: customerId,
@@ -121,13 +153,49 @@ async function upsertSubscription(subscription: Stripe.Subscription) {
     ...(planId ? { planId } : {}),
   };
 
-  await db
-    .insert(subscriptions)
-    .values({ organizationId: orgId, ...values })
-    .onConflictDoUpdate({
-      target: subscriptions.organizationId,
-      set: { ...values, updatedAt: new Date() },
-    });
+  /**
+   * Keyed on the WEBSITE, matching the unique index. Upserting on the
+   * organization is what limited a workspace to one subscription: a second
+   * site's checkout overwrote the first site's plan instead of adding to it.
+   *
+   * With no website — a pre-migration row — the conflict target cannot match,
+   * so it is updated by its Stripe id instead. Inserting would duplicate.
+   */
+  if (websiteId) {
+    await db
+      .insert(subscriptions)
+      .values({ organizationId: orgId, websiteId, ...values })
+      .onConflictDoUpdate({
+        target: subscriptions.websiteId,
+        set: { ...values, updatedAt: new Date() },
+      });
+    return;
+  }
+
+  const [existing] = await db
+    .select({ id: subscriptions.id })
+    .from(subscriptions)
+    .where(eq(subscriptions.stripeSubscriptionId, subscription.id))
+    .limit(1);
+
+  if (existing) {
+    await db
+      .update(subscriptions)
+      .set({ ...values, updatedAt: new Date() })
+      .where(eq(subscriptions.id, existing.id));
+    return;
+  }
+
+  /**
+   * A subscription with no website and no existing row: created outside our
+   * checkout. Recorded against the organization so the payment is not lost,
+   * but it grants no allowance until a website is attached — checkLimit reads
+   * subscriptions.website_id.
+   */
+  console.warn(
+    `[stripe-webhook] subscription ${subscription.id} has no website; recording without one`,
+  );
+  await db.insert(subscriptions).values({ organizationId: orgId, ...values });
 }
 
 export async function POST(request: Request) {

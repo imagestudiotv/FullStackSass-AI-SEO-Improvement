@@ -37,6 +37,12 @@ type BillingClientProps = {
   checkout?: string;
   /** "success" | "cancelled" after an add-on checkout. */
   addonResult?: string;
+  /**
+   * The website a new plan will pay for: the one currently selected. Null
+   * when the workspace has no website yet, which blocks checkout rather than
+   * selling a plan with nothing to attach it to.
+   */
+  websiteId: string | null;
 };
 
 function planFeatures(plan: PlanRow): string[] {
@@ -72,6 +78,7 @@ export function BillingClient({
   paypalAvailable,
   checkout,
   addonResult,
+  websiteId,
 }: BillingClientProps) {
   const [interval, setInterval] = useState<"month" | "year">(
     subscription?.interval === "year" ? "year" : "month",
@@ -107,7 +114,17 @@ export function BillingClient({
   async function handleSelect(planId: string) {
     setPendingPlanId(planId);
     try {
-      const result = await createCheckoutSession(planId);
+      /**
+       * Subscribes the SELECTED website. A plan pays for one site now, so
+       * this page can only buy for the site the switcher is on — a customer
+       * with several subscribes each in turn.
+       */
+      if (!websiteId) {
+        toast.error("Add a website first — each plan pays for one site.");
+        setPendingPlanId(null);
+        return;
+      }
+      const result = await createCheckoutSession(planId, websiteId);
       if ("error" in result) {
         toast.error(result.error);
         setPendingPlanId(null);

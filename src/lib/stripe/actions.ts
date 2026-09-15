@@ -1,9 +1,9 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { db } from "@/lib/db";
-import { plans } from "@/lib/db/schema";
+import { plans, websites } from "@/lib/db/schema";
 import { isStripeConfigured, stripe } from "@/lib/stripe/client";
 import { getOrCreateCustomer } from "@/lib/stripe/customer";
 import { stripeErrorMessage } from "@/lib/stripe/errors";
@@ -28,8 +28,30 @@ export type CheckoutResult = { url: string } | { error: string };
  */
 export async function createCheckoutSession(
   planId: string,
+  /**
+   * The website this subscription pays for.
+   *
+   * Each site is billed separately, so a checkout has to name one — without
+   * it the webhook cannot tell which of a customer's sites just became paid.
+   * Ownership is re-checked below: the id arrives from the browser.
+   */
+  websiteId: string,
 ): Promise<CheckoutResult> {
   const { orgId } = await requireOrg();
+
+  /**
+   * Confirms the website belongs to the caller before it reaches Stripe
+   * metadata. A server action is a public endpoint, so an id from another
+   * workspace would otherwise attach a paid plan to someone else's site.
+   */
+  const [site] = await db
+    .select({ id: websites.id })
+    .from(websites)
+    .where(and(eq(websites.id, websiteId), eq(websites.organizationId, orgId)))
+    .limit(1);
+  if (!site) {
+    return { error: "Website not found" };
+  }
 
   // Before Stripe keys exist this is the expected path, not an outage.
   if (!isStripeConfigured()) {
@@ -75,12 +97,13 @@ export async function createCheckoutSession(
       cancel_url: `${base}/billing?checkout=cancelled`,
       allow_promotion_codes: true,
       // Metadata on the SESSION identifies this checkout...
-      metadata: { organizationId: orgId, planId: plan.id },
+      metadata: { organizationId: orgId, planId: plan.id, websiteId },
       // ...but session metadata does NOT propagate to the subscription. Without
       // this second copy, a customer.subscription.updated arriving weeks later
-      // (say, after a portal upgrade) has no way to identify the organization.
+      // (say, after a portal upgrade) has no way to identify the organization
+      // or the website it pays for.
       subscription_data: {
-        metadata: { organizationId: orgId, planId: plan.id },
+        metadata: { organizationId: orgId, planId: plan.id, websiteId },
       },
     });
 

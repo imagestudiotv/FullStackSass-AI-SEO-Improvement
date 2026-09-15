@@ -60,7 +60,19 @@ export default async function OnboardingPage() {
           description="Pick a plan and we start working on your site today."
         />
 
-        {monthlyPlans.length === 0 ? (
+        {/*
+          A plan pays for one website, so there has to be a website first.
+          Reaching this step without one means the earlier step was skipped;
+          sending them back is better than selling a plan with nothing to
+          attach it to.
+        */}
+        {!state.websiteId ? (
+          <Card>
+            <CardContent className="py-6 text-sm text-muted-foreground">
+              Add your website first — each plan pays for one site.
+            </CardContent>
+          </Card>
+        ) : monthlyPlans.length === 0 ? (
           // Real state, not a placeholder: with no plans configured we say so
           // rather than showing prices checkout would not honour.
           <Card>
@@ -73,6 +85,7 @@ export default async function OnboardingPage() {
             monthlyPlans={monthlyPlans}
             annualPlans={annualPlans}
             paypalAvailable={paypalAvailable}
+            websiteId={state.websiteId}
           />
         )}
       </PageShell>

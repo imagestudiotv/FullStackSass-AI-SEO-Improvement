@@ -27,10 +27,16 @@ export function PlanPicker({
   monthlyPlans,
   annualPlans,
   paypalAvailable,
+  websiteId,
 }: {
   monthlyPlans: PickerPlan[];
   annualPlans: PickerPlan[];
   paypalAvailable: boolean;
+  /**
+   * The website this plan will pay for. Onboarding adds the site before
+   * reaching this step, so it is always present here.
+   */
+  websiteId: string;
 }) {
   const [annual, setAnnual] = useState(false);
   const [selected, setSelected] = useState<string>(
@@ -66,7 +72,7 @@ export function PlanPicker({
     const result =
       provider === "paypal"
         ? await createPayPalCheckout(selectedPlan.id)
-        : await createCheckoutSession(selectedPlan.id);
+        : await createCheckoutSession(selectedPlan.id, websiteId);
 
     if ("error" in result) {
       setPending(null);
