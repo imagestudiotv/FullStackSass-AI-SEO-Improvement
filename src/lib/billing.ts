@@ -2,8 +2,8 @@ import { cache } from "react";
 import { asc, desc, eq } from "drizzle-orm";
 
 import { db } from "@/lib/db";
-import { payments, plans, subscriptions } from "@/lib/db/schema";
-import type { CurrentSubscription, PlanRow } from "@/lib/billing-shared";
+import { payments, plans, subscriptions, websites} from "@/lib/db/schema";
+import type { CurrentSubscription, PlanRow, WebsiteSubscription} from "@/lib/billing-shared";
 
 /**
  * Server-side billing queries.
@@ -21,6 +21,57 @@ export async function listPlans(): Promise<PlanRow[]> {
     .from(plans)
     .where(eq(plans.isActive, true))
     .orderBy(asc(plans.sortOrder), asc(plans.priceCents));
+}
+
+/**
+ * Every website in a workspace with the plan paying for it.
+ *
+ * Each website is billed separately, so "the subscription" is no longer a
+ * single thing: a customer with three sites has three plans, three renewal
+ * dates and three invoices. Websites with no subscription are included with a
+ * null plan — an unpaid site is the case the billing page most needs to show,
+ * since it is the one that cannot generate anything.
+ */
+export async function listWebsiteSubscriptions(
+  orgId: string,
+): Promise<WebsiteSubscription[]> {
+  const rows = await db
+    .select({
+      websiteId: websites.id,
+      domain: websites.domain,
+      status: subscriptions.status,
+      planId: subscriptions.planId,
+      planName: plans.name,
+      tier: plans.tier,
+      interval: plans.interval,
+      currentPeriodEnd: subscriptions.currentPeriodEnd,
+      cancelAtPeriodEnd: subscriptions.cancelAtPeriodEnd,
+      stripeCustomerId: subscriptions.stripeCustomerId,
+      provider: subscriptions.provider,
+    })
+    .from(websites)
+    // Left join: a website with no plan still belongs on this page.
+    .leftJoin(subscriptions, eq(subscriptions.websiteId, websites.id))
+    .leftJoin(plans, eq(subscriptions.planId, plans.id))
+    .where(eq(websites.organizationId, orgId))
+    .orderBy(asc(websites.createdAt));
+
+  return rows.map((row) => ({
+    websiteId: row.websiteId,
+    domain: row.domain,
+    /** No subscription row reads as inactive, which is what it means. */
+    status: row.status ?? "inactive",
+    planId: row.planId,
+    planName: row.planName,
+    tier: row.tier,
+    interval: row.interval,
+    currentPeriodEnd: row.currentPeriodEnd,
+    cancelAtPeriodEnd: row.cancelAtPeriodEnd ?? false,
+    stripeCustomerId: row.stripeCustomerId,
+    // Whether the Stripe portal can be opened for this row.
+    hasCustomer: Boolean(row.stripeCustomerId),
+    provider: row.provider ?? "stripe",
+  }));
 }
 
 /**

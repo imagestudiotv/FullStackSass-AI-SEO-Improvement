@@ -16,12 +16,14 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { PageHeader, PageShell } from "@/components/ui/page-header";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   formatPrice,
   isEntitled,
   type CurrentSubscription,
   type PlanRow,
+  WebsiteSubscription,
 } from "@/lib/billing-shared";
 import { createPayPalCheckout } from "@/lib/paypal/actions";
 import { SUPPORT_EMAIL } from "@/lib/config/site";
@@ -43,6 +45,8 @@ type BillingClientProps = {
    * selling a plan with nothing to attach it to.
    */
   websiteId: string | null;
+  /** Every website and the plan paying for it. */
+  websiteSubscriptions: WebsiteSubscription[];
 };
 
 function planFeatures(plan: PlanRow): string[] {
@@ -79,6 +83,7 @@ export function BillingClient({
   checkout,
   addonResult,
   websiteId,
+  websiteSubscriptions,
 }: BillingClientProps) {
   const [interval, setInterval] = useState<"month" | "year">(
     subscription?.interval === "year" ? "year" : "month",
@@ -204,8 +209,51 @@ export function BillingClient({
     <PageShell>
       <PageHeader
         title="Billing"
-        description="Your plan, and what it includes."
+        description="Each website has its own plan. Credits are shared across all of them."
       />
+
+      {/*
+        One row per website.
+        
+        A single "current plan" cannot describe an account any more: each site
+        is billed separately, so a customer may have three plans, three
+        renewal dates and one site not paid for at all. The unpaid one is the
+        row that matters most — it is the site that cannot generate anything.
+      */}
+      {websiteSubscriptions.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Your websites</CardTitle>
+            <CardDescription>
+              A website without a plan cannot generate or publish articles.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <ul className="divide-y">
+              {websiteSubscriptions.map((row) => (
+                <li
+                  key={row.websiteId}
+                  className="flex flex-wrap items-center gap-3 py-3"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{row.domain}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {row.planName
+                        ? row.currentPeriodEnd
+                          ? `${row.planName} — ${
+                              row.cancelAtPeriodEnd ? "ends" : "renews"
+                            } ${row.currentPeriodEnd.toLocaleDateString("en-GB")}`
+                          : row.planName
+                        : "No plan yet"}
+                    </p>
+                  </div>
+                  <StatusBadge status={row.status} />
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card>
         <CardHeader>

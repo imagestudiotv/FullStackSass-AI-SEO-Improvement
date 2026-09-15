@@ -2,8 +2,7 @@ import {
   getSubscription,
   isEntitled,
   listPayments,
-  listPlans,
-} from "@/lib/billing";
+  listPlans, listWebsiteSubscriptions} from "@/lib/billing";
 import { PageShell } from "@/components/ui/page-header";
 import { requireSession } from "@/lib/auth-guard";
 import { isPayPalAvailable } from "@/lib/paypal/actions";
@@ -40,6 +39,7 @@ export default async function BillingPage({
     .from(websites)
     .where(eq(websites.organizationId, orgId))
     .orderBy(websites.createdAt);
+  const websiteSubscriptions = await listWebsiteSubscriptions(orgId);
   const remembered = await readSelectedWebsite();
   const websiteId = resolveWebsiteId(
     null,
@@ -72,6 +72,7 @@ export default async function BillingPage({
         checkout={checkout}
         addonResult={addonResult}
         websiteId={websiteId}
+        websiteSubscriptions={websiteSubscriptions}
         />
       {/*
         Below the plans: an add-on is something you buy in addition to a

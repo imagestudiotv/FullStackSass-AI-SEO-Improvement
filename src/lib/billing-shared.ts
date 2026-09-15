@@ -44,3 +44,15 @@ export function formatPrice(cents: number, currency: string): string {
     minimumFractionDigits: cents % 100 === 0 ? 0 : 2,
   }).format(cents / 100);
 }
+
+/**
+ * One website and the plan paying for it.
+ *
+ * Declared here rather than in lib/billing because the billing page is a
+ * client component: importing from there would drag the Postgres driver into
+ * the browser bundle.
+ */
+export type WebsiteSubscription = CurrentSubscription & {
+  websiteId: string;
+  domain: string;
+};
