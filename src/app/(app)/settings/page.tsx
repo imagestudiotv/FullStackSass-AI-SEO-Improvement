@@ -18,7 +18,9 @@ import {
   resolveWebsiteId,
 } from "@/lib/websites/selected";
 import { ReferralCard } from "./referral-card";
-import { SettingsLinks } from "./settings-links";
+import { listWebsiteMembers } from "@/lib/websites/members";
+import { SettingsLinks } from "./settings-links";
+import { WebsiteMembers } from "./website-members";
 
 export const metadata = { title: "Settings" };
 
@@ -33,7 +35,7 @@ export default async function SettingsPage() {
    */
   const { orgId } = await requireOrg();
   const owned = await db
-    .select({ id: websites.id })
+    .select({ id: websites.id, domain: websites.domain })
     .from(websites)
     .where(eq(websites.organizationId, orgId))
     .orderBy(websites.createdAt);
@@ -43,6 +45,8 @@ export default async function SettingsPage() {
     remembered,
     owned.map((site) => site.id),
   );
+
+  const selectedSite = owned.find((site) => site.id === websiteId) ?? null;
 
   /**
    * Falls back to the production domain rather than emitting a localhost link
@@ -81,6 +85,18 @@ export default async function SettingsPage() {
       </Card>
 
       <SettingsLinks websiteId={websiteId} />
+
+      {/*
+        Collaborators are per website, so this panel needs one selected. With
+        no website there is nobody to invite to anything yet.
+      */}
+      {selectedSite ? (
+        <WebsiteMembers
+          websiteId={selectedSite.id}
+          domain={selectedSite.domain}
+          members={await listWebsiteMembers(selectedSite.id)}
+        />
+      ) : null}
 
       <ReferralCard
         summary={referrals}

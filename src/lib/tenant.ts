@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 
 import { getSession } from "@/lib/auth-guard";
 import { db } from "@/lib/db";
-import { member, websites } from "@/lib/db/schema";
+import { member, websiteMembers, websites } from "@/lib/db/schema";
 
 /**
  * Tenant access control.
@@ -111,6 +111,15 @@ export async function requireOrg(): Promise<OrgContext> {
 
 export type WebsiteContext = OrgContext & {
   site: typeof websites.$inferSelect;
+  /**
+   * What the caller may do with this website.
+   *
+   * "owner" for anyone in the workspace that owns it — they pay for it and
+   * can delete it. "editor" and "viewer" come from a website_members row: a
+   * person invited to one site, who is NOT in the workspace and must not see
+   * its other sites.
+   */
+  access: "owner" | "editor" | "viewer";
 };
 
 /**
@@ -129,12 +138,52 @@ export async function requireWebsite(
     throw new WebsiteNotFoundError();
   }
 
-  const site = await db.query.websites.findFirst({
+  /**
+   * Owned by the caller's workspace: full access, and the common case.
+   */
+  const owned = await db.query.websites.findFirst({
     where: and(eq(websites.id, websiteId), eq(websites.organizationId, ctx.orgId)),
+  });
+  if (owned) {
+    return { site: owned, access: "owner", ...ctx };
+  }
+
+  /**
+   * Invited to this one website.
+   *
+   * Checked only after ownership fails, so the usual path costs one query.
+   * The membership row is the authority — being invited to one site grants
+   * nothing anywhere else, which is the whole point of inviting an editor to
+   * a single client's site.
+   *
+   * Still a 404 when there is no row: a 403 would confirm the website exists,
+   * which is exactly what this guard avoids disclosing.
+   */
+  const [invited] = await db
+    .select({ role: websiteMembers.role })
+    .from(websiteMembers)
+    .where(
+      and(
+        eq(websiteMembers.websiteId, websiteId),
+        eq(websiteMembers.userId, ctx.userId),
+      ),
+    )
+    .limit(1);
+
+  if (!invited) {
+    throw new WebsiteNotFoundError();
+  }
+
+  const site = await db.query.websites.findFirst({
+    where: eq(websites.id, websiteId),
   });
   if (!site) {
     throw new WebsiteNotFoundError();
   }
 
-  return { site, ...ctx };
+  return {
+    site,
+    access: invited.role === "viewer" ? "viewer" : "editor",
+    ...ctx,
+  };
 }
