@@ -1,4 +1,12 @@
 @import "tailwindcss";
+
+/**
+ * Crisp launcher override. Kept in its own file because it targets the
+ * vendor's generated class names and will stop matching when they rebuild —
+ * see the comment there before touching it.
+ */
+@import "./crisp-close.css";
+
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
