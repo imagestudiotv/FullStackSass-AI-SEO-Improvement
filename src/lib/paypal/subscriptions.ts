@@ -113,6 +113,24 @@ export type CreatedSubscription = {
 };
 
 /**
+ * Reads back what createSubscription wrote into custom_id.
+ *
+ * Tolerates the old form, which held only an organization id: those
+ * subscriptions are still live and still send webhooks.
+ */
+export function parseCustomId(value: string | null | undefined): {
+  organizationId: string | null;
+  websiteId: string | null;
+} {
+  if (!value) return { organizationId: null, websiteId: null };
+  const [organizationId, websiteId] = value.split(":");
+  return {
+    organizationId: organizationId || null,
+    websiteId: websiteId || null,
+  };
+}
+
+/**
  * Starts a subscription and returns the approval URL.
  *
  * Nothing is charged here. The customer approves on PayPal, and the
@@ -122,6 +140,8 @@ export type CreatedSubscription = {
 export async function createSubscription(input: {
   planId: string;
   organizationId: string;
+  /** The website this pays for; each site is billed separately. */
+  websiteId: string;
   returnUrl: string;
   cancelUrl: string;
 }): Promise<CreatedSubscription> {
@@ -132,11 +152,16 @@ export async function createSubscription(input: {
       body: JSON.stringify({
         plan_id: input.planId,
         /**
-         * custom_id carries our organization id through PayPal and back on
-         * every webhook. Without it a subscription event arriving weeks later
-         * could not be matched to a customer.
+         * custom_id carries our ids through PayPal and back on every webhook.
+         * Without it a subscription event arriving weeks later could not be
+         * matched to a customer.
+         *
+         * Both ids, colon separated: PayPal gives one free-text field, and a
+         * subscription belongs to a website as well as a workspace now. Read
+         * back with parseCustomId, which tolerates the old single-id form
+         * still carried by subscriptions created before this.
          */
-        custom_id: input.organizationId,
+        custom_id: `${input.organizationId}:${input.websiteId}`,
         application_context: {
           brand_name: "AI SEO Platform",
           user_action: "SUBSCRIBE_NOW",

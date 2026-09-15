@@ -143,7 +143,13 @@ export function BillingClient({
   async function handlePayPal(planId: string) {
     setPendingPlanId(planId);
     try {
-      const result = await createPayPalCheckout(planId);
+      // Same site as the card path: a plan pays for one website.
+      if (!websiteId) {
+        toast.error("Add a website first — each plan pays for one site.");
+        setPendingPlanId(null);
+        return;
+      }
+      const result = await createPayPalCheckout(planId, websiteId);
       if ("error" in result) {
         toast.error(result.error);
         setPendingPlanId(null);

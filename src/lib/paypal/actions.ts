@@ -1,10 +1,10 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/lib/db";
-import { plans, subscriptions } from "@/lib/db/schema";
+import { plans, subscriptions, websites } from "@/lib/db/schema";
 import { isPayPalConfigured, PayPalError } from "@/lib/paypal/client";
 import {
   cancelSubscription,
@@ -40,8 +40,23 @@ export async function isPayPalAvailable(): Promise<boolean> {
  */
 export async function createPayPalCheckout(
   planId: string,
+  /** The website this subscription pays for. */
+  websiteId: string,
 ): Promise<PayPalResult> {
   const { orgId } = await requireOrg();
+
+  /**
+   * Ownership re-checked before the id leaves for PayPal, as with Stripe: a
+   * server action is a public endpoint and the caller chooses the argument.
+   */
+  const [site] = await db
+    .select({ id: websites.id })
+    .from(websites)
+    .where(and(eq(websites.id, websiteId), eq(websites.organizationId, orgId)))
+    .limit(1);
+  if (!site) {
+    return { error: "Website not found" };
+  }
 
   // Before credentials exist this is the expected path, not an outage.
   if (!isPayPalConfigured()) {
@@ -77,7 +92,8 @@ export async function createPayPalCheckout(
   try {
     const result = await createSubscription({
       planId: plan.paypalPlanId,
-      organizationId: orgId,
+      organizationId: orgId,
+      websiteId,
       returnUrl: `${base}/billing?paypal=success`,
       cancelUrl: `${base}/billing?paypal=cancelled`,
     });

@@ -4,7 +4,9 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { payments, plans, subscriptions, webhookEvents } from "@/lib/db/schema";
 import { isPayPalConfigured, payPalRequest } from "@/lib/paypal/client";
-import { getSubscription, mapStatus } from "@/lib/paypal/subscriptions";
+import { getSubscription, mapStatus,
+  parseCustomId,
+} from "@/lib/paypal/subscriptions";
 
 /**
  * PayPal webhook. THE ONLY PLACE PAYPAL SUBSCRIPTION STATE CHANGES.
@@ -75,9 +77,11 @@ async function verifySignature(
   }
 }
 
-/** Writes the subscription row for an organization. */
+/** Writes the subscription row for one website. */
 async function upsertSubscription(
   organizationId: string,
+  /** The site this pays for; null for a subscription made before per-site billing. */
+  websiteId: string | null,
   paypalSubscriptionId: string,
   paypalPlanId: string | null,
   status: string,
@@ -103,13 +107,43 @@ async function upsertSubscription(
     updatedAt: new Date(),
   };
 
-  await db
-    .insert(subscriptions)
-    .values({ organizationId, ...values })
-    .onConflictDoUpdate({
-      target: subscriptions.organizationId,
-      set: values,
-    });
+  /**
+   * Keyed on the WEBSITE, matching Stripe and the unique index. Upserting on
+   * the organization meant a second site's subscription overwrote the first.
+   */
+  if (websiteId) {
+    await db
+      .insert(subscriptions)
+      .values({ organizationId, websiteId, ...values })
+      .onConflictDoUpdate({
+        target: subscriptions.websiteId,
+        set: values,
+      });
+    return;
+  }
+
+  /**
+   * No website: a subscription created before per-site billing. Updated by
+   * its PayPal id rather than inserted, which would duplicate it.
+   */
+  const [existing] = await db
+    .select({ id: subscriptions.id })
+    .from(subscriptions)
+    .where(eq(subscriptions.paypalSubscriptionId, paypalSubscriptionId))
+    .limit(1);
+
+  if (existing) {
+    await db
+      .update(subscriptions)
+      .set(values)
+      .where(eq(subscriptions.id, existing.id));
+    return;
+  }
+
+  console.warn(
+    `[paypal-webhook] subscription ${paypalSubscriptionId} has no website; recording without one`,
+  );
+  await db.insert(subscriptions).values({ organizationId, ...values });
 }
 
 export async function POST(request: Request) {
@@ -174,7 +208,14 @@ export async function POST(request: Request) {
          * every event type.
          */
         const live = await getSubscription(subscriptionId);
-        const organizationId = live.custom_id ?? resource.custom_id ?? null;
+        /**
+         * custom_id now carries "<organizationId>:<websiteId>". parseCustomId
+         * tolerates the old single-id form, still sent by subscriptions
+         * created before per-site billing.
+         */
+        const { organizationId, websiteId } = parseCustomId(
+          live.custom_id ?? resource.custom_id,
+        );
 
         if (!organizationId) {
           // Nothing to attach it to, and retrying cannot fix that.
@@ -186,6 +227,7 @@ export async function POST(request: Request) {
 
         await upsertSubscription(
           organizationId,
+          websiteId,
           subscriptionId,
           live.plan_id ?? null,
           mapStatus(live.status),
@@ -206,8 +248,12 @@ export async function POST(request: Request) {
         const live = await getSubscription(billingId);
         if (!live.custom_id) break;
 
+        const parsed = parseCustomId(live.custom_id);
+        if (!parsed.organizationId) break;
+
         await upsertSubscription(
-          live.custom_id,
+          parsed.organizationId,
+          parsed.websiteId,
           billingId,
           live.plan_id ?? null,
           mapStatus(live.status),

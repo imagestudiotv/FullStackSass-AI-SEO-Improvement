@@ -71,7 +71,7 @@ export function PlanPicker({
 
     const result =
       provider === "paypal"
-        ? await createPayPalCheckout(selectedPlan.id)
+        ? await createPayPalCheckout(selectedPlan.id, websiteId)
         : await createCheckoutSession(selectedPlan.id, websiteId);
 
     if ("error" in result) {
