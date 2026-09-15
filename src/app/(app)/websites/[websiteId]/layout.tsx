@@ -40,7 +40,7 @@ export default async function WebsiteLayout({
   const analysed = site.status === "ready";
 
   return (
-    <PageShell>
+    <PageShell width="wide">
       <div className="space-y-3">
         <Button variant="ghost" size="sm" asChild className="-ml-2">
           <Link href="/websites">
