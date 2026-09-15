@@ -16,7 +16,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { StatusBadge } from "@/components/ui/status-badge";
+import { StatusBadge, statusMeta } from "@/components/ui/status-badge";
 import type { ArticleRow } from "@/lib/articles/actions";
 import { generateFromCalendarItem } from "@/lib/articles/actions";
 import {
@@ -100,6 +100,46 @@ function monthGrid(month: Date): Date[] {
  * Returns a stored status value rather than a label or colour — StatusBadge
  * owns how every status in the product is worded and coloured.
  */
+/**
+ * Dot colour per status, so a month can be read without opening a day.
+ *
+ * Deliberately the same five tones StatusBadge uses, rather than a second
+ * palette: a green dot and a green badge have to mean the same thing or the
+ * calendar teaches the customer something the cards then contradict.
+ */
+const DOT_TONE: Record<string, string> = {
+  published: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300",
+  draft: "bg-emerald-50/70 text-emerald-700/80 dark:bg-emerald-950/30 dark:text-emerald-300/80",
+  generating: "bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300",
+  failed: "bg-red-50 text-red-700 dark:bg-red-950/50 dark:text-red-300",
+  planned: "bg-muted text-muted-foreground",
+};
+
+/**
+ * The statuses present on one day, with how many of each, most finished
+ * first.
+ *
+ * Grouped rather than listed per article so a day with four planned items
+ * reads "4 Planned" instead of repeating the same word four times. Ordered so
+ * the work that is done appears before the work that is not, which is the
+ * order a customer scans for.
+ */
+const STATUS_ORDER = ["published", "draft", "generating", "failed", "planned"];
+
+function groupByStatus(
+  items: CalendarRow[],
+  articles: Map<string, ArticleRow>,
+): [string, number][] {
+  const counts = new Map<string, number>();
+  for (const item of items) {
+    const status = statusFor(articles.get(item.id));
+    counts.set(status, (counts.get(status) ?? 0) + 1);
+  }
+  return [...counts.entries()].sort(
+    (a, b) => STATUS_ORDER.indexOf(a[0]) - STATUS_ORDER.indexOf(b[0]),
+  );
+}
+
 function statusFor(article: ArticleRow | undefined): string {
   if (article?.status === "published") return "published";
   if (article?.status === "draft") return "draft";
@@ -552,22 +592,32 @@ export function ContentCalendar({
                       of the month reads without counting, with the number for
                       anything busier.
                     */}
+                    {/*
+                      The statuses on this day, in words.
+                      
+                      One label per KIND rather than per article: four
+                      articles on a day is four "Planned" chips that say the
+                      same thing four times and overflow the cell. Grouped,
+                      a busy day reads "3 Planned · 1 Published", which is
+                      the useful sentence.
+                    */}
                     {items.length > 0 ? (
-                      items.length <= 3 ? (
-                        <span className="flex gap-0.5">
-                          {items.map((item) => (
+                      <span className="flex flex-wrap justify-center gap-1">
+                        {groupByStatus(items, articleByItem).map(
+                          ([status, n]) => (
                             <span
-                              key={item.id}
-                              className="size-1.5 rounded-full bg-primary"
-                              aria-hidden="true"
-                            />
-                          ))}
-                        </span>
-                      ) : (
-                        <span className="text-[0.65rem] font-medium text-primary">
-                          {items.length}
-                        </span>
-                      )
+                              key={status}
+                              className={cn(
+                                "rounded px-1 py-0.5 text-[0.6rem] font-medium leading-none",
+                                DOT_TONE[status],
+                              )}
+                            >
+                              {n > 1 ? `${n} ` : ""}
+                              {statusMeta(status).label}
+                            </span>
+                          ),
+                        )}
+                      </span>
                     ) : null}
                   </button>
                 );
@@ -576,16 +626,30 @@ export function ContentCalendar({
           </div>
         </div>
 
-        {/* The chosen day, in full. */}
+        {/*
+          The chosen day, in full.
+          
+          Header carries the count as well as the date, so the panel says what
+          it is showing even when a day holds several articles and the list
+          runs past the fold.
+        */}
         <div className="space-y-2">
-          <p className="text-sm font-medium">
+          <div className="flex items-baseline justify-between gap-2 border-b pb-2">
+            <p className="text-sm font-medium">
             {/*
               Parsed part by part, not with new Date(key). A bare "YYYY-MM-DD"
               is read as UTC, so west of Greenwich the heading would name the
               previous day while the grid highlighted the right one.
             */}
-            {dayLabel(selectedDay ?? dayKey(today))}
-          </p>
+              {dayLabel(selectedDay ?? dayKey(today))}
+            </p>
+            <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+              {(byDay.get(selectedDay ?? dayKey(today)) ?? []).length} article
+              {(byDay.get(selectedDay ?? dayKey(today)) ?? []).length === 1
+                ? ""
+                : "s"}
+            </span>
+          </div>
           {(byDay.get(selectedDay ?? dayKey(today)) ?? []).length === 0 ? (
             <p className="rounded-xl border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
               Nothing planned for this day.
