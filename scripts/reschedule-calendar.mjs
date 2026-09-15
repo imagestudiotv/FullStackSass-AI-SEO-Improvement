@@ -83,10 +83,17 @@ for (const site of sites) {
   }
 
   /**
-   * The same rule the planner uses: consecutive days from tomorrow, several
-   * per day only when the monthly allowance exceeds a month.
+   * Articles per day, derived from the items actually being scheduled — not
+   * from the plan's monthly allowance.
+   *
+   * Using the allowance packed seven items onto two days on a 100-a-month
+   * plan, because it asked for four a day regardless of there being only
+   * seven. The rule is that a month's worth spreads across the month, so
+   * fewer items than days means one a day; scheduleDates does exactly this,
+   * and this must match it or a rescheduled calendar disagrees with a freshly
+   * planned one.
    */
-  const perDay = Math.max(1, Math.ceil(Number(site.article_limit) / 30));
+  const perDay = Math.max(1, Math.ceil(movable.length / 30));
   const from = new Date();
 
   const updates = movable.map((item, index) => {
@@ -98,8 +105,7 @@ for (const site of sites) {
 
   const days = new Set(updates.map((u) => u.to.toDateString())).size;
   console.log(
-    `  ${site.article_limit}/month -> ${perDay} per day; ` +
-      `${updates.length} items across ${days} consecutive days ` +
+    `  ${updates.length} items, ${perDay} per day, across ${days} consecutive days ` +
       `(${updates[0].to.toISOString().slice(0, 10)} .. ${updates.at(-1).to.toISOString().slice(0, 10)})`,
   );
 
