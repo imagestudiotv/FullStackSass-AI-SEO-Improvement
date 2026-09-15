@@ -113,7 +113,7 @@ export async function track(orgId: string, event: TrackInput): Promise<void> {
   });
 }
 
-export type LimitKind = "articles" | "websites" | "keywords" | UsageKind;
+export type LimitKind = "articles" | "keywords" | UsageKind;
 
 // Defined in usage-shared.ts so client components can import them without
 // pulling in the database driver; re-exported here for server callers.
@@ -172,9 +172,31 @@ function periodStart(
  * not need changing later.
  */
 export async function checkLimit(
-  orgId: string,
+  /**
+   * The website whose allowance is being checked.
+   *
+   * Each website carries its own subscription, so the limit belongs to the
+   * site rather than the account: one workspace can run a small site on
+   * Launch and a busy one on Scale, and neither eats the other's articles.
+   */
+  websiteId: string,
   kind: LimitKind,
 ): Promise<LimitCheck> {
+  /**
+   * The owning workspace, still needed for agency limits and metered usage,
+   * both of which are account-level. Read from the website rather than passed
+   * in so the two can never disagree.
+   */
+  const [site] = await db
+    .select({ organizationId: websites.organizationId })
+    .from(websites)
+    .where(eq(websites.id, websiteId))
+    .limit(1);
+
+  if (!site) {
+    return { allowed: false, used: 0, limit: 0, reason: "no_active_plan" };
+  }
+  const orgId = site.organizationId;
   /**
    * Agency workspaces are ours, not sold, so they have no subscription and
    * would otherwise fail the entitlement check below. Their limits come from
@@ -193,20 +215,17 @@ export async function checkLimit(
       status: subscriptions.status,
       articleLimit: plans.articleLimit,
       keywordLimit: plans.keywordLimit,
-      siteLimit: plans.siteLimit,
     })
     .from(subscriptions)
     .leftJoin(plans, eq(subscriptions.planId, plans.id))
-    .where(eq(subscriptions.organizationId, orgId))
+    // This website's own subscription, not the workspace's.
+    .where(eq(subscriptions.websiteId, websiteId))
     .limit(1);
 
   // leftJoin makes every plan column nullable; no plan row means no plan.
   if (
     !agency &&
-    (!sub ||
-      sub.articleLimit === null ||
-      sub.keywordLimit === null ||
-      sub.siteLimit === null)
+    (!sub || sub.articleLimit === null || sub.keywordLimit === null)
   ) {
     return { allowed: false, used: 0, limit: 0, reason: "no_active_plan" };
   }
@@ -220,7 +239,6 @@ export async function checkLimit(
   const planLimits = agency ?? {
     articles: sub!.articleLimit!,
     keywords: sub!.keywordLimit!,
-    websites: sub!.siteLimit!,
   };
 
   /**
@@ -236,30 +254,24 @@ export async function checkLimit(
   let limit: number;
 
   if (kind === "articles") {
+    // This website's articles this period, not the whole account's.
     limit = planLimits.articles;
     const [row] = await db
       .select({ n: count() })
       .from(articles)
-      .innerJoin(websites, eq(articles.websiteId, websites.id))
       .where(
-        and(eq(websites.organizationId, orgId), gte(articles.createdAt, from)),
+        and(
+          eq(articles.websiteId, websiteId),
+          gte(articles.createdAt, from),
+        ),
       );
     used = row?.n ?? 0;
-  } else if (kind === "websites") {
-    limit = planLimits.websites;
-    const [row] = await db
-      .select({ n: count() })
-      .from(websites)
-      .where(eq(websites.organizationId, orgId));
-    used = row?.n ?? 0;
   } else if (kind === "keywords") {
-    // Counted per organization, across all of its websites.
     limit = planLimits.keywords;
     const [row] = await db
       .select({ n: count() })
       .from(keywords)
-      .innerJoin(websites, eq(keywords.websiteId, websites.id))
-      .where(eq(websites.organizationId, orgId));
+      .where(eq(keywords.websiteId, websiteId));
     used = row?.n ?? 0;
   } else {
     // Metered provider usage: counted from usage_events for the period.
@@ -317,10 +329,10 @@ export class LimitExceededError extends Error {
  * constraint or a transaction as well.
  */
 export async function requireWithinLimit(
-  orgId: string,
+  websiteId: string,
   kind: LimitKind,
 ): Promise<LimitCheck> {
-  const check = await checkLimit(orgId, kind);
+  const check = await checkLimit(websiteId, kind);
   if (!check.allowed) {
     throw new LimitExceededError(kind, check);
   }

@@ -31,17 +31,15 @@ import { UNLIMITED, type LimitCheck } from "@/lib/usage-shared";
 
 type WebsitesClientProps = {
   websites: WebsiteSummary[];
-  limit: LimitCheck;
 };
 
-export function WebsitesClient({ websites, limit }: WebsitesClientProps) {
+export function WebsitesClient({ websites }: WebsitesClientProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [url, setUrl] = useState("");
   const [pending, startTransition] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
 
-  const atLimit = limit.limit !== UNLIMITED && websites.length >= limit.limit;
 
   function handleAdd(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -90,30 +88,14 @@ export function WebsitesClient({ websites, limit }: WebsitesClientProps) {
     <PageShell>
       <PageHeader
         title="Websites"
-        description={
-          limit.limit === UNLIMITED
-            ? `${websites.length} connected`
-            : `${websites.length} of ${limit.limit} included in your plan`
-        }
+        description={`${websites.length} connected. Each website is billed on its own plan.`}
         actions={
-          <Button size="sm" onClick={() => setOpen(true)} disabled={atLimit}>
+          <Button size="sm" onClick={() => setOpen(true)}>
             <Plus className="size-4" />
             Add website
           </Button>
         }
       />
-
-      {atLimit ? (
-        <div className="rounded-xl border bg-background px-4 py-3 text-sm">
-          <span className="text-muted-foreground">
-            Your plan includes {limit.limit}{" "}
-            {limit.limit === 1 ? "website" : "websites"}.{" "}
-          </span>
-          <Link href="/billing" className="font-medium underline underline-offset-4">
-            Upgrade to add more
-          </Link>
-        </div>
-      ) : null}
 
       {websites.length === 0 ? (
         <EmptyState
@@ -121,7 +103,7 @@ export function WebsitesClient({ websites, limit }: WebsitesClientProps) {
           title="No websites yet"
           description="Add your website and we will read it, work out what your business does, and find the search terms worth going after."
           action={
-            <Button onClick={() => setOpen(true)} disabled={atLimit}>
+            <Button onClick={() => setOpen(true)}>
               <Plus className="size-4" />
               Add your first website
             </Button>

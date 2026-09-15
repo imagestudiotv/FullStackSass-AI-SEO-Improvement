@@ -89,14 +89,14 @@ export async function addWebsite(
     return { ok: false, error: "That website is already in this workspace" };
   }
 
-  try {
-    await requireWithinLimit(orgId, "websites");
-  } catch (error) {
-    if (error instanceof LimitExceededError) {
-      return { ok: false, error: error.message };
-    }
-    throw error;
-  }
+  /**
+   * No cap on how many websites a workspace may add.
+   *
+   * Each website carries its own subscription now, so the number of sites is
+   * limited by what the customer is willing to pay for rather than by a
+   * siteLimit on one plan. A new site starts unsubscribed and cannot generate
+   * anything until it has a plan of its own, which is the real gate.
+   */
 
   const [created] = await db
     .insert(websites)

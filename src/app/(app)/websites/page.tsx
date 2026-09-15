@@ -1,6 +1,5 @@
 import { requireSession } from "@/lib/auth-guard";
 import { requireOrg } from "@/lib/tenant";
-import { checkLimit } from "@/lib/usage";
 import { listWebsites } from "@/lib/websites/actions";
 import { WebsitesClient } from "./websites-client";
 
@@ -11,12 +10,14 @@ export const dynamic = "force-dynamic";
 
 export default async function WebsitesPage() {
   await requireSession();
-  const { orgId } = await requireOrg();
+  await requireOrg();
 
-  const [sites, limit] = await Promise.all([
-    listWebsites(),
-    checkLimit(orgId, "websites"),
-  ]);
+  /**
+   * No limit to report. Each website is billed on its own subscription, so
+   * there is no plan-level cap on how many a workspace may add — a new site
+   * simply cannot generate anything until it has a plan.
+   */
+  const sites = await listWebsites();
 
-  return <WebsitesClient websites={sites} limit={limit} />;
+  return <WebsitesClient websites={sites} />;
 }

@@ -218,7 +218,7 @@ export const researchKeywords = inngest.createFunction(
 
       // The plan's keyword allowance is a cap on what we store, not a failure:
       // research legitimately returns more than a plan covers.
-      const limit = await checkLimit(organizationId, "keywords");
+      const limit = await checkLimit(websiteId, "keywords");
       const allowance =
         limit.limit === UNLIMITED
           ? ranked.length
@@ -316,7 +316,7 @@ export const researchKeywords = inngest.createFunction(
     });
 
     const planned = await step.run("plan-calendar", async () => {
-      const articleLimit = await checkLimit(organizationId, "articles");
+      const articleLimit = await checkLimit(websiteId, "articles");
       const allowance =
         articleLimit.limit === UNLIMITED ? 12 : articleLimit.limit;
 

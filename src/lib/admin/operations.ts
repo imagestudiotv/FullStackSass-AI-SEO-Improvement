@@ -78,7 +78,29 @@ export async function quoteRefund(
     .limit(1);
   if (!row) return { ok: false, error: "Payment not found." };
 
-  const usage = await checkLimit(row.organizationId, "articles");
+  /**
+   * Usage for the website this payment subscribed, not the whole account.
+   *
+   * Each website is billed separately, so the unused fraction has to be read
+   * from the site the money paid for — a workspace with three sites would
+   * otherwise prorate a refund against whichever plan happened to be found
+   * first.
+   */
+  const [subscribed] = await db
+    .select({ websiteId: subscriptions.websiteId })
+    .from(subscriptions)
+    .where(eq(subscriptions.organizationId, row.organizationId))
+    .orderBy(desc(subscriptions.createdAt))
+    .limit(1);
+
+  /**
+   * No website on the subscription means nothing to prorate against — a row
+   * predating per-site billing, or a workspace whose site was deleted. The
+   * full amount is the honest answer there rather than a guess.
+   */
+  const usage = subscribed?.websiteId
+    ? await checkLimit(subscribed.websiteId, "articles")
+    : { allowed: true, used: 0, limit: UNLIMITED, reason: null };
 
   /**
    * UNLIMITED is -1 and a zero limit cannot be divided by, so both fall back

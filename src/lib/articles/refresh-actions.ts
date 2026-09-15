@@ -80,7 +80,7 @@ export async function refreshArticle(
    * other article. Checked here rather than in the job: a limit hit needs to
    * reach the customer as a message, not die silently in the background.
    */
-  const limit = await checkLimit(orgId, "articles");
+  const limit = await checkLimit(websiteId, "articles");
   if (!limit.allowed) {
     return {
       ok: false,

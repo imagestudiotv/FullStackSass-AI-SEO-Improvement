@@ -57,7 +57,7 @@ export default async function OnboardingContentPage() {
       .from(calendarItems)
       .where(eq(calendarItems.websiteId, site.id))
       .limit(1),
-    checkLimit(orgId, "articles"),
+    checkLimit(state.websiteId, "articles"),
   ]);
 
   return (

@@ -506,7 +506,7 @@ export async function queueArticleForCalendarItem(
     return { ok: false, error: "This article is already being written" };
   }
 
-  const limit = await checkLimit(organizationId, "articles");
+  const limit = await checkLimit(websiteId, "articles");
   if (!limit.allowed && !existing) {
     return {
       ok: false,

@@ -232,7 +232,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             */}
             <SidebarUsage
               organizationId={orgId}
-              firstWebsiteId={firstWebsiteId}
+              websiteId={fallbackWebsiteId}
             />
           </div>
         </aside>

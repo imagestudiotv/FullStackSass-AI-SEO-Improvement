@@ -143,7 +143,7 @@ export const scheduledArticles = inngest.createFunction(
          * gets one notification rather than one failed queue attempt per
          * calendar item.
          */
-        const limit = await checkLimit(site.organizationId, "articles");
+        const limit = await checkLimit(site.websiteId, "articles");
         if (!limit.allowed) {
           return { queued: 0, limited: limit.reason === "limit_reached" };
         }

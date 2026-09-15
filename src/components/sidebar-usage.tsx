@@ -18,14 +18,23 @@ import { UNLIMITED } from "@/lib/usage-shared";
  */
 export async function SidebarUsage({
   organizationId,
-  firstWebsiteId,
+  websiteId,
 }: {
   organizationId: string;
-  /** Where the article link points; per-website, so null hides it. */
-  firstWebsiteId: string | null;
+  /**
+   * The website currently selected.
+   *
+   * Articles are allowed per website now, so there is no single figure for an
+   * account with several sites — the sidebar reports the one the customer is
+   * looking at. Credits stay account-wide: they are bought by the person and
+   * spent on whichever site they choose.
+   */
+  websiteId: string | null;
 }) {
   const [articles, credits] = await Promise.all([
-    checkLimit(organizationId, "articles").catch(() => null),
+    websiteId
+      ? checkLimit(websiteId, "articles").catch(() => null)
+      : Promise.resolve(null),
     getAvailable(organizationId).catch(() => null),
   ]);
 
@@ -49,7 +58,7 @@ export async function SidebarUsage({
       {articleLabel ? (
         <Link
           href={
-            firstWebsiteId ? `/websites/${firstWebsiteId}/content` : "/websites"
+            websiteId ? `/websites/${websiteId}/content` : "/websites"
           }
           className="flex items-center gap-2 rounded-md px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent/60 hover:text-accent-foreground"
         >
@@ -61,8 +70,8 @@ export async function SidebarUsage({
       {credits ? (
         <Link
           href={
-            firstWebsiteId
-              ? `/websites/${firstWebsiteId}/backlinks`
+            websiteId
+              ? `/websites/${websiteId}/backlinks`
               : "/websites"
           }
           className="flex items-center gap-2 rounded-md px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent/60 hover:text-accent-foreground"
