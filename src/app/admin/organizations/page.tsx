@@ -18,7 +18,12 @@ import {
 } from "@/components/ui/table";
 import Link from "next/link";
 
-import { AdminSearch } from "../admin-search";
+import { AdminSearch } from "../admin-search";
+import {
+  BulkCheckbox,
+  BulkDeleteBar,
+  BulkSelectionProvider,
+} from "../bulk-delete";
 import { AgencyToggle } from "./agency-toggle";
 import { WorkspaceActions } from "./workspace-actions";
 
@@ -32,6 +37,7 @@ export default async function AdminOrganizationsPage({
   const rows = await listOrganizations(search);
 
   return (
+    <BulkSelectionProvider>
     <PageShell width="wide">
       <PageHeader
         title="Organizations"
@@ -39,6 +45,8 @@ export default async function AdminOrganizationsPage({
       />
 
       <AdminSearch placeholder="Search by name" defaultValue={search} />
+
+      <BulkDeleteBar kind="organizations" />
 
       <Card>
         <CardHeader>
@@ -50,9 +58,10 @@ export default async function AdminOrganizationsPage({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Table minWidth="40rem">
+          <Table minWidth="46rem">
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10" />
                 <TableHead>Name</TableHead>
                 <TableHead className="hidden md:table-cell">Owner</TableHead>
                 <TableHead className="w-28">Plan</TableHead>
@@ -69,6 +78,9 @@ export default async function AdminOrganizationsPage({
             <TableBody>
               {rows.map((row) => (
                 <TableRow key={row.id}>
+                  <TableCell>
+                    <BulkCheckbox id={row.id} label={row.name} />
+                  </TableCell>
                   <TableCell className="max-w-56 truncate font-medium">
                     <Link
                       href={`/admin/payments?org=${row.id}`}
@@ -140,5 +152,6 @@ export default async function AdminOrganizationsPage({
         </CardContent>
       </Card>
     </PageShell>
+    </BulkSelectionProvider>
   );
 }

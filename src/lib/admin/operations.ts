@@ -726,3 +726,84 @@ export async function deleteUser(
     data: { orphanedOrganizations: orphans.map((row) => row.name) },
   };
 }
+
+
+/**
+ * Deletes several workspaces or accounts in one go.
+ *
+ * Cleaning up test data or working through a batch of erasure requests one
+ * typed confirmation at a time is unworkable, and an operator who has to
+ * repeat a destructive action forty times stops reading the dialog by the
+ * fifth — which is worse than one careful bulk action.
+ *
+ * Each item goes through the SAME function as the single delete, so every
+ * guard applies identically: live subscriptions refuse, the caller's own
+ * account refuses, and every deletion writes its own audit entry. There is no
+ * faster path that skips the checks.
+ *
+ * Partial success is reported rather than hidden. A batch where three of forty
+ * refused is a useful outcome; one that fails wholesale because of three would
+ * force the operator to find them by hand.
+ */
+export async function deleteManyOrganizations(
+  organizationIds: string[],
+  reason: string,
+  confirmation: string,
+): Promise<
+  ActionResult<{ deleted: number; failures: { id: string; error: string }[] }>
+> {
+  await requireAdmin();
+
+  if (organizationIds.length === 0) {
+    return { ok: false, error: "Nothing selected." };
+  }
+  /**
+   * A ceiling, not a limit of the query. Past this the operator is almost
+   * certainly selecting a filtered view they have not read, and the request
+   * would run long enough to look hung.
+   */
+  if (organizationIds.length > 100) {
+    return { ok: false, error: "Select at most 100 workspaces at a time." };
+  }
+
+  const failures: { id: string; error: string }[] = [];
+  let deleted = 0;
+
+  for (const id of organizationIds) {
+    const result = await deleteOrganization(id, reason, confirmation);
+    if (result.ok) deleted += 1;
+    else failures.push({ id, error: result.error });
+  }
+
+  revalidatePath("/admin/organizations");
+  revalidatePath("/admin/users");
+  return { ok: true, data: { deleted, failures } };
+}
+
+export async function deleteManyUsers(
+  userIds: string[],
+  reason: string,
+  confirmation: string,
+): Promise<
+  ActionResult<{ deleted: number; failures: { id: string; error: string }[] }>
+> {
+  await requireAdmin();
+
+  if (userIds.length === 0) return { ok: false, error: "Nothing selected." };
+  if (userIds.length > 100) {
+    return { ok: false, error: "Select at most 100 accounts at a time." };
+  }
+
+  const failures: { id: string; error: string }[] = [];
+  let deleted = 0;
+
+  for (const id of userIds) {
+    const result = await deleteUser(id, reason, confirmation);
+    if (result.ok) deleted += 1;
+    else failures.push({ id, error: result.error });
+  }
+
+  revalidatePath("/admin/users");
+  revalidatePath("/admin/organizations");
+  return { ok: true, data: { deleted, failures } };
+}
