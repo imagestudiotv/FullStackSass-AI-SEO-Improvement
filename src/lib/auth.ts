@@ -144,7 +144,19 @@ function createAuth() {
     },
     plugins: [
       organization({
-        allowUserToCreateOrganization: true,
+        /**
+         * Customers do not create workspaces.
+         *
+         * A workspace is the billing container, made once at signup; websites
+         * are what a customer adds, and each carries its own subscription.
+         * Leaving this open let someone create a second workspace with its own
+         * plan and its own credit balance — splitting their account for no
+         * benefit they asked for, and undercutting per-site billing.
+         *
+         * Closed at the API as well as removing the button: the endpoint is
+         * reachable whether or not anything renders a form for it.
+         */
+        allowUserToCreateOrganization: false,
       }),
     ],
   });

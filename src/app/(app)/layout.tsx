@@ -3,7 +3,6 @@ import Link from "next/link";
 
 import { MobileNav } from "@/components/mobile-nav";
 import { NotificationBell } from "@/components/notification-bell";
-import { OrgSwitcher } from "@/components/org-switcher";
 import { BrandLogo, BrandMark } from "@/components/brand-logo";
 import { LiveChat } from "@/components/live-chat";
 import { SidebarNav } from "@/components/sidebar-nav";
@@ -169,14 +168,6 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             <BrandLogo height={22} priority />
           </span>
         </Link>
-
-        <div className="hidden sm:block">
-          <OrgSwitcher
-            currentOrgId={orgId}
-            currentOrgName={org?.name ?? "Workspace"}
-            role={role}
-          />
-        </div>
 
         {/*
           The website switcher sits beside the workspace picker, in the header
