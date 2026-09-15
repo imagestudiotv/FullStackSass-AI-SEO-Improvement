@@ -45,7 +45,18 @@ export default async function OnboardingPage() {
 
   const hasAccess = isEntitled(subscription?.status);
 
-  if (!hasAccess) {
+  /**
+   * The website comes before the plan.
+   *
+   * A plan pays for one website, so there is nothing to buy until a site
+   * exists. Gating on entitlement first sent a brand-new customer to "Select
+   * your plan" and then told them to add a website, with no way to do it from
+   * that screen — a dead end on the first page after signing up.
+   *
+   * With no website the setup checklist is shown instead, whose first step is
+   * adding one.
+   */
+  if (!hasAccess && state.websiteId) {
     const monthlyPlans = allPlans
       .filter((plan) => plan.interval === "month")
       .map(toPickerPlan);
@@ -60,19 +71,7 @@ export default async function OnboardingPage() {
           description="Pick a plan and we start working on your site today."
         />
 
-        {/*
-          A plan pays for one website, so there has to be a website first.
-          Reaching this step without one means the earlier step was skipped;
-          sending them back is better than selling a plan with nothing to
-          attach it to.
-        */}
-        {!state.websiteId ? (
-          <Card>
-            <CardContent className="py-6 text-sm text-muted-foreground">
-              Add your website first — each plan pays for one site.
-            </CardContent>
-          </Card>
-        ) : monthlyPlans.length === 0 ? (
+        {monthlyPlans.length === 0 ? (
           // Real state, not a placeholder: with no plans configured we say so
           // rather than showing prices checkout would not honour.
           <Card>

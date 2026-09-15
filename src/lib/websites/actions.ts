@@ -7,7 +7,6 @@ import { inngest } from "@/inngest/client";
 import { db } from "@/lib/db";
 import { competitors, websites } from "@/lib/db/schema";
 import { requireOrg, requireWebsite } from "@/lib/tenant";
-import { LimitExceededError, requireWithinLimit } from "@/lib/usage";
 import { writeSelectedWebsite } from "@/lib/websites/selected";
 import { InvalidUrlError, normalizeWebsiteUrl } from "@/lib/websites/url";
 import { normalizeLanguage } from "@/lib/websites/languages";
@@ -53,9 +52,6 @@ export async function listWebsites(): Promise<WebsiteSummary[]> {
 /**
  * Adds a website to the caller's organization.
  *
- * The plan limit is checked BEFORE the insert. checkLimit only reports; this
- * path must refuse, so it uses requireWithinLimit and lets the error surface
- * as a message the form can show.
  */
 export async function addWebsite(
   rawUrl: string,

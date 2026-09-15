@@ -101,23 +101,30 @@ export const getOnboardingState = cache(async function getOnboardingState(
   const hasArticles = (articleCount[0]?.n ?? 0) > 0;
 
   const steps: OnboardingStep[] = [
-    {
-      id: "plan",
-      title: "Choose a plan",
-      description: agency
-        ? "This workspace is set up by us — no plan needed."
-        : "Start from EUR 1 a month. Cancel any time.",
-      done: hasPlan,
-      href: "/billing",
-    },
+    /**
+     * The website comes first now.
+     *
+     * A plan pays for one website, so there is nothing to buy until a site
+     * exists — and adding one is free. The old order deadlocked once billing
+     * moved per site: the plan step wanted a website and the website step was
+     * disabled until there was a plan.
+     */
     {
       id: "website",
       title: "Add your website",
       description: "We read it and work out what your business does.",
       done: hasWebsite,
-      // Not reachable until there is a plan: adding a website without one
-      // fails the limit check with a billing error, which reads as a bug.
-      href: hasPlan ? "/onboarding/website" : null,
+      href: "/onboarding/website",
+    },
+    {
+      id: "plan",
+      title: "Choose a plan",
+      description: agency
+        ? "This workspace is set up by us — no plan needed."
+        : "Each website has its own plan. Start from EUR 1 a month.",
+      done: hasPlan,
+      // Nothing to pay for until a website exists.
+      href: hasWebsite ? "/billing" : null,
     },
     {
       id: "profile",
