@@ -17,7 +17,8 @@ import {
 } from "@/components/ui/table";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { AdminSearch } from "../admin-search";
-import { WorkspaceActions } from "../organizations/workspace-actions";
+import { WorkspaceActions } from "../organizations/workspace-actions";
+import { DeleteUserButton } from "./delete-user";
 
 export const dynamic = "force-dynamic";
 
@@ -57,11 +58,11 @@ export default async function AdminUsersPage({
                 <TableHead className="hidden w-28 sm:table-cell">
                   Joined
                 </TableHead>
-                <TableHead className="w-12" />
+                <TableHead className="w-24" />
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.map((row) => (
+              {rows.map((row, index) => (
                 <TableRow key={`${row.id}:${row.organizationId ?? "none"}`}>
                   <TableCell className="font-medium">{row.name}</TableCell>
                   <TableCell className="max-w-56 truncate text-muted-foreground">
@@ -84,13 +85,25 @@ export default async function AdminUsersPage({
                       generation and publishing for a workspace, and someone in
                       three of them cannot be suspended as an individual.
                     */}
-                    {row.organizationId ? (
-                      <WorkspaceActions
-                        organizationId={row.organizationId}
-                        organizationName={row.organizationName ?? row.email}
-                        status={row.organizationStatus}
-                      />
-                    ) : null}
+                    <div className="flex items-center justify-end gap-1">
+                      {row.organizationId ? (
+                        <WorkspaceActions
+                          organizationId={row.organizationId}
+                          organizationName={row.organizationName ?? row.email}
+                          status={row.organizationStatus}
+                        />
+                      ) : null}
+                      {/*
+                        One button per PERSON, not per membership row. Someone
+                        in three workspaces appears three times, and three
+                        delete buttons for one account would read as three
+                        different things to delete.
+                      */}
+                      {rows.findIndex((other) => other.id === row.id) ===
+                      index ? (
+                        <DeleteUserButton userId={row.id} email={row.email} />
+                      ) : null}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}

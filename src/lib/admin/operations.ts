@@ -1,6 +1,6 @@
 "use server";
 
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray, sql as raw } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { requireAdmin } from "@/lib/admin/guard";
@@ -11,9 +11,11 @@ import { UNLIMITED } from "@/lib/usage-shared";
 import { db } from "@/lib/db";
 import {
   agencyWorkspaces,
+  member,
   organization,
   payments,
   subscriptions,
+  user,
 } from "@/lib/db/schema";
 import { isStripeConfigured, stripe } from "@/lib/stripe/client";
 import type { ActionResult } from "@/lib/websites/actions";
@@ -531,4 +533,196 @@ export async function setOrganizationActive(
 
   revalidatePath("/admin/organizations");
   return { ok: true, data: null };
+}
+
+
+/* ------------------------------------------------------------------------- */
+/* Permanent deletion                                                         */
+/* ------------------------------------------------------------------------- */
+
+/**
+ * Deleting is not the same as suspending, and both exist for a reason.
+ *
+ * Suspension stops the service and keeps the record, which is what almost
+ * every support conversation actually wants. Deletion is for a GDPR erasure
+ * request, where keeping the record is the thing that is not allowed.
+ *
+ * What it does NOT do, and cannot:
+ *
+ *  - Unpublish articles. They live on the customer's OWN website, under their
+ *    control. Deleting our row removes our copy, not their page.
+ *  - Remove links this workspace hosts for other customers. Those pages
+ *    belong to this customer and stay up; placements.host_website_id is
+ *    "set null", so the other customer's record survives with the host
+ *    unknown rather than vanishing.
+ *  - Erase the audit log. It has no foreign keys precisely so a deletion
+ *    leaves a trace of itself — which is what makes the action accountable.
+ */
+
+/** Typed to force the caller to confirm rather than pass a bare boolean. */
+const DELETE_CONFIRMATION = "DELETE";
+
+/**
+ * Permanently removes a workspace and everything under it.
+ *
+ * Every application table hangs off organization_id with onDelete cascade, so
+ * one delete removes websites, articles, keywords, credits and payments
+ * together. That is the point: a partial erasure is not an erasure.
+ */
+export async function deleteOrganization(
+  organizationId: string,
+  reason: string,
+  confirmation: string,
+): Promise<ActionResult<null>> {
+  const admin = await requireAdmin();
+
+  if (confirmation !== DELETE_CONFIRMATION) {
+    return { ok: false, error: `Type ${DELETE_CONFIRMATION} to confirm.` };
+  }
+  const note = reason.trim();
+  if (note.length < 3) {
+    return { ok: false, error: "Say why this workspace is being deleted." };
+  }
+
+  const [org] = await db
+    .select({ id: organization.id, name: organization.name })
+    .from(organization)
+    .where(eq(organization.id, organizationId))
+    .limit(1);
+  if (!org) return { ok: false, error: "Workspace not found." };
+
+  /**
+   * Refuse while Stripe would keep charging.
+   *
+   * Deleting the row does not tell Stripe anything, so a live subscription
+   * would go on billing a customer whose account no longer exists — and with
+   * the local record gone there would be nothing left to trace it back to.
+   * Cancel or refund first; both already exist above.
+   */
+  const [live] = await db
+    .select({ id: subscriptions.id, status: subscriptions.status })
+    .from(subscriptions)
+    .where(
+      and(
+        eq(subscriptions.organizationId, organizationId),
+        inArray(subscriptions.status, ["active", "trialing", "past_due"]),
+      ),
+    )
+    .limit(1);
+
+  if (live) {
+    return {
+      ok: false,
+      error:
+        "This workspace still has a live subscription. Cancel or refund it first, or Stripe will keep charging them.",
+    };
+  }
+
+  /**
+   * Counted before the delete, for the audit entry. Afterwards there is
+   * nothing left to count, and "deleted a workspace" without saying how much
+   * went with it is not a useful record.
+   */
+  const [counts] = await db
+    .select({
+      websites: raw<number>`(select count(*) from websites where organization_id = ${organizationId})::int`,
+      members: raw<number>`(select count(*) from member where organization_id = ${organizationId})::int`,
+      payments: raw<number>`(select count(*) from payments where organization_id = ${organizationId})::int`,
+    })
+    .from(raw`(select 1) as _`);
+
+  await recordAdminAction({
+    actorEmail: admin.email,
+    action: "organization.deleted",
+    targetType: "organization",
+    targetId: org.id,
+    organizationId: org.id,
+    summary: `Deleted ${org.name} — ${counts?.websites ?? 0} websites, ${counts?.members ?? 0} members, ${counts?.payments ?? 0} payments — ${note}`,
+    detail: { name: org.name, ...counts, reason: note },
+  });
+
+  await db.delete(organization).where(eq(organization.id, organizationId));
+
+  revalidatePath("/admin/organizations");
+  revalidatePath("/admin/users");
+  return { ok: true, data: null };
+}
+
+/**
+ * Permanently removes one person's account.
+ *
+ * Their sessions and provider logins cascade. Their WORKSPACES do not: a
+ * workspace can outlive a member, and deleting an account should not silently
+ * destroy data belonging to colleagues who share it. A workspace that only
+ * this person belonged to is deleted separately, and the check below says so
+ * rather than leaving an orphan behind quietly.
+ */
+export async function deleteUser(
+  userId: string,
+  reason: string,
+  confirmation: string,
+): Promise<ActionResult<{ orphanedOrganizations: string[] }>> {
+  const admin = await requireAdmin();
+
+  if (confirmation !== DELETE_CONFIRMATION) {
+    return { ok: false, error: `Type ${DELETE_CONFIRMATION} to confirm.` };
+  }
+  const note = reason.trim();
+  if (note.length < 3) {
+    return { ok: false, error: "Say why this account is being deleted." };
+  }
+
+  const [person] = await db
+    .select({ id: user.id, email: user.email, name: user.name })
+    .from(user)
+    .where(eq(user.id, userId))
+    .limit(1);
+  if (!person) return { ok: false, error: "Account not found." };
+
+  /**
+   * An administrator deleting their own account would lock themselves out
+   * mid-action, and ADMIN_EMAILS would still list an address with no login.
+   */
+  if (person.email.toLowerCase() === admin.email.toLowerCase()) {
+    return { ok: false, error: "You cannot delete your own account." };
+  }
+
+  /** Workspaces this person is the only member of; named, not deleted. */
+  const orphans = await db
+    .select({ name: organization.name })
+    .from(member)
+    .innerJoin(organization, eq(organization.id, member.organizationId))
+    .where(
+      and(
+        eq(member.userId, userId),
+        raw`(select count(*) from member m2 where m2.organization_id = ${member.organizationId})::int = 1`,
+      ),
+    );
+
+  await recordAdminAction({
+    actorEmail: admin.email,
+    action: "user.deleted",
+    targetType: "user",
+    targetId: person.id,
+    summary: `Deleted ${person.email}${
+      orphans.length > 0
+        ? ` — left ${orphans.length} workspace(s) with no members`
+        : ""
+    } — ${note}`,
+    detail: {
+      email: person.email,
+      name: person.name,
+      orphanedOrganizations: orphans.map((row) => row.name),
+      reason: note,
+    },
+  });
+
+  await db.delete(user).where(eq(user.id, userId));
+
+  revalidatePath("/admin/users");
+  revalidatePath("/admin/organizations");
+  return {
+    ok: true,
+    data: { orphanedOrganizations: orphans.map((row) => row.name) },
+  };
 }
