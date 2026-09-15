@@ -87,14 +87,15 @@ export default async function SettingsPage() {
       <SettingsLinks websiteId={websiteId} />
 
       {/*
-        Collaborators are per website, so this panel needs one selected. With
-        no website there is nobody to invite to anything yet.
+        Collaborators are per website, so the panel takes every site owned
+        here and picks between them itself. With no website there is nobody to
+        invite to anything yet.
       */}
       {selectedSite ? (
         <WebsiteMembers
-          websiteId={selectedSite.id}
-          domain={selectedSite.domain}
-          members={await listWebsiteMembers(selectedSite.id)}
+          sites={owned}
+          initialWebsiteId={selectedSite.id}
+          initialMembers={await listWebsiteMembers(selectedSite.id)}
         />
       ) : null}
 

@@ -107,12 +107,24 @@ export function ReferralCard({
                   key={row.id}
                   className="flex items-center justify-between gap-3 px-3 py-2.5"
                 >
+                  {/*
+                    The website leads, because that is what the referrer
+                    recognises — they shared a link with someone who runs a
+                    site, not with a workspace. The person's name is the
+                    second line, and stands alone before a site is connected.
+                  */}
                   <div className="min-w-0">
-                    <p className="truncate text-sm">
-                      {row.referredName ?? "A workspace"}
+                    <p className="truncate text-sm font-medium">
+                      {row.referredDomain ??
+                        row.referredName ??
+                        "Someone you referred"}
                     </p>
-                    <p className="text-xs text-muted-foreground">
-                      Joined {new Date(row.createdAt).toLocaleDateString()}
+                    <p className="truncate text-xs text-muted-foreground">
+                      {row.referredDomain && row.referredName
+                        ? `${row.referredName} · joined ${new Date(row.createdAt).toLocaleDateString()}`
+                        : row.referredDomain
+                          ? `Joined ${new Date(row.createdAt).toLocaleDateString()}`
+                          : `No website yet · joined ${new Date(row.createdAt).toLocaleDateString()}`}
                     </p>
                   </div>
                   {row.status === "rewarded" ? (
@@ -135,7 +147,7 @@ export function ReferralCard({
         <p className="text-xs text-muted-foreground">
           Credits are added to your account and can be spent on link building.
           They are not cash and cannot be withdrawn. A referral counts once the
-          person you referred pays for their first month, and each workspace can
+          person you referred pays for their first month, and each person can
           be referred once.
         </p>
       </CardContent>

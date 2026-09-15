@@ -2,7 +2,7 @@
 
 import { Loader2, Trash2, UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,7 @@ import {
 import { EmptyState } from "@/components/ui/states";
 import {
   addWebsiteMember,
+  listWebsiteMembers,
   removeWebsiteMember,
   type WebsiteMember,
 } from "@/lib/websites/members";
@@ -42,20 +43,79 @@ import {
  * already uses the product — and anyone else signs up first, which they would
  * have to do regardless.
  */
+export type OwnedSite = { id: string; domain: string };
+
 export function WebsiteMembers({
-  websiteId,
-  domain,
-  members,
+  sites,
+  initialWebsiteId,
+  initialMembers,
 }: {
-  websiteId: string;
-  domain: string;
-  members: WebsiteMember[];
+  /** Every website this person owns. Access is granted per site. */
+  sites: OwnedSite[];
+  initialWebsiteId: string;
+  initialMembers: WebsiteMember[];
 }) {
   const router = useRouter();
+  const [websiteId, setWebsiteId] = useState(initialWebsiteId);
+  const [members, setMembers] = useState(initialMembers);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<"editor" | "viewer">("editor");
   const [pending, startTransition] = useTransition();
+  const [loadingMembers, setLoadingMembers] = useState(false);
+  /** The site whose reply we still want, so a slow earlier one is ignored. */
+  const wantedSite = useRef(initialWebsiteId);
   const [busyId, setBusyId] = useState<string | null>(null);
+
+  const domain =
+    sites.find((site) => site.id === websiteId)?.domain ?? "this website";
+
+  /**
+   * Loads the people on a site.
+   *
+   * Driven by the change event rather than an effect on websiteId. An effect
+   * would also have to re-sync whenever the server re-rendered this panel, and
+   * a router.refresh() hands back a new initialMembers array each time — so a
+   * late server prop could overwrite the list for the site actually picked.
+   * Fetching where the choice is made has no such race.
+   *
+   * Fetched rather than navigated because the choice is local to this panel;
+   * putting it in the URL would make the rest of Settings, which follows the
+   * sidebar's website, disagree with it. The server action re-checks access,
+   * so a forged id throws rather than returning someone else's collaborators.
+   */
+  async function loadMembers(id: string) {
+    setLoadingMembers(true);
+    try {
+      const rows = await listWebsiteMembers(id);
+      // Ignore a slow reply for a site that is no longer the chosen one.
+      if (wantedSite.current !== id) return;
+      setMembers(rows);
+    } catch {
+      if (wantedSite.current !== id) return;
+      setMembers([]);
+      toast.error("Could not load who works on this website.");
+    } finally {
+      if (wantedSite.current === id) setLoadingMembers(false);
+    }
+  }
+
+  function pickWebsite(id: string) {
+    wantedSite.current = id;
+    setWebsiteId(id);
+    // Clear first: showing the previous site's people under a new domain, even
+    // briefly, reads as though those people have access to it.
+    setMembers([]);
+    void loadMembers(id);
+  }
+
+  /** Re-reads the current site's list after a change, without a navigation. */
+  async function refreshMembers() {
+    try {
+      setMembers(await listWebsiteMembers(websiteId));
+    } catch {
+      router.refresh();
+    }
+  }
 
   function invite(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -67,7 +127,7 @@ export function WebsiteMembers({
       }
       toast.success(`${email} can now work on ${domain}`);
       setEmail("");
-      router.refresh();
+      await refreshMembers();
     });
   }
 
@@ -81,22 +141,46 @@ export function WebsiteMembers({
         return;
       }
       toast.success(`${memberEmail} no longer has access`);
-      router.refresh();
+      await refreshMembers();
     });
   }
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">People on {domain}</CardTitle>
+        <CardTitle className="text-base">People on your websites</CardTitle>
         <CardDescription>
-          Give someone access to this website only. They will not see your
-          other sites or your billing.
+          Access is given one website at a time. Someone invited here will not
+          see your other sites or your billing.
         </CardDescription>
       </CardHeader>
 
       <CardContent className="space-y-4">
         <form onSubmit={invite} className="flex flex-wrap items-end gap-2">
+          {/*
+            Which site, first — it decides what everything below means. Only
+            shown when there is a choice to make: with one website the select
+            would be a control with a single option, and the heading under the
+            list already names the site.
+          */}
+          {sites.length > 1 ? (
+            <div className="min-w-48 flex-1 space-y-2">
+              <Label htmlFor="member-website">Website</Label>
+              <Select value={websiteId} onValueChange={pickWebsite}>
+                <SelectTrigger id="member-website" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {sites.map((site) => (
+                    <SelectItem key={site.id} value={site.id}>
+                      {site.domain}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
+
           <div className="min-w-48 flex-1 space-y-2">
             <Label htmlFor="member-email">Email</Label>
             <Input
@@ -136,13 +220,18 @@ export function WebsiteMembers({
         </form>
 
         <p className="text-xs text-muted-foreground">
-          An editor can write, edit and publish articles. A viewer can read
-          only.
+          An editor can write, edit and publish articles on {domain}. A viewer
+          can read only.
         </p>
 
-        {members.length === 0 ? (
+        {loadingMembers ? (
+          <div className="flex items-center justify-center gap-2 rounded-xl border border-dashed p-8 text-sm text-muted-foreground">
+            <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+            Loading people on {domain}
+          </div>
+        ) : members.length === 0 ? (
           <EmptyState
-            title="Nobody else yet"
+            title={`Nobody else on ${domain}`}
             description="Invite a colleague or a freelance editor to work on this website."
           />
         ) : (

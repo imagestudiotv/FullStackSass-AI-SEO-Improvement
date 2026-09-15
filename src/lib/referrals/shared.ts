@@ -12,15 +12,17 @@ export type ReferralRow = {
   rewardCredits: number | null;
   createdAt: Date;
   rewardedAt: Date | null;
-  /** Workspace name of the referred customer. Never an email. */
+  /** The referred person's own name. Never an email. */
   referredName: string | null;
+  /** Their website, once they have connected one. Null before that. */
+  referredDomain: string | null;
 };
 
 export type ReferralSummary = {
   code: string;
   /** Credits earned to date. */
   earned: number;
-  /** Referred workspaces that have not yet paid. */
+  /** Referred people who have not yet paid. */
   pending: number;
   referrals: ReferralRow[];
 };
