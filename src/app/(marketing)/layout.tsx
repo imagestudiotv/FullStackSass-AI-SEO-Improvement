@@ -11,7 +11,21 @@ import { LiveChat } from "@/components/live-chat";
 export default function MarketingLayout({ children }: LayoutProps<"/">) {
   return (
     <div className="flex min-h-svh flex-col">
-      <header className="border-b bg-background">
+      {/*
+        Sticky, matching the signed-in app and the admin area, which were
+        already sticky — the marketing site was the one place the menu
+        scrolled away, so navigating from a long page meant scrolling back to
+        the top first.
+
+        Translucent with a backdrop blur rather than solid, so content passing
+        underneath reads as behind the bar instead of being clipped by it. The
+        supports- query keeps a solid background where backdrop-filter is not
+        available, since a transparent header over scrolling text is unreadable.
+
+        z-40 sits above page content but below the mobile sheet and any
+        dialog, which is where the other two layouts put it.
+      */}
+      <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <div className="mx-auto flex h-14 max-w-6xl items-center gap-4 px-4">
           <Link href="/" aria-label="RepGet home" className="flex items-center">
             {/* The page's primary logo, so it is not lazy-loaded. */}
