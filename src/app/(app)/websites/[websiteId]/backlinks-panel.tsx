@@ -1,6 +1,7 @@
 "use client";
 
 import { ExternalLink, Link2, Loader2, Plus, X } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -19,15 +20,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ExchangeTable } from "./exchange-table";
 import type { SitemapPage } from "@/lib/backlinks/sitemap";
 import {
   cancelRequest,
@@ -216,17 +209,23 @@ export function BacklinksPanel({ websiteId, status, requests, given }: Props) {
       </CardHeader>
 
       <CardContent>
-        <Tabs defaultValue="received">
-          <TabsList>
-            <TabsTrigger value="received">
-              Links to you ({requests.length})
-            </TabsTrigger>
-            <TabsTrigger value="given">
-              Links you give ({given.length})
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="received" className="mt-4 space-y-3">
+        {/*
+          Two sections rather than two tabs.
+          
+          The exchange only makes sense as a pair — credits earned by giving
+          links are what pay for the ones received — and a tab hides half of
+          that behind a click. Each section carries the sentence describing
+          its own side of the trade.
+        */}
+        <div className="space-y-10">
+          <section className="space-y-3">
+            <div className="space-y-0.5">
+              <h3 className="font-semibold">Backlinks received</h3>
+              <p className="text-sm text-muted-foreground">
+                Mentioned in other articles &rarr; Get backlinks &rarr; Spend
+                credits
+              </p>
+            </div>
             {showRequest ? (
               <form onSubmit={handleRequest} className="space-y-3 rounded-xl border p-4">
               <div className="space-y-1.5">
@@ -320,104 +319,187 @@ export function BacklinksPanel({ websiteId, status, requests, given }: Props) {
                 description="Request a link and we find another business in the network to publish it in their next article. Each live link costs one credit."
               />
             ) : (
-              <Table minWidth="32rem">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Your page</TableHead>
-                    <TableHead className="w-48">Status</TableHead>
-                    <TableHead className="hidden md:table-cell">From</TableHead>
-                    <TableHead className="w-10" />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {requests.map((request) => {
-
-                    return (
-                      <TableRow key={request.id}>
-                        <TableCell className="max-w-56 truncate">
-                          {request.targetUrl.replace(/^https?:\/\//, "")}
-                        </TableCell>
-                        <TableCell>
-                          <StatusBadge
-                            status={request.status}
-                            label={REQUEST_LABEL[request.status]}
+              <ExchangeTable
+                rows={requests}
+                sortValue={(row) => new Date(row.createdAt).getTime()}
+                minWidth="46rem"
+                columns={[
+                  {
+                    key: "source",
+                    header: "Source article",
+                    hint: "The article on another website that links to you. Follow it to read the live link.",
+                    render: (row) =>
+                      row.liveUrl ? (
+                        <a
+                          href={row.liveUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex max-w-full items-center gap-1 truncate text-primary hover:underline"
+                        >
+                          <span className="truncate">
+                            {row.liveUrl.replace(/^https?:\/\//, "")}
+                          </span>
+                          <ExternalLink
+                            className="size-3 shrink-0"
+                            aria-hidden="true"
                           />
-                        </TableCell>
-                        <TableCell className="hidden text-muted-foreground md:table-cell">
-                          {request.liveUrl ? (
-                            <a
-                              href={request.liveUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 hover:underline"
-                            >
-                              {request.hostDomain}
-                              <ExternalLink className="size-3" />
-                            </a>
+                        </a>
+                      ) : (
+                        /*
+                          No live URL yet, so the status IS the answer: there
+                          is no article to name until someone publishes one.
+                        */
+                        <StatusBadge
+                          status={row.status}
+                          label={REQUEST_LABEL[row.status]}
+                        />
+                      ),
+                  },
+                  {
+                    key: "website",
+                    header: "Customer website",
+                    hint: "The website in the network that published the link.",
+                    secondary: true,
+                    render: (row) => (
+                      <span className="text-muted-foreground">
+                        {row.hostDomain ?? "—"}
+                      </span>
+                    ),
+                  },
+                  {
+                    key: "date",
+                    header: "Date",
+                    className: "w-32",
+                    render: (row) => (
+                      <span className="text-muted-foreground">
+                        {new Date(row.createdAt).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </span>
+                    ),
+                  },
+                  {
+                    key: "credits",
+                    header: "Credits used",
+                    hint: "Credits spent on this link. Returned in full if the link is ever removed.",
+                    className: "w-28 text-right",
+                    render: (row) => (
+                      <span className="tabular-nums text-primary">
+                        -{row.creditsUsed}
+                      </span>
+                    ),
+                  },
+                  {
+                    key: "cancel",
+                    header: "",
+                    className: "w-10",
+                    render: (row) =>
+                      row.status === "pending" || row.status === "matched" ? (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label="Cancel request"
+                          disabled={pending && busyId === row.id}
+                          onClick={() => handleCancel(row.id)}
+                        >
+                          {pending && busyId === row.id ? (
+                            <Loader2 className="size-4 animate-spin" />
                           ) : (
-                            (request.hostDomain ?? "—")
+                            <X className="size-4" />
                           )}
-                        </TableCell>
-                        <TableCell>
-                          {request.status === "pending" ||
-                          request.status === "matched" ? (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              aria-label="Cancel request"
-                              disabled={pending && busyId === request.id}
-                              onClick={() => handleCancel(request.id)}
-                            >
-                              {pending && busyId === request.id ? (
-                                <Loader2 className="size-4 animate-spin" />
-                              ) : (
-                                <X className="size-4" />
-                              )}
-                            </Button>
-                          ) : null}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+                        </Button>
+                      ) : null,
+                  },
+                ]}
+              />
             )}
-          </TabsContent>
+          </section>
 
-          <TabsContent value="given" className="mt-4">
+          <section className="space-y-3">
+            <div className="space-y-0.5">
+              <h3 className="font-semibold">Backlinks given</h3>
+              <p className="text-sm text-muted-foreground">
+                Post articles &rarr; Give backlinks &rarr; Earn credits
+              </p>
+            </div>
             {given.length === 0 ? (
               <p className="py-2 text-sm text-muted-foreground">
                 None yet. When we write your next article, a link to another
                 business may be included and you will earn a credit.
               </p>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Links to</TableHead>
-                    <TableHead className="w-28">Status</TableHead>
-                    <TableHead className="w-20">Earned</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {given.map((row) => (
-                    <TableRow key={row.id}>
-                      <TableCell className="max-w-56 truncate">
-                        {row.targetUrl.replace(/^https?:\/\//, "")}
-                      </TableCell>
-                      <TableCell>
-                        <StatusBadge status={row.status} />
-                      </TableCell>
-                      <TableCell className="tabular-nums">
+              <ExchangeTable
+                rows={given}
+                sortValue={(row) => new Date(row.createdAt).getTime()}
+                minWidth="42rem"
+                columns={[
+                  {
+                    key: "source",
+                    header: "Source article",
+                    hint: "Your article that carries the link.",
+                    render: (row) =>
+                      row.articleId ? (
+                        <Link
+                          href={`/websites/${websiteId}/articles/${row.articleId}`}
+                          className="block max-w-full truncate text-primary hover:underline"
+                        >
+                          {row.articleTitle ?? "Untitled article"}
+                        </Link>
+                      ) : (
+                        /*
+                          The article can be gone — articleId is set null when
+                          one is deleted — so the anchor text is the only thing
+                          left describing the link.
+                        */
+                        <span className="text-muted-foreground">
+                          {row.anchor ?? "—"}
+                        </span>
+                      ),
+                  },
+                  {
+                    key: "website",
+                    header: "Destination website",
+                    hint: "The website your article links out to.",
+                    secondary: true,
+                    render: (row) => (
+                      <span className="text-muted-foreground">
+                        {row.destinationDomain ??
+                          row.targetUrl.replace(/^https?:\/\//, "")}
+                      </span>
+                    ),
+                  },
+                  {
+                    key: "date",
+                    header: "Date",
+                    className: "w-32",
+                    render: (row) => (
+                      <span className="text-muted-foreground">
+                        {new Date(row.createdAt).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </span>
+                    ),
+                  },
+                  {
+                    key: "credits",
+                    header: "Credits earned",
+                    hint: "Credits this link earned you, to spend on links back to your own site.",
+                    className: "w-28 text-right",
+                    render: (row) => (
+                      <span className="tabular-nums text-emerald-600 dark:text-emerald-400">
                         +{row.credits}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                      </span>
+                    ),
+                  },
+                ]}
+              />
             )}
-          </TabsContent>
-        </Tabs>
+          </section>
+        </div>
       </CardContent>
 
       <CardFooter>

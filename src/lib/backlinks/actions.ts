@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 
 import { db } from "@/lib/db";
 import {
+  articles,
   backlinkRequests,
   networkSites,
   placements,
@@ -167,6 +168,15 @@ export type RequestRow = {
   createdAt: Date;
   hostDomain: string | null;
   liveUrl: string | null;
+  /**
+   * What this link actually cost, for the "Credits used" column.
+   *
+   * The placement's figure once there is one, falling back to what the
+   * request reserved — a pending request has spent nothing yet, but the
+   * customer has had that many credits held back, and showing zero would
+   * misrepresent their balance.
+   */
+  creditsUsed: number;
 };
 
 export async function listRequests(websiteId: string): Promise<RequestRow[]> {
@@ -182,6 +192,7 @@ export async function listRequests(websiteId: string): Promise<RequestRow[]> {
       createdAt: backlinkRequests.createdAt,
       hostDomain: websites.domain,
       liveUrl: placements.liveUrl,
+      creditsUsed: raw<number>`coalesce(${placements.credits}, ${backlinkRequests.creditsReserved})::int`,
     })
     .from(backlinkRequests)
     /**
@@ -219,6 +230,17 @@ export type GivenRow = {
   status: string;
   credits: number;
   createdAt: Date;
+  /**
+   * Our article that carries the link, and where to read it.
+   *
+   * The list named only the destination, which answers "who did I link to"
+   * but not "which of my articles is this in" — the question a customer
+   * actually asks, because that is the page on their own site.
+   */
+  articleId: string | null;
+  articleTitle: string | null;
+  /** The linked-to site, as a domain rather than a full URL. */
+  destinationDomain: string | null;
 };
 
 export async function listGiven(websiteId: string): Promise<GivenRow[]> {
@@ -233,9 +255,21 @@ export async function listGiven(websiteId: string): Promise<GivenRow[]> {
       status: placements.status,
       credits: placements.credits,
       createdAt: placements.createdAt,
+      articleId: placements.articleId,
+      articleTitle: articles.title,
+      /**
+       * The destination as a domain.
+       *
+       * Taken from the requesting website rather than parsed out of
+       * targetUrl: the row already knows which site asked, and a URL can
+       * carry a subdomain, a port or no scheme at all.
+       */
+      destinationDomain: websites.domain,
     })
     .from(placements)
     .innerJoin(backlinkRequests, eq(placements.requestId, backlinkRequests.id))
+    .leftJoin(articles, eq(articles.id, placements.articleId))
+    .leftJoin(websites, eq(websites.id, backlinkRequests.websiteId))
     .where(eq(placements.hostWebsiteId, site.id))
     .orderBy(desc(placements.createdAt));
 }
