@@ -162,29 +162,38 @@
  * Input uses text-base with md:text-sm — 16px on a phone, smaller once there
  * is a real keyboard.
  *
+ * TWO MISTAKES ARE FIXED HERE, BOTH WORTH KNOWING BEFORE EDITING:
+ *
+ *  1. The selector was `.crisp-client .cc-165wh textarea`, chosen to outrank
+ *     Crisp's own rule on specificity. It outranked nothing, because it
+ *     matched nothing: Crisp NEVER nests the compose field under .cc-165wh —
+ *     every rule they ship for it is the flat `.crisp-client textarea`. The
+ *     override shipped, looked right in the stylesheet, and never applied.
+ *     Matching their selector exactly and relying on source order is what
+ *     works: this file is imported by globals.css, but Crisp appends its
+ *     stylesheet <link> to <head> at runtime AFTER our bundle, so equal
+ *     specificity would lose on source order. Repeating .crisp-client below
+ *     outranks them by one class while still matching the same element — an
+ *     element carrying that class matches .crisp-client.crisp-client too.
+ *
+ *  2. It was scoped to max-width: 480px, a width invented here rather than
+ *     taken from Crisp, who have no CSS breakpoints at all and switch to full
+ *     view from JavaScript. iOS zooms at ANY width, so every phone in
+ *     landscape and every iPad was still affected — an iPhone 14 in landscape
+ *     is 844px wide. It is now scoped to pointer: coarse, which is the actual
+ *     condition: a touch screen, where the zoom behaviour exists, rather than
+ *     a guess at how wide one is.
+ *
  * The alternative is maximum-scale=1 on the viewport, which blocks the zoom
  * everywhere in one line and takes pinch-zoom away from every page for every
  * visitor. That fails WCAG 1.4.4, hurts anyone with low vision, and newer
  * Safari ignores it anyway. Fixing the font that causes it costs nobody
  * anything.
- *
- * Scoped to phone widths, so the chat keeps Crisp's compact text on a desktop
- * where no zoom behaviour exists to avoid.
  */
-@media (max-width: 480px) {
-  /*
-   * Deliberately over-specified.
-   *
-   * Crisp's own rule is `.crisp-client input, .crisp-client textarea`, which
-   * has exactly the same specificity as the obvious override — and their
-   * stylesheet is injected by their script at runtime, so it loads AFTER this
-   * bundle. Equal specificity plus equal !important means source order
-   * decides, and theirs would have won. Adding their container class raises
-   * specificity above it without depending on load order.
-   */
-  html body .crisp-client .cc-165wh textarea,
-  html body .crisp-client .cc-165wh input,
-  html body .crisp-client .cc-165wh input[type="text"] {
+@media (pointer: coarse) {
+  .crisp-client.crisp-client textarea,
+  .crisp-client.crisp-client input,
+  .crisp-client.crisp-client input[type="text"] {
     /* 16px exactly. Lower and iOS zooms; this is a threshold, not a size. */
     font-size: 16px !important;
   }
