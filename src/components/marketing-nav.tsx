@@ -230,8 +230,7 @@ function MobileMarketingNav({
 
   const links = [
     { href: href("/#how-it-works"), label: t.nav.howItWorks },
-    { href: href("/audit"), label: t.nav.freeCheck },
-    { href: href("/tools"), label: t.nav.tools },
+    { href: "/success-stories", label: t.nav.successStories },
     { href: href("/pricing"), label: t.nav.pricing },
     { href: "/blog", label: t.nav.blog },
     { href: "/contact", label: t.nav.contact },
@@ -313,14 +312,14 @@ export function MarketingNav() {
       {/*
         Only pages that exist. Every link here resolves.
 
-        "Success stories" from the design is deliberately absent: it means
-        customer case studies, and there are none yet. A menu entry leading to
-        invented results would be the fastest way to lose the first real
-        customer, so it goes in when there is someone to name.
+        Free check and Tools moved to the footer rather than being deleted:
+        both are real pages that bring people in from search, and the footer
+        already lists them, so nothing became unreachable.
 
-        Free check and Tools are kept although the design drops them — both
-        are real pages that bring people in, and removing working entry points
-        to match a drawing would cost traffic for nothing.
+        Success stories is a real page rather than a placeholder. There are no
+        named customers yet, so it shows what the product measures and invites
+        the reader to be the first — see that page for why it does not invent
+        any.
       */}
       <nav className="ml-auto hidden items-center gap-1 lg:flex">
         <PlatformMenu
@@ -331,8 +330,7 @@ export function MarketingNav() {
         />
         {[
           { href: href("/#how-it-works"), label: t.nav.howItWorks },
-          { href: href("/audit"), label: t.nav.freeCheck },
-          { href: href("/tools"), label: t.nav.tools },
+          { href: "/success-stories", label: t.nav.successStories },
           { href: href("/pricing"), label: t.nav.pricing },
           { href: "/blog", label: t.nav.blog },
           { href: "/contact", label: t.nav.contact },
@@ -349,14 +347,12 @@ export function MarketingNav() {
 
       <div className="ml-auto flex items-center gap-2 lg:ml-4">
         <MobileMarketingNav t={t} href={href} />
-        {/* Hidden on pages that exist in English only. */}
-        <LanguageSwitcher />
         <Button variant="ghost" size="sm" asChild>
           <Link href="/sign-in">{t.nav.signIn}</Link>
         </Button>
         <Button size="sm" asChild>
           <Link href="/sign-up">
-            {t.nav.startFree}
+            {t.nav.getStartedCta}
             <ArrowRight className="size-3.5" />
           </Link>
         </Button>
@@ -380,6 +376,8 @@ export function MarketingFooterLinks() {
           { href: href("/audit"), label: t.footer.freeCheck },
           { href: href("/tools"), label: t.footer.freeTools },
           { href: href("/pricing"), label: t.footer.pricing },
+          // Also in the header; listed here so the footer stays a full index.
+          { href: "/success-stories", label: t.nav.successStories },
           { href: "/blog", label: t.footer.blog },
           { href: "/faq", label: t.footer.faq },
           { href: "/about", label: t.footer.about },
@@ -423,13 +421,29 @@ export function MarketingFooterLinks() {
   );
 }
 
-/** Tagline under the footer logo. */
+/**
+ * Tagline under the footer logo, with the language switcher beneath it.
+ *
+ * The switcher used to sit in the header beside the sign-in buttons. It is a
+ * preference someone sets once, not something they navigate with, and in the
+ * header it competed for attention with the two things that page is for —
+ * signing in and starting. The footer is where a reader looks for it, and it
+ * is the convention on most of the sites this one is compared against.
+ *
+ * Still hidden on pages that exist only in English, which is the component's
+ * own behaviour rather than anything decided here.
+ */
 export function MarketingTagline() {
   const pathname = usePathname();
   const { locale } = splitLocale(pathname);
   return (
-    <p className="mt-2 max-w-xs text-sm text-muted-foreground">
-      {getMessages(locale).footer.tagline}
-    </p>
+    <>
+      <p className="mt-2 max-w-xs text-sm text-muted-foreground">
+        {getMessages(locale).footer.tagline}
+      </p>
+      <div className="mt-4">
+        <LanguageSwitcher />
+      </div>
+    </>
   );
 }

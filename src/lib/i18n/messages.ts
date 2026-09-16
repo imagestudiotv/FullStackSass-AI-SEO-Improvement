@@ -50,6 +50,17 @@ export type Messages = {
     signIn: string;
     getStarted: string;
     startFree: string;
+    /** Header nav entry for the case-studies page. */
+    successStories: string;
+    /**
+     * The header's primary button.
+     *
+     * Separate from getStarted, which labels the per-plan buttons on the
+     * pricing page: those two read the same in English and diverge in
+     * languages where a plan button and a nav call to action are not phrased
+     * alike. startFree is kept because the footer and hero still use it.
+     */
+    getStartedCta: string;
     /** The Platform dropdown: its trigger, heading and six entries. */
     platform: string;
     platformHeading: string;
@@ -208,6 +219,8 @@ const en: Messages = {
     getStarted: "Get started",
     contact: "Contact",
     startFree: "Start for free",
+    successStories: "Success Stories",
+    getStartedCta: "Get Started",
     platform: "Platform",
     platformHeading: "Explore the platform",
     platformItems: [
@@ -502,6 +515,8 @@ const es: Messages = {
     getStarted: "Empezar",
     contact: "Contacto",
     startFree: "Empezar gratis",
+    successStories: "Casos de éxito",
+    getStartedCta: "Empezar",
     platform: "Plataforma",
     platformHeading: "Explora la plataforma",
     platformItems: [
@@ -801,6 +816,8 @@ const fr: Messages = {
     getStarted: "Commencer",
     contact: "Contact",
     startFree: "Commencer gratuitement",
+    successStories: "Témoignages",
+    getStartedCta: "Commencer",
     platform: "Plateforme",
     platformHeading: "Découvrir la plateforme",
     platformItems: [
@@ -1100,6 +1117,8 @@ const it: Messages = {
     getStarted: "Inizia",
     contact: "Contatti",
     startFree: "Inizia gratis",
+    successStories: "Casi di successo",
+    getStartedCta: "Inizia",
     platform: "Piattaforma",
     platformHeading: "Esplora la piattaforma",
     platformItems: [
@@ -1398,6 +1417,8 @@ const de: Messages = {
     getStarted: "Loslegen",
     contact: "Kontakt",
     startFree: "Kostenlos starten",
+    successStories: "Erfolgsgeschichten",
+    getStartedCta: "Loslegen",
     platform: "Plattform",
     platformHeading: "Plattform entdecken",
     platformItems: [
