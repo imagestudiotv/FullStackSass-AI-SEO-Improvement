@@ -7,12 +7,14 @@ import {
   AuditBand,
   BacklinkNetwork,
   ClosingCta,
+  DemoVideo,
   Hero,
   HowItWorks,
   OneSubscription,
   ProblemSolution,
   Publishing,
   WhatYouSee,
+  WorksWith,
 } from "../home-sections";
 import { PricingPreview } from "../pricing-preview";
 
@@ -64,6 +66,8 @@ export default async function LocalisedHomePage({
   return (
     <>
       <Hero t={t} href={href} />
+      <WorksWith t={t} href={href} />
+      <DemoVideo t={t} href={href} />
       <AuditBand t={t} href={href} />
       <HowItWorks t={t} href={href} />
       <ProblemSolution t={t} href={href} />

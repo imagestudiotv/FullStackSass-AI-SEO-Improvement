@@ -321,7 +321,16 @@ export function MarketingNav() {
         the reader to be the first — see that page for why it does not invent
         any.
       */}
-      <nav className="ml-auto hidden items-center gap-1 lg:flex">
+      {/*
+        Centred in the header rather than pushed against the buttons.
+
+        Both this and the button group carried ml-auto, so the nav was shoved
+        as far right as the buttons allowed and read as one long right-hand
+        cluster. Centring needs the nav to be the only growing child: it takes
+        the free space on both sides with mx-auto, and the button group below
+        drops its ml-auto so it no longer competes for the same space.
+      */}
+      <nav className="mx-auto hidden items-center gap-1 lg:flex">
         <PlatformMenu
           label={t.nav.platform}
           heading={t.nav.platformHeading}
@@ -345,7 +354,7 @@ export function MarketingNav() {
         ))}
       </nav>
 
-      <div className="ml-auto flex items-center gap-2 lg:ml-4">
+      <div className="ml-auto flex items-center gap-2 lg:ml-0">
         <MobileMarketingNav t={t} href={href} />
         <Button variant="ghost" size="sm" asChild>
           <Link href="/sign-in">{t.nav.signIn}</Link>

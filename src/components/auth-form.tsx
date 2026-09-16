@@ -9,6 +9,7 @@ import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
+import { GoogleMark } from "@/components/google-mark";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -137,10 +138,19 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
           : "Sign in to access your dashboard."}
       </p>
 
+      {/*
+        Google as the primary route, given its own weight.
+        
+        Both reference designs make this the most prominent control on the
+        screen — taller, rounded, its own ring — because it is one tap against
+        three fields, and most people take it. The ring is the brand colour at
+        low opacity rather than a heavy border, so it reads as emphasis rather
+        than as an error state.
+      */}
       <Button
         type="button"
         variant="outline"
-        className="mt-8 h-11 w-full"
+        className="mt-8 h-14 w-full rounded-full border-primary/30 text-base font-semibold shadow-sm ring-4 ring-primary/5 transition-shadow hover:ring-primary/10"
         onClick={handleGoogle}
         disabled={googlePending || pending}
       >
@@ -151,29 +161,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
           </>
         ) : (
           <>
-            {/*
-              Google's own mark, inline. Their brand guidelines require the
-              real logo rather than a generic icon, and inlining it avoids a
-              request for a 300-byte image.
-            */}
-            <svg className="size-4" viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                fill="#4285F4"
-                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1Z"
-              />
-              <path
-                fill="#34A853"
-                d="M12 23c2.97 0 5.46-.98 7.28-2.65l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23Z"
-              />
-              <path
-                fill="#FBBC05"
-                d="M5.84 14.11a6.6 6.6 0 0 1 0-4.22V7.05H2.18a11 11 0 0 0 0 9.9l3.66-2.84Z"
-              />
-              <path
-                fill="#EA4335"
-                d="M12 4.75c1.62 0 3.06.56 4.21 1.65l3.15-3.15C17.45 1.47 14.97.5 12 .5A11 11 0 0 0 2.18 7.05l3.66 2.84c.87-2.6 3.3-4.14 6.16-4.14Z"
-              />
-            </svg>
+            <GoogleMark className="size-5" />
             Continue with Google
           </>
         )}

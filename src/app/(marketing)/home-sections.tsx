@@ -5,13 +5,17 @@ import {
   Check,
   FileText,
   Link2,
+  PlayCircle,
   Search,
   Sparkles,
+  TrendingUp,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
+import { GoogleMark } from "@/components/google-mark";
 import { Card, CardContent } from "@/components/ui/card";
 import type { Messages } from "@/lib/i18n/messages";
 
@@ -52,11 +56,25 @@ export type SectionProps = {
  *
  * Icons and positions live here; the labels come from the translations.
  */
+/**
+ * Where each floating card sits, in the order the dictionary lists them.
+ *
+ * Six rather than four: three down each side, so the headline keeps a clear
+ * column through the middle. The vertical spread is deliberate — evenly
+ * spaced cards read as a list, while staggered ones read as a scatter, which
+ * is what the design is doing.
+ *
+ * Icons live here and words live in the dictionary, because an icon is not
+ * translatable and a component name in a messages file is something a
+ * translator could break the build with.
+ */
 const HERO_CARD_STYLE: { icon: LucideIcon; className: string }[] = [
-  { icon: Search, className: "left-[6%] top-10 -rotate-6" },
-  { icon: Bot, className: "left-[2%] top-56 rotate-3" },
-  { icon: Link2, className: "right-[6%] top-8 rotate-6" },
-  { icon: FileText, className: "right-[2%] top-60 -rotate-3" },
+  { icon: Search, className: "left-[4%] top-8 -rotate-6" },
+  { icon: Bot, className: "left-[0%] top-44 rotate-3" },
+  { icon: Users, className: "left-[5%] top-[19rem] -rotate-3" },
+  { icon: Sparkles, className: "right-[4%] top-6 rotate-6" },
+  { icon: Link2, className: "right-[0%] top-44 -rotate-3" },
+  { icon: TrendingUp, className: "right-[5%] top-[19rem] rotate-3" },
 ];
 
 /** The shared lg size is h-9 — right for a form, too small for a hero. */
@@ -86,18 +104,42 @@ export function Hero({ t, href }: SectionProps) {
               <ArrowRight className="size-4" />
             </Link>
           </Button>
+          {/*
+            Google beside the free check, as the design asks. It goes to the
+            same sign-up page as everything else rather than starting an OAuth
+            flow from here: that page offers Google AND email, so someone who
+            clicks this and then changes their mind is not stranded on a screen
+            with one option. Sign-up is not localised, so it keeps its own path.
+          */}
           <Button size="lg" variant="outline" asChild className={CTA}>
-            {/* Sign-up is not localised, so it keeps its own path. */}
-            <Link href="/sign-up">{t.getStarted}</Link>
+            <Link href="/sign-up">
+              <GoogleMark />
+              {t.joinGoogle}
+            </Link>
           </Button>
         </div>
 
         {/*
-          The design has a "Trusted by 10,000+ marketers" row with avatars and
-          five stars here. Left out until it is true; what replaces it is a
-          real fact.
+          The design puts a "Google 4.9/5" badge here. Left out until there are
+          real reviews to average: a rating is a checkable claim, and an
+          invented one on the page where someone decides to trust us is the
+          kind of thing that ends a deal rather than starting one. The row
+          below says something true instead.
         */}
         <p className="mt-6 text-sm text-muted-foreground">{t.noCard}</p>
+
+        {/*
+          Scrolls to the demo rather than opening a modal: a video that takes
+          over the screen on a phone is the behaviour we just spent two commits
+          removing from the chat widget.
+        */}
+        <a
+          href="#how-it-works-video"
+          className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-foreground transition-colors hover:text-primary"
+        >
+          <PlayCircle className="size-7 text-primary" aria-hidden="true" />
+          {t.seeHow}
+        </a>
       </div>
 
       {/*
@@ -105,10 +147,10 @@ export function Hero({ t, href }: SectionProps) {
         overlap the headline or stack into a meaningless list.
       */}
       <div
-        className="pointer-events-none absolute inset-x-0 top-0 mx-auto hidden h-full max-w-6xl xl:block"
+        className="pointer-events-none absolute inset-x-0 top-0 mx-auto hidden h-full max-w-7xl xl:block"
         aria-hidden="true"
       >
-        {t.tracked.slice(0, 4).map((card, index) => {
+        {t.heroCards.map((card, index) => {
           const style = HERO_CARD_STYLE[index];
           const Icon = style.icon;
           return (
@@ -126,6 +168,114 @@ export function Hero({ t, href }: SectionProps) {
             </div>
           );
         })}
+      </div>
+    </section>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Demo video                                                                 */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The walkthrough the hero's "See how it works" scrolls to.
+ *
+ * A placeholder frame until there is a video to put in it. Deliberately not a
+ * stock clip or a silent screen recording of a half-built product: a demo that
+ * shows something other than what the customer will get is worse than a panel
+ * saying the video is coming, and the free check is a stronger offer than a
+ * video anyway, so that is what the panel points at.
+ *
+ * WHEN THE VIDEO EXISTS: drop a <video> or an embed in place of the
+ * placeholder div. The frame, the heading and the scroll target are already
+ * right, so nothing else on the page has to change.
+ */
+export function DemoVideo({ t, href }: SectionProps) {
+  return (
+    <section
+      id="how-it-works-video"
+      className="scroll-mt-20 border-t px-4 py-20"
+    >
+      <div className="mx-auto max-w-4xl text-center">
+        <h2 className="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
+          {t.videoTitle}
+        </h2>
+        <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
+          {t.videoSub}
+        </p>
+
+        {/*
+          16:9 with the aspect-ratio box rather than a fixed height, so the
+          frame keeps its shape from a phone up to a desktop and the real video
+          drops in without the surrounding layout shifting.
+        */}
+        <div className="mt-10 overflow-hidden rounded-2xl border bg-muted/40 shadow-sm">
+          <div className="flex aspect-video w-full flex-col items-center justify-center gap-4 p-8">
+            <span className="flex size-16 items-center justify-center rounded-full bg-primary/10">
+              <PlayCircle
+                className="size-8 text-primary"
+                aria-hidden="true"
+              />
+            </span>
+            <p className="max-w-md text-sm text-muted-foreground">
+              {t.videoComingSoon}
+            </p>
+            <Button variant="outline" asChild>
+              <Link href={href("/audit")}>
+                {t.checkFree}
+                <ArrowRight className="size-4" />
+              </Link>
+            </Button>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Works-with band                                                            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The integration row under the hero.
+ *
+ * The design has "TRUSTED BY BUSINESSES WORLDWIDE" over Google, Shopify,
+ * Stripe, Airbnb, Samsung and Adobe. None of them are customers, and putting
+ * their marks under that sentence claims an endorsement we do not have — the
+ * kind of claim a prospect can check in one search, on the page where they are
+ * deciding whether to believe anything else we say.
+ *
+ * Same band, same rhythm, true sentence: these are the platforms articles
+ * actually publish to and the account rankings are actually read from. Names
+ * as text rather than logos, because using a logo is a trademark question even
+ * when the integration is real.
+ */
+const WORKS_WITH = [
+  "WordPress",
+  "Shopify",
+  "Ghost",
+  "Webflow",
+  "Search Console",
+];
+
+export function WorksWith({ t }: SectionProps) {
+  return (
+    <section className="border-t px-4 py-12">
+      <div className="mx-auto max-w-5xl text-center">
+        <p className="text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+          {t.worksWithTitle}
+        </p>
+        <ul className="mt-6 flex flex-wrap items-center justify-center gap-x-10 gap-y-4">
+          {WORKS_WITH.map((name) => (
+            <li
+              key={name}
+              className="text-lg font-semibold text-muted-foreground/70"
+            >
+              {name}
+            </li>
+          ))}
+        </ul>
       </div>
     </section>
   );

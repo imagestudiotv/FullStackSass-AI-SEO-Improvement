@@ -121,6 +121,25 @@ export type Messages = {
     trackedTitle: string;
     trackedSub: string;
     tracked: { label: string; detail: string }[];
+    /**
+     * The cards floating either side of the headline.
+     *
+     * Separate from `tracked`, which feeds the "what you see" section further
+     * down the page. They started as the same four, but the hero now shows six
+     * and growing `tracked` would have silently added two cards to a section
+     * that is not about them.
+     */
+    heroCards: { label: string; detail: string }[];
+    /** Hero call to action, beside "check my website". */
+    joinGoogle: string;
+    /** Opens the demo video further down the page. */
+    seeHow: string;
+    /** The video section itself. */
+    videoTitle: string;
+    videoSub: string;
+    videoComingSoon: string;
+    /** Integration band under the hero. Not customer logos — see the section. */
+    worksWithTitle: string;
     /** Backlink network. */
     networkEyebrow: string;
     networkTitle: string;
@@ -342,10 +361,9 @@ const en: Messages = {
   },
   home: {
     eyebrow: "Get ranked. Get cited. Get recommended.",
-    title: "Get found everywhere your customers search",
-    subtitle:
-      "Rank on Google. Get recommended by AI assistants. Build authority with content and backlinks, automatically.",
-    checkFree: "Check my website free",
+    title: "Rank on Google. Show up in AI answers",
+    subtitle: "RepGet publishes SEO content, earns quality backlinks, and builds the authority that gets your business discovered.",
+    checkFree: "Check my website for free",
     getStarted: "Get Started",
     noCard: "No card required to run your first check.",
     auditBand: "Free with your audit",
@@ -427,6 +445,20 @@ const en: Messages = {
       { label: "Backlinks earned", detail: "Checked every day" },
       { label: "Articles published", detail: "And what they did" },
     ],
+    heroCards: [
+      { label: "Rankings and clicks", detail: "From Search Console" },
+      { label: "AI visibility", detail: "Whether assistants name you" },
+      { label: "Traffic growth", detail: "Reach more customers" },
+      { label: "Visible in AI answers", detail: "Show up where it matters" },
+      { label: "Quality backlinks", detail: "Get cited by real websites" },
+      { label: "Keyword tracking", detail: "See what is working" },
+    ],
+    joinGoogle: "Join with Google",
+    seeHow: "See how it works",
+    videoTitle: "See RepGet in two minutes",
+    videoSub: "A short walkthrough of what happens after you connect a website.",
+    videoComingSoon: "The walkthrough video is being recorded. In the meantime, the free check shows you the same thing on your own site.",
+    worksWithTitle: "Works with the tools you already use",
     networkEyebrow: "A vetted backlink network",
     networkTitle: "A backlink network",
     networkTitleRest: "that gets stronger with every new customer.",
@@ -733,9 +765,8 @@ const es: Messages = {
   },
   home: {
     eyebrow: "Posiciónate. Que te citen. Que te recomienden.",
-    title: "Que te encuentren allí donde buscan tus clientes",
-    subtitle:
-      "Posiciónate en Google. Que los asistentes de IA te recomienden. Gana autoridad con contenido y enlaces, automáticamente.",
+    title: "Posiciónese en Google. Aparezca en las respuestas de IA",
+    subtitle: "RepGet publica contenido SEO, consigue enlaces de calidad y construye la autoridad que hace que descubran su negocio.",
     checkFree: "Analizar mi web gratis",
     getStarted: "Empezar",
     noCard: "No hace falta tarjeta para el primer análisis.",
@@ -818,6 +849,20 @@ const es: Messages = {
       { label: "Enlaces conseguidos", detail: "Comprobados a diario" },
       { label: "Artículos publicados", detail: "Y qué resultado dieron" },
     ],
+    heroCards: [
+      { label: "Posiciones y clics", detail: "Desde Search Console" },
+      { label: "Visibilidad en IA", detail: "Si los asistentes le nombran" },
+      { label: "Crecimiento de tráfico", detail: "Llegue a más clientes" },
+      { label: "Presente en respuestas de IA", detail: "Apareciendo donde importa" },
+      { label: "Enlaces de calidad", detail: "Citado por webs reales" },
+      { label: "Seguimiento de palabras clave", detail: "Vea qué funciona" },
+    ],
+    joinGoogle: "Entrar con Google",
+    seeHow: "Vea cómo funciona",
+    videoTitle: "Vea RepGet en dos minutos",
+    videoSub: "Un recorrido breve por lo que ocurre después de conectar una web.",
+    videoComingSoon: "Estamos grabando el vídeo explicativo. Mientras tanto, el análisis gratuito le enseña lo mismo sobre su propia web.",
+    worksWithTitle: "Funciona con las herramientas que ya usa",
     networkEyebrow: "Una red de enlaces verificada",
     networkTitle: "Una red de enlaces",
     networkTitleRest: "que se refuerza con cada nuevo cliente.",
@@ -1125,9 +1170,8 @@ const fr: Messages = {
   },
   home: {
     eyebrow: "Soyez classé. Soyez cité. Soyez recommandé.",
-    title: "Soyez trouvé partout où vos clients cherchent",
-    subtitle:
-      "Classez-vous sur Google. Faites-vous recommander par les assistants IA. Bâtissez votre autorité avec du contenu et des liens, automatiquement.",
+    title: "Positionnez-vous sur Google. Apparaissez dans les réponses IA",
+    subtitle: "RepGet publie du contenu SEO, obtient des backlinks de qualité et construit l'autorité qui fait découvrir votre entreprise.",
     checkFree: "Analyser mon site gratuitement",
     getStarted: "Commencer",
     noCard: "Aucune carte requise pour la première analyse.",
@@ -1210,6 +1254,20 @@ const fr: Messages = {
       { label: "Liens obtenus", detail: "Vérifiés chaque jour" },
       { label: "Articles publiés", detail: "Et ce qu'ils ont donné" },
     ],
+    heroCards: [
+      { label: "Positions et clics", detail: "Depuis Search Console" },
+      { label: "Visibilité IA", detail: "Si les assistants vous citent" },
+      { label: "Croissance du trafic", detail: "Touchez plus de clients" },
+      { label: "Visible dans les réponses IA", detail: "Présent là où ça compte" },
+      { label: "Backlinks de qualité", detail: "Cité par de vrais sites" },
+      { label: "Suivi des mots-clés", detail: "Voyez ce qui fonctionne" },
+    ],
+    joinGoogle: "Rejoindre avec Google",
+    seeHow: "Voir comment ça marche",
+    videoTitle: "Découvrez RepGet en deux minutes",
+    videoSub: "Un court aperçu de ce qui se passe après avoir connecté un site.",
+    videoComingSoon: "La vidéo de présentation est en cours d'enregistrement. En attendant, l'analyse gratuite vous montre la même chose sur votre propre site.",
+    worksWithTitle: "Fonctionne avec les outils que vous utilisez déjà",
     networkEyebrow: "Un réseau de liens vérifié",
     networkTitle: "Un réseau de liens",
     networkTitleRest: "qui se renforce à chaque nouveau client.",
@@ -1517,10 +1575,9 @@ const it: Messages = {
   },
   home: {
     eyebrow: "Posizionati. Fatti citare. Fatti consigliare.",
-    title: "Fatti trovare ovunque cerchino i tuoi clienti",
-    subtitle:
-      "Posizionati su Google. Fatti consigliare dagli assistenti IA. Costruisci autorevolezza con contenuti e link, in automatico.",
-    checkFree: "Analizza il mio sito gratis",
+    title: "Si posizioni su Google. Compaia nelle risposte IA",
+    subtitle: "RepGet pubblica contenuti SEO, ottiene backlink di qualità e costruisce l'autorevolezza che fa scoprire la sua azienda.",
+    checkFree: "Controlla il mio sito gratis",
     getStarted: "Inizia",
     noCard: "Nessuna carta richiesta per la prima analisi.",
     auditBand: "Incluso con la tua analisi",
@@ -1602,6 +1659,20 @@ const it: Messages = {
       { label: "Link ottenuti", detail: "Verificati ogni giorno" },
       { label: "Articoli pubblicati", detail: "E che risultati hanno dato" },
     ],
+    heroCards: [
+      { label: "Posizioni e clic", detail: "Da Search Console" },
+      { label: "Visibilità IA", detail: "Se gli assistenti la nominano" },
+      { label: "Crescita del traffico", detail: "Raggiunga più clienti" },
+      { label: "Presente nelle risposte IA", detail: "Dove conta davvero" },
+      { label: "Backlink di qualità", detail: "Citato da siti veri" },
+      { label: "Monitoraggio parole chiave", detail: "Veda cosa funziona" },
+    ],
+    joinGoogle: "Entra con Google",
+    seeHow: "Guarda come funziona",
+    videoTitle: "RepGet in due minuti",
+    videoSub: "Una breve panoramica di cosa succede dopo aver collegato un sito.",
+    videoComingSoon: "Stiamo registrando il video di presentazione. Nel frattempo, il controllo gratuito le mostra la stessa cosa sul suo sito.",
+    worksWithTitle: "Funziona con gli strumenti che già usa",
     networkEyebrow: "Una rete di link verificata",
     networkTitle: "Una rete di link",
     networkTitleRest: "che si rafforza con ogni nuovo cliente.",
@@ -1908,9 +1979,8 @@ const de: Messages = {
   },
   home: {
     eyebrow: "Ranken. Zitiert werden. Empfohlen werden.",
-    title: "Werden Sie überall gefunden, wo Ihre Kunden suchen",
-    subtitle:
-      "Ranken Sie bei Google. Lassen Sie sich von KI-Assistenten empfehlen. Bauen Sie Autorität auf — mit Inhalten und Backlinks, ganz automatisch.",
+    title: "Bei Google ranken. In KI-Antworten erscheinen",
+    subtitle: "RepGet veröffentlicht SEO-Inhalte, gewinnt hochwertige Backlinks und baut die Autorität auf, durch die Ihr Unternehmen gefunden wird.",
     checkFree: "Website kostenlos prüfen",
     getStarted: "Loslegen",
     noCard: "Für die erste Prüfung ist keine Karte nötig.",
@@ -1996,6 +2066,20 @@ const de: Messages = {
         detail: "Und was sie gebracht haben",
       },
     ],
+    heroCards: [
+      { label: "Positionen und Klicks", detail: "Aus der Search Console" },
+      { label: "KI-Sichtbarkeit", detail: "Ob Assistenten Sie nennen" },
+      { label: "Traffic-Wachstum", detail: "Mehr Kunden erreichen" },
+      { label: "Sichtbar in KI-Antworten", detail: "Dort, wo es zählt" },
+      { label: "Hochwertige Backlinks", detail: "Von echten Websites zitiert" },
+      { label: "Keyword-Tracking", detail: "Sehen, was funktioniert" },
+    ],
+    joinGoogle: "Mit Google beitreten",
+    seeHow: "So funktioniert es",
+    videoTitle: "RepGet in zwei Minuten",
+    videoSub: "Ein kurzer Rundgang durch das, was nach dem Verbinden einer Website passiert.",
+    videoComingSoon: "Das Erklärvideo wird gerade aufgenommen. Bis dahin zeigt Ihnen die kostenlose Prüfung dasselbe an Ihrer eigenen Website.",
+    worksWithTitle: "Funktioniert mit den Tools, die Sie schon nutzen",
     networkEyebrow: "Ein geprüftes Backlink-Netzwerk",
     networkTitle: "Ein Backlink-Netzwerk,",
     networkTitleRest: "das mit jedem neuen Kunden stärker wird.",
