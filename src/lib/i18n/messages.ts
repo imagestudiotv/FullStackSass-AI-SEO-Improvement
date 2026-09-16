@@ -49,7 +49,6 @@ export type Messages = {
     contact: string;
     signIn: string;
     getStarted: string;
-    startFree: string;
     /** Header nav entry for the case-studies page. */
     successStories: string;
     /**
@@ -58,7 +57,7 @@ export type Messages = {
      * Separate from getStarted, which labels the per-plan buttons on the
      * pricing page: those two read the same in English and diverge in
      * languages where a plan button and a nav call to action are not phrased
-     * alike. startFree is kept because the footer and hero still use it.
+     * alike.
      */
     getStartedCta: string;
     /** The Platform dropdown: its trigger, heading and six entries. */
@@ -188,6 +187,28 @@ export type Messages = {
     audienceTitle: string;
     audience: string;
   };
+  /**
+   * Success stories.
+   *
+   * Deliberately about what the product measures rather than about named
+   * customers, because there are none yet and the homepage already refuses to
+   * invent them. See the page for the full reasoning.
+   */
+  successStories: {
+    metaTitle: string;
+    metaDescription: string;
+    eyebrow: string;
+    title: string;
+    intro: string;
+    results: { label: string; body: string }[];
+    timelineTitle: string;
+    timelineIntro: string;
+    timeline: { when: string; body: string }[];
+    ctaTitle: string;
+    ctaBody: string;
+    ctaPrimary: string;
+    ctaSecondary: string;
+  };
   faq: {
     metaTitle: string;
     metaDescription: string;
@@ -218,7 +239,6 @@ const en: Messages = {
     signIn: "Sign in",
     getStarted: "Get started",
     contact: "Contact",
-    startFree: "Start for free",
     successStories: "Success Stories",
     getStartedCta: "Get Started",
     platform: "Platform",
@@ -276,7 +296,7 @@ const en: Messages = {
     subtitle:
       "Rank on Google. Get recommended by AI assistants. Build authority with content and backlinks, automatically.",
     checkFree: "Check my website free",
-    getStarted: "Start for free",
+    getStarted: "Get Started",
     noCard: "No card required to run your first check.",
     auditBand: "Free with your audit",
     auditItems: [
@@ -437,6 +457,30 @@ const en: Messages = {
     audienceTitle: "Who it is for",
     audience: "Small and local businesses who need customers, not dashboards. You should never have to learn what \"keyword difficulty\" means. We do the judgement; you see a plan, the articles, and what changed.",
   },
+  successStories: {
+    metaTitle: "Success stories",
+    metaDescription: "What RepGet customers measure: rankings, AI visibility, published articles and backlinks earned — and how the first results arrive.",
+    eyebrow: "Success stories",
+    title: "We would rather show you what we measure than invent a customer.",
+    intro: "RepGet is new, and we are not going to invent a business that used it or round someone's numbers up for a landing page. Here is what the product actually tracks, and what the first months honestly look like — so you can judge it on something real.",
+    results: [
+      { label: "Rankings and clicks", body: "Pulled from your own Search Console, not estimated. You see which queries you moved on, and what that was worth in clicks." },
+      { label: "AI visibility", body: "Whether ChatGPT, Claude and Perplexity name your business when someone asks for what you sell. Checked on your own prompts." },
+      { label: "Articles published", body: "What was written, when it went live, and what it did afterwards — so a month's work has an answer rather than an invoice." },
+      { label: "Backlinks earned", body: "Real links inside real articles on other businesses' sites, checked daily. If one is removed, your credit comes back." },
+    ],
+    timelineTitle: "What the first three months look like",
+    timelineIntro: "Honestly, including the part where nothing has happened yet.",
+    timeline: [
+      { when: "Week one", body: "We crawl the site, find the technical problems holding it back, and plan a month of articles around what your customers actually search for." },
+      { when: "Weeks two to four", body: "Articles go live on your schedule. Backlinks start being placed as other businesses in the network publish theirs." },
+      { when: "Month two onward", body: "Search Console data arrives for the first articles. This is where rankings begin to move — SEO does not pay out in week one, and anyone promising otherwise is selling something else." },
+    ],
+    ctaTitle: "Be the first story on this page.",
+    ctaBody: "Start with a free check of your site — it takes a minute and costs nothing. If what we find is worth acting on, plans start at €1 for the first month.",
+    ctaPrimary: "Check my website",
+    ctaSecondary: "See pricing",
+  },
   faq: {
     metaTitle: "FAQ",
     metaDescription: "Common questions about how AI SEO Platform works.",
@@ -514,7 +558,6 @@ const es: Messages = {
     signIn: "Iniciar sesión",
     getStarted: "Empezar",
     contact: "Contacto",
-    startFree: "Empezar gratis",
     successStories: "Casos de éxito",
     getStartedCta: "Empezar",
     platform: "Plataforma",
@@ -576,7 +619,7 @@ const es: Messages = {
     subtitle:
       "Posiciónate en Google. Que los asistentes de IA te recomienden. Gana autoridad con contenido y enlaces, automáticamente.",
     checkFree: "Analizar mi web gratis",
-    getStarted: "Empezar gratis",
+    getStarted: "Empezar",
     noCard: "No hace falta tarjeta para el primer análisis.",
     auditBand: "Gratis con tu análisis",
     auditItems: [
@@ -738,6 +781,30 @@ const es: Messages = {
     audienceTitle: "Para quién es",
     audience: "Pequeños negocios y negocios locales que necesitan clientes, no paneles de control. Nunca debería tener que aprender qué significa \"dificultad de palabra clave\". Nosotros hacemos el criterio; usted ve un plan, los artículos y qué ha cambiado.",
   },
+  successStories: {
+    metaTitle: "Casos de éxito",
+    metaDescription: "Lo que miden los clientes de RepGet: posiciones, visibilidad en IA, artículos publicados y enlaces conseguidos, y cómo llegan los primeros resultados.",
+    eyebrow: "Casos de éxito",
+    title: "Preferimos enseñarle lo que medimos antes que inventarnos un cliente.",
+    intro: "RepGet es nuevo, y no vamos a inventarnos una empresa que lo haya usado ni a redondear las cifras de nadie para una página de ventas. Esto es lo que el producto mide de verdad, y cómo son los primeros meses, para que pueda juzgarlo con algo real.",
+    results: [
+      { label: "Posiciones y clics", body: "Tomados de su propio Search Console, no estimados. Ve en qué búsquedas ha subido y cuántos clics ha supuesto." },
+      { label: "Visibilidad en IA", body: "Si ChatGPT, Claude y Perplexity nombran su negocio cuando alguien pregunta por lo que usted vende. Comprobado con sus propias preguntas." },
+      { label: "Artículos publicados", body: "Qué se escribió, cuándo se publicó y qué resultado dio, para que el trabajo de un mes tenga una respuesta y no solo una factura." },
+      { label: "Enlaces conseguidos", body: "Enlaces reales dentro de artículos reales en webs de otros negocios, comprobados a diario. Si se elimina uno, recupera su crédito." },
+    ],
+    timelineTitle: "Cómo son los tres primeros meses",
+    timelineIntro: "Con sinceridad, incluida la parte en la que aún no ha pasado nada.",
+    timeline: [
+      { when: "Semana uno", body: "Rastreamos la web, detectamos los problemas técnicos que la frenan y planificamos un mes de artículos según lo que sus clientes buscan de verdad." },
+      { when: "Semanas dos a cuatro", body: "Los artículos se publican según su calendario. Los enlaces empiezan a colocarse a medida que otros negocios de la red publican los suyos." },
+      { when: "A partir del segundo mes", body: "Llegan los datos de Search Console de los primeros artículos. Aquí es donde empiezan a moverse las posiciones: el SEO no da resultados en la primera semana, y quien prometa lo contrario le está vendiendo otra cosa." },
+    ],
+    ctaTitle: "Sea el primer caso de esta página.",
+    ctaBody: "Empiece con un análisis gratuito de su web: tarda un minuto y no cuesta nada. Si lo que encontramos merece la pena, los planes empiezan en 1€ el primer mes.",
+    ctaPrimary: "Analizar mi web",
+    ctaSecondary: "Ver precios",
+  },
   faq: {
     metaTitle: "Preguntas frecuentes",
     metaDescription: "Preguntas habituales sobre cómo funciona AI SEO Platform.",
@@ -815,7 +882,6 @@ const fr: Messages = {
     signIn: "Se connecter",
     getStarted: "Commencer",
     contact: "Contact",
-    startFree: "Commencer gratuitement",
     successStories: "Témoignages",
     getStartedCta: "Commencer",
     platform: "Plateforme",
@@ -877,7 +943,7 @@ const fr: Messages = {
     subtitle:
       "Classez-vous sur Google. Faites-vous recommander par les assistants IA. Bâtissez votre autorité avec du contenu et des liens, automatiquement.",
     checkFree: "Analyser mon site gratuitement",
-    getStarted: "Commencer gratuitement",
+    getStarted: "Commencer",
     noCard: "Aucune carte requise pour la première analyse.",
     auditBand: "Offert avec votre analyse",
     auditItems: [
@@ -1039,6 +1105,30 @@ const fr: Messages = {
     audienceTitle: "À qui cela s'adresse",
     audience: "Aux petites entreprises et aux commerces de proximité qui ont besoin de clients, pas de tableaux de bord. Vous ne devriez jamais avoir à apprendre ce que signifie \"difficulté de mot-clé\". Nous nous chargeons du jugement ; vous voyez un plan, les articles et ce qui a changé.",
   },
+  successStories: {
+    metaTitle: "Témoignages",
+    metaDescription: "Ce que mesurent les clients RepGet : positions, visibilité IA, articles publiés et backlinks obtenus, et comment arrivent les premiers résultats.",
+    eyebrow: "Témoignages",
+    title: "Nous préférons vous montrer ce que nous mesurons plutôt que d'inventer un client.",
+    intro: "RepGet est récent, et nous n'allons pas inventer une entreprise qui l'aurait utilisé ni arrondir les chiffres de quelqu'un pour une page de vente. Voici ce que le produit mesure réellement, et à quoi ressemblent honnêtement les premiers mois.",
+    results: [
+      { label: "Positions et clics", body: "Issus de votre propre Search Console, pas estimés. Vous voyez sur quelles requêtes vous avez progressé, et ce que cela a rapporté en clics." },
+      { label: "Visibilité IA", body: "Si ChatGPT, Claude et Perplexity citent votre entreprise quand on demande ce que vous vendez. Vérifié sur vos propres questions." },
+      { label: "Articles publiés", body: "Ce qui a été écrit, quand c'est paru et ce que cela a donné — pour qu'un mois de travail ait une réponse et pas seulement une facture." },
+      { label: "Backlinks obtenus", body: "De vrais liens dans de vrais articles sur les sites d'autres entreprises, vérifiés chaque jour. Si un lien disparaît, votre crédit vous est rendu." },
+    ],
+    timelineTitle: "À quoi ressemblent les trois premiers mois",
+    timelineIntro: "Honnêtement, y compris la partie où il ne s'est encore rien passé.",
+    timeline: [
+      { when: "Semaine un", body: "Nous explorons le site, trouvons les problèmes techniques qui le freinent et planifions un mois d'articles autour de ce que vos clients recherchent vraiment." },
+      { when: "Semaines deux à quatre", body: "Les articles paraissent selon votre calendrier. Les backlinks commencent à être placés à mesure que d'autres entreprises du réseau publient les leurs." },
+      { when: "À partir du deuxième mois", body: "Les données Search Console arrivent pour les premiers articles. C'est là que les positions commencent à bouger : le SEO ne paie pas en une semaine, et quiconque promet le contraire vend autre chose." },
+    ],
+    ctaTitle: "Soyez le premier témoignage de cette page.",
+    ctaBody: "Commencez par une analyse gratuite de votre site : une minute, sans frais. Si ce que nous trouvons mérite d'agir, les forfaits démarrent à 1€ le premier mois.",
+    ctaPrimary: "Analyser mon site",
+    ctaSecondary: "Voir les tarifs",
+  },
   faq: {
     metaTitle: "FAQ",
     metaDescription: "Questions fréquentes sur le fonctionnement d'AI SEO Platform.",
@@ -1116,7 +1206,6 @@ const it: Messages = {
     signIn: "Accedi",
     getStarted: "Inizia",
     contact: "Contatti",
-    startFree: "Inizia gratis",
     successStories: "Casi di successo",
     getStartedCta: "Inizia",
     platform: "Piattaforma",
@@ -1178,7 +1267,7 @@ const it: Messages = {
     subtitle:
       "Posizionati su Google. Fatti consigliare dagli assistenti IA. Costruisci autorevolezza con contenuti e link, in automatico.",
     checkFree: "Analizza il mio sito gratis",
-    getStarted: "Inizia gratis",
+    getStarted: "Inizia",
     noCard: "Nessuna carta richiesta per la prima analisi.",
     auditBand: "Incluso con la tua analisi",
     auditItems: [
@@ -1339,6 +1428,30 @@ const it: Messages = {
     audienceTitle: "A chi si rivolge",
     audience: "Piccole imprese e attività locali che hanno bisogno di clienti, non di cruscotti. Non dovrebbe mai dover imparare cosa significa \"difficoltà della parola chiave\". Il giudizio lo mettiamo noi; lei vede un piano, gli articoli e che cosa è cambiato.",
   },
+  successStories: {
+    metaTitle: "Casi di successo",
+    metaDescription: "Ciò che misurano i clienti RepGet: posizioni, visibilità IA, articoli pubblicati e backlink ottenuti, e come arrivano i primi risultati.",
+    eyebrow: "Casi di successo",
+    title: "Preferiamo mostrarle ciò che misuriamo piuttosto che inventare un cliente.",
+    intro: "RepGet è nuovo e non inventeremo un'azienda che lo ha usato né arrotonderemo i numeri di qualcuno per una pagina di vendita. Ecco cosa misura davvero il prodotto e come sono onestamente i primi mesi.",
+    results: [
+      { label: "Posizioni e clic", body: "Presi dalla sua Search Console, non stimati. Vede su quali ricerche è salito e quanti clic ha portato." },
+      { label: "Visibilità IA", body: "Se ChatGPT, Claude e Perplexity nominano la sua azienda quando qualcuno chiede ciò che lei vende. Verificato sulle sue domande." },
+      { label: "Articoli pubblicati", body: "Cosa è stato scritto, quando è uscito e che risultato ha dato — così un mese di lavoro ha una risposta e non solo una fattura." },
+      { label: "Backlink ottenuti", body: "Link veri dentro articoli veri su siti di altre aziende, controllati ogni giorno. Se un link viene rimosso, il credito le torna." },
+    ],
+    timelineTitle: "Come sono i primi tre mesi",
+    timelineIntro: "Onestamente, compresa la parte in cui non è ancora successo nulla.",
+    timeline: [
+      { when: "Prima settimana", body: "Analizziamo il sito, troviamo i problemi tecnici che lo frenano e pianifichiamo un mese di articoli su ciò che i suoi clienti cercano davvero." },
+      { when: "Settimane due-quattro", body: "Gli articoli escono secondo il suo calendario. I backlink iniziano a essere inseriti man mano che le altre aziende della rete pubblicano i loro." },
+      { when: "Dal secondo mese", body: "Arrivano i dati di Search Console dei primi articoli. È qui che le posizioni iniziano a muoversi: la SEO non rende nella prima settimana, e chi promette il contrario le sta vendendo altro." },
+    ],
+    ctaTitle: "Sia il primo caso di questa pagina.",
+    ctaBody: "Inizi con un controllo gratuito del sito: un minuto e nessun costo. Se ciò che troviamo merita, i piani partono da 1€ il primo mese.",
+    ctaPrimary: "Controlla il mio sito",
+    ctaSecondary: "Vedi i prezzi",
+  },
   faq: {
     metaTitle: "Domande frequenti",
     metaDescription: "Domande comuni sul funzionamento di AI SEO Platform.",
@@ -1416,7 +1529,6 @@ const de: Messages = {
     signIn: "Anmelden",
     getStarted: "Loslegen",
     contact: "Kontakt",
-    startFree: "Kostenlos starten",
     successStories: "Erfolgsgeschichten",
     getStartedCta: "Loslegen",
     platform: "Plattform",
@@ -1478,7 +1590,7 @@ const de: Messages = {
     subtitle:
       "Ranken Sie bei Google. Lassen Sie sich von KI-Assistenten empfehlen. Bauen Sie Autorität auf — mit Inhalten und Backlinks, ganz automatisch.",
     checkFree: "Website kostenlos prüfen",
-    getStarted: "Kostenlos starten",
+    getStarted: "Loslegen",
     noCard: "Für die erste Prüfung ist keine Karte nötig.",
     auditBand: "Kostenlos zu Ihrer Analyse",
     auditItems: [
@@ -1641,6 +1753,30 @@ const de: Messages = {
     ],
     audienceTitle: "Für wen es gedacht ist",
     audience: "Für kleine und lokale Unternehmen, die Kunden brauchen, keine Dashboards. Sie sollten nie lernen müssen, was \"Keyword-Schwierigkeit\" bedeutet. Wir übernehmen die Einschätzung; Sie sehen einen Plan, die Artikel und was sich verändert hat.",
+  },
+  successStories: {
+    metaTitle: "Erfolgsgeschichten",
+    metaDescription: "Was RepGet-Kunden messen: Rankings, KI-Sichtbarkeit, veröffentlichte Artikel und gewonnene Backlinks — und wann die ersten Ergebnisse kommen.",
+    eyebrow: "Erfolgsgeschichten",
+    title: "Wir zeigen Ihnen lieber, was wir messen, als einen Kunden zu erfinden.",
+    intro: "RepGet ist neu, und wir erfinden weder ein Unternehmen, das es eingesetzt hätte, noch runden wir die Zahlen von jemandem für eine Verkaufsseite auf. Hier steht, was das Produkt tatsächlich misst und wie die ersten Monate ehrlich aussehen.",
+    results: [
+      { label: "Rankings und Klicks", body: "Aus Ihrer eigenen Search Console, nicht geschätzt. Sie sehen, bei welchen Suchanfragen Sie gestiegen sind und was das an Klicks gebracht hat." },
+      { label: "KI-Sichtbarkeit", body: "Ob ChatGPT, Claude und Perplexity Ihr Unternehmen nennen, wenn jemand nach dem fragt, was Sie anbieten. Geprüft anhand Ihrer eigenen Fragen." },
+      { label: "Veröffentlichte Artikel", body: "Was geschrieben wurde, wann es erschien und was es bewirkt hat — damit ein Monat Arbeit eine Antwort hat und nicht nur eine Rechnung." },
+      { label: "Gewonnene Backlinks", body: "Echte Links in echten Artikeln auf Websites anderer Unternehmen, täglich geprüft. Wird einer entfernt, bekommen Sie Ihr Guthaben zurück." },
+    ],
+    timelineTitle: "Wie die ersten drei Monate aussehen",
+    timelineIntro: "Ehrlich, einschließlich des Teils, in dem noch nichts passiert ist.",
+    timeline: [
+      { when: "Woche eins", body: "Wir crawlen die Website, finden die technischen Probleme, die sie ausbremsen, und planen einen Monat Artikel rund um das, wonach Ihre Kunden wirklich suchen." },
+      { when: "Woche zwei bis vier", body: "Die Artikel erscheinen nach Ihrem Zeitplan. Backlinks werden gesetzt, sobald andere Unternehmen im Netzwerk ihre Artikel veröffentlichen." },
+      { when: "Ab dem zweiten Monat", body: "Die Search-Console-Daten der ersten Artikel treffen ein. Jetzt bewegen sich die Rankings — SEO zahlt sich nicht in Woche eins aus, und wer das verspricht, verkauft etwas anderes." },
+    ],
+    ctaTitle: "Werden Sie die erste Geschichte auf dieser Seite.",
+    ctaBody: "Starten Sie mit einer kostenlosen Prüfung Ihrer Website — eine Minute, kostenlos. Wenn sich das Ergebnis lohnt, beginnen die Tarife bei 1€ im ersten Monat.",
+    ctaPrimary: "Website prüfen",
+    ctaSecondary: "Preise ansehen",
   },
   faq: {
     metaTitle: "Häufige Fragen",

@@ -392,7 +392,7 @@ export function AuditResult({ result }: { result: PublicAuditResult }) {
         <div className="text-center">
           <Button asChild className="h-11 rounded-full px-6">
             <Link href="/sign-up">
-              Get started free
+              Get Started
               <ArrowRight className="size-4" />
             </Link>
           </Button>

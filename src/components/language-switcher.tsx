@@ -44,6 +44,7 @@ const TRANSLATED_PATHS = new Set([
   "/about",
   "/faq",
   "/contact",
+  "/success-stories",
 ]);
 
 export function LanguageSwitcher() {
