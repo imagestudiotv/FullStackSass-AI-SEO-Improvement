@@ -50,6 +50,10 @@ export type Messages = {
     signIn: string;
     getStarted: string;
     startFree: string;
+    /** The Platform dropdown: its trigger, heading and six entries. */
+    platform: string;
+    platformHeading: string;
+    platformItems: { title: string; detail: string }[];
   };
   footer: {
     tagline: string;
@@ -204,6 +208,36 @@ const en: Messages = {
     getStarted: "Get started",
     contact: "Contact",
     startFree: "Start for free",
+    platform: "Platform",
+    platformHeading: "Explore the platform",
+    platformItems: [
+      {
+        title: "Content Engine",
+        detail:
+          "Plan and generate articles designed to grow organic visibility.",
+      },
+      {
+        title: "Authority Network",
+        detail: "Build relevant backlinks and strengthen domain authority.",
+      },
+      {
+        title: "Site Intelligence",
+        detail: "Find technical and SEO issues affecting your performance.",
+      },
+      {
+        title: "Search Performance",
+        detail: "Track rankings, visibility and results across Google.",
+      },
+      {
+        title: "AI Presence",
+        detail:
+          "Monitor how often your brand appears across ChatGPT, Claude, Perplexity and AI search.",
+      },
+      {
+        title: "Traffic Recovery",
+        detail: "Identify declining pages before valuable traffic disappears.",
+      },
+    ],
   },
   footer: {
     tagline: "SEO results for small businesses, without the agency.",
@@ -468,6 +502,40 @@ const es: Messages = {
     getStarted: "Empezar",
     contact: "Contacto",
     startFree: "Empezar gratis",
+    platform: "Plataforma",
+    platformHeading: "Explora la plataforma",
+    platformItems: [
+      {
+        title: "Motor de contenidos",
+        detail:
+          "Planifica y genera artículos diseñados para aumentar la visibilidad orgánica.",
+      },
+      {
+        title: "Red de autoridad",
+        detail:
+          "Consigue enlaces relevantes y refuerza la autoridad de tu dominio.",
+      },
+      {
+        title: "Inteligencia del sitio",
+        detail:
+          "Detecta problemas técnicos y de SEO que afectan a tu rendimiento.",
+      },
+      {
+        title: "Rendimiento en búsqueda",
+        detail:
+          "Sigue posiciones, visibilidad y resultados en Google.",
+      },
+      {
+        title: "Presencia en IA",
+        detail:
+          "Comprueba con qué frecuencia aparece tu marca en ChatGPT, Claude, Perplexity y la búsqueda con IA.",
+      },
+      {
+        title: "Recuperación de tráfico",
+        detail:
+          "Identifica páginas en caída antes de perder tráfico valioso.",
+      },
+    ],
   },
   footer: {
     tagline: "Resultados SEO para pequeñas empresas, sin agencia.",
@@ -733,6 +801,40 @@ const fr: Messages = {
     getStarted: "Commencer",
     contact: "Contact",
     startFree: "Commencer gratuitement",
+    platform: "Plateforme",
+    platformHeading: "Découvrir la plateforme",
+    platformItems: [
+      {
+        title: "Moteur de contenu",
+        detail:
+          "Planifiez et générez des articles conçus pour développer la visibilité organique.",
+      },
+      {
+        title: "Réseau d'autorité",
+        detail:
+          "Obtenez des backlinks pertinents et renforcez l'autorité de votre domaine.",
+      },
+      {
+        title: "Intelligence du site",
+        detail:
+          "Repérez les problèmes techniques et SEO qui pèsent sur vos performances.",
+      },
+      {
+        title: "Performance de recherche",
+        detail:
+          "Suivez positions, visibilité et résultats sur Google.",
+      },
+      {
+        title: "Présence IA",
+        detail:
+          "Mesurez la fréquence à laquelle votre marque apparaît sur ChatGPT, Claude, Perplexity et la recherche IA.",
+      },
+      {
+        title: "Récupération de trafic",
+        detail:
+          "Identifiez les pages en déclin avant que le trafic ne disparaisse.",
+      },
+    ],
   },
   footer: {
     tagline: "Des résultats SEO pour les petites entreprises, sans agence.",
@@ -998,6 +1100,40 @@ const it: Messages = {
     getStarted: "Inizia",
     contact: "Contatti",
     startFree: "Inizia gratis",
+    platform: "Piattaforma",
+    platformHeading: "Esplora la piattaforma",
+    platformItems: [
+      {
+        title: "Motore di contenuti",
+        detail:
+          "Pianifica e genera articoli pensati per far crescere la visibilità organica.",
+      },
+      {
+        title: "Rete di autorità",
+        detail:
+          "Ottieni backlink pertinenti e rafforza l'autorità del dominio.",
+      },
+      {
+        title: "Intelligence del sito",
+        detail:
+          "Individua problemi tecnici e SEO che influiscono sulle prestazioni.",
+      },
+      {
+        title: "Performance di ricerca",
+        detail:
+          "Monitora posizioni, visibilità e risultati su Google.",
+      },
+      {
+        title: "Presenza IA",
+        detail:
+          "Controlla quanto spesso il tuo brand compare su ChatGPT, Claude, Perplexity e nella ricerca IA.",
+      },
+      {
+        title: "Recupero del traffico",
+        detail:
+          "Individua le pagine in calo prima che il traffico prezioso sparisca.",
+      },
+    ],
   },
   footer: {
     tagline: "Risultati SEO per le piccole imprese, senza agenzia.",
@@ -1262,6 +1398,40 @@ const de: Messages = {
     getStarted: "Loslegen",
     contact: "Kontakt",
     startFree: "Kostenlos starten",
+    platform: "Plattform",
+    platformHeading: "Plattform entdecken",
+    platformItems: [
+      {
+        title: "Content-Engine",
+        detail:
+          "Planen und erstellen Sie Artikel, die die organische Sichtbarkeit steigern.",
+      },
+      {
+        title: "Authority-Netzwerk",
+        detail:
+          "Gewinnen Sie relevante Backlinks und stärken Sie Ihre Domain-Autorität.",
+      },
+      {
+        title: "Site-Intelligence",
+        detail:
+          "Finden Sie technische und SEO-Probleme, die Ihre Leistung beeinträchtigen.",
+      },
+      {
+        title: "Suchleistung",
+        detail:
+          "Verfolgen Sie Rankings, Sichtbarkeit und Ergebnisse bei Google.",
+      },
+      {
+        title: "KI-Präsenz",
+        detail:
+          "Sehen Sie, wie oft Ihre Marke in ChatGPT, Claude, Perplexity und der KI-Suche erscheint.",
+      },
+      {
+        title: "Traffic-Rückgewinnung",
+        detail:
+          "Erkennen Sie fallende Seiten, bevor wertvoller Traffic verschwindet.",
+      },
+    ],
   },
   footer: {
     tagline: "SEO-Ergebnisse für kleine Unternehmen, ohne Agentur.",

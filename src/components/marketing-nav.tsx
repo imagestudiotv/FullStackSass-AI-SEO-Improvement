@@ -1,13 +1,35 @@
 "use client";
 
-import { ArrowRight } from "lucide-react";
+import {
+  Activity,
+  ArrowRight,
+  BarChart3,
+  ChevronDown,
+  ChevronRight,
+  FileText,
+  Link2,
+  Menu,
+  Sparkles,
+  TrendingDown,
+  type LucideIcon,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { BrandLogo } from "@/components/brand-logo";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { localePath, splitLocale } from "@/lib/i18n/config";
 import { getMessages } from "@/lib/i18n/messages";
+import { cn } from "@/lib/utils";
 
 /**
  * Marketing header nav and footer links.
@@ -22,6 +44,264 @@ import { getMessages } from "@/lib/i18n/messages";
  * (sign-in, sign-up, the legal pages) deliberately keep their own paths.
  */
 
+/**
+ * The Platform dropdown.
+ *
+ * Icons and destinations live here; the words live in messages.ts, so the
+ * menu translates with everything else. The order matches the two arrays,
+ * which is why both are kept the same length and why a missing icon falls
+ * back rather than throwing.
+ *
+ * Every destination is a section of the homepage that already exists. None of
+ * these are separate pages yet: writing six feature pages to fill a menu
+ * would mean six thin pages competing with the homepage for the same terms,
+ * and a menu that points at real content is worth more than one that points
+ * at placeholders.
+ */
+const PLATFORM_ICONS: LucideIcon[] = [
+  FileText,
+  Link2,
+  Activity,
+  BarChart3,
+  Sparkles,
+  TrendingDown,
+];
+
+/**
+ * Where each entry goes, in the order the copy lists them.
+ *
+ * Search Performance and AI Presence share #tracking: that section covers
+ * rankings from Search Console and whether assistants name you, so it is
+ * genuinely about both. Site Intelligence points at /audit, a real tool that
+ * finds exactly what the entry describes.
+ */
+const PLATFORM_HREFS = [
+  "/#content-engine",
+  "/#authority-network",
+  "/audit",
+  "/#tracking",
+  "/#tracking",
+  "/#traffic-recovery",
+];
+
+function PlatformMenu({
+  label,
+  heading,
+  items,
+  href,
+}: {
+  label: string;
+  heading: string;
+  items: { title: string; detail: string }[];
+  href: (path: string) => string;
+}) {
+  const [open, setOpen] = useState(false);
+  const wrapper = useRef<HTMLDivElement>(null);
+
+  /**
+   * Close on a click elsewhere or on Escape.
+   *
+   * Opening on hover alone would leave the menu unusable by keyboard and
+   * unreliable on a touchscreen, where there is no hover to leave. It opens
+   * on click, and these two handlers are what let it close again.
+   */
+  useEffect(() => {
+    if (!open) return;
+
+    function onPointerDown(event: MouseEvent) {
+      if (!wrapper.current?.contains(event.target as Node)) setOpen(false);
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false);
+    }
+
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
+
+  return (
+    <div
+      ref={wrapper}
+      className="relative"
+      // Hover opens it as well, for a pointer. The click handlers above stay
+      // authoritative, so a keyboard or touch user is never stranded.
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+        aria-haspopup="true"
+        className={cn(
+          "flex items-center gap-1 rounded-md px-3 py-1.5 text-sm transition-colors",
+          open
+            ? "bg-accent text-accent-foreground"
+            : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+        )}
+      >
+        {label}
+        <ChevronDown
+          className={cn(
+            "size-3.5 transition-transform",
+            open && "rotate-180",
+          )}
+          aria-hidden="true"
+        />
+      </button>
+
+      {open ? (
+        <div
+          className="absolute left-0 top-full z-50 w-[26rem] max-w-[calc(100vw-2rem)] pt-2"
+          role="menu"
+        >
+          <div className="overflow-hidden rounded-2xl border bg-background shadow-lg">
+            <p className="px-5 pt-5 pb-3 text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+              {heading}
+            </p>
+            <ul className="pb-2">
+              {items.map((item, index) => {
+                const Icon = PLATFORM_ICONS[index] ?? FileText;
+                const target = PLATFORM_HREFS[index] ?? "/";
+                return (
+                  <li key={item.title}>
+                    <Link
+                      href={href(target)}
+                      role="menuitem"
+                      onClick={() => setOpen(false)}
+                      className="group flex items-start gap-4 px-5 py-3 transition-colors hover:bg-accent/60"
+                    >
+                      <span className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                        <Icon
+                          className="size-5 text-primary"
+                          aria-hidden="true"
+                        />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block font-semibold">
+                          {item.title}
+                        </span>
+                        <span className="mt-0.5 block text-sm text-muted-foreground">
+                          {item.detail}
+                        </span>
+                      </span>
+                      <ChevronRight
+                        className="mt-3 size-4 shrink-0 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5"
+                        aria-hidden="true"
+                      />
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * The same menu on a narrow screen.
+ *
+ * The marketing header had no mobile menu at all: below the breakpoint the
+ * nav simply vanished and a phone was left with the logo and two buttons.
+ * That was survivable while the nav broke at 640px, but the Platform
+ * dropdown pushes the row past what a tablet can fit, so the gap would have
+ * grown to cover most laptops.
+ *
+ * A sheet rather than a second dropdown. The platform entries are listed flat
+ * inside it, because nesting an accordion in a drawer to save six rows is
+ * more machinery than the content justifies.
+ */
+function MobileMarketingNav({
+  t,
+  href,
+}: {
+  t: ReturnType<typeof getMessages>;
+  href: (path: string) => string;
+}) {
+  const [open, setOpen] = useState(false);
+  const close = () => setOpen(false);
+
+  const links = [
+    { href: href("/#how-it-works"), label: t.nav.howItWorks },
+    { href: href("/audit"), label: t.nav.freeCheck },
+    { href: href("/tools"), label: t.nav.tools },
+    { href: href("/pricing"), label: t.nav.pricing },
+    { href: "/blog", label: t.nav.blog },
+    { href: "/contact", label: t.nav.contact },
+  ];
+
+  return (
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="lg:hidden"
+          aria-label="Open menu"
+        >
+          <Menu className="size-5" />
+        </Button>
+      </SheetTrigger>
+      <SheetContent side="left" className="w-80 overflow-y-auto p-0">
+        <SheetHeader className="border-b p-4">
+          <SheetTitle className="text-left">
+            <BrandLogo height={20} />
+          </SheetTitle>
+        </SheetHeader>
+
+        <div className="p-4">
+          <p className="px-2 pb-2 text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+            {t.nav.platformHeading}
+          </p>
+          <ul className="space-y-0.5">
+            {t.nav.platformItems.map((item, index) => {
+              const Icon = PLATFORM_ICONS[index] ?? FileText;
+              return (
+                <li key={item.title}>
+                  <Link
+                    href={href(PLATFORM_HREFS[index] ?? "/")}
+                    onClick={close}
+                    className="flex items-center gap-3 rounded-md px-2 py-2 text-sm transition-colors hover:bg-accent"
+                  >
+                    <Icon
+                      className="size-4 shrink-0 text-primary"
+                      aria-hidden="true"
+                    />
+                    {item.title}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+
+          <div className="my-3 border-t" role="presentation" />
+
+          <ul className="space-y-0.5">
+            {links.map((link) => (
+              <li key={link.href}>
+                <Link
+                  href={link.href}
+                  onClick={close}
+                  className="block rounded-md px-2 py-2 text-sm transition-colors hover:bg-accent"
+                >
+                  {link.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 export function MarketingNav() {
   const pathname = usePathname();
   const { locale } = splitLocale(pathname);
@@ -30,8 +310,25 @@ export function MarketingNav() {
 
   return (
     <>
-      {/* Only pages that exist. Every link here resolves. */}
-      <nav className="ml-auto hidden items-center gap-1 sm:flex">
+      {/*
+        Only pages that exist. Every link here resolves.
+
+        "Success stories" from the design is deliberately absent: it means
+        customer case studies, and there are none yet. A menu entry leading to
+        invented results would be the fastest way to lose the first real
+        customer, so it goes in when there is someone to name.
+
+        Free check and Tools are kept although the design drops them — both
+        are real pages that bring people in, and removing working entry points
+        to match a drawing would cost traffic for nothing.
+      */}
+      <nav className="ml-auto hidden items-center gap-1 lg:flex">
+        <PlatformMenu
+          label={t.nav.platform}
+          heading={t.nav.platformHeading}
+          items={t.nav.platformItems}
+          href={href}
+        />
         {[
           { href: href("/#how-it-works"), label: t.nav.howItWorks },
           { href: href("/audit"), label: t.nav.freeCheck },
@@ -50,7 +347,8 @@ export function MarketingNav() {
         ))}
       </nav>
 
-      <div className="ml-auto flex items-center gap-2 sm:ml-4">
+      <div className="ml-auto flex items-center gap-2 lg:ml-4">
+        <MobileMarketingNav t={t} href={href} />
         {/* Hidden on pages that exist in English only. */}
         <LanguageSwitcher />
         <Button variant="ghost" size="sm" asChild>

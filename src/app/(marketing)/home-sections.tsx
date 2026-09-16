@@ -235,7 +235,15 @@ export function HowItWorks({ t }: SectionProps) {
  */
 export function ProblemSolution({ t }: SectionProps) {
   return (
-    <section className="border-t px-4 py-20">
+    /*
+      #traffic-recovery: the Platform menu's "Traffic Recovery". This section
+      is about pages losing ground and what to do, which is the nearest thing
+      the homepage says about declining traffic.
+    */
+    <section
+      id="traffic-recovery"
+      className="scroll-mt-20 border-t px-4 py-20"
+    >
       <div className="mx-auto max-w-6xl">
         <p className="text-xs font-semibold tracking-[0.14em] text-primary uppercase">
           {t.problemsEyebrow}
@@ -335,7 +343,11 @@ const PLATFORMS = ["WordPress", "Ghost", "Shopify"];
 
 export function Publishing({ t }: SectionProps) {
   return (
-    <section className="border-t px-4 py-20">
+    // #content-engine: the Platform menu's "Content Engine" lands here.
+    <section
+      id="content-engine"
+      className="scroll-mt-20 border-t px-4 py-20"
+    >
       <div className="mx-auto grid max-w-6xl gap-10 md:grid-cols-2 md:gap-16">
         <div>
           <h2 className="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
@@ -380,7 +392,13 @@ const TRACKED_ICONS: LucideIcon[] = [BarChart3, Bot, Link2, FileText];
 
 export function WhatYouSee({ t }: SectionProps) {
   return (
-    <section className="border-t px-4 py-20">
+    /*
+      #tracking: both "Search Performance" and "AI Presence" point here.
+      This section covers rankings from Search Console AND whether assistants
+      name you, so one target is honest rather than a compromise — splitting
+      it would mean two anchors on the same list of cards.
+    */
+    <section id="tracking" className="scroll-mt-20 border-t px-4 py-20">
       <div className="mx-auto max-w-6xl">
         <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
           {t.trackedTitle}
@@ -414,7 +432,11 @@ export function WhatYouSee({ t }: SectionProps) {
 
 export function BacklinkNetwork({ t, href }: SectionProps) {
   return (
-    <section className="border-t px-4 py-20">
+    // #authority-network: the Platform menu's "Authority Network".
+    <section
+      id="authority-network"
+      className="scroll-mt-20 border-t px-4 py-20"
+    >
       <div className="mx-auto max-w-6xl">
         <p className="text-xs font-semibold tracking-[0.14em] text-primary uppercase">
           {t.networkEyebrow}
