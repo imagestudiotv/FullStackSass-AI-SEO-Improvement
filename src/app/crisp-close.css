@@ -142,3 +142,50 @@
     max-height: calc(100vh - 100px) !important;
   }
 }
+
+/**
+ * Stop iOS zooming the page when the chat input is focused.
+ *
+ * Safari on iPhone zooms in whenever a focused form field has a font smaller
+ * than 16px, so the text is readable at the size the author chose. Crisp sets
+ * its compose box to 11.2px:
+ *
+ *   .crisp-client input, .crisp-client textarea { font-size: 11.2px !important }
+ *
+ * so tapping it zooms the whole page. Safari only restores the previous scale
+ * in some cases, and it does not here — close the chat and the SITE is left
+ * zoomed in, which is what the customer actually complained about. The chat
+ * getting bigger was never the problem.
+ *
+ * 16px is the threshold, not a preference: at exactly 16px iOS has no reason
+ * to zoom, so nothing to undo afterwards. This is the same reason our own
+ * Input uses text-base with md:text-sm — 16px on a phone, smaller once there
+ * is a real keyboard.
+ *
+ * The alternative is maximum-scale=1 on the viewport, which blocks the zoom
+ * everywhere in one line and takes pinch-zoom away from every page for every
+ * visitor. That fails WCAG 1.4.4, hurts anyone with low vision, and newer
+ * Safari ignores it anyway. Fixing the font that causes it costs nobody
+ * anything.
+ *
+ * Scoped to phone widths, so the chat keeps Crisp's compact text on a desktop
+ * where no zoom behaviour exists to avoid.
+ */
+@media (max-width: 480px) {
+  /*
+   * Deliberately over-specified.
+   *
+   * Crisp's own rule is `.crisp-client input, .crisp-client textarea`, which
+   * has exactly the same specificity as the obvious override — and their
+   * stylesheet is injected by their script at runtime, so it loads AFTER this
+   * bundle. Equal specificity plus equal !important means source order
+   * decides, and theirs would have won. Adding their container class raises
+   * specificity above it without depending on load order.
+   */
+  html body .crisp-client .cc-165wh textarea,
+  html body .crisp-client .cc-165wh input,
+  html body .crisp-client .cc-165wh input[type="text"] {
+    /* 16px exactly. Lower and iOS zooms; this is a threshold, not a size. */
+    font-size: 16px !important;
+  }
+}
