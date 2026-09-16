@@ -94,3 +94,51 @@
   .cc-13wro[data-maximized="true"] {
   display: block !important;
 }
+
+/**
+ * Lift the chatbox clear of the launcher.
+ *
+ * Restoring the button in the rule above put it back where Crisp always
+ * draws it — bottom right, 54px tall at a 14px offset, so it occupies the
+ * band 14px to 68px from the bottom of the viewport. That is exactly where
+ * the compose bar's send arrow sits, and the two ended up stacked: a thumb
+ * aiming for send hits close instead, losing the message.
+ *
+ * Crisp never has this problem because they never show both at once — the
+ * rule overridden above exists precisely so the launcher gets out of the
+ * panel's way. Putting the button back means taking responsibility for the
+ * space it needs.
+ *
+ * 80px is the launcher's 68px plus a 12px gap, so the panel ends above the
+ * button with clear air between them rather than flush against it.
+ *
+ * margin-bottom rather than bottom: the panel's own bottom offset is applied
+ * inline by Crisp's JavaScript, and an inline style beats any stylesheet
+ * rule no matter how specific. Margin is not part of that calculation, so it
+ * shifts the element without fighting a value we cannot see.
+ *
+ * Scoped to [data-disable-full-view=true], so it only applies in the windowed
+ * mode this is about. If the flag is ever removed, this rule stops matching
+ * on its own rather than leaving a stray gap.
+ */
+.crisp-client
+  .cc-165wh[data-disable-full-view="true"]
+  .cc-lk42u
+  .cc-w7v18 {
+  margin-bottom: 80px !important;
+}
+
+/**
+ * On a short screen the panel is already as tall as it can be, so lifting it
+ * would push the top off the viewport rather than move it. Crisp sizes the
+ * panel in JS against the window height, which it does not know we have
+ * shifted — so the height is capped here by the same amount it was lifted.
+ */
+@media (max-height: 700px) {
+  .crisp-client
+    .cc-165wh[data-disable-full-view="true"]
+    .cc-lk42u
+    .cc-w7v18 {
+    max-height: calc(100vh - 100px) !important;
+  }
+}
