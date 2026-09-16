@@ -1,5 +1,6 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, gte, sql as raw } from "drizzle-orm";
 
+import { ADMIN_PAGE_SIZE, type Page } from "@/lib/admin/shared";
 import { db } from "@/lib/db";
 import { adminAuditLog } from "@/lib/db/schema";
 
@@ -65,12 +66,51 @@ export type AuditRow = {
   createdAt: Date;
 };
 
-/** Most recent entries, newest first. */
+/**
+ * Entries, newest first, one page at a time.
+ *
+ * This took a bare limit(100) and returned an array, the same silent
+ * truncation every other admin list was fixed for — and it matters most here.
+ * An operator checking whether a refund was issued reads this page; an entry
+ * that exists but is past the hundredth row tells them it never happened.
+ *
+ * Filterable by actor and by action, because the questions asked of an audit
+ * log are "what did this person do" and "show me every refund", and neither
+ * is answerable by scrolling.
+ */
 export async function listAdminActions(
-  limit = 100,
-  organizationId?: string,
-): Promise<AuditRow[]> {
-  const query = db
+  options: {
+    page?: number;
+    organizationId?: string;
+    actor?: string;
+    action?: string;
+    since?: Date | null;
+  } = {},
+): Promise<Page<AuditRow>> {
+  const conditions = [];
+
+  if (options.organizationId) {
+    conditions.push(eq(adminAuditLog.organizationId, options.organizationId));
+  }
+  if (options.actor && options.actor !== "all") {
+    conditions.push(eq(adminAuditLog.actorEmail, options.actor));
+  }
+  if (options.action && options.action !== "all") {
+    conditions.push(eq(adminAuditLog.action, options.action));
+  }
+  if (options.since) {
+    conditions.push(gte(adminAuditLog.createdAt, options.since));
+  }
+
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+  const page = options.page ?? 1;
+
+  const [counted] = await db
+    .select({ n: raw<number>`count(*)::int` })
+    .from(adminAuditLog)
+    .where(where);
+
+  const rows = await db
     .select({
       id: adminAuditLog.id,
       actorEmail: adminAuditLog.actorEmail,
@@ -81,14 +121,26 @@ export async function listAdminActions(
       summary: adminAuditLog.summary,
       createdAt: adminAuditLog.createdAt,
     })
-    .from(adminAuditLog);
+    .from(adminAuditLog)
+    .where(where)
+    .orderBy(desc(adminAuditLog.createdAt))
+    .limit(ADMIN_PAGE_SIZE)
+    .offset((page - 1) * ADMIN_PAGE_SIZE);
 
-  const rows = organizationId
-    ? await query
-        .where(eq(adminAuditLog.organizationId, organizationId))
-        .orderBy(desc(adminAuditLog.createdAt))
-        .limit(limit)
-    : await query.orderBy(desc(adminAuditLog.createdAt)).limit(limit);
+  return { rows, total: counted?.n ?? 0, page, pageSize: ADMIN_PAGE_SIZE };
+}
 
-  return rows;
+/**
+ * Who has ever appeared in the log, for the actor filter.
+ *
+ * Read from the log itself rather than from ADMIN_EMAILS: the allowlist is
+ * who can act now, while this is who did act — someone removed from the
+ * allowlist still has entries, and filtering by them must stay possible.
+ */
+export async function listAuditActors(): Promise<string[]> {
+  const rows = await db
+    .selectDistinct({ email: adminAuditLog.actorEmail })
+    .from(adminAuditLog)
+    .orderBy(adminAuditLog.actorEmail);
+  return rows.map((row) => row.email);
 }

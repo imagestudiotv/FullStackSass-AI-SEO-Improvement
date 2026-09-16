@@ -1,5 +1,8 @@
+import { Building2 } from "lucide-react";
 import { listOrganizations } from "@/lib/admin/actions";
-import { pageFrom } from "@/lib/admin/shared";
+import { pageFrom } from "@/lib/admin/shared";
+import { EmptyRows } from "../empty-rows";
+import { FilterBar } from "../filter-bar";
 import { Pagination } from "../pagination";
 import { PageHeader, PageShell } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -36,8 +39,15 @@ export default async function AdminOrganizationsPage({
 }: PageProps<"/admin/organizations">) {
   const params = await searchParams;
   const search = typeof params.q === "string" ? params.q : "";
+  const status = typeof params.status === "string" ? params.status : "all";
+  const kind = typeof params.kind === "string" ? params.kind : "all";
+  const filtering = Boolean(search || status !== "all" || kind !== "all");
+
   const page = pageFrom(params.page);
-  const { rows, total, pageSize } = await listOrganizations(search, page);
+  const { rows, total, pageSize } = await listOrganizations(search, page, {
+    status,
+    kind,
+  });
 
   return (
     <BulkSelectionProvider>
@@ -47,7 +57,48 @@ export default async function AdminOrganizationsPage({
         description="Every customer workspace, newest first."
       />
 
-      <AdminSearch placeholder="Search by name" defaultValue={search} />
+      <div className="space-y-3">
+        <AdminSearch placeholder="Search by name" defaultValue={search} />
+        <FilterBar
+          basePath="/admin/organizations"
+          preserve={{ q: search || undefined }}
+          filters={[
+            {
+              param: "status",
+              label: "Subscription",
+              allValue: "all",
+              options: [
+                { value: "all", label: "Any" },
+                { value: "active", label: "Active" },
+                { value: "past_due", label: "Past due" },
+                { value: "canceled", label: "Canceled" },
+                { value: "inactive", label: "Inactive" },
+                /*
+                  Never subscribed is not a status value — there is no row to
+                  match — so the query handles it as IS NULL. Without this an
+                  operator cannot find accounts that never paid.
+                */
+                { value: "none", label: "Never subscribed" },
+              ],
+            },
+            {
+              param: "kind",
+              label: "Type",
+              allValue: "all",
+              options: [
+                { value: "all", label: "All workspaces" },
+                { value: "customer", label: "Customers" },
+                /*
+                  Our own workspaces seed the backlink network and skew every
+                  count on this page, so separating them is the first thing
+                  anyone reading the list wants.
+                */
+                { value: "agency", label: "Agency (ours)" },
+              ],
+            },
+          ]}
+        />
+      </div>
 
       <BulkDeleteBar kind="organizations" />
 
@@ -61,6 +112,23 @@ export default async function AdminOrganizationsPage({
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {rows.length === 0 ? (
+
+            <EmptyRows
+
+              filtering={filtering}
+
+              icon={Building2}
+
+              noun="workspaces"
+
+              emptyTitle="No workspaces yet"
+
+              emptyDescription="Workspaces appear here as soon as someone signs up."
+
+            />
+
+          ) : (
           <Table minWidth="46rem">
             <TableHeader>
               <TableRow>
@@ -152,6 +220,8 @@ export default async function AdminOrganizationsPage({
               ))}
             </TableBody>
           </Table>
+
+          )}
         </CardContent>
       </Card>
 
@@ -159,7 +229,11 @@ export default async function AdminOrganizationsPage({
         page={page}
         pageSize={pageSize}
         total={total}
-        params={{ q: search || undefined }}
+        params={{
+          q: search || undefined,
+          status: status !== "all" ? status : undefined,
+          kind: kind !== "all" ? kind : undefined,
+        }}
         basePath="/admin/organizations"
       />
     </PageShell>

@@ -1,7 +1,10 @@
+import { FileText } from "lucide-react";
 import Link from "next/link";
 
 import { listAllArticles } from "@/lib/admin/actions";
-import { pageFrom } from "@/lib/admin/shared";
+import { DATE_RANGES, pageFrom } from "@/lib/admin/shared";
+import { EmptyRows } from "../empty-rows";
+import { FilterBar } from "../filter-bar";
 import { Pagination } from "../pagination";
 import { PageHeader, PageShell } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -24,8 +27,6 @@ import { AdminSearch } from "../admin-search";
 
 export const dynamic = "force-dynamic";
 
-const STATUSES = ["all", "draft", "generating", "published", "failed"];
-
 export default async function AdminArticlesPage({
   searchParams,
 }: PageProps<"/admin/articles">) {
@@ -36,11 +37,15 @@ export default async function AdminArticlesPage({
   const organizationId =
     typeof params.org === "string" ? params.org : undefined;
 
+  const created = typeof params.created === "string" ? params.created : "all";
+  const filtering = Boolean(search || status !== "all" || created !== "all");
+
   const page = pageFrom(params.page);
   const { rows, total, pageSize } = await listAllArticles({
     search,
     status,
     organizationId,
+    created,
     page,
   });
 
@@ -76,27 +81,43 @@ export default async function AdminArticlesPage({
         </div>
       ) : null}
 
-      <div className="flex flex-wrap items-center gap-3">
+      {/*
+        The status pills here were hand-rolled links printing raw database
+        values — "draft", "generating" — and built their own query strings, so
+        they silently dropped the page number and any filter added later. The
+        shared control writes the URL in one place and labels the values for a
+        person.
+      */}
+      <div className="space-y-3">
         <AdminSearch
           placeholder="Search title, site or customer"
           defaultValue={search}
-          extraParams={{ status, ...(organizationId ? { org: organizationId } : {}) }}
+          extraParams={organizationId ? { org: organizationId } : {}}
         />
-        <div className="flex flex-wrap gap-1">
-          {STATUSES.map((option) => (
-            <Link
-              key={option}
-              href={`/admin/articles?status=${option}${search ? `&q=${encodeURIComponent(search)}` : ""}${organizationId ? `&org=${organizationId}` : ""}`}
-              className={`rounded-md px-3 py-1.5 text-sm ${
-                status === option
-                  ? "bg-accent font-medium text-accent-foreground"
-                  : "text-muted-foreground hover:bg-accent"
-              }`}
-            >
-              {option}
-            </Link>
-          ))}
-        </div>
+        <FilterBar
+          basePath="/admin/articles"
+          preserve={{ q: search || undefined, org: organizationId }}
+          filters={[
+            {
+              param: "status",
+              label: "Status",
+              allValue: "all",
+              options: [
+                { value: "all", label: "Any status" },
+                { value: "draft", label: "Draft" },
+                { value: "generating", label: "Generating" },
+                { value: "published", label: "Published" },
+                { value: "failed", label: "Failed" },
+              ],
+            },
+            {
+              param: "created",
+              label: "Created",
+              allValue: "all",
+              options: DATE_RANGES.map((range) => ({ ...range })),
+            },
+          ]}
+        />
       </div>
 
       <Card>
@@ -107,6 +128,23 @@ export default async function AdminArticlesPage({
           <CardDescription>Newest first.</CardDescription>
         </CardHeader>
         <CardContent>
+          {rows.length === 0 ? (
+
+            <EmptyRows
+
+              filtering={filtering}
+
+              icon={FileText}
+
+              noun="articles"
+
+              emptyTitle="No articles yet"
+
+              emptyDescription="Articles appear here as customers plan and generate them."
+
+            />
+
+          ) : (
           <Table minWidth="36rem">
             <TableHeader>
               <TableRow>
@@ -161,6 +199,8 @@ export default async function AdminArticlesPage({
               ))}
             </TableBody>
           </Table>
+
+          )}
         </CardContent>
       </Card>
 
@@ -170,8 +210,9 @@ export default async function AdminArticlesPage({
         total={total}
         params={{
           q: search || undefined,
-          status: status !== "all" ? status : undefined,
           org: organizationId,
+          status: status !== "all" ? status : undefined,
+          created: created !== "all" ? created : undefined,
         }}
         basePath="/admin/articles"
       />

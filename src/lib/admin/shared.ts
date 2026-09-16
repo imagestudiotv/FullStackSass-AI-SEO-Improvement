@@ -41,3 +41,35 @@ export function pageFrom(value: unknown): number {
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : 1;
 }
+
+/**
+ * Date-range filter values, shared by the pages and the queries.
+ *
+ * One list so a control cannot offer a range the query does not understand —
+ * a mismatch would silently return everything, which looks like a filter that
+ * does nothing rather than one that is broken.
+ */
+export const DATE_RANGES = [
+  { value: "all", label: "Any time" },
+  { value: "24h", label: "Last 24 hours" },
+  { value: "7d", label: "Last 7 days" },
+  { value: "30d", label: "Last 30 days" },
+  { value: "90d", label: "Last 90 days" },
+] as const;
+
+/**
+ * Turns a range value into the timestamp to compare against, or null for no
+ * limit. Anything unrecognised is treated as no limit rather than throwing:
+ * the value comes from the URL, so it is whatever someone typed.
+ */
+export function sinceFrom(value: unknown): Date | null {
+  const hours: Record<string, number> = {
+    "24h": 24,
+    "7d": 24 * 7,
+    "30d": 24 * 30,
+    "90d": 24 * 90,
+  };
+  const span = typeof value === "string" ? hours[value] : undefined;
+  if (!span) return null;
+  return new Date(Date.now() - span * 60 * 60 * 1000);
+}

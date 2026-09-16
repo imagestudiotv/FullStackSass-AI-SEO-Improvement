@@ -1,5 +1,8 @@
+import { Users } from "lucide-react";
 import { listUsers } from "@/lib/admin/actions";
-import { pageFrom } from "@/lib/admin/shared";
+import { DATE_RANGES, pageFrom } from "@/lib/admin/shared";
+import { EmptyRows } from "../empty-rows";
+import { FilterBar } from "../filter-bar";
 import { Pagination } from "../pagination";
 import { PageHeader, PageShell } from "@/components/ui/page-header";
 import {
@@ -34,8 +37,16 @@ export default async function AdminUsersPage({
 }: PageProps<"/admin/users">) {
   const params = await searchParams;
   const search = typeof params.q === "string" ? params.q : "";
+  const membership =
+    typeof params.membership === "string" ? params.membership : "all";
+  const joined = typeof params.joined === "string" ? params.joined : "all";
+  const filtering = Boolean(search || membership !== "all" || joined !== "all");
+
   const page = pageFrom(params.page);
-  const { rows, total, pageSize } = await listUsers(search, page);
+  const { rows, total, pageSize } = await listUsers(search, page, {
+    membership,
+    joined,
+  });
 
   return (
     <BulkSelectionProvider>
@@ -45,7 +56,37 @@ export default async function AdminUsersPage({
         description="Everyone with an account, newest first."
       />
 
-      <AdminSearch placeholder="Search email or name" defaultValue={search} />
+      <div className="space-y-3">
+        <AdminSearch placeholder="Search email or name" defaultValue={search} />
+        <FilterBar
+          basePath="/admin/users"
+          preserve={{ q: search || undefined }}
+          filters={[
+            {
+              param: "membership",
+              label: "Workspace",
+              allValue: "all",
+              options: [
+                { value: "all", label: "Any" },
+                { value: "some", label: "Has a workspace" },
+                /*
+                  Signing up creates a workspace, so an account without one
+                  means something failed. Such people are invisible in a list
+                  sorted by workspace, and are exactly who an operator hunts
+                  for when a customer says they cannot get in.
+                */
+                { value: "none", label: "No workspace" },
+              ],
+            },
+            {
+              param: "joined",
+              label: "Joined",
+              allValue: "all",
+              options: DATE_RANGES.map((range) => ({ ...range })),
+            },
+          ]}
+        />
+      </div>
 
       <BulkDeleteBar kind="users" />
 
@@ -57,6 +98,23 @@ export default async function AdminUsersPage({
           <CardDescription>Newest first.</CardDescription>
         </CardHeader>
         <CardContent>
+          {rows.length === 0 ? (
+
+            <EmptyRows
+
+              filtering={filtering}
+
+              icon={Users}
+
+              noun="users"
+
+              emptyTitle="No users yet"
+
+              emptyDescription="Accounts appear here as soon as someone signs up."
+
+            />
+
+          ) : (
           <Table minWidth="46rem">
             <TableHeader>
               <TableRow>
@@ -132,6 +190,8 @@ export default async function AdminUsersPage({
               ))}
             </TableBody>
           </Table>
+
+          )}
         </CardContent>
       </Card>
 
@@ -139,7 +199,11 @@ export default async function AdminUsersPage({
         page={page}
         pageSize={pageSize}
         total={total}
-        params={{ q: search || undefined }}
+        params={{
+          q: search || undefined,
+          membership: membership !== "all" ? membership : undefined,
+          joined: joined !== "all" ? joined : undefined,
+        }}
         basePath="/admin/users"
       />
     </PageShell>

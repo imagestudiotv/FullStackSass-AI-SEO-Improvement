@@ -3,7 +3,7 @@ import { Receipt } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader, PageShell } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { EmptyState } from "@/components/ui/states";
+import { EmptyRows } from "../empty-rows";
 import {
   Table,
   TableBody,
@@ -15,7 +15,8 @@ import {
 import Link from "next/link";
 
 import { listPayments } from "@/lib/admin/actions";
-import { pageFrom } from "@/lib/admin/shared";
+import { DATE_RANGES, pageFrom } from "@/lib/admin/shared";
+import { FilterBar } from "../filter-bar";
 import { Pagination } from "../pagination";
 import { AdminSearch } from "../admin-search";
 import { RefundButton } from "./refund-button";
@@ -49,11 +50,23 @@ export default async function AdminPaymentsPage({
   const organizationId =
     typeof params.org === "string" ? params.org : undefined;
 
+  const status = typeof params.status === "string" ? params.status : "all";
+  const provider =
+    typeof params.provider === "string" ? params.provider : "all";
+  const paid = typeof params.paid === "string" ? params.paid : "all";
+
+  const filtering = Boolean(
+    search || status !== "all" || provider !== "all" || paid !== "all",
+  );
+
   const page = pageFrom(params.page);
   const { rows, total, pageSize } = await listPayments({
     search,
     organizationId,
     page,
+    status,
+    provider,
+    paid,
   });
 
   /**
@@ -82,19 +95,61 @@ export default async function AdminPaymentsPage({
         </div>
       ) : null}
 
-      <AdminSearch
-        placeholder="Search customer or description"
-        defaultValue={search}
-        extraParams={organizationId ? { org: organizationId } : {}}
-      />
+      <div className="space-y-3">
+        <AdminSearch
+          placeholder="Search customer or description"
+          defaultValue={search}
+          extraParams={organizationId ? { org: organizationId } : {}}
+        />
+        {/*
+          The three questions actually asked of this page. Refunds were the
+          hardest to answer: they sit among every successful payment, newest
+          first, and a customer disputing one names a date rather than an id.
+        */}
+        <FilterBar
+          basePath="/admin/payments"
+          preserve={{ q: search || undefined, org: organizationId }}
+          filters={[
+            {
+              param: "status",
+              label: "Status",
+              allValue: "all",
+              options: [
+                { value: "all", label: "Any" },
+                { value: "paid", label: "Paid" },
+                { value: "refunded", label: "Refunded" },
+                { value: "failed", label: "Failed" },
+              ],
+            },
+            {
+              param: "provider",
+              label: "Processor",
+              allValue: "all",
+              options: [
+                { value: "all", label: "Any" },
+                { value: "stripe", label: "Stripe" },
+                { value: "paypal", label: "PayPal" },
+              ],
+            },
+            {
+              param: "paid",
+              label: "Paid",
+              allValue: "all",
+              options: DATE_RANGES.map((range) => ({ ...range })),
+            },
+          ]}
+        />
+      </div>
 
       <Card>
         <CardContent>
           {rows.length === 0 ? (
-            <EmptyState
+            <EmptyRows
+              filtering={filtering}
               icon={Receipt}
-              title="No payments yet"
-              description="Payments appear here as soon as the first subscription or add-on is paid for."
+              noun="payments"
+              emptyTitle="No payments yet"
+              emptyDescription="Payments appear here as soon as the first subscription or add-on is paid for."
             />
           ) : (
             <Table minWidth="48rem">
@@ -166,7 +221,13 @@ export default async function AdminPaymentsPage({
         page={page}
         pageSize={pageSize}
         total={total}
-        params={{ q: search || undefined, org: organizationId }}
+        params={{
+          q: search || undefined,
+          org: organizationId,
+          status: status !== "all" ? status : undefined,
+          provider: provider !== "all" ? provider : undefined,
+          paid: paid !== "all" ? paid : undefined,
+        }}
         basePath="/admin/payments"
       />
     </PageShell>

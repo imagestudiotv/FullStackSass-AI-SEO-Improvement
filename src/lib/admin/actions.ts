@@ -1,10 +1,10 @@
 "use server";
 
-import { and, desc, eq, ilike, or, sql as raw } from "drizzle-orm";
+import { and, desc, eq, gte, ilike, isNull, or, sql as raw } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { requireAdmin } from "@/lib/admin/guard";
-import { ADMIN_PAGE_SIZE, type Page } from "@/lib/admin/shared";
+import { ADMIN_PAGE_SIZE, sinceFrom, type Page } from "@/lib/admin/shared";
 import { db } from "@/lib/db";
 import {
   articles,
@@ -107,13 +107,61 @@ export type AdminOrganization = {
 export async function listOrganizations(
   search = "",
   page = 1,
+  filters: { status?: string; kind?: string } = {},
 ): Promise<Page<AdminOrganization>> {
   await requireAdmin();
 
-  const where = search ? ilike(organization.name, `%${search}%`) : undefined;
+  const conditions = [];
+  if (search) conditions.push(ilike(organization.name, `%${search}%`));
+
+  /**
+   * Subscription status.
+   *
+   * "none" is its own case rather than a status value: a workspace that never
+   * subscribed has no row to match, so it needs IS NULL. Without it an
+   * operator looking for accounts that never paid gets nothing back.
+   */
+  if (filters.status && filters.status !== "all") {
+    conditions.push(
+      filters.status === "none"
+        ? isNull(subscriptions.status)
+        : eq(subscriptions.status, filters.status),
+    );
+  }
+
+  /**
+   * Ours or a customer's. Agency workspaces skew every count on this page,
+   * and separating them is the first thing anyone reading the list wants.
+   */
+  if (filters.kind === "agency") {
+    conditions.push(
+      raw`exists(select 1 from agency_workspaces ag where ag.organization_id = ${organization.id})`,
+    );
+  } else if (filters.kind === "customer") {
+    conditions.push(
+      raw`not exists(select 1 from agency_workspaces ag where ag.organization_id = ${organization.id})`,
+    );
+  }
+
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+  /**
+   * The count joins the same tables as the rows below.
+   *
+   * It used to select from `organization` alone, which was fine while the only
+   * filter was a name. A status filter references `subscriptions`, so without
+   * the join the count query cannot see the column it is filtering on.
+   *
+   * DISTINCT because the join multiplies: billing is per website now, so a
+   * workspace paying for three sites holds three subscription rows and would
+   * be counted three times. That is not visible in today's data — every
+   * workspace has at most one — which is exactly why it is worth fixing here
+   * rather than discovering it the day a customer buys a second site. The
+   * rows below are unaffected: they are limited and keyed by workspace.
+   */
   const [counted] = await db
-    .select({ n: raw<number>`count(*)::int` })
+    .select({ n: raw<number>`count(distinct ${organization.id})::int` })
     .from(organization)
+    .leftJoin(subscriptions, eq(subscriptions.organizationId, organization.id))
     .where(where);
 
   const rows = await db
@@ -121,8 +169,32 @@ export async function listOrganizations(
       id: organization.id,
       name: organization.name,
       createdAt: organization.createdAt,
-      planName: plans.name,
-      status: subscriptions.status,
+      /**
+       * One subscription per workspace, chosen rather than joined.
+       *
+       * The left join here produced a ROW PER SUBSCRIPTION. Billing is per
+       * website now, so a workspace paying for three sites appeared three
+       * times in the list and consumed three of the twenty-five slots on the
+       * page. Verified against the database: adding a second subscription to
+       * one workspace made it appear twice.
+       *
+       * Active first, then newest, so a workspace with a live plan and an old
+       * canceled one reports the live one. Subqueries rather than DISTINCT ON
+       * because the answer has to survive the pagination below.
+       */
+      planName: raw<string | null>`(
+        select p.name from subscriptions s
+        join plans p on p.id = s.plan_id
+        where s.organization_id = ${organization.id}
+        order by (s.status = 'active') desc, s.created_at desc
+        limit 1
+      )`,
+      status: raw<string | null>`(
+        select s.status from subscriptions s
+        where s.organization_id = ${organization.id}
+        order by (s.status = 'active') desc, s.created_at desc
+        limit 1
+      )`,
       memberCount: raw<number>`(select count(*) from member m where m.organization_id = ${organization.id})::int`,
       websiteCount: raw<number>`(select count(*) from websites w where w.organization_id = ${organization.id})::int`,
       articleCount: raw<number>`(
@@ -142,9 +214,15 @@ export async function listOrganizations(
       )`,
     })
     .from(organization)
+    /*
+      Still joined, because the status FILTER matches against it — a workspace
+      qualifies when any of its subscriptions has the chosen status. The
+      duplicate rows that creates are collapsed by the groupBy below, and the
+      columns above no longer read from the join.
+    */
     .leftJoin(subscriptions, eq(subscriptions.organizationId, organization.id))
-    .leftJoin(plans, eq(subscriptions.planId, plans.id))
     .where(where)
+    .groupBy(organization.id, organization.name, organization.createdAt)
     .orderBy(desc(organization.createdAt))
     .limit(ADMIN_PAGE_SIZE)
     .offset((page - 1) * ADMIN_PAGE_SIZE);
@@ -175,6 +253,8 @@ export async function listAllArticles(options: {
   status?: string;
   organizationId?: string;
   page?: number;
+  /** A DATE_RANGES value, filtering on when the article was created. */
+  created?: string;
 }): Promise<Page<AdminArticle>> {
   await requireAdmin();
 
@@ -196,6 +276,9 @@ export async function listAllArticles(options: {
   if (options.status && options.status !== "all") {
     conditions.push(eq(articles.status, options.status));
   }
+  const createdSince = sinceFrom(options.created);
+  if (createdSince) conditions.push(gte(articles.createdAt, createdSince));
+
   /** Every article belonging to one workspace, for reviewing a customer. */
   if (options.organizationId) {
     conditions.push(eq(websites.organizationId, options.organizationId));
@@ -321,12 +404,40 @@ export type AdminUser = {
 export async function listUsers(
   search = "",
   page = 1,
+  filters: { membership?: string; joined?: string } = {},
 ): Promise<Page<AdminUser>> {
   await requireAdmin();
 
-  const where = search
-    ? or(ilike(user.email, `%${search}%`), ilike(user.name, `%${search}%`))
-    : undefined;
+  const conditions = [];
+  if (search) {
+    conditions.push(
+      or(ilike(user.email, `%${search}%`), ilike(user.name, `%${search}%`)),
+    );
+  }
+
+  /**
+   * People with no workspace at all.
+   *
+   * Signing up creates one, so an account without a membership means
+   * something went wrong — a failed hook, or a workspace deleted out from
+   * under them. They are invisible in a list sorted by workspace, and they
+   * are exactly who an operator is looking for when a customer says they
+   * cannot get in.
+   */
+  if (filters.membership === "none") {
+    conditions.push(
+      raw`not exists(select 1 from member m where m.user_id = ${user.id})`,
+    );
+  } else if (filters.membership === "some") {
+    conditions.push(
+      raw`exists(select 1 from member m where m.user_id = ${user.id})`,
+    );
+  }
+
+  const since = sinceFrom(filters.joined);
+  if (since) conditions.push(gte(user.createdAt, since));
+
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
 
   /**
    * Counts PEOPLE, not rows. The query below joins memberships, so someone in
@@ -388,6 +499,9 @@ export async function listPayments(options: {
   search?: string;
   organizationId?: string;
   page?: number;
+  status?: string;
+  provider?: string;
+  paid?: string;
 } = {}): Promise<Page<AdminPayment>> {
   await requireAdmin();
 
@@ -407,6 +521,22 @@ export async function listPayments(options: {
   if (options.organizationId) {
     conditions.push(eq(payments.organizationId, options.organizationId));
   }
+
+  /**
+   * The three questions an operator actually asks of this page: what failed,
+   * what was refunded, and what came through which processor. Refunds in
+   * particular were impossible to find — they sit among every successful
+   * payment, newest first, and a customer disputing one names a date.
+   */
+  if (options.status && options.status !== "all") {
+    conditions.push(eq(payments.status, options.status));
+  }
+  if (options.provider && options.provider !== "all") {
+    conditions.push(eq(payments.provider, options.provider));
+  }
+
+  const paidSince = sinceFrom(options.paid);
+  if (paidSince) conditions.push(gte(payments.paidAt, paidSince));
 
   const page = options.page ?? 1;
   const where = conditions.length > 0 ? and(...conditions) : undefined;
