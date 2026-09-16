@@ -53,8 +53,36 @@ function isPrivateHost(host: string): boolean {
   if (host === "[::1]" || host === "::1") return true;
   // Anything without a dot cannot be a public domain (e.g. "intranet").
   if (!host.includes(".")) return true;
-  // AWS/GCP/Azure link-local metadata endpoint.
+  // AWS/GCP/Azure link-local metadata endpoint, by address.
   if (host === "169.254.169.254") return true;
+
+  /**
+   * Metadata and internal services by NAME rather than by address.
+   *
+   * The IP check above missed these entirely: "metadata.google.internal"
+   * contains a dot, is not an IP, and so was treated as an ordinary public
+   * website. On GCP that name resolves to 169.254.169.254 and returns service
+   * account tokens, and the free audit tool fetches whatever URL an anonymous
+   * visitor types.
+   *
+   * Blocked by suffix rather than by listing hostnames, because the same
+   * shape recurs across providers and private networks — .internal, .local
+   * (mDNS), .home.arpa, and the reserved .test/.example/.invalid — and a list
+   * of exact names is one new provider away from being wrong again.
+   */
+  const INTERNAL_SUFFIXES = [
+    ".internal",
+    ".local",
+    ".localdomain",
+    ".home.arpa",
+    ".intranet",
+    ".private",
+    ".corp",
+    ".lan",
+    ".test",
+    ".invalid",
+  ];
+  if (INTERNAL_SUFFIXES.some((suffix) => host.endsWith(suffix))) return true;
 
   const ipv4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
   if (ipv4) {

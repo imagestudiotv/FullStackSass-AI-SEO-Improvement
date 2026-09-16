@@ -3,7 +3,7 @@ import { and, desc, eq } from "drizzle-orm";
 import { inngest } from "@/inngest/client";
 import { db } from "@/lib/db";
 import { articles, publishLogs, websites } from "@/lib/db/schema";
-import { loadCredentials } from "@/lib/publishing/actions";
+import { loadCredentials } from "@/lib/publishing/credentials";
 import { notify } from "@/lib/notifications/create";
 import {
   generateArticleImage,

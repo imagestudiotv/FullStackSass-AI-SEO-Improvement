@@ -4,15 +4,18 @@ import { and, desc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { inngest } from "@/inngest/client";
-import { decryptSecret, encryptSecret, maskSecret } from "@/lib/crypto";
+import { encryptSecret, maskSecret } from "@/lib/crypto";
 import { db } from "@/lib/db";
 import { articles, integrations, publishLogs } from "@/lib/db/schema";
 import {
   ProviderError,
-  type CmsProvider,
   type Credentials,
 } from "@/lib/publishing/provider";
 import { getProvider, listProviders, providerInfo } from "@/lib/publishing/registry";
+import {
+  readStoredCredentials,
+  type StoredCredentials,
+} from "@/lib/publishing/credentials";
 import type { IntegrationView, ProviderInfo } from "@/lib/publishing/shared";
 import { requireWebsite } from "@/lib/tenant";
 import { normalizeWebsiteUrl, InvalidUrlError } from "@/lib/websites/url";
@@ -36,12 +39,7 @@ import type { ActionResult } from "@/lib/websites/actions";
  * hold ciphertext; a parallel `_hints` map holds their masked forms so the UI
  * can show which value is connected without ever seeing it.
  */
-type StoredCredentials = {
-  /** Masked forms of the secret fields, for display only. */
-  _hints?: Record<string, string>;
-  /** Field values. Secrets hold ciphertext. */
-  [key: string]: string | Record<string, string> | undefined;
-};
+
 
 /** Every provider the product supports, for the connect UI. */
 export async function listAvailableProviders(): Promise<ProviderInfo[]> {
@@ -221,76 +219,7 @@ export async function disconnectProvider(
   return { ok: true, data: null };
 }
 
-/**
- * Rebuilds usable credentials from what is stored on an integration row.
- *
- * The column is jsonb holding one object per provider field, with only the
- * secret fields encrypted individually — not one encrypted blob. Two callers
- * decoded that inline and one of them guessed the shape wrong, treating the
- * whole object as a single ciphertext string; `as string` made it compile and
- * it failed at runtime for every customer who pressed "Publish test article".
- * One function now owns the format so the two paths cannot disagree again.
- */
-function readStoredCredentials(
-  provider: CmsProvider,
-  stored: StoredCredentials | null,
-): Credentials | null {
-  if (!stored || typeof stored !== "object") return null;
 
-  const credentials: Credentials = {};
-  for (const field of provider.fields) {
-    const value = stored[field.key];
-    if (typeof value !== "string") continue;
-    credentials[field.key] = field.secret ? decryptSecret(value) : value;
-  }
-
-  // Nothing readable means the row predates this format, or the encryption
-  // key changed: either way the customer has to reconnect.
-  return Object.keys(credentials).length > 0 ? credentials : null;
-}
-
-/**
- * Decrypted credentials for a publish, with the provider that owns them.
- *
- * Server-only by construction: this returns plaintext secrets, so it must
- * never be reachable from a client component. It is called from the publish
- * job alone.
- */
-export async function loadCredentials(websiteId: string): Promise<{
-  integrationId: string;
-  providerId: string;
-  credentials: Credentials;
-} | null> {
-  const rows = await db
-    .select()
-    .from(integrations)
-    .where(
-      and(
-        eq(integrations.websiteId, websiteId),
-        eq(integrations.status, "connected"),
-      ),
-    )
-    .orderBy(desc(integrations.verifiedAt));
-
-  for (const row of rows) {
-    const provider = getProvider(row.kind);
-    if (!provider) continue;
-
-    const credentials = readStoredCredentials(
-      provider,
-      row.credentials as StoredCredentials | null,
-    );
-    if (!credentials) continue;
-
-    return {
-      integrationId: row.id,
-      providerId: provider.id,
-      credentials,
-    };
-  }
-
-  return null;
-}
 
 export type PublishLogRow = {
   id: string;
