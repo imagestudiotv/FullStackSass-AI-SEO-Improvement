@@ -67,27 +67,30 @@ export function Pagination({
       </p>
 
       <div className="flex items-center gap-1">
-        <Button
-          asChild={page > 1}
-          variant="outline"
-          size="sm"
-          disabled={page <= 1}
-          // A disabled anchor is still focusable and clickable, so the first
-          // page renders a real button instead.
-          aria-label="Previous page"
-        >
-          {page > 1 ? (
+        {/*
+          Two separate elements rather than one Button with asChild toggled.
+          asChild={false} wrapped the icon and the label in a plain <span>
+          inside the button: the button's flex row then contained one span,
+          and the icon and text inside it had no layout of their own, so
+          "Previous" wrapped underneath the chevron and burst the h-7 row.
+        */}
+        {page > 1 ? (
+          <Button variant="outline" size="sm" asChild aria-label="Previous page">
             <Link href={href(page - 1)}>
               <ChevronLeft className="size-4" aria-hidden="true" />
               Previous
             </Link>
-          ) : (
-            <span>
-              <ChevronLeft className="size-4" aria-hidden="true" />
-              Previous
-            </span>
-          )}
-        </Button>
+          </Button>
+        ) : (
+          /*
+            A real disabled button, not a disabled anchor: an anchor with the
+            disabled attribute is still focusable and still followed.
+          */
+          <Button variant="outline" size="sm" disabled aria-label="Previous page">
+            <ChevronLeft className="size-4" aria-hidden="true" />
+            Previous
+          </Button>
+        )}
 
         <span
           className={cn(
@@ -98,25 +101,19 @@ export function Pagination({
           Page {page} of {lastPage}
         </span>
 
-        <Button
-          asChild={page < lastPage}
-          variant="outline"
-          size="sm"
-          disabled={page >= lastPage}
-          aria-label="Next page"
-        >
-          {page < lastPage ? (
+        {page < lastPage ? (
+          <Button variant="outline" size="sm" asChild aria-label="Next page">
             <Link href={href(page + 1)}>
               Next
               <ChevronRight className="size-4" aria-hidden="true" />
             </Link>
-          ) : (
-            <span>
-              Next
-              <ChevronRight className="size-4" aria-hidden="true" />
-            </span>
-          )}
-        </Button>
+          </Button>
+        ) : (
+          <Button variant="outline" size="sm" disabled aria-label="Next page">
+            Next
+            <ChevronRight className="size-4" aria-hidden="true" />
+          </Button>
+        )}
       </div>
     </div>
   );

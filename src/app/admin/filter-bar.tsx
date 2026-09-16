@@ -78,9 +78,21 @@ export function FilterBar({
   );
 
   return (
-    <div className="flex flex-wrap items-end gap-3">
+    <div className="flex flex-wrap items-end gap-3 rounded-xl border bg-card px-3 py-3">
       {filters.map((spec) => {
         const current = params.get(spec.param) ?? spec.allValue;
+
+        /**
+         * A control with only "Anyone" in it is not a choice.
+         *
+         * The actor filter is built from whoever appears in the audit log, so
+         * on an installation with one administrator it renders a dropdown
+         * whose every option is the default. Hidden unless it can actually
+         * narrow something — but never hidden while it is the active filter,
+         * which would strand an operator with no way to clear it.
+         */
+        if (spec.options.length < 2 && current === spec.allValue) return null;
+
         return (
           <div key={spec.param} className="space-y-1.5">
             <Label
