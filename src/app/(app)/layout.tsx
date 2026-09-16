@@ -1,4 +1,4 @@
-import { and, eq, isNull, sql as raw } from "drizzle-orm";
+import { and, asc, eq, isNull, sql as raw } from "drizzle-orm";
 import Link from "next/link";
 
 import { MobileNav } from "@/components/mobile-nav";
@@ -13,7 +13,7 @@ import { isAdmin } from "@/lib/admin/guard";
 import { requireSession } from "@/lib/auth-guard";
 import { ensureOrganization } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { notifications, organization, websites } from "@/lib/db/schema";
+import { addons, notifications, organization, websites } from "@/lib/db/schema";
 import {
   clearReferralCode,
   readReferralCode,
@@ -149,12 +149,45 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     );
   const unread = unreadRow?.n ?? 0;
 
+  /**
+   * What the Add-ons menu expands into.
+   *
+   * The active catalogue, not what this account has bought: the item exists
+   * to show people what they can buy, and a customer who has bought nothing
+   * is exactly who it is for. Selected straight from the table rather than
+   * through listAddons() because this is a render, not an action, and the
+   * sidebar needs only the name.
+   */
+  const addonRows = await db
+    .select({ id: addons.id, name: addons.name, kind: addons.kind })
+    .from(addons)
+    .where(eq(addons.isActive, true))
+    .orderBy(asc(addons.sortOrder));
+
+  /**
+   * The credit packs collapse into one entry.
+   *
+   * There are three of them — 10, 25 and 50 link credits — which are one
+   * offering at three prices, not three destinations. Listed separately they
+   * fill the sidebar with near-identical lines and push the allowance strip
+   * below the fold, while telling the customer nothing they cannot see on the
+   * panel itself. Which size to buy is a decision made there.
+   */
+  const creditPack = addonRows.find((row) => row.kind === "credits");
+  const sidebarAddons = [
+    ...(creditPack ? [{ id: creditPack.id, name: "Link credits" }] : []),
+    ...addonRows
+      .filter((row) => row.kind !== "credits")
+      .map((row) => ({ id: row.id, name: row.name })),
+  ];
+
   return (
     <div className="flex min-h-svh flex-col bg-muted/30">
       <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <MobileNav
           onboardingComplete={onboarding.complete}
           selectedWebsiteId={fallbackWebsiteId}
+          addons={sidebarAddons}
         />
         <Link
           href="/dashboard"
@@ -216,6 +249,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             <SidebarNav
               onboardingComplete={onboarding.complete}
               selectedWebsiteId={fallbackWebsiteId}
+              addons={sidebarAddons}
             />
             {/*
               Plan usage under the navigation: what is left this month, and

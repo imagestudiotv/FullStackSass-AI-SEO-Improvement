@@ -83,7 +83,14 @@ export default async function BillingPage({
         centred, so the content column changed width mid-page.
       */}
       <PageShell className="mt-8">
-        <AddonsPanel addons={addons} purchases={purchases} />
+        {/*
+          The target for the sidebar's Add-ons links. scroll-mt clears the
+          sticky header, which would otherwise cover the panel heading that
+          the customer just asked to be taken to.
+        */}
+        <div id="addons" className="scroll-mt-20">
+          <AddonsPanel addons={addons} purchases={purchases} />
+        </div>
 
         <PaymentsPanel payments={paymentRows} />
       </PageShell>

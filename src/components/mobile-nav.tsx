@@ -4,7 +4,7 @@ import { Menu } from "lucide-react";
 import { useState } from "react";
 
 import { BrandLogo } from "@/components/brand-logo";
-import { SidebarNav } from "@/components/sidebar-nav";
+import { SidebarNav, type SidebarAddon } from "@/components/sidebar-nav";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -17,8 +17,11 @@ import {
 export function MobileNav({
   onboardingComplete = false,
   selectedWebsiteId = null,
+  addons = [],
 }: {
   onboardingComplete?: boolean;
+  /** Forwarded to SidebarNav, so a phone gets the same Add-ons menu. */
+  addons?: SidebarAddon[];
   /**
    * Forwarded to SidebarNav. Without it the per-website items are hidden on
    * every page that does not name a site in its URL, so a phone showed a
@@ -45,6 +48,7 @@ export function MobileNav({
           onNavigate={() => setOpen(false)}
           onboardingComplete={onboardingComplete}
           selectedWebsiteId={selectedWebsiteId}
+          addons={addons}
         />
       </SheetContent>
     </Sheet>

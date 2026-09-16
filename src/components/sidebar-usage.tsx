@@ -55,30 +55,54 @@ export async function SidebarUsage({
         Referral program
       </Link>
 
-      {articleLabel ? (
-        <Link
-          href={
-            websiteId ? `/websites/${websiteId}/content` : "/websites"
-          }
-          className="flex items-center gap-2 rounded-md px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent/60 hover:text-accent-foreground"
-        >
-          <PenLine className="size-3.5 shrink-0" aria-hidden="true" />
-          {articleLabel}
-        </Link>
-      ) : null}
+      {/*
+        Both figures on one line, divided.
+        
+        They were stacked as two rows, which spent two lines of a sidebar on
+        two short numbers that answer the same question — what is left. Side
+        by side they read as one allowance strip, and the divider only appears
+        when there is something on each side of it.
 
-      {credits ? (
-        <Link
-          href={
-            websiteId
-              ? `/websites/${websiteId}/backlinks`
-              : "/websites"
-          }
-          className="flex items-center gap-2 rounded-md px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent/60 hover:text-accent-foreground"
-        >
-          <Link2 className="size-3.5 shrink-0" aria-hidden="true" />
-          {credits.available} backlink credits
-        </Link>
+        Each half still links where it did: articles to the content plan,
+        credits to the exchange. min-w-0 with truncate on both, so a long
+        figure shortens its own half instead of pushing the other out of the
+        sidebar.
+      */}
+      {articleLabel || credits ? (
+        <div className="flex items-center px-3 py-1.5 text-xs text-muted-foreground">
+          {articleLabel ? (
+            <Link
+              href={websiteId ? `/websites/${websiteId}/content` : "/websites"}
+              title={articleLabel}
+              className="flex min-w-0 items-center gap-1.5 rounded-md transition-colors hover:text-accent-foreground"
+            >
+              <PenLine className="size-3.5 shrink-0" aria-hidden="true" />
+              <span className="truncate">{articleLabel}</span>
+            </Link>
+          ) : null}
+
+          {articleLabel && credits ? (
+            <span
+              className="mx-2 h-3 w-px shrink-0 bg-border"
+              role="presentation"
+            />
+          ) : null}
+
+          {credits ? (
+            <Link
+              href={
+                websiteId ? `/websites/${websiteId}/backlinks` : "/websites"
+              }
+              title={`${credits.available} backlink credits`}
+              className="flex min-w-0 items-center gap-1.5 rounded-md transition-colors hover:text-accent-foreground"
+            >
+              <Link2 className="size-3.5 shrink-0" aria-hidden="true" />
+              <span className="truncate">
+                {credits.available} backlink credits
+              </span>
+            </Link>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );

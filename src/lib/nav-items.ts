@@ -4,6 +4,7 @@ import {
   FileText,
   LayoutDashboard,
   Link2,
+  Puzzle,
   Rocket,
   Settings,
   Stethoscope,
@@ -36,6 +37,16 @@ export type NavItem = {
   segment?: string;
   /** Renders a divider above this item. */
   separatorBefore?: boolean;
+  /**
+   * Marks the item as expandable, with its children loaded at render time
+   * rather than listed here.
+   *
+   * Only add-ons use this: what can be bought is rows in a table, not a
+   * constant, so the list cannot live in this file. The flag keeps the
+   * knowledge that the item expands next to every other item's shape, while
+   * leaving the contents to whoever has the data.
+   */
+  expands?: "addons";
 };
 
 export const navItems: NavItem[] = [
@@ -65,4 +76,19 @@ export const navItems: NavItem[] = [
    * things you check.
    */
   { title: "Settings", href: "/settings", icon: Settings, separatorBefore: true },
+
+  /**
+   * Add-ons, after Settings.
+   *
+   * They existed only inside the Billing page, which meant a customer had to
+   * already know they were there to find them — an odd place to hide the
+   * things you want people to buy. Expands to list what is on offer, and the
+   * item itself goes to the panel that sells them.
+   */
+  {
+    title: "Add-ons",
+    href: "/billing#addons",
+    icon: Puzzle,
+    expands: "addons",
+  },
 ];
