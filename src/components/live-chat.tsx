@@ -30,18 +30,24 @@ import { splitLocale } from "@/lib/i18n/config";
  *    Appearance. Upload public/icon-512.png so the bubble matches the
  *    favicon. Do not add code here that appears to do it.
  *
- * DO NOT set CRISP_RUNTIME_CONFIG.disable_full_view here. It was added once
- * to stop Crisp taking over the whole screen on a phone, and it also hides
- * the launcher button whenever the chatbox is open — their own stylesheet
- * carries the rule:
+ *  - FULL VIEW ON MOBILE. disable_full_view below keeps the chatbox windowed
+ *    on a phone instead of taking over the screen. It must be set BEFORE the
+ *    script loads — Crisp reads CRISP_RUNTIME_CONFIG once at startup and
+ *    ignores later changes — which is why it is written in the same inline
+ *    script rather than pushed through the command queue like everything else.
+ *
+ * That flag has a side effect Crisp does not document: their stylesheet
+ * carries one rule keyed on it,
  *
  *   .cc-165wh[data-disable-full-view=true] .cc-lk42u .cc-13wro[data-maximized=true]
  *     { display: none !important }
  *
- * The two behaviours share one flag, and the button matters more: without it
- * the only way to collapse the chat is a chevron inside the panel, and the
- * widget reads as stuck open. Full view applies only below Crisp's own mobile
- * breakpoint, and even there it keeps the launcher and simply repositions it.
+ * which HIDES THE LAUNCHER whenever the chatbox is open. Setting the flag
+ * alone therefore fixes the full-screen takeover and removes the only obvious
+ * way to close the chat — the exact pair of complaints this is meant to
+ * answer. crisp-close.css overrides that one rule, so the button stays put
+ * and keeps the close icon. Neither half works without the other; read that
+ * file before changing either.
  */
 /**
  * Crisp website ids are UUIDs. Validated because the value is interpolated
@@ -61,6 +67,8 @@ declare global {
   interface Window {
     $crisp?: [string, string?, unknown?][];
     CRISP_WEBSITE_ID?: string;
+    /** Read once at startup; later changes are ignored. */
+    CRISP_RUNTIME_CONFIG?: { disable_full_view?: boolean };
   }
 }
 
@@ -189,7 +197,12 @@ export function LiveChat({
 
       strategy="afterInteractive"
     >
-      {`window.$crisp=window.$crisp||[];window.CRISP_WEBSITE_ID="${websiteId}";(function(){var d=document,s=d.createElement("script");s.src="https://client.crisp.chat/l.js";s.async=1;d.getElementsByTagName("head")[0].appendChild(s);})();`}
+      {/*
+        CRISP_RUNTIME_CONFIG is assigned before l.js is appended, because
+        Crisp reads it once as the client boots. Pushing it through $crisp
+        afterwards does nothing — the chatbox is already built by then.
+      */}
+      {`window.$crisp=window.$crisp||[];window.CRISP_WEBSITE_ID="${websiteId}";window.CRISP_RUNTIME_CONFIG={disable_full_view:true};(function(){var d=document,s=d.createElement("script");s.src="https://client.crisp.chat/l.js";s.async=1;d.getElementsByTagName("head")[0].appendChild(s);})();`}
     </Script>
   );
 }

@@ -16,7 +16,8 @@
  * WHY IT IS FRAGILE — READ BEFORE EDITING
  *
  * Every class below is a CONTENT HASH that Crisp regenerates when they ship a
- * new build. Written against client v4.10.0, build 9aa8709. When Crisp
+ * new build. Re-verified against build 5f9145c: every class and the whole
+ * nesting chain still match. When Crisp
  * rebuilds, these selectors stop matching and the launcher silently reverts
  * to showing the logo while open. Nothing breaks, nothing errors, no test
  * fails — the only symptom is the close icon quietly disappearing.
@@ -62,4 +63,34 @@
   display: inline-block !important;
   top: 17px !important;
   left: 16px !important;
+}
+
+/**
+ * Keep the launcher visible while the chatbox is open.
+ *
+ * live-chat.tsx sets disable_full_view so the chatbox stays windowed on a
+ * phone rather than taking over the screen. Crisp ships exactly ONE rule keyed
+ * on that flag, and it is not about layout at all:
+ *
+ *   .cc-165wh[data-disable-full-view=true] .cc-lk42u .cc-13wro[data-maximized=true]
+ *     { display: none !important }
+ *
+ * cc-13wro is the launcher button — its own rules position it with
+ * --crisp-customization-button-* — so the flag silently removes the button
+ * whenever the chat is open. Enabling windowed mode therefore takes away the
+ * one obvious way to close the chat, which is the other half of the same
+ * complaint it was meant to fix.
+ *
+ * One extra class of specificity beats their selector, and both carry
+ * !important, so this restores the button without touching anything else. The
+ * close icon rules above then apply to it as they already did.
+ *
+ * If Crisp ever splits the flag into a layout flag and a launcher flag, delete
+ * this block rather than keeping both.
+ */
+.crisp-client
+  .cc-165wh[data-disable-full-view="true"]
+  .cc-lk42u
+  .cc-13wro[data-maximized="true"] {
+  display: block !important;
 }
