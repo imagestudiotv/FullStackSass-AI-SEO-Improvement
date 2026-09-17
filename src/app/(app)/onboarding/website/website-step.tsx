@@ -186,10 +186,16 @@ export function WebsiteStep() {
           </div>
         ) : null}
 
+        {/*
+          Near-black rather than the brand orange, as drawn. The orange is the
+          marketing site's colour; inside setup it is competing with the arrow
+          button in the field directly above, and the design makes the primary
+          action the darker of the two.
+        */}
         <Button
           onClick={handleContinue}
           disabled={pending || looking || !value.trim()}
-          className="mt-6 h-14 w-full rounded-full text-base font-semibold"
+          className="mt-6 h-14 w-full rounded-full bg-foreground text-base font-semibold text-background hover:bg-foreground/90"
         >
           {pending ? (
             <>
@@ -204,6 +210,14 @@ export function WebsiteStep() {
           )}
         </Button>
 
+        {/*
+          Kept, and only while it is useful.
+          
+          The design has no line here, but the arrow inside the field is not
+          self-evident — someone who does not press it never sees the preview
+          the whole screen is built around. It goes as soon as they have
+          looked, so the card does the explaining from then on.
+        */}
         {!hasLooked && !looking ? (
           <p className="mt-3 text-center text-xs text-muted-foreground">
             Press the arrow to check your website first, or continue straight
@@ -212,8 +226,24 @@ export function WebsiteStep() {
         ) : null}
       </div>
 
-      {/* The preview card. */}
-      <WebsiteCard preview={preview} looking={looking} />
+      <div>
+        <WebsiteCard preview={preview} looking={looking} />
+
+        {/*
+          The handwritten note from the design. Decorative, so it is hidden
+          from assistive technology — it says nothing the page has not already
+          said, and reading out a line of marketing copy between a preview card
+          and the next control is noise.
+        */}
+        <p
+          className="mt-6 hidden max-w-[16rem] -rotate-2 pl-6 text-sm leading-snug text-muted-foreground/70 xl:ml-auto xl:block"
+          style={{ fontFamily: "ui-rounded, 'Segoe UI', cursive" }}
+          aria-hidden="true"
+        >
+          <span className="mr-2 text-muted-foreground/40">&mdash;</span>
+          Extraordinary businesses deserve greater visibility.
+        </p>
+      </div>
     </div>
   );
 }
@@ -259,7 +289,7 @@ function WebsiteCard({
         placeholder photograph, which would be a picture of someone else's
         business sitting above this customer's name.
       */}
-      <div className="relative aspect-[16/7] bg-gradient-to-br from-primary/20 via-muted to-blue-500/10">
+      <div className="relative aspect-[16/6] bg-gradient-to-br from-primary/20 via-muted to-blue-500/10">
         {preview?.coverUrl ? (
           <img
             src={preview.coverUrl}
@@ -277,24 +307,33 @@ function WebsiteCard({
       </div>
 
       <div className="p-5">
-        <div className="flex items-start gap-3">
-          {/* Favicon, overlapping the cover as in the design. */}
-          <span className="-mt-10 flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border-4 border-card bg-card shadow-sm">
+        <div className="flex items-start gap-4">
+          {/*
+            A circle straddling the edge of the cover, as drawn — round rather
+            than a rounded square, and lifted by half its own height so it sits
+            on the seam instead of below it. A thick card-coloured ring gives
+            the cut-out the design shows.
+          */}
+          <span className="-mt-12 flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-full border-[5px] border-card bg-card shadow-sm">
             {preview?.faviconUrl ? (
               <img
                 src={preview.faviconUrl}
                 alt=""
-                className="size-full object-contain p-1.5"
+                className="size-full rounded-full object-contain p-2"
               />
             ) : (
               <Globe
-                className="size-6 text-muted-foreground/50"
+                className="size-7 text-muted-foreground/40"
                 aria-hidden="true"
               />
             )}
           </span>
 
-          <div className="min-w-0 flex-1">
+          {/*
+            Nudged down so the name lines up with the middle of the circle
+            rather than with its top, which is where the design sets it.
+          */}
+          <div className="min-w-0 flex-1 pt-1">
             {looking ? (
               <p className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
