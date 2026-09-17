@@ -29,6 +29,20 @@ export default async function OnboardingVisibilityPage() {
   const state = await getOnboardingState(orgId);
   if (!state.websiteId) redirect("/onboarding/website");
 
+  /**
+   * Billing is step two, so everything after it needs a plan.
+   *
+   * Without this the later screens were reachable by typing their URL: the
+   * checklist ticked the plan step but nothing enforced it, and these pages
+   * only ever checked that a website existed. They also spend real money —
+   * analysis, AI visibility checks and article generation all call a model —
+   * so an unpaid customer reaching them costs us per visit.
+   *
+   * /billing rather than /onboarding, because that is where the step actually
+   * happens and sending them to a list to click one link is a detour.
+   */
+  if (!state.hasPlan) redirect("/billing");
+
   const [site] = await db
     .select({
       id: websites.id,

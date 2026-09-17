@@ -46,6 +46,15 @@ export type OnboardingState = {
   websiteId: string | null;
   /** True while analysis is still running, so the UI can wait rather than push on. */
   analysing: boolean;
+  /**
+   * Whether the workspace is paid for — a live subscription, or an agency
+   * workspace, which is ours and needs no plan.
+   *
+   * Exposed so the steps AFTER billing can refuse to run without one. It was
+   * computed here and used only to tick the checklist, which left the later
+   * screens reachable by typing their URL.
+   */
+  hasPlan: boolean;
 };
 
 /**
@@ -163,5 +172,6 @@ export const getOnboardingState = cache(async function getOnboardingState(
     websiteId: site?.id ?? null,
     // "pending" and "crawling" both mean we are still working on it.
     analysing: hasWebsite && !analysed,
+    hasPlan,
   };
 });
