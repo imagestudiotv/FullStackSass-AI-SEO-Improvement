@@ -2,15 +2,21 @@ import {
   ArrowRight,
   BarChart3,
   Bot,
+  CalendarDays,
   Check,
   ChevronDown,
+  CircleCheck,
   FileText,
+  LayoutDashboard,
   Link2,
   Play,
   PlayCircle,
+  Plus,
   Search,
+  Settings,
   Sparkles,
   TrendingUp,
+  UserRound,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -72,12 +78,12 @@ export type SectionProps = {
  * translator could break the build with.
  */
 const HERO_CARD_STYLE: { icon: LucideIcon; className: string }[] = [
-  { icon: Search, className: "left-[4%] top-8 -rotate-6" },
-  { icon: Bot, className: "left-[0%] top-44 rotate-3" },
-  { icon: Users, className: "left-[5%] top-[19rem] -rotate-3" },
-  { icon: Sparkles, className: "right-[4%] top-6 rotate-6" },
-  { icon: Link2, className: "right-[0%] top-44 -rotate-3" },
-  { icon: TrendingUp, className: "right-[5%] top-[19rem] rotate-3" },
+  { icon: Search, className: "left-[4%] top-6 -rotate-6" },
+  { icon: Bot, className: "left-[1%] top-40 rotate-3" },
+  { icon: Users, className: "left-[5%] top-[16.5rem] -rotate-3" },
+  { icon: Sparkles, className: "right-[4%] top-4 rotate-6" },
+  { icon: Link2, className: "right-[1%] top-40 -rotate-3" },
+  { icon: TrendingUp, className: "right-[5%] top-[16.5rem] rotate-3" },
 ];
 
 /** The shared lg size is h-9 — right for a form, too small for a hero. */
@@ -200,21 +206,21 @@ export function Hero({ t, href }: SectionProps) {
             strokeDasharray="4 6"
             strokeLinecap="round"
           >
-            <path d="M232 132 C 300 150, 330 210, 372 250" />
-            <path d="M212 300 C 290 300, 330 290, 372 285" />
-            <path d="M236 452 C 300 440, 340 380, 378 330" />
-            <path d="M768 128 C 700 148, 668 208, 628 248" />
-            <path d="M788 300 C 710 300, 668 290, 628 285" />
-            <path d="M764 452 C 700 440, 660 380, 622 330" />
+            <path d="M232 112 C 300 132, 330 195, 372 240" />
+            <path d="M214 272 C 290 275, 332 272, 372 272" />
+            <path d="M238 410 C 300 400, 342 356, 380 316" />
+            <path d="M768 108 C 700 128, 668 192, 628 238" />
+            <path d="M786 272 C 710 275, 668 272, 628 272" />
+            <path d="M762 410 C 700 400, 658 356, 620 316" />
           </g>
           {/* The small dots where each thread meets the centre. */}
           <g className="fill-primary/60">
-            <circle cx="232" cy="132" r="4" />
-            <circle cx="212" cy="300" r="4" />
-            <circle cx="236" cy="452" r="4" />
-            <circle cx="768" cy="128" r="4" />
-            <circle cx="788" cy="300" r="4" />
-            <circle cx="764" cy="452" r="4" />
+            <circle cx="232" cy="112" r="4" />
+            <circle cx="214" cy="272" r="4" />
+            <circle cx="238" cy="410" r="4" />
+            <circle cx="768" cy="108" r="4" />
+            <circle cx="786" cy="272" r="4" />
+            <circle cx="762" cy="410" r="4" />
           </g>
         </svg>
 
@@ -259,112 +265,270 @@ export function Hero({ t, href }: SectionProps) {
  * reader who takes 12 published articles as a promise has been misled, so the
  * caption removes the doubt rather than leaving it.
  */
+/**
+ * The rows of the mock, kept as data so the markup below stays readable.
+ *
+ * Deliberately generic subject matter: the design uses a travel business
+ * ("Best Restaurants in Positano"), which reads as a real customer's calendar
+ * to anyone who does not know it is a mock. These are the kind of article any
+ * small business would recognise as their own.
+ */
 const PREVIEW_STATS = [
-  { value: "12", label: "Articles published", delta: "+71%" },
-  { value: "28", label: "Backlinks built", delta: "+56%" },
-  { value: "18", label: "Keywords improved", delta: "+83%" },
-  { value: "4.2K", label: "Estimated traffic", delta: "+120%" },
+  { value: "12", label: "Articles published", delta: "+71%", icon: FileText },
+  { value: "28", label: "Backlinks built", delta: "+56%", icon: Link2 },
+  { value: "18", label: "Keywords improved", delta: "+83%", icon: Search },
+  { value: "4.2K", label: "Estimated traffic", delta: "+120%", icon: BarChart3 },
 ];
 
-const PREVIEW_NAV = [
-  "Dashboard",
-  "Content",
-  "Backlinks",
-  "Keywords",
-  "Calendar",
-  "Reports",
-  "Settings",
+const PREVIEW_NAV: { label: string; icon: LucideIcon }[] = [
+  { label: "Dashboard", icon: LayoutDashboard },
+  { label: "Content", icon: FileText },
+  { label: "Backlinks", icon: Link2 },
+  { label: "Keywords", icon: Search },
+  { label: "Calendar", icon: CalendarDays },
+  { label: "Reports", icon: BarChart3 },
+  { label: "Settings", icon: Settings },
 ];
+
+/**
+ * Status colours match the real product: draft is neutral, generating is the
+ * brand orange because something is happening, planned is blue. Someone who
+ * signs up should recognise this screen.
+ */
+const PREVIEW_CALENDAR = [
+  { month: "SEP", day: "14", title: "How to choose a supplier", status: "Draft", tone: "bg-muted text-muted-foreground" },
+  { month: "SEP", day: "16", title: "What our prices include", status: "Generating", tone: "bg-primary/10 text-primary" },
+  { month: "SEP", day: "18", title: "Five questions to ask first", status: "Planned", tone: "bg-blue-500/10 text-blue-600" },
+  { month: "SEP", day: "20", title: "A guide for first-time buyers", status: "Planned", tone: "bg-blue-500/10 text-blue-600" },
+];
+
+const PREVIEW_SEO_CHECKS = [
+  "Keyword optimised",
+  "Meta description",
+  "Internal links",
+  "Image SEO",
+  "Readability",
+];
+
+/**
+ * The SEO score arc.
+ *
+ * An SVG semicircle rather than a conic gradient: the reference has rounded
+ * ends on the stroke, and strokeLinecap gives that for free where a gradient
+ * would need masking. The dash offset is computed from the score, so changing
+ * the number moves the arc.
+ */
+function ScoreArc({ score }: { score: number }) {
+  // Half circle, radius 52, so the drawn length is pi * r.
+  const length = Math.PI * 52;
+  return (
+    <div className="relative mx-auto w-[132px]">
+      <svg viewBox="0 0 132 74" className="w-full" aria-hidden="true">
+        <path
+          d="M14 66 A 52 52 0 0 1 118 66"
+          fill="none"
+          stroke="currentColor"
+          className="text-muted"
+          strokeWidth="10"
+          strokeLinecap="round"
+        />
+        <path
+          d="M14 66 A 52 52 0 0 1 118 66"
+          fill="none"
+          stroke="currentColor"
+          className="text-emerald-500"
+          strokeWidth="10"
+          strokeLinecap="round"
+          strokeDasharray={length}
+          strokeDashoffset={length * (1 - score / 100)}
+        />
+      </svg>
+      <p className="absolute inset-x-0 bottom-0 text-center text-xl font-semibold tabular-nums">
+        {score}
+        <span className="text-sm text-muted-foreground">/100</span>
+      </p>
+    </div>
+  );
+}
 
 export function ProductPreview({ t }: SectionProps) {
   return (
     <section className="px-4 pb-20">
       <div className="mx-auto max-w-6xl">
-        <div className="overflow-hidden rounded-2xl border bg-card shadow-[0_30px_80px_-30px_rgba(0,0,0,0.3)]">
-          <div className="flex">
-            {/* Sidebar. Hidden on a phone, where it would eat half the frame. */}
-            <div className="hidden w-44 shrink-0 border-r bg-muted/30 p-4 sm:block">
-              <div className="flex items-center gap-2 px-1">
+        {/*
+          The grey device frame from the design — a padded outer shell with the
+          app inset inside it, which is what makes the mock read as a screen
+          rather than as more page.
+        */}
+        <div className="rounded-[1.75rem] border bg-muted/50 p-2 shadow-[0_40px_90px_-40px_rgba(0,0,0,0.35)] sm:p-3">
+          <div className="overflow-hidden rounded-2xl border bg-card">
+            {/* App chrome: brand on the left, account controls on the right. */}
+            <div className="flex items-center justify-between border-b px-4 py-3">
+              <div className="flex items-center gap-2">
                 <BrandMark size={18} />
                 <span className="text-sm font-semibold">RepGet</span>
               </div>
-              <ul className="mt-5 space-y-0.5">
-                {PREVIEW_NAV.map((item, index) => (
-                  <li
-                    key={item}
-                    className={`rounded-md px-2.5 py-1.5 text-xs ${
-                      index === 0
-                        ? "bg-primary/10 font-medium text-primary"
-                        : "text-muted-foreground"
-                    }`}
-                  >
-                    {item}
-                  </li>
-                ))}
-              </ul>
+              <div className="flex items-center gap-3 text-muted-foreground">
+                <Plus className="size-4" aria-hidden="true" />
+                <UserRound className="size-4" aria-hidden="true" />
+              </div>
             </div>
 
-            <div className="min-w-0 flex-1 p-5">
-              <p className="text-base font-semibold">{t.previewTitle}</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                {t.previewSub}
-              </p>
-
-              <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                {PREVIEW_STATS.map((stat) => (
-                  <div key={stat.label} className="rounded-xl border p-3">
-                    <p className="text-xl font-semibold tabular-nums">
-                      {stat.value}
-                    </p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {stat.label}
-                    </p>
-                    <p className="mt-1.5 text-xs font-medium text-emerald-600">
-                      {stat.delta}
-                    </p>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-3 grid gap-3 lg:grid-cols-2">
-                <div className="rounded-xl border p-3">
-                  <p className="text-xs font-medium">Content calendar</p>
-                  <ul className="mt-2 space-y-2">
-                    {t.tracked.slice(0, 3).map((item) => (
+            <div className="flex">
+              {/* Sidebar. Hidden on a phone, where it would eat half the frame. */}
+              <div className="hidden w-44 shrink-0 border-r p-3 lg:block">
+                <ul className="space-y-0.5">
+                  {PREVIEW_NAV.map((item, index) => {
+                    const Icon = item.icon;
+                    return (
                       <li
                         key={item.label}
-                        className="flex items-center justify-between gap-2 text-xs"
+                        className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs ${
+                          index === 0
+                            ? "bg-primary/10 font-medium text-primary"
+                            : "text-muted-foreground"
+                        }`}
                       >
-                        <span className="truncate text-muted-foreground">
-                          {item.label}
-                        </span>
-                        <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[0.65rem] text-muted-foreground">
-                          {item.detail}
-                        </span>
+                        <Icon className="size-3.5" aria-hidden="true" />
+                        {item.label}
                       </li>
-                    ))}
-                  </ul>
+                    );
+                  })}
+                </ul>
+              </div>
+
+              <div className="min-w-0 flex-1 p-4 sm:p-5">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-base font-semibold">{t.previewTitle}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {t.previewSub}
+                    </p>
+                  </div>
+                  <span className="flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs text-muted-foreground">
+                    Last 30 days
+                    <ChevronDown className="size-3" aria-hidden="true" />
+                  </span>
                 </div>
 
-                <div className="rounded-xl border p-3">
-                  <p className="text-xs font-medium">SEO score</p>
-                  <div className="mt-2 flex items-center gap-3">
-                    <span className="text-2xl font-semibold tabular-nums text-emerald-600">
-                      97
-                    </span>
-                    <div className="min-w-0 flex-1 space-y-1.5">
-                      {t.pillars.slice(0, 3).map((pillar) => (
-                        <p
-                          key={pillar.title}
-                          className="flex items-center gap-1.5 truncate text-xs text-muted-foreground"
-                        >
-                          <Check
-                            className="size-3 shrink-0 text-emerald-600"
-                            aria-hidden="true"
-                          />
-                          {pillar.title}
+                <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  {PREVIEW_STATS.map((stat) => {
+                    const Icon = stat.icon;
+                    return (
+                      <div key={stat.label} className="rounded-xl border p-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-xl font-semibold tabular-nums">
+                            {stat.value}
+                          </p>
+                          <span className="flex size-7 items-center justify-center rounded-lg bg-primary/10">
+                            <Icon
+                              className="size-3.5 text-primary"
+                              aria-hidden="true"
+                            />
+                          </span>
+                        </div>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {stat.label}
                         </p>
+                        <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-emerald-600">
+                          <TrendingUp className="size-3" aria-hidden="true" />
+                          {stat.delta}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="mt-3 grid gap-3 xl:grid-cols-2">
+                  {/* Content calendar, with the date blocks from the design. */}
+                  <div className="rounded-xl border p-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-semibold">Content calendar</p>
+                      <span className="flex items-center gap-1 text-xs text-primary">
+                        View all
+                        <ArrowRight className="size-3" aria-hidden="true" />
+                      </span>
+                    </div>
+                    <ul className="mt-2 divide-y">
+                      {PREVIEW_CALENDAR.map((row) => (
+                        <li
+                          key={row.title}
+                          className="flex items-center gap-3 py-2"
+                        >
+                          <span className="flex w-10 shrink-0 flex-col items-center rounded-lg bg-muted py-1">
+                            <span className="text-[0.6rem] tracking-wide text-muted-foreground uppercase">
+                              {row.month}
+                            </span>
+                            <span className="text-sm leading-none font-semibold">
+                              {row.day}
+                            </span>
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-xs">
+                              {row.title}
+                            </span>
+                            <span
+                              className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[0.65rem] font-medium ${row.tone}`}
+                            >
+                              {row.status}
+                            </span>
+                          </span>
+                        </li>
                       ))}
+                    </ul>
+                  </div>
+
+                  {/* Latest article and its score, side by side as drawn. */}
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-xl border p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs font-semibold">Latest article</p>
+                        <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[0.65rem] font-medium text-emerald-600">
+                          Published
+                        </span>
+                      </div>
+                      {/*
+                        A tinted block rather than a stock photograph: the
+                        design shows a generated article image, and shipping a
+                        real photo here would be a picture of a place no
+                        customer of ours has written about.
+                      */}
+                      <div
+                        className="mt-2 aspect-[16/9] rounded-lg bg-gradient-to-br from-primary/25 via-primary/10 to-blue-500/20"
+                        aria-hidden="true"
+                      />
+                      <p className="mt-2 text-xs leading-snug font-medium">
+                        The complete guide for 2026
+                      </p>
+                      <p className="mt-1 line-clamp-2 text-[0.65rem] leading-relaxed text-muted-foreground">
+                        Written from what your customers actually search for,
+                        then published to your own site.
+                      </p>
+                      <span className="mt-2 inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[0.65rem]">
+                        View article
+                        <ArrowRight className="size-2.5" aria-hidden="true" />
+                      </span>
+                    </div>
+
+                    <div className="rounded-xl border p-3">
+                      <p className="text-xs font-semibold">SEO score</p>
+                      <div className="mt-1">
+                        <ScoreArc score={97} />
+                      </div>
+                      <ul className="mt-2 space-y-1">
+                        {PREVIEW_SEO_CHECKS.map((check) => (
+                          <li
+                            key={check}
+                            className="flex items-center gap-1.5 text-[0.65rem] text-muted-foreground"
+                          >
+                            <CircleCheck
+                              className="size-3 shrink-0 text-emerald-600"
+                              aria-hidden="true"
+                            />
+                            {check}
+                          </li>
+                        ))}
+                      </ul>
                     </div>
                   </div>
                 </div>
