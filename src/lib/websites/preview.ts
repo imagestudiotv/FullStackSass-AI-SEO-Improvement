@@ -100,11 +100,16 @@ export async function previewWebsite(rawUrl: string): Promise<PreviewResult> {
         faviconUrl: page.faviconUrl,
         coverUrl: page.ogImageUrl,
         /**
-         * Detected from asset URLs, which is where the reliable fingerprints
-         * are: /wp-content/ in an image src identifies WordPress far better
-         * than anything in the body copy.
+         * Stylesheets, scripts, the generator meta and the body classes, plus
+         * image sources. Images alone found WordPress and little else: a
+         * modern site serves its pictures from a generic CDN, so Shopify,
+         * Squarespace, Webflow and Ghost all came back undetected despite
+         * naming themselves throughout the markup.
          */
-        platform: detectPlatform(page.images.map((image) => image.src)),
+        platform: detectPlatform([
+          ...page.platformSignals,
+          ...page.images.map((image) => image.src),
+        ]),
         language: page.lang?.slice(0, 2).toLowerCase() || null,
         description: page.metaDescription,
       },

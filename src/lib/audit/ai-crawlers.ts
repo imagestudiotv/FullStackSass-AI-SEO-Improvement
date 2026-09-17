@@ -90,28 +90,60 @@ export function parseCrawlerAccess(robotsTxt: string | null): CrawlerAccess[] {
 /**
  * Guesses the platform a site is built on.
  *
- * Matched against ASSET URLS — image sources and internal links — rather than
- * raw HTML, because the crawler keeps visible text and links but not the
- * original markup. That is actually where the reliable fingerprints live:
- * /wp-content/uploads/... in an image src identifies WordPress far better than
- * anything in the body copy.
+ * Takes any strings that might carry a fingerprint — stylesheet and script
+ * URLs, the generator meta tag, image sources, a slice of raw HTML. It used to
+ * take image sources ALONE, which worked for WordPress, whose uploads sit
+ * under /wp-content/, and failed for almost everything else: measured against
+ * real sites it found 3 of 8, missing Shopify, Squarespace, Webflow and Ghost
+ * even though their names appear hundreds of times in the markup, because a
+ * modern site serves its images from a generic CDN.
  *
  * Returns null rather than guessing when nothing matches. "Custom" is a real
  * answer, and a wrong platform name is an obvious error to anyone who knows
  * their own site.
  */
-export function detectPlatform(assetUrls: string[]): string | null {
-  const haystack = assetUrls.join(" ");
+export function detectPlatform(signals: string[]): string | null {
+  const haystack = signals.join(" ");
+
+  /**
+   * Ordered most specific first.
+   *
+   * Shopify before the generic checks because a Shopify store can also load
+   * Next.js assets, and "Shopify" is the answer the customer would give.
+   */
   const checks: [RegExp, string][] = [
-    [/wp-content|wp-includes|wp-json/i, "WordPress"],
-    [/cdn\.shopify\.com|Shopify\.theme/i, "Shopify"],
-    [/ghost\.io|content\/themes\/casper|ghost-sdk/i, "Ghost"],
-    [/wix\.com|wixstatic/i, "Wix"],
-    [/squarespace|static1\.squarespace/i, "Squarespace"],
-    [/webflow\.io|w-webflow/i, "Webflow"],
-    [/_next\/static/i, "Next.js"],
-    [/drupal-settings-json|\/sites\/default\/files/i, "Drupal"],
-    [/joomla|\/media\/jui\//i, "Joomla"],
+    [/wp-content|wp-includes|wp-json|wp-emoji|\/wp-\w/i, "WordPress"],
+    [
+      /cdn\.shopify\.com|shopify\.theme|shopify-features|myshopify\.com|shopifycdn/i,
+      "Shopify",
+    ],
+    [
+      /wixstatic|wix\.com|parastorage|_partials\/wix|wix-code/i,
+      "Wix",
+    ],
+    [
+      /squarespace|static1\.squarespace|sqsp\.net|squarespace-cdn/i,
+      "Squarespace",
+    ],
+    [
+      /webflow|w-webflow|assets\.website-files|uploads-ssl\.webflow/i,
+      "Webflow",
+    ],
+    [
+      /ghost\.io|content\/themes\/casper|ghost-sdk|\/ghost\/api|gh-head/i,
+      "Ghost",
+    ],
+    [/drupal-settings-json|\/sites\/default\/files|drupal\.js/i, "Drupal"],
+    [/joomla|\/media\/jui\/|com_content/i, "Joomla"],
+    [/bigcommerce|bigcommerce\.com\/s-/i, "BigCommerce"],
+    [/woocommerce|wc-ajax/i, "WooCommerce"],
+    /*
+      Last: a framework is what the site is BUILT with rather than what it is
+      published with, so anything above is the more useful answer when both
+      match. Kept because "Next.js" is still better than nothing for a custom
+      site with no CMS.
+    */
+    [/_next\/static|__NEXT_DATA__/i, "Next.js"],
   ];
 
   for (const [pattern, name] of checks) {

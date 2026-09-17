@@ -74,6 +74,16 @@ export type PageSnapshot = {
    */
   faviconUrl: string | null;
   ogImageUrl: string | null;
+  /**
+   * Strings that might name the platform: stylesheet and script URLs, and the
+   * generator meta tag.
+   *
+   * Collected here because this is the only place the original markup exists —
+   * script and style elements are stripped moments later so they do not
+   * pollute the visible text, and by the time anything downstream sees the
+   * snapshot the fingerprints are gone.
+   */
+  platformSignals: string[];
 };
 
 /**
@@ -121,12 +131,24 @@ async function fetchOnce(url: string): Promise<Response> {
 }
 
 /** Reads a body, aborting once MAX_BYTES is exceeded. */
+/**
+ * Reads a body, TRUNCATING at MAX_BYTES rather than failing.
+ *
+ * It used to throw, which meant a page over the cap produced nothing at all.
+ * wix.com is the case that showed this up: 308KB compressed but far past 2MB
+ * expanded, so a Wix site — one of the platforms we most want to recognise —
+ * came back as "Page is too large to analyse" and the customer saw an error
+ * on the first screen of setup.
+ *
+ * Two megabytes of a page is plenty. Everything that matters here lives in the
+ * <head> and the first screens of markup: the title, the meta tags, the
+ * stylesheet and script URLs that name the platform. What gets cut is the tail
+ * of the body copy, which only shortens the text sample the model reads.
+ *
+ * The cap itself stays — it is what stops one hostile response exhausting a
+ * worker — it simply stops being fatal.
+ */
 async function readCapped(response: Response): Promise<string> {
-  const declared = Number(response.headers.get("content-length") ?? 0);
-  if (declared > MAX_BYTES) {
-    throw new CrawlError("Page is too large to analyse", "too_large");
-  }
-
   const reader = response.body?.getReader();
   if (!reader) return "";
 
@@ -137,19 +159,27 @@ async function readCapped(response: Response): Promise<string> {
     if (done) break;
     total += value.length;
     if (total > MAX_BYTES) {
+      // Keep what arrived, drop the rest, stop downloading.
+      chunks.push(value);
       await reader.cancel();
-      throw new CrawlError("Page is too large to analyse", "too_large");
+      break;
     }
     chunks.push(value);
   }
 
-  const merged = new Uint8Array(total);
+  const size = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+  const merged = new Uint8Array(size);
   let offset = 0;
   for (const chunk of chunks) {
     merged.set(chunk, offset);
     offset += chunk.length;
   }
-  return new TextDecoder("utf-8").decode(merged);
+  /*
+    fatal: false, because truncating mid-page can cut a multi-byte character
+    in half. A replacement character at the very end costs nothing; throwing
+    on it would undo the point of truncating.
+  */
+  return new TextDecoder("utf-8", { fatal: false }).decode(merged);
 }
 
 /**
@@ -212,6 +242,31 @@ export async function fetchHomepage(
   const { response, finalUrl } = await fetchFollowing(url, isAllowedHost);
   const html = await readCapped(response);
   const $ = cheerio.load(html);
+
+  /**
+   * Platform fingerprints, read BEFORE the strip below.
+   *
+   * That line removes script and style elements so they do not pollute the
+   * visible text — which also removes the most reliable evidence of what the
+   * site is built with. Squarespace and Webflow name themselves hundreds of
+   * times in a page and almost never in an image URL.
+   */
+  const platformSignals: string[] = [];
+  $("link[href]").each((_, element) => {
+    const href = $(element).attr("href");
+    if (href && platformSignals.length < 120) platformSignals.push(href);
+  });
+  $("script[src]").each((_, element) => {
+    const src = $(element).attr("src");
+    if (src && platformSignals.length < 200) platformSignals.push(src);
+  });
+  const generator = $('meta[name="generator"]').attr("content");
+  if (generator) platformSignals.push(generator);
+  // Class names on <html> and <body> carry it too: Ghost uses gh-*, WordPress
+  // adds wp-* body classes.
+  for (const attr of [$("html").attr("class"), $("body").attr("class")]) {
+    if (attr) platformSignals.push(attr);
+  }
 
   // Script, style and template content is markup noise, never page copy.
   $("script, style, noscript, template, svg").remove();
@@ -327,6 +382,7 @@ export async function fetchHomepage(
     wordCount: text ? text.split(/\s+/).length : 0,
     internalUrls: [...internalAbsolute],
     images,
+    platformSignals,
     faviconUrl: faviconUrl(),
     ogImageUrl: absolute(
       $('meta[property="og:image"]').attr("content") ??
