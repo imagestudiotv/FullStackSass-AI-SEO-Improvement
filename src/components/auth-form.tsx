@@ -2,7 +2,15 @@
 
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Loader2 } from "lucide-react";
+import {
+  ArrowRight,
+  Eye,
+  EyeOff,
+  Loader2,
+  Lock,
+  Mail,
+  UserRound,
+} from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -56,6 +64,12 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
   const [password, setPassword] = useState("");
   const [pending, setPending] = useState(false);
   const [googlePending, setGooglePending] = useState(false);
+  /**
+   * The eye control in the design. Worth having: a password typed blind
+   * into a field with an 8-character rule is the most common reason a
+   * sign-up form gets abandoned, and every browser offers this anyway.
+   */
+  const [showPassword, setShowPassword] = useState(false);
 
   /**
    * Report a failure that happened during the OAuth round trip.
@@ -129,8 +143,11 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
 
   return (
     <div>
-      <h1 className="text-3xl font-semibold tracking-tight">
+      <p className="text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
         {isSignUp ? "Create your account" : "Welcome back"}
+      </p>
+      <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
+        {isSignUp ? "Start growing today" : "Sign in to RepGet"}
       </h1>
       <p className="mt-2 text-muted-foreground">
         {isSignUp
@@ -163,6 +180,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
           <>
             <GoogleMark className="size-5" />
             Continue with Google
+            <ArrowRight className="ml-auto size-4 text-muted-foreground" aria-hidden="true" />
           </>
         )}
       </Button>
@@ -180,55 +198,91 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
         {isSignUp ? (
           <div className="space-y-1.5">
             <Label htmlFor="name">Full name</Label>
-            <Input
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="John Doe"
-              autoComplete="name"
-              className="h-11"
-              required
-            />
+            <div className="relative">
+              <Input
+                id="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="John Doe"
+                autoComplete="name"
+                className="h-12 pl-10"
+                required
+              />
+              <UserRound
+                className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground"
+                aria-hidden="true"
+              />
+            </div>
           </div>
         ) : null}
 
         <div className="space-y-1.5">
           <Label htmlFor="email">Email</Label>
-          <Input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
-            autoComplete="email"
-            className="h-11"
-            required
-          />
+          {/*
+            The icon sits inside the field as drawn. relative on the wrapper
+            and pl-10 on the input rather than absolute positioning against the
+            whole form, so the icon travels with the field if the layout moves.
+          */}
+          <div className="relative">
+            <Input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              autoComplete="email"
+              className="h-12 pl-10"
+              required
+            />
+            <Mail
+              className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground"
+              aria-hidden="true"
+            />
+          </div>
         </div>
 
         <div className="space-y-1.5">
           <Label htmlFor="password">Password</Label>
-          <Input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete={isSignUp ? "new-password" : "current-password"}
-            minLength={8}
-            className="h-11"
-            required
-          />
+          <div className="relative">
+            <Input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder={isSignUp ? "Create a password" : undefined}
+              autoComplete={isSignUp ? "new-password" : "current-password"}
+              minLength={8}
+              className="h-12 pr-11 pl-10"
+              required
+            />
+            <Lock
+              className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((shown) => !shown)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              className="absolute top-1/2 right-3 -translate-y-1/2 rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground"
+            >
+              {showPassword ? (
+                <EyeOff className="size-4" aria-hidden="true" />
+              ) : (
+                <Eye className="size-4" aria-hidden="true" />
+              )}
+            </button>
+          </div>
           {isSignUp ? (
             // Stated before they choose one, not after the form rejects it.
             <p className="text-xs text-muted-foreground">
-              At least 8 characters.
+              At least 8 characters, including a number and a letter.
             </p>
           ) : null}
         </div>
 
         <Button
           type="submit"
-          className="h-11 w-full"
+          className="h-12 w-full text-base font-semibold"
           disabled={pending || googlePending}
         >
           {pending ? (
@@ -236,10 +290,11 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
               <Loader2 className="size-4 animate-spin" />
               {isSignUp ? "Creating your account…" : "Signing you in…"}
             </>
-          ) : isSignUp ? (
-            "Create account"
           ) : (
-            "Sign in"
+            <>
+              {isSignUp ? "Create account" : "Sign in"}
+              <ArrowRight className="size-4" aria-hidden="true" />
+            </>
           )}
         </Button>
       </form>

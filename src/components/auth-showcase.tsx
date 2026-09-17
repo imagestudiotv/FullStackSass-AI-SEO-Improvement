@@ -123,9 +123,25 @@ export function AuthShowcase() {
         backgroundSize: "48px 48px",
       }}
     >
-      <div className="w-full max-w-2xl">
+      <div className="w-full max-w-3xl">
         <p className="text-xs font-semibold tracking-[0.14em] text-primary uppercase">
           What RepGet does for your website
+        </p>
+
+        {/*
+          The handwritten aside from the design, which is what stops this panel
+          reading as another slab of marketing copy. The reference writes "Same
+          marketers. Bigger results." — a claim about customers we do not have,
+          so this one is about the work instead.
+        */}
+        <p
+          className="pointer-events-none absolute top-10 right-10 hidden max-w-[11rem] -rotate-6 text-right text-sm leading-snug text-muted-foreground xl:block"
+          style={{ fontFamily: "ui-rounded, 'Segoe UI', cursive" }}
+          aria-hidden="true"
+        >
+          Same website.
+          <br />
+          More of it found.
         </p>
 
         {/*
@@ -134,11 +150,22 @@ export function AuthShowcase() {
           have — "join 2,000+ marketers" is the one line on that design we
           cannot honestly copy.
         */}
-        <h2 className="mt-4 text-3xl font-semibold tracking-tight text-balance xl:text-4xl">
+        <h2 className="mt-4 text-4xl font-semibold tracking-tight text-balance xl:text-5xl">
           Content that ranks.
           <br />
           <span className="text-primary">Links that count.</span>
         </h2>
+
+        {/*
+          The paragraph the design puts under the headline. The reference says
+          "Join 2,000+ marketers, agencies and businesses" — the one line on
+          that design that is a number we do not have, so this says what the
+          product does for the person reading instead.
+        */}
+        <p className="mt-4 max-w-md text-muted-foreground">
+          Everything a small business needs to get found — articles, backlinks
+          and the rankings that follow — in one place, running on its own.
+        </p>
 
         <div className="mt-8 grid gap-4 xl:grid-cols-5">
           {/* Lead panel, wider — the reference's large left card. */}
@@ -184,8 +211,8 @@ export function AuthShowcase() {
               onClick={() => setIndex(i)}
               aria-label={`Show panel ${i + 1}`}
               aria-current={i === index}
-              className={`h-1.5 rounded-full transition-all ${
-                i === index ? "w-7 bg-primary" : "w-1.5 bg-muted-foreground/30"
+              className={`size-2 rounded-full transition-colors ${
+                i === index ? "bg-primary" : "bg-muted-foreground/25"
               }`}
             />
           ))}
