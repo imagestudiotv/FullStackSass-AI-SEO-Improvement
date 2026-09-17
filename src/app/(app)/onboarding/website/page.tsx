@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 
-import { WizardProgress } from "@/components/wizard-progress";
 import { requireSession } from "@/lib/auth-guard";
 import { getOnboardingState } from "@/lib/onboarding/steps";
 import { requireOrg } from "@/lib/tenant";
@@ -45,25 +44,13 @@ export default async function OnboardingWebsitePage() {
   }
 
   return (
-    <div>
-      <WizardProgress current="website" />
-      <div className="mx-auto max-w-2xl px-4 py-10">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Add your website
-        </h1>
-        <p className="mt-2 text-muted-foreground">
-          We read your pages and work out what your business does, who it is
-          for, and who you compete with. It takes a minute or two.
-        </p>
-
-        <div className="mt-8">
-          <WebsiteStep />
-        </div>
-
-        <p className="mt-6 text-center text-xs text-muted-foreground">
-          You can change any of this later in your account.
-        </p>
-      </div>
+    /*
+      No WizardProgress bar and no page heading here: the step component owns
+      its own "STEP 01 / 05" marker and headline, which is what the design
+      shows. Two progress indicators on one screen is one too many.
+    */
+    <div className="mx-auto max-w-6xl px-4 py-10 sm:py-14">
+      <WebsiteStep />
     </div>
   );
 }

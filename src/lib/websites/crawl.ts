@@ -60,6 +60,20 @@ export type PageSnapshot = {
   noindex: boolean;
   /** Bytes of HTML, a rough page-weight signal. */
   htmlBytes: number;
+  /* --- branding, for the onboarding preview -------------------------- */
+  /**
+   * The site's own icon and social image, absolute.
+   *
+   * Read here rather than fetched separately because the markup is already
+   * parsed at this point — a second request for the same page to find one
+   * <link rel="icon"> would double the wait on the screen that shows them.
+   *
+   * Null when absent rather than guessed at: /favicon.ico is a convention
+   * rather than a guarantee, and a broken image in the preview looks worse
+   * than no image.
+   */
+  faviconUrl: string | null;
+  ogImageUrl: string | null;
 };
 
 /**
@@ -209,6 +223,45 @@ export async function fetchHomepage(
   });
 
   const origin = new URL(finalUrl).origin;
+
+  /**
+   * Resolves a possibly-relative asset path against the page it came from.
+   *
+   * Returns null for anything that will not load in an <img>: a data URI is
+   * fine but pointless to store, and a malformed value would render as a
+   * broken image in the preview.
+   */
+  const absolute = (value: string | null | undefined): string | null => {
+    const raw = value?.trim();
+    if (!raw || raw.startsWith("data:")) return null;
+    try {
+      return new URL(raw, finalUrl).toString();
+    } catch {
+      return null;
+    }
+  };
+
+  /**
+   * The favicon, preferring the larger declarations.
+   *
+   * apple-touch-icon first because it is typically 180px and looks right in a
+   * preview, where a 16px .ico does not. Falls back through the standard
+   * declarations and stops — no guess at /favicon.ico, since a 404 there
+   * renders as a broken image.
+   */
+  const faviconUrl = (): string | null => {
+    for (const selector of [
+      'link[rel="apple-touch-icon"]',
+      'link[rel="apple-touch-icon-precomposed"]',
+      'link[rel="icon"][sizes]',
+      'link[rel="icon"]',
+      'link[rel="shortcut icon"]',
+    ]) {
+      const href = absolute($(selector).first().attr("href"));
+      if (href) return href;
+    }
+    return null;
+  };
   const internal = new Set<string>();
   // Absolute form, so the audit crawler can fetch these directly.
   const internalAbsolute = new Set<string>();
@@ -274,6 +327,12 @@ export async function fetchHomepage(
     wordCount: text ? text.split(/\s+/).length : 0,
     internalUrls: [...internalAbsolute],
     images,
+    faviconUrl: faviconUrl(),
+    ogImageUrl: absolute(
+      $('meta[property="og:image"]').attr("content") ??
+        $('meta[name="twitter:image"]').attr("content") ??
+        null,
+    ),
     canonical: $('link[rel="canonical"]').attr("href")?.trim() || null,
     h1Count: $("h1").length,
     noindex: robots.includes("noindex"),

@@ -1,6 +1,7 @@
 import { and, asc, eq, isNull, sql as raw } from "drizzle-orm";
 import Link from "next/link";
 
+import { AppSidebar } from "@/components/app-sidebar";
 import { MobileNav } from "@/components/mobile-nav";
 import { NotificationBell } from "@/components/notification-bell";
 import { BrandLogo, BrandMark } from "@/components/brand-logo";
@@ -244,23 +245,18 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       </header>
 
       <div className="flex flex-1">
-        <aside className="hidden w-60 shrink-0 border-r bg-background md:block">
-          <div className="sticky top-14 py-4">
-            <SidebarNav
-              onboardingComplete={onboarding.complete}
-              selectedWebsiteId={fallbackWebsiteId}
-              addons={sidebarAddons}
-            />
-            {/*
-              Plan usage under the navigation: what is left this month, and
-              where to go when it runs out.
-            */}
-            <SidebarUsage
-              organizationId={orgId}
-              websiteId={fallbackWebsiteId}
-            />
-          </div>
-        </aside>
+        <AppSidebar>
+          <SidebarNav
+            onboardingComplete={onboarding.complete}
+            selectedWebsiteId={fallbackWebsiteId}
+            addons={sidebarAddons}
+          />
+          {/*
+            Plan usage under the navigation: what is left this month, and
+            where to go when it runs out.
+          */}
+          <SidebarUsage organizationId={orgId} websiteId={fallbackWebsiteId} />
+        </AppSidebar>
         {/*
           The page content sits on a slightly tinted ground while cards are
           plain background, so cards read as raised surfaces without needing
