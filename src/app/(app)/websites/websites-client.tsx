@@ -51,8 +51,15 @@ export function WebsitesClient({ websites }: WebsitesClientProps) {
       }
       setUrl("");
       setOpen(false);
-      toast.success("Website added — we are reading it now");
-      router.refresh();
+      /**
+       * Into setup, not back to the list.
+       *
+       * A new website has no plan and cannot generate anything until it has
+       * one, so refreshing the list left the customer looking at a site that
+       * silently does nothing. Every website goes through the same steps,
+       * whether it is the first or the fifth.
+       */
+      router.push(`/billing?site=${result.data.id}`);
     });
   }
 

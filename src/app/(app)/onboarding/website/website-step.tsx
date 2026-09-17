@@ -93,7 +93,16 @@ export function WebsiteStep() {
       return;
     }
 
-    router.push("/onboarding/profile");
+    /**
+     * Straight to billing, carrying the site that was just created.
+     *
+     * Billing is step two, and a new website has no plan whether it is the
+     * first or the fifth — so this is the same path for both. The id matters:
+     * without it billing falls back to whichever site the switcher last
+     * remembered, and a customer adding their second website could subscribe
+     * the first one twice.
+     */
+    router.push(`/billing?site=${result.data.id}`);
   }
 
   const hasLooked = preview !== null;

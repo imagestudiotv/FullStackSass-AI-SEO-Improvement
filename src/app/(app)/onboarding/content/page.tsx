@@ -27,11 +27,24 @@ export const dynamic = "force-dynamic";
  * days, because writing 365 briefs for a plan that publishes five a month
  * would be a year of promises the customer has not bought.
  */
-export default async function OnboardingContentPage() {
+export default async function OnboardingContentPage({
+  searchParams,
+}: PageProps<"/onboarding/content">) {
   await requireSession();
   const { orgId } = await requireOrg();
 
-  const state = await getOnboardingState(orgId);
+  /**
+   * Which website this run of setup is about.
+   *
+   * Setup is per website: a second site needs its own plan, profile check,
+   * visibility questions and first article. Without the parameter the state
+   * describes the oldest site, which is right for a returning customer and
+   * wrong the moment someone adds another one.
+   */
+  const params = await searchParams;
+  const siteParam = typeof params.site === "string" ? params.site : undefined;
+
+  const state = await getOnboardingState(orgId, siteParam);
   if (!state.websiteId) redirect("/onboarding/website");
 
   /**
@@ -46,7 +59,13 @@ export default async function OnboardingContentPage() {
    * /billing rather than /onboarding, because that is where the step actually
    * happens and sending them to a list to click one link is a detour.
    */
-  if (!state.hasPlan) redirect("/billing");
+  /*
+    Carries the website through, so billing charges the site being set up
+    rather than whichever one the switcher last remembered.
+  */
+  if (!state.hasPlan) {
+    redirect(siteParam ? `/billing?site=${siteParam}` : "/billing");
+  }
 
   const [site] = await db
     .select({

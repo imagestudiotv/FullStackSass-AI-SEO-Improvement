@@ -1,4 +1,4 @@
-import { count, eq } from "drizzle-orm";
+import { and, asc, count, eq } from "drizzle-orm";
 import { cache } from "react";
 
 import { isEntitled } from "@/lib/billing-shared";
@@ -65,6 +65,20 @@ export type OnboardingState = {
  */
 export const getOnboardingState = cache(async function getOnboardingState(
   orgId: string,
+  /**
+   * Which website setup is about.
+   *
+   * Setup is per WEBSITE, not per account: a second site needs its own plan,
+   * its own profile check, its own visibility questions and its own first
+   * article, exactly as the first did. Without this the state always described
+   * whichever site the database happened to return first, so adding a second
+   * one looked complete the moment it was created.
+   *
+   * Omitted, it falls back to the OLDEST site, which is the one a returning
+   * customer means by "my website". An id from another workspace simply finds
+   * nothing — the query is scoped by orgId either way.
+   */
+  websiteId?: string,
 ): Promise<OnboardingState> {
   const [subscription, agency, sites] = await Promise.all([
     getSubscription(orgId),
@@ -79,7 +93,21 @@ export const getOnboardingState = cache(async function getOnboardingState(
         brandName: websites.brandName,
       })
       .from(websites)
-      .where(eq(websites.organizationId, orgId))
+      .where(
+        websiteId
+          ? and(
+              eq(websites.organizationId, orgId),
+              eq(websites.id, websiteId),
+            )
+          : eq(websites.organizationId, orgId),
+      )
+      /*
+        Oldest first. The query had no ordering at all, so "the website" was
+        whichever row Postgres returned — which is stable in practice and
+        arbitrary in principle, and would have started changing the moment a
+        second site existed.
+      */
+      .orderBy(asc(websites.createdAt))
       .limit(1),
   ]);
 

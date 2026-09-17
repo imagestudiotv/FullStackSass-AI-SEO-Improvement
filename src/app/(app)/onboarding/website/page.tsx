@@ -16,9 +16,18 @@ export const dynamic = "force-dynamic";
  * Everything after this depends on having crawled something, so this is the
  * only screen in setup that cannot be skipped.
  */
-export default async function OnboardingWebsitePage() {
+export default async function OnboardingWebsitePage({
+  searchParams,
+}: PageProps<"/onboarding/website">) {
   await requireSession();
   const { orgId } = await requireOrg();
+
+  const params = await searchParams;
+  /**
+   * Set when the customer came here to add ANOTHER website, from the
+   * dashboard or the switcher, rather than being walked through their first.
+   */
+  const addingAnother = params.next === "1";
 
   const state = await getOnboardingState(orgId);
 
@@ -38,8 +47,15 @@ export default async function OnboardingWebsitePage() {
    * generate anything, which checkLimit enforces where the spending happens.
    */
 
-  // Already added: go on to the profile rather than offering to add a second.
-  if (state.websiteId) {
+  /**
+   * Already has a website: continue that setup rather than offering to add a
+   * second — UNLESS adding another is exactly what was asked for.
+   *
+   * Without the exception this page was unreachable for anyone who already
+   * had a site, which is every customer adding their second one. They got
+   * bounced to the profile of a site they set up weeks ago.
+   */
+  if (state.websiteId && !addingAnother) {
     redirect("/onboarding/profile");
   }
 

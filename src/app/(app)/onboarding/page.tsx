@@ -33,12 +33,25 @@ export const dynamic = "force-dynamic";
  * A parallel set of onboarding-only forms would be a second copy of the same
  * logic, and the two would drift.
  */
-export default async function OnboardingPage() {
+export default async function OnboardingPage({
+  searchParams,
+}: PageProps<"/onboarding">) {
   await requireSession();
   const { orgId } = await requireOrg();
 
+  /**
+   * Which website this run of setup is about.
+   *
+   * Setup is per website: a second site needs its own plan, profile check,
+   * visibility questions and first article. Without the parameter the state
+   * describes the oldest site, which is right for a returning customer and
+   * wrong the moment someone adds another one.
+   */
+  const params = await searchParams;
+  const siteParam = typeof params.site === "string" ? params.site : undefined;
+
   const [state, subscription, paypalAvailable, allPlans] = await Promise.all([
-    getOnboardingState(orgId),
+    getOnboardingState(orgId, siteParam),
     getSubscription(orgId),
     isPayPalAvailable(),
     listPlans(),
