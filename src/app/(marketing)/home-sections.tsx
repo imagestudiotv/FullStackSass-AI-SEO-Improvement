@@ -78,12 +78,12 @@ export type SectionProps = {
  * translator could break the build with.
  */
 const HERO_CARD_STYLE: { icon: LucideIcon; className: string }[] = [
-  { icon: Search, className: "left-[3%] top-2 -rotate-6" },
-  { icon: Bot, className: "left-[0%] top-28 rotate-3" },
-  { icon: Users, className: "left-[4%] top-[12.5rem] -rotate-3" },
-  { icon: Sparkles, className: "right-[3%] top-0 rotate-6" },
-  { icon: Link2, className: "right-[0%] top-28 -rotate-3" },
-  { icon: TrendingUp, className: "right-[4%] top-[12.5rem] rotate-3" },
+  { icon: Search, className: "left-[3%] top-4 -rotate-6" },
+  { icon: Bot, className: "left-[0%] top-32 rotate-3" },
+  { icon: Users, className: "left-[4%] top-[14rem] -rotate-3" },
+  { icon: Sparkles, className: "right-[3%] top-2 rotate-6" },
+  { icon: Link2, className: "right-[0%] top-32 -rotate-3" },
+  { icon: TrendingUp, className: "right-[4%] top-[14rem] rotate-3" },
 ];
 
 /** The shared lg size is h-9 — right for a form, too small for a hero. */
@@ -91,7 +91,7 @@ const CTA = "h-12 rounded-full px-7 text-base";
 
 export function Hero({ t, href }: SectionProps) {
   return (
-    <section className="relative overflow-hidden bg-gradient-to-b from-primary/[0.055] via-background to-background px-4 pt-10 pb-12 sm:pt-14">
+    <section className="relative overflow-hidden bg-gradient-to-b from-primary/[0.055] via-background to-background px-4 pt-14 pb-12 sm:pt-20">
       {/*
         The soft warm wash the design puts behind the cards. A radial tint
         rather than an image: it costs no request and scales to any width.
@@ -180,7 +180,16 @@ export function Hero({ t, href }: SectionProps) {
         overlap the headline or stack into a meaningless list.
       */}
       <div
-        className="pointer-events-none absolute inset-x-0 top-0 mx-auto hidden h-full max-w-7xl xl:block"
+        /*
+          Inset from the top rather than pinned to it.
+
+          The cards are positioned against this layer, so a card at top-0 sat
+          at the section's very top edge — which begins directly beneath the
+          sticky header, and the two topmost cards slid under it. Starting the
+          layer below the header means no card can reach it however these
+          offsets are tuned later.
+        */
+        className="pointer-events-none absolute inset-x-0 top-6 mx-auto hidden h-full max-w-7xl xl:block"
         aria-hidden="true"
       >
         {/*
@@ -197,7 +206,7 @@ export function Hero({ t, href }: SectionProps) {
         */}
         <svg
           className="absolute inset-0 h-full w-full"
-          viewBox="0 0 1000 400"
+          viewBox="0 0 1000 420"
           preserveAspectRatio="none"
           fill="none"
         >
