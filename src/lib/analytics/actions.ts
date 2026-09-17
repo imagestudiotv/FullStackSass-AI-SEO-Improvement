@@ -3,7 +3,7 @@
 import { and, desc, eq, gte, lt, sql as raw } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
-import { inngest } from "@/inngest/client";
+import { queueJob } from "@/inngest/send";
 import { signState } from "@/app/api/integrations/google/callback/route";
 import {
   disconnect,
@@ -162,7 +162,7 @@ export async function startImport(
     return { ok: false, error: "Choose a property to import from first" };
   }
 
-  await inngest.send({
+  await queueJob({
     name: "website/analytics.import.requested",
     data: { websiteId: site.id, organizationId: orgId },
   });

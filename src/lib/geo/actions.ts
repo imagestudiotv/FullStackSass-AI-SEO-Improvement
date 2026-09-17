@@ -13,7 +13,7 @@ import {
   type GeoOverview,
   type GeoPromptView,
 } from "@/lib/geo/shared";
-import { inngest } from "@/inngest/client";
+import { queueJob } from "@/inngest/send";
 import { requireWebsite } from "@/lib/tenant";
 import type { ActionResult } from "@/lib/websites/actions";
 
@@ -271,7 +271,7 @@ export async function runGeoCheck(
     return { ok: false, error: "Add a question first" };
   }
 
-  await inngest.send({
+  await queueJob({
     name: "geo/check.requested",
     data: { websiteId: site.id },
   });

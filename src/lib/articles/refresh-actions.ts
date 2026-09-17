@@ -11,7 +11,7 @@ import {
   type DecayedPage,
   type TrafficPoint,
 } from "@/lib/articles/decay";
-import { inngest } from "@/inngest/client";
+import { queueJob } from "@/inngest/send";
 import { requireWebsite } from "@/lib/tenant";
 import { checkLimit } from "@/lib/usage";
 import type { ActionResult } from "@/lib/websites/actions";
@@ -96,7 +96,7 @@ export async function refreshArticle(
     .set({ status: "generating", error: null, updatedAt: new Date() })
     .where(eq(articles.id, articleId));
 
-  await inngest.send({
+  await queueJob({
     name: "article/generate.requested",
     data: { articleId, websiteId: site.id, organizationId: orgId },
   });

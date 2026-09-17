@@ -3,7 +3,7 @@
 import { and, desc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
-import { inngest } from "@/inngest/client";
+import { queueJob } from "@/inngest/send";
 import { encryptSecret, maskSecret } from "@/lib/crypto";
 import { db } from "@/lib/db";
 import { articles, integrations, publishLogs } from "@/lib/db/schema";
@@ -285,7 +285,7 @@ export async function publishArticle(
     return { ok: false, error: "Connect somewhere to publish to first" };
   }
 
-  await inngest.send({
+  await queueJob({
     name: "article/publish.requested",
     data: { articleId, websiteId: site.id, organizationId: orgId, status },
   });

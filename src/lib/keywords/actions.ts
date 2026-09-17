@@ -3,7 +3,7 @@
 import { and, asc, desc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
-import { inngest } from "@/inngest/client";
+import { queueJob } from "@/inngest/send";
 import { db } from "@/lib/db";
 import { calendarItems, clusters, keywords } from "@/lib/db/schema";
 import { requireWebsite } from "@/lib/tenant";
@@ -111,7 +111,7 @@ export async function startResearch(
     return { ok: false, error: "Wait until the site has been analysed first" };
   }
 
-  await inngest.send({
+  await queueJob({
     name: "website/research.requested",
     data: { websiteId: site.id, organizationId: orgId },
   });

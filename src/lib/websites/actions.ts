@@ -3,7 +3,7 @@
 import { and, desc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
-import { inngest } from "@/inngest/client";
+import { queueJob } from "@/inngest/send";
 import { db } from "@/lib/db";
 import { competitors, websites } from "@/lib/db/schema";
 import { requireOrg, requireWebsite } from "@/lib/tenant";
@@ -109,7 +109,7 @@ export async function addWebsite(
    * takes seconds to tens of seconds, which is far too long to hold a form
    * submission open. The row is already visible as "pending".
    */
-  await inngest.send({
+  await queueJob({
     name: "website/analyze.requested",
     data: { websiteId: created.id, organizationId: orgId },
   });
@@ -380,7 +380,7 @@ export async function reanalyzeWebsite(
     .set({ status: "pending", updatedAt: new Date() })
     .where(eq(websites.id, site.id));
 
-  await inngest.send({
+  await queueJob({
     name: "website/analyze.requested",
     data: { websiteId: site.id, organizationId: orgId },
   });
