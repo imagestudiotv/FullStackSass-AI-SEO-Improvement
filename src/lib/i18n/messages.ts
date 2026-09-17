@@ -93,6 +93,16 @@ export type Messages = {
     /** "Free with your audit" band. */
     auditBand: string;
     auditItems: { title: string; body: string }[];
+    /** Placeholder in the homepage audit field. */
+    auditPlaceholder: string;
+    /**
+     * The reassurances under the audit card.
+     *
+     * The design shows "Cancel anytime" and "No questions asked", which are
+     * about a SUBSCRIPTION — nothing is being subscribed to here, and the
+     * check needs no account at all. These say what is actually true of it.
+     */
+    auditAssurances: string[];
     checkMyWebsite: string;
     howItWorks: string;
     steps: { title: string; body: string }[];
@@ -403,6 +413,11 @@ const en: Messages = {
         title: "Your first backlink",
         body: "One link from a real business in a related field, earned rather than bought.",
       },
+    ],
+    auditPlaceholder: "Enter your website",
+    auditAssurances: [
+      "No account needed",
+      "Nothing to cancel",
     ],
     checkMyWebsite: "Check my website",
     howItWorks: "How it works",
@@ -818,6 +833,11 @@ const es: Messages = {
         title: "Su primer enlace",
         body: "Un enlace de una empresa real de un sector afín, ganado y no comprado.",
       },
+    ],
+    auditPlaceholder: "Introduzca su web",
+    auditAssurances: [
+      "Sin crear cuenta",
+      "Nada que cancelar",
     ],
     checkMyWebsite: "Analizar mi web",
     howItWorks: "Cómo funciona",
@@ -1235,6 +1255,11 @@ const fr: Messages = {
         body: "Un lien d'une entreprise réelle d'un secteur proche, gagné et non acheté.",
       },
     ],
+    auditPlaceholder: "Entrez votre site",
+    auditAssurances: [
+      "Sans créer de compte",
+      "Rien à annuler",
+    ],
     checkMyWebsite: "Analyser mon site",
     howItWorks: "Comment ça marche",
     steps: [
@@ -1651,6 +1676,11 @@ const it: Messages = {
         body: "Un link da un'azienda reale di un settore affine, guadagnato e non comprato.",
       },
     ],
+    auditPlaceholder: "Inserisca il suo sito",
+    auditAssurances: [
+      "Senza registrarsi",
+      "Nulla da annullare",
+    ],
     checkMyWebsite: "Analizza il mio sito",
     howItWorks: "Come funziona",
     steps: [
@@ -2065,6 +2095,11 @@ const de: Messages = {
         title: "Ihr erster Backlink",
         body: "Ein Link von einem echten Unternehmen aus einer verwandten Branche, verdient statt gekauft.",
       },
+    ],
+    auditPlaceholder: "Ihre Website eingeben",
+    auditAssurances: [
+      "Kein Konto nötig",
+      "Nichts zu kündigen",
     ],
     checkMyWebsite: "Website prüfen",
     howItWorks: "So funktioniert es",

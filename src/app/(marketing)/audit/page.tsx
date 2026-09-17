@@ -1,7 +1,10 @@
 import { Bot, FileSearch, ListChecks } from "lucide-react";
 
+import { Suspense } from "react";
+
 import { runPublicAudit } from "@/lib/audit/public-audit";
 import { AuditForm } from "./audit-form";
+import { AuditProgress } from "./audit-progress";
 import { AuditResult } from "./audit-result";
 
 export const metadata = {
@@ -26,8 +29,6 @@ export default async function AuditPage({
 }: PageProps<"/audit">) {
   const params = await searchParams;
   const domain = typeof params.domain === "string" ? params.domain.trim() : "";
-
-  const outcome = domain ? await runPublicAudit(domain) : null;
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-16 sm:py-20">
@@ -58,7 +59,7 @@ export default async function AuditPage({
         that something real is happening, without pretending to a progress bar
         we cannot honestly drive from a server component.
       */}
-      {!outcome ? (
+      {!domain ? (
         <div className="mt-16 grid gap-4 sm:grid-cols-3">
           {[
             {
@@ -86,17 +87,43 @@ export default async function AuditPage({
         </div>
       ) : null}
 
-      {outcome && !outcome.ok ? (
-        <div
-          className="mx-auto mt-8 max-w-xl rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm"
-          role="alert"
-        >
-          <p className="font-medium">We could not check that website</p>
-          <p className="mt-1 text-muted-foreground">{outcome.error.message}</p>
-        </div>
-      ) : null}
+      {/*
+        Streamed, so the progress screen is the fallback while the crawl runs.
 
-      {outcome?.ok ? <AuditResult result={outcome.result} /> : null}
+        The audit await used to sit in this component, which meant the whole
+        page waited on it: the visitor pressed the button, the button label
+        changed, and then nothing moved for the length of a real crawl. Moving
+        the await into its own component lets everything above render
+        immediately and the progress screen show underneath it.
+
+        keyed on the domain so checking a second site remounts the fallback
+        rather than leaving the previous result on screen while the new one
+        runs.
+      */}
+      {domain ? (
+        <Suspense key={domain} fallback={<AuditProgress domain={domain} />}>
+          <AuditOutcome domain={domain} />
+        </Suspense>
+      ) : null}
     </div>
   );
+}
+
+/** The crawl itself, isolated so only this part suspends. */
+async function AuditOutcome({ domain }: { domain: string }) {
+  const outcome = await runPublicAudit(domain);
+
+  if (!outcome.ok) {
+    return (
+      <div
+        className="mx-auto mt-8 max-w-xl rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm"
+        role="alert"
+      >
+        <p className="font-medium">We could not check that website</p>
+        <p className="mt-1 text-muted-foreground">{outcome.error.message}</p>
+      </div>
+    );
+  }
+
+  return <AuditResult result={outcome.result} />;
 }

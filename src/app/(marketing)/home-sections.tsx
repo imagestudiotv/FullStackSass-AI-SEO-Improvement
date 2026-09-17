@@ -25,6 +25,7 @@ import Link from "next/link";
 import { BrandMark } from "@/components/brand-logo";
 import { Button } from "@/components/ui/button";
 import { GoogleMark } from "@/components/google-mark";
+import { AuditQuickForm } from "./audit-quick-form";
 import { Card, CardContent } from "@/components/ui/card";
 import type { Messages } from "@/lib/i18n/messages";
 
@@ -707,45 +708,85 @@ export function WorksWith({ t }: SectionProps) {
 /* Free-with-your-audit band                                                  */
 /* -------------------------------------------------------------------------- */
 
+/** Order matches auditItems in the dictionary. */
+const AUDIT_ICONS: LucideIcon[] = [Search, BarChart3, Link2];
+
 export function AuditBand({ t, href }: SectionProps) {
   return (
     <section className="px-4 pb-20">
-      <div className="mx-auto max-w-6xl rounded-2xl border bg-card p-6 shadow-sm sm:p-8">
-        <p className="text-xs font-semibold tracking-[0.14em] text-primary uppercase">
-          {t.auditBand}
-        </p>
+      {/*
+        The glow the design puts behind this card. It is the page's primary
+        conversion point, and the surrounding sections are plain, so a tinted
+        ring is what separates it from the rest rather than making it louder.
+      */}
+      <div className="mx-auto max-w-4xl">
+        <div className="rounded-3xl bg-gradient-to-b from-primary/25 to-primary/5 p-[1.5px] shadow-[0_24px_70px_-30px_rgba(234,88,12,0.35)]">
+          <div className="rounded-3xl bg-card p-6 sm:p-8">
+            <p className="text-center text-xs font-semibold tracking-[0.14em] text-primary uppercase">
+              {t.auditBand}
+            </p>
 
-        <div className="mt-6 grid gap-6 sm:grid-cols-3">
-          {t.auditItems.map((item, index) => (
-            <div key={item.title} className="sm:pr-4">
-              <p className="flex items-center gap-2 text-sm font-medium">
-                <span className="text-primary">{index + 1}.</span>
-                {item.title}
-              </p>
-              <p className="mt-1.5 text-sm text-muted-foreground">
-                {item.body}
-              </p>
+            <div className="mt-6 grid gap-6 sm:grid-cols-3 sm:gap-0">
+              {t.auditItems.map((item, index) => {
+                const Icon = AUDIT_ICONS[index] ?? Search;
+                return (
+                  <div
+                    key={item.title}
+                    /*
+                      Dividers only from sm, where the three sit in a row. At
+                      phone width they stack and a vertical rule would fall
+                      between nothing.
+                    */
+                    className="sm:px-5 sm:not-first:border-l"
+                  >
+                    <p className="flex items-start gap-2 font-semibold">
+                      <Icon
+                        className="mt-0.5 size-4 shrink-0 text-primary"
+                        aria-hidden="true"
+                      />
+                      <span>
+                        <span className="text-primary">{index + 1}.</span>{" "}
+                        {item.title}
+                      </span>
+                    </p>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      {item.body}
+                    </p>
+                  </div>
+                );
+              })}
             </div>
-          ))}
+
+            {/*
+              A real field, as the design draws it — but it only carries the
+              domain to /audit rather than running anything here. That page
+              owns the validation, the SSRF guard and the caching; a second
+              entry point that did its own crawling would be a second copy of
+              all of it, and the two would drift.
+            */}
+            <div className="mt-8">
+              <AuditQuickForm
+                placeholder={t.auditPlaceholder}
+                cta={t.checkMyWebsite}
+                action={href("/audit")}
+              />
+            </div>
+          </div>
         </div>
 
-        {/*
-          The design puts a domain field here. Ours links to /audit rather than
-          duplicating the form: that page already handles validation, rate
-          limiting and the SSRF guard, and a second entry point would be a
-          second copy of all of it.
-        */}
-        <div className="mt-7">
-          <Button
-            size="lg"
-            asChild
-            className="h-12 w-full rounded-full px-7 text-base sm:w-auto"
-          >
-            <Link href={href("/audit")}>
-              {t.checkMyWebsite}
-              <ArrowRight className="size-4" />
-            </Link>
-          </Button>
+        {/* The two reassurances from the design, under the card. */}
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm">
+          {t.auditAssurances.map((item) => (
+            <span key={item} className="flex items-center gap-1.5">
+              <span className="flex size-4 items-center justify-center rounded bg-emerald-500/15">
+                <Check
+                  className="size-3 text-emerald-600"
+                  aria-hidden="true"
+                />
+              </span>
+              {item}
+            </span>
+          ))}
         </div>
       </div>
     </section>
