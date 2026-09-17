@@ -3,17 +3,18 @@ import {
   ArrowRight,
   Bot,
   Check,
+  FileText,
   Globe,
   Info,
   Languages,
   Layers,
   Link2,
+  ListChecks,
   Lock,
   X,
 } from "lucide-react";
 import Link from "next/link";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { fixFor } from "@/lib/audit/fixes";
@@ -107,6 +108,77 @@ function ScoreRing({ score }: { score: number }) {
   );
 }
 
+/**
+ * The severity mix as one bar.
+ *
+ * Widths are proportional to the counts, so the bar answers "what kind of
+ * problems are these" before any label is read. Every segment keeps a minimum
+ * width so a single critical finding among ninety suggestions is still
+ * visible — a sliver too thin to see would hide the most important number on
+ * the page.
+ */
+function SeverityBar({
+  counts,
+}: {
+  counts: { critical: number; warning: number; info: number };
+}) {
+  const total = counts.critical + counts.warning + counts.info;
+
+  const segments = [
+    { key: "critical", n: counts.critical, className: "bg-destructive", label: "critical" },
+    { key: "warning", n: counts.warning, className: "bg-amber-500", label: "warnings" },
+    { key: "info", n: counts.info, className: "bg-blue-500", label: "suggestions" },
+  ].filter((segment) => segment.n > 0);
+
+  return (
+    <div className="mt-4">
+      {total === 0 ? (
+        <p className="text-sm text-emerald-600 dark:text-emerald-400">
+          Nothing wrong on the pages we read.
+        </p>
+      ) : (
+        <>
+          <div
+            className="flex h-2.5 gap-0.5 overflow-hidden rounded-full"
+            role="img"
+            aria-label={segments
+              .map((segment) => `${segment.n} ${segment.label}`)
+              .join(", ")}
+          >
+            {segments.map((segment) => (
+              <span
+                key={segment.key}
+                className={`${segment.className} rounded-full`}
+                style={{
+                  // 8% floor, so one finding among many is still a visible mark.
+                  width: `${Math.max(8, (segment.n / total) * 100)}%`,
+                }}
+              />
+            ))}
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-sm">
+            {[
+              { n: counts.critical, label: "critical", dot: "bg-destructive" },
+              { n: counts.warning, label: "warnings", dot: "bg-amber-500" },
+              { n: counts.info, label: "suggestions", dot: "bg-blue-500" },
+            ].map((item) => (
+              <span key={item.label} className="flex items-center gap-1.5">
+                <span
+                  className={`size-2 rounded-full ${item.n > 0 ? item.dot : "bg-muted"}`}
+                  aria-hidden="true"
+                />
+                <span className="font-semibold tabular-nums">{item.n}</span>
+                <span className="text-muted-foreground">{item.label}</span>
+              </span>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export function AuditResult({ result }: { result: PublicAuditResult }) {
   const blockedCrawlers = result.crawlers.filter((c) => !c.allowed);
 
@@ -133,22 +205,14 @@ export function AuditResult({ result }: { result: PublicAuditResult }) {
             </p>
 
             {/*
-              A zero count is good news, so it is never shown in alarm colours —
-              a red "0 critical" reads as a problem at a glance.
+              A stacked bar rather than three loose badges.
+
+              The proportions are the point: "12 warnings" means little on its
+              own, while a bar that is mostly amber says at a glance where the
+              work is. A zero count contributes no segment and shows no alarm
+              colour — a red "0 critical" reads as a problem.
             */}
-            <div className="mt-4 flex flex-wrap gap-2">
-              <Badge
-                variant={
-                  result.counts.critical > 0 ? "destructive" : "secondary"
-                }
-              >
-                {result.counts.critical} critical
-              </Badge>
-              <Badge variant={result.counts.warning > 0 ? "default" : "secondary"}>
-                {result.counts.warning} warnings
-              </Badge>
-              <Badge variant="secondary">{result.counts.info} suggestions</Badge>
-            </div>
+            <SeverityBar counts={result.counts} />
           </div>
 
           <ScoreRing score={result.score} />
@@ -203,15 +267,70 @@ export function AuditResult({ result }: { result: PublicAuditResult }) {
         className={blockedCrawlers.length > 0 ? "border-destructive/40" : undefined}
       >
         <CardContent className="py-6">
-          <p className="flex items-center gap-2 font-medium">
-            <Bot className="size-4 text-primary" aria-hidden="true" />
-            Can AI assistants read your site?
-          </p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {blockedCrawlers.length === 0
-              ? "Your robots.txt lets every major AI crawler through."
-              : `Your robots.txt blocks ${blockedCrawlers.length} of them. They cannot cite a site they are not allowed to read.`}
-          </p>
+          <div className="flex items-start gap-5">
+            <div className="min-w-0 flex-1">
+              <p className="flex items-center gap-2 font-medium">
+                <Bot className="size-4 text-primary" aria-hidden="true" />
+                Can AI assistants read your site?
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {blockedCrawlers.length === 0
+                  ? "Your robots.txt lets every major AI crawler through."
+                  : `Your robots.txt blocks ${blockedCrawlers.length} of them. They cannot cite a site they are not allowed to read.`}
+              </p>
+            </div>
+
+            {/*
+              The allowed fraction as a dial.
+
+              A yes/no list answers "which ones" but not "how bad is this",
+              and the count is the thing a visitor takes away. Green when
+              everything is through, amber otherwise — the same scale the score
+              ring uses, so the two do not disagree about what good looks like.
+            */}
+            <div className="relative shrink-0">
+              <svg viewBox="0 0 72 72" className="size-16" aria-hidden="true">
+                <circle
+                  cx="36"
+                  cy="36"
+                  r="30"
+                  fill="none"
+                  stroke="currentColor"
+                  className="text-muted"
+                  strokeWidth="8"
+                />
+                <circle
+                  cx="36"
+                  cy="36"
+                  r="30"
+                  fill="none"
+                  stroke="currentColor"
+                  className={
+                    blockedCrawlers.length === 0
+                      ? "text-emerald-500"
+                      : "text-amber-500"
+                  }
+                  strokeWidth="8"
+                  strokeLinecap="round"
+                  /* 188.5 is the circumference at r=30. */
+                  strokeDasharray="188.5"
+                  strokeDashoffset={
+                    188.5 *
+                    (1 -
+                      (result.crawlers.length - blockedCrawlers.length) /
+                        Math.max(result.crawlers.length, 1))
+                  }
+                  transform="rotate(-90 36 36)"
+                />
+              </svg>
+              <span className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-sm font-semibold tabular-nums">
+                  {result.crawlers.length - blockedCrawlers.length}/
+                  {result.crawlers.length}
+                </span>
+              </span>
+            </div>
+          </div>
 
           <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {result.crawlers.map((crawler) => (
@@ -388,16 +507,93 @@ export function AuditResult({ result }: { result: PublicAuditResult }) {
             </Button>
           </CardContent>
         </Card>
-      ) : (
-        <div className="text-center">
-          <Button asChild className="h-11 rounded-full px-6">
-            <Link href="/sign-up">
-              Get Started
-              <ArrowRight className="size-4" />
-            </Link>
-          </Button>
-        </div>
-      )}
+      ) : null}
+
+      {/*
+        The join block.
+
+        A bare "sign up" button after a page of findings asks the visitor to
+        take it on faith that signing up does something about them. This names
+        what happens next, in the order it happens, and every line is a real
+        feature rather than a promise — the fixes come from the findings above,
+        the articles from the content planner, the links from the exchange.
+
+        Kept to three so it reads as a next step rather than a pricing table;
+        the plans are one click away for anyone who wants them.
+      */}
+      <Card className="border-primary/30 bg-primary/[0.03]">
+        <CardContent className="py-8">
+          <div className="text-center">
+            <p className="text-xs font-semibold tracking-[0.14em] text-primary uppercase">
+              What happens when you join
+            </p>
+            <h3 className="mt-3 text-2xl font-semibold tracking-tight text-balance">
+              We fix what we found, then keep going
+            </h3>
+          </div>
+
+          <div className="mt-7 grid gap-5 sm:grid-cols-3">
+            {[
+              {
+                icon: ListChecks,
+                title: "Every finding, in order",
+                body: `All ${
+                  result.counts.critical +
+                  result.counts.warning +
+                  result.counts.info +
+                  result.hiddenIssues
+                } of them, with what to change and how long it takes.`,
+              },
+              {
+                icon: FileText,
+                title: "Articles written for you",
+                body: "Researched from what your customers search for, published to your own site.",
+              },
+              {
+                icon: Link2,
+                title: "Real backlinks, earned",
+                body: "Host one article for a related business and earn a link back to yours.",
+              },
+            ].map((item) => {
+              const Icon = item.icon;
+              return (
+                <div key={item.title} className="text-center sm:text-left">
+                  <span className="inline-flex size-10 items-center justify-center rounded-xl bg-primary/10">
+                    <Icon
+                      className="size-5 text-primary"
+                      aria-hidden="true"
+                    />
+                  </span>
+                  <p className="mt-3 font-semibold">{item.title}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {item.body}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+            <Button asChild className="h-12 rounded-full px-7 text-base font-semibold">
+              <Link href="/sign-up">
+                Get Started
+                <ArrowRight className="size-4" />
+              </Link>
+            </Button>
+            <Button
+              variant="outline"
+              asChild
+              className="h-12 rounded-full px-7 text-base"
+            >
+              <Link href="/pricing">See pricing</Link>
+            </Button>
+          </div>
+
+          <p className="mt-4 text-center text-xs text-muted-foreground">
+            Plans start at EUR 1 for the first month.
+          </p>
+        </CardContent>
+      </Card>
 
       {result.cached ? (
         <p className="text-center text-xs text-muted-foreground">
