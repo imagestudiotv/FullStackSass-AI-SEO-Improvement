@@ -23,11 +23,21 @@ export default async function OnboardingWebsitePage() {
 
   const state = await getOnboardingState(orgId);
 
-  // No plan means no website allowance, and adding one would fail the limit
-  // check with a billing error that reads as a bug.
-  if (!state.steps.find((step) => step.id === "plan")?.done) {
-    redirect("/onboarding");
-  }
+  /**
+   * NO PLAN GATE HERE — DELIBERATELY.
+   *
+   * This used to redirect to /onboarding unless a plan was already chosen.
+   * That contradicted the checklist, which lists "Add your website" first and
+   * "Choose a plan" second: clicking step one bounced you straight back to the
+   * list you came from, with nothing on screen explaining why. A customer with
+   * no plan could never reach this page at all.
+   *
+   * The gate was written when a plan carried a website allowance. It no longer
+   * does — billing is per website now, so a site is added first and then
+   * subscribed, and adding one cannot fail a limit check because there is no
+   * limit left to fail. The real gate is that an unsubscribed website cannot
+   * generate anything, which checkLimit enforces where the spending happens.
+   */
 
   // Already added: go on to the profile rather than offering to add a second.
   if (state.websiteId) {
