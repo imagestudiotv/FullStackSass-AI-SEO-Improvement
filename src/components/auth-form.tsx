@@ -151,7 +151,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
       </h1>
       <p className="mt-2 text-muted-foreground">
         {isSignUp
-          ? "Get started in minutes. No credit card required."
+          ? "Get started in minutes."
           : "Sign in to access your dashboard."}
       </p>
 

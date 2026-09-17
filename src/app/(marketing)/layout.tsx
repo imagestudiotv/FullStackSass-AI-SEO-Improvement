@@ -1,10 +1,10 @@
-import Link from "next/link";
 
 import {
   MarketingFooterLinks,
   MarketingNav,
   MarketingTagline,
 } from "@/components/marketing-nav";
+import { BrandHomeLink } from "@/components/brand-home-link";
 import { BrandLogo } from "@/components/brand-logo";
 import { LiveChat } from "@/components/live-chat";
 
@@ -27,10 +27,10 @@ export default function MarketingLayout({ children }: LayoutProps<"/">) {
       */}
       <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <div className="mx-auto flex h-14 max-w-6xl items-center gap-4 px-4">
-          <Link href="/" aria-label="RepGet home" className="flex items-center">
+          <BrandHomeLink className="flex items-center">
             {/* The page's primary logo, so it is not lazy-loaded. */}
             <BrandLogo height={24} priority />
-          </Link>
+          </BrandHomeLink>
           <MarketingNav />
         </div>
       </header>

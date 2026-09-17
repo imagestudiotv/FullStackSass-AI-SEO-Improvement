@@ -1,6 +1,6 @@
 "use client";
 
-import { Quote, Star } from "lucide-react";
+import { ChevronDown, Quote, Star } from "lucide-react";
 import { useEffect, useState } from "react";
 
 /**
@@ -112,7 +112,14 @@ export function AuthShowcase() {
 
   return (
     <div
-      className="relative hidden flex-col justify-center overflow-hidden bg-gradient-to-br from-primary/[0.07] via-background to-primary/[0.04] p-10 lg:flex xl:p-14"
+      /*
+        Scrolls rather than clipping. It was overflow-hidden and centred, so
+        anything past the viewport was simply cut off — and a "more below" cue
+        on a panel that cannot move would be a lie. sticky top-0 with its own
+        height keeps it beside the form while letting its contents run past the
+        fold on a short screen.
+      */
+      className="relative top-0 hidden max-h-svh flex-col justify-center overflow-y-auto bg-gradient-to-br from-primary/[0.07] via-background to-primary/[0.04] p-10 lg:sticky lg:flex xl:p-14"
       /*
         The faint grid from the reference. An inline gradient rather than an
         image: it is two lines, costs no request, and stays crisp at any size.
@@ -199,6 +206,81 @@ export function AuthShowcase() {
                 </p>
               </div>
             ))}
+          </div>
+        </div>
+
+        {/*
+          The separator the client asked for, from babylovegrowth's sign-in: a
+          rule and a nudge, so it is clear the panel continues below the fold
+          rather than ending where the viewport happens to cut it.
+
+          Rendered in flow rather than fixed to the viewport, so it sits under
+          the cards at whatever height they end up and does not float over them
+          on a short screen.
+        */}
+        <div className="mt-10 flex items-center gap-4">
+          <span className="h-px flex-1 bg-border" aria-hidden="true" />
+          <span className="flex items-center gap-1.5 text-xs tracking-wide text-muted-foreground uppercase">
+            Keep scrolling
+            <ChevronDown
+              className="size-3.5 animate-bounce"
+              aria-hidden="true"
+            />
+          </span>
+          <span className="h-px flex-1 bg-border" aria-hidden="true" />
+        </div>
+
+        {/*
+          A visual under the cards, since the panel has room below the fold.
+
+          Built from the product rather than being a photograph: the client
+          offered to let me choose an image, and a stock photo of a business
+          would be a picture of a company that does not use RepGet, sitting on
+          the screen where someone decides whether to trust it. This is the
+          same score dial the dashboard shows, which is a real thing they will
+          see once they are in.
+        */}
+        <div className="mt-8 flex items-center gap-5 rounded-2xl border bg-background/70 p-5 backdrop-blur">
+          <div className="relative shrink-0">
+            <svg viewBox="0 0 96 96" className="size-20" aria-hidden="true">
+              <circle
+                cx="48"
+                cy="48"
+                r="40"
+                fill="none"
+                stroke="currentColor"
+                className="text-muted"
+                strokeWidth="10"
+              />
+              {/*
+                283 is the circumference at r=40. The offset leaves roughly a
+                quarter of the ring unfilled, which reads as a score rather
+                than as a loading spinner frozen mid-turn.
+              */}
+              <circle
+                cx="48"
+                cy="48"
+                r="40"
+                fill="none"
+                stroke="currentColor"
+                className="text-primary"
+                strokeWidth="10"
+                strokeLinecap="round"
+                strokeDasharray="283"
+                strokeDashoffset="64"
+                transform="rotate(-90 48 48)"
+              />
+            </svg>
+            <span className="absolute inset-0 flex items-center justify-center text-xl font-semibold tabular-nums">
+              77
+            </span>
+          </div>
+          <div className="min-w-0">
+            <p className="font-semibold">Your site, scored in a minute</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              What is holding it back, what to fix first, and whether AI
+              assistants mention you — before you pay anything.
+            </p>
           </div>
         </div>
 
