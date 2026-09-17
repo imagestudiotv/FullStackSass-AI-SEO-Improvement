@@ -1,5 +1,6 @@
 import { ArrowRight, Check, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -42,6 +43,32 @@ export default async function OnboardingPage() {
     isPayPalAvailable(),
     listPlans(),
   ]);
+
+  /**
+   * Setup is a flow, not a menu.
+   *
+   * This screen was a checklist of five cards, each linking to where that work
+   * happens. It read as a table of contents in the middle of a task: someone
+   * who has just signed up wants the first question, not a list of the
+   * questions, and every card except one was inert until earlier steps were
+   * done.
+   *
+   * So it forwards to whichever step is actually next. The state already
+   * knows, because the sidebar and the guards read the same value — there is
+   * no second definition of "where am I" to drift from this one.
+   *
+   * It still renders for two cases. Someone with no plan sees the picker
+   * below, because nothing can be bought until a plan is chosen. And a
+   * customer who has finished setup sees the completed list rather than being
+   * bounced somewhere, which is what /onboarding should show if it is ever
+   * opened again from a bookmark.
+   */
+  const next = state.steps.find(
+    (step) => step.id === state.currentId && step.href,
+  );
+  if (next?.href && next.href !== "/onboarding") {
+    redirect(next.href);
+  }
 
   const hasAccess = isEntitled(subscription?.status);
 

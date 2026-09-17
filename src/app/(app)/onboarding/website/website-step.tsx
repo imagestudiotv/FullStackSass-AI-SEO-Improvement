@@ -318,25 +318,37 @@ function WebsiteCard({
         */}
         {preview ? (
           <>
-            <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 border-t pt-4 text-sm text-muted-foreground">
+            {/*
+              The divided detail row from the design: platform, region,
+              category. Each is rendered only when we actually have it, and
+              the dividers come from the items themselves so a missing one
+              does not leave a stray line.
+
+              Region and category come from the FULL analysis, not from this
+              fast look — they need a model reading the page, not a regex over
+              the markup. Rather than show an empty slot, the row says where
+              they are coming from, which is true and sets the expectation for
+              the next step.
+            */}
+            <div className="mt-4 flex flex-wrap items-center gap-y-2 border-t pt-4 text-sm text-muted-foreground">
               {preview.platform ? (
-                <span className="flex items-center gap-1.5">
+                <span className="flex items-center gap-1.5 pr-4">
                   <Check
-                    className="size-3.5 text-emerald-600"
+                    className="size-3.5 shrink-0 text-emerald-600"
                     aria-hidden="true"
                   />
                   {preview.platform}
                 </span>
               ) : null}
               {preview.language ? (
-                <span className="flex items-center gap-1.5">
-                  <Languages className="size-3.5" aria-hidden="true" />
+                <span className="flex items-center gap-1.5 border-l pr-4 pl-4 first:border-l-0 first:pl-0">
+                  <Languages className="size-3.5 shrink-0" aria-hidden="true" />
                   {preview.language.toUpperCase()}
                 </span>
               ) : null}
-              <span className="flex items-center gap-1.5">
-                <Tag className="size-3.5" aria-hidden="true" />
-                Category after analysis
+              <span className="flex items-center gap-1.5 border-l pl-4 first:border-l-0 first:pl-0">
+                <Tag className="size-3.5 shrink-0" aria-hidden="true" />
+                Region and category next
               </span>
             </div>
 

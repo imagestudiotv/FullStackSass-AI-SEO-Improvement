@@ -139,7 +139,37 @@ export function normalizeWebsiteUrl(input: string): NormalizedUrl {
    * Path is kept (some businesses live at example.com/shop) but query strings
    * and fragments are dropped: they are navigation state, never site identity.
    */
-  const path = parsed.pathname.replace(/\/+$/, "");
+  let path = parsed.pathname.replace(/\/+$/, "");
+
+  /**
+   * Admin and account paths are dropped down to the site root.
+   *
+   * Someone pasting the address out of their browser hands us whatever page
+   * they happened to be on, and for a WordPress owner that is very often
+   * /wp-admin/. Analysing it reads a LOGIN SCREEN: the business came out named
+   * "Log In ‹ Image Studio", and the platform came out undetected, because a
+   * login page carries none of the theme assets the fingerprint looks for.
+   *
+   * Prefix matched rather than exact, since these carry sub-paths
+   * (/wp-admin/options-general.php). A real business page is never behind one
+   * of them, so there is nothing to lose by going to the root instead.
+   */
+  const ADMIN_PREFIXES = [
+    "/wp-admin",
+    "/wp-login.php",
+    "/admin",
+    "/administrator",
+    "/login",
+    "/signin",
+    "/sign-in",
+    "/account",
+    "/dashboard",
+    "/user/login",
+  ];
+  const lowerPath = path.toLowerCase();
+  if (ADMIN_PREFIXES.some((prefix) => lowerPath.startsWith(prefix))) {
+    path = "";
+  }
   const port = parsed.port ? `:${parsed.port}` : "";
 
   // Built from `domain`, not `host`: keeping "www." in the URL while the
