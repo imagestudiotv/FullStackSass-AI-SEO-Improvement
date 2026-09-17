@@ -11,7 +11,9 @@ import {
   Hero,
   HowItWorks,
   OneSubscription,
+  Pillars,
   ProblemSolution,
+  ProductPreview,
   Publishing,
   WhatYouSee,
   WorksWith,
@@ -66,6 +68,8 @@ export default async function LocalisedHomePage({
   return (
     <>
       <Hero t={t} href={href} />
+      <ProductPreview t={t} href={href} />
+      <Pillars t={t} href={href} />
       <WorksWith t={t} href={href} />
       <DemoVideo t={t} href={href} />
       <AuditBand t={t} href={href} />

@@ -3,8 +3,10 @@ import {
   BarChart3,
   Bot,
   Check,
+  ChevronDown,
   FileText,
   Link2,
+  Play,
   PlayCircle,
   Search,
   Sparkles,
@@ -14,6 +16,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
+import { BrandMark } from "@/components/brand-logo";
 import { Button } from "@/components/ui/button";
 import { GoogleMark } from "@/components/google-mark";
 import { Card, CardContent } from "@/components/ui/card";
@@ -82,15 +85,34 @@ const CTA = "h-12 rounded-full px-7 text-base";
 
 export function Hero({ t, href }: SectionProps) {
   return (
-    <section className="relative overflow-hidden px-4 pt-16 pb-20 sm:pt-24">
+    <section className="relative overflow-hidden bg-gradient-to-b from-primary/[0.055] via-background to-background px-4 pt-16 pb-20 sm:pt-24">
+      {/*
+        The soft warm wash the design puts behind the cards. A radial tint
+        rather than an image: it costs no request and scales to any width.
+        Behind everything, so the cards and headline stay crisp on top.
+      */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 -z-10"
+        style={{
+          backgroundImage:
+            "radial-gradient(ellipse 70% 55% at 50% 0%, rgba(234,88,12,0.10), transparent 70%)",
+        }}
+      />
       <div className="mx-auto max-w-4xl text-center">
         <p className="text-xs font-semibold tracking-[0.14em] text-primary uppercase">
           {t.eyebrow}
         </p>
 
+        {/*
+          Two lines, the second in the brand colour, as drawn. The break is a
+          <br /> rather than a wrap, so it falls in the same place at every
+          width instead of only on a wide screen.
+        */}
         <h1 className="mt-5 text-4xl font-semibold tracking-tight text-balance sm:text-6xl">
-          {t.title}
-          <span className="text-primary">.</span>
+          {t.titleLead}
+          <br />
+          <span className="text-primary">{t.titleAccent}</span>
         </h1>
 
         <p className="mx-auto mt-5 max-w-xl text-lg text-pretty text-muted-foreground">
@@ -135,10 +157,13 @@ export function Hero({ t, href }: SectionProps) {
         */}
         <a
           href="#how-it-works-video"
-          className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-foreground transition-colors hover:text-primary"
+          className="mt-7 inline-flex items-center gap-2.5 text-sm font-medium text-foreground transition-colors hover:text-primary"
         >
-          <PlayCircle className="size-7 text-primary" aria-hidden="true" />
+          <span className="flex size-9 items-center justify-center rounded-full bg-primary text-primary-foreground">
+            <Play className="size-4 fill-current" aria-hidden="true" />
+          </span>
           {t.seeHow}
+          <ChevronDown className="size-4 text-muted-foreground" aria-hidden="true" />
         </a>
       </div>
 
@@ -150,13 +175,56 @@ export function Hero({ t, href }: SectionProps) {
         className="pointer-events-none absolute inset-x-0 top-0 mx-auto hidden h-full max-w-7xl xl:block"
         aria-hidden="true"
       >
+        {/*
+          The curved threads linking the cards back towards the middle.
+
+          One SVG on a viewBox rather than six positioned elements: the curves
+          have to meet the cards at the right angle, and expressing that as
+          absolutely positioned divs would be six numbers to re-tune every time
+          a card moves. preserveAspectRatio="none" lets the whole set stretch
+          with the container, which is what keeps the ends attached.
+
+          Decorative, so it is inside the aria-hidden wrapper and adds nothing
+          for a screen reader.
+        */}
+        <svg
+          className="absolute inset-0 h-full w-full"
+          viewBox="0 0 1000 620"
+          preserveAspectRatio="none"
+          fill="none"
+        >
+          <g
+            stroke="currentColor"
+            className="text-primary/25"
+            strokeWidth="1.5"
+            strokeDasharray="4 6"
+            strokeLinecap="round"
+          >
+            <path d="M232 132 C 300 150, 330 210, 372 250" />
+            <path d="M212 300 C 290 300, 330 290, 372 285" />
+            <path d="M236 452 C 300 440, 340 380, 378 330" />
+            <path d="M768 128 C 700 148, 668 208, 628 248" />
+            <path d="M788 300 C 710 300, 668 290, 628 285" />
+            <path d="M764 452 C 700 440, 660 380, 622 330" />
+          </g>
+          {/* The small dots where each thread meets the centre. */}
+          <g className="fill-primary/60">
+            <circle cx="232" cy="132" r="4" />
+            <circle cx="212" cy="300" r="4" />
+            <circle cx="236" cy="452" r="4" />
+            <circle cx="768" cy="128" r="4" />
+            <circle cx="788" cy="300" r="4" />
+            <circle cx="764" cy="452" r="4" />
+          </g>
+        </svg>
+
         {t.heroCards.map((card, index) => {
           const style = HERO_CARD_STYLE[index];
           const Icon = style.icon;
           return (
             <div
               key={card.label}
-              className={`absolute w-48 rounded-xl border bg-card p-3.5 shadow-lg ${style.className}`}
+              className={`absolute w-52 rounded-2xl border border-black/[0.04] bg-card p-4 shadow-[0_18px_40px_-12px_rgba(0,0,0,0.18)] ${style.className}`}
             >
               <div className="flex items-center gap-2">
                 <Icon className="size-4 text-primary" />
@@ -164,6 +232,185 @@ export function Hero({ t, href }: SectionProps) {
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
                 {card.detail}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Product preview                                                            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The dashboard shot under the hero.
+ *
+ * The design puts a full product screenshot here, and it is the strongest
+ * thing on the page: everything above it is a claim, and this is the first
+ * evidence. Drawn in markup rather than shipped as an image, so it stays sharp
+ * on any display, translates with the rest of the page, and does not go stale
+ * the next time the real dashboard changes shape.
+ *
+ * The figures are ILLUSTRATIVE and the caption says so. Numbers in a product
+ * shot are how a design communicates "there will be numbers here", and a
+ * reader who takes 12 published articles as a promise has been misled, so the
+ * caption removes the doubt rather than leaving it.
+ */
+const PREVIEW_STATS = [
+  { value: "12", label: "Articles published", delta: "+71%" },
+  { value: "28", label: "Backlinks built", delta: "+56%" },
+  { value: "18", label: "Keywords improved", delta: "+83%" },
+  { value: "4.2K", label: "Estimated traffic", delta: "+120%" },
+];
+
+const PREVIEW_NAV = [
+  "Dashboard",
+  "Content",
+  "Backlinks",
+  "Keywords",
+  "Calendar",
+  "Reports",
+  "Settings",
+];
+
+export function ProductPreview({ t }: SectionProps) {
+  return (
+    <section className="px-4 pb-20">
+      <div className="mx-auto max-w-6xl">
+        <div className="overflow-hidden rounded-2xl border bg-card shadow-[0_30px_80px_-30px_rgba(0,0,0,0.3)]">
+          <div className="flex">
+            {/* Sidebar. Hidden on a phone, where it would eat half the frame. */}
+            <div className="hidden w-44 shrink-0 border-r bg-muted/30 p-4 sm:block">
+              <div className="flex items-center gap-2 px-1">
+                <BrandMark size={18} />
+                <span className="text-sm font-semibold">RepGet</span>
+              </div>
+              <ul className="mt-5 space-y-0.5">
+                {PREVIEW_NAV.map((item, index) => (
+                  <li
+                    key={item}
+                    className={`rounded-md px-2.5 py-1.5 text-xs ${
+                      index === 0
+                        ? "bg-primary/10 font-medium text-primary"
+                        : "text-muted-foreground"
+                    }`}
+                  >
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="min-w-0 flex-1 p-5">
+              <p className="text-base font-semibold">{t.previewTitle}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {t.previewSub}
+              </p>
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {PREVIEW_STATS.map((stat) => (
+                  <div key={stat.label} className="rounded-xl border p-3">
+                    <p className="text-xl font-semibold tabular-nums">
+                      {stat.value}
+                    </p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {stat.label}
+                    </p>
+                    <p className="mt-1.5 text-xs font-medium text-emerald-600">
+                      {stat.delta}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-3 grid gap-3 lg:grid-cols-2">
+                <div className="rounded-xl border p-3">
+                  <p className="text-xs font-medium">Content calendar</p>
+                  <ul className="mt-2 space-y-2">
+                    {t.tracked.slice(0, 3).map((item) => (
+                      <li
+                        key={item.label}
+                        className="flex items-center justify-between gap-2 text-xs"
+                      >
+                        <span className="truncate text-muted-foreground">
+                          {item.label}
+                        </span>
+                        <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[0.65rem] text-muted-foreground">
+                          {item.detail}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="rounded-xl border p-3">
+                  <p className="text-xs font-medium">SEO score</p>
+                  <div className="mt-2 flex items-center gap-3">
+                    <span className="text-2xl font-semibold tabular-nums text-emerald-600">
+                      97
+                    </span>
+                    <div className="min-w-0 flex-1 space-y-1.5">
+                      {t.pillars.slice(0, 3).map((pillar) => (
+                        <p
+                          key={pillar.title}
+                          className="flex items-center gap-1.5 truncate text-xs text-muted-foreground"
+                        >
+                          <Check
+                            className="size-3 shrink-0 text-emerald-600"
+                            aria-hidden="true"
+                          />
+                          {pillar.title}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <p className="mt-3 text-center text-xs text-muted-foreground">
+          {t.previewCaption}
+        </p>
+      </div>
+    </section>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Four pillars                                                               */
+/* -------------------------------------------------------------------------- */
+
+/** Order matches `pillars` in the dictionary. */
+const PILLAR_ICONS: LucideIcon[] = [FileText, Link2, BarChart3, Sparkles];
+
+export function Pillars({ t }: SectionProps) {
+  return (
+    <section className="px-4 pb-16">
+      <div className="mx-auto grid max-w-6xl gap-8 sm:grid-cols-2 lg:grid-cols-4 lg:gap-0">
+        {t.pillars.map((pillar, index) => {
+          const Icon = PILLAR_ICONS[index] ?? FileText;
+          return (
+            <div
+              key={pillar.title}
+              /*
+                Vertical rules between the columns, as drawn — but only from lg,
+                where the four sit in one row. At sm they are two rows of two and
+                a divider would fall in the middle of nothing.
+              */
+              className="px-6 text-center lg:border-l lg:first:border-l-0"
+            >
+              <Icon
+                className="mx-auto size-7 text-primary"
+                aria-hidden="true"
+              />
+              <p className="mt-3 font-semibold">{pillar.title}</p>
+              <p className="mt-1.5 text-sm text-muted-foreground">
+                {pillar.body}
               </p>
             </div>
           );

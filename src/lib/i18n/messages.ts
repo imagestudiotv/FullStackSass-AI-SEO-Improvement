@@ -130,6 +130,29 @@ export type Messages = {
      * that is not about them.
      */
     heroCards: { label: string; detail: string }[];
+    /**
+     * The headline, split so the second half can be coloured.
+     *
+     * Two keys rather than one string with markup in it, and rather than
+     * splitting on a full stop in the component: the break falls in a
+     * different place in every language, and German has no full stop where
+     * English does. A translator moves the break by moving a word between
+     * these two values, without touching the component.
+     */
+    titleLead: string;
+    titleAccent: string;
+    /** The four columns under the product shot. */
+    pillars: { title: string; body: string }[];
+    /** Heading over the dashboard preview. */
+    previewTitle: string;
+    previewSub: string;
+    /**
+     * Says the figures in the product shot are an example.
+     *
+     * A screenshot with invented numbers and no caption is the kind of thing a
+     * customer quotes back when their first month looks different.
+     */
+    previewCaption: string;
     /** Hero call to action, beside "check my website". */
     joinGoogle: string;
     /** Opens the demo video further down the page. */
@@ -445,6 +468,17 @@ const en: Messages = {
       { label: "Backlinks earned", detail: "Checked every day" },
       { label: "Articles published", detail: "And what they did" },
     ],
+    pillars: [
+      { title: "Publish SEO content", body: "High-quality articles generated and optimised for your niche." },
+      { title: "Build real backlinks", body: "Get cited on relevant websites to increase your authority." },
+      { title: "Track your progress", body: "See rankings, traffic and results in one simple dashboard." },
+      { title: "Save time with AI", body: "Let AI do the work, while you focus on your business." },
+    ],
+    previewTitle: "Your growth, on autopilot.",
+    previewSub: "High-quality content. Real backlinks. More visibility.",
+    previewCaption: "An example dashboard. Your own figures start at zero and grow from there.",
+    titleLead: "Rank on Google.",
+    titleAccent: "Show up in AI answers.",
     heroCards: [
       { label: "Rankings and clicks", detail: "From Search Console" },
       { label: "AI visibility", detail: "Whether assistants name you" },
@@ -849,6 +883,17 @@ const es: Messages = {
       { label: "Enlaces conseguidos", detail: "Comprobados a diario" },
       { label: "Artículos publicados", detail: "Y qué resultado dieron" },
     ],
+    pillars: [
+      { title: "Publique contenido SEO", body: "Artículos de calidad generados y optimizados para su sector." },
+      { title: "Consiga enlaces reales", body: "Sea citado en webs relevantes para aumentar su autoridad." },
+      { title: "Siga su progreso", body: "Vea posiciones, tráfico y resultados en un panel sencillo." },
+      { title: "Ahorre tiempo con IA", body: "Deje que la IA trabaje mientras usted se centra en su negocio." },
+    ],
+    previewTitle: "Su crecimiento, en automático.",
+    previewSub: "Contenido de calidad. Enlaces reales. Más visibilidad.",
+    previewCaption: "Un panel de ejemplo. Sus cifras empiezan en cero y crecen desde ahí.",
+    titleLead: "Posiciónese en Google.",
+    titleAccent: "Aparezca en las respuestas de IA.",
     heroCards: [
       { label: "Posiciones y clics", detail: "Desde Search Console" },
       { label: "Visibilidad en IA", detail: "Si los asistentes le nombran" },
@@ -1254,6 +1299,17 @@ const fr: Messages = {
       { label: "Liens obtenus", detail: "Vérifiés chaque jour" },
       { label: "Articles publiés", detail: "Et ce qu'ils ont donné" },
     ],
+    pillars: [
+      { title: "Publiez du contenu SEO", body: "Des articles de qualité générés et optimisés pour votre secteur." },
+      { title: "Obtenez de vrais backlinks", body: "Soyez cité sur des sites pertinents pour renforcer votre autorité." },
+      { title: "Suivez vos progrès", body: "Positions, trafic et résultats dans un tableau de bord simple." },
+      { title: "Gagnez du temps avec l'IA", body: "Laissez l'IA travailler pendant que vous vous concentrez sur votre activité." },
+    ],
+    previewTitle: "Votre croissance, en pilote automatique.",
+    previewSub: "Du contenu de qualité. De vrais backlinks. Plus de visibilité.",
+    previewCaption: "Un tableau de bord d'exemple. Vos propres chiffres partent de zéro.",
+    titleLead: "Positionnez-vous sur Google.",
+    titleAccent: "Apparaissez dans les réponses IA.",
     heroCards: [
       { label: "Positions et clics", detail: "Depuis Search Console" },
       { label: "Visibilité IA", detail: "Si les assistants vous citent" },
@@ -1659,6 +1715,17 @@ const it: Messages = {
       { label: "Link ottenuti", detail: "Verificati ogni giorno" },
       { label: "Articoli pubblicati", detail: "E che risultati hanno dato" },
     ],
+    pillars: [
+      { title: "Pubblichi contenuti SEO", body: "Articoli di qualità generati e ottimizzati per il suo settore." },
+      { title: "Ottenga backlink veri", body: "Sia citato su siti pertinenti per aumentare la sua autorevolezza." },
+      { title: "Monitori i progressi", body: "Posizioni, traffico e risultati in un'unica dashboard." },
+      { title: "Risparmi tempo con l'IA", body: "Lasci lavorare l'IA mentre lei si concentra sulla sua attività." },
+    ],
+    previewTitle: "La sua crescita, in automatico.",
+    previewSub: "Contenuti di qualità. Backlink veri. Più visibilità.",
+    previewCaption: "Una dashboard di esempio. I suoi numeri partono da zero e crescono da lì.",
+    titleLead: "Si posizioni su Google.",
+    titleAccent: "Compaia nelle risposte IA.",
     heroCards: [
       { label: "Posizioni e clic", detail: "Da Search Console" },
       { label: "Visibilità IA", detail: "Se gli assistenti la nominano" },
@@ -2066,6 +2133,17 @@ const de: Messages = {
         detail: "Und was sie gebracht haben",
       },
     ],
+    pillars: [
+      { title: "SEO-Inhalte veröffentlichen", body: "Hochwertige Artikel, erstellt und optimiert für Ihre Branche." },
+      { title: "Echte Backlinks aufbauen", body: "Werden Sie auf relevanten Websites zitiert und gewinnen Sie Autorität." },
+      { title: "Fortschritt verfolgen", body: "Rankings, Traffic und Ergebnisse in einem einfachen Dashboard." },
+      { title: "Zeit sparen mit KI", body: "Die KI übernimmt die Arbeit, Sie konzentrieren sich auf Ihr Geschäft." },
+    ],
+    previewTitle: "Ihr Wachstum, auf Autopilot.",
+    previewSub: "Hochwertige Inhalte. Echte Backlinks. Mehr Sichtbarkeit.",
+    previewCaption: "Ein Beispiel-Dashboard. Ihre eigenen Zahlen starten bei null.",
+    titleLead: "Bei Google ranken.",
+    titleAccent: "In KI-Antworten erscheinen.",
     heroCards: [
       { label: "Positionen und Klicks", detail: "Aus der Search Console" },
       { label: "KI-Sichtbarkeit", detail: "Ob Assistenten Sie nennen" },
