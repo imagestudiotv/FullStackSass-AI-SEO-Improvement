@@ -78,12 +78,12 @@ export type SectionProps = {
  * translator could break the build with.
  */
 const HERO_CARD_STYLE: { icon: LucideIcon; className: string }[] = [
-  { icon: Search, className: "left-[4%] top-6 -rotate-6" },
-  { icon: Bot, className: "left-[1%] top-40 rotate-3" },
-  { icon: Users, className: "left-[5%] top-[16.5rem] -rotate-3" },
-  { icon: Sparkles, className: "right-[4%] top-4 rotate-6" },
-  { icon: Link2, className: "right-[1%] top-40 -rotate-3" },
-  { icon: TrendingUp, className: "right-[5%] top-[16.5rem] rotate-3" },
+  { icon: Search, className: "left-[3%] top-2 -rotate-6" },
+  { icon: Bot, className: "left-[0%] top-28 rotate-3" },
+  { icon: Users, className: "left-[4%] top-[12.5rem] -rotate-3" },
+  { icon: Sparkles, className: "right-[3%] top-0 rotate-6" },
+  { icon: Link2, className: "right-[0%] top-28 -rotate-3" },
+  { icon: TrendingUp, className: "right-[4%] top-[12.5rem] rotate-3" },
 ];
 
 /** The shared lg size is h-9 — right for a form, too small for a hero. */
@@ -91,7 +91,7 @@ const CTA = "h-12 rounded-full px-7 text-base";
 
 export function Hero({ t, href }: SectionProps) {
   return (
-    <section className="relative overflow-hidden bg-gradient-to-b from-primary/[0.055] via-background to-background px-4 pt-16 pb-20 sm:pt-24">
+    <section className="relative overflow-hidden bg-gradient-to-b from-primary/[0.055] via-background to-background px-4 pt-10 pb-12 sm:pt-14">
       {/*
         The soft warm wash the design puts behind the cards. A radial tint
         rather than an image: it costs no request and scales to any width.
@@ -106,26 +106,28 @@ export function Hero({ t, href }: SectionProps) {
         }}
       />
       <div className="mx-auto max-w-4xl text-center">
-        <p className="text-xs font-semibold tracking-[0.14em] text-primary uppercase">
-          {t.eyebrow}
-        </p>
-
+        {/*
+          The design opens on the headline. The eyebrow that used to sit here
+          said the same thing in smaller type and cost a line of height the
+          hero does not have to spare — the phrasing survives in the page
+          metadata, which is where it actually earns its keep.
+        */}
         {/*
           Two lines, the second in the brand colour, as drawn. The break is a
           <br /> rather than a wrap, so it falls in the same place at every
           width instead of only on a wide screen.
         */}
-        <h1 className="mt-5 text-4xl font-semibold tracking-tight text-balance sm:text-6xl">
+        <h1 className="text-4xl font-semibold tracking-tight text-balance sm:text-6xl">
           {t.titleLead}
           <br />
           <span className="text-primary">{t.titleAccent}</span>
         </h1>
 
-        <p className="mx-auto mt-5 max-w-xl text-lg text-pretty text-muted-foreground">
+        <p className="mx-auto mt-4 max-w-xl text-pretty text-muted-foreground sm:text-lg">
           {t.subtitle}
         </p>
 
-        <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
+        <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
           <Button size="lg" asChild className={CTA}>
             <Link href={href("/audit")}>
               {t.checkFree}
@@ -154,7 +156,7 @@ export function Hero({ t, href }: SectionProps) {
           kind of thing that ends a deal rather than starting one. The row
           below says something true instead.
         */}
-        <p className="mt-6 text-sm text-muted-foreground">{t.noCard}</p>
+        <p className="mt-4 text-sm text-muted-foreground">{t.noCard}</p>
 
         {/*
           Scrolls to the demo rather than opening a modal: a video that takes
@@ -163,7 +165,7 @@ export function Hero({ t, href }: SectionProps) {
         */}
         <a
           href="#how-it-works-video"
-          className="mt-7 inline-flex items-center gap-2.5 text-sm font-medium text-foreground transition-colors hover:text-primary"
+          className="mt-5 inline-flex items-center gap-2.5 text-sm font-medium text-foreground transition-colors hover:text-primary"
         >
           <span className="flex size-9 items-center justify-center rounded-full bg-primary text-primary-foreground">
             <Play className="size-4 fill-current" aria-hidden="true" />
@@ -195,7 +197,7 @@ export function Hero({ t, href }: SectionProps) {
         */}
         <svg
           className="absolute inset-0 h-full w-full"
-          viewBox="0 0 1000 620"
+          viewBox="0 0 1000 400"
           preserveAspectRatio="none"
           fill="none"
         >
@@ -206,21 +208,21 @@ export function Hero({ t, href }: SectionProps) {
             strokeDasharray="4 6"
             strokeLinecap="round"
           >
-            <path d="M232 112 C 300 132, 330 195, 372 240" />
-            <path d="M214 272 C 290 275, 332 272, 372 272" />
-            <path d="M238 410 C 300 400, 342 356, 380 316" />
-            <path d="M768 108 C 700 128, 668 192, 628 238" />
-            <path d="M786 272 C 710 275, 668 272, 628 272" />
-            <path d="M762 410 C 700 400, 658 356, 620 316" />
+            <path d="M258 74 C 310 92, 336 132, 360 170" />
+            <path d="M244 196 C 300 200, 330 198, 356 198" />
+            <path d="M262 300 C 312 292, 342 262, 366 232" />
+            <path d="M742 70 C 690 88, 664 130, 640 168" />
+            <path d="M756 196 C 700 200, 670 198, 644 198" />
+            <path d="M738 300 C 688 292, 658 262, 634 232" />
           </g>
           {/* The small dots where each thread meets the centre. */}
           <g className="fill-primary/60">
-            <circle cx="232" cy="112" r="4" />
-            <circle cx="214" cy="272" r="4" />
-            <circle cx="238" cy="410" r="4" />
-            <circle cx="768" cy="108" r="4" />
-            <circle cx="786" cy="272" r="4" />
-            <circle cx="762" cy="410" r="4" />
+            <circle cx="258" cy="74" r="3.5" />
+            <circle cx="244" cy="196" r="3.5" />
+            <circle cx="262" cy="300" r="3.5" />
+            <circle cx="742" cy="70" r="3.5" />
+            <circle cx="756" cy="196" r="3.5" />
+            <circle cx="738" cy="300" r="3.5" />
           </g>
         </svg>
 
@@ -353,7 +355,7 @@ function ScoreArc({ score }: { score: number }) {
 
 export function ProductPreview({ t }: SectionProps) {
   return (
-    <section className="px-4 pb-20">
+    <section className="px-4 pb-10">
       <div className="mx-auto max-w-6xl">
         {/*
           The grey device frame from the design — a padded outer shell with the
@@ -554,7 +556,7 @@ const PILLAR_ICONS: LucideIcon[] = [FileText, Link2, BarChart3, Sparkles];
 
 export function Pillars({ t }: SectionProps) {
   return (
-    <section className="px-4 pb-16">
+    <section className="px-4 pb-8">
       <div className="mx-auto grid max-w-6xl gap-8 sm:grid-cols-2 lg:grid-cols-4 lg:gap-0">
         {t.pillars.map((pillar, index) => {
           const Icon = PILLAR_ICONS[index] ?? FileText;
@@ -672,7 +674,7 @@ const WORKS_WITH = [
 
 export function WorksWith({ t }: SectionProps) {
   return (
-    <section className="border-t px-4 py-12">
+    <section className="border-t px-4 py-8">
       <div className="mx-auto max-w-5xl text-center">
         <p className="text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
           {t.worksWithTitle}
