@@ -16,11 +16,7 @@
  */
 
 export type WizardStepId =
-  | "website"
-  | "profile"
-  | "visibility"
-  | "content"
-  | "done";
+  "website" | "setup" | "plan" | "visibility" | "content" | "done";
 
 export type WizardStep = {
   id: WizardStepId;
@@ -33,14 +29,20 @@ export type WizardStep = {
 /**
  * The steps, in order.
  *
- * The reference has six, splitting "Audit" from "Performance & Strategic
- * Analysis". Ours are merged: both are the same crawl on our side, and a step
- * that completes instantly without the customer doing anything is a dot that
- * flickers past rather than a stage they experience.
+ * The reference has seven, splitting market, description and competitors into
+ * three. Ours are merged into one "About your business" screen at the client's
+ * request — "having this 3 options all in one" — and the audit is merged into
+ * the website step, because on our side it is the same crawl and a step that
+ * completes without the customer doing anything is a dot that flickers past
+ * rather than a stage they experience.
+ *
+ * The plan sits after the business questions, not before: someone is far more
+ * willing to pay once they have seen us describe their own business.
  */
 export const WIZARD_STEPS: WizardStep[] = [
   { id: "website", label: "Website", href: "/onboarding/website" },
-  { id: "profile", label: "Brand profile", href: "/onboarding/profile" },
+  { id: "setup", label: "Your business", href: "/onboarding/setup" },
+  { id: "plan", label: "Plan", href: "/onboarding/plan" },
   { id: "visibility", label: "AI visibility", href: "/onboarding/visibility" },
   { id: "content", label: "Content & backlinks", href: "/onboarding/content" },
   { id: "done", label: "Ready to grow", href: "/onboarding/done" },

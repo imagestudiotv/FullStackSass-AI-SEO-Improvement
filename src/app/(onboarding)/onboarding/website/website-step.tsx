@@ -94,15 +94,19 @@ export function WebsiteStep() {
     }
 
     /**
-     * Straight to billing, carrying the site that was just created.
+     * Straight to the combined setup screen, carrying the site just created.
      *
-     * Billing is step two, and a new website has no plan whether it is the
-     * first or the fifth — so this is the same path for both. The id matters:
-     * without it billing falls back to whichever site the switcher last
-     * remembered, and a customer adding their second website could subscribe
-     * the first one twice.
+     * NOT to billing any more. The client asked for the order to change:
+     * "Once we click Continue on the first step. It will automatically
+     * provide: Target Market & Language, Business Description, and
+     * Competitors" — and only then the plan. Someone is far more willing to
+     * pay once they have seen us describe their own business back to them.
+     *
+     * The id matters: without it the next screen falls back to whichever site
+     * the switcher last remembered, so a customer adding their second website
+     * would be shown the first one's details.
      */
-    router.push(`/billing?site=${result.data.id}`);
+    router.push(`/onboarding/setup?site=${result.data.id}`);
   }
 
   const hasLooked = preview !== null;
@@ -111,7 +115,7 @@ export function WebsiteStep() {
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:gap-12">
       <div>
         <p className="text-sm font-semibold tracking-wide text-primary">
-          STEP 01 <span className="text-muted-foreground">/ 05</span>
+          STEP 01 <span className="text-muted-foreground">/ 03</span>
         </p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
           What&apos;s your website?
@@ -170,9 +174,7 @@ export function WebsiteStep() {
               {preview.platform.slice(0, 1)}
             </span>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium">
-                {preview.platform} detected
-              </p>
+              <p className="text-sm font-medium">{preview.platform} detected</p>
               <p className="text-sm text-muted-foreground">
                 {preview.platform === "WordPress"
                   ? "Our plugin connects your blog in about three clicks."

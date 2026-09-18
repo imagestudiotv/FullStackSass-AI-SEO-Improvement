@@ -4,27 +4,32 @@ import { redirect } from "next/navigation";
 import { WizardProgress } from "@/components/wizard-progress";
 import { requireSession } from "@/lib/auth-guard";
 import { db } from "@/lib/db";
-import { geoPrompts, websites } from "@/lib/db/schema";
-import { ENGINES, availableEngineIds } from "@/lib/geo/engines";
+import { calendarItems, keywords, websites } from "@/lib/db/schema";
 import { getOnboardingState } from "@/lib/onboarding/steps";
 import { requireOrg } from "@/lib/tenant";
-import { VisibilityStep } from "./visibility-step";
+import { checkLimit } from "@/lib/usage";
+import { UNLIMITED } from "@/lib/usage-shared";
+import { ContentStep } from "./content-step";
 
-export const metadata = { title: "AI visibility" };
+export const metadata = { title: "Content & backlinks" };
 
 export const dynamic = "force-dynamic";
 
 /**
- * Step three: the questions we ask assistants on the customer's behalf.
+ * Step four: turning the profile into a content plan.
  *
- * The reference splits a prompt budget across eight assistants. We list the
- * same eight but mark which ones this deployment can actually query — see
- * lib/geo/engines.ts for why offering an engine we cannot reach would be worse
- * than omitting it.
+ * The reference promises eight parallel tasks — deep crawl, topic clusters, a
+ * 30-day calendar, a 12-month roadmap, cannibalisation report, internal
+ * linking map, default author, backlinks — and quotes nine minutes.
+ *
+ * What is listed here is what our pipeline actually does. The calendar is
+ * sized to the plan's monthly article allowance rather than a fixed 30 or 365
+ * days, because writing 365 briefs for a plan that publishes five a month
+ * would be a year of promises the customer has not bought.
  */
-export default async function OnboardingVisibilityPage({
+export default async function OnboardingContentPage({
   searchParams,
-}: PageProps<"/onboarding/visibility">) {
+}: PageProps<"/onboarding/content">) {
   await requireSession();
   const { orgId } = await requireOrg();
 
@@ -55,19 +60,24 @@ export default async function OnboardingVisibilityPage({
    * happens and sending them to a list to click one link is a detour.
    */
   /*
-    Carries the website through, so billing charges the site being set up
+    Carries the website through, so checkout charges the site being set up
     rather than whichever one the switcher last remembered.
+
+    The onboarding plan screen, not /billing: /billing carries the dashboard
+    sidebar, and sending someone mid-setup into the full dashboard is exactly
+    what this flow is built to avoid.
   */
   if (!state.hasPlan) {
-    redirect(siteParam ? `/billing?site=${siteParam}` : "/billing");
+    redirect(
+      siteParam ? `/onboarding/plan?site=${siteParam}` : "/onboarding/plan",
+    );
   }
 
   const [site] = await db
     .select({
       id: websites.id,
       brandName: websites.brandName,
-      country: websites.country,
-      language: websites.language,
+      domain: websites.domain,
     })
     .from(websites)
     .where(eq(websites.id, state.websiteId))
@@ -75,41 +85,40 @@ export default async function OnboardingVisibilityPage({
 
   if (!site) redirect("/onboarding/website");
 
-  const prompts = await db
-    .select({
-      id: geoPrompts.id,
-      prompt: geoPrompts.prompt,
-      isSuggested: geoPrompts.isSuggested,
-    })
-    .from(geoPrompts)
-    .where(eq(geoPrompts.websiteId, site.id));
-
-  const available = availableEngineIds();
+  const [keywordCount, plannedCount, articleLimit] = await Promise.all([
+    db
+      .select({ n: keywords.id })
+      .from(keywords)
+      .where(eq(keywords.websiteId, site.id))
+      .limit(1),
+    db
+      .select({ n: calendarItems.id })
+      .from(calendarItems)
+      .where(eq(calendarItems.websiteId, site.id))
+      .limit(1),
+    checkLimit(state.websiteId, "articles"),
+  ]);
 
   return (
     <div>
-      <WizardProgress current="visibility" />
+      <WizardProgress current="content" />
       <div className="mx-auto max-w-2xl px-4 py-10">
         <h1 className="text-2xl font-semibold tracking-tight">
-          AI visibility — tracking prompts
+          Articles, content &amp; backlinks
         </h1>
         <p className="mt-2 text-muted-foreground">
-          The questions your customers would ask an assistant before they know
-          you exist. We ask them on a schedule and record whether you get named.
+          We turn what we learned about {site.brandName ?? site.domain} into a
+          plan you can publish from.
         </p>
 
         <div className="mt-8">
-          <VisibilityStep
+          <ContentStep
             websiteId={site.id}
-            market={site.country}
-            language={site.language}
-            initialPrompts={prompts}
-            engines={ENGINES.map((engine) => ({
-              id: engine.id,
-              name: engine.name,
-              audience: engine.audience,
-              available: available.includes(engine.id),
-            }))}
+            hasKeywords={keywordCount.length > 0}
+            hasPlan={plannedCount.length > 0}
+            articlesPerMonth={
+              articleLimit.limit === UNLIMITED ? null : articleLimit.limit
+            }
           />
         </div>
       </div>

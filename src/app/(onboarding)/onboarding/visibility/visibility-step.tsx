@@ -1,6 +1,14 @@
 "use client";
 
-import { ArrowRight, Bot, Check, Loader2, Plus, Sparkles, X } from "lucide-react";
+import {
+  ArrowRight,
+  Bot,
+  Check,
+  Loader2,
+  Plus,
+  Sparkles,
+  X,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -279,7 +287,7 @@ export function VisibilityStep({
       <div className="flex items-center justify-between gap-3 pt-2">
         <Button
           variant="ghost"
-          onClick={() => router.push("/onboarding/profile")}
+          onClick={() => router.push("/onboarding/setup")}
         >
           Back
         </Button>

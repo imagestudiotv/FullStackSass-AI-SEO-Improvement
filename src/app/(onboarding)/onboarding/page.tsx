@@ -4,15 +4,9 @@ import { redirect } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { PageHeader, PageShell } from "@/components/ui/page-header";
 import { requireSession } from "@/lib/auth-guard";
-import { listPlans, getSubscription } from "@/lib/billing";
-import { isEntitled } from "@/lib/billing-shared";
 import { getOnboardingState } from "@/lib/onboarding/steps";
-import { isPayPalAvailable } from "@/lib/paypal/actions";
 import { requireOrg } from "@/lib/tenant";
-import { toPickerPlan } from "@/lib/plans/features";
-import { PlanPicker } from "./plan-picker";
 
 export const metadata = { title: "Get started" };
 
@@ -20,18 +14,23 @@ export const metadata = { title: "Get started" };
 export const dynamic = "force-dynamic";
 
 /**
- * Guided setup.
+ * The entry point to setup — a router, not a screen.
  *
- * The brief renames the in-app pricing page to /onboarding: "We will rename the
- * link to /onboarding, because we will have a separate pricing page. But this
- * will be the design functionalities."
+ * Setup is a flow, not a menu. Someone who has just signed up wants the first
+ * question, not a list of the questions, so this forwards to whichever step is
+ * actually next. The state already knows, because the sidebar and the step
+ * guards read the same value — there is no second definition of "where am I"
+ * to drift from this one.
  *
- * So this page is two things in sequence. Someone with no plan sees the plan
- * picker, because nothing else can happen until they choose one. Once they
- * have a plan — or the one-off Starter — it becomes the setup checklist, where
- * every step links to where that work already happens rather than wrapping it.
- * A parallel set of onboarding-only forms would be a second copy of the same
- * logic, and the two would drift.
+ * It renders for one case only: a customer who has finished and opened the URL
+ * again from a bookmark, who gets the completed list rather than being bounced
+ * somewhere unexpected.
+ *
+ * IT NO LONGER SHOWS THE PLAN PICKER. Choosing a plan is its own step at
+ * /onboarding/plan now, after the business questions rather than before them —
+ * the client moved it there so someone sees us describe their own business
+ * before being asked to pay. Two pages offering the same purchase would be two
+ * places to keep the prices right.
  */
 export default async function OnboardingPage({
   searchParams,
@@ -40,42 +39,15 @@ export default async function OnboardingPage({
   const { orgId } = await requireOrg();
 
   /**
-   * Which website this run of setup is about.
-   *
-   * Setup is per website: a second site needs its own plan, profile check,
-   * visibility questions and first article. Without the parameter the state
-   * describes the oldest site, which is right for a returning customer and
-   * wrong the moment someone adds another one.
+   * Which website this run of setup is about. Without it the state describes
+   * the oldest site, which is right for a returning customer and wrong the
+   * moment someone adds another one.
    */
   const params = await searchParams;
   const siteParam = typeof params.site === "string" ? params.site : undefined;
 
-  const [state, subscription, paypalAvailable, allPlans] = await Promise.all([
-    getOnboardingState(orgId, siteParam),
-    getSubscription(orgId),
-    isPayPalAvailable(),
-    listPlans(),
-  ]);
+  const state = await getOnboardingState(orgId, siteParam);
 
-  /**
-   * Setup is a flow, not a menu.
-   *
-   * This screen was a checklist of five cards, each linking to where that work
-   * happens. It read as a table of contents in the middle of a task: someone
-   * who has just signed up wants the first question, not a list of the
-   * questions, and every card except one was inert until earlier steps were
-   * done.
-   *
-   * So it forwards to whichever step is actually next. The state already
-   * knows, because the sidebar and the guards read the same value — there is
-   * no second definition of "where am I" to drift from this one.
-   *
-   * It still renders for two cases. Someone with no plan sees the picker
-   * below, because nothing can be bought until a plan is chosen. And a
-   * customer who has finished setup sees the completed list rather than being
-   * bounced somewhere, which is what /onboarding should show if it is ever
-   * opened again from a bookmark.
-   */
   const next = state.steps.find(
     (step) => step.id === state.currentId && step.href,
   );
@@ -83,68 +55,27 @@ export default async function OnboardingPage({
     redirect(next.href);
   }
 
-  const hasAccess = isEntitled(subscription?.status);
-
   /**
-   * The website comes before the plan.
-   *
-   * A plan pays for one website, so there is nothing to buy until a site
-   * exists. Gating on entitlement first sent a brand-new customer to "Select
-   * your plan" and then told them to add a website, with no way to do it from
-   * that screen — a dead end on the first page after signing up.
-   *
-   * With no website the setup checklist is shown instead, whose first step is
-   * adding one.
+   * Nothing to forward to and nothing finished: the only way here is with no
+   * website at all, so start at the beginning rather than showing an empty
+   * checklist whose every row is inert.
    */
-  if (!hasAccess && state.websiteId) {
-    const monthlyPlans = allPlans
-      .filter((plan) => plan.interval === "month")
-      .map(toPickerPlan);
-    const annualPlans = allPlans
-      .filter((plan) => plan.interval === "year")
-      .map(toPickerPlan);
-
-    return (
-      <PageShell>
-        <PageHeader
-          title="Select your plan"
-          description="Pick a plan and we start working on your site today."
-        />
-
-        {monthlyPlans.length === 0 ? (
-          // Real state, not a placeholder: with no plans configured we say so
-          // rather than showing prices checkout would not honour.
-          <Card>
-            <CardContent className="py-6 text-sm text-muted-foreground">
-              Plans are not available right now. Please check back shortly.
-            </CardContent>
-          </Card>
-        ) : (
-          <PlanPicker
-            monthlyPlans={monthlyPlans}
-            annualPlans={annualPlans}
-            paypalAvailable={paypalAvailable}
-            websiteId={state.websiteId}
-          />
-        )}
-      </PageShell>
-    );
-  }
+  if (!state.complete && !state.websiteId) redirect("/onboarding/website");
 
   const doneCount = state.steps.filter((step) => step.done).length;
 
   return (
-    <PageShell>
-      <PageHeader
-        title={state.complete ? "You are all set" : "Get started"}
-        description={
-          state.complete
-            ? "Everything is set up. This page stays here if you want to check."
-            : "A few steps, and we do most of the work."
-        }
-      />
+    <div className="mx-auto max-w-2xl px-4 py-10 sm:py-14">
+      <h1 className="text-3xl font-semibold tracking-tight">
+        {state.complete ? "You are all set" : "Get started"}
+      </h1>
+      <p className="mt-2 text-muted-foreground">
+        {state.complete
+          ? "Everything is set up. This page stays here if you want to check."
+          : "A few steps, and we do most of the work."}
+      </p>
 
-      <div className="flex items-center gap-3">
+      <div className="mt-8 flex items-center gap-3">
         <div
           className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted"
           role="progressbar"
@@ -168,7 +99,7 @@ export default async function OnboardingPage({
         next step greyed out with no explanation, which reads as broken.
       */}
       {state.analysing ? (
-        <Card>
+        <Card className="mt-6">
           <CardContent className="flex items-center gap-3 py-4 text-sm">
             <Loader2 className="size-4 animate-spin" aria-hidden="true" />
             <span>
@@ -179,7 +110,7 @@ export default async function OnboardingPage({
         </Card>
       ) : null}
 
-      <ol className="space-y-3">
+      <ol className="mt-6 space-y-3">
         {state.steps.map((step, index) => {
           const isCurrent = step.id === state.currentId;
 
@@ -245,7 +176,7 @@ export default async function OnboardingPage({
       </ol>
 
       {state.complete ? (
-        <div className="text-center">
+        <div className="mt-8 text-center">
           <Button asChild>
             <Link href="/dashboard">
               Go to your dashboard
@@ -254,6 +185,6 @@ export default async function OnboardingPage({
           </Button>
         </div>
       ) : null}
-    </PageShell>
+    </div>
   );
 }

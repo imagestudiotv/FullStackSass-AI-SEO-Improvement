@@ -16,16 +16,19 @@ import { isAgencyWorkspace } from "@/lib/agency/core";
  * their only site — and then the product insists they are somewhere they are
  * not.
  *
- * The order matches the brief: choose a plan, add the website, check what we
- * worked out about it, then the AI visibility questions and content.
+ * THE ORDER: add the website, tell us about the business (market and language,
+ * description, competitors — one screen), choose a plan, then the AI visibility
+ * questions and the first article.
+ *
+ * The plan used to come second. The client moved it after the business
+ * questions so someone sees us describe their own business back to them before
+ * being asked to pay. The `steps` array below is built in that order and
+ * `currentId` is simply its first unfinished entry, so the sequence is stated
+ * once here rather than restated by each screen.
  */
 
 export type OnboardingStepId =
-  | "plan"
-  | "website"
-  | "profile"
-  | "visibility"
-  | "content";
+  "plan" | "website" | "profile" | "visibility" | "content";
 
 export type OnboardingStep = {
   id: OnboardingStepId;
@@ -95,10 +98,7 @@ export const getOnboardingState = cache(async function getOnboardingState(
       .from(websites)
       .where(
         websiteId
-          ? and(
-              eq(websites.organizationId, orgId),
-              eq(websites.id, websiteId),
-            )
+          ? and(eq(websites.organizationId, orgId), eq(websites.id, websiteId))
           : eq(websites.organizationId, orgId),
       )
       /*
@@ -153,6 +153,26 @@ export const getOnboardingState = cache(async function getOnboardingState(
       done: hasWebsite,
       href: "/onboarding/website",
     },
+    /**
+     * Market and language, business description, competitors — one screen.
+     *
+     * Before the plan, not after it. The client asked for the reference's
+     * steps 2-4 merged and placed here: "Once we click Continue on the first
+     * step. It will automatically provide: Target Market & Language, Business
+     * Description, and Competitors", with billing after.
+     *
+     * Done once analysis has FINISHED, not once the customer has confirmed it.
+     * Requiring a click would block everyone who is happy with what we
+     * extracted, which is most people.
+     */
+    {
+      id: "profile",
+      title: "About your business",
+      description:
+        "Your market, language, description and competitors. Correct anything we got wrong.",
+      done: hasWebsite && analysed,
+      href: hasWebsite ? "/onboarding/setup" : null,
+    },
     {
       id: "plan",
       title: "Choose a plan",
@@ -160,18 +180,13 @@ export const getOnboardingState = cache(async function getOnboardingState(
         ? "This workspace is set up by us — no plan needed."
         : "Each website has its own plan. Start from EUR 1 a month.",
       done: hasPlan,
-      // Nothing to pay for until a website exists.
-      href: hasWebsite ? "/billing" : null,
-    },
-    {
-      id: "profile",
-      title: "Check what we found",
-      description:
-        "Your brand, industry, market and services. Correct anything we got wrong.",
-      done: hasWebsite && analysed,
-      // The wizard screen, not the website page: this is where the extracted
-      // fields are laid out for correction.
-      href: hasWebsite ? "/onboarding/profile" : null,
+      /*
+        The onboarding plan screen, not /billing. /billing carries the
+        dashboard sidebar, which this flow deliberately hides — the client
+        asked for setup to run without it so nobody wanders off mid-purchase.
+        /billing remains where an existing customer changes or cancels a plan.
+      */
+      href: hasWebsite ? "/onboarding/plan" : null,
     },
     {
       id: "visibility",
@@ -179,7 +194,7 @@ export const getOnboardingState = cache(async function getOnboardingState(
       description:
         "The questions your customers would ask an assistant. We check whether you get named.",
       done: hasPrompts,
-      href: hasWebsite && analysed ? "/onboarding/visibility" : null,
+      href: hasWebsite && analysed && hasPlan ? "/onboarding/visibility" : null,
     },
     {
       id: "content",
@@ -187,7 +202,7 @@ export const getOnboardingState = cache(async function getOnboardingState(
       description:
         "We research the terms worth going after and write the page that answers them.",
       done: hasArticles,
-      href: hasWebsite && analysed ? "/onboarding/content" : null,
+      href: hasWebsite && analysed && hasPlan ? "/onboarding/content" : null,
     },
   ];
 
