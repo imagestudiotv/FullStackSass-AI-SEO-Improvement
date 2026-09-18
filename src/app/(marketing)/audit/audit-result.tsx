@@ -26,6 +26,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { fixFor } from "@/lib/audit/fixes";
 import { ISSUE_LABELS } from "@/lib/audit/rules";
 import type { PublicAuditResult } from "@/lib/audit/public-audit";
+import { AuditSteps } from "./audit-steps";
 
 /**
  * The audit result, following the reference design.
@@ -189,7 +190,16 @@ export function AuditResult({ result }: { result: PublicAuditResult }) {
   const blockedCrawlers = result.crawlers.filter((c) => !c.allowed);
 
   return (
-    <div className="mt-12 space-y-6">
+    <div className="space-y-6">
+      {/*
+        The three assets, kept after the check finishes.
+
+        The loading screen showed them being built and then vanished, so the
+        work it described disappeared the moment it produced anything. These
+        are the same rows, still expandable, now holding what each one found.
+      */}
+      <AuditSteps result={result} />
+
       {/* Header: who we looked at, and the score. */}
       <Card>
         {/*
