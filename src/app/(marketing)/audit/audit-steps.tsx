@@ -1,6 +1,19 @@
 "use client";
 
-import { Check, ChevronDown, Globe, Layers, Languages } from "lucide-react";
+/*
+  eslint-disable @next/next/no-img-element --
+  The image is on the CUSTOMER's domain, which is not knowable ahead of time.
+  next/image needs every remote host in remotePatterns, so optimising it would
+  mean a wildcard — which turns our optimiser into an open image proxy.
+*/
+import {
+  Check,
+  ChevronDown,
+  Globe,
+  Layers,
+  Languages,
+  RotateCw,
+} from "lucide-react";
 import { useState } from "react";
 
 import type { PublicAuditResult } from "@/lib/audit/public-audit";
@@ -84,15 +97,67 @@ export function AuditSteps({ result }: { result: PublicAuditResult }) {
   }
 
   return (
-    <div className="mt-12">
-      <p className="text-xs font-semibold tracking-[0.14em] text-primary uppercase">
-        Your 3 free assets
-      </p>
-      <h2 className="mt-2 text-xl font-semibold tracking-tight">
-        Done. Here is what each one found.
-      </h2>
+    /*
+      The same two columns the loading screen used, kept after the check
+      finishes rather than replaced.
 
-      <ul className="mt-5 space-y-3">
+      It used to be a Suspense fallback, so the browser frame and the three
+      rows vanished the instant a result arrived and the visitor was handed a
+      different-looking page. Keeping the layout means the screen they watched
+      simply FILLS IN — the frame gets the real picture, the spinners become
+      ticks, and each row now opens onto what it found.
+    */
+    <div className="mt-12 grid gap-8 lg:grid-cols-2 lg:gap-12">
+      {/* The browser frame, now showing the site rather than waiting for it. */}
+      <div className="overflow-hidden rounded-2xl border bg-card shadow-[0_24px_60px_-30px_rgba(0,0,0,0.25)]">
+        <div className="flex items-center gap-3 border-b bg-muted/40 px-4 py-3">
+          <span className="flex gap-1.5" aria-hidden="true">
+            <span className="size-2.5 rounded-full bg-red-400" />
+            <span className="size-2.5 rounded-full bg-amber-400" />
+            <span className="size-2.5 rounded-full bg-emerald-400" />
+          </span>
+          <span className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-background px-3 py-1.5 text-xs text-muted-foreground">
+            <Globe className="size-3 shrink-0" aria-hidden="true" />
+            <span className="truncate">{result.domain}</span>
+          </span>
+          {/* Not spinning any more: the reload icon sits still once done. */}
+          <RotateCw
+            className="size-3.5 shrink-0 text-muted-foreground"
+            aria-hidden="true"
+          />
+        </div>
+
+        <div className="relative aspect-[4/3] bg-gradient-to-br from-primary/10 via-muted/40 to-blue-500/10">
+          {result.previewImage ? (
+            <img
+              src={result.previewImage}
+              alt=""
+              className="size-full object-cover object-top"
+            />
+          ) : (
+            <div className="flex size-full flex-col items-center justify-center gap-2 px-6 text-center">
+              <Globe
+                className="size-7 text-muted-foreground/40"
+                aria-hidden="true"
+              />
+              <p className="text-sm text-muted-foreground">{result.domain}</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div>
+        <p className="text-xs font-semibold tracking-[0.14em] text-primary uppercase">
+          Your 3 free assets
+        </p>
+        <h2 className="mt-3 text-2xl font-semibold tracking-tight">
+          Done. Here is what each one found.
+        </h2>
+        <p className="mt-2 text-muted-foreground">
+          Open any of them to see the detail.
+        </p>
+
+        <ul className="mt-7 space-y-3">
         <Row
           index={1}
           label="AI SEO Audit"
@@ -102,7 +167,12 @@ export function AuditSteps({ result }: { result: PublicAuditResult }) {
           open={open === 0}
           onToggle={() => toggle(0)}
         >
-          <dl className="grid gap-4 sm:grid-cols-3">
+          {/*
+            One column, not three. This panel is half the page width now that
+            the browser frame sits beside it, so three columns of label, value
+            and note wrapped into an unreadable stack.
+          */}
+          <dl className="grid gap-4 sm:grid-cols-2">
             {[
               {
                 icon: Globe,
@@ -243,7 +313,8 @@ export function AuditSteps({ result }: { result: PublicAuditResult }) {
             </div>
           ) : null}
         </Row>
-      </ul>
+        </ul>
+      </div>
     </div>
   );
 }
