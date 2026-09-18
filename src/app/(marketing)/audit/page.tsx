@@ -3,7 +3,6 @@ import { Suspense } from "react";
 import { runPublicAudit } from "@/lib/audit/public-audit";
 import { getMessages } from "@/lib/i18n/messages";
 import { AuditBand } from "../home-sections";
-import { AuditForm } from "./audit-form";
 import { AuditProgress } from "./audit-progress";
 import { SitePreviewFallback } from "./site-preview";
 import { AuditResult } from "./audit-result";
@@ -60,21 +59,6 @@ export default async function AuditPage({
       {!domain ? (
         <div className="-mx-4 mt-2">
           <AuditBand t={getMessages("en").home} href={(path) => path} />
-        </div>
-      ) : null}
-
-      {/*
-        After a check: the plain field. The full card here would put a
-        conversion block between the heading and the result the visitor is
-        waiting on, pushing the answer below the fold on the one screen where
-        it is the entire point.
-      */}
-      {domain ? (
-        <div className="mx-auto mt-8 max-w-xl">
-          <AuditForm key={domain} defaultValue={domain} />
-          <p className="mt-3 text-center text-xs text-muted-foreground">
-            No account, no card. Takes about a minute.
-          </p>
         </div>
       ) : null}
 

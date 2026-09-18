@@ -26,6 +26,15 @@ import { BrandMark } from "@/components/brand-logo";
 import { Button } from "@/components/ui/button";
 import { GoogleMark } from "@/components/google-mark";
 import { AuditQuickForm } from "./audit-quick-form";
+import {
+  GhostMark,
+  SearchConsoleMark,
+  ShopifyMark,
+  WebflowMark,
+  WebhookMark,
+  WixMark,
+  WordPressMark,
+} from "@/components/integration-marks";
 import { Card, CardContent } from "@/components/ui/card";
 import type { Messages } from "@/lib/i18n/messages";
 
@@ -661,7 +670,7 @@ export function DemoVideo({ t, href }: SectionProps) {
 /* -------------------------------------------------------------------------- */
 
 /**
- * The integration row under the hero.
+ * The integrations grid under the hero.
  *
  * The design has "TRUSTED BY BUSINESSES WORLDWIDE" over Google, Shopify,
  * Stripe, Airbnb, Samsung and Adobe. None of them are customers, and putting
@@ -669,35 +678,128 @@ export function DemoVideo({ t, href }: SectionProps) {
  * kind of claim a prospect can check in one search, on the page where they are
  * deciding whether to believe anything else we say.
  *
- * Same band, same rhythm, true sentence: these are the platforms articles
- * actually publish to and the account rankings are actually read from. Names
- * as text rather than logos, because using a logo is a trademark question even
- * when the integration is real.
+ * Same band, true sentence: these are the platforms articles actually publish
+ * to and the account rankings are actually read from. Each one is a real
+ * adapter in the provider registry, so a card here is something a customer can
+ * connect today rather than a name on a roadmap.
+ *
+ * The mockup for this grid draws ten tiles, including Framer, Notion,
+ * WordPress.com and a Next.js starter. Those four ship no adapter — nothing
+ * publishes to them — so they are left out rather than drawn as working
+ * integrations. Adding one is a provider in the registry, a doc page, and a
+ * card here; the grid reflows on its own.
  */
-const WORKS_WITH = [
-  "WordPress",
-  "Shopify",
-  "Ghost",
-  "Webflow",
-  "Search Console",
+const WORKS_WITH: {
+  name: string;
+  detail: string;
+  Mark: (props: { className?: string }) => React.ReactElement;
+  /** Brand tint behind the mark, as the design tiles them. */
+  tone: string;
+  /** The setup guide, when the integration has one. */
+  slug?: string;
+}[] = [
+  {
+    name: "WordPress",
+    detail: "Publish to any self-hosted WP site",
+    Mark: WordPressMark,
+    tone: "bg-[#21759b]/10 text-[#21759b]",
+    slug: "wordpress",
+  },
+  {
+    name: "Webflow",
+    detail: "Sync to CMS collections",
+    Mark: WebflowMark,
+    tone: "bg-[#4353ff]/10 text-[#4353ff]",
+    slug: "webflow",
+  },
+  {
+    name: "Shopify",
+    detail: "Power store blogs",
+    Mark: ShopifyMark,
+    tone: "bg-[#95bf47]/15 text-[#5e8e3e]",
+    slug: "shopify",
+  },
+  {
+    name: "Ghost",
+    detail: "Native Ghost Admin API",
+    Mark: GhostMark,
+    tone: "bg-foreground/10 text-foreground",
+    slug: "ghost",
+  },
+  {
+    name: "Wix",
+    detail: "Push to your Wix blog",
+    Mark: WixMark,
+    tone: "bg-[#0c6efd]/10 text-[#0c6efd]",
+    slug: "wix",
+  },
+  {
+    name: "Webhook",
+    detail: "Connect anything else",
+    Mark: WebhookMark,
+    tone: "bg-primary/10 text-primary",
+    slug: "webhook",
+  },
+  {
+    name: "Search Console",
+    detail: "Read your real rankings",
+    Mark: SearchConsoleMark,
+    tone: "bg-[#458cf5]/10 text-[#458cf5]",
+  },
 ];
 
-export function WorksWith({ t }: SectionProps) {
+export function WorksWith({ t, href }: SectionProps) {
   return (
-    <section className="border-t px-4 py-8">
-      <div className="mx-auto max-w-5xl text-center">
-        <p className="text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+    <section className="border-t px-4 py-14">
+      <div className="mx-auto max-w-5xl">
+        <p className="text-center text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
           {t.worksWithTitle}
         </p>
-        <ul className="mt-6 flex flex-wrap items-center justify-center gap-x-10 gap-y-4">
-          {WORKS_WITH.map((name) => (
-            <li
-              key={name}
-              className="text-lg font-semibold text-muted-foreground/70"
-            >
-              {name}
-            </li>
-          ))}
+
+        {/*
+          Tiles rather than a row of words, as the grid in the design draws
+          them. Four across at desktop and two on a phone: five columns would
+          leave the last card alone on its own row, since there are seven.
+        */}
+        <ul className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          {WORKS_WITH.map(({ name, detail, Mark, tone, slug }) => {
+            /*
+              A card is a link only when there is a guide to open. Search
+              Console has no setup page of its own — it is connected from
+              inside the account — and a card that looks clickable and does
+              nothing is worse than one that plainly does not.
+            */
+            const card = (
+              <>
+                <span
+                  className={`flex size-11 items-center justify-center rounded-xl ${tone}`}
+                >
+                  <Mark className="size-6" />
+                </span>
+                <span className="mt-3 block font-medium">{name}</span>
+                <span className="mt-0.5 block text-xs text-muted-foreground">
+                  {detail}
+                </span>
+              </>
+            );
+
+            return (
+              <li key={name}>
+                {slug ? (
+                  <Link
+                    href={href(`/docs/integrations/${slug}`)}
+                    className="flex h-full flex-col items-center rounded-2xl border bg-card p-5 text-center transition-colors hover:border-primary/40 hover:bg-primary/[0.02]"
+                  >
+                    {card}
+                  </Link>
+                ) : (
+                  <div className="flex h-full flex-col items-center rounded-2xl border bg-card p-5 text-center">
+                    {card}
+                  </div>
+                )}
+              </li>
+            );
+          })}
         </ul>
       </div>
     </section>
