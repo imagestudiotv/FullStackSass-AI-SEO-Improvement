@@ -113,13 +113,19 @@ export function AuthShowcase() {
   return (
     <div
       /*
-        Scrolls rather than clipping. It was overflow-hidden and centred, so
-        anything past the viewport was simply cut off — and a "more below" cue
-        on a panel that cannot move would be a lie. sticky top-0 with its own
-        height keeps it beside the form while letting its contents run past the
-        fold on a short screen.
+        No scroller of its own. It had overflow-y-auto and a capped height,
+        which put a second scrollbar beside the page's own — two bars an inch
+        apart, and neither obviously the one that moves the page.
+
+        justify-center made it worse: centred flex content that overflows is
+        pushed out past the container's start edge, and that overflow cannot be
+        scrolled back to. The panel's heading was simply unreachable.
+
+        The panel now grows to whatever its contents need and the page scrolls,
+        so there is one scrollbar and nothing is cut off. justify-start keeps
+        the top of the content at the top of the panel.
       */
-      className="relative top-0 hidden max-h-svh flex-col justify-center overflow-y-auto bg-gradient-to-br from-primary/[0.07] via-background to-primary/[0.04] p-10 lg:sticky lg:flex xl:p-14"
+      className="relative hidden flex-col justify-start bg-gradient-to-br from-primary/[0.07] via-background to-primary/[0.04] p-10 lg:flex xl:p-14"
       /*
         The faint grid from the reference. An inline gradient rather than an
         image: it is two lines, costs no request, and stays crisp at any size.
