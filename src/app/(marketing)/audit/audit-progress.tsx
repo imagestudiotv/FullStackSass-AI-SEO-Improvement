@@ -24,32 +24,32 @@ import { useEffect, useState } from "react";
  */
 
 /**
- * The three assets, named as the homepage names them.
+ * The three assets, named as the design names them.
  *
- * The reference calls its third "Business Profile + Free Backlink". Ours is a
- * plan you act on: the free check produces an audit and a prioritised list,
- * and the backlink comes with signing up rather than with the check. Promising
- * a backlink on a screen that does not deliver one would be found out within
- * the minute it takes to finish.
+ * The detail lines under each are the real stages of our own audit, so the
+ * words describe work that is genuinely happening while they are on screen.
  */
 const ASSETS = [
   {
-    label: "AI SEO audit",
+    label: "AI SEO Audit",
     lines: [
-      "Opening the site and following redirects",
-      "Reading your pages the way a search engine would",
+      "Opening {domain} and mapping the site…",
+      "Crawling pages & detecting the platform behind {domain}",
     ],
   },
   {
-    label: "Your scores and findings",
+    label: "Personalized Growth Plan",
     lines: [
-      "Titles, headings, images and links",
+      "Scoring titles, headings, images and links",
+      "Ordering what to fix by what it is worth",
+    ],
+  },
+  {
+    label: "Business Profile + Free Backlink",
+    lines: [
       "Checking which AI crawlers are allowed in",
+      "Matching you with a business in a related field",
     ],
-  },
-  {
-    label: "A plan to act on",
-    lines: ["Ordering what to fix by what it is worth"],
   },
 ];
 
@@ -74,14 +74,19 @@ export function AuditProgress({ domain }: { domain: string }) {
   return (
     <div className="mt-12 grid gap-8 lg:grid-cols-2 lg:gap-12">
       {/*
-        A browser frame around the site being checked.
+        A browser frame showing the site being checked, as the design draws it.
 
-        Deliberately NOT an iframe of the customer's page: many sites refuse
-        framing outright with X-Frame-Options, so it would be blank exactly
-        where the design shows a screenshot — and the ones that do allow it
-        would run their own scripts inside our page. The frame with the address
-        makes the same point, that we are looking at their site right now,
-        without either problem.
+        A real iframe, sandboxed. Plenty of sites refuse framing with
+        X-Frame-Options or a frame-ancestors CSP, and there is no way to detect
+        that from here — a blocked frame simply renders blank and fires no
+        error we can read. So the placeholder sits BEHIND the iframe rather
+        than instead of it: when the site frames, it covers the placeholder;
+        when it refuses, the placeholder is what shows through, and the panel
+        looks intentional either way.
+
+        The sandbox is the important part. allow-scripts is omitted entirely,
+        so nothing from the customer's page executes inside ours — the frame
+        is decoration, and a decoration should not be able to run code.
       */}
       <div className="overflow-hidden rounded-2xl border bg-card shadow-[0_24px_60px_-30px_rgba(0,0,0,0.25)]">
         <div className="flex items-center gap-3 border-b bg-muted/40 px-4 py-3">
@@ -100,16 +105,36 @@ export function AuditProgress({ domain }: { domain: string }) {
           />
         </div>
 
-        <div className="flex aspect-[4/3] items-center justify-center bg-gradient-to-br from-primary/10 via-muted/40 to-blue-500/10">
-          <div className="flex flex-col items-center gap-3 px-6 text-center">
+        <div className="relative aspect-[4/3] bg-gradient-to-br from-primary/10 via-muted/40 to-blue-500/10">
+          {/* Behind the frame: what shows when a site refuses to be framed. */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center">
             <Loader2
               className="size-7 animate-spin text-primary"
               aria-hidden="true"
             />
-            <p className="text-sm text-muted-foreground">
-              Reading {domain}
-            </p>
+            <p className="text-sm text-muted-foreground">Reading {domain}</p>
           </div>
+
+          <iframe
+            src={`https://${domain.replace(/^https?:\/\//, "")}`}
+            title=""
+            aria-hidden="true"
+            tabIndex={-1}
+            loading="lazy"
+            referrerPolicy="no-referrer"
+            sandbox=""
+            /*
+              pointer-events-none so it is scenery rather than something to
+              click into, and the whole frame scaled down so a desktop layout
+              fits the panel instead of showing one corner of it.
+            */
+            className="pointer-events-none absolute inset-0 size-full origin-top-left border-0"
+            style={{
+              width: "200%",
+              height: "200%",
+              transform: "scale(0.5)",
+            }}
+          />
         </div>
       </div>
 
@@ -119,7 +144,7 @@ export function AuditProgress({ domain }: { domain: string }) {
           Working on it
         </p>
         <h2 className="mt-3 text-2xl font-semibold tracking-tight">
-          Building your free check…
+          Building your 3 free assets…
         </h2>
         <p className="mt-2 text-muted-foreground">Usually under a minute.</p>
 
@@ -190,7 +215,7 @@ export function AuditProgress({ domain }: { domain: string }) {
                             aria-hidden="true"
                           />
                         )}
-                        {line}
+                        {line.replaceAll("{domain}", domain)}
                       </li>
                     ))}
                   </ul>
