@@ -1,8 +1,8 @@
-import { Bot, FileSearch, ListChecks } from "lucide-react";
-
 import { Suspense } from "react";
 
 import { runPublicAudit } from "@/lib/audit/public-audit";
+import { getMessages } from "@/lib/i18n/messages";
+import { AuditBand } from "../home-sections";
 import { AuditForm } from "./audit-form";
 import { AuditProgress } from "./audit-progress";
 import { SitePreviewFallback } from "./site-preview";
@@ -47,44 +47,34 @@ export default async function AuditPage({
         </p>
       </div>
 
-      <div className="mx-auto mt-8 max-w-xl">
-        <AuditForm key={domain} defaultValue={domain} />
-        <p className="mt-3 text-center text-xs text-muted-foreground">
-          No account, no card. Takes about a minute.
-        </p>
-      </div>
-
       {/*
-        What the check actually does. Shown only before a result, where the
-        reference runs its three-step build animation — the same reassurance
-        that something real is happening, without pretending to a progress bar
-        we cannot honestly drive from a server component.
+        Before a check: the card from the design — the three assets named and
+        numbered, the field inside the same pill, the reassurances beneath.
+
+        It is the homepage's own AuditBand rather than a copy of it. The two
+        are the same drawing, and a second implementation of a card this
+        central is the kind of pair that drifts the first time one is retouched.
+        The negative top margin pulls it under the heading above, which already
+        supplies the spacing the band assumes it needs.
       */}
       {!domain ? (
-        <div className="mt-16 grid gap-4 sm:grid-cols-3">
-          {[
-            {
-              icon: FileSearch,
-              title: "We read your pages",
-              body: "Up to five of them, the way a search engine would — titles, headings, images, links.",
-            },
-            {
-              icon: ListChecks,
-              title: "We score what we find",
-              body: "Every problem comes with what to change and roughly how long it takes.",
-            },
-            {
-              icon: Bot,
-              title: "We check AI access",
-              body: "Whether ChatGPT, Claude, Perplexity and Gemini are allowed to read and cite you.",
-            },
-          ].map((step) => (
-            <div key={step.title} className="rounded-xl border bg-card p-5">
-              <step.icon className="size-5 text-primary" aria-hidden="true" />
-              <p className="mt-3 font-medium">{step.title}</p>
-              <p className="mt-1 text-sm text-muted-foreground">{step.body}</p>
-            </div>
-          ))}
+        <div className="-mx-4 mt-2">
+          <AuditBand t={getMessages("en").home} href={(path) => path} />
+        </div>
+      ) : null}
+
+      {/*
+        After a check: the plain field. The full card here would put a
+        conversion block between the heading and the result the visitor is
+        waiting on, pushing the answer below the fold on the one screen where
+        it is the entire point.
+      */}
+      {domain ? (
+        <div className="mx-auto mt-8 max-w-xl">
+          <AuditForm key={domain} defaultValue={domain} />
+          <p className="mt-3 text-center text-xs text-muted-foreground">
+            No account, no card. Takes about a minute.
+          </p>
         </div>
       ) : null}
 
