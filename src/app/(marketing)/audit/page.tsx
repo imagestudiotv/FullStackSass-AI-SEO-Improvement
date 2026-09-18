@@ -5,7 +5,7 @@ import { Suspense } from "react";
 import { runPublicAudit } from "@/lib/audit/public-audit";
 import { AuditForm } from "./audit-form";
 import { AuditProgress } from "./audit-progress";
-import { SitePreview, SitePreviewFallback } from "./site-preview";
+import { SitePreviewFallback } from "./site-preview";
 import { AuditResult } from "./audit-result";
 
 export const metadata = {
@@ -102,22 +102,23 @@ export default async function AuditPage({
         runs.
       */}
       {domain ? (
-        <Suspense key={domain} fallback={
+        <Suspense
+          key={domain}
+          fallback={
             <AuditProgress
               domain={domain}
               /*
-                Rendered here so the fetch happens on the server. It is its own
-                Suspense boundary: the picture must never hold up the loading
-                screen it decorates, so the frame shows its address while the
-                image is still being found.
+                The frame shows the address while the crawl runs. The picture
+                is NOT fetched here — it used to be, and it raced the audit: a
+                cached result returns in milliseconds while the image still
+                needs a second or two, so the screen unmounted before it
+                arrived and the frame only ever showed this fallback. It comes
+                back with the result now, cached alongside it.
               */
-              preview={
-                <Suspense fallback={<SitePreviewFallback domain={domain} />}>
-                  <SitePreview domain={domain} />
-                </Suspense>
-              }
+              preview={<SitePreviewFallback domain={domain} />}
             />
-          }>
+          }
+        >
           <AuditOutcome domain={domain} />
         </Suspense>
       ) : null}

@@ -1,3 +1,9 @@
+/*
+  eslint-disable @next/next/no-img-element --
+  The image is on the CUSTOMER's domain, which is not knowable ahead of time.
+  next/image needs every remote host in remotePatterns, so optimising it would
+  mean a wildcard — which turns our optimiser into an open image proxy.
+*/
 import {
   AlertTriangle,
   ArrowRight,
@@ -192,6 +198,21 @@ export function AuditResult({ result }: { result: PublicAuditResult }) {
           card. The ring keeps a fixed column and the name truncates instead.
         */}
         <CardContent className="flex items-center gap-6 py-6">
+          {/*
+            The site's own og:image, read during the crawl that produced these
+            findings. Hidden below sm, where it would take a third of the card
+            from the score it sits beside.
+          */}
+          {result.previewImage ? (
+            <div className="hidden size-20 shrink-0 overflow-hidden rounded-xl border sm:block">
+              <img
+                src={result.previewImage}
+                alt=""
+                className="size-full object-cover"
+              />
+            </div>
+          ) : null}
+
           <div className="min-w-0 flex-1">
             <p className="text-xs font-semibold tracking-[0.14em] text-primary uppercase">
               AI SEO audit

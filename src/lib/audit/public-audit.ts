@@ -115,6 +115,17 @@ export type PublicAuditResult = {
   crawlers: CrawlerAccess[];
   /** Outbound hosts the site links to — a weak but free competitor signal. */
   linkedHosts: string[];
+  /**
+   * The site's own og:image, for the preview frame on the loading screen.
+   *
+   * Carried on the result rather than fetched separately. The loading screen
+   * used to fetch it itself, which raced the audit: a cached audit returns in
+   * milliseconds while the picture still needs a second or two, so the screen
+   * unmounted before the image arrived and the frame only ever showed its
+   * fallback. Reading it from the crawl that already happened removes the race
+   * and the second request at once.
+   */
+  previewImage: string | null;
 };
 
 export type PublicAuditError =
@@ -130,8 +141,10 @@ export type PublicAuditOutcome =
 function cacheKeyFor(domain: string): string {
   // Versioned: cached entries hold a shaped result, so a change to
   // PublicAuditResult must not be read back into the new UI. Bump on shape
-  // changes — v2 added grouped issues and the crawler/platform context.
-  return `public-audit:v2:${domain}`;
+  // changes — v2 added grouped issues and the crawler/platform context, v3
+  // the preview image. Without the bump, a v2 entry would deserialise with
+  // previewImage undefined and the frame would stay empty for 24 hours.
+  return `public-audit:v3:${domain}`;
 }
 
 async function readCached(domain: string): Promise<PublicAuditResult | null> {
@@ -278,6 +291,7 @@ export async function runPublicAudit(
     // Asset and link URLs carry the fingerprints; visible text does not.
     platform: home
       ? detectPlatform([
+          ...(home.platformSignals ?? []),
           ...(home.images ?? []).map((i) => i.src),
           ...(home.internalUrls ?? []),
         ])
@@ -287,6 +301,7 @@ export async function runPublicAudit(
       .sort((a, b) => b[1] - a[1])
       .slice(0, 6)
       .map(([host]) => host),
+    previewImage: home?.ogImageUrl ?? null,
   };
 
   // Cached under the same table the paid providers use; the unique index on
