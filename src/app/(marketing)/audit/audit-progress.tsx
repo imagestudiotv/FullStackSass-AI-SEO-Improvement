@@ -1,6 +1,13 @@
 "use client";
 
-import { Check, Globe, Loader2, RotateCw, Sparkles } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  Globe,
+  Loader2,
+  RotateCw,
+  Sparkles,
+} from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 
 /**
@@ -71,6 +78,15 @@ export function AuditProgress({
   preview: ReactNode;
 }) {
   const [stage, setStage] = useState(0);
+  /**
+   * The row the reader opened by hand, or null while it simply follows the
+   * running step.
+   *
+   * Kept separate from `stage` rather than moving it: a click must not look
+   * like the audit jumped to a different step, and the work carries on
+   * regardless of what is being read.
+   */
+  const [opened, setOpened] = useState<number | null>(null);
 
   useEffect(() => {
     /**
@@ -126,14 +142,29 @@ export function AuditProgress({
             const done = index < stage;
             const active = index === stage;
 
+            /*
+              Open when the reader clicked this row, otherwise whichever step
+              is running. So the panel follows the work on its own, and a click
+              overrides that without changing what the work is doing.
+            */
+            const isOpen = opened === null ? active : opened === index;
+
             return (
               <li
                 key={asset.label}
-                className={`rounded-xl border p-4 transition-colors ${
+                className={`overflow-hidden rounded-xl border transition-colors ${
                   active ? "border-primary/40 bg-primary/[0.03]" : ""
                 }`}
               >
-                <p className="flex items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={() =>
+                    // Clicking the open row closes it and hands control back.
+                    setOpened((current) => (current === index ? null : index))
+                  }
+                  aria-expanded={isOpen}
+                  className="flex w-full items-center gap-2.5 p-4 text-left transition-colors hover:bg-muted/40"
+                >
                   <span
                     className={`flex size-6 shrink-0 items-center justify-center rounded-full ${
                       done
@@ -163,15 +194,21 @@ export function AuditProgress({
                   >
                     {index + 1}. {asset.label}
                   </span>
-                </p>
+                  {/*
+                    A chevron, so it is visible that a row opens at all. The
+                    reference shows only the running step expanded, which gives
+                    a reader no way to look back at what an earlier step did.
+                  */}
+                  <ChevronDown
+                    className={`ml-auto size-4 shrink-0 text-muted-foreground transition-transform ${
+                      isOpen ? "rotate-180" : ""
+                    }`}
+                    aria-hidden="true"
+                  />
+                </button>
 
-                {/*
-                  The detail lines only while a step is running, as in the
-                  reference — a finished step is a tick, and every step showing
-                  its full working turns the panel into a wall of text.
-                */}
-                {active ? (
-                  <ul className="mt-3 space-y-1.5 pl-8">
+                {isOpen ? (
+                  <ul className="space-y-1.5 px-4 pb-4 pl-12">
                     {asset.lines.map((line, lineIndex) => (
                       <li
                         key={line}
