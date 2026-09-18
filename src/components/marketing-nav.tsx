@@ -146,10 +146,7 @@ function PlatformMenu({
       >
         {label}
         <ChevronDown
-          className={cn(
-            "size-3.5 transition-transform",
-            open && "rotate-180",
-          )}
+          className={cn("size-3.5 transition-transform", open && "rotate-180")}
           aria-hidden="true"
         />
       </button>
@@ -390,7 +387,10 @@ export function MarketingFooterLinks() {
           { href: "/blog", label: t.footer.blog },
           { href: "/faq", label: t.footer.faq },
           { href: "/about", label: t.footer.about },
-          { href: href("/backlink-exchange"), label: t.footer.backlinkExchange },
+          {
+            href: href("/backlink-exchange"),
+            label: t.footer.backlinkExchange,
+          },
           { href: "/publishers", label: t.footer.publishers },
           { href: "/affiliate", label: t.footer.affiliate },
           { href: "/contact", label: t.footer.contact },
@@ -398,7 +398,7 @@ export function MarketingFooterLinks() {
           <Link
             key={item.href}
             href={item.href}
-            className="block text-muted-foreground hover:text-foreground"
+            className="block py-1 text-muted-foreground hover:text-foreground"
           >
             {item.label}
           </Link>
@@ -420,7 +420,7 @@ export function MarketingFooterLinks() {
           <Link
             key={item.href}
             href={item.href}
-            className="block text-muted-foreground hover:text-foreground"
+            className="block py-1 text-muted-foreground hover:text-foreground"
           >
             {item.label}
           </Link>

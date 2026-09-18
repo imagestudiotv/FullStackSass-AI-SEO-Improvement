@@ -149,10 +149,19 @@ export function PlanStep({
         only option.
       */}
       {hasChoice ? (
+        /*
+          A grid, not one unwrapping flex row.
+
+          Four tiers reading "Starter · €1" through "Scale · €299" share a
+          320px iPhone SE at about 70px each, which crushes the name against
+          the price. Two per row below `sm` gives each one half the screen and
+          the pill shape survives; from `sm` up all four sit on one row as
+          drawn.
+        */
         <div
           role="radiogroup"
           aria-label="Plan"
-          className="mt-6 inline-flex w-full rounded-full border bg-muted/50 p-1"
+          className="mt-6 grid grid-cols-2 gap-1 rounded-2xl border bg-muted/50 p-1 sm:flex sm:rounded-full"
         >
           {monthlyPlans.map((option) => (
             <button
@@ -161,14 +170,21 @@ export function PlanStep({
               role="radio"
               aria-checked={option.tier === tier}
               onClick={() => setTier(option.tier)}
-              className={`flex-1 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+              className={`rounded-full px-3 py-2 text-sm font-medium transition-colors sm:flex-1 sm:px-4 ${
                 option.tier === tier
                   ? "bg-background shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              {option.name} &middot;{" "}
-              {formatPrice(option.priceCents, option.currency)}
+              {/*
+                The price wraps under the name rather than beside it on a
+                phone: a nowrap "Scale · €299" is what forced the row wide.
+              */}
+              <span className="block sm:inline">{option.name}</span>
+              <span className="hidden sm:inline"> &middot; </span>
+              <span className="block text-xs sm:inline sm:text-sm">
+                {formatPrice(option.priceCents, option.currency)}
+              </span>
             </button>
           ))}
         </div>

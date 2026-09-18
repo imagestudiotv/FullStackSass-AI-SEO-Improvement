@@ -43,10 +43,7 @@ import {
   updateArticle,
   type ArticleDetail,
 } from "@/lib/articles/actions";
-import {
-  publishArticle,
-  type PublishLogRow,
-} from "@/lib/publishing/actions";
+import { publishArticle, type PublishLogRow } from "@/lib/publishing/actions";
 
 const STEP_LABEL: Record<string, string> = {
   outline: "Planning what to cover",
@@ -96,7 +93,8 @@ export function ArticleEditor({
   const [slug, setSlug] = useState(article.slug ?? "");
   const [body, setBody] = useState(article.bodyHtml ?? "");
 
-  const working = article.status === "generating" || article.status === "queued";
+  const working =
+    article.status === "generating" || article.status === "queued";
 
   /**
    * Generation takes about a minute and writes to the database from a
@@ -251,7 +249,9 @@ export function ArticleEditor({
       {article.status === "failed" ? (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">We could not write this one</CardTitle>
+            <CardTitle className="text-base">
+              We could not write this one
+            </CardTitle>
             <CardDescription>
               {explainGenerationError(article.error).summary}{" "}
               {explainGenerationError(article.error).action}
@@ -311,7 +311,13 @@ export function ArticleEditor({
 
       {article.bodyHtml ? (
         <Tabs defaultValue="preview">
-          <div className="flex items-center justify-between gap-4">
+          {/*
+            Wraps on a narrow screen. Two tabs plus Rewrite, Send as draft and
+            Publish on one unwrapping row do not fit a phone — and the part
+            pushed off the edge was the publish button, which is the whole
+            point of the screen.
+          */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <TabsList>
               <TabsTrigger value="preview">
                 <Eye className="size-4" />
@@ -322,7 +328,7 @@ export function ArticleEditor({
                 Edit
               </TabsTrigger>
             </TabsList>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button
                 variant="outline"
                 size="sm"
@@ -398,90 +404,90 @@ export function ArticleEditor({
               screen it costs nothing to show both at once.
             */}
             <div className="grid items-start gap-4 lg:grid-cols-[1fr_20rem]">
-            {/*
+              {/*
               overflow-visible overrides Card's own overflow-hidden, which
               clips position:sticky — without it the editor's toolbar scrolls
               away with the text instead of staying put.
             */}
-            <Card className="overflow-visible">
-              <CardHeader>
-                <CardTitle className="text-base">Edit article</CardTitle>
-                <CardDescription>
-                  Your previous version is kept each time you save.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="title">Title</Label>
-                  <Input
-                    id="title"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                  />
-                </div>
+              <Card className="overflow-visible">
+                <CardHeader>
+                  <CardTitle className="text-base">Edit article</CardTitle>
+                  <CardDescription>
+                    Your previous version is kept each time you save.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="title">Title</Label>
+                    <Input
+                      id="title"
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                    />
+                  </div>
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="meta">
-                    Meta description{" "}
-                    <span className="text-muted-foreground">
-                      ({meta.length}/158)
-                    </span>
-                  </Label>
-                  <Input
-                    id="meta"
-                    value={meta}
-                    onChange={(e) => setMeta(e.target.value)}
-                  />
-                </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="meta">
+                      Meta description{" "}
+                      <span className="text-muted-foreground">
+                        ({meta.length}/158)
+                      </span>
+                    </Label>
+                    <Input
+                      id="meta"
+                      value={meta}
+                      onChange={(e) => setMeta(e.target.value)}
+                    />
+                  </div>
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="slug">Address on your website</Label>
-                  <Input
-                    id="slug"
-                    value={slug}
-                    onChange={(e) => setSlug(e.target.value)}
-                    placeholder="wedding-films-italy"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    {/*
+                  <div className="space-y-1.5">
+                    <Label htmlFor="slug">Address on your website</Label>
+                    <Input
+                      id="slug"
+                      value={slug}
+                      onChange={(e) => setSlug(e.target.value)}
+                      placeholder="wedding-films-italy"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      {/*
                       Tidied on save rather than validated as you type:
                       someone typing a real title means the slug version of
                       it, and correcting them mid-keystroke is hostile.
                     */}
-                    Spaces and punctuation become dashes. Leave empty and your
-                    website will choose one from the title.
-                  </p>
-                </div>
+                      Spaces and punctuation become dashes. Leave empty and your
+                      website will choose one from the title.
+                    </p>
+                  </div>
 
-                <div className="space-y-1.5">
-                  {/*
+                  <div className="space-y-1.5">
+                    {/*
                     A plain label, not <Label htmlFor>: the editor is a
                     contenteditable div, which htmlFor cannot focus. The
                     editor carries its own aria-label instead.
                   */}
-                  <p className="text-sm font-medium">Article content</p>
-                  <RichTextEditor
-                    value={body}
-                    onChange={setBody}
-                    onUploadImage={handleInlineUpload}
-                    onListImages={handleListImages}
-                  />
-                </div>
-              </CardContent>
-              <CardFooter>
-                <Button onClick={handleSave} disabled={pending}>
-                  {pending ? "Saving…" : "Save changes"}
-                </Button>
-              </CardFooter>
-            </Card>
+                    <p className="text-sm font-medium">Article content</p>
+                    <RichTextEditor
+                      value={body}
+                      onChange={setBody}
+                      onUploadImage={handleInlineUpload}
+                      onListImages={handleListImages}
+                    />
+                  </div>
+                </CardContent>
+                <CardFooter>
+                  <Button onClick={handleSave} disabled={pending}>
+                    {pending ? "Saving…" : "Save changes"}
+                  </Button>
+                </CardFooter>
+              </Card>
 
-            <FeaturedImage
-              websiteId={websiteId}
-              articleId={article.id}
-              imageUrl={article.imageUrl}
-              imageAlt={article.imageAlt}
-              attempts={article.imageAttempts}
-            />
+              <FeaturedImage
+                websiteId={websiteId}
+                articleId={article.id}
+                imageUrl={article.imageUrl}
+                imageAlt={article.imageAlt}
+                attempts={article.imageAttempts}
+              />
             </div>
           </TabsContent>
         </Tabs>
