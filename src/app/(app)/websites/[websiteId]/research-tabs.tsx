@@ -177,8 +177,19 @@ export function ResearchTabs({
 
   return (
     <Tabs defaultValue="calendar">
-      <div className="flex items-center justify-between gap-4">
-        <TabsList>
+      {/*
+        Wraps on a narrow screen. Three tabs and a button on one unwrapping
+        row measured 515px against a 390px phone, so the whole page scrolled
+        sideways — the tabs are the page's navigation and were the part pushed
+        off the edge.
+      */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {/*
+          The tab row scrolls within itself rather than forcing the page to.
+          Three labels with counts do not fit a phone at any wrapping, and a
+          list that wraps to three lines costs more room than it saves.
+        */}
+        <TabsList className="max-w-full overflow-x-auto">
           <TabsTrigger value="calendar">
             <CalendarDays className="size-4" />
             Content plan ({calendar.length})
