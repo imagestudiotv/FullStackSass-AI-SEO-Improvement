@@ -105,10 +105,16 @@ export function PlanStep({
     if (!plan) return;
     setPending(provider);
 
+    /*
+      "onboarding" so paying returns HERE rather than to the dashboard's
+      billing page. This page forwards a paid customer to the next step, so
+      the flow carries on where it left off instead of ending in a screen full
+      of the app chrome that setup deliberately hides.
+    */
     const result =
       provider === "paypal"
-        ? await createPayPalCheckout(plan.id, websiteId)
-        : await createCheckoutSession(plan.id, websiteId);
+        ? await createPayPalCheckout(plan.id, websiteId, "onboarding")
+        : await createCheckoutSession(plan.id, websiteId, "onboarding");
 
     if ("error" in result) {
       setPending(null);

@@ -8,6 +8,7 @@ import { getOnboardingState } from "@/lib/onboarding/steps";
 import { isPayPalAvailable } from "@/lib/paypal/actions";
 import { toPickerPlan } from "@/lib/plans/features";
 import { requireOrg } from "@/lib/tenant";
+import { CheckoutPending } from "./checkout-pending";
 import { PlanStep } from "./plan-step";
 
 export const metadata = { title: "Choose your plan" };
@@ -51,6 +52,33 @@ export default async function OnboardingPlanPage({
    * only button starts a checkout, that is worse than a detour.
    */
   if (state.hasPlan) redirect("/onboarding/visibility");
+
+  /**
+   * Just paid, but the subscription has not landed yet.
+   *
+   * Stripe sends the browser back the instant the payment is authorised,
+   * while the subscription row is written by the webhook a moment later —
+   * so `hasPlan` above is routinely still false for the first few seconds
+   * after a genuine, successful payment.
+   *
+   * Without this the customer is shown the plan picker again, which reads as
+   * "your payment did not work" at the worst possible moment: they have been
+   * charged, and the screen is asking them to pay a second time.
+   *
+   * The waiting screen polls and moves on by itself. Entitlement is NEVER
+   * granted from this redirect — it only decides what to show while the
+   * webhook, which is the sole source of truth, catches up.
+   */
+  const returning =
+    params.checkout === "success" || params.paypal === "success";
+  if (returning) {
+    return (
+      <div>
+        <WizardProgress current="plan" />
+        <CheckoutPending websiteId={state.websiteId} />
+      </div>
+    );
+  }
 
   const monthlyPlans = allPlans
     .filter((plan) => plan.interval === "month")

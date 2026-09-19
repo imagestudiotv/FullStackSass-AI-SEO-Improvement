@@ -8,6 +8,10 @@ import { isStripeConfigured, stripe } from "@/lib/stripe/client";
 import { getOrCreateCustomer } from "@/lib/stripe/customer";
 import { stripeErrorMessage } from "@/lib/stripe/errors";
 import { requireOrg } from "@/lib/tenant";
+import {
+  checkoutReturnPath,
+  type CheckoutOrigin,
+} from "@/lib/billing/return-to";
 
 function appUrl(): string {
   const url = process.env.NEXT_PUBLIC_APP_URL;
@@ -36,6 +40,13 @@ export async function createCheckoutSession(
    * Ownership is re-checked below: the id arrives from the browser.
    */
   websiteId: string,
+  /**
+   * Where the customer started, so paying returns them there.
+   *
+   * Defaults to "billing", which is what every existing caller meant. Only
+   * the onboarding plan step passes "onboarding".
+   */
+  origin: CheckoutOrigin = "billing",
 ): Promise<CheckoutResult> {
   const { orgId } = await requireOrg();
 
@@ -93,8 +104,14 @@ export async function createCheckoutSession(
       mode: "subscription",
       customer: customerId,
       line_items: [{ price: plan.stripePriceId, quantity: 1 }],
-      success_url: `${base}/billing?checkout=success`,
-      cancel_url: `${base}/billing?checkout=cancelled`,
+      /*
+        Back where they started, not always /billing. Someone paying during
+        setup was dropped into the dashboard's billing screen — the sidebar
+        and the whole app — part-way through a flow that deliberately hides
+        it, with nothing saying what came next.
+      */
+      success_url: `${base}${checkoutReturnPath(origin, "success", websiteId)}`,
+      cancel_url: `${base}${checkoutReturnPath(origin, "cancelled", websiteId)}`,
       allow_promotion_codes: true,
       // Metadata on the SESSION identifies this checkout...
       metadata: { organizationId: orgId, planId: plan.id, websiteId },

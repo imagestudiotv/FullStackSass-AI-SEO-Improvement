@@ -11,6 +11,10 @@ import {
   createSubscription,
 } from "@/lib/paypal/subscriptions";
 import { requireOrg } from "@/lib/tenant";
+import {
+  checkoutReturnPath,
+  type CheckoutOrigin,
+} from "@/lib/billing/return-to";
 
 /**
  * PayPal checkout actions.
@@ -42,6 +46,8 @@ export async function createPayPalCheckout(
   planId: string,
   /** The website this subscription pays for. */
   websiteId: string,
+  /** Where the customer started, so approving returns them there. */
+  origin: CheckoutOrigin = "billing",
 ): Promise<PayPalResult> {
   const { orgId } = await requireOrg();
 
@@ -92,10 +98,16 @@ export async function createPayPalCheckout(
   try {
     const result = await createSubscription({
       planId: plan.paypalPlanId,
-      organizationId: orgId,
+      organizationId: orgId,
+
       websiteId,
-      returnUrl: `${base}/billing?paypal=success`,
-      cancelUrl: `${base}/billing?paypal=cancelled`,
+      /*
+        Back where they started, as with Stripe: someone approving mid-setup
+        was landed in the dashboard's billing screen rather than the next
+        step of the flow they were in.
+      */
+      returnUrl: `${base}${checkoutReturnPath(origin, "success", websiteId, "paypal")}`,
+      cancelUrl: `${base}${checkoutReturnPath(origin, "cancelled", websiteId, "paypal")}`,
     });
     return { url: result.approveUrl };
   } catch (error) {
