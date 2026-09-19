@@ -120,6 +120,18 @@ export async function buyAddon(addonId: string): Promise<CheckoutResult> {
       success_url: `${base}/billing?addon=success`,
       cancel_url: `${base}/billing?addon=cancelled`,
       /**
+       * A promotion code box here too, as on the subscription checkout.
+       *
+       * Without it a code that works on a plan silently fails on an add-on:
+       * the customer is told "use CODE at checkout", finds no box, and
+       * concludes the offer was a lie. Promotions are usually run across the
+       * whole product, not per line item, so the two checkouts have to agree.
+       *
+       * It only renders the input — which codes exist, and what they apply
+       * to, is configured in the Stripe dashboard.
+       */
+      allow_promotion_codes: true,
+      /**
        * The webhook reads both of these. Without them a completed payment
        * arrives with no way to tell which workspace bought what, and the money
        * is taken with nothing granted.
