@@ -10,7 +10,7 @@ import {
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -39,18 +39,20 @@ import { MARKETS, MARKET_GLOBAL } from "@/lib/websites/markets";
  * "there will be 3 buttons under each of this steps, so once we click one of
  * this button we go straight to step 5".
  *
- * So all three panels are on screen at once and EACH has its own continue
- * button, any of which moves on. That is not three ways of doing the same
- * thing by accident — it is the point. Everything here is pre-filled by
- * analysis, so a customer who is happy with what we extracted should be able
- * to leave from wherever their eye stopped rather than scrolling to the bottom
- * to find the one real button.
+ * So all three panels are on screen at once and each has its own continue
+ * button.
  *
- * WHY EVERY BUTTON SAVES EVERY FIELD: a customer may edit the market, scroll
- * down and continue from the competitors panel. If each button only wrote its
- * own panel, that market edit would be silently dropped — and with three exit
- * points, leaving from a panel other than the one you edited is the normal
- * path rather than an edge case. Competitors are written as they are added and
+ * WHERE EACH BUTTON GOES: panel 01 to panel 02, 02 to 03, and only 03 leaves
+ * for the plan. The buttons all used to leave, which was a misreading of "we
+ * go straight to step 5" on my part — with panels numbered 01, 02 and 03 of
+ * 03, a button on the first that skips the other two is not a shortcut but a
+ * trap: the customer never sees the questions they were told there were three
+ * of, and the page has silently decided the rest did not matter.
+ *
+ * WHY EVERY BUTTON STILL SAVES EVERY FIELD: all three panels are editable at
+ * once, so someone can change the market, scroll down and press the button on
+ * panel 3. If each button wrote only its own fields that market edit would be
+ * dropped without a word. Competitors are written as they are added and
  * removed, so they are already saved by the time any button runs.
  */
 
@@ -67,8 +69,19 @@ export type SetupWebsite = {
   status: string;
 };
 
-/** Where continuing from any panel leads. */
+/** Where the LAST panel leads. The earlier two move down this page. */
 const NEXT_HREF = "/onboarding/plan";
+
+/**
+ * The panels, in the order the customer works through them.
+ *
+ * One array rather than a number on each panel: "which is next" and "is this
+ * the last one" are both read off it, so there is no second place that has to
+ * agree about the sequence.
+ */
+const PANEL_ORDER = ["market", "description", "competitors"] as const;
+
+type PanelId = (typeof PANEL_ORDER)[number];
 
 /**
  * Audience entries live in one text column, so the chips are joined and split
@@ -77,12 +90,44 @@ const NEXT_HREF = "/onboarding/plan";
  */
 const AUDIENCE_SEPARATOR = ", ";
 
+/**
+ * Longest a comma-separated part may be and still be an audience.
+ *
+ * Analysis is asked for a PHRASE, not a list — "who the business sells to,
+ * e.g. 'homeowners aged 30-55 in Ireland'" — so what comes back is routinely
+ * one sentence containing commas. Splitting that produced chips like "and
+ * businesses seeking premium visual storytelling and professional creative
+ * direction." — the tail of a sentence presented as an audience the customer
+ * had supposedly chosen.
+ *
+ * A real audience is a noun phrase of a few words. Sixty characters is
+ * comfortably above the longest sensible one ("independent hotels and
+ * restaurants in northern Italy" is 48) and well below a clause.
+ */
+const MAX_AUDIENCE_LENGTH = 60;
+
 function splitAudience(value: string | null): string[] {
   if (!value) return [];
-  return value
+
+  const parts = value
     .split(",")
     .map((part) => part.trim())
     .filter(Boolean);
+
+  /**
+   * Prose stays whole.
+   *
+   * If any part is too long to be an audience, or the text ends in a full
+   * stop, this was a sentence rather than a list — so it is shown as ONE chip
+   * the customer can read, keep or delete, instead of being chopped into
+   * fragments that each pretend to be a separate answer.
+   */
+  const looksLikeProse =
+    parts.some((part) => part.length > MAX_AUDIENCE_LENGTH) ||
+    /[.!?]$/.test(value.trim());
+
+  if (looksLikeProse) return [value.trim()];
+  return parts;
 }
 
 /** One of the three panels: a numbered header, content, and its own button. */
@@ -95,6 +140,9 @@ function Panel({
   busy,
   /** Label on the panel's own button, which the design words per panel. */
   action,
+  /** Ticked once the customer has continued past it. */
+  done,
+  panelRef,
 }: {
   step: number;
   title: string;
@@ -103,13 +151,37 @@ function Panel({
   onContinue: () => void;
   busy: boolean;
   action: string;
+  done: boolean;
+  panelRef: (el: HTMLElement | null) => void;
 }) {
   return (
-    <section className="rounded-2xl border bg-card p-6 sm:p-8">
-      <p className="text-xs font-semibold tracking-[0.14em] text-primary uppercase">
-        Step {String(step).padStart(2, "0")}{" "}
-        <span className="text-muted-foreground">/ 03</span>
-      </p>
+    <section
+      ref={panelRef}
+      /*
+        scroll-mt clears the sticky wizard bar at the top of the page. Without
+        it scrollIntoView puts the panel's heading directly under that bar,
+        where it is hidden by it.
+      */
+      className="scroll-mt-4 rounded-2xl border bg-card p-6 sm:p-8"
+    >
+      <div className="flex items-center gap-2">
+        <p className="text-xs font-semibold tracking-[0.14em] text-primary uppercase">
+          Step {String(step).padStart(2, "0")}{" "}
+          <span className="text-muted-foreground">/ 03</span>
+        </p>
+        {/*
+          A tick on a panel already passed. With three panels on one screen and
+          no page change between them, this is the only thing that says which
+          ones are behind you — and someone who scrolls back up to change an
+          answer needs to be able to tell.
+        */}
+        {done ? (
+          <span className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
+            <Check className="size-3" aria-hidden="true" />
+            Saved
+          </span>
+        ) : null}
+      </div>
       <h2 className="mt-2 text-2xl font-semibold tracking-tight">{title}</h2>
       <p className="mt-2 text-sm text-muted-foreground">{description}</p>
 
@@ -160,7 +232,20 @@ export function SetupStep({
   const [newAudience, setNewAudience] = useState("");
   const [rivals, setRivals] = useState(initialCompetitors);
   const [newRival, setNewRival] = useState("");
-  const [busy, setBusy] = useState<string | null>(null);
+  const [busy, setBusy] = useState<PanelId | null>(null);
+  /** Adding a competitor, which is separate from continuing past a panel. */
+  const [addingRival, setAddingRival] = useState(false);
+  /** Panels the customer has continued past, for the "Saved" tick. */
+  const [done, setDone] = useState<PanelId[]>([]);
+
+  /**
+   * The panel elements, so continuing can scroll to the next one.
+   *
+   * A ref rather than querying the DOM by class or position: this survives
+   * the panels being reordered or re-rendered, and nothing here depends on
+   * markup that a later edit could quietly change.
+   */
+  const panelRefs = useRef<Partial<Record<PanelId, HTMLElement | null>>>({});
 
   /**
    * Re-read on arrival.
@@ -234,8 +319,26 @@ export function SetupStep({
     }
   }
 
-  /** Writes everything the three panels own, then moves on. */
-  async function saveAndContinue(from: string) {
+  /**
+   * Saves what is on screen, then moves to the NEXT PANEL — or, from the last
+   * one, on to the plan.
+   *
+   * Every button used to leave the page. That was my misreading of "once we
+   * click one of this button we go straight to step 5": with three panels
+   * numbered 01, 02 and 03 of 03, a button on panel 1 that skips panels 2 and
+   * 3 is not a shortcut, it is a trap — the customer never sees the questions
+   * they were told there were three of, and the screen has silently decided
+   * the remaining two did not matter.
+   *
+   * So the sequence is now what the numbering promises: 01 goes to 02, 02 to
+   * 03, and only 03 leaves.
+   *
+   * The SAVE still writes every field regardless of which button was pressed.
+   * That part was right: the fields are all on one screen and all editable at
+   * once, so somebody can change the market and then press the button on
+   * panel 3.
+   */
+  async function saveAndContinue(from: PanelId) {
     setBusy(from);
 
     const result = await updateWebsiteDetails(website.id, {
@@ -252,7 +355,35 @@ export function SetupStep({
       return;
     }
 
-    router.push(NEXT_HREF);
+    const next = PANEL_ORDER[PANEL_ORDER.indexOf(from) + 1];
+    if (!next) {
+      // The last panel. Busy stays on: the button keeps its spinner until the
+      // new page paints, rather than flicking back to "Use these competitors"
+      // while the navigation is still in flight.
+      router.push(NEXT_HREF);
+      return;
+    }
+
+    setBusy(null);
+    setDone((current) =>
+      current.includes(from) ? current : [...current, from],
+    );
+
+    /**
+     * Bring the next panel into view.
+     *
+     * Without this the page does not appear to respond at all: the panels are
+     * tall, so on a laptop the next one is already below the fold and the
+     * customer is left looking at the button they just pressed, wondering
+     * whether it worked.
+     *
+     * `start` rather than `center`, so the panel's own "STEP 02 / 03" heading
+     * lands at the top of the screen and reads as the thing to do next.
+     */
+    panelRefs.current[next]?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
   }
 
   function addAudience() {
@@ -270,9 +401,15 @@ export function SetupStep({
   async function handleAddRival() {
     const domain = newRival.trim();
     if (!domain) return;
-    setBusy("rival");
+    /*
+      Its own flag, not the panel's. Adding a competitor is a small write
+      inside panel 3; sharing `busy` with the continue buttons put a spinner
+      on the wrong control and — now that `busy` names which panel to advance
+      from — would have been a panel id that does not exist.
+    */
+    setAddingRival(true);
     const result = await addCompetitor(website.id, domain);
-    setBusy(null);
+    setAddingRival(false);
     if (!result.ok) {
       toast.error(result.error);
       return;
@@ -327,6 +464,10 @@ export function SetupStep({
         onContinue={() => saveAndContinue("market")}
         busy={busy === "market"}
         action="Continue"
+        done={done.includes("market")}
+        panelRef={(el) => {
+          panelRefs.current.market = el;
+        }}
       >
         <div className="grid gap-5 sm:grid-cols-2">
           <div>
@@ -418,6 +559,10 @@ export function SetupStep({
         onContinue={() => saveAndContinue("description")}
         busy={busy === "description"}
         action="Continue"
+        done={done.includes("description")}
+        panelRef={(el) => {
+          panelRefs.current.description = el;
+        }}
       >
         <label
           htmlFor="description"
@@ -503,6 +648,10 @@ export function SetupStep({
         onContinue={() => saveAndContinue("competitors")}
         busy={busy === "competitors"}
         action="Use these competitors"
+        done={done.includes("competitors")}
+        panelRef={(el) => {
+          panelRefs.current.competitors = el;
+        }}
       >
         {/* The explainer box from the design. */}
         <div className="rounded-xl border-l-4 border-l-primary/40 bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
@@ -562,7 +711,7 @@ export function SetupStep({
             onChange={(event) => setNewRival(event.target.value)}
             placeholder="type competitor domain here, e.g. competitor.com"
             className="h-11 rounded-xl"
-            disabled={busy === "rival"}
+            disabled={addingRival}
             onKeyDown={(event) => {
               if (event.key !== "Enter") return;
               event.preventDefault();
@@ -573,10 +722,10 @@ export function SetupStep({
             variant="outline"
             className="h-11 shrink-0 rounded-xl"
             onClick={handleAddRival}
-            disabled={busy === "rival" || !newRival.trim()}
+            disabled={addingRival || !newRival.trim()}
             aria-label="Add competitor"
           >
-            {busy === "rival" ? (
+            {addingRival ? (
               <Loader2 className="size-4 animate-spin" aria-hidden="true" />
             ) : (
               <Plus className="size-4" aria-hidden="true" />
