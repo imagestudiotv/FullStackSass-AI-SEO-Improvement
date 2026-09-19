@@ -1,9 +1,9 @@
 "use server";
 
-import { desc, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 import { db } from "@/lib/db";
-import { subscriptions } from "@/lib/db/schema";
+import { billingCustomers } from "@/lib/db/schema";
 import { isStripeConfigured, stripe } from "@/lib/stripe/client";
 import { stripeErrorMessage } from "@/lib/stripe/errors";
 import { requireOrg } from "@/lib/tenant";
@@ -37,11 +37,18 @@ export async function createPortalSession(): Promise<PortalResult> {
     return { error: "Payments are not configured yet." };
   }
 
+  /*
+    From billing_customers, which is the one place a Stripe customer lives
+    now. It used to read the newest subscription row, which broke once a
+    workspace could have several: the newest row belonged to whichever site
+    was bought most recently, and a row created before the customer id was
+    known carried null — sending someone with a perfectly good billing
+    account to "choose a plan first".
+  */
   const [row] = await db
-    .select({ customerId: subscriptions.stripeCustomerId })
-    .from(subscriptions)
-    .where(eq(subscriptions.organizationId, orgId))
-    .orderBy(desc(subscriptions.createdAt))
+    .select({ customerId: billingCustomers.stripeCustomerId })
+    .from(billingCustomers)
+    .where(eq(billingCustomers.organizationId, orgId))
     .limit(1);
 
   if (!row?.customerId) {

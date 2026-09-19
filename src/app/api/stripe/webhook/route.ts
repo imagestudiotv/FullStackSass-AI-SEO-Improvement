@@ -4,7 +4,13 @@ import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 
 import { db } from "@/lib/db";
-import { payments, plans, subscriptions, webhookEvents } from "@/lib/db/schema";
+import {
+  billingCustomers,
+  payments,
+  plans,
+  subscriptions,
+  webhookEvents,
+} from "@/lib/db/schema";
 import { stripe } from "@/lib/stripe/client";
 import { fulfilAddonPurchase } from "@/lib/addons/fulfil";
 import { convertReferral } from "@/lib/referrals/core";
@@ -81,6 +87,19 @@ async function organizationIdFor(
     typeof subscription.customer === "string"
       ? subscription.customer
       : subscription.customer.id;
+
+  /*
+    billing_customers first: it is the authoritative customer-to-workspace
+    mapping and exists from the moment someone reaches checkout. The
+    subscriptions fallback below is kept for rows written before that table
+    existed, which still carry a customer id of their own.
+  */
+  const [owner] = await db
+    .select({ organizationId: billingCustomers.organizationId })
+    .from(billingCustomers)
+    .where(eq(billingCustomers.stripeCustomerId, customerId))
+    .limit(1);
+  if (owner) return owner.organizationId;
 
   const [row] = await db
     .select({ organizationId: subscriptions.organizationId })

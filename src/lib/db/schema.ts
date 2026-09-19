@@ -83,13 +83,16 @@ export const plans = pgTable(
 );
 
 /**
- * One subscription row per organization, enforced by the unique index.
+ * One subscription row per WEBSITE, enforced by the unique index on
+ * website_id.
  *
- * Without it, two concurrent first-time billing requests each insert a row and
- * create a separate Stripe customer, after which getOrCreateCustomer (newest
- * row) and checkLimit (unordered) can read DIFFERENT subscriptions for the
- * same org — splitting billing from limits. The database is the only reliable
- * place to enforce this; an application-level check still races.
+ * It used to be one per organization. That changed in migration 0021 when
+ * each site became separately billable — a workspace with three paid sites
+ * has three rows here, all naming the same organization.
+ *
+ * The Stripe CUSTOMER is therefore not stored here: it belongs to the payer,
+ * not to a site, and lives in `billing_customers`. See the note there for
+ * what went wrong while it did live on this table.
  */
 export const subscriptions = pgTable(
   "subscriptions",
@@ -144,6 +147,39 @@ export const subscriptions = pgTable(
     ),
   ],
 );
+
+/**
+ * The Stripe customer for an organization.
+ *
+ * WHY THIS IS NOT ON `subscriptions`: a Stripe CUSTOMER belongs to the person
+ * paying, but a subscription row now belongs to one WEBSITE. Storing the
+ * customer id there meant that someone who had not bought anything yet needed
+ * a subscription row to hold it — a placeholder with a null website and
+ * status "inactive". That was wrong twice over:
+ *
+ *   1. It was written with ON CONFLICT (organization_id), a unique index that
+ *      migration 0021 dropped when billing moved per website. Postgres rejects
+ *      an ON CONFLICT with no matching constraint, so the FIRST checkout any
+ *      workspace attempted failed outright.
+ *   2. getSubscription() takes one row for the org with no ordering, so even
+ *      once inserted, that inactive placeholder could be returned instead of a
+ *      real paid subscription — showing a paying customer as unpaid.
+ *
+ * One row per organization, created the first time they reach checkout.
+ */
+export const billingCustomers = pgTable("billing_customers", {
+  organizationId: text("organization_id")
+    .primaryKey()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  /**
+   * Stripe's customer id. Nullable-free: a row exists only once we have one.
+   *
+   * Not unique — test and live mode are separate datasets, and a workspace
+   * that moves between them legitimately replaces this value.
+   */
+  stripeCustomerId: text("stripe_customer_id").notNull(),
+  ...timestamps,
+});
 
 /**
  * Every webhook event we have already handled, by the processor's own event id.

@@ -2,7 +2,13 @@ import { cache } from "react";
 import { asc, desc, eq } from "drizzle-orm";
 
 import { db } from "@/lib/db";
-import { payments, plans, subscriptions, websites} from "@/lib/db/schema";
+import {
+  billingCustomers,
+  payments,
+  plans,
+  subscriptions,
+  websites,
+} from "@/lib/db/schema";
 import type { CurrentSubscription, PlanRow, WebsiteSubscription} from "@/lib/billing-shared";
 
 /**
@@ -35,26 +41,37 @@ export async function listPlans(): Promise<PlanRow[]> {
 export async function listWebsiteSubscriptions(
   orgId: string,
 ): Promise<WebsiteSubscription[]> {
-  const rows = await db
-    .select({
-      websiteId: websites.id,
-      domain: websites.domain,
-      status: subscriptions.status,
-      planId: subscriptions.planId,
-      planName: plans.name,
-      tier: plans.tier,
-      interval: plans.interval,
-      currentPeriodEnd: subscriptions.currentPeriodEnd,
-      cancelAtPeriodEnd: subscriptions.cancelAtPeriodEnd,
-      stripeCustomerId: subscriptions.stripeCustomerId,
-      provider: subscriptions.provider,
-    })
-    .from(websites)
-    // Left join: a website with no plan still belongs on this page.
-    .leftJoin(subscriptions, eq(subscriptions.websiteId, websites.id))
-    .leftJoin(plans, eq(subscriptions.planId, plans.id))
-    .where(eq(websites.organizationId, orgId))
-    .orderBy(asc(websites.createdAt));
+  const [rows, [customer]] = await Promise.all([
+    db
+      .select({
+        websiteId: websites.id,
+        domain: websites.domain,
+        status: subscriptions.status,
+        planId: subscriptions.planId,
+        planName: plans.name,
+        tier: plans.tier,
+        interval: plans.interval,
+        currentPeriodEnd: subscriptions.currentPeriodEnd,
+        cancelAtPeriodEnd: subscriptions.cancelAtPeriodEnd,
+        provider: subscriptions.provider,
+      })
+      .from(websites)
+      // Left join: a website with no plan still belongs on this page.
+      .leftJoin(subscriptions, eq(subscriptions.websiteId, websites.id))
+      .leftJoin(plans, eq(subscriptions.planId, plans.id))
+      .where(eq(websites.organizationId, orgId))
+      .orderBy(asc(websites.createdAt)),
+    /*
+      One customer for the whole workspace, not one per site: Stripe's
+      customer is the payer, and the portal it opens shows every subscription
+      they hold. Read once here rather than joined onto each row.
+    */
+    db
+      .select({ stripeCustomerId: billingCustomers.stripeCustomerId })
+      .from(billingCustomers)
+      .where(eq(billingCustomers.organizationId, orgId))
+      .limit(1),
+  ]);
 
   return rows.map((row) => ({
     websiteId: row.websiteId,
@@ -67,9 +84,9 @@ export async function listWebsiteSubscriptions(
     interval: row.interval,
     currentPeriodEnd: row.currentPeriodEnd,
     cancelAtPeriodEnd: row.cancelAtPeriodEnd ?? false,
-    stripeCustomerId: row.stripeCustomerId,
-    // Whether the Stripe portal can be opened for this row.
-    hasCustomer: Boolean(row.stripeCustomerId),
+    stripeCustomerId: customer?.stripeCustomerId ?? null,
+    // Whether the Stripe portal can be opened for this workspace.
+    hasCustomer: Boolean(customer?.stripeCustomerId),
     provider: row.provider ?? "stripe",
   }));
 }
@@ -82,22 +99,42 @@ export async function listWebsiteSubscriptions(
 export const getSubscription = cache(async function getSubscription(
   orgId: string,
 ): Promise<CurrentSubscription | null> {
-  const [row] = await db
-    .select({
-      status: subscriptions.status,
-      planId: subscriptions.planId,
-      planName: plans.name,
-      tier: plans.tier,
-      interval: plans.interval,
-      currentPeriodEnd: subscriptions.currentPeriodEnd,
-      cancelAtPeriodEnd: subscriptions.cancelAtPeriodEnd,
-      stripeCustomerId: subscriptions.stripeCustomerId,
-      provider: subscriptions.provider,
-    })
-    .from(subscriptions)
-    .leftJoin(plans, eq(subscriptions.planId, plans.id))
-    .where(eq(subscriptions.organizationId, orgId))
-    .limit(1);
+  const [[row], [customer]] = await Promise.all([
+    db
+      .select({
+        status: subscriptions.status,
+        planId: subscriptions.planId,
+        planName: plans.name,
+        tier: plans.tier,
+        interval: plans.interval,
+        currentPeriodEnd: subscriptions.currentPeriodEnd,
+        cancelAtPeriodEnd: subscriptions.cancelAtPeriodEnd,
+        provider: subscriptions.provider,
+      })
+      .from(subscriptions)
+      .leftJoin(plans, eq(subscriptions.planId, plans.id))
+      .where(eq(subscriptions.organizationId, orgId))
+      /*
+        A workspace can have several subscriptions — one per website — and
+        this returns ONE, so which one matters. A row carrying a plan comes
+        first, then the newest: an unpaid or cancelled site must never be the
+        row that decides whether the whole workspace is entitled.
+      */
+      .orderBy(desc(subscriptions.planId), desc(subscriptions.createdAt))
+      .limit(1),
+    /*
+      The Stripe customer is org-wide and lives in its own table, so it exists
+      as soon as someone reaches checkout — before any subscription row does.
+      Read separately rather than joined: there may be no subscription at all,
+      and "can this person open the billing portal" is a different question
+      from "what are they paying for".
+    */
+    db
+      .select({ stripeCustomerId: billingCustomers.stripeCustomerId })
+      .from(billingCustomers)
+      .where(eq(billingCustomers.organizationId, orgId))
+      .limit(1),
+  ]);
 
   if (!row) return null;
 
@@ -109,7 +146,7 @@ export const getSubscription = cache(async function getSubscription(
     interval: row.interval,
     currentPeriodEnd: row.currentPeriodEnd,
     cancelAtPeriodEnd: row.cancelAtPeriodEnd,
-    hasCustomer: Boolean(row.stripeCustomerId),
+    hasCustomer: Boolean(customer?.stripeCustomerId),
     provider: row.provider,
   };
 });
