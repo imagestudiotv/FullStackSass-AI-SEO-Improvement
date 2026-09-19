@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { OnboardingAside } from "@/components/onboarding/onboarding-aside";
+import { TestimonialRail } from "@/components/onboarding/testimonial-rail";
 import { WizardProgress } from "@/components/wizard-progress";
 import { requireSession } from "@/lib/auth-guard";
 import { listPlans } from "@/lib/billing";
@@ -104,7 +105,14 @@ export default async function OnboardingPlanPage({
           <OnboardingAside
             title="What happens the moment you subscribe"
             note="We research your keywords, build a content calendar sized to your plan, and start writing. You will have your first article to review shortly after."
-          />
+          >
+            {/*
+              Customer quotes and the public review score, as the reference
+              has here. Renders nothing at all while there are none — see
+              lib/marketing/testimonials.ts for why that file is empty.
+            */}
+            <TestimonialRail />
+          </OnboardingAside>
         </div>
       </div>
     </div>

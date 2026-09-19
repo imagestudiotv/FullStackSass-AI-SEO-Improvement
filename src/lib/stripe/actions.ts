@@ -8,6 +8,7 @@ import { isStripeConfigured, stripe } from "@/lib/stripe/client";
 import { getOrCreateCustomer } from "@/lib/stripe/customer";
 import { stripeErrorMessage } from "@/lib/stripe/errors";
 import { requireOrg } from "@/lib/tenant";
+import { TRIAL_DAYS } from "@/lib/plans/features";
 import {
   checkoutReturnPath,
   type CheckoutOrigin,
@@ -121,6 +122,23 @@ export async function createCheckoutSession(
       // or the website it pays for.
       subscription_data: {
         metadata: { organizationId: orgId, planId: plan.id, websiteId },
+        /**
+         * A real trial, because the page promises one.
+         *
+         * The plan screen says "3 days free · EUR 0 today". Without this
+         * Stripe would charge the full amount immediately and that line
+         * would be a false statement about money, on the screen where the
+         * card is entered.
+         *
+         * The customer IS entitled during the trial: "trialing" is in the
+         * ENTITLED set in billing-shared.ts, so articles generate from day
+         * one rather than after the first charge — which is the point of
+         * offering it.
+         *
+         * Stripe collects the card up front and charges automatically when
+         * the trial ends, so nothing else has to remember to bill them.
+         */
+        trial_period_days: TRIAL_DAYS,
       },
     });
 

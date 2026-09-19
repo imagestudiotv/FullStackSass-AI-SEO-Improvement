@@ -14,6 +14,20 @@
 /** The entry tier. Named once so no surface has to hardcode the string. */
 export const STARTER_TIER = "starter";
 
+/**
+ * Days of free trial on a new subscription.
+ *
+ * Defined here, in the file every pricing surface already imports, so the
+ * number the customer reads and the number Stripe applies are the same one.
+ * Two copies would eventually disagree, and the disagreement would be a
+ * promise about money that the payment did not honour.
+ *
+ * Passed to Stripe as subscription_data.trial_period_days; see
+ * lib/stripe/actions.ts. Zero would mean "charge immediately" — change it
+ * here and both the copy and the charge follow.
+ */
+export const TRIAL_DAYS = 3;
+
 /** The subset of a plan row these helpers need. */
 export type PickerPlan = {
   id: string;
@@ -36,17 +50,43 @@ function count(n: number, singular: string, plural = `${singular}s`): string {
 /**
  * The bullet list for a plan.
  *
- * Built from the plan's own limits rather than written per tier, so a limit
- * change in the seed cannot leave a stale promise on the pricing page.
+ * WHAT IS DELIBERATELY NOT LISTED: backlink credits and the number of
+ * websites. The client's instruction — "We don't mention number of websites,
+ * how many credits we are giving, etc. Because they will most likely start
+ * with 0 credits, or some amount we set like a bonus credits."
+ *
+ * The LIMITS STILL EXIST and are still enforced: monthly_credits is granted
+ * monthly by lib/backlinks/credits.ts and site_limit gates how many sites can
+ * be added. They have simply stopped being a selling point, because a credit
+ * balance that starts at zero and is topped up by a bonus is not a promise
+ * worth printing next to a price.
+ *
+ * The article count IS kept and is still read from the plan, so it cannot
+ * drift from what usage.ts enforces. Everything else is capability rather
+ * than quantity, which is what the client asked for.
  */
 export function planFeatures(plan: PickerPlan): string[] {
+  const shared = [
+    "Auto-publish to WordPress, Shopify, Ghost, Webflow and more",
+    "AI visibility tracked across ChatGPT, Claude, Gemini and Perplexity",
+    "Automated keyword research and SERP-based clustering",
+    "Site audit, so your pages are AI- and Google-ready",
+    "Titles, metadata and schema written for every page",
+    "Backlinks from our partner network",
+  ];
+
+  if (plan.tier === "scale") {
+    return [
+      `${count(plan.articleLimit, "branded article")} a month, with images`,
+      ...shared,
+      "Priority processing",
+      "Custom feature requests",
+    ];
+  }
+
   return [
-    `${count(plan.articleLimit, "article")} with images a month`,
-    `${count(plan.monthlyCredits, "backlink credit")} a month`,
-    `${count(plan.keywordLimit, "keyword")} researched`,
-    count(plan.siteLimit, "website"),
-    "AI visibility tracking",
-    "Titles, metadata and schema on every page",
+    `${count(plan.articleLimit, "branded article")} a month, with images`,
+    ...shared,
   ];
 }
 

@@ -17,41 +17,25 @@ const sql = postgres(process.env.DIRECT_URL, { connect_timeout: 30 });
 
 const CURRENCY = "eur";
 
+/**
+ * Tiers RETIRED from sale.
+ *
+ * Starter (EUR 1) and Launch (EUR 29) were dropped at the client's request:
+ * "We will having only Grow and Scale plan, we delete the other 2 plans, it's
+ * not convenient to keep."
+ *
+ * Deactivated rather than deleted, for two reasons. subscriptions.plan_id is
+ * ON DELETE RESTRICT, so removing a plan somebody holds would fail outright.
+ * And a plan named on a past invoice must keep existing, or the payment
+ * history stops saying what the customer was charged for.
+ *
+ * Anyone already on one keeps it until they cancel or upgrade; it simply
+ * cannot be bought any more.
+ */
+const RETIRED_TIERS = ["starter", "launch"];
+
 /** Monthly price per tier, in minor units. Annual is derived as x10. */
 const TIERS = [
-  {
-    /**
-     * The entry tier from the brief: "one article and one backlink, to attract
-     * to subscribe, and later upgrade the plans".
-     *
-     * Monthly only. An annual Starter would be EUR 10 for a year of service,
-     * which undercuts every other plan and gives someone no reason to move up
-     * — the opposite of what an entry tier is for.
-     *
-     * Note on economics: at EUR 1/month, card fees (roughly EUR 0.25 + 1.5%)
-     * take about a quarter of the revenue. That is a deliberate acquisition
-     * cost rather than an oversight — this tier exists to convert, not to earn.
-     */
-    tier: "starter",
-    name: "Starter",
-    monthlyCents: 100,
-    articleLimit: 1,
-    keywordLimit: 25,
-    siteLimit: 1,
-    monthlyCredits: 1,
-    sortOrder: 0,
-    monthlyOnly: true,
-  },
-  {
-    tier: "launch",
-    name: "Launch",
-    monthlyCents: 2900,
-    articleLimit: 5,
-    keywordLimit: 50,
-    siteLimit: 1,
-    monthlyCredits: 5,
-    sortOrder: 1,
-  },
   {
     tier: "grow",
     name: "Grow",
@@ -60,7 +44,7 @@ const TIERS = [
     keywordLimit: 300,
     siteLimit: 3,
     monthlyCredits: 25,
-    sortOrder: 2,
+    sortOrder: 0,
   },
   {
     tier: "scale",
@@ -70,7 +54,7 @@ const TIERS = [
     keywordLimit: 1500,
     siteLimit: 10,
     monthlyCredits: 100,
-    sortOrder: 3,
+    sortOrder: 1,
   },
 ];
 
@@ -141,6 +125,46 @@ const retired = await sql`
   returning name
 `;
 for (const r of retired) console.log(`retired legacy plan: ${r.name}`);
+
+/**
+ * Tiers withdrawn from sale.
+ *
+ * is_active = false is the whole change: every surface lists plans with
+ * `where is_active`, and checkout refuses an inactive plan, so this removes
+ * them from sale everywhere at once.
+ *
+ * It does NOT touch anyone already subscribed. Their subscription row points
+ * at this plan and keeps its limits, so they carry on exactly as before until
+ * they cancel or move up — withdrawing a product from sale is not the same as
+ * cancelling the people already on it.
+ */
+const withdrawn = await sql`
+  update plans set is_active = false, updated_at = now()
+  where tier = any(${RETIRED_TIERS}) and is_active = true
+  returning name, tier
+`;
+for (const r of withdrawn) console.log(`withdrawn from sale: ${r.name}`);
+
+/**
+ * Warn if anyone is still on one.
+ *
+ * Silence here would hide the one case that needs a human decision: a paying
+ * customer on a plan we no longer sell. Nothing is changed for them
+ * automatically — what happens to their price is the client's call.
+ */
+const stranded = await sql`
+  select p.name, count(*)::int as n
+  from subscriptions s
+  join plans p on p.id = s.plan_id
+  where p.tier = any(${RETIRED_TIERS})
+    and s.status in ('active', 'trialing', 'past_due')
+  group by p.name
+`;
+for (const r of stranded) {
+  console.log(
+    `NOTE: ${r.n} live subscription(s) remain on "${r.name}" — left running on purpose.`,
+  );
+}
 
 const all = await sql`
   select name, tier, interval, currency, price_cents, article_limit,

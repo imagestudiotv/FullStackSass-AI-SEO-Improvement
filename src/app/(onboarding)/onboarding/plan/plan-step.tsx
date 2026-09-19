@@ -6,7 +6,11 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { formatPrice } from "@/lib/billing-shared";
-import { planFeatures, type PickerPlan } from "@/lib/plans/features";
+import {
+  planFeatures,
+  TRIAL_DAYS,
+  type PickerPlan,
+} from "@/lib/plans/features";
 import { createPayPalCheckout } from "@/lib/paypal/actions";
 import { createCheckoutSession } from "@/lib/stripe/actions";
 
@@ -24,13 +28,22 @@ import { createCheckoutSession } from "@/lib/stripe/actions";
  * in; a comparison table at that moment reopens a decision they came here
  * having made, and the tier that suits almost everyone is the default.
  *
- * WHAT IS NOT COPIED FROM THE REFERENCE: its "€99 ~~€247~~" strike-through,
- * its "3-day free trial", its "90-day money-back guarantee if traffic doesn't
- * grow", and its rotating named testimonials. A struck price we never charged
- * is a misleading pricing claim, and the trial and guarantee are commitments
- * the client has not made — the words are cheap to write here and expensive to
- * honour later. The struck figure we DO show on the yearly option is real: it
- * is twelve of our own monthly payments, which is what the customer avoids.
+ * THE FREE TRIAL IS REAL. The client asked for it, so it is implemented
+ * rather than merely written: TRIAL_DAYS is passed to Stripe as
+ * trial_period_days, and the customer is charged nothing today. A trial
+ * claimed on the page but not configured in Stripe would be a false statement
+ * about money on the screen where the card is entered. The exact first-charge
+ * date is left to Stripe's own Checkout page — see the note further down.
+ *
+ * WHAT IS STILL NOT COPIED FROM THE REFERENCE: its "€99 ~~€247~~"
+ * strike-through and its "90-day money-back guarantee if traffic doesn't
+ * grow". A struck price we never charged is a misleading pricing claim, and
+ * the guarantee is a commitment the client has not made — cheap to write here
+ * and expensive to honour later. The struck figure we DO show on the yearly
+ * option is real: it is twelve of our own monthly payments.
+ *
+ * Testimonials and the review score come from lib/marketing/testimonials.ts,
+ * which is empty until there are real ones. See TestimonialRail.
  */
 export function PlanStep({
   monthlyPlans,
@@ -100,6 +113,25 @@ export function PlanStep({
     annual && annualForTier
       ? Math.round(annualForTier.priceCents / 12)
       : (monthlyForTier?.priceCents ?? 0);
+
+  /**
+   * NO CALENDAR DATE IS COMPUTED HERE, deliberately.
+   *
+   * The obvious version — `new Date(Date.now() + TRIAL_DAYS * 86400e3)` — is
+   * impure in render: the server produces one date and the browser another,
+   * which is a hydration mismatch on the screen where somebody is entering a
+   * card, and the result depends on a clock and timezone the server does not
+   * know.
+   *
+   * It is also unnecessary. Stripe's own Checkout page states the exact first
+   * charge date ("Then EUR 99.00 per month starting 21 September"), computed
+   * from the real subscription in the customer's own locale. Repeating it here
+   * would be a second copy that can disagree with the one that actually
+   * governs the charge.
+   *
+   * So this page states the RULE — free for N days, then the price — and
+   * Stripe states the date.
+   */
 
   async function handleCheckout(provider: "stripe" | "paypal") {
     if (!plan) return;
@@ -266,11 +298,32 @@ export function PlanStep({
             </>
           ) : (
             <>
-              Continue to payment
+              Start {TRIAL_DAYS}-day free trial
               <ArrowRight className="size-4" aria-hidden="true" />
             </>
           )}
         </Button>
+
+        {/*
+          The trial terms, spelled out under the button.
+
+          TRIAL_DAYS is the same constant passed to Stripe as
+          trial_period_days, so the promise and the charge cannot drift apart.
+          The first charge date is stated plainly rather than left as "cancel
+          any time": someone entering a card is owed the date money leaves
+          their account, not a reassuring phrase.
+        */}
+        <p className="mt-3 text-center text-sm">
+          <span className="font-medium">
+            {formatPrice(0, plan.currency)} today
+          </span>
+          <span className="text-muted-foreground">
+            {" "}
+            &middot; then {formatPrice(plan.priceCents, plan.currency)}{" "}
+            {annual ? "a year" : "a month"} after your {TRIAL_DAYS}-day free
+            trial. Cancel before it ends and you are not charged.
+          </span>
+        </p>
 
         {/*
           PayPal, per the brief: "We include also PayPal payments, not just
@@ -293,6 +346,17 @@ export function PlanStep({
               "Pay with PayPal"
             )}
           </Button>
+        ) : null}
+
+        {/*
+          PayPal is charged immediately — the trial above is a Stripe
+          subscription feature and is not applied to the PayPal plan. Saying
+          so is the difference between a caveat and a false promise.
+        */}
+        {paypalAvailable ? (
+          <p className="mt-2 text-center text-xs text-muted-foreground">
+            PayPal starts your plan straight away, without the free trial.
+          </p>
         ) : null}
 
         <p className="mt-3 text-center text-xs text-muted-foreground">

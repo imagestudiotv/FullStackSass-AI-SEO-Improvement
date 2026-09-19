@@ -78,7 +78,7 @@ export default async function LocalisedPricingPage({
           {t.pricing.unavailable}
         </p>
       ) : (
-        <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mx-auto mt-12 grid max-w-3xl gap-6 sm:grid-cols-2">
           {monthly.map((plan) => {
             const featured = plan.tier === "grow";
             const isStarter = plan.tier === STARTER_TIER;
@@ -136,8 +136,14 @@ export default async function LocalisedPricingPage({
                         t.pricing.features.keywords(
                           plan.keywordLimit.toLocaleString(locale),
                         ),
-                        t.pricing.features.websites(plan.siteLimit),
-                        t.pricing.features.credits(plan.monthlyCredits),
+                        /*
+                          Capability, not counts. The website and credit
+                          figures were dropped at the client's request; the
+                          limits still exist and are still enforced, they are
+                          simply no longer advertised beside a price.
+                        */
+                        t.pricing.features.backlinks,
+                        t.pricing.features.audit,
                         t.pricing.features.healthChecks,
                         t.pricing.features.publishing,
                       ].map((feature) => (

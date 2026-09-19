@@ -12,7 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { formatPrice, listPlans } from "@/lib/billing";
-import { planTagline, STARTER_TIER } from "@/lib/plans/features";
+import { planFeatures, planTagline, STARTER_TIER } from "@/lib/plans/features";
 
 export const metadata = {
   title: "Pricing",
@@ -67,8 +67,11 @@ export default async function PricingPage() {
           Pricing is not available right now. Please check back shortly.
         </p>
       ) : (
-        // Four tiers since Starter: two up at tablet width, four on desktop.
-        <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        // Two tiers now that Starter and Launch are withdrawn, so the grid
+        // follows the count rather than assuming four. Capped in width and
+        // centred: two cards stretched across a 1280px row read as a page
+        // with something missing from it.
+        <div className="mx-auto mt-12 grid max-w-3xl gap-6 sm:grid-cols-2">
           {monthly.map((plan) => {
             /**
              * Named rather than positional. This was `index === 1`, which
@@ -130,17 +133,17 @@ export default async function PricingPage() {
 
                   <CardContent>
                     <ul className="space-y-2.5 text-sm">
-                      {[
-                        // Pluralised per count: Starter has a limit of one for
-                        // three of these, and "1 articles" on the entry plan is
-                        // the first thing a prospective customer reads.
-                        `${plan.articleLimit} ${plan.articleLimit === 1 ? "article" : "articles"} written each month`,
-                        `${plan.keywordLimit.toLocaleString()} ${plan.keywordLimit === 1 ? "search term" : "search terms"} tracked`,
-                        `${plan.siteLimit} ${plan.siteLimit === 1 ? "website" : "websites"}`,
-                        `${plan.monthlyCredits} ${plan.monthlyCredits === 1 ? "link credit" : "link credits"} each month`,
-                        "Website health checks",
-                        "Publish to WordPress, Ghost or Shopify",
-                      ].map((feature) => (
+                      {/*
+                        The SHARED list, not a second copy.
+
+                        This page had its own hand-written version, which is
+                        how it ended up advertising "3 websites" and "25 link
+                        credits" after those were deliberately dropped
+                        everywhere else. Two lists describing one product
+                        drift, and the one that drifts is the one a customer
+                        reads before paying.
+                      */}
+                      {planFeatures(plan).map((feature) => (
                         <li key={feature} className="flex items-start gap-2.5">
                           <Check
                             className="mt-0.5 size-4 shrink-0 text-primary"

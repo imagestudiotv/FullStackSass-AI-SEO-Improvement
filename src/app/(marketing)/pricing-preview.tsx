@@ -48,11 +48,9 @@ export function PricingPreview({
         {monthly.length === 0 ? (
           // Real state rather than a placeholder: with no plans configured we
           // say so rather than inventing prices checkout would not honour.
-          <p className="mt-12 text-sm text-muted-foreground">
-            {t.unavailable}
-          </p>
+          <p className="mt-12 text-sm text-muted-foreground">{t.unavailable}</p>
         ) : (
-          <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mx-auto mt-12 grid max-w-3xl gap-6 sm:grid-cols-2">
             {monthly.map((plan) => {
               const featured = plan.tier === "grow";
               const isStarter = plan.tier === STARTER_TIER;
@@ -101,8 +99,9 @@ export function PricingPreview({
                       <ul className="space-y-2.5 text-sm">
                         {[
                           t.planArticles(plan.articleLimit),
-                          t.planWebsites(plan.siteLimit),
-                          t.planCredits(plan.monthlyCredits),
+                          /* Capability, not counts — see messages.ts. */
+                          t.planBacklinks,
+                          t.planPublishing,
                         ].map((feature) => (
                           <li
                             key={feature}
