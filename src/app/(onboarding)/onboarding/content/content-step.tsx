@@ -190,14 +190,20 @@ export function ContentStep({
   }
 
   /**
-   * What the plan actually produces, in the design's two-column shape: a short
-   * label, and one line saying what it is.
+   * What THIS BUTTON produces — nothing more.
    *
-   * Every one of these is something the pipeline really does. The reference
-   * design also promises a "default author profile" — we have no such feature,
-   * and the author on a published post is simply whichever CMS account the
-   * customer connects, so the line here describes that rather than inventing a
-   * setting they would then go looking for.
+   * The list used to carry six rows, three of which this step does not build:
+   * internal linking, backlink placements and the publishing destination. All
+   * three then reappeared on the /setup checklist as things still to do, so
+   * the product ticked them green here and asked for them again one screen
+   * later. The customer is right to read that as a contradiction.
+   *
+   * The research job writes exactly three things — keywords, clusters and
+   * calendar items (see inngest/functions/research-keywords.ts) — so those are
+   * the three promised, and the ticks that turn green are true.
+   *
+   * The rest is listed separately below as what comes next, with the same
+   * names the checklist uses, so one thing is called one thing throughout.
    */
   const deliverables = [
     {
@@ -214,18 +220,20 @@ export function ContentStep({
         ? `A calendar of ${articlesPerMonth} briefs a month, each with a title, term and intent.`
         : "A calendar of briefs, each with a title, target term and intent.",
     },
-    {
-      title: "Internal linking",
-      body: "Recommendations to link your content together as it is published.",
-    },
-    {
-      title: "Backlink opportunities",
-      body: "Relevant placements across our partner network.",
-    },
-    {
-      title: "Publishing destination",
-      body: "Articles post under the CMS account you connect, as its author.",
-    },
+  ];
+
+  /**
+   * What is waiting on the other side, named EXACTLY as lib/onboarding/launch.ts
+   * names it.
+   *
+   * Shown as plain text with no tick, because none of it is done and this
+   * button does not do it. It exists so the handover to the setup checklist is
+   * expected rather than a surprise.
+   */
+  const nextUp = [
+    "Connect your site",
+    "Activate the backlink exchange",
+    "Linking configuration",
   ];
 
   return (
@@ -270,7 +278,7 @@ export function ContentStep({
                   ? "Your search terms and publishing calendar are ready. You can review them on your website page any time."
                   : building
                     ? "This usually takes a few minutes. The page updates on its own and moves you on when it is finished."
-                    : "We research what your customers search for and turn it into a complete publishing and backlink plan."}
+                    : "We research what your customers search for, group it into subjects, and write a brief for every article you publish."}
             </p>
           </div>
         </div>
@@ -309,6 +317,32 @@ export function ContentStep({
             </li>
           ))}
         </ul>
+
+        {/*
+          What happens after this, named exactly as the setup checklist names
+          it. No ticks: this button does not do any of it, and a green mark
+          against something still outstanding is what made the two screens
+          contradict each other.
+        */}
+        <div className="mt-6 rounded-xl border border-dashed bg-muted/30 px-4 py-3.5">
+          <p className="text-xs font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+            Then, on your setup checklist
+          </p>
+          <ul className="mt-2 flex flex-wrap gap-x-5 gap-y-1.5">
+            {nextUp.map((item) => (
+              <li
+                key={item}
+                className="flex items-center gap-2 text-sm text-muted-foreground"
+              >
+                <span
+                  className="size-1.5 shrink-0 rounded-full bg-muted-foreground/40"
+                  aria-hidden="true"
+                />
+                {item}
+              </li>
+            ))}
+          </ul>
+        </div>
 
         {done ? null : (
           <>
