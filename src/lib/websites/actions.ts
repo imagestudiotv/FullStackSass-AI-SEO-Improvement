@@ -9,6 +9,7 @@ import { competitors, websites } from "@/lib/db/schema";
 import { requireOrg, requireWebsite } from "@/lib/tenant";
 import { writeSelectedWebsite } from "@/lib/websites/selected";
 import { InvalidUrlError, normalizeWebsiteUrl } from "@/lib/websites/url";
+import { verifyDomain } from "@/lib/websites/verify-domain";
 import { normalizeLanguage } from "@/lib/websites/languages";
 
 /**
@@ -20,7 +21,8 @@ import { normalizeLanguage } from "@/lib/websites/languages";
  * to the caller's organization before it is trusted.
  */
 
-export type ActionResult<T> = { ok: true; data: T } | { ok: false; error: string };
+export type ActionResult<T> =
+  { ok: true; data: T } | { ok: false; error: string };
 
 export type WebsiteSummary = {
   id: string;
@@ -292,7 +294,11 @@ export async function setGenerationMode(
   // Bounded and de-duplicated: the value comes from a form and ends up
   // driving a scheduled job.
   const days = Array.from(
-    new Set((publishingDays ?? []).filter((d) => Number.isInteger(d) && d >= 0 && d <= 6)),
+    new Set(
+      (publishingDays ?? []).filter(
+        (d) => Number.isInteger(d) && d >= 0 && d <= 6,
+      ),
+    ),
   ).sort();
 
   await db
@@ -334,6 +340,25 @@ export async function addCompetitor(
 
   if (domain === site.domain) {
     return { ok: false, error: "That is your own website." };
+  }
+
+  /**
+   * Checked before it is stored, as suggested ones are.
+   *
+   * A typo — "theknott.com" — otherwise sits in the list looking like a real
+   * rival, gets clicked, and shows a browser error. Saying so immediately is
+   * the difference between a typo and a broken entry the customer has to work
+   * out for themselves later.
+   *
+   * verifyDomain keeps anything that resolves but refuses our request, so a
+   * real site behind Cloudflare is not rejected.
+   */
+  const check = await verifyDomain(domain);
+  if (!check.alive) {
+    return {
+      ok: false,
+      error: `We could not reach ${domain} (${check.reason}). Check the spelling.`,
+    };
   }
 
   await db

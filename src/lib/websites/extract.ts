@@ -69,7 +69,7 @@ const SCHEMA = {
       type: "array",
       items: { type: "string" },
       description:
-        "Up to 5 likely competitor domains in the same niche and market. Bare domains, no scheme. Omit rather than invent.",
+        "Up to 5 competitor domains you are CERTAIN are registered and belong to direct competitors. Bare domains, no scheme. Return an empty array rather than guessing — every domain is verified and invented ones are discarded.",
     },
   },
   required: [
@@ -91,7 +91,8 @@ Rules:
 - Use only what the page supports. Do not invent facts, awards, locations or figures.
 - If a field is not evident, return null (or an empty array) rather than guessing.
 - "industry" should be specific enough to guide keyword research.
-- "competitors" are well-known companies in the same niche and market. This is the only field where reasonable inference is expected; return fewer, or none, rather than padding the list.
+- "competitors" must be companies you are CERTAIN exist, with domains you are certain are registered — established names in the same niche and market. Do not construct a domain from a company name you are unsure about, and do not invent plausible-sounding ones. An empty list is the correct answer when you are not sure; every domain returned is checked, and a wrong one is worse than a missing one.
+- Do not list general platforms, marketplaces or tools (Vimeo, YouTube, Wix, directories) as competitors. A competitor sells what this business sells, to the same customers.
 - Ignore navigation, cookie banners, and boilerplate.`;
 
 function buildPrompt(snapshot: PageSnapshot): string {
@@ -140,7 +141,10 @@ function cleanText(value: unknown, max: number): string | null {
 /** Strips scheme, path and "www." so competitors are storable as domains. */
 function cleanDomain(value: string): string | null {
   const withoutScheme = value.trim().replace(/^https?:\/\//i, "");
-  const host = withoutScheme.split("/")[0].toLowerCase().replace(/^www\./, "");
+  const host = withoutScheme
+    .split("/")[0]
+    .toLowerCase()
+    .replace(/^www\./, "");
   return /^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(host) ? host : null;
 }
 

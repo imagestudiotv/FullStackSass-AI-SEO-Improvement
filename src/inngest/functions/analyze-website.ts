@@ -4,6 +4,7 @@ import { inngest } from "@/inngest/client";
 import { MODELS } from "@/lib/ai/client";
 import { db } from "@/lib/db";
 import { competitors, pages, websites } from "@/lib/db/schema";
+import { keepLiveDomains } from "@/lib/websites/verify-domain";
 import { PRICING, track } from "@/lib/usage";
 import { CrawlError, fetchHomepage } from "@/lib/websites/crawl";
 import { extractProfile } from "@/lib/websites/extract";
@@ -164,11 +165,29 @@ export const analyzeWebsite = inngest.createFunction(
         })
         .where(eq(websites.id, websiteId));
 
-      if (profile.competitors.length > 0) {
+      /**
+       * Only competitors that actually exist are stored.
+       *
+       * This is the one extracted field the model is allowed to infer, and it
+       * duly invents plausible domains: in a real account 7 of 20 suggestions
+       * did not resolve, four with no DNS record at all. Presenting those as
+       * "your competitors" is a claim about someone's market that we made up,
+       * and keyword research reads this list — so an imaginary rival would
+       * quietly shape real articles.
+       */
+      const checked = await keepLiveDomains(profile.competitors);
+      if (checked.dropped.length > 0) {
+        console.warn(
+          `[analyze] dropped ${checked.dropped.length} unreachable competitor(s) for ${websiteId}:`,
+          checked.dropped.map((d) => `${d.domain} (${d.reason})`).join(", "),
+        );
+      }
+
+      if (checked.live.length > 0) {
         await db
           .insert(competitors)
           .values(
-            profile.competitors.map((domain) => ({
+            checked.live.map((domain) => ({
               websiteId,
               domain,
               source: "ai_suggested",
