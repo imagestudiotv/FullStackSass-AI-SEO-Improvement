@@ -41,7 +41,6 @@ export type WizardStep = {
  */
 export const WIZARD_STEPS: WizardStep[] = [
   { id: "website", label: "Website", href: "/onboarding/website" },
-  { id: "setup", label: "Your business", href: "/onboarding/setup" },
   { id: "plan", label: "Plan", href: "/onboarding/plan" },
   { id: "visibility", label: "AI visibility", href: "/onboarding/visibility" },
   { id: "content", label: "Content & backlinks", href: "/onboarding/content" },

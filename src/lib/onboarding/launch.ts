@@ -9,6 +9,7 @@ import {
   geoPrompts,
   integrations,
   networkSites,
+  websites,
 } from "@/lib/db/schema";
 import { GOOGLE_KIND } from "@/lib/analytics/connection";
 
@@ -42,6 +43,7 @@ import { GOOGLE_KIND } from "@/lib/analytics/connection";
 export type LaunchStepId =
   | "site"
   | "search-console"
+  | "profile"
   | "audit"
   | "articles"
   | "preferences"
@@ -59,6 +61,7 @@ export type LaunchStepId =
 export type LaunchStepIcon =
   | "site"
   | "google"
+  | "profile"
   | "audit"
   | "article"
   | "link"
@@ -128,8 +131,22 @@ export const getLaunchState = cache(async function getLaunchState(
    * `limit(1)`, not a count — because the question is only ever "is there
    * any?", and counting rows a customer may have thousands of is wasted work.
    */
-  const [cms, gsc, audit, voice, network, prompts, planned] = await Promise.all(
-    [
+  const [site, cms, gsc, audit, voice, network, prompts, planned] =
+    await Promise.all([
+      /*
+        The profile columns analysis fills in. Read as a row rather than an
+        existence check, because "has a profile" means specific fields are
+        populated, not that a record exists — the website row always does.
+      */
+      db
+        .select({
+          description: websites.description,
+          country: websites.country,
+          language: websites.language,
+        })
+        .from(websites)
+        .where(eq(websites.id, websiteId))
+        .limit(1),
       db
         .select({ id: integrations.id })
         .from(integrations)
@@ -179,10 +196,40 @@ export const getLaunchState = cache(async function getLaunchState(
         .from(calendarItems)
         .where(eq(calendarItems.websiteId, websiteId))
         .limit(1),
-    ],
-  );
+    ]);
+
+  /**
+   * A profile counts as ready when it has a description AND a language.
+   *
+   * Those two are what the article generator actually reads; market is
+   * allowed to be null, because "global" is a legitimate answer and is stored
+   * as null (see lib/websites/markets.ts). Requiring it would leave the row
+   * permanently unticked for anyone selling worldwide.
+   */
+  const profileReady = Boolean(site[0]?.description && site[0]?.language);
 
   const steps: LaunchStep[] = [
+    {
+      id: "profile",
+      /**
+       * Moved out of signup at the client's request — "I think it is better to
+       * make the steps that the user input the website profile be included in
+       * the dashboard steps."
+       *
+       * ANALYSIS FILLS THIS IN AUTOMATICALLY, so it is usually already ticked
+       * by the time anyone looks: the row exists to invite a check, not to
+       * demand typing. It is first in the list because everything below it
+       * depends on the answers being right — a wrong industry or market
+       * propagates into every article we write.
+       */
+      title: "Check your business profile",
+      description:
+        "Your market, language, description and competitors. Every article is written from these, so it is worth a minute.",
+      done: profileReady,
+      optional: false,
+      href: `${base}/profile`,
+      icon: "profile",
+    },
     {
       id: "site",
       title: "Connect your site",

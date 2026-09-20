@@ -264,7 +264,7 @@ export function VisibilityStep({
         </span>
         <button
           type="button"
-          onClick={() => router.push("/onboarding/setup")}
+          onClick={() => router.push("/onboarding/plan")}
           className="ml-auto font-medium text-primary hover:underline"
         >
           Edit
@@ -442,7 +442,7 @@ export function VisibilityStep({
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
         <Button
           variant="ghost"
-          onClick={() => router.push("/onboarding/setup")}
+          onClick={() => router.push("/onboarding/plan")}
         >
           Back
         </Button>

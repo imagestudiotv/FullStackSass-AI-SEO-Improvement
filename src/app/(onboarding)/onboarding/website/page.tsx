@@ -56,7 +56,7 @@ export default async function OnboardingWebsitePage({
    * bounced to the profile of a site they set up weeks ago.
    */
   if (state.websiteId && !addingAnother) {
-    redirect("/onboarding/setup");
+    redirect("/onboarding/plan");
   }
 
   return (

@@ -1,25 +1,20 @@
 import { permanentRedirect } from "next/navigation";
 
 /**
- * The brand-profile step is now part of /onboarding/setup.
+ * The business profile left signup entirely.
  *
- * Its three subjects — market and language, business description, competitors
- * — were merged onto one screen at the client's request, so this URL no longer
- * has a page of its own. It is kept rather than deleted because it was the
- * destination of the website step for weeks: it is in browser histories, in
- * the client's own test notes, and in any link sent to Daniel.
+ * It was step two — market, language, description, competitors — and at the
+ * client's request it moved onto the dashboard, where it sits on the launch
+ * checklist and on the website's own profile page. Analysis still fills it in
+ * automatically, so nothing is lost by not asking during signup.
  *
- * permanentRedirect rather than redirect: the move is not conditional, and a
- * 308 lets browsers stop asking.
+ * Both this URL and /onboarding/setup land here. Kept rather than deleted
+ * because they were the wizard's second step for weeks: they are in browser
+ * histories, in the client's test notes, and in links shared with Daniel.
+ *
+ * Sent to /setup rather than straight to the profile page: /setup resolves
+ * which website the customer means, which a bare redirect cannot do.
  */
-export default async function OnboardingProfilePage({
-  searchParams,
-}: PageProps<"/onboarding/profile">) {
-  const params = await searchParams;
-  const site = typeof params.site === "string" ? params.site : null;
-  // The website id is carried through; without it the next screen falls back
-  // to the oldest site, which is wrong for anyone adding their second.
-  permanentRedirect(
-    site ? `/onboarding/setup?site=${site}` : "/onboarding/setup",
-  );
+export default async function RetiredProfileStepPage() {
+  permanentRedirect("/setup");
 }

@@ -3,6 +3,7 @@
 import {
   ArrowRight,
   BarChart3,
+  Building2,
   Check,
   ChevronDown,
   Eye,
@@ -40,6 +41,7 @@ import type { LaunchStep, LaunchStepIcon } from "@/lib/onboarding/launch";
 const ICONS: Record<LaunchStepIcon, typeof Globe> = {
   site: Globe,
   google: BarChart3,
+  profile: Building2,
   audit: ScanSearch,
   article: FileText,
   link: Link2,

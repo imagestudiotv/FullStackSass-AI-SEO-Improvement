@@ -94,19 +94,17 @@ export function WebsiteStep() {
     }
 
     /**
-     * Straight to the combined setup screen, carrying the site just created.
+     * Straight to the plan, carrying the site just created.
      *
-     * NOT to billing any more. The client asked for the order to change:
-     * "Once we click Continue on the first step. It will automatically
-     * provide: Target Market & Language, Business Description, and
-     * Competitors" — and only then the plan. Someone is far more willing to
-     * pay once they have seen us describe their own business back to them.
+     * The business profile used to sit between these two. It moved to the
+     * dashboard's launch checklist at the client's request, so signup is now
+     * website → plan and analysis fills the profile in while they pay.
      *
      * The id matters: without it the next screen falls back to whichever site
      * the switcher last remembered, so a customer adding their second website
      * would be shown the first one's details.
      */
-    router.push(`/onboarding/setup?site=${result.data.id}`);
+    router.push(`/onboarding/plan?site=${result.data.id}`);
   }
 
   const hasLooked = preview !== null;
@@ -115,7 +113,7 @@ export function WebsiteStep() {
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:gap-12">
       <div>
         <p className="text-sm font-semibold tracking-wide text-primary">
-          STEP 01 <span className="text-muted-foreground">/ 03</span>
+          STEP 01 <span className="text-muted-foreground">/ 02</span>
         </p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
           What&apos;s your website?
