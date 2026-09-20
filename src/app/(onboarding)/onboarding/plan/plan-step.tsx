@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Check, Loader2, ShieldCheck } from "lucide-react";
+import { ArrowRight, Check, Loader2, ShieldCheck, Star } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -170,6 +170,20 @@ export function PlanStep({
 
   const features = planFeatures(plan);
 
+  /**
+   * The badge on the card, per the design.
+   *
+   * Named by tier rather than by position: an index-based rule silently moves
+   * to the wrong plan the first time the line-up changes, which is exactly how
+   * the pricing page once highlighted the wrong tier.
+   */
+  const badge =
+    plan.tier === "grow"
+      ? "Most popular plan"
+      : plan.tier === "scale"
+        ? "Best value"
+        : null;
+
   return (
     <div>
       <p className="text-xs font-semibold tracking-[0.14em] text-primary uppercase">
@@ -229,7 +243,20 @@ export function PlanStep({
       ) : null}
 
       <div className="mt-5 rounded-3xl border bg-card p-6 sm:p-8">
-        <p className="text-lg font-semibold">{plan.name} plan</p>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <p className="text-lg font-semibold">{plan.name} plan</p>
+          {/*
+            The badge from the design: "Most popular plan" on Grow, "Best
+            value" on Scale. Read from the tier rather than position, so it
+            cannot follow array order if the line-up changes.
+          */}
+          {badge ? (
+            <span className="flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+              <Star className="size-3 fill-primary" aria-hidden="true" />
+              {badge}
+            </span>
+          ) : null}
+        </div>
         <p className="mt-1 text-sm text-muted-foreground">
           Everything you need to grow organic traffic from Google and AI search,
           on autopilot.
@@ -363,17 +390,33 @@ export function PlanStep({
           Cancel any time. A promotion code can be entered at checkout.
         </p>
 
-        <ul className="mt-6 space-y-3 border-t pt-6">
-          {features.map((feature) => (
-            <li key={feature} className="flex items-start gap-2.5 text-sm">
-              <Check
-                className="mt-0.5 size-4 shrink-0 text-primary"
-                aria-hidden="true"
-              />
-              {feature}
-            </li>
-          ))}
-        </ul>
+        <div className="mt-6 border-t pt-6">
+          <p className="text-xs font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+            What&apos;s included
+          </p>
+          {/*
+            Two columns from `sm` up, as the design draws it. Below that they
+            stack: two columns of small print on a phone is two unreadable
+            columns.
+          */}
+          <ul className="mt-4 grid gap-x-6 gap-y-3 sm:grid-cols-2">
+            {features.map((feature) => (
+              <li key={feature} className="flex items-start gap-2.5 text-sm">
+                {/*
+                  A filled circle rather than a bare tick, matching the
+                  design's orange check marks.
+                */}
+                <span
+                  className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full bg-primary"
+                  aria-hidden="true"
+                >
+                  <Check className="size-2.5 text-primary-foreground" />
+                </span>
+                <span className="min-w-0">{feature}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
 
       {/*

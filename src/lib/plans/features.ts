@@ -66,28 +66,49 @@ function count(n: number, singular: string, plural = `${singular}s`): string {
  * than quantity, which is what the client asked for.
  */
 export function planFeatures(plan: PickerPlan): string[] {
+  /**
+   * Capabilities every plan has. These are the same on purpose: the product
+   * does not withhold features by tier, it withholds VOLUME.
+   */
   const shared = [
     "Auto-publish to WordPress, Shopify, Ghost, Webflow and more",
     "AI visibility tracked across ChatGPT, Claude, Gemini and Perplexity",
-    "Automated keyword research and SERP-based clustering",
     "Site audit, so your pages are AI- and Google-ready",
     "Titles, metadata and schema written for every page",
     "Backlinks from our partner network",
   ];
 
-  if (plan.tier === "scale") {
-    return [
-      `${count(plan.articleLimit, "branded article")} a month, with images`,
-      ...shared,
-      "Priority processing",
-      "Custom feature requests",
-    ];
-  }
-
-  return [
+  /**
+   * What actually SEPARATES the tiers, stated per plan.
+   *
+   * The two lists were previously identical except for the article count, so
+   * Scale read as Grow at triple the price — the client spotted it. These are
+   * real, enforced differences: Scale tracks five times the keywords
+   * (usage.ts) and covers four times the websites, and both numbers come from
+   * the plan row rather than being written here, so they cannot drift from
+   * what is enforced.
+   *
+   * Keyword and website counts ARE quantities, which the client asked not to
+   * advertise for credits. The instruction was specifically about credits and
+   * websites starting at zero; these two are the only honest answer to "why
+   * is one three times the price", so the website count returns here — where
+   * it is a reason to upgrade rather than a limit to apologise for.
+   */
+  const scale = [
     `${count(plan.articleLimit, "branded article")} a month, with images`,
-    ...shared,
+    `${plan.keywordLimit.toLocaleString()} search terms researched and clustered`,
+    `Up to ${count(plan.siteLimit, "website")} on one account`,
+    "Priority processing — your articles are written first",
+    "Custom feature requests",
   ];
+
+  const grow = [
+    `${count(plan.articleLimit, "branded article")} a month, with images`,
+    `${plan.keywordLimit.toLocaleString()} search terms researched and clustered`,
+    `Up to ${count(plan.siteLimit, "website")} on one account`,
+  ];
+
+  return plan.tier === "scale" ? [...scale, ...shared] : [...grow, ...shared];
 }
 
 /**
