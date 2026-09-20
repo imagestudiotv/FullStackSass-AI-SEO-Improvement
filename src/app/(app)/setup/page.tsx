@@ -1,8 +1,9 @@
-import { ArrowRight, Check, SkipForward } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { SetupSteps } from "@/components/setup-steps";
 import { requireSession } from "@/lib/auth-guard";
 import { getLaunchState } from "@/lib/onboarding/launch";
 import { getOnboardingState } from "@/lib/onboarding/steps";
@@ -166,85 +167,7 @@ export default async function SetupPage({ searchParams }: PageProps<"/setup">) {
         </div>
       </div>
 
-      {/*
-        The steps. A connector line runs down the left through the markers,
-        as the design has it — drawn on each row rather than as one absolute
-        element, so it cannot fall out of step with the list.
-      */}
-      <ol className="mt-5 space-y-2">
-        {launch.steps.map((step, index) => {
-          const last = index === launch.steps.length - 1;
-
-          return (
-            <li key={step.id} className="flex gap-3">
-              <div className="flex shrink-0 flex-col items-center">
-                <span
-                  className={`flex size-8 items-center justify-center rounded-full ${
-                    step.done
-                      ? "bg-emerald-500 text-white"
-                      : step.optional
-                        ? "border border-dashed border-muted-foreground/40 text-muted-foreground"
-                        : "border-2 border-muted bg-card text-muted-foreground"
-                  }`}
-                >
-                  {step.done ? (
-                    <Check className="size-4" aria-hidden="true" />
-                  ) : step.optional ? (
-                    <SkipForward className="size-3.5" aria-hidden="true" />
-                  ) : (
-                    <span className="text-xs font-semibold">{index + 1}</span>
-                  )}
-                </span>
-                {last ? null : (
-                  <span
-                    className="mt-1 w-px flex-1 border-l border-dashed border-muted-foreground/25"
-                    aria-hidden="true"
-                  />
-                )}
-              </div>
-
-              <Link
-                href={step.href}
-                className={`mb-2 flex min-w-0 flex-1 flex-wrap items-center gap-3 rounded-xl border px-4 py-3.5 transition-colors ${
-                  step.done
-                    ? "border-emerald-500/25 bg-emerald-500/[0.04] hover:bg-emerald-500/[0.08]"
-                    : "bg-card hover:bg-accent/50"
-                }`}
-              >
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-medium">
-                    {step.title}
-                  </span>
-                  <span className="mt-0.5 block text-sm text-muted-foreground">
-                    {step.description}
-                  </span>
-                </span>
-
-                <span
-                  className={`flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${
-                    step.done
-                      ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-                      : step.optional
-                        ? "bg-muted text-muted-foreground"
-                        : "bg-primary/10 text-primary"
-                  }`}
-                >
-                  {step.done ? (
-                    <>
-                      <Check className="size-3" aria-hidden="true" />
-                      Done
-                    </>
-                  ) : step.optional ? (
-                    "Optional"
-                  ) : (
-                    "To do"
-                  )}
-                </span>
-              </Link>
-            </li>
-          );
-        })}
-      </ol>
+      <SetupSteps steps={launch.steps} />
     </div>
   );
 }

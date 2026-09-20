@@ -188,6 +188,11 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <MobileNav
           onboardingComplete={launch ? launch.live : true}
+          setupProgress={
+            launch
+              ? { done: launch.doneCount, total: launch.steps.length }
+              : null
+          }
           selectedWebsiteId={fallbackWebsiteId}
           addons={sidebarAddons}
         />
@@ -249,6 +254,11 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         <AppSidebar>
           <SidebarNav
             onboardingComplete={launch ? launch.live : true}
+            setupProgress={
+              launch
+                ? { done: launch.doneCount, total: launch.steps.length }
+                : null
+            }
             selectedWebsiteId={fallbackWebsiteId}
             addons={sidebarAddons}
           />

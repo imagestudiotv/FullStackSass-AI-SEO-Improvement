@@ -44,9 +44,27 @@ export type LaunchStepId =
   | "search-console"
   | "audit"
   | "articles"
+  | "preferences"
   | "backlinks"
   | "prompts"
-  | "linking";
+  | "launched";
+
+/**
+ * Which icon a row carries, as a NAME rather than a component.
+ *
+ * This module is imported by a server component and the value crosses to the
+ * client; a lucide component is not serialisable, so the client maps these to
+ * real icons. See components/setup-step-icon.tsx.
+ */
+export type LaunchStepIcon =
+  | "site"
+  | "google"
+  | "audit"
+  | "article"
+  | "link"
+  | "settings"
+  | "eye"
+  | "rocket";
 
 export type LaunchStep = {
   id: LaunchStepId;
@@ -64,6 +82,15 @@ export type LaunchStep = {
    */
   optional: boolean;
   href: string;
+  icon: LaunchStepIcon;
+  /**
+   * Extra body text, shown when the row is expanded.
+   *
+   * Only the final row has one: the design expands it to explain that
+   * everything is now running by itself, with a button through to the
+   * dashboard. The rest are one line each and have nothing to hide.
+   */
+  detail?: string;
 };
 
 export type LaunchState = {
@@ -164,6 +191,7 @@ export const getLaunchState = cache(async function getLaunchState(
       done: cms.length > 0,
       optional: false,
       href: `${base}/publishing`,
+      icon: "site",
     },
     {
       id: "search-console",
@@ -173,6 +201,7 @@ export const getLaunchState = cache(async function getLaunchState(
       done: gsc.length > 0,
       optional: true,
       href: `${base}/google`,
+      icon: "google",
     },
     {
       id: "audit",
@@ -182,15 +211,36 @@ export const getLaunchState = cache(async function getLaunchState(
       done: audit.length > 0,
       optional: false,
       href: base,
+      icon: "audit",
     },
     {
       id: "articles",
+      /**
+       * The client's list names this "Linking Configuration" and their
+       * screenshot names it "Generate & launch your content plan". They are
+       * the same row: the content plan IS the calendar that decides which
+       * article links to which as it publishes.
+       *
+       * Named for what the customer does rather than for the mechanism, since
+       * "linking configuration" describes a setting nobody adjusts by hand.
+       */
+      title: "Generate & launch your content plan",
+      description:
+        "Search terms, topic clusters and a publishing calendar, so each article links to the others as it goes out.",
+      done: planned.length > 0,
+      optional: false,
+      href: `${base}/content`,
+      icon: "article",
+    },
+    {
+      id: "preferences",
       title: "Configure your article preferences",
       description:
         "Tone, words to avoid, and the standing rules every article should follow.",
       done: voice.length > 0,
       optional: false,
       href: `${base}/profile`,
+      icon: "settings",
     },
     {
       id: "backlinks",
@@ -200,6 +250,7 @@ export const getLaunchState = cache(async function getLaunchState(
       done: network.length > 0,
       optional: false,
       href: `${base}/backlinks`,
+      icon: "link",
     },
     {
       id: "prompts",
@@ -209,27 +260,45 @@ export const getLaunchState = cache(async function getLaunchState(
       done: prompts.length > 0,
       optional: false,
       href: `${base}/ai-visibility`,
-    },
-    {
-      id: "linking",
-      title: "Linking configuration",
-      description:
-        "A publishing calendar, so each article links to the others as it goes out.",
-      done: planned.length > 0,
-      optional: false,
-      href: `${base}/content`,
+      icon: "eye",
     },
   ];
 
-  const doneCount = steps.filter((step) => step.done).length;
+  /**
+   * The final row: "Launched live".
+   *
+   * Not a task — there is nothing to click. It is the summary the design ends
+   * on, ticked exactly when every required step above it is, so the list
+   * finishes on a statement rather than trailing off after the last chore.
+   *
+   * Computed from the rows above rather than from its own query: a separate
+   * source could disagree with them, and a checklist whose last line
+   * contradicts the six above it is worse than no last line.
+   */
   const requiredRemaining = steps.filter(
     (step) => !step.done && !step.optional,
   ).length;
+  const live = requiredRemaining === 0;
+
+  steps.push({
+    id: "launched",
+    title: "Launched live",
+    description: live
+      ? "Everything is running. Nothing more to set up."
+      : "Finish the steps above and everything starts running by itself.",
+    detail:
+      "Auto-publishing, AI visibility tracking and the Backlink Exchange are running for your site. Nothing more to set up — watch the results on your dashboard.",
+    done: live,
+    optional: false,
+    href: "/dashboard",
+    icon: "rocket",
+  });
 
   return {
     steps,
-    doneCount,
+    // Counted after the final row is pushed, so the dial matches the list.
+    doneCount: steps.filter((step) => step.done).length,
     requiredRemaining,
-    live: requiredRemaining === 0,
+    live,
   };
 });

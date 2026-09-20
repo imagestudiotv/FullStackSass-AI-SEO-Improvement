@@ -16,10 +16,13 @@ import {
 
 export function MobileNav({
   onboardingComplete = false,
+  setupProgress = null,
   selectedWebsiteId = null,
   addons = [],
 }: {
   onboardingComplete?: boolean;
+  /** Forwarded to SidebarNav, so the phone menu shows the same progress. */
+  setupProgress?: { done: number; total: number } | null;
   /** Forwarded to SidebarNav, so a phone gets the same Add-ons menu. */
   addons?: SidebarAddon[];
   /**
@@ -34,7 +37,12 @@ export function MobileNav({
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="md:hidden" aria-label="Open menu">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="md:hidden"
+          aria-label="Open menu"
+        >
           <Menu className="size-5" />
         </Button>
       </SheetTrigger>
@@ -47,6 +55,7 @@ export function MobileNav({
         <SidebarNav
           onNavigate={() => setOpen(false)}
           onboardingComplete={onboardingComplete}
+          setupProgress={setupProgress}
           selectedWebsiteId={selectedWebsiteId}
           addons={addons}
         />

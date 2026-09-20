@@ -42,7 +42,10 @@ export function SidebarNav({
   onboardingComplete = false,
   selectedWebsiteId = null,
   addons = [],
+  setupProgress = null,
 }: {
+  /** "2/7" beside the Set up item. Null when there is nothing to report. */
+  setupProgress?: { done: number; total: number } | null;
   onNavigate?: () => void;
   /**
    * What can be bought, for the Add-ons item to expand into.
@@ -245,7 +248,18 @@ export function SidebarNav({
               )}
             >
               <Icon className="size-4 shrink-0" aria-hidden="true" />
-              {item.title}
+              <span className="min-w-0 flex-1 truncate">{item.title}</span>
+              {/*
+                Progress beside "Set up", as the design shows. Only on that
+                item, and only while there is progress to report — a badge on
+                a finished checklist is a number nobody needs, and the item
+                disappears then anyway.
+              */}
+              {item.href === "/setup" && setupProgress ? (
+                <span className="shrink-0 rounded-full bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary tabular-nums">
+                  {setupProgress.done}/{setupProgress.total}
+                </span>
+              ) : null}
             </Link>
           </div>
         );
