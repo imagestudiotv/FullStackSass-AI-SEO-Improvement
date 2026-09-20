@@ -34,13 +34,29 @@ const CURRENCY = "eur";
  */
 const RETIRED_TIERS = ["starter", "launch"];
 
-/** Monthly price per tier, in minor units. Annual is derived as x10. */
+/**
+ * Monthly price per tier, in minor units. Annual is derived as x10.
+ *
+ * ARTICLE LIMITS ARE A DAILY CADENCE, not a round number. The client set
+ * them that way: "we write 30 articles for grow plan (1 daily) and 100 for
+ * scale plan (3 daily)".
+ *
+ * That matters beyond the label. scheduled-articles.ts derives how many to
+ * queue per day as `ceil(articleLimit / 30)`, so 30 produces exactly one a
+ * day and 100 produces between three and four — the promise on the pricing
+ * page and the behaviour of the scheduler come from this one number.
+ *
+ * Grow was 25, which is neither a daily rhythm nor what was agreed: it gave
+ * one article a day for 25 days and then five silent days at the end of every
+ * month.
+ */
 const TIERS = [
   {
     tier: "grow",
     name: "Grow",
     monthlyCents: 9900,
-    articleLimit: 25,
+    // 1 a day.
+    articleLimit: 30,
     keywordLimit: 300,
     siteLimit: 3,
     monthlyCredits: 25,
@@ -50,6 +66,7 @@ const TIERS = [
     tier: "scale",
     name: "Scale",
     monthlyCents: 29900,
+    // ~3 a day.
     articleLimit: 100,
     keywordLimit: 1500,
     siteLimit: 10,

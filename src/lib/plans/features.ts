@@ -48,6 +48,28 @@ function count(n: number, singular: string, plural = `${singular}s`): string {
 }
 
 /**
+ * "30 branded articles a month — one a day", from the plan's own limit.
+ *
+ * The cadence is the point of these numbers, not the total: the client set
+ * them as "1 daily" and "3 daily" rather than as round figures, and it is what
+ * the scheduler actually does — see scheduled-articles.ts, which queues
+ * ceil(limit / 30) each day.
+ *
+ * Derived rather than written per tier, so the phrase cannot claim a rhythm
+ * the limit does not produce. Only stated when the arithmetic is clean: 30 is
+ * exactly one a day, 100 is close enough to three to say so, and anything that
+ * does not divide neatly says nothing rather than something approximate.
+ */
+function cadence(articlesPerMonth: number): string {
+  const perDay = articlesPerMonth / 30;
+  if (perDay === 1) return " — one a day";
+  if (Number.isInteger(perDay)) return ` — ${perDay} a day`;
+  // 100/30 is 3.33: "about three" is true, "three" would not be.
+  if (perDay > 1) return ` — about ${Math.floor(perDay)} a day`;
+  return "";
+}
+
+/**
  * The bullet list for a plan.
  *
  * WHAT IS DELIBERATELY NOT LISTED: backlink credits and the number of
@@ -95,7 +117,7 @@ export function planFeatures(plan: PickerPlan): string[] {
    * it is a reason to upgrade rather than a limit to apologise for.
    */
   const scale = [
-    `${count(plan.articleLimit, "branded article")} a month, with images`,
+    `${count(plan.articleLimit, "branded article")} a month${cadence(plan.articleLimit)}, with images`,
     `${plan.keywordLimit.toLocaleString()} search terms researched and clustered`,
     `Up to ${count(plan.siteLimit, "website")} on one account`,
     "Priority processing — your articles are written first",
@@ -103,7 +125,7 @@ export function planFeatures(plan: PickerPlan): string[] {
   ];
 
   const grow = [
-    `${count(plan.articleLimit, "branded article")} a month, with images`,
+    `${count(plan.articleLimit, "branded article")} a month${cadence(plan.articleLimit)}, with images`,
     `${plan.keywordLimit.toLocaleString()} search terms researched and clustered`,
     `Up to ${count(plan.siteLimit, "website")} on one account`,
   ];
