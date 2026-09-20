@@ -15,18 +15,13 @@ import { requireSession } from "@/lib/auth-guard";
 import { ensureOrganization } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { addons, notifications, organization, websites } from "@/lib/db/schema";
-import {
-  clearReferralCode,
-  readReferralCode,
-} from "@/lib/referrals/cookie";
+import { clearReferralCode, readReferralCode } from "@/lib/referrals/cookie";
 import { attachReferral } from "@/lib/referrals/core";
-import { getOnboardingState } from "@/lib/onboarding/steps";
+import { getLaunchState } from "@/lib/onboarding/launch";
+import { SetupTracker } from "@/components/setup-tracker";
 import { getSubscription } from "@/lib/billing";
 import { NoOrganizationError, requireOrg } from "@/lib/tenant";
-import {
-  readSelectedWebsite,
-  resolveWebsiteId,
-} from "@/lib/websites/selected";
+import { readSelectedWebsite, resolveWebsiteId } from "@/lib/websites/selected";
 
 /**
  * Every authenticated route is per-request by definition: it reads the
@@ -101,11 +96,17 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     ownedWebsites.find((site) => site.id === fallbackWebsiteId) ?? null;
 
   /**
-   * Whether to keep "Get started" in the sidebar. The onboarding routes are
-   * not going anywhere — they carry plan selection and checkout — but once the
-   * checklist is finished the link points at a page with nothing left to do.
+   * Whether to keep "Set up" in the sidebar, and what the floating tracker
+   * should list.
+   *
+   * The LAUNCH state now, not the signup wizard's: signup is finished by the
+   * time anyone sees this sidebar, and what is left is connecting the site,
+   * auditing it, switching on the exchange and so on. Null when the workspace
+   * has no website yet, in which case there is nothing to check off.
    */
-  const onboarding = await getOnboardingState(orgId);
+  const launch = fallbackWebsiteId
+    ? await getLaunchState(fallbackWebsiteId)
+    : null;
 
   /** Plan name for the chat widget, so support can see what they pay for. */
   const subscription = await getSubscription(orgId);
@@ -186,7 +187,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     <div className="flex min-h-svh flex-col bg-muted/30">
       <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <MobileNav
-          onboardingComplete={onboarding.complete}
+          onboardingComplete={launch ? launch.live : true}
           selectedWebsiteId={fallbackWebsiteId}
           addons={sidebarAddons}
         />
@@ -247,7 +248,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       <div className="flex flex-1">
         <AppSidebar>
           <SidebarNav
-            onboardingComplete={onboarding.complete}
+            onboardingComplete={launch ? launch.live : true}
             selectedWebsiteId={fallbackWebsiteId}
             addons={sidebarAddons}
           />
@@ -276,6 +277,14 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         email, name, workspace and plan, and nothing else: page contents are
         never sent, so a customer's own data stays out of a third party.
       */}
+      {/*
+        The floating setup panel, above the chat launcher. Renders nothing once
+        the required steps are done, or when there is no website yet.
+      */}
+      {launch && fallbackWebsiteId ? (
+        <SetupTracker steps={launch.steps} websiteId={fallbackWebsiteId} />
+      ) : null}
+
       <LiveChat
         user={{
           email: session.user.email,

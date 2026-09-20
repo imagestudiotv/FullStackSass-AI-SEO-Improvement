@@ -101,7 +101,12 @@ export function SidebarNav({
   const [addonsOpen, setAddonsOpen] = useState(true);
 
   const items = navItems.filter((item) => {
-    if (item.href === "/onboarding" && onboardingComplete) return false;
+    /*
+      "Set up" goes once every REQUIRED launch step is done. The flag is named
+      for the old signup checklist it used to hide; it now carries the launch
+      state, which is what the item points at.
+    */
+    if (item.href === "/setup" && onboardingComplete) return false;
     /**
      * No website yet, so every per-site link would 404. Dashboard and
      * Settings still work, and the dashboard already prompts for a site.

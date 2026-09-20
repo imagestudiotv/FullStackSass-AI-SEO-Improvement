@@ -23,8 +23,18 @@ import { getResearchState, startResearch } from "@/lib/keywords/actions";
  * moves on by itself. See `advanced` below for why that needs a guard.
  */
 
-/** Where this step leads once the plan exists. */
-const NEXT_HREF = "/onboarding/done";
+/**
+ * Where this step leads once the plan exists.
+ *
+ * The DASHBOARD's setup checklist, not a celebration page. The client:
+ * "Right after this 5 step, can the next one be directly the integration
+ * part. We start seeing the dashboard on the left… On this step people can
+ * also already navigate the dashboard."
+ *
+ * So the wizard ends here and the rest of setup happens inside the product,
+ * where nothing is gated and the sidebar is available.
+ */
+const NEXT_HREF = "/setup";
 
 /**
  * How long to let someone read "your plan is ready" before moving on.

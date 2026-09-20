@@ -53,10 +53,15 @@ export const navItems: NavItem[] = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
 
   /**
-   * Setup checklist, hidden once finished. Sits second because an unfinished
-   * account has nothing to look at below it.
+   * The launch checklist, at the client's request: "we can keep also the Get
+   * started but rename it with Set up, and here we will place the most
+   * important steps to running successfully the platform."
+   *
+   * Points at /setup, which lives inside the dashboard, rather than at the
+   * signup wizard — signup is finished by the time anyone sees this sidebar.
+   * Hidden once every required step is done; see sidebar-nav.
    */
-  { title: "Get started", href: "/onboarding", icon: Rocket },
+  { title: "Set up", href: "/setup", icon: Rocket },
 
   /**
    * Per-website sections, promoted out of the old submenu. Each resolves

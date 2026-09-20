@@ -45,7 +45,12 @@ export const WIZARD_STEPS: WizardStep[] = [
   { id: "plan", label: "Plan", href: "/onboarding/plan" },
   { id: "visibility", label: "AI visibility", href: "/onboarding/visibility" },
   { id: "content", label: "Content & backlinks", href: "/onboarding/content" },
-  { id: "done", label: "Ready to grow", href: "/onboarding/done" },
+  /*
+    The final stop is the dashboard's own setup checklist, not a page inside
+    the wizard: signup ends at step five and the remaining work — connecting
+    the site, auditing it, switching on the exchange — happens in the product.
+  */
+  { id: "done", label: "Ready to grow", href: "/setup" },
 ];
 
 export function wizardStepIndex(id: WizardStepId): number {
