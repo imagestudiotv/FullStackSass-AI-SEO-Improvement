@@ -8,6 +8,7 @@ import { geoPrompts, websites } from "@/lib/db/schema";
 import { ENGINES, availableEngineIds } from "@/lib/geo/engines";
 import { getOnboardingState } from "@/lib/onboarding/steps";
 import { requireOrg } from "@/lib/tenant";
+import { maxPromptsFor } from "@/lib/geo/allowance";
 import { VisibilityStep } from "./visibility-step";
 
 export const metadata = { title: "AI visibility" };
@@ -81,35 +82,40 @@ export default async function OnboardingVisibilityPage({
 
   if (!site) redirect("/onboarding/website");
 
-  const prompts = await db
-    .select({
-      id: geoPrompts.id,
-      prompt: geoPrompts.prompt,
-      isSuggested: geoPrompts.isSuggested,
-    })
-    .from(geoPrompts)
-    .where(eq(geoPrompts.websiteId, site.id));
+  const [prompts, allowance] = await Promise.all([
+    db
+      .select({
+        id: geoPrompts.id,
+        prompt: geoPrompts.prompt,
+        isSuggested: geoPrompts.isSuggested,
+        active: geoPrompts.active,
+      })
+      .from(geoPrompts)
+      .where(eq(geoPrompts.websiteId, site.id))
+      .orderBy(geoPrompts.createdAt),
+    // 20 on Grow, 50 on Scale — read from the plan paying for THIS site.
+    maxPromptsFor(site.id),
+  ]);
 
   const available = availableEngineIds();
 
   return (
     <div>
       <WizardProgress current="visibility" />
-      <div className="mx-auto max-w-2xl px-4 py-10">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          AI visibility — tracking prompts
-        </h1>
-        <p className="mt-2 text-muted-foreground">
-          The questions your customers would ask an assistant before they know
-          you exist. We ask them on a schedule and record whether you get named.
-        </p>
-
-        <div className="mt-8">
+      {/*
+        Narrower than the plan step and with no side panel: the design puts
+        this step on a single centred column, because the question list is the
+        whole screen and a rail beside it would compete with the thing the
+        customer is meant to be reading.
+      */}
+      <div className="mx-auto max-w-2xl px-4 py-10 sm:py-14">
+        <div>
           <VisibilityStep
             websiteId={site.id}
             market={site.country}
             language={site.language}
-            initialPrompts={prompts}
+            initialPrompts={prompts.map((p) => ({ ...p, latest: null }))}
+            allowance={allowance}
             engines={ENGINES.map((engine) => ({
               id: engine.id,
               name: engine.name,

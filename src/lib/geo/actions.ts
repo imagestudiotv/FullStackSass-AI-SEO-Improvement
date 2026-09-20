@@ -7,9 +7,9 @@ import { anthropic, isAiConfigured, MODELS } from "@/lib/ai/client";
 import { db } from "@/lib/db";
 import { geoPrompts, geoResults } from "@/lib/db/schema";
 import { summarise } from "@/lib/geo/score";
+import { maxPromptsFor } from "@/lib/geo/allowance";
 import {
   MAX_PROMPT_LENGTH,
-  MAX_PROMPTS,
   type GeoOverview,
   type GeoPromptView,
 } from "@/lib/geo/shared";
@@ -208,10 +208,16 @@ export async function addGeoPrompt(
     .from(geoPrompts)
     .where(eq(geoPrompts.websiteId, site.id));
 
-  if (count >= MAX_PROMPTS) {
+  /*
+    The allowance is per PLAN now — 20 on Grow, 50 on Scale — so the limit is
+    read from the subscription paying for this site rather than being one
+    number for everybody.
+  */
+  const allowance = await maxPromptsFor(site.id);
+  if (count >= allowance) {
     return {
       ok: false,
-      error: `You can track up to ${MAX_PROMPTS} questions. Remove one to add another.`,
+      error: `Your plan tracks up to ${allowance} questions. Remove one to add another.`,
     };
   }
 
@@ -290,6 +296,17 @@ export async function runGeoCheck(
  */
 export async function suggestGeoPrompts(
   websiteId: string,
+  /**
+   * How many to ask for. Defaults to the old six, which is what the "suggest
+   * more" button wants; filling an empty account asks for a plan's worth.
+   */
+  wanted = 6,
+  /**
+   * Questions already on the list, so the model is told not to repeat them.
+   * Without this, "suggest more" reliably returns near-duplicates of what is
+   * already there and the button appears to do nothing.
+   */
+  existing: string[] = [],
 ): Promise<ActionResult<string[]>> {
   const { site } = await requireWebsite(websiteId);
 
@@ -305,22 +322,37 @@ export async function suggestGeoPrompts(
     .filter(Boolean)
     .join("\n");
 
+  /**
+   * Questions already tracked, listed so the model does not return them
+   * again. Without this, "suggest more" comes back with rephrasings of what
+   * is already on screen and the button looks broken.
+   */
+  const avoid = existing.length
+    ? [
+        "- Do NOT repeat or rephrase any of these, which are already tracked:",
+        ...existing.map((e) => `  - ${e}`),
+      ].join("\n")
+    : "";
+
   try {
     const response = await anthropic.messages.create({
       model: MODELS.EXTRACTION,
-      max_tokens: 700,
+      // ~60 tokens a question plus overhead; 50 questions needs real room.
+      max_tokens: Math.min(4000, 400 + wanted * 70),
       messages: [
         {
           role: "user",
           content: `A business has this website: ${site.domain}
 ${description}
 
-Write 6 questions a potential customer might ask an AI assistant when looking for a business like this one.
+Write ${wanted} questions a potential customer might ask an AI assistant when looking for a business like this one.
 
 Rules:
 - Never name this business. The question must be one someone asks BEFORE they know it exists.
 - Ask the way a real person types, not like a search query.
 - Be specific to the industry and, where it matters, the location.
+- Vary the intent: some comparing options, some asking about price, some about a specific service or place.
+${avoid}
 
 Reply with JSON only: {"prompts": ["...", "..."]}`,
         },
@@ -341,7 +373,7 @@ Reply with JSON only: {"prompts": ["...", "..."]}`,
           .filter((p): p is string => typeof p === "string")
           .map((p) => cleanPrompt(p))
           .filter((p): p is string => p !== null)
-          .slice(0, 6)
+          .slice(0, wanted)
       : [];
 
     if (suggestions.length === 0) {
@@ -352,4 +384,80 @@ Reply with JSON only: {"prompts": ["...", "..."]}`,
   } catch {
     return { ok: false, error: "Could not suggest questions. Try again." };
   }
+}
+
+/**
+ * Fills an empty list with a plan's worth of questions, already saved.
+ *
+ * THIS IS THE FIX FOR THE CLIENT'S MAIN COMPLAINT: "This was the most
+ * confusing part for me when firstly I joined this platforms. So it will be
+ * nice to having it simple that we generate prompts without people click
+ * suggest question … we want to be able to cancel prompts and also having
+ * them selected from first glance."
+ *
+ * Before this, the screen opened empty and nothing happened until somebody
+ * found the "Suggest questions" button — so the step read as broken. Now the
+ * page calls this on arrival and the customer edits a finished list instead
+ * of building one.
+ *
+ * Idempotent by design: it returns what is already there if the website has
+ * any prompts, so a refresh, a double render in development, or two tabs open
+ * cannot produce two sets. The unique index on (website, prompt) is the
+ * backstop.
+ */
+export async function ensureGeoPrompts(
+  websiteId: string,
+): Promise<ActionResult<GeoPromptView[]>> {
+  const { site } = await requireWebsite(websiteId);
+
+  const existing = await db
+    .select()
+    .from(geoPrompts)
+    .where(eq(geoPrompts.websiteId, site.id))
+    .orderBy(desc(geoPrompts.createdAt));
+
+  // Already populated: never top up silently, because the customer may have
+  // deliberately removed the ones they did not want.
+  if (existing.length > 0) {
+    return { ok: true, data: existing.map(toView) };
+  }
+
+  if (!isAiConfigured()) {
+    return { ok: false, error: "AI is not configured on this deployment" };
+  }
+
+  const allowance = await maxPromptsFor(site.id);
+  const suggested = await suggestGeoPrompts(websiteId, allowance);
+  if (!suggested.ok) return suggested;
+
+  /**
+   * Inserted in one statement, marked isSuggested so the UI can tell ours
+   * apart from the customer's own. onConflictDoNothing covers the race where
+   * two tabs arrive at once.
+   */
+  const rows = await db
+    .insert(geoPrompts)
+    .values(
+      suggested.data.slice(0, allowance).map((prompt) => ({
+        websiteId: site.id,
+        prompt,
+        isSuggested: true,
+      })),
+    )
+    .onConflictDoNothing()
+    .returning();
+
+  revalidatePath(`/websites/${site.id}`);
+  return { ok: true, data: rows.map(toView) };
+}
+
+/** A stored row as the client component wants it. */
+function toView(row: typeof geoPrompts.$inferSelect): GeoPromptView {
+  return {
+    id: row.id,
+    prompt: row.prompt,
+    isSuggested: row.isSuggested,
+    active: row.active,
+    latest: null,
+  };
 }

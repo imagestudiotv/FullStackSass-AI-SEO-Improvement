@@ -58,17 +58,19 @@ export type CheckOutcome = {
  * here: it tells a customer they are invisible when they are not.
  */
 function normalise(value: string): string {
-  return value
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[̀-ͯ]/g, "")
-    // Legal suffixes and generic trade words carry no identity.
-    .replace(
-      /\b(inc|llc|ltd|limited|bv|b\.v\.|gmbh|nv|plc|co|corp|company|clinic|dental|dentist|agency|studio|group|the)\b/g,
-      " ",
-    )
-    .replace(/[^a-z0-9]+/g, "")
-    .trim();
+  return (
+    value
+      .toLowerCase()
+      .normalize("NFKD")
+      .replace(/[̀-ͯ]/g, "")
+      // Legal suffixes and generic trade words carry no identity.
+      .replace(
+        /\b(inc|llc|ltd|limited|bv|b\.v\.|gmbh|nv|plc|co|corp|company|clinic|dental|dentist|agency|studio|group|the)\b/g,
+        " ",
+      )
+      .replace(/[^a-z0-9]+/g, "")
+      .trim()
+  );
 }
 
 /**
