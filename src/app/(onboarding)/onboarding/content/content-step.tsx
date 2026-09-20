@@ -2,28 +2,50 @@
 
 import { ArrowRight, Check, Clock, Loader2, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { startResearch } from "@/lib/keywords/actions";
+import { getResearchState, startResearch } from "@/lib/keywords/actions";
 
 /**
- * Kicking off keyword research and the content calendar.
+ * Step five: turning the profile into a content and backlink plan.
  *
- * The list below is what the pipeline actually produces. The reference also
- * promises a cannibalisation report, an internal linking map and a default
- * author profile; internal linking exists at article generation time rather
- * than as a plan artefact, and the other two we do not build — listing them
- * here would be describing a product the customer cannot then find.
+ * TWO THINGS THE CLIENT ASKED FOR HERE.
+ *
+ * "Few more options and more engaged ui design" — the design lists six
+ * deliverables in a two-column layout, each a short label with a one-line
+ * explanation beside it, rather than four long paragraphs.
+ *
+ * "Once I click Build my content plan it should redirect to next step
+ * automatically, instead it still ask to still click on next." — it does now.
+ * The page already polls while the job runs, so the moment the plan exists it
+ * moves on by itself. See `advanced` below for why that needs a guard.
  */
+
+/** Where this step leads once the plan exists. */
+const NEXT_HREF = "/onboarding/done";
+
+/**
+ * How long to let someone read "your plan is ready" before moving on.
+ *
+ * Not zero. Jumping the instant the poll returns makes the screen flash past
+ * and leaves no sign that the thing they asked for actually happened — they
+ * arrive at the next step unsure whether it worked. A beat is enough to read
+ * the confirmation and see the ticks turn green.
+ */
+const ADVANCE_DELAY_MS = 1400;
+
 export function ContentStep({
   websiteId,
+  brandName,
   hasKeywords,
   hasPlan,
   articlesPerMonth,
 }: {
   websiteId: string;
+  /** Named in the subtitle, as the design shows. */
+  brandName: string;
   hasKeywords: boolean;
   hasPlan: boolean;
   /** Null when the plan is unlimited. */
@@ -45,7 +67,39 @@ export function ContentStep({
     hasKeywords || hasPlan ? "queued" : "idle",
   );
 
-  const building = status === "queued" && !hasKeywords && !hasPlan;
+  /**
+   * What the POLL has seen, which overrides the server props.
+   *
+   * The props come from a page render that can be stale: router.refresh()
+   * clears the client cache but not the server-side one, and startResearch
+   * revalidates /websites/[id] rather than this route. So the page kept
+   * rendering "Building…" after the plan existed. The poll below asks the
+   * database directly and cannot be stale.
+   */
+  const [ready, setReady] = useState(hasKeywords || hasPlan);
+
+  const done = hasKeywords || hasPlan || ready;
+  const building = status === "queued" && !done;
+
+  /**
+   * Whether this visit started the build.
+   *
+   * Only then should finishing move the customer on. Someone who comes BACK to
+   * this step — from the Back button on the next screen, or a bookmark — has a
+   * finished plan already, and bouncing them forward would make the step
+   * impossible to look at: they would be thrown out of it the moment they
+   * arrived, every time.
+   */
+  /*
+    STATE, not a ref. Setting a ref does not re-render, so the effect below
+    never re-ran after the build was queued — it had already run with
+    startedHere false, and nothing told React to look again. The plan finished
+    and the page sat there, which is precisely the bug being fixed.
+  */
+  const [startedHere, setStartedHere] = useState(false);
+  /** Guards against a second navigation if a poll lands mid-transition. */
+  const advanced = useRef(false);
+  const [leaving, setLeaving] = useState(false);
 
   /**
    * Re-read the server state once on arrival.
@@ -70,9 +124,42 @@ export function ContentStep({
   useEffect(() => {
     if (!building) return;
 
-    const timer = setInterval(() => router.refresh(), 5000);
-    return () => clearInterval(timer);
-  }, [building, router]);
+    let stopped = false;
+    const check = async () => {
+      const result = await getResearchState(websiteId);
+      if (stopped || !result.ok) return;
+      if (result.data.hasKeywords || result.data.hasPlan) {
+        setReady(true);
+        // Bring the rest of the page (and anything cached elsewhere) in line
+        // with what we just learned, now that we know there is news.
+        router.refresh();
+      }
+    };
+
+    // Once immediately: a job that finished while the tab was in the
+    // background should not cost another five seconds.
+    void check();
+    const timer = setInterval(check, 4000);
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+    };
+  }, [building, websiteId, router]);
+
+  /**
+   * The plan landed — go to the last step, as the client asked.
+   *
+   * Gated on startedHere so only the person who pressed the button is carried
+   * forward, and on `advanced` so two polls cannot both navigate.
+   */
+  useEffect(() => {
+    if (!done || !startedHere || advanced.current) return;
+    advanced.current = true;
+    setLeaving(true);
+
+    const timer = setTimeout(() => router.push(NEXT_HREF), ADVANCE_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [done, startedHere, router]);
 
   async function handleBuild() {
     setStatus("queueing");
@@ -86,78 +173,129 @@ export function ContentStep({
       return;
     }
 
+    setStartedHere(true);
     setStatus("queued");
     toast.success("We are building your plan. This takes a few minutes.");
     router.refresh();
   }
 
-  const steps = [
+  /**
+   * What the plan actually produces, in the design's two-column shape: a short
+   * label, and one line saying what it is.
+   *
+   * Every one of these is something the pipeline really does. The reference
+   * design also promises a "default author profile" — we have no such feature,
+   * and the author on a published post is simply whichever CMS account the
+   * customer connects, so the line here describes that rather than inventing a
+   * setting they would then go looking for.
+   */
+  const deliverables = [
     {
-      title: "Search terms worth going after",
-      body: "We work out what your customers actually type, then check real search volumes and how hard each term is to win.",
+      title: "Search opportunities",
+      body: "Find real search demand and the terms worth targeting.",
     },
     {
       title: "Topic clusters",
-      body: "Related terms grouped together, so one article covers a subject properly instead of a dozen thin pages competing with each other.",
+      body: "Group related searches so one article covers a subject properly.",
     },
     {
-      title: "A publishing calendar",
+      title: "Publishing plan",
       body: articlesPerMonth
-        ? `One brief per article your plan includes — ${articlesPerMonth} a month — each with a title, target term and intent.`
-        : "One brief per article, each with a title, target term and intent.",
+        ? `A calendar of ${articlesPerMonth} briefs a month, each with a title, term and intent.`
+        : "A calendar of briefs, each with a title, target term and intent.",
     },
     {
-      title: "Backlink placements",
-      body: "Your article carries a link for another site in the network, and theirs carries one for you. Credits come with your plan.",
+      title: "Internal linking",
+      body: "Recommendations to link your content together as it is published.",
+    },
+    {
+      title: "Backlink opportunities",
+      body: "Relevant placements across our partner network.",
+    },
+    {
+      title: "Publishing destination",
+      body: "Articles post under the CMS account you connect, as its author.",
     },
   ];
 
-  const done = hasKeywords || hasPlan;
-
   return (
-    <div className="space-y-4">
-      <div className="rounded-xl border bg-card p-6 text-center">
-        <span
-          className="mx-auto flex size-10 items-center justify-center rounded-xl bg-primary/10"
-          aria-hidden="true"
-        >
-          {building ? (
-            <Loader2 className="size-5 animate-spin text-primary" />
-          ) : (
-            <Sparkles className="size-5 text-primary" />
-          )}
-        </span>
+    <div>
+      <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+        Articles, content &amp; backlinks
+      </h1>
+      <p className="mt-2 text-muted-foreground">
+        We&apos;ll turn what we learned about {brandName} into a plan you can
+        publish from.
+      </p>
 
-        <p className="mt-4 font-medium">
-          {done
-            ? "Your plan is ready"
-            : building
-              ? "Building your plan…"
-              : "Ready to build your content plan"}
-        </p>
-        <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-          {done
-            ? "Your search terms and publishing calendar are ready. You can review them on your website page any time."
-            : building
-              ? "This usually takes a few minutes. The page updates on its own — you do not have to wait here."
-              : "We research what your customers search for, group it into subjects, and write a brief for every article."}
+      <div className="mt-6 rounded-2xl border bg-card p-6 sm:p-8">
+        {/* The icon-and-heading row from the design: tile on the left. */}
+        <div className="flex items-start gap-4">
+          <span
+            className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10"
+            aria-hidden="true"
+          >
+            {building || leaving ? (
+              <Loader2 className="size-6 animate-spin text-primary" />
+            ) : done ? (
+              <Check className="size-6 text-primary" />
+            ) : (
+              <Sparkles className="size-6 text-primary" />
+            )}
+          </span>
+          <div className="min-w-0">
+            <p className="text-xl font-semibold">
+              {leaving
+                ? "Your content plan is ready"
+                : done
+                  ? "Your content plan is ready"
+                  : building
+                    ? "Building your content plan…"
+                    : "Your content engine is ready"}
+            </p>
+            <p className="mt-1.5 text-sm text-muted-foreground">
+              {leaving
+                ? "Taking you to the last step…"
+                : done
+                  ? "Your search terms and publishing calendar are ready. You can review them on your website page any time."
+                  : building
+                    ? "This usually takes a few minutes. The page updates on its own and moves you on when it is finished."
+                    : "We research what your customers search for and turn it into a complete publishing and backlink plan."}
+            </p>
+          </div>
+        </div>
+
+        <p className="mt-7 text-xs font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+          Here&apos;s what we&apos;ll build
         </p>
 
-        <ul className="mt-6 space-y-3 text-left">
-          {steps.map((step) => (
-            <li key={step.title} className="flex gap-2.5">
-              <Check
-                className={`mt-0.5 size-4 shrink-0 ${
-                  done
-                    ? "text-emerald-600 dark:text-emerald-400"
-                    : "text-muted-foreground/40"
-                }`}
-                aria-hidden="true"
-              />
-              <div>
-                <p className="text-sm font-medium">{step.title}</p>
-                <p className="text-sm text-muted-foreground">{step.body}</p>
-              </div>
+        {/*
+          Two columns from `sm` up, as drawn: the label on the left and its
+          explanation beside it. Below that width they stack, because a
+          two-column row of small text on a phone is two unreadable columns.
+        */}
+        <ul className="mt-4 space-y-3">
+          {deliverables.map((item) => (
+            <li
+              key={item.title}
+              className="grid gap-x-6 gap-y-1 sm:grid-cols-[minmax(0,14rem)_minmax(0,1fr)]"
+            >
+              <span className="flex items-center gap-2.5">
+                <span
+                  className={`flex size-5 shrink-0 items-center justify-center rounded-full transition-colors ${
+                    done
+                      ? "bg-emerald-500 text-white"
+                      : "bg-muted text-muted-foreground/50"
+                  }`}
+                  aria-hidden="true"
+                >
+                  <Check className="size-3" />
+                </span>
+                <span className="text-sm font-medium">{item.title}</span>
+              </span>
+              <span className="pl-[1.9rem] text-sm text-muted-foreground sm:pl-0">
+                {item.body}
+              </span>
             </li>
           ))}
         </ul>
@@ -165,40 +303,62 @@ export function ContentStep({
         {done ? null : (
           <>
             <Button
-              className="mt-6 h-11 rounded-full px-7"
+              className="mt-7 h-14 w-full rounded-full text-base font-semibold"
               onClick={handleBuild}
               disabled={status !== "idle"}
             >
               {status === "idle" ? (
-                "Build my plan"
+                <>
+                  Build my content plan
+                  <ArrowRight className="size-4" aria-hidden="true" />
+                </>
               ) : (
                 <>
-                  <Loader2 className="size-4 animate-spin" />
+                  <Loader2 className="size-4 animate-spin" aria-hidden="true" />
                   {status === "queueing" ? "Starting…" : "Building…"}
                 </>
               )}
             </Button>
             <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
               <Clock className="size-3" aria-hidden="true" />
-              Takes a few minutes. You do not have to wait here.
+              Takes a few minutes. You can continue while we build it in the
+              background.
             </p>
           </>
         )}
       </div>
 
-      <div className="flex items-center justify-between gap-3 pt-2">
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
         <Button
           variant="ghost"
           onClick={() => router.push("/onboarding/visibility")}
         >
           Back
         </Button>
+        {/*
+          Kept even though finishing now advances on its own.
+
+          The build runs in the background and can take minutes; somebody who
+          does not want to wait needs a way out, and someone returning to a
+          finished step needs a way forward — auto-advance deliberately does
+          not fire for them.
+        */}
         <Button
-          className="h-11 rounded-full px-6"
-          onClick={() => router.push("/onboarding/done")}
+          className="h-12 rounded-full px-6"
+          disabled={leaving}
+          onClick={() => router.push(NEXT_HREF)}
         >
-          Next
-          <ArrowRight className="size-4" />
+          {leaving ? (
+            <>
+              <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+              Continuing&hellip;
+            </>
+          ) : (
+            <>
+              Next
+              <ArrowRight className="size-4" aria-hidden="true" />
+            </>
+          )}
         </Button>
       </div>
     </div>

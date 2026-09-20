@@ -67,36 +67,38 @@ export type CalendarRow = {
 
 export async function listCalendar(websiteId: string): Promise<CalendarRow[]> {
   const { site } = await requireWebsite(websiteId);
-  return db
-    .select({
-      id: calendarItems.id,
-      title: calendarItems.title,
-      targetKeyword: calendarItems.targetKeyword,
-      intent: calendarItems.intent,
-      scheduledFor: calendarItems.scheduledFor,
-      status: calendarItems.status,
-      customInstructions: calendarItems.customInstructions,
-      clusterName: clusters.name,
-      difficulty: keywords.difficulty,
-      volume: keywords.volume,
-    })
-    .from(calendarItems)
-    .leftJoin(clusters, eq(calendarItems.clusterId, clusters.id))
-    /**
-     * Metrics come from the keyword row, matched on the term. A left join so
-     * an item whose keyword was since deleted still appears — losing a planned
-     * article because its keyword row went away would be worse than showing it
-     * without numbers.
-     */
-    .leftJoin(
-      keywords,
-      and(
-        eq(keywords.websiteId, calendarItems.websiteId),
-        eq(keywords.term, calendarItems.targetKeyword),
-      ),
-    )
-    .where(eq(calendarItems.websiteId, site.id))
-    .orderBy(asc(calendarItems.scheduledFor));
+  return (
+    db
+      .select({
+        id: calendarItems.id,
+        title: calendarItems.title,
+        targetKeyword: calendarItems.targetKeyword,
+        intent: calendarItems.intent,
+        scheduledFor: calendarItems.scheduledFor,
+        status: calendarItems.status,
+        customInstructions: calendarItems.customInstructions,
+        clusterName: clusters.name,
+        difficulty: keywords.difficulty,
+        volume: keywords.volume,
+      })
+      .from(calendarItems)
+      .leftJoin(clusters, eq(calendarItems.clusterId, clusters.id))
+      /**
+       * Metrics come from the keyword row, matched on the term. A left join so
+       * an item whose keyword was since deleted still appears — losing a planned
+       * article because its keyword row went away would be worse than showing it
+       * without numbers.
+       */
+      .leftJoin(
+        keywords,
+        and(
+          eq(keywords.websiteId, calendarItems.websiteId),
+          eq(keywords.term, calendarItems.targetKeyword),
+        ),
+      )
+      .where(eq(calendarItems.websiteId, site.id))
+      .orderBy(asc(calendarItems.scheduledFor))
+  );
 }
 
 /** Starts (or re-runs) keyword research for a website. */
@@ -189,4 +191,45 @@ export async function deleteKeyword(
 
   revalidatePath(`/websites/${site.id}`);
   return { ok: true, data: null };
+}
+
+/**
+ * Whether the content plan exists yet.
+ *
+ * The onboarding step polls this rather than calling router.refresh() and
+ * reading the server props again. refresh() clears the CLIENT cache but, per
+ * Next's own docs, "does not invalidate the server-side cache" — and
+ * startResearch only revalidates /websites/[id], so /onboarding/content kept
+ * serving the copy rendered before the job wrote anything. The page sat on
+ * "Building your content plan…" forever while the rows existed in the
+ * database, which is exactly the "it never moves on" the client reported.
+ *
+ * A direct query cannot be stale, so this is the thing the UI trusts.
+ */
+export async function getResearchState(
+  websiteId: string,
+): Promise<ActionResult<{ hasKeywords: boolean; hasPlan: boolean }>> {
+  const { site } = await requireWebsite(websiteId);
+
+  // limit(1) on both: the question is "any?", not "how many?".
+  const [keywordRow, planRow] = await Promise.all([
+    db
+      .select({ id: keywords.id })
+      .from(keywords)
+      .where(eq(keywords.websiteId, site.id))
+      .limit(1),
+    db
+      .select({ id: calendarItems.id })
+      .from(calendarItems)
+      .where(eq(calendarItems.websiteId, site.id))
+      .limit(1),
+  ]);
+
+  return {
+    ok: true,
+    data: {
+      hasKeywords: keywordRow.length > 0,
+      hasPlan: planRow.length > 0,
+    },
+  };
 }

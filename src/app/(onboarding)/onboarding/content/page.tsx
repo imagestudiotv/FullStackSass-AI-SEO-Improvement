@@ -102,25 +102,21 @@ export default async function OnboardingContentPage({
   return (
     <div>
       <WizardProgress current="content" />
-      <div className="mx-auto max-w-2xl px-4 py-10">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Articles, content &amp; backlinks
-        </h1>
-        <p className="mt-2 text-muted-foreground">
-          We turn what we learned about {site.brandName ?? site.domain} into a
-          plan you can publish from.
-        </p>
-
-        <div className="mt-8">
-          <ContentStep
-            websiteId={site.id}
-            hasKeywords={keywordCount.length > 0}
-            hasPlan={plannedCount.length > 0}
-            articlesPerMonth={
-              articleLimit.limit === UNLIMITED ? null : articleLimit.limit
-            }
-          />
-        </div>
+      {/*
+        The heading now lives inside the step component, beside the state it
+        depends on — the design's title and subtitle sit directly above the
+        card and change with it.
+      */}
+      <div className="mx-auto max-w-3xl px-4 py-10 sm:py-14">
+        <ContentStep
+          websiteId={site.id}
+          brandName={site.brandName ?? site.domain}
+          hasKeywords={keywordCount.length > 0}
+          hasPlan={plannedCount.length > 0}
+          articlesPerMonth={
+            articleLimit.limit === UNLIMITED ? null : articleLimit.limit
+          }
+        />
       </div>
     </div>
   );
