@@ -55,7 +55,23 @@ export function SetupTracker({ steps }: { steps: LaunchStep[] }) {
         return false;
       }
     },
-    () => true,
+    /*
+      SERVER SNAPSHOT: false, not true.
+
+      This said `true` — "assume dismissed" — so the server rendered nothing
+      and the panel could only appear after hydration re-read localStorage.
+      That made the common case (never dismissed, which is everyone by
+      default) depend on a client round-trip to show a panel the server
+      already had all the data for, and made every failure in that round-trip
+      look identical to "you dismissed it".
+
+      `false` means the server renders the panel, which is correct for anyone
+      who has not hidden it. Someone who HAS dismissed it now sees it removed
+      on hydration rather than never drawn — a brief flash for the minority
+      who opted out, instead of an invisible panel for the majority who did
+      not.
+    */
+    () => false,
   );
 
   const dismissed = dismissedBefore || dismissedNow;
@@ -98,10 +114,21 @@ export function SetupTracker({ steps }: { steps: LaunchStep[] }) {
   return (
     /*
       Sits above the chat launcher, which Crisp pins to the bottom of the
-      viewport. The bottom offset clears it; hidden below `sm` because a panel
-      this size on a phone covers the page it is meant to help with.
+      viewport. Hidden below `sm` because a panel this size on a phone covers
+      the page it is meant to help with.
+
+      z-[999999], not z-30. Crisp injects its widget with a z-index in the
+      millions, and our own scale tops out at 50 — so at z-30 this panel was
+      painted underneath a third-party element we do not control the stacking
+      of. A tall value is the wrong instinct almost everywhere, and correct
+      here for exactly one reason: the thing being escaped is not ours to
+      renumber.
+
+      bottom-28 rather than bottom-24: Crisp's launcher occupies the band 14px
+      to 68px from the bottom, and 96px left only a 28px gap that its hover
+      halo still reached into.
     */
-    <div className="fixed right-4 bottom-24 z-30 hidden w-80 max-w-[calc(100vw-2rem)] sm:block">
+    <div className="fixed right-4 bottom-28 z-[999999] hidden w-80 max-w-[calc(100vw-2rem)] sm:block">
       <div className="overflow-hidden rounded-2xl border bg-card shadow-lg">
         <div className="flex items-center gap-2 border-b px-4 py-3">
           <p className="min-w-0 flex-1 text-sm font-semibold">
