@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { NonRetriableError } from "inngest";
 
 import { inngest } from "@/inngest/client";
 import { MODELS } from "@/lib/ai/client";
@@ -141,13 +142,32 @@ export const analyzeWebsite = inngest.createFunction(
             "Crawl failed",
           );
 
-          // NonRetriableError would be cleaner, but a plain throw with a
-          // recorded reason keeps the failure visible in the run history.
           await db
             .update(websites)
             .set({ status: "failed", updatedAt: new Date() })
             .where(eq(websites.id, websiteId));
-          throw new Error(`Crawl failed (${error.kind}): ${error.message}`);
+
+          /**
+           * A REFUSAL IS PERMANENT. DO NOT RETRY IT.
+           *
+           * 401/403/451 are the site deciding not to serve us, and sites run
+           * by enterprise bot management — DataDome, Akamai, Cloudflare Bot
+           * Management — refuse every automated client on principle:
+           * hermes.com and rolex.com answer 403 to a real Chrome user-agent
+           * from a residential IP, not just to us. Trying twice more changes
+           * nothing except the delay before the customer is told, and each
+           * attempt bills another crawl.
+           *
+           * Everything else still retries. A timeout, a refused connection
+           * or a 5xx is a site having a moment, and those genuinely do come
+           * back on the second attempt.
+           */
+          const message = `Crawl failed (${error.kind}): ${error.message}`;
+          throw error.status === 401 ||
+            error.status === 403 ||
+            error.status === 451
+            ? new NonRetriableError(message)
+            : new Error(message);
         }
 
         logger.error(

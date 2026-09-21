@@ -27,6 +27,16 @@ export class CrawlError extends Error {
       | "http_error"
       | "not_html"
       | "too_large",
+    /**
+     * The HTTP status, when the failure came with one.
+     *
+     * `kind` alone cannot tell a refusal from an outage: 403 and 503 are both
+     * "http_error", and they need opposite handling — one is the site's
+     * settled policy and must not be retried, the other is a site having a
+     * moment and should be. Undefined for a timeout or a refused connection,
+     * where no response existed to carry a status.
+     */
+    readonly status?: number,
   ) {
     super(message);
     this.name = "CrawlError";
@@ -223,9 +233,42 @@ async function fetchFollowing(
     }
 
     if (response.status >= 400) {
+      /**
+       * A REFUSAL IS EXPLAINED, not reported as a number.
+       *
+       * "The site returned 403" is accurate and useless: the customer looks
+       * at a site that loads perfectly in their browser and concludes our
+       * product is broken. It is not — hermes.com and rolex.com refuse a
+       * real Chrome user-agent from a residential IP too, because they run
+       * enterprise bot management (DataDome, Akamai) that blocks every
+       * automated client by policy.
+       *
+       * So the message says who is doing what, and that their site is fine.
+       * 401 is separated because it has a fix the customer controls; a 403
+       * from a bot wall does not, and pretending otherwise sends them hunting
+       * for a setting that is not there.
+       */
+      if (response.status === 403 || response.status === 451) {
+        throw new CrawlError(
+          "This site blocks automated visitors, so we cannot read it. " +
+            "Your site is fine — the block is a security setting on it.",
+          "http_error",
+          response.status,
+        );
+      }
+
+      if (response.status === 401) {
+        throw new CrawlError(
+          "This site asks for a password before it will show a page.",
+          "http_error",
+          response.status,
+        );
+      }
+
       throw new CrawlError(
         `The site returned ${response.status}`,
         "http_error",
+        response.status,
       );
     }
 
