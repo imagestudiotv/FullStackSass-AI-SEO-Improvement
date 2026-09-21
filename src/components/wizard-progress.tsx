@@ -15,8 +15,17 @@ export function WizardProgress({ current }: { current: WizardStepId }) {
   const currentIndex = wizardStepIndex(current);
 
   return (
-    <nav aria-label="Setup progress" className="border-b bg-card">
-      <ol className="mx-auto flex max-w-3xl items-start gap-1 px-4 py-5 sm:gap-2">
+    /*
+      No border and no card fill: the reference runs the steps straight over
+      the page, directly under the header, as part of the same top area. The
+      bordered strip this had made a second header bar and pushed the content
+      down by its full height.
+
+      Narrower too — max-w-2xl against the previous 3xl — so five dots read as
+      a compact indicator rather than a full-width rule across the screen.
+    */
+    <nav aria-label="Setup progress" className="bg-background">
+      <ol className="mx-auto flex max-w-2xl items-start gap-1 px-4 pt-1 pb-6 sm:gap-2">
         {WIZARD_STEPS.map((step, index) => {
           const done = index < currentIndex;
           const active = index === currentIndex;

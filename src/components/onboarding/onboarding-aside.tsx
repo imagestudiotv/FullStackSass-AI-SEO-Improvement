@@ -55,15 +55,26 @@ export function OnboardingAside({
 }) {
   return (
     /*
-      Sticky rather than scrolling with the form. The form side is the one
-      with the work on it; this side is reference, and a reference panel that
-      scrolls away is one the customer has to scroll back to.
+      Hidden below lg. On a phone this panel would push the form — the only
+      reason anyone is on the page — below the fold.
 
-      `h-fit` keeps sticky working — a flex child stretches to full height by
-      default, which leaves nothing for `top` to bite on.
+      No longer sticky. Sticky suits a panel beside a form far taller than
+      itself; here the two are close in height, so it never had anything to
+      scroll against and the `h-fit` it required was what capped the panel
+      short of the form.
     */
-    <aside className="hidden h-fit lg:sticky lg:top-8 lg:block">
-      <div className="relative flex min-h-[30rem] flex-col overflow-hidden rounded-3xl border bg-muted/30 p-8">
+    <aside className="hidden lg:block">
+      {/*
+        Fills the grid track rather than its own content.
+
+        This was `h-fit` with `lg:sticky`, which is the right pairing for a
+        panel that scrolls alongside a much longer form — but on this screen
+        the form is barely taller than the panel, so sticky bought nothing and
+        h-fit capped the panel at its content, leaving the empty space beside
+        the plan's feature list. `h-full` lets the stretched track set the
+        height; min-h keeps it substantial if a step's content is very short.
+      */}
+      <div className="relative flex h-full min-h-[34rem] flex-col overflow-hidden rounded-3xl border bg-muted/30 p-8">
         {/*
           The dotted world map the reference puts behind this panel.
 
@@ -77,7 +88,7 @@ export function OnboardingAside({
           No markers on it. Those are customer locations in the reference and
           we would be inventing every one.
         */}
-        <WorldMap className="pointer-events-none absolute inset-x-0 top-24 mx-auto w-[115%] max-w-none -translate-x-[6%] text-muted-foreground/25 select-none" />
+        <WorldMap className="pointer-events-none absolute inset-x-0 top-[22%] mx-auto w-[118%] max-w-none -translate-x-[8%] text-muted-foreground/25 select-none" />
 
         {/* Stat strip, divided, as drawn. Above the map. */}
         <div className="relative flex items-start justify-center gap-6 text-center text-foreground sm:gap-8">
@@ -103,10 +114,16 @@ export function OnboardingAside({
         </div>
 
         {/*
-          The card sitting over the map in the reference. Ours carries the
-          step's own promise rather than a quote.
+          The card FLOATS ON the map in the reference — the overlap is what
+          makes the panel one composition rather than a stat strip, a pattern
+          and a note stacked in a box.
+
+          `my-auto` centres it in whatever space is left between the stat strip
+          above and the footing line below, so it stays over the map's middle
+          at any panel height instead of being pinned a fixed distance from
+          the stats.
         */}
-        <div className="relative mt-10 rounded-2xl border bg-background/90 p-6 text-foreground shadow-sm backdrop-blur">
+        <div className="relative my-auto rounded-2xl border bg-background/95 p-6 text-foreground shadow-lg backdrop-blur">
           <p className="text-lg leading-snug font-semibold text-balance">
             {title}
           </p>
@@ -133,7 +150,7 @@ export function OnboardingAside({
           the reference has it. Without stretching it simply follows the
           content.
         */}
-        <p className="relative mt-auto pt-12 text-center text-[10px] font-medium tracking-[0.18em] text-muted-foreground/70 uppercase">
+        <p className="relative pt-10 text-center text-[10px] font-medium tracking-[0.18em] text-muted-foreground/70 uppercase">
           Trusted by businesses worldwide
         </p>
       </div>

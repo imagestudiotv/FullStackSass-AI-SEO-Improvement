@@ -92,7 +92,21 @@ export default async function OnboardingPlanPage({
     <div>
       <WizardProgress current="plan" />
       <div className="mx-auto max-w-6xl px-4 py-10 sm:py-14">
-        <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)] lg:gap-14">
+        {/*
+          Equal columns, stretched.
+
+          The rail was 0.85fr against the form's 1fr and sized to its own
+          content, so it stopped roughly halfway down and left a block of
+          empty panel beside the plan's feature list. The reference runs the
+          two columns to the same height at roughly equal width, which is what
+          makes them read as one composition rather than a card with a note
+          next to it.
+
+          `items-stretch` is the half that matters: without it a grid child
+          is sized by its content, and no amount of height inside the aside
+          can fill a track that has already collapsed.
+        */}
+        <div className="grid items-stretch gap-10 lg:grid-cols-2 lg:gap-12">
           <div>
             <PlanStep
               monthlyPlans={monthlyPlans}

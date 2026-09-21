@@ -1,6 +1,6 @@
-import Link from "next/link";
 
 import { BrandLogo } from "@/components/brand-logo";
+import { HeaderTrailing } from "@/components/onboarding/header-trailing";
 import { UserMenu } from "@/components/user-menu";
 import { ensureOrganization } from "@/lib/auth";
 import { requireSession } from "@/lib/auth-guard";
@@ -62,20 +62,26 @@ export default async function OnboardingLayout({ children }: LayoutProps<"/">) {
           out of a wizard. Rendered as a plain mark, it still tells the
           customer whose product they are in.
         */}
-        <BrandLogo height={22} priority />
+        {/*
+          The lockup with its tagline beneath, as the reference draws it.
+
+          The tagline is a line-height-tight second row rather than part of
+          the image, so it stays crisp, translates, and can be dropped at
+          narrow widths where it would crowd the account menu.
+        */}
+        <div className="flex flex-col gap-0.5">
+          <BrandLogo height={22} priority />
+          <span className="hidden text-[9px] leading-none font-medium tracking-[0.16em] text-muted-foreground uppercase sm:block">
+            AI visibility for real growth
+          </span>
+        </div>
 
         <div className="ml-auto flex items-center gap-2">
           {/*
-            A way out that is not the dashboard. Someone who signed in as the
-            wrong account needs this, and without it their only option is the
-            browser's back button.
+            A way out that is not the dashboard — except on the plan step,
+            where it becomes the checkout reassurance. See header-trailing.
           */}
-          <Link
-            href="/dashboard"
-            className="hidden rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground sm:block"
-          >
-            Skip for now
-          </Link>
+          <HeaderTrailing />
           <UserMenu
             name={session.user.name}
             email={session.user.email}

@@ -13,6 +13,7 @@ import {
 } from "@/lib/plans/features";
 import { createPayPalCheckout } from "@/lib/paypal/actions";
 import { createCheckoutSession } from "@/lib/stripe/actions";
+import { WIZARD_STEPS, wizardStepIndex } from "@/lib/onboarding/wizard";
 
 /**
  * The last step before payment, following the client's reference exactly.
@@ -186,8 +187,20 @@ export function PlanStep({
 
   return (
     <div>
+      {/*
+        Derived from WIZARD_STEPS, never written out.
+
+        This read "Step 03 / 03" while the progress bar directly above it
+        showed step 2 of 5 — the same screen contradicting itself about where
+        the customer is and how much is left, on the page that asks for money.
+        A hardcoded pair cannot survive a step being added or reordered, and
+        this one had already not survived it.
+      */}
       <p className="text-xs font-semibold tracking-[0.14em] text-primary uppercase">
-        Step 03 <span className="text-muted-foreground">/ 03</span>
+        Step {String(wizardStepIndex("plan") + 1).padStart(2, "0")}{" "}
+        <span className="text-muted-foreground">
+          / {String(WIZARD_STEPS.length).padStart(2, "0")}
+        </span>
       </p>
       <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
         Your growth engine is ready
