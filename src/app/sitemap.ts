@@ -4,6 +4,7 @@ import { listPosts } from "@/lib/blog/posts";
 import { INTEGRATION_DOCS } from "@/lib/publishing/docs";
 import { TOOLS } from "@/lib/tools/registry";
 import { localePath, PREFIXED_LOCALES } from "@/lib/i18n/config";
+import { siteUrl as canonicalSiteUrl } from "@/lib/site-url";
 
 /**
  * Sitemap.
@@ -17,9 +18,7 @@ import { localePath, PREFIXED_LOCALES } from "@/lib/i18n/config";
 
 /** Falls back to the production domain so a missing env var cannot emit localhost URLs. */
 function baseUrl(): string {
-  const configured = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "");
-  if (configured && !configured.includes("localhost")) return configured;
-  return "https://seovision.io";
+  return canonicalSiteUrl();
 }
 
 export default function sitemap(): MetadataRoute.Sitemap {

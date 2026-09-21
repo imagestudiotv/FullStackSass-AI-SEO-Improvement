@@ -370,7 +370,7 @@ export async function publishTestArticle(
     const result = await provider.createPost(credentials, {
       title: `Connection test — ${brand}`,
       // Slugged with a timestamp so repeated tests never collide on the CMS.
-      slug: `seovision-connection-test-${Date.now()}`,
+      slug: `repget-connection-test-${Date.now()}`,
       contentHtml: `<p>This is a test post published by SEO Platform at ${stamp} to confirm the connection to ${brand} works.</p><p>It was created as a draft and is safe to delete.</p>`,
       excerpt: "A test post confirming the publishing connection works.",
       // Draft, never live: see the note above.

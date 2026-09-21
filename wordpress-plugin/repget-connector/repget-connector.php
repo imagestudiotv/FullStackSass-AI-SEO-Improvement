@@ -1,15 +1,15 @@
 <?php
 /**
- * Plugin Name: SEOVision Connector
- * Description: Publishes articles written by SEOVision straight to this site. Paste your Integration Key to connect.
- * Version: 1.0.0
+ * Plugin Name: RepGet Connector
+ * Description: Publishes articles written by RepGet straight to this site. Paste your Integration Key to connect.
+ * Version: 1.1.0
  * Requires at least: 5.6
  * Requires PHP: 7.4
  * License: GPLv2 or later
  */
 
 /**
- * SEOVision Connector.
+ * RepGet Connector.
  *
  * The alternative to this plugin is the application-password flow, where the
  * customer finds a screen buried in WordPress admin, understands that an
@@ -31,35 +31,99 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('SEOVISION_VERSION', '1.0.0');
-define('SEOVISION_OPTION_KEY', 'seovision_integration_key');
-define('SEOVISION_OPTION_STATUS', 'seovision_status');
-define('SEOVISION_OPTION_ENDPOINT', 'seovision_endpoint');
+define('REPGET_VERSION', '1.1.0');
+define('REPGET_OPTION_KEY', 'repget_integration_key');
+define('REPGET_OPTION_STATUS', 'repget_status');
+define('REPGET_OPTION_ENDPOINT', 'repget_endpoint');
 
-/** Default API host. Overridable for self-hosted or staging installs. */
-function seovision_endpoint() {
-    $stored = get_option(SEOVISION_OPTION_ENDPOINT);
+/**
+ * Default API host. Overridable for self-hosted or staging installs.
+ *
+ * THIS VALUE IS SECURITY-RELEVANT, not cosmetic. Every request below sends
+ * the customer's Integration Key in an X-Integration-Key header, so whatever
+ * host is named here receives that key from every install that does not
+ * override it.
+ *
+ * It previously read `https://seovision.io`, which is a live, unrelated
+ * company's website — not a typo for a domain we own. Any customer who
+ * installed the plugin and pasted their key sent it straight to a third
+ * party, and got nothing back but a 404, because that host has no
+ * /api/plugin/* routes.
+ */
+function repget_endpoint() {
+    $stored = get_option(REPGET_OPTION_ENDPOINT);
     if (is_string($stored) && $stored !== '') {
         return untrailingslashit($stored);
     }
-    return 'https://seovision.io';
+    return 'https://full-stack-sass-ai-seo-improvement.vercel.app';
 }
 
-function seovision_key() {
-    $key = get_option(SEOVISION_OPTION_KEY);
+function repget_key() {
+    $key = get_option(REPGET_OPTION_KEY);
     return is_string($key) ? trim($key) : '';
 }
 
 /**
- * Calls the SEOVision API.
+ * Carries settings over from the plugin's former name.
+ *
+ * The plugin was called "SEOVision Connector" and stored its options under
+ * seovision_* keys. Renaming the functions alone would leave those rows
+ * untouched and unread, so an existing install would silently forget its
+ * Integration Key and stop publishing — with a settings page showing an empty
+ * field and no hint that a key was ever there.
+ *
+ * Runs on activation, which is when WordPress loads the renamed plugin for the
+ * first time. Only ever fills a key that is currently EMPTY: if someone has
+ * already entered one under the new name, theirs is the current intent and
+ * must not be overwritten by a stale value.
+ *
+ * The old rows are deleted once copied. Leaving a valid Integration Key in the
+ * options table under a name nothing reads is a credential lying around for no
+ * reason.
+ */
+function repget_migrate_legacy_options() {
+    $pairs = array(
+        'seovision_integration_key' => REPGET_OPTION_KEY,
+        'seovision_status'          => REPGET_OPTION_STATUS,
+        'seovision_endpoint'        => REPGET_OPTION_ENDPOINT,
+    );
+
+    foreach ($pairs as $legacy => $current) {
+        $old = get_option($legacy);
+        if (!is_string($old) || $old === '') {
+            continue;
+        }
+
+        $existing = get_option($current);
+        if (!is_string($existing) || $existing === '') {
+            update_option($current, $old);
+        }
+
+        delete_option($legacy);
+    }
+
+    /**
+     * The old default pointed at an unrelated third party. An install that
+     * stored it explicitly would keep sending keys there even after this
+     * upgrade, so that one value is dropped rather than carried over — the
+     * function's own default then applies.
+     */
+    $endpoint = get_option(REPGET_OPTION_ENDPOINT);
+    if (is_string($endpoint) && strpos($endpoint, 'seovision.io') !== false) {
+        delete_option(REPGET_OPTION_ENDPOINT);
+    }
+}
+
+/**
+ * Calls the RepGet API.
  *
  * Returns an array on success or a WP_Error. Timeouts are generous: article
  * bodies are large, and a customer's shared host is often slow.
  */
-function seovision_request($path, $args = array()) {
-    $key = seovision_key();
+function repget_request($path, $args = array()) {
+    $key = repget_key();
     if ($key === '') {
-        return new WP_Error('no_key', __('No Integration Key is set.', 'seovision'));
+        return new WP_Error('no_key', __('No Integration Key is set.', 'repget'));
     }
 
     $defaults = array(
@@ -72,7 +136,7 @@ function seovision_request($path, $args = array()) {
     );
 
     $response = wp_remote_request(
-        seovision_endpoint() . $path,
+        repget_endpoint() . $path,
         array_merge($defaults, $args)
     );
 
@@ -86,14 +150,14 @@ function seovision_request($path, $args = array()) {
     if ($code === 401) {
         // Recorded so the settings page can say the key stopped working
         // rather than silently doing nothing on every cron run.
-        update_option(SEOVISION_OPTION_STATUS, 'invalid_key');
-        return new WP_Error('invalid_key', __('The Integration Key was rejected.', 'seovision'));
+        update_option(REPGET_OPTION_STATUS, 'invalid_key');
+        return new WP_Error('invalid_key', __('The Integration Key was rejected.', 'repget'));
     }
 
     if ($code < 200 || $code >= 300) {
         $message = is_array($body) && isset($body['error'])
             ? $body['error']
-            : sprintf(__('The server returned HTTP %d.', 'seovision'), $code);
+            : sprintf(__('The server returned HTTP %d.', 'repget'), $code);
         return new WP_Error('http_error', $message);
     }
 
@@ -104,19 +168,19 @@ function seovision_request($path, $args = array()) {
 /* Settings page                                                              */
 /* -------------------------------------------------------------------------- */
 
-add_action('admin_menu', 'seovision_admin_menu');
-function seovision_admin_menu() {
+add_action('admin_menu', 'repget_admin_menu');
+function repget_admin_menu() {
     add_options_page(
-        'SEOVision',
-        'SEOVision',
+        'RepGet',
+        'RepGet',
         // Only administrators: this key controls what gets published.
         'manage_options',
-        'seovision',
-        'seovision_settings_page'
+        'repget',
+        'repget_settings_page'
     );
 }
 
-function seovision_settings_page() {
+function repget_settings_page() {
     if (!current_user_can('manage_options')) {
         return;
     }
@@ -126,44 +190,44 @@ function seovision_settings_page() {
 
     /**
      * Nonce-checked. Without it, a request forged from another site could
-     * change which SEOVision account publishes to this WordPress install.
+     * change which RepGet account publishes to this WordPress install.
      */
-    if (isset($_POST['seovision_save']) && check_admin_referer('seovision_save_key')) {
-        $key = isset($_POST['seovision_key'])
-            ? sanitize_text_field(wp_unslash($_POST['seovision_key']))
+    if (isset($_POST['repget_save']) && check_admin_referer('repget_save_key')) {
+        $key = isset($_POST['repget_key'])
+            ? sanitize_text_field(wp_unslash($_POST['repget_key']))
             : '';
-        update_option(SEOVISION_OPTION_KEY, $key);
+        update_option(REPGET_OPTION_KEY, $key);
 
-        $result = seovision_verify();
+        $result = repget_verify();
         if (is_wp_error($result)) {
             $notice = $result->get_error_message();
             $notice_type = 'error';
         } else {
             $name = isset($result['website']['name']) ? $result['website']['name'] : '';
             $notice = $name !== ''
-                ? sprintf(__('Connected to %s.', 'seovision'), esc_html($name))
-                : __('Connected.', 'seovision');
+                ? sprintf(__('Connected to %s.', 'repget'), esc_html($name))
+                : __('Connected.', 'repget');
         }
     }
 
-    if (isset($_POST['seovision_sync']) && check_admin_referer('seovision_save_key')) {
-        $count = seovision_sync();
+    if (isset($_POST['repget_sync']) && check_admin_referer('repget_save_key')) {
+        $count = repget_sync();
         if (is_wp_error($count)) {
             $notice = $count->get_error_message();
             $notice_type = 'error';
         } else {
             $notice = sprintf(
-                _n('%d article published.', '%d articles published.', $count, 'seovision'),
+                _n('%d article published.', '%d articles published.', $count, 'repget'),
                 $count
             );
         }
     }
 
-    $key = seovision_key();
-    $status = get_option(SEOVISION_OPTION_STATUS);
+    $key = repget_key();
+    $status = get_option(REPGET_OPTION_STATUS);
     ?>
     <div class="wrap">
-        <h1>SEOVision</h1>
+        <h1>RepGet</h1>
 
         <?php if ($notice !== '') : ?>
             <div class="notice notice-<?php echo esc_attr($notice_type); ?> is-dismissible">
@@ -173,42 +237,42 @@ function seovision_settings_page() {
 
         <p>
             <?php esc_html_e(
-                'Paste the Integration Key from your SEOVision workspace. Articles will then publish here automatically.',
-                'seovision'
+                'Paste the Integration Key from your RepGet workspace. Articles will then publish here automatically.',
+                'repget'
             ); ?>
         </p>
 
         <form method="post">
-            <?php wp_nonce_field('seovision_save_key'); ?>
+            <?php wp_nonce_field('repget_save_key'); ?>
             <table class="form-table" role="presentation">
                 <tr>
                     <th scope="row">
-                        <label for="seovision_key"><?php esc_html_e('Integration Key', 'seovision'); ?></label>
+                        <label for="repget_key"><?php esc_html_e('Integration Key', 'repget'); ?></label>
                     </th>
                     <td>
                         <input
                             type="password"
-                            id="seovision_key"
-                            name="seovision_key"
+                            id="repget_key"
+                            name="repget_key"
                             value="<?php echo esc_attr($key); ?>"
                             class="regular-text"
                             autocomplete="off"
                         />
                         <p class="description">
-                            <?php esc_html_e('Websites → your site → Publishing, in SEOVision.', 'seovision'); ?>
+                            <?php esc_html_e('Websites → your site → Publishing, in RepGet.', 'repget'); ?>
                         </p>
                     </td>
                 </tr>
                 <?php if ($key !== '') : ?>
                 <tr>
-                    <th scope="row"><?php esc_html_e('Status', 'seovision'); ?></th>
+                    <th scope="row"><?php esc_html_e('Status', 'repget'); ?></th>
                     <td>
                         <?php if ($status === 'connected') : ?>
-                            <span style="color:#00a32a;">&#10003; <?php esc_html_e('Connected', 'seovision'); ?></span>
+                            <span style="color:#00a32a;">&#10003; <?php esc_html_e('Connected', 'repget'); ?></span>
                         <?php elseif ($status === 'invalid_key') : ?>
-                            <span style="color:#d63638;"><?php esc_html_e('The key was rejected. Check it was copied in full.', 'seovision'); ?></span>
+                            <span style="color:#d63638;"><?php esc_html_e('The key was rejected. Check it was copied in full.', 'repget'); ?></span>
                         <?php else : ?>
-                            <span><?php esc_html_e('Not checked yet', 'seovision'); ?></span>
+                            <span><?php esc_html_e('Not checked yet', 'repget'); ?></span>
                         <?php endif; ?>
                     </td>
                 </tr>
@@ -216,12 +280,12 @@ function seovision_settings_page() {
             </table>
 
             <p class="submit">
-                <button type="submit" name="seovision_save" class="button button-primary">
-                    <?php esc_html_e('Save and connect', 'seovision'); ?>
+                <button type="submit" name="repget_save" class="button button-primary">
+                    <?php esc_html_e('Save and connect', 'repget'); ?>
                 </button>
                 <?php if ($key !== '') : ?>
-                    <button type="submit" name="seovision_sync" class="button">
-                        <?php esc_html_e('Check for articles now', 'seovision'); ?>
+                    <button type="submit" name="repget_sync" class="button">
+                        <?php esc_html_e('Check for articles now', 'repget'); ?>
                     </button>
                 <?php endif; ?>
             </p>
@@ -234,14 +298,14 @@ function seovision_settings_page() {
 /* Connect and sync                                                           */
 /* -------------------------------------------------------------------------- */
 
-/** Confirms the key works, and tells SEOVision which site this is. */
-function seovision_verify() {
-    $result = seovision_request('/api/plugin/verify', array(
+/** Confirms the key works, and tells RepGet which site this is. */
+function repget_verify() {
+    $result = repget_request('/api/plugin/verify', array(
         'method' => 'POST',
         'body'   => wp_json_encode(array(
             'siteUrl'       => get_site_url(),
             'wpVersion'     => get_bloginfo('version'),
-            'pluginVersion' => SEOVISION_VERSION,
+            'pluginVersion' => REPGET_VERSION,
         )),
     ));
 
@@ -249,7 +313,7 @@ function seovision_verify() {
         return $result;
     }
 
-    update_option(SEOVISION_OPTION_STATUS, 'connected');
+    update_option(REPGET_OPTION_STATUS, 'connected');
     return $result;
 }
 
@@ -259,8 +323,8 @@ function seovision_verify() {
  * Every outcome is reported back, success or failure. An article we fail to
  * create must not stay in the queue silently, and must not be marked live.
  */
-function seovision_sync() {
-    $result = seovision_request('/api/plugin/articles', array('method' => 'GET'));
+function repget_sync() {
+    $result = repget_request('/api/plugin/articles', array('method' => 'GET'));
     if (is_wp_error($result)) {
         return $result;
     }
@@ -295,26 +359,26 @@ function seovision_sync() {
         ), true);
 
         if (is_wp_error($post_id)) {
-            seovision_report($article['id'], null, null, $post_id->get_error_message());
+            repget_report($article['id'], null, null, $post_id->get_error_message());
             continue;
         }
 
         // The header image, when one was generated. A failure here is not
         // fatal: the article is still published, just without its image.
         if (!empty($article['image']['url'])) {
-            seovision_attach_image($post_id, $article['image']['url'], $article['image']['alt']);
+            repget_attach_image($post_id, $article['image']['url'], $article['image']['alt']);
         }
 
-        seovision_report($article['id'], get_permalink($post_id), $post_id, null);
+        repget_report($article['id'], get_permalink($post_id), $post_id, null);
         $published++;
     }
 
     return $published;
 }
 
-/** Tells SEOVision what happened, so the article leaves the queue. */
-function seovision_report($article_id, $url, $remote_id, $error) {
-    seovision_request('/api/plugin/published', array(
+/** Tells RepGet what happened, so the article leaves the queue. */
+function repget_report($article_id, $url, $remote_id, $error) {
+    repget_request('/api/plugin/published', array(
         'method' => 'POST',
         'body'   => wp_json_encode(array(
             'articleId' => $article_id,
@@ -326,7 +390,7 @@ function seovision_report($article_id, $url, $remote_id, $error) {
 }
 
 /** Downloads the header image into the media library and sets it featured. */
-function seovision_attach_image($post_id, $url, $alt) {
+function repget_attach_image($post_id, $url, $alt) {
     require_once ABSPATH . 'wp-admin/includes/media.php';
     require_once ABSPATH . 'wp-admin/includes/file.php';
     require_once ABSPATH . 'wp-admin/includes/image.php';
@@ -344,26 +408,37 @@ function seovision_attach_image($post_id, $url, $alt) {
 /* Scheduled sync                                                             */
 /* -------------------------------------------------------------------------- */
 
-register_activation_hook(__FILE__, 'seovision_activate');
-function seovision_activate() {
-    if (!wp_next_scheduled('seovision_sync_event')) {
+register_activation_hook(__FILE__, 'repget_activate');
+function repget_activate() {
+    // Before anything else: an upgraded install must find its existing key.
+    repget_migrate_legacy_options();
+
+    /*
+      The old plugin scheduled 'seovision_sync_event'. Its handler no longer
+      exists after the rename, so WordPress would keep waking an event that
+      does nothing, forever. Deactivating the old plugin clears it only if the
+      customer deactivates rather than overwrites, so clear it here too.
+    */
+    wp_clear_scheduled_hook('seovision_sync_event');
+
+    if (!wp_next_scheduled('repget_sync_event')) {
         // Hourly. Articles are written over minutes and reviewed by a human
         // before they reach the queue, so polling faster would only add load.
-        wp_schedule_event(time() + 60, 'hourly', 'seovision_sync_event');
+        wp_schedule_event(time() + 60, 'hourly', 'repget_sync_event');
     }
 }
 
-register_deactivation_hook(__FILE__, 'seovision_deactivate');
-function seovision_deactivate() {
+register_deactivation_hook(__FILE__, 'repget_deactivate');
+function repget_deactivate() {
     // Leaving a scheduled event behind would keep calling an API the site no
     // longer has a plugin for.
-    wp_clear_scheduled_hook('seovision_sync_event');
+    wp_clear_scheduled_hook('repget_sync_event');
 }
 
-add_action('seovision_sync_event', 'seovision_cron_sync');
-function seovision_cron_sync() {
-    if (seovision_key() === '') {
+add_action('repget_sync_event', 'repget_cron_sync');
+function repget_cron_sync() {
+    if (repget_key() === '') {
         return;
     }
-    seovision_sync();
+    repget_sync();
 }

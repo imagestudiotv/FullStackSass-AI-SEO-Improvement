@@ -18,9 +18,12 @@ import {
   resolveWebsiteId,
 } from "@/lib/websites/selected";
 import { ReferralCard } from "./referral-card";
-import { listWebsiteMembers } from "@/lib/websites/members";
-import { SettingsLinks } from "./settings-links";
+import { listWebsiteMembers } from "@/lib/websites/members";
+
+import { SettingsLinks } from "./settings-links";
+
 import { WebsiteMembers } from "./website-members";
+import { siteUrl as canonicalSiteUrl } from "@/lib/site-url";
 
 export const metadata = { title: "Settings" };
 
@@ -52,11 +55,7 @@ export default async function SettingsPage() {
    * Falls back to the production domain rather than emitting a localhost link
    * a customer would then share with someone else.
    */
-  const configured = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "");
-  const appUrl =
-    configured && !configured.includes("localhost")
-      ? configured
-      : "https://seovision.io";
+  const appUrl = canonicalSiteUrl();
 
   return (
     <PageShell>

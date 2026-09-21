@@ -94,7 +94,7 @@ export function PluginKeys({
           browser without any JavaScript to go wrong.
         */}
         <a
-          href="/seovision-connector.zip"
+          href="/repget-connector.zip"
           download
           className="mt-2 inline-flex items-center gap-1 text-sm underline underline-offset-4"
         >

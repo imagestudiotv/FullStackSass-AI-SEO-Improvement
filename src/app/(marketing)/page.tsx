@@ -17,6 +17,7 @@ import {
 } from "./home-sections";
 import { PricingPreview } from "./pricing-preview";
 import { OrganizationSchema } from "./organization-schema";
+import { siteUrl as canonicalSiteUrl } from "@/lib/site-url";
 
 /**
  * Marketing homepage, following the supplied landing design.
@@ -40,11 +41,7 @@ export default async function HomePage() {
    * production domain rather than localhost so a missing variable cannot
    * publish structured data pointing at a developer machine.
    */
-  const siteUrl =
-    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") &&
-    !process.env.NEXT_PUBLIC_APP_URL.includes("localhost")
-      ? process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "")
-      : "https://seovision.io";
+  const siteUrl = canonicalSiteUrl();
 
   return (
     <>

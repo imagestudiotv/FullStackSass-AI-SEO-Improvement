@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { siteUrl as canonicalSiteUrl } from "@/lib/site-url";
 
 /**
  * robots.txt.
@@ -10,9 +11,7 @@ import type { MetadataRoute } from "next";
  */
 
 function baseUrl(): string {
-  const configured = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "");
-  if (configured && !configured.includes("localhost")) return configured;
-  return "https://seovision.io";
+  return canonicalSiteUrl();
 }
 
 export default function robots(): MetadataRoute.Robots {

@@ -1,34 +1,34 @@
-=== SEOVision Connector ===
+=== RepGet Connector ===
 Requires at least: 5.6
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.0.0
+Stable tag: 1.1.0
 License: GPLv2 or later
 
-Publishes articles written by SEOVision straight to your WordPress site.
+Publishes articles written by RepGet straight to your WordPress site.
 
 == Description ==
 
-Connect your site to SEOVision with a single Integration Key. Articles you
-approve in SEOVision are published here automatically, with their images.
+Connect your site to RepGet with a single Integration Key. Articles you
+approve in RepGet are published here automatically, with their images.
 
 This plugin asks your site to fetch articles rather than letting an outside
-service push them in. That means SEOVision never holds a password to your
+service push them in. That means RepGet never holds a password to your
 WordPress site, and it works on installs where the usual approach does not —
 behind a firewall, on a staging domain, or where a security plugin has
 disabled the WordPress API.
 
 == Installation ==
 
-1. In SEOVision, open your website, then Publishing.
+1. In RepGet, open your website, then Publishing.
 2. Under "WordPress plugin", click New key and copy the key. It is shown once.
 3. In WordPress, go to Plugins → Add New → Upload Plugin and upload the zip.
 4. Activate it.
-5. Go to Settings → SEOVision, paste the key, and click Save and connect.
+5. Go to Settings → RepGet, paste the key, and click Save and connect.
 
 You should see "Connected" and the name of the website it linked to. If the
 name is not the site you expected, the key belongs to a different website in
-SEOVision — go back and copy the right one.
+RepGet — go back and copy the right one.
 
 == Frequently Asked Questions ==
 
@@ -48,10 +48,10 @@ you can edit or unpublish them like anything else.
 
 = What happens if I lose the key? =
 
-Revoke it in SEOVision and create a new one. Keys are stored scrambled, so
+Revoke it in RepGet and create a new one. Keys are stored scrambled, so
 nobody — including us — can look yours up after it is created.
 
-= Does this send my site's data to SEOVision? =
+= Does this send my site's data to RepGet? =
 
 It reports your site address, WordPress version and plugin version, so support
 can help when something goes wrong. Nothing else is sent. The plugin only

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
+import { siteUrl as canonicalSiteUrl } from "@/lib/site-url";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -25,12 +26,7 @@ const geistMono = Geist_Mono({
  * var cannot publish canonical tags pointing at a developer machine.
  */
 function siteUrl(): URL {
-  const configured = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "");
-  return new URL(
-    configured && !configured.includes("localhost")
-      ? configured
-      : "https://seovision.io",
-  );
+  return new URL(canonicalSiteUrl());
 }
 
 export const metadata: Metadata = {

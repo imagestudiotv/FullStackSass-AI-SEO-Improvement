@@ -15,9 +15,9 @@ import { fileURLToPath } from "node:url";
 import { deflateRawSync } from "node:zlib";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const source = join(here, "seovision-connector");
+const source = join(here, "repget-connector");
 const outDir = join(here, "..", "public");
-const outFile = join(outDir, "seovision-connector.zip");
+const outFile = join(outDir, "repget-connector.zip");
 
 /** Files to include, relative to the plugin folder. */
 function collect(dir, prefix = "") {
@@ -26,7 +26,7 @@ function collect(dir, prefix = "") {
     const full = join(dir, name);
     const rel = prefix ? `${prefix}/${name}` : name;
     if (statSync(full).isDirectory()) out.push(...collect(full, rel));
-    else out.push({ path: `seovision-connector/${rel}`, data: readFileSync(full) });
+    else out.push({ path: `repget-connector/${rel}`, data: readFileSync(full) });
   }
   return out;
 }
@@ -100,5 +100,5 @@ const stream = createWriteStream(outFile);
 stream.write(Buffer.concat([...chunks, centralBuf, end]));
 stream.end();
 
-console.log(`  ${files.length} file(s) -> public/seovision-connector.zip`);
+console.log(`  ${files.length} file(s) -> public/repget-connector.zip`);
 for (const f of files) console.log(`    ${f.path}`);
