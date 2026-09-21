@@ -83,6 +83,30 @@ function requestOnce(
           return;
         }
 
+        /**
+         * The body stream needs its OWN error handler, or an abort mid-download
+         * hangs the caller forever.
+         *
+         * This promise has already resolved by the time the body streams, so a
+         * later error cannot reject it — it lands on `res` instead. Without a
+         * listener there, Node raises it as an unhandled 'error' event and the
+         * web stream that readCapped is awaiting simply never settles: no
+         * chunk, no `done`, no throw. The request looks alive, the screen
+         * spins, and nothing times out because the socket did receive data.
+         *
+         * babylovegrowth.ai is the case that showed this up. Its homepage is
+         * 1.56 MB behind two redirects, so the body takes seconds to arrive —
+         * a wide enough window for the caller's deadline to land in the middle
+         * of the download rather than before it, which is when this path is
+         * taken. Destroying the stream converts the dangling read into a
+         * rejection the caller can actually see.
+         */
+        res.on("error", (error) => {
+          res.destroy();
+          // Surfaces through readCapped's pending read() as a rejection.
+          void error;
+        });
+
         resolve(
           new Response(Readable.toWeb(res) as ReadableStream, {
             status,
