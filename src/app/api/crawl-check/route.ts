@@ -23,6 +23,12 @@ import { isPublicWebsiteUrl } from "@/lib/websites/url";
  * hole; the key check and the fixed target list keep it from being one — no
  * caller-supplied URL is accepted at all.
  *
+ * NOT IN A FOLDER STARTING WITH "_". It was `api/_crawl-check`, which the App
+ * Router treats as a PRIVATE folder and excludes from routing entirely — the
+ * file deployed, the build succeeded, and every request fell through to /404
+ * with X-Matched-Path: /404. Nothing errors; the route simply does not
+ * exist.
+ *
  * DELETE ONCE THE ANSWER IS RECORDED.
  */
 export const dynamic = "force-dynamic";
