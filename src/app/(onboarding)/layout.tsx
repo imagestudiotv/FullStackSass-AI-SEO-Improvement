@@ -63,18 +63,32 @@ export default async function OnboardingLayout({ children }: LayoutProps<"/">) {
           customer whose product they are in.
         */}
         {/*
-          The lockup with its tagline beneath, as the reference draws it.
+          The mark alone. NO TAGLINE — that was a mistake worth recording.
 
-          The tagline is a line-height-tight second row rather than part of
-          the image, so it stays crisp, translates, and can be dropped at
-          narrow widths where it would crowd the account menu.
+          The reference shows "AI VISIBILITY FOR REAL GROWTH" under the
+          wordmark, so it was added here as a second row. The arithmetic makes
+          it unworkable at this size: the lockup renders 88px wide at
+          height 22, while 29 letterspaced characters need roughly 193px, so
+          the tagline came out more than twice the width of the logo it was
+          meant to sit under. The result reads as a caption that has swallowed
+          the brand rather than a lockup.
+
+          Shrinking it does not rescue it. To match an 88px logo the type
+          would have to be about 4.5px, and even at a 36px logo — far too tall
+          for a 64px header — it would need 7.3px. Both are past legibility,
+          so the only honest options were an illegible tagline, an
+          out-of-proportion one, or none.
+
+          The reference can carry it because its header is taller and its
+          lockup much wider. Ours is a compact setup header where the mark
+          alone does the job the tagline was there for: telling the customer
+          whose product they are in.
+
+          If the tagline is genuinely wanted, the fix is a wider lockup image
+          with the tagline baked in and kerned by a designer — not two rows of
+          live text fighting for the same width.
         */}
-        <div className="flex flex-col gap-0.5">
-          <BrandLogo height={22} priority />
-          <span className="hidden text-[9px] leading-none font-medium tracking-[0.16em] text-muted-foreground uppercase sm:block">
-            AI visibility for real growth
-          </span>
-        </div>
+        <BrandLogo height={22} priority />
 
         <div className="ml-auto flex items-center gap-2">
           {/*
