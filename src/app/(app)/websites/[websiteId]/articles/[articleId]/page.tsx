@@ -1,11 +1,13 @@
 import { notFound } from "next/navigation";
 
 import { requireSession } from "@/lib/auth-guard";
+import { requirePlan } from "@/lib/billing/require-plan";
 import { getArticle } from "@/lib/articles/actions";
 import { requireWebsite } from "@/lib/tenant";
 import { listIntegrations, listPublishLogs } from "@/lib/publishing/actions";
 import { WebsiteNotFoundError } from "@/lib/tenant";
 import { ArticleEditor } from "./article-editor";
+import { requireOrg } from "@/lib/tenant";
 
 export const metadata = { title: "Article" };
 
@@ -16,6 +18,9 @@ export default async function ArticlePage({
   params,
 }: PageProps<"/websites/[websiteId]/articles/[articleId]">) {
   await requireSession();
+  const { orgId } = await requireOrg();
+  // Paywall. See lib/billing/require-plan.ts.
+  await requirePlan(orgId);
   const { websiteId, articleId } = await params;
 
   // try/catch wraps only the fetch: JSX returned inside it is rendered later

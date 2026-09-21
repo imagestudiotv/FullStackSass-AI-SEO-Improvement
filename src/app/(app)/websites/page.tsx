@@ -1,4 +1,5 @@
 import { requireSession } from "@/lib/auth-guard";
+import { requirePlan } from "@/lib/billing/require-plan";
 import { requireOrg } from "@/lib/tenant";
 import { listWebsites } from "@/lib/websites/actions";
 import { WebsitesClient } from "./websites-client";
@@ -10,7 +11,9 @@ export const dynamic = "force-dynamic";
 
 export default async function WebsitesPage() {
   await requireSession();
-  await requireOrg();
+  const { orgId } = await requireOrg();
+  // Paywall. See lib/billing/require-plan.ts.
+  await requirePlan(orgId);
 
   /**
    * No limit to report. Each website is billed on its own subscription, so

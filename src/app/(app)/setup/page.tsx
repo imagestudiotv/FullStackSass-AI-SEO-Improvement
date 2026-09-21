@@ -12,6 +12,7 @@ import { readSelectedWebsite, resolveWebsiteId } from "@/lib/websites/selected";
 import { db } from "@/lib/db";
 import { websites } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
+import { requirePlan } from "@/lib/billing/require-plan";
 
 export const metadata = { title: "Set up" };
 
@@ -35,6 +36,8 @@ export default async function SetupPage({ searchParams }: PageProps<"/setup">) {
   await requireSession();
   const { orgId } = await requireOrg();
 
+  // Paywall. See lib/billing/require-plan.ts.
+  await requirePlan(orgId);
   const params = await searchParams;
   const siteParam = typeof params.site === "string" ? params.site : null;
 

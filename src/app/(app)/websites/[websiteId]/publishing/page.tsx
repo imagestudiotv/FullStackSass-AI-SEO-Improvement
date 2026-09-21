@@ -6,6 +6,7 @@ import {
 import { getIntegrationKeys } from "@/lib/plugin/actions";
 import { GenerationPanel } from "../generation-panel";
 import { PublishingPanel } from "../publishing-panel";
+import { requirePlan } from "@/lib/billing/require-plan";
 
 export const metadata = { title: "Publishing" };
 
@@ -15,8 +16,10 @@ export default async function WebsitePublishingPage({
   params,
 }: PageProps<"/websites/[websiteId]/publishing">) {
   const { websiteId } = await params;
-  const { site } = await requireWebsite(websiteId);
+  const { orgId, site } = await requireWebsite(websiteId);
 
+  // Paywall. See lib/billing/require-plan.ts.
+  await requirePlan(orgId);
   const [providers, integrations, pluginKeys] = await Promise.all([
     listAvailableProviders(),
     listIntegrations(site.id),

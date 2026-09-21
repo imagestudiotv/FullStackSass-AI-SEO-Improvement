@@ -18,6 +18,7 @@ import { getDashboardOverview } from "@/lib/dashboard/overview";
 import { getOnboardingState } from "@/lib/onboarding/steps";
 import { requireOrg } from "@/lib/tenant";
 import { listWebsites } from "@/lib/websites/actions";
+import { requirePlan } from "@/lib/billing/require-plan";
 
 export const metadata = { title: "Dashboard" };
 
@@ -49,6 +50,8 @@ export default async function DashboardPage({
    * also catches someone who left halfway and came back days later.
    */
   const { orgId } = await requireOrg();
+  // Paywall. See lib/billing/require-plan.ts.
+  await requirePlan(orgId);
   const onboarding = await getOnboardingState(orgId);
   if (!onboarding.websiteId && !onboarding.complete) {
     redirect("/onboarding");

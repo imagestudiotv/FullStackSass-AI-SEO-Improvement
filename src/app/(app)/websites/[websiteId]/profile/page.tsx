@@ -6,6 +6,7 @@ import { requireWebsite } from "@/lib/tenant";
 import { getBrandVoice } from "@/lib/brand/actions";
 import { WebsiteDetailClient } from "../website-detail-client";
 import { CompetitorsCard } from "./competitors-card";
+import { requirePlan } from "@/lib/billing/require-plan";
 
 export const metadata = { title: "Website profile" };
 
@@ -15,7 +16,9 @@ export default async function WebsiteProfilePage({
   params,
 }: PageProps<"/websites/[websiteId]/profile">) {
   const { websiteId } = await params;
-  const { site } = await requireWebsite(websiteId);
+  const { orgId, site } = await requireWebsite(websiteId);
+  // Paywall. See lib/billing/require-plan.ts.
+  await requirePlan(orgId);
   const [voice, rivals] = await Promise.all([
     getBrandVoice(site.id),
     db

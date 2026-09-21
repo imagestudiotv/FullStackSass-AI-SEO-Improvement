@@ -1,6 +1,7 @@
 import { requireWebsite } from "@/lib/tenant";
 import { getLatestAudit } from "@/lib/audit/actions";
 import { AuditPanel } from "./audit-panel";
+import { requirePlan } from "@/lib/billing/require-plan";
 
 export const metadata = { title: "Website health" };
 
@@ -16,7 +17,9 @@ export default async function WebsiteHealthPage({
   params,
 }: PageProps<"/websites/[websiteId]">) {
   const { websiteId } = await params;
-  const { site } = await requireWebsite(websiteId);
+  const { orgId, site } = await requireWebsite(websiteId);
+  // Paywall. See lib/billing/require-plan.ts.
+  await requirePlan(orgId);
   const auditData = await getLatestAudit(site.id);
 
   return (
