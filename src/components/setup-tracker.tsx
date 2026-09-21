@@ -17,12 +17,36 @@ import type { LaunchStep } from "@/lib/onboarding/launch";
  * page — the point is that setup stays visible WHILE they explore, instead of
  * being a screen they have to go back to.
  *
- * It disappears on its own once the required steps are done. Nothing to
- * dismiss permanently, because there is nothing left to nag about.
+ * It disappears on its own once the required steps are done, so there is
+ * nothing to dismiss permanently — and the X reflects that: it hides the
+ * panel for the current tab, not for the browser. See STORAGE_KEY.
  */
 
-/** Remembers a dismissal for this browser, so it is not nagging every page. */
-const STORAGE_KEY = "repget:setup-tracker-dismissed";
+/**
+ * Remembers a dismissal for THIS TAB ONLY.
+ *
+ * sessionStorage, not localStorage. It was localStorage, which meant one
+ * click of the X hid the panel in that browser permanently — for the whole of
+ * setup, on every page, with no way back short of clearing site data. The
+ * customer could not have known that was the bargain: an X on a floating
+ * panel reads as "not now", not "never again".
+ *
+ * That also contradicted the point of the feature. The client asked for it
+ * because setup guidance should follow the customer around — "it will still
+ * continue to appear thoose setup steps is missing to complete the
+ * integration and activation" — and a permanent hide is the one outcome that
+ * cannot satisfy.
+ *
+ * THE KEY IS ALSO RENAMED, deliberately. Anyone who clicked the X while it
+ * was permanent is still carrying `repget:setup-tracker-dismissed = "1"` in
+ * localStorage, and that value would otherwise keep hiding the panel forever
+ * under the new logic too. A new key means those browsers start fresh; the
+ * cleanup below removes the stale one so it is not left lying there.
+ */
+const STORAGE_KEY = "repget:setup-tracker-hidden";
+
+/** The permanent key this replaced, cleared on sight. */
+const LEGACY_KEY = "repget:setup-tracker-dismissed";
 
 export function SetupTracker({ steps }: { steps: LaunchStep[] }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -34,10 +58,14 @@ export function SetupTracker({ steps }: { steps: LaunchStep[] }) {
    * useSyncExternalStore rather than an effect.
    *
    * localStorage does not exist on the server, so reading it during render
-   * would produce one markup on the server and another in the browser. The
-   * server snapshot says "hidden" so nothing is rendered until the client
-   * knows the truth — which also means the panel fades in rather than
-   * flashing away for someone who had dismissed it.
+   * would produce one markup on the server and another in the browser.
+   *
+   * The server snapshot says SHOWN, so the panel is in the HTML and the
+   * common case — nobody has hidden it — needs no client round-trip at all.
+   * Someone who hid it in this tab sees it removed on hydration instead. That
+   * trade is deliberate: a brief flash for the few who opted out beats an
+   * invisible panel for everyone who did not, which is what the opposite
+   * default produced.
    *
    * An effect calling setState would work too, but React flags it: it costs
    * a second render pass on every page load for a value that never changes
@@ -48,7 +76,12 @@ export function SetupTracker({ steps }: { steps: LaunchStep[] }) {
     () => () => {},
     () => {
       try {
-        return window.localStorage.getItem(STORAGE_KEY) === "1";
+        /*
+          Clear the old permanent flag whenever it is seen. Reading is the
+          only moment we are guaranteed to run in a browser that has one.
+        */
+        window.localStorage.removeItem(LEGACY_KEY);
+        return window.sessionStorage.getItem(STORAGE_KEY) === "1";
       } catch {
         // Private browsing, or storage disabled. Showing it is the safe
         // default: the customer has steps left either way.
@@ -79,7 +112,7 @@ export function SetupTracker({ steps }: { steps: LaunchStep[] }) {
   function dismiss() {
     setDismissedNow(true);
     try {
-      window.localStorage.setItem(STORAGE_KEY, "1");
+      window.sessionStorage.setItem(STORAGE_KEY, "1");
     } catch {
       // Nothing to do — it simply reappears on the next page.
     }
