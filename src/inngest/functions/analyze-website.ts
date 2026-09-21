@@ -26,21 +26,45 @@ export const analyzeWebsite = inngest.createFunction(
     triggers: [{ event: "website/analyze.requested" }],
     // One analysis per website at a time; a double-click must not double-spend.
     concurrency: { key: "event.data.websiteId", limit: 1 },
-    onFailure: async ({ event }) => {
+    onFailure: async ({ event, error, logger }) => {
       // Runs after retries are exhausted, so the row never sticks on
       // "crawling" and the UI can offer a retry.
       const websiteId = event.data.event.data.websiteId as string;
+
+      /*
+        The terminal record for this website: every retry is spent and the
+        row is now "failed". Logged with the same `websiteId` field as the
+        rest of the function so one filter shows the whole history.
+      */
+      logger.error(
+        { step: "on-failure", websiteId, reason: error.message },
+        "Analysis failed after all retries — website marked failed",
+      );
+
       await db
         .update(websites)
         .set({ status: "failed", updatedAt: new Date() })
         .where(eq(websites.id, websiteId));
     },
   },
-  async ({ event, step }) => {
+  async ({ event, step, logger }) => {
     const { websiteId, organizationId } = event.data as {
       websiteId: string;
       organizationId: string;
     };
+
+    /**
+     * Logged as an OBJECT, not an interpolated string.
+     *
+     * Inngest indexes the fields of a structured log, so `websiteId` becomes
+     * something you can filter a run list by. A template string collapses the
+     * same information into prose that can only be eyeballed, which is no use
+     * when the question is "what happened to this one site".
+     *
+     * Every log line in this function carries `step`, so the run timeline
+     * reads as a sequence: which stage was reached, and what it produced.
+     */
+    logger.info({ step: "start", websiteId, organizationId }, "Analysis started");
 
     const site = await step.run("load-website", async () => {
       const [row] = await db
@@ -54,16 +78,69 @@ export const analyzeWebsite = inngest.createFunction(
         .update(websites)
         .set({ status: "crawling", updatedAt: new Date() })
         .where(eq(websites.id, websiteId));
+
+      logger.info(
+        { step: "load-website", websiteId, url: row.url },
+        "Website loaded, status set to crawling",
+      );
       return row;
     });
 
     const snapshot = await step.run("fetch-homepage", async () => {
+      const startedAt = Date.now();
       try {
         // Re-validated per redirect hop: an open redirect on the customer's
         // site must not walk us onto a private address.
-        return await fetchHomepage(site.url, isPublicWebsiteUrl);
+        const page = await fetchHomepage(site.url, isPublicWebsiteUrl);
+
+        /**
+         * The shape of what came back, not just "ok".
+         *
+         * A crawl can succeed and still be useless — a 200 that is a cookie
+         * wall or a JS shell returns almost no text, and the profile
+         * extracted from it is thin for reasons nothing downstream explains.
+         * Recording wordCount and htmlBytes here makes that visible at the
+         * point it happens rather than three steps later.
+         */
+        logger.info(
+          {
+            step: "fetch-homepage",
+            websiteId,
+            url: site.url,
+            finalUrl: page.finalUrl,
+            statusCode: page.statusCode,
+            wordCount: page.wordCount,
+            htmlBytes: page.htmlBytes,
+            internalLinks: page.internalLinks.length,
+            durationMs: Date.now() - startedAt,
+          },
+          "Homepage fetched",
+        );
+        return page;
       } catch (error) {
         if (error instanceof CrawlError) {
+          /**
+           * The KIND of failure, as its own field.
+           *
+           * This is the line that would have answered the imagestudio.com
+           * outage in seconds instead of days: the run history showed only
+           * "The site returned 403" with no indication of whether the site
+           * was down, blocking us, or unreachable — and the site loaded fine
+           * in every browser. `kind` separates those cases, and durationMs
+           * distinguishes an instant refusal from a timeout.
+           */
+          logger.error(
+            {
+              step: "fetch-homepage",
+              websiteId,
+              url: site.url,
+              kind: error.kind,
+              reason: error.message,
+              durationMs: Date.now() - startedAt,
+            },
+            "Crawl failed",
+          );
+
           // NonRetriableError would be cleaner, but a plain throw with a
           // recorded reason keeps the failure visible in the run history.
           await db
@@ -72,6 +149,17 @@ export const analyzeWebsite = inngest.createFunction(
             .where(eq(websites.id, websiteId));
           throw new Error(`Crawl failed (${error.kind}): ${error.message}`);
         }
+
+        logger.error(
+          {
+            step: "fetch-homepage",
+            websiteId,
+            url: site.url,
+            err: error,
+            durationMs: Date.now() - startedAt,
+          },
+          "Crawl failed with an unexpected error",
+        );
         throw error;
       }
     });
@@ -128,6 +216,31 @@ export const analyzeWebsite = inngest.createFunction(
         metadata: { purpose: "onboarding_extraction" },
       });
 
+      /**
+       * Which fields the model actually filled, rather than the values.
+       *
+       * The profile can contain a customer's business description, so the
+       * content stays out of the logs; what matters operationally is whether
+       * extraction produced a usable profile at all. An empty brandName or
+       * industry here is what later starves keyword research, so this is the
+       * step where that becomes visible.
+       */
+      logger.info(
+        {
+          step: "extract-profile",
+          websiteId,
+          brandName: extracted.brandName ?? null,
+          industry: extracted.industry ?? null,
+          country: extracted.country ?? null,
+          language: extracted.language ?? null,
+          services: extracted.services?.length ?? 0,
+          competitorsSuggested: extracted.competitors?.length ?? 0,
+          hasDescription: Boolean(extracted.description),
+          model: MODELS.EXTRACTION,
+        },
+        "Profile extracted",
+      );
+
       return extracted;
     });
 
@@ -177,9 +290,23 @@ export const analyzeWebsite = inngest.createFunction(
        */
       const checked = await keepLiveDomains(profile.competitors);
       if (checked.dropped.length > 0) {
-        console.warn(
-          `[analyze] dropped ${checked.dropped.length} unreachable competitor(s) for ${websiteId}:`,
-          checked.dropped.map((d) => `${d.domain} (${d.reason})`).join(", "),
+        /*
+          logger, not console: console output is not attached to the run, so
+          this warning was invisible in the Inngest timeline that explains the
+          rest of the analysis.
+        */
+        logger.warn(
+          {
+            step: "save-profile",
+            websiteId,
+            droppedCount: checked.dropped.length,
+            keptCount: checked.live.length,
+            dropped: checked.dropped.map((d) => ({
+              domain: d.domain,
+              reason: d.reason,
+            })),
+          },
+          "Dropped unreachable competitor domains",
         );
       }
 
@@ -199,8 +326,22 @@ export const analyzeWebsite = inngest.createFunction(
             target: [competitors.websiteId, competitors.domain],
           });
       }
+
+      logger.info(
+        {
+          step: "save-profile",
+          websiteId,
+          competitorsStored: checked.live.length,
+          languageKeptFromUser: Boolean(current?.language),
+        },
+        "Profile saved, status set to ready",
+      );
     });
 
+    logger.info(
+      { step: "done", websiteId, status: "ready" },
+      "Analysis complete",
+    );
     return { websiteId, status: "ready", profile };
   },
 );

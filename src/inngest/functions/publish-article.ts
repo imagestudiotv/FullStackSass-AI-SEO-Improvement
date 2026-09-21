@@ -28,8 +28,19 @@ export const publishArticleJob = inngest.createFunction(
     triggers: [{ event: "article/publish.requested" }],
     // One publish per article: two concurrent runs would create two posts.
     concurrency: { key: "event.data.articleId", limit: 1 },
-    onFailure: async ({ event, error }) => {
+    onFailure: async ({ event, error, logger }) => {
       const articleId = event.data.event.data.articleId as string;
+
+      /*
+        The terminal record for this publish: every retry is spent and the
+        article is not live on the customer's site. Keyed by the same
+        `articleId` as the rest of the function.
+      */
+      logger.error(
+        { step: "on-failure", articleId, reason: error.message },
+        "Publish failed after all retries — article is not live",
+      );
+
       await db.insert(publishLogs).values({
         articleId,
         status: "failed",
@@ -57,13 +68,26 @@ export const publishArticleJob = inngest.createFunction(
       });
     },
   },
-  async ({ event, step }) => {
+  async ({ event, step, logger }) => {
     const { articleId, websiteId, status } = event.data as {
       articleId: string;
       websiteId: string;
       organizationId: string;
       status: "publish" | "draft";
     };
+
+    /**
+     * Structured logs, one per step, so the Inngest timeline explains itself.
+     *
+     * `publish_logs` already records the outcome, but only the outcome: when a
+     * publish stalls or lands somewhere unexpected, these lines say which
+     * stage it reached and what the customer's CMS did about it. Credentials
+     * are never logged — only the provider id and the integration row id.
+     */
+    logger.info(
+      { step: "start", articleId, websiteId, requestedStatus: status },
+      "Publish started",
+    );
 
     const prepared = await step.run("load-article", async () => {
       const [article] = await db
@@ -102,6 +126,28 @@ export const publishArticleJob = inngest.createFunction(
         .orderBy(desc(publishLogs.createdAt))
         .limit(1);
 
+      /**
+       * `isUpdate` is the field to check when a customer reports a duplicate
+       * post: it says whether this run decided to update an existing remote
+       * post or create a new one, which is the decision that produces two
+       * competing URLs when it goes wrong. Credentials are deliberately
+       * absent — only the provider name and the integration row id.
+       */
+      logger.info(
+        {
+          step: "load-article",
+          articleId,
+          websiteId,
+          integrationId: integration.integrationId,
+          providerId: integration.providerId,
+          isUpdate: Boolean(previous?.remoteId),
+          htmlBytes: article.bodyHtml.length,
+          hasSlug: Boolean(article.slug),
+          hasExcerpt: Boolean(article.metaDescription),
+        },
+        "Article and integration loaded",
+      );
+
       return {
         integrationId: integration.integrationId,
         providerId: integration.providerId,
@@ -129,8 +175,20 @@ export const publishArticleJob = inngest.createFunction(
      * without an image rather than not publishing it.
      */
     const featuredMedia = await step.run("upload-image", async () => {
-      if (!isImageGenerationConfigured()) return null;
+      if (!isImageGenerationConfigured()) {
+        /*
+          Not an error: the post goes up either way. Logged because a post
+          appearing without its header image looks like a bug from the
+          outside, and "no provider is configured" is the answer.
+        */
+        logger.warn(
+          { step: "upload-image", articleId, websiteId },
+          "Image generation not configured — publishing without a header image",
+        );
+        return null;
+      }
 
+      const startedAt = Date.now();
       try {
         const generated = await generateArticleImage(
           prepared.post.title,
@@ -140,7 +198,21 @@ export const publishArticleJob = inngest.createFunction(
         // Not every CMS takes uploads. Shopify and the webhook adapter both
         // reference an image by URL instead, so publishing continues without
         // one rather than failing on a step that is optional by design.
-        if (!provider?.uploadMedia) return null;
+        if (!provider?.uploadMedia) {
+          // Expected for these providers, so info rather than warn — but it
+          // does mean an image was generated and paid for, then discarded.
+          logger.info(
+            {
+              step: "upload-image",
+              articleId,
+              websiteId,
+              providerId: prepared.providerId,
+              imageBytes: generated.data.length,
+            },
+            "Provider does not support media upload — publishing without a header image",
+          );
+          return null;
+        }
 
         const media = await provider.uploadMedia(prepared.credentials, {
           data: generated.data,
@@ -148,8 +220,38 @@ export const publishArticleJob = inngest.createFunction(
           filename: `${prepared.post.slug ?? "header"}.png`,
           alt: generated.alt,
         });
+
+        logger.info(
+          {
+            step: "upload-image",
+            articleId,
+            websiteId,
+            providerId: prepared.providerId,
+            mediaId: media.id,
+            imageBytes: generated.data.length,
+            costUsd: generated.costUsd,
+            durationMs: Date.now() - startedAt,
+          },
+          "Header image uploaded to the customer's media library",
+        );
         return { id: media.id, url: media.url };
-      } catch {
+      } catch (error) {
+        /*
+          The swallow is the point of this log. The catch is deliberate — an
+          image must not block a publish — but it hides generation failures
+          and CMS upload rejections alike behind the same silent `null`.
+        */
+        logger.warn(
+          {
+            step: "upload-image",
+            articleId,
+            websiteId,
+            providerId: prepared.providerId,
+            reason: error instanceof Error ? error.message : "unknown",
+            durationMs: Date.now() - startedAt,
+          },
+          "Header image failed — publishing without one",
+        );
         return null;
       }
     });
@@ -157,13 +259,28 @@ export const publishArticleJob = inngest.createFunction(
     const result = await step.run("send-to-cms", async () => {
       const provider = getProvider(prepared.providerId);
       if (!provider) {
+        /*
+          An integration row naming a provider the registry does not have.
+          This throws, but the error alone does not say which provider id was
+          stored, which is the one fact needed to fix the row.
+        */
+        logger.error(
+          {
+            step: "send-to-cms",
+            articleId,
+            websiteId,
+            providerId: prepared.providerId,
+          },
+          "No provider registered for this integration — cannot publish",
+        );
         throw new Error(
           `No integration named ${prepared.providerId} is available`,
         );
       }
 
+      const startedAt = Date.now();
       try {
-        return prepared.remoteId
+        const sent = prepared.remoteId
           ? await provider.updatePost(prepared.credentials, prepared.remoteId, {
               ...prepared.post,
               featuredMediaId: featuredMedia?.id ?? null,
@@ -172,8 +289,49 @@ export const publishArticleJob = inngest.createFunction(
               ...prepared.post,
               featuredMediaId: featuredMedia?.id ?? null,
             });
+
+        /**
+         * `returnedStatus` is read back from the CMS rather than assumed: a
+         * WordPress site can accept a publish and store it as a draft (an
+         * editorial workflow plugin, or a user without publish rights), and
+         * the customer is then told their article is live when it is not.
+         */
+        logger.info(
+          {
+            step: "send-to-cms",
+            articleId,
+            websiteId,
+            providerId: prepared.providerId,
+            operation: prepared.remoteId ? "update" : "create",
+            remoteId: sent.remoteId,
+            requestedStatus: status,
+            returnedStatus: sent.status,
+            durationMs: Date.now() - startedAt,
+          },
+          "Article sent to the CMS",
+        );
+        return sent;
       } catch (error) {
         if (error instanceof ProviderError) {
+          /*
+            `kind` is what separates bad credentials from a site that is down
+            or rejecting the post — three very different fixes that otherwise
+            reach the timeline as the same "publish failed".
+          */
+          logger.error(
+            {
+              step: "send-to-cms",
+              articleId,
+              websiteId,
+              providerId: prepared.providerId,
+              operation: prepared.remoteId ? "update" : "create",
+              kind: error.kind,
+              reason: error.message,
+              durationMs: Date.now() - startedAt,
+            },
+            "CMS rejected the article",
+          );
+
           // Recorded with the reason so the UI can show something actionable
           // rather than "publish failed".
           await db.insert(publishLogs).values({
@@ -210,6 +368,20 @@ export const publishArticleJob = inngest.createFunction(
           updatedAt: new Date(),
         })
         .where(eq(articles.id, articleId));
+
+      logger.info(
+        {
+          step: "record-result",
+          articleId,
+          websiteId,
+          remoteId: result.remoteId,
+          remoteUrl: result.remoteUrl,
+          storedStatus: result.status === "publish" ? "published" : "draft",
+          imageUrlUpdated: Boolean(featuredMedia),
+          rowsWritten: 1,
+        },
+        "Publish result recorded",
+      );
     });
 
     await step.run("notify-published", async () => {
@@ -226,6 +398,27 @@ export const publishArticleJob = inngest.createFunction(
         href: `/websites/${websiteId}/articles/${articleId}`,
       });
     });
+
+    /**
+     * The one line that answers "is this article actually live".
+     *
+     * `requestedStatus` and `finalStatus` are logged side by side because they
+     * can legitimately differ — a CMS may downgrade a publish to a draft — and
+     * that gap is exactly what a customer reporting "you said it was live"
+     * needs to be visible.
+     */
+    logger.info(
+      {
+        step: "done",
+        articleId,
+        websiteId,
+        requestedStatus: status,
+        finalStatus: result.status,
+        remoteUrl: result.remoteUrl,
+        hasImage: Boolean(featuredMedia),
+      },
+      "Publish complete",
+    );
 
     return { articleId, remoteUrl: result.remoteUrl, status: result.status };
   },

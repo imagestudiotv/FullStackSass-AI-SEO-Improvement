@@ -38,7 +38,7 @@ export const checkGeo = inngest.createFunction(
       { cron: "0 4 * * 1" },
     ],
   },
-  async ({ event, step }) => {
+  async ({ event, step, logger }) => {
     /**
      * A cron run has no websiteId and checks every site with active prompts.
      * An event run checks one. Both paths share everything below.
@@ -49,6 +49,18 @@ export const checkGeo = inngest.createFunction(
       typeof data.websiteId === "string"
         ? data.websiteId
         : undefined;
+
+    /**
+     * Logged as an object so Inngest indexes the fields.
+     *
+     * `trigger` separates the weekly cron sweep from a single customer pressing
+     * the button, which otherwise look identical in the run list and have very
+     * different expectations about how many websites should appear below.
+     */
+    logger.info(
+      { step: "start", websiteId: websiteId ?? null, trigger: websiteId ? "event" : "cron" },
+      "GEO check started",
+    );
 
     const targets = await step.run("select-websites", async () => {
       const rows = await db
@@ -68,6 +80,24 @@ export const checkGeo = inngest.createFunction(
             : eq(geoPrompts.active, true),
         );
 
+      /*
+        Zero targets is the quiet outcome that needs saying out loud: the run
+        finishes green having checked nothing, and from the outside that is
+        indistinguishable from a check that ran and found no mentions. A
+        website with no active prompts is the usual cause.
+      */
+      if (rows.length === 0) {
+        logger.warn(
+          { step: "select-websites", websiteId: websiteId ?? null, websiteCount: 0 },
+          "No websites with active prompts — nothing to check",
+        );
+      } else {
+        logger.info(
+          { step: "select-websites", websiteId: websiteId ?? null, websiteCount: rows.length },
+          "Websites selected for GEO check",
+        );
+      }
+
       return rows;
     });
 
@@ -86,8 +116,8 @@ export const checkGeo = inngest.createFunction(
 
       const prompts = await step.run(
         `select-prompts-${target.websiteId}`,
-        async () =>
-          db
+        async () => {
+          const rows = await db
             .select({ id: geoPrompts.id, prompt: geoPrompts.prompt })
             .from(geoPrompts)
             .where(
@@ -96,7 +126,26 @@ export const checkGeo = inngest.createFunction(
                 eq(geoPrompts.active, true),
               ),
             )
-            .limit(MAX_PER_RUN),
+            .limit(MAX_PER_RUN);
+
+          /*
+            `usedFallbackBrand` records that matching is running against a bare
+            domain rather than a brand name, which is a measurably weaker match
+            — worth knowing before someone reads a run of zero mentions as a
+            real drop in visibility.
+          */
+          logger.info(
+            {
+              step: `select-prompts-${target.websiteId}`,
+              websiteId: target.websiteId,
+              promptCount: rows.length,
+              usedFallbackBrand: !target.brandName?.trim(),
+              cappedAtMaxPerRun: rows.length === MAX_PER_RUN,
+            },
+            "Prompts selected for website",
+          );
+          return rows;
+        },
       );
 
       for (const prompt of prompts) {
@@ -106,8 +155,24 @@ export const checkGeo = inngest.createFunction(
          * would both cost money twice and record duplicate results.
          */
         const outcome = await step.run(`check-${prompt.id}`, async () => {
+          const startedAt = Date.now();
           try {
             const result = await runCheck(prompt.prompt, brand, target.domain);
+
+            logger.info(
+              {
+                step: `check-${prompt.id}`,
+                websiteId: target.websiteId,
+                geoPromptId: prompt.id,
+                engine: ENGINE,
+                mentioned: result.mentioned,
+                position: result.position,
+                cited: result.cited,
+                competitors: result.competitors.length,
+                durationMs: Date.now() - startedAt,
+              },
+              "Prompt checked",
+            );
             return { ok: true as const, result };
           } catch (error) {
             /**
@@ -116,9 +181,29 @@ export const checkGeo = inngest.createFunction(
              * written for this prompt: recording a failure as "not mentioned"
              * would invent a drop the customer never had.
              */
+            const message = error instanceof Error ? error.message : "unknown";
+
+            /*
+              The swallow is the point of this log. Nothing is written for this
+              prompt and nothing downstream re-raises, so without a line here
+              the history of a partly-failed run is indistinguishable from a
+              complete one that simply had fewer prompts.
+            */
+            logger.error(
+              {
+                step: `check-${prompt.id}`,
+                websiteId: target.websiteId,
+                geoPromptId: prompt.id,
+                engine: ENGINE,
+                reason: message,
+                durationMs: Date.now() - startedAt,
+              },
+              "Prompt check failed — no result recorded for this prompt",
+            );
+
             return {
               ok: false as const,
-              message: error instanceof Error ? error.message : "unknown",
+              message,
             };
           }
         });
@@ -139,12 +224,45 @@ export const checkGeo = inngest.createFunction(
             competitors: outcome.result.competitors,
             excerpt: outcome.result.excerpt,
           });
+
+          logger.info(
+            {
+              step: `save-${prompt.id}`,
+              websiteId: target.websiteId,
+              geoPromptId: prompt.id,
+              engine: ENGINE,
+              mentioned: outcome.result.mentioned,
+              position: outcome.result.position,
+              rowsWritten: 1,
+            },
+            "GEO result saved",
+          );
         });
 
         checked += 1;
         if (outcome.result.mentioned) mentions += 1;
       }
     }
+
+    /**
+     * The one line that answers "did this run measure anything".
+     *
+     * `failed` is the number the per-prompt errors above roll up into: a run
+     * where every check threw still returns successfully, so a non-zero
+     * `failed` next to `checked: 0` is what separates "we could not ask" from
+     * "the assistant does not mention them".
+     */
+    logger.info(
+      {
+        step: "done",
+        websiteId: websiteId ?? null,
+        websites: targets.length,
+        checked,
+        mentions,
+        failed,
+      },
+      "GEO check complete",
+    );
 
     return {
       websites: targets.length,

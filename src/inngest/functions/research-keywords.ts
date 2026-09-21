@@ -38,8 +38,14 @@ export const researchKeywords = inngest.createFunction(
     // One research run per website: concurrent runs would double-spend and
     // race each other writing the same keyword rows.
     concurrency: { key: "event.data.websiteId", limit: 1 },
-    onFailure: async ({ event, error }) => {
+    onFailure: async ({ event, error, logger }) => {
       const websiteId = event.data.event.data.websiteId as string;
+
+      logger.error(
+        { step: "on-failure", websiteId, reason: error.message },
+        "Keyword research failed after all retries",
+      );
+
       await db
         .update(websites)
         .set({ status: "ready", updatedAt: new Date() })
@@ -58,11 +64,25 @@ export const researchKeywords = inngest.createFunction(
       });
     },
   },
-  async ({ event, step }) => {
+  async ({ event, step, logger }) => {
     const { websiteId, organizationId } = event.data as {
       websiteId: string;
       organizationId: string;
     };
+
+    /**
+     * Structured logs, one per step, so the Inngest timeline explains itself.
+     *
+     * This is the function behind "Building your content plan…", and when it
+     * produced nothing there was no way to tell from the run history whether
+     * it had stalled, skipped a stage, or finished empty. Each step now
+     * records what it received and what it produced, keyed by `step`, so the
+     * stage where the row count goes to zero is visible at a glance.
+     */
+    logger.info(
+      { step: "start", websiteId, organizationId },
+      "Keyword research started",
+    );
 
     const site = await step.run("load-profile", async () => {
       const [row] = await db
@@ -76,6 +96,28 @@ export const researchKeywords = inngest.createFunction(
         .update(websites)
         .set({ status: "researching", updatedAt: new Date() })
         .where(eq(websites.id, websiteId));
+
+      /**
+       * Whether a profile exists, field by field.
+       *
+       * Seeds are generated from exactly these fields, so an empty profile
+       * here is a guaranteed empty run. Logging it before generation means
+       * the cause is recorded one step ahead of the symptom.
+       */
+      logger.info(
+        {
+          step: "load-profile",
+          websiteId,
+          brandName: row.brandName ?? null,
+          industry: row.industry ?? null,
+          country: row.country ?? null,
+          language: row.language ?? null,
+          hasDescription: Boolean(row.description),
+          services: Array.isArray(row.services) ? row.services.length : 0,
+          previousStatus: row.status,
+        },
+        "Profile loaded, status set to researching",
+      );
       return row;
     });
 
@@ -101,6 +143,17 @@ export const researchKeywords = inngest.createFunction(
         costUsd: 0.5 * price.inputPer1k + 0.7 * price.outputPer1k,
         metadata: { purpose: "keyword_seeds", count: generated.length },
       });
+
+      logger.info(
+        {
+          step: "generate-seeds",
+          websiteId,
+          seedCount: generated.length,
+          model: MODELS.EXTRACTION,
+          sample: generated.slice(0, 5).map((g) => g.term),
+        },
+        "Seed keywords generated",
+      );
       return generated;
     });
 
@@ -121,6 +174,10 @@ export const researchKeywords = inngest.createFunction(
      * screen to interpret.
      */
     if (seeds.length === 0) {
+      logger.error(
+        { step: "generate-seeds", websiteId, seedCount: 0 },
+        "No seeds produced — website has no profile, aborting",
+      );
       await db
         .update(websites)
         .set({ status: "failed", updatedAt: new Date() })
@@ -136,6 +193,15 @@ export const researchKeywords = inngest.createFunction(
      */
     const metrics = await step.run("fetch-metrics", async () => {
       if (!isDataForSeoConfigured()) {
+        /*
+          Not an error: the run continues with seed terms and null metrics.
+          Logged at warn because the plan it produces is measurably weaker,
+          and that is worth knowing when someone asks why volumes are blank.
+        */
+        logger.warn(
+          { step: "fetch-metrics", websiteId, seedCount: seeds.length },
+          "DataForSEO not configured — continuing without search volumes",
+        );
         return {
           configured: false,
           rows: seeds.map((seed) => ({
@@ -168,14 +234,26 @@ export const researchKeywords = inngest.createFunction(
           location,
           language,
         ).catch((error) => {
-          console.error("[research] keywordIdeas failed", error);
+          /*
+            logger, not console: a console line is not attached to the run, so
+            the reason volumes went missing never reached the timeline that
+            would explain it. Provider errors here include an exhausted
+            balance, which otherwise looks identical to "no results".
+          */
+          logger.error(
+            { step: "fetch-metrics", websiteId, provider: "dataforseo", call: "keywordIdeas", err: error },
+            "keywordIdeas failed — continuing without its metrics",
+          );
           return { metrics: [] as KeywordMetrics[], cached: true, failed: true };
         }),
         // Terms the site already ranks for are usually the cheapest wins.
-        keywordsForSite(site.domain, location, language).catch(() => ({
-          metrics: [] as KeywordMetrics[],
-          cached: true,
-        })),
+        keywordsForSite(site.domain, location, language).catch((error) => {
+          logger.error(
+            { step: "fetch-metrics", websiteId, provider: "dataforseo", call: "keywordsForSite", domain: site.domain, err: error },
+            "keywordsForSite failed — continuing without its metrics",
+          );
+          return { metrics: [] as KeywordMetrics[], cached: true };
+        }),
       ]);
 
       /**
@@ -184,6 +262,17 @@ export const researchKeywords = inngest.createFunction(
        * calendar with nothing to plan from.
        */
       if (ideas.metrics.length === 0 && ranked.metrics.length === 0) {
+        logger.warn(
+          {
+            step: "fetch-metrics",
+            websiteId,
+            provider: "dataforseo",
+            location,
+            language,
+            seedCount: seeds.length,
+          },
+          "Provider returned no metrics — falling back to seed terms only",
+        );
         return {
           configured: false,
           rows: seeds.map((seed) => ({
@@ -229,7 +318,23 @@ export const researchKeywords = inngest.createFunction(
           intent: row.intent ?? existing?.intent ?? null,
         });
       }
-      return { configured: true, rows: [...merged.values()] };
+      const rows = [...merged.values()];
+      logger.info(
+        {
+          step: "fetch-metrics",
+          websiteId,
+          provider: "dataforseo",
+          location,
+          language,
+          ideaRows: ideas.metrics.length,
+          rankedRows: ranked.metrics.length,
+          mergedRows: rows.length,
+          withVolume: rows.filter((r) => r.volume !== null).length,
+          billableCalls: billable,
+        },
+        "Provider metrics merged",
+      );
+      return { configured: true, rows };
     });
 
     const stored = await step.run("score-and-store", async () => {
@@ -273,6 +378,26 @@ export const researchKeywords = inngest.createFunction(
           });
       }
 
+      /**
+       * `truncatedByPlan` is the field to look at when a customer says they
+       * expected more keywords: research legitimately finds more than a plan
+       * stores, and this says so explicitly rather than leaving the gap
+       * between ranked and stored to be inferred.
+       */
+      logger.info(
+        {
+          step: "score-and-store",
+          websiteId,
+          ranked: ranked.length,
+          allowance,
+          stored: selected.length,
+          truncatedByPlan: ranked.length > selected.length,
+          planLimit: limit.limit === UNLIMITED ? "unlimited" : limit.limit,
+          planUsed: limit.used,
+        },
+        "Keywords scored and stored",
+      );
+
       return selected.map((keyword) => ({
         term: keyword.term,
         volume: keyword.volume,
@@ -299,6 +424,18 @@ export const researchKeywords = inngest.createFunction(
         costUsd: 1.5 * price.inputPer1k + 1.5 * price.outputPer1k,
         metadata: { purpose: "keyword_clustering", clusters: result.length },
       });
+
+      logger.info(
+        {
+          step: "cluster",
+          websiteId,
+          inputKeywords: stored.length,
+          clusterCount: result.length,
+          model: MODELS.GENERATION,
+          names: result.slice(0, 8).map((c) => c.name),
+        },
+        "Keywords clustered",
+      );
       return result;
     });
 
@@ -356,6 +493,19 @@ export const researchKeywords = inngest.createFunction(
         costUsd: 0.5 * price.inputPer1k + 0.5 * price.outputPer1k,
         metadata: { purpose: "calendar_planning", articles: articles.length },
       });
+
+      logger.info(
+        {
+          step: "plan-calendar",
+          websiteId,
+          clusterCount: grouped.length,
+          allowance,
+          planLimit:
+            articleLimit.limit === UNLIMITED ? "unlimited" : articleLimit.limit,
+          plannedArticles: articles.length,
+        },
+        "Content calendar planned",
+      );
       return articles;
     });
 
@@ -373,7 +523,18 @@ export const researchKeywords = inngest.createFunction(
           ),
         );
 
-      if (planned.length === 0) return;
+      if (planned.length === 0) {
+        /*
+          An empty calendar is the exact state the content screen waits on
+          forever, so it must never pass silently. Warn rather than error:
+          the run did complete, it simply produced nothing to publish.
+        */
+        logger.warn(
+          { step: "save-calendar", websiteId, plannedArticles: 0 },
+          "No calendar items to save — content plan will be empty",
+        );
+        return;
+      }
 
       const clusterIds = await db
         .select({ id: clusters.id, name: clusters.name })
@@ -401,6 +562,17 @@ export const researchKeywords = inngest.createFunction(
         .update(websites)
         .set({ status: "ready", updatedAt: new Date() })
         .where(eq(websites.id, websiteId));
+
+      logger.info(
+        {
+          step: "save-calendar",
+          websiteId,
+          savedItems: planned.length,
+          firstScheduledFor: planned[0]?.scheduledFor ?? null,
+          lastScheduledFor: planned.at(-1)?.scheduledFor ?? null,
+        },
+        "Calendar saved, status set to ready",
+      );
     });
 
     await step.run("notify-ready", async () => {
@@ -412,6 +584,24 @@ export const researchKeywords = inngest.createFunction(
         href: `/websites/${websiteId}`,
       });
     });
+
+    /**
+     * The one line that answers "did this run actually produce a plan".
+     *
+     * Every count that matters, in a single record: if any of them is zero
+     * the earlier step logs say which stage lost them.
+     */
+    logger.info(
+      {
+        step: "done",
+        websiteId,
+        keywords: stored.length,
+        clusters: grouped.length,
+        articles: planned.length,
+        metricsFromProvider: metrics.configured,
+      },
+      "Keyword research complete",
+    );
 
     return {
       websiteId,

@@ -74,7 +74,7 @@ export const scheduledArticles = inngest.createFunction(
       { cron: "0 6 * * *" },
     ],
   },
-  async ({ step }) => {
+  async ({ step, logger }) => {
     const today = new Date().getUTCDay();
 
     /**
@@ -90,13 +90,35 @@ export const scheduledArticles = inngest.createFunction(
     horizon.setDate(horizon.getDate() + LOOKAHEAD_DAYS);
     horizon.setHours(23, 59, 59, 999);
 
+    /**
+     * Structured logs, one per step, so the Inngest timeline explains itself.
+     *
+     * Nobody watches this run — it happens at 6am and its only visible output
+     * is articles appearing, or not. When they do not, the question is always
+     * which filter removed the site: the wrong weekday, an exhausted plan, or
+     * simply nothing due. These lines record each of those separately.
+     *
+     * There is no single entity id here: the run spans every website, so each
+     * line inside the loop carries its own `websiteId`.
+     */
+    logger.info(
+      {
+        step: "start",
+        today,
+        horizon: horizon.toISOString(),
+        lookaheadDays: LOOKAHEAD_DAYS,
+        websiteBatch: WEBSITE_BATCH,
+      },
+      "Scheduled article run started",
+    );
+
     const due = await step.run("select-websites", async () => {
       /**
        * One query for websites that have something to do, rather than reading
        * every website and filtering in code. The join means a site with an
        * empty calendar never reaches the loop below.
        */
-      return db
+      const rows = await db
         .selectDistinct({
           websiteId: websites.id,
           organizationId: websites.organizationId,
@@ -126,15 +148,48 @@ export const scheduledArticles = inngest.createFunction(
           ),
         )
         .limit(WEBSITE_BATCH);
+
+      logger.info(
+        {
+          step: "select-websites",
+          websiteCount: rows.length,
+          cappedAtBatch: rows.length === WEBSITE_BATCH,
+          horizon: horizon.toISOString(),
+        },
+        "Websites with due calendar items selected",
+      );
+      return rows;
     });
 
-    if (due.length === 0) return { websites: 0, queued: 0 };
+    if (due.length === 0) {
+      /*
+        A legitimate quiet day, but also what a broken selection query looks
+        like. Saying it explicitly is the difference between "nothing was due"
+        and a silent run nobody can interpret months later.
+      */
+      logger.warn(
+        { step: "select-websites", websiteCount: 0, today },
+        "No websites have calendar items due — nothing queued this run",
+      );
+      return { websites: 0, queued: 0 };
+    }
 
     let queued = 0;
     const limitReached: string[] = [];
 
     for (const site of due) {
-      if (!isPublishingDay(site.publishingDays, today)) continue;
+      if (!isPublishingDay(site.publishingDays, today)) {
+        /*
+          Skipped by the customer's own weekday preference, not a fault. It is
+          logged because "my articles stopped on Tuesdays" is otherwise
+          indistinguishable from the job failing to see the site at all.
+        */
+        logger.info(
+          { step: "select-websites", websiteId: site.websiteId, today },
+          "Not a publishing day for this website — skipped",
+        );
+        continue;
+      }
 
       const result = await step.run(`queue-${site.websiteId}`, async () => {
         /**
@@ -145,6 +200,22 @@ export const scheduledArticles = inngest.createFunction(
          */
         const limit = await checkLimit(site.websiteId, "articles");
         if (!limit.allowed) {
+          /*
+            Nothing is queued and the run still succeeds. `reason` separates a
+            used-up monthly allowance from a workspace with no plan at all —
+            one resolves itself at renewal, the other never will.
+          */
+          logger.warn(
+            {
+              step: `queue-${site.websiteId}`,
+              websiteId: site.websiteId,
+              organizationId: site.organizationId,
+              reason: limit.reason,
+              planUsed: limit.used,
+              planLimit: limit.limit === UNLIMITED ? "unlimited" : limit.limit,
+            },
+            "Plan does not allow more articles — nothing queued for this website",
+          );
           return { queued: 0, limited: limit.reason === "limit_reached" };
         }
 
@@ -164,7 +235,22 @@ export const scheduledArticles = inngest.createFunction(
             ? 1
             : Math.max(1, Math.ceil(limit.limit / 30));
         const take = Math.min(MAX_PER_WEBSITE * perDay, remaining);
-        if (take === 0) return { queued: 0, limited: true };
+        if (take === 0) {
+          // Allowed by the plan check above but with no headroom left, which
+          // is the same outcome for the customer and needs the same record.
+          logger.warn(
+            {
+              step: `queue-${site.websiteId}`,
+              websiteId: site.websiteId,
+              organizationId: site.organizationId,
+              remaining: 0,
+              planUsed: limit.used,
+              planLimit: limit.limit === UNLIMITED ? "unlimited" : limit.limit,
+            },
+            "No article allowance remaining — nothing queued for this website",
+          );
+          return { queued: 0, limited: true };
+        }
 
         const items = await db
           .select({ id: calendarItems.id })
@@ -191,14 +277,51 @@ export const scheduledArticles = inngest.createFunction(
           .limit(take);
 
         let count = 0;
+        const rejected: string[] = [];
         for (const item of items) {
           const outcome = await queueArticleForCalendarItem(
             site.organizationId,
             site.websiteId,
             item.id,
           );
-          if (outcome.ok) count += 1;
+          if (outcome.ok) {
+            count += 1;
+          } else {
+            /*
+              A rejected item is dropped on the floor: the loop continues, the
+              run succeeds, and the calendar item stays "planned" forever with
+              nothing recording why it was passed over on each daily run.
+            */
+            rejected.push(outcome.error);
+          }
         }
+
+        if (rejected.length > 0) {
+          logger.warn(
+            {
+              step: `queue-${site.websiteId}`,
+              websiteId: site.websiteId,
+              organizationId: site.organizationId,
+              rejectedCount: rejected.length,
+              reasons: rejected.slice(0, 8),
+            },
+            "Some calendar items could not be queued",
+          );
+        }
+
+        logger.info(
+          {
+            step: `queue-${site.websiteId}`,
+            websiteId: site.websiteId,
+            organizationId: site.organizationId,
+            itemsFound: items.length,
+            take,
+            queued: count,
+            rejected: rejected.length,
+          },
+          "Calendar items queued for generation",
+        );
+
         return { queued: count, limited: false };
       });
 
@@ -213,7 +336,8 @@ export const scheduledArticles = inngest.createFunction(
      * appearing every day and then they were not, with nothing to explain it.
      */
     await step.run("notify-limits", async () => {
-      for (const organizationId of new Set(limitReached)) {
+      const organizations = new Set(limitReached);
+      for (const organizationId of organizations) {
         await notify({
           organizationId,
           type: "articles.limit_reached",
@@ -222,7 +346,29 @@ export const scheduledArticles = inngest.createFunction(
           href: "/billing",
         });
       }
+
+      logger.info(
+        { step: "notify-limits", organizationsNotified: organizations.size },
+        "Limit-reached notifications sent",
+      );
     });
+
+    /**
+     * The one line that answers "why did no articles appear today".
+     *
+     * `queued: 0` against a non-zero `websites` means every site was filtered
+     * out below, and the per-website lines above say by what — the weekday
+     * check, the plan limit, or an empty window.
+     */
+    logger.info(
+      {
+        step: "done",
+        websites: due.length,
+        queued,
+        limitReachedOrganizations: new Set(limitReached).size,
+      },
+      "Scheduled article run complete",
+    );
 
     return { websites: due.length, queued };
   },

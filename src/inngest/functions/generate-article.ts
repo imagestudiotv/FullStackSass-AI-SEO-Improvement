@@ -45,8 +45,19 @@ export const generateArticle = inngest.createFunction(
     // One generation per article. Without this a double-click bills twice and
     // both runs race to write the same row.
     concurrency: { key: "event.data.articleId", limit: 1 },
-    onFailure: async ({ event, error }) => {
+    onFailure: async ({ event, error, logger }) => {
       const articleId = event.data.event.data.articleId as string;
+
+      /*
+        The terminal record for this article: every retry is spent and the row
+        is now "failed". Keyed by the same `articleId` as the rest of the
+        function so one filter shows the whole generation history.
+      */
+      logger.error(
+        { step: "on-failure", articleId, reason: error.message },
+        "Generation failed after all retries — article marked failed",
+      );
+
       await db
         .update(articles)
         .set({
@@ -73,11 +84,26 @@ export const generateArticle = inngest.createFunction(
       });
     },
   },
-  async ({ event, step }) => {
+  async ({ event, step, logger }) => {
     const { articleId, organizationId } = event.data as {
       articleId: string;
       organizationId: string;
     };
+
+    /**
+     * Structured logs, one per step, so the Inngest timeline explains itself.
+     *
+     * This is the job behind "Writing your article…", and the UI only sees
+     * `generationStep` — which says where it got to, never what it produced.
+     * Each step records its counts, keyed by `articleId`, so a thin or
+     * unlinked article can be traced to the stage that made it so.
+     *
+     * Article text never appears in these logs: only lengths and counts.
+     */
+    logger.info(
+      { step: "start", articleId, organizationId },
+      "Article generation started",
+    );
 
     const brief = await step.run("build-brief", async () => {
       const [article] = await db
@@ -170,6 +196,33 @@ export const generateArticle = inngest.createFunction(
         })
         .where(eq(articles.id, articleId));
 
+      /**
+       * Which inputs the brief actually has, not their contents.
+       *
+       * Brand voice and custom instructions are customer-written text, so they
+       * stay out of the logs; what matters operationally is whether they were
+       * found at all. An empty `relatedKeywords` here is what later produces
+       * an article that covers one phrase instead of a topic, and this is the
+       * step where that becomes visible.
+       */
+      logger.info(
+        {
+          step: "build-brief",
+          articleId,
+          websiteId: article.websiteId,
+          calendarItemId: article.calendarItemId,
+          hasTargetKeyword: Boolean(article.targetKeyword),
+          relatedKeywords: relatedKeywords.length,
+          relatedSample: relatedKeywords.slice(0, 8),
+          hasBrandVoice: Boolean(voice),
+          hasCustomInstructions: Boolean(customInstructions),
+          // A pending backlink changes what the model is asked to write, so
+          // its presence belongs in the timeline even though the URL does not.
+          placementId: pending?.placementId ?? null,
+        },
+        "Brief built, status set to generating",
+      );
+
       return {
         websiteId: article.websiteId,
         calendarItemId: article.calendarItemId,
@@ -211,6 +264,7 @@ export const generateArticle = inngest.createFunction(
     });
 
     const outline = await step.run("write-outline", async () => {
+      const startedAt = Date.now();
       const result = await generateOutline(brief.brief);
 
       const price = PRICING.llm[MODELS.GENERATION];
@@ -228,10 +282,30 @@ export const generateArticle = inngest.createFunction(
         .set({ generationStep: "body", updatedAt: new Date() })
         .where(eq(articles.id, articleId));
 
+      /**
+       * Section count is the strongest early signal of article quality: the
+       * prompt asks for four to seven, and an outline that comes back with two
+       * produces a short article for a reason nothing later in the run
+       * records. durationMs separates a slow model call from a slow step.
+       */
+      logger.info(
+        {
+          step: "write-outline",
+          articleId,
+          websiteId: brief.websiteId,
+          sections: result.sections.length,
+          metaDescriptionChars: result.metaDescription.length,
+          model: MODELS.GENERATION,
+          durationMs: Date.now() - startedAt,
+        },
+        "Outline written",
+      );
+
       return result;
     });
 
     const written = await step.run("write-body", async () => {
+      const startedAt = Date.now();
       const result = await generateBody(brief.brief, outline);
 
       const price = PRICING.llm[MODELS.GENERATION];
@@ -249,6 +323,28 @@ export const generateArticle = inngest.createFunction(
         },
       });
 
+      /**
+       * Length, not text. The body is the customer's content and never belongs
+       * in a log; `wordCount` and `htmlBytes` answer the only operational
+       * question — whether the model produced a full article or a stub — and
+       * a word count far below the ~1,000 the prompt targets is the thing
+       * worth noticing here rather than after publication.
+       */
+      logger.info(
+        {
+          step: "write-body",
+          articleId,
+          websiteId: brief.websiteId,
+          wordCount: result.wordCount,
+          htmlBytes: result.bodyHtml.length,
+          slug: result.slug,
+          sections: outline.sections.length,
+          model: MODELS.GENERATION,
+          durationMs: Date.now() - startedAt,
+        },
+        "Article body written",
+      );
+
       return result;
     });
 
@@ -262,8 +358,20 @@ export const generateArticle = inngest.createFunction(
      * here — the provider URL expires within hours.
      */
     const image = await step.run("generate-image", async () => {
-      if (!isImageGenerationConfigured()) return null;
+      if (!isImageGenerationConfigured()) {
+        /*
+          Not an error: the article is written either way. Logged because an
+          article arriving without a header image looks like a bug from the
+          outside, and "no provider is configured" is the answer.
+        */
+        logger.warn(
+          { step: "generate-image", articleId, websiteId: brief.websiteId },
+          "Image generation not configured — article will have no header image",
+        );
+        return null;
+      }
 
+      const startedAt = Date.now();
       try {
         const generated = await generateArticleImage(
           brief.brief.title,
@@ -282,12 +390,41 @@ export const generateArticle = inngest.createFunction(
          * Base64 rather than a Buffer: step.run results are serialised to
          * JSON, and a Buffer would come back as an unusable object.
          */
+        logger.info(
+          {
+            step: "generate-image",
+            articleId,
+            websiteId: brief.websiteId,
+            contentType: generated.contentType,
+            imageBytes: generated.data.length,
+            costUsd: generated.costUsd,
+            durationMs: Date.now() - startedAt,
+          },
+          "Header image generated",
+        );
+
         return {
           base64: generated.data.toString("base64"),
           contentType: generated.contentType,
           alt: generated.alt,
         };
-      } catch {
+      } catch (error) {
+        /*
+          The swallow is the point of this log. The catch is deliberate — an
+          image failure must not lose the writing — but it means a provider
+          outage, an expired key or a content refusal all end as a silent
+          `null` that nothing else in the run explains.
+        */
+        logger.warn(
+          {
+            step: "generate-image",
+            articleId,
+            websiteId: brief.websiteId,
+            reason: error instanceof Error ? error.message : "unknown",
+            durationMs: Date.now() - startedAt,
+          },
+          "Header image failed — continuing without one",
+        );
         return null;
       }
     });
@@ -305,6 +442,35 @@ export const generateArticle = inngest.createFunction(
         brief.brief.targetKeyword ?? null,
         written.bodyHtml,
       );
+
+      /*
+        Zero links is a legitimate outcome on a site with nothing else crawled
+        yet, but it is also what a broken link-target query looks like. Warning
+        on it makes the two distinguishable instead of both being silence.
+      */
+      if (linked.length === 0) {
+        logger.warn(
+          {
+            step: "add-internal-links",
+            articleId,
+            websiteId: brief.websiteId,
+            linksAdded: 0,
+          },
+          "No internal links added — no matching crawled pages to link to",
+        );
+      } else {
+        logger.info(
+          {
+            step: "add-internal-links",
+            articleId,
+            websiteId: brief.websiteId,
+            linksAdded: linked.length,
+            htmlBytes: html.length,
+          },
+          "Internal links added",
+        );
+      }
+
       return { html, count: linked.length };
     });
 
@@ -352,6 +518,24 @@ export const generateArticle = inngest.createFunction(
       if (brief.placementId && brief.brief.backlink) {
         const included = linkedHtml.html.includes(brief.brief.backlink.url);
 
+        /*
+          The model was asked for this link and did not write it. No credit
+          moves and the placement stays pending, which is correct — but it is
+          also invisible: the requester keeps waiting on a link that was
+          assigned to an article and then quietly dropped.
+        */
+        if (!included) {
+          logger.warn(
+            {
+              step: "save-article",
+              articleId,
+              websiteId: brief.websiteId,
+              placementId: brief.placementId,
+            },
+            "Backlink missing from the generated article — placement stays pending, no credit awarded",
+          );
+        }
+
         if (included) {
           await db
             .update(placements)
@@ -394,9 +578,37 @@ export const generateArticle = inngest.createFunction(
               referenceId: brief.placementId,
               note: "Hosted a backlink",
             });
+
+            // Credits moving is a money event, so it gets its own line rather
+            // than being inferred from the placement's status changing.
+            logger.info(
+              {
+                step: "save-article",
+                articleId,
+                websiteId: brief.websiteId,
+                placementId: brief.placementId,
+                credits: placement.credits,
+              },
+              "Backlink verified in the article — placement marked live, credits moved",
+            );
           }
         }
       }
+
+      logger.info(
+        {
+          step: "save-article",
+          articleId,
+          websiteId: brief.websiteId,
+          wordCount: written.wordCount,
+          htmlBytes: linkedHtml.html.length,
+          internalLinks: linkedHtml.count,
+          hasImageAlt: Boolean(image?.alt),
+          calendarItemId: brief.calendarItemId,
+          versionsWritten: 1,
+        },
+        "Article saved as draft",
+      );
     });
 
     /**
@@ -418,7 +630,18 @@ export const generateArticle = inngest.createFunction(
         .where(eq(websites.id, brief.websiteId))
         .limit(1);
 
-      if (!site?.autoPublish) return false;
+      if (!site?.autoPublish) {
+        logger.info(
+          {
+            step: "auto-publish",
+            articleId,
+            websiteId: brief.websiteId,
+            autoPublish: false,
+          },
+          "Auto-publish is off — article stays a draft",
+        );
+        return false;
+      }
 
       // Nowhere to publish to is not a failure; it is a customer who has not
       // connected a CMS yet, and the article waits for them as a draft.
@@ -433,7 +656,24 @@ export const generateArticle = inngest.createFunction(
         )
         .limit(1);
 
-      if (!connected) return false;
+      if (!connected) {
+        /*
+          Auto-publish is ON and nothing happens. This is the branch that
+          looks broken from the customer's side — they switched the setting on
+          and their article still sits as a draft — so it is a warning rather
+          than an info line.
+        */
+        logger.warn(
+          {
+            step: "auto-publish",
+            articleId,
+            websiteId: brief.websiteId,
+            autoPublish: true,
+          },
+          "Auto-publish is on but no CMS is connected — article stays a draft",
+        );
+        return false;
+      }
 
       await inngest.send({
         name: "article/publish.requested",
@@ -444,6 +684,11 @@ export const generateArticle = inngest.createFunction(
           status: "publish" as const,
         },
       });
+
+      logger.info(
+        { step: "auto-publish", articleId, websiteId: brief.websiteId, autoPublish: true },
+        "Publish requested for this article",
+      );
       return true;
     });
 
@@ -462,6 +707,27 @@ export const generateArticle = inngest.createFunction(
         href: `/websites/${brief.websiteId}/articles/${articleId}`,
       });
     });
+
+    /**
+     * The one line that answers "did this run produce a usable article".
+     *
+     * Every count that matters in a single record: if the word count is low,
+     * or the image and internal links are missing, the step logs above say
+     * which stage lost them.
+     */
+    logger.info(
+      {
+        step: "done",
+        articleId,
+        websiteId: brief.websiteId,
+        wordCount: written.wordCount,
+        sections: outline.sections.length,
+        internalLinks: linkedHtml.count,
+        hasImage: Boolean(image),
+        autoPublished,
+      },
+      "Article generation complete",
+    );
 
     return {
       articleId,
