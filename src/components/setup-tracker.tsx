@@ -2,7 +2,6 @@
 
 import { Check, ChevronDown, Lock, X } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useState, useSyncExternalStore } from "react";
 
 import type { LaunchStep } from "@/lib/onboarding/launch";
@@ -25,14 +24,7 @@ import type { LaunchStep } from "@/lib/onboarding/launch";
 /** Remembers a dismissal for this browser, so it is not nagging every page. */
 const STORAGE_KEY = "repget:setup-tracker-dismissed";
 
-export function SetupTracker({
-  steps,
-  websiteId,
-}: {
-  steps: LaunchStep[];
-  websiteId: string;
-}) {
-  const pathname = usePathname();
+export function SetupTracker({ steps }: { steps: LaunchStep[] }) {
   const [collapsed, setCollapsed] = useState(false);
   /** Set by the dismiss button, separate from what storage remembers. */
   const [dismissedNow, setDismissedNow] = useState(false);
@@ -84,11 +76,21 @@ export function SetupTracker({
   if (remaining.length === 0 || dismissed) return null;
 
   /*
-    Not on the setup page itself: the panel is a pointer BACK to a list the
-    customer is already looking at, and a floating copy of the page you are on
-    is clutter.
+    SHOWN ON /setup TOO.
+
+    This used to return null there, reasoning that a floating copy of the list
+    you are already reading is clutter. That was wrong in practice: /setup is
+    exactly where someone goes to work through the steps, and they leave it
+    the moment they start one — clicking "Connect your site" takes them to
+    settings, where the panel is what carries the remaining steps with them.
+    Hiding it on the page that sends them out meant the handover never
+    happened, and the tracker only appeared if they happened to navigate
+    somewhere else first.
+
+    It is also the one page where a customer can see both at once and learn
+    what the floating panel is for, which makes it less mysterious everywhere
+    else.
   */
-  if (pathname === "/setup") return null;
 
   const current = remaining[0];
   const currentIndex = steps.findIndex((step) => step.id === current.id);
@@ -180,11 +182,20 @@ export function SetupTracker({
                 {doneCount} of {steps.length} done. This closes itself when the
                 required steps are finished.
               </p>
+              {/*
+                The next action, not a link back to the checklist.
+
+                This read "Open the full checklist" and pointed at /setup —
+                useless on /setup itself, where the panel now also appears,
+                and a detour everywhere else: someone who wants the list can
+                click the sidebar. What they actually need is the step they
+                are on, so the link is that step and it is named.
+              */}
               <Link
-                href={`/setup?site=${websiteId}`}
+                href={current.href}
                 className="mt-2 inline-block text-xs font-medium text-primary hover:underline"
               >
-                Open the full checklist
+                {current.title} &rarr;
               </Link>
             </div>
           </>

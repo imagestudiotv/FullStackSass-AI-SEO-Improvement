@@ -292,7 +292,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         the required steps are done, or when there is no website yet.
       */}
       {launch && fallbackWebsiteId ? (
-        <SetupTracker steps={launch.steps} websiteId={fallbackWebsiteId} />
+        <SetupTracker steps={launch.steps} />
       ) : null}
 
       <LiveChat
