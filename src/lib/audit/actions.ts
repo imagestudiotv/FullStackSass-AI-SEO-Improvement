@@ -9,6 +9,7 @@ import { audits, crawls, issues } from "@/lib/db/schema";
 import { requireWebsite } from "@/lib/tenant";
 import type { AuditSummary, Severity } from "@/lib/audit/rules";
 import type { ActionResult } from "@/lib/websites/actions";
+import { isEntitledToSpend } from "@/lib/billing/entitled";
 
 /**
  * Audit reads and actions.
@@ -109,6 +110,14 @@ export async function startAudit(
   if (site.status === "pending" || site.status === "crawling") {
     return { ok: false, error: "Wait until the site has been analysed first" };
   }
+
+  /*
+    Entitlement, not just ownership. This queues a job that spends money, and
+    a server action is a public endpoint - the page in front of it redirects
+    an unpaid customer, but the action behind it is still POSTable.
+  */
+  const entitled = await isEntitledToSpend(site.id);
+  if (!entitled.ok) return { ok: false, error: entitled.error };
 
   await queueJob({
     name: "website/audit.requested",

@@ -20,6 +20,7 @@ import {
 import { requireWebsite } from "@/lib/tenant";
 import { track } from "@/lib/usage";
 import type { ActionResult } from "@/lib/websites/actions";
+import { isEntitledToSpend } from "@/lib/billing/entitled";
 
 /**
  * Changing an article's picture.
@@ -64,6 +65,13 @@ export async function regenerateArticleImage(
 ): Promise<ActionResult<{ imageUrl: string }>> {
   const { site, orgId, article } = await loadArticle(websiteId, articleId);
   if (!article) return { ok: false, error: "Article not found" };
+
+  /*
+    Entitlement before spend. Each regeneration is a billed image call, and
+    this action is a public endpoint whatever the page in front of it does.
+  */
+  const entitled = await isEntitledToSpend(site.id);
+  if (!entitled.ok) return { ok: false, error: entitled.error };
 
   if (!isImageGenerationConfigured()) {
     return { ok: false, error: "Image generation is not set up yet" };

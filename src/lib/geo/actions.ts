@@ -16,6 +16,7 @@ import {
 import { queueJob } from "@/inngest/send";
 import { requireWebsite } from "@/lib/tenant";
 import type { ActionResult } from "@/lib/websites/actions";
+import { isEntitledToSpend } from "@/lib/billing/entitled";
 
 /**
  * GEO server actions.
@@ -276,6 +277,14 @@ export async function runGeoCheck(
   if (!any) {
     return { ok: false, error: "Add a question first" };
   }
+
+  /*
+    Entitlement, not just ownership. This queues a job that spends money, and
+    a server action is a public endpoint - the page in front of it redirects
+    an unpaid customer, but the action behind it is still POSTable.
+  */
+  const entitled = await isEntitledToSpend(site.id);
+  if (!entitled.ok) return { ok: false, error: entitled.error };
 
   await queueJob({
     name: "geo/check.requested",
