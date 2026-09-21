@@ -1,5 +1,7 @@
 import * as cheerio from "cheerio";
 
+import { fetchPage } from "@/lib/websites/fetch-page";
+
 /**
  * Homepage fetching and HTML extraction.
  *
@@ -97,10 +99,14 @@ async function fetchOnce(url: string): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    return await fetch(url, {
-      signal: controller.signal,
-      redirect: "manual",
-      headers: {
+    /*
+      fetchPage, not fetch: Cloudflare blocks undici (the client behind Node's
+      global fetch) by TLS fingerprint and answers 403 before the origin sees
+      the request. See lib/websites/fetch-page.ts for the measurements.
+    */
+    return await fetchPage(
+      url,
+      {
         "user-agent": USER_AGENT,
         accept: "text/html,application/xhtml+xml",
         /**
@@ -116,7 +122,9 @@ async function fetchOnce(url: string): Promise<Response> {
          */
         "accept-language": "*",
       },
-    });
+      FETCH_TIMEOUT_MS,
+      controller.signal,
+    );
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
       throw new CrawlError(`Timed out after ${FETCH_TIMEOUT_MS}ms`, "timeout");

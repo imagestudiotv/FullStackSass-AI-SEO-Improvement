@@ -1,4 +1,5 @@
 import { and, eq, inArray, sql as raw } from "drizzle-orm";
+import { NonRetriableError } from "inngest";
 
 import { inngest } from "@/inngest/client";
 import { MODELS } from "@/lib/ai/client";
@@ -103,12 +104,30 @@ export const researchKeywords = inngest.createFunction(
       return generated;
     });
 
+    /**
+     * No seeds means no profile to work from — FAIL, do not report success.
+     *
+     * This used to set status "ready" and return `reason: "no_profile"`. The
+     * job finished green having written nothing, which is the worst of both
+     * outcomes: the content screen polls for keywords that are never coming
+     * and spins forever, while the run history shows a success, so nothing
+     * anywhere says what went wrong. A customer sat on "Building your content
+     * plan…" for twenty minutes on a job that had already finished.
+     *
+     * Seeds come from the profile that website analysis writes, so an empty
+     * list means step one never completed for this site. Marking it "failed"
+     * is both true and useful: the UI reads that status to offer a retry, and
+     * the error text names the actual cause rather than leaving a blank
+     * screen to interpret.
+     */
     if (seeds.length === 0) {
       await db
         .update(websites)
-        .set({ status: "ready", updatedAt: new Date() })
+        .set({ status: "failed", updatedAt: new Date() })
         .where(eq(websites.id, websiteId));
-      return { websiteId, keywords: 0, reason: "no_profile" };
+      throw new NonRetriableError(
+        "No keyword seeds: this website has no profile yet, so website analysis must succeed first.",
+      );
     }
 
     /**
