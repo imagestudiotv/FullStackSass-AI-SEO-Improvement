@@ -2,6 +2,8 @@
 
 import { Building2, Clock, TrendingUp } from "lucide-react";
 
+import { WorldMap } from "@/components/onboarding/world-map";
+
 /**
  * The panel down the right of every onboarding step.
  *
@@ -61,22 +63,24 @@ export function OnboardingAside({
       default, which leaves nothing for `top` to bite on.
     */
     <aside className="hidden h-fit lg:sticky lg:top-8 lg:block">
-      <div
-        className="relative overflow-hidden rounded-3xl border bg-muted/30 p-8 text-muted-foreground/30"
-        /*
-          The dotted field behind the reference's world map, as a radial
-          gradient rather than an image: it is one line of CSS, costs no
-          request, and stays sharp at any size. A literal map would also be
-          a claim — the reference's dots are its customers' locations.
-        */
-        style={{
-          backgroundImage:
-            "radial-gradient(circle, currentColor 1px, transparent 1px)",
-          backgroundSize: "14px 14px",
-        }}
-      >
-        {/* Stat strip, divided, as drawn. */}
-        <div className="flex items-start justify-center gap-6 text-center text-foreground sm:gap-8">
+      <div className="relative flex min-h-[30rem] flex-col overflow-hidden rounded-3xl border bg-muted/30 p-8">
+        {/*
+          The dotted world map the reference puts behind this panel.
+
+          Absolutely positioned and behind everything: it is decoration, and
+          the stat strip and card must sit on it rather than beside it. The
+          uniform dot grid this replaces filled the same space but read as
+          texture — the reference's shape is recognisably continents, which is
+          what makes the panel feel like a map of somewhere rather than a
+          pattern.
+
+          No markers on it. Those are customer locations in the reference and
+          we would be inventing every one.
+        */}
+        <WorldMap className="pointer-events-none absolute inset-x-0 top-24 mx-auto w-[115%] max-w-none -translate-x-[6%] text-muted-foreground/25 select-none" />
+
+        {/* Stat strip, divided, as drawn. Above the map. */}
+        <div className="relative flex items-start justify-center gap-6 text-center text-foreground sm:gap-8">
           {STATS.map((stat) => (
             <div
               key={stat.label}
@@ -102,7 +106,7 @@ export function OnboardingAside({
           The card sitting over the map in the reference. Ours carries the
           step's own promise rather than a quote.
         */}
-        <div className="mt-10 rounded-2xl border bg-background/90 p-6 text-foreground shadow-sm backdrop-blur">
+        <div className="relative mt-10 rounded-2xl border bg-background/90 p-6 text-foreground shadow-sm backdrop-blur">
           <p className="text-lg leading-snug font-semibold text-balance">
             {title}
           </p>
@@ -112,8 +116,26 @@ export function OnboardingAside({
         </div>
 
         {children ? (
-          <div className="mt-4 text-foreground">{children}</div>
+          <div className="relative mt-4 text-foreground">{children}</div>
         ) : null}
+
+        {/*
+          The footing line the reference sets under its map.
+
+          Deliberately "worldwide" and nothing more. The reference pairs this
+          with customer logos and a review score; both are that company's, and
+          the line on its own is a statement about where the product can be
+          used rather than a count of who uses it — which is true on day one
+          and stays true.
+
+          `mt-auto` rather than a fixed margin: with the panel stretched to
+          the form's height this pins the line to the bottom, which is where
+          the reference has it. Without stretching it simply follows the
+          content.
+        */}
+        <p className="relative mt-auto pt-12 text-center text-[10px] font-medium tracking-[0.18em] text-muted-foreground/70 uppercase">
+          Trusted by businesses worldwide
+        </p>
       </div>
     </aside>
   );
