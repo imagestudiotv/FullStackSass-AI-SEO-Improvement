@@ -340,9 +340,54 @@ export const researchKeywords = inngest.createFunction(
     const stored = await step.run("score-and-store", async () => {
       const ranked = rankKeywords(metrics.rows);
 
+      const limit = await checkLimit(websiteId, "keywords");
+
+      /**
+       * NO PLAN IS A FAILURE, not an allowance of zero.
+       *
+       * checkLimit answers "no_active_plan" with limit 0, which fell straight
+       * into the arithmetic below as an allowance of zero — so the run stored
+       * nothing, clustered nothing, planned nothing, and finished GREEN. The
+       * content screen then polled forever for keywords that were never
+       * coming, while the run history showed a success and three model calls
+       * had already been billed.
+       *
+       * That is the difference this check draws: a plan whose keyword
+       * allowance is used up is a legitimate cap and the run carries on with
+       * what fits, but a website with no subscription at all should never
+       * have reached this function. Saying so loudly means the UI can offer
+       * the plan page instead of a spinner.
+       *
+       * NonRetriableError because no number of retries conjures a
+       * subscription. startResearch refuses this case up front now too; this
+       * is the backstop for an event sent any other way.
+       */
+      if (
+        limit.reason === "no_active_plan" ||
+        limit.reason === "subscription_inactive"
+      ) {
+        logger.error(
+          {
+            step: "score-and-store",
+            websiteId,
+            reason: limit.reason,
+            ranked: ranked.length,
+          },
+          "No active plan — refusing to store zero keywords silently",
+        );
+        await db
+          .update(websites)
+          .set({ status: "failed", updatedAt: new Date() })
+          .where(eq(websites.id, websiteId));
+        throw new NonRetriableError(
+          limit.reason === "no_active_plan"
+            ? "This website has no subscription, so research cannot be stored. Choose a plan first."
+            : "This website's subscription is not active, so research cannot be stored.",
+        );
+      }
+
       // The plan's keyword allowance is a cap on what we store, not a failure:
       // research legitimately returns more than a plan covers.
-      const limit = await checkLimit(websiteId, "keywords");
       const allowance =
         limit.limit === UNLIMITED
           ? ranked.length
@@ -533,6 +578,24 @@ export const researchKeywords = inngest.createFunction(
           { step: "save-calendar", websiteId, plannedArticles: 0 },
           "No calendar items to save — content plan will be empty",
         );
+
+        /**
+         * STILL RESOLVE THE STATUS before returning.
+         *
+         * The `status: "ready"` write lives at the end of this step, so this
+         * early return skipped it and left the row on "researching" — the
+         * state the content screen treats as "still working". A run that
+         * finished with an empty calendar therefore looked identical to one
+         * still in progress, and the spinner never stopped.
+         *
+         * "ready" rather than "failed": the research genuinely completed and
+         * the keywords are stored. There is simply nothing on the calendar,
+         * which the screen can say plainly once it stops waiting.
+         */
+        await db
+          .update(websites)
+          .set({ status: "ready", updatedAt: new Date() })
+          .where(eq(websites.id, websiteId));
         return;
       }
 

@@ -7,6 +7,7 @@ import { queueJob } from "@/inngest/send";
 import { db } from "@/lib/db";
 import { calendarItems, clusters, keywords } from "@/lib/db/schema";
 import { requireWebsite } from "@/lib/tenant";
+import { checkLimit } from "@/lib/usage";
 import type { ActionResult } from "@/lib/websites/actions";
 
 /**
@@ -111,6 +112,29 @@ export async function startResearch(
   // generated from nothing and the model call wasted.
   if (site.status === "pending" || site.status === "crawling") {
     return { ok: false, error: "Wait until the site has been analysed first" };
+  }
+
+  /**
+   * REFUSE BEFORE SPENDING, not after.
+   *
+   * Research bills three model calls — seeds, clustering, calendar — before
+   * it reaches the step that stores anything. A website with no subscription
+   * used to pay for all three and then store nothing, because the keyword
+   * allowance came back as zero. The job still runs that check as a backstop,
+   * but by then the money is gone.
+   *
+   * Checked here, where a refusal costs nothing and the message can send the
+   * customer somewhere useful.
+   */
+  const entitlement = await checkLimit(site.id, "keywords");
+  if (
+    entitlement.reason === "no_active_plan" ||
+    entitlement.reason === "subscription_inactive"
+  ) {
+    return {
+      ok: false,
+      error: "Choose a plan for this website before building its content plan",
+    };
   }
 
   await queueJob({
