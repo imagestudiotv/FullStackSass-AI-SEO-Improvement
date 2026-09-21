@@ -42,6 +42,27 @@ export type PickerPlan = {
   monthlyCredits: number;
 };
 
+/**
+ * ONE website per subscription, on every plan.
+ *
+ * The client's instruction: "We insert 3, and 10. But for both plans we allow
+ * 1 site only." The plan rows keep siteLimit 3 and 10 — those columns are read
+ * by the admin tools and by agency workspaces — but no customer-facing surface
+ * quotes them any more.
+ *
+ * This is a CORRECTION, not a restriction. Billing became per-website in
+ * migration 0021: a subscription is attached to one site, and addWebsite
+ * imposes no cap at all because a new site simply starts unsubscribed and can
+ * do nothing until it has a plan of its own. So "up to 3 websites on one
+ * account" was never true of Grow — it described a limit that had stopped
+ * existing, and a customer who bought Grow expecting three sites would have
+ * been asked to pay twice more.
+ *
+ * Someone who wants a second website buys a second subscription, which is
+ * exactly what the product already does.
+ */
+const ONE_WEBSITE = "One website per subscription";
+
 /** Plural-aware, so a Starter customer is not told "1 articles". */
 function count(n: number, singular: string, plural = `${singular}s`): string {
   return `${n} ${n === 1 ? singular : plural}`;
@@ -119,7 +140,7 @@ export function planFeatures(plan: PickerPlan): string[] {
   const scale = [
     `${count(plan.articleLimit, "branded article")} a month${cadence(plan.articleLimit)}, with images`,
     `${plan.keywordLimit.toLocaleString()} search terms researched and clustered`,
-    `Up to ${count(plan.siteLimit, "website")} on one account`,
+    ONE_WEBSITE,
     "Priority processing — your articles are written first",
     "Custom feature requests",
   ];
@@ -127,7 +148,7 @@ export function planFeatures(plan: PickerPlan): string[] {
   const grow = [
     `${count(plan.articleLimit, "branded article")} a month${cadence(plan.articleLimit)}, with images`,
     `${plan.keywordLimit.toLocaleString()} search terms researched and clustered`,
-    `Up to ${count(plan.siteLimit, "website")} on one account`,
+    ONE_WEBSITE,
   ];
 
   return plan.tier === "scale" ? [...scale, ...shared] : [...grow, ...shared];

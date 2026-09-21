@@ -62,7 +62,13 @@ function planFeatures(plan: PlanRow): string[] {
   return [
     `${unlimited(plan.articleLimit)} ${plural(plan.articleLimit, "article", "articles")} written each month`,
     `${unlimited(plan.keywordLimit)} ${plural(plan.keywordLimit, "search term", "search terms")} tracked`,
-    `${unlimited(plan.siteLimit)} ${plural(plan.siteLimit, "website", "websites")}`,
+    /*
+      One website, not plan.siteLimit. Subscriptions are per WEBSITE since
+      migration 0021, so a plan row's siteLimit describes a cap that is no
+      longer enforced anywhere — quoting it here promised Grow customers three
+      sites for one payment. See lib/plans/features.ts.
+    */
+    "One website per subscription",
     `${unlimited(plan.monthlyCredits)} ${plural(plan.monthlyCredits, "link credit", "link credits")} each month`,
   ];
 }

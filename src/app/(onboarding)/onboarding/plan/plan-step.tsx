@@ -202,7 +202,7 @@ export function PlanStep({
           / {String(WIZARD_STEPS.length).padStart(2, "0")}
         </span>
       </p>
-      <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
+      <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
         Your growth engine is ready
       </h1>
 
@@ -226,7 +226,7 @@ export function PlanStep({
         <div
           role="radiogroup"
           aria-label="Plan"
-          className="mt-6 grid grid-cols-2 gap-1 rounded-2xl border bg-muted/50 p-1 sm:flex sm:rounded-full"
+          className="mt-4 grid grid-cols-2 gap-1 rounded-2xl border bg-muted/50 p-1 sm:flex sm:rounded-full"
         >
           {monthlyPlans.map((option) => (
             <button
@@ -235,9 +235,17 @@ export function PlanStep({
               role="radio"
               aria-checked={option.tier === tier}
               onClick={() => setTier(option.tier)}
+              /*
+                The selected tab carries the brand colour, not just a white
+                pill. "bg-background shadow-sm" on a muted track is a
+                difference you have to look for — the client did, and asked
+                to "highlight the box grow plan when you are on that plan".
+                On the screen where someone picks what to pay for, which
+                option is selected should be unmissable.
+              */
               className={`rounded-full px-3 py-2 text-sm font-medium transition-colors sm:flex-1 sm:px-4 ${
                 option.tier === tier
-                  ? "bg-background shadow-sm"
+                  ? "bg-primary text-primary-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -255,7 +263,13 @@ export function PlanStep({
         </div>
       ) : null}
 
-      <div className="mt-5 rounded-3xl border bg-card p-6 sm:p-8">
+      {/*
+        The card is ringed in the brand colour so the tab and the card read as
+        one selected thing. Without it the switcher moved but the card below
+        looked identical either way, so nothing on screen confirmed the
+        choice had taken effect.
+      */}
+      <div className="mt-4 rounded-3xl border-2 border-primary bg-card p-5 shadow-sm sm:p-6">
         <div className="flex flex-wrap items-center gap-2.5">
           <p className="text-lg font-semibold">{plan.name} plan</p>
           {/*
@@ -275,7 +289,7 @@ export function PlanStep({
           on autopilot.
         </p>
 
-        <div className="mt-6 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <div className="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <span className="text-5xl font-semibold tracking-tight">
             {formatPrice(perMonthCents, plan.currency)}
           </span>
@@ -329,7 +343,7 @@ export function PlanStep({
         <Button
           onClick={() => handleCheckout("stripe")}
           disabled={pending !== null}
-          className="mt-6 h-14 w-full rounded-full text-base font-semibold"
+          className="mt-4 h-14 w-full rounded-full text-base font-semibold"
         >
           {pending === "stripe" ? (
             <>

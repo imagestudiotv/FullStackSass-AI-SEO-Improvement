@@ -91,7 +91,17 @@ export default async function OnboardingPlanPage({
   return (
     <div>
       <WizardProgress current="plan" />
-      <div className="mx-auto max-w-6xl px-4 py-10 sm:py-14">
+      {/*
+          Less headroom than the other steps. The client: "move the part a
+          little up because the button start free trial is not visible in the
+          main block and needs scrolling". On a 700px laptop the CTA started
+          around 618px down — inside the viewport by a few pixels, which in
+          practice means below the fold once a browser's own chrome is
+          counted. Trimming the top padding and the gaps below buys back
+          roughly 60px, which puts the button and the price on screen
+          together.
+        */}
+        <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8">
         {/*
           Equal columns, stretched.
 
