@@ -681,6 +681,28 @@ export type Messages = {
       hosting: (cap: number, used: number, sites: number) => string;
       reserved: (n: number) => string;
     };
+    dashboard: {
+      noWebsite: string;
+      noWebsiteHelp: string;
+      addWebsite: string;
+      couldNotLoad: string;
+      couldNotLoadHelp: string;
+      overview: string;
+      openWebsite: string;
+      /** "How example.com is performing in search." */
+      performing: (domain: string) => string;
+    };
+    calendar: {
+      changeTopic: string;
+      addInstructions: string;
+      removeFromPlan: string;
+      instructionsPlaceholder: string;
+      previousMonth: string;
+      nextMonth: string;
+      savedInstructions: string;
+      removedFromPlan: string;
+      writingStarted: string;
+    };
   };
 };
 
@@ -1518,6 +1540,27 @@ const en: Messages = {
       statusRemoved: "Removed — credit returned",
       hosting: (cap, used, sites) => `Hosting up to ${cap} links a month (${used} used). ${sites} site${sites === 1 ? "" : "s"} available to link to you.`,
       reserved: (n) => ` (${n} reserved)`,
+    },
+    dashboard: {
+      noWebsite: "No website connected yet",
+      noWebsiteHelp: "Add your website and we will start finding the search terms your customers actually use.",
+      addWebsite: "Add website",
+      couldNotLoad: "We could not load this website",
+      couldNotLoadHelp: "Try again, or pick a different website.",
+      overview: "SEO overview",
+      openWebsite: "Open website",
+      performing: (domain) => `How ${domain} is performing in search.`,
+    },
+    calendar: {
+      changeTopic: "Change topic",
+      addInstructions: "Add instructions",
+      removeFromPlan: "Remove from plan",
+      instructionsPlaceholder: "Anything this article should cover or avoid.",
+      previousMonth: "Previous month",
+      nextMonth: "Next month",
+      savedInstructions: "Saved — we will use this when writing",
+      removedFromPlan: "Removed from the plan",
+      writingStarted: "Writing started — it takes a few minutes",
     },
   },
 };
@@ -2366,6 +2409,27 @@ const es: Messages = {
       statusRemoved: "Retirado — crédito devuelto",
       hosting: (cap, used, sites) => `Aloja hasta ${cap} enlaces al mes (${used} usados). ${sites} sitio${sites === 1 ? "" : "s"} disponible${sites === 1 ? "" : "s"} para enlazarle.`,
       reserved: (n) => ` (${n} reservados)`,
+    },
+    dashboard: {
+      noWebsite: "Todavía no hay ningún sitio web conectado",
+      noWebsiteHelp: "Añada su sitio web y empezaremos a encontrar los términos de búsqueda que usan sus clientes.",
+      addWebsite: "Añadir sitio web",
+      couldNotLoad: "No pudimos cargar este sitio web",
+      couldNotLoadHelp: "Inténtelo de nuevo o elija otro sitio web.",
+      overview: "Resumen SEO",
+      openWebsite: "Abrir sitio web",
+      performing: (domain) => `Cómo está funcionando ${domain} en las búsquedas.`,
+    },
+    calendar: {
+      changeTopic: "Cambiar tema",
+      addInstructions: "Añadir instrucciones",
+      removeFromPlan: "Quitar del plan",
+      instructionsPlaceholder: "Cualquier cosa que este artículo deba tratar o evitar.",
+      previousMonth: "Mes anterior",
+      nextMonth: "Mes siguiente",
+      savedInstructions: "Guardado — lo usaremos al escribir",
+      removedFromPlan: "Quitado del plan",
+      writingStarted: "Redacción iniciada — tarda unos minutos",
     },
   },
 };
@@ -3218,6 +3282,27 @@ const fr: Messages = {
       hosting: (cap, used, sites) => `Héberge jusqu\u2019à ${cap} liens par mois (${used} utilisés). ${sites} site${sites === 1 ? "" : "s"} disponible${sites === 1 ? "" : "s"} pour pointer vers vous.`,
       reserved: (n) => ` (${n} réservés)`,
     },
+    dashboard: {
+      noWebsite: "Aucun site connecté pour l\u2019instant",
+      noWebsiteHelp: "Ajoutez votre site et nous commencerons à trouver les recherches que vos clients utilisent vraiment.",
+      addWebsite: "Ajouter un site",
+      couldNotLoad: "Impossible de charger ce site",
+      couldNotLoadHelp: "Réessayez ou choisissez un autre site.",
+      overview: "Vue d\u2019ensemble SEO",
+      openWebsite: "Ouvrir le site",
+      performing: (domain) => `Les performances de ${domain} dans la recherche.`,
+    },
+    calendar: {
+      changeTopic: "Changer de sujet",
+      addInstructions: "Ajouter des consignes",
+      removeFromPlan: "Retirer du plan",
+      instructionsPlaceholder: "Ce que cet article doit aborder ou éviter.",
+      previousMonth: "Mois précédent",
+      nextMonth: "Mois suivant",
+      savedInstructions: "Enregistré — nous l\u2019utiliserons à la rédaction",
+      removedFromPlan: "Retiré du plan",
+      writingStarted: "Rédaction lancée — cela prend quelques minutes",
+    },
   },
 };
 
@@ -4061,6 +4146,27 @@ const it: Messages = {
       statusRemoved: "Rimosso — credito restituito",
       hosting: (cap, used, sites) => `Ospita fino a ${cap} link al mese (${used} usati). ${sites} sito${sites === 1 ? "" : "i"} disponibil${sites === 1 ? "e" : "i"} per collegarla.`,
       reserved: (n) => ` (${n} riservati)`,
+    },
+    dashboard: {
+      noWebsite: "Ancora nessun sito collegato",
+      noWebsiteHelp: "Aggiunga il suo sito e inizieremo a trovare i termini di ricerca che i suoi clienti usano davvero.",
+      addWebsite: "Aggiungi sito",
+      couldNotLoad: "Non è stato possibile caricare questo sito",
+      couldNotLoadHelp: "Riprovi o scelga un altro sito.",
+      overview: "Panoramica SEO",
+      openWebsite: "Apri sito",
+      performing: (domain) => `Come sta andando ${domain} nella ricerca.`,
+    },
+    calendar: {
+      changeTopic: "Cambia argomento",
+      addInstructions: "Aggiungi istruzioni",
+      removeFromPlan: "Togli dal piano",
+      instructionsPlaceholder: "Qualsiasi cosa questo articolo debba trattare o evitare.",
+      previousMonth: "Mese precedente",
+      nextMonth: "Mese successivo",
+      savedInstructions: "Salvato — lo useremo in fase di scrittura",
+      removedFromPlan: "Tolto dal piano",
+      writingStarted: "Scrittura avviata — ci vogliono alcuni minuti",
     },
   },
 };
@@ -4912,6 +5018,27 @@ const de: Messages = {
       statusRemoved: "Entfernt — Credit erstattet",
       hosting: (cap, used, sites) => `Nimmt bis zu ${cap} Links pro Monat auf (${used} genutzt). ${sites} Website${sites === 1 ? "" : "s"} können auf Sie verlinken.`,
       reserved: (n) => ` (${n} reserviert)`,
+    },
+    dashboard: {
+      noWebsite: "Noch keine Website verbunden",
+      noWebsiteHelp: "Fügen Sie Ihre Website hinzu, dann suchen wir die Suchbegriffe, die Ihre Kunden tatsächlich verwenden.",
+      addWebsite: "Website hinzufügen",
+      couldNotLoad: "Diese Website konnte nicht geladen werden",
+      couldNotLoadHelp: "Versuchen Sie es erneut oder wählen Sie eine andere Website.",
+      overview: "SEO-Überblick",
+      openWebsite: "Website öffnen",
+      performing: (domain) => `Wie ${domain} in der Suche abschneidet.`,
+    },
+    calendar: {
+      changeTopic: "Thema ändern",
+      addInstructions: "Anweisungen hinzufügen",
+      removeFromPlan: "Aus dem Plan entfernen",
+      instructionsPlaceholder: "Alles, was dieser Artikel behandeln oder vermeiden soll.",
+      previousMonth: "Voriger Monat",
+      nextMonth: "Nächster Monat",
+      savedInstructions: "Gespeichert — wir verwenden das beim Schreiben",
+      removedFromPlan: "Aus dem Plan entfernt",
+      writingStarted: "Schreiben gestartet — das dauert einige Minuten",
     },
   },
 };

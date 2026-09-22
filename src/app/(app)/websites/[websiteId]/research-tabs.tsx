@@ -54,6 +54,8 @@ type ResearchTabsProps = {
   researching: boolean;
   /** This screen's copy, already in the reader's language. */
   t: Messages["app"]["research"];
+  /** The calendar's own slice, forwarded to it. */
+  tCalendar: Messages["app"]["calendar"];
 };
 
 const ARTICLE_STATUS: Record<
@@ -98,6 +100,7 @@ export function ResearchTabs({
   articles,
   researching,
   t,
+  tCalendar,
 }: ResearchTabsProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -236,6 +239,7 @@ export function ResearchTabs({
               websiteId={websiteId}
               calendar={calendar}
               articles={articles}
+              t={tCalendar}
             />
           </CardContent>
         </Card>

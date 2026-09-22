@@ -32,6 +32,7 @@ export default async function WebsiteContentPage({
       articles={articles}
       researching={site.status === "researching"}
       t={t.app.research}
+      tCalendar={t.app.calendar}
     />
   );
 }

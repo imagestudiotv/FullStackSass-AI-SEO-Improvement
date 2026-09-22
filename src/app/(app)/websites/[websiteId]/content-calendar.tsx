@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import type { Messages } from "@/lib/i18n/messages";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 
@@ -154,10 +155,13 @@ export function ContentCalendar({
   websiteId,
   calendar,
   articles,
+  t,
 }: {
   websiteId: string;
   calendar: CalendarRow[];
   articles: ArticleRow[];
+  /** This screen's copy, already in the reader's language. */
+  t: Messages["app"]["calendar"];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -272,7 +276,7 @@ export function ContentCalendar({
         toast.error(result.error);
         return;
       }
-      toast.success("Saved — we will use this when writing");
+      toast.success(t.savedInstructions);
       router.refresh();
     });
   }
@@ -286,7 +290,7 @@ export function ContentCalendar({
         toast.error(result.error);
         return;
       }
-      toast.success("Removed from the plan");
+      toast.success(t.removedFromPlan);
       router.refresh();
     });
   }
@@ -300,7 +304,7 @@ export function ContentCalendar({
         toast.error(result.error);
         return;
       }
-      toast.success("Writing started — it takes a few minutes");
+      toast.success(t.writingStarted);
       router.refresh();
     });
   }
@@ -417,7 +421,7 @@ export function ContentCalendar({
               type="button"
               variant="ghost"
               size="sm"
-              aria-label="Change topic"
+              aria-label={t.changeTopic}
               disabled={pending}
               onClick={() => {
                 setEditingId(item.id);
@@ -431,7 +435,7 @@ export function ContentCalendar({
               type="button"
               variant="ghost"
               size="sm"
-              aria-label="Add instructions"
+              aria-label={t.addInstructions}
               disabled={pending}
               onClick={() => {
                 setNotesId(item.id);
@@ -449,7 +453,7 @@ export function ContentCalendar({
               type="button"
               variant="ghost"
               size="sm"
-              aria-label="Remove from plan"
+              aria-label={t.removeFromPlan}
               disabled={pending}
               onClick={() => remove(item.id)}
               className="h-6 px-1.5 text-muted-foreground hover:text-destructive"
@@ -469,7 +473,7 @@ export function ContentCalendar({
             onKeyDown={(event) => {
               if (event.key === "Escape") setNotesId(null);
             }}
-            placeholder="Anything this article should cover or avoid."
+            placeholder={t.instructionsPlaceholder}
             className="mt-1.5 w-full rounded border border-input bg-transparent p-1.5 text-[0.65rem] outline-none focus-visible:border-ring"
           />
         ) : null}
@@ -497,7 +501,7 @@ export function ContentCalendar({
             type="button"
             variant="outline"
             size="sm"
-            aria-label="Previous month"
+            aria-label={t.previousMonth}
             onClick={() => shiftMonth(-1)}
           >
             <ChevronLeft className="size-4" />
@@ -512,7 +516,7 @@ export function ContentCalendar({
             type="button"
             variant="outline"
             size="sm"
-            aria-label="Next month"
+            aria-label={t.nextMonth}
             onClick={() => shiftMonth(1)}
           >
             <ChevronRight className="size-4" />

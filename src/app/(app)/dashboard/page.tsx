@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { PageHeader, PageShell } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/states";
 import { requireSession } from "@/lib/auth-guard";
+import { getAppMessages } from "@/lib/i18n/app-locale";
 import { getDashboardOverview } from "@/lib/dashboard/overview";
 import { getOnboardingState } from "@/lib/onboarding/steps";
 import { requireOrg } from "@/lib/tenant";
@@ -42,7 +43,7 @@ export const dynamic = "force-dynamic";
 export default async function DashboardPage({
   searchParams,
 }: PageProps<"/dashboard">) {
-  await requireSession();
+  const session = await requireSession();
 
   /**
    * A customer who has not finished setting up goes to the guided flow rather
@@ -58,18 +59,19 @@ export default async function DashboardPage({
   }
 
   const websites = await listWebsites();
+  const { t } = await getAppMessages(session.user.id);
 
   if (websites.length === 0) {
     return (
       <PageShell>
         <EmptyState
-          title="No website connected yet"
-          description="Add your website and we will start finding the search terms your customers actually use."
+          title={t.app.dashboard.noWebsite}
+          description={t.app.dashboard.noWebsiteHelp}
           action={
             <Button asChild>
               <Link href="/websites/new">
                 <Plus className="size-4" />
-                Add website
+                {t.app.dashboard.addWebsite}
               </Link>
             </Button>
           }
@@ -104,8 +106,8 @@ export default async function DashboardPage({
     return (
       <PageShell>
         <EmptyState
-          title="We could not load this website"
-          description="Try again, or pick a different website."
+          title={t.app.dashboard.couldNotLoad}
+          description={t.app.dashboard.couldNotLoadHelp}
         />
       </PageShell>
     );
@@ -119,11 +121,13 @@ export default async function DashboardPage({
         sites has to remember what the switcher is set to.
       */}
       <PageHeader
-        title="SEO overview"
-        description={`How ${current.domain} is performing in search.`}
+        title={t.app.dashboard.overview}
+        description={t.app.dashboard.performing(current.domain)}
         actions={
           <Button asChild variant="outline" size="sm">
-            <Link href={`/websites/${current.id}`}>Open website</Link>
+            <Link href={`/websites/${current.id}`}>
+              {t.app.dashboard.openWebsite}
+            </Link>
           </Button>
         }
       />
