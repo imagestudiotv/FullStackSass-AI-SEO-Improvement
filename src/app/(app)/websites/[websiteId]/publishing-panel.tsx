@@ -209,26 +209,68 @@ export function PublishingPanel({
           </ul>
         )}
 
-        {/* Choose a destination. */}
+        {/*
+          Choose a destination — a card grid, as the client drew it.
+
+          It was a row of small outline buttons. The design gives each
+          platform a card with its name, what connecting does, and a state:
+          "Connected" with a Manage action, or "+ Connect". That difference
+          is not decoration — the row of buttons could not show which
+          platforms were already connected without reading the list above it,
+          so the same information appeared twice and neither place was
+          obviously the answer.
+
+          Each card still opens the same generated credential form below, so
+          adding a provider to the registry still adds a card with no work
+          here.
+        */}
         {selected === null ? (
-          <div className="flex flex-wrap gap-2">
-            {providers.map((provider) => (
-              <Button
-                key={provider.id}
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setAdding(provider.id);
-                  setValues({});
-                }}
-                disabled={pending}
-              >
-                <Plus className="size-4" />
-                {connectedKinds.has(provider.id)
-                  ? `Reconnect ${provider.name}`
-                  : provider.name}
-              </Button>
-            ))}
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {providers.map((provider) => {
+              const connected = connectedKinds.has(provider.id);
+              return (
+                <div
+                  key={provider.id}
+                  className={`flex flex-col rounded-xl border p-4 ${
+                    connected ? "border-emerald-500/40 bg-emerald-500/5" : ""
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="font-medium">{provider.name}</p>
+                    {connected ? (
+                      <span className="flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                        <Check className="size-3" aria-hidden="true" />
+                        Connected
+                      </span>
+                    ) : null}
+                  </div>
+
+                  <p className="mt-1 flex-1 text-sm text-muted-foreground">
+                    {provider.description}
+                  </p>
+
+                  <Button
+                    variant={connected ? "secondary" : "outline"}
+                    size="sm"
+                    className="mt-3 self-start"
+                    onClick={() => {
+                      setAdding(provider.id);
+                      setValues({});
+                    }}
+                    disabled={pending}
+                  >
+                    {connected ? (
+                      "Manage"
+                    ) : (
+                      <>
+                        <Plus className="size-4" />
+                        Connect
+                      </>
+                    )}
+                  </Button>
+                </div>
+              );
+            })}
           </div>
         ) : (
           /*

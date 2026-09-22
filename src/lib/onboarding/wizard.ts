@@ -16,7 +16,13 @@
  */
 
 export type WizardStepId =
-  "website" | "setup" | "plan" | "visibility" | "content" | "done";
+  | "website"
+  | "setup"
+  | "plan"
+  | "google"
+  | "visibility"
+  | "content"
+  | "done";
 
 export type WizardStep = {
   id: WizardStepId;
@@ -42,6 +48,19 @@ export type WizardStep = {
 export const WIZARD_STEPS: WizardStep[] = [
   { id: "website", label: "Website", href: "/onboarding/website" },
   { id: "plan", label: "Plan", href: "/onboarding/plan" },
+  /*
+    Connect Google, at the client's request: "This is on our onboarding step
+    3 - Connect Google."
+
+    Straight after paying, because Analytics and Search Console are what
+    make the later screens show real numbers rather than empty states - and
+    because the consent screen is a detour it is better to take once, early,
+    than to meet later while reading a report.
+
+    Skippable. OAuth with a third party can fail for reasons nothing here
+    controls, and a customer who has paid must never be stuck behind it.
+  */
+  { id: "google", label: "Connect Google", href: "/onboarding/google" },
   { id: "visibility", label: "AI visibility", href: "/onboarding/visibility" },
   { id: "content", label: "Content & backlinks", href: "/onboarding/content" },
   /*

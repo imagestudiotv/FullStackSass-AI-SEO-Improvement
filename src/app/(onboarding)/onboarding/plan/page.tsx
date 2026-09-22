@@ -52,7 +52,19 @@ export default async function OnboardingPlanPage({
    * plan — which would read as being asked to pay twice, and on a page whose
    * only button starts a checkout, that is worse than a detour.
    */
-  if (state.hasPlan) redirect("/onboarding/visibility");
+  if (state.hasPlan) {
+    /*
+      To Connect Google, the step that now follows billing — not straight to
+      AI visibility. Carrying ?site= matters here: this redirect fires the
+      moment a webhook lands, and dropping the parameter would send someone
+      adding their SECOND website into setup for their first.
+    */
+    redirect(
+      siteParam
+        ? `/onboarding/google?site=${siteParam}`
+        : "/onboarding/google",
+    );
+  }
 
   /**
    * Just paid, but the subscription has not landed yet.
