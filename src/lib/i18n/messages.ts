@@ -858,6 +858,8 @@ export type Messages = {
       admin: string;
       articleLanguageHelp: string;
       namedInstead: string;
+      mostPopular: string;
+      receiptInPayPal: string;
       notAvailable: string;
       notAvailableHelp: string;
       backToDashboard: string;
@@ -1897,6 +1899,8 @@ const en: Messages = {
       admin: "Admin",
       articleLanguageHelp: "Your articles are written in this language.",
       namedInstead: "Named instead of you, most often",
+      mostPopular: "Most popular",
+      receiptInPayPal: "Receipt in PayPal",
       notAvailable: "This page is not available",
       notAvailableHelp: "The page may have moved, or it belongs to a workspace you are not a member of.",
       backToDashboard: "Back to dashboard",
@@ -2946,6 +2950,8 @@ const es: Messages = {
       admin: "Administración",
       articleLanguageHelp: "Sus artículos se escriben en este idioma.",
       namedInstead: "Mencionados en su lugar con más frecuencia",
+      mostPopular: "Más popular",
+      receiptInPayPal: "Recibo en PayPal",
       notAvailable: "Esta página no está disponible",
       notAvailableHelp: "Puede que la página se haya movido o que pertenezca a un espacio de trabajo del que no forma parte.",
       backToDashboard: "Volver al panel",
@@ -3998,6 +4004,8 @@ const fr: Messages = {
       admin: "Administration",
       articleLanguageHelp: "Vos articles sont rédigés dans cette langue.",
       namedInstead: "Cités à votre place, le plus souvent",
+      mostPopular: "Le plus choisi",
+      receiptInPayPal: "Reçu dans PayPal",
       notAvailable: "Cette page n\u2019est pas disponible",
       notAvailableHelp: "La page a peut-être été déplacée, ou elle appartient à un espace de travail dont vous n\u2019êtes pas membre.",
       backToDashboard: "Retour au tableau de bord",
@@ -5043,6 +5051,8 @@ const it: Messages = {
       admin: "Amministrazione",
       articleLanguageHelp: "I suoi articoli vengono scritti in questa lingua.",
       namedInstead: "Citati al suo posto, più spesso",
+      mostPopular: "Il più scelto",
+      receiptInPayPal: "Ricevuta in PayPal",
       notAvailable: "Questa pagina non è disponibile",
       notAvailableHelp: "La pagina potrebbe essere stata spostata, oppure appartiene a uno spazio di lavoro di cui non fa parte.",
       backToDashboard: "Torna alla dashboard",
@@ -6095,6 +6105,8 @@ const de: Messages = {
       admin: "Verwaltung",
       articleLanguageHelp: "Ihre Artikel werden in dieser Sprache verfasst.",
       namedInstead: "Werden am häufigsten statt Ihrer genannt",
+      mostPopular: "Am beliebtesten",
+      receiptInPayPal: "Beleg in PayPal",
       notAvailable: "Diese Seite ist nicht verfügbar",
       notAvailableHelp: "Die Seite wurde möglicherweise verschoben oder gehört zu einem Arbeitsbereich, in dem Sie kein Mitglied sind.",
       backToDashboard: "Zurück zum Dashboard",

@@ -52,11 +52,14 @@ export function AddonsPanel({
   addons,
   purchases,
   t,
+  tCommon,
 }: {
   addons: AddonRow[];
   purchases: PurchaseRow[];
   /** This screen's copy, already in the reader's language. */
   t: Messages["app"]["addons"];
+  /** Shared words used on several screens. */
+  tCommon: Messages["app"]["common"];
 }) {
   const [pendingId, setPendingId] = useState<string | null>(null);
 
@@ -143,7 +146,7 @@ export function AddonsPanel({
                 >
                   {featured ? (
                     <Badge className="absolute -top-2.5 right-4 shadow-sm">
-                      Most popular
+                      {tCommon.mostPopular}
                     </Badge>
                   ) : null}
 

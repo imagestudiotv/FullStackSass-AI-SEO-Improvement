@@ -102,7 +102,7 @@ export function PaymentsPanel({
                   is more use than a dead link or a silent blank.
                 */
                 <span className="text-xs text-muted-foreground">
-                  Receipt in PayPal
+                  {t.receiptInPayPal}
                 </span>
               )}
             </li>

@@ -280,7 +280,7 @@ export function ArticleSettingsForm({
         <div>
           <h2 className="text-base font-semibold">{t.contentDetails}</h2>
           <p className="text-sm text-muted-foreground">
-            Where your content lives, so we can link to it and match its shape.
+            {t.contentDetailsHelp}
           </p>
         </div>
 
@@ -315,7 +315,7 @@ export function ArticleSettingsForm({
         <div>
           <h2 className="text-base font-semibold">{t.engagement}</h2>
           <p className="text-sm text-muted-foreground">
-            How articles look, and what gets added alongside the words.
+            {t.engagementHelp}
           </p>
         </div>
 
@@ -536,7 +536,7 @@ export function ArticleSettingsForm({
         <div>
           <h2 className="text-base font-semibold">{t.author}</h2>
           <p className="text-sm text-muted-foreground">
-            The byline shown on each article, here and on your live site.
+            {t.authorHelp}
           </p>
         </div>
 
@@ -563,7 +563,7 @@ export function ArticleSettingsForm({
             className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
           />
           <p className="text-xs text-muted-foreground">
-            Left empty, articles publish without a byline.
+            {t.noBylineHelp}
           </p>
         </div>
       </section>

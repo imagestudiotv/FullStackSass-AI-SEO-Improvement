@@ -127,6 +127,7 @@ export default async function BillingPage({
             addons={addons}
             purchases={purchases}
             t={t.app.addons}
+          tCommon={t.app.common}
           />
         </div>
 
