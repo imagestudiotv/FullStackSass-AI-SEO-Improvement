@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { authClient } from "@/lib/auth-client";
 import { LOCALE_NAMES, LOCALES, type Locale } from "@/lib/i18n/config";
+import type { Messages } from "@/lib/i18n/messages";
 
 /**
  * Personal details: name, email, password, and the dashboard language.
@@ -34,15 +35,6 @@ import { LOCALE_NAMES, LOCALES, type Locale } from "@/lib/i18n/config";
  */
 
 /**
- * Languages the interface could be shown in.
- *
- * ONLY ENGLISH IS OFFERED, and the select says so. The design shows a
- * dropdown, and it would be easy to list eight languages here — but nothing
- * in this app is translated, so picking one would change the label and
- * nothing else. A control that appears to work and does not is worse than
- * one that is honest about being the only option.
- */
-/**
  * The languages the dashboard is offered in.
  *
  * Read from the shared config rather than listed here, so this control and
@@ -57,12 +49,15 @@ export function PersonalDetails({
   /** False when the account signs in with Google and has no password to change. */
   hasPassword,
   initialLocale,
+  t,
 }: {
   initialName: string;
   email: string;
   hasPassword: boolean;
   /** The language the dashboard is currently rendered in. */
   initialLocale: Locale;
+  /** This screen's copy, already in the reader's language. */
+  t: Messages["app"]["settings"];
 }) {
   const router = useRouter();
   const [name, setName] = useState(initialName);
@@ -79,11 +74,11 @@ export function PersonalDetails({
       const trimmed = name.trim();
       const { error } = await authClient.updateUser({ name: trimmed });
       if (error) {
-        toast.error(error.message ?? "Could not save your name");
+        toast.error(error.message ?? t.nameError);
         return;
       }
       setSavedName(trimmed);
-      toast.success("Name updated");
+      toast.success(t.nameSaved);
       // The sidebar and the account menu render it too.
       router.refresh();
     });
@@ -109,7 +104,7 @@ export function PersonalDetails({
       setSavingLocale(false);
       if (error) {
         setLocale(previous);
-        toast.error(error.message ?? "Could not save your language");
+        toast.error(error.message ?? t.languageError);
         return;
       }
       // Every server component re-reads the preference on the next render.
@@ -120,18 +115,18 @@ export function PersonalDetails({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Personal details</CardTitle>
-        <CardDescription>Your personal account details</CardDescription>
+        <CardTitle className="text-base">{t.personalTitle}</CardTitle>
+        <CardDescription>{t.personalSubtitle}</CardDescription>
       </CardHeader>
 
       <CardContent className="space-y-5">
         <div className="space-y-1.5">
-          <Label htmlFor="account-name">Name</Label>
+          <Label htmlFor="account-name">{t.nameLabel}</Label>
           <Input
             id="account-name"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Your name"
+            placeholder={t.namePlaceholder}
           />
           {/*
             The save appears only once the name has actually changed, rather
@@ -144,10 +139,10 @@ export function PersonalDetails({
                 {pending ? (
                   <>
                     <Loader2 className="size-4 animate-spin" />
-                    Saving…
+                    {t.saving}
                   </>
                 ) : (
-                  "Save name"
+                  t.saveName
                 )}
               </Button>
               <Button
@@ -156,7 +151,7 @@ export function PersonalDetails({
                 onClick={() => setName(savedName)}
                 disabled={pending}
               >
-                Cancel
+                {t.cancel}
               </Button>
             </div>
           ) : null}
@@ -164,7 +159,7 @@ export function PersonalDetails({
 
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="min-w-0 space-y-1">
-            <p className="text-sm font-medium">Email</p>
+            <p className="text-sm font-medium">{t.emailLabel}</p>
             <p className="truncate text-sm text-muted-foreground">{email}</p>
           </div>
 
@@ -174,7 +169,7 @@ export function PersonalDetails({
               size="sm"
               onClick={() => setChanging((open) => !open)}
             >
-              Change password
+              {t.changePassword}
             </Button>
           ) : (
             /*
@@ -183,16 +178,16 @@ export function PersonalDetails({
               exist, and the failure would look like a bug rather than an
               explanation.
             */
-            <p className="text-xs text-muted-foreground">
-              You sign in with Google
-            </p>
+            <p className="text-xs text-muted-foreground">{t.googleNote}</p>
           )}
         </div>
 
-        {changing ? <ChangePassword onDone={() => setChanging(false)} /> : null}
+        {changing ? (
+          <ChangePassword onDone={() => setChanging(false)} t={t} />
+        ) : null}
 
         <div className="space-y-1.5">
-          <Label htmlFor="dashboard-language">Dashboard language</Label>
+          <Label htmlFor="dashboard-language">{t.languageLabel}</Label>
           <select
             id="dashboard-language"
             value={locale}
@@ -208,10 +203,7 @@ export function PersonalDetails({
               </option>
             ))}
           </select>
-          <p className="text-xs text-muted-foreground">
-            The language of this dashboard. Your articles are written in the
-            language set on the Business tab.
-          </p>
+          <p className="text-xs text-muted-foreground">{t.languageHelp}</p>
         </div>
       </CardContent>
     </Card>
@@ -229,7 +221,13 @@ export function PersonalDetails({
  * doing it because they think someone else has it; leaving other sessions
  * signed in would defeat the point of the exercise.
  */
-function ChangePassword({ onDone }: { onDone: () => void }) {
+function ChangePassword({
+  onDone,
+  t,
+}: {
+  onDone: () => void;
+  t: Messages["app"]["settings"];
+}) {
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [pending, startTransition] = useTransition();
@@ -239,7 +237,7 @@ function ChangePassword({ onDone }: { onDone: () => void }) {
 
     // Matches the sign-up rule, so the two screens cannot disagree.
     if (next.length < 8) {
-      toast.error("Use at least 8 characters");
+      toast.error(t.passwordTooShort);
       return;
     }
 
@@ -251,13 +249,13 @@ function ChangePassword({ onDone }: { onDone: () => void }) {
       });
 
       if (error) {
-        toast.error(error.message ?? "Could not change your password");
+        toast.error(error.message ?? t.passwordError);
         return;
       }
 
       setCurrent("");
       setNext("");
-      toast.success("Password changed. Other devices have been signed out.");
+      toast.success(t.passwordSaved);
       onDone();
     });
   }
@@ -268,7 +266,7 @@ function ChangePassword({ onDone }: { onDone: () => void }) {
       className="space-y-3 rounded-xl border bg-muted/30 p-4"
     >
       <div className="space-y-1.5">
-        <Label htmlFor="current-password">Current password</Label>
+        <Label htmlFor="current-password">{t.currentPassword}</Label>
         <Input
           id="current-password"
           type="password"
@@ -280,7 +278,7 @@ function ChangePassword({ onDone }: { onDone: () => void }) {
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="new-password">New password</Label>
+        <Label htmlFor="new-password">{t.newPassword}</Label>
         <Input
           id="new-password"
           type="password"
@@ -289,9 +287,7 @@ function ChangePassword({ onDone }: { onDone: () => void }) {
           onChange={(e) => setNext(e.target.value)}
           required
         />
-        <p className="text-xs text-muted-foreground">
-          At least 8 characters. Other devices will be signed out.
-        </p>
+        <p className="text-xs text-muted-foreground">{t.passwordHelp}</p>
       </div>
 
       <div className="flex gap-2">
@@ -299,14 +295,14 @@ function ChangePassword({ onDone }: { onDone: () => void }) {
           {pending ? (
             <>
               <Loader2 className="size-4 animate-spin" />
-              Changing…
+              {t.changing}
             </>
           ) : (
-            "Change password"
+            t.changePassword
           )}
         </Button>
         <Button type="button" size="sm" variant="ghost" onClick={onDone}>
-          Cancel
+          {t.cancel}
         </Button>
       </div>
     </form>

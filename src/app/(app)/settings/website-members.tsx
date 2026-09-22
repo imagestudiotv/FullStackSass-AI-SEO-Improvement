@@ -51,6 +51,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import type { Messages } from "@/lib/i18n/messages";
 import {
   addWebsiteMember,
   listWebsiteMembers,
@@ -78,11 +79,14 @@ export function WebsiteMembers({
   sites,
   initialWebsiteId,
   initialMembers,
+  t,
 }: {
   /** Every website this person owns. Access is granted per site. */
   sites: OwnedSite[];
   initialWebsiteId: string;
   initialMembers: WebsiteMember[];
+  /** This screen's copy, already in the reader's language. */
+  t: Messages["app"]["settings"];
 }) {
   const router = useRouter();
   const [websiteId, setWebsiteId] = useState(initialWebsiteId);
@@ -190,45 +194,39 @@ export function WebsiteMembers({
       */}
       <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
         <div className="space-y-1.5">
-          <CardTitle className="text-base">Members &amp; roles</CardTitle>
-          <CardDescription>
-            Access is given one website at a time. Someone invited here will not
-            see your other sites or your billing.
-          </CardDescription>
+          <CardTitle className="text-base">{t.membersTitle}</CardTitle>
+          <CardDescription>{t.membersSubtitle}</CardDescription>
         </div>
 
         <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
           <DialogTrigger asChild>
             <Button size="sm">
               <UserPlus className="size-4" aria-hidden="true" />
-              Add member
+              {t.addMember}
             </Button>
           </DialogTrigger>
 
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Add member</DialogTitle>
-              <DialogDescription>
-                They need a RepGet account already. Invite them to {domain} by
-                the email they signed up with.
-              </DialogDescription>
+              <DialogTitle>{t.addMember}</DialogTitle>
+              <DialogDescription>{t.addMemberHelp}</DialogDescription>
             </DialogHeader>
 
             <form onSubmit={invite} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="member-email">Email</Label>
+                <Label htmlFor="member-email">{t.emailLabel}</Label>
                 <Input
                   id="member-email"
                   type="email"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
-                  placeholder="editor@example.com"
+                  placeholder={t.emailPlaceholder}
                   autoComplete="off"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="member-role">Role</Label>
+                <Label htmlFor="member-role">{t.roleColumn}</Label>
                 <Select
                   value={role}
                   onValueChange={(next) => setRole(next as "editor" | "viewer")}
@@ -237,14 +235,11 @@ export function WebsiteMembers({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="editor">Editor</SelectItem>
-                    <SelectItem value="viewer">Viewer</SelectItem>
+                    <SelectItem value="editor">{t.roleEditor}</SelectItem>
+                    <SelectItem value="viewer">{t.roleViewer}</SelectItem>
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-muted-foreground">
-                  An editor can write, edit and publish articles on {domain}. A
-                  viewer can read only.
-                </p>
+                <p className="text-xs text-muted-foreground">{t.roleHelp}</p>
               </div>
 
               <DialogFooter>
@@ -254,7 +249,7 @@ export function WebsiteMembers({
                   ) : (
                     <UserPlus className="size-4" aria-hidden="true" />
                   )}
-                  Invite
+                  {t.invite}
                 </Button>
               </DialogFooter>
             </form>
@@ -270,7 +265,7 @@ export function WebsiteMembers({
         */}
         {sites.length > 1 ? (
           <div className="max-w-xs space-y-2">
-            <Label htmlFor="member-website">Website</Label>
+            <Label htmlFor="member-website">{t.websiteLabel}</Label>
             <Select value={websiteId} onValueChange={pickWebsite}>
               <SelectTrigger id="member-website" className="w-full">
                 <SelectValue />
@@ -289,7 +284,7 @@ export function WebsiteMembers({
         {loadingMembers ? (
           <div className="flex items-center justify-center gap-2 rounded-xl border border-dashed p-8 text-sm text-muted-foreground">
             <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-            Loading people on {domain}
+            {t.loadingPeople}
           </div>
         ) : (
           /*
@@ -300,12 +295,12 @@ export function WebsiteMembers({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Member</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>{t.memberColumn}</TableHead>
+                <TableHead>{t.roleColumn}</TableHead>
+                <TableHead>{t.statusColumn}</TableHead>
                 {/* The ⋮ column. Headed for screen readers, blank on screen. */}
                 <TableHead className="w-12">
-                  <span className="sr-only">Actions</span>
+                  <span className="sr-only">{t.actionsColumn}</span>
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -317,8 +312,7 @@ export function WebsiteMembers({
                     colSpan={4}
                     className="py-10 text-center text-sm text-muted-foreground"
                   >
-                    Nobody else on {domain}. Invite a colleague or a freelance
-                    editor to work on this website.
+                    {t.nobodyElse}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -386,7 +380,7 @@ export function WebsiteMembers({
                           className="size-1.5 rounded-full bg-emerald-500"
                           aria-hidden="true"
                         />
-                        Active
+                        {t.active}
                       </span>
                     </TableCell>
 
@@ -425,7 +419,7 @@ export function WebsiteMembers({
                               onClick={() => remove(member.id, member.email)}
                             >
                               <Trash2 className="size-4" aria-hidden="true" />
-                              Remove access
+                              {t.removeAccess}
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>

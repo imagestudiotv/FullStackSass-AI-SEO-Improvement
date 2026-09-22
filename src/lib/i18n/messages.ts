@@ -343,6 +343,65 @@ export type Messages = {
     accountNote: string;
   };
   legalNotice: string;
+
+  /**
+   * The signed-in app.
+   *
+   * Separate from the marketing keys above because the two are translated on
+   * different schedules and by different standards: marketing copy is read by
+   * strangers deciding whether to trust us, app copy by customers who already
+   * have. Keeping them in one file means one dictionary to load and one type
+   * to satisfy, and a missing key in any language is a compile error.
+   */
+  app: {
+    settings: {
+      /** Personal details card. */
+      personalTitle: string;
+      personalSubtitle: string;
+      nameLabel: string;
+      namePlaceholder: string;
+      save: string;
+      saving: string;
+      cancel: string;
+      nameSaved: string;
+      nameError: string;
+      emailLabel: string;
+      changePassword: string;
+      googleNote: string;
+      languageLabel: string;
+      languageHelp: string;
+      languageError: string;
+      /** Change-password form. */
+      currentPassword: string;
+      newPassword: string;
+      updatePassword: string;
+      passwordSaved: string;
+      passwordTooShort: string;
+      passwordError: string;
+      passwordHelp: string;
+      changing: string;
+      saveName: string;
+      /** Members & roles card. */
+      membersTitle: string;
+      membersSubtitle: string;
+      addMember: string;
+      addMemberHelp: string;
+      memberColumn: string;
+      roleColumn: string;
+      statusColumn: string;
+      actionsColumn: string;
+      active: string;
+      removeAccess: string;
+      websiteLabel: string;
+      emailPlaceholder: string;
+      roleHelp: string;
+      invite: string;
+      nobodyElse: string;
+      loadingPeople: string;
+      roleEditor: string;
+      roleViewer: string;
+    };
+  };
 };
 
 const en: Messages = {
@@ -856,8 +915,54 @@ const en: Messages = {
     accountNote:
       "If you are writing about your account, please send it from the address you signed up with.",
   },
-  legalNotice:
-    "This page is available in English only. Translations of our legal terms are prepared by a professional translator before publication.",
+  legalNotice: "This page is available in English only. Translations of our legal terms are prepared by a professional translator before publication.",
+
+  app: {
+    settings: {
+      personalTitle: "Personal details",
+      personalSubtitle: "Your personal account details",
+      nameLabel: "Name",
+      namePlaceholder: "Your name",
+      save: "Save",
+      saving: "Saving…",
+      cancel: "Cancel",
+      nameSaved: "Name updated",
+      nameError: "Could not save your name",
+      emailLabel: "Email",
+      changePassword: "Change password",
+      googleNote: "You sign in with Google",
+      languageLabel: "Dashboard language",
+      languageHelp: "The language of this dashboard. Your articles are written in the language set on the Business tab.",
+      languageError: "Could not save your language",
+      currentPassword: "Current password",
+      newPassword: "New password",
+      updatePassword: "Update password",
+      passwordSaved: "Password changed. Other devices have been signed out.",
+      passwordTooShort: "Use at least 8 characters",
+      passwordError: "Could not change your password",
+      passwordHelp: "At least 8 characters. Other devices will be signed out.",
+      changing: "Changing…",
+      saveName: "Save name",
+      membersTitle: "Members & roles",
+      membersSubtitle: "Access is given one website at a time. Someone invited here will not see your other sites or your billing.",
+      addMember: "Add member",
+      addMemberHelp: "They need a RepGet account already. Invite them by the email they signed up with.",
+      memberColumn: "Member",
+      roleColumn: "Role",
+      statusColumn: "Status",
+      actionsColumn: "Actions",
+      active: "Active",
+      removeAccess: "Remove access",
+      websiteLabel: "Website",
+      emailPlaceholder: "editor@example.com",
+      roleHelp: "An editor can write, edit and publish articles. A viewer can read only.",
+      invite: "Invite",
+      nobodyElse: "Nobody else here yet. Invite a colleague or a freelance editor to work on this website.",
+      loadingPeople: "Loading people",
+      roleEditor: "Editor",
+      roleViewer: "Viewer",
+    },
+  },
 };
 
 const es: Messages = {
@@ -1379,8 +1484,54 @@ const es: Messages = {
     accountNote:
       "Si escribe sobre su cuenta, hágalo desde la dirección con la que se registró.",
   },
-  legalNotice:
-    "Esta página solo está disponible en inglés. Las traducciones de nuestros términos legales las prepara un traductor profesional antes de su publicación.",
+  legalNotice: "Esta página solo está disponible en inglés. Las traducciones de nuestros términos legales las prepara un traductor profesional antes de su publicación.",
+
+  app: {
+    settings: {
+      personalTitle: "Datos personales",
+      personalSubtitle: "Los datos de su cuenta",
+      nameLabel: "Nombre",
+      namePlaceholder: "Su nombre",
+      save: "Guardar",
+      saving: "Guardando…",
+      cancel: "Cancelar",
+      nameSaved: "Nombre actualizado",
+      nameError: "No se pudo guardar su nombre",
+      emailLabel: "Correo electrónico",
+      changePassword: "Cambiar contraseña",
+      googleNote: "Inicia sesión con Google",
+      languageLabel: "Idioma del panel",
+      languageHelp: "El idioma de este panel. Sus artículos se escriben en el idioma configurado en la pestaña Negocio.",
+      languageError: "No se pudo guardar su idioma",
+      currentPassword: "Contraseña actual",
+      newPassword: "Nueva contraseña",
+      updatePassword: "Actualizar contraseña",
+      passwordSaved: "Contraseña cambiada. Se ha cerrado la sesión en los demás dispositivos.",
+      passwordTooShort: "Use al menos 8 caracteres",
+      passwordError: "No se pudo cambiar su contraseña",
+      passwordHelp: "Al menos 8 caracteres. Se cerrará la sesión en los demás dispositivos.",
+      changing: "Cambiando…",
+      saveName: "Guardar nombre",
+      membersTitle: "Miembros y funciones",
+      membersSubtitle: "El acceso se concede a un sitio web a la vez. Quien reciba una invitación aquí no verá sus otros sitios ni su facturación.",
+      addMember: "Añadir miembro",
+      addMemberHelp: "Necesitan tener ya una cuenta de RepGet. Invítelos con el correo con el que se registraron.",
+      memberColumn: "Miembro",
+      roleColumn: "Función",
+      statusColumn: "Estado",
+      actionsColumn: "Acciones",
+      active: "Activo",
+      removeAccess: "Retirar acceso",
+      websiteLabel: "Sitio web",
+      emailPlaceholder: "editor@example.com",
+      roleHelp: "Un editor puede escribir, editar y publicar artículos. Un lector solo puede consultar.",
+      invite: "Invitar",
+      nobodyElse: "Todavía no hay nadie más. Invite a un colega o a un editor externo a trabajar en este sitio web.",
+      loadingPeople: "Cargando personas",
+      roleEditor: "Editor",
+      roleViewer: "Lector",
+    },
+  },
 };
 
 const fr: Messages = {
@@ -1905,8 +2056,54 @@ const fr: Messages = {
     accountNote:
       "Si votre message concerne votre compte, envoyez-le depuis l'adresse utilisée lors de l'inscription.",
   },
-  legalNotice:
-    "Cette page n'est disponible qu'en anglais. Les traductions de nos conditions légales sont réalisées par un traducteur professionnel avant publication.",
+  legalNotice: "Cette page n'est disponible qu'en anglais. Les traductions de nos conditions légales sont réalisées par un traducteur professionnel avant publication.",
+
+  app: {
+    settings: {
+      personalTitle: "Informations personnelles",
+      personalSubtitle: "Les informations de votre compte",
+      nameLabel: "Nom",
+      namePlaceholder: "Votre nom",
+      save: "Enregistrer",
+      saving: "Enregistrement…",
+      cancel: "Annuler",
+      nameSaved: "Nom mis à jour",
+      nameError: "Impossible d\u2019enregistrer votre nom",
+      emailLabel: "E-mail",
+      changePassword: "Changer le mot de passe",
+      googleNote: "Vous vous connectez avec Google",
+      languageLabel: "Langue du tableau de bord",
+      languageHelp: "La langue de ce tableau de bord. Vos articles sont rédigés dans la langue définie dans l\u2019onglet Entreprise.",
+      languageError: "Impossible d\u2019enregistrer votre langue",
+      currentPassword: "Mot de passe actuel",
+      newPassword: "Nouveau mot de passe",
+      updatePassword: "Mettre à jour le mot de passe",
+      passwordSaved: "Mot de passe changé. Les autres appareils ont été déconnectés.",
+      passwordTooShort: "Utilisez au moins 8 caractères",
+      passwordError: "Impossible de changer votre mot de passe",
+      passwordHelp: "Au moins 8 caractères. Les autres appareils seront déconnectés.",
+      changing: "Modification…",
+      saveName: "Enregistrer le nom",
+      membersTitle: "Membres et rôles",
+      membersSubtitle: "L\u2019accès est accordé un site à la fois. Une personne invitée ici ne verra ni vos autres sites ni votre facturation.",
+      addMember: "Ajouter un membre",
+      addMemberHelp: "Ils doivent déjà avoir un compte RepGet. Invitez-les avec l\u2019adresse utilisée à l\u2019inscription.",
+      memberColumn: "Membre",
+      roleColumn: "Rôle",
+      statusColumn: "Statut",
+      actionsColumn: "Actions",
+      active: "Actif",
+      removeAccess: "Retirer l\u2019accès",
+      websiteLabel: "Site web",
+      emailPlaceholder: "editor@example.com",
+      roleHelp: "Un éditeur peut rédiger, modifier et publier des articles. Un lecteur peut seulement consulter.",
+      invite: "Inviter",
+      nobodyElse: "Personne d\u2019autre pour l\u2019instant. Invitez un collègue ou un éditeur indépendant à travailler sur ce site.",
+      loadingPeople: "Chargement des personnes",
+      roleEditor: "Éditeur",
+      roleViewer: "Lecteur",
+    },
+  },
 };
 
 const it: Messages = {
@@ -2424,8 +2621,54 @@ const it: Messages = {
     accountNote:
       "Se scrive riguardo al suo account, lo faccia dall'indirizzo con cui si è registrato.",
   },
-  legalNotice:
-    "Questa pagina è disponibile solo in inglese. Le traduzioni dei nostri termini legali sono curate da un traduttore professionista prima della pubblicazione.",
+  legalNotice: "Questa pagina è disponibile solo in inglese. Le traduzioni dei nostri termini legali sono curate da un traduttore professionista prima della pubblicazione.",
+
+  app: {
+    settings: {
+      personalTitle: "Dati personali",
+      personalSubtitle: "I dati del suo account",
+      nameLabel: "Nome",
+      namePlaceholder: "Il suo nome",
+      save: "Salva",
+      saving: "Salvataggio…",
+      cancel: "Annulla",
+      nameSaved: "Nome aggiornato",
+      nameError: "Impossibile salvare il nome",
+      emailLabel: "E-mail",
+      changePassword: "Cambia password",
+      googleNote: "Accede con Google",
+      languageLabel: "Lingua del pannello",
+      languageHelp: "La lingua di questo pannello. I suoi articoli vengono scritti nella lingua impostata nella scheda Attività.",
+      languageError: "Impossibile salvare la lingua",
+      currentPassword: "Password attuale",
+      newPassword: "Nuova password",
+      updatePassword: "Aggiorna password",
+      passwordSaved: "Password cambiata. Gli altri dispositivi sono stati disconnessi.",
+      passwordTooShort: "Usi almeno 8 caratteri",
+      passwordError: "Impossibile cambiare la password",
+      passwordHelp: "Almeno 8 caratteri. Gli altri dispositivi verranno disconnessi.",
+      changing: "Modifica in corso…",
+      saveName: "Salva nome",
+      membersTitle: "Membri e ruoli",
+      membersSubtitle: "L\u2019accesso viene concesso un sito alla volta. Chi riceve un invito qui non vedrà gli altri suoi siti né la fatturazione.",
+      addMember: "Aggiungi membro",
+      addMemberHelp: "Devono già avere un account RepGet. Li inviti con l\u2019indirizzo usato per registrarsi.",
+      memberColumn: "Membro",
+      roleColumn: "Ruolo",
+      statusColumn: "Stato",
+      actionsColumn: "Azioni",
+      active: "Attivo",
+      removeAccess: "Revoca accesso",
+      websiteLabel: "Sito web",
+      emailPlaceholder: "editor@example.com",
+      roleHelp: "Un editor può scrivere, modificare e pubblicare articoli. Un lettore può solo consultare.",
+      invite: "Invita",
+      nobodyElse: "Non c\u2019è ancora nessun altro. Inviti un collega o un editor esterno a lavorare su questo sito.",
+      loadingPeople: "Caricamento persone",
+      roleEditor: "Editor",
+      roleViewer: "Lettore",
+    },
+  },
 };
 
 const de: Messages = {
@@ -2950,8 +3193,54 @@ const de: Messages = {
     accountNote:
       "Wenn es um Ihr Konto geht, schreiben Sie bitte von der Adresse, mit der Sie sich registriert haben.",
   },
-  legalNotice:
-    "Diese Seite ist nur auf Englisch verfügbar. Übersetzungen unserer rechtlichen Bedingungen werden vor der Veröffentlichung von einem professionellen Übersetzer erstellt.",
+  legalNotice: "Diese Seite ist nur auf Englisch verfügbar. Übersetzungen unserer rechtlichen Bedingungen werden vor der Veröffentlichung von einem professionellen Übersetzer erstellt.",
+
+  app: {
+    settings: {
+      personalTitle: "Persönliche Daten",
+      personalSubtitle: "Die Daten Ihres Kontos",
+      nameLabel: "Name",
+      namePlaceholder: "Ihr Name",
+      save: "Speichern",
+      saving: "Wird gespeichert…",
+      cancel: "Abbrechen",
+      nameSaved: "Name aktualisiert",
+      nameError: "Ihr Name konnte nicht gespeichert werden",
+      emailLabel: "E-Mail",
+      changePassword: "Passwort ändern",
+      googleNote: "Sie melden sich mit Google an",
+      languageLabel: "Sprache des Dashboards",
+      languageHelp: "Die Sprache dieses Dashboards. Ihre Artikel werden in der Sprache verfasst, die im Tab Unternehmen eingestellt ist.",
+      languageError: "Ihre Sprache konnte nicht gespeichert werden",
+      currentPassword: "Aktuelles Passwort",
+      newPassword: "Neues Passwort",
+      updatePassword: "Passwort aktualisieren",
+      passwordSaved: "Passwort geändert. Andere Geräte wurden abgemeldet.",
+      passwordTooShort: "Verwenden Sie mindestens 8 Zeichen",
+      passwordError: "Ihr Passwort konnte nicht geändert werden",
+      passwordHelp: "Mindestens 8 Zeichen. Andere Geräte werden abgemeldet.",
+      changing: "Wird geändert…",
+      saveName: "Namen speichern",
+      membersTitle: "Mitglieder und Rollen",
+      membersSubtitle: "Der Zugriff wird jeweils für eine Website vergeben. Wer hier eingeladen wird, sieht weder Ihre anderen Websites noch Ihre Abrechnung.",
+      addMember: "Mitglied hinzufügen",
+      addMemberHelp: "Sie brauchen bereits ein RepGet-Konto. Laden Sie sie mit der Adresse ein, mit der sie sich registriert haben.",
+      memberColumn: "Mitglied",
+      roleColumn: "Rolle",
+      statusColumn: "Status",
+      actionsColumn: "Aktionen",
+      active: "Aktiv",
+      removeAccess: "Zugriff entziehen",
+      websiteLabel: "Website",
+      emailPlaceholder: "editor@example.com",
+      roleHelp: "Ein Redakteur kann Artikel schreiben, bearbeiten und veröffentlichen. Ein Leser kann nur lesen.",
+      invite: "Einladen",
+      nobodyElse: "Hier ist noch niemand sonst. Laden Sie eine Kollegin, einen Kollegen oder eine freie Redaktion zu dieser Website ein.",
+      loadingPeople: "Personen werden geladen",
+      roleEditor: "Redakteur",
+      roleViewer: "Leser",
+    },
+  },
 };
 
 const MESSAGES: Record<Locale, Messages> = { en, es, fr, it, de };

@@ -3,7 +3,7 @@ import { SettingsNav } from "@/components/settings-nav";
 import { PageShell } from "@/components/ui/page-header";
 import { and, eq } from "drizzle-orm";
 import { requireSession } from "@/lib/auth-guard";
-import { resolveAppLocale } from "@/lib/i18n/app-locale";
+import { getAppMessages } from "@/lib/i18n/app-locale";
 import { getReferralSummary } from "@/lib/referrals/actions";
 import { REFERRAL_REWARD_CREDITS } from "@/lib/referrals/core";
 import { db } from "@/lib/db";
@@ -24,6 +24,11 @@ export const metadata = { title: "Settings" };
 
 export default async function SettingsPage() {
   const session = await requireSession();
+  /*
+    Resolved once for the page rather than per component. Each call is a
+    query, and several panels on this screen need the same answer.
+  */
+  const { locale, t } = await getAppMessages(session.user.id);
   const referrals = await getReferralSummary();
 
   /**
@@ -95,7 +100,8 @@ export default async function SettingsPage() {
           current password that does not exist.
         */
         hasPassword={hasPassword}
-        initialLocale={await resolveAppLocale(session.user.id)}
+        initialLocale={locale}
+        t={t.app.settings}
       />
 
       {/*
@@ -122,6 +128,7 @@ export default async function SettingsPage() {
           sites={owned}
           initialWebsiteId={selectedSite.id}
           initialMembers={await listWebsiteMembers(selectedSite.id)}
+          t={t.app.settings}
         />
       ) : null}
 
