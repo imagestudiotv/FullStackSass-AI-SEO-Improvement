@@ -136,6 +136,7 @@ export default async function SettingsPage() {
         summary={referrals}
         rewardCredits={REFERRAL_REWARD_CREDITS}
         appUrl={appUrl}
+        t={t.app.referral}
       />
     </PageShell>
   );

@@ -4,6 +4,7 @@ import { Check, Info, Loader2, Package, Sparkles, Wrench } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
+import type { Messages } from "@/lib/i18n/messages";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,10 +26,17 @@ import { formatPrice } from "@/lib/billing-shared";
  * work, not of a particular pack — if one pack ever expired, that would be a
  * different product and would need saying on that card, not editing here.
  */
+/**
+ * Dictionary KEYS, looked up at render.
+ *
+ * A module-level array is built before any locale exists, so it cannot
+ * hold the text itself — the same reason STEP_LABEL and ARTICLE_STATUS
+ * became lookups.
+ */
 const CREDIT_TERMS = [
-  "One-time purchase",
-  "Credits never expire",
-  "Use anytime",
+  "oneTime",
+  "neverExpire",
+  "useAnytime",
 ] as const;
 
 /**
@@ -43,9 +51,12 @@ const CREDIT_TERMS = [
 export function AddonsPanel({
   addons,
   purchases,
+  t,
 }: {
   addons: AddonRow[];
   purchases: PurchaseRow[];
+  /** This screen's copy, already in the reader's language. */
+  t: Messages["app"]["addons"];
 }) {
   const [pendingId, setPendingId] = useState<string | null>(null);
 
@@ -62,7 +73,7 @@ export function AddonsPanel({
       // assigning to an outer value as a mutation, while a method call is not.
       window.location.assign(result.url);
     } catch {
-      toast.error("Could not start checkout. Please try again.");
+      toast.error(t.checkoutFailed);
       setPendingId(null);
     }
   }
@@ -95,16 +106,15 @@ export function AddonsPanel({
             <div>
               <CardTitle className="flex items-center gap-2 text-base">
                 <Sparkles className="size-4" aria-hidden="true" />
-                More link credits
+                {t.moreCredits}
               </CardTitle>
               <CardDescription className="mt-1.5">
-                Your plan includes credits each month. Buy more if you run out —
-                these do not expire.
+                {t.moreCreditsHelp}
               </CardDescription>
             </div>
             <p className="mt-3 inline-flex items-center gap-1.5 self-start rounded-full border px-3 py-1.5 text-xs text-muted-foreground sm:mt-0">
               <Info className="size-3.5 shrink-0" aria-hidden="true" />
-              One-time purchase · Credits never expire
+              {t.termsPill}
             </p>
           </CardHeader>
           <CardContent className="grid items-start gap-4 sm:grid-cols-3">
@@ -174,7 +184,7 @@ export function AddonsPanel({
                           }
                           aria-hidden="true"
                         />
-                        <span>{term}</span>
+                        <span>{t[term]}</span>
                       </li>
                     ))}
                   </ul>
@@ -193,8 +203,8 @@ export function AddonsPanel({
                       <Loader2 className="size-4 animate-spin" />
                     ) : null}
                     {addon.purchasable
-                      ? `Buy ${addon.creditsGranted} credits`
-                      : "Unavailable"}
+                      ? t.buyCredits(addon.creditsGranted)
+                      : t.unavailable}
                   </Button>
                 </div>
               );
@@ -223,7 +233,7 @@ export function AddonsPanel({
               {pendingId === addon.id ? (
                 <Loader2 className="size-4 animate-spin" />
               ) : null}
-              {addon.purchasable ? "Buy this" : "Unavailable"}
+              {addon.purchasable ? t.buyThis : t.unavailable}
             </Button>
           </CardContent>
         </Card>
@@ -247,11 +257,11 @@ export function AddonsPanel({
             <p className="text-sm text-muted-foreground">
               {addon.priceCents > 0
                 ? `From ${formatPrice(addon.priceCents, addon.currency)}. We quote for the work after reviewing your audit.`
-                : "We quote for the work after reviewing your audit."}
+                : t.quoteHelp}
             </p>
             <Button variant="outline" asChild>
               <Link href={`/contact?about=${encodeURIComponent(addon.slug)}`}>
-                Request a quote
+                {t.requestQuote}
               </Link>
             </Button>
           </CardContent>
@@ -261,7 +271,7 @@ export function AddonsPanel({
       {purchases.length > 0 ? (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Your purchases</CardTitle>
+            <CardTitle className="text-base">{t.yourPurchases}</CardTitle>
           </CardHeader>
           <CardContent>
             <ul className="divide-y rounded-xl border">
@@ -285,15 +295,15 @@ export function AddonsPanel({
                   {purchase.kind === "credits" ? (
                     <Badge className="gap-1">
                       <Check className="size-3" aria-hidden="true" />
-                      Added
+                      {t.added}
                     </Badge>
                   ) : purchase.status === "fulfilled" ? (
                     <Badge className="gap-1">
                       <Check className="size-3" aria-hidden="true" />
-                      Delivered
+                      {t.delivered}
                     </Badge>
                   ) : (
-                    <Badge variant="secondary">In progress</Badge>
+                    <Badge variant="secondary">{t.inProgress}</Badge>
                   )}
                 </li>
               ))}

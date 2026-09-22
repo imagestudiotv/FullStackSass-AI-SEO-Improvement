@@ -122,7 +122,11 @@ export default async function BillingPage({
           the customer just asked to be taken to.
         */}
         <div id="addons" className="scroll-mt-20">
-          <AddonsPanel addons={addons} purchases={purchases} />
+          <AddonsPanel
+            addons={addons}
+            purchases={purchases}
+            t={t.app.addons}
+          />
         </div>
 
         <PaymentsPanel payments={paymentRows} />

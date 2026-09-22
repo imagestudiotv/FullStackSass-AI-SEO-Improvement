@@ -49,6 +49,7 @@ export function PublishingPanel({
   integrations,
   pluginKeys,
   t,
+  tKeys,
 }: {
   websiteId: string;
   providers: ProviderInfo[];
@@ -56,6 +57,8 @@ export function PublishingPanel({
   pluginKeys: IntegrationKeyView[];
   /** This screen's copy, already in the reader's language. */
   t: Messages["app"]["publishing"];
+  /** The key panel's own slice, forwarded to it. */
+  tKeys: Messages["app"]["keys"];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -433,7 +436,7 @@ export function PublishingPanel({
             </p>
           </div>
         )}
-        <PluginKeys websiteId={websiteId} keys={pluginKeys} />
+        <PluginKeys websiteId={websiteId} keys={pluginKeys} t={tKeys} />
         {/*
           For developers, as the design separates it.
 

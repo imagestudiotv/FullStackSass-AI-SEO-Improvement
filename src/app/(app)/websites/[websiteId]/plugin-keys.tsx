@@ -12,6 +12,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import type { Messages } from "@/lib/i18n/messages";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,9 +30,12 @@ import type { IntegrationKeyView } from "@/lib/plugin/keys";
 export function PluginKeys({
   websiteId,
   keys,
+  t,
 }: {
   websiteId: string;
   keys: IntegrationKeyView[];
+  /** This screen's copy, already in the reader's language. */
+  t: Messages["app"]["keys"];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -57,10 +61,10 @@ export function PluginKeys({
     try {
       await navigator.clipboard.writeText(freshKey);
       setCopied(true);
-      toast.success("Key copied");
+      toast.success(t.keyCopied);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      toast.error("Could not copy. Select the key and copy it manually.");
+      toast.error(t.keyCopyFailed);
     }
   }
 
@@ -71,7 +75,7 @@ export function PluginKeys({
         toast.error(result.error);
         return;
       }
-      toast.success("Key revoked");
+      toast.success(t.keyRevoked);
       router.refresh();
     });
   }
@@ -118,7 +122,7 @@ export function PluginKeys({
               value={freshKey}
               readOnly
               onFocus={(e) => e.currentTarget.select()}
-              aria-label="Your new integration key"
+              aria-label={t.newKeyLabel}
               className="font-mono text-xs"
             />
             <Button onClick={handleCopy} variant="outline">
@@ -153,7 +157,7 @@ export function PluginKeys({
                   */}
                   {key.lastUsedAt
                     ? `Last used ${new Date(key.lastUsedAt).toLocaleDateString()}`
-                    : "Never used"}
+                    : t.neverUsed}
                   {key.siteInfo ? ` · ${key.siteInfo}` : ""}
                 </p>
               </div>
@@ -175,7 +179,7 @@ export function PluginKeys({
         <Input
           value={label}
           onChange={(e) => setLabel(e.target.value)}
-          placeholder="What is this key for? (optional)"
+          placeholder={t.keyNotePlaceholder}
           disabled={pending}
         />
         <Button onClick={handleGenerate} disabled={pending} variant="outline">

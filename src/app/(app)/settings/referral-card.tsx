@@ -3,6 +3,7 @@
 import { Check, Copy, Gift } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import type { Messages } from "@/lib/i18n/messages";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -30,10 +31,13 @@ export function ReferralCard({
   summary,
   rewardCredits,
   appUrl,
+  t,
 }: {
   summary: ReferralSummary;
   rewardCredits: number;
   appUrl: string;
+  /** This screen's copy, already in the reader's language. */
+  t: Messages["app"]["referral"];
 }) {
   const [copied, setCopied] = useState(false);
   const link = `${appUrl}/r/${summary.code}`;
@@ -42,12 +46,12 @@ export function ReferralCard({
     try {
       await navigator.clipboard.writeText(link);
       setCopied(true);
-      toast.success("Link copied");
+      toast.success(t.linkCopied);
       setTimeout(() => setCopied(false), 2000);
     } catch {
       // Clipboard access can be refused outright; the field is selectable, so
       // say that rather than failing silently.
-      toast.error("Could not copy. Select the link and copy it manually.");
+      toast.error(t.copyFailed);
     }
   }
 
@@ -56,7 +60,7 @@ export function ReferralCard({
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           <Gift className="size-4" aria-hidden="true" />
-          Refer someone
+          {t.referSomeone}
         </CardTitle>
         <CardDescription>
           Share your link. When someone you refer starts a paid plan, you get{" "}
@@ -72,7 +76,7 @@ export function ReferralCard({
             // Selecting the whole link on focus makes manual copying one action
             // rather than a careful drag.
             onFocus={(e) => e.currentTarget.select()}
-            aria-label="Your referral link"
+            aria-label={t.linkLabel}
             className="font-mono text-sm"
           />
           <Button onClick={handleCopy} variant="outline">
@@ -81,26 +85,26 @@ export function ReferralCard({
             ) : (
               <Copy className="size-4" />
             )}
-            {copied ? "Copied" : "Copy"}
+            {copied ? t.copied : t.copy}
           </Button>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <Stat
-            label="Credits earned"
+            label={t.creditsEarned}
             value={summary.earned}
             tone={summary.earned > 0 ? "positive" : "default"}
           />
           <Stat
-            label="Waiting to convert"
+            label={t.waitingToConvert}
             value={summary.pending}
-            hint="Signed up, not yet paying"
+            hint={t.signedUpNotPaying}
           />
         </div>
 
         {summary.referrals.length > 0 ? (
           <div>
-            <p className="mb-2 text-sm font-medium">People you referred</p>
+            <p className="mb-2 text-sm font-medium">{t.peopleReferred}</p>
             <ul className="divide-y rounded-xl border">
               {summary.referrals.map((row) => (
                 <li
@@ -117,7 +121,7 @@ export function ReferralCard({
                     <p className="truncate text-sm font-medium">
                       {row.referredDomain ??
                         row.referredName ??
-                        "Someone you referred"}
+                        t.someoneReferred}
                     </p>
                     <p className="truncate text-xs text-muted-foreground">
                       {row.referredDomain && row.referredName
@@ -130,9 +134,9 @@ export function ReferralCard({
                   {row.status === "rewarded" ? (
                     <Badge>+{row.rewardCredits} credits</Badge>
                   ) : row.status === "rejected" ? (
-                    <Badge variant="outline">Not eligible</Badge>
+                    <Badge variant="outline">{t.notEligible}</Badge>
                   ) : (
-                    <Badge variant="secondary">Waiting</Badge>
+                    <Badge variant="secondary">{t.waiting}</Badge>
                   )}
                 </li>
               ))}

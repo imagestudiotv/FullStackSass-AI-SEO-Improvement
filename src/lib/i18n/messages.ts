@@ -703,6 +703,47 @@ export type Messages = {
       removedFromPlan: string;
       writingStarted: string;
     };
+    addons: {
+      moreCredits: string;
+      moreCreditsHelp: string;
+      termsPill: string;
+      oneTime: string;
+      neverExpire: string;
+      useAnytime: string;
+      buyThis: string;
+      buyCredits: (n: number) => string;
+      unavailable: string;
+      checkoutFailed: string;
+      yourPurchases: string;
+      added: string;
+      delivered: string;
+      inProgress: string;
+      requestQuote: string;
+      quoteHelp: string;
+    };
+    referral: {
+      referSomeone: string;
+      linkLabel: string;
+      copy: string;
+      copied: string;
+      copyFailed: string;
+      linkCopied: string;
+      creditsEarned: string;
+      waitingToConvert: string;
+      signedUpNotPaying: string;
+      peopleReferred: string;
+      someoneReferred: string;
+      notEligible: string;
+      waiting: string;
+    };
+    keys: {
+      keyCopied: string;
+      keyCopyFailed: string;
+      keyRevoked: string;
+      newKeyLabel: string;
+      neverUsed: string;
+      keyNotePlaceholder: string;
+    };
   };
 };
 
@@ -1561,6 +1602,47 @@ const en: Messages = {
       savedInstructions: "Saved — we will use this when writing",
       removedFromPlan: "Removed from the plan",
       writingStarted: "Writing started — it takes a few minutes",
+    },
+    addons: {
+      moreCredits: "More link credits",
+      moreCreditsHelp: "Your plan includes credits each month. Buy more if you run out — these do not expire.",
+      termsPill: "One-time purchase · Credits never expire",
+      oneTime: "One-time purchase",
+      neverExpire: "Credits never expire",
+      useAnytime: "Use anytime",
+      buyThis: "Buy this",
+      buyCredits: (n) => `Buy ${n} credits`,
+      unavailable: "Unavailable",
+      checkoutFailed: "Could not start checkout. Please try again.",
+      yourPurchases: "Your purchases",
+      added: "Added",
+      delivered: "Delivered",
+      inProgress: "In progress",
+      requestQuote: "Request a quote",
+      quoteHelp: "We quote for the work after reviewing your audit.",
+    },
+    referral: {
+      referSomeone: "Refer someone",
+      linkLabel: "Your referral link",
+      copy: "Copy",
+      copied: "Copied",
+      copyFailed: "Could not copy. Select the link and copy it manually.",
+      linkCopied: "Link copied",
+      creditsEarned: "Credits earned",
+      waitingToConvert: "Waiting to convert",
+      signedUpNotPaying: "Signed up, not yet paying",
+      peopleReferred: "People you referred",
+      someoneReferred: "Someone you referred",
+      notEligible: "Not eligible",
+      waiting: "Waiting",
+    },
+    keys: {
+      keyCopied: "Key copied",
+      keyCopyFailed: "Could not copy. Select the key and copy it manually.",
+      keyRevoked: "Key revoked",
+      newKeyLabel: "Your new integration key",
+      neverUsed: "Never used",
+      keyNotePlaceholder: "What is this key for? (optional)",
     },
   },
 };
@@ -2430,6 +2512,47 @@ const es: Messages = {
       savedInstructions: "Guardado — lo usaremos al escribir",
       removedFromPlan: "Quitado del plan",
       writingStarted: "Redacción iniciada — tarda unos minutos",
+    },
+    addons: {
+      moreCredits: "Más créditos de enlace",
+      moreCreditsHelp: "Su plan incluye créditos cada mes. Compre más si se le acaban — estos no caducan.",
+      termsPill: "Compra única · Los créditos no caducan",
+      oneTime: "Compra única",
+      neverExpire: "Los créditos no caducan",
+      useAnytime: "Úselos cuando quiera",
+      buyThis: "Comprar",
+      buyCredits: (n) => `Comprar ${n} créditos`,
+      unavailable: "No disponible",
+      checkoutFailed: "No se pudo iniciar el pago. Inténtelo de nuevo.",
+      yourPurchases: "Sus compras",
+      added: "Añadido",
+      delivered: "Entregado",
+      inProgress: "En curso",
+      requestQuote: "Solicitar presupuesto",
+      quoteHelp: "Le damos un presupuesto tras revisar su auditoría.",
+    },
+    referral: {
+      referSomeone: "Recomiende a alguien",
+      linkLabel: "Su enlace de recomendación",
+      copy: "Copiar",
+      copied: "Copiado",
+      copyFailed: "No se pudo copiar. Seleccione el enlace y cópielo manualmente.",
+      linkCopied: "Enlace copiado",
+      creditsEarned: "Créditos ganados",
+      waitingToConvert: "Pendientes de convertir",
+      signedUpNotPaying: "Registrados, aún sin pagar",
+      peopleReferred: "Personas que ha recomendado",
+      someoneReferred: "Alguien a quien recomendó",
+      notEligible: "No elegible",
+      waiting: "En espera",
+    },
+    keys: {
+      keyCopied: "Clave copiada",
+      keyCopyFailed: "No se pudo copiar. Seleccione la clave y cópiela manualmente.",
+      keyRevoked: "Clave revocada",
+      newKeyLabel: "Su nueva clave de integración",
+      neverUsed: "Nunca usada",
+      keyNotePlaceholder: "¿Para qué es esta clave? (opcional)",
     },
   },
 };
@@ -3303,6 +3426,47 @@ const fr: Messages = {
       removedFromPlan: "Retiré du plan",
       writingStarted: "Rédaction lancée — cela prend quelques minutes",
     },
+    addons: {
+      moreCredits: "Plus de crédits de lien",
+      moreCreditsHelp: "Votre forfait inclut des crédits chaque mois. Achetez-en si vous en manquez — ils n\u2019expirent pas.",
+      termsPill: "Achat unique · Les crédits n\u2019expirent pas",
+      oneTime: "Achat unique",
+      neverExpire: "Les crédits n\u2019expirent pas",
+      useAnytime: "Utilisables à tout moment",
+      buyThis: "Acheter",
+      buyCredits: (n) => `Acheter ${n} crédits`,
+      unavailable: "Indisponible",
+      checkoutFailed: "Impossible de lancer le paiement. Réessayez.",
+      yourPurchases: "Vos achats",
+      added: "Ajouté",
+      delivered: "Livré",
+      inProgress: "En cours",
+      requestQuote: "Demander un devis",
+      quoteHelp: "Nous établissons un devis après avoir examiné votre audit.",
+    },
+    referral: {
+      referSomeone: "Parrainer quelqu\u2019un",
+      linkLabel: "Votre lien de parrainage",
+      copy: "Copier",
+      copied: "Copié",
+      copyFailed: "Copie impossible. Sélectionnez le lien et copiez-le manuellement.",
+      linkCopied: "Lien copié",
+      creditsEarned: "Crédits gagnés",
+      waitingToConvert: "En attente de conversion",
+      signedUpNotPaying: "Inscrits, pas encore payants",
+      peopleReferred: "Personnes que vous avez parrainées",
+      someoneReferred: "Une personne que vous avez parrainée",
+      notEligible: "Non éligible",
+      waiting: "En attente",
+    },
+    keys: {
+      keyCopied: "Clé copiée",
+      keyCopyFailed: "Copie impossible. Sélectionnez la clé et copiez-la manuellement.",
+      keyRevoked: "Clé révoquée",
+      newKeyLabel: "Votre nouvelle clé d\u2019intégration",
+      neverUsed: "Jamais utilisée",
+      keyNotePlaceholder: "À quoi sert cette clé ? (facultatif)",
+    },
   },
 };
 
@@ -4167,6 +4331,47 @@ const it: Messages = {
       savedInstructions: "Salvato — lo useremo in fase di scrittura",
       removedFromPlan: "Tolto dal piano",
       writingStarted: "Scrittura avviata — ci vogliono alcuni minuti",
+    },
+    addons: {
+      moreCredits: "Altri crediti per i link",
+      moreCreditsHelp: "Il suo piano include crediti ogni mese. Ne acquisti altri se finiscono — questi non scadono.",
+      termsPill: "Acquisto singolo · I crediti non scadono",
+      oneTime: "Acquisto singolo",
+      neverExpire: "I crediti non scadono",
+      useAnytime: "Li usi quando vuole",
+      buyThis: "Acquista",
+      buyCredits: (n) => `Acquista ${n} crediti`,
+      unavailable: "Non disponibile",
+      checkoutFailed: "Non è stato possibile avviare il pagamento. Riprovi.",
+      yourPurchases: "I suoi acquisti",
+      added: "Aggiunto",
+      delivered: "Consegnato",
+      inProgress: "In corso",
+      requestQuote: "Richiedi un preventivo",
+      quoteHelp: "Le forniamo un preventivo dopo aver esaminato il suo audit.",
+    },
+    referral: {
+      referSomeone: "Inviti qualcuno",
+      linkLabel: "Il suo link di invito",
+      copy: "Copia",
+      copied: "Copiato",
+      copyFailed: "Copia non riuscita. Selezioni il link e lo copi manualmente.",
+      linkCopied: "Link copiato",
+      creditsEarned: "Crediti guadagnati",
+      waitingToConvert: "In attesa di conversione",
+      signedUpNotPaying: "Registrati, non ancora paganti",
+      peopleReferred: "Persone che ha invitato",
+      someoneReferred: "Una persona che ha invitato",
+      notEligible: "Non idoneo",
+      waiting: "In attesa",
+    },
+    keys: {
+      keyCopied: "Chiave copiata",
+      keyCopyFailed: "Copia non riuscita. Selezioni la chiave e la copi manualmente.",
+      keyRevoked: "Chiave revocata",
+      newKeyLabel: "La sua nuova chiave di integrazione",
+      neverUsed: "Mai usata",
+      keyNotePlaceholder: "A che cosa serve questa chiave? (facoltativo)",
     },
   },
 };
@@ -5039,6 +5244,47 @@ const de: Messages = {
       savedInstructions: "Gespeichert — wir verwenden das beim Schreiben",
       removedFromPlan: "Aus dem Plan entfernt",
       writingStarted: "Schreiben gestartet — das dauert einige Minuten",
+    },
+    addons: {
+      moreCredits: "Mehr Link-Credits",
+      moreCreditsHelp: "Ihr Tarif enthält monatlich Credits. Kaufen Sie mehr, wenn sie ausgehen — diese verfallen nicht.",
+      termsPill: "Einmaliger Kauf · Credits verfallen nicht",
+      oneTime: "Einmaliger Kauf",
+      neverExpire: "Credits verfallen nicht",
+      useAnytime: "Jederzeit einsetzbar",
+      buyThis: "Kaufen",
+      buyCredits: (n) => `${n} Credits kaufen`,
+      unavailable: "Nicht verfügbar",
+      checkoutFailed: "Der Bezahlvorgang konnte nicht gestartet werden. Bitte erneut versuchen.",
+      yourPurchases: "Ihre Käufe",
+      added: "Hinzugefügt",
+      delivered: "Geliefert",
+      inProgress: "In Bearbeitung",
+      requestQuote: "Angebot anfordern",
+      quoteHelp: "Wir erstellen ein Angebot, nachdem wir Ihr Audit geprüft haben.",
+    },
+    referral: {
+      referSomeone: "Jemanden empfehlen",
+      linkLabel: "Ihr Empfehlungslink",
+      copy: "Kopieren",
+      copied: "Kopiert",
+      copyFailed: "Kopieren nicht möglich. Markieren Sie den Link und kopieren Sie ihn von Hand.",
+      linkCopied: "Link kopiert",
+      creditsEarned: "Verdiente Credits",
+      waitingToConvert: "Warten auf Umwandlung",
+      signedUpNotPaying: "Registriert, zahlt noch nicht",
+      peopleReferred: "Von Ihnen empfohlene Personen",
+      someoneReferred: "Eine von Ihnen empfohlene Person",
+      notEligible: "Nicht berechtigt",
+      waiting: "Wartet",
+    },
+    keys: {
+      keyCopied: "Schlüssel kopiert",
+      keyCopyFailed: "Kopieren nicht möglich. Markieren Sie den Schlüssel und kopieren Sie ihn von Hand.",
+      keyRevoked: "Schlüssel widerrufen",
+      newKeyLabel: "Ihr neuer Integrationsschlüssel",
+      neverUsed: "Nie verwendet",
+      keyNotePlaceholder: "Wofür ist dieser Schlüssel? (optional)",
     },
   },
 };

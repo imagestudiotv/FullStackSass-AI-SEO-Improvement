@@ -56,6 +56,7 @@ export default async function WebsiteGooglePage({
         integrations={integrations}
         pluginKeys={pluginKeys}
         t={t.app.publishing}
+        tKeys={t.app.keys}
       />
 
       <AnalyticsPanel
