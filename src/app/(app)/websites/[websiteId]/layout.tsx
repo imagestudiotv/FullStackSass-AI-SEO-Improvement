@@ -1,10 +1,7 @@
-import { ArrowLeft, ExternalLink } from "lucide-react";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { Button } from "@/components/ui/button";
-import { PageHeader, PageShell } from "@/components/ui/page-header";
-import { StatusBadge } from "@/components/ui/status-badge";
+import { SettingsNav } from "@/components/settings-nav";
+import { PageShell } from "@/components/ui/page-header";
 import { requireSession } from "@/lib/auth-guard";
 import { requireWebsite, WebsiteNotFoundError } from "@/lib/tenant";
 
@@ -37,41 +34,26 @@ export default async function WebsiteLayout({
     throw error;
   }
 
-  const analysed = site.status === "ready";
-
   return (
     <PageShell width="wide">
-      <div className="space-y-3">
-        <Button variant="ghost" size="sm" asChild className="-ml-2">
-          <Link href="/websites">
-            <ArrowLeft className="size-4" />
-            All websites
-          </Link>
-        </Button>
-
-        <PageHeader
-          title={site.brandName || site.domain}
-          actions={
-            !analysed ? <StatusBadge status={site.status} /> : null
-          }
-        />
-
-        <a
-          href={site.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:underline"
-        >
-          {site.domain}
-          <ExternalLink className="size-3" aria-hidden="true" />
-        </a>
-      </div>
-
       {/*
-        No sub-navigation here. The sections are top-level items in the main
-        sidebar, so a second column repeating them would be two navigations
-        competing for the same job.
+        NO NAME, NO DOMAIN, NO BACK LINK.
+
+        All three were removed at the client's request: "We move business
+        details part all up once we delete all this unecessary, we have
+        already on dashboar left image studio written". He is right — the
+        website switcher in the top bar names the site on every page, so the
+        heading repeated it, the domain repeated it again, and "All websites"
+        duplicated a sidebar the switcher already replaces. Three rows of
+        chrome pushed the first editable field below the fold.
+
+        The status badge went with them. It only ever appeared while a site
+        was still being analysed, and that state now has its own screens in
+        onboarding; a badge that is invisible in the normal case is not worth
+        a row that is always there.
       */}
+      <SettingsNav websiteId={site.id} />
+
       <div className="space-y-6">{children}</div>
     </PageShell>
   );

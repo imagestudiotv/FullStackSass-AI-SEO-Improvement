@@ -15,10 +15,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { BrandVoiceView } from "@/lib/brand/shared";
 import { updateWebsiteDetails } from "@/lib/websites/actions";
-import { BrandVoiceForm } from "./brand-voice-form";
 import {
   isSupportedLanguage,
   SUPPORTED_LANGUAGES,
@@ -54,10 +51,8 @@ const FIELDS = [
 
 export function WebsiteDetailClient({
   website,
-  voice,
 }: {
   website: WebsiteDetail;
-  voice: BrandVoiceView;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -88,30 +83,23 @@ export function WebsiteDetailClient({
   return (
     <>
       {/*
-        Brand voice sits beside the profile rather than in its own card: the
-        page already carries five panels, and both tabs answer the same
-        question — what should we know about this business.
+      */}
+      {/*
+        NO TAB STRIP. Business details is the whole card now.
+
+        The client asked for it directly — "To delete also how we write from
+        this part" — and the horizontal settings nav above replaces what the
+        two tabs were doing. A strip of two tabs sitting inside a page that
+        already has a strip of five is two navigations for one job.
+
+        "How we write" is NOT deleted. It edits real stored data — tone,
+        vocabulary, things to avoid, a standing instruction applied to every
+        article — and it now lives under Article Settings, which is where the
+        rest of the writing configuration is. Dropping the form would have
+        orphaned the brand_voice table and silently stopped anyone changing
+        how their articles read.
       */}
       <Card>
-        <Tabs defaultValue="profile">
-          {/*
-            px-(--card-spacing) rather than a hardcoded px-6: the card sets its
-            own padding token, so a fixed value left the tab strip inset by a
-            different amount than the fields under it — the misalignment was
-            visible down the left edge of both tabs.
-
-            -mt-(--card-spacing) pulls the strip up to the card's top edge. The
-            card adds its own top padding, which put a band of empty space
-            above the tabs and made them look detached from the panel.
-          */}
-          <div className="-mt-(--card-spacing) border-b px-(--card-spacing) pt-3">
-            <TabsList>
-              <TabsTrigger value="profile">Business details</TabsTrigger>
-              <TabsTrigger value="voice">How we write</TabsTrigger>
-            </TabsList>
-          </div>
-
-          <TabsContent value="profile" className="mt-0">
         {/* See the note in brand-voice-form.tsx on this gap. */}
         <form onSubmit={handleSubmit} className="flex flex-col gap-(--card-spacing)">
           <CardHeader>
@@ -203,12 +191,6 @@ export function WebsiteDetailClient({
             </Button>
           </CardFooter>
         </form>
-          </TabsContent>
-
-          <TabsContent value="voice" className="mt-0">
-            <BrandVoiceForm websiteId={website.id} voice={voice} />
-          </TabsContent>
-        </Tabs>
       </Card>
     </>
   );
