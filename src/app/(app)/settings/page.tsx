@@ -1,18 +1,12 @@
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { PersonalDetails } from "./personal-details";
 import { SettingsNav } from "@/components/settings-nav";
 import { PageShell } from "@/components/ui/page-header";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { requireSession } from "@/lib/auth-guard";
 import { getReferralSummary } from "@/lib/referrals/actions";
 import { REFERRAL_REWARD_CREDITS } from "@/lib/referrals/core";
 import { db } from "@/lib/db";
-import { websites } from "@/lib/db/schema";
+import { account, websites } from "@/lib/db/schema";
 import { requireOrg } from "@/lib/tenant";
 import {
   readSelectedWebsite,
@@ -57,6 +51,22 @@ export default async function SettingsPage() {
    */
   const appUrl = canonicalSiteUrl();
 
+  /*
+    A credential row means a password exists. Better Auth stores one account
+    row per sign-in method, so a Google-only user has no "credential" row.
+  */
+  const [credential] = await db
+    .select({ id: account.id })
+    .from(account)
+    .where(
+      and(
+        eq(account.userId, session.user.id),
+        eq(account.providerId, "credential"),
+      ),
+    )
+    .limit(1);
+  const hasPassword = Boolean(credential);
+
   return (
     <PageShell>
       {/*
@@ -69,33 +79,22 @@ export default async function SettingsPage() {
       {websiteId ? <SettingsNav websiteId={websiteId} /> : null}
 
       {/*
-        "Profile", as the design titles it - not "Account" under an Account
-        tab, which named the same thing twice on one screen.
-
-        The email also appeared twice: once as "Signed in as x" in the
-        description and again as a field below it. One is enough, and the
-        field is the one that belongs beside the name.
+        Editable now, rather than a read-only definition list. The name was
+        displayed with no way to correct it — someone who signed up with a
+        typo, or whose Google account carries a different name than they use
+        at work, was stuck with it.
       */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Profile</CardTitle>
-          <CardDescription>
-            Your name, email and platform language.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <dl className="grid gap-4 text-sm sm:grid-cols-2">
-            <div className="space-y-0.5">
-              <dt className="text-muted-foreground">Name</dt>
-              <dd className="font-medium">{session.user.name || "—"}</dd>
-            </div>
-            <div className="space-y-0.5">
-              <dt className="text-muted-foreground">Email</dt>
-              <dd className="font-medium">{session.user.email}</dd>
-            </div>
-          </dl>
-        </CardContent>
-      </Card>
+      <PersonalDetails
+        initialName={session.user.name ?? ""}
+        email={session.user.email}
+        /*
+          Whether there is a password to change at all. An account created
+          through Google has a "google" provider row and no credential one,
+          so offering "change password" would open a form asking for a
+          current password that does not exist.
+        */
+        hasPassword={hasPassword}
+      />
 
       {/*
         NO LINK CARDS HERE.
