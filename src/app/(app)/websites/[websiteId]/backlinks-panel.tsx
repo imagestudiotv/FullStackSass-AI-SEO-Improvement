@@ -3,6 +3,7 @@
 import { ExternalLink, Link2, Loader2, Plus, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import type { Messages } from "@/lib/i18n/messages";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
@@ -38,6 +39,8 @@ type Props = {
   status: NetworkStatus;
   requests: RequestRow[];
   given: GivenRow[];
+  /** This screen's copy, already in the reader's language. */
+  t: Messages["app"]["backlinks"];
 };
 
 /**
@@ -49,15 +52,32 @@ type Props = {
  * the backlink table needs — "Finding a website" says more here than "Waiting
  * to start" would.
  */
-const REQUEST_LABEL: Record<string, string> = {
-  pending: "Finding a website",
-  matched: "Waiting for their next article",
-  live: "Live",
-  cancelled: "Cancelled",
-  removed: "Removed — credit returned",
+/**
+ * Only the STRING keys: the dictionary also holds sentence builders
+ * (hosting, reserved), and a status must never resolve to a function.
+ * TypeScript catches that here rather than rendering "(cap, used) => …".
+ */
+type BacklinkTextKey = {
+  [K in keyof Messages["app"]["backlinks"]]: Messages["app"]["backlinks"][K] extends string
+    ? K
+    : never;
+}[keyof Messages["app"]["backlinks"]];
+
+const REQUEST_LABEL: Record<string, BacklinkTextKey> = {
+  pending: "statusPending",
+  matched: "statusMatched",
+  live: "statusLive",
+  cancelled: "statusCancelled",
+  removed: "statusRemoved",
 };
 
-export function BacklinksPanel({ websiteId, status, requests, given }: Props) {
+export function BacklinksPanel({
+  websiteId,
+  status,
+  requests,
+  given,
+  t,
+}: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -96,7 +116,7 @@ export function BacklinksPanel({ websiteId, status, requests, given }: Props) {
         toast.error(result.error);
         return;
       }
-      toast.success(accepting ? "You are in the network" : "Left the network");
+      toast.success(accepting ? t.joined : t.leftNetwork);
       router.refresh();
     });
   }
@@ -118,7 +138,7 @@ export function BacklinksPanel({ websiteId, status, requests, given }: Props) {
       toast.success(
         result.data.matched
           ? `Matched with ${result.data.hostDomain}`
-          : "Request saved — waiting for a suitable site",
+          : t.requestSaved,
       );
       router.refresh();
     });
@@ -133,7 +153,7 @@ export function BacklinksPanel({ websiteId, status, requests, given }: Props) {
         toast.error(result.error);
         return;
       }
-      toast.success("Request cancelled, credit released");
+      toast.success(t.requestCancelled);
       router.refresh();
     });
   }
@@ -144,17 +164,13 @@ export function BacklinksPanel({ websiteId, status, requests, given }: Props) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Link2 className="size-4" />
-            Links from other websites
+            {t.title}
           </CardTitle>
-          <CardDescription>
-            Google trusts a website more when other sites link to it. Mention
-            another business in your articles to earn a credit, then spend it to
-            get a mention on someone else’s site.
-          </CardDescription>
+          <CardDescription>{t.joinHelp}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="max-w-40 space-y-1.5">
-            <Label htmlFor="cap">Mentions you will include each month</Label>
+            <Label htmlFor="cap">{t.capLabel}</Label>
             <Input
               id="cap"
               type="number"
@@ -163,15 +179,12 @@ export function BacklinksPanel({ websiteId, status, requests, given }: Props) {
               value={cap}
               onChange={(e) => setCap(e.target.value)}
             />
-            <p className="text-xs text-muted-foreground">
-              Keep this low. A page full of links to other businesses looks
-              suspicious to Google.
-            </p>
+            <p className="text-xs text-muted-foreground">{t.capHelp}</p>
           </div>
         </CardContent>
         <CardFooter>
           <Button onClick={() => handleJoin(true)} disabled={pending}>
-            Join
+            {t.join}
           </Button>
         </CardFooter>
       </Card>
@@ -185,15 +198,15 @@ export function BacklinksPanel({ websiteId, status, requests, given }: Props) {
           <div>
             <CardTitle className="flex items-center gap-2 text-base">
               <Link2 className="size-4" />
-              Links from other websites
-              <Badge>In the network</Badge>
+              {t.title}
+              <Badge>{t.inTheNetwork}</Badge>
             </CardTitle>
             <CardDescription>
-              Hosting up to {status.monthlyCap} links a month (
-              {status.linksGivenThisMonth} used).{" "}
-              {status.network.withCapacity} site
-              {status.network.withCapacity === 1 ? "" : "s"} available to link
-              to you.
+              {t.hosting(
+                status.monthlyCap,
+                status.linksGivenThisMonth,
+                status.network.withCapacity,
+              )}
             </CardDescription>
           </div>
           <div className="text-right">
@@ -201,8 +214,8 @@ export function BacklinksPanel({ websiteId, status, requests, given }: Props) {
               {status.available}
             </div>
             <div className="text-xs text-muted-foreground">
-              credits available
-              {status.reserved > 0 ? ` (${status.reserved} reserved)` : ""}
+              {t.creditsAvailable}
+              {status.reserved > 0 ? t.reserved(status.reserved) : ""}
             </div>
           </div>
         </div>
@@ -220,10 +233,9 @@ export function BacklinksPanel({ websiteId, status, requests, given }: Props) {
         <div className="space-y-10">
           <section className="space-y-3">
             <div className="space-y-0.5">
-              <h3 className="font-semibold">Backlinks received</h3>
+              <h3 className="font-semibold">{t.received}</h3>
               <p className="text-sm text-muted-foreground">
-                Mentioned in other articles &rarr; Get backlinks &rarr; Spend
-                credits
+                {t.receivedFlow}
               </p>
             </div>
             {showRequest ? (
@@ -231,7 +243,7 @@ export function BacklinksPanel({ websiteId, status, requests, given }: Props) {
               <div className="space-y-1.5">
                   <div className="flex items-center justify-between gap-2">
                     <Label htmlFor="target">
-                      Which of your pages should be linked to?
+                      {t.whichPage}
                     </Label>
                     <button
                       type="button"
@@ -239,7 +251,7 @@ export function BacklinksPanel({ websiteId, status, requests, given }: Props) {
                       disabled={suggesting}
                       className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground disabled:opacity-50"
                     >
-                      {suggesting ? "Reading your sitemap…" : "Suggest my pages"}
+                      {suggesting ? t.readingSitemap : t.suggestMyPages}
                     </button>
                   </div>
                   <Input
@@ -272,17 +284,17 @@ export function BacklinksPanel({ websiteId, status, requests, given }: Props) {
                   ) : null}
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="anchor">Preferred wording (optional)</Label>
+                  <Label htmlFor="anchor">{t.anchorLabel}</Label>
                   <Input
                     id="anchor"
                     value={anchor}
                     onChange={(e) => setAnchor(e.target.value)}
-                    placeholder="teeth whitening in Dublin"
+                    placeholder={t.anchorPlaceholder}
                   />
                 </div>
                 <div className="flex gap-2">
                   <Button type="submit" size="sm" disabled={pending}>
-                    {pending ? "Requesting…" : "Request link (1 credit)"}
+                    {pending ? t.requesting : t.requestLink}
                   </Button>
                   <Button
                     type="button"
@@ -315,8 +327,8 @@ export function BacklinksPanel({ websiteId, status, requests, given }: Props) {
             {requests.length === 0 ? (
               <EmptyState
                 icon={Link2}
-                title="No link requests yet"
-                description="Request a link and we find another business in the network to publish it in their next article. Each live link costs one credit."
+                title={t.noRequests}
+                description={t.noRequestsHelp}
               />
             ) : (
               <ExchangeTable
@@ -326,8 +338,8 @@ export function BacklinksPanel({ websiteId, status, requests, given }: Props) {
                 columns={[
                   {
                     key: "source",
-                    header: "Source article",
-                    hint: "The article on another website that links to you. Follow it to read the live link.",
+                    header: t.sourceArticle,
+                    hint: t.sourceArticleHint,
                     render: (row) =>
                       row.liveUrl ? (
                         <a
@@ -351,14 +363,18 @@ export function BacklinksPanel({ websiteId, status, requests, given }: Props) {
                         */
                         <StatusBadge
                           status={row.status}
-                          label={REQUEST_LABEL[row.status]}
+                          label={
+                            REQUEST_LABEL[row.status]
+                              ? t[REQUEST_LABEL[row.status]]
+                              : row.status
+                          }
                         />
                       ),
                   },
                   {
                     key: "website",
-                    header: "Customer website",
-                    hint: "The website in the network that published the link.",
+                    header: t.customerWebsite,
+                    hint: t.customerWebsiteHint,
                     secondary: true,
                     render: (row) => (
                       <span className="text-muted-foreground">
@@ -382,8 +398,8 @@ export function BacklinksPanel({ websiteId, status, requests, given }: Props) {
                   },
                   {
                     key: "credits",
-                    header: "Credits used",
-                    hint: "Credits spent on this link. Returned in full if the link is ever removed.",
+                    header: t.creditsUsed,
+                    hint: t.creditsUsedHint,
                     className: "w-28 text-right",
                     render: (row) => (
                       <span className="tabular-nums text-primary">
@@ -400,7 +416,7 @@ export function BacklinksPanel({ websiteId, status, requests, given }: Props) {
                         <Button
                           variant="ghost"
                           size="icon"
-                          aria-label="Cancel request"
+                          aria-label={t.cancelRequest}
                           disabled={pending && busyId === row.id}
                           onClick={() => handleCancel(row.id)}
                         >
@@ -419,15 +435,14 @@ export function BacklinksPanel({ websiteId, status, requests, given }: Props) {
 
           <section className="space-y-3">
             <div className="space-y-0.5">
-              <h3 className="font-semibold">Backlinks given</h3>
+              <h3 className="font-semibold">{t.givenTitle}</h3>
               <p className="text-sm text-muted-foreground">
-                Post articles &rarr; Give backlinks &rarr; Earn credits
+                {t.givenFlow}
               </p>
             </div>
             {given.length === 0 ? (
               <p className="py-2 text-sm text-muted-foreground">
-                None yet. When we write your next article, a link to another
-                business may be included and you will earn a credit.
+                {t.noneGiven}
               </p>
             ) : (
               <ExchangeTable
@@ -437,15 +452,15 @@ export function BacklinksPanel({ websiteId, status, requests, given }: Props) {
                 columns={[
                   {
                     key: "source",
-                    header: "Source article",
-                    hint: "Your article that carries the link.",
+                    header: t.sourceArticle,
+                    hint: t.yourArticleHint,
                     render: (row) =>
                       row.articleId ? (
                         <Link
                           href={`/websites/${websiteId}/articles/${row.articleId}`}
                           className="block max-w-full truncate text-primary hover:underline"
                         >
-                          {row.articleTitle ?? "Untitled article"}
+                          {row.articleTitle ?? t.untitledArticle}
                         </Link>
                       ) : (
                         /*
@@ -460,8 +475,8 @@ export function BacklinksPanel({ websiteId, status, requests, given }: Props) {
                   },
                   {
                     key: "website",
-                    header: "Destination website",
-                    hint: "The website your article links out to.",
+                    header: t.destinationWebsite,
+                    hint: t.destinationWebsiteHint,
                     secondary: true,
                     render: (row) => (
                       <span className="text-muted-foreground">
@@ -486,8 +501,8 @@ export function BacklinksPanel({ websiteId, status, requests, given }: Props) {
                   },
                   {
                     key: "credits",
-                    header: "Credits earned",
-                    hint: "Credits this link earned you, to spend on links back to your own site.",
+                    header: t.creditsEarned,
+                    hint: t.creditsEarnedHint,
                     className: "w-28 text-right",
                     render: (row) => (
                       <span className="tabular-nums text-emerald-600 dark:text-emerald-400">
@@ -509,7 +524,7 @@ export function BacklinksPanel({ websiteId, status, requests, given }: Props) {
           onClick={() => handleJoin(false)}
           disabled={pending}
         >
-          Leave
+          {t.leave}
         </Button>
       </CardFooter>
     </Card>

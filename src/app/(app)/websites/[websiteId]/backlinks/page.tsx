@@ -1,4 +1,5 @@
 import { requireWebsite } from "@/lib/tenant";
+import { getAppMessages } from "@/lib/i18n/app-locale";
 import {
   getNetworkStatus,
   listGiven,
@@ -15,7 +16,7 @@ export default async function WebsiteBacklinksPage({
   params,
 }: PageProps<"/websites/[websiteId]/backlinks">) {
   const { websiteId } = await params;
-  const { orgId, site } = await requireWebsite(websiteId);
+  const { orgId, site, userId } = await requireWebsite(websiteId);
 
   // Paywall. See lib/billing/require-plan.ts.
   await requirePlan(orgId);
@@ -24,6 +25,7 @@ export default async function WebsiteBacklinksPage({
     listRequests(site.id),
     listGiven(site.id),
   ]);
+  const { t } = await getAppMessages(userId);
 
   return (
     <BacklinksPanel
@@ -31,6 +33,7 @@ export default async function WebsiteBacklinksPage({
       status={status}
       requests={requests}
       given={given}
+      t={t.app.backlinks}
     />
   );
 }

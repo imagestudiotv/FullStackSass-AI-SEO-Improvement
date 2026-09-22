@@ -632,6 +632,55 @@ export type Messages = {
       checkQueued: string;
       alreadyTracking: string;
     };
+    backlinks: {
+      title: string;
+      joinHelp: string;
+      capLabel: string;
+      capHelp: string;
+      join: string;
+      leave: string;
+      inTheNetwork: string;
+      creditsAvailable: string;
+      received: string;
+      receivedFlow: string;
+      givenTitle: string;
+      givenFlow: string;
+      whichPage: string;
+      suggestMyPages: string;
+      readingSitemap: string;
+      anchorLabel: string;
+      anchorPlaceholder: string;
+      requesting: string;
+      requestLink: string;
+      noRequests: string;
+      noRequestsHelp: string;
+      noneGiven: string;
+      sourceArticle: string;
+      sourceArticleHint: string;
+      customerWebsite: string;
+      customerWebsiteHint: string;
+      creditsUsed: string;
+      creditsUsedHint: string;
+      yourArticleHint: string;
+      destinationWebsite: string;
+      destinationWebsiteHint: string;
+      creditsEarned: string;
+      creditsEarnedHint: string;
+      cancelRequest: string;
+      untitledArticle: string;
+      joined: string;
+      leftNetwork: string;
+      requestSaved: string;
+      requestCancelled: string;
+      statusPending: string;
+      statusMatched: string;
+      statusLive: string;
+      statusCancelled: string;
+      statusRemoved: string;
+      /** "Hosting up to 5 links a month (2 used). 3 sites available." */
+      hosting: (cap: number, used: number, sites: number) => string;
+      reserved: (n: number) => string;
+    };
   };
 };
 
@@ -1421,6 +1470,54 @@ const en: Messages = {
       questionAdded: "Question added",
       checkQueued: "Checking — results appear here in a few minutes",
       alreadyTracking: "You are already tracking the questions we would suggest",
+    },
+    backlinks: {
+      title: "Links from other websites",
+      joinHelp: "Google trusts a website more when other sites link to it. Mention another business in your articles to earn a credit, then spend it to get a mention on someone else\u2019s site.",
+      capLabel: "Mentions you will include each month",
+      capHelp: "Keep this low. A page full of links to other businesses looks suspicious to Google.",
+      join: "Join",
+      leave: "Leave",
+      inTheNetwork: "In the network",
+      creditsAvailable: "credits available",
+      received: "Backlinks received",
+      receivedFlow: "Mentioned in other articles \u2192 Get backlinks \u2192 Spend credits",
+      givenTitle: "Backlinks given",
+      givenFlow: "Post articles \u2192 Give backlinks \u2192 Earn credits",
+      whichPage: "Which of your pages should be linked to?",
+      suggestMyPages: "Suggest my pages",
+      readingSitemap: "Reading your sitemap…",
+      anchorLabel: "Preferred wording (optional)",
+      anchorPlaceholder: "teeth whitening in Dublin",
+      requesting: "Requesting…",
+      requestLink: "Request link (1 credit)",
+      noRequests: "No link requests yet",
+      noRequestsHelp: "Request a link and we find another business in the network to publish it in their next article. Each live link costs one credit.",
+      noneGiven: "None yet. When we write your next article, a link to another business may be included and you will earn a credit.",
+      sourceArticle: "Source article",
+      sourceArticleHint: "The article on another website that links to you. Follow it to read the live link.",
+      customerWebsite: "Customer website",
+      customerWebsiteHint: "The website in the network that published the link.",
+      creditsUsed: "Credits used",
+      creditsUsedHint: "Credits spent on this link. Returned in full if the link is ever removed.",
+      yourArticleHint: "Your article that carries the link.",
+      destinationWebsite: "Destination website",
+      destinationWebsiteHint: "The website your article links out to.",
+      creditsEarned: "Credits earned",
+      creditsEarnedHint: "Credits this link earned you, to spend on links back to your own site.",
+      cancelRequest: "Cancel request",
+      untitledArticle: "Untitled article",
+      joined: "You are in the network",
+      leftNetwork: "Left the network",
+      requestSaved: "Request saved — waiting for a suitable site",
+      requestCancelled: "Request cancelled, credit released",
+      statusPending: "Finding a website",
+      statusMatched: "Waiting for their next article",
+      statusLive: "Live",
+      statusCancelled: "Cancelled",
+      statusRemoved: "Removed — credit returned",
+      hosting: (cap, used, sites) => `Hosting up to ${cap} links a month (${used} used). ${sites} site${sites === 1 ? "" : "s"} available to link to you.`,
+      reserved: (n) => ` (${n} reserved)`,
     },
   },
 };
@@ -2221,6 +2318,54 @@ const es: Messages = {
       questionAdded: "Pregunta añadida",
       checkQueued: "Comprobando — los resultados aparecerán aquí en unos minutos",
       alreadyTracking: "Ya está siguiendo las preguntas que le sugeriríamos",
+    },
+    backlinks: {
+      title: "Enlaces desde otros sitios web",
+      joinHelp: "Google confía más en un sitio web cuando otros enlazan a él. Mencione otro negocio en sus artículos para ganar un crédito y gástelo para conseguir una mención en el sitio de otra persona.",
+      capLabel: "Menciones que incluirá cada mes",
+      capHelp: "Mantenga este número bajo. Una página llena de enlaces a otros negocios resulta sospechosa para Google.",
+      join: "Unirse",
+      leave: "Salir",
+      inTheNetwork: "En la red",
+      creditsAvailable: "créditos disponibles",
+      received: "Enlaces recibidos",
+      receivedFlow: "Mencionado en otros artículos \u2192 Consiga enlaces \u2192 Gaste créditos",
+      givenTitle: "Enlaces concedidos",
+      givenFlow: "Publique artículos \u2192 Conceda enlaces \u2192 Gane créditos",
+      whichPage: "¿A cuál de sus páginas se debe enlazar?",
+      suggestMyPages: "Sugerir mis páginas",
+      readingSitemap: "Leyendo su sitemap…",
+      anchorLabel: "Texto preferido (opcional)",
+      anchorPlaceholder: "blanqueamiento dental en Dublín",
+      requesting: "Solicitando…",
+      requestLink: "Solicitar enlace (1 crédito)",
+      noRequests: "Todavía no hay solicitudes de enlace",
+      noRequestsHelp: "Solicite un enlace y buscaremos otro negocio de la red que lo publique en su próximo artículo. Cada enlace activo cuesta un crédito.",
+      noneGiven: "Todavía ninguno. Cuando escribamos su próximo artículo, puede incluirse un enlace a otro negocio y usted ganará un crédito.",
+      sourceArticle: "Artículo de origen",
+      sourceArticleHint: "El artículo de otro sitio web que enlaza al suyo. Ábralo para ver el enlace activo.",
+      customerWebsite: "Sitio web del cliente",
+      customerWebsiteHint: "El sitio web de la red que publicó el enlace.",
+      creditsUsed: "Créditos usados",
+      creditsUsedHint: "Créditos gastados en este enlace. Se devuelven íntegros si el enlace se retira.",
+      yourArticleHint: "Su artículo que contiene el enlace.",
+      destinationWebsite: "Sitio web de destino",
+      destinationWebsiteHint: "El sitio web al que enlaza su artículo.",
+      creditsEarned: "Créditos ganados",
+      creditsEarnedHint: "Créditos que le dio este enlace, para gastarlos en enlaces hacia su propio sitio.",
+      cancelRequest: "Cancelar solicitud",
+      untitledArticle: "Artículo sin título",
+      joined: "Ya está en la red",
+      leftNetwork: "Ha salido de la red",
+      requestSaved: "Solicitud guardada — esperando un sitio adecuado",
+      requestCancelled: "Solicitud cancelada, crédito liberado",
+      statusPending: "Buscando un sitio web",
+      statusMatched: "Esperando su próximo artículo",
+      statusLive: "Activo",
+      statusCancelled: "Cancelado",
+      statusRemoved: "Retirado — crédito devuelto",
+      hosting: (cap, used, sites) => `Aloja hasta ${cap} enlaces al mes (${used} usados). ${sites} sitio${sites === 1 ? "" : "s"} disponible${sites === 1 ? "" : "s"} para enlazarle.`,
+      reserved: (n) => ` (${n} reservados)`,
     },
   },
 };
@@ -3025,6 +3170,54 @@ const fr: Messages = {
       checkQueued: "Vérification — les résultats apparaîtront ici dans quelques minutes",
       alreadyTracking: "Vous suivez déjà les questions que nous suggérerions",
     },
+    backlinks: {
+      title: "Liens depuis d\u2019autres sites",
+      joinHelp: "Google fait davantage confiance à un site quand d\u2019autres sites pointent vers lui. Mentionnez une autre entreprise dans vos articles pour gagner un crédit, puis dépensez-le pour être mentionné sur le site de quelqu\u2019un d\u2019autre.",
+      capLabel: "Mentions que vous inclurez chaque mois",
+      capHelp: "Gardez ce nombre bas. Une page remplie de liens vers d\u2019autres entreprises paraît suspecte à Google.",
+      join: "Rejoindre",
+      leave: "Quitter",
+      inTheNetwork: "Dans le réseau",
+      creditsAvailable: "crédits disponibles",
+      received: "Liens reçus",
+      receivedFlow: "Mentionné dans d\u2019autres articles \u2192 Obtenez des liens \u2192 Dépensez des crédits",
+      givenTitle: "Liens accordés",
+      givenFlow: "Publiez des articles \u2192 Accordez des liens \u2192 Gagnez des crédits",
+      whichPage: "Vers laquelle de vos pages faut-il pointer ?",
+      suggestMyPages: "Suggérer mes pages",
+      readingSitemap: "Lecture de votre sitemap…",
+      anchorLabel: "Formulation souhaitée (facultatif)",
+      anchorPlaceholder: "blanchiment dentaire à Dublin",
+      requesting: "Demande…",
+      requestLink: "Demander un lien (1 crédit)",
+      noRequests: "Aucune demande de lien",
+      noRequestsHelp: "Demandez un lien et nous trouverons une autre entreprise du réseau pour le publier dans son prochain article. Chaque lien actif coûte un crédit.",
+      noneGiven: "Aucun pour l\u2019instant. Lors de votre prochain article, un lien vers une autre entreprise pourra être inclus et vous gagnerez un crédit.",
+      sourceArticle: "Article source",
+      sourceArticleHint: "L\u2019article d\u2019un autre site qui pointe vers vous. Ouvrez-le pour voir le lien en ligne.",
+      customerWebsite: "Site du client",
+      customerWebsiteHint: "Le site du réseau qui a publié le lien.",
+      creditsUsed: "Crédits utilisés",
+      creditsUsedHint: "Crédits dépensés pour ce lien. Intégralement restitués si le lien est retiré.",
+      yourArticleHint: "Votre article qui porte le lien.",
+      destinationWebsite: "Site de destination",
+      destinationWebsiteHint: "Le site vers lequel votre article pointe.",
+      creditsEarned: "Crédits gagnés",
+      creditsEarnedHint: "Crédits rapportés par ce lien, à dépenser pour des liens vers votre propre site.",
+      cancelRequest: "Annuler la demande",
+      untitledArticle: "Article sans titre",
+      joined: "Vous êtes dans le réseau",
+      leftNetwork: "Vous avez quitté le réseau",
+      requestSaved: "Demande enregistrée — en attente d\u2019un site adapté",
+      requestCancelled: "Demande annulée, crédit libéré",
+      statusPending: "Recherche d\u2019un site",
+      statusMatched: "En attente de leur prochain article",
+      statusLive: "En ligne",
+      statusCancelled: "Annulé",
+      statusRemoved: "Retiré — crédit restitué",
+      hosting: (cap, used, sites) => `Héberge jusqu\u2019à ${cap} liens par mois (${used} utilisés). ${sites} site${sites === 1 ? "" : "s"} disponible${sites === 1 ? "" : "s"} pour pointer vers vous.`,
+      reserved: (n) => ` (${n} réservés)`,
+    },
   },
 };
 
@@ -3820,6 +4013,54 @@ const it: Messages = {
       questionAdded: "Domanda aggiunta",
       checkQueued: "Controllo in corso — i risultati compariranno qui tra pochi minuti",
       alreadyTracking: "Sta già seguendo le domande che suggeriremmo",
+    },
+    backlinks: {
+      title: "Link da altri siti web",
+      joinHelp: "Google si fida di più di un sito quando altri siti lo collegano. Citi un\u2019altra attività nei suoi articoli per guadagnare un credito, poi lo spenda per ottenere una citazione sul sito di qualcun altro.",
+      capLabel: "Citazioni che includerà ogni mese",
+      capHelp: "Tenga questo numero basso. Una pagina piena di link ad altre attività risulta sospetta a Google.",
+      join: "Partecipa",
+      leave: "Esci",
+      inTheNetwork: "Nella rete",
+      creditsAvailable: "crediti disponibili",
+      received: "Link ricevuti",
+      receivedFlow: "Citato in altri articoli \u2192 Ottenga link \u2192 Spenda crediti",
+      givenTitle: "Link concessi",
+      givenFlow: "Pubblichi articoli \u2192 Conceda link \u2192 Guadagni crediti",
+      whichPage: "Quale delle sue pagine deve ricevere il link?",
+      suggestMyPages: "Suggerisci le mie pagine",
+      readingSitemap: "Lettura della sitemap…",
+      anchorLabel: "Testo preferito (facoltativo)",
+      anchorPlaceholder: "sbiancamento dentale a Dublino",
+      requesting: "Richiesta…",
+      requestLink: "Richiedi link (1 credito)",
+      noRequests: "Ancora nessuna richiesta di link",
+      noRequestsHelp: "Richieda un link e troveremo un\u2019altra attività della rete che lo pubblichi nel suo prossimo articolo. Ogni link attivo costa un credito.",
+      noneGiven: "Ancora nessuno. Quando scriveremo il suo prossimo articolo, potrà essere incluso un link a un\u2019altra attività e lei guadagnerà un credito.",
+      sourceArticle: "Articolo di origine",
+      sourceArticleHint: "L\u2019articolo su un altro sito che la collega. Lo apra per vedere il link attivo.",
+      customerWebsite: "Sito del cliente",
+      customerWebsiteHint: "Il sito della rete che ha pubblicato il link.",
+      creditsUsed: "Crediti usati",
+      creditsUsedHint: "Crediti spesi per questo link. Restituiti per intero se il link viene rimosso.",
+      yourArticleHint: "Il suo articolo che contiene il link.",
+      destinationWebsite: "Sito di destinazione",
+      destinationWebsiteHint: "Il sito verso cui punta il suo articolo.",
+      creditsEarned: "Crediti guadagnati",
+      creditsEarnedHint: "Crediti che questo link le ha fatto guadagnare, da spendere per link verso il suo sito.",
+      cancelRequest: "Annulla richiesta",
+      untitledArticle: "Articolo senza titolo",
+      joined: "È nella rete",
+      leftNetwork: "Ha lasciato la rete",
+      requestSaved: "Richiesta salvata — in attesa di un sito adatto",
+      requestCancelled: "Richiesta annullata, credito liberato",
+      statusPending: "Ricerca di un sito",
+      statusMatched: "In attesa del loro prossimo articolo",
+      statusLive: "Attivo",
+      statusCancelled: "Annullato",
+      statusRemoved: "Rimosso — credito restituito",
+      hosting: (cap, used, sites) => `Ospita fino a ${cap} link al mese (${used} usati). ${sites} sito${sites === 1 ? "" : "i"} disponibil${sites === 1 ? "e" : "i"} per collegarla.`,
+      reserved: (n) => ` (${n} riservati)`,
     },
   },
 };
@@ -4623,6 +4864,54 @@ const de: Messages = {
       questionAdded: "Frage hinzugefügt",
       checkQueued: "Wird geprüft — Ergebnisse erscheinen hier in wenigen Minuten",
       alreadyTracking: "Sie verfolgen bereits die Fragen, die wir vorschlagen würden",
+    },
+    backlinks: {
+      title: "Links von anderen Websites",
+      joinHelp: "Google vertraut einer Website mehr, wenn andere Seiten auf sie verlinken. Erwähnen Sie ein anderes Unternehmen in Ihren Artikeln, um ein Credit zu verdienen, und geben Sie es aus, um selbst erwähnt zu werden.",
+      capLabel: "Erwähnungen, die Sie pro Monat aufnehmen",
+      capHelp: "Halten Sie diese Zahl niedrig. Eine Seite voller Links zu anderen Unternehmen wirkt auf Google verdächtig.",
+      join: "Beitreten",
+      leave: "Verlassen",
+      inTheNetwork: "Im Netzwerk",
+      creditsAvailable: "Credits verfügbar",
+      received: "Erhaltene Backlinks",
+      receivedFlow: "In anderen Artikeln erwähnt \u2192 Backlinks erhalten \u2192 Credits ausgeben",
+      givenTitle: "Vergebene Backlinks",
+      givenFlow: "Artikel veröffentlichen \u2192 Backlinks vergeben \u2192 Credits verdienen",
+      whichPage: "Auf welche Ihrer Seiten soll verlinkt werden?",
+      suggestMyPages: "Meine Seiten vorschlagen",
+      readingSitemap: "Ihre Sitemap wird gelesen…",
+      anchorLabel: "Gewünschter Linktext (optional)",
+      anchorPlaceholder: "Zahnaufhellung in Dublin",
+      requesting: "Wird angefragt…",
+      requestLink: "Link anfragen (1 Credit)",
+      noRequests: "Noch keine Linkanfragen",
+      noRequestsHelp: "Fragen Sie einen Link an, und wir finden ein anderes Unternehmen im Netzwerk, das ihn im nächsten Artikel veröffentlicht. Jeder aktive Link kostet ein Credit.",
+      noneGiven: "Noch keine. Wenn wir Ihren nächsten Artikel schreiben, kann ein Link zu einem anderen Unternehmen enthalten sein, und Sie verdienen ein Credit.",
+      sourceArticle: "Quellartikel",
+      sourceArticleHint: "Der Artikel auf einer anderen Website, der auf Sie verlinkt. Öffnen Sie ihn, um den aktiven Link zu sehen.",
+      customerWebsite: "Website des Kunden",
+      customerWebsiteHint: "Die Website im Netzwerk, die den Link veröffentlicht hat.",
+      creditsUsed: "Verbrauchte Credits",
+      creditsUsedHint: "Für diesen Link ausgegebene Credits. Werden vollständig erstattet, falls der Link entfernt wird.",
+      yourArticleHint: "Ihr Artikel, der den Link enthält.",
+      destinationWebsite: "Zielwebsite",
+      destinationWebsiteHint: "Die Website, auf die Ihr Artikel verlinkt.",
+      creditsEarned: "Verdiente Credits",
+      creditsEarnedHint: "Credits, die Ihnen dieser Link eingebracht hat — für Links zurück auf Ihre eigene Seite.",
+      cancelRequest: "Anfrage abbrechen",
+      untitledArticle: "Artikel ohne Titel",
+      joined: "Sie sind im Netzwerk",
+      leftNetwork: "Netzwerk verlassen",
+      requestSaved: "Anfrage gespeichert — warten auf eine passende Website",
+      requestCancelled: "Anfrage abgebrochen, Credit freigegeben",
+      statusPending: "Website wird gesucht",
+      statusMatched: "Warten auf deren nächsten Artikel",
+      statusLive: "Aktiv",
+      statusCancelled: "Abgebrochen",
+      statusRemoved: "Entfernt — Credit erstattet",
+      hosting: (cap, used, sites) => `Nimmt bis zu ${cap} Links pro Monat auf (${used} genutzt). ${sites} Website${sites === 1 ? "" : "s"} können auf Sie verlinken.`,
+      reserved: (n) => ` (${n} reserviert)`,
     },
   },
 };
