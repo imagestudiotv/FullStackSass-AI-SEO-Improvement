@@ -21,6 +21,7 @@ import { requireWebsite } from "@/lib/tenant";
 import { track } from "@/lib/usage";
 import type { ActionResult } from "@/lib/websites/actions";
 import { isEntitledToSpend } from "@/lib/billing/entitled";
+import { withinRateLimit } from "@/lib/billing/rate-limit";
 
 /**
  * Changing an article's picture.
@@ -72,6 +73,14 @@ export async function regenerateArticleImage(
   */
   const entitled = await isEntitledToSpend(site.id);
   if (!entitled.ok) return { ok: false, error: entitled.error };
+
+  /*
+    MAX_REGENERATIONS caps one article; nothing capped the workspace. Someone
+    cycling through thirty articles pressing regenerate on each stayed under
+    every per-article limit while spending thirty image calls.
+  */
+  const rate = await withinRateLimit(orgId, "image");
+  if (!rate.ok) return { ok: false, error: rate.error };
 
   if (!isImageGenerationConfigured()) {
     return { ok: false, error: "Image generation is not set up yet" };

@@ -10,6 +10,7 @@ import { requireWebsite } from "@/lib/tenant";
 import type { AuditSummary, Severity } from "@/lib/audit/rules";
 import type { ActionResult } from "@/lib/websites/actions";
 import { isEntitledToSpend } from "@/lib/billing/entitled";
+import { withinRateLimit } from "@/lib/billing/rate-limit";
 
 /**
  * Audit reads and actions.
@@ -118,6 +119,14 @@ export async function startAudit(
   */
   const entitled = await isEntitledToSpend(site.id);
   if (!entitled.ok) return { ok: false, error: entitled.error };
+
+  /*
+    An audit crawls every page of the site, so a held-down button is the most
+    expensive thing a paying customer can do. Entitlement says they may spend;
+    this says how fast.
+  */
+  const rate = await withinRateLimit(orgId, "crawl");
+  if (!rate.ok) return { ok: false, error: rate.error };
 
   await queueJob({
     name: "website/audit.requested",

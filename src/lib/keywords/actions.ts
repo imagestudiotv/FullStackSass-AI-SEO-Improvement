@@ -7,6 +7,7 @@ import { queueJob } from "@/inngest/send";
 import { db } from "@/lib/db";
 import { calendarItems, clusters, keywords } from "@/lib/db/schema";
 import { requireWebsite } from "@/lib/tenant";
+import { withinRateLimit } from "@/lib/billing/rate-limit";
 import { checkLimit } from "@/lib/usage";
 import type { ActionResult } from "@/lib/websites/actions";
 
@@ -136,6 +137,14 @@ export async function startResearch(
       error: "Choose a plan for this website before building its content plan",
     };
   }
+
+  /*
+    Three model calls plus provider lookups every run, and re-running research
+    on the same site minutes apart produces the same clusters. Counted on
+    seo_api, which research-keywords records once per billable provider call.
+  */
+  const rate = await withinRateLimit(orgId, "seo_api");
+  if (!rate.ok) return { ok: false, error: rate.error };
 
   await queueJob({
     name: "website/research.requested",

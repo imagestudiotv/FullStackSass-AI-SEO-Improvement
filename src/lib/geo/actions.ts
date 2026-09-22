@@ -17,6 +17,7 @@ import { queueJob } from "@/inngest/send";
 import { requireWebsite } from "@/lib/tenant";
 import type { ActionResult } from "@/lib/websites/actions";
 import { isEntitledToSpend } from "@/lib/billing/entitled";
+import { withinGeoRateLimit } from "@/lib/billing/rate-limit";
 
 /**
  * GEO server actions.
@@ -285,6 +286,13 @@ export async function runGeoCheck(
   */
   const entitled = await isEntitledToSpend(site.id);
   if (!entitled.ok) return { ok: false, error: entitled.error };
+
+  /*
+    One model call per prompt per engine, so a single press is already tens of
+    calls. Counted from geo_results because check-geo records no usage_events.
+  */
+  const rate = await withinGeoRateLimit(site.id);
+  if (!rate.ok) return { ok: false, error: rate.error };
 
   await queueJob({
     name: "geo/check.requested",
