@@ -468,6 +468,10 @@ export type Messages = {
       engagement: string;
       brandColour: string;
       optional: string;
+      imageBrief: string;
+      imageBriefPlaceholder: string;
+      imageInstructions: string;
+      imageInstructionsPlaceholder: string;
       tableOfContents: string;
       youtubeVideo: string;
       authorPerspective: string;
@@ -1151,6 +1155,10 @@ const en: Messages = {
       engagement: "Engagement",
       brandColour: "Brand colour",
       optional: "Optional",
+      imageBrief: "How your brand should look in images",
+      imageBriefPlaceholder: "Cinematic, minimal, cool greys with accents of electric blue.",
+      imageInstructions: "Extra image instructions",
+      imageInstructionsPlaceholder: "e.g. Never show faces.",
       tableOfContents: "Table of contents",
       youtubeVideo: "YouTube video",
       authorPerspective: "Author perspective",
@@ -1848,6 +1856,10 @@ const es: Messages = {
       engagement: "Interacción",
       brandColour: "Color de marca",
       optional: "Opcional",
+      imageBrief: "Cómo debe verse su marca en las imágenes",
+      imageBriefPlaceholder: "Cinematográfico, minimalista, grises fríos con toques de azul eléctrico.",
+      imageInstructions: "Instrucciones adicionales para las imágenes",
+      imageInstructionsPlaceholder: "p. ej. Nunca mostrar caras.",
       tableOfContents: "Índice",
       youtubeVideo: "Vídeo de YouTube",
       authorPerspective: "Perspectiva del autor",
@@ -2548,6 +2560,10 @@ const fr: Messages = {
       engagement: "Engagement",
       brandColour: "Couleur de marque",
       optional: "Facultatif",
+      imageBrief: "L’allure de votre marque dans les images",
+      imageBriefPlaceholder: "Cinématographique, minimal, gris froids avec des touches de bleu électrique.",
+      imageInstructions: "Consignes supplémentaires pour les images",
+      imageInstructionsPlaceholder: "ex. Ne jamais montrer de visages.",
       tableOfContents: "Sommaire",
       youtubeVideo: "Vidéo YouTube",
       authorPerspective: "Point de vue de l\u2019auteur",
@@ -3241,6 +3257,10 @@ const it: Messages = {
       engagement: "Coinvolgimento",
       brandColour: "Colore del marchio",
       optional: "Facoltativo",
+      imageBrief: "Come deve apparire il suo marchio nelle immagini",
+      imageBriefPlaceholder: "Cinematografico, minimale, grigi freddi con accenti di blu elettrico.",
+      imageInstructions: "Istruzioni aggiuntive per le immagini",
+      imageInstructionsPlaceholder: "es. Non mostrare mai volti.",
       tableOfContents: "Indice",
       youtubeVideo: "Video YouTube",
       authorPerspective: "Punto di vista dell\u2019autore",
@@ -3941,6 +3961,10 @@ const de: Messages = {
       engagement: "Interaktion",
       brandColour: "Markenfarbe",
       optional: "Optional",
+      imageBrief: "Wie Ihre Marke in Bildern wirken soll",
+      imageBriefPlaceholder: "Filmisch, minimal, kühle Grautöne mit Akzenten in Elektroblau.",
+      imageInstructions: "Zusätzliche Bildanweisungen",
+      imageInstructionsPlaceholder: "z. B. Nie Gesichter zeigen.",
       tableOfContents: "Inhaltsverzeichnis",
       youtubeVideo: "YouTube-Video",
       authorPerspective: "Perspektive der Autorin oder des Autors",

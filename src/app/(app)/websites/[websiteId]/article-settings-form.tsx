@@ -371,22 +371,20 @@ export function ArticleSettingsForm({
         />
 
         <div className="space-y-1.5">
-          <Label htmlFor="image-brief">
-            How your brand should look in images
-          </Label>
+          <Label htmlFor="image-brief">{t.imageBrief}</Label>
           <textarea
             id="image-brief"
             rows={3}
             value={values.imageBrief}
             onChange={(e) => set("imageBrief", e.target.value)}
-            placeholder="Cinematic, minimal, cool greys with accents of electric blue."
+            placeholder={t.imageBriefPlaceholder}
             className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
           />
         </div>
 
         <div className="space-y-1.5">
           <Label htmlFor="image-instructions">
-            Extra image instructions{" "}
+            {t.imageInstructions}{" "}
             <span className="font-normal text-muted-foreground">{t.optional}</span>
           </Label>
           <textarea
@@ -394,7 +392,7 @@ export function ArticleSettingsForm({
             rows={2}
             value={values.imageInstructions}
             onChange={(e) => set("imageInstructions", e.target.value)}
-            placeholder="e.g. Never show faces."
+            placeholder={t.imageInstructionsPlaceholder}
             className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
           />
         </div>
