@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
+import { ProviderLogo } from "@/components/provider-logo";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import {
@@ -263,19 +264,25 @@ export function PublishingPanel({
                     connected ? "border-emerald-500/40 bg-emerald-500/5" : ""
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="font-medium">{provider.name}</p>
-                    {connected ? (
-                      <span className="flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
-                        <Check className="size-3" aria-hidden="true" />
-                        Connected
-                      </span>
-                    ) : null}
+                  <div className="flex items-start gap-3">
+                    <ProviderLogo providerId={provider.id} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="font-medium">{provider.name}</p>
+                        {connected ? (
+                          <span className="flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                            <Check className="size-3" aria-hidden="true" />
+                            Connected
+                          </span>
+                        ) : null}
+                      </div>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {provider.description}
+                      </p>
+                    </div>
                   </div>
 
-                  <p className="mt-1 flex-1 text-sm text-muted-foreground">
-                    {provider.description}
-                  </p>
+                  <div className="flex-1" aria-hidden="true" />
 
                   <Button
                     variant={connected ? "secondary" : "outline"}
@@ -452,18 +459,29 @@ export function PublishingPanel({
                       connected ? "border-emerald-500/40 bg-emerald-500/5" : ""
                     }`}
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="font-medium">{provider.name}</p>
-                      {connected ? (
-                        <span className="flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
-                          <Check className="size-3" aria-hidden="true" />
-                          Connected
-                        </span>
-                      ) : null}
+                    <div className="flex items-start gap-3">
+                      {/*
+                        The webhook has no brand mark, so this falls back to
+                        the puzzle piece — which is the right answer for
+                        "anything that speaks HTTP".
+                      */}
+                      <ProviderLogo providerId={provider.id} />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="font-medium">{provider.name}</p>
+                          {connected ? (
+                            <span className="flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                              <Check className="size-3" aria-hidden="true" />
+                              Connected
+                            </span>
+                          ) : null}
+                        </div>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {provider.description}
+                        </p>
+                      </div>
                     </div>
-                    <p className="mt-1 flex-1 text-sm text-muted-foreground">
-                      {provider.description}
-                    </p>
+                    <div className="flex-1" aria-hidden="true" />
                     <Button
                       variant={connected ? "secondary" : "outline"}
                       size="sm"
