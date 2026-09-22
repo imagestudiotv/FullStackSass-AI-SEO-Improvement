@@ -96,6 +96,7 @@ export default async function WebsitePublishingPage({
 
       <GenerationPanel
         websiteId={site.id}
+        t={t.app.common}
         mode={site.generationMode === "manual" ? "manual" : "automatic"}
         days={
           Array.isArray(site.publishingDays)

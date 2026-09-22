@@ -54,6 +54,8 @@ type ResearchTabsProps = {
   researching: boolean;
   /** This screen's copy, already in the reader's language. */
   t: Messages["app"]["research"];
+  /** Shared words used on several screens. */
+  tCommon: Messages["app"]["common"];
   /** The calendar's own slice, forwarded to it. */
   tCalendar: Messages["app"]["calendar"];
 };
@@ -104,6 +106,7 @@ export function ResearchTabs({
   researching,
   t,
   tCalendar,
+  tCommon,
 }: ResearchTabsProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -162,7 +165,7 @@ export function ResearchTabs({
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Sparkles className="size-4" />
-            No opportunities found yet
+            {tCommon.noOpportunities}
           </CardTitle>
           <CardDescription>
             We will find the search terms your customers use, group them into
@@ -179,7 +182,7 @@ export function ResearchTabs({
             ) : (
               <>
                 <Search className="size-4" />
-                Find opportunities
+                {tCommon.findOpportunities}
               </>
             )}
           </Button>

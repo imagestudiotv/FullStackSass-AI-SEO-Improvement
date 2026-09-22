@@ -66,6 +66,7 @@ export default async function WebsiteGooglePage({
         performance={performance}
         t={t.app.analytics}
         locale={locale}
+        tCommon={t.app.common}
       />
     </div>
   );

@@ -79,10 +79,11 @@ export default async function SetupPage({ searchParams }: PageProps<"/setup">) {
     <div className="mx-auto w-full max-w-3xl">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
-          Set up <span className="text-muted-foreground">{site.domain}</span>
+          {t.app.common.setUp}{" "}
+          <span className="text-muted-foreground">{site.domain}</span>
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Walk through the launch flow step by step.
+          {t.app.common.setUpHelp}
         </p>
       </div>
 
@@ -127,7 +128,7 @@ export default async function SetupPage({ searchParams }: PageProps<"/setup">) {
                 {launch.doneCount}/{total}
               </span>
               <span className="text-[10px] tracking-wide text-muted-foreground uppercase">
-                Done
+                {t.app.common.done}
               </span>
             </span>
           </div>
@@ -161,7 +162,7 @@ export default async function SetupPage({ searchParams }: PageProps<"/setup">) {
             {launch.live ? (
               <Button asChild className="mt-5 rounded-full">
                 <Link href="/dashboard">
-                  Go to dashboard
+                  {t.app.common.goToDashboard}
                   <ArrowRight className="size-4" />
                 </Link>
               </Button>

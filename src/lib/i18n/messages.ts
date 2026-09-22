@@ -838,6 +838,20 @@ export type Messages = {
       failed: string;
       images: string;
       rewrite: string;
+      tryAgain: string;
+      somethingWentWrong: string;
+      remove: string;
+      upload: string;
+      disconnect: string;
+      competitors: string;
+      websiteHealth: string;
+      checkingWebsite: string;
+      nothingNeedsAttention: string;
+      requestQuote: string;
+      wantUsToFix: string;
+      saveProperties: string;
+      appeared: string;
+      noImageYet: string;
       notAvailable: string;
       notAvailableHelp: string;
       backToDashboard: string;
@@ -1857,6 +1871,20 @@ const en: Messages = {
       failed: "Failed",
       images: "Images",
       rewrite: "Rewrite",
+      tryAgain: "Try again",
+      somethingWentWrong: "Something went wrong on this page",
+      remove: "Remove",
+      upload: "Upload",
+      disconnect: "Disconnect",
+      competitors: "Competitors",
+      websiteHealth: "Website health",
+      checkingWebsite: "Checking your website",
+      nothingNeedsAttention: "Nothing needs attention. Check again after you make changes.",
+      requestQuote: "Request a quote",
+      wantUsToFix: "Want us to fix these for you?",
+      saveProperties: "Save properties",
+      appeared: "Appeared",
+      noImageYet: "No image yet",
       notAvailable: "This page is not available",
       notAvailableHelp: "The page may have moved, or it belongs to a workspace you are not a member of.",
       backToDashboard: "Back to dashboard",
@@ -2886,6 +2914,20 @@ const es: Messages = {
       failed: "Fallido",
       images: "Imágenes",
       rewrite: "Reescribir",
+      tryAgain: "Reintentar",
+      somethingWentWrong: "Algo ha salido mal en esta página",
+      remove: "Quitar",
+      upload: "Subir",
+      disconnect: "Desconectar",
+      competitors: "Competidores",
+      websiteHealth: "Salud del sitio web",
+      checkingWebsite: "Comprobando su sitio web",
+      nothingNeedsAttention: "No hay nada que requiera atención. Vuelva a comprobarlo tras hacer cambios.",
+      requestQuote: "Solicitar presupuesto",
+      wantUsToFix: "¿Quiere que se lo arreglemos?",
+      saveProperties: "Guardar propiedades",
+      appeared: "Apariciones",
+      noImageYet: "Todavía sin imagen",
       notAvailable: "Esta página no está disponible",
       notAvailableHelp: "Puede que la página se haya movido o que pertenezca a un espacio de trabajo del que no forma parte.",
       backToDashboard: "Volver al panel",
@@ -3918,6 +3960,20 @@ const fr: Messages = {
       failed: "Échec",
       images: "Images",
       rewrite: "Réécrire",
+      tryAgain: "Réessayer",
+      somethingWentWrong: "Un problème est survenu sur cette page",
+      remove: "Retirer",
+      upload: "Importer",
+      disconnect: "Déconnecter",
+      competitors: "Concurrents",
+      websiteHealth: "Santé du site",
+      checkingWebsite: "Analyse de votre site",
+      nothingNeedsAttention: "Rien ne demande votre attention. Revérifiez après avoir fait des modifications.",
+      requestQuote: "Demander un devis",
+      wantUsToFix: "Vous voulez que nous corrigions cela ?",
+      saveProperties: "Enregistrer les propriétés",
+      appeared: "Apparitions",
+      noImageYet: "Pas encore d\u2019image",
       notAvailable: "Cette page n\u2019est pas disponible",
       notAvailableHelp: "La page a peut-être été déplacée, ou elle appartient à un espace de travail dont vous n\u2019êtes pas membre.",
       backToDashboard: "Retour au tableau de bord",
@@ -4943,6 +4999,20 @@ const it: Messages = {
       failed: "Non riuscito",
       images: "Immagini",
       rewrite: "Riscrivi",
+      tryAgain: "Riprova",
+      somethingWentWrong: "Qualcosa è andato storto su questa pagina",
+      remove: "Rimuovi",
+      upload: "Carica",
+      disconnect: "Scollega",
+      competitors: "Concorrenti",
+      websiteHealth: "Salute del sito",
+      checkingWebsite: "Controllo del suo sito",
+      nothingNeedsAttention: "Non c\u2019è nulla da sistemare. Ricontrolli dopo aver fatto modifiche.",
+      requestQuote: "Richiedi un preventivo",
+      wantUsToFix: "Vuole che li sistemiamo noi?",
+      saveProperties: "Salva proprietà",
+      appeared: "Comparse",
+      noImageYet: "Ancora nessuna immagine",
       notAvailable: "Questa pagina non è disponibile",
       notAvailableHelp: "La pagina potrebbe essere stata spostata, oppure appartiene a uno spazio di lavoro di cui non fa parte.",
       backToDashboard: "Torna alla dashboard",
@@ -5975,6 +6045,20 @@ const de: Messages = {
       failed: "Fehlgeschlagen",
       images: "Bilder",
       rewrite: "Neu schreiben",
+      tryAgain: "Erneut versuchen",
+      somethingWentWrong: "Auf dieser Seite ist etwas schiefgelaufen",
+      remove: "Entfernen",
+      upload: "Hochladen",
+      disconnect: "Trennen",
+      competitors: "Wettbewerber",
+      websiteHealth: "Website-Zustand",
+      checkingWebsite: "Ihre Website wird geprüft",
+      nothingNeedsAttention: "Es gibt nichts zu tun. Prüfen Sie erneut, nachdem Sie Änderungen gemacht haben.",
+      requestQuote: "Angebot anfordern",
+      wantUsToFix: "Sollen wir das für Sie beheben?",
+      saveProperties: "Properties speichern",
+      appeared: "Einblendungen",
+      noImageYet: "Noch kein Bild",
       notAvailable: "Diese Seite ist nicht verfügbar",
       notAvailableHelp: "Die Seite wurde möglicherweise verschoben oder gehört zu einem Arbeitsbereich, in dem Sie kein Mitglied sind.",
       backToDashboard: "Zurück zum Dashboard",

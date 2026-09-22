@@ -1,6 +1,7 @@
 "use client";
 
 import { Wrench } from "lucide-react";
+import type { Messages } from "@/lib/i18n/messages";
 
 import { Button } from "@/components/ui/button";
 import { SUPPORT_EMAIL } from "@/lib/config/site";
@@ -22,12 +23,15 @@ export function FixRequest({
   issueCount,
   criticalCount,
   developerCount,
+  t,
 }: {
   domain: string;
   issueCount: number;
   criticalCount: number;
   /** How many of the problems realistically need a developer. */
   developerCount: number;
+  /** Shared words used on several screens. */
+  t: Messages["app"]["common"];
 }) {
   if (issueCount === 0) return null;
 
@@ -50,7 +54,7 @@ export function FixRequest({
         <div className="min-w-0">
           <p className="flex items-center gap-2 font-medium">
             <Wrench className="size-4" aria-hidden="true" />
-            Want us to fix these for you?
+            {t.wantUsToFix}
           </p>
           <p className="mt-1 text-sm text-muted-foreground">
             {/*
@@ -64,7 +68,7 @@ export function FixRequest({
           </p>
         </div>
         <Button variant="outline" asChild>
-          <a href={href}>Request a quote</a>
+          <a href={href}>{t.requestQuote}</a>
         </Button>
       </div>
     </div>

@@ -45,6 +45,7 @@ export function FeaturedImage({
   imageAlt,
   attempts,
   t,
+  tCommon,
 }: {
   websiteId: string;
   articleId: string;
@@ -53,6 +54,8 @@ export function FeaturedImage({
   attempts: number;
   /** This screen's copy, already in the reader's language. */
   t: Messages["app"]["image"];
+  /** Shared words used on several screens. */
+  tCommon: Messages["app"]["common"];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -154,7 +157,7 @@ export function FeaturedImage({
                 aria-hidden="true"
               />
               <p className="mt-2 text-sm text-muted-foreground">
-                No image yet
+                {tCommon.noImageYet}
               </p>
             </div>
           </div>
@@ -214,7 +217,7 @@ export function FeaturedImage({
             onClick={() => fileRef.current?.click()}
           >
             <Upload className="size-4" />
-            Upload
+            {tCommon.upload}
           </Button>
 
           {imageUrl ? (
@@ -227,7 +230,7 @@ export function FeaturedImage({
               className="text-muted-foreground hover:text-destructive"
             >
               <Trash2 className="size-4" />
-              Remove
+              {tCommon.remove}
             </Button>
           ) : null}
 

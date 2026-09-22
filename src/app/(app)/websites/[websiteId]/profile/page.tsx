@@ -52,7 +52,11 @@ export default async function WebsiteProfilePage({
         Competitors, which had no dashboard control at all until now — they
         were only editable inside the signup step that has moved here.
       */}
-      <CompetitorsCard websiteId={site.id} competitors={rivals} />
+      <CompetitorsCard
+        websiteId={site.id}
+        competitors={rivals}
+        t={t.app.common}
+      />
     </div>
   );
 }

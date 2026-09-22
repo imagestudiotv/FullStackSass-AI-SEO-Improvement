@@ -2,6 +2,7 @@
 
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import type { Messages } from "@/lib/i18n/messages";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
@@ -87,12 +88,15 @@ export function GenerationPanel({
   days,
   autoPublish,
   hasIntegration,
+  t,
 }: {
   websiteId: string;
   mode: "automatic" | "manual";
   days: number[];
   autoPublish: boolean;
   hasIntegration: boolean;
+  /** Shared words used on several screens. */
+  t: Messages["app"]["common"];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -192,7 +196,7 @@ export function GenerationPanel({
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-1">
             <label htmlFor="generation-mode" className="text-sm font-medium">
-              Write articles automatically
+              {t.writeAutomatically}
             </label>
             <p className="text-sm text-muted-foreground">
               {auto
@@ -210,7 +214,7 @@ export function GenerationPanel({
 
         {auto ? (
           <div className="space-y-2 border-l pl-4">
-            <p className="text-sm font-medium">Days to write on</p>
+            <p className="text-sm font-medium">{t.daysToWrite}</p>
             <p className="text-sm text-muted-foreground">
               {selectedDays.length === 0
                 ? "Any day."
@@ -242,7 +246,7 @@ export function GenerationPanel({
         <div className="flex items-start justify-between gap-4 border-t pt-5">
           <div className="space-y-1">
             <label htmlFor="auto-publish" className="text-sm font-medium">
-              Publish without asking me
+              {t.publishWithoutAsking}
             </label>
             <p className="text-sm text-muted-foreground">
               {publish

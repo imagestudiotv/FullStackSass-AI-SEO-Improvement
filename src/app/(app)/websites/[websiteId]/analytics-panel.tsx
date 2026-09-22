@@ -55,6 +55,8 @@ type Props = {
   t: Messages["app"]["analytics"];
   /** For thousands separators. */
   locale: Locale;
+  /** Shared words used on several screens. */
+  tCommon: Messages["app"]["common"];
 };
 
 /** Messages for the ?google= parameter the OAuth callback redirects with. */
@@ -86,6 +88,7 @@ export function AnalyticsPanel({
   performance,
   t,
   locale,
+  tCommon,
 }: Props) {
   const router = useRouter();
   const params = useSearchParams();
@@ -281,7 +284,7 @@ export function AnalyticsPanel({
                       <TableHead>{t.query}</TableHead>
                       <TableHead className="w-24">{t.visitors}</TableHead>
                       <TableHead className="hidden w-28 sm:table-cell">
-                        Appeared
+                        {tCommon.appeared}
                       </TableHead>
                     </TableRow>
                   </TableHeader>
@@ -341,7 +344,7 @@ export function AnalyticsPanel({
 
       <CardFooter className="flex-wrap gap-2">
         <Button size="sm" onClick={handleSave} disabled={pending}>
-          Save properties
+          {tCommon.saveProperties}
         </Button>
         <Button
           variant="outline"
@@ -363,7 +366,7 @@ export function AnalyticsPanel({
           disabled={pending}
         >
           <Unplug className="size-4" />
-          Disconnect
+          {tCommon.disconnect}
         </Button>
       </CardFooter>
     </Card>

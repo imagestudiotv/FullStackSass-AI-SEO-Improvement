@@ -1,4 +1,5 @@
 import { requireWebsite } from "@/lib/tenant";
+import { getAppMessages } from "@/lib/i18n/app-locale";
 import { getLatestAudit } from "@/lib/audit/actions";
 import { AuditPanel } from "./audit-panel";
 import { requirePlan } from "@/lib/billing/require-plan";
@@ -17,7 +18,8 @@ export default async function WebsiteHealthPage({
   params,
 }: PageProps<"/websites/[websiteId]">) {
   const { websiteId } = await params;
-  const { orgId, site } = await requireWebsite(websiteId);
+  const { orgId, site, userId } = await requireWebsite(websiteId);
+  const { t } = await getAppMessages(userId);
   // Paywall. See lib/billing/require-plan.ts.
   await requirePlan(orgId);
   const auditData = await getLatestAudit(site.id);
@@ -28,6 +30,7 @@ export default async function WebsiteHealthPage({
       domain={site.domain}
       audit={auditData.audit}
       crawl={auditData.crawl}
+      t={t.app.common}
     />
   );
 }

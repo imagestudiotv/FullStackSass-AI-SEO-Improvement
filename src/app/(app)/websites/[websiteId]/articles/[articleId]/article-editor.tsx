@@ -500,6 +500,7 @@ export function ArticleEditor({
                 imageAlt={article.imageAlt}
                 attempts={article.imageAttempts}
                 t={tImage}
+                tCommon={tCommon}
               />
             </div>
           </TabsContent>

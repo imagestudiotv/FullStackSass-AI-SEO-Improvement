@@ -2,6 +2,7 @@
 
 import { Globe, Loader2, Plus, X } from "lucide-react";
 import { useState } from "react";
+import type { Messages } from "@/lib/i18n/messages";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -28,9 +29,12 @@ type Competitor = { domain: string; source: string | null };
 export function CompetitorsCard({
   websiteId,
   competitors: initial,
+  t,
 }: {
   websiteId: string;
   competitors: Competitor[];
+  /** Shared words used on several screens. */
+  t: Messages["app"]["common"];
 }) {
   const [rivals, setRivals] = useState(initial);
   const [draft, setDraft] = useState("");
@@ -67,7 +71,7 @@ export function CompetitorsCard({
   return (
     <div className="rounded-xl border bg-card">
       <div className="border-b px-4 py-3">
-        <p className="font-medium">Competitors</p>
+        <p className="font-medium">{t.competitors}</p>
         <p className="mt-1 text-sm text-muted-foreground">
           Who else shows up when buyers search your space. We use these to find
           content gaps and the terms worth going after.

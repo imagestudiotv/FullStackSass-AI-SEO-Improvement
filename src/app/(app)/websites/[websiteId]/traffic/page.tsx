@@ -1,4 +1,5 @@
 import { requireWebsite } from "@/lib/tenant";
+import { getAppMessages } from "@/lib/i18n/app-locale";
 import {
   getDecayedPages,
   getTrafficChart,
@@ -14,7 +15,8 @@ export default async function WebsiteTrafficPage({
   params,
 }: PageProps<"/websites/[websiteId]/traffic">) {
   const { websiteId } = await params;
-  const { orgId, site } = await requireWebsite(websiteId);
+  const { orgId, site, userId } = await requireWebsite(websiteId);
+  const { t } = await getAppMessages(userId);
 
   // Paywall. See lib/billing/require-plan.ts.
   await requirePlan(orgId);
@@ -23,5 +25,12 @@ export default async function WebsiteTrafficPage({
     getTrafficChart(site.id),
   ]);
 
-  return <RefreshPanel websiteId={site.id} pages={pages} series={series} />;
+  return (
+    <RefreshPanel
+      websiteId={site.id}
+      pages={pages}
+      series={series}
+      t={t.app.common}
+    />
+  );
 }

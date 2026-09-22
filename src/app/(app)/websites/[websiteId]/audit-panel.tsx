@@ -2,6 +2,7 @@
 
 import { AlertTriangle, ExternalLink, Info, Loader2, ShieldCheck, Stethoscope } from "lucide-react";
 import { useRouter } from "next/navigation";
+import type { Messages } from "@/lib/i18n/messages";
 import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 
@@ -26,6 +27,8 @@ type AuditPanelProps = {
   domain: string;
   audit: AuditView | null;
   crawl: CrawlProgress;
+  /** Shared words used on several screens. */
+  t: Messages["app"]["common"];
 };
 
 const SEVERITY_META: Record<
@@ -49,6 +52,7 @@ export function AuditPanel({
   domain,
   audit,
   crawl,
+  t,
 }: AuditPanelProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -84,7 +88,7 @@ export function AuditPanel({
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Loader2 className="size-4 animate-spin" />
-            Checking your website
+            {t.checkingWebsite}
           </CardTitle>
           <CardDescription>
             {crawl.pagesCrawled} of {crawl.pagesFound} pages checked so far.
@@ -100,7 +104,7 @@ export function AuditPanel({
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Stethoscope className="size-4" />
-            Website health
+            {t.websiteHealth}
           </CardTitle>
           <CardDescription>
             We check your pages and list what is holding your website back on
@@ -132,7 +136,7 @@ export function AuditPanel({
           <div>
             <CardTitle className="flex items-center gap-2 text-base">
               <ShieldCheck className="size-4" />
-              Website health
+              {t.websiteHealth}
             </CardTitle>
             <CardDescription>
               {audit.summary?.pagesCrawled ?? 0} pages checked on{" "}
@@ -231,6 +235,7 @@ export function AuditPanel({
           developerCount={countNeedingDeveloper(
             audit.issues.map((i) => i.type),
           )}
+          t={t}
         />
 
         <div className="flex flex-wrap gap-2">

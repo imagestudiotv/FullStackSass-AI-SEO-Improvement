@@ -2,6 +2,7 @@
 
 import { ExternalLink, Loader2, RefreshCw, TrendingDown } from "lucide-react";
 import { useRouter } from "next/navigation";
+import type { Messages } from "@/lib/i18n/messages";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
@@ -33,11 +34,14 @@ export function RefreshPanel({
   websiteId,
   pages,
   series,
+  t,
 }: {
   websiteId: string;
   pages: DecayedPage[];
   /** Daily clicks across both windows. Empty when Search Console is unlinked. */
   series: TrafficPoint[];
+  /** Shared words used on several screens. */
+  t: Messages["app"]["common"];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -62,7 +66,7 @@ export function RefreshPanel({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <TrendingDown className="size-4" aria-hidden="true" />
-          Losing traffic
+          {t.losingTraffic}
         </CardTitle>
         <CardDescription>
           Pages getting fewer clicks than they did a month ago, from your Search
@@ -81,7 +85,7 @@ export function RefreshPanel({
         {pages.length === 0 ? (
           <EmptyState
             icon={TrendingDown}
-            title="Nothing is losing traffic"
+            title={t.nothingLosing}
             description="We compare the last 28 days against the 28 before. Nothing has dropped enough to worry about — or there is not enough Search Console history yet."
           />
         ) : (
@@ -138,7 +142,7 @@ export function RefreshPanel({
                 ) : (
                   // Not one of ours, so there is nothing to regenerate.
                   <span className="text-xs text-muted-foreground">
-                    Not written here
+                    {t.notWrittenHere}
                   </span>
                 )}
               </li>
