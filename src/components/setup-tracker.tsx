@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronDown, Lock, X } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, Lock, X } from "lucide-react";
 import Link from "next/link";
 import { useState, useSyncExternalStore } from "react";
 
@@ -118,11 +118,30 @@ export function SetupTracker({ steps }: { steps: LaunchStep[] }) {
     }
   }
 
+  /** Puts the panel back from the collapsed badge. */
+  function restore() {
+    setDismissedNow(false);
+    try {
+      window.sessionStorage.removeItem(STORAGE_KEY);
+    } catch {
+      /*
+        Storage refused the write. The panel still reopens for this render
+        because dismissedNow is state; it simply will not be remembered,
+        which is the harmless direction to fail in.
+      */
+    }
+  }
+
   const remaining = steps.filter((step) => !step.done && !step.optional);
   const doneCount = steps.filter((step) => step.done).length;
 
-  /** Nothing required left, or the customer hid it. */
-  if (remaining.length === 0 || dismissed) return null;
+  /**
+   * Nothing required left: gone for good, and rightly so.
+   *
+   * This is the ONLY case that renders nothing. Being hidden by the customer
+   * is handled below as a collapsed icon, not an absence.
+   */
+  if (remaining.length === 0) return null;
 
   /*
     SHOWN ON /setup TOO.
@@ -143,6 +162,44 @@ export function SetupTracker({ steps }: { steps: LaunchStep[] }) {
 
   const current = remaining[0];
   const currentIndex = steps.findIndex((step) => step.id === current.id);
+
+  /**
+   * HIDDEN COLLAPSES TO AN ICON. It does not disappear.
+   *
+   * The client: "If I hide the bar box from right there is no way to restore
+   * it… I think it should stay as a icon and when you click it's showing
+   * back. This is useful until we set all points and after that it will never
+   * showing."
+   *
+   * Exactly right, and the previous behaviour was a trap: the X returned null
+   * and the only way back was a new tab, which nothing on screen told you.
+   * Somebody who hid it once to read the page underneath had silently thrown
+   * away their setup guidance for the rest of the session.
+   *
+   * The badge carries the progress count, so it is still doing the panel's
+   * job while collapsed — "3/9 left" is a reason to click it. And the
+   * disappearing case the client describes is already handled above: once no
+   * required steps remain, the whole component renders nothing and never
+   * comes back, badge included.
+   */
+  if (dismissed) {
+    return (
+      <div className="fixed right-4 bottom-28 z-[999999] hidden sm:block">
+        <button
+          type="button"
+          onClick={restore}
+          aria-label={`Show setup steps — ${remaining.length} left`}
+          className="flex items-center gap-2 rounded-full border bg-card py-2 pr-4 pl-2.5 shadow-lg transition-colors hover:bg-accent"
+        >
+          <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-[11px] font-semibold text-primary-foreground">
+            {remaining.length}
+          </span>
+          <span className="text-sm font-medium">Set up</span>
+          <ChevronUp className="size-4 text-muted-foreground" aria-hidden="true" />
+        </button>
+      </div>
+    );
+  }
 
   return (
     /*
