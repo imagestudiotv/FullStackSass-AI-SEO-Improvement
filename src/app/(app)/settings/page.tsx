@@ -5,7 +5,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { PageHeader, PageShell } from "@/components/ui/page-header";
+import { SettingsNav } from "@/components/settings-nav";
+import { PageShell } from "@/components/ui/page-header";
 import { eq } from "drizzle-orm";
 import { requireSession } from "@/lib/auth-guard";
 import { getReferralSummary } from "@/lib/referrals/actions";
@@ -59,10 +60,14 @@ export default async function SettingsPage() {
 
   return (
     <PageShell>
-      <PageHeader
-        title="Settings"
-        description="Your account, your plan, and the connections that carry your articles."
-      />
+      {/*
+        The same five-section strip as the website pages, so Account is one
+        tab of a set rather than a separate place you arrive at. websiteId
+        may be null when the workspace has no site yet; the strip then still
+        renders and its per-website tabs simply have nowhere to point, which
+        is honest — there is no website to configure.
+      */}
+      {websiteId ? <SettingsNav websiteId={websiteId} /> : null}
 
       <Card>
         <CardHeader>

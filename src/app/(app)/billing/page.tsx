@@ -3,6 +3,7 @@ import {
   isEntitled,
   listPayments,
   listPlans, listWebsiteSubscriptions} from "@/lib/billing";
+import { SettingsNav } from "@/components/settings-nav";
 import { PageShell } from "@/components/ui/page-header";
 import { requireSession } from "@/lib/auth-guard";
 import { isPayPalAvailable } from "@/lib/paypal/actions";
@@ -81,6 +82,17 @@ export default async function BillingPage({
 
   return (
     <>
+      {/*
+        The five-section strip, so Billing is a tab of the same set rather
+        than somewhere you land separately. Rendered only with a website,
+        because the per-website tabs have nowhere to point without one.
+      */}
+      {websiteId ? (
+        <PageShell>
+          <SettingsNav websiteId={websiteId} />
+        </PageShell>
+      ) : null}
+
       <BillingClient
         plans={plans}
         subscription={subscription}

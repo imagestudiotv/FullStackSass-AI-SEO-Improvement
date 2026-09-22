@@ -1,6 +1,12 @@
 "use client";
 
-import { Check, ExternalLink } from "lucide-react";
+import {
+  Briefcase,
+  Calendar,
+  Check,
+  CheckCircle2,
+  ExternalLink,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -259,6 +265,65 @@ export function BillingClient({
             </ul>
           </CardContent>
         </Card>
+      ) : null}
+
+      {/*
+        The three-tile summary from the client's design: current plan, next
+        invoice, status.
+
+        It sits above the existing card rather than replacing it, because the
+        card carries the processor-specific routes out — the Stripe portal,
+        the PayPal link, the contact-support fallback — and each of those is
+        the only cancellation path for its case. Tiles answer "what am I on
+        and what happens next" at a glance; the card answers "how do I change
+        it".
+
+        Only rendered for a real subscription. Three empty tiles above a
+        plan picker would be furniture telling somebody who has not bought
+        anything that they are on no plan, which they know.
+      */}
+      {subscription ? (
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="rounded-xl border bg-card p-4">
+            <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Briefcase className="size-3.5" aria-hidden="true" />
+              Current plan
+            </p>
+            <p className="mt-2 text-xl font-semibold tracking-tight">
+              {subscription.planName ?? "—"}
+            </p>
+          </div>
+
+          <div className="rounded-xl border bg-card p-4">
+            <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Calendar className="size-3.5" aria-hidden="true" />
+              {subscription.cancelAtPeriodEnd ? "Access ends" : "Next invoice"}
+            </p>
+            <p className="mt-2 text-xl font-semibold tracking-tight">
+              {subscription.currentPeriodEnd
+                ? subscription.currentPeriodEnd.toLocaleDateString("en-GB", {
+                    day: "numeric",
+                    month: "short",
+                  })
+                : "—"}
+            </p>
+          </div>
+
+          <div className="rounded-xl border bg-card p-4">
+            <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <CheckCircle2 className="size-3.5" aria-hidden="true" />
+              Status
+            </p>
+            {/*
+              The raw status, title-cased — not a friendlier word of our own.
+              "past_due" means a payment failed and the customer needs to act;
+              softening it to "Active" would hide the one state worth seeing.
+            */}
+            <p className="mt-2 text-xl font-semibold tracking-tight capitalize">
+              {subscription.status.replace(/_/g, " ")}
+            </p>
+          </div>
+        </div>
       ) : null}
 
       <Card>
