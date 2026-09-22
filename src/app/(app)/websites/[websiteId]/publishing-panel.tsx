@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { Messages } from "@/lib/i18n/messages";
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { ProviderLogo } from "@/components/provider-logo";
@@ -126,6 +126,22 @@ export function PublishingPanel({
     });
   }
 
+  /** Close the open form, discarding whatever was typed into it. */
+  function closeForm() {
+    setAdding(null);
+    setValues({});
+  }
+
+  /**
+   * Opening a provider clears the form. Clicking the provider that is already
+   * open closes it again, so the card's button is a toggle rather than a
+   * one-way door — the same click that opened the form takes it back.
+   */
+  function openForm(providerId: string) {
+    setAdding((current) => (current === providerId ? null : providerId));
+    setValues({});
+  }
+
   /**
    * CMS platforms and developer options are shown separately, as the design
    * splits them.
@@ -142,6 +158,20 @@ export function PublishingPanel({
   const DEVELOPER_IDS = new Set(["webhook", "api"]);
   const platforms = providers.filter((p) => !DEVELOPER_IDS.has(p.id));
   const developerOptions = providers.filter((p) => DEVELOPER_IDS.has(p.id));
+
+  /** Props every card needs, gathered so the two grids stay in step. */
+  const cardProps = {
+    selectedId: adding,
+    connectedKinds,
+    pending,
+    values,
+    setValues,
+    onToggle: openForm,
+    onConnect: handleConnect,
+    onCancel: closeForm,
+    t,
+    tCommon,
+  };
 
   return (
     <Card>
@@ -259,203 +289,85 @@ export function PublishingPanel({
           so the same information appeared twice and neither place was
           obviously the answer.
 
-          Each card still opens the same generated credential form below, so
-          adding a provider to the registry still adds a card with no work
-          here.
+          The grid is always on screen. The credential form used to replace
+          it, so choosing a platform emptied the page of every other one and
+          the only way back to the choice was Cancel — a customer comparing
+          two platforms, or one who clicked the wrong card, had to undo
+          before they could look again. Now the form opens inside the card
+          that was clicked, and the rest of the platforms stay where they
+          were, still visible by scrolling past it.
         */}
-        {selected === null ? (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {platforms.map((provider) => {
-              const connected = connectedKinds.has(provider.id);
-              return (
-                <div
-                  key={provider.id}
-                  className={`flex flex-col rounded-xl border p-4 ${
-                    connected ? "border-emerald-500/40 bg-emerald-500/5" : ""
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <ProviderLogo providerId={provider.id} />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="font-medium">{provider.name}</p>
-                        {connected ? (
-                          <span className="flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
-                            <Check className="size-3" aria-hidden="true" />
-                            {t.connected}
-                          </span>
-                        ) : null}
-                      </div>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {provider.description}
-                      </p>
-                    </div>
-                  </div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {platforms.map((provider) => (
+            <ProviderCard key={provider.id} provider={provider} {...cardProps} />
+          ))}
 
-                  <div className="flex-1" aria-hidden="true" />
+          {/*
+            The last card in the design: a way out for somebody whose
+            platform is not listed.
 
-                  <Button
-                    variant={connected ? "secondary" : "outline"}
-                    size="sm"
-                    className="mt-3 self-start"
-                    onClick={() => {
-                      setAdding(provider.id);
-                      setValues({});
-                    }}
-                    disabled={pending}
-                  >
-                    {connected ? (
-                      "Manage"
-                    ) : (
-                      <>
-                        <Plus className="size-4" />
-                        {tCommon.connect}
-                      </>
-                    )}
-                  </Button>
-                </div>
-              );
-            })}
-
-            {/*
-              The last card in the design: a way out for somebody whose
-              platform is not listed.
-
-              Not a dead end and not a form. It opens the support chat that
-              is already on every page, because the useful answer to "my CMS
-              is missing" is a conversation - which platform, how many
-              people want it - and a contact form would collect that into an
-              inbox nobody is watching.
-            */}
-            <div className="flex flex-col rounded-xl border border-dashed p-4">
-              <p className="font-medium">{t.cantFind}</p>
-              <p className="mt-1 flex-1 text-sm text-muted-foreground">
-                {t.cantFindHelp}
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-3 self-start"
-                onClick={() => {
-                  /*
-                    Crisp is loaded on every page inside (app); $crisp is its
-                    command queue, so pushing works whether or not the script
-                    has finished loading. Falling back to a mailto keeps the
-                    button honest if the widget is blocked.
-                  */
-                  const crisp = (
-                    window as unknown as {
-                      $crisp?: { push: (command: unknown[]) => void };
-                    }
-                  ).$crisp;
-                  if (crisp) {
-                    crisp.push(["do", "chat:open"]);
-                    crisp.push([
-                      "set",
-                      "message:text",
-                      ["I use a platform that is not listed: "],
-                    ]);
-                  } else {
-                    window.location.href =
-                      "mailto:support@repget.com?subject=Integration%20request";
-                  }
-                }}
-              >
-                <MessageCircle className="size-4" />
-                {t.contactUs}
-              </Button>
-            </div>
-          </div>
-        ) : (
-          /*
-            The form is generated from the provider's declared fields, so a new
-            CMS needs no UI work — only an adapter and a registry entry.
-          */
-          <div className="space-y-4 rounded-xl border p-4">
-            <div>
-              <p className="font-medium">{t.connectTo(selected.name)}</p>
-              <p className="text-sm text-muted-foreground">
-                {selected.description}
-              </p>
-              {selected.helpUrl ? (
-                <a
-                  href={selected.helpUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-1 inline-flex items-center gap-1 text-sm underline underline-offset-4"
-                >
-                  {t.whereDoIFind}
-                  <ExternalLink className="size-3" aria-hidden="true" />
-                </a>
-              ) : null}
-            </div>
-
-            {selected.fields.map((field) => (
-              <div key={field.key} className="space-y-1.5">
-                <Label htmlFor={field.key}>{field.label}</Label>
-                <Input
-                  id={field.key}
-                  type={field.secret ? "password" : "text"}
-                  value={values[field.key] ?? ""}
-                  placeholder={field.placeholder}
-                  autoComplete="off"
-                  onChange={(e) =>
-                    setValues((prev) => ({
-                      ...prev,
-                      [field.key]: e.target.value,
-                    }))
-                  }
-                />
-                {field.help ? (
-                  <p className="text-xs text-muted-foreground">{field.help}</p>
-                ) : null}
-              </div>
-            ))}
-
-            <div className="flex gap-2">
-              <Button onClick={handleConnect} disabled={pending}>
-                {pending ? (
-                  <>
-                    <Loader2 className="size-4 animate-spin" />
-                    {tCommon.checking}
-                  </>
-                ) : (
-                  "Connect"
-                )}
-              </Button>
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  setAdding(null);
-                  setValues({});
-                }}
-                disabled={pending}
-              >
-                {tCommon.cancel}
-              </Button>
-            </div>
-
-            <p className="text-xs text-muted-foreground">
-              We check the connection before saving anything, so you find out
-              here if something is wrong rather than when an article fails to
-              appear.
+            Not a dead end and not a form. It opens the support chat that
+            is already on every page, because the useful answer to "my CMS
+            is missing" is a conversation - which platform, how many
+            people want it - and a contact form would collect that into an
+            inbox nobody is watching.
+          */}
+          <div className="flex flex-col rounded-xl border border-dashed p-4">
+            <p className="font-medium">{t.cantFind}</p>
+            <p className="mt-1 flex-1 text-sm text-muted-foreground">
+              {t.cantFindHelp}
             </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-3 self-start"
+              onClick={() => {
+                /*
+                  Crisp is loaded on every page inside (app); $crisp is its
+                  command queue, so pushing works whether or not the script
+                  has finished loading. Falling back to a mailto keeps the
+                  button honest if the widget is blocked.
+                */
+                const crisp = (
+                  window as unknown as {
+                    $crisp?: { push: (command: unknown[]) => void };
+                  }
+                ).$crisp;
+                if (crisp) {
+                  crisp.push(["do", "chat:open"]);
+                  crisp.push([
+                    "set",
+                    "message:text",
+                    ["I use a platform that is not listed: "],
+                  ]);
+                } else {
+                  window.location.href =
+                    "mailto:support@repget.com?subject=Integration%20request";
+                }
+              }}
+            >
+              <MessageCircle className="size-4" />
+              {t.contactUs}
+            </Button>
           </div>
-        )}
+        </div>
+
         <PluginKeys
           websiteId={websiteId}
           keys={pluginKeys}
           t={tKeys}
           tCommon={tCommon}
         />
+
         {/*
           For developers, as the design separates it.
 
-          Rendered only when a developer option exists and no credential form
-          is open - the form replaces the choice above it, and a second
-          heading below an open form would suggest there is more to pick.
+          Stays on screen while a credential form is open, for the same
+          reason the platform grid does: opening WordPress should not hide
+          the webhook, which is often the thing somebody falls back to when
+          the platform form turns out to ask for something they do not have.
         */}
-        {selected === null && developerOptions.length > 0 ? (
+        {developerOptions.length > 0 ? (
           <div className="space-y-3 border-t pt-6">
             <div>
               <p className="font-medium">{t.forDevelopers}</p>
@@ -465,64 +377,185 @@ export function PublishingPanel({
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
-              {developerOptions.map((provider) => {
-                const connected = connectedKinds.has(provider.id);
-                return (
-                  <div
-                    key={provider.id}
-                    className={`flex flex-col rounded-xl border p-4 ${
-                      connected ? "border-emerald-500/40 bg-emerald-500/5" : ""
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      {/*
-                        The webhook has no brand mark, so this falls back to
-                        the puzzle piece — which is the right answer for
-                        "anything that speaks HTTP".
-                      */}
-                      <ProviderLogo providerId={provider.id} />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="font-medium">{provider.name}</p>
-                          {connected ? (
-                            <span className="flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
-                              <Check className="size-3" aria-hidden="true" />
-                              {t.connected}
-                            </span>
-                          ) : null}
-                        </div>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          {provider.description}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex-1" aria-hidden="true" />
-                    <Button
-                      variant={connected ? "secondary" : "outline"}
-                      size="sm"
-                      className="mt-3 self-start"
-                      onClick={() => {
-                        setAdding(provider.id);
-                        setValues({});
-                      }}
-                      disabled={pending}
-                    >
-                      {connected ? (
-                        "Manage"
-                      ) : (
-                        <>
-                          <Plus className="size-4" />
-                          {tCommon.connect}
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                );
-              })}
+              {developerOptions.map((provider) => (
+                <ProviderCard
+                  key={provider.id}
+                  provider={provider}
+                  {...cardProps}
+                />
+              ))}
             </div>
           </div>
         ) : null}
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * One platform, and its credential form when it is the one chosen.
+ *
+ * The open card spans the whole grid row — the form's labelled fields need
+ * the width, and a card that grew inside a single column would push its
+ * neighbours down by a screen's worth of empty space. Spanning keeps the
+ * cards below it exactly where the customer last saw them.
+ */
+function ProviderCard({
+  provider,
+  selectedId,
+  connectedKinds,
+  pending,
+  values,
+  setValues,
+  onToggle,
+  onConnect,
+  onCancel,
+  t,
+  tCommon,
+}: {
+  provider: ProviderInfo;
+  selectedId: string | null;
+  connectedKinds: Set<string>;
+  pending: boolean;
+  values: Record<string, string>;
+  setValues: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  onToggle: (providerId: string) => void;
+  onConnect: () => void;
+  onCancel: () => void;
+  t: Messages["app"]["publishing"];
+  tCommon: Messages["app"]["common"];
+}) {
+  const connected = connectedKinds.has(provider.id);
+  const open = selectedId === provider.id;
+
+  /**
+   * Bring the opened form into view and put the cursor in its first field.
+   *
+   * The card that was clicked is already on screen, but its form is not: on a
+   * three-column grid the form unfolds below the fold, and without this the
+   * click appears to do nothing. Scrolling the card — not the field — keeps
+   * the provider's name in frame, so it stays obvious which one is being
+   * connected.
+   */
+  const cardRef = useRef<HTMLDivElement | null>(null);
+  const firstFieldRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    cardRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    firstFieldRef.current?.focus();
+  }, [open]);
+
+  return (
+    <div
+      ref={cardRef}
+      className={`flex flex-col rounded-xl border p-4 ${
+        open ? "sm:col-span-2 lg:col-span-3 border-primary/50 shadow-sm" : ""
+      } ${connected && !open ? "border-emerald-500/40 bg-emerald-500/5" : ""}`}
+    >
+      <div className="flex items-start gap-3">
+        {/*
+          A provider with no brand mark falls back to the puzzle piece —
+          which is the right answer for "anything that speaks HTTP".
+        */}
+        <ProviderLogo providerId={provider.id} />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <p className="font-medium">{provider.name}</p>
+            {connected ? (
+              <span className="flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                <Check className="size-3" aria-hidden="true" />
+                {t.connected}
+              </span>
+            ) : null}
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {provider.description}
+          </p>
+          {open && provider.helpUrl ? (
+            <a
+              href={provider.helpUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-1 inline-flex items-center gap-1 text-sm underline underline-offset-4"
+            >
+              {t.whereDoIFind}
+              <ExternalLink className="size-3" aria-hidden="true" />
+            </a>
+          ) : null}
+        </div>
+      </div>
+
+      {open ? (
+        /*
+          The form is generated from the provider's declared fields, so a new
+          CMS needs no UI work — only an adapter and a registry entry.
+        */
+        <div className="mt-4 space-y-4 border-t pt-4">
+          {provider.fields.map((field, index) => (
+            <div key={field.key} className="space-y-1.5">
+              <Label htmlFor={`${provider.id}-${field.key}`}>
+                {field.label}
+              </Label>
+              <Input
+                id={`${provider.id}-${field.key}`}
+                ref={index === 0 ? firstFieldRef : undefined}
+                type={field.secret ? "password" : "text"}
+                value={values[field.key] ?? ""}
+                placeholder={field.placeholder}
+                autoComplete="off"
+                onChange={(e) =>
+                  setValues((prev) => ({
+                    ...prev,
+                    [field.key]: e.target.value,
+                  }))
+                }
+              />
+              {field.help ? (
+                <p className="text-xs text-muted-foreground">{field.help}</p>
+              ) : null}
+            </div>
+          ))}
+
+          <div className="flex gap-2">
+            <Button onClick={onConnect} disabled={pending}>
+              {pending ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  {tCommon.checking}
+                </>
+              ) : (
+                tCommon.connect
+              )}
+            </Button>
+            <Button variant="ghost" onClick={onCancel} disabled={pending}>
+              {tCommon.cancel}
+            </Button>
+          </div>
+
+          <p className="text-xs text-muted-foreground">{t.checkBeforeSaving}</p>
+        </div>
+      ) : (
+        <>
+          <div className="flex-1" aria-hidden="true" />
+          <Button
+            variant={connected ? "secondary" : "outline"}
+            size="sm"
+            className="mt-3 self-start"
+            onClick={() => onToggle(provider.id)}
+            disabled={pending}
+          >
+            {connected ? (
+              "Manage"
+            ) : (
+              <>
+                <Plus className="size-4" />
+                {tCommon.connect}
+              </>
+            )}
+          </Button>
+        </>
+      )}
+    </div>
   );
 }
