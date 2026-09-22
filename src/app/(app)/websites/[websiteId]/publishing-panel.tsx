@@ -1,6 +1,14 @@
 "use client";
 
-import { Check, ExternalLink, Loader2, Plus, Send, X } from "lucide-react";
+import {
+  Check,
+  ExternalLink,
+  Loader2,
+  MessageCircle,
+  Plus,
+  Send,
+  X,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -104,16 +112,36 @@ export function PublishingPanel({
     });
   }
 
+  /**
+   * CMS platforms and developer options are shown separately, as the design
+   * splits them.
+   *
+   * A webhook is not a platform you "connect to" - it is what you reach for
+   * when none of the platforms fit, and putting it in the same grid asked a
+   * non-technical customer to consider it as a peer of WordPress. Below a
+   * "For developers" heading it reads as the escape hatch it is.
+   *
+   * Derived from the registry rather than hardcoded, so a new provider lands
+   * in the right group by declaring itself rather than by being added to a
+   * list here.
+   */
+  const DEVELOPER_IDS = new Set(["webhook", "api"]);
+  const platforms = providers.filter((p) => !DEVELOPER_IDS.has(p.id));
+  const developerOptions = providers.filter((p) => DEVELOPER_IDS.has(p.id));
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Send className="size-4" aria-hidden="true" />
-          Publishing
-        </CardTitle>
+        {/*
+          "Connect Your Website", as the design titles it, rather than
+          "Publishing". The heading names the job the customer came to do;
+          "Publishing" named the part of the system doing it, which is our
+          word for it rather than theirs.
+        */}
+        <CardTitle className="text-xl">Connect Your Website</CardTitle>
         <CardDescription>
-          Where your finished articles are published. You can connect more than
-          one.
+          Connect your website once and new articles will get published to your
+          blog automatically.
         </CardDescription>
       </CardHeader>
 
@@ -226,7 +254,7 @@ export function PublishingPanel({
         */}
         {selected === null ? (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {providers.map((provider) => {
+            {platforms.map((provider) => {
               const connected = connectedKinds.has(provider.id);
               return (
                 <div
@@ -271,6 +299,55 @@ export function PublishingPanel({
                 </div>
               );
             })}
+
+            {/*
+              The last card in the design: a way out for somebody whose
+              platform is not listed.
+
+              Not a dead end and not a form. It opens the support chat that
+              is already on every page, because the useful answer to "my CMS
+              is missing" is a conversation - which platform, how many
+              people want it - and a contact form would collect that into an
+              inbox nobody is watching.
+            */}
+            <div className="flex flex-col rounded-xl border border-dashed p-4">
+              <p className="font-medium">Can&rsquo;t find your integration?</p>
+              <p className="mt-1 flex-1 text-sm text-muted-foreground">
+                Tell us which platform you use and we will look at adding it.
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-3 self-start"
+                onClick={() => {
+                  /*
+                    Crisp is loaded on every page inside (app); $crisp is its
+                    command queue, so pushing works whether or not the script
+                    has finished loading. Falling back to a mailto keeps the
+                    button honest if the widget is blocked.
+                  */
+                  const crisp = (
+                    window as unknown as {
+                      $crisp?: { push: (command: unknown[]) => void };
+                    }
+                  ).$crisp;
+                  if (crisp) {
+                    crisp.push(["do", "chat:open"]);
+                    crisp.push([
+                      "set",
+                      "message:text",
+                      ["I use a platform that is not listed: "],
+                    ]);
+                  } else {
+                    window.location.href =
+                      "mailto:support@repget.com?subject=Integration%20request";
+                  }
+                }}
+              >
+                <MessageCircle className="size-4" />
+                Contact us
+              </Button>
+            </div>
           </div>
         ) : (
           /*
@@ -349,6 +426,69 @@ export function PublishingPanel({
           </div>
         )}
         <PluginKeys websiteId={websiteId} keys={pluginKeys} />
+        {/*
+          For developers, as the design separates it.
+
+          Rendered only when a developer option exists and no credential form
+          is open - the form replaces the choice above it, and a second
+          heading below an open form would suggest there is more to pick.
+        */}
+        {selected === null && developerOptions.length > 0 ? (
+          <div className="space-y-3 border-t pt-6">
+            <div>
+              <p className="font-medium">For developers</p>
+              <p className="text-sm text-muted-foreground">
+                No platform match? Publish anywhere with a webhook.
+              </p>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              {developerOptions.map((provider) => {
+                const connected = connectedKinds.has(provider.id);
+                return (
+                  <div
+                    key={provider.id}
+                    className={`flex flex-col rounded-xl border p-4 ${
+                      connected ? "border-emerald-500/40 bg-emerald-500/5" : ""
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="font-medium">{provider.name}</p>
+                      {connected ? (
+                        <span className="flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                          <Check className="size-3" aria-hidden="true" />
+                          Connected
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="mt-1 flex-1 text-sm text-muted-foreground">
+                      {provider.description}
+                    </p>
+                    <Button
+                      variant={connected ? "secondary" : "outline"}
+                      size="sm"
+                      className="mt-3 self-start"
+                      onClick={() => {
+                        setAdding(provider.id);
+                        setValues({});
+                      }}
+                      disabled={pending}
+                    >
+                      {connected ? (
+                        "Manage"
+                      ) : (
+                        <>
+                          <Plus className="size-4" />
+                          Connect
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );
