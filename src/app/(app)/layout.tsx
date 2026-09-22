@@ -275,7 +275,20 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           plain background, so cards read as raised surfaces without needing
           heavy shadows.
         */}
-        <main className="min-w-0 flex-1 px-4 py-6 md:px-8 md:py-8">
+        {/*
+          A TINTED CONTENT AREA, so the white cards on it have something to
+          sit against.
+
+          --background and --card are both pure white in the light theme, so
+          every panel was white-on-white and the page read as one flat sheet
+          with hairline borders - the client: "the each tabs are too white in
+          UI side". muted/40 is a very light grey: enough for a card to look
+          like a card, not so much that the page looks grey.
+
+          Left on the MAIN element rather than the cards, so every page gains
+          it at once and nothing has to remember to opt in.
+        */}
+        <main className="min-w-0 flex-1 bg-muted/40 px-4 py-6 md:px-8 md:py-8">
           {children}
         </main>
       </div>

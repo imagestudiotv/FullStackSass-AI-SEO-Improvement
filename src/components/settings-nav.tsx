@@ -77,9 +77,19 @@ export function SettingsNav({ websiteId }: { websiteId: string }) {
     */
     <nav
       aria-label="Settings sections"
-      className="-mx-1 overflow-x-auto border-b"
+      /*
+        A MUTED TRACK, not bare page.
+
+        --card and --background are both pure white in the light theme, so a
+        strip with no fill sat invisibly on the page: the only thing marking
+        the current tab was a 2px underline, and the client read the whole
+        row as "too white". Giving the strip its own surface makes it a
+        control rather than a line of text, and the selected tab then reads
+        as lifted OUT of that surface rather than as slightly darker text.
+      */
+      className="overflow-x-auto rounded-xl border bg-muted/60 p-1"
     >
-      <ul className="flex min-w-max gap-1 px-1">
+      <ul className="flex min-w-max gap-1">
         {SECTIONS.map((section) => {
           const active = section.match(pathname, websiteId);
           return (
@@ -87,10 +97,21 @@ export function SettingsNav({ websiteId }: { websiteId: string }) {
               <Link
                 href={section.href(websiteId)}
                 aria-current={active ? "page" : undefined}
-                className={`inline-block border-b-2 px-4 py-3 text-sm whitespace-nowrap transition-colors ${
+                /*
+                  The active tab is a raised white pill with the brand
+                  underline kept, rather than an underline alone. Two signals
+                  rather than one: somebody scanning the row sees the filled
+                  shape before they read any text.
+
+                  The inactive label is text-foreground, not muted. Muted grey
+                  on this track measures around 3.3:1 — under the 4.5:1
+                  minimum — which is the same mistake the plan switcher had,
+                  where the client reported the two tabs looking identical.
+                */
+                className={`inline-block rounded-lg border-b-2 px-4 py-2.5 text-sm whitespace-nowrap transition-colors ${
                   active
-                    ? "border-primary font-semibold text-foreground"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
+                    ? "border-primary bg-background font-semibold text-foreground shadow-sm"
+                    : "border-transparent text-foreground/70 hover:bg-background/60 hover:text-foreground"
                 }`}
               >
                 {section.label}
