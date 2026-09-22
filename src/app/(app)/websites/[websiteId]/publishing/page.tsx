@@ -6,6 +6,7 @@ import {
 import { getIntegrationKeys } from "@/lib/plugin/actions";
 import { getBrandVoice } from "@/lib/brand/actions";
 import { BrandVoiceForm } from "../brand-voice-form";
+import { ArticleSettingsForm } from "../article-settings-form";
 import { GenerationPanel } from "../generation-panel";
 import { PublishingPanel } from "../publishing-panel";
 import { requirePlan } from "@/lib/billing/require-plan";
@@ -35,6 +36,21 @@ export default async function WebsitePublishingPage({
         The settings above the connections, because they decide what happens
         to every article and the connections are how it happens.
       */}
+      {/*
+        Content & SEO, the first section of the client's Article Settings
+        design. It sits above the schedule because it decides what every
+        article IS; the panels below decide when and where it goes.
+      */}
+      <ArticleSettingsForm
+        websiteId={site.id}
+        initial={{
+          publishAs: site.publishAs === "draft" ? "draft" : "live",
+          articleStyle: site.articleStyle,
+          internalLinkTarget: site.internalLinkTarget,
+          targetWordCount: site.targetWordCount,
+        }}
+      />
+
       <GenerationPanel
         websiteId={site.id}
         mode={site.generationMode === "manual" ? "manual" : "automatic"}

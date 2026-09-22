@@ -266,6 +266,80 @@ export const websites = pgTable("websites", {
    * schedule nobody can shape gets turned off entirely.
    */
   publishingDays: jsonb("publishing_days"),
+
+  /* --- Article settings, from the client's design ------------------- */
+
+  /**
+   * Whether articles arrive live or as drafts.
+   *
+   * SEPARATE FROM autoPublish, which decides IF we publish at all. This
+   * decides WHAT we publish as when we do. A customer can want articles
+   * pushed automatically and still want to read them before the world does,
+   * and collapsing the two would force that person to publish nothing
+   * automatically.
+   */
+  publishAs: text("publish_as").default("live").notNull(),
+  /**
+   * Editorial register: "expert", "conversational", "friendly"…
+   *
+   * Free text rather than an enum, because the list is presentational and
+   * the writer prompt reads it directly; a new style should be a line in the
+   * UI, not a migration.
+   */
+  articleStyle: text("article_style").default("expert").notNull(),
+  /** Internal links to aim for per article. */
+  internalLinkTarget: integer("internal_link_target").default(3).notNull(),
+  /**
+   * Null means ADAPTIVE — the length is chosen per article type.
+   *
+   * A number forces one fixed length across every format, which is the
+   * "Custom" branch of the design's toggle. Null rather than a sentinel like
+   * 0 so the two states cannot be confused with "no words".
+   */
+  targetWordCount: integer("target_word_count"),
+
+  /** Where the sitemap lives, for finding pages worth linking to. */
+  sitemapUrl: text("sitemap_url"),
+  /** The blog's own index, so new articles are filed alongside the others. */
+  blogUrl: text("blog_url"),
+  /** An article the customer is happy with, as a style reference. */
+  exampleArticleUrl: text("example_article_url"),
+
+  /** Hex, used in generated images. */
+  brandColor: text("brand_color"),
+  /** Preset id for images INSIDE the article body. */
+  imageStyle: text("image_style").default("realistic").notNull(),
+  /** Preset id for the cover image, chosen separately from the body style. */
+  featuredImageStyle: text("featured_image_style").default("sketch").notNull(),
+  /** How the brand should look in pictures, in the customer's own words. */
+  imageBrief: text("image_brief"),
+  /** Anything to avoid in images — "never show faces" and the like. */
+  imageInstructions: text("image_instructions"),
+
+  /** Adds a contents list built from the article's headings. */
+  tableOfContents: boolean("table_of_contents").default(false).notNull(),
+  /** Finds and embeds a relevant video. */
+  youtubeVideo: boolean("youtube_video").default(false).notNull(),
+  /** Writes in the first person, as somebody with a view. */
+  authorPerspective: boolean("author_perspective").default(true).notNull(),
+  /** References comparable products and tools. */
+  mentionSimilarProducts: boolean("mention_similar_products")
+    .default(false)
+    .notNull(),
+  /**
+   * The "Powered by RepGet" credit line.
+   *
+   * Defaults ON, and the client said so explicitly. Turning it off applies
+   * only to articles not yet published — a line already live on someone
+   * else's site is not ours to reach back and edit.
+   */
+  poweredByLink: boolean("powered_by_link").default(true).notNull(),
+
+  /** Byline shown on the article, in the dashboard and on the live page. */
+  authorName: text("author_name"),
+  authorBio: text("author_bio"),
+  authorAvatarUrl: text("author_avatar_url"),
+
   ...timestamps,
 });
 

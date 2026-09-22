@@ -1,0 +1,84 @@
+/**
+ * The choices offered on the Article Settings screen.
+ *
+ * Pure data, no database import, so the client bundle can read it: the form
+ * renders these and the writer prompt reads the same ids, which is what stops
+ * a style existing in the dropdown that the generator has never heard of.
+ */
+
+export type Option = {
+  id: string;
+  label: string;
+  /** One line under the label, explaining what picking it does. */
+  hint: string;
+};
+
+/**
+ * Editorial register.
+ *
+ * Each hint describes the WRITING, not the reader — "precise editorial tone
+ * with balanced caveats" tells someone what they will get back, where
+ * "for professionals" only tells them who it is supposedly for.
+ */
+export const ARTICLE_STYLES: Option[] = [
+  {
+    id: "expert",
+    label: "Expert",
+    hint: "Precise editorial tone with balanced caveats and terminology.",
+  },
+  {
+    id: "conversational",
+    label: "Conversational",
+    hint: "Plain, direct sentences. Explains terms the first time they appear.",
+  },
+  {
+    id: "friendly",
+    label: "Friendly",
+    hint: "Warm and encouraging, second person, light on jargon.",
+  },
+  {
+    id: "journalistic",
+    label: "Journalistic",
+    hint: "Leads with the finding, attributes claims, no marketing language.",
+  },
+];
+
+/**
+ * Image styles for pictures INSIDE the article body.
+ *
+ * Kept separate from the cover: the design has both, and they are genuinely
+ * different jobs — a sketch reads well as a header and poorly as the third
+ * illustration in a row.
+ */
+export const IMAGE_STYLES: Option[] = [
+  { id: "sketch", label: "Sketch", hint: "Hand-drawn line work." },
+  { id: "watercolour", label: "Watercolour", hint: "Soft painted washes." },
+  { id: "realistic", label: "Realistic", hint: "Photographic." },
+  { id: "illustration", label: "Illustration", hint: "Flat vector shapes." },
+  {
+    id: "brand-text",
+    label: "Brand & Text",
+    hint: "Your colours, with the headline set into the image.",
+  },
+];
+
+/** Cover image styles. The last one follows whatever the body uses. */
+export const FEATURED_IMAGE_STYLES: Option[] = [
+  { id: "sketch", label: "Sketch", hint: "Title cover." },
+  { id: "watercolour", label: "Watercolour", hint: "Title cover." },
+  { id: "illustration", label: "Illustration", hint: "Title cover." },
+  {
+    id: "match",
+    label: "Match article images",
+    hint: "Uses the body style above.",
+  },
+];
+
+/** Default when a customer has not chosen, mirroring the column defaults. */
+export const DEFAULT_ARTICLE_STYLE = "expert";
+export const DEFAULT_IMAGE_STYLE = "realistic";
+export const DEFAULT_FEATURED_IMAGE_STYLE = "sketch";
+
+export function styleHint(id: string): string {
+  return ARTICLE_STYLES.find((s) => s.id === id)?.hint ?? "";
+}
