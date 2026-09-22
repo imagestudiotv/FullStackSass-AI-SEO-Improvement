@@ -91,6 +91,7 @@ export default async function WebsitePublishingPage({
           articleInstructions: voice.articleInstructions ?? "",
         }}
         t={t.app.article}
+        tCommon={t.app.common}
       />
 
       <GenerationPanel

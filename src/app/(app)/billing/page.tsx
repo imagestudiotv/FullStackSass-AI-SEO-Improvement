@@ -106,6 +106,7 @@ export default async function BillingPage({
         websiteSubscriptions={websiteSubscriptions}
         t={t.app.billing}
         locale={locale}
+        tCommon={t.app.common}
       />
       {/*
         Below the plans: an add-on is something you buy in addition to a

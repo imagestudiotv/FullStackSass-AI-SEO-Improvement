@@ -50,6 +50,7 @@ export function PublishingPanel({
   pluginKeys,
   t,
   tKeys,
+  tCommon,
 }: {
   websiteId: string;
   providers: ProviderInfo[];
@@ -59,6 +60,8 @@ export function PublishingPanel({
   t: Messages["app"]["publishing"];
   /** The key panel's own slice, forwarded to it. */
   tKeys: Messages["app"]["keys"];
+  /** Shared words used on several screens. */
+  tCommon: Messages["app"]["common"];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -303,7 +306,7 @@ export function PublishingPanel({
                     ) : (
                       <>
                         <Plus className="size-4" />
-                        Connect
+                        {tCommon.connect}
                       </>
                     )}
                   </Button>
@@ -322,9 +325,9 @@ export function PublishingPanel({
               inbox nobody is watching.
             */}
             <div className="flex flex-col rounded-xl border border-dashed p-4">
-              <p className="font-medium">Can&rsquo;t find your integration?</p>
+              <p className="font-medium">{t.cantFind}</p>
               <p className="mt-1 flex-1 text-sm text-muted-foreground">
-                Tell us which platform you use and we will look at adding it.
+                {t.cantFindHelp}
               </p>
               <Button
                 variant="outline"
@@ -356,7 +359,7 @@ export function PublishingPanel({
                 }}
               >
                 <MessageCircle className="size-4" />
-                Contact us
+                {t.contactUs}
               </Button>
             </div>
           </div>
@@ -378,7 +381,7 @@ export function PublishingPanel({
                   rel="noopener noreferrer"
                   className="mt-1 inline-flex items-center gap-1 text-sm underline underline-offset-4"
                 >
-                  Where do I find these?
+                  {t.whereDoIFind}
                   <ExternalLink className="size-3" aria-hidden="true" />
                 </a>
               ) : null}
@@ -411,7 +414,7 @@ export function PublishingPanel({
                 {pending ? (
                   <>
                     <Loader2 className="size-4 animate-spin" />
-                    Checking…
+                    {tCommon.checking}
                   </>
                 ) : (
                   "Connect"
@@ -425,7 +428,7 @@ export function PublishingPanel({
                 }}
                 disabled={pending}
               >
-                Cancel
+                {tCommon.cancel}
               </Button>
             </div>
 
@@ -436,7 +439,12 @@ export function PublishingPanel({
             </p>
           </div>
         )}
-        <PluginKeys websiteId={websiteId} keys={pluginKeys} t={tKeys} />
+        <PluginKeys
+          websiteId={websiteId}
+          keys={pluginKeys}
+          t={tKeys}
+          tCommon={tCommon}
+        />
         {/*
           For developers, as the design separates it.
 
@@ -447,9 +455,9 @@ export function PublishingPanel({
         {selected === null && developerOptions.length > 0 ? (
           <div className="space-y-3 border-t pt-6">
             <div>
-              <p className="font-medium">For developers</p>
+              <p className="font-medium">{t.forDevelopers}</p>
               <p className="text-sm text-muted-foreground">
-                No platform match? Publish anywhere with a webhook.
+                {t.noPlatformMatch}
               </p>
             </div>
 
@@ -501,7 +509,7 @@ export function PublishingPanel({
                       ) : (
                         <>
                           <Plus className="size-4" />
-                          Connect
+                          {tCommon.connect}
                         </>
                       )}
                     </Button>

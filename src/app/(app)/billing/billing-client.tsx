@@ -62,6 +62,8 @@ type BillingClientProps = {
   t: Messages["app"]["billing"];
   /** For dates and thousands separators. */
   locale: Locale;
+  /** Shared words used on several screens. */
+  tCommon: Messages["app"]["common"];
 };
 
 function planFeatures(
@@ -112,6 +114,7 @@ export function BillingClient({
   websiteSubscriptions,
   t,
   locale,
+  tCommon,
 }: BillingClientProps) {
   const [interval, setInterval] = useState<"month" | "year">(
     subscription?.interval === "year" ? "year" : "month",
@@ -371,7 +374,7 @@ export function BillingClient({
           <div className="rounded-xl border bg-card p-4">
             <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <CheckCircle2 className="size-3.5" aria-hidden="true" />
-              Status
+              {t.status}
             </p>
             {/*
               The raw status, title-cased — not a friendlier word of our own.
@@ -430,7 +433,7 @@ export function BillingClient({
             onClick={() => handlePortal("manage")}
             disabled={portalPending !== null}
           >
-            Manage billing
+            {tCommon.manageBilling}
             <ExternalLink className="size-4" aria-hidden="true" />
           </Button>
         </div>
@@ -521,12 +524,12 @@ export function BillingClient({
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                Manage in PayPal
+                {tCommon.manageInPayPal}
                 <ExternalLink className="size-4" />
               </a>
             </Button>
             <p className="text-xs text-muted-foreground">
-              Your receipts and cancellation live in your PayPal account.
+              {t.paypalReceipts}
             </p>
           </CardFooter>
         ) : subscription && isEntitled(subscription.status) ? (
@@ -589,7 +592,7 @@ export function BillingClient({
                       variant="secondary"
                       className="border border-emerald-500/40 text-emerald-700 dark:text-emerald-400"
                     >
-                      Try it first
+                      {t.tryItFirst}
                     </Badge>
                   ) : null}
                   {saving > 0 ? (
@@ -645,7 +648,7 @@ export function BillingClient({
                       disabled={pendingPlanId !== null}
                       onClick={() => handlePayPal(plan.id)}
                     >
-                      Pay with PayPal
+                      {tCommon.payWithPayPal}
                     </Button>
                   ) : null}
                 </div>
@@ -664,7 +667,7 @@ export function BillingClient({
 
       {visible.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          No plans are available yet.
+          {tCommon.noPlans}
         </p>
       ) : null}
     </PageShell>

@@ -445,6 +445,10 @@ export type Messages = {
       renewsOn: (date: string) => string;
       monthly: string;
       annual: string;
+      status: string;
+      tryItFirst: string;
+      paypalReceipts: string;
+      promoCodes: string;
       unlimited: string;
       /**
        * Plan feature lines.
@@ -514,12 +518,19 @@ export type Messages = {
       shortBioPlaceholder: string;
       closePreview: string;
       unsavedChanges: string;
+      contentDetailsHelp: string;
+      engagementHelp: string;
+      howWeWriteHelp: string;
+      factsHelp: string;
+      authorHelp: string;
+      noBylineHelp: string;
       /** Editorial register options, by id. */
       styles: Record<string, { label: string; hint: string }>;
     };
     editor: {
       backToWebsite: string;
       headings: string;
+      words: string;
       keywordUses: string;
       internalLinks: string;
       externalLinks: string;
@@ -621,6 +632,13 @@ export type Messages = {
       publishing: string;
       disconnect: string;
       connected: string;
+      cantFind: string;
+      cantFindHelp: string;
+      contactUs: string;
+      whereDoIFind: string;
+      checkBeforeSaving: string;
+      noPlatformMatch: string;
+      forDevelopers: string;
       connectTo: (name: string) => string;
       connectedTo: (name: string) => string;
       disconnectedFrom: (name: string) => string;
@@ -764,6 +782,10 @@ export type Messages = {
       keyRevoked: string;
       newKeyLabel: string;
       neverUsed: string;
+      pluginTitle: string;
+      pluginHelp: string;
+      copyNowHelp: string;
+      newKey: string;
       keyNotePlaceholder: string;
     };
     image: {
@@ -1445,6 +1467,10 @@ const en: Messages = {
       renewsOn: (date) => `Renews on ${date}.`,
       monthly: "Monthly",
       annual: "Annual",
+      status: "Status",
+      tryItFirst: "Try it first",
+      paypalReceipts: "Your receipts and cancellation live in your PayPal account.",
+      promoCodes: "Promo codes can be entered at card checkout. PayPal does not support them.",
       unlimited: "Unlimited",
       articlesEachMonth: (n, count) =>
         `${n} ${count === 1 ? "article" : "articles"} written each month`,
@@ -1510,6 +1536,12 @@ const en: Messages = {
       shortBioPlaceholder: "One or two sentences on who is writing and why they know.",
       closePreview: "Close preview",
       unsavedChanges: "Unsaved changes",
+      contentDetailsHelp: "Where your content lives, so we can link to it and match its shape.",
+      engagementHelp: "How articles look, and what gets added alongside the words.",
+      howWeWriteHelp: "The voice behind every article.",
+      factsHelp: "One per line. These are the only specifics we will state outright.",
+      authorHelp: "The byline shown on each article, here and on your live site.",
+      noBylineHelp: "Left empty, articles publish without a byline.",
       styles: {
         expert: { label: "Expert", hint: "Precise editorial tone with balanced caveats and terminology." },
         conversational: { label: "Conversational", hint: "Plain, direct sentences. Explains terms the first time they appear." },
@@ -1520,6 +1552,7 @@ const en: Messages = {
     editor: {
       backToWebsite: "Back to website",
       headings: "Headings",
+      words: "Words",
       keywordUses: "Keyword uses",
       internalLinks: "Internal links",
       externalLinks: "External links",
@@ -1621,6 +1654,13 @@ const en: Messages = {
       publishing: "Publishing…",
       disconnect: "Disconnect",
       connected: "Connected",
+      cantFind: "Can&rsquo;t find your integration?",
+      cantFindHelp: "Tell us which platform you use and we will look at adding it.",
+      contactUs: "Contact us",
+      whereDoIFind: "Where do I find these?",
+      checkBeforeSaving: "We check the connection before saving anything, so you find out now rather than when an article fails.",
+      noPlatformMatch: "No platform match? Publish anywhere with a webhook.",
+      forDevelopers: "For developers",
       connectTo: (name) => `Connect ${name}`,
       connectedTo: (name) => `Connected to ${name}`,
       disconnectedFrom: (name) => `Disconnected from ${name}`,
@@ -1762,6 +1802,10 @@ const en: Messages = {
       keyRevoked: "Key revoked",
       newKeyLabel: "Your new integration key",
       neverUsed: "Never used",
+      pluginTitle: "WordPress plugin",
+      pluginHelp: "Install our plugin, paste a key, and articles publish here automatically.",
+      copyNowHelp: "We only store a scrambled version, so it cannot be looked up later. If you lose it, revoke it and make a new one.",
+      newKey: "New key",
       keyNotePlaceholder: "What is this key for? (optional)",
     },
     image: {
@@ -2452,6 +2496,10 @@ const es: Messages = {
       renewsOn: (date) => `Se renueva el ${date}.`,
       monthly: "Mensual",
       annual: "Anual",
+      status: "Estado",
+      tryItFirst: "Pruébelo primero",
+      paypalReceipts: "Sus recibos y la cancelación están en su cuenta de PayPal.",
+      promoCodes: "Los códigos promocionales se introducen al pagar con tarjeta. PayPal no los admite.",
       unlimited: "Ilimitado",
       articlesEachMonth: (n, count) =>
         `${n} ${count === 1 ? "artículo escrito" : "artículos escritos"} cada mes`,
@@ -2517,6 +2565,12 @@ const es: Messages = {
       shortBioPlaceholder: "Una o dos frases sobre quién escribe y por qué sabe del tema.",
       closePreview: "Cerrar vista previa",
       unsavedChanges: "Cambios sin guardar",
+      contentDetailsHelp: "Dónde vive su contenido, para poder enlazarlo e imitar su formato.",
+      engagementHelp: "Qué aspecto tienen los artículos y qué se añade junto al texto.",
+      howWeWriteHelp: "La voz detrás de cada artículo.",
+      factsHelp: "Uno por línea. Son los únicos datos concretos que afirmaremos.",
+      authorHelp: "La firma que aparece en cada artículo, aquí y en su sitio.",
+      noBylineHelp: "Si lo deja vacío, los artículos se publican sin firma.",
       styles: {
         expert: { label: "Experto", hint: "Tono editorial preciso, con matices y terminología equilibrados." },
         conversational: { label: "Conversacional", hint: "Frases claras y directas. Explica los términos la primera vez que aparecen." },
@@ -2527,6 +2581,7 @@ const es: Messages = {
     editor: {
       backToWebsite: "Volver al sitio web",
       headings: "Encabezados",
+      words: "Palabras",
       keywordUses: "Usos de la palabra clave",
       internalLinks: "Enlaces internos",
       externalLinks: "Enlaces externos",
@@ -2628,6 +2683,13 @@ const es: Messages = {
       publishing: "Publicando…",
       disconnect: "Desconectar",
       connected: "Conectado",
+      cantFind: "¿No encuentra su integración?",
+      cantFindHelp: "Díganos qué plataforma usa y estudiaremos añadirla.",
+      contactUs: "Contáctenos",
+      whereDoIFind: "¿Dónde encuentro esto?",
+      checkBeforeSaving: "Comprobamos la conexión antes de guardar nada, para que lo sepa ahora y no cuando falle un artículo.",
+      noPlatformMatch: "¿Ninguna plataforma le encaja? Publique donde sea con un webhook.",
+      forDevelopers: "Para desarrolladores",
       connectTo: (name) => `Conectar ${name}`,
       connectedTo: (name) => `Conectado a ${name}`,
       disconnectedFrom: (name) => `Desconectado de ${name}`,
@@ -2769,6 +2831,10 @@ const es: Messages = {
       keyRevoked: "Clave revocada",
       newKeyLabel: "Su nueva clave de integración",
       neverUsed: "Nunca usada",
+      pluginTitle: "Plugin de WordPress",
+      pluginHelp: "Instale nuestro plugin, pegue una clave y los artículos se publicarán aquí automáticamente.",
+      copyNowHelp: "Solo guardamos una versión cifrada, así que no se puede consultar después. Si la pierde, revóquela y cree una nueva.",
+      newKey: "Nueva clave",
       keyNotePlaceholder: "¿Para qué es esta clave? (opcional)",
     },
     image: {
@@ -3462,6 +3528,10 @@ const fr: Messages = {
       renewsOn: (date) => `Renouvellement le ${date}.`,
       monthly: "Mensuel",
       annual: "Annuel",
+      status: "Statut",
+      tryItFirst: "Essayez d\u2019abord",
+      paypalReceipts: "Vos reçus et la résiliation se trouvent dans votre compte PayPal.",
+      promoCodes: "Les codes promo se saisissent au paiement par carte. PayPal ne les accepte pas.",
       unlimited: "Illimité",
       articlesEachMonth: (n, count) =>
         `${n} ${count === 1 ? "article rédigé" : "articles rédigés"} chaque mois`,
@@ -3527,6 +3597,12 @@ const fr: Messages = {
       shortBioPlaceholder: "Une ou deux phrases sur qui écrit et pourquoi cette personne s\u2019y connaît.",
       closePreview: "Fermer l\u2019aperçu",
       unsavedChanges: "Modifications non enregistrées",
+      contentDetailsHelp: "Où vit votre contenu, pour que nous puissions y renvoyer et en suivre la forme.",
+      engagementHelp: "L\u2019apparence des articles et ce qui accompagne le texte.",
+      howWeWriteHelp: "La voix derrière chaque article.",
+      factsHelp: "Un par ligne. Ce sont les seuls éléments précis que nous affirmerons.",
+      authorHelp: "La signature affichée sur chaque article, ici et sur votre site.",
+      noBylineHelp: "Laissé vide, les articles paraissent sans signature.",
       styles: {
         expert: { label: "Expert", hint: "Ton éditorial précis, nuances et terminologie équilibrées." },
         conversational: { label: "Conversationnel", hint: "Des phrases simples et directes. Explique les termes dès leur première apparition." },
@@ -3537,6 +3613,7 @@ const fr: Messages = {
     editor: {
       backToWebsite: "Retour au site",
       headings: "Titres",
+      words: "Mots",
       keywordUses: "Occurrences du mot-clé",
       internalLinks: "Liens internes",
       externalLinks: "Liens externes",
@@ -3638,6 +3715,13 @@ const fr: Messages = {
       publishing: "Publication…",
       disconnect: "Déconnecter",
       connected: "Connecté",
+      cantFind: "Vous ne trouvez pas votre intégration ?",
+      cantFindHelp: "Dites-nous quelle plateforme vous utilisez et nous étudierons son ajout.",
+      contactUs: "Nous contacter",
+      whereDoIFind: "Où les trouver ?",
+      checkBeforeSaving: "Nous vérifions la connexion avant tout enregistrement, pour que vous le sachiez maintenant plutôt qu\u2019au moment où un article échoue.",
+      noPlatformMatch: "Aucune plateforme ne correspond ? Publiez partout avec un webhook.",
+      forDevelopers: "Pour les développeurs",
       connectTo: (name) => `Connecter ${name}`,
       connectedTo: (name) => `Connecté à ${name}`,
       disconnectedFrom: (name) => `Déconnecté de ${name}`,
@@ -3779,6 +3863,10 @@ const fr: Messages = {
       keyRevoked: "Clé révoquée",
       newKeyLabel: "Votre nouvelle clé d\u2019intégration",
       neverUsed: "Jamais utilisée",
+      pluginTitle: "Plugin WordPress",
+      pluginHelp: "Installez notre plugin, collez une clé, et les articles se publient ici automatiquement.",
+      copyNowHelp: "Nous n\u2019en stockons qu\u2019une version chiffrée : elle ne peut pas être retrouvée ensuite. Si vous la perdez, révoquez-la et créez-en une autre.",
+      newKey: "Nouvelle clé",
       keyNotePlaceholder: "À quoi sert cette clé ? (facultatif)",
     },
     image: {
@@ -4465,6 +4553,10 @@ const it: Messages = {
       renewsOn: (date) => `Si rinnova il ${date}.`,
       monthly: "Mensile",
       annual: "Annuale",
+      status: "Stato",
+      tryItFirst: "Lo provi prima",
+      paypalReceipts: "Le sue ricevute e la disdetta si trovano nel suo account PayPal.",
+      promoCodes: "I codici promozionali si inseriscono al pagamento con carta. PayPal non li supporta.",
       unlimited: "Illimitati",
       articlesEachMonth: (n, count) =>
         `${n} ${count === 1 ? "articolo scritto" : "articoli scritti"} ogni mese`,
@@ -4530,6 +4622,12 @@ const it: Messages = {
       shortBioPlaceholder: "Una o due frasi su chi scrive e perché se ne intende.",
       closePreview: "Chiudi anteprima",
       unsavedChanges: "Modifiche non salvate",
+      contentDetailsHelp: "Dove vivono i suoi contenuti, così possiamo collegarli e seguirne la forma.",
+      engagementHelp: "Come appaiono gli articoli e che cosa viene aggiunto al testo.",
+      howWeWriteHelp: "La voce dietro ogni articolo.",
+      factsHelp: "Uno per riga. Sono gli unici dati precisi che affermeremo.",
+      authorHelp: "La firma mostrata su ogni articolo, qui e sul suo sito.",
+      noBylineHelp: "Se lo lascia vuoto, gli articoli escono senza firma.",
       styles: {
         expert: { label: "Esperto", hint: "Tono editoriale preciso, con sfumature e terminologia equilibrate." },
         conversational: { label: "Colloquiale", hint: "Frasi semplici e dirette. Spiega i termini alla prima comparsa." },
@@ -4540,6 +4638,7 @@ const it: Messages = {
     editor: {
       backToWebsite: "Torna al sito",
       headings: "Titoli",
+      words: "Parole",
       keywordUses: "Usi della parola chiave",
       internalLinks: "Link interni",
       externalLinks: "Link esterni",
@@ -4641,6 +4740,13 @@ const it: Messages = {
       publishing: "Pubblicazione…",
       disconnect: "Scollega",
       connected: "Collegato",
+      cantFind: "Non trova la sua integrazione?",
+      cantFindHelp: "Ci dica quale piattaforma usa e valuteremo di aggiungerla.",
+      contactUs: "Ci contatti",
+      whereDoIFind: "Dove li trovo?",
+      checkBeforeSaving: "Controlliamo la connessione prima di salvare qualsiasi cosa, così lo scopre ora e non quando un articolo non parte.",
+      noPlatformMatch: "Nessuna piattaforma corrisponde? Pubblichi ovunque con un webhook.",
+      forDevelopers: "Per sviluppatori",
       connectTo: (name) => `Collega ${name}`,
       connectedTo: (name) => `Collegato a ${name}`,
       disconnectedFrom: (name) => `Scollegato da ${name}`,
@@ -4782,6 +4888,10 @@ const it: Messages = {
       keyRevoked: "Chiave revocata",
       newKeyLabel: "La sua nuova chiave di integrazione",
       neverUsed: "Mai usata",
+      pluginTitle: "Plugin WordPress",
+      pluginHelp: "Installi il nostro plugin, incolli una chiave e gli articoli verranno pubblicati qui automaticamente.",
+      copyNowHelp: "Ne conserviamo solo una versione cifrata, quindi non è più recuperabile. Se la perde, la revochi e ne crei una nuova.",
+      newKey: "Nuova chiave",
       keyNotePlaceholder: "A che cosa serve questa chiave? (facoltativo)",
     },
     image: {
@@ -5475,6 +5585,10 @@ const de: Messages = {
       renewsOn: (date) => `Verlängert sich am ${date}.`,
       monthly: "Monatlich",
       annual: "Jährlich",
+      status: "Status",
+      tryItFirst: "Erst testen",
+      paypalReceipts: "Ihre Belege und die Kündigung finden Sie in Ihrem PayPal-Konto.",
+      promoCodes: "Gutscheincodes können beim Kartenzahlvorgang eingegeben werden. PayPal unterstützt sie nicht.",
       unlimited: "Unbegrenzt",
       // "Artikel" is the same in singular and plural; no ternary to write.
       articlesEachMonth: (n) => `${n} Artikel pro Monat geschrieben`,
@@ -5540,6 +5654,12 @@ const de: Messages = {
       shortBioPlaceholder: "Ein bis zwei Sätze dazu, wer schreibt und warum diese Person sich auskennt.",
       closePreview: "Vorschau schließen",
       unsavedChanges: "Nicht gespeicherte Änderungen",
+      contentDetailsHelp: "Wo Ihre Inhalte liegen, damit wir darauf verlinken und ihre Form aufgreifen können.",
+      engagementHelp: "Wie Artikel aussehen und was neben dem Text ergänzt wird.",
+      howWeWriteHelp: "Die Stimme hinter jedem Artikel.",
+      factsHelp: "Eines pro Zeile. Nur diese Angaben nennen wir ausdrücklich.",
+      authorHelp: "Die Autorenzeile auf jedem Artikel, hier und auf Ihrer Website.",
+      noBylineHelp: "Bleibt das Feld leer, erscheinen Artikel ohne Autorenzeile.",
       styles: {
         expert: { label: "Fachlich", hint: "Präziser redaktioneller Ton mit ausgewogenen Einschränkungen und Fachbegriffen." },
         conversational: { label: "Gesprächsnah", hint: "Klare, direkte Sätze. Erklärt Begriffe beim ersten Auftreten." },
@@ -5550,6 +5670,7 @@ const de: Messages = {
     editor: {
       backToWebsite: "Zurück zur Website",
       headings: "Überschriften",
+      words: "Wörter",
       keywordUses: "Verwendungen des Suchbegriffs",
       internalLinks: "Interne Links",
       externalLinks: "Externe Links",
@@ -5651,6 +5772,13 @@ const de: Messages = {
       publishing: "Wird veröffentlicht…",
       disconnect: "Trennen",
       connected: "Verbunden",
+      cantFind: "Ihre Integration nicht gefunden?",
+      cantFindHelp: "Sagen Sie uns, welche Plattform Sie nutzen, und wir prüfen die Aufnahme.",
+      contactUs: "Kontakt aufnehmen",
+      whereDoIFind: "Wo finde ich das?",
+      checkBeforeSaving: "Wir prüfen die Verbindung, bevor wir etwas speichern — so erfahren Sie es jetzt und nicht erst, wenn ein Artikel scheitert.",
+      noPlatformMatch: "Keine passende Plattform? Veröffentlichen Sie überall per Webhook.",
+      forDevelopers: "Für Entwickler",
       connectTo: (name) => `${name} verbinden`,
       connectedTo: (name) => `Mit ${name} verbunden`,
       disconnectedFrom: (name) => `Von ${name} getrennt`,
@@ -5792,6 +5920,10 @@ const de: Messages = {
       keyRevoked: "Schlüssel widerrufen",
       newKeyLabel: "Ihr neuer Integrationsschlüssel",
       neverUsed: "Nie verwendet",
+      pluginTitle: "WordPress-Plugin",
+      pluginHelp: "Installieren Sie unser Plugin, fügen Sie einen Schlüssel ein, und Artikel erscheinen hier automatisch.",
+      copyNowHelp: "Wir speichern nur eine verschlüsselte Fassung, sie lässt sich später nicht nachschlagen. Geht sie verloren, widerrufen Sie sie und erstellen eine neue.",
+      newKey: "Neuer Schlüssel",
       keyNotePlaceholder: "Wofür ist dieser Schlüssel? (optional)",
     },
     image: {

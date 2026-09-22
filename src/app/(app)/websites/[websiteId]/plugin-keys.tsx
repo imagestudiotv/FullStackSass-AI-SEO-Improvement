@@ -31,11 +31,14 @@ export function PluginKeys({
   websiteId,
   keys,
   t,
+  tCommon,
 }: {
   websiteId: string;
   keys: IntegrationKeyView[];
   /** This screen's copy, already in the reader's language. */
   t: Messages["app"]["keys"];
+  /** Shared words used on several screens. */
+  tCommon: Messages["app"]["common"];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -85,12 +88,10 @@ export function PluginKeys({
       <div>
         <p className="flex items-center gap-2 font-medium">
           <KeyRound className="size-4" aria-hidden="true" />
-          WordPress plugin
+          {t.pluginTitle}
         </p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Install our plugin, paste a key, and articles publish here
-          automatically. Works even if your site is behind a firewall or your
-          host blocks the WordPress API.
+          {t.pluginHelp}
         </p>
         {/*
           A plain link, not a fetch: the file is served straight from public/,
@@ -103,7 +104,7 @@ export function PluginKeys({
           className="mt-2 inline-flex items-center gap-1 text-sm underline underline-offset-4"
         >
           <Download className="size-3.5" aria-hidden="true" />
-          Download the plugin
+          {tCommon.downloadPlugin}
         </a>
       </div>
 
@@ -111,11 +112,10 @@ export function PluginKeys({
       {freshKey ? (
         <div className="rounded-lg border border-primary/40 bg-primary/5 p-3">
           <p className="text-sm font-medium">
-            Copy this now — it is not shown again
+            {tCommon.copyNow}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            We only store a scrambled version, so it cannot be looked up later.
-            If you lose it, revoke it and make a new one.
+            {t.copyNowHelp}
           </p>
           <div className="mt-3 flex flex-col gap-2 sm:flex-row">
             <Input
@@ -130,7 +130,7 @@ export function PluginKeys({
               {copied ? "Copied" : "Copy"}
             </Button>
             <Button variant="ghost" onClick={() => setFreshKey(null)}>
-              Done
+              {tCommon.done}
             </Button>
           </div>
         </div>
@@ -168,7 +168,7 @@ export function PluginKeys({
                 disabled={pending}
               >
                 <X className="size-4" />
-                Revoke
+                {tCommon.revoke}
               </Button>
             </li>
           ))}
@@ -188,7 +188,7 @@ export function PluginKeys({
           ) : (
             <Plus className="size-4" />
           )}
-          New key
+          {t.newKey}
         </Button>
       </div>
     </div>

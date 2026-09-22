@@ -74,11 +74,14 @@ export function ArticleSettingsForm({
   websiteId,
   initial,
   t,
+  tCommon,
 }: {
   websiteId: string;
   initial: ArticleSettingsValues;
   /** This screen's copy, already in the reader's language. */
   t: Messages["app"]["article"];
+  /** Shared words used on several screens. */
+  tCommon: Messages["app"]["common"];
 }) {
   const [values, setValues] = useState<ArticleSettingsValues>(initial);
   const [saved, setSaved] = useState<ArticleSettingsValues>(initial);
@@ -230,7 +233,7 @@ export function ArticleSettingsForm({
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                Adaptive
+                {tCommon.adaptive}
               </button>
               <button
                 type="button"
@@ -245,7 +248,7 @@ export function ArticleSettingsForm({
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                Custom
+                {tCommon.custom}
               </button>
             </div>
           </div>
@@ -265,7 +268,7 @@ export function ArticleSettingsForm({
                 }
               />
               <p className="text-xs text-muted-foreground">
-                Between 300 and 5,000.
+                {tCommon.wordRange}
               </p>
             </div>
           )}
@@ -641,13 +644,13 @@ export function ArticleSettingsForm({
                   onClick={() => setValues(saved)}
                   disabled={pending}
                 >
-                  Discard
+                  {tCommon.discard}
                 </Button>
                 <Button onClick={handleSave} disabled={pending}>
                   {pending ? (
                     <>
                       <Loader2 className="size-4 animate-spin" />
-                      Saving…
+                      {tCommon.checking}
                     </>
                   ) : (
                     "Save"

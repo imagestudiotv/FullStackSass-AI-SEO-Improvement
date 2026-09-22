@@ -68,6 +68,7 @@ export function ArticleEditor({
   publishLogs,
   t,
   tImage,
+  tCommon,
 }: {
   websiteId: string;
   article: ArticleDetail;
@@ -86,6 +87,8 @@ export function ArticleEditor({
   t: Messages["app"]["editor"];
   /** The picture panel's own slice, forwarded to it. */
   tImage: Messages["app"]["image"];
+  /** Shared words used on several screens. */
+  tCommon: Messages["app"]["common"];
 }) {
   const router = useRouter();
   const bodyStats = articleStats(article.bodyHtml, {
@@ -230,7 +233,7 @@ export function ArticleEditor({
       {article.bodyHtml ? (
         <Card>
           <CardContent className="grid grid-cols-2 gap-4 py-5 sm:grid-cols-4 lg:grid-cols-7">
-            <Stat label="Words" value={stats.words} />
+            <Stat label={t.words} value={stats.words} />
             <Stat label={t.headings} value={stats.headings} />
             <Stat
               label={t.keywordUses}
@@ -239,7 +242,7 @@ export function ArticleEditor({
             />
             <Stat label={t.internalLinks} value={stats.internalLinks} />
             <Stat label={t.externalLinks} value={stats.externalLinks} />
-            <Stat label="Images" value={stats.images} />
+            <Stat label={tCommon.images} value={stats.images} />
             <Stat label={t.socialMentions} value={stats.socialMentions} />
           </CardContent>
         </Card>
@@ -333,11 +336,11 @@ export function ArticleEditor({
             <TabsList>
               <TabsTrigger value="preview">
                 <Eye className="size-4" />
-                Preview
+                {tCommon.preview}
               </TabsTrigger>
               <TabsTrigger value="edit">
                 <Pencil className="size-4" />
-                Edit
+                {tCommon.edit}
               </TabsTrigger>
             </TabsList>
             <div className="flex flex-wrap gap-2">
@@ -348,7 +351,7 @@ export function ArticleEditor({
                 disabled={pending || working}
               >
                 <RefreshCw className="size-4" />
-                Rewrite
+                {tCommon.rewrite}
               </Button>
               {canPublish ? (
                 <>
