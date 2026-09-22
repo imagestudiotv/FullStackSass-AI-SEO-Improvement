@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { websites } from "@/lib/db/schema";
 import { updateBrandVoice } from "@/lib/brand/actions";
-import { requireWebsite } from "@/lib/tenant";
+import { requireEditor } from "@/lib/websites/require-editor";
 import type { ActionResult } from "@/lib/websites/actions";
 
 /**
@@ -117,7 +117,9 @@ export async function saveArticleSettings(
   websiteId: string,
   input: ArticleSettingsInput,
 ): Promise<ActionResult<null>> {
-  const { site } = await requireWebsite(websiteId);
+  const guard = await requireEditor(websiteId);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { site } = guard.context;
 
   const sitemap = url(input.sitemapUrl, "Sitemap URL");
   if (!sitemap.ok) return { ok: false, error: sitemap.error };

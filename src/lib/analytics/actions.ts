@@ -21,6 +21,7 @@ import { authorizeUrl, isGoogleConfigured } from "@/lib/analytics/google-oauth";
 import { db } from "@/lib/db";
 import { gaMetrics, gscMetrics, integrations } from "@/lib/db/schema";
 import { requireWebsite } from "@/lib/tenant";
+import { requireEditor } from "@/lib/websites/require-editor";
 import type { ActionResult } from "@/lib/websites/actions";
 
 /**
@@ -75,7 +76,9 @@ export async function getAnalyticsConnection(
 export async function startGoogleConnect(
   websiteId: string,
 ): Promise<ActionResult<{ url: string }>> {
-  const { site } = await requireWebsite(websiteId);
+  const guard = await requireEditor(websiteId);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { site } = guard.context;
 
   if (!isGoogleConfigured()) {
     return { ok: false, error: "Google integration is not configured yet." };
@@ -87,7 +90,9 @@ export async function startGoogleConnect(
 export async function disconnectGoogle(
   websiteId: string,
 ): Promise<ActionResult<null>> {
-  const { site } = await requireWebsite(websiteId);
+  const guard = await requireEditor(websiteId);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { site } = guard.context;
   await disconnect(site.id);
   revalidatePath(`/websites/${site.id}`);
   return { ok: true, data: null };
@@ -152,7 +157,9 @@ export async function selectProperties(
 export async function startImport(
   websiteId: string,
 ): Promise<ActionResult<null>> {
-  const { site, orgId } = await requireWebsite(websiteId);
+  const guard = await requireEditor(websiteId);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { site, orgId } = guard.context;
 
   const connection = await getAnalyticsConnection(site.id);
   if (!connection.connected) {

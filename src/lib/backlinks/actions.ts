@@ -21,6 +21,7 @@ import {
 } from "@/lib/backlinks/credits";
 import { describeNetwork, findHost } from "@/lib/backlinks/matching";
 import { requireWebsite } from "@/lib/tenant";
+import { requireEditor } from "@/lib/websites/require-editor";
 import { InvalidUrlError, normalizeWebsiteUrl } from "@/lib/websites/url";
 import type { ActionResult } from "@/lib/websites/actions";
 import {
@@ -119,7 +120,9 @@ export async function joinNetwork(
     monthlyCap?: number;
   },
 ): Promise<ActionResult<null>> {
-  const { site } = await requireWebsite(websiteId);
+  const guard = await requireEditor(websiteId);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { site } = guard.context;
 
   const cap = Math.max(0, Math.min(input.monthlyCap ?? 3, 20));
   const values = {
@@ -143,7 +146,9 @@ export async function joinNetwork(
 export async function leaveNetwork(
   websiteId: string,
 ): Promise<ActionResult<null>> {
-  const { site } = await requireWebsite(websiteId);
+  const guard = await requireEditor(websiteId);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { site } = guard.context;
 
   /**
    * Marked as not accepting rather than deleted. Existing placements point at
@@ -287,7 +292,9 @@ export async function requestBacklink(
   websiteId: string,
   input: { targetUrl: string; anchorHint?: string | null },
 ): Promise<ActionResult<{ matched: boolean; hostDomain: string | null }>> {
-  const { site, orgId } = await requireWebsite(websiteId);
+  const guard = await requireEditor(websiteId);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { site, orgId } = guard.context;
 
   let targetUrl: string;
   try {
@@ -369,7 +376,9 @@ export async function cancelRequest(
   websiteId: string,
   requestId: string,
 ): Promise<ActionResult<null>> {
-  const { site } = await requireWebsite(websiteId);
+  const guard = await requireEditor(websiteId);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { site } = guard.context;
 
   const [request] = await db
     .select({ id: backlinkRequests.id, status: backlinkRequests.status })

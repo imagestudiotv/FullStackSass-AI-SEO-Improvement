@@ -7,6 +7,7 @@ import { queueJob } from "@/inngest/send";
 import { db } from "@/lib/db";
 import { competitors, websites } from "@/lib/db/schema";
 import { requireOrg, requireWebsite } from "@/lib/tenant";
+import { requireEditor } from "@/lib/websites/require-editor";
 import { writeSelectedWebsite } from "@/lib/websites/selected";
 import { InvalidUrlError, normalizeWebsiteUrl } from "@/lib/websites/url";
 import { verifyDomain } from "@/lib/websites/verify-domain";
@@ -148,7 +149,9 @@ export async function updateWebsiteDetails(
   input: WebsiteDetailsInput,
 ): Promise<ActionResult<null>> {
   // Throws WebsiteNotFoundError for another tenant's id, so no extra check.
-  const { site } = await requireWebsite(websiteId);
+  const guard = await requireEditor(websiteId);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { site } = guard.context;
 
   /**
    * Only the fields actually PASSED are written.
@@ -208,7 +211,9 @@ export async function updateWebsiteServices(
   websiteId: string,
   services: string[],
 ): Promise<ActionResult<null>> {
-  const { site } = await requireWebsite(websiteId);
+  const guard = await requireEditor(websiteId);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { site } = guard.context;
 
   // Trimmed, blanks dropped, de-duplicated case-insensitively: the UI adds a
   // row per keystroke-completed entry and it is easy to submit the same
@@ -245,7 +250,9 @@ export async function setAutoPublish(
   websiteId: string,
   enabled: boolean,
 ): Promise<ActionResult<null>> {
-  const { site } = await requireWebsite(websiteId);
+  const guard = await requireEditor(websiteId);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { site } = guard.context;
 
   await db
     .update(websites)
@@ -289,7 +296,9 @@ export async function setGenerationMode(
   /** Weekdays to write on, 0 = Sunday. Empty means every day. */
   publishingDays?: number[],
 ): Promise<ActionResult<null>> {
-  const { site } = await requireWebsite(websiteId);
+  const guard = await requireEditor(websiteId);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { site } = guard.context;
 
   // Bounded and de-duplicated: the value comes from a form and ends up
   // driving a scheduled job.
@@ -324,7 +333,9 @@ export async function addCompetitor(
   websiteId: string,
   rawDomain: string,
 ): Promise<ActionResult<null>> {
-  const { site } = await requireWebsite(websiteId);
+  const guard = await requireEditor(websiteId);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { site } = guard.context;
 
   let domain: string;
   try {
@@ -376,7 +387,9 @@ export async function removeCompetitor(
   websiteId: string,
   domain: string,
 ): Promise<ActionResult<null>> {
-  const { site } = await requireWebsite(websiteId);
+  const guard = await requireEditor(websiteId);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { site } = guard.context;
 
   await db
     .delete(competitors)
@@ -398,7 +411,14 @@ export async function removeCompetitor(
 export async function reanalyzeWebsite(
   websiteId: string,
 ): Promise<ActionResult<null>> {
-  const { site, orgId } = await requireWebsite(websiteId);
+  /*
+    Guarded like the other writes. The verb list that added these missed
+    "reanalyze", and this one queues a crawl of the customer's site - a
+    viewer triggering it spends money on somebody else's account.
+  */
+  const guard = await requireEditor(websiteId);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { site, orgId } = guard.context;
 
   await db
     .update(websites)
@@ -418,7 +438,9 @@ export async function reanalyzeWebsite(
 export async function deleteWebsite(
   websiteId: string,
 ): Promise<ActionResult<null>> {
-  const { site } = await requireWebsite(websiteId);
+  const guard = await requireEditor(websiteId);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { site } = guard.context;
 
   // Pages, keywords, articles and the rest cascade via their foreign keys.
   await db.delete(websites).where(eq(websites.id, site.id));

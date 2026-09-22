@@ -18,6 +18,7 @@ import {
 } from "@/lib/publishing/credentials";
 import type { IntegrationView, ProviderInfo } from "@/lib/publishing/shared";
 import { requireWebsite } from "@/lib/tenant";
+import { requireEditor } from "@/lib/websites/require-editor";
 import { normalizeWebsiteUrl, InvalidUrlError } from "@/lib/websites/url";
 import type { ActionResult } from "@/lib/websites/actions";
 
@@ -103,7 +104,13 @@ export async function connectProvider(
   providerId: string,
   values: Record<string, string>,
 ): Promise<ActionResult<{ siteName: string }>> {
-  const { site } = await requireWebsite(websiteId);
+  /*
+    Stores credentials for a publishing destination - a write, and a
+    security-relevant one. "connect" was not in the verb list.
+  */
+  const guard = await requireEditor(websiteId);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { site } = guard.context;
 
   const provider = getProvider(providerId);
   if (!provider) {
@@ -202,7 +209,9 @@ export async function disconnectProvider(
   websiteId: string,
   providerId: string,
 ): Promise<ActionResult<null>> {
-  const { site } = await requireWebsite(websiteId);
+  const guard = await requireEditor(websiteId);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { site } = guard.context;
 
   // Scoped by website as well as kind, so an id from another tenant deletes
   // nothing rather than disconnecting someone else's site.
@@ -258,7 +267,9 @@ export async function publishArticle(
   articleId: string,
   status: "publish" | "draft" = "publish",
 ): Promise<ActionResult<null>> {
-  const { site, orgId } = await requireWebsite(websiteId);
+  const guard = await requireEditor(websiteId);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { site, orgId } = guard.context;
 
   const [article] = await db
     .select({ id: articles.id, bodyHtml: articles.bodyHtml })
@@ -315,7 +326,9 @@ export async function publishTestArticle(
   websiteId: string,
   integrationId: string,
 ): Promise<ActionResult<{ remoteUrl: string | null }>> {
-  const { site } = await requireWebsite(websiteId);
+  const guard = await requireEditor(websiteId);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { site } = guard.context;
 
   const [row] = await db
     .select({

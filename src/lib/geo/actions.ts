@@ -15,6 +15,7 @@ import {
 } from "@/lib/geo/shared";
 import { queueJob } from "@/inngest/send";
 import { requireWebsite } from "@/lib/tenant";
+import { requireEditor } from "@/lib/websites/require-editor";
 import type { ActionResult } from "@/lib/websites/actions";
 import { isEntitledToSpend } from "@/lib/billing/entitled";
 import { withinGeoRateLimit } from "@/lib/billing/rate-limit";
@@ -198,7 +199,9 @@ export async function addGeoPrompt(
   websiteId: string,
   prompt: string,
 ): Promise<ActionResult<{ id: string }>> {
-  const { site } = await requireWebsite(websiteId);
+  const guard = await requireEditor(websiteId);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { site } = guard.context;
 
   const cleaned = cleanPrompt(prompt);
   if (!cleaned) {
@@ -241,7 +244,9 @@ export async function removeGeoPrompt(
   websiteId: string,
   promptId: string,
 ): Promise<ActionResult<null>> {
-  const { site } = await requireWebsite(websiteId);
+  const guard = await requireEditor(websiteId);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { site } = guard.context;
 
   // Scoped by website as well as id, so an id from another tenant deletes
   // nothing rather than deleting someone else's prompt.
@@ -263,7 +268,9 @@ export async function removeGeoPrompt(
 export async function runGeoCheck(
   websiteId: string,
 ): Promise<ActionResult<null>> {
-  const { site } = await requireWebsite(websiteId);
+  const guard = await requireEditor(websiteId);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { site } = guard.context;
 
   if (!isAiConfigured()) {
     return { ok: false, error: "AI is not configured on this deployment" };

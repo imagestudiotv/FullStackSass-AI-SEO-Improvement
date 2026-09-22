@@ -13,6 +13,7 @@ import {
 } from "@/lib/articles/decay";
 import { queueJob } from "@/inngest/send";
 import { requireWebsite } from "@/lib/tenant";
+import { requireEditor } from "@/lib/websites/require-editor";
 import { checkLimit } from "@/lib/usage";
 import type { ActionResult } from "@/lib/websites/actions";
 
@@ -58,7 +59,13 @@ export async function refreshArticle(
   websiteId: string,
   articleId: string,
 ): Promise<ActionResult<null>> {
-  const { site, orgId } = await requireWebsite(websiteId);
+  /*
+    Rewrites a published article, so it is a write however it is named. The
+    verb list that guarded the others matched "regenerate" but not "refresh".
+  */
+  const guard = await requireEditor(websiteId);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { site, orgId } = guard.context;
 
   const [article] = await db
     .select({ id: articles.id, status: articles.status })

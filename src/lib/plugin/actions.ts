@@ -9,6 +9,7 @@ import {
   type IntegrationKeyView,
 } from "@/lib/plugin/keys";
 import { requireWebsite } from "@/lib/tenant";
+import { requireEditor } from "@/lib/websites/require-editor";
 import type { ActionResult } from "@/lib/websites/actions";
 
 /**
@@ -39,7 +40,9 @@ export async function generateIntegrationKey(
   websiteId: string,
   label?: string,
 ): Promise<ActionResult<{ key: string }>> {
-  const { site } = await requireWebsite(websiteId);
+  const guard = await requireEditor(websiteId);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { site } = guard.context;
 
   const existing = await listIntegrationKeys(site.id);
   /**
@@ -64,7 +67,9 @@ export async function revokeKey(
   websiteId: string,
   keyId: string,
 ): Promise<ActionResult<null>> {
-  const { site } = await requireWebsite(websiteId);
+  const guard = await requireEditor(websiteId);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { site } = guard.context;
 
   await revokeIntegrationKey(site.id, keyId);
 

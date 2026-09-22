@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { articles, articleVersions } from "@/lib/db/schema";
 import { queueArticleForCalendarItem } from "@/inngest/functions/generate-article";
 import { requireWebsite } from "@/lib/tenant";
+import { requireEditor } from "@/lib/websites/require-editor";
 import { sanitizeHtml, countWords } from "@/lib/articles/generate";
 import type { ActionResult } from "@/lib/websites/actions";
 
@@ -102,7 +103,9 @@ export async function generateFromCalendarItem(
   websiteId: string,
   calendarItemId: string,
 ): Promise<ActionResult<{ articleId: string }>> {
-  const { site, orgId } = await requireWebsite(websiteId);
+  const guard = await requireEditor(websiteId);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { site, orgId } = guard.context;
 
   const result = await queueArticleForCalendarItem(
     orgId,
@@ -120,7 +123,9 @@ export async function regenerateArticle(
   websiteId: string,
   articleId: string,
 ): Promise<ActionResult<null>> {
-  const { site, orgId } = await requireWebsite(websiteId);
+  const guard = await requireEditor(websiteId);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { site, orgId } = guard.context;
 
   const [article] = await db
     .select({ id: articles.id, calendarItemId: articles.calendarItemId })
@@ -153,7 +158,9 @@ export async function updateArticle(
     slug?: string;
   },
 ): Promise<ActionResult<null>> {
-  const { site } = await requireWebsite(websiteId);
+  const guard = await requireEditor(websiteId);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { site } = guard.context;
 
   const [existing] = await db
     .select({ id: articles.id, bodyHtml: articles.bodyHtml })
@@ -219,7 +226,9 @@ export async function deleteArticle(
   websiteId: string,
   articleId: string,
 ): Promise<ActionResult<null>> {
-  const { site } = await requireWebsite(websiteId);
+  const guard = await requireEditor(websiteId);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { site } = guard.context;
 
   await db
     .delete(articles)

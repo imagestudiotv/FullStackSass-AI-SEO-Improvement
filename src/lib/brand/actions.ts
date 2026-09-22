@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { brandVoice } from "@/lib/db/schema";
 import { requireWebsite } from "@/lib/tenant";
+import { requireEditor } from "@/lib/websites/require-editor";
 import type { ActionResult } from "@/lib/websites/actions";
 import {
   MAX_EXAMPLE_ARTICLES,
@@ -102,7 +103,9 @@ export async function updateBrandVoice(
   websiteId: string,
   input: BrandVoiceInput,
 ): Promise<ActionResult<null>> {
-  const { site } = await requireWebsite(websiteId);
+  const guard = await requireEditor(websiteId);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { site } = guard.context;
 
   /**
    * Social URLs are validated rather than trusted. They end up in published

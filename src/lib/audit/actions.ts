@@ -7,6 +7,7 @@ import { queueJob } from "@/inngest/send";
 import { db } from "@/lib/db";
 import { audits, crawls, issues } from "@/lib/db/schema";
 import { requireWebsite } from "@/lib/tenant";
+import { requireEditor } from "@/lib/websites/require-editor";
 import type { AuditSummary, Severity } from "@/lib/audit/rules";
 import type { ActionResult } from "@/lib/websites/actions";
 import { isEntitledToSpend } from "@/lib/billing/entitled";
@@ -104,7 +105,9 @@ export async function getLatestAudit(
 export async function startAudit(
   websiteId: string,
 ): Promise<ActionResult<null>> {
-  const { site, orgId } = await requireWebsite(websiteId);
+  const guard = await requireEditor(websiteId);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { site, orgId } = guard.context;
 
   // Auditing a site still being onboarded would crawl before we know its URL
   // resolves, and the result would be discarded anyway.

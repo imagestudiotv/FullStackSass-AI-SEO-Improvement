@@ -7,6 +7,7 @@ import { queueJob } from "@/inngest/send";
 import { db } from "@/lib/db";
 import { calendarItems, clusters, keywords } from "@/lib/db/schema";
 import { requireWebsite } from "@/lib/tenant";
+import { requireEditor } from "@/lib/websites/require-editor";
 import { withinRateLimit } from "@/lib/billing/rate-limit";
 import { checkLimit } from "@/lib/usage";
 import type { ActionResult } from "@/lib/websites/actions";
@@ -107,7 +108,9 @@ export async function listCalendar(websiteId: string): Promise<CalendarRow[]> {
 export async function startResearch(
   websiteId: string,
 ): Promise<ActionResult<null>> {
-  const { site, orgId } = await requireWebsite(websiteId);
+  const guard = await requireEditor(websiteId);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { site, orgId } = guard.context;
 
   // Research reads the extracted profile; without it the seeds would be
   // generated from nothing and the model call wasted.
@@ -165,7 +168,9 @@ export async function updateCalendarItem(
     customInstructions?: string | null;
   },
 ): Promise<ActionResult<null>> {
-  const { site } = await requireWebsite(websiteId);
+  const guard = await requireEditor(websiteId);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { site } = guard.context;
 
   const patch: Record<string, unknown> = { updatedAt: new Date() };
   if (typeof input.title === "string") {
@@ -200,7 +205,9 @@ export async function deleteCalendarItem(
   websiteId: string,
   itemId: string,
 ): Promise<ActionResult<null>> {
-  const { site } = await requireWebsite(websiteId);
+  const guard = await requireEditor(websiteId);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { site } = guard.context;
 
   await db
     .delete(calendarItems)
@@ -216,7 +223,9 @@ export async function deleteKeyword(
   websiteId: string,
   keywordId: string,
 ): Promise<ActionResult<null>> {
-  const { site } = await requireWebsite(websiteId);
+  const guard = await requireEditor(websiteId);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { site } = guard.context;
 
   await db
     .delete(keywords)
