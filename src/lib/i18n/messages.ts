@@ -590,6 +590,21 @@ export type Messages = {
       statusPublished: string;
       statusFailed: string;
     };
+    publishing: {
+      connectTitle: string;
+      connectHelp: string;
+      nothingConnected: string;
+      nothingConnectedHelp: string;
+      publishTest: string;
+      publishing: string;
+      disconnect: string;
+      connected: string;
+      connectTo: (name: string) => string;
+      connectedTo: (name: string) => string;
+      disconnectedFrom: (name: string) => string;
+      draftPublished: string;
+      draftPublishedAt: (name: string) => string;
+    };
   };
 };
 
@@ -1337,6 +1352,21 @@ const en: Messages = {
       statusDraft: "Draft",
       statusPublished: "Published",
       statusFailed: "Failed",
+    },
+    publishing: {
+      connectTitle: "Connect Your Website",
+      connectHelp: "Connect your website once and new articles will get published to your blog automatically.",
+      nothingConnected: "Nothing connected yet",
+      nothingConnectedHelp: "Connect your website and we can publish finished articles straight to it. Until then, you can still copy them out by hand.",
+      publishTest: "Publish test article",
+      publishing: "Publishing…",
+      disconnect: "Disconnect",
+      connected: "Connected",
+      connectTo: (name) => `Connect ${name}`,
+      connectedTo: (name) => `Connected to ${name}`,
+      disconnectedFrom: (name) => `Disconnected from ${name}`,
+      draftPublished: "Draft published successfully. Check your site’s drafts.",
+      draftPublishedAt: (name) => `Draft published — open it at ${name}`,
     },
   },
 };
@@ -2095,6 +2125,21 @@ const es: Messages = {
       statusDraft: "Borrador",
       statusPublished: "Publicado",
       statusFailed: "Fallido",
+    },
+    publishing: {
+      connectTitle: "Conecte su sitio web",
+      connectHelp: "Conecte su sitio web una vez y los artículos nuevos se publicarán en su blog automáticamente.",
+      nothingConnected: "Todavía no hay nada conectado",
+      nothingConnectedHelp: "Conecte su sitio web y podremos publicar los artículos terminados directamente en él. Hasta entonces, puede copiarlos a mano.",
+      publishTest: "Publicar artículo de prueba",
+      publishing: "Publicando…",
+      disconnect: "Desconectar",
+      connected: "Conectado",
+      connectTo: (name) => `Conectar ${name}`,
+      connectedTo: (name) => `Conectado a ${name}`,
+      disconnectedFrom: (name) => `Desconectado de ${name}`,
+      draftPublished: "Borrador publicado correctamente. Revise los borradores de su sitio.",
+      draftPublishedAt: (name) => `Borrador publicado — ábralo en ${name}`,
     },
   },
 };
@@ -2857,6 +2902,21 @@ const fr: Messages = {
       statusPublished: "Publié",
       statusFailed: "Échec",
     },
+    publishing: {
+      connectTitle: "Connectez votre site",
+      connectHelp: "Connectez votre site une fois et les nouveaux articles seront publiés automatiquement sur votre blog.",
+      nothingConnected: "Rien de connecté pour l’instant",
+      nothingConnectedHelp: "Connectez votre site et nous pourrons y publier les articles terminés directement. En attendant, vous pouvez les copier à la main.",
+      publishTest: "Publier un article de test",
+      publishing: "Publication…",
+      disconnect: "Déconnecter",
+      connected: "Connecté",
+      connectTo: (name) => `Connecter ${name}`,
+      connectedTo: (name) => `Connecté à ${name}`,
+      disconnectedFrom: (name) => `Déconnecté de ${name}`,
+      draftPublished: "Brouillon publié. Vérifiez les brouillons de votre site.",
+      draftPublishedAt: (name) => `Brouillon publié — ouvrez-le sur ${name}`,
+    },
   },
 };
 
@@ -3610,6 +3670,21 @@ const it: Messages = {
       statusDraft: "Bozza",
       statusPublished: "Pubblicato",
       statusFailed: "Non riuscito",
+    },
+    publishing: {
+      connectTitle: "Colleghi il suo sito web",
+      connectHelp: "Colleghi il suo sito una volta e i nuovi articoli verranno pubblicati automaticamente sul suo blog.",
+      nothingConnected: "Ancora nulla di collegato",
+      nothingConnectedHelp: "Colleghi il suo sito e potremo pubblicarvi direttamente gli articoli finiti. Nel frattempo può copiarli a mano.",
+      publishTest: "Pubblica articolo di prova",
+      publishing: "Pubblicazione…",
+      disconnect: "Scollega",
+      connected: "Collegato",
+      connectTo: (name) => `Collega ${name}`,
+      connectedTo: (name) => `Collegato a ${name}`,
+      disconnectedFrom: (name) => `Scollegato da ${name}`,
+      draftPublished: "Bozza pubblicata. Controlli le bozze del suo sito.",
+      draftPublishedAt: (name) => `Bozza pubblicata — la apra su ${name}`,
     },
   },
 };
@@ -4371,6 +4446,21 @@ const de: Messages = {
       statusDraft: "Entwurf",
       statusPublished: "Veröffentlicht",
       statusFailed: "Fehlgeschlagen",
+    },
+    publishing: {
+      connectTitle: "Verbinden Sie Ihre Website",
+      connectHelp: "Verbinden Sie Ihre Website einmal, und neue Artikel werden automatisch in Ihrem Blog veröffentlicht.",
+      nothingConnected: "Noch nichts verbunden",
+      nothingConnectedHelp: "Verbinden Sie Ihre Website, dann veröffentlichen wir fertige Artikel direkt dort. Bis dahin können Sie sie von Hand kopieren.",
+      publishTest: "Testartikel veröffentlichen",
+      publishing: "Wird veröffentlicht…",
+      disconnect: "Trennen",
+      connected: "Verbunden",
+      connectTo: (name) => `${name} verbinden`,
+      connectedTo: (name) => `Mit ${name} verbunden`,
+      disconnectedFrom: (name) => `Von ${name} getrennt`,
+      draftPublished: "Entwurf veröffentlicht. Sehen Sie in den Entwürfen Ihrer Website nach.",
+      draftPublishedAt: (name) => `Entwurf veröffentlicht — öffnen Sie ihn unter ${name}`,
     },
   },
 };

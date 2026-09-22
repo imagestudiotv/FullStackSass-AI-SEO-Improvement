@@ -10,6 +10,7 @@ import {
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import type { Messages } from "@/lib/i18n/messages";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
@@ -47,11 +48,14 @@ export function PublishingPanel({
   providers,
   integrations,
   pluginKeys,
+  t,
 }: {
   websiteId: string;
   providers: ProviderInfo[];
   integrations: IntegrationView[];
   pluginKeys: IntegrationKeyView[];
+  /** This screen's copy, already in the reader's language. */
+  t: Messages["app"]["publishing"];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -69,7 +73,7 @@ export function PublishingPanel({
         toast.error(result.error);
         return;
       }
-      toast.success(`Connected to ${result.data.siteName}`);
+      toast.success(t.connectedTo(result.data.siteName));
       setAdding(null);
       setValues({});
       router.refresh();
@@ -96,8 +100,8 @@ export function PublishingPanel({
      */
     toast.success(
       result.data.remoteUrl
-        ? `Draft published — open it at ${result.data.remoteUrl}`
-        : "Draft published successfully. Check your site's drafts.",
+        ? t.draftPublishedAt(result.data.remoteUrl)
+        : t.draftPublished,
     );
   }
 
@@ -108,7 +112,7 @@ export function PublishingPanel({
         toast.error(result.error);
         return;
       }
-      toast.success(`Disconnected from ${name}`);
+      toast.success(t.disconnectedFrom(name));
       router.refresh();
     });
   }
@@ -139,19 +143,16 @@ export function PublishingPanel({
           "Publishing" named the part of the system doing it, which is our
           word for it rather than theirs.
         */}
-        <CardTitle className="text-xl">Connect Your Website</CardTitle>
-        <CardDescription>
-          Connect your website once and new articles will get published to your
-          blog automatically.
-        </CardDescription>
+        <CardTitle className="text-xl">{t.connectTitle}</CardTitle>
+        <CardDescription>{t.connectHelp}</CardDescription>
       </CardHeader>
 
       <CardContent className="space-y-6">
         {integrations.length === 0 ? (
           <EmptyState
             icon={Send}
-            title="Nothing connected yet"
-            description="Connect your website and we can publish finished articles straight to it. Until then, you can still copy them out by hand."
+            title={t.nothingConnected}
+            description={t.nothingConnectedHelp}
           />
         ) : (
           <ul className="divide-y rounded-xl border">
@@ -210,10 +211,10 @@ export function PublishingPanel({
                             className="size-3.5 animate-spin"
                             aria-hidden="true"
                           />
-                          Publishing…
+                          {t.publishing}
                         </>
                       ) : (
-                        "Publish test article"
+                        t.publishTest
                       )}
                     </Button>
                   ) : null}
@@ -230,7 +231,7 @@ export function PublishingPanel({
                   disabled={pending}
                 >
                   <X className="size-4" />
-                  Disconnect
+                  {t.disconnect}
                 </Button>
                 </div>
               </li>
@@ -272,7 +273,7 @@ export function PublishingPanel({
                         {connected ? (
                           <span className="flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
                             <Check className="size-3" aria-hidden="true" />
-                            Connected
+                            {t.connected}
                           </span>
                         ) : null}
                       </div>
@@ -363,7 +364,7 @@ export function PublishingPanel({
           */
           <div className="space-y-4 rounded-xl border p-4">
             <div>
-              <p className="font-medium">Connect {selected.name}</p>
+              <p className="font-medium">{t.connectTo(selected.name)}</p>
               <p className="text-sm text-muted-foreground">
                 {selected.description}
               </p>
@@ -472,7 +473,7 @@ export function PublishingPanel({
                           {connected ? (
                             <span className="flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
                               <Check className="size-3" aria-hidden="true" />
-                              Connected
+                              {t.connected}
                             </span>
                           ) : null}
                         </div>
