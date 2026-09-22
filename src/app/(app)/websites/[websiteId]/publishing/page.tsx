@@ -1,14 +1,9 @@
 import { requireWebsite } from "@/lib/tenant";
-import {
-  listAvailableProviders,
-  listIntegrations,
-} from "@/lib/publishing/actions";
-import { getIntegrationKeys } from "@/lib/plugin/actions";
+import { listIntegrations } from "@/lib/publishing/actions";
 import { getBrandVoice } from "@/lib/brand/actions";
 import { BrandVoiceForm } from "../brand-voice-form";
 import { ArticleSettingsForm } from "../article-settings-form";
 import { GenerationPanel } from "../generation-panel";
-import { PublishingPanel } from "../publishing-panel";
 import { requirePlan } from "@/lib/billing/require-plan";
 
 export const metadata = { title: "Publishing" };
@@ -23,10 +18,13 @@ export default async function WebsitePublishingPage({
 
   // Paywall. See lib/billing/require-plan.ts.
   await requirePlan(orgId);
-  const [providers, integrations, pluginKeys, voice] = await Promise.all([
-    listAvailableProviders(),
+  /*
+    Only what this tab renders. The publishing connections moved to
+    Integrations, so their three queries moved with them rather than being
+    fetched here for a panel that is no longer on the page.
+  */
+  const [integrations, voice] = await Promise.all([
     listIntegrations(site.id),
-    getIntegrationKeys(site.id),
     getBrandVoice(site.id),
   ]);
 
@@ -99,12 +97,20 @@ export default async function WebsitePublishingPage({
       */}
       <BrandVoiceForm websiteId={site.id} voice={voice} />
 
-      <PublishingPanel
-        websiteId={site.id}
-        providers={providers}
-        integrations={integrations}
-        pluginKeys={pluginKeys}
-      />
+      {/*
+        Room for the fixed save bar, reserved at the END of the page.
+
+        ArticleSettingsForm renders its bar pinned to the viewport, and the
+        panels above render after the form in the DOM - so the last thing on
+        screen was sitting behind it. The client hit this: "I can't see some
+        of part because they are overlapped with save button bar."
+
+        Reserved unconditionally rather than only while the bar is showing,
+        because appearing on the first keystroke would shift the whole page
+        under the cursor.
+      */}
+      <div className="h-20" aria-hidden="true" />
+
     </div>
   );
 }

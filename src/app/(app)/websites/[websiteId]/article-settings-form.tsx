@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
+import { Eye, Loader2, X } from "lucide-react";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
@@ -70,6 +70,10 @@ export function ArticleSettingsForm({
   const [values, setValues] = useState<ArticleSettingsValues>(initial);
   const [saved, setSaved] = useState<ArticleSettingsValues>(initial);
   const [pending, startTransition] = useTransition();
+  /** The enlarged sample, or null. */
+  const [preview, setPreview] = useState<{ src: string; label: string } | null>(
+    null,
+  );
 
   /** Shallow compare is enough: every field is a primitive or null. */
   const dirty = (Object.keys(values) as (keyof ArticleSettingsValues)[]).some(
@@ -338,6 +342,8 @@ export function ArticleSettingsForm({
           options={IMAGE_STYLES}
           value={values.imageStyle}
           onChange={(v) => set("imageStyle", v)}
+          kind="body"
+          onPreview={setPreview}
         />
 
         <PresetGrid
@@ -346,6 +352,12 @@ export function ArticleSettingsForm({
           options={FEATURED_IMAGE_STYLES}
           value={values.featuredImageStyle}
           onChange={(v) => set("featuredImageStyle", v)}
+          kind="featured"
+          /* So "Match article images" names the style it will actually use. */
+          matches={
+            IMAGE_STYLES.find((s) => s.id === values.imageStyle)?.label
+          }
+          onPreview={setPreview}
         />
 
         <div className="space-y-1.5">
@@ -462,9 +474,66 @@ export function ArticleSettingsForm({
         the last field hiding behind the bar; z-40 keeps it over the page and
         under the chat widget, which sets its own much higher stacking.
       */}
+      {/*
+        NO SPACER HERE. The bar is fixed to the viewport and covers whatever
+        is at the bottom of the PAGE, which is not this component - the
+        schedule and brand-voice panels render after it. Space inside the
+        form would push the form's own content down and leave the panels
+        below it just as covered.
+
+        The page reserves the room instead; see publishing/page.tsx.
+      */}
+      {/*
+        The enlarged sample.
+
+        A plain overlay rather than a dialog component: it holds one image and
+        a close control, and the page has no other modal to be consistent
+        with. Escape and a click on the backdrop both close it, because those
+        are the two things everybody tries.
+
+        z-50 puts it over the save bar at z-40 - the bar is pinned to the
+        bottom and would otherwise cut across a full-height image.
+      */}
+      {preview ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${preview.label} style sample`}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/60 p-4 backdrop-blur-sm"
+          onClick={() => setPreview(null)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setPreview(null);
+          }}
+          tabIndex={-1}
+        >
+          <div
+            className="relative max-h-full w-full max-w-lg overflow-hidden rounded-2xl bg-card shadow-xl"
+            /* The image is not a dismiss target; only the backdrop is. */
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element -- local asset */}
+            <img
+              src={preview.src}
+              alt={`${preview.label} style sample`}
+              className="w-full bg-muted object-contain"
+            />
+            <div className="flex items-center justify-between gap-3 px-4 py-3">
+              <p className="text-sm font-medium">{preview.label}</p>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setPreview(null)}
+                aria-label="Close preview"
+              >
+                <X className="size-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {dirty ? (
         <>
-          <div className="h-20" aria-hidden="true" />
           <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 backdrop-blur">
             <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
               <p className="text-sm text-muted-foreground">Unsaved changes</p>
@@ -529,16 +598,23 @@ function UrlField({
 }
 
 /**
- * A row of style presets.
+ * A row of style presets, each showing what that style produces.
  *
- * Buttons in a radiogroup rather than a select: the design shows them as
- * cards, and the choice is visual - a list of words would make somebody
- * guess what "Watercolour" looks like in their own articles.
+ * THE SAMPLES ARE REAL. Every thumbnail was generated with the same wording
+ * the article generator uses (IMAGE_STYLE_PROMPTS, via
+ * scripts/generate-style-samples.mjs), so a card shows what picking it
+ * actually does rather than a stock picture chosen because it looks good. If
+ * a style's wording changes, the script is re-run and the sample changes with
+ * it; a sample that no longer matches its prompt would be worse than none,
+ * because it is a promise about output.
  *
- * NO PREVIEW IMAGES YET, deliberately. The design shows a sample picture on
- * each card; showing a stock example would be pretending to show THEIR
- * article in that style. The label and its one-line hint stand in until
- * there are real generated samples to put there.
+ * All eight use the same subject - one person at a laptop - so the only thing
+ * differing between cards is the style. A different scene per card would turn
+ * a style comparison into a subject comparison.
+ *
+ * "Match article images" has no sample: it follows whatever the body style is,
+ * so any picture would claim a fixed look it does not have. It shows the
+ * chosen body style's name instead, which is the truthful answer.
  */
 function PresetGrid({
   legend,
@@ -546,38 +622,95 @@ function PresetGrid({
   options,
   value,
   onChange,
+  /** "body" or "featured" - picks which sample set to show. */
+  kind,
+  /** What "Match article images" currently resolves to. */
+  matches,
+  onPreview,
 }: {
   legend: string;
   hint: string;
   options: { id: string; label: string; hint: string }[];
   value: string;
   onChange: (value: string) => void;
+  kind: "body" | "featured";
+  matches?: string;
+  onPreview: (sample: { src: string; label: string }) => void;
 }) {
   return (
     <fieldset className="space-y-2">
       <legend className="text-sm font-medium">{legend}</legend>
       <p className="text-xs text-muted-foreground">{hint}</p>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {options.map((option) => {
           const active = option.id === value;
+          const src =
+            option.id === "match"
+              ? null
+              : `/style-samples/${kind}-${option.id}.webp`;
+
           return (
-            <button
+            <div
               key={option.id}
-              type="button"
-              role="radio"
-              aria-checked={active}
-              onClick={() => onChange(option.id)}
-              className={`rounded-xl border p-3 text-left transition-colors ${
+              className={`relative overflow-hidden rounded-xl border transition-colors ${
                 active
-                  ? "border-primary bg-primary/5 ring-1 ring-primary"
-                  : "hover:bg-accent"
+                  ? "border-primary ring-1 ring-primary"
+                  : "hover:border-muted-foreground/40"
               }`}
             >
-              <span className="block text-sm font-medium">{option.label}</span>
-              <span className="mt-0.5 block text-xs text-muted-foreground">
-                {option.hint}
-              </span>
-            </button>
+              {/*
+                The card itself is the radio. The preview is a separate
+                button on top of it, because a click on the thumbnail should
+                SELECT the style - that is what somebody means by clicking a
+                choice - and only the eye icon should enlarge it.
+              */}
+              <button
+                type="button"
+                role="radio"
+                aria-checked={active}
+                onClick={() => onChange(option.id)}
+                className="block w-full text-left"
+              >
+                {src ? (
+                  /* eslint-disable-next-line @next/next/no-img-element --
+                     A fixed-size local thumbnail; next/image would add an
+                     optimiser round trip for an asset already the right
+                     size and format. */
+                  <img
+                    src={src}
+                    alt={`${option.label} style sample`}
+                    className="aspect-[4/3] w-full bg-muted object-cover"
+                    loading="lazy"
+                  />
+                ) : (
+                  <div className="flex aspect-[4/3] w-full items-center justify-center bg-muted px-2 text-center">
+                    <span className="text-xs text-muted-foreground">
+                      {matches ? `Uses ${matches}` : "Follows the body style"}
+                    </span>
+                  </div>
+                )}
+
+                <span className="block px-3 py-2">
+                  <span className="block text-sm font-medium">
+                    {option.label}
+                  </span>
+                  <span className="mt-0.5 block text-xs text-muted-foreground">
+                    {option.hint}
+                  </span>
+                </span>
+              </button>
+
+              {src ? (
+                <button
+                  type="button"
+                  onClick={() => onPreview({ src, label: option.label })}
+                  aria-label={`Preview the ${option.label} style`}
+                  className="absolute top-2 right-2 rounded-full bg-background/90 p-1.5 text-muted-foreground shadow-sm backdrop-blur transition-colors hover:text-foreground"
+                >
+                  <Eye className="size-3.5" aria-hidden="true" />
+                </button>
+              ) : null}
+            </div>
           );
         })}
       </div>
