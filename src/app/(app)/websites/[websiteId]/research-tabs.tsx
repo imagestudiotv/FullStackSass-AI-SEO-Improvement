@@ -177,7 +177,7 @@ export function ResearchTabs({
             {researching ? (
               <>
                 <Loader2 className="size-4 animate-spin" />
-                Looking…
+                {t.looking}
               </>
             ) : (
               <>
@@ -246,6 +246,7 @@ export function ResearchTabs({
               calendar={calendar}
               articles={articles}
               t={tCalendar}
+              tCommon={tCommon}
             />
           </CardContent>
         </Card>

@@ -62,10 +62,13 @@ const FIELDS = [
 export function WebsiteDetailClient({
   website,
   t,
+  tCommon,
 }: {
   website: WebsiteDetail;
   /** This screen's copy, already in the reader's language. */
   t: Messages["app"]["profile"];
+  /** Shared words used on several screens. */
+  tCommon: Messages["app"]["common"];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -176,7 +179,7 @@ export function WebsiteDetailClient({
                   ))}
                 </select>
                 <p className="text-xs text-muted-foreground">
-                  Your articles are written in this language.
+                  {tCommon.articleLanguageHelp}
                 </p>
               </div>
             </div>

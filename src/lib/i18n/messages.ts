@@ -852,6 +852,12 @@ export type Messages = {
       saveProperties: string;
       appeared: string;
       noImageYet: string;
+      notScheduled: string;
+      nothingPlanned: string;
+      requestLink: string;
+      admin: string;
+      articleLanguageHelp: string;
+      namedInstead: string;
       notAvailable: string;
       notAvailableHelp: string;
       backToDashboard: string;
@@ -1885,6 +1891,12 @@ const en: Messages = {
       saveProperties: "Save properties",
       appeared: "Appeared",
       noImageYet: "No image yet",
+      notScheduled: "Not scheduled",
+      nothingPlanned: "Nothing planned for this day.",
+      requestLink: "Request a link",
+      admin: "Admin",
+      articleLanguageHelp: "Your articles are written in this language.",
+      namedInstead: "Named instead of you, most often",
       notAvailable: "This page is not available",
       notAvailableHelp: "The page may have moved, or it belongs to a workspace you are not a member of.",
       backToDashboard: "Back to dashboard",
@@ -2928,6 +2940,12 @@ const es: Messages = {
       saveProperties: "Guardar propiedades",
       appeared: "Apariciones",
       noImageYet: "Todavía sin imagen",
+      notScheduled: "Sin programar",
+      nothingPlanned: "Nada planificado para este día.",
+      requestLink: "Solicitar un enlace",
+      admin: "Administración",
+      articleLanguageHelp: "Sus artículos se escriben en este idioma.",
+      namedInstead: "Mencionados en su lugar con más frecuencia",
       notAvailable: "Esta página no está disponible",
       notAvailableHelp: "Puede que la página se haya movido o que pertenezca a un espacio de trabajo del que no forma parte.",
       backToDashboard: "Volver al panel",
@@ -3974,6 +3992,12 @@ const fr: Messages = {
       saveProperties: "Enregistrer les propriétés",
       appeared: "Apparitions",
       noImageYet: "Pas encore d\u2019image",
+      notScheduled: "Non planifié",
+      nothingPlanned: "Rien de prévu ce jour-là.",
+      requestLink: "Demander un lien",
+      admin: "Administration",
+      articleLanguageHelp: "Vos articles sont rédigés dans cette langue.",
+      namedInstead: "Cités à votre place, le plus souvent",
       notAvailable: "Cette page n\u2019est pas disponible",
       notAvailableHelp: "La page a peut-être été déplacée, ou elle appartient à un espace de travail dont vous n\u2019êtes pas membre.",
       backToDashboard: "Retour au tableau de bord",
@@ -5013,6 +5037,12 @@ const it: Messages = {
       saveProperties: "Salva proprietà",
       appeared: "Comparse",
       noImageYet: "Ancora nessuna immagine",
+      notScheduled: "Non pianificato",
+      nothingPlanned: "Nulla in programma per questo giorno.",
+      requestLink: "Richiedi un link",
+      admin: "Amministrazione",
+      articleLanguageHelp: "I suoi articoli vengono scritti in questa lingua.",
+      namedInstead: "Citati al suo posto, più spesso",
       notAvailable: "Questa pagina non è disponibile",
       notAvailableHelp: "La pagina potrebbe essere stata spostata, oppure appartiene a uno spazio di lavoro di cui non fa parte.",
       backToDashboard: "Torna alla dashboard",
@@ -6059,6 +6089,12 @@ const de: Messages = {
       saveProperties: "Properties speichern",
       appeared: "Einblendungen",
       noImageYet: "Noch kein Bild",
+      notScheduled: "Nicht geplant",
+      nothingPlanned: "Für diesen Tag ist nichts geplant.",
+      requestLink: "Link anfragen",
+      admin: "Verwaltung",
+      articleLanguageHelp: "Ihre Artikel werden in dieser Sprache verfasst.",
+      namedInstead: "Werden am häufigsten statt Ihrer genannt",
       notAvailable: "Diese Seite ist nicht verfügbar",
       notAvailableHelp: "Die Seite wurde möglicherweise verschoben oder gehört zu einem Arbeitsbereich, in dem Sie kein Mitglied sind.",
       backToDashboard: "Zurück zum Dashboard",

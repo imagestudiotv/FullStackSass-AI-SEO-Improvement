@@ -156,12 +156,15 @@ export function ContentCalendar({
   calendar,
   articles,
   t,
+  tCommon,
 }: {
   websiteId: string;
   calendar: CalendarRow[];
   articles: ArticleRow[];
   /** This screen's copy, already in the reader's language. */
   t: Messages["app"]["calendar"];
+  /** Shared words used on several screens. */
+  tCommon: Messages["app"]["common"];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -656,7 +659,7 @@ export function ContentCalendar({
           </div>
           {(byDay.get(selectedDay ?? dayKey(today)) ?? []).length === 0 ? (
             <p className="rounded-xl border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
-              Nothing planned for this day.
+              {tCommon.nothingPlanned}
             </p>
           ) : (
             <div className="space-y-2">
@@ -668,7 +671,7 @@ export function ContentCalendar({
 
       {undated.length > 0 ? (
         <div className="space-y-2">
-          <p className="text-sm font-medium">Not scheduled</p>
+          <p className="text-sm font-medium">{tCommon.notScheduled}</p>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
             {undated.map(renderItem)}
           </div>

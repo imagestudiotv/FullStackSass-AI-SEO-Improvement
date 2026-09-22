@@ -165,7 +165,7 @@ export function AuditPanel({
 
         {audit.issues.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            Nothing needs attention. Check again after you make changes.
+            {t.nothingNeedsAttention}
           </p>
         ) : (
           <ul className="divide-y">

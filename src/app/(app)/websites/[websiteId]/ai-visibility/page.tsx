@@ -19,6 +19,11 @@ export default async function WebsiteAiVisibilityPage({
   const { t } = await getAppMessages(userId);
 
   return (
-    <GeoPanel websiteId={site.id} overview={overview} t={t.app.geo} />
+    <GeoPanel
+      websiteId={site.id}
+      overview={overview}
+      t={t.app.geo}
+      tCommon={t.app.common}
+    />
   );
 }

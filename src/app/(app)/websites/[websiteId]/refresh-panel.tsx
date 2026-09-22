@@ -86,7 +86,7 @@ export function RefreshPanel({
           <EmptyState
             icon={TrendingDown}
             title={t.nothingLosing}
-            description="We compare the last 28 days against the 28 before. Nothing has dropped enough to worry about — or there is not enough Search Console history yet."
+            description={t.nothingLosingHelp}
           />
         ) : (
           <ul className="divide-y rounded-xl border">

@@ -43,11 +43,14 @@ export function GeoPanel({
   websiteId,
   overview,
   t,
+  tCommon,
 }: {
   websiteId: string;
   overview: GeoOverview;
   /** This screen's copy, already in the reader's language. */
   t: Messages["app"]["geo"];
+  /** Shared words used on several screens. */
+  tCommon: Messages["app"]["common"];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -349,7 +352,7 @@ export function GeoPanel({
         {overview.topCompetitors.length > 0 ? (
           <div>
             <p className="mb-2 text-sm font-medium">
-              Named instead of you, most often
+              {tCommon.namedInstead}
             </p>
             <div className="flex flex-wrap gap-2">
               {overview.topCompetitors.map((c) => (

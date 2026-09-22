@@ -34,6 +34,7 @@ export default async function WebsiteBacklinksPage({
       requests={requests}
       given={given}
       t={t.app.backlinks}
+      tCommon={t.app.common}
     />
   );
 }

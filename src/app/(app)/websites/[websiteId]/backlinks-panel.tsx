@@ -41,6 +41,8 @@ type Props = {
   given: GivenRow[];
   /** This screen's copy, already in the reader's language. */
   t: Messages["app"]["backlinks"];
+  /** Shared words used on several screens. */
+  tCommon: Messages["app"]["common"];
 };
 
 /**
@@ -77,6 +79,7 @@ export function BacklinksPanel({
   requests,
   given,
   t,
+  tCommon,
 }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -302,7 +305,7 @@ export function BacklinksPanel({
                     size="sm"
                     onClick={() => setShowRequest(false)}
                   >
-                    Cancel
+                    {tCommon.cancel}
                   </Button>
                 </div>
               </form>
@@ -313,7 +316,7 @@ export function BacklinksPanel({
                 disabled={status.available < 1}
               >
                 <Plus className="size-4" />
-                Request a link
+                {tCommon.requestLink}
               </Button>
             )}
 

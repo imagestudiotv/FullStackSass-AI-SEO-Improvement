@@ -46,6 +46,7 @@ export default async function WebsiteProfilePage({
           status: site.status,
         }}
         t={t.app.profile}
+        tCommon={t.app.common}
       />
 
       {/*

@@ -12,6 +12,7 @@ import { UserMenu } from "@/components/user-menu";
 import { WebsiteSwitcher } from "@/components/dashboard/website-switcher";
 import { isAdmin } from "@/lib/admin/guard";
 import { requireSession } from "@/lib/auth-guard";
+import { getAppMessages } from "@/lib/i18n/app-locale";
 import { ensureOrganization } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { addons, notifications, organization, websites } from "@/lib/db/schema";
@@ -112,6 +113,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const subscription = await getSubscription(orgId);
   // Only admins see the link; the area itself 404s for everyone else.
   const admin = await isAdmin();
+  const { t } = await getAppMessages(session.user.id);
 
   const org = await db.query.organization.findFirst({
     where: eq(organization.id, orgId),
@@ -198,7 +200,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         />
         <Link
           href="/dashboard"
-          aria-label="RepGet dashboard"
+          aria-label="RepGet"
           className="flex items-center"
         >
           <span className="sm:hidden">
@@ -234,7 +236,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
               href="/admin"
               className="rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
             >
-              Admin
+              {t.app.common.admin}
             </Link>
           ) : null}
           {/*
