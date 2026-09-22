@@ -241,21 +241,57 @@ export function WebsiteMembers({
                 key={member.id}
                 className="flex flex-wrap items-center gap-3 p-3"
               >
+                {/*
+                  Initials in a coloured disc, as the design has it.
+
+                  Derived from the name rather than stored: an avatar upload
+                  is a file-handling feature, and initials identify somebody
+                  in a three-row list perfectly well. The colour comes from
+                  the email so a given person is the same colour every time -
+                  a random one would reshuffle on every render and stop being
+                  a recognition aid at all.
+                */}
+                <span
+                  className={`flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white ${avatarColour(
+                    member.email,
+                  )}`}
+                  aria-hidden="true"
+                >
+                  {initials(member.name || member.email)}
+                </span>
+
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">
                     {member.name || member.email}
                   </p>
                   <p className="truncate text-sm text-muted-foreground">
-                    {member.email} · {member.role}
+                    {member.email}
                   </p>
                 </div>
+
+                {/* Role, as its own column rather than trailing the email. */}
+                <span className="shrink-0 rounded-full bg-muted px-2.5 py-1 text-xs font-medium capitalize">
+                  {member.role}
+                </span>
+
+                {/*
+                  NO "Status" COLUMN, though the design shows one.
+
+                  listWebsiteMembers returns people who have accepted - a
+                  pending invitation lives in the invitation table and is not
+                  in this list. Every row here is active, so a column reading
+                  "Active" on every row would be decoration that looks like
+                  information. It belongs here the day pending invites are
+                  listed alongside accepted ones.
+                */}
+
                 <Button
                   variant="ghost"
                   size="icon"
                   aria-label={`Remove ${member.email}`}
                   disabled={pending}
                   onClick={() => remove(member.id, member.email)}
-                  className="text-muted-foreground hover:text-destructive"
+                  className="shrink-0 text-muted-foreground hover:text-destructive"
                 >
                   {busyId === member.id ? (
                     <Loader2 className="size-4 animate-spin" />
@@ -270,4 +306,36 @@ export function WebsiteMembers({
       </CardContent>
     </Card>
   );
+}
+
+/** Up to two initials, from a name or an email local part. */
+function initials(value: string): string {
+  const source = value.includes("@") ? value.split("@")[0] : value;
+  const parts = source.split(/[\s._-]+/).filter(Boolean);
+  const letters = parts.slice(0, 2).map((part) => part[0] ?? "");
+  return letters.join("").toUpperCase() || "?";
+}
+
+/**
+ * A stable colour per person, picked from the email.
+ *
+ * A fixed palette rather than a generated hue: these are Tailwind classes, so
+ * an arbitrary colour would need inline styles, and six well-chosen ones all
+ * carry white text legibly. A generated hue does not guarantee that.
+ */
+const AVATAR_COLOURS = [
+  "bg-violet-500",
+  "bg-sky-500",
+  "bg-emerald-500",
+  "bg-amber-500",
+  "bg-rose-500",
+  "bg-indigo-500",
+];
+
+function avatarColour(email: string): string {
+  let hash = 0;
+  for (let i = 0; i < email.length; i++) {
+    hash = (hash * 31 + email.charCodeAt(i)) | 0;
+  }
+  return AVATAR_COLOURS[Math.abs(hash) % AVATAR_COLOURS.length];
 }
