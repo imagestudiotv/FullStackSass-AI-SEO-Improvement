@@ -2,6 +2,9 @@
 
 import { BarChart3, Download, Loader2, Unplug } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
+import type { Locale } from "@/lib/i18n/config";
+import { formatNumber as intlNumber } from "@/lib/i18n/format";
+import type { Messages } from "@/lib/i18n/messages";
 import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 
@@ -48,22 +51,42 @@ type Props = {
   websiteId: string;
   connection: AnalyticsConnection;
   performance: PerformanceSummary;
+  /** This screen's copy, already in the reader's language. */
+  t: Messages["app"]["analytics"];
+  /** For thousands separators. */
+  locale: Locale;
 };
 
 /** Messages for the ?google= parameter the OAuth callback redirects with. */
-const CALLBACK_MESSAGE: Record<string, { text: string; ok: boolean }> = {
-  connected: { text: "Google connected", ok: true },
-  cancelled: { text: "Connection cancelled", ok: false },
-  forbidden: { text: "You cannot connect that website", ok: false },
-  invalid_request: { text: "That link was not valid — try again", ok: false },
-  error: { text: "Google could not be connected", ok: false },
+const CALLBACK_MESSAGE: Record<
+  string,
+  { key: keyof Messages["app"]["analytics"]; ok: boolean }
+> = {
+  connected: { key: "statusConnected", ok: true },
+  cancelled: { key: "statusCancelled", ok: false },
+  forbidden: { key: "statusForbidden", ok: false },
+  invalid_request: { key: "statusInvalid", ok: false },
+  error: { key: "statusError", ok: false },
 };
 
-function formatNumber(value: number): string {
-  return value.toLocaleString();
+/**
+ * Thousands separators in the reader's language.
+ *
+ * Was value.toLocaleString() with no argument, which follows the BROWSER —
+ * so a German dashboard on an English-locale machine printed 1,234 where the
+ * rest of the page said 1.234.
+ */
+function formatNumber(value: number, locale: Locale): string {
+  return intlNumber(value, locale);
 }
 
-export function AnalyticsPanel({ websiteId, connection, performance }: Props) {
+export function AnalyticsPanel({
+  websiteId,
+  connection,
+  performance,
+  t,
+  locale,
+}: Props) {
   const router = useRouter();
   const params = useSearchParams();
   const [pending, startTransition] = useTransition();
@@ -77,11 +100,11 @@ export function AnalyticsPanel({ websiteId, connection, performance }: Props) {
     if (!callback) return;
     const message = CALLBACK_MESSAGE[callback];
     if (!message) return;
-    if (message.ok) toast.success(message.text);
-    else toast.error(message.text);
+    if (message.ok) toast.success(t[message.key]);
+    else toast.error(t[message.key]);
     // Cleared so a refresh does not repeat the toast.
     router.replace(`/websites/${websiteId}`);
-  }, [callback, router, websiteId]);
+  }, [callback, router, websiteId, t]);
 
   // Property lists are only fetched once connected, since the call needs a
   // token and would fail noisily otherwise.
@@ -129,7 +152,7 @@ export function AnalyticsPanel({ websiteId, connection, performance }: Props) {
         toast.error(result.error);
         return;
       }
-      toast.success("Importing your data — this takes a moment");
+      toast.success(t.importing);
       router.refresh();
     });
   }
@@ -141,7 +164,7 @@ export function AnalyticsPanel({ websiteId, connection, performance }: Props) {
         toast.error(result.error);
         return;
       }
-      toast.success("Google disconnected");
+      toast.success(t.disconnected);
       router.refresh();
     });
   }
@@ -152,21 +175,16 @@ export function AnalyticsPanel({ websiteId, connection, performance }: Props) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <BarChart3 className="size-4" />
-            Google results
+            {t.googleResults}
           </CardTitle>
-          <CardDescription>
-            Connect Google to see which searches bring people to your website,
-            and how that changes as we publish.
-          </CardDescription>
+          <CardDescription>{t.connectHelp}</CardDescription>
         </CardHeader>
         <CardContent>
           <Button onClick={handleConnect} disabled={pending}>
-            {pending ? "Redirecting…" : "Connect Google"}
+            {pending ? t.redirecting : t.connectGoogle}
           </Button>
           {connection.status === "expired" ? (
-            <p className="mt-3 text-sm text-destructive">
-              The previous connection expired. Reconnect to resume importing.
-            </p>
+            <p className="mt-3 text-sm text-destructive">{t.expired}</p>
           ) : null}
         </CardContent>
       </Card>
@@ -180,13 +198,13 @@ export function AnalyticsPanel({ websiteId, connection, performance }: Props) {
           <div>
             <CardTitle className="flex items-center gap-2 text-base">
               <BarChart3 className="size-4" />
-              Google results
-              <Badge>Connected</Badge>
+              {t.googleResults}
+              <Badge>{t.connected}</Badge>
             </CardTitle>
             <CardDescription>
               {performance.hasData
-                ? "Last 28 days."
-                : "Choose your properties below, then import."}
+                ? t.last28
+                : t.chooseThenImport}
             </CardDescription>
           </div>
         </div>
@@ -203,8 +221,8 @@ export function AnalyticsPanel({ websiteId, connection, performance }: Props) {
             */}
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
               <Stat
-                label="Visitors from Google"
-                value={formatNumber(performance.clicks)}
+                label={t.visitorsFromGoogle}
+                value={formatNumber(performance.clicks, locale)}
                 trend={
                   <Trend
                     current={performance.clicks}
@@ -213,8 +231,8 @@ export function AnalyticsPanel({ websiteId, connection, performance }: Props) {
                 }
               />
               <Stat
-                label="Times you appeared"
-                value={formatNumber(performance.impressions)}
+                label={t.timesAppeared}
+                value={formatNumber(performance.impressions, locale)}
                 trend={
                   <Trend
                     current={performance.impressions}
@@ -223,7 +241,7 @@ export function AnalyticsPanel({ websiteId, connection, performance }: Props) {
                 }
               />
               <Stat
-                label="Average ranking"
+                label={t.averageRanking}
                 value={
                   performance.averagePosition
                     ? performance.averagePosition.toFixed(1)
@@ -241,8 +259,8 @@ export function AnalyticsPanel({ websiteId, connection, performance }: Props) {
                 }
               />
               <Stat
-                label="Website visits"
-                value={formatNumber(performance.sessions)}
+                label={t.websiteVisits}
+                value={formatNumber(performance.sessions, locale)}
                 trend={
                   <Trend
                     current={performance.sessions}
@@ -255,13 +273,13 @@ export function AnalyticsPanel({ websiteId, connection, performance }: Props) {
             {performance.topQueries.length > 0 ? (
               <div>
                 <p className="mb-2 text-sm font-medium">
-                  What people searched to find you
+                  {t.whatPeopleSearched}
                 </p>
                 <Table minWidth="28rem">
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Query</TableHead>
-                      <TableHead className="w-24">Visitors</TableHead>
+                      <TableHead>{t.query}</TableHead>
+                      <TableHead className="w-24">{t.visitors}</TableHead>
                       <TableHead className="hidden w-28 sm:table-cell">
                         Appeared
                       </TableHead>
@@ -272,10 +290,10 @@ export function AnalyticsPanel({ websiteId, connection, performance }: Props) {
                       <TableRow key={row.query}>
                         <TableCell>{row.query}</TableCell>
                         <TableCell className="tabular-nums">
-                          {formatNumber(row.clicks)}
+                          {formatNumber(row.clicks, locale)}
                         </TableCell>
                         <TableCell className="hidden tabular-nums sm:table-cell">
-                          {formatNumber(row.impressions)}
+                          {formatNumber(row.impressions, locale)}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -288,10 +306,10 @@ export function AnalyticsPanel({ websiteId, connection, performance }: Props) {
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label>Search Console property</Label>
+            <Label>{t.searchConsoleProperty}</Label>
             <Select value={scSite} onValueChange={setScSite}>
               <SelectTrigger>
-                <SelectValue placeholder="Choose a property" />
+                <SelectValue placeholder={t.chooseProperty} />
               </SelectTrigger>
               <SelectContent>
                 {(properties?.searchConsole ?? []).map((site) => (
@@ -304,10 +322,10 @@ export function AnalyticsPanel({ websiteId, connection, performance }: Props) {
           </div>
 
           <div className="space-y-1.5">
-            <Label>Analytics property</Label>
+            <Label>{t.analyticsProperty}</Label>
             <Select value={gaProperty} onValueChange={setGaProperty}>
               <SelectTrigger>
-                <SelectValue placeholder="Choose a property" />
+                <SelectValue placeholder={t.chooseProperty} />
               </SelectTrigger>
               <SelectContent>
                 {(properties?.analytics ?? []).map((property) => (

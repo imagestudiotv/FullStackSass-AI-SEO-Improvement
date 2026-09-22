@@ -533,6 +533,33 @@ export type Messages = {
       planningOutline: string;
       writingBody: string;
     };
+    analytics: {
+      googleResults: string;
+      connectHelp: string;
+      connectGoogle: string;
+      redirecting: string;
+      expired: string;
+      connected: string;
+      last28: string;
+      chooseThenImport: string;
+      visitorsFromGoogle: string;
+      timesAppeared: string;
+      averageRanking: string;
+      websiteVisits: string;
+      whatPeopleSearched: string;
+      query: string;
+      visitors: string;
+      searchConsoleProperty: string;
+      analyticsProperty: string;
+      chooseProperty: string;
+      importing: string;
+      disconnected: string;
+      statusConnected: string;
+      statusCancelled: string;
+      statusForbidden: string;
+      statusInvalid: string;
+      statusError: string;
+    };
   };
 };
 
@@ -1223,6 +1250,33 @@ const en: Messages = {
       sendingDraft: "Sending as a draft…",
       planningOutline: "Planning what to cover",
       writingBody: "Writing the article",
+    },
+    analytics: {
+      googleResults: "Google results",
+      connectHelp: "Connect Google to see which searches bring people to your website, and how that changes as we publish.",
+      connectGoogle: "Connect Google",
+      redirecting: "Redirecting…",
+      expired: "The previous connection expired. Reconnect to resume importing.",
+      connected: "Connected",
+      last28: "Last 28 days.",
+      chooseThenImport: "Choose your properties below, then import.",
+      visitorsFromGoogle: "Visitors from Google",
+      timesAppeared: "Times you appeared",
+      averageRanking: "Average ranking",
+      websiteVisits: "Website visits",
+      whatPeopleSearched: "What people searched to find you",
+      query: "Query",
+      visitors: "Visitors",
+      searchConsoleProperty: "Search Console property",
+      analyticsProperty: "Analytics property",
+      chooseProperty: "Choose a property",
+      importing: "Importing your data — this takes a moment",
+      disconnected: "Google disconnected",
+      statusConnected: "Google connected",
+      statusCancelled: "Connection cancelled",
+      statusForbidden: "You cannot connect that website",
+      statusInvalid: "That link was not valid — try again",
+      statusError: "Google could not be connected",
     },
   },
 };
@@ -1924,6 +1978,33 @@ const es: Messages = {
       sendingDraft: "Enviando como borrador…",
       planningOutline: "Planificando qué cubrir",
       writingBody: "Escribiendo el artículo",
+    },
+    analytics: {
+      googleResults: "Resultados de Google",
+      connectHelp: "Conecte Google para ver qué búsquedas llevan gente a su sitio web y cómo cambia a medida que publicamos.",
+      connectGoogle: "Conectar Google",
+      redirecting: "Redirigiendo…",
+      expired: "La conexión anterior caducó. Vuelva a conectarla para seguir importando.",
+      connected: "Conectado",
+      last28: "Últimos 28 días.",
+      chooseThenImport: "Elija sus propiedades abajo y luego importe.",
+      visitorsFromGoogle: "Visitantes desde Google",
+      timesAppeared: "Veces que apareció",
+      averageRanking: "Posición media",
+      websiteVisits: "Visitas al sitio web",
+      whatPeopleSearched: "Qué buscaron para encontrarle",
+      query: "Consulta",
+      visitors: "Visitantes",
+      searchConsoleProperty: "Propiedad de Search Console",
+      analyticsProperty: "Propiedad de Analytics",
+      chooseProperty: "Elija una propiedad",
+      importing: "Importando sus datos — esto tarda un momento",
+      disconnected: "Google desconectado",
+      statusConnected: "Google conectado",
+      statusCancelled: "Conexión cancelada",
+      statusForbidden: "No puede conectar ese sitio web",
+      statusInvalid: "Ese enlace no era válido — inténtelo de nuevo",
+      statusError: "No se pudo conectar Google",
     },
   },
 };
@@ -2629,6 +2710,33 @@ const fr: Messages = {
       planningOutline: "Préparation du plan",
       writingBody: "Rédaction de l\u2019article",
     },
+    analytics: {
+      googleResults: "Résultats Google",
+      connectHelp: "Connectez Google pour voir quelles recherches amènent des visiteurs sur votre site, et comment cela évolue à mesure que nous publions.",
+      connectGoogle: "Connecter Google",
+      redirecting: "Redirection…",
+      expired: "La connexion précédente a expiré. Reconnectez-vous pour reprendre l\u2019import.",
+      connected: "Connecté",
+      last28: "28 derniers jours.",
+      chooseThenImport: "Choisissez vos propriétés ci-dessous, puis importez.",
+      visitorsFromGoogle: "Visiteurs venus de Google",
+      timesAppeared: "Apparitions",
+      averageRanking: "Position moyenne",
+      websiteVisits: "Visites du site",
+      whatPeopleSearched: "Ce que les gens ont cherché pour vous trouver",
+      query: "Requête",
+      visitors: "Visiteurs",
+      searchConsoleProperty: "Propriété Search Console",
+      analyticsProperty: "Propriété Analytics",
+      chooseProperty: "Choisir une propriété",
+      importing: "Import de vos données — cela prend un instant",
+      disconnected: "Google déconnecté",
+      statusConnected: "Google connecté",
+      statusCancelled: "Connexion annulée",
+      statusForbidden: "Vous ne pouvez pas connecter ce site",
+      statusInvalid: "Ce lien n\u2019était pas valide — réessayez",
+      statusError: "Google n\u2019a pas pu être connecté",
+    },
   },
 };
 
@@ -3325,6 +3433,33 @@ const it: Messages = {
       sendingDraft: "Invio come bozza…",
       planningOutline: "Pianificazione degli argomenti",
       writingBody: "Scrittura dell\u2019articolo",
+    },
+    analytics: {
+      googleResults: "Risultati Google",
+      connectHelp: "Colleghi Google per vedere quali ricerche portano persone sul suo sito e come cambiano man mano che pubblichiamo.",
+      connectGoogle: "Collega Google",
+      redirecting: "Reindirizzamento…",
+      expired: "La connessione precedente è scaduta. La ricolleghi per riprendere l\u2019importazione.",
+      connected: "Collegato",
+      last28: "Ultimi 28 giorni.",
+      chooseThenImport: "Scelga le sue proprietà qui sotto, poi importi.",
+      visitorsFromGoogle: "Visitatori da Google",
+      timesAppeared: "Volte in cui è apparso",
+      averageRanking: "Posizione media",
+      websiteVisits: "Visite al sito",
+      whatPeopleSearched: "Che cosa hanno cercato per trovarla",
+      query: "Query",
+      visitors: "Visitatori",
+      searchConsoleProperty: "Proprietà Search Console",
+      analyticsProperty: "Proprietà Analytics",
+      chooseProperty: "Scelga una proprietà",
+      importing: "Importazione dei dati — ci vuole un momento",
+      disconnected: "Google scollegato",
+      statusConnected: "Google collegato",
+      statusCancelled: "Connessione annullata",
+      statusForbidden: "Non può collegare quel sito web",
+      statusInvalid: "Quel link non era valido — riprovi",
+      statusError: "Non è stato possibile collegare Google",
     },
   },
 };
@@ -4029,6 +4164,33 @@ const de: Messages = {
       sendingDraft: "Wird als Entwurf gesendet…",
       planningOutline: "Themen werden geplant",
       writingBody: "Artikel wird geschrieben",
+    },
+    analytics: {
+      googleResults: "Google-Ergebnisse",
+      connectHelp: "Verbinden Sie Google, um zu sehen, welche Suchanfragen Menschen auf Ihre Website bringen und wie sich das ändert, während wir veröffentlichen.",
+      connectGoogle: "Google verbinden",
+      redirecting: "Weiterleitung…",
+      expired: "Die vorherige Verbindung ist abgelaufen. Verbinden Sie erneut, um den Import fortzusetzen.",
+      connected: "Verbunden",
+      last28: "Letzte 28 Tage.",
+      chooseThenImport: "Wählen Sie unten Ihre Properties und importieren Sie dann.",
+      visitorsFromGoogle: "Besucher über Google",
+      timesAppeared: "Einblendungen",
+      averageRanking: "Durchschnittliche Position",
+      websiteVisits: "Website-Besuche",
+      whatPeopleSearched: "Wonach Menschen gesucht haben, um Sie zu finden",
+      query: "Suchanfrage",
+      visitors: "Besucher",
+      searchConsoleProperty: "Search-Console-Property",
+      analyticsProperty: "Analytics-Property",
+      chooseProperty: "Property wählen",
+      importing: "Ihre Daten werden importiert — das dauert einen Moment",
+      disconnected: "Google getrennt",
+      statusConnected: "Google verbunden",
+      statusCancelled: "Verbindung abgebrochen",
+      statusForbidden: "Sie können diese Website nicht verbinden",
+      statusInvalid: "Dieser Link war ungültig — versuchen Sie es erneut",
+      statusError: "Google konnte nicht verbunden werden",
     },
   },
 };
