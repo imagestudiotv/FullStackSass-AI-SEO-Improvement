@@ -2,6 +2,7 @@
 
 import { Bot, Check, Loader2, Plus, Sparkles, X } from "lucide-react";
 import { useRouter } from "next/navigation";
+import type { Messages } from "@/lib/i18n/messages";
 import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 
@@ -41,9 +42,12 @@ import type { GeoOverview } from "@/lib/geo/shared";
 export function GeoPanel({
   websiteId,
   overview,
+  t,
 }: {
   websiteId: string;
   overview: GeoOverview;
+  /** This screen's copy, already in the reader's language. */
+  t: Messages["app"]["geo"];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -97,7 +101,7 @@ export function GeoPanel({
       }
       setDraft("");
       setSuggestions((prev) => prev.filter((s) => s !== prompt));
-      toast.success("Question added");
+      toast.success(t.questionAdded);
       router.refresh();
     });
   }
@@ -123,7 +127,7 @@ export function GeoPanel({
       // Queued, not finished: the job asks every question, which takes a
       // while. Promising results "now" would be a lie the customer notices.
       setWaitingFrom(checkedCount);
-      toast.success("Checking — results appear here in a few minutes");
+      toast.success(t.checkQueued);
     });
   }
 
@@ -138,7 +142,7 @@ export function GeoPanel({
       const existing = new Set(overview.prompts.map((p) => p.prompt));
       const fresh = result.data.filter((s) => !existing.has(s));
       if (fresh.length === 0) {
-        toast.info("You are already tracking the questions we would suggest");
+        toast.info(t.alreadyTracking);
         return;
       }
       setSuggestions(fresh);
@@ -163,12 +167,9 @@ export function GeoPanel({
           <div>
             <CardTitle className="flex items-center gap-2">
               <Bot className="size-4" aria-hidden="true" />
-              AI visibility
+              {t.aiVisibility}
             </CardTitle>
-            <CardDescription>
-              Whether an AI assistant names your business when someone asks for
-              a business like yours.
-            </CardDescription>
+            <CardDescription>{t.aiVisibilityHelp}</CardDescription>
           </div>
           {overview.prompts.length > 0 ? (
             <Button
@@ -187,7 +188,7 @@ export function GeoPanel({
                 "Check now" reappearing straight away reads as a click that
                 did nothing.
               */}
-              {awaitingResults ? "Checking…" : "Check now"}
+              {awaitingResults ? t.checking : t.checkNow}
             </Button>
           ) : null}
         </div>
@@ -197,33 +198,33 @@ export function GeoPanel({
         {checked ? (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <Stat
-              label="Visibility score"
+              label={t.visibilityScore}
               value={overview.score}
               tone={scoreTone}
-              hint="Weighted by position"
+              hint={t.weightedByPosition}
               trend={
                 <Trend
                   current={overview.score}
                   previous={overview.previousScore}
-                  label="vs last check"
+                  label={t.vsLastCheck}
                 />
               }
             />
             <Stat
-              label="Questions naming you"
+              label={t.questionsNamingYou}
               value={`${overview.mentions}/${overview.total}`}
             />
             <Stat
-              label="Average position"
+              label={t.averagePosition}
               value={overview.averagePosition ?? "—"}
               hint={
                 overview.averagePosition === null
-                  ? "Not yet named"
-                  : "Where you appear in the list"
+                  ? t.notYetNamed
+                  : t.whereYouAppear
               }
             />
             <Stat
-              label="Last checked"
+              label={t.lastChecked}
               value={
                 overview.lastCheckedAt
                   ? new Date(overview.lastCheckedAt).toLocaleDateString()
@@ -239,7 +240,7 @@ export function GeoPanel({
             <Input
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
-              placeholder="e.g. Which dentist in Utrecht is best for nervous patients?"
+              placeholder={t.questionPlaceholder}
               disabled={pending}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && draft.trim()) {
@@ -254,7 +255,7 @@ export function GeoPanel({
                 disabled={pending || !draft.trim()}
               >
                 <Plus className="size-4" />
-                Add
+                {t.add}
               </Button>
               <Button
                 variant="outline"
@@ -266,20 +267,17 @@ export function GeoPanel({
                 ) : (
                   <Sparkles className="size-4" />
                 )}
-                Suggest
+                {t.suggest}
               </Button>
             </div>
           </div>
-          <p className="text-xs text-muted-foreground">
-            Ask the way a customer would, and do not name your business — the
-            point is to see whether you come up on your own.
-          </p>
+          <p className="text-xs text-muted-foreground">{t.askHelp}</p>
         </div>
 
         {suggestions.length > 0 ? (
           <div className="rounded-lg border border-dashed p-3">
             <p className="mb-2 text-xs font-medium text-muted-foreground">
-              Suggested questions — click to track
+              {t.suggestedQuestions}
             </p>
             <div className="flex flex-wrap gap-2">
               {suggestions.map((s) => (
@@ -301,8 +299,8 @@ export function GeoPanel({
         {overview.prompts.length === 0 ? (
           <EmptyState
             icon={Bot}
-            title="No questions tracked yet"
-            description="Add the questions your customers would ask an AI assistant, then check whether your business gets named in the answer."
+            title={t.noQuestions}
+            description={t.noQuestionsHelp}
           />
         ) : (
           <ul className="divide-y rounded-xl border">
@@ -310,7 +308,7 @@ export function GeoPanel({
               <li key={p.id} className="flex items-start gap-3 p-3">
                 <div className="mt-0.5 shrink-0">
                   {p.latest === null ? (
-                    <Badge variant="secondary">Not checked</Badge>
+                    <Badge variant="secondary">{t.notChecked}</Badge>
                   ) : p.latest.mentioned ? (
                     <Badge className="gap-1">
                       <Check className="size-3" aria-hidden="true" />
@@ -319,7 +317,7 @@ export function GeoPanel({
                         : "Named"}
                     </Badge>
                   ) : (
-                    <Badge variant="outline">Not named</Badge>
+                    <Badge variant="outline">{t.notNamed}</Badge>
                   )}
                 </div>
 
@@ -339,7 +337,7 @@ export function GeoPanel({
                   size="icon"
                   onClick={() => handleRemove(p.id)}
                   disabled={pending}
-                  aria-label="Stop tracking this question"
+                  aria-label={t.stopTracking}
                 >
                   <X className="size-4" />
                 </Button>

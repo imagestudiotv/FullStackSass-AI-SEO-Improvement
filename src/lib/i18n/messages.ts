@@ -605,6 +605,33 @@ export type Messages = {
       draftPublished: string;
       draftPublishedAt: (name: string) => string;
     };
+    geo: {
+      aiVisibility: string;
+      aiVisibilityHelp: string;
+      checkNow: string;
+      checking: string;
+      visibilityScore: string;
+      weightedByPosition: string;
+      vsLastCheck: string;
+      questionsNamingYou: string;
+      averagePosition: string;
+      notYetNamed: string;
+      whereYouAppear: string;
+      lastChecked: string;
+      questionPlaceholder: string;
+      add: string;
+      suggest: string;
+      askHelp: string;
+      suggestedQuestions: string;
+      noQuestions: string;
+      noQuestionsHelp: string;
+      notChecked: string;
+      notNamed: string;
+      stopTracking: string;
+      questionAdded: string;
+      checkQueued: string;
+      alreadyTracking: string;
+    };
   };
 };
 
@@ -1367,6 +1394,33 @@ const en: Messages = {
       disconnectedFrom: (name) => `Disconnected from ${name}`,
       draftPublished: "Draft published successfully. Check your site’s drafts.",
       draftPublishedAt: (name) => `Draft published — open it at ${name}`,
+    },
+    geo: {
+      aiVisibility: "AI visibility",
+      aiVisibilityHelp: "Whether an AI assistant names your business when someone asks for a business like yours.",
+      checkNow: "Check now",
+      checking: "Checking…",
+      visibilityScore: "Visibility score",
+      weightedByPosition: "Weighted by position",
+      vsLastCheck: "vs last check",
+      questionsNamingYou: "Questions naming you",
+      averagePosition: "Average position",
+      notYetNamed: "Not yet named",
+      whereYouAppear: "Where you appear in the list",
+      lastChecked: "Last checked",
+      questionPlaceholder: "e.g. Which dentist in Utrecht is best for nervous patients?",
+      add: "Add",
+      suggest: "Suggest",
+      askHelp: "Ask the way a customer would, and do not name your business — the point is to see whether you come up on your own.",
+      suggestedQuestions: "Suggested questions — click to track",
+      noQuestions: "No questions tracked yet",
+      noQuestionsHelp: "Add the questions your customers would ask an AI assistant, then check whether your business gets named in the answer.",
+      notChecked: "Not checked",
+      notNamed: "Not named",
+      stopTracking: "Stop tracking this question",
+      questionAdded: "Question added",
+      checkQueued: "Checking — results appear here in a few minutes",
+      alreadyTracking: "You are already tracking the questions we would suggest",
     },
   },
 };
@@ -2140,6 +2194,33 @@ const es: Messages = {
       disconnectedFrom: (name) => `Desconectado de ${name}`,
       draftPublished: "Borrador publicado correctamente. Revise los borradores de su sitio.",
       draftPublishedAt: (name) => `Borrador publicado — ábralo en ${name}`,
+    },
+    geo: {
+      aiVisibility: "Visibilidad en IA",
+      aiVisibilityHelp: "Si un asistente de IA menciona su negocio cuando alguien busca un negocio como el suyo.",
+      checkNow: "Comprobar ahora",
+      checking: "Comprobando…",
+      visibilityScore: "Puntuación de visibilidad",
+      weightedByPosition: "Ponderada por posición",
+      vsLastCheck: "frente a la última comprobación",
+      questionsNamingYou: "Preguntas que le mencionan",
+      averagePosition: "Posición media",
+      notYetNamed: "Todavía sin mención",
+      whereYouAppear: "Dónde aparece en la lista",
+      lastChecked: "Última comprobación",
+      questionPlaceholder: "p. ej. ¿Qué dentista de Utrecht es mejor para pacientes nerviosos?",
+      add: "Añadir",
+      suggest: "Sugerir",
+      askHelp: "Pregunte como lo haría un cliente y no nombre su negocio — la idea es ver si aparece por sí solo.",
+      suggestedQuestions: "Preguntas sugeridas — haga clic para seguirlas",
+      noQuestions: "Todavía no hay preguntas en seguimiento",
+      noQuestionsHelp: "Añada las preguntas que sus clientes harían a un asistente de IA y luego compruebe si su negocio aparece en la respuesta.",
+      notChecked: "Sin comprobar",
+      notNamed: "Sin mención",
+      stopTracking: "Dejar de seguir esta pregunta",
+      questionAdded: "Pregunta añadida",
+      checkQueued: "Comprobando — los resultados aparecerán aquí en unos minutos",
+      alreadyTracking: "Ya está siguiendo las preguntas que le sugeriríamos",
     },
   },
 };
@@ -2917,6 +2998,33 @@ const fr: Messages = {
       draftPublished: "Brouillon publié. Vérifiez les brouillons de votre site.",
       draftPublishedAt: (name) => `Brouillon publié — ouvrez-le sur ${name}`,
     },
+    geo: {
+      aiVisibility: "Visibilité dans l\u2019IA",
+      aiVisibilityHelp: "Si un assistant IA cite votre entreprise quand on lui demande une entreprise comme la vôtre.",
+      checkNow: "Vérifier maintenant",
+      checking: "Vérification…",
+      visibilityScore: "Score de visibilité",
+      weightedByPosition: "Pondéré par la position",
+      vsLastCheck: "vs dernière vérification",
+      questionsNamingYou: "Questions qui vous citent",
+      averagePosition: "Position moyenne",
+      notYetNamed: "Pas encore cité",
+      whereYouAppear: "Où vous apparaissez dans la liste",
+      lastChecked: "Dernière vérification",
+      questionPlaceholder: "ex. Quel dentiste à Utrecht est le meilleur pour les patients anxieux ?",
+      add: "Ajouter",
+      suggest: "Suggérer",
+      askHelp: "Posez la question comme le ferait un client, sans nommer votre entreprise — le but est de voir si vous ressortez de vous-même.",
+      suggestedQuestions: "Questions suggérées — cliquez pour suivre",
+      noQuestions: "Aucune question suivie",
+      noQuestionsHelp: "Ajoutez les questions que vos clients poseraient à un assistant IA, puis vérifiez si votre entreprise est citée dans la réponse.",
+      notChecked: "Non vérifié",
+      notNamed: "Non cité",
+      stopTracking: "Ne plus suivre cette question",
+      questionAdded: "Question ajoutée",
+      checkQueued: "Vérification — les résultats apparaîtront ici dans quelques minutes",
+      alreadyTracking: "Vous suivez déjà les questions que nous suggérerions",
+    },
   },
 };
 
@@ -3685,6 +3793,33 @@ const it: Messages = {
       disconnectedFrom: (name) => `Scollegato da ${name}`,
       draftPublished: "Bozza pubblicata. Controlli le bozze del suo sito.",
       draftPublishedAt: (name) => `Bozza pubblicata — la apra su ${name}`,
+    },
+    geo: {
+      aiVisibility: "Visibilità nell\u2019IA",
+      aiVisibilityHelp: "Se un assistente IA cita la sua attività quando qualcuno cerca un\u2019attività come la sua.",
+      checkNow: "Controlla ora",
+      checking: "Controllo…",
+      visibilityScore: "Punteggio di visibilità",
+      weightedByPosition: "Ponderato per posizione",
+      vsLastCheck: "rispetto all\u2019ultimo controllo",
+      questionsNamingYou: "Domande che la citano",
+      averagePosition: "Posizione media",
+      notYetNamed: "Non ancora citata",
+      whereYouAppear: "Dove compare nell\u2019elenco",
+      lastChecked: "Ultimo controllo",
+      questionPlaceholder: "es. Quale dentista a Utrecht è il migliore per pazienti ansiosi?",
+      add: "Aggiungi",
+      suggest: "Suggerisci",
+      askHelp: "Chieda come farebbe un cliente e non nomini la sua attività — il punto è vedere se emerge da sola.",
+      suggestedQuestions: "Domande suggerite — clicchi per seguirle",
+      noQuestions: "Nessuna domanda monitorata",
+      noQuestionsHelp: "Aggiunga le domande che i suoi clienti porrebbero a un assistente IA, poi controlli se la sua attività viene citata nella risposta.",
+      notChecked: "Non controllata",
+      notNamed: "Non citata",
+      stopTracking: "Smetti di seguire questa domanda",
+      questionAdded: "Domanda aggiunta",
+      checkQueued: "Controllo in corso — i risultati compariranno qui tra pochi minuti",
+      alreadyTracking: "Sta già seguendo le domande che suggeriremmo",
     },
   },
 };
@@ -4461,6 +4596,33 @@ const de: Messages = {
       disconnectedFrom: (name) => `Von ${name} getrennt`,
       draftPublished: "Entwurf veröffentlicht. Sehen Sie in den Entwürfen Ihrer Website nach.",
       draftPublishedAt: (name) => `Entwurf veröffentlicht — öffnen Sie ihn unter ${name}`,
+    },
+    geo: {
+      aiVisibility: "KI-Sichtbarkeit",
+      aiVisibilityHelp: "Ob ein KI-Assistent Ihr Unternehmen nennt, wenn jemand nach einem Unternehmen wie Ihrem fragt.",
+      checkNow: "Jetzt prüfen",
+      checking: "Wird geprüft…",
+      visibilityScore: "Sichtbarkeitswert",
+      weightedByPosition: "Nach Position gewichtet",
+      vsLastCheck: "ggü. letzter Prüfung",
+      questionsNamingYou: "Fragen, die Sie nennen",
+      averagePosition: "Durchschnittliche Position",
+      notYetNamed: "Noch nicht genannt",
+      whereYouAppear: "Wo Sie in der Liste erscheinen",
+      lastChecked: "Zuletzt geprüft",
+      questionPlaceholder: "z. B. Welcher Zahnarzt in Utrecht ist am besten für ängstliche Patienten?",
+      add: "Hinzufügen",
+      suggest: "Vorschlagen",
+      askHelp: "Fragen Sie so, wie es ein Kunde täte, und nennen Sie Ihr Unternehmen nicht — es geht darum, ob Sie von selbst auftauchen.",
+      suggestedQuestions: "Vorgeschlagene Fragen — zum Verfolgen anklicken",
+      noQuestions: "Noch keine Fragen verfolgt",
+      noQuestionsHelp: "Fügen Sie die Fragen hinzu, die Ihre Kunden einem KI-Assistenten stellen würden, und prüfen Sie dann, ob Ihr Unternehmen in der Antwort genannt wird.",
+      notChecked: "Nicht geprüft",
+      notNamed: "Nicht genannt",
+      stopTracking: "Diese Frage nicht mehr verfolgen",
+      questionAdded: "Frage hinzugefügt",
+      checkQueued: "Wird geprüft — Ergebnisse erscheinen hier in wenigen Minuten",
+      alreadyTracking: "Sie verfolgen bereits die Fragen, die wir vorschlagen würden",
     },
   },
 };
