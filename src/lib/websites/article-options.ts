@@ -82,3 +82,33 @@ export const DEFAULT_FEATURED_IMAGE_STYLE = "sketch";
 export function styleHint(id: string): string {
   return ARTICLE_STYLES.find((s) => s.id === id)?.hint ?? "";
 }
+
+/**
+ * The image-model wording each style stands for.
+ *
+ * SEPARATE FROM the hint shown in the UI. The hint tells a customer what they
+ * are picking ("Hand-drawn line work"); this is what the generator is
+ * actually told. Keeping both beside each other is what stops the card
+ * promising a look the prompt never asks for — which is exactly what happened
+ * while imageStyle existed as a column and buildPrompt hardcoded "realistic"
+ * for everybody.
+ */
+export const IMAGE_STYLE_PROMPTS: Record<string, string> = {
+  sketch:
+    "Hand-drawn pencil sketch with visible line work and cross-hatching, monochrome, illustrative.",
+  watercolour:
+    "Soft watercolour painting with visible brush texture and bleeding edges, muted palette.",
+  realistic:
+    "Clean professional photograph, natural lighting, editorial style.",
+  illustration:
+    "Flat vector illustration, bold simple shapes, limited palette, no gradients.",
+  "brand-text":
+    "Bold graphic composition in the brand colours, strong geometric shapes, poster-like.",
+};
+
+/** The wording for a style id, falling back to photography. */
+export function imageStylePrompt(id: string | null | undefined): string {
+  return (
+    (id && IMAGE_STYLE_PROMPTS[id]) ?? IMAGE_STYLE_PROMPTS.realistic
+  );
+}

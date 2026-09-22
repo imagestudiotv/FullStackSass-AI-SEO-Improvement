@@ -82,6 +82,17 @@ export type ArticleBrief = {
   authorPerspective: boolean;
   /** References comparable products and tools where relevant. */
   mentionSimilarProducts: boolean;
+
+  /**
+   * Image settings, carried on the brief so the image call has them.
+   *
+   * They do not appear in briefContext - the writer has no use for them -
+   * but the image step runs from the same brief, and threading them here
+   * avoids a second query for a row already loaded.
+   */
+  imageStyle: string | null;
+  imageBrief: string | null;
+  imageInstructions: string | null;
 };
 
 export type ArticleOutline = {

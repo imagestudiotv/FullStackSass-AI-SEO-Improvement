@@ -1,3 +1,5 @@
+import { imageStylePrompt } from "@/lib/websites/article-options";
+
 /**
  * Article images.
  *
@@ -92,13 +94,34 @@ export function isImageGenerationConfigured(): boolean {
  * text as convincing gibberish, and a header image with misspelled words on a
  * customer's live site is worse than no image at all.
  */
-function buildPrompt(title: string, industry: string | null): string {
+function buildPrompt(
+  title: string,
+  industry: string | null,
+  /**
+   * The customer's chosen style, from the Article Settings screen.
+   *
+   * NOT READ AT ALL until now: the column existed, the picker wrote to it,
+   * and this asked for "natural lighting, realistic, editorial style"
+   * whatever anybody chose. Someone who picked Watercolour got photographs
+   * and had no way to tell the setting did nothing.
+   */
+  style?: string | null,
+  /** "How your brand should look in images", in the customer's own words. */
+  brief?: string | null,
+  /** Standing exclusions - "never show faces" and the like. */
+  instructions?: string | null,
+): string {
   const context = industry ? ` for a ${industry} business` : "";
   return [
-    `A clean, professional photograph illustrating "${title}"${context}.`,
-    "Natural lighting, realistic, editorial style, suitable as a blog header.",
+    `An image illustrating "${title}"${context}.`,
+    imageStylePrompt(style),
+    brief ? `Brand look: ${brief}` : null,
+    instructions,
+    "Suitable as a blog header.",
     "No text, no words, no letters, no logos, no watermarks in the image.",
-  ].join(" ");
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
 /**
@@ -258,6 +281,18 @@ export async function generateArticleImage(
    * pseudo-text given the chance.
    */
   customPrompt?: string | null,
+  /**
+   * The website's saved image settings.
+   *
+   * Optional so existing callers keep compiling, but every real caller should
+   * pass them: without it the style picker on the settings screen is
+   * decoration.
+   */
+  settings?: {
+    style?: string | null;
+    brief?: string | null;
+    instructions?: string | null;
+  },
 ): Promise<GeneratedImage> {
   const provider = activeProvider();
   if (!provider) {
@@ -267,7 +302,13 @@ export async function generateArticleImage(
   const wanted = customPrompt?.trim();
   const prompt = wanted
     ? `${wanted.slice(0, 500)} No text, no words, no letters, no logos, no watermarks in the image.`
-    : buildPrompt(title, industry);
+    : buildPrompt(
+        title,
+        industry,
+        settings?.style,
+        settings?.brief,
+        settings?.instructions,
+      );
   const generated =
     provider === "openai"
       ? await generateWithOpenAi(prompt)

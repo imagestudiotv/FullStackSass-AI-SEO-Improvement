@@ -270,6 +270,9 @@ export const generateArticle = inngest.createFunction(
           tableOfContents: site.tableOfContents,
           authorPerspective: site.authorPerspective,
           mentionSimilarProducts: site.mentionSimilarProducts,
+          imageStyle: site.imageStyle,
+          imageBrief: site.imageBrief,
+          imageInstructions: site.imageInstructions,
         } satisfies ArticleBrief,
         placementId: pending?.placementId ?? null,
       };
@@ -388,6 +391,12 @@ export const generateArticle = inngest.createFunction(
         const generated = await generateArticleImage(
           brief.brief.title,
           brief.brief.industry,
+          null,
+          {
+            style: brief.brief.imageStyle,
+            brief: brief.brief.imageBrief,
+            instructions: brief.brief.imageInstructions,
+          },
         );
 
         await track(organizationId, {
