@@ -782,6 +782,48 @@ export type Messages = {
       /** "2 steps left before everything runs on its own." */
       stepsLeft: (n: number) => string;
     };
+    common: {
+      cancel: string;
+      done: string;
+      edit: string;
+      preview: string;
+      connect: string;
+      checking: string;
+      discard: string;
+      revoke: string;
+      failed: string;
+      images: string;
+      rewrite: string;
+      notAvailable: string;
+      notAvailableHelp: string;
+      backToDashboard: string;
+      viewWebsites: string;
+      goToDashboard: string;
+      setUp: string;
+      setUpHelp: string;
+      manageBilling: string;
+      manageInPayPal: string;
+      payWithPayPal: string;
+      noPlans: string;
+      billingHistory: string;
+      billingHistoryHelp: string;
+      invoice: string;
+      copyNow: string;
+      downloadPlugin: string;
+      cantFindIntegration: string;
+      adaptive: string;
+      custom: string;
+      wordRange: string;
+      findOpportunities: string;
+      noOpportunities: string;
+      losingTraffic: string;
+      notWrittenHere: string;
+      nothingLosing: string;
+      nothingLosingHelp: string;
+      writeAutomatically: string;
+      daysToWrite: string;
+      publishWithoutAsking: string;
+    };
   };
 };
 
@@ -1718,6 +1760,48 @@ const en: Messages = {
       finishSetup: "Finish setting up",
       allLiveHelp: "Every required system is active. Head to the dashboard for your live stats.",
       stepsLeft: (n) => `${n} ${n === 1 ? "step" : "steps"} left before everything runs on its own.`,
+    },
+    common: {
+      cancel: "Cancel",
+      done: "Done",
+      edit: "Edit",
+      preview: "Preview",
+      connect: "Connect",
+      checking: "Checking…",
+      discard: "Discard",
+      revoke: "Revoke",
+      failed: "Failed",
+      images: "Images",
+      rewrite: "Rewrite",
+      notAvailable: "This page is not available",
+      notAvailableHelp: "The page may have moved, or it belongs to a workspace you are not a member of.",
+      backToDashboard: "Back to dashboard",
+      viewWebsites: "View your websites",
+      goToDashboard: "Go to dashboard",
+      setUp: "Set up",
+      setUpHelp: "Walk through the launch flow step by step.",
+      manageBilling: "Manage billing",
+      manageInPayPal: "Manage in PayPal",
+      payWithPayPal: "Pay with PayPal",
+      noPlans: "No plans are available yet.",
+      billingHistory: "Billing history",
+      billingHistoryHelp: "Every subscription payment on this workspace.",
+      invoice: "Invoice",
+      copyNow: "Copy this now — it is not shown again",
+      downloadPlugin: "Download the plugin",
+      cantFindIntegration: "Can&rsquo;t find your integration?",
+      adaptive: "Adaptive",
+      custom: "Custom",
+      wordRange: "Between 300 and 5,000.",
+      findOpportunities: "Find opportunities",
+      noOpportunities: "No opportunities found yet",
+      losingTraffic: "Losing traffic",
+      notWrittenHere: "Not written here",
+      nothingLosing: "Nothing is losing traffic",
+      nothingLosingHelp: "We compare the last 28 days against the 28 before. Nothing has dropped.",
+      writeAutomatically: "Write articles automatically",
+      daysToWrite: "Days to write on",
+      publishWithoutAsking: "Publish without asking me",
     },
   },
 };
@@ -2665,6 +2749,48 @@ const es: Messages = {
       finishSetup: "Termine la configuración",
       allLiveHelp: "Todos los sistemas necesarios están activos. Vaya al panel para ver sus datos en directo.",
       stepsLeft: (n) => `${n === 1 ? "Queda 1 paso" : `Quedan ${n} pasos`} para que todo funcione solo.`,
+    },
+    common: {
+      cancel: "Cancelar",
+      done: "Hecho",
+      edit: "Editar",
+      preview: "Vista previa",
+      connect: "Conectar",
+      checking: "Comprobando…",
+      discard: "Descartar",
+      revoke: "Revocar",
+      failed: "Fallido",
+      images: "Imágenes",
+      rewrite: "Reescribir",
+      notAvailable: "Esta página no está disponible",
+      notAvailableHelp: "Puede que la página se haya movido o que pertenezca a un espacio de trabajo del que no forma parte.",
+      backToDashboard: "Volver al panel",
+      viewWebsites: "Ver sus sitios web",
+      goToDashboard: "Ir al panel",
+      setUp: "Configurar",
+      setUpHelp: "Le guiamos por el proceso de lanzamiento paso a paso.",
+      manageBilling: "Gestionar facturación",
+      manageInPayPal: "Gestionar en PayPal",
+      payWithPayPal: "Pagar con PayPal",
+      noPlans: "Todavía no hay planes disponibles.",
+      billingHistory: "Historial de facturación",
+      billingHistoryHelp: "Todos los pagos de suscripción de este espacio de trabajo.",
+      invoice: "Factura",
+      copyNow: "Cópielo ahora — no se volverá a mostrar",
+      downloadPlugin: "Descargar el plugin",
+      cantFindIntegration: "¿No encuentra su integración?",
+      adaptive: "Adaptable",
+      custom: "Personalizado",
+      wordRange: "Entre 300 y 5000.",
+      findOpportunities: "Buscar oportunidades",
+      noOpportunities: "Todavía no se han encontrado oportunidades",
+      losingTraffic: "Perdiendo tráfico",
+      notWrittenHere: "No escrito aquí",
+      nothingLosing: "Nada está perdiendo tráfico",
+      nothingLosingHelp: "Comparamos los últimos 28 días con los 28 anteriores. Nada ha bajado.",
+      writeAutomatically: "Escribir artículos automáticamente",
+      daysToWrite: "Días en los que escribir",
+      publishWithoutAsking: "Publicar sin preguntarme",
     },
   },
 };
@@ -3616,6 +3742,48 @@ const fr: Messages = {
       allLiveHelp: "Tous les systèmes requis sont actifs. Rendez-vous sur le tableau de bord pour vos statistiques en direct.",
       stepsLeft: (n) => `${n} étape${n === 1 ? "" : "s"} restante${n === 1 ? "" : "s"} avant que tout fonctionne seul.`,
     },
+    common: {
+      cancel: "Annuler",
+      done: "Terminé",
+      edit: "Modifier",
+      preview: "Aperçu",
+      connect: "Connecter",
+      checking: "Vérification…",
+      discard: "Abandonner",
+      revoke: "Révoquer",
+      failed: "Échec",
+      images: "Images",
+      rewrite: "Réécrire",
+      notAvailable: "Cette page n\u2019est pas disponible",
+      notAvailableHelp: "La page a peut-être été déplacée, ou elle appartient à un espace de travail dont vous n\u2019êtes pas membre.",
+      backToDashboard: "Retour au tableau de bord",
+      viewWebsites: "Voir vos sites",
+      goToDashboard: "Aller au tableau de bord",
+      setUp: "Configurer",
+      setUpHelp: "Suivez le parcours de lancement étape par étape.",
+      manageBilling: "Gérer la facturation",
+      manageInPayPal: "Gérer dans PayPal",
+      payWithPayPal: "Payer avec PayPal",
+      noPlans: "Aucun forfait disponible pour le moment.",
+      billingHistory: "Historique de facturation",
+      billingHistoryHelp: "Tous les paiements d\u2019abonnement de cet espace de travail.",
+      invoice: "Facture",
+      copyNow: "Copiez-le maintenant — il ne sera plus affiché",
+      downloadPlugin: "Télécharger le plugin",
+      cantFindIntegration: "Vous ne trouvez pas votre intégration ?",
+      adaptive: "Adaptatif",
+      custom: "Personnalisé",
+      wordRange: "Entre 300 et 5 000.",
+      findOpportunities: "Trouver des opportunités",
+      noOpportunities: "Aucune opportunité trouvée pour l\u2019instant",
+      losingTraffic: "Perte de trafic",
+      notWrittenHere: "Non rédigé ici",
+      nothingLosing: "Rien ne perd de trafic",
+      nothingLosingHelp: "Nous comparons les 28 derniers jours aux 28 précédents. Rien n\u2019a baissé.",
+      writeAutomatically: "Rédiger les articles automatiquement",
+      daysToWrite: "Jours de rédaction",
+      publishWithoutAsking: "Publier sans me demander",
+    },
   },
 };
 
@@ -4558,6 +4726,48 @@ const it: Messages = {
       finishSetup: "Completi la configurazione",
       allLiveHelp: "Tutti i sistemi necessari sono attivi. Vada alla dashboard per i dati in tempo reale.",
       stepsLeft: (n) => `${n === 1 ? "Manca 1 passaggio" : `Mancano ${n} passaggi`} prima che tutto funzioni da solo.`,
+    },
+    common: {
+      cancel: "Annulla",
+      done: "Fatto",
+      edit: "Modifica",
+      preview: "Anteprima",
+      connect: "Collega",
+      checking: "Controllo…",
+      discard: "Scarta",
+      revoke: "Revoca",
+      failed: "Non riuscito",
+      images: "Immagini",
+      rewrite: "Riscrivi",
+      notAvailable: "Questa pagina non è disponibile",
+      notAvailableHelp: "La pagina potrebbe essere stata spostata, oppure appartiene a uno spazio di lavoro di cui non fa parte.",
+      backToDashboard: "Torna alla dashboard",
+      viewWebsites: "Vedi i suoi siti",
+      goToDashboard: "Vai alla dashboard",
+      setUp: "Configura",
+      setUpHelp: "La guidiamo passo dopo passo nel percorso di avvio.",
+      manageBilling: "Gestisci fatturazione",
+      manageInPayPal: "Gestisci in PayPal",
+      payWithPayPal: "Paga con PayPal",
+      noPlans: "Ancora nessun piano disponibile.",
+      billingHistory: "Cronologia di fatturazione",
+      billingHistoryHelp: "Tutti i pagamenti di abbonamento di questo spazio di lavoro.",
+      invoice: "Fattura",
+      copyNow: "La copi ora — non verrà mostrata di nuovo",
+      downloadPlugin: "Scarica il plugin",
+      cantFindIntegration: "Non trova la sua integrazione?",
+      adaptive: "Adattiva",
+      custom: "Personalizzata",
+      wordRange: "Tra 300 e 5.000.",
+      findOpportunities: "Trova opportunità",
+      noOpportunities: "Ancora nessuna opportunità trovata",
+      losingTraffic: "Traffico in calo",
+      notWrittenHere: "Non scritto qui",
+      nothingLosing: "Nulla sta perdendo traffico",
+      nothingLosingHelp: "Confrontiamo gli ultimi 28 giorni con i 28 precedenti. Nulla è calato.",
+      writeAutomatically: "Scrivi articoli automaticamente",
+      daysToWrite: "Giorni in cui scrivere",
+      publishWithoutAsking: "Pubblica senza chiedermelo",
     },
   },
 };
@@ -5508,6 +5718,48 @@ const de: Messages = {
       finishSetup: "Einrichtung abschließen",
       allLiveHelp: "Alle erforderlichen Systeme sind aktiv. Ihre Live-Zahlen finden Sie im Dashboard.",
       stepsLeft: (n) => `Noch ${n} Schritt${n === 1 ? "" : "e"}, bis alles von selbst läuft.`,
+    },
+    common: {
+      cancel: "Abbrechen",
+      done: "Fertig",
+      edit: "Bearbeiten",
+      preview: "Vorschau",
+      connect: "Verbinden",
+      checking: "Wird geprüft…",
+      discard: "Verwerfen",
+      revoke: "Widerrufen",
+      failed: "Fehlgeschlagen",
+      images: "Bilder",
+      rewrite: "Neu schreiben",
+      notAvailable: "Diese Seite ist nicht verfügbar",
+      notAvailableHelp: "Die Seite wurde möglicherweise verschoben oder gehört zu einem Arbeitsbereich, in dem Sie kein Mitglied sind.",
+      backToDashboard: "Zurück zum Dashboard",
+      viewWebsites: "Ihre Websites ansehen",
+      goToDashboard: "Zum Dashboard",
+      setUp: "Einrichten",
+      setUpHelp: "Wir führen Sie Schritt für Schritt durch den Start.",
+      manageBilling: "Abrechnung verwalten",
+      manageInPayPal: "In PayPal verwalten",
+      payWithPayPal: "Mit PayPal bezahlen",
+      noPlans: "Noch keine Tarife verfügbar.",
+      billingHistory: "Abrechnungsverlauf",
+      billingHistoryHelp: "Alle Abonnementzahlungen dieses Arbeitsbereichs.",
+      invoice: "Rechnung",
+      copyNow: "Jetzt kopieren — wird nicht erneut angezeigt",
+      downloadPlugin: "Plugin herunterladen",
+      cantFindIntegration: "Ihre Integration nicht gefunden?",
+      adaptive: "Adaptiv",
+      custom: "Eigene",
+      wordRange: "Zwischen 300 und 5.000.",
+      findOpportunities: "Chancen finden",
+      noOpportunities: "Noch keine Chancen gefunden",
+      losingTraffic: "Traffic-Verlust",
+      notWrittenHere: "Nicht hier verfasst",
+      nothingLosing: "Nichts verliert Traffic",
+      nothingLosingHelp: "Wir vergleichen die letzten 28 Tage mit den 28 davor. Nichts ist gefallen.",
+      writeAutomatically: "Artikel automatisch schreiben",
+      daysToWrite: "Tage zum Schreiben",
+      publishWithoutAsking: "Ohne Rückfrage veröffentlichen",
     },
   },
 };

@@ -1,5 +1,9 @@
 import { Download, Receipt } from "lucide-react";
 
+import type { Locale } from "@/lib/i18n/config";
+import { formatDate } from "@/lib/i18n/format";
+import type { Messages } from "@/lib/i18n/messages";
+
 import {
   Card,
   CardContent,
@@ -24,7 +28,17 @@ import type { PaymentRow } from "@/lib/billing";
  * show amount and date and point at PayPal for the receipt — accurate about
  * what we can and cannot hand over.
  */
-export function PaymentsPanel({ payments }: { payments: PaymentRow[] }) {
+export function PaymentsPanel({
+  payments,
+  t,
+  locale,
+}: {
+  payments: PaymentRow[];
+  /** This screen's copy, already in the reader's language. */
+  t: Messages["app"]["common"];
+  /** For the payment dates. */
+  locale: Locale;
+}) {
   // Nothing charged yet is the normal state for a new workspace, not an
   // error, so the panel simply does not appear.
   if (payments.length === 0) return null;
@@ -34,11 +48,9 @@ export function PaymentsPanel({ payments }: { payments: PaymentRow[] }) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           <Receipt className="size-4" aria-hidden="true" />
-          Billing history
+          {t.billingHistory}
         </CardTitle>
-        <CardDescription>
-          Every subscription payment on this workspace.
-        </CardDescription>
+        <CardDescription>{t.billingHistoryHelp}</CardDescription>
       </CardHeader>
 
       <CardContent>
@@ -53,12 +65,12 @@ export function PaymentsPanel({ payments }: { payments: PaymentRow[] }) {
                   {formatPrice(payment.amountCents, payment.currency)}
                   {payment.status === "failed" ? (
                     <Badge variant="destructive" className="ml-2">
-                      Failed
+                      {t.failed}
                     </Badge>
                   ) : null}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {payment.paidAt.toLocaleDateString("en-GB", {
+                  {formatDate(payment.paidAt, locale, {
                     day: "numeric",
                     month: "short",
                     year: "numeric",
@@ -82,7 +94,7 @@ export function PaymentsPanel({ payments }: { payments: PaymentRow[] }) {
                   className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
                 >
                   <Download className="size-3.5" aria-hidden="true" />
-                  Invoice
+                  {t.invoice}
                 </a>
               ) : (
                 /*

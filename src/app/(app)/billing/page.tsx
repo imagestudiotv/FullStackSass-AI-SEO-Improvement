@@ -129,7 +129,11 @@ export default async function BillingPage({
           />
         </div>
 
-        <PaymentsPanel payments={paymentRows} />
+        <PaymentsPanel
+          payments={paymentRows}
+          t={t.app.common}
+          locale={locale}
+        />
       </PageShell>
     </>
   );
