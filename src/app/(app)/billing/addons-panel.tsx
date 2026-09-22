@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Loader2, Package, Sparkles, Wrench } from "lucide-react";
+import { Check, Info, Loader2, Package, Sparkles, Wrench } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -17,6 +17,19 @@ import {
 import { buyAddon } from "@/lib/addons/actions";
 import type { AddonRow, PurchaseRow } from "@/lib/addons/shared";
 import { formatPrice } from "@/lib/billing-shared";
+
+/**
+ * The terms every credit pack shares, listed on each card.
+ *
+ * Constant rather than per-row data because they are properties of how credits
+ * work, not of a particular pack — if one pack ever expired, that would be a
+ * different product and would need saying on that card, not editing here.
+ */
+const CREDIT_TERMS = [
+  "One-time purchase",
+  "Credits never expire",
+  "Use anytime",
+] as const;
 
 /**
  * Add-ons: one-off purchases alongside the subscription.
@@ -72,53 +85,120 @@ export function AddonsPanel({
     <div className="space-y-6">
       {credits.length > 0 ? (
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Sparkles className="size-4" aria-hidden="true" />
-              More link credits
-            </CardTitle>
-            <CardDescription>
-              Your plan includes credits each month. Buy more if you run out —
-              these do not expire.
-            </CardDescription>
+          {/*
+            The design puts a terms pill opposite the heading. It repeats what
+            the cards say, which is the point: it is visible before the reader
+            has compared anything, where it answers "is this another monthly
+            charge?" — the question that stops a one-off purchase.
+          */}
+          <CardHeader className="sm:grid sm:grid-cols-[1fr_auto] sm:items-start sm:gap-4">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Sparkles className="size-4" aria-hidden="true" />
+                More link credits
+              </CardTitle>
+              <CardDescription className="mt-1.5">
+                Your plan includes credits each month. Buy more if you run out —
+                these do not expire.
+              </CardDescription>
+            </div>
+            <p className="mt-3 inline-flex items-center gap-1.5 self-start rounded-full border px-3 py-1.5 text-xs text-muted-foreground sm:mt-0">
+              <Info className="size-3.5 shrink-0" aria-hidden="true" />
+              One-time purchase · Credits never expire
+            </p>
           </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-3">
-            {credits.map((addon) => (
-              <div
-                key={addon.id}
-                className="flex flex-col rounded-xl border p-4"
-              >
-                <p className="font-medium">{addon.name}</p>
-                <p className="mt-1 text-2xl font-semibold tabular-nums">
-                  {formatPrice(addon.priceCents, addon.currency)}
-                </p>
-                {/*
-                  Per-credit price, because that is how someone actually
-                  compares three packs and it is the reason to buy the bigger
-                  one.
-                */}
-                {addon.creditsGranted > 0 ? (
-                  <p className="text-xs text-muted-foreground">
-                    {formatPrice(
-                      Math.round(addon.priceCents / addon.creditsGranted),
-                      addon.currency,
-                    )}{" "}
-                    per credit
-                  </p>
-                ) : null}
-                <Button
-                  className="mt-4"
-                  variant="outline"
-                  onClick={() => handleBuy(addon.id)}
-                  disabled={pendingId !== null || !addon.purchasable}
+          <CardContent className="grid items-start gap-4 sm:grid-cols-3">
+            {credits.map((addon, index) => {
+              /**
+               * The middle pack is highlighted, as in the design.
+               *
+               * By position rather than a flag on the row: the packs are
+               * ordered by size already, so the middle one is the mid-size
+               * option whatever the three happen to be. A hardcoded slug
+               * would silently highlight nothing if the packs were renamed.
+               *
+               * Only when there are three — with two packs there is no middle,
+               * and marking one of two as "most popular" says nothing.
+               */
+              const featured = credits.length === 3 && index === 1;
+
+              return (
+                <div
+                  key={addon.id}
+                  className={
+                    featured
+                      ? "relative flex flex-col rounded-xl border-2 border-primary bg-primary/5 p-4 shadow-sm"
+                      : "relative flex flex-col rounded-xl border p-4"
+                  }
                 >
-                  {pendingId === addon.id ? (
-                    <Loader2 className="size-4 animate-spin" />
+                  {featured ? (
+                    <Badge className="absolute -top-2.5 right-4 shadow-sm">
+                      Most popular
+                    </Badge>
                   ) : null}
-                  {addon.purchasable ? "Buy" : "Unavailable"}
-                </Button>
-              </div>
-            ))}
+
+                  <p className="font-medium">{addon.name}</p>
+                  <p className="mt-1 text-3xl font-semibold tracking-tight tabular-nums">
+                    {formatPrice(addon.priceCents, addon.currency)}
+                  </p>
+                  {/*
+                    Per-credit price, because that is how someone actually
+                    compares three packs and it is the reason to buy the bigger
+                    one.
+                  */}
+                  {addon.creditsGranted > 0 ? (
+                    <p className="text-xs text-muted-foreground">
+                      {formatPrice(
+                        Math.round(addon.priceCents / addon.creditsGranted),
+                        addon.currency,
+                      )}{" "}
+                      per credit
+                    </p>
+                  ) : null}
+
+                  {/*
+                    The three terms from the design, spelled out per card.
+                    They are the same on every pack and already stated once
+                    above, but a customer comparing cards reads the card — and
+                    "credits never expire" is the line that makes the bigger
+                    pack a safe buy rather than a gamble.
+                  */}
+                  <ul className="mt-4 space-y-2 border-t pt-4 text-sm">
+                    {CREDIT_TERMS.map((term) => (
+                      <li key={term} className="flex items-center gap-2">
+                        <Check
+                          className={
+                            featured
+                              ? "size-4 shrink-0 text-primary"
+                              : "size-4 shrink-0 text-muted-foreground"
+                          }
+                          aria-hidden="true"
+                        />
+                        <span>{term}</span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  {/*
+                    mt-auto so the three buttons sit on one line even when a
+                    pack name wraps to two.
+                  */}
+                  <Button
+                    className="mt-4 w-full"
+                    variant={featured ? "default" : "outline"}
+                    onClick={() => handleBuy(addon.id)}
+                    disabled={pendingId !== null || !addon.purchasable}
+                  >
+                    {pendingId === addon.id ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : null}
+                    {addon.purchasable
+                      ? `Buy ${addon.creditsGranted} credits`
+                      : "Unavailable"}
+                  </Button>
+                </div>
+              );
+            })}
           </CardContent>
         </Card>
       ) : null}

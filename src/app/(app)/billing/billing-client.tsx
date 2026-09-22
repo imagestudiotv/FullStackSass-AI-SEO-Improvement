@@ -5,7 +5,9 @@ import {
   Calendar,
   Check,
   CheckCircle2,
+  ChevronRight,
   ExternalLink,
+  PauseCircle,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -34,7 +36,7 @@ import {
 import { createPayPalCheckout } from "@/lib/paypal/actions";
 import { SUPPORT_EMAIL } from "@/lib/config/site";
 import { createCheckoutSession } from "@/lib/stripe/actions";
-import { createPortalSession } from "@/lib/stripe/portal";
+import { createPortalSession, type PortalFlow } from "@/lib/stripe/portal";
 
 type BillingClientProps = {
   plans: PlanRow[];
@@ -101,7 +103,8 @@ export function BillingClient({
     subscription?.interval === "year" ? "year" : "month",
   );
   const [pendingPlanId, setPendingPlanId] = useState<string | null>(null);
-  const [portalPending, setPortalPending] = useState(false);
+  /** Which portal button is mid-flight, so only that one shows a spinner. */
+  const [portalPending, setPortalPending] = useState<PortalFlow | null>(null);
 
   /**
    * The redirect only reports what the user did; entitlement always comes from
@@ -179,25 +182,53 @@ export function BillingClient({
     }
   }
 
-  async function handlePortal() {
-    setPortalPending(true);
+  /**
+   * Every route out of a subscription goes through the Stripe portal.
+   *
+   * "cancel" lands on Stripe's cancellation screen; "manage" opens the portal
+   * home, which is where pausing, resuming and card changes live. Doing any of
+   * this against the API directly would skip the confirmation the customer
+   * expects and the webhooks that keep our own row in step.
+   */
+  async function handlePortal(flow: PortalFlow = "manage") {
+    setPortalPending(flow);
     try {
-      const result = await createPortalSession();
+      const result = await createPortalSession(flow);
       if ("error" in result) {
         toast.error(result.error);
-        setPortalPending(false);
+        setPortalPending(null);
         return;
       }
       window.location.assign(result.url);
     } catch {
       toast.error("Could not open the billing portal.");
-      setPortalPending(false);
+      setPortalPending(null);
     }
   }
 
   const monthlyByTier = new Map(
     plans.filter((p) => p.interval === "month").map((p) => [p.tier, p]),
   );
+
+  /**
+   * The next plan up, for the upgrade strip.
+   *
+   * Ordered by sortOrder — the same order the picker below uses — so "next"
+   * means the next one a customer would actually move to, not whichever is
+   * most expensive. Null when there is no current subscription, when the tier
+   * is unrecognised, or when they are already on the last plan; each of those
+   * is a case where the strip has nothing true to say.
+   */
+  const monthlyLadder = plans
+    .filter((p) => p.interval === "month")
+    .sort((a, b) => a.sortOrder - b.sortOrder);
+  const currentRung = subscription?.tier
+    ? monthlyLadder.findIndex((p) => p.tier === subscription.tier)
+    : -1;
+  const upgradeTarget =
+    currentRung >= 0 && currentRung < monthlyLadder.length - 1
+      ? monthlyLadder[currentRung + 1]
+      : null;
   /**
    * Tiers that exist only monthly — Starter — still show on the annual tab.
    *
@@ -326,6 +357,86 @@ export function BillingClient({
         </div>
       ) : null}
 
+      {/*
+        The action row from the design: pause, cancel, manage.
+
+        All three open the Stripe portal — pause and manage on its home screen,
+        cancel deep-linked to its cancellation flow. Nothing here changes a
+        subscription directly: the portal owns proration, tax and dunning, and
+        every change there emits the webhook that updates our own row. A local
+        "paused" flag set by a button press would be a second source of truth
+        that Stripe never agreed to.
+
+        Shown only for a Stripe subscription with a customer. PayPal keeps its
+        own route out further down the page, and a workspace with no customer
+        has nothing to pause or cancel.
+      */}
+      {subscription?.hasCustomer ? (
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            onClick={() => handlePortal("manage")}
+            disabled={portalPending !== null}
+          >
+            <PauseCircle className="size-4" aria-hidden="true" />
+            {portalPending === "manage" ? "Opening…" : "Pause billing"}
+          </Button>
+
+          {/*
+            Destructive styling without a destructive <Button variant>: this
+            opens Stripe's confirmation screen rather than cancelling, so it
+            should read as serious without claiming the click itself ends the
+            subscription.
+          */}
+          <Button
+            variant="outline"
+            onClick={() => handlePortal("cancel")}
+            disabled={portalPending !== null}
+            className="border-destructive/40 text-destructive hover:bg-destructive/5 hover:text-destructive"
+          >
+            {portalPending === "cancel" ? "Opening…" : "Cancel subscription"}
+          </Button>
+
+          <Button
+            variant="secondary"
+            onClick={() => handlePortal("manage")}
+            disabled={portalPending !== null}
+          >
+            Manage billing
+            <ExternalLink className="size-4" aria-hidden="true" />
+          </Button>
+        </div>
+      ) : null}
+
+      {/*
+        The upgrade strip from the design.
+
+        Only for a subscriber who is NOT already on the top tier — the whole
+        point is the gap between what they have and what they could have, and
+        showing "ready to scale?" to somebody already on Scale is the kind of
+        detail that makes a product feel like it is not paying attention.
+
+        The copy names real differences read from the plan rows rather than a
+        fixed sentence, so it cannot drift away from what the tiers actually
+        include when the limits change.
+      */}
+      {upgradeTarget ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-muted/40 px-5 py-4">
+          <p className="text-sm text-muted-foreground">
+            Ready to scale? {upgradeTarget.articleLimit} articles a month,{" "}
+            {upgradeTarget.keywordLimit.toLocaleString()} search terms tracked
+            and {upgradeTarget.monthlyCredits} link credits — all in the{" "}
+            {upgradeTarget.name} plan.
+          </p>
+          <Button variant="link" className="h-auto p-0" asChild>
+            <a href="#plans">
+              See what {upgradeTarget.name} offers
+              <ChevronRight className="size-4" aria-hidden="true" />
+            </a>
+          </Button>
+        </div>
+      ) : null}
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
@@ -352,13 +463,18 @@ export function BillingClient({
         ) : null}
 
         {subscription?.hasCustomer ? (
+          /*
+            The portal route also lives in the action row above. Kept here so
+            the card that explains the plan still carries the way to change
+            it — the two are one click apart and both land in the same place.
+          */
           <CardFooter>
             <Button
               variant="outline"
-              onClick={handlePortal}
-              disabled={portalPending}
+              onClick={() => handlePortal("manage")}
+              disabled={portalPending !== null}
             >
-              {portalPending ? "Opening…" : "Manage billing"}
+              {portalPending === "manage" ? "Opening…" : "Manage billing"}
               <ExternalLink className="size-4" />
             </Button>
           </CardFooter>
@@ -403,6 +519,12 @@ export function BillingClient({
           </CardFooter>
         ) : null}
       </Card>
+
+      {/*
+        Anchor for the upgrade strip above. scroll-mt clears the sticky header,
+        which would otherwise sit over the interval tabs the reader was sent to.
+      */}
+      <div id="plans" className="scroll-mt-20" />
 
       {hasAnnual ? (
         <Tabs
