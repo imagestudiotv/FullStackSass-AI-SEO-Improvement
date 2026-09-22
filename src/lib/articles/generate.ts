@@ -1,5 +1,6 @@
 import { anthropic, isAiConfigured, MODELS } from "@/lib/ai/client";
 import { sanitizeHtml } from "@/lib/articles/sanitize";
+import { styleHint } from "@/lib/websites/article-options";
 
 /**
  * Article generation.
@@ -55,6 +56,32 @@ export type ArticleBrief = {
    * article that visibly exists to carry a link helps nobody's rankings.
    */
   backlink: { url: string; anchor: string | null } | null;
+
+  /* --- Article settings, chosen on the settings screen --------------- */
+
+  /**
+   * Editorial register: "expert", "conversational", "friendly",
+   * "journalistic". See lib/websites/article-options.ts, which is the single
+   * list the form renders and this prompt reads — so a style cannot appear
+   * in the dropdown that the writer has never heard of.
+   */
+  articleStyle: string | null;
+  /**
+   * Words to aim for, or null to let the model choose per article type.
+   *
+   * Null is meaningfully different from a number here: a fixed length across
+   * a how-to, a comparison and a news piece makes two of the three the wrong
+   * size, which is why "Adaptive" is the default rather than a round figure.
+   */
+  targetWordCount: number | null;
+  /** Internal links to work in. */
+  internalLinkTarget: number | null;
+  /** Adds a contents list built from the headings. */
+  tableOfContents: boolean;
+  /** Writes in the first person, as somebody with a view. */
+  authorPerspective: boolean;
+  /** References comparable products and tools where relevant. */
+  mentionSimilarProducts: boolean;
 };
 
 export type ArticleOutline = {
@@ -127,6 +154,34 @@ function briefContext(brief: ArticleBrief): string {
     brief.services.length ? `Services offered: ${brief.services.join(", ")}` : null,
     brief.targetAudience ? `Audience: ${brief.targetAudience}` : null,
     brief.country ? `Market: ${brief.country}` : null,
+    /*
+      The chosen register, expanded into the instruction it stands for. The
+      dropdown stores "expert"; the model needs to be told what that means,
+      and the wording lives beside the option so the label and the behaviour
+      cannot drift apart.
+    */
+    brief.articleStyle ? `Register: ${styleHint(brief.articleStyle)}` : null,
+    brief.targetWordCount
+      ? `Length: aim for about ${brief.targetWordCount} words.`
+      : `Length: choose what suits this article type rather than padding to a target.`,
+    brief.internalLinkTarget
+      ? `Work in about ${brief.internalLinkTarget} internal links to other pages on this site where they genuinely help the reader.`
+      : null,
+    brief.tableOfContents
+      ? `Open with a short contents list linking to the main headings.`
+      : null,
+    /*
+      Stated in both directions rather than only when on. "Write in the
+      first person" and silence are not opposites to a model — left unsaid
+      it picks whichever the topic suggests, so the customer who turned this
+      OFF would still get a personal voice half the time.
+    */
+    brief.authorPerspective
+      ? `Write with a point of view — first person, willing to recommend.`
+      : `Stay impersonal. No first person, no personal anecdotes.`,
+    brief.mentionSimilarProducts
+      ? `Where it is useful, name and compare similar products or tools.`
+      : null,
     brief.tone ? `Brand tone: ${brief.tone}` : null,
     brief.avoid ? `Avoid: ${brief.avoid}` : null,
     brief.vocabulary ? `Preferred wording: ${brief.vocabulary}` : null,

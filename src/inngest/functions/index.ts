@@ -9,6 +9,7 @@
  * able to send events could trigger in production. The file is kept because
  * it documents the memoisation guarantee the paid jobs depend on.
  */
+import { activateExchange } from "./activate-exchange";
 import { analyzeWebsite } from "./analyze-website";
 import { auditWebsite } from "./audit-website";
 import { checkGeo } from "./check-geo";
@@ -20,6 +21,7 @@ import { scheduledArticles } from "./scheduled-articles";
 import { verifyBacklinks } from "./verify-backlinks";
 
 export const functions = [
+  activateExchange,
   analyzeWebsite,
   auditWebsite,
   researchKeywords,

@@ -258,6 +258,18 @@ export const generateArticle = inngest.createFunction(
           backlink: pending
             ? { url: pending.targetUrl, anchor: pending.anchor }
             : null,
+
+          /*
+            Article settings, read straight off the website row. These are
+            what the settings screen writes, so a change there reaches the
+            next article without anything else having to know about it.
+          */
+          articleStyle: site.articleStyle,
+          targetWordCount: site.targetWordCount,
+          internalLinkTarget: site.internalLinkTarget,
+          tableOfContents: site.tableOfContents,
+          authorPerspective: site.authorPerspective,
+          mentionSimilarProducts: site.mentionSimilarProducts,
         } satisfies ArticleBrief,
         placementId: pending?.placementId ?? null,
       };

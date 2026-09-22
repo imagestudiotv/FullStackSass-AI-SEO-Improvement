@@ -48,6 +48,30 @@ export default async function WebsitePublishingPage({
           articleStyle: site.articleStyle,
           internalLinkTarget: site.internalLinkTarget,
           targetWordCount: site.targetWordCount,
+
+          /*
+            Null columns become empty strings for the form. A controlled
+            input given null warns and then behaves as uncontrolled, and the
+            save action turns "" back into null on the way out.
+          */
+          sitemapUrl: site.sitemapUrl ?? "",
+          blogUrl: site.blogUrl ?? "",
+          exampleArticleUrl: site.exampleArticleUrl ?? "",
+
+          brandColor: site.brandColor ?? "",
+          imageStyle: site.imageStyle,
+          featuredImageStyle: site.featuredImageStyle,
+          imageBrief: site.imageBrief ?? "",
+          imageInstructions: site.imageInstructions ?? "",
+
+          tableOfContents: site.tableOfContents,
+          youtubeVideo: site.youtubeVideo,
+          authorPerspective: site.authorPerspective,
+          mentionSimilarProducts: site.mentionSimilarProducts,
+          poweredByLink: site.poweredByLink,
+
+          authorName: site.authorName ?? "",
+          authorBio: site.authorBio ?? "",
         }}
       />
 
