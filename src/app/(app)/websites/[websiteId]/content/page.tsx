@@ -1,4 +1,5 @@
 import { requireWebsite } from "@/lib/tenant";
+import { getAppMessages } from "@/lib/i18n/app-locale";
 import { listArticles } from "@/lib/articles/actions";
 import { listCalendar, listKeywords } from "@/lib/keywords/actions";
 import { ResearchTabs } from "../research-tabs";
@@ -12,7 +13,8 @@ export default async function WebsiteContentPage({
   params,
 }: PageProps<"/websites/[websiteId]/content">) {
   const { websiteId } = await params;
-  const { orgId, site } = await requireWebsite(websiteId);
+  const { orgId, site, userId } = await requireWebsite(websiteId);
+  const { t } = await getAppMessages(userId);
 
   // Paywall. See lib/billing/require-plan.ts.
   await requirePlan(orgId);
@@ -29,6 +31,7 @@ export default async function WebsiteContentPage({
       calendar={calendar}
       articles={articles}
       researching={site.status === "researching"}
+      t={t.app.research}
     />
   );
 }

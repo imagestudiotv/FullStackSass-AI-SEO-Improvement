@@ -560,6 +560,36 @@ export type Messages = {
       statusInvalid: string;
       statusError: string;
     };
+    research: {
+      contentPlan: string;
+      articlesTab: string;
+      opportunities: string;
+      refresh: string;
+      looking: string;
+      plannedArticles: string;
+      plannedHelp: string;
+      articles: string;
+      articlesHelp: string;
+      nothingWritten: string;
+      write: string;
+      title: string;
+      status: string;
+      words: string;
+      keywords: string;
+      keywordsHelp: string;
+      keyword: string;
+      opportunity: string;
+      searchesPerMonth: string;
+      competition: string;
+      topic: string;
+      researching: string;
+      articleDeleted: string;
+      statusQueued: string;
+      statusGenerating: string;
+      statusDraft: string;
+      statusPublished: string;
+      statusFailed: string;
+    };
   };
 };
 
@@ -1277,6 +1307,36 @@ const en: Messages = {
       statusForbidden: "You cannot connect that website",
       statusInvalid: "That link was not valid — try again",
       statusError: "Google could not be connected",
+    },
+    research: {
+      contentPlan: "Content plan",
+      articlesTab: "Articles",
+      opportunities: "Opportunities",
+      refresh: "Refresh",
+      looking: "Looking…",
+      plannedArticles: "Planned articles",
+      plannedHelp: "Your content plan, by the day each article is due. Hover a planned topic to write it now, change it, or take it off the plan.",
+      articles: "Articles",
+      articlesHelp: "Written from your content plan. Open one to read, edit or rewrite it.",
+      nothingWritten: "Nothing written yet. Use",
+      write: "Write",
+      title: "Title",
+      status: "Status",
+      words: "Words",
+      keywords: "Keywords",
+      keywordsHelp: "Ranked by what you can realistically win. A term with fewer searches you can rank for beats a popular one you cannot.",
+      keyword: "Keyword",
+      opportunity: "Opportunity",
+      searchesPerMonth: "Searches / mo",
+      competition: "Competition",
+      topic: "Topic",
+      researching: "Researching keywords — this takes a minute",
+      articleDeleted: "Article deleted",
+      statusQueued: "Queued",
+      statusGenerating: "Writing…",
+      statusDraft: "Draft",
+      statusPublished: "Published",
+      statusFailed: "Failed",
     },
   },
 };
@@ -2005,6 +2065,36 @@ const es: Messages = {
       statusForbidden: "No puede conectar ese sitio web",
       statusInvalid: "Ese enlace no era válido — inténtelo de nuevo",
       statusError: "No se pudo conectar Google",
+    },
+    research: {
+      contentPlan: "Plan de contenidos",
+      articlesTab: "Artículos",
+      opportunities: "Oportunidades",
+      refresh: "Actualizar",
+      looking: "Buscando…",
+      plannedArticles: "Artículos planificados",
+      plannedHelp: "Su plan de contenidos, por el día en que vence cada artículo. Pase el cursor sobre un tema planificado para escribirlo ahora, cambiarlo o quitarlo del plan.",
+      articles: "Artículos",
+      articlesHelp: "Escritos a partir de su plan de contenidos. Abra uno para leerlo, editarlo o reescribirlo.",
+      nothingWritten: "Todavía no hay nada escrito. Use",
+      write: "Escribir",
+      title: "Título",
+      status: "Estado",
+      words: "Palabras",
+      keywords: "Palabras clave",
+      keywordsHelp: "Ordenadas por lo que puede ganar de forma realista. Un término con menos búsquedas en el que puede posicionarse vale más que uno popular en el que no.",
+      keyword: "Palabra clave",
+      opportunity: "Oportunidad",
+      searchesPerMonth: "Búsquedas / mes",
+      competition: "Competencia",
+      topic: "Tema",
+      researching: "Investigando palabras clave — esto tarda un minuto",
+      articleDeleted: "Artículo eliminado",
+      statusQueued: "En cola",
+      statusGenerating: "Escribiendo…",
+      statusDraft: "Borrador",
+      statusPublished: "Publicado",
+      statusFailed: "Fallido",
     },
   },
 };
@@ -2737,6 +2827,36 @@ const fr: Messages = {
       statusInvalid: "Ce lien n\u2019était pas valide — réessayez",
       statusError: "Google n\u2019a pas pu être connecté",
     },
+    research: {
+      contentPlan: "Plan de contenu",
+      articlesTab: "Articles",
+      opportunities: "Opportunités",
+      refresh: "Actualiser",
+      looking: "Recherche…",
+      plannedArticles: "Articles planifiés",
+      plannedHelp: "Votre plan de contenu, par date de publication prévue. Survolez un sujet planifié pour le rédiger maintenant, le modifier ou le retirer du plan.",
+      articles: "Articles",
+      articlesHelp: "Rédigés à partir de votre plan de contenu. Ouvrez-en un pour le lire, le modifier ou le réécrire.",
+      nothingWritten: "Rien de rédigé pour l\u2019instant. Utilisez",
+      write: "Rédiger",
+      title: "Titre",
+      status: "Statut",
+      words: "Mots",
+      keywords: "Mots-clés",
+      keywordsHelp: "Classés selon ce que vous pouvez réellement gagner. Un terme moins recherché sur lequel vous pouvez vous positionner vaut mieux qu\u2019un terme populaire hors de portée.",
+      keyword: "Mot-clé",
+      opportunity: "Opportunité",
+      searchesPerMonth: "Recherches / mois",
+      competition: "Concurrence",
+      topic: "Sujet",
+      researching: "Recherche de mots-clés — cela prend une minute",
+      articleDeleted: "Article supprimé",
+      statusQueued: "En attente",
+      statusGenerating: "Rédaction…",
+      statusDraft: "Brouillon",
+      statusPublished: "Publié",
+      statusFailed: "Échec",
+    },
   },
 };
 
@@ -3460,6 +3580,36 @@ const it: Messages = {
       statusForbidden: "Non può collegare quel sito web",
       statusInvalid: "Quel link non era valido — riprovi",
       statusError: "Non è stato possibile collegare Google",
+    },
+    research: {
+      contentPlan: "Piano dei contenuti",
+      articlesTab: "Articoli",
+      opportunities: "Opportunità",
+      refresh: "Aggiorna",
+      looking: "Ricerca…",
+      plannedArticles: "Articoli pianificati",
+      plannedHelp: "Il suo piano dei contenuti, per giorno di pubblicazione previsto. Passi il cursore su un argomento pianificato per scriverlo subito, modificarlo o toglierlo dal piano.",
+      articles: "Articoli",
+      articlesHelp: "Scritti a partire dal suo piano dei contenuti. Ne apra uno per leggerlo, modificarlo o riscriverlo.",
+      nothingWritten: "Ancora nulla di scritto. Usi",
+      write: "Scrivi",
+      title: "Titolo",
+      status: "Stato",
+      words: "Parole",
+      keywords: "Parole chiave",
+      keywordsHelp: "Ordinate per ciò che può realisticamente ottenere. Un termine con meno ricerche su cui può posizionarsi vale più di uno popolare fuori portata.",
+      keyword: "Parola chiave",
+      opportunity: "Opportunità",
+      searchesPerMonth: "Ricerche / mese",
+      competition: "Concorrenza",
+      topic: "Argomento",
+      researching: "Ricerca delle parole chiave — ci vuole un minuto",
+      articleDeleted: "Articolo eliminato",
+      statusQueued: "In coda",
+      statusGenerating: "Scrittura…",
+      statusDraft: "Bozza",
+      statusPublished: "Pubblicato",
+      statusFailed: "Non riuscito",
     },
   },
 };
@@ -4191,6 +4341,36 @@ const de: Messages = {
       statusForbidden: "Sie können diese Website nicht verbinden",
       statusInvalid: "Dieser Link war ungültig — versuchen Sie es erneut",
       statusError: "Google konnte nicht verbunden werden",
+    },
+    research: {
+      contentPlan: "Contentplan",
+      articlesTab: "Artikel",
+      opportunities: "Chancen",
+      refresh: "Aktualisieren",
+      looking: "Suche…",
+      plannedArticles: "Geplante Artikel",
+      plannedHelp: "Ihr Contentplan, nach dem Tag, an dem jeder Artikel fällig ist. Fahren Sie über ein geplantes Thema, um es jetzt zu schreiben, zu ändern oder aus dem Plan zu nehmen.",
+      articles: "Artikel",
+      articlesHelp: "Aus Ihrem Contentplan geschrieben. Öffnen Sie einen, um ihn zu lesen, zu bearbeiten oder neu schreiben zu lassen.",
+      nothingWritten: "Noch nichts geschrieben. Nutzen Sie",
+      write: "Schreiben",
+      title: "Titel",
+      status: "Status",
+      words: "Wörter",
+      keywords: "Suchbegriffe",
+      keywordsHelp: "Sortiert danach, was Sie realistisch gewinnen können. Ein Begriff mit weniger Suchanfragen, für den Sie ranken können, schlägt einen beliebten, für den Sie es nicht können.",
+      keyword: "Suchbegriff",
+      opportunity: "Chance",
+      searchesPerMonth: "Suchanfragen / Monat",
+      competition: "Wettbewerb",
+      topic: "Thema",
+      researching: "Suchbegriffe werden recherchiert — das dauert eine Minute",
+      articleDeleted: "Artikel gelöscht",
+      statusQueued: "In Warteschlange",
+      statusGenerating: "Wird geschrieben…",
+      statusDraft: "Entwurf",
+      statusPublished: "Veröffentlicht",
+      statusFailed: "Fehlgeschlagen",
     },
   },
 };

@@ -11,6 +11,7 @@ import {
 import Link from "next/link";
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import type { Messages } from "@/lib/i18n/messages";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
@@ -51,17 +52,22 @@ type ResearchTabsProps = {
   articles: ArticleRow[];
   /** True while a research run is in flight, so the UI can say so. */
   researching: boolean;
+  /** This screen's copy, already in the reader's language. */
+  t: Messages["app"]["research"];
 };
 
 const ARTICLE_STATUS: Record<
   string,
-  { label: string; variant: "default" | "secondary" | "destructive" }
+  {
+    key: keyof Messages["app"]["research"];
+    variant: "default" | "secondary" | "destructive";
+  }
 > = {
-  queued: { label: "Queued", variant: "secondary" },
-  generating: { label: "Writing…", variant: "secondary" },
-  draft: { label: "Draft", variant: "default" },
-  published: { label: "Published", variant: "default" },
-  failed: { label: "Failed", variant: "destructive" },
+  queued: { key: "statusQueued", variant: "secondary" },
+  generating: { key: "statusGenerating", variant: "secondary" },
+  draft: { key: "statusDraft", variant: "default" },
+  published: { key: "statusPublished", variant: "default" },
+  failed: { key: "statusFailed", variant: "destructive" },
 };
 
 const INTENT_VARIANT: Record<string, "default" | "secondary" | "outline"> = {
@@ -91,6 +97,7 @@ export function ResearchTabs({
   calendar,
   articles,
   researching,
+  t,
 }: ResearchTabsProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -103,7 +110,7 @@ export function ResearchTabs({
         toast.error(result.error);
         return;
       }
-      toast.success("Researching keywords — this takes a minute");
+      toast.success(t.researching);
       router.refresh();
     });
   }
@@ -132,7 +139,7 @@ export function ResearchTabs({
         toast.error(result.error);
         return;
       }
-      toast.success("Article deleted");
+      toast.success(t.articleDeleted);
       router.refresh();
     });
   }
@@ -192,15 +199,15 @@ export function ResearchTabs({
         <TabsList className="max-w-full overflow-x-auto">
           <TabsTrigger value="calendar">
             <CalendarDays className="size-4" />
-            Content plan ({calendar.length})
+            {t.contentPlan} ({calendar.length})
           </TabsTrigger>
           <TabsTrigger value="articles">
             <FileText className="size-4" />
-            Articles ({articles.length})
+            {t.articlesTab} ({articles.length})
           </TabsTrigger>
           <TabsTrigger value="keywords">
             <Search className="size-4" />
-            Opportunities ({keywords.length})
+            {t.opportunities} ({keywords.length})
           </TabsTrigger>
         </TabsList>
         <Button
@@ -214,19 +221,15 @@ export function ResearchTabs({
           ) : (
             <Search className="size-4" />
           )}
-          {researching ? "Looking…" : "Refresh"}
+          {researching ? t.looking : t.refresh}
         </Button>
       </div>
 
       <TabsContent value="calendar" className="mt-4">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Planned articles</CardTitle>
-            <CardDescription>
-              Your content plan, by the day each article is due. Hover a
-              planned topic to write it now, change it, or take it off the
-              plan.
-            </CardDescription>
+            <CardTitle className="text-base">{t.plannedArticles}</CardTitle>
+            <CardDescription>{t.plannedHelp}</CardDescription>
           </CardHeader>
           <CardContent>
             <ContentCalendar
@@ -241,35 +244,32 @@ export function ResearchTabs({
       <TabsContent value="articles" className="mt-4">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Articles</CardTitle>
-            <CardDescription>
-              Written from your content plan. Open one to read, edit or rewrite
-              it.
-            </CardDescription>
+            <CardTitle className="text-base">{t.articles}</CardTitle>
+            <CardDescription>{t.articlesHelp}</CardDescription>
           </CardHeader>
           <CardContent>
             {articles.length === 0 ? (
               <p className="py-4 text-sm text-muted-foreground">
-                Nothing written yet. Use <strong>Write</strong> on a planned
-                article to start.
+                {t.nothingWritten} <strong>{t.write}</strong>
               </p>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Title</TableHead>
-                    <TableHead className="w-28">Status</TableHead>
+                    <TableHead>{t.title}</TableHead>
+                    <TableHead className="w-28">{t.status}</TableHead>
                     <TableHead className="hidden w-24 sm:table-cell">
-                      Words
+                      {t.words}
                     </TableHead>
                     <TableHead className="w-10" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {articles.map((article) => {
-                    const status = ARTICLE_STATUS[article.status] ?? {
-                      label: article.status,
-                      variant: "secondary" as const,
+                    const known = ARTICLE_STATUS[article.status];
+                    const status = {
+                      label: known ? t[known.key] : article.status,
+                      variant: known?.variant ?? ("secondary" as const),
                     };
                     return (
                       <TableRow key={article.id}>
@@ -315,23 +315,20 @@ export function ResearchTabs({
       <TabsContent value="keywords" className="mt-4">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Keywords</CardTitle>
-            <CardDescription>
-              Ranked by what you can realistically win. A term with fewer searches
-              you can rank for beats a popular one you cannot.
-            </CardDescription>
+            <CardTitle className="text-base">{t.keywords}</CardTitle>
+            <CardDescription>{t.keywordsHelp}</CardDescription>
           </CardHeader>
           <CardContent>
             <Table minWidth="34rem">
               <TableHeader>
                 <TableRow>
-                  <TableHead>Keyword</TableHead>
-                  <TableHead className="w-24">Opportunity</TableHead>
-                  <TableHead className="w-28">Searches / mo</TableHead>
+                  <TableHead>{t.keyword}</TableHead>
+                  <TableHead className="w-24">{t.opportunity}</TableHead>
+                  <TableHead className="w-28">{t.searchesPerMonth}</TableHead>
                   <TableHead className="hidden w-32 sm:table-cell">
-                    Competition
+                    {t.competition}
                   </TableHead>
-                  <TableHead className="hidden md:table-cell">Topic</TableHead>
+                  <TableHead className="hidden md:table-cell">{t.topic}</TableHead>
                   <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
