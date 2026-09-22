@@ -16,6 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { authClient } from "@/lib/auth-client";
+import { LOCALE_NAMES, LOCALES, type Locale } from "@/lib/i18n/config";
 
 /**
  * Personal details: name, email, password, and the dashboard language.
@@ -41,23 +42,35 @@ import { authClient } from "@/lib/auth-client";
  * nothing else. A control that appears to work and does not is worse than
  * one that is honest about being the only option.
  */
-const LANGUAGES = [{ id: "en", label: "English" }];
+/**
+ * The languages the dashboard is offered in.
+ *
+ * Read from the shared config rather than listed here, so this control and
+ * the marketing site's switcher cannot drift apart — adding a locale in one
+ * place used to leave the other showing a language nobody could pick.
+ */
+const LANGUAGES = LOCALES.map((id) => ({ id, label: LOCALE_NAMES[id] }));
 
 export function PersonalDetails({
   initialName,
   email,
   /** False when the account signs in with Google and has no password to change. */
   hasPassword,
+  initialLocale,
 }: {
   initialName: string;
   email: string;
   hasPassword: boolean;
+  /** The language the dashboard is currently rendered in. */
+  initialLocale: Locale;
 }) {
   const router = useRouter();
   const [name, setName] = useState(initialName);
   const [savedName, setSavedName] = useState(initialName);
   const [pending, startTransition] = useTransition();
   const [changing, setChanging] = useState(false);
+  const [locale, setLocale] = useState<Locale>(initialLocale);
+  const [savingLocale, setSavingLocale] = useState(false);
 
   const dirty = name.trim() !== savedName.trim() && name.trim().length > 0;
 
@@ -72,6 +85,34 @@ export function PersonalDetails({
       setSavedName(trimmed);
       toast.success("Name updated");
       // The sidebar and the account menu render it too.
+      router.refresh();
+    });
+  }
+
+  /**
+   * Saves the dashboard language and re-renders the app in it.
+   *
+   * Saved on change rather than behind a button: it is a single choice with
+   * an immediately visible result, and the whole page re-renders in the new
+   * language, which is its own confirmation.
+   *
+   * The optimistic setLocale is reverted on failure — leaving the dropdown
+   * showing a language the account is not actually set to would make the next
+   * page load look like it forgot.
+   */
+  function handleLocaleChange(next: Locale) {
+    const previous = locale;
+    setLocale(next);
+    setSavingLocale(true);
+    startTransition(async () => {
+      const { error } = await authClient.updateUser({ locale: next });
+      setSavingLocale(false);
+      if (error) {
+        setLocale(previous);
+        toast.error(error.message ?? "Could not save your language");
+        return;
+      }
+      // Every server component re-reads the preference on the next render.
       router.refresh();
     });
   }
@@ -154,8 +195,11 @@ export function PersonalDetails({
           <Label htmlFor="dashboard-language">Dashboard language</Label>
           <select
             id="dashboard-language"
-            defaultValue="en"
-            disabled={LANGUAGES.length === 1}
+            value={locale}
+            onChange={(event) =>
+              handleLocaleChange(event.target.value as Locale)
+            }
+            disabled={savingLocale}
             className="flex h-9 w-full max-w-xs rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {LANGUAGES.map((language) => (

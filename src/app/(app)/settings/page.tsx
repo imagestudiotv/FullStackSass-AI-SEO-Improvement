@@ -3,6 +3,7 @@ import { SettingsNav } from "@/components/settings-nav";
 import { PageShell } from "@/components/ui/page-header";
 import { and, eq } from "drizzle-orm";
 import { requireSession } from "@/lib/auth-guard";
+import { resolveAppLocale } from "@/lib/i18n/app-locale";
 import { getReferralSummary } from "@/lib/referrals/actions";
 import { REFERRAL_REWARD_CREDITS } from "@/lib/referrals/core";
 import { db } from "@/lib/db";
@@ -94,6 +95,7 @@ export default async function SettingsPage() {
           current password that does not exist.
         */
         hasPassword={hasPassword}
+        initialLocale={await resolveAppLocale(session.user.id)}
       />
 
       {/*

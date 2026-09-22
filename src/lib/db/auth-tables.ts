@@ -24,6 +24,17 @@ export const user = pgTable("user", {
   email: text("email").notNull().unique(),
   emailVerified: boolean("email_verified").default(false).notNull(),
   image: text("image"),
+  /**
+   * Which language to render the signed-in app in.
+   *
+   * Nullable rather than defaulted to "en": null means "never chose", which
+   * lets the app fall back to the browser's Accept-Language on first sign-in
+   * without that guess overwriting a real preference. An unrecognised value
+   * degrades to English rather than throwing — the column is plain text, and
+   * a row written by a future version naming a locale we do not ship should
+   * not break the page.
+   */
+  locale: text("locale"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()

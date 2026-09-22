@@ -113,6 +113,25 @@ function createAuth() {
         trustedProviders: ["google"],
       },
     },
+    /**
+     * The dashboard language, so updateUser() can write it.
+     *
+     * Better Auth rejects any field it does not know about, so the column
+     * existing in the schema is not enough — without this the Settings
+     * dropdown would save nothing and report success.
+     *
+     * Not `required`: an account created before this shipped has no value,
+     * and resolveAppLocale treats null as "never chose" rather than an error.
+     */
+    user: {
+      additionalFields: {
+        locale: {
+          type: "string",
+          required: false,
+          input: true,
+        },
+      },
+    },
     databaseHooks: {
       user: {
         create: {
