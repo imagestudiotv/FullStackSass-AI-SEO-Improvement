@@ -2,11 +2,11 @@
 
 import { ArrowRight, Check, Clock, Loader2, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { getResearchState, startResearch } from "@/lib/keywords/actions";
+import { startResearch } from "@/lib/keywords/actions";
 
 /**
  * Step five: turning the profile into a content and backlink plan.
@@ -36,15 +36,6 @@ import { getResearchState, startResearch } from "@/lib/keywords/actions";
  */
 const NEXT_HREF = "/setup";
 
-/**
- * How long to let someone read "your plan is ready" before moving on.
- *
- * Not zero. Jumping the instant the poll returns makes the screen flash past
- * and leaves no sign that the thing they asked for actually happened — they
- * arrive at the next step unsure whether it worked. A beat is enough to read
- * the confirmation and see the ticks turn green.
- */
-const ADVANCE_DELAY_MS = 1400;
 
 export function ContentStep({
   websiteId,
@@ -83,12 +74,9 @@ export function ContentStep({
    * The props come from a page render that can be stale: router.refresh()
    * clears the client cache but not the server-side one, and startResearch
    * revalidates /websites/[id] rather than this route. So the page kept
-   * rendering "Building…" after the plan existed. The poll below asks the
-   * database directly and cannot be stale.
+   * rendering "Building…" after the plan existed.
    */
-  const [ready, setReady] = useState(hasKeywords || hasPlan);
-
-  const done = hasKeywords || hasPlan || ready;
+  const done = hasKeywords || hasPlan;
   const building = status === "queued" && !done;
 
   /**
@@ -100,76 +88,34 @@ export function ContentStep({
    * impossible to look at: they would be thrown out of it the moment they
    * arrived, every time.
    */
-  /*
-    STATE, not a ref. Setting a ref does not re-render, so the effect below
-    never re-ran after the build was queued — it had already run with
-    startedHere false, and nothing told React to look again. The plan finished
-    and the page sat there, which is precisely the bug being fixed.
-  */
-  const [startedHere, setStartedHere] = useState(false);
-  /** Guards against a second navigation if a poll lands mid-transition. */
-  const advanced = useRef(false);
+  /**
+   * Whether we are navigating away, so the button can show it.
+   *
+   * NO POLLING, AND NO AUTO-ADVANCE. Both were removed when this screen
+   * stopped waiting for the plan. They existed to notice the job finishing
+   * and move the customer on — a five-second interval calling
+   * getResearchState, a ref to stop two polls navigating at once, and a
+   * delay so the jump did not feel abrupt. None of it has anything to
+   * watch now: the redirect happens the moment the job is queued.
+   *
+   * That also removes the whole class of bug this screen kept producing.
+   * A poll that never sees rows appear is indistinguishable from one that
+   * has not seen them YET, so anything stalling the job left the customer
+   * on a spinner with no way out.
+   */
   const [leaving, setLeaving] = useState(false);
 
   /**
    * Re-read the server state once on arrival.
    *
-   * Next's client Router Cache serves a previously-visited page from memory, so
-   * navigating back here with router.push showed the copy rendered BEFORE the
-   * plan finished — "Ready to build" with the plan already sitting in the
-   * database. `dynamic = "force-dynamic"` governs the server render and does
-   * nothing about that cache. A refresh on mount discards it.
+   * Next's client Router Cache serves a previously-visited page from memory,
+   * so coming back here shows whatever was rendered last time — "Ready to
+   * build" with a plan already in the database. `dynamic = "force-dynamic"`
+   * governs the server render and does nothing about that cache.
    */
   useEffect(() => {
     router.refresh();
   }, [router]);
-
-  /**
-   * While the job runs, ask the server for its result.
-   *
-   * Without this the page only updates if the customer reloads it themselves,
-   * which is exactly what someone watching a spinner will not think to do.
-   * Stops as soon as rows exist, so a finished plan costs nothing.
-   */
-  useEffect(() => {
-    if (!building) return;
-
-    let stopped = false;
-    const check = async () => {
-      const result = await getResearchState(websiteId);
-      if (stopped || !result.ok) return;
-      if (result.data.hasKeywords || result.data.hasPlan) {
-        setReady(true);
-        // Bring the rest of the page (and anything cached elsewhere) in line
-        // with what we just learned, now that we know there is news.
-        router.refresh();
-      }
-    };
-
-    // Once immediately: a job that finished while the tab was in the
-    // background should not cost another five seconds.
-    void check();
-    const timer = setInterval(check, 4000);
-    return () => {
-      stopped = true;
-      clearInterval(timer);
-    };
-  }, [building, websiteId, router]);
-
-  /**
-   * The plan landed — go to the last step, as the client asked.
-   *
-   * Gated on startedHere so only the person who pressed the button is carried
-   * forward, and on `advanced` so two polls cannot both navigate.
-   */
-  useEffect(() => {
-    if (!done || !startedHere || advanced.current) return;
-    advanced.current = true;
-    setLeaving(true);
-
-    const timer = setTimeout(() => router.push(NEXT_HREF), ADVANCE_DELAY_MS);
-    return () => clearTimeout(timer);
-  }, [done, startedHere, router]);
 
   async function handleBuild() {
     setStatus("queueing");
@@ -183,10 +129,28 @@ export function ContentStep({
       return;
     }
 
-    setStartedHere(true);
-    setStatus("queued");
-    toast.success("We are building your plan. This takes a few minutes.");
-    router.refresh();
+    /**
+     * STRAIGHT ON, without waiting for the plan.
+     *
+     * The client asked for the same treatment step one already got: "you need
+     * to build the plan in background and need to redirect the user to the
+     * next step". The job was ALWAYS a background job — research-keywords
+     * runs on Inngest and takes minutes — so the only thing this screen was
+     * contributing was a spinner to watch it through.
+     *
+     * That spinner was also the single worst failure surface in the product.
+     * Anything that stalled the job (an invalid Inngest key, an exhausted
+     * DataForSEO balance, a site with no profile) left a customer staring at
+     * "Building your content plan…" indefinitely, because the screen had no
+     * way to distinguish "still working" from "never going to finish". Not
+     * standing here means none of those failures can strand anybody.
+     *
+     * The plan still arrives; it simply arrives while they read the next
+     * screen, and Planned Articles shows it when it does.
+     */
+    setLeaving(true);
+    toast.success("We are building your plan. You can carry on — it lands in a few minutes.");
+    router.push(NEXT_HREF);
   }
 
   /**
@@ -357,9 +321,15 @@ export function ContentStep({
                   <ArrowRight className="size-4" aria-hidden="true" />
                 </>
               ) : (
+                /*
+                  One spinner state, not two. "Building…" was the state this
+                  screen used to sit in while it polled; now the press queues
+                  the job and navigates, so the only moment anyone sees the
+                  button busy is the queueing call itself.
+                */
                 <>
                   <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-                  {status === "queueing" ? "Starting…" : "Building…"}
+                  Starting…
                 </>
               )}
             </Button>
