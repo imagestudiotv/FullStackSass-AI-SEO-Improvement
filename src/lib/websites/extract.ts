@@ -69,7 +69,7 @@ const SCHEMA = {
       type: "array",
       items: { type: "string" },
       description:
-        "Up to 5 competitor domains you are CERTAIN are registered and belong to direct competitors. Bare domains, no scheme. Return an empty array rather than guessing — every domain is verified and invented ones are discarded.",
+        "Up to 5 domains of well-known, established companies competing in this niche and market. Bare domains, no scheme. Prefer names you recognise as real businesses with real websites; every domain is checked against DNS before it is stored, so a wrong guess is dropped rather than shown.",
     },
   },
   required: [
@@ -91,7 +91,7 @@ Rules:
 - Use only what the page supports. Do not invent facts, awards, locations or figures.
 - If a field is not evident, return null (or an empty array) rather than guessing.
 - "industry" should be specific enough to guide keyword research.
-- "competitors" must be companies you are CERTAIN exist, with domains you are certain are registered — established names in the same niche and market. Do not construct a domain from a company name you are unsure about, and do not invent plausible-sounding ones. An empty list is the correct answer when you are not sure; every domain returned is checked, and a wrong one is worse than a missing one.
+- "competitors" should name established companies in the same niche and market — ones with a recognisable brand and a real website. Prefer a well-known name over a precise guess: the domain is verified against DNS before it is stored, so something that does not resolve is discarded automatically. Returning nothing helps nobody; returning three real rivals is the useful answer.
 - Do not list general platforms, marketplaces or tools (Vimeo, YouTube, Wix, directories) as competitors. A competitor sells what this business sells, to the same customers.
 - Ignore navigation, cookie banners, and boilerplate.`;
 

@@ -76,8 +76,19 @@ export function CompetitorsCard({
 
       <div className="p-4">
         {rivals.length === 0 ? (
-          <p className="text-sm text-muted-foreground italic">
-            None yet. Add any you know of.
+          /*
+            Says WHY there are none, not just that there are none.
+
+            We suggest competitors during analysis, so an empty list here
+            usually means the extractor could not infer the niche — a
+            JavaScript-rendered homepage with no server-side text gives it
+            nothing to work from, which is the case on justinso.net. "None
+            yet" alone reads as a feature that has not run; this reads as a
+            result, and points at the one thing the customer can do about it.
+          */
+          <p className="text-sm text-muted-foreground">
+            We did not find any from your site. Add the rivals you know of and
+            we will use them to find content gaps.
           </p>
         ) : (
           <div className="grid gap-2 sm:grid-cols-2">
