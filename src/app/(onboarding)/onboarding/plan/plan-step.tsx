@@ -242,11 +242,23 @@ export function PlanStep({
                 to "highlight the box grow plan when you are on that plan".
                 On the screen where someone picks what to pay for, which
                 option is selected should be unmissable.
+
+                THE UNSELECTED TAB IS text-foreground, NOT text-muted-
+                foreground. Muted grey on this near-white track measures
+                around 3.3:1, under the 4.5:1 minimum for normal text — the
+                client read the two tabs as "the same letters" because the
+                unselected one was barely there. Both options are real
+                choices with real prices, and the price you are NOT on is
+                the one somebody is trying to read when they compare.
+
+                The selection is carried by the filled pill, which is
+                unmistakable on its own; dimming the other label adds
+                nothing to that and costs legibility.
               */
               className={`rounded-full px-3 py-2 text-sm font-medium transition-colors sm:flex-1 sm:px-4 ${
                 option.tier === tier
                   ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
+                  : "text-foreground hover:bg-background/70"
               }`}
             >
               {/*
@@ -269,7 +281,7 @@ export function PlanStep({
         looked identical either way, so nothing on screen confirmed the
         choice had taken effect.
       */}
-      <div className="mt-4 rounded-3xl border-2 border-primary bg-card p-5 shadow-sm sm:p-6">
+      <div className="mt-5 rounded-3xl border-2 border-primary bg-card p-5 shadow-sm sm:p-6">
         <div className="flex flex-wrap items-center gap-2.5">
           <p className="text-lg font-semibold">{plan.name} plan</p>
           {/*
