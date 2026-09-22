@@ -44,11 +44,20 @@ import {
   type ArticleDetail,
 } from "@/lib/articles/actions";
 import { publishArticle, type PublishLogRow } from "@/lib/publishing/actions";
+import type { Messages } from "@/lib/i18n/messages";
 
-const STEP_LABEL: Record<string, string> = {
-  outline: "Planning what to cover",
-  body: "Writing the article",
-};
+/**
+ * The generation step, in the reader's language.
+ *
+ * A function taking the dictionary rather than a module-level map: the map
+ * is built once at import time, before any locale is known, so it could only
+ * ever hold English.
+ */
+function stepLabel(step: string, t: Messages["app"]["editor"]): string {
+  if (step === "outline") return t.planningOutline;
+  if (step === "body") return t.writingBody;
+  return "";
+}
 
 export function ArticleEditor({
   websiteId,
@@ -57,6 +66,7 @@ export function ArticleEditor({
   destinationName,
   websiteDomain,
   publishLogs,
+  t,
 }: {
   websiteId: string;
   article: ArticleDetail;
@@ -71,6 +81,8 @@ export function ArticleEditor({
   /** Decides which links count as internal. */
   websiteDomain: string | null;
   publishLogs: PublishLogRow[];
+  /** This screen's copy, already in the reader's language. */
+  t: Messages["app"]["editor"];
 }) {
   const router = useRouter();
   const bodyStats = articleStats(article.bodyHtml, {
@@ -120,7 +132,7 @@ export function ArticleEditor({
         toast.error(result.error);
         return;
       }
-      toast.success("Saved");
+      toast.success(t.saved);
       router.refresh();
     });
   }
@@ -135,7 +147,7 @@ export function ArticleEditor({
       toast.success(
         status === "publish"
           ? `Publishing to ${destinationName ?? "your site"}…`
-          : "Sending as a draft…",
+          : t.sendingDraft,
       );
       router.refresh();
     });
@@ -181,7 +193,7 @@ export function ArticleEditor({
         toast.error(result.error);
         return;
       }
-      toast.success("Rewriting the article…");
+      toast.success(t.rewriting);
       router.refresh();
     });
   }
@@ -192,7 +204,7 @@ export function ArticleEditor({
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-2">
           <Link href={`/websites/${websiteId}`}>
             <ArrowLeft className="size-4" />
-            Back to website
+            {t.backToWebsite}
           </Link>
         </Button>
         <div className="flex flex-wrap items-center gap-2">
@@ -216,16 +228,16 @@ export function ArticleEditor({
         <Card>
           <CardContent className="grid grid-cols-2 gap-4 py-5 sm:grid-cols-4 lg:grid-cols-7">
             <Stat label="Words" value={stats.words} />
-            <Stat label="Headings" value={stats.headings} />
+            <Stat label={t.headings} value={stats.headings} />
             <Stat
-              label="Keyword uses"
+              label={t.keywordUses}
               value={stats.keywordUses}
               hint={article.targetKeyword ?? undefined}
             />
-            <Stat label="Internal links" value={stats.internalLinks} />
-            <Stat label="External links" value={stats.externalLinks} />
+            <Stat label={t.internalLinks} value={stats.internalLinks} />
+            <Stat label={t.externalLinks} value={stats.externalLinks} />
             <Stat label="Images" value={stats.images} />
-            <Stat label="Social mentions" value={stats.socialMentions} />
+            <Stat label={t.socialMentions} value={stats.socialMentions} />
           </CardContent>
         </Card>
       ) : null}
@@ -236,11 +248,11 @@ export function ArticleEditor({
             <CardTitle className="flex items-center gap-2 text-base">
               <Loader2 className="size-4 animate-spin" />
               {article.generationStep
-                ? STEP_LABEL[article.generationStep]
-                : "Starting"}
+                ? stepLabel(article.generationStep, t)
+                : t.starting}
             </CardTitle>
             <CardDescription>
-              This usually takes about a minute. The page updates on its own.
+              {t.takesAMinute}
             </CardDescription>
           </CardHeader>
         </Card>
@@ -250,7 +262,7 @@ export function ArticleEditor({
         <Card>
           <CardHeader>
             <CardTitle className="text-base">
-              We could not write this one
+              {t.couldNotWrite}
             </CardTitle>
             <CardDescription>
               {explainGenerationError(article.error).summary}{" "}
@@ -260,7 +272,7 @@ export function ArticleEditor({
           <CardContent>
             <Button onClick={handleRegenerate} disabled={pending}>
               <RefreshCw className="size-4" />
-              Try again
+              {t.tryAgain}
             </Button>
           </CardContent>
         </Card>
@@ -269,11 +281,8 @@ export function ArticleEditor({
       {publishLogs.length > 0 ? (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Publishing history</CardTitle>
-            <CardDescription>
-              Every attempt is recorded, so a failure is visible rather than
-              silent.
-            </CardDescription>
+            <CardTitle className="text-base">{t.publishingHistory}</CardTitle>
+            <CardDescription>{t.historyHelp}</CardDescription>
           </CardHeader>
           <CardContent>
             <ul className="space-y-2 text-sm">
@@ -281,7 +290,7 @@ export function ArticleEditor({
                 <li key={log.id} className="flex flex-wrap items-center gap-2">
                   <StatusBadge
                     status={log.status}
-                    label={log.status === "failed" ? "Failed" : undefined}
+                    label={log.status === "failed" ? t.failed : undefined}
                   />
                   <span className="text-muted-foreground">
                     {new Date(log.createdAt).toLocaleString()}
@@ -293,7 +302,7 @@ export function ArticleEditor({
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1 hover:underline"
                     >
-                      View post
+                      {t.viewPost}
                       <ExternalLink className="size-3" />
                     </a>
                   ) : null}
@@ -346,7 +355,7 @@ export function ArticleEditor({
                     onClick={() => handlePublish("draft")}
                     disabled={pending || working}
                   >
-                    Send as draft
+                    {t.sendAsDraft}
                   </Button>
                   <Button
                     size="sm"
@@ -354,7 +363,7 @@ export function ArticleEditor({
                     disabled={pending || working}
                   >
                     <Upload className="size-4" />
-                    {article.status === "published" ? "Update post" : "Publish"}
+                    {article.status === "published" ? t.updatePost : t.publish}
                   </Button>
                 </>
               ) : null}
@@ -411,14 +420,12 @@ export function ArticleEditor({
             */}
               <Card className="overflow-visible">
                 <CardHeader>
-                  <CardTitle className="text-base">Edit article</CardTitle>
-                  <CardDescription>
-                    Your previous version is kept each time you save.
-                  </CardDescription>
+                  <CardTitle className="text-base">{t.editArticle}</CardTitle>
+                  <CardDescription>{t.editHelp}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-1.5">
-                    <Label htmlFor="title">Title</Label>
+                    <Label htmlFor="title">{t.title}</Label>
                     <Input
                       id="title"
                       value={title}
@@ -428,7 +435,7 @@ export function ArticleEditor({
 
                   <div className="space-y-1.5">
                     <Label htmlFor="meta">
-                      Meta description{" "}
+                      {t.metaDescription}{" "}
                       <span className="text-muted-foreground">
                         ({meta.length}/158)
                       </span>
@@ -441,12 +448,12 @@ export function ArticleEditor({
                   </div>
 
                   <div className="space-y-1.5">
-                    <Label htmlFor="slug">Address on your website</Label>
+                    <Label htmlFor="slug">{t.slugLabel}</Label>
                     <Input
                       id="slug"
                       value={slug}
                       onChange={(e) => setSlug(e.target.value)}
-                      placeholder="wedding-films-italy"
+                      placeholder={t.slugPlaceholder}
                     />
                     <p className="text-xs text-muted-foreground">
                       {/*
@@ -454,8 +461,7 @@ export function ArticleEditor({
                       someone typing a real title means the slug version of
                       it, and correcting them mid-keystroke is hostile.
                     */}
-                      Spaces and punctuation become dashes. Leave empty and your
-                      website will choose one from the title.
+                      {t.slugHelp}
                     </p>
                   </div>
 
@@ -465,7 +471,7 @@ export function ArticleEditor({
                     contenteditable div, which htmlFor cannot focus. The
                     editor carries its own aria-label instead.
                   */}
-                    <p className="text-sm font-medium">Article content</p>
+                    <p className="text-sm font-medium">{t.articleContent}</p>
                     <RichTextEditor
                       value={body}
                       onChange={setBody}
@@ -476,7 +482,7 @@ export function ArticleEditor({
                 </CardContent>
                 <CardFooter>
                   <Button onClick={handleSave} disabled={pending}>
-                    {pending ? "Saving…" : "Save changes"}
+                    {pending ? t.saving : t.saveChanges}
                   </Button>
                 </CardFooter>
               </Card>

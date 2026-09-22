@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { requireSession } from "@/lib/auth-guard";
+import { getAppMessages } from "@/lib/i18n/app-locale";
 import { requirePlan } from "@/lib/billing/require-plan";
 import { getArticle } from "@/lib/articles/actions";
 import { requireWebsite } from "@/lib/tenant";
@@ -47,6 +48,8 @@ export default async function ArticlePage({
     requireWebsite(websiteId),
   ]);
 
+  const { t } = await getAppMessages(websiteCtx.userId);
+
   return (
     <ArticleEditor
       websiteId={websiteId}
@@ -58,6 +61,7 @@ export default async function ArticlePage({
         null
       }
       websiteDomain={websiteCtx.site.domain}
+      t={t.app.editor}
       publishLogs={logs}
     />
   );

@@ -495,6 +495,40 @@ export type Messages = {
       /** Editorial register options, by id. */
       styles: Record<string, { label: string; hint: string }>;
     };
+    editor: {
+      backToWebsite: string;
+      headings: string;
+      keywordUses: string;
+      internalLinks: string;
+      externalLinks: string;
+      socialMentions: string;
+      starting: string;
+      takesAMinute: string;
+      couldNotWrite: string;
+      tryAgain: string;
+      publishingHistory: string;
+      historyHelp: string;
+      failed: string;
+      viewPost: string;
+      editArticle: string;
+      editHelp: string;
+      title: string;
+      metaDescription: string;
+      slugLabel: string;
+      slugPlaceholder: string;
+      slugHelp: string;
+      articleContent: string;
+      saving: string;
+      saveChanges: string;
+      saved: string;
+      rewriting: string;
+      sendAsDraft: string;
+      updatePost: string;
+      publish: string;
+      sendingDraft: string;
+      planningOutline: string;
+      writingBody: string;
+    };
   };
 };
 
@@ -1147,6 +1181,40 @@ const en: Messages = {
         friendly: { label: "Friendly", hint: "Warm and encouraging, second person, light on jargon." },
         journalistic: { label: "Journalistic", hint: "Leads with the finding, attributes claims, no marketing language." },
       },
+    },
+    editor: {
+      backToWebsite: "Back to website",
+      headings: "Headings",
+      keywordUses: "Keyword uses",
+      internalLinks: "Internal links",
+      externalLinks: "External links",
+      socialMentions: "Social mentions",
+      starting: "Starting",
+      takesAMinute: "This usually takes about a minute. The page updates on its own.",
+      couldNotWrite: "We could not write this one",
+      tryAgain: "Try again",
+      publishingHistory: "Publishing history",
+      historyHelp: "Every attempt is recorded, so a failure is visible rather than silent.",
+      failed: "Failed",
+      viewPost: "View post",
+      editArticle: "Edit article",
+      editHelp: "Your previous version is kept each time you save.",
+      title: "Title",
+      metaDescription: "Meta description",
+      slugLabel: "Address on your website",
+      slugPlaceholder: "wedding-films-italy",
+      slugHelp: "Spaces and punctuation become dashes. Leave empty and your website will choose one from the title.",
+      articleContent: "Article content",
+      saving: "Saving…",
+      saveChanges: "Save changes",
+      saved: "Saved",
+      rewriting: "Rewriting the article…",
+      sendAsDraft: "Send as draft",
+      updatePost: "Update post",
+      publish: "Publish",
+      sendingDraft: "Sending as a draft…",
+      planningOutline: "Planning what to cover",
+      writingBody: "Writing the article",
     },
   },
 };
@@ -1810,6 +1878,40 @@ const es: Messages = {
         friendly: { label: "Cercano", hint: "Cálido y alentador, en segunda persona, con poca jerga." },
         journalistic: { label: "Periodístico", hint: "Empieza por el hallazgo, atribuye las afirmaciones, sin lenguaje comercial." },
       },
+    },
+    editor: {
+      backToWebsite: "Volver al sitio web",
+      headings: "Encabezados",
+      keywordUses: "Usos de la palabra clave",
+      internalLinks: "Enlaces internos",
+      externalLinks: "Enlaces externos",
+      socialMentions: "Menciones sociales",
+      starting: "Empezando",
+      takesAMinute: "Esto suele tardar alrededor de un minuto. La página se actualiza sola.",
+      couldNotWrite: "No pudimos escribir este artículo",
+      tryAgain: "Reintentar",
+      publishingHistory: "Historial de publicación",
+      historyHelp: "Cada intento queda registrado, para que un fallo sea visible y no silencioso.",
+      failed: "Fallido",
+      viewPost: "Ver publicación",
+      editArticle: "Editar artículo",
+      editHelp: "Su versión anterior se conserva cada vez que guarda.",
+      title: "Título",
+      metaDescription: "Meta descripción",
+      slugLabel: "Dirección en su sitio web",
+      slugPlaceholder: "bodas-video-italia",
+      slugHelp: "Los espacios y la puntuación se convierten en guiones. Déjelo vacío y su sitio web elegirá una a partir del título.",
+      articleContent: "Contenido del artículo",
+      saving: "Guardando…",
+      saveChanges: "Guardar cambios",
+      saved: "Guardado",
+      rewriting: "Reescribiendo el artículo…",
+      sendAsDraft: "Enviar como borrador",
+      updatePost: "Actualizar publicación",
+      publish: "Publicar",
+      sendingDraft: "Enviando como borrador…",
+      planningOutline: "Planificando qué cubrir",
+      writingBody: "Escribiendo el artículo",
     },
   },
 };
@@ -2477,6 +2579,40 @@ const fr: Messages = {
         journalistic: { label: "Journalistique", hint: "Commence par le constat, attribue les affirmations, sans langage marketing." },
       },
     },
+    editor: {
+      backToWebsite: "Retour au site",
+      headings: "Titres",
+      keywordUses: "Occurrences du mot-clé",
+      internalLinks: "Liens internes",
+      externalLinks: "Liens externes",
+      socialMentions: "Mentions sociales",
+      starting: "Démarrage",
+      takesAMinute: "Cela prend généralement une minute. La page se met à jour toute seule.",
+      couldNotWrite: "Nous n\u2019avons pas pu rédiger celui-ci",
+      tryAgain: "Réessayer",
+      publishingHistory: "Historique de publication",
+      historyHelp: "Chaque tentative est enregistrée, pour qu\u2019un échec soit visible plutôt que silencieux.",
+      failed: "Échec",
+      viewPost: "Voir l\u2019article",
+      editArticle: "Modifier l\u2019article",
+      editHelp: "Votre version précédente est conservée à chaque enregistrement.",
+      title: "Titre",
+      metaDescription: "Méta description",
+      slugLabel: "Adresse sur votre site",
+      slugPlaceholder: "films-mariage-italie",
+      slugHelp: "Les espaces et la ponctuation deviennent des tirets. Laissez vide et votre site en choisira une à partir du titre.",
+      articleContent: "Contenu de l\u2019article",
+      saving: "Enregistrement…",
+      saveChanges: "Enregistrer",
+      saved: "Enregistré",
+      rewriting: "Réécriture de l\u2019article…",
+      sendAsDraft: "Envoyer en brouillon",
+      updatePost: "Mettre à jour",
+      publish: "Publier",
+      sendingDraft: "Envoi en brouillon…",
+      planningOutline: "Préparation du plan",
+      writingBody: "Rédaction de l\u2019article",
+    },
   },
 };
 
@@ -3135,6 +3271,40 @@ const it: Messages = {
         friendly: { label: "Cordiale", hint: "Caloroso e incoraggiante, in seconda persona, poco gergo." },
         journalistic: { label: "Giornalistico", hint: "Parte dal risultato, attribuisce le affermazioni, senza linguaggio pubblicitario." },
       },
+    },
+    editor: {
+      backToWebsite: "Torna al sito",
+      headings: "Titoli",
+      keywordUses: "Usi della parola chiave",
+      internalLinks: "Link interni",
+      externalLinks: "Link esterni",
+      socialMentions: "Menzioni social",
+      starting: "Avvio",
+      takesAMinute: "Di solito ci vuole circa un minuto. La pagina si aggiorna da sola.",
+      couldNotWrite: "Non siamo riusciti a scrivere questo articolo",
+      tryAgain: "Riprova",
+      publishingHistory: "Cronologia di pubblicazione",
+      historyHelp: "Ogni tentativo viene registrato, così un errore è visibile e non silenzioso.",
+      failed: "Non riuscito",
+      viewPost: "Vedi articolo",
+      editArticle: "Modifica articolo",
+      editHelp: "La versione precedente viene conservata a ogni salvataggio.",
+      title: "Titolo",
+      metaDescription: "Meta descrizione",
+      slugLabel: "Indirizzo sul suo sito",
+      slugPlaceholder: "video-matrimonio-italia",
+      slugHelp: "Spazi e punteggiatura diventano trattini. Lo lasci vuoto e il suo sito ne sceglierà uno dal titolo.",
+      articleContent: "Contenuto dell\u2019articolo",
+      saving: "Salvataggio…",
+      saveChanges: "Salva modifiche",
+      saved: "Salvato",
+      rewriting: "Riscrittura dell\u2019articolo…",
+      sendAsDraft: "Invia come bozza",
+      updatePost: "Aggiorna articolo",
+      publish: "Pubblica",
+      sendingDraft: "Invio come bozza…",
+      planningOutline: "Pianificazione degli argomenti",
+      writingBody: "Scrittura dell\u2019articolo",
     },
   },
 };
@@ -3801,6 +3971,40 @@ const de: Messages = {
         friendly: { label: "Freundlich", hint: "Warm und ermutigend, in der Sie-Form, wenig Fachjargon." },
         journalistic: { label: "Journalistisch", hint: "Beginnt mit dem Befund, schreibt Aussagen zu, ohne Werbesprache." },
       },
+    },
+    editor: {
+      backToWebsite: "Zurück zur Website",
+      headings: "Überschriften",
+      keywordUses: "Verwendungen des Suchbegriffs",
+      internalLinks: "Interne Links",
+      externalLinks: "Externe Links",
+      socialMentions: "Social-Media-Erwähnungen",
+      starting: "Wird gestartet",
+      takesAMinute: "Das dauert meist etwa eine Minute. Die Seite aktualisiert sich von selbst.",
+      couldNotWrite: "Diesen Artikel konnten wir nicht schreiben",
+      tryAgain: "Erneut versuchen",
+      publishingHistory: "Veröffentlichungsverlauf",
+      historyHelp: "Jeder Versuch wird protokolliert, damit ein Fehler sichtbar und nicht stillschweigend ist.",
+      failed: "Fehlgeschlagen",
+      viewPost: "Beitrag ansehen",
+      editArticle: "Artikel bearbeiten",
+      editHelp: "Ihre vorherige Version bleibt bei jedem Speichern erhalten.",
+      title: "Titel",
+      metaDescription: "Meta-Beschreibung",
+      slugLabel: "Adresse auf Ihrer Website",
+      slugPlaceholder: "hochzeitsfilme-italien",
+      slugHelp: "Leerzeichen und Satzzeichen werden zu Bindestrichen. Lassen Sie das Feld leer, wählt Ihre Website eine aus dem Titel.",
+      articleContent: "Artikelinhalt",
+      saving: "Wird gespeichert…",
+      saveChanges: "Änderungen speichern",
+      saved: "Gespeichert",
+      rewriting: "Artikel wird neu geschrieben…",
+      sendAsDraft: "Als Entwurf senden",
+      updatePost: "Beitrag aktualisieren",
+      publish: "Veröffentlichen",
+      sendingDraft: "Wird als Entwurf gesendet…",
+      planningOutline: "Themen werden geplant",
+      writingBody: "Artikel wird geschrieben",
     },
   },
 };
