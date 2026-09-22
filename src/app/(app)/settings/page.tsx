@@ -82,7 +82,7 @@ export default async function SettingsPage() {
         renders and its per-website tabs simply have nowhere to point, which
         is honest — there is no website to configure.
       */}
-      {websiteId ? <SettingsNav websiteId={websiteId} /> : null}
+      {websiteId ? <SettingsNav websiteId={websiteId} t={t.app.nav} /> : null}
 
       {/*
         Editable now, rather than a read-only definition list. The name was

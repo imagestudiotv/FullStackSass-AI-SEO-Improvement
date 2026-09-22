@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { BrandLogo } from "@/components/brand-logo";
 import { SidebarNav, type SidebarAddon } from "@/components/sidebar-nav";
+import type { Messages } from "@/lib/i18n/messages";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -19,8 +20,11 @@ export function MobileNav({
   setupProgress = null,
   selectedWebsiteId = null,
   addons = [],
+  t,
 }: {
   onboardingComplete?: boolean;
+  /** Forwarded to SidebarNav: the phone menu shows the same labels. */
+  t: Messages["app"]["nav"];
   /** Forwarded to SidebarNav, so the phone menu shows the same progress. */
   setupProgress?: { done: number; total: number } | null;
   /** Forwarded to SidebarNav, so a phone gets the same Add-ons menu. */
@@ -41,7 +45,7 @@ export function MobileNav({
           variant="ghost"
           size="icon"
           className="md:hidden"
-          aria-label="Open menu"
+          aria-label={t.main}
         >
           <Menu className="size-5" />
         </Button>
@@ -58,6 +62,7 @@ export function MobileNav({
           setupProgress={setupProgress}
           selectedWebsiteId={selectedWebsiteId}
           addons={addons}
+          t={t}
         />
       </SheetContent>
     </Sheet>

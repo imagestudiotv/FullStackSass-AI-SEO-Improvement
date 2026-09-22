@@ -4,6 +4,7 @@ import Link from "next/link";
 import { getAvailable } from "@/lib/backlinks/credits";
 import { checkLimit } from "@/lib/usage";
 import { UNLIMITED } from "@/lib/usage-shared";
+import type { Messages } from "@/lib/i18n/messages";
 
 /**
  * What the plan allows, at the bottom of the sidebar.
@@ -19,8 +20,14 @@ import { UNLIMITED } from "@/lib/usage-shared";
 export async function SidebarUsage({
   organizationId,
   websiteId,
+  t,
 }: {
   organizationId: string;
+  /**
+   * Passed in rather than resolved here: this takes an organisation id, and
+   * the language preference belongs to the person, not the workspace.
+   */
+  t: Messages["app"]["nav"];
   /**
    * The website currently selected.
    *
@@ -52,7 +59,7 @@ export async function SidebarUsage({
         className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent/60"
       >
         <Gift className="size-4 shrink-0 text-primary" aria-hidden="true" />
-        Referral program
+        {t.referralProgram}
       </Link>
 
       {/*

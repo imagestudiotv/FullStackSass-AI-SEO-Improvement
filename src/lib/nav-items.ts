@@ -12,6 +12,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
+import type { Messages } from "@/lib/i18n/messages";
+
 /**
  * The sidebar.
  *
@@ -26,7 +28,14 @@ import {
  */
 
 export type NavItem = {
-  title: string;
+  /**
+   * A key into the `nav` dictionary, not the text.
+   *
+   * This array is built at import time, before any request and so before any
+   * locale is known — holding English here is exactly why the sidebar stayed
+   * English while the pages translated. The component looks the key up.
+   */
+  title: keyof Messages["app"]["nav"];
   icon: LucideIcon;
   /**
    * A fixed path, or a segment under /websites/[id] for the per-website
@@ -50,7 +59,7 @@ export type NavItem = {
 };
 
 export const navItems: NavItem[] = [
-  { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { title: "dashboard", href: "/dashboard", icon: LayoutDashboard },
 
   /**
    * The launch checklist, at the client's request: "we can keep also the Get
@@ -61,26 +70,26 @@ export const navItems: NavItem[] = [
    * signup wizard — signup is finished by the time anyone sees this sidebar.
    * Hidden once every required step is done; see sidebar-nav.
    */
-  { title: "Set up", href: "/setup", icon: Rocket },
+  { title: "setUp", href: "/setup", icon: Rocket },
 
   /**
    * Per-website sections, promoted out of the old submenu. Each resolves
    * against the selected website; the sidebar hides them when a customer has
    * no website yet, since they would all be dead links.
    */
-  { title: "Planned Articles", segment: "content", icon: FileText },
-  { title: "Backlink Exchange", segment: "backlinks", icon: Link2 },
-  { title: "Website Health", segment: "", icon: Stethoscope },
-  { title: "Google Results", segment: "google", icon: BarChart3 },
-  { title: "AI Visibility", segment: "ai-visibility", icon: Bot },
-  { title: "Losing Traffic", segment: "traffic", icon: TrendingDown },
+  { title: "plannedArticles", segment: "content", icon: FileText },
+  { title: "backlinkExchange", segment: "backlinks", icon: Link2 },
+  { title: "websiteHealth", segment: "", icon: Stethoscope },
+  { title: "googleResults", segment: "google", icon: BarChart3 },
+  { title: "aiVisibility", segment: "ai-visibility", icon: Bot },
+  { title: "losingTraffic", segment: "traffic", icon: TrendingDown },
 
   /**
    * Settings last, behind a divider: it is where the things you configure
    * once live — publishing, billing, the website profile — as opposed to the
    * things you check.
    */
-  { title: "Settings", href: "/settings", icon: Settings, separatorBefore: true },
+  { title: "settings", href: "/settings", icon: Settings, separatorBefore: true },
 
   /**
    * Add-ons, after Settings.
@@ -91,7 +100,7 @@ export const navItems: NavItem[] = [
    * item itself goes to the panel that sells them.
    */
   {
-    title: "Add-ons",
+    title: "addons",
     href: "/billing#addons",
     icon: Puzzle,
     expands: "addons",

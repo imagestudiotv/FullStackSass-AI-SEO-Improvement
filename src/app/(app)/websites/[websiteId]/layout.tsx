@@ -4,6 +4,7 @@ import { SettingsNav } from "@/components/settings-nav";
 import { PageShell } from "@/components/ui/page-header";
 import { requireSession } from "@/lib/auth-guard";
 import { requireWebsite, WebsiteNotFoundError } from "@/lib/tenant";
+import { getAppMessages } from "@/lib/i18n/app-locale";
 
 /**
  * Shell for one website's area.
@@ -25,14 +26,17 @@ export default async function WebsiteLayout({
   const { websiteId } = await params;
 
   let site;
+  let userId;
   try {
-    ({ site } = await requireWebsite(websiteId));
+    ({ site, userId } = await requireWebsite(websiteId));
   } catch (error) {
     // Another tenant's id is a 404, not a 403: confirming the id exists would
     // tell a stranger which websites we host.
     if (error instanceof WebsiteNotFoundError) notFound();
     throw error;
   }
+
+  const { t } = await getAppMessages(userId);
 
   return (
     <PageShell width="wide">
@@ -52,7 +56,7 @@ export default async function WebsiteLayout({
         onboarding; a badge that is invisible in the normal case is not worth
         a row that is always there.
       */}
-      <SettingsNav websiteId={site.id} />
+      <SettingsNav websiteId={site.id} t={t.app.nav} />
 
       <div className="space-y-6">{children}</div>
     </PageShell>

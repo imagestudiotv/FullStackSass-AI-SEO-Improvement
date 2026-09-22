@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import type { Messages } from "@/lib/i18n/messages";
+
 /**
  * The horizontal settings navigation, as the client designed it.
  *
@@ -30,42 +32,53 @@ import { usePathname } from "next/navigation";
  */
 
 type Section = {
-  label: string;
+  label: keyof Messages["app"]["nav"];
   /** Built per website, or a fixed account-level path. */
   href: (websiteId: string) => string;
+  /**
+   * A key into the `nav` dictionary, not the text. This array is built at
+   * import time, before any locale is known.
+   */
   /** Marks this tab active for any path beginning with these. */
   match: (pathname: string, websiteId: string) => boolean;
 };
 
 const SECTIONS: Section[] = [
   {
-    label: "Business",
+    label: "business",
     href: (id) => `/websites/${id}/profile`,
     match: (p, id) => p === `/websites/${id}/profile`,
   },
   {
-    label: "Article Settings",
+    label: "articleSettings",
     href: (id) => `/websites/${id}/publishing`,
     match: (p, id) => p.startsWith(`/websites/${id}/publishing`),
   },
   {
-    label: "Integrations",
+    label: "integrations",
     href: (id) => `/websites/${id}/google`,
     match: (p, id) => p.startsWith(`/websites/${id}/google`),
   },
   {
-    label: "Account",
+    label: "account",
     href: () => "/settings",
     match: (p) => p.startsWith("/settings"),
   },
   {
-    label: "Billing",
+    label: "billing",
     href: () => "/billing",
     match: (p) => p.startsWith("/billing"),
   },
 ];
 
-export function SettingsNav({ websiteId }: { websiteId: string }) {
+export function SettingsNav({
+  websiteId,
+  t,
+}: {
+  websiteId: string;
+  /** The tab labels, already in the reader's language. */
+  t: Messages["app"]["nav"];
+}) {
   const pathname = usePathname() ?? "";
 
   return (
@@ -76,7 +89,7 @@ export function SettingsNav({ websiteId }: { websiteId: string }) {
       active underline has something to sit against.
     */
     <nav
-      aria-label="Settings sections"
+      aria-label={t.settingsSections}
       /*
         A MUTED TRACK, not bare page.
 
@@ -114,7 +127,7 @@ export function SettingsNav({ websiteId }: { websiteId: string }) {
                     : "border-transparent text-foreground/70 hover:bg-background/60 hover:text-foreground"
                 }`}
               >
-                {section.label}
+                {t[section.label]}
               </Link>
             </li>
           );

@@ -91,7 +91,7 @@ export default async function BillingPage({
       */}
       {websiteId ? (
         <PageShell>
-          <SettingsNav websiteId={websiteId} />
+          <SettingsNav websiteId={websiteId} t={t.app.nav} />
         </PageShell>
       ) : null}
 

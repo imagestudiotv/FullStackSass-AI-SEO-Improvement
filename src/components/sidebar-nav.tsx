@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { navItems } from "@/lib/nav-items";
+import type { Messages } from "@/lib/i18n/messages";
 import { selectWebsite } from "@/lib/websites/actions";
 import { cn } from "@/lib/utils";
 import { sectionHref } from "@/lib/websites/sections";
@@ -43,10 +44,13 @@ export function SidebarNav({
   selectedWebsiteId = null,
   addons = [],
   setupProgress = null,
+  t,
 }: {
   /** "2/7" beside the Set up item. Null when there is nothing to report. */
   setupProgress?: { done: number; total: number } | null;
   onNavigate?: () => void;
+  /** The sidebar's labels, already in the reader's language. */
+  t: Messages["app"]["nav"];
   /**
    * What can be bought, for the Add-ons item to expand into.
    *
@@ -124,7 +128,7 @@ export function SidebarNav({
   });
 
   return (
-    <nav className="flex flex-col gap-0.5 px-3" aria-label="Main">
+    <nav className="flex flex-col gap-0.5 px-3" aria-label={t.main}>
       {items.map((item) => {
         const Icon = item.icon;
 
@@ -180,7 +184,7 @@ export function SidebarNav({
                   )}
                 >
                   <Icon className="size-4 shrink-0" aria-hidden="true" />
-                  {item.title}
+                  {t[item.title]}
                 </Link>
                 <button
                   type="button"
@@ -248,7 +252,7 @@ export function SidebarNav({
               )}
             >
               <Icon className="size-4 shrink-0" aria-hidden="true" />
-              <span className="min-w-0 flex-1 truncate">{item.title}</span>
+              <span className="min-w-0 flex-1 truncate">{t[item.title]}</span>
               {/*
                 Progress beside "Set up", as the design shows. Only on that
                 item, and only while there is progress to report — a badge on

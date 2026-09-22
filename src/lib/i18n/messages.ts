@@ -890,6 +890,26 @@ export type Messages = {
       daysToWrite: string;
       publishWithoutAsking: string;
     };
+    nav: {
+      dashboard: string;
+      setUp: string;
+      plannedArticles: string;
+      backlinkExchange: string;
+      websiteHealth: string;
+      googleResults: string;
+      aiVisibility: string;
+      losingTraffic: string;
+      settings: string;
+      addons: string;
+      main: string;
+      referralProgram: string;
+      business: string;
+      articleSettings: string;
+      integrations: string;
+      account: string;
+      billing: string;
+      settingsSections: string;
+    };
   };
 };
 
@@ -1930,6 +1950,26 @@ const en: Messages = {
       writeAutomatically: "Write articles automatically",
       daysToWrite: "Days to write on",
       publishWithoutAsking: "Publish without asking me",
+    },
+    nav: {
+      dashboard: "Dashboard",
+      setUp: "Set up",
+      plannedArticles: "Planned Articles",
+      backlinkExchange: "Backlink Exchange",
+      websiteHealth: "Website Health",
+      googleResults: "Google Results",
+      aiVisibility: "AI Visibility",
+      losingTraffic: "Losing Traffic",
+      settings: "Settings",
+      addons: "Add-ons",
+      main: "Main",
+      referralProgram: "Referral program",
+      business: "Business",
+      articleSettings: "Article Settings",
+      integrations: "Integrations",
+      account: "Account",
+      billing: "Billing",
+      settingsSections: "Settings sections",
     },
   },
 };
@@ -2981,6 +3021,26 @@ const es: Messages = {
       writeAutomatically: "Escribir artículos automáticamente",
       daysToWrite: "Días en los que escribir",
       publishWithoutAsking: "Publicar sin preguntarme",
+    },
+    nav: {
+      dashboard: "Panel",
+      setUp: "Configuración",
+      plannedArticles: "Artículos planificados",
+      backlinkExchange: "Red de enlaces",
+      websiteHealth: "Salud del sitio",
+      googleResults: "Resultados de Google",
+      aiVisibility: "Visibilidad en IA",
+      losingTraffic: "Tráfico en caída",
+      settings: "Ajustes",
+      addons: "Complementos",
+      main: "Principal",
+      referralProgram: "Programa de recomendación",
+      business: "Negocio",
+      articleSettings: "Ajustes de artículos",
+      integrations: "Integraciones",
+      account: "Cuenta",
+      billing: "Facturación",
+      settingsSections: "Secciones de ajustes",
     },
   },
 };
@@ -4036,6 +4096,26 @@ const fr: Messages = {
       daysToWrite: "Jours de rédaction",
       publishWithoutAsking: "Publier sans me demander",
     },
+    nav: {
+      dashboard: "Tableau de bord",
+      setUp: "Configuration",
+      plannedArticles: "Articles planifiés",
+      backlinkExchange: "Réseau de liens",
+      websiteHealth: "Santé du site",
+      googleResults: "Résultats Google",
+      aiVisibility: "Visibilité dans l\u2019IA",
+      losingTraffic: "Perte de trafic",
+      settings: "Paramètres",
+      addons: "Modules",
+      main: "Principal",
+      referralProgram: "Programme de parrainage",
+      business: "Entreprise",
+      articleSettings: "Paramètres des articles",
+      integrations: "Intégrations",
+      account: "Compte",
+      billing: "Facturation",
+      settingsSections: "Sections des paramètres",
+    },
   },
 };
 
@@ -5082,6 +5162,26 @@ const it: Messages = {
       writeAutomatically: "Scrivi articoli automaticamente",
       daysToWrite: "Giorni in cui scrivere",
       publishWithoutAsking: "Pubblica senza chiedermelo",
+    },
+    nav: {
+      dashboard: "Dashboard",
+      setUp: "Configurazione",
+      plannedArticles: "Articoli pianificati",
+      backlinkExchange: "Rete di link",
+      websiteHealth: "Salute del sito",
+      googleResults: "Risultati Google",
+      aiVisibility: "Visibilità nell\u2019IA",
+      losingTraffic: "Traffico in calo",
+      settings: "Impostazioni",
+      addons: "Componenti aggiuntivi",
+      main: "Principale",
+      referralProgram: "Programma inviti",
+      business: "Attività",
+      articleSettings: "Impostazioni articoli",
+      integrations: "Integrazioni",
+      account: "Account",
+      billing: "Fatturazione",
+      settingsSections: "Sezioni delle impostazioni",
     },
   },
 };
@@ -6136,6 +6236,26 @@ const de: Messages = {
       writeAutomatically: "Artikel automatisch schreiben",
       daysToWrite: "Tage zum Schreiben",
       publishWithoutAsking: "Ohne Rückfrage veröffentlichen",
+    },
+    nav: {
+      dashboard: "Dashboard",
+      setUp: "Einrichtung",
+      plannedArticles: "Geplante Artikel",
+      backlinkExchange: "Link-Netzwerk",
+      websiteHealth: "Website-Zustand",
+      googleResults: "Google-Ergebnisse",
+      aiVisibility: "KI-Sichtbarkeit",
+      losingTraffic: "Traffic-Verlust",
+      settings: "Einstellungen",
+      addons: "Add-ons",
+      main: "Allgemein",
+      referralProgram: "Empfehlungsprogramm",
+      business: "Unternehmen",
+      articleSettings: "Artikeleinstellungen",
+      integrations: "Integrationen",
+      account: "Konto",
+      billing: "Abrechnung",
+      settingsSections: "Einstellungsbereiche",
     },
   },
 };

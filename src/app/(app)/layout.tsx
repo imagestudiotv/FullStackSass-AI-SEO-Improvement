@@ -189,6 +189,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     <div className="flex min-h-svh flex-col bg-muted/30">
       <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <MobileNav
+          t={t.app.nav}
           onboardingComplete={launch ? launch.live : true}
           setupProgress={
             launch
@@ -255,6 +256,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       <div className="flex flex-1">
         <AppSidebar>
           <SidebarNav
+            t={t.app.nav}
             onboardingComplete={launch ? launch.live : true}
             setupProgress={
               launch
@@ -268,7 +270,11 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             Plan usage under the navigation: what is left this month, and
             where to go when it runs out.
           */}
-          <SidebarUsage organizationId={orgId} websiteId={fallbackWebsiteId} />
+          <SidebarUsage
+            organizationId={orgId}
+            websiteId={fallbackWebsiteId}
+            t={t.app.nav}
+          />
         </AppSidebar>
         {/*
           The page content sits on a slightly tinted ground while cards are
