@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import type { Messages } from "@/lib/i18n/messages";
 import {
   ARTICLE_STYLES,
   FEATURED_IMAGE_STYLES,
@@ -72,9 +73,12 @@ export type ArticleSettingsValues = {
 export function ArticleSettingsForm({
   websiteId,
   initial,
+  t,
 }: {
   websiteId: string;
   initial: ArticleSettingsValues;
+  /** This screen's copy, already in the reader's language. */
+  t: Messages["app"]["article"];
 }) {
   const [values, setValues] = useState<ArticleSettingsValues>(initial);
   const [saved, setSaved] = useState<ArticleSettingsValues>(initial);
@@ -116,19 +120,17 @@ export function ArticleSettingsForm({
     <>
       <section className="space-y-6 rounded-2xl border bg-card p-6">
         <div>
-          <h2 className="text-base font-semibold">Content &amp; SEO</h2>
-          <p className="text-sm text-muted-foreground">
-            How every article is written, and what happens to it once it is.
-          </p>
+          <h2 className="text-base font-semibold">{t.contentSeo}</h2>
+          <p className="text-sm text-muted-foreground">{t.contentSeoHelp}</p>
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-5">
           <div className="min-w-0">
-            <p className="text-sm font-medium">Publish as</p>
+            <p className="text-sm font-medium">{t.publishAs}</p>
             <p className="text-sm text-muted-foreground">
               {values.publishAs === "live"
-                ? "Articles go live on your site at their scheduled time."
-                : "Articles are sent as drafts for you to review first."}
+                ? t.publishLive
+                : t.publishDraft}
             </p>
           </div>
           {/*
@@ -138,7 +140,7 @@ export function ArticleSettingsForm({
           */}
           <div
             role="radiogroup"
-            aria-label="Publish as"
+            aria-label={t.publishAs}
             className="flex shrink-0 rounded-full border bg-muted/50 p-1"
           >
             {(["live", "draft"] as const).map((option) => (
@@ -148,13 +150,13 @@ export function ArticleSettingsForm({
                 role="radio"
                 aria-checked={values.publishAs === option}
                 onClick={() => set("publishAs", option)}
-                className={`rounded-full px-4 py-1.5 text-sm font-medium capitalize transition-colors ${
+                className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
                   values.publishAs === option
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                {option}
+                {option === "live" ? t.live : t.draft}
               </button>
             ))}
           </div>
@@ -162,7 +164,7 @@ export function ArticleSettingsForm({
 
         <div className="grid gap-5 border-t pt-5 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor="article-style">Article style</Label>
+            <Label htmlFor="article-style">{t.articleStyle}</Label>
             <select
               id="article-style"
               value={values.articleStyle}
@@ -171,7 +173,7 @@ export function ArticleSettingsForm({
             >
               {ARTICLE_STYLES.map((style) => (
                 <option key={style.id} value={style.id}>
-                  {style.label}
+                  {t.styles[style.id]?.label ?? style.label}
                 </option>
               ))}
             </select>
@@ -181,12 +183,13 @@ export function ArticleSettingsForm({
               between styles wants to know what THIS one does.
             */}
             <p className="text-xs text-muted-foreground">
-              {styleHint(values.articleStyle)}
+              {t.styles[values.articleStyle]?.hint ??
+                styleHint(values.articleStyle)}
             </p>
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="internal-links">Internal links</Label>
+            <Label htmlFor="internal-links">{t.internalLinks}</Label>
             <Input
               id="internal-links"
               type="number"
@@ -197,25 +200,23 @@ export function ArticleSettingsForm({
                 set("internalLinkTarget", Number(e.target.value) || 0)
               }
             />
-            <p className="text-xs text-muted-foreground">
-              Target internal links per article.
-            </p>
+            <p className="text-xs text-muted-foreground">{t.internalLinksHelp}</p>
           </div>
         </div>
 
         <div className="space-y-3 border-t pt-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-sm font-medium">Target word count</p>
+              <p className="text-sm font-medium">{t.targetWordCount}</p>
               <p className="text-sm text-muted-foreground">
                 {adaptive
-                  ? "We pick the best length for each article type."
-                  : "One fixed length across every format."}
+                  ? t.adaptiveOn
+                  : t.adaptiveOff}
               </p>
             </div>
             <div
               role="radiogroup"
-              aria-label="Target word count"
+              aria-label={t.targetWordCount}
               className="flex shrink-0 rounded-full border bg-muted/50 p-1"
             >
               <button
@@ -251,7 +252,7 @@ export function ArticleSettingsForm({
 
           {adaptive ? null : (
             <div className="max-w-xs space-y-1.5">
-              <Label htmlFor="word-count">Words per article</Label>
+              <Label htmlFor="word-count">{t.wordsPerArticle}</Label>
               <Input
                 id="word-count"
                 type="number"
@@ -274,7 +275,7 @@ export function ArticleSettingsForm({
       {/* Content details ------------------------------------------------ */}
       <section className="space-y-5 rounded-2xl border bg-card p-6">
         <div>
-          <h2 className="text-base font-semibold">Content details</h2>
+          <h2 className="text-base font-semibold">{t.contentDetails}</h2>
           <p className="text-sm text-muted-foreground">
             Where your content lives, so we can link to it and match its shape.
           </p>
@@ -282,7 +283,7 @@ export function ArticleSettingsForm({
 
         <UrlField
           id="sitemap-url"
-          label="Sitemap URL"
+          label={t.sitemapUrl}
           hint="Lets us find pages worth linking to from new articles."
           placeholder="https://example.com/sitemap.xml"
           value={values.sitemapUrl}
@@ -290,7 +291,7 @@ export function ArticleSettingsForm({
         />
         <UrlField
           id="blog-url"
-          label="Main blog address"
+          label={t.blogAddress}
           hint="Where published articles should appear."
           placeholder="https://example.com/blog"
           value={values.blogUrl}
@@ -298,7 +299,7 @@ export function ArticleSettingsForm({
         />
         <UrlField
           id="example-url"
-          label="Your best article example"
+          label={t.bestArticle}
           hint="One article you are happy with. We match its shape and depth."
           placeholder="https://example.com/blog/a-good-one"
           value={values.exampleArticleUrl}
@@ -309,14 +310,14 @@ export function ArticleSettingsForm({
       {/* Engagement ------------------------------------------------------ */}
       <section className="space-y-6 rounded-2xl border bg-card p-6">
         <div>
-          <h2 className="text-base font-semibold">Engagement</h2>
+          <h2 className="text-base font-semibold">{t.engagement}</h2>
           <p className="text-sm text-muted-foreground">
             How articles look, and what gets added alongside the words.
           </p>
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="brand-color">Brand colour</Label>
+          <Label htmlFor="brand-color">{t.brandColour}</Label>
           <div className="flex items-center gap-2">
             {/*
               A native colour input beside a text field. The swatch is how
@@ -333,14 +334,14 @@ export function ArticleSettingsForm({
               }
               onChange={(e) => set("brandColor", e.target.value)}
               className="size-9 shrink-0 cursor-pointer rounded-md border bg-transparent p-1"
-              aria-label="Brand colour swatch"
+              aria-label={t.brandColour}
             />
             <Input
               value={values.brandColor}
               onChange={(e) => set("brandColor", e.target.value)}
               placeholder="#003388"
               className="max-w-40 font-mono"
-              aria-label="Brand colour hex"
+              aria-label={t.brandColour}
             />
           </div>
         </div>
@@ -386,7 +387,7 @@ export function ArticleSettingsForm({
         <div className="space-y-1.5">
           <Label htmlFor="image-instructions">
             Extra image instructions{" "}
-            <span className="font-normal text-muted-foreground">Optional</span>
+            <span className="font-normal text-muted-foreground">{t.optional}</span>
           </Label>
           <textarea
             id="image-instructions"
@@ -400,25 +401,25 @@ export function ArticleSettingsForm({
 
         <div className="space-y-1 border-t pt-5">
           <Toggle
-            label="Table of contents"
+            label={t.tableOfContents}
             hint="Adds a contents list built from the article headings."
             checked={values.tableOfContents}
             onChange={(v) => set("tableOfContents", v)}
           />
           <Toggle
-            label="YouTube video"
+            label={t.youtubeVideo}
             hint="Finds and embeds a relevant video."
             checked={values.youtubeVideo}
             onChange={(v) => set("youtubeVideo", v)}
           />
           <Toggle
-            label="Author perspective"
+            label={t.authorPerspective}
             hint="Writes with a point of view rather than impersonally."
             checked={values.authorPerspective}
             onChange={(v) => set("authorPerspective", v)}
           />
           <Toggle
-            label="Mention similar products and tools"
+            label={t.mentionSimilar}
             hint="References and compares alternatives, for richer coverage."
             checked={values.mentionSimilarProducts}
             onChange={(v) => set("mentionSimilarProducts", v)}
@@ -431,7 +432,7 @@ export function ArticleSettingsForm({
             retroactive change.
           */}
           <Toggle
-            label="Powered by RepGet link"
+            label={t.poweredBy}
             hint="A small credit at the end of each article. Turning it off applies to articles not yet published."
             checked={values.poweredByLink}
             onChange={(v) => set("poweredByLink", v)}
@@ -442,7 +443,7 @@ export function ArticleSettingsForm({
       {/* How we write ---------------------------------------------------- */}
       <section className="space-y-5 rounded-2xl border bg-card p-6">
         <div>
-          <h2 className="text-base font-semibold">How we write</h2>
+          <h2 className="text-base font-semibold">{t.howWeWrite}</h2>
           <p className="text-sm text-muted-foreground">
             The voice behind every article. Merged in from its own panel, so
             one Save covers the whole screen.
@@ -450,29 +451,29 @@ export function ArticleSettingsForm({
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="tone">How should your articles sound?</Label>
+          <Label htmlFor="tone">{t.toneLabel}</Label>
           <Input
             id="tone"
             value={values.tone}
             onChange={(e) => set("tone", e.target.value)}
-            placeholder="Friendly and reassuring, not clinical"
+            placeholder={t.tonePlaceholder}
           />
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="instructions">Rules for every article</Label>
+          <Label htmlFor="instructions">{t.rulesLabel}</Label>
           <textarea
             id="instructions"
             rows={2}
             value={values.articleInstructions}
             onChange={(e) => set("articleInstructions", e.target.value)}
-            placeholder="Never put a year in the title. Always mention we offer free delivery."
+            placeholder={t.rulesPlaceholder}
             className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
           />
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="facts">Facts about your business</Label>
+          <Label htmlFor="facts">{t.factsLabel}</Label>
           <textarea
             id="facts"
             rows={3}
@@ -495,7 +496,7 @@ export function ArticleSettingsForm({
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="usps">What makes you different?</Label>
+          <Label htmlFor="usps">{t.uspsLabel}</Label>
           <textarea
             id="usps"
             rows={3}
@@ -504,26 +505,26 @@ export function ArticleSettingsForm({
             placeholder={"Same-day emergency appointments\nWe see nervous patients"}
             className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
           />
-          <p className="text-xs text-muted-foreground">One per line.</p>
+          <p className="text-xs text-muted-foreground">{t.onePerLine}</p>
         </div>
 
         <div className="grid gap-5 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor="vocabulary">Words you prefer</Label>
+            <Label htmlFor="vocabulary">{t.preferLabel}</Label>
             <Input
               id="vocabulary"
               value={values.vocabulary}
               onChange={(e) => set("vocabulary", e.target.value)}
-              placeholder="Say treatment, not procedure"
+              placeholder={t.preferPlaceholder}
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="avoid">Words to avoid</Label>
+            <Label htmlFor="avoid">{t.avoidLabel}</Label>
             <Input
               id="avoid"
               value={values.avoid}
               onChange={(e) => set("avoid", e.target.value)}
-              placeholder="Never say cheap"
+              placeholder={t.avoidPlaceholder}
             />
           </div>
         </div>
@@ -532,7 +533,7 @@ export function ArticleSettingsForm({
       {/* Author bio ------------------------------------------------------ */}
       <section className="space-y-5 rounded-2xl border bg-card p-6">
         <div>
-          <h2 className="text-base font-semibold">Author</h2>
+          <h2 className="text-base font-semibold">{t.author}</h2>
           <p className="text-sm text-muted-foreground">
             The byline shown on each article, here and on your live site.
           </p>
@@ -540,24 +541,24 @@ export function ArticleSettingsForm({
 
         <div className="grid gap-5 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor="author-name">Author name</Label>
+            <Label htmlFor="author-name">{t.authorName}</Label>
             <Input
               id="author-name"
               value={values.authorName}
               onChange={(e) => set("authorName", e.target.value)}
-              placeholder="Your name, or the brand"
+              placeholder={t.authorNamePlaceholder}
             />
           </div>
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="author-bio">Short bio</Label>
+          <Label htmlFor="author-bio">{t.shortBio}</Label>
           <textarea
             id="author-bio"
             rows={3}
             value={values.authorBio}
             onChange={(e) => set("authorBio", e.target.value)}
-            placeholder="One or two sentences on who is writing and why they know."
+            placeholder={t.shortBioPlaceholder}
             className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
           />
           <p className="text-xs text-muted-foreground">
@@ -622,7 +623,7 @@ export function ArticleSettingsForm({
                 variant="ghost"
                 size="sm"
                 onClick={() => setPreview(null)}
-                aria-label="Close preview"
+                aria-label={t.closePreview}
               >
                 <X className="size-4" />
               </Button>
@@ -635,7 +636,7 @@ export function ArticleSettingsForm({
         <>
           <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 backdrop-blur">
             <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
-              <p className="text-sm text-muted-foreground">Unsaved changes</p>
+              <p className="text-sm text-muted-foreground">{t.unsavedChanges}</p>
               <div className="flex gap-2">
                 <Button
                   variant="ghost"

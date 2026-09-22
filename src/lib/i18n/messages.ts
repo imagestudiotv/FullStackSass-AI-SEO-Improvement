@@ -446,6 +446,55 @@ export type Messages = {
       monthly: string;
       annual: string;
     };
+    article: {
+      contentSeo: string;
+      contentSeoHelp: string;
+      publishAs: string;
+      publishLive: string;
+      publishDraft: string;
+      live: string;
+      draft: string;
+      articleStyle: string;
+      internalLinks: string;
+      internalLinksHelp: string;
+      targetWordCount: string;
+      adaptiveOn: string;
+      adaptiveOff: string;
+      wordsPerArticle: string;
+      contentDetails: string;
+      sitemapUrl: string;
+      blogAddress: string;
+      bestArticle: string;
+      engagement: string;
+      brandColour: string;
+      optional: string;
+      tableOfContents: string;
+      youtubeVideo: string;
+      authorPerspective: string;
+      mentionSimilar: string;
+      poweredBy: string;
+      howWeWrite: string;
+      toneLabel: string;
+      tonePlaceholder: string;
+      rulesLabel: string;
+      rulesPlaceholder: string;
+      factsLabel: string;
+      uspsLabel: string;
+      onePerLine: string;
+      preferLabel: string;
+      preferPlaceholder: string;
+      avoidLabel: string;
+      avoidPlaceholder: string;
+      author: string;
+      authorName: string;
+      authorNamePlaceholder: string;
+      shortBio: string;
+      shortBioPlaceholder: string;
+      closePreview: string;
+      unsavedChanges: string;
+      /** Editorial register options, by id. */
+      styles: Record<string, { label: string; hint: string }>;
+    };
   };
 };
 
@@ -1045,6 +1094,59 @@ const en: Messages = {
       renewsOn: (date) => `Renews on ${date}.`,
       monthly: "Monthly",
       annual: "Annual",
+    },
+    article: {
+      contentSeo: "Content & SEO",
+      contentSeoHelp: "How every article is written, and what happens to it once it is.",
+      publishAs: "Publish as",
+      publishLive: "Articles go live on your site at their scheduled time.",
+      publishDraft: "Articles are sent as drafts for you to review first.",
+      live: "Live",
+      draft: "Draft",
+      articleStyle: "Article style",
+      internalLinks: "Internal links",
+      internalLinksHelp: "Target internal links per article.",
+      targetWordCount: "Target word count",
+      adaptiveOn: "We pick the best length for each article type.",
+      adaptiveOff: "One fixed length across every format.",
+      wordsPerArticle: "Words per article",
+      contentDetails: "Content details",
+      sitemapUrl: "Sitemap URL",
+      blogAddress: "Main blog address",
+      bestArticle: "Your best article example",
+      engagement: "Engagement",
+      brandColour: "Brand colour",
+      optional: "Optional",
+      tableOfContents: "Table of contents",
+      youtubeVideo: "YouTube video",
+      authorPerspective: "Author perspective",
+      mentionSimilar: "Mention similar products and tools",
+      poweredBy: "Powered by RepGet link",
+      howWeWrite: "How we write",
+      toneLabel: "How should your articles sound?",
+      tonePlaceholder: "Friendly and reassuring, not clinical",
+      rulesLabel: "Rules for every article",
+      rulesPlaceholder: "Never put a year in the title. Always mention we offer free delivery.",
+      factsLabel: "Facts about your business",
+      uspsLabel: "What makes you different?",
+      onePerLine: "One per line.",
+      preferLabel: "Words you prefer",
+      preferPlaceholder: "Say treatment, not procedure",
+      avoidLabel: "Words to avoid",
+      avoidPlaceholder: "Never say cheap",
+      author: "Author",
+      authorName: "Author name",
+      authorNamePlaceholder: "Your name, or the brand",
+      shortBio: "Short bio",
+      shortBioPlaceholder: "One or two sentences on who is writing and why they know.",
+      closePreview: "Close preview",
+      unsavedChanges: "Unsaved changes",
+      styles: {
+        expert: { label: "Expert", hint: "Precise editorial tone with balanced caveats and terminology." },
+        conversational: { label: "Conversational", hint: "Plain, direct sentences. Explains terms the first time they appear." },
+        friendly: { label: "Friendly", hint: "Warm and encouraging, second person, light on jargon." },
+        journalistic: { label: "Journalistic", hint: "Leads with the finding, attributes claims, no marketing language." },
+      },
     },
   },
 };
@@ -1655,6 +1757,59 @@ const es: Messages = {
       renewsOn: (date) => `Se renueva el ${date}.`,
       monthly: "Mensual",
       annual: "Anual",
+    },
+    article: {
+      contentSeo: "Contenido y SEO",
+      contentSeoHelp: "Cómo se escribe cada artículo y qué ocurre con él después.",
+      publishAs: "Publicar como",
+      publishLive: "Los artículos se publican en su sitio a la hora programada.",
+      publishDraft: "Los artículos se envían como borradores para que los revise primero.",
+      live: "Publicado",
+      draft: "Borrador",
+      articleStyle: "Estilo del artículo",
+      internalLinks: "Enlaces internos",
+      internalLinksHelp: "Enlaces internos objetivo por artículo.",
+      targetWordCount: "Extensión objetivo",
+      adaptiveOn: "Elegimos la mejor extensión para cada tipo de artículo.",
+      adaptiveOff: "Una extensión fija para todos los formatos.",
+      wordsPerArticle: "Palabras por artículo",
+      contentDetails: "Detalles del contenido",
+      sitemapUrl: "URL del sitemap",
+      blogAddress: "Dirección principal del blog",
+      bestArticle: "Su mejor artículo de ejemplo",
+      engagement: "Interacción",
+      brandColour: "Color de marca",
+      optional: "Opcional",
+      tableOfContents: "Índice",
+      youtubeVideo: "Vídeo de YouTube",
+      authorPerspective: "Perspectiva del autor",
+      mentionSimilar: "Mencionar productos y herramientas similares",
+      poweredBy: "Enlace Powered by RepGet",
+      howWeWrite: "Cómo escribimos",
+      toneLabel: "¿Cómo deben sonar sus artículos?",
+      tonePlaceholder: "Cercano y tranquilizador, no clínico",
+      rulesLabel: "Reglas para cada artículo",
+      rulesPlaceholder: "Nunca ponga un año en el título. Mencione siempre que ofrecemos envío gratuito.",
+      factsLabel: "Datos sobre su negocio",
+      uspsLabel: "¿Qué le hace diferente?",
+      onePerLine: "Uno por línea.",
+      preferLabel: "Palabras que prefiere",
+      preferPlaceholder: "Diga tratamiento, no procedimiento",
+      avoidLabel: "Palabras que evitar",
+      avoidPlaceholder: "Nunca diga barato",
+      author: "Autor",
+      authorName: "Nombre del autor",
+      authorNamePlaceholder: "Su nombre, o el de la marca",
+      shortBio: "Biografía breve",
+      shortBioPlaceholder: "Una o dos frases sobre quién escribe y por qué sabe del tema.",
+      closePreview: "Cerrar vista previa",
+      unsavedChanges: "Cambios sin guardar",
+      styles: {
+        expert: { label: "Experto", hint: "Tono editorial preciso, con matices y terminología equilibrados." },
+        conversational: { label: "Conversacional", hint: "Frases claras y directas. Explica los términos la primera vez que aparecen." },
+        friendly: { label: "Cercano", hint: "Cálido y alentador, en segunda persona, con poca jerga." },
+        journalistic: { label: "Periodístico", hint: "Empieza por el hallazgo, atribuye las afirmaciones, sin lenguaje comercial." },
+      },
     },
   },
 };
@@ -2269,6 +2424,59 @@ const fr: Messages = {
       monthly: "Mensuel",
       annual: "Annuel",
     },
+    article: {
+      contentSeo: "Contenu et SEO",
+      contentSeoHelp: "Comment chaque article est rédigé, et ce qu\u2019il devient ensuite.",
+      publishAs: "Publier en",
+      publishLive: "Les articles sont mis en ligne sur votre site à l\u2019heure prévue.",
+      publishDraft: "Les articles sont envoyés en brouillon pour que vous les relisiez.",
+      live: "En ligne",
+      draft: "Brouillon",
+      articleStyle: "Style des articles",
+      internalLinks: "Liens internes",
+      internalLinksHelp: "Nombre visé de liens internes par article.",
+      targetWordCount: "Longueur visée",
+      adaptiveOn: "Nous choisissons la meilleure longueur selon le type d\u2019article.",
+      adaptiveOff: "Une longueur fixe pour tous les formats.",
+      wordsPerArticle: "Mots par article",
+      contentDetails: "Détails du contenu",
+      sitemapUrl: "URL du sitemap",
+      blogAddress: "Adresse principale du blog",
+      bestArticle: "Votre meilleur article en exemple",
+      engagement: "Engagement",
+      brandColour: "Couleur de marque",
+      optional: "Facultatif",
+      tableOfContents: "Sommaire",
+      youtubeVideo: "Vidéo YouTube",
+      authorPerspective: "Point de vue de l\u2019auteur",
+      mentionSimilar: "Mentionner des produits et outils similaires",
+      poweredBy: "Lien Powered by RepGet",
+      howWeWrite: "Notre façon d\u2019écrire",
+      toneLabel: "Quel ton vos articles doivent-ils avoir ?",
+      tonePlaceholder: "Chaleureux et rassurant, pas clinique",
+      rulesLabel: "Règles pour chaque article",
+      rulesPlaceholder: "Ne jamais mettre d\u2019année dans le titre. Toujours mentionner la livraison gratuite.",
+      factsLabel: "Informations sur votre entreprise",
+      uspsLabel: "Qu\u2019est-ce qui vous distingue ?",
+      onePerLine: "Un par ligne.",
+      preferLabel: "Mots que vous préférez",
+      preferPlaceholder: "Dire traitement, pas intervention",
+      avoidLabel: "Mots à éviter",
+      avoidPlaceholder: "Ne jamais dire pas cher",
+      author: "Auteur",
+      authorName: "Nom de l\u2019auteur",
+      authorNamePlaceholder: "Votre nom, ou celui de la marque",
+      shortBio: "Courte biographie",
+      shortBioPlaceholder: "Une ou deux phrases sur qui écrit et pourquoi cette personne s\u2019y connaît.",
+      closePreview: "Fermer l\u2019aperçu",
+      unsavedChanges: "Modifications non enregistrées",
+      styles: {
+        expert: { label: "Expert", hint: "Ton éditorial précis, nuances et terminologie équilibrées." },
+        conversational: { label: "Conversationnel", hint: "Des phrases simples et directes. Explique les termes dès leur première apparition." },
+        friendly: { label: "Chaleureux", hint: "Encourageant, à la deuxième personne, peu de jargon." },
+        journalistic: { label: "Journalistique", hint: "Commence par le constat, attribue les affirmations, sans langage marketing." },
+      },
+    },
   },
 };
 
@@ -2874,6 +3082,59 @@ const it: Messages = {
       renewsOn: (date) => `Si rinnova il ${date}.`,
       monthly: "Mensile",
       annual: "Annuale",
+    },
+    article: {
+      contentSeo: "Contenuti e SEO",
+      contentSeoHelp: "Come viene scritto ogni articolo e che cosa ne succede dopo.",
+      publishAs: "Pubblica come",
+      publishLive: "Gli articoli vengono pubblicati sul suo sito all\u2019orario previsto.",
+      publishDraft: "Gli articoli vengono inviati come bozze da rivedere prima.",
+      live: "Pubblicato",
+      draft: "Bozza",
+      articleStyle: "Stile degli articoli",
+      internalLinks: "Link interni",
+      internalLinksHelp: "Link interni previsti per articolo.",
+      targetWordCount: "Lunghezza prevista",
+      adaptiveOn: "Scegliamo la lunghezza migliore per ogni tipo di articolo.",
+      adaptiveOff: "Una lunghezza fissa per ogni formato.",
+      wordsPerArticle: "Parole per articolo",
+      contentDetails: "Dettagli del contenuto",
+      sitemapUrl: "URL della sitemap",
+      blogAddress: "Indirizzo principale del blog",
+      bestArticle: "Il suo miglior articolo di esempio",
+      engagement: "Coinvolgimento",
+      brandColour: "Colore del marchio",
+      optional: "Facoltativo",
+      tableOfContents: "Indice",
+      youtubeVideo: "Video YouTube",
+      authorPerspective: "Punto di vista dell\u2019autore",
+      mentionSimilar: "Citare prodotti e strumenti simili",
+      poweredBy: "Link Powered by RepGet",
+      howWeWrite: "Come scriviamo",
+      toneLabel: "Che tono devono avere i suoi articoli?",
+      tonePlaceholder: "Cordiale e rassicurante, non clinico",
+      rulesLabel: "Regole per ogni articolo",
+      rulesPlaceholder: "Mai mettere un anno nel titolo. Citare sempre la spedizione gratuita.",
+      factsLabel: "Informazioni sulla sua attività",
+      uspsLabel: "Che cosa la rende diversa?",
+      onePerLine: "Uno per riga.",
+      preferLabel: "Parole che preferisce",
+      preferPlaceholder: "Dica trattamento, non procedura",
+      avoidLabel: "Parole da evitare",
+      avoidPlaceholder: "Mai dire economico",
+      author: "Autore",
+      authorName: "Nome dell\u2019autore",
+      authorNamePlaceholder: "Il suo nome, o quello del marchio",
+      shortBio: "Breve biografia",
+      shortBioPlaceholder: "Una o due frasi su chi scrive e perché se ne intende.",
+      closePreview: "Chiudi anteprima",
+      unsavedChanges: "Modifiche non salvate",
+      styles: {
+        expert: { label: "Esperto", hint: "Tono editoriale preciso, con sfumature e terminologia equilibrate." },
+        conversational: { label: "Colloquiale", hint: "Frasi semplici e dirette. Spiega i termini alla prima comparsa." },
+        friendly: { label: "Cordiale", hint: "Caloroso e incoraggiante, in seconda persona, poco gergo." },
+        journalistic: { label: "Giornalistico", hint: "Parte dal risultato, attribuisce le affermazioni, senza linguaggio pubblicitario." },
+      },
     },
   },
 };
@@ -3487,6 +3748,59 @@ const de: Messages = {
       renewsOn: (date) => `Verlängert sich am ${date}.`,
       monthly: "Monatlich",
       annual: "Jährlich",
+    },
+    article: {
+      contentSeo: "Inhalte und SEO",
+      contentSeoHelp: "Wie jeder Artikel geschrieben wird und was danach mit ihm geschieht.",
+      publishAs: "Veröffentlichen als",
+      publishLive: "Artikel gehen zur geplanten Zeit auf Ihrer Website live.",
+      publishDraft: "Artikel werden als Entwurf gesendet, damit Sie sie zuerst prüfen.",
+      live: "Live",
+      draft: "Entwurf",
+      articleStyle: "Artikelstil",
+      internalLinks: "Interne Links",
+      internalLinksHelp: "Angestrebte interne Links pro Artikel.",
+      targetWordCount: "Angestrebte Länge",
+      adaptiveOn: "Wir wählen die passende Länge für jede Artikelart.",
+      adaptiveOff: "Eine feste Länge für jedes Format.",
+      wordsPerArticle: "Wörter pro Artikel",
+      contentDetails: "Inhaltsdetails",
+      sitemapUrl: "Sitemap-URL",
+      blogAddress: "Hauptadresse des Blogs",
+      bestArticle: "Ihr bester Beispielartikel",
+      engagement: "Interaktion",
+      brandColour: "Markenfarbe",
+      optional: "Optional",
+      tableOfContents: "Inhaltsverzeichnis",
+      youtubeVideo: "YouTube-Video",
+      authorPerspective: "Perspektive der Autorin oder des Autors",
+      mentionSimilar: "Ähnliche Produkte und Tools erwähnen",
+      poweredBy: "Powered-by-RepGet-Link",
+      howWeWrite: "Wie wir schreiben",
+      toneLabel: "Wie sollen Ihre Artikel klingen?",
+      tonePlaceholder: "Freundlich und beruhigend, nicht klinisch",
+      rulesLabel: "Regeln für jeden Artikel",
+      rulesPlaceholder: "Nie eine Jahreszahl im Titel. Immer den kostenlosen Versand erwähnen.",
+      factsLabel: "Fakten über Ihr Unternehmen",
+      uspsLabel: "Was unterscheidet Sie?",
+      onePerLine: "Eines pro Zeile.",
+      preferLabel: "Bevorzugte Wörter",
+      preferPlaceholder: "Behandlung sagen, nicht Eingriff",
+      avoidLabel: "Zu vermeidende Wörter",
+      avoidPlaceholder: "Nie billig sagen",
+      author: "Autor",
+      authorName: "Name der Autorin oder des Autors",
+      authorNamePlaceholder: "Ihr Name oder der der Marke",
+      shortBio: "Kurzbiografie",
+      shortBioPlaceholder: "Ein bis zwei Sätze dazu, wer schreibt und warum diese Person sich auskennt.",
+      closePreview: "Vorschau schließen",
+      unsavedChanges: "Nicht gespeicherte Änderungen",
+      styles: {
+        expert: { label: "Fachlich", hint: "Präziser redaktioneller Ton mit ausgewogenen Einschränkungen und Fachbegriffen." },
+        conversational: { label: "Gesprächsnah", hint: "Klare, direkte Sätze. Erklärt Begriffe beim ersten Auftreten." },
+        friendly: { label: "Freundlich", hint: "Warm und ermutigend, in der Sie-Form, wenig Fachjargon." },
+        journalistic: { label: "Journalistisch", hint: "Beginnt mit dem Befund, schreibt Aussagen zu, ohne Werbesprache." },
+      },
     },
   },
 };
