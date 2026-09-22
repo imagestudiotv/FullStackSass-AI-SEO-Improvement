@@ -6,6 +6,7 @@ import {
 import { SettingsNav } from "@/components/settings-nav";
 import { PageShell } from "@/components/ui/page-header";
 import { requireSession } from "@/lib/auth-guard";
+import { getAppMessages } from "@/lib/i18n/app-locale";
 import { isPayPalAvailable } from "@/lib/paypal/actions";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
@@ -28,7 +29,7 @@ export const dynamic = "force-dynamic";
 export default async function BillingPage({
   searchParams,
 }: PageProps<"/billing">) {
-  await requireSession();
+  const session = await requireSession();
   const { orgId } = await requireOrg();
 
   /**
@@ -79,6 +80,7 @@ export default async function BillingPage({
   const checkout =
     typeof params.checkout === "string" ? params.checkout : undefined;
   const addonResult = typeof params.addon === "string" ? params.addon : undefined;
+  const { locale, t } = await getAppMessages(session.user.id);
 
   return (
     <>
@@ -102,7 +104,9 @@ export default async function BillingPage({
         addonResult={addonResult}
         websiteId={websiteId}
         websiteSubscriptions={websiteSubscriptions}
-        />
+        t={t.app.billing}
+        locale={locale}
+      />
       {/*
         Below the plans: an add-on is something you buy in addition to a
         subscription, so it should not compete with choosing one.

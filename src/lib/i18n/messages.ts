@@ -427,6 +427,25 @@ export type Messages = {
       cancel: string;
       adding: string;
     };
+    billing: {
+      title: string;
+      subtitle: string;
+      yourWebsites: string;
+      yourWebsitesHelp: string;
+      noPlanYet: string;
+      /** "Growth — renews 21/09/2026" / "Growth — ends 21/09/2026". */
+      planRenews: (plan: string, date: string) => string;
+      planEnds: (plan: string, date: string) => string;
+      currentPlan: string;
+      accessEnds: string;
+      nextInvoice: string;
+      onPlan: (plan: string) => string;
+      noSubscription: string;
+      accessEndsOn: (date: string) => string;
+      renewsOn: (date: string) => string;
+      monthly: string;
+      annual: string;
+    };
   };
 };
 
@@ -1008,6 +1027,24 @@ const en: Messages = {
       urlPlaceholder: "example.com",
       cancel: "Cancel",
       adding: "Adding…",
+    },
+    billing: {
+      title: "Billing",
+      subtitle: "Each website has its own plan. Credits are shared across all of them.",
+      yourWebsites: "Your websites",
+      yourWebsitesHelp: "A website without a plan cannot generate or publish articles.",
+      noPlanYet: "No plan yet",
+      planRenews: (plan, date) => `${plan} — renews ${date}`,
+      planEnds: (plan, date) => `${plan} — ends ${date}`,
+      currentPlan: "Current plan",
+      accessEnds: "Access ends",
+      nextInvoice: "Next invoice",
+      onPlan: (plan) => `You are on the ${plan} plan.`,
+      noSubscription: "No active subscription yet. Choose a plan below to get started.",
+      accessEndsOn: (date) => `Access ends on ${date}.`,
+      renewsOn: (date) => `Renews on ${date}.`,
+      monthly: "Monthly",
+      annual: "Annual",
     },
   },
 };
@@ -1600,6 +1637,24 @@ const es: Messages = {
       urlPlaceholder: "ejemplo.com",
       cancel: "Cancelar",
       adding: "Añadiendo…",
+    },
+    billing: {
+      title: "Facturación",
+      subtitle: "Cada sitio web tiene su propio plan. Los créditos se comparten entre todos.",
+      yourWebsites: "Sus sitios web",
+      yourWebsitesHelp: "Un sitio web sin plan no puede generar ni publicar artículos.",
+      noPlanYet: "Todavía sin plan",
+      planRenews: (plan, date) => `${plan} — se renueva el ${date}`,
+      planEnds: (plan, date) => `${plan} — finaliza el ${date}`,
+      currentPlan: "Plan actual",
+      accessEnds: "El acceso finaliza",
+      nextInvoice: "Próxima factura",
+      onPlan: (plan) => `Tiene el plan ${plan}.`,
+      noSubscription: "Todavía no hay suscripción activa. Elija un plan para empezar.",
+      accessEndsOn: (date) => `El acceso finaliza el ${date}.`,
+      renewsOn: (date) => `Se renueva el ${date}.`,
+      monthly: "Mensual",
+      annual: "Anual",
     },
   },
 };
@@ -2196,6 +2251,24 @@ const fr: Messages = {
       cancel: "Annuler",
       adding: "Ajout…",
     },
+    billing: {
+      title: "Facturation",
+      subtitle: "Chaque site a son propre forfait. Les crédits sont partagés entre tous.",
+      yourWebsites: "Vos sites web",
+      yourWebsitesHelp: "Un site sans forfait ne peut ni générer ni publier d\u2019articles.",
+      noPlanYet: "Pas encore de forfait",
+      planRenews: (plan, date) => `${plan} — renouvellement le ${date}`,
+      planEnds: (plan, date) => `${plan} — fin le ${date}`,
+      currentPlan: "Forfait actuel",
+      accessEnds: "Fin de l\u2019accès",
+      nextInvoice: "Prochaine facture",
+      onPlan: (plan) => `Vous êtes sur le forfait ${plan}.`,
+      noSubscription: "Aucun abonnement actif. Choisissez un forfait ci-dessous pour commencer.",
+      accessEndsOn: (date) => `L\u2019accès prend fin le ${date}.`,
+      renewsOn: (date) => `Renouvellement le ${date}.`,
+      monthly: "Mensuel",
+      annual: "Annuel",
+    },
   },
 };
 
@@ -2783,6 +2856,24 @@ const it: Messages = {
       urlPlaceholder: "esempio.com",
       cancel: "Annulla",
       adding: "Aggiunta…",
+    },
+    billing: {
+      title: "Fatturazione",
+      subtitle: "Ogni sito ha il proprio piano. I crediti sono condivisi tra tutti.",
+      yourWebsites: "I suoi siti web",
+      yourWebsitesHelp: "Un sito senza piano non può generare né pubblicare articoli.",
+      noPlanYet: "Ancora nessun piano",
+      planRenews: (plan, date) => `${plan} — si rinnova il ${date}`,
+      planEnds: (plan, date) => `${plan} — termina il ${date}`,
+      currentPlan: "Piano attuale",
+      accessEnds: "L\u2019accesso termina",
+      nextInvoice: "Prossima fattura",
+      onPlan: (plan) => `Ha il piano ${plan}.`,
+      noSubscription: "Nessun abbonamento attivo. Scelga un piano qui sotto per iniziare.",
+      accessEndsOn: (date) => `L\u2019accesso termina il ${date}.`,
+      renewsOn: (date) => `Si rinnova il ${date}.`,
+      monthly: "Mensile",
+      annual: "Annuale",
     },
   },
 };
@@ -3378,6 +3469,24 @@ const de: Messages = {
       urlPlaceholder: "beispiel.de",
       cancel: "Abbrechen",
       adding: "Wird hinzugefügt…",
+    },
+    billing: {
+      title: "Abrechnung",
+      subtitle: "Jede Website hat ihren eigenen Tarif. Credits gelten für alle gemeinsam.",
+      yourWebsites: "Ihre Websites",
+      yourWebsitesHelp: "Eine Website ohne Tarif kann keine Artikel erstellen oder veröffentlichen.",
+      noPlanYet: "Noch kein Tarif",
+      planRenews: (plan, date) => `${plan} — verlängert sich am ${date}`,
+      planEnds: (plan, date) => `${plan} — endet am ${date}`,
+      currentPlan: "Aktueller Tarif",
+      accessEnds: "Zugriff endet",
+      nextInvoice: "Nächste Rechnung",
+      onPlan: (plan) => `Sie nutzen den Tarif ${plan}.`,
+      noSubscription: "Noch kein aktives Abonnement. Wählen Sie unten einen Tarif, um zu starten.",
+      accessEndsOn: (date) => `Der Zugriff endet am ${date}.`,
+      renewsOn: (date) => `Verlängert sich am ${date}.`,
+      monthly: "Monatlich",
+      annual: "Jährlich",
     },
   },
 };

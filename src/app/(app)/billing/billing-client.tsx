@@ -37,6 +37,9 @@ import { createPayPalCheckout } from "@/lib/paypal/actions";
 import { SUPPORT_EMAIL } from "@/lib/config/site";
 import { createCheckoutSession } from "@/lib/stripe/actions";
 import { createPortalSession, type PortalFlow } from "@/lib/stripe/portal";
+import type { Locale } from "@/lib/i18n/config";
+import { formatDate, formatNumber } from "@/lib/i18n/format";
+import type { Messages } from "@/lib/i18n/messages";
 
 type BillingClientProps = {
   plans: PlanRow[];
@@ -55,6 +58,10 @@ type BillingClientProps = {
   websiteId: string | null;
   /** Every website and the plan paying for it. */
   websiteSubscriptions: WebsiteSubscription[];
+  /** This screen's copy, already in the reader's language. */
+  t: Messages["app"]["billing"];
+  /** For dates and thousands separators. */
+  locale: Locale;
 };
 
 function planFeatures(plan: PlanRow): string[] {
@@ -98,6 +105,8 @@ export function BillingClient({
   addonResult,
   websiteId,
   websiteSubscriptions,
+  t,
+  locale,
 }: BillingClientProps) {
   const [interval, setInterval] = useState<"month" | "year">(
     subscription?.interval === "year" ? "year" : "month",
@@ -251,8 +260,8 @@ export function BillingClient({
   return (
     <PageShell>
       <PageHeader
-        title="Billing"
-        description="Each website has its own plan. Credits are shared across all of them."
+        title={t.title}
+        description={t.subtitle}
       />
 
       {/*
@@ -266,10 +275,8 @@ export function BillingClient({
       {websiteSubscriptions.length > 0 ? (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Your websites</CardTitle>
-            <CardDescription>
-              A website without a plan cannot generate or publish articles.
-            </CardDescription>
+            <CardTitle className="text-base">{t.yourWebsites}</CardTitle>
+            <CardDescription>{t.yourWebsitesHelp}</CardDescription>
           </CardHeader>
           <CardContent className="pt-0">
             <ul className="divide-y">
@@ -283,11 +290,17 @@ export function BillingClient({
                     <p className="text-sm text-muted-foreground">
                       {row.planName
                         ? row.currentPeriodEnd
-                          ? `${row.planName} — ${
-                              row.cancelAtPeriodEnd ? "ends" : "renews"
-                            } ${row.currentPeriodEnd.toLocaleDateString("en-GB")}`
+                          ? row.cancelAtPeriodEnd
+                            ? t.planEnds(
+                                row.planName,
+                                formatDate(row.currentPeriodEnd, locale),
+                              )
+                            : t.planRenews(
+                                row.planName,
+                                formatDate(row.currentPeriodEnd, locale),
+                              )
                           : row.planName
-                        : "No plan yet"}
+                        : t.noPlanYet}
                     </p>
                   </div>
                   <StatusBadge status={row.status} />
@@ -318,7 +331,7 @@ export function BillingClient({
           <div className="rounded-xl border bg-card p-4">
             <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <Briefcase className="size-3.5" aria-hidden="true" />
-              Current plan
+              {t.currentPlan}
             </p>
             <p className="mt-2 text-xl font-semibold tracking-tight">
               {subscription.planName ?? "—"}
@@ -328,11 +341,11 @@ export function BillingClient({
           <div className="rounded-xl border bg-card p-4">
             <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <Calendar className="size-3.5" aria-hidden="true" />
-              {subscription.cancelAtPeriodEnd ? "Access ends" : "Next invoice"}
+              {subscription.cancelAtPeriodEnd ? t.accessEnds : t.nextInvoice}
             </p>
             <p className="mt-2 text-xl font-semibold tracking-tight">
               {subscription.currentPeriodEnd
-                ? subscription.currentPeriodEnd.toLocaleDateString("en-GB", {
+                ? formatDate(subscription.currentPeriodEnd, locale, {
                     day: "numeric",
                     month: "short",
                   })
@@ -424,7 +437,7 @@ export function BillingClient({
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-muted/40 px-5 py-4">
           <p className="text-sm text-muted-foreground">
             Ready to scale? {upgradeTarget.articleLimit} articles a month,{" "}
-            {upgradeTarget.keywordLimit.toLocaleString()} search terms tracked
+            {formatNumber(upgradeTarget.keywordLimit, locale)} search terms tracked
             and {upgradeTarget.monthlyCredits} link credits — all in the{" "}
             {upgradeTarget.name} plan.
           </p>
@@ -440,7 +453,7 @@ export function BillingClient({
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            Current plan
+            {t.currentPlan}
             {subscription?.status ? (
               <Badge variant={entitled ? "default" : "destructive"}>
                 {subscription.status.replace(/_/g, " ")}
@@ -449,16 +462,16 @@ export function BillingClient({
           </CardTitle>
           <CardDescription>
             {subscription?.planName
-              ? `You are on the ${subscription.planName} plan.`
-              : "No active subscription yet. Choose a plan below to get started."}
+              ? t.onPlan(subscription.planName)
+              : t.noSubscription}
           </CardDescription>
         </CardHeader>
 
         {subscription?.currentPeriodEnd ? (
           <CardContent className="text-sm text-muted-foreground">
             {subscription.cancelAtPeriodEnd
-              ? `Access ends on ${subscription.currentPeriodEnd.toLocaleDateString()}.`
-              : `Renews on ${subscription.currentPeriodEnd.toLocaleDateString()}.`}
+              ? t.accessEndsOn(formatDate(subscription.currentPeriodEnd, locale))
+              : t.renewsOn(formatDate(subscription.currentPeriodEnd, locale))}
           </CardContent>
         ) : null}
 
@@ -532,8 +545,8 @@ export function BillingClient({
           onValueChange={(v) => setInterval(v as "month" | "year")}
         >
           <TabsList>
-            <TabsTrigger value="month">Monthly</TabsTrigger>
-            <TabsTrigger value="year">Annual</TabsTrigger>
+            <TabsTrigger value="month">{t.monthly}</TabsTrigger>
+            <TabsTrigger value="year">{t.annual}</TabsTrigger>
           </TabsList>
         </Tabs>
       ) : null}
