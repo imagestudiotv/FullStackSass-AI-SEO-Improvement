@@ -26,6 +26,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ImagePicker, type PickerImage } from "@/components/image-picker";
 import { cn } from "@/lib/utils";
+import { getMessages, type Messages } from "@/lib/i18n/messages";
 
 /**
  * The article body editor.
@@ -88,11 +89,14 @@ function Toolbar({
   editor,
   onInsertImage,
   uploading,
+  t,
 }: {
   editor: Editor;
   /** Opens the file picker. Absent when the page cannot store images. */
   onInsertImage?: () => void;
   uploading: boolean;
+  /** The toolbar's wording. */
+  t: Messages["app"]["editorUi"];
 }) {
   const setLink = useCallback(() => {
     const previous = editor.getAttributes("link").href as string | undefined;
@@ -128,21 +132,21 @@ function Toolbar({
     */
     <div className="sticky top-14 z-30 flex flex-wrap items-center gap-0.5 rounded-t-md border border-b-0 border-input bg-muted p-1">
       <ToolbarButton
-        label="Bold"
+        label={t.bold}
         onClick={() => editor.chain().focus().toggleBold().run()}
         active={editor.isActive("bold")}
       >
         <Bold className="size-4" />
       </ToolbarButton>
       <ToolbarButton
-        label="Italic"
+        label={t.italic}
         onClick={() => editor.chain().focus().toggleItalic().run()}
         active={editor.isActive("italic")}
       >
         <Italic className="size-4" />
       </ToolbarButton>
       <ToolbarButton
-        label="Strikethrough"
+        label={t.strikethrough}
         onClick={() => editor.chain().focus().toggleStrike().run()}
         active={editor.isActive("strike")}
       >
@@ -153,7 +157,7 @@ function Toolbar({
 
       {/* H2 and H3 only: the article title is the page's H1. */}
       <ToolbarButton
-        label="Heading"
+        label={t.heading}
         onClick={() =>
           editor.chain().focus().toggleHeading({ level: 2 }).run()
         }
@@ -162,7 +166,7 @@ function Toolbar({
         <Heading2 className="size-4" />
       </ToolbarButton>
       <ToolbarButton
-        label="Subheading"
+        label={t.subheading}
         onClick={() =>
           editor.chain().focus().toggleHeading({ level: 3 }).run()
         }
@@ -174,28 +178,28 @@ function Toolbar({
       <div className="mx-1 h-5 w-px bg-border" aria-hidden="true" />
 
       <ToolbarButton
-        label="Bulleted list"
+        label={t.bulletedList}
         onClick={() => editor.chain().focus().toggleBulletList().run()}
         active={editor.isActive("bulletList")}
       >
         <List className="size-4" />
       </ToolbarButton>
       <ToolbarButton
-        label="Numbered list"
+        label={t.numberedList}
         onClick={() => editor.chain().focus().toggleOrderedList().run()}
         active={editor.isActive("orderedList")}
       >
         <ListOrdered className="size-4" />
       </ToolbarButton>
       <ToolbarButton
-        label="Quote"
+        label={t.quote}
         onClick={() => editor.chain().focus().toggleBlockquote().run()}
         active={editor.isActive("blockquote")}
       >
         <Quote className="size-4" />
       </ToolbarButton>
       <ToolbarButton
-        label="Code"
+        label={t.code}
         onClick={() => editor.chain().focus().toggleCode().run()}
         active={editor.isActive("code")}
       >
@@ -205,14 +209,14 @@ function Toolbar({
       <div className="mx-1 h-5 w-px bg-border" aria-hidden="true" />
 
       <ToolbarButton
-        label="Add link"
+        label={t.addLink}
         onClick={setLink}
         active={editor.isActive("link")}
       >
         <Link2 className="size-4" />
       </ToolbarButton>
       <ToolbarButton
-        label="Remove link"
+        label={t.removeLink}
         onClick={() => editor.chain().focus().unsetLink().run()}
         disabled={!editor.isActive("link")}
       >
@@ -224,7 +228,7 @@ function Toolbar({
       {onInsertImage ? (
         <>
           <ToolbarButton
-            label="Insert image"
+            label={t.insertImage}
             onClick={onInsertImage}
             disabled={uploading}
           >
@@ -239,14 +243,14 @@ function Toolbar({
       ) : null}
 
       <ToolbarButton
-        label="Undo"
+        label={t.undo}
         onClick={() => editor.chain().focus().undo().run()}
         disabled={!editor.can().undo()}
       >
         <Undo2 className="size-4" />
       </ToolbarButton>
       <ToolbarButton
-        label="Redo"
+        label={t.redo}
         onClick={() => editor.chain().focus().redo().run()}
         disabled={!editor.can().redo()}
       >
@@ -262,10 +266,19 @@ export function RichTextEditor({
   ariaLabel = "Article content",
   onUploadImage,
   onListImages,
+  t = getMessages("en").app.editorUi,
 }: {
   value: string;
   onChange: (html: string) => void;
   ariaLabel?: string;
+  /**
+   * The toolbar's wording, defaulting to English.
+   *
+   * Optional for the same reason StatusBadge's is: this editor is rendered
+   * from client trees that do not all hold a dictionary, and an unwired
+   * caller should keep showing words rather than nothing.
+   */
+  t?: Messages["app"]["editorUi"];
   /**
    * Stores an image and returns a URL to put in the body.
    *
@@ -487,6 +500,7 @@ export function RichTextEditor({
         onInsertImage={
           onUploadImage ? openPickerAtCaret : undefined
         }
+        t={t}
       />
 
       {pickerOpen && onUploadImage ? (
@@ -511,7 +525,7 @@ export function RichTextEditor({
           <div
             role="dialog"
             aria-modal="true"
-            aria-label="Choose an image"
+            aria-label={t.chooseImage}
             className="fixed left-1/2 top-16 z-50 w-[min(42rem,calc(100vw-2rem))] -translate-x-1/2"
           >
           <ImagePicker
@@ -572,7 +586,7 @@ export function RichTextEditor({
           value={value}
           onChange={(event) => onChange(event.target.value)}
           rows={20}
-          aria-label="Article HTML"
+          aria-label={t.articleHtml}
           className="flex w-full rounded-b-md border border-input bg-transparent px-3 py-2 font-mono text-xs shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
         />
       ) : (

@@ -65,6 +65,7 @@ export default async function ArticlePage({
       tImage={t.app.image}
       tCommon={t.app.common}
       tStatus={t.app.status}
+      tEditorUi={t.app.editorUi}
       publishLogs={logs}
     />
   );

@@ -942,6 +942,27 @@ export type Messages = {
       rejected: string;
       missing: string;
     };
+    editorUi: {
+      bold: string;
+      italic: string;
+      strikethrough: string;
+      heading: string;
+      subheading: string;
+      bulletedList: string;
+      numberedList: string;
+      quote: string;
+      code: string;
+      addLink: string;
+      removeLink: string;
+      insertImage: string;
+      undo: string;
+      redo: string;
+      chooseImage: string;
+      articleHtml: string;
+      noImageSelected: string;
+      pickOneBelow: string;
+      closeImagePicker: string;
+    };
   };
 };
 
@@ -2034,6 +2055,27 @@ const en: Messages = {
       failed: "Needs attention",
       rejected: "Rejected",
       missing: "Missing",
+    },
+    editorUi: {
+      bold: "Bold",
+      italic: "Italic",
+      strikethrough: "Strikethrough",
+      heading: "Heading",
+      subheading: "Subheading",
+      bulletedList: "Bulleted list",
+      numberedList: "Numbered list",
+      quote: "Quote",
+      code: "Code",
+      addLink: "Add link",
+      removeLink: "Remove link",
+      insertImage: "Insert image",
+      undo: "Undo",
+      redo: "Redo",
+      chooseImage: "Choose an image",
+      articleHtml: "Article HTML",
+      noImageSelected: "No image selected",
+      pickOneBelow: "Pick one below, or upload your own.",
+      closeImagePicker: "Close image picker",
     },
   },
 };
@@ -3137,6 +3179,27 @@ const es: Messages = {
       failed: "Requiere atención",
       rejected: "Rechazado",
       missing: "Falta",
+    },
+    editorUi: {
+      bold: "Negrita",
+      italic: "Cursiva",
+      strikethrough: "Tachado",
+      heading: "Título",
+      subheading: "Subtítulo",
+      bulletedList: "Lista con viñetas",
+      numberedList: "Lista numerada",
+      quote: "Cita",
+      code: "Código",
+      addLink: "Añadir enlace",
+      removeLink: "Quitar enlace",
+      insertImage: "Insertar imagen",
+      undo: "Deshacer",
+      redo: "Rehacer",
+      chooseImage: "Elija una imagen",
+      articleHtml: "HTML del artículo",
+      noImageSelected: "Ninguna imagen seleccionada",
+      pickOneBelow: "Elija una de abajo o suba la suya.",
+      closeImagePicker: "Cerrar el selector de imágenes",
     },
   },
 };
@@ -4244,6 +4307,27 @@ const fr: Messages = {
       rejected: "Refusé",
       missing: "Manquant",
     },
+    editorUi: {
+      bold: "Gras",
+      italic: "Italique",
+      strikethrough: "Barré",
+      heading: "Titre",
+      subheading: "Sous-titre",
+      bulletedList: "Liste à puces",
+      numberedList: "Liste numérotée",
+      quote: "Citation",
+      code: "Code",
+      addLink: "Ajouter un lien",
+      removeLink: "Retirer le lien",
+      insertImage: "Insérer une image",
+      undo: "Annuler",
+      redo: "Rétablir",
+      chooseImage: "Choisir une image",
+      articleHtml: "HTML de l\u2019article",
+      noImageSelected: "Aucune image sélectionnée",
+      pickOneBelow: "Choisissez ci-dessous, ou importez la vôtre.",
+      closeImagePicker: "Fermer le sélecteur d\u2019images",
+    },
   },
 };
 
@@ -5342,6 +5426,27 @@ const it: Messages = {
       failed: "Richiede attenzione",
       rejected: "Rifiutato",
       missing: "Mancante",
+    },
+    editorUi: {
+      bold: "Grassetto",
+      italic: "Corsivo",
+      strikethrough: "Barrato",
+      heading: "Titolo",
+      subheading: "Sottotitolo",
+      bulletedList: "Elenco puntato",
+      numberedList: "Elenco numerato",
+      quote: "Citazione",
+      code: "Codice",
+      addLink: "Aggiungi link",
+      removeLink: "Rimuovi link",
+      insertImage: "Inserisci immagine",
+      undo: "Annulla",
+      redo: "Ripristina",
+      chooseImage: "Scelga un\u2019immagine",
+      articleHtml: "HTML dell\u2019articolo",
+      noImageSelected: "Nessuna immagine selezionata",
+      pickOneBelow: "Ne scelga una qui sotto o carichi la sua.",
+      closeImagePicker: "Chiudi il selettore di immagini",
     },
   },
 };
@@ -6448,6 +6553,27 @@ const de: Messages = {
       failed: "Erfordert Aufmerksamkeit",
       rejected: "Abgelehnt",
       missing: "Fehlt",
+    },
+    editorUi: {
+      bold: "Fett",
+      italic: "Kursiv",
+      strikethrough: "Durchgestrichen",
+      heading: "Überschrift",
+      subheading: "Zwischenüberschrift",
+      bulletedList: "Aufzählung",
+      numberedList: "Nummerierte Liste",
+      quote: "Zitat",
+      code: "Code",
+      addLink: "Link hinzufügen",
+      removeLink: "Link entfernen",
+      insertImage: "Bild einfügen",
+      undo: "Rückgängig",
+      redo: "Wiederholen",
+      chooseImage: "Bild auswählen",
+      articleHtml: "Artikel-HTML",
+      noImageSelected: "Kein Bild ausgewählt",
+      pickOneBelow: "Wählen Sie unten eines aus oder laden Sie ein eigenes hoch.",
+      closeImagePicker: "Bildauswahl schließen",
     },
   },
 };

@@ -70,6 +70,7 @@ export function ArticleEditor({
   tImage,
   tCommon,
   tStatus,
+  tEditorUi,
 }: {
   websiteId: string;
   article: ArticleDetail;
@@ -92,6 +93,8 @@ export function ArticleEditor({
   tCommon: Messages["app"]["common"];
   /** The status vocabulary, for the badges. */
   tStatus: Messages["app"]["status"];
+  /** The rich text toolbar's wording. */
+  tEditorUi: Messages["app"]["editorUi"];
 }) {
   const router = useRouter();
   const bodyStats = articleStats(article.bodyHtml, {
@@ -486,6 +489,7 @@ export function ArticleEditor({
                       onChange={setBody}
                       onUploadImage={handleInlineUpload}
                       onListImages={handleListImages}
+                      t={tEditorUi}
                     />
                   </div>
                 </CardContent>

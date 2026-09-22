@@ -1,6 +1,7 @@
 "use client";
 
 import { ImageIcon, Loader2, Search, Trash2, Upload, X } from "lucide-react";
+import { getMessages, type Messages } from "@/lib/i18n/messages";
 import { useEffect, useRef, useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -35,7 +36,10 @@ export function ImagePicker({
   onInsert,
   onRemove,
   onClose,
+  t = getMessages("en").app.editorUi,
 }: {
+  /** The picker's wording, defaulting to English. */
+  t?: Messages["app"]["editorUi"];
   images: PickerImage[];
   loading: boolean;
   /**
