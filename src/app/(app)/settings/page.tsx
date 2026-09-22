@@ -21,7 +21,6 @@ import {
 import { ReferralCard } from "./referral-card";
 import { listWebsiteMembers } from "@/lib/websites/members";
 
-import { SettingsLinks } from "./settings-links";
 
 import { WebsiteMembers } from "./website-members";
 import { siteUrl as canonicalSiteUrl } from "@/lib/site-url";
@@ -69,10 +68,20 @@ export default async function SettingsPage() {
       */}
       {websiteId ? <SettingsNav websiteId={websiteId} /> : null}
 
+      {/*
+        "Profile", as the design titles it - not "Account" under an Account
+        tab, which named the same thing twice on one screen.
+
+        The email also appeared twice: once as "Signed in as x" in the
+        description and again as a field below it. One is enough, and the
+        field is the one that belongs beside the name.
+      */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Account</CardTitle>
-          <CardDescription>Signed in as {session.user.email}</CardDescription>
+          <CardTitle className="text-base">Profile</CardTitle>
+          <CardDescription>
+            Your name, email and platform language.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <dl className="grid gap-4 text-sm sm:grid-cols-2">
@@ -88,7 +97,19 @@ export default async function SettingsPage() {
         </CardContent>
       </Card>
 
-      <SettingsLinks websiteId={websiteId} />
+      {/*
+        NO LINK CARDS HERE.
+
+        This rendered four cards - Billing, Website profile, Publishing,
+        Google - each linking to a page the strip at the top of this screen
+        already has a tab for. The client marked the whole block: it was a
+        second navigation stacked under the first, pointing at the same five
+        places, and the "Publishing" card now pointed somewhere that panel no
+        longer lives.
+
+        The strip replaced it. Two navigations for one set of destinations is
+        one too many, and the one that duplicates is the one that goes stale.
+      */}
 
       {/*
         Collaborators are per website, so the panel takes every site owned
