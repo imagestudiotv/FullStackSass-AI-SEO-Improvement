@@ -107,6 +107,7 @@ export default async function BillingPage({
         t={t.app.billing}
         locale={locale}
         tCommon={t.app.common}
+        tStatus={t.app.status}
       />
       {/*
         Below the plans: an add-on is something you buy in addition to a

@@ -24,5 +24,9 @@ export default async function WebsitesPage() {
   const sites = await listWebsites();
   const { t } = await getAppMessages(session.user.id);
 
-  return <WebsitesClient websites={sites} t={t.app.websites} />;
+  return <WebsitesClient
+      websites={sites}
+      t={t.app.websites}
+      tStatus={t.app.status}
+    />;
 }

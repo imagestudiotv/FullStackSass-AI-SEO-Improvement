@@ -56,6 +56,8 @@ type ResearchTabsProps = {
   t: Messages["app"]["research"];
   /** Shared words used on several screens. */
   tCommon: Messages["app"]["common"];
+  /** The status vocabulary, forwarded to the calendar and the badges. */
+  tStatus: Messages["app"]["status"];
   /** The calendar's own slice, forwarded to it. */
   tCalendar: Messages["app"]["calendar"];
 };
@@ -107,6 +109,7 @@ export function ResearchTabs({
   t,
   tCalendar,
   tCommon,
+  tStatus,
 }: ResearchTabsProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -247,6 +250,7 @@ export function ResearchTabs({
               articles={articles}
               t={tCalendar}
               tCommon={tCommon}
+              tStatus={tStatus}
             />
           </CardContent>
         </Card>

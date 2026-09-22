@@ -69,6 +69,7 @@ export function ArticleEditor({
   t,
   tImage,
   tCommon,
+  tStatus,
 }: {
   websiteId: string;
   article: ArticleDetail;
@@ -89,6 +90,8 @@ export function ArticleEditor({
   tImage: Messages["app"]["image"];
   /** Shared words used on several screens. */
   tCommon: Messages["app"]["common"];
+  /** The status vocabulary, for the badges. */
+  tStatus: Messages["app"]["status"];
 }) {
   const router = useRouter();
   const bodyStats = articleStats(article.bodyHtml, {
@@ -217,7 +220,7 @@ export function ArticleEditor({
           <h1 className="text-2xl font-semibold tracking-tight">
             {article.title}
           </h1>
-          <StatusBadge status={article.status} />
+          <StatusBadge status={article.status} t={tStatus} />
         </div>
         <p className="text-sm text-muted-foreground">
           {article.targetKeyword ? `Target: ${article.targetKeyword}` : null}

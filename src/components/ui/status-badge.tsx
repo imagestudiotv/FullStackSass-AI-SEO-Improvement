@@ -15,6 +15,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { getMessages, type Messages } from "@/lib/i18n/messages";
 
 /**
  * The single place a stored status becomes something a customer reads.
@@ -53,8 +54,14 @@ export type StatusTone =
   | "critical";
 
 type StatusMeta = {
-  /** What the customer reads. Plain words, never the raw column value. */
-  label: string;
+  /**
+   * A key into the `status` dictionary, not the text.
+   *
+   * This map is module-level, built before any request and so before any
+   * locale is known. Holding English here is what kept every badge in the
+   * app English while the pages around them translated.
+   */
+  label: keyof Messages["app"]["status"];
   tone: StatusTone;
   /**
    * Carries the same meaning as the colour, so status survives greyscale,
@@ -72,45 +79,45 @@ type StatusMeta = {
  */
 const STATUS: Record<string, StatusMeta> = {
   /* websites: pending → crawling → researching → generated → ready | failed */
-  pending: { label: "Waiting to start", tone: "neutral", icon: CircleDashed },
-  crawling: { label: "Reading your site", tone: "active", icon: Loader2 },
-  researching: { label: "Finding opportunities", tone: "active", icon: Search },
-  generated: { label: "Content planned", tone: "positive", icon: Check },
-  ready: { label: "Ready", tone: "positive", icon: Check },
+  pending: { label: "pending", tone: "neutral", icon: CircleDashed },
+  crawling: { label: "crawling", tone: "active", icon: Loader2 },
+  researching: { label: "researching", tone: "active", icon: Search },
+  generated: { label: "generated", tone: "positive", icon: Check },
+  ready: { label: "ready", tone: "positive", icon: Check },
 
   /* crawls / jobs */
-  queued: { label: "Waiting", tone: "neutral", icon: CircleDashed },
-  running: { label: "Running", tone: "active", icon: Loader2 },
-  completed: { label: "Completed", tone: "positive", icon: Check },
+  queued: { label: "queued", tone: "neutral", icon: CircleDashed },
+  running: { label: "running", tone: "active", icon: Loader2 },
+  completed: { label: "completed", tone: "positive", icon: Check },
 
   /* calendar items */
-  planned: { label: "Planned", tone: "neutral", icon: CalendarClock },
+  planned: { label: "planned", tone: "neutral", icon: CalendarClock },
 
   /* articles: draft → generating → published | failed */
-  draft: { label: "Draft", tone: "neutral", icon: CircleDashed },
-  generating: { label: "Writing", tone: "active", icon: Loader2 },
-  published: { label: "Published", tone: "positive", icon: Check },
-  publish: { label: "Publishing", tone: "active", icon: Send },
-  scheduled: { label: "Scheduled", tone: "neutral", icon: CalendarClock },
+  draft: { label: "draft", tone: "neutral", icon: CircleDashed },
+  generating: { label: "generating", tone: "active", icon: Loader2 },
+  published: { label: "published", tone: "positive", icon: Check },
+  publish: { label: "publish", tone: "active", icon: Send },
+  scheduled: { label: "scheduled", tone: "neutral", icon: CalendarClock },
 
   /* integrations */
-  connected: { label: "Connected", tone: "positive", icon: Link2 },
-  disconnected: { label: "Not connected", tone: "warning", icon: Link2Off },
+  connected: { label: "connected", tone: "positive", icon: Link2 },
+  disconnected: { label: "disconnected", tone: "warning", icon: Link2Off },
 
   /* backlink placements */
-  live: { label: "Live", tone: "positive", icon: Check },
-  removed: { label: "Removed", tone: "warning", icon: CircleSlash },
-  matched: { label: "Matched", tone: "active", icon: Link2 },
+  live: { label: "live", tone: "positive", icon: Check },
+  removed: { label: "removed", tone: "warning", icon: CircleSlash },
+  matched: { label: "matched", tone: "active", icon: Link2 },
 
   /* billing + referrals */
-  active: { label: "Active", tone: "positive", icon: Check },
-  inactive: { label: "Inactive", tone: "neutral", icon: Pause },
-  cancelled: { label: "Cancelled", tone: "neutral", icon: X },
-  expired: { label: "Expired", tone: "warning", icon: AlertTriangle },
-  paid: { label: "Paid", tone: "positive", icon: Check },
-  rewarded: { label: "Rewarded", tone: "positive", icon: Check },
-  refunded: { label: "Refunded", tone: "neutral", icon: CircleSlash },
-  fulfilled: { label: "Fulfilled", tone: "positive", icon: Check },
+  active: { label: "active", tone: "positive", icon: Check },
+  inactive: { label: "inactive", tone: "neutral", icon: Pause },
+  cancelled: { label: "cancelled", tone: "neutral", icon: X },
+  expired: { label: "expired", tone: "warning", icon: AlertTriangle },
+  paid: { label: "paid", tone: "positive", icon: Check },
+  rewarded: { label: "rewarded", tone: "positive", icon: Check },
+  refunded: { label: "refunded", tone: "neutral", icon: CircleSlash },
+  fulfilled: { label: "fulfilled", tone: "positive", icon: Check },
 
   /**
    * Shared failure across every table that has one.
@@ -120,9 +127,9 @@ const STATUS: Record<string, StatusMeta> = {
    * not that a worker threw. Pass `label="Failed"` where the distinction
    * genuinely matters, such as a publish log recording what happened.
    */
-  failed: { label: "Needs attention", tone: "critical", icon: AlertTriangle },
-  rejected: { label: "Rejected", tone: "critical", icon: X },
-  missing: { label: "Missing", tone: "warning", icon: AlertTriangle },
+  failed: { label: "failed", tone: "critical", icon: AlertTriangle },
+  rejected: { label: "rejected", tone: "critical", icon: X },
+  missing: { label: "missing", tone: "warning", icon: AlertTriangle },
 };
 
 /**
@@ -156,21 +163,49 @@ function fallbackLabel(status: string): string {
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
-/** Everything known about a status, for callers that need the parts. */
-export function statusMeta(status: string): StatusMeta {
-  return (
-    STATUS[status.toLowerCase()] ?? {
-      label: fallbackLabel(status),
-      tone: "neutral" as const,
-      icon: CircleDashed,
-    }
-  );
+/**
+ * English, for a caller that has not been wired to the dictionary yet.
+ *
+ * Read from the catalogue rather than written again here, so the fallback
+ * cannot drift from the translated wording it stands in for.
+ */
+const ENGLISH_FALLBACK = getMessages("en").app.status;
+
+/**
+ * Everything known about a status, for callers that need the parts.
+ *
+ * Returns the KEY, not the wording. Callers that render it pass the
+ * dictionary to statusLabel below; callers that only want the tone or the
+ * icon need no dictionary at all.
+ */
+export function statusMeta(status: string): StatusMeta | null {
+  return STATUS[status.toLowerCase()] ?? null;
+}
+
+/**
+ * The words for a status.
+ *
+ * `t` is optional and defaults to English. Twenty call sites render this
+ * badge, most of them deep inside client trees that have no dictionary of
+ * their own; making it required would mean threading a prop through all of
+ * them at once. Optional lets each screen start passing it as it is reached,
+ * and an unpassed one keeps working rather than rendering blank.
+ */
+export function statusLabel(
+  status: string,
+  t?: Messages["app"]["status"],
+): string {
+  const meta = statusMeta(status);
+  if (!meta) return fallbackLabel(status);
+  return t ? t[meta.label] : ENGLISH_FALLBACK[meta.label];
 }
 
 export function StatusBadge({
   status,
   /** Overrides the mapped wording where a page needs to be more specific. */
   label,
+  /** The status vocabulary. English when a caller has not been wired yet. */
+  t,
   /**
    * Spinning icon for work in progress. On by default for `active` statuses
    * because a still icon on "Writing article" reads as stalled.
@@ -180,18 +215,20 @@ export function StatusBadge({
 }: {
   status: string;
   label?: string;
+  t?: Messages["app"]["status"];
   animate?: boolean;
   className?: string;
 }) {
   const meta = statusMeta(status);
-  const Icon = meta.icon;
-  const spin = (animate ?? meta.tone === "active") && Icon === Loader2;
+  const tone = meta?.tone ?? "neutral";
+  const Icon = meta?.icon ?? CircleDashed;
+  const spin = (animate ?? tone === "active") && Icon === Loader2;
 
   return (
     <span
       className={cn(
         "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium whitespace-nowrap",
-        TONE_CLASS[meta.tone],
+        TONE_CLASS[tone],
         className,
       )}
     >
@@ -199,7 +236,7 @@ export function StatusBadge({
         className={cn("size-3 shrink-0", spin && "animate-spin")}
         aria-hidden="true"
       />
-      {label ?? meta.label}
+      {label ?? statusLabel(status, t)}
     </span>
   );
 }

@@ -64,6 +64,8 @@ type BillingClientProps = {
   locale: Locale;
   /** Shared words used on several screens. */
   tCommon: Messages["app"]["common"];
+  /** The status vocabulary, for the badges. */
+  tStatus: Messages["app"]["status"];
 };
 
 function planFeatures(
@@ -115,6 +117,7 @@ export function BillingClient({
   t,
   locale,
   tCommon,
+  tStatus,
 }: BillingClientProps) {
   const [interval, setInterval] = useState<"month" | "year">(
     subscription?.interval === "year" ? "year" : "month",
@@ -321,7 +324,7 @@ export function BillingClient({
                         : t.noPlanYet}
                     </p>
                   </div>
-                  <StatusBadge status={row.status} />
+                  <StatusBadge status={row.status} t={tStatus} />
                 </li>
               ))}
             </ul>

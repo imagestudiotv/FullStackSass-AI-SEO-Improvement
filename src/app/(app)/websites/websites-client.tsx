@@ -34,9 +34,15 @@ type WebsitesClientProps = {
   websites: WebsiteSummary[];
   /** This screen's copy, already in the reader's language. */
   t: Messages["app"]["websites"];
+  /** The status vocabulary, for the badges. */
+  tStatus: Messages["app"]["status"];
 };
 
-export function WebsitesClient({ websites, t }: WebsitesClientProps) {
+export function WebsitesClient({
+  websites,
+  t,
+  tStatus,
+}: WebsitesClientProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [url, setUrl] = useState("");
@@ -150,7 +156,7 @@ export function WebsitesClient({ websites, t }: WebsitesClientProps) {
                     </p>
                   </div>
 
-                  <StatusBadge status={site.status} className="shrink-0" />
+                  <StatusBadge status={site.status} t={tStatus} className="shrink-0" />
 
                   <div className="flex shrink-0 items-center gap-1">
                     {site.status === "failed" ? (

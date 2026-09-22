@@ -17,7 +17,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { StatusBadge, statusMeta } from "@/components/ui/status-badge";
+import { StatusBadge, statusLabel } from "@/components/ui/status-badge";
 import type { ArticleRow } from "@/lib/articles/actions";
 import { generateFromCalendarItem } from "@/lib/articles/actions";
 import {
@@ -157,12 +157,15 @@ export function ContentCalendar({
   articles,
   t,
   tCommon,
+  tStatus,
 }: {
   websiteId: string;
   calendar: CalendarRow[];
   articles: ArticleRow[];
   /** This screen's copy, already in the reader's language. */
   t: Messages["app"]["calendar"];
+  /** The status vocabulary, shared with the badges. */
+  tStatus: Messages["app"]["status"];
   /** Shared words used on several screens. */
   tCommon: Messages["app"]["common"];
 }) {
@@ -335,7 +338,7 @@ export function ContentCalendar({
         key={item.id}
         className="group/item rounded-md border bg-card p-2 text-left"
       >
-        <StatusBadge status={status} />
+        <StatusBadge status={status} t={tStatus} />
 
         {editingId === item.id ? (
           <Input
@@ -488,15 +491,23 @@ export function ContentCalendar({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
+          {/*
+            Count then word, built from the status vocabulary rather than
+            written in English here — these three read "3 Published" in every
+            language otherwise.
+          */}
           <StatusBadge
             status="published"
-            label={`${counts.published} Published`}
+            label={`${counts.published} ${tStatus.published}`}
           />
           <StatusBadge
             status="generating"
-            label={`${counts.generating} Generating`}
+            label={`${counts.generating} ${tStatus.generating}`}
           />
-          <StatusBadge status="planned" label={`${counts.queued} Planned`} />
+          <StatusBadge
+            status="planned"
+            label={`${counts.queued} ${tStatus.planned}`}
+          />
         </div>
 
         <div className="flex items-center gap-1">
@@ -620,7 +631,7 @@ export function ContentCalendar({
                               )}
                             >
                               {n > 1 ? `${n} ` : ""}
-                              {statusMeta(status).label}
+                              {statusLabel(status, tStatus)}
                             </span>
                           ),
                         )}

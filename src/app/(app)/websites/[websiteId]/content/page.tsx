@@ -34,6 +34,7 @@ export default async function WebsiteContentPage({
       t={t.app.research}
       tCalendar={t.app.calendar}
       tCommon={t.app.common}
+      tStatus={t.app.status}
     />
   );
 }

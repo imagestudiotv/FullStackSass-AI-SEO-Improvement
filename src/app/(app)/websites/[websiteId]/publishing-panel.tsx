@@ -51,6 +51,7 @@ export function PublishingPanel({
   t,
   tKeys,
   tCommon,
+  tStatus,
 }: {
   websiteId: string;
   providers: ProviderInfo[];
@@ -62,6 +63,8 @@ export function PublishingPanel({
   tKeys: Messages["app"]["keys"];
   /** Shared words used on several screens. */
   tCommon: Messages["app"]["common"];
+  /** The status vocabulary, for the badges. */
+  tStatus: Messages["app"]["status"];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -175,7 +178,7 @@ export function PublishingPanel({
                     {integration.status === "connected" ? (
                       <StatusBadge status="connected" />
                     ) : (
-                      <StatusBadge status={integration.status} />
+                      <StatusBadge status={integration.status} t={tStatus} />
                     )}
                   </div>
                   <p className="mt-0.5 truncate text-sm text-muted-foreground">

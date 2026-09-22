@@ -910,6 +910,38 @@ export type Messages = {
       billing: string;
       settingsSections: string;
     };
+    status: {
+      pending: string;
+      crawling: string;
+      researching: string;
+      generated: string;
+      ready: string;
+      queued: string;
+      running: string;
+      completed: string;
+      planned: string;
+      draft: string;
+      generating: string;
+      published: string;
+      publish: string;
+      scheduled: string;
+      connected: string;
+      disconnected: string;
+      live: string;
+      removed: string;
+      matched: string;
+      active: string;
+      inactive: string;
+      cancelled: string;
+      expired: string;
+      paid: string;
+      rewarded: string;
+      refunded: string;
+      fulfilled: string;
+      failed: string;
+      rejected: string;
+      missing: string;
+    };
   };
 };
 
@@ -1970,6 +2002,38 @@ const en: Messages = {
       account: "Account",
       billing: "Billing",
       settingsSections: "Settings sections",
+    },
+    status: {
+      pending: "Waiting to start",
+      crawling: "Reading your site",
+      researching: "Finding opportunities",
+      generated: "Content planned",
+      ready: "Ready",
+      queued: "Waiting",
+      running: "Running",
+      completed: "Completed",
+      planned: "Planned",
+      draft: "Draft",
+      generating: "Writing",
+      published: "Published",
+      publish: "Publishing",
+      scheduled: "Scheduled",
+      connected: "Connected",
+      disconnected: "Not connected",
+      live: "Live",
+      removed: "Removed",
+      matched: "Matched",
+      active: "Active",
+      inactive: "Inactive",
+      cancelled: "Cancelled",
+      expired: "Expired",
+      paid: "Paid",
+      rewarded: "Rewarded",
+      refunded: "Refunded",
+      fulfilled: "Fulfilled",
+      failed: "Needs attention",
+      rejected: "Rejected",
+      missing: "Missing",
     },
   },
 };
@@ -3041,6 +3105,38 @@ const es: Messages = {
       account: "Cuenta",
       billing: "Facturación",
       settingsSections: "Secciones de ajustes",
+    },
+    status: {
+      pending: "Pendiente de empezar",
+      crawling: "Leyendo su sitio",
+      researching: "Buscando oportunidades",
+      generated: "Contenido planificado",
+      ready: "Listo",
+      queued: "En espera",
+      running: "En curso",
+      completed: "Completado",
+      planned: "Planificado",
+      draft: "Borrador",
+      generating: "Escribiendo",
+      published: "Publicado",
+      publish: "Publicando",
+      scheduled: "Programado",
+      connected: "Conectado",
+      disconnected: "Sin conectar",
+      live: "Activo",
+      removed: "Retirado",
+      matched: "Emparejado",
+      active: "Activo",
+      inactive: "Inactivo",
+      cancelled: "Cancelado",
+      expired: "Caducado",
+      paid: "Pagado",
+      rewarded: "Recompensado",
+      refunded: "Reembolsado",
+      fulfilled: "Entregado",
+      failed: "Requiere atención",
+      rejected: "Rechazado",
+      missing: "Falta",
     },
   },
 };
@@ -4116,6 +4212,38 @@ const fr: Messages = {
       billing: "Facturation",
       settingsSections: "Sections des paramètres",
     },
+    status: {
+      pending: "En attente de démarrage",
+      crawling: "Lecture de votre site",
+      researching: "Recherche d\u2019opportunités",
+      generated: "Contenu planifié",
+      ready: "Prêt",
+      queued: "En attente",
+      running: "En cours",
+      completed: "Terminé",
+      planned: "Planifié",
+      draft: "Brouillon",
+      generating: "Rédaction",
+      published: "Publié",
+      publish: "Publication",
+      scheduled: "Programmé",
+      connected: "Connecté",
+      disconnected: "Non connecté",
+      live: "En ligne",
+      removed: "Retiré",
+      matched: "Associé",
+      active: "Actif",
+      inactive: "Inactif",
+      cancelled: "Annulé",
+      expired: "Expiré",
+      paid: "Payé",
+      rewarded: "Récompensé",
+      refunded: "Remboursé",
+      fulfilled: "Livré",
+      failed: "Action requise",
+      rejected: "Refusé",
+      missing: "Manquant",
+    },
   },
 };
 
@@ -5182,6 +5310,38 @@ const it: Messages = {
       account: "Account",
       billing: "Fatturazione",
       settingsSections: "Sezioni delle impostazioni",
+    },
+    status: {
+      pending: "In attesa di iniziare",
+      crawling: "Lettura del suo sito",
+      researching: "Ricerca di opportunità",
+      generated: "Contenuti pianificati",
+      ready: "Pronto",
+      queued: "In coda",
+      running: "In corso",
+      completed: "Completato",
+      planned: "Pianificato",
+      draft: "Bozza",
+      generating: "Scrittura",
+      published: "Pubblicato",
+      publish: "Pubblicazione",
+      scheduled: "Programmato",
+      connected: "Collegato",
+      disconnected: "Non collegato",
+      live: "Attivo",
+      removed: "Rimosso",
+      matched: "Abbinato",
+      active: "Attivo",
+      inactive: "Inattivo",
+      cancelled: "Annullato",
+      expired: "Scaduto",
+      paid: "Pagato",
+      rewarded: "Premiato",
+      refunded: "Rimborsato",
+      fulfilled: "Consegnato",
+      failed: "Richiede attenzione",
+      rejected: "Rifiutato",
+      missing: "Mancante",
     },
   },
 };
@@ -6256,6 +6416,38 @@ const de: Messages = {
       account: "Konto",
       billing: "Abrechnung",
       settingsSections: "Einstellungsbereiche",
+    },
+    status: {
+      pending: "Wartet auf Start",
+      crawling: "Ihre Website wird gelesen",
+      researching: "Chancen werden gesucht",
+      generated: "Inhalte geplant",
+      ready: "Bereit",
+      queued: "In Warteschlange",
+      running: "Läuft",
+      completed: "Abgeschlossen",
+      planned: "Geplant",
+      draft: "Entwurf",
+      generating: "Wird geschrieben",
+      published: "Veröffentlicht",
+      publish: "Wird veröffentlicht",
+      scheduled: "Terminiert",
+      connected: "Verbunden",
+      disconnected: "Nicht verbunden",
+      live: "Aktiv",
+      removed: "Entfernt",
+      matched: "Zugeordnet",
+      active: "Aktiv",
+      inactive: "Inaktiv",
+      cancelled: "Storniert",
+      expired: "Abgelaufen",
+      paid: "Bezahlt",
+      rewarded: "Gutgeschrieben",
+      refunded: "Erstattet",
+      fulfilled: "Geliefert",
+      failed: "Erfordert Aufmerksamkeit",
+      rejected: "Abgelehnt",
+      missing: "Fehlt",
     },
   },
 };

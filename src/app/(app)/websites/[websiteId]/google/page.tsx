@@ -58,6 +58,7 @@ export default async function WebsiteGooglePage({
         t={t.app.publishing}
         tKeys={t.app.keys}
         tCommon={t.app.common}
+        tStatus={t.app.status}
       />
 
       <AnalyticsPanel
