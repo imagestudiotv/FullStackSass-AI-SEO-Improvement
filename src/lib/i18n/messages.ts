@@ -401,6 +401,32 @@ export type Messages = {
       roleEditor: string;
       roleViewer: string;
     };
+    websites: {
+      title: string;
+      /**
+       * "3 connected. Each website is billed on its own plan."
+       *
+       * A function rather than a string with a token in it: the count governs
+       * the plural, and every language pluralises differently. Building the
+       * sentence in the dictionary lets each locale decide; a token would
+       * force one language's grammar onto the other four.
+       */
+      connected: (count: number) => string;
+      addWebsite: string;
+      emptyTitle: string;
+      emptyBody: string;
+      addFirst: string;
+      tryAgain: string;
+      removeLabel: (domain: string) => string;
+      removed: (domain: string) => string;
+      retrying: string;
+      dialogTitle: string;
+      dialogBody: string;
+      urlLabel: string;
+      urlPlaceholder: string;
+      cancel: string;
+      adding: string;
+    };
   };
 };
 
@@ -961,6 +987,27 @@ const en: Messages = {
       loadingPeople: "Loading people",
       roleEditor: "Editor",
       roleViewer: "Viewer",
+    },
+    websites: {
+      title: "Websites",
+      connected: (count) =>
+        `${count} connected. Each website is billed on its own plan.`,
+      addWebsite: "Add website",
+      emptyTitle: "No websites yet",
+      emptyBody:
+        "Add your website and we will read it, work out what your business does, and find the search terms worth going after.",
+      addFirst: "Add your first website",
+      tryAgain: "Try again",
+      removeLabel: (domain) => `Remove ${domain}`,
+      removed: (domain) => `Removed ${domain}`,
+      retrying: "Trying again",
+      dialogTitle: "Add a website",
+      dialogBody:
+        "Enter the address of the site you want found on Google. We will read it and fill in the details for you.",
+      urlLabel: "Website address",
+      urlPlaceholder: "example.com",
+      cancel: "Cancel",
+      adding: "Adding…",
     },
   },
 };
@@ -1530,6 +1577,29 @@ const es: Messages = {
       loadingPeople: "Cargando personas",
       roleEditor: "Editor",
       roleViewer: "Lector",
+    },
+    websites: {
+      title: "Sitios web",
+      connected: (count) =>
+        count === 1
+        ? "1 conectado. Cada sitio web se factura con su propio plan."
+        : `${count} conectados. Cada sitio web se factura con su propio plan.`,
+      addWebsite: "Añadir sitio web",
+      emptyTitle: "Todavía no hay sitios web",
+      emptyBody:
+        "Añada su sitio web y lo leeremos, averiguaremos a qué se dedica su negocio y encontraremos los términos de búsqueda que merecen la pena.",
+      addFirst: "Añada su primer sitio web",
+      tryAgain: "Reintentar",
+      removeLabel: (domain) => `Eliminar ${domain}`,
+      removed: (domain) => `${domain} eliminado`,
+      retrying: "Reintentando",
+      dialogTitle: "Añadir un sitio web",
+      dialogBody:
+        "Introduzca la dirección del sitio que quiere que aparezca en Google. Lo leeremos y rellenaremos los datos por usted.",
+      urlLabel: "Dirección del sitio web",
+      urlPlaceholder: "ejemplo.com",
+      cancel: "Cancelar",
+      adding: "Añadiendo…",
     },
   },
 };
@@ -2103,6 +2173,29 @@ const fr: Messages = {
       roleEditor: "Éditeur",
       roleViewer: "Lecteur",
     },
+    websites: {
+      title: "Sites web",
+      connected: (count) =>
+        count === 1
+        ? "1 connecté. Chaque site est facturé sur son propre forfait."
+        : `${count} connectés. Chaque site est facturé sur son propre forfait.`,
+      addWebsite: "Ajouter un site",
+      emptyTitle: "Aucun site pour le moment",
+      emptyBody:
+        "Ajoutez votre site et nous le lirons, comprendrons ce que fait votre entreprise et trouverons les recherches qui valent la peine.",
+      addFirst: "Ajouter votre premier site",
+      tryAgain: "Réessayer",
+      removeLabel: (domain) => `Supprimer ${domain}`,
+      removed: (domain) => `${domain} supprimé`,
+      retrying: "Nouvel essai",
+      dialogTitle: "Ajouter un site web",
+      dialogBody:
+        "Saisissez l\u2019adresse du site que vous voulez voir sur Google. Nous le lirons et remplirons les détails pour vous.",
+      urlLabel: "Adresse du site",
+      urlPlaceholder: "exemple.com",
+      cancel: "Annuler",
+      adding: "Ajout…",
+    },
   },
 };
 
@@ -2667,6 +2760,29 @@ const it: Messages = {
       loadingPeople: "Caricamento persone",
       roleEditor: "Editor",
       roleViewer: "Lettore",
+    },
+    websites: {
+      title: "Siti web",
+      connected: (count) =>
+        count === 1
+        ? "1 collegato. Ogni sito viene fatturato con il proprio piano."
+        : `${count} collegati. Ogni sito viene fatturato con il proprio piano.`,
+      addWebsite: "Aggiungi sito",
+      emptyTitle: "Ancora nessun sito",
+      emptyBody:
+        "Aggiunga il suo sito: lo leggeremo, capiremo di cosa si occupa la sua attività e troveremo le ricerche che vale la pena presidiare.",
+      addFirst: "Aggiunga il suo primo sito",
+      tryAgain: "Riprova",
+      removeLabel: (domain) => `Rimuovi ${domain}`,
+      removed: (domain) => `${domain} rimosso`,
+      retrying: "Nuovo tentativo",
+      dialogTitle: "Aggiungi un sito web",
+      dialogBody:
+        "Inserisca l\u2019indirizzo del sito che vuole far trovare su Google. Lo leggeremo e compileremo i dettagli per lei.",
+      urlLabel: "Indirizzo del sito",
+      urlPlaceholder: "esempio.com",
+      cancel: "Annulla",
+      adding: "Aggiunta…",
     },
   },
 };
@@ -3239,6 +3355,29 @@ const de: Messages = {
       loadingPeople: "Personen werden geladen",
       roleEditor: "Redakteur",
       roleViewer: "Leser",
+    },
+    websites: {
+      title: "Websites",
+      connected: (count) =>
+        count === 1
+        ? "1 verbunden. Jede Website wird über ihren eigenen Tarif abgerechnet."
+        : `${count} verbunden. Jede Website wird über ihren eigenen Tarif abgerechnet.`,
+      addWebsite: "Website hinzufügen",
+      emptyTitle: "Noch keine Websites",
+      emptyBody:
+        "Fügen Sie Ihre Website hinzu. Wir lesen sie, ermitteln, was Ihr Unternehmen tut, und finden die Suchbegriffe, die sich lohnen.",
+      addFirst: "Erste Website hinzufügen",
+      tryAgain: "Erneut versuchen",
+      removeLabel: (domain) => `${domain} entfernen`,
+      removed: (domain) => `${domain} entfernt`,
+      retrying: "Neuer Versuch",
+      dialogTitle: "Website hinzufügen",
+      dialogBody:
+        "Geben Sie die Adresse der Website ein, die bei Google gefunden werden soll. Wir lesen sie und füllen die Details für Sie aus.",
+      urlLabel: "Website-Adresse",
+      urlPlaceholder: "beispiel.de",
+      cancel: "Abbrechen",
+      adding: "Wird hinzugefügt…",
     },
   },
 };

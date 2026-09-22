@@ -21,6 +21,7 @@ import { Label } from "@/components/ui/label";
 import { PageHeader, PageShell } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/states";
+import type { Messages } from "@/lib/i18n/messages";
 import {
   addWebsite,
   deleteWebsite,
@@ -31,9 +32,11 @@ import { UNLIMITED, type LimitCheck } from "@/lib/usage-shared";
 
 type WebsitesClientProps = {
   websites: WebsiteSummary[];
+  /** This screen's copy, already in the reader's language. */
+  t: Messages["app"]["websites"];
 };
 
-export function WebsitesClient({ websites }: WebsitesClientProps) {
+export function WebsitesClient({ websites, t }: WebsitesClientProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [url, setUrl] = useState("");
@@ -72,7 +75,7 @@ export function WebsitesClient({ websites }: WebsitesClientProps) {
         toast.error(result.error);
         return;
       }
-      toast.success(`Removed ${domain}`);
+      toast.success(t.removed(domain));
       router.refresh();
     });
   }
@@ -86,7 +89,7 @@ export function WebsitesClient({ websites }: WebsitesClientProps) {
         toast.error(result.error);
         return;
       }
-      toast.success("Trying again");
+      toast.success(t.retrying);
       router.refresh();
     });
   }
@@ -94,12 +97,12 @@ export function WebsitesClient({ websites }: WebsitesClientProps) {
   return (
     <PageShell>
       <PageHeader
-        title="Websites"
-        description={`${websites.length} connected. Each website is billed on its own plan.`}
+        title={t.title}
+        description={t.connected(websites.length)}
         actions={
           <Button size="sm" onClick={() => setOpen(true)}>
             <Plus className="size-4" />
-            Add website
+            {t.addWebsite}
           </Button>
         }
       />
@@ -107,12 +110,12 @@ export function WebsitesClient({ websites }: WebsitesClientProps) {
       {websites.length === 0 ? (
         <EmptyState
           icon={Globe}
-          title="No websites yet"
-          description="Add your website and we will read it, work out what your business does, and find the search terms worth going after."
+          title={t.emptyTitle}
+          description={t.emptyBody}
           action={
             <Button onClick={() => setOpen(true)}>
               <Plus className="size-4" />
-              Add your first website
+              {t.addFirst}
             </Button>
           }
         />
@@ -162,13 +165,13 @@ export function WebsitesClient({ websites }: WebsitesClientProps) {
                         ) : (
                           <RefreshCw className="size-4" />
                         )}
-                        Try again
+                        {t.tryAgain}
                       </Button>
                     ) : null}
                     <Button
                       variant="ghost"
                       size="icon"
-                      aria-label={`Remove ${site.domain}`}
+                      aria-label={t.removeLabel(site.domain)}
                       disabled={busy}
                       onClick={() => handleDelete(site.id, site.domain)}
                     >
@@ -190,20 +193,17 @@ export function WebsitesClient({ websites }: WebsitesClientProps) {
         <DialogContent>
           <form onSubmit={handleAdd}>
             <DialogHeader>
-              <DialogTitle>Add a website</DialogTitle>
-              <DialogDescription>
-                Enter the address of the site you want found on Google. We will
-                read it and fill in the details for you.
-              </DialogDescription>
+              <DialogTitle>{t.dialogTitle}</DialogTitle>
+              <DialogDescription>{t.dialogBody}</DialogDescription>
             </DialogHeader>
 
             <div className="space-y-1.5 py-4">
-              <Label htmlFor="website-url">Website address</Label>
+              <Label htmlFor="website-url">{t.urlLabel}</Label>
               <Input
                 id="website-url"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
-                placeholder="example.com"
+                placeholder={t.urlPlaceholder}
                 autoComplete="url"
                 required
               />
@@ -215,16 +215,16 @@ export function WebsitesClient({ websites }: WebsitesClientProps) {
                 variant="outline"
                 onClick={() => setOpen(false)}
               >
-                Cancel
+                {t.cancel}
               </Button>
               <Button type="submit" disabled={pending}>
                 {pending ? (
                   <>
                     <Loader2 className="size-4 animate-spin" />
-                    Adding…
+                    {t.adding}
                   </>
                 ) : (
-                  "Add website"
+                  t.addWebsite
                 )}
               </Button>
             </DialogFooter>
