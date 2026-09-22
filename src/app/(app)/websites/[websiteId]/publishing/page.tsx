@@ -1,7 +1,6 @@
 import { requireWebsite } from "@/lib/tenant";
 import { listIntegrations } from "@/lib/publishing/actions";
 import { getBrandVoice } from "@/lib/brand/actions";
-import { BrandVoiceForm } from "../brand-voice-form";
 import { ArticleSettingsForm } from "../article-settings-form";
 import { GenerationPanel } from "../generation-panel";
 import { requirePlan } from "@/lib/billing/require-plan";
@@ -9,6 +8,12 @@ import { requirePlan } from "@/lib/billing/require-plan";
 export const metadata = { title: "Publishing" };
 
 export const dynamic = "force-dynamic";
+
+/**
+ * Arrays are edited as one-per-line text, so they are joined for the form and
+ * split again by the save action.
+ */
+const NEWLINE = String.fromCharCode(10);
 
 export default async function WebsitePublishingPage({
   params,
@@ -70,6 +75,18 @@ export default async function WebsitePublishingPage({
 
           authorName: site.authorName ?? "",
           authorBio: site.authorBio ?? "",
+
+          /*
+            Brand voice, from its own table. Arrays become newline-separated
+            text because that is how the customer edits them; the save action
+            splits them back.
+          */
+          tone: voice.tone ?? "",
+          vocabulary: voice.vocabulary ?? "",
+          avoid: voice.avoid ?? "",
+          usps: voice.usps.join(NEWLINE),
+          facts: voice.facts.join(NEWLINE),
+          articleInstructions: voice.articleInstructions ?? "",
         }}
       />
 
@@ -85,17 +102,6 @@ export default async function WebsitePublishingPage({
         hasIntegration={integrations.some((i) => i.status === "connected")}
       />
 
-      {/*
-        "How we write", moved here from the Business tab.
-
-        The client asked for that tab to go — "To delete also how we write
-        from this part" — but the form edits real stored data, so it moves
-        rather than disappearing. Article Settings is where it belongs
-        anyway: tone, vocabulary and the standing instruction decide how
-        every article reads, which is the same question the panels above
-        answer about when and whether they publish.
-      */}
-      <BrandVoiceForm websiteId={site.id} voice={voice} />
 
       {/*
         Room for the fixed save bar, reserved at the END of the page.

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 
 import { db } from "@/lib/db";
 import { websites } from "@/lib/db/schema";
+import { updateBrandVoice } from "@/lib/brand/actions";
 import { requireWebsite } from "@/lib/tenant";
 import type { ActionResult } from "@/lib/websites/actions";
 
@@ -50,6 +51,27 @@ export type ArticleSettingsInput = {
 
   authorName?: string | null;
   authorBio?: string | null;
+
+  /* --- Brand voice, merged in from the old "How we write" panel ------ */
+
+  /**
+   * These live in brand_voice, not websites, and are written by
+   * updateBrandVoice rather than the update below.
+   *
+   * WHY DELEGATE INSTEAD OF INLINING: that action already validates social
+   * and example URLs properly — they are fetched server-side when an article
+   * is written and embedded in published pages, so an unchecked value is a
+   * request our server makes to wherever somebody typed, and a link on the
+   * customer's live site. Re-implementing that here would be a second copy
+   * of a security check, and the copy is the one that rots.
+   */
+  tone?: string | null;
+  vocabulary?: string | null;
+  avoid?: string | null;
+  /** One per line in the UI; the action splits them. */
+  usps?: string;
+  facts?: string;
+  articleInstructions?: string | null;
 };
 
 /** Trims, and turns an empty field into null rather than an empty string. */
@@ -118,6 +140,37 @@ export async function saveArticleSettings(
     input.targetWordCount === undefined || input.targetWordCount === null
       ? input.targetWordCount
       : Math.min(Math.max(Math.round(input.targetWordCount), 300), 5000);
+
+  /**
+   * Brand voice first, because it is the half that can REFUSE.
+   *
+   * updateBrandVoice rejects a malformed URL, and a save that wrote the
+   * website row and then failed here would leave the screen reporting an
+   * error while half the form had already been stored — the customer presses
+   * Save again and cannot tell what did or did not land.
+   *
+   * Only called when at least one voice field was sent, so a save from a
+   * form that does not carry them cannot blank the row.
+   */
+  const touchesVoice =
+    input.tone !== undefined ||
+    input.vocabulary !== undefined ||
+    input.avoid !== undefined ||
+    input.usps !== undefined ||
+    input.facts !== undefined ||
+    input.articleInstructions !== undefined;
+
+  if (touchesVoice) {
+    const voice = await updateBrandVoice(websiteId, {
+      tone: input.tone,
+      vocabulary: input.vocabulary,
+      avoid: input.avoid,
+      usps: input.usps,
+      facts: input.facts,
+      articleInstructions: input.articleInstructions,
+    });
+    if (!voice.ok) return voice;
+  }
 
   await db
     .update(websites)

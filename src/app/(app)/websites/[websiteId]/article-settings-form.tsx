@@ -58,6 +58,15 @@ export type ArticleSettingsValues = {
 
   authorName: string;
   authorBio: string;
+
+  /* Brand voice, merged in from the old "How we write" panel. */
+  tone: string;
+  vocabulary: string;
+  avoid: string;
+  /** One per line, as the customer types them. */
+  usps: string;
+  facts: string;
+  articleInstructions: string;
 };
 
 export function ArticleSettingsForm({
@@ -427,6 +436,96 @@ export function ArticleSettingsForm({
             checked={values.poweredByLink}
             onChange={(v) => set("poweredByLink", v)}
           />
+        </div>
+      </section>
+
+      {/* How we write ---------------------------------------------------- */}
+      <section className="space-y-5 rounded-2xl border bg-card p-6">
+        <div>
+          <h2 className="text-base font-semibold">How we write</h2>
+          <p className="text-sm text-muted-foreground">
+            The voice behind every article. Merged in from its own panel, so
+            one Save covers the whole screen.
+          </p>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="tone">How should your articles sound?</Label>
+          <Input
+            id="tone"
+            value={values.tone}
+            onChange={(e) => set("tone", e.target.value)}
+            placeholder="Friendly and reassuring, not clinical"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="instructions">Rules for every article</Label>
+          <textarea
+            id="instructions"
+            rows={2}
+            value={values.articleInstructions}
+            onChange={(e) => set("articleInstructions", e.target.value)}
+            placeholder="Never put a year in the title. Always mention we offer free delivery."
+            className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="facts">Facts about your business</Label>
+          <textarea
+            id="facts"
+            rows={3}
+            value={values.facts}
+            onChange={(e) => set("facts", e.target.value)}
+            placeholder={"Open since 2004\nFive dentists on the team\nFree parking on site"}
+            className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          />
+          {/*
+            Worth spelling out why this field earns its place: the writer is
+            forbidden from inventing details about a business, which leaves
+            articles vague about the customer specifically. These are the
+            only specifics it is allowed to state, because a human confirmed
+            them.
+          */}
+          <p className="text-xs text-muted-foreground">
+            One per line. These are the only specifics we will state outright
+            about your business — everything else stays general.
+          </p>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="usps">What makes you different?</Label>
+          <textarea
+            id="usps"
+            rows={3}
+            value={values.usps}
+            onChange={(e) => set("usps", e.target.value)}
+            placeholder={"Same-day emergency appointments\nWe see nervous patients"}
+            className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          />
+          <p className="text-xs text-muted-foreground">One per line.</p>
+        </div>
+
+        <div className="grid gap-5 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="vocabulary">Words you prefer</Label>
+            <Input
+              id="vocabulary"
+              value={values.vocabulary}
+              onChange={(e) => set("vocabulary", e.target.value)}
+              placeholder="Say treatment, not procedure"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="avoid">Words to avoid</Label>
+            <Input
+              id="avoid"
+              value={values.avoid}
+              onChange={(e) => set("avoid", e.target.value)}
+              placeholder="Never say cheap"
+            />
+          </div>
         </div>
       </section>
 
