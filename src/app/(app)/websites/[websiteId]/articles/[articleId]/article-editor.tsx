@@ -67,6 +67,7 @@ export function ArticleEditor({
   websiteDomain,
   publishLogs,
   t,
+  tImage,
 }: {
   websiteId: string;
   article: ArticleDetail;
@@ -83,6 +84,8 @@ export function ArticleEditor({
   publishLogs: PublishLogRow[];
   /** This screen's copy, already in the reader's language. */
   t: Messages["app"]["editor"];
+  /** The picture panel's own slice, forwarded to it. */
+  tImage: Messages["app"]["image"];
 }) {
   const router = useRouter();
   const bodyStats = articleStats(article.bodyHtml, {
@@ -493,6 +496,7 @@ export function ArticleEditor({
                 imageUrl={article.imageUrl}
                 imageAlt={article.imageAlt}
                 attempts={article.imageAttempts}
+                t={tImage}
               />
             </div>
           </TabsContent>

@@ -4,6 +4,7 @@ import { ImageIcon, Loader2, Sparkles, Trash2, Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
+import type { Messages } from "@/lib/i18n/messages";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -43,12 +44,15 @@ export function FeaturedImage({
   imageUrl,
   imageAlt,
   attempts,
+  t,
 }: {
   websiteId: string;
   articleId: string;
   imageUrl: string | null;
   imageAlt: string | null;
   attempts: number;
+  /** This screen's copy, already in the reader's language. */
+  t: Messages["app"]["image"];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -66,7 +70,7 @@ export function FeaturedImage({
         return;
       }
       setPrompt("");
-      toast.success("New image ready");
+      toast.success(t.imageReady);
       router.refresh();
     });
   }
@@ -85,7 +89,7 @@ export function FeaturedImage({
         toast.error(result.error);
         return;
       }
-      toast.success("Image uploaded");
+      toast.success(t.imageUploaded);
       router.refresh();
     });
   }
@@ -97,7 +101,7 @@ export function FeaturedImage({
         toast.error(result.error);
         return;
       }
-      toast.success("Image removed");
+      toast.success(t.imageRemoved);
       router.refresh();
     });
   }
@@ -158,13 +162,13 @@ export function FeaturedImage({
 
         {imageUrl ? (
           <div className="space-y-1.5">
-            <Label htmlFor="image-alt">Image description</Label>
+            <Label htmlFor="image-alt">{t.altLabel}</Label>
             <Input
               id="image-alt"
               value={alt}
               onChange={(event) => setAlt(event.target.value)}
               onBlur={saveAlt}
-              placeholder="What the picture shows"
+              placeholder={t.altPlaceholder}
             />
             <p className="text-xs text-muted-foreground">
               Read aloud to people using a screen reader, and by search
@@ -174,19 +178,19 @@ export function FeaturedImage({
         ) : null}
 
         <div className="space-y-1.5">
-          <Label htmlFor="image-prompt">Describe a different picture</Label>
+          <Label htmlFor="image-prompt">{t.promptLabel}</Label>
           <textarea
             id="image-prompt"
             rows={2}
             value={prompt}
             onChange={(event) => setPrompt(event.target.value)}
-            placeholder="An evening ceremony lit by candles, no people in shot"
+            placeholder={t.promptPlaceholder}
             className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
           />
           <p className="text-xs text-muted-foreground">
             {remaining > 0
               ? `Leave empty and we will choose. ${remaining} of ${MAX_ATTEMPTS} left.`
-              : "You have used all the regenerations for this article. Upload your own picture instead."}
+              : t.noRegensLeft}
           </p>
         </div>
 

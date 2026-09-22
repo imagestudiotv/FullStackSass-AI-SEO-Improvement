@@ -62,6 +62,7 @@ export default async function ArticlePage({
       }
       websiteDomain={websiteCtx.site.domain}
       t={t.app.editor}
+      tImage={t.app.image}
       publishLogs={logs}
     />
   );

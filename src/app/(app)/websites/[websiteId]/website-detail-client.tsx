@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import type { Messages } from "@/lib/i18n/messages";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -42,17 +43,29 @@ type WebsiteDetail = {
  * profile gets wrong keywords and wrong articles all the way down the
  * pipeline. Correcting it must not require support.
  */
+/*
+  Dictionary KEYS for the label and placeholder, not the text. A module-level
+  array is built before any locale exists, so holding the English here is how
+  a German form ends up labelled "Brand name".
+*/
 const FIELDS = [
-  { key: "brandName", label: "Brand name", placeholder: "Acme Ltd" },
-  { key: "industry", label: "Industry", placeholder: "Dental clinic" },
-  { key: "country", label: "Primary market", placeholder: "Ireland" },
-  { key: "targetAudience", label: "Target audience", placeholder: "Homeowners aged 30-55" },
+  { key: "brandName", label: "brandName", placeholder: "brandNamePlaceholder" },
+  { key: "industry", label: "industry", placeholder: "industryPlaceholder" },
+  { key: "country", label: "country", placeholder: "countryPlaceholder" },
+  {
+    key: "targetAudience",
+    label: "audience",
+    placeholder: "audiencePlaceholder",
+  },
 ] as const;
 
 export function WebsiteDetailClient({
   website,
+  t,
 }: {
   website: WebsiteDetail;
+  /** This screen's copy, already in the reader's language. */
+  t: Messages["app"]["profile"];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -75,7 +88,7 @@ export function WebsiteDetailClient({
         toast.error(result.error);
         return;
       }
-      toast.success("Details saved");
+      toast.success(t.detailsSaved);
       router.refresh();
     });
   }
@@ -108,12 +121,10 @@ export function WebsiteDetailClient({
               already says Business details, and two different names for the
               same panel reads as two different things.
             */}
-            <CardTitle className="text-base">Business details</CardTitle>
+            <CardTitle className="text-base">{t.businessDetails}</CardTitle>
             <CardDescription>
-              These details shape your keywords and every article we write.
-              {analysed
-                ? " Correct anything we got wrong."
-                : " They fill in automatically once we have analysed the site — you can also enter them now."}
+              {t.detailsHelp}
+              {analysed ? t.correctAnything : t.fillsIn}
             </CardDescription>
           </CardHeader>
 
@@ -121,11 +132,11 @@ export function WebsiteDetailClient({
             <div className="grid gap-4 sm:grid-cols-2">
               {FIELDS.map((field) => (
                 <div key={field.key} className="space-y-1.5">
-                  <Label htmlFor={field.key}>{field.label}</Label>
+                  <Label htmlFor={field.key}>{t[field.label]}</Label>
                   <Input
                     id={field.key}
                     value={form[field.key]}
-                    placeholder={field.placeholder}
+                    placeholder={t[field.placeholder]}
                     onChange={(e) =>
                       setForm((prev) => ({
                         ...prev,
@@ -142,7 +153,7 @@ export function WebsiteDetailClient({
                 English article with no way for the customer to tell why.
               */}
               <div className="space-y-1.5">
-                <Label htmlFor="language">Main language</Label>
+                <Label htmlFor="language">{t.mainLanguage}</Label>
                 <select
                   id="language"
                   value={form.language}
@@ -171,12 +182,12 @@ export function WebsiteDetailClient({
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="description">{t.description}</Label>
               <textarea
                 id="description"
                 rows={4}
                 value={form.description}
-                placeholder="What the business does, in a sentence or two."
+                placeholder={t.descriptionPlaceholder}
                 onChange={(e) =>
                   setForm((prev) => ({ ...prev, description: e.target.value }))
                 }
@@ -187,7 +198,7 @@ export function WebsiteDetailClient({
 
           <CardFooter>
             <Button type="submit" disabled={pending}>
-              {pending ? "Saving…" : "Save details"}
+              {pending ? t.saving : t.saveDetails}
             </Button>
           </CardFooter>
         </form>

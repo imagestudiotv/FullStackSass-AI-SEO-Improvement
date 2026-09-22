@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { SetupSteps } from "@/components/setup-steps";
 import { requireSession } from "@/lib/auth-guard";
+import { getAppMessages } from "@/lib/i18n/app-locale";
 import { getLaunchState } from "@/lib/onboarding/launch";
 import { getOnboardingState } from "@/lib/onboarding/steps";
 import { requireOrg } from "@/lib/tenant";
@@ -33,8 +34,9 @@ export const dynamic = "force-dynamic";
  * not a gate.
  */
 export default async function SetupPage({ searchParams }: PageProps<"/setup">) {
-  await requireSession();
+  const session = await requireSession();
   const { orgId } = await requireOrg();
+  const { t } = await getAppMessages(session.user.id);
 
   // Paywall. See lib/billing/require-plan.ts.
   await requirePlan(orgId);
@@ -132,17 +134,15 @@ export default async function SetupPage({ searchParams }: PageProps<"/setup">) {
 
           <div className="min-w-0 flex-1">
             <p className="text-xs font-semibold tracking-[0.14em] text-primary uppercase">
-              Launch checklist
+              {t.app.setup.launchChecklist}
             </p>
             <p className="mt-1 text-2xl font-semibold tracking-tight">
-              {launch.live ? "All systems live" : "Finish setting up"}
+              {launch.live ? t.app.setup.allLive : t.app.setup.finishSetup}
             </p>
             <p className="mt-1.5 text-sm text-muted-foreground">
               {launch.live
-                ? "Every required system is active. Head to the dashboard for your live stats."
-                : `${launch.requiredRemaining} ${
-                    launch.requiredRemaining === 1 ? "step" : "steps"
-                  } left before everything runs on its own.`}
+                ? t.app.setup.allLiveHelp
+                : t.app.setup.stepsLeft(launch.requiredRemaining)}
             </p>
 
             {/* Segmented bar, one block per step, as drawn. */}

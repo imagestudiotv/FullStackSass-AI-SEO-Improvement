@@ -744,6 +744,44 @@ export type Messages = {
       neverUsed: string;
       keyNotePlaceholder: string;
     };
+    image: {
+      altLabel: string;
+      altPlaceholder: string;
+      promptLabel: string;
+      promptPlaceholder: string;
+      noRegensLeft: string;
+      imageReady: string;
+      imageUploaded: string;
+      imageRemoved: string;
+    };
+    profile: {
+      businessDetails: string;
+      detailsHelp: string;
+      correctAnything: string;
+      fillsIn: string;
+      brandName: string;
+      brandNamePlaceholder: string;
+      industry: string;
+      industryPlaceholder: string;
+      country: string;
+      countryPlaceholder: string;
+      audience: string;
+      audiencePlaceholder: string;
+      mainLanguage: string;
+      description: string;
+      descriptionPlaceholder: string;
+      saveDetails: string;
+      saving: string;
+      detailsSaved: string;
+    };
+    setup: {
+      launchChecklist: string;
+      allLive: string;
+      finishSetup: string;
+      allLiveHelp: string;
+      /** "2 steps left before everything runs on its own." */
+      stepsLeft: (n: number) => string;
+    };
   };
 };
 
@@ -1643,6 +1681,43 @@ const en: Messages = {
       newKeyLabel: "Your new integration key",
       neverUsed: "Never used",
       keyNotePlaceholder: "What is this key for? (optional)",
+    },
+    image: {
+      altLabel: "Image description",
+      altPlaceholder: "What the picture shows",
+      promptLabel: "Describe a different picture",
+      promptPlaceholder: "An evening ceremony lit by candles, no people in shot",
+      noRegensLeft: "You have used all the regenerations for this article. Upload your own picture instead.",
+      imageReady: "New image ready",
+      imageUploaded: "Image uploaded",
+      imageRemoved: "Image removed",
+    },
+    profile: {
+      businessDetails: "Business details",
+      detailsHelp: "These details shape your keywords and every article we write.",
+      correctAnything: " Correct anything we got wrong.",
+      fillsIn: " They fill in automatically once we have analysed the site — you can also enter them now.",
+      brandName: "Brand name",
+      brandNamePlaceholder: "Acme Ltd",
+      industry: "Industry",
+      industryPlaceholder: "Dental clinic",
+      country: "Primary market",
+      countryPlaceholder: "Ireland",
+      audience: "Target audience",
+      audiencePlaceholder: "Homeowners aged 30-55",
+      mainLanguage: "Main language",
+      description: "Description",
+      descriptionPlaceholder: "What the business does, in a sentence or two.",
+      saveDetails: "Save details",
+      saving: "Saving…",
+      detailsSaved: "Details saved",
+    },
+    setup: {
+      launchChecklist: "Launch checklist",
+      allLive: "All systems live",
+      finishSetup: "Finish setting up",
+      allLiveHelp: "Every required system is active. Head to the dashboard for your live stats.",
+      stepsLeft: (n) => `${n} ${n === 1 ? "step" : "steps"} left before everything runs on its own.`,
     },
   },
 };
@@ -2553,6 +2628,43 @@ const es: Messages = {
       newKeyLabel: "Su nueva clave de integración",
       neverUsed: "Nunca usada",
       keyNotePlaceholder: "¿Para qué es esta clave? (opcional)",
+    },
+    image: {
+      altLabel: "Descripción de la imagen",
+      altPlaceholder: "Qué muestra la imagen",
+      promptLabel: "Describa una imagen diferente",
+      promptPlaceholder: "Una ceremonia nocturna iluminada con velas, sin personas",
+      noRegensLeft: "Ha agotado las regeneraciones de este artículo. Suba su propia imagen.",
+      imageReady: "Nueva imagen lista",
+      imageUploaded: "Imagen subida",
+      imageRemoved: "Imagen eliminada",
+    },
+    profile: {
+      businessDetails: "Datos del negocio",
+      detailsHelp: "Estos datos definen sus palabras clave y cada artículo que escribimos.",
+      correctAnything: " Corrija cualquier cosa que hayamos entendido mal.",
+      fillsIn: " Se rellenan solos en cuanto hayamos analizado el sitio — también puede introducirlos ahora.",
+      brandName: "Nombre de la marca",
+      brandNamePlaceholder: "Acme S.L.",
+      industry: "Sector",
+      industryPlaceholder: "Clínica dental",
+      country: "Mercado principal",
+      countryPlaceholder: "España",
+      audience: "Público objetivo",
+      audiencePlaceholder: "Propietarios de 30 a 55 años",
+      mainLanguage: "Idioma principal",
+      description: "Descripción",
+      descriptionPlaceholder: "Qué hace el negocio, en una o dos frases.",
+      saveDetails: "Guardar datos",
+      saving: "Guardando…",
+      detailsSaved: "Datos guardados",
+    },
+    setup: {
+      launchChecklist: "Lista de lanzamiento",
+      allLive: "Todo está activo",
+      finishSetup: "Termine la configuración",
+      allLiveHelp: "Todos los sistemas necesarios están activos. Vaya al panel para ver sus datos en directo.",
+      stepsLeft: (n) => `${n === 1 ? "Queda 1 paso" : `Quedan ${n} pasos`} para que todo funcione solo.`,
     },
   },
 };
@@ -3467,6 +3579,43 @@ const fr: Messages = {
       neverUsed: "Jamais utilisée",
       keyNotePlaceholder: "À quoi sert cette clé ? (facultatif)",
     },
+    image: {
+      altLabel: "Description de l\u2019image",
+      altPlaceholder: "Ce que montre l\u2019image",
+      promptLabel: "Décrivez une autre image",
+      promptPlaceholder: "Une cérémonie en soirée éclairée aux bougies, sans personne",
+      noRegensLeft: "Vous avez utilisé toutes les régénérations pour cet article. Importez votre propre image.",
+      imageReady: "Nouvelle image prête",
+      imageUploaded: "Image importée",
+      imageRemoved: "Image supprimée",
+    },
+    profile: {
+      businessDetails: "Informations sur l\u2019entreprise",
+      detailsHelp: "Ces informations déterminent vos mots-clés et chaque article que nous rédigeons.",
+      correctAnything: " Corrigez ce que nous avons mal compris.",
+      fillsIn: " Elles se remplissent automatiquement une fois le site analysé — vous pouvez aussi les saisir maintenant.",
+      brandName: "Nom de la marque",
+      brandNamePlaceholder: "Acme SARL",
+      industry: "Secteur",
+      industryPlaceholder: "Cabinet dentaire",
+      country: "Marché principal",
+      countryPlaceholder: "France",
+      audience: "Public cible",
+      audiencePlaceholder: "Propriétaires de 30 à 55 ans",
+      mainLanguage: "Langue principale",
+      description: "Description",
+      descriptionPlaceholder: "Ce que fait l\u2019entreprise, en une ou deux phrases.",
+      saveDetails: "Enregistrer",
+      saving: "Enregistrement…",
+      detailsSaved: "Informations enregistrées",
+    },
+    setup: {
+      launchChecklist: "Liste de lancement",
+      allLive: "Tout est actif",
+      finishSetup: "Terminer la configuration",
+      allLiveHelp: "Tous les systèmes requis sont actifs. Rendez-vous sur le tableau de bord pour vos statistiques en direct.",
+      stepsLeft: (n) => `${n} étape${n === 1 ? "" : "s"} restante${n === 1 ? "" : "s"} avant que tout fonctionne seul.`,
+    },
   },
 };
 
@@ -4372,6 +4521,43 @@ const it: Messages = {
       newKeyLabel: "La sua nuova chiave di integrazione",
       neverUsed: "Mai usata",
       keyNotePlaceholder: "A che cosa serve questa chiave? (facoltativo)",
+    },
+    image: {
+      altLabel: "Descrizione dell\u2019immagine",
+      altPlaceholder: "Che cosa mostra l\u2019immagine",
+      promptLabel: "Descriva un\u2019immagine diversa",
+      promptPlaceholder: "Una cerimonia serale illuminata da candele, senza persone",
+      noRegensLeft: "Ha esaurito le rigenerazioni per questo articolo. Carichi una sua immagine.",
+      imageReady: "Nuova immagine pronta",
+      imageUploaded: "Immagine caricata",
+      imageRemoved: "Immagine rimossa",
+    },
+    profile: {
+      businessDetails: "Dati dell\u2019attività",
+      detailsHelp: "Questi dati definiscono le sue parole chiave e ogni articolo che scriviamo.",
+      correctAnything: " Corregga ciò che abbiamo frainteso.",
+      fillsIn: " Si compilano da soli una volta analizzato il sito — può anche inserirli ora.",
+      brandName: "Nome del marchio",
+      brandNamePlaceholder: "Acme S.r.l.",
+      industry: "Settore",
+      industryPlaceholder: "Studio dentistico",
+      country: "Mercato principale",
+      countryPlaceholder: "Italia",
+      audience: "Pubblico di riferimento",
+      audiencePlaceholder: "Proprietari di casa dai 30 ai 55 anni",
+      mainLanguage: "Lingua principale",
+      description: "Descrizione",
+      descriptionPlaceholder: "Che cosa fa l\u2019attività, in una o due frasi.",
+      saveDetails: "Salva dati",
+      saving: "Salvataggio…",
+      detailsSaved: "Dati salvati",
+    },
+    setup: {
+      launchChecklist: "Lista di lancio",
+      allLive: "Tutto è attivo",
+      finishSetup: "Completi la configurazione",
+      allLiveHelp: "Tutti i sistemi necessari sono attivi. Vada alla dashboard per i dati in tempo reale.",
+      stepsLeft: (n) => `${n === 1 ? "Manca 1 passaggio" : `Mancano ${n} passaggi`} prima che tutto funzioni da solo.`,
     },
   },
 };
@@ -5285,6 +5471,43 @@ const de: Messages = {
       newKeyLabel: "Ihr neuer Integrationsschlüssel",
       neverUsed: "Nie verwendet",
       keyNotePlaceholder: "Wofür ist dieser Schlüssel? (optional)",
+    },
+    image: {
+      altLabel: "Bildbeschreibung",
+      altPlaceholder: "Was das Bild zeigt",
+      promptLabel: "Beschreiben Sie ein anderes Bild",
+      promptPlaceholder: "Eine Abendzeremonie im Kerzenlicht, ohne Personen",
+      noRegensLeft: "Sie haben alle Neuerstellungen für diesen Artikel aufgebraucht. Laden Sie stattdessen ein eigenes Bild hoch.",
+      imageReady: "Neues Bild fertig",
+      imageUploaded: "Bild hochgeladen",
+      imageRemoved: "Bild entfernt",
+    },
+    profile: {
+      businessDetails: "Unternehmensdaten",
+      detailsHelp: "Diese Angaben prägen Ihre Suchbegriffe und jeden Artikel, den wir schreiben.",
+      correctAnything: " Korrigieren Sie, was wir falsch verstanden haben.",
+      fillsIn: " Sie werden automatisch ausgefüllt, sobald wir die Website analysiert haben — Sie können sie auch jetzt eintragen.",
+      brandName: "Markenname",
+      brandNamePlaceholder: "Acme GmbH",
+      industry: "Branche",
+      industryPlaceholder: "Zahnarztpraxis",
+      country: "Hauptmarkt",
+      countryPlaceholder: "Deutschland",
+      audience: "Zielgruppe",
+      audiencePlaceholder: "Hausbesitzer zwischen 30 und 55",
+      mainLanguage: "Hauptsprache",
+      description: "Beschreibung",
+      descriptionPlaceholder: "Was das Unternehmen tut, in ein bis zwei Sätzen.",
+      saveDetails: "Daten speichern",
+      saving: "Wird gespeichert…",
+      detailsSaved: "Daten gespeichert",
+    },
+    setup: {
+      launchChecklist: "Startcheckliste",
+      allLive: "Alle Systeme aktiv",
+      finishSetup: "Einrichtung abschließen",
+      allLiveHelp: "Alle erforderlichen Systeme sind aktiv. Ihre Live-Zahlen finden Sie im Dashboard.",
+      stepsLeft: (n) => `Noch ${n} Schritt${n === 1 ? "" : "e"}, bis alles von selbst läuft.`,
     },
   },
 };
