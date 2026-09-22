@@ -94,16 +94,35 @@ export function styleHint(id: string): string {
  * for everybody.
  */
 export const IMAGE_STYLE_PROMPTS: Record<string, string> = {
+  /*
+    COLOURED, not a pencil drawing. "Monochrome" produced a grey graphite
+    sketch; the reference is an illustration with sketchy linework over warm
+    colour, which is a different thing wearing the same word.
+  */
   sketch:
-    "Hand-drawn pencil sketch with visible line work and cross-hatching, monochrome, illustrative.",
+    "Coloured sketch illustration with loose hand-drawn linework over soft warm colour, textured paper feel, editorial.",
+  /*
+    VIVID, not pale. "Muted palette" and "bleeding edges" gave washed-out
+    beige; the reference has real pigment in it.
+  */
   watercolour:
-    "Soft watercolour painting with visible brush texture and bleeding edges, muted palette.",
+    "Vivid watercolour illustration with saturated pigment and visible brush strokes, clear colour, white paper showing through.",
   realistic:
     "Clean professional photograph, natural lighting, editorial style.",
   illustration:
     "Flat vector illustration, bold simple shapes, limited palette, no gradients.",
+  /*
+    A PHOTOGRAPH with a graphic panel over it, which is what the reference
+    shows. The previous wording — "bold graphic composition, poster-like" —
+    produced a monochrome illustration, losing the photo half entirely.
+
+    The no-text rule still applies to the image itself: the headline is set
+    in HTML over the picture, because image models render words as
+    convincing gibberish and a misspelled headline on a customer's live site
+    is worse than no image.
+  */
   "brand-text":
-    "Bold graphic composition in the brand colours, strong geometric shapes, poster-like.",
+    "Clean professional photograph with a bold flat colour panel overlaid along one edge in the brand colours, leaving clear empty space in that panel.",
 };
 
 /** The wording for a style id, falling back to photography. */

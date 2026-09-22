@@ -31,14 +31,14 @@ const OUT_DIR = join(process.cwd(), "public", "style-samples");
  */
 const BODY_STYLES = {
   sketch:
-    "Hand-drawn pencil sketch with visible line work and cross-hatching, monochrome, illustrative.",
+    "Coloured sketch illustration with loose hand-drawn linework over soft warm colour, textured paper feel, editorial.",
   watercolour:
-    "Soft watercolour painting with visible brush texture and bleeding edges, muted palette.",
+    "Vivid watercolour illustration with saturated pigment and visible brush strokes, clear colour, white paper showing through.",
   realistic: "Clean professional photograph, natural lighting, editorial style.",
   illustration:
     "Flat vector illustration, bold simple shapes, limited palette, no gradients.",
   "brand-text":
-    "Bold graphic composition in strong blues, geometric shapes, poster-like.",
+    "Clean professional photograph with a bold flat colour panel overlaid along one edge in strong blue, leaving clear empty space in that panel.",
 };
 
 /**
@@ -126,8 +126,16 @@ let made = 0;
 let skipped = 0;
 for (const job of jobs) {
   const path = join(OUT_DIR, job.file);
-  // Idempotent: a re-run after adding one style should not re-bill the rest.
-  if (existsSync(path)) {
+  /*
+    Idempotent, and it must check the COMPRESSED file too.
+
+    compress-style-samples.mjs replaces each .png with a .webp, so a re-run
+    that only looked for the .png would find nothing and re-bill every
+    sample. Checking both means deleting the one .webp you want redone is
+    enough to redo exactly that one.
+  */
+  const webp = path.replace(/\.png$/, ".webp");
+  if (existsSync(path) || existsSync(webp)) {
     console.log(`  ${job.file} — already there, skipping`);
     skipped++;
     continue;
