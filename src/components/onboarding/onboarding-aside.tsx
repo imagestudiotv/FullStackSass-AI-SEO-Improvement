@@ -114,6 +114,23 @@ export function OnboardingAside({
         </div>
 
         {/*
+          "Trusted by businesses worldwide", over the map rather than under
+          it.
+
+          The client: "We wanted to place the: Trusted by businesses
+          worldwide somewhere here, instead of living it close to the
+          footer." It was pinned to the bottom of the panel with mt-auto,
+          which on a tall panel pushed it far below the map it was meant to
+          caption - close enough to the page footer to read as one.
+
+          Sitting above the card it captions the map directly, which is the
+          job the line was doing all along.
+        */}
+        <p className="relative pt-8 text-center text-[10px] font-medium tracking-[0.18em] text-muted-foreground/70 uppercase">
+          Trusted by businesses worldwide
+        </p>
+
+        {/*
           The card FLOATS ON the map in the reference — the overlap is what
           makes the panel one composition rather than a stat strip, a pattern
           and a note stacked in a box.
@@ -136,23 +153,6 @@ export function OnboardingAside({
           <div className="relative mt-4 text-foreground">{children}</div>
         ) : null}
 
-        {/*
-          The footing line the reference sets under its map.
-
-          Deliberately "worldwide" and nothing more. The reference pairs this
-          with customer logos and a review score; both are that company's, and
-          the line on its own is a statement about where the product can be
-          used rather than a count of who uses it — which is true on day one
-          and stays true.
-
-          `mt-auto` rather than a fixed margin: with the panel stretched to
-          the form's height this pins the line to the bottom, which is where
-          the reference has it. Without stretching it simply follows the
-          content.
-        */}
-        <p className="relative pt-10 text-center text-[10px] font-medium tracking-[0.18em] text-muted-foreground/70 uppercase">
-          Trusted by businesses worldwide
-        </p>
       </div>
     </aside>
   );

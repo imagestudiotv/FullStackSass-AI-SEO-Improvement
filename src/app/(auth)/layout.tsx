@@ -20,9 +20,7 @@ export default function AuthLayout({ children }: LayoutProps<"/">) {
   return (
     <div className="grid min-h-svh lg:grid-cols-2">
       {/*
-        Form side. Sticky on a wide screen so it stays put while the showcase
-        beside it scrolls — the form is why anyone is on this page, and it
-        should not have to be scrolled back to.
+        Form side.
 
         NOT `justify-center`. Centred flex content that overflows is pushed out
         past the container's START edge, and that overflow cannot be scrolled
@@ -37,7 +35,27 @@ export default function AuthLayout({ children }: LayoutProps<"/">) {
         the middle of the viewport and tall content simply starts at the top
         and scrolls normally.
       */}
-      <div className="flex flex-col px-6 py-12 sm:px-12 lg:sticky lg:top-0 lg:max-h-svh lg:overflow-y-auto lg:px-16">
+      <div
+        /*
+          THE KEY: this element is no longer its own scroll container.
+
+          It was `lg:max-h-svh lg:overflow-y-auto`, which made the form column
+          scroll independently of the window. Next scrolls the WINDOW to the
+          top on navigation — and the window had never moved, so moving
+          between sign-in and sign-up left this column exactly where it was,
+          with the logo and heading scrolled off above. The client hit it
+          twice: "from sign up to sign in, and sign in to sign up is not
+          showing the full body logo".
+
+          Without the overflow the page scrolls as one document, which is
+          what Next's scroll restoration already handles correctly. `sticky`
+          goes with it: a sticky element inside a normally-scrolling page
+          would pin the form while the showcase moved, which is not what the
+          design asks for on a page this short.
+        */
+        id="auth-form-column"
+        className="flex flex-col px-6 py-12 sm:px-12 lg:px-16"
+      >
         <div className="mx-auto my-auto w-full max-w-sm">
           {/*
             The mark links home. This is often the first page a customer sees,
