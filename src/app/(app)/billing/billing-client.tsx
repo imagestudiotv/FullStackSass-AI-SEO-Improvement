@@ -64,27 +64,32 @@ type BillingClientProps = {
   locale: Locale;
 };
 
-function planFeatures(plan: PlanRow): string[] {
-  const unlimited = (n: number) => (n < 0 ? "Unlimited" : n.toLocaleString());
-  /**
-   * Pluralised per count. Starter has a limit of one for three of these, and
-   * "1 articles written each month" on the entry plan is the first thing a
-   * prospective customer reads.
-   */
-  const plural = (n: number, one: string, many: string) =>
-    n === 1 ? one : many;
+function planFeatures(
+  plan: PlanRow,
+  t: Messages["app"]["billing"],
+  locale: Locale,
+): string[] {
+  /*
+    The pluralising lives in the dictionary now. Each sentence is built per
+    language there, because the plural rule and the word order both move —
+    a count assembled beside a noun here would impose English grammar on the
+    other four, and "1 articles written each month" on the entry plan is the
+    first thing a prospective customer reads.
+  */
+  const unlimited = (n: number) =>
+    n < 0 ? t.unlimited : formatNumber(n, locale);
 
   return [
-    `${unlimited(plan.articleLimit)} ${plural(plan.articleLimit, "article", "articles")} written each month`,
-    `${unlimited(plan.keywordLimit)} ${plural(plan.keywordLimit, "search term", "search terms")} tracked`,
+    t.articlesEachMonth(unlimited(plan.articleLimit), plan.articleLimit),
+    t.searchTermsTracked(unlimited(plan.keywordLimit), plan.keywordLimit),
     /*
       One website, not plan.siteLimit. Subscriptions are per WEBSITE since
       migration 0021, so a plan row's siteLimit describes a cap that is no
       longer enforced anywhere — quoting it here promised Grow customers three
       sites for one payment. See lib/plans/features.ts.
     */
-    "One website per subscription",
-    `${unlimited(plan.monthlyCredits)} ${plural(plan.monthlyCredits, "link credit", "link credits")} each month`,
+    t.oneWebsite,
+    t.creditsEachMonth(unlimited(plan.monthlyCredits), plan.monthlyCredits),
   ];
 }
 
@@ -119,26 +124,36 @@ export function BillingClient({
    * The redirect only reports what the user did; entitlement always comes from
    * the webhook. The success copy therefore says "confirming", never "active".
    */
+  /*
+    The two strings, not `t` itself. The dictionary arrives from a server
+    component, so it is a fresh object on every render — depending on it
+    would re-fire this toast while ?checkout=success is still in the URL,
+    and the customer would see "Payment received" twice.
+  */
+  const paymentReceived = t.paymentReceived;
+  const checkoutCancelled = t.checkoutCancelled;
   useEffect(() => {
     if (checkout === "success") {
-      toast.success("Payment received - confirming your subscription…");
+      toast.success(paymentReceived);
     } else if (checkout === "cancelled") {
-      toast("Checkout cancelled.");
+      toast(checkoutCancelled);
     }
-  }, [checkout]);
+  }, [checkout, paymentReceived, checkoutCancelled]);
 
   /**
    * Add-ons land back on the same page with their own parameter. Like the
    * subscription message above, this says "received" rather than "added" —
    * the webhook grants the credits, and it may not have arrived yet.
    */
+  const purchaseReceived = t.purchaseReceived;
+  const purchaseCancelled = t.purchaseCancelled;
   useEffect(() => {
     if (addonResult === "success") {
-      toast.success("Payment received - your purchase will appear shortly.");
+      toast.success(purchaseReceived);
     } else if (addonResult === "cancelled") {
-      toast("Purchase cancelled.");
+      toast(purchaseCancelled);
     }
-  }, [addonResult]);
+  }, [addonResult, purchaseReceived, purchaseCancelled]);
 
   async function handleSelect(planId: string) {
     setPendingPlanId(planId);
@@ -149,7 +164,7 @@ export function BillingClient({
        * with several subscribes each in turn.
        */
       if (!websiteId) {
-        toast.error("Add a website first — each plan pays for one site.");
+        toast.error(t.addWebsiteFirst);
         setPendingPlanId(null);
         return;
       }
@@ -164,7 +179,7 @@ export function BillingClient({
       // mutation, while a method call is allowed.
       window.location.assign(result.url);
     } catch {
-      toast.error("Could not start checkout. Please try again.");
+      toast.error(t.checkoutFailed);
       setPendingPlanId(null);
     }
   }
@@ -174,7 +189,7 @@ export function BillingClient({
     try {
       // Same site as the card path: a plan pays for one website.
       if (!websiteId) {
-        toast.error("Add a website first — each plan pays for one site.");
+        toast.error(t.addWebsiteFirst);
         setPendingPlanId(null);
         return;
       }
@@ -595,7 +610,7 @@ export function BillingClient({
 
               <CardContent className="flex-1">
                 <ul className="space-y-2 text-sm">
-                  {planFeatures(plan).map((feature) => (
+                  {planFeatures(plan, t, locale).map((feature) => (
                     <li key={feature} className="flex items-center gap-2">
                       <Check className="size-4 shrink-0 text-muted-foreground" />
                       {feature}

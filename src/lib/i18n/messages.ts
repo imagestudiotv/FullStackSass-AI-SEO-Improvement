@@ -445,6 +445,24 @@ export type Messages = {
       renewsOn: (date: string) => string;
       monthly: string;
       annual: string;
+      unlimited: string;
+      /**
+       * Plan feature lines.
+       *
+       * Whole sentences per language rather than a count plus a noun: the
+       * plural rule and the word order both move, and "1 articles" on the
+       * entry plan is the first thing a prospect reads.
+       */
+      articlesEachMonth: (n: string, count: number) => string;
+      searchTermsTracked: (n: string, count: number) => string;
+      oneWebsite: string;
+      creditsEachMonth: (n: string, count: number) => string;
+      paymentReceived: string;
+      checkoutCancelled: string;
+      purchaseReceived: string;
+      purchaseCancelled: string;
+      addWebsiteFirst: string;
+      checkoutFailed: string;
     };
     article: {
       contentSeo: string;
@@ -582,6 +600,10 @@ export type Messages = {
       searchesPerMonth: string;
       competition: string;
       topic: string;
+      difficultyLow: string;
+      difficultyMedium: string;
+      difficultyHigh: string;
+      difficultyVeryHigh: string;
       researching: string;
       articleDeleted: string;
       statusQueued: string;
@@ -1423,6 +1445,20 @@ const en: Messages = {
       renewsOn: (date) => `Renews on ${date}.`,
       monthly: "Monthly",
       annual: "Annual",
+      unlimited: "Unlimited",
+      articlesEachMonth: (n, count) =>
+        `${n} ${count === 1 ? "article" : "articles"} written each month`,
+      searchTermsTracked: (n, count) =>
+        `${n} ${count === 1 ? "search term" : "search terms"} tracked`,
+      oneWebsite: "One website per subscription",
+      creditsEachMonth: (n, count) =>
+        `${n} ${count === 1 ? "link credit" : "link credits"} each month`,
+      paymentReceived: "Payment received — confirming your subscription…",
+      checkoutCancelled: "Checkout cancelled.",
+      purchaseReceived: "Payment received — your purchase will appear shortly.",
+      purchaseCancelled: "Purchase cancelled.",
+      addWebsiteFirst: "Add a website first — each plan pays for one site.",
+      checkoutFailed: "Could not start checkout. Please try again.",
     },
     article: {
       contentSeo: "Content & SEO",
@@ -1564,6 +1600,10 @@ const en: Messages = {
       searchesPerMonth: "Searches / mo",
       competition: "Competition",
       topic: "Topic",
+      difficultyLow: "Low",
+      difficultyMedium: "Medium",
+      difficultyHigh: "High",
+      difficultyVeryHigh: "Very high",
       researching: "Researching keywords — this takes a minute",
       articleDeleted: "Article deleted",
       statusQueued: "Queued",
@@ -2412,6 +2452,20 @@ const es: Messages = {
       renewsOn: (date) => `Se renueva el ${date}.`,
       monthly: "Mensual",
       annual: "Anual",
+      unlimited: "Ilimitado",
+      articlesEachMonth: (n, count) =>
+        `${n} ${count === 1 ? "artículo escrito" : "artículos escritos"} cada mes`,
+      searchTermsTracked: (n, count) =>
+        `${n} ${count === 1 ? "término de búsqueda supervisado" : "términos de búsqueda supervisados"}`,
+      oneWebsite: "Un sitio web por suscripción",
+      creditsEachMonth: (n, count) =>
+        `${n} ${count === 1 ? "crédito de enlace" : "créditos de enlace"} cada mes`,
+      paymentReceived: "Pago recibido — confirmando su suscripción…",
+      checkoutCancelled: "Pago cancelado.",
+      purchaseReceived: "Pago recibido — su compra aparecerá en breve.",
+      purchaseCancelled: "Compra cancelada.",
+      addWebsiteFirst: "Añada primero un sitio web — cada plan paga un solo sitio.",
+      checkoutFailed: "No se pudo iniciar el pago. Inténtelo de nuevo.",
     },
     article: {
       contentSeo: "Contenido y SEO",
@@ -2553,6 +2607,10 @@ const es: Messages = {
       searchesPerMonth: "Búsquedas / mes",
       competition: "Competencia",
       topic: "Tema",
+      difficultyLow: "Baja",
+      difficultyMedium: "Media",
+      difficultyHigh: "Alta",
+      difficultyVeryHigh: "Muy alta",
       researching: "Investigando palabras clave — esto tarda un minuto",
       articleDeleted: "Artículo eliminado",
       statusQueued: "En cola",
@@ -3404,6 +3462,20 @@ const fr: Messages = {
       renewsOn: (date) => `Renouvellement le ${date}.`,
       monthly: "Mensuel",
       annual: "Annuel",
+      unlimited: "Illimité",
+      articlesEachMonth: (n, count) =>
+        `${n} ${count === 1 ? "article rédigé" : "articles rédigés"} chaque mois`,
+      searchTermsTracked: (n, count) =>
+        `${n} ${count === 1 ? "recherche suivie" : "recherches suivies"}`,
+      oneWebsite: "Un site par abonnement",
+      creditsEachMonth: (n, count) =>
+        `${n} ${count === 1 ? "crédit de lien" : "crédits de lien"} chaque mois`,
+      paymentReceived: "Paiement reçu — confirmation de votre abonnement…",
+      checkoutCancelled: "Paiement annulé.",
+      purchaseReceived: "Paiement reçu — votre achat apparaîtra sous peu.",
+      purchaseCancelled: "Achat annulé.",
+      addWebsiteFirst: "Ajoutez d\u2019abord un site — chaque forfait paie un seul site.",
+      checkoutFailed: "Impossible de lancer le paiement. Réessayez.",
     },
     article: {
       contentSeo: "Contenu et SEO",
@@ -3545,6 +3617,10 @@ const fr: Messages = {
       searchesPerMonth: "Recherches / mois",
       competition: "Concurrence",
       topic: "Sujet",
+      difficultyLow: "Faible",
+      difficultyMedium: "Moyenne",
+      difficultyHigh: "Élevée",
+      difficultyVeryHigh: "Très élevée",
       researching: "Recherche de mots-clés — cela prend une minute",
       articleDeleted: "Article supprimé",
       statusQueued: "En attente",
@@ -4389,6 +4465,20 @@ const it: Messages = {
       renewsOn: (date) => `Si rinnova il ${date}.`,
       monthly: "Mensile",
       annual: "Annuale",
+      unlimited: "Illimitati",
+      articlesEachMonth: (n, count) =>
+        `${n} ${count === 1 ? "articolo scritto" : "articoli scritti"} ogni mese`,
+      searchTermsTracked: (n, count) =>
+        `${n} ${count === 1 ? "termine di ricerca monitorato" : "termini di ricerca monitorati"}`,
+      oneWebsite: "Un sito web per abbonamento",
+      creditsEachMonth: (n, count) =>
+        `${n} ${count === 1 ? "credito per i link" : "crediti per i link"} ogni mese`,
+      paymentReceived: "Pagamento ricevuto — stiamo confermando il suo abbonamento…",
+      checkoutCancelled: "Pagamento annullato.",
+      purchaseReceived: "Pagamento ricevuto — il suo acquisto comparirà a breve.",
+      purchaseCancelled: "Acquisto annullato.",
+      addWebsiteFirst: "Aggiunga prima un sito web — ogni piano paga un solo sito.",
+      checkoutFailed: "Non è stato possibile avviare il pagamento. Riprovi.",
     },
     article: {
       contentSeo: "Contenuti e SEO",
@@ -4530,6 +4620,10 @@ const it: Messages = {
       searchesPerMonth: "Ricerche / mese",
       competition: "Concorrenza",
       topic: "Argomento",
+      difficultyLow: "Bassa",
+      difficultyMedium: "Media",
+      difficultyHigh: "Alta",
+      difficultyVeryHigh: "Molto alta",
       researching: "Ricerca delle parole chiave — ci vuole un minuto",
       articleDeleted: "Articolo eliminato",
       statusQueued: "In coda",
@@ -5381,6 +5475,20 @@ const de: Messages = {
       renewsOn: (date) => `Verlängert sich am ${date}.`,
       monthly: "Monatlich",
       annual: "Jährlich",
+      unlimited: "Unbegrenzt",
+      // "Artikel" is the same in singular and plural; no ternary to write.
+      articlesEachMonth: (n) => `${n} Artikel pro Monat geschrieben`,
+      searchTermsTracked: (n, count) =>
+        `${n} ${count === 1 ? "Suchbegriff" : "Suchbegriffe"} beobachtet`,
+      oneWebsite: "Eine Website pro Abonnement",
+      creditsEachMonth: (n, count) =>
+        `${n} ${count === 1 ? "Link-Credit" : "Link-Credits"} pro Monat`,
+      paymentReceived: "Zahlung erhalten — Ihr Abonnement wird bestätigt…",
+      checkoutCancelled: "Bezahlvorgang abgebrochen.",
+      purchaseReceived: "Zahlung erhalten — Ihr Kauf erscheint in Kürze.",
+      purchaseCancelled: "Kauf abgebrochen.",
+      addWebsiteFirst: "Fügen Sie zuerst eine Website hinzu — jeder Tarif bezahlt eine Website.",
+      checkoutFailed: "Der Bezahlvorgang konnte nicht gestartet werden. Bitte erneut versuchen.",
     },
     article: {
       contentSeo: "Inhalte und SEO",
@@ -5522,6 +5630,10 @@ const de: Messages = {
       searchesPerMonth: "Suchanfragen / Monat",
       competition: "Wettbewerb",
       topic: "Thema",
+      difficultyLow: "Niedrig",
+      difficultyMedium: "Mittel",
+      difficultyHigh: "Hoch",
+      difficultyVeryHigh: "Sehr hoch",
       researching: "Suchbegriffe werden recherchiert — das dauert eine Minute",
       articleDeleted: "Artikel gelöscht",
       statusQueued: "In Warteschlange",

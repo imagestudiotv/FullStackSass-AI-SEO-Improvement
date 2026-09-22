@@ -85,12 +85,15 @@ const INTENT_VARIANT: Record<string, "default" | "secondary" | "outline"> = {
  * "34" means nothing to a dentist. "Low" tells them whether it is worth
  * going after, which is the only decision they need to make.
  */
-function difficultyLabel(value: number | null): string {
+function difficultyLabel(
+  value: number | null,
+  t: Messages["app"]["research"],
+): string {
   if (value === null) return "—";
-  if (value < 30) return "Low";
-  if (value < 50) return "Medium";
-  if (value < 70) return "High";
-  return "Very high";
+  if (value < 30) return t.difficultyLow;
+  if (value < 50) return t.difficultyMedium;
+  if (value < 70) return t.difficultyHigh;
+  return t.difficultyVeryHigh;
 }
 
 export function ResearchTabs({
@@ -361,7 +364,7 @@ export function ResearchTabs({
                       {keyword.volume?.toLocaleString() ?? "—"}
                     </TableCell>
                     <TableCell className="hidden text-muted-foreground sm:table-cell">
-                      {difficultyLabel(keyword.difficulty)}
+                      {difficultyLabel(keyword.difficulty, t)}
                     </TableCell>
                     <TableCell className="hidden text-muted-foreground md:table-cell">
                       {keyword.clusterName ?? "—"}
