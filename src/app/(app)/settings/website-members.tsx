@@ -1,6 +1,12 @@
 "use client";
 
-import { Loader2, Trash2, UserPlus } from "lucide-react";
+import {
+  Crown,
+  Loader2,
+  MoreVertical,
+  Trash2,
+  UserPlus,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -13,6 +19,21 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -22,7 +43,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { EmptyState } from "@/components/ui/states";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   addWebsiteMember,
   listWebsiteMembers,
@@ -31,11 +59,12 @@ import {
 } from "@/lib/websites/members";
 
 /**
- * Who else can work on this website.
+ * Who can work on this website — "Members & roles" in the design.
  *
  * Scoped to one site on purpose: an editor invited to a client's site should
  * not gain anything on the others, which is the case workspace membership
- * cannot express.
+ * cannot express. The workspace's own people are listed too, as the Admin
+ * rows; they hold access through the account rather than through an invite.
  *
  * Matches an existing account by email rather than sending an invitation.
  * Email needs a provider, a token table and an expiry policy; matching an
@@ -65,6 +94,12 @@ export function WebsiteMembers({
   /** The site whose reply we still want, so a slow earlier one is ignored. */
   const wantedSite = useRef(initialWebsiteId);
   const [busyId, setBusyId] = useState<string | null>(null);
+  /**
+   * The invite form lives in a dialog now, as the design's "Add member"
+   * button implies. It used to sit open above the list, which put three
+   * fields and a button in front of someone who had come to read the list.
+   */
+  const [inviteOpen, setInviteOpen] = useState(false);
 
   const domain =
     sites.find((site) => site.id === websiteId)?.domain ?? "this website";
@@ -127,6 +162,7 @@ export function WebsiteMembers({
       }
       toast.success(`${email} can now work on ${domain}`);
       setEmail("");
+      setInviteOpen(false);
       await refreshMembers();
     });
   }
@@ -147,161 +183,259 @@ export function WebsiteMembers({
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="text-base">People on your websites</CardTitle>
-        <CardDescription>
-          Access is given one website at a time. Someone invited here will not
-          see your other sites or your billing.
-        </CardDescription>
+      {/*
+        Title on the left, "Add member" on the right, as the design has it.
+        The site picker sits under the title rather than in the dialog: it
+        decides what the whole table means, not just what an invite applies to.
+      */}
+      <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
+        <div className="space-y-1.5">
+          <CardTitle className="text-base">Members &amp; roles</CardTitle>
+          <CardDescription>
+            Access is given one website at a time. Someone invited here will not
+            see your other sites or your billing.
+          </CardDescription>
+        </div>
+
+        <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+          <DialogTrigger asChild>
+            <Button size="sm">
+              <UserPlus className="size-4" aria-hidden="true" />
+              Add member
+            </Button>
+          </DialogTrigger>
+
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add member</DialogTitle>
+              <DialogDescription>
+                They need a RepGet account already. Invite them to {domain} by
+                the email they signed up with.
+              </DialogDescription>
+            </DialogHeader>
+
+            <form onSubmit={invite} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="member-email">Email</Label>
+                <Input
+                  id="member-email"
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  placeholder="editor@example.com"
+                  autoComplete="off"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="member-role">Role</Label>
+                <Select
+                  value={role}
+                  onValueChange={(next) => setRole(next as "editor" | "viewer")}
+                >
+                  <SelectTrigger id="member-role" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="editor">Editor</SelectItem>
+                    <SelectItem value="viewer">Viewer</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  An editor can write, edit and publish articles on {domain}. A
+                  viewer can read only.
+                </p>
+              </div>
+
+              <DialogFooter>
+                <Button type="submit" disabled={pending || !email.trim()}>
+                  {pending ? (
+                    <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <UserPlus className="size-4" aria-hidden="true" />
+                  )}
+                  Invite
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </CardHeader>
 
       <CardContent className="space-y-4">
-        <form onSubmit={invite} className="flex flex-wrap items-end gap-2">
-          {/*
-            Which site, first — it decides what everything below means. Only
-            shown when there is a choice to make: with one website the select
-            would be a control with a single option, and the heading under the
-            list already names the site.
-          */}
-          {sites.length > 1 ? (
-            <div className="min-w-48 flex-1 space-y-2">
-              <Label htmlFor="member-website">Website</Label>
-              <Select value={websiteId} onValueChange={pickWebsite}>
-                <SelectTrigger id="member-website" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {sites.map((site) => (
-                    <SelectItem key={site.id} value={site.id}>
-                      {site.domain}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          ) : null}
-
-          <div className="min-w-48 flex-1 space-y-2">
-            <Label htmlFor="member-email">Email</Label>
-            <Input
-              id="member-email"
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="editor@example.com"
-              autoComplete="off"
-            />
-          </div>
-
-          <div className="w-32 space-y-2">
-            <Label htmlFor="member-role">Role</Label>
-            <Select
-              value={role}
-              onValueChange={(next) => setRole(next as "editor" | "viewer")}
-            >
-              <SelectTrigger id="member-role">
+        {/*
+          Which site, when there is a choice to make. With one website this
+          would be a control with a single option, and the table's own empty
+          state already names the site.
+        */}
+        {sites.length > 1 ? (
+          <div className="max-w-xs space-y-2">
+            <Label htmlFor="member-website">Website</Label>
+            <Select value={websiteId} onValueChange={pickWebsite}>
+              <SelectTrigger id="member-website" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="editor">Editor</SelectItem>
-                <SelectItem value="viewer">Viewer</SelectItem>
+                {sites.map((site) => (
+                  <SelectItem key={site.id} value={site.id}>
+                    {site.domain}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
-
-          <Button type="submit" disabled={pending || !email.trim()}>
-            {pending ? (
-              <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-            ) : (
-              <UserPlus className="size-4" aria-hidden="true" />
-            )}
-            Invite
-          </Button>
-        </form>
-
-        <p className="text-xs text-muted-foreground">
-          An editor can write, edit and publish articles on {domain}. A viewer
-          can read only.
-        </p>
+        ) : null}
 
         {loadingMembers ? (
           <div className="flex items-center justify-center gap-2 rounded-xl border border-dashed p-8 text-sm text-muted-foreground">
             <Loader2 className="size-4 animate-spin" aria-hidden="true" />
             Loading people on {domain}
           </div>
-        ) : members.length === 0 ? (
-          <EmptyState
-            title={`Nobody else on ${domain}`}
-            description="Invite a colleague or a freelance editor to work on this website."
-          />
         ) : (
-          <ul className="divide-y rounded-xl border">
-            {members.map((member) => (
-              <li
-                key={member.id}
-                className="flex flex-wrap items-center gap-3 p-3"
-              >
-                {/*
-                  Initials in a coloured disc, as the design has it.
+          /*
+            A real table with Member / Role / Status headings, as drawn. The
+            list was an unlabelled stack of rows before, which left the role
+            pill and the trash icon to explain themselves.
+          */
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Member</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead>Status</TableHead>
+                {/* The ⋮ column. Headed for screen readers, blank on screen. */}
+                <TableHead className="w-12">
+                  <span className="sr-only">Actions</span>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
 
-                  Derived from the name rather than stored: an avatar upload
-                  is a file-handling feature, and initials identify somebody
-                  in a three-row list perfectly well. The colour comes from
-                  the email so a given person is the same colour every time -
-                  a random one would reshuffle on every render and stop being
-                  a recognition aid at all.
-                */}
-                <span
-                  className={`flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white ${avatarColour(
-                    member.email,
-                  )}`}
-                  aria-hidden="true"
-                >
-                  {initials(member.name || member.email)}
-                </span>
+            <TableBody>
+              {members.length === 0 ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={4}
+                    className="py-10 text-center text-sm text-muted-foreground"
+                  >
+                    Nobody else on {domain}. Invite a colleague or a freelance
+                    editor to work on this website.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                members.map((member) => (
+                  <TableRow key={member.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        {/*
+                          Initials in a coloured disc, as the design has it.
 
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">
-                    {member.name || member.email}
-                  </p>
-                  <p className="truncate text-sm text-muted-foreground">
-                    {member.email}
-                  </p>
-                </div>
+                          Derived from the name rather than stored: an avatar
+                          upload is a file-handling feature, and initials
+                          identify somebody in a short list perfectly well. The
+                          colour comes from the email so a given person is the
+                          same colour every time — a random one would reshuffle
+                          on every render and stop being a recognition aid.
+                        */}
+                        <span
+                          className={`flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white ${avatarColour(
+                            member.email,
+                          )}`}
+                          aria-hidden="true"
+                        >
+                          {initials(member.name || member.email)}
+                        </span>
 
-                {/* Role, as its own column rather than trailing the email. */}
-                <span className="shrink-0 rounded-full bg-muted px-2.5 py-1 text-xs font-medium capitalize">
-                  {member.role}
-                </span>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium">
+                            {member.name || member.email}
+                          </p>
+                          <p className="truncate text-sm text-muted-foreground">
+                            {member.email}
+                          </p>
+                        </div>
+                      </div>
+                    </TableCell>
 
-                {/*
-                  NO "Status" COLUMN, though the design shows one.
+                    <TableCell>
+                      <span className="flex items-center gap-1.5">
+                        {/* The crown the design puts beside Admin. */}
+                        {member.isWorkspace ? (
+                          <Crown
+                            className="size-4 shrink-0 text-amber-500"
+                            aria-hidden="true"
+                          />
+                        ) : null}
+                        <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium capitalize">
+                          {member.role}
+                        </span>
+                      </span>
+                    </TableCell>
 
-                  listWebsiteMembers returns people who have accepted - a
-                  pending invitation lives in the invitation table and is not
-                  in this list. Every row here is active, so a column reading
-                  "Active" on every row would be decoration that looks like
-                  information. It belongs here the day pending invites are
-                  listed alongside accepted ones.
-                */}
+                    {/*
+                      Everyone listed has working access: the workspace rows
+                      hold it through the account, and a website_members row
+                      exists only once someone has an account to match. So the
+                      column the design draws reads Active for every row —
+                      which is true, rather than a placeholder. It becomes
+                      worth reading the day pending invitations are listed
+                      here too.
+                    */}
+                    <TableCell>
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-600">
+                        <span
+                          className="size-1.5 rounded-full bg-emerald-500"
+                          aria-hidden="true"
+                        />
+                        Active
+                      </span>
+                    </TableCell>
 
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label={`Remove ${member.email}`}
-                  disabled={pending}
-                  onClick={() => remove(member.id, member.email)}
-                  className="shrink-0 text-muted-foreground hover:text-destructive"
-                >
-                  {busyId === member.id ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <Trash2 className="size-4" />
-                  )}
-                </Button>
-              </li>
-            ))}
-          </ul>
+                    <TableCell>
+                      {/*
+                        No menu for the workspace people. Their access comes
+                        from the account, so there is no website_members row to
+                        delete — a "Remove" that silently did nothing would be
+                        worse than no control at all. Removing them is a
+                        workspace change, not a per-site one.
+                      */}
+                      {member.isWorkspace ? (
+                        <span className="sr-only">
+                          {member.email} has access through the workspace
+                        </span>
+                      ) : (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              disabled={pending}
+                              aria-label={`Manage ${member.email}`}
+                              className="text-muted-foreground"
+                            >
+                              {busyId === member.id ? (
+                                <Loader2 className="size-4 animate-spin" />
+                              ) : (
+                                <MoreVertical className="size-4" />
+                              )}
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              variant="destructive"
+                              onClick={() => remove(member.id, member.email)}
+                            >
+                              <Trash2 className="size-4" aria-hidden="true" />
+                              Remove access
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
         )}
       </CardContent>
     </Card>

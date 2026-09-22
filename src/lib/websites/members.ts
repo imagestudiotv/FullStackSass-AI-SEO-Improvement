@@ -4,7 +4,7 @@ import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/lib/db";
-import { user, websiteMembers } from "@/lib/db/schema";
+import { member, user, websiteMembers } from "@/lib/db/schema";
 import { requireWebsite } from "@/lib/tenant";
 import type { ActionResult } from "@/lib/websites/actions";
 
@@ -27,11 +27,34 @@ export type WebsiteMember = {
   userId: string;
   email: string;
   name: string;
+  /** "admin" for the workspace, "editor" or "viewer" for an invited guest. */
   role: string;
   createdAt: Date;
+  /**
+   * True for someone in the owning workspace.
+   *
+   * They hold their access through the workspace rather than through a
+   * website_members row, so there is no row to delete and nothing to change
+   * per site — the UI shows them without a remove control for that reason,
+   * not as a styling choice.
+   */
+  isWorkspace: boolean;
 };
 
-/** Everyone invited to this website. Owners are not listed — see below. */
+/**
+ * Everyone who can work on this website: the workspace first, then guests.
+ *
+ * The workspace people used to be left out, so the owner opened the panel and
+ * read "Nobody else on <domain>" while looking at their own website — the
+ * design shows them as the Admin row, and they are genuinely the people with
+ * access. They come from the `member` table rather than website_members
+ * because their access IS the workspace: requireWebsite grants "owner" to
+ * anyone in the organisation that owns the site.
+ *
+ * Two queries rather than a union: the two tables carry different ids and
+ * different meanings of `role`, and flattening them in SQL would need casts
+ * that make the result harder to read than the concatenation below.
+ */
 export async function listWebsiteMembers(
   websiteId: string,
 ): Promise<WebsiteMember[]> {
@@ -40,9 +63,23 @@ export async function listWebsiteMembers(
    * working on the site is not privileged, and hiding it would make the page
    * look empty to the very people collaborating on it.
    */
-  await requireWebsite(websiteId);
+  const { orgId } = await requireWebsite(websiteId);
 
-  return db
+  const workspace = await db
+    .select({
+      id: member.id,
+      userId: member.userId,
+      email: user.email,
+      name: user.name,
+      role: member.role,
+      createdAt: member.createdAt,
+    })
+    .from(member)
+    .innerJoin(user, eq(user.id, member.userId))
+    .where(eq(member.organizationId, orgId))
+    .orderBy(member.createdAt);
+
+  const guests = await db
     .select({
       id: websiteMembers.id,
       userId: websiteMembers.userId,
@@ -55,6 +92,21 @@ export async function listWebsiteMembers(
     .innerJoin(user, eq(user.id, websiteMembers.userId))
     .where(eq(websiteMembers.websiteId, websiteId))
     .orderBy(websiteMembers.createdAt);
+
+  return [
+    ...workspace.map((row) => ({
+      ...row,
+      /*
+        Better Auth writes "owner" for the person who created the workspace
+        and "member" for the rest. The design labels this column Admin, and
+        both of those people administer the account, so both read as Admin
+        rather than exposing a distinction the product does not act on.
+      */
+      role: "admin",
+      isWorkspace: true,
+    })),
+    ...guests.map((row) => ({ ...row, isWorkspace: false })),
+  ];
 }
 
 /**
