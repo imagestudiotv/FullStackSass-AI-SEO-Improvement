@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { SetupSteps } from "@/components/setup-steps";
 import { requireSession } from "@/lib/auth-guard";
+import { plural } from "@/lib/i18n/format";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import { getLaunchState } from "@/lib/onboarding/launch";
 import { getOnboardingState } from "@/lib/onboarding/steps";
@@ -143,7 +144,9 @@ export default async function SetupPage({ searchParams }: PageProps<"/setup">) {
             <p className="mt-1.5 text-sm text-muted-foreground">
               {launch.live
                 ? t.app.setup.allLiveHelp
-                : t.app.setup.stepsLeft(launch.requiredRemaining)}
+                : plural(t.app.setup.stepsLeft, launch.requiredRemaining, {
+                    n: launch.requiredRemaining,
+                  })}
             </p>
 
             {/* Segmented bar, one block per step, as drawn. */}

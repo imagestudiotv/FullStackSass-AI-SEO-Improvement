@@ -10,6 +10,7 @@ import {
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { format } from "@/lib/i18n/format";
 import type { Messages } from "@/lib/i18n/messages";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -82,7 +83,7 @@ export function PublishingPanel({
         toast.error(result.error);
         return;
       }
-      toast.success(t.connectedTo(result.data.siteName));
+      toast.success(format(t.connectedTo, { name: result.data.siteName }));
       setAdding(null);
       setValues({});
       router.refresh();
@@ -109,7 +110,7 @@ export function PublishingPanel({
      */
     toast.success(
       result.data.remoteUrl
-        ? t.draftPublishedAt(result.data.remoteUrl)
+        ? format(t.draftPublishedAt, { name: result.data.remoteUrl })
         : t.draftPublished,
     );
   }
@@ -121,7 +122,7 @@ export function PublishingPanel({
         toast.error(result.error);
         return;
       }
-      toast.success(t.disconnectedFrom(name));
+      toast.success(format(t.disconnectedFrom, { name }));
       router.refresh();
     });
   }

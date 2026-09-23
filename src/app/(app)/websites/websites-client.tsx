@@ -21,6 +21,7 @@ import { Label } from "@/components/ui/label";
 import { PageHeader, PageShell } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/states";
+import { format, plural } from "@/lib/i18n/format";
 import type { Messages } from "@/lib/i18n/messages";
 import {
   addWebsite,
@@ -81,7 +82,7 @@ export function WebsitesClient({
         toast.error(result.error);
         return;
       }
-      toast.success(t.removed(domain));
+      toast.success(format(t.removed, { domain }));
       router.refresh();
     });
   }
@@ -104,7 +105,9 @@ export function WebsitesClient({
     <PageShell>
       <PageHeader
         title={t.title}
-        description={t.connected(websites.length)}
+        description={plural(t.connected, websites.length, {
+          count: websites.length,
+        })}
         actions={
           <Button size="sm" onClick={() => setOpen(true)}>
             <Plus className="size-4" />
@@ -177,7 +180,7 @@ export function WebsitesClient({
                     <Button
                       variant="ghost"
                       size="icon"
-                      aria-label={t.removeLabel(site.domain)}
+                      aria-label={format(t.removeLabel, { domain: site.domain })}
                       disabled={busy}
                       onClick={() => handleDelete(site.id, site.domain)}
                     >

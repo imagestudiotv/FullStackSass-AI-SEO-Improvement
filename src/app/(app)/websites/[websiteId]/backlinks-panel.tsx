@@ -3,6 +3,7 @@
 import { ExternalLink, Link2, Loader2, Plus, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { format, plural } from "@/lib/i18n/format";
 import type { Messages } from "@/lib/i18n/messages";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -205,11 +206,11 @@ export function BacklinksPanel({
               <Badge>{t.inTheNetwork}</Badge>
             </CardTitle>
             <CardDescription>
-              {t.hosting(
-                status.monthlyCap,
-                status.linksGivenThisMonth,
-                status.network.withCapacity,
-              )}
+              {plural(t.hosting, status.network.withCapacity, {
+                cap: status.monthlyCap,
+                used: status.linksGivenThisMonth,
+                sites: status.network.withCapacity,
+              })}
             </CardDescription>
           </div>
           <div className="text-right">
@@ -218,7 +219,9 @@ export function BacklinksPanel({
             </div>
             <div className="text-xs text-muted-foreground">
               {t.creditsAvailable}
-              {status.reserved > 0 ? t.reserved(status.reserved) : ""}
+              {status.reserved > 0
+                ? format(t.reserved, { n: status.reserved })
+                : ""}
             </div>
           </div>
         </div>

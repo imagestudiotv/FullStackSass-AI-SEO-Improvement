@@ -42,3 +42,51 @@ export function formatDate(
 export function formatNumber(value: number, locale: Locale): string {
   return value.toLocaleString(intlTag(locale));
 }
+
+/**
+ * Fills {name} placeholders in a message.
+ *
+ * These messages used to be functions in the dictionary — `connectedTo: (name)
+ * => \`Connected to ${name}\`` — which read well and typechecked, but a
+ * function cannot be serialized. Every screen that handed a translated section
+ * to a client component therefore crashed in production with "Functions cannot
+ * be passed directly to Client Components": billing, publishing, websites,
+ * backlinks, add-ons and the website switcher. Plain strings cross that
+ * boundary, so the interpolation moved here and the dictionary went back to
+ * being data.
+ *
+ * An unknown placeholder is left as written rather than replaced with
+ * "undefined": a visible {name} in an unusual branch is a bug report, while
+ * "Connected to undefined" looks like a broken product.
+ */
+export function format(
+  template: string,
+  values: Record<string, string | number>,
+): string {
+  return template.replace(/\{(\w+)\}/g, (match, key: string) =>
+    key in values ? String(values[key]) : match,
+  );
+}
+
+/**
+ * Picks the singular or plural half of a "one|many" message, then fills it.
+ *
+ * Several of these strings inflect more than the noun — Italian's "1 sito
+ * disponibile" against "2 siti disponibili" changes two words, and Spanish's
+ * "Queda 1 paso" against "Quedan 2 pasos" changes the verb. Storing both
+ * whole forms separated by a pipe keeps each language's grammar in that
+ * language's entry, where a translator can see it, instead of encoding it as
+ * a ternary in shared code.
+ *
+ * Only the two-form languages we ship are handled (en, es, fr, it, de all
+ * distinguish exactly one from everything else). A language with dual or
+ * paucal forms would need Intl.PluralRules here.
+ */
+export function plural(
+  template: string,
+  count: number,
+  values: Record<string, string | number> = {},
+): string {
+  const [one = "", many = ""] = template.split("|");
+  return format(count === 1 ? one : many, { ...values, count });
+}

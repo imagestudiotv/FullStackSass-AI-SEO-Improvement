@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { PageHeader, PageShell } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/states";
 import { requireSession } from "@/lib/auth-guard";
+import { format } from "@/lib/i18n/format";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import { getDashboardOverview } from "@/lib/dashboard/overview";
 import { getOnboardingState } from "@/lib/onboarding/steps";
@@ -122,7 +123,9 @@ export default async function DashboardPage({
       */}
       <PageHeader
         title={t.app.dashboard.overview}
-        description={t.app.dashboard.performing(current.domain)}
+        description={format(t.app.dashboard.performing, {
+          domain: current.domain,
+        })}
         actions={
           <Button asChild variant="outline" size="sm">
             <Link href={`/websites/${current.id}`}>

@@ -2,6 +2,7 @@ import { Check } from "lucide-react";
 import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
+import { plural } from "@/lib/i18n/format";
 import { STARTER_TIER } from "@/lib/plans/features";
 import { Button } from "@/components/ui/button";
 import {
@@ -98,7 +99,9 @@ export function PricingPreview({
                     <CardContent>
                       <ul className="space-y-2.5 text-sm">
                         {[
-                          t.planArticles(plan.articleLimit),
+                          plural(t.planArticles, plan.articleLimit, {
+                            n: plan.articleLimit,
+                          }),
                           /* Capability, not counts — see messages.ts. */
                           t.planBacklinks,
                           t.planPublishing,

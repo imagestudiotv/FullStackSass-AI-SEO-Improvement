@@ -4,6 +4,7 @@ import { Check, Info, Loader2, Package, Sparkles, Wrench } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
+import { format } from "@/lib/i18n/format";
 import type { Messages } from "@/lib/i18n/messages";
 
 import { Badge } from "@/components/ui/badge";
@@ -206,7 +207,7 @@ export function AddonsPanel({
                       <Loader2 className="size-4 animate-spin" />
                     ) : null}
                     {addon.purchasable
-                      ? t.buyCredits(addon.creditsGranted)
+                      ? format(t.buyCredits, { n: addon.creditsGranted })
                       : t.unavailable}
                   </Button>
                 </div>

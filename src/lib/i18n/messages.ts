@@ -194,7 +194,7 @@ export type Messages = {
     getStartedPlan: string;
     perMonth: string;
     unavailable: string;
-    planArticles: (n: number) => string;
+    planArticles: string;
     /**
      * Capability lines on the homepage preview, replacing the website and
      * credit counts. Same reason as pricing.features above: the client asked
@@ -221,8 +221,8 @@ export type Messages = {
     annualNote: string;
     refundPolicy: string;
     features: {
-      articles: (n: number) => string;
-      keywords: (n: string) => string;
+      articles: string;
+      keywords: string;
       /**
        * Capability lines, not counts.
        *
@@ -420,14 +420,14 @@ export type Messages = {
        * sentence in the dictionary lets each locale decide; a token would
        * force one language's grammar onto the other four.
        */
-      connected: (count: number) => string;
+      connected: string;
       addWebsite: string;
       emptyTitle: string;
       emptyBody: string;
       addFirst: string;
       tryAgain: string;
-      removeLabel: (domain: string) => string;
-      removed: (domain: string) => string;
+      removeLabel: string;
+      removed: string;
       retrying: string;
       dialogTitle: string;
       dialogBody: string;
@@ -443,15 +443,15 @@ export type Messages = {
       yourWebsitesHelp: string;
       noPlanYet: string;
       /** "Growth — renews 21/09/2026" / "Growth — ends 21/09/2026". */
-      planRenews: (plan: string, date: string) => string;
-      planEnds: (plan: string, date: string) => string;
+      planRenews: string;
+      planEnds: string;
       currentPlan: string;
       accessEnds: string;
       nextInvoice: string;
-      onPlan: (plan: string) => string;
+      onPlan: string;
       noSubscription: string;
-      accessEndsOn: (date: string) => string;
-      renewsOn: (date: string) => string;
+      accessEndsOn: string;
+      renewsOn: string;
       monthly: string;
       annual: string;
       status: string;
@@ -466,10 +466,10 @@ export type Messages = {
        * plural rule and the word order both move, and "1 articles" on the
        * entry plan is the first thing a prospect reads.
        */
-      articlesEachMonth: (n: string, count: number) => string;
-      searchTermsTracked: (n: string, count: number) => string;
+      articlesEachMonth: string;
+      searchTermsTracked: string;
       oneWebsite: string;
-      creditsEachMonth: (n: string, count: number) => string;
+      creditsEachMonth: string;
       paymentReceived: string;
       checkoutCancelled: string;
       purchaseReceived: string;
@@ -648,11 +648,11 @@ export type Messages = {
       checkBeforeSaving: string;
       noPlatformMatch: string;
       forDevelopers: string;
-      connectTo: (name: string) => string;
-      connectedTo: (name: string) => string;
-      disconnectedFrom: (name: string) => string;
+      connectTo: string;
+      connectedTo: string;
+      disconnectedFrom: string;
       draftPublished: string;
-      draftPublishedAt: (name: string) => string;
+      draftPublishedAt: string;
     };
     geo: {
       aiVisibility: string;
@@ -727,8 +727,8 @@ export type Messages = {
       statusCancelled: string;
       statusRemoved: string;
       /** "Hosting up to 5 links a month (2 used). 3 sites available." */
-      hosting: (cap: number, used: number, sites: number) => string;
-      reserved: (n: number) => string;
+      hosting: string;
+      reserved: string;
     };
     dashboard: {
       noWebsite: string;
@@ -739,7 +739,7 @@ export type Messages = {
       overview: string;
       openWebsite: string;
       /** "How example.com is performing in search." */
-      performing: (domain: string) => string;
+      performing: string;
     };
     calendar: {
       changeTopic: string;
@@ -760,7 +760,7 @@ export type Messages = {
       neverExpire: string;
       useAnytime: string;
       buyThis: string;
-      buyCredits: (n: number) => string;
+      buyCredits: string;
       unavailable: string;
       checkoutFailed: string;
       yourPurchases: string;
@@ -833,7 +833,7 @@ export type Messages = {
       finishSetup: string;
       allLiveHelp: string;
       /** "2 steps left before everything runs on its own." */
-      stepsLeft: (n: number) => string;
+      stepsLeft: string;
     };
     common: {
       cancel: string;
@@ -1369,7 +1369,7 @@ const en: Messages = {
     perMonth: " / month",
     unavailable:
       "Pricing is not available right now. Please check back shortly.",
-    planArticles: (n) => `${n} ${n === 1 ? "article" : "articles"} each month`,
+    planArticles: "{n} article each month|{n} articles each month",
     planBacklinks: "Backlinks from our partner network",
     planPublishing: "Auto-publish to WordPress, Shopify and more",
     closingTitle: "Start growing on autopilot today",
@@ -1394,9 +1394,8 @@ const en: Messages = {
       "Annual plans are available once you sign up, at two months free. Cancel any time — see our",
     refundPolicy: "refund policy",
     features: {
-      articles: (n) =>
-        `${n} ${n === 1 ? "article" : "articles"} written each month`,
-      keywords: (n) => `${n} search terms tracked`,
+      articles: "{n} article written each month|{n} articles written each month",
+      keywords: "{n} search terms tracked",
       backlinks: "Backlinks from our partner network",
       audit: "Site audit, so your pages are AI- and Google-ready",
       healthChecks: "Website health checks",
@@ -1717,16 +1716,15 @@ const en: Messages = {
     },
     websites: {
       title: "Websites",
-      connected: (count) =>
-        `${count} connected. Each website is billed on its own plan.`,
+      connected: "1 connected. Each website is billed on its own plan.|{count} connected. Each website is billed on its own plan.",
       addWebsite: "Add website",
       emptyTitle: "No websites yet",
       emptyBody:
         "Add your website and we will read it, work out what your business does, and find the search terms worth going after.",
       addFirst: "Add your first website",
       tryAgain: "Try again",
-      removeLabel: (domain) => `Remove ${domain}`,
-      removed: (domain) => `Removed ${domain}`,
+      removeLabel: "Remove {domain}",
+      removed: "Removed {domain}",
       retrying: "Trying again",
       dialogTitle: "Add a website",
       dialogBody:
@@ -1742,15 +1740,15 @@ const en: Messages = {
       yourWebsites: "Your websites",
       yourWebsitesHelp: "A website without a plan cannot generate or publish articles.",
       noPlanYet: "No plan yet",
-      planRenews: (plan, date) => `${plan} — renews ${date}`,
-      planEnds: (plan, date) => `${plan} — ends ${date}`,
+      planRenews: "{plan} — renews {date}",
+      planEnds: "{plan} — ends {date}",
       currentPlan: "Current plan",
       accessEnds: "Access ends",
       nextInvoice: "Next invoice",
-      onPlan: (plan) => `You are on the ${plan} plan.`,
+      onPlan: "You are on the {plan} plan.",
       noSubscription: "No active subscription yet. Choose a plan below to get started.",
-      accessEndsOn: (date) => `Access ends on ${date}.`,
-      renewsOn: (date) => `Renews on ${date}.`,
+      accessEndsOn: "Access ends on {date}.",
+      renewsOn: "Renews on {date}.",
       monthly: "Monthly",
       annual: "Annual",
       status: "Status",
@@ -1758,13 +1756,10 @@ const en: Messages = {
       paypalReceipts: "Your receipts and cancellation live in your PayPal account.",
       promoCodes: "Promo codes can be entered at card checkout. PayPal does not support them.",
       unlimited: "Unlimited",
-      articlesEachMonth: (n, count) =>
-        `${n} ${count === 1 ? "article" : "articles"} written each month`,
-      searchTermsTracked: (n, count) =>
-        `${n} ${count === 1 ? "search term" : "search terms"} tracked`,
+      articlesEachMonth: "{n} article written each month|{n} articles written each month",
+      searchTermsTracked: "{n} search term tracked|{n} search terms tracked",
       oneWebsite: "One website per subscription",
-      creditsEachMonth: (n, count) =>
-        `${n} ${count === 1 ? "link credit" : "link credits"} each month`,
+      creditsEachMonth: "{n} link credit each month|{n} link credits each month",
       paymentReceived: "Payment received — confirming your subscription…",
       checkoutCancelled: "Checkout cancelled.",
       purchaseReceived: "Payment received — your purchase will appear shortly.",
@@ -1947,11 +1942,11 @@ const en: Messages = {
       checkBeforeSaving: "We check the connection before saving anything, so you find out now rather than when an article fails.",
       noPlatformMatch: "No platform match? Publish anywhere with a webhook.",
       forDevelopers: "For developers",
-      connectTo: (name) => `Connect ${name}`,
-      connectedTo: (name) => `Connected to ${name}`,
-      disconnectedFrom: (name) => `Disconnected from ${name}`,
+      connectTo: "Connect {name}",
+      connectedTo: "Connected to {name}",
+      disconnectedFrom: "Disconnected from {name}",
       draftPublished: "Draft published successfully. Check your site’s drafts.",
-      draftPublishedAt: (name) => `Draft published — open it at ${name}`,
+      draftPublishedAt: "Draft published — open it at {name}",
     },
     geo: {
       aiVisibility: "AI visibility",
@@ -2025,8 +2020,8 @@ const en: Messages = {
       statusLive: "Live",
       statusCancelled: "Cancelled",
       statusRemoved: "Removed — credit returned",
-      hosting: (cap, used, sites) => `Hosting up to ${cap} links a month (${used} used). ${sites} site${sites === 1 ? "" : "s"} available to link to you.`,
-      reserved: (n) => ` (${n} reserved)`,
+      hosting: "Hosting up to {cap} links a month ({used} used). {sites} site available to link to you.|Hosting up to {cap} links a month ({used} used). {sites} sites available to link to you.",
+      reserved: " ({n} reserved)",
     },
     dashboard: {
       noWebsite: "No website connected yet",
@@ -2036,7 +2031,7 @@ const en: Messages = {
       couldNotLoadHelp: "Try again, or pick a different website.",
       overview: "SEO overview",
       openWebsite: "Open website",
-      performing: (domain) => `How ${domain} is performing in search.`,
+      performing: "How {domain} is performing in search.",
     },
     calendar: {
       changeTopic: "Change topic",
@@ -2057,7 +2052,7 @@ const en: Messages = {
       neverExpire: "Credits never expire",
       useAnytime: "Use anytime",
       buyThis: "Buy this",
-      buyCredits: (n) => `Buy ${n} credits`,
+      buyCredits: "Buy {n} credits",
       unavailable: "Unavailable",
       checkoutFailed: "Could not start checkout. Please try again.",
       yourPurchases: "Your purchases",
@@ -2129,7 +2124,7 @@ const en: Messages = {
       allLive: "All systems live",
       finishSetup: "Finish setting up",
       allLiveHelp: "Every required system is active. Head to the dashboard for your live stats.",
-      stepsLeft: (n) => `${n} ${n === 1 ? "step" : "steps"} left before everything runs on its own.`,
+      stepsLeft: "{n} step left before everything runs on its own.|{n} steps left before everything runs on its own.",
     },
     common: {
       cancel: "Cancel",
@@ -2670,7 +2665,7 @@ const es: Messages = {
     perMonth: " / mes",
     unavailable:
       "Los precios no están disponibles ahora mismo. Vuelva a intentarlo en breve.",
-    planArticles: (n) => `${n} ${n === 1 ? "artículo" : "artículos"} al mes`,
+    planArticles: "{n} artículo al mes|{n} artículos al mes",
     planBacklinks: "Backlinks de nuestra red de socios",
     planPublishing: "Publicación automática en WordPress, Shopify y más",
     closingTitle: "Empiece a crecer en piloto automático hoy",
@@ -2695,9 +2690,8 @@ const es: Messages = {
       "Los planes anuales están disponibles al registrarse, con dos meses gratis. Cancele cuando quiera: consulte nuestra",
     refundPolicy: "política de reembolsos",
     features: {
-      articles: (n) =>
-        `${n} ${n === 1 ? "artículo" : "artículos"} escritos cada mes`,
-      keywords: (n) => `${n} términos de búsqueda monitorizados`,
+      articles: "{n} artículo escrito al mes|{n} artículos escritos al mes",
+      keywords: "{n} términos de búsqueda monitorizados",
       backlinks: "Backlinks de nuestra red de socios",
       audit:
         "Auditoría del sitio, para que tus páginas estén listas para la IA y Google",
@@ -3021,18 +3015,15 @@ const es: Messages = {
     },
     websites: {
       title: "Sitios web",
-      connected: (count) =>
-        count === 1
-        ? "1 conectado. Cada sitio web se factura con su propio plan."
-        : `${count} conectados. Cada sitio web se factura con su propio plan.`,
+      connected: "1 conectado. Cada sitio web se factura con su propio plan.|{count} conectados. Cada sitio web se factura con su propio plan.",
       addWebsite: "Añadir sitio web",
       emptyTitle: "Todavía no hay sitios web",
       emptyBody:
         "Añada su sitio web y lo leeremos, averiguaremos a qué se dedica su negocio y encontraremos los términos de búsqueda que merecen la pena.",
       addFirst: "Añada su primer sitio web",
       tryAgain: "Reintentar",
-      removeLabel: (domain) => `Eliminar ${domain}`,
-      removed: (domain) => `${domain} eliminado`,
+      removeLabel: "Eliminar {domain}",
+      removed: "{domain} eliminado",
       retrying: "Reintentando",
       dialogTitle: "Añadir un sitio web",
       dialogBody:
@@ -3048,15 +3039,15 @@ const es: Messages = {
       yourWebsites: "Sus sitios web",
       yourWebsitesHelp: "Un sitio web sin plan no puede generar ni publicar artículos.",
       noPlanYet: "Todavía sin plan",
-      planRenews: (plan, date) => `${plan} — se renueva el ${date}`,
-      planEnds: (plan, date) => `${plan} — finaliza el ${date}`,
+      planRenews: "{plan} — se renueva el {date}",
+      planEnds: "{plan} — finaliza el {date}",
       currentPlan: "Plan actual",
       accessEnds: "El acceso finaliza",
       nextInvoice: "Próxima factura",
-      onPlan: (plan) => `Tiene el plan ${plan}.`,
+      onPlan: "Tiene el plan {plan}.",
       noSubscription: "Todavía no hay suscripción activa. Elija un plan para empezar.",
-      accessEndsOn: (date) => `El acceso finaliza el ${date}.`,
-      renewsOn: (date) => `Se renueva el ${date}.`,
+      accessEndsOn: "El acceso finaliza el {date}.",
+      renewsOn: "Se renueva el {date}.",
       monthly: "Mensual",
       annual: "Anual",
       status: "Estado",
@@ -3064,13 +3055,10 @@ const es: Messages = {
       paypalReceipts: "Sus recibos y la cancelación están en su cuenta de PayPal.",
       promoCodes: "Los códigos promocionales se introducen al pagar con tarjeta. PayPal no los admite.",
       unlimited: "Ilimitado",
-      articlesEachMonth: (n, count) =>
-        `${n} ${count === 1 ? "artículo escrito" : "artículos escritos"} cada mes`,
-      searchTermsTracked: (n, count) =>
-        `${n} ${count === 1 ? "término de búsqueda supervisado" : "términos de búsqueda supervisados"}`,
+      articlesEachMonth: "{n} artículo escrito al mes|{n} artículos escritos al mes",
+      searchTermsTracked: "{n} término de búsqueda monitorizado|{n} términos de búsqueda monitorizados",
       oneWebsite: "Un sitio web por suscripción",
-      creditsEachMonth: (n, count) =>
-        `${n} ${count === 1 ? "crédito de enlace" : "créditos de enlace"} cada mes`,
+      creditsEachMonth: "{n} crédito de enlace al mes|{n} créditos de enlace al mes",
       paymentReceived: "Pago recibido — confirmando su suscripción…",
       checkoutCancelled: "Pago cancelado.",
       purchaseReceived: "Pago recibido — su compra aparecerá en breve.",
@@ -3253,11 +3241,11 @@ const es: Messages = {
       checkBeforeSaving: "Comprobamos la conexión antes de guardar nada, para que lo sepa ahora y no cuando falle un artículo.",
       noPlatformMatch: "¿Ninguna plataforma le encaja? Publique donde sea con un webhook.",
       forDevelopers: "Para desarrolladores",
-      connectTo: (name) => `Conectar ${name}`,
-      connectedTo: (name) => `Conectado a ${name}`,
-      disconnectedFrom: (name) => `Desconectado de ${name}`,
+      connectTo: "Conectar {name}",
+      connectedTo: "Conectado a {name}",
+      disconnectedFrom: "Desconectado de {name}",
       draftPublished: "Borrador publicado correctamente. Revise los borradores de su sitio.",
-      draftPublishedAt: (name) => `Borrador publicado — ábralo en ${name}`,
+      draftPublishedAt: "Borrador publicado — ábralo en {name}",
     },
     geo: {
       aiVisibility: "Visibilidad en IA",
@@ -3331,8 +3319,8 @@ const es: Messages = {
       statusLive: "Activo",
       statusCancelled: "Cancelado",
       statusRemoved: "Retirado — crédito devuelto",
-      hosting: (cap, used, sites) => `Aloja hasta ${cap} enlaces al mes (${used} usados). ${sites} sitio${sites === 1 ? "" : "s"} disponible${sites === 1 ? "" : "s"} para enlazarle.`,
-      reserved: (n) => ` (${n} reservados)`,
+      hosting: "Aloja hasta {cap} enlaces al mes ({used} usados). {sites} sitio disponible para enlazarle.|Aloja hasta {cap} enlaces al mes ({used} usados). {sites} sitios disponibles para enlazarle.",
+      reserved: " ({n} reservados)",
     },
     dashboard: {
       noWebsite: "Todavía no hay ningún sitio web conectado",
@@ -3342,7 +3330,7 @@ const es: Messages = {
       couldNotLoadHelp: "Inténtelo de nuevo o elija otro sitio web.",
       overview: "Resumen SEO",
       openWebsite: "Abrir sitio web",
-      performing: (domain) => `Cómo está funcionando ${domain} en las búsquedas.`,
+      performing: "Cómo está funcionando {domain} en las búsquedas.",
     },
     calendar: {
       changeTopic: "Cambiar tema",
@@ -3363,7 +3351,7 @@ const es: Messages = {
       neverExpire: "Los créditos no caducan",
       useAnytime: "Úselos cuando quiera",
       buyThis: "Comprar",
-      buyCredits: (n) => `Comprar ${n} créditos`,
+      buyCredits: "Comprar {n} créditos",
       unavailable: "No disponible",
       checkoutFailed: "No se pudo iniciar el pago. Inténtelo de nuevo.",
       yourPurchases: "Sus compras",
@@ -3435,7 +3423,8 @@ const es: Messages = {
       allLive: "Todo está activo",
       finishSetup: "Termine la configuración",
       allLiveHelp: "Todos los sistemas necesarios están activos. Vaya al panel para ver sus datos en directo.",
-      stepsLeft: (n) => `${n === 1 ? "Queda 1 paso" : `Quedan ${n} pasos`} para que todo funcione solo.`,
+      stepsLeft:
+        "Queda {n} paso para que todo funcione solo.|Quedan {n} pasos para que todo funcione solo.",
     },
     common: {
       cancel: "Cancelar",
@@ -3978,7 +3967,7 @@ const fr: Messages = {
     perMonth: " / mois",
     unavailable:
       "Les tarifs ne sont pas disponibles pour le moment. Merci de réessayer sous peu.",
-    planArticles: (n) => `${n} ${n === 1 ? "article" : "articles"} par mois`,
+    planArticles: "{n} article par mois|{n} articles par mois",
     planBacklinks: "Backlinks issus de notre réseau de partenaires",
     planPublishing: "Publication automatique sur WordPress, Shopify et plus",
     closingTitle: "Commencez à croître en pilote automatique dès aujourd'hui",
@@ -4003,9 +3992,8 @@ const fr: Messages = {
       "Les formules annuelles sont proposées après votre inscription, avec deux mois offerts. Annulez à tout moment : consultez notre",
     refundPolicy: "politique de remboursement",
     features: {
-      articles: (n) =>
-        `${n} ${n === 1 ? "article rédigé" : "articles rédigés"} chaque mois`,
-      keywords: (n) => `${n} termes de recherche suivis`,
+      articles: "{n} article rédigé par mois|{n} articles rédigés par mois",
+      keywords: "{n} termes de recherche suivis",
       backlinks: "Backlinks issus de notre réseau de partenaires",
       audit: "Audit du site, pour des pages prêtes pour l'IA et Google",
       healthChecks: "Analyses de santé du site",
@@ -4330,18 +4318,15 @@ const fr: Messages = {
     },
     websites: {
       title: "Sites web",
-      connected: (count) =>
-        count === 1
-        ? "1 connecté. Chaque site est facturé sur son propre forfait."
-        : `${count} connectés. Chaque site est facturé sur son propre forfait.`,
+      connected: "1 connecté. Chaque site est facturé sur son propre forfait.|{count} connectés. Chaque site est facturé sur son propre forfait.",
       addWebsite: "Ajouter un site",
       emptyTitle: "Aucun site pour le moment",
       emptyBody:
         "Ajoutez votre site et nous le lirons, comprendrons ce que fait votre entreprise et trouverons les recherches qui valent la peine.",
       addFirst: "Ajouter votre premier site",
       tryAgain: "Réessayer",
-      removeLabel: (domain) => `Supprimer ${domain}`,
-      removed: (domain) => `${domain} supprimé`,
+      removeLabel: "Supprimer {domain}",
+      removed: "{domain} supprimé",
       retrying: "Nouvel essai",
       dialogTitle: "Ajouter un site web",
       dialogBody:
@@ -4357,15 +4342,15 @@ const fr: Messages = {
       yourWebsites: "Vos sites web",
       yourWebsitesHelp: "Un site sans forfait ne peut ni générer ni publier d\u2019articles.",
       noPlanYet: "Pas encore de forfait",
-      planRenews: (plan, date) => `${plan} — renouvellement le ${date}`,
-      planEnds: (plan, date) => `${plan} — fin le ${date}`,
+      planRenews: "{plan} — renouvellement le {date}",
+      planEnds: "{plan} — fin le {date}",
       currentPlan: "Forfait actuel",
       accessEnds: "Fin de l\u2019accès",
       nextInvoice: "Prochaine facture",
-      onPlan: (plan) => `Vous êtes sur le forfait ${plan}.`,
+      onPlan: "Vous êtes sur le forfait {plan}.",
       noSubscription: "Aucun abonnement actif. Choisissez un forfait ci-dessous pour commencer.",
-      accessEndsOn: (date) => `L\u2019accès prend fin le ${date}.`,
-      renewsOn: (date) => `Renouvellement le ${date}.`,
+      accessEndsOn: "L’accès prend fin le {date}.",
+      renewsOn: "Renouvellement le {date}.",
       monthly: "Mensuel",
       annual: "Annuel",
       status: "Statut",
@@ -4373,13 +4358,10 @@ const fr: Messages = {
       paypalReceipts: "Vos reçus et la résiliation se trouvent dans votre compte PayPal.",
       promoCodes: "Les codes promo se saisissent au paiement par carte. PayPal ne les accepte pas.",
       unlimited: "Illimité",
-      articlesEachMonth: (n, count) =>
-        `${n} ${count === 1 ? "article rédigé" : "articles rédigés"} chaque mois`,
-      searchTermsTracked: (n, count) =>
-        `${n} ${count === 1 ? "recherche suivie" : "recherches suivies"}`,
+      articlesEachMonth: "{n} article rédigé par mois|{n} articles rédigés par mois",
+      searchTermsTracked: "{n} terme de recherche suivi|{n} termes de recherche suivis",
       oneWebsite: "Un site par abonnement",
-      creditsEachMonth: (n, count) =>
-        `${n} ${count === 1 ? "crédit de lien" : "crédits de lien"} chaque mois`,
+      creditsEachMonth: "{n} crédit de lien par mois|{n} crédits de lien par mois",
       paymentReceived: "Paiement reçu — confirmation de votre abonnement…",
       checkoutCancelled: "Paiement annulé.",
       purchaseReceived: "Paiement reçu — votre achat apparaîtra sous peu.",
@@ -4562,11 +4544,11 @@ const fr: Messages = {
       checkBeforeSaving: "Nous vérifions la connexion avant tout enregistrement, pour que vous le sachiez maintenant plutôt qu\u2019au moment où un article échoue.",
       noPlatformMatch: "Aucune plateforme ne correspond ? Publiez partout avec un webhook.",
       forDevelopers: "Pour les développeurs",
-      connectTo: (name) => `Connecter ${name}`,
-      connectedTo: (name) => `Connecté à ${name}`,
-      disconnectedFrom: (name) => `Déconnecté de ${name}`,
+      connectTo: "Connecter {name}",
+      connectedTo: "Connecté à {name}",
+      disconnectedFrom: "Déconnecté de {name}",
       draftPublished: "Brouillon publié. Vérifiez les brouillons de votre site.",
-      draftPublishedAt: (name) => `Brouillon publié — ouvrez-le sur ${name}`,
+      draftPublishedAt: "Brouillon publié — ouvrez-le sur {name}",
     },
     geo: {
       aiVisibility: "Visibilité dans l\u2019IA",
@@ -4640,8 +4622,8 @@ const fr: Messages = {
       statusLive: "En ligne",
       statusCancelled: "Annulé",
       statusRemoved: "Retiré — crédit restitué",
-      hosting: (cap, used, sites) => `Héberge jusqu\u2019à ${cap} liens par mois (${used} utilisés). ${sites} site${sites === 1 ? "" : "s"} disponible${sites === 1 ? "" : "s"} pour pointer vers vous.`,
-      reserved: (n) => ` (${n} réservés)`,
+      hosting: "Héberge jusqu’à {cap} liens par mois ({used} utilisés). {sites} site disponible pour pointer vers vous.|Héberge jusqu’à {cap} liens par mois ({used} utilisés). {sites} sites disponibles pour pointer vers vous.",
+      reserved: " ({n} réservés)",
     },
     dashboard: {
       noWebsite: "Aucun site connecté pour l\u2019instant",
@@ -4651,7 +4633,7 @@ const fr: Messages = {
       couldNotLoadHelp: "Réessayez ou choisissez un autre site.",
       overview: "Vue d\u2019ensemble SEO",
       openWebsite: "Ouvrir le site",
-      performing: (domain) => `Les performances de ${domain} dans la recherche.`,
+      performing: "Les performances de {domain} dans la recherche.",
     },
     calendar: {
       changeTopic: "Changer de sujet",
@@ -4672,7 +4654,7 @@ const fr: Messages = {
       neverExpire: "Les crédits n\u2019expirent pas",
       useAnytime: "Utilisables à tout moment",
       buyThis: "Acheter",
-      buyCredits: (n) => `Acheter ${n} crédits`,
+      buyCredits: "Acheter {n} crédits",
       unavailable: "Indisponible",
       checkoutFailed: "Impossible de lancer le paiement. Réessayez.",
       yourPurchases: "Vos achats",
@@ -4744,7 +4726,7 @@ const fr: Messages = {
       allLive: "Tout est actif",
       finishSetup: "Terminer la configuration",
       allLiveHelp: "Tous les systèmes requis sont actifs. Rendez-vous sur le tableau de bord pour vos statistiques en direct.",
-      stepsLeft: (n) => `${n} étape${n === 1 ? "" : "s"} restante${n === 1 ? "" : "s"} avant que tout fonctionne seul.`,
+      stepsLeft: "{n} étape restante avant que tout fonctionne seul.|{n} étapes restantes avant que tout fonctionne seul.",
     },
     common: {
       cancel: "Annuler",
@@ -5283,7 +5265,7 @@ const it: Messages = {
     perMonth: " / mese",
     unavailable:
       "I prezzi non sono disponibili in questo momento. Riprovi tra poco.",
-    planArticles: (n) => `${n} ${n === 1 ? "articolo" : "articoli"} al mese`,
+    planArticles: "{n} articolo al mese|{n} articoli al mese",
     planBacklinks: "Backlink dalla nostra rete di partner",
     planPublishing: "Pubblicazione automatica su WordPress, Shopify e altro",
     closingTitle: "Inizi oggi a crescere in automatico",
@@ -5308,9 +5290,8 @@ const it: Messages = {
       "I piani annuali sono disponibili dopo la registrazione, con due mesi gratis. Può disdire quando vuole: consulti la nostra",
     refundPolicy: "politica di rimborso",
     features: {
-      articles: (n) =>
-        `${n} ${n === 1 ? "articolo scritto" : "articoli scritti"} ogni mese`,
-      keywords: (n) => `${n} termini di ricerca monitorati`,
+      articles: "{n} articolo scritto al mese|{n} articoli scritti al mese",
+      keywords: "{n} termini di ricerca monitorati",
       backlinks: "Backlink dalla nostra rete di partner",
       audit: "Audit del sito, per pagine pronte per l'IA e Google",
       healthChecks: "Controlli sullo stato del sito",
@@ -5632,18 +5613,15 @@ const it: Messages = {
     },
     websites: {
       title: "Siti web",
-      connected: (count) =>
-        count === 1
-        ? "1 collegato. Ogni sito viene fatturato con il proprio piano."
-        : `${count} collegati. Ogni sito viene fatturato con il proprio piano.`,
+      connected: "1 collegato. Ogni sito viene fatturato con il proprio piano.|{count} collegati. Ogni sito viene fatturato con il proprio piano.",
       addWebsite: "Aggiungi sito",
       emptyTitle: "Ancora nessun sito",
       emptyBody:
         "Aggiunga il suo sito: lo leggeremo, capiremo di cosa si occupa la sua attività e troveremo le ricerche che vale la pena presidiare.",
       addFirst: "Aggiunga il suo primo sito",
       tryAgain: "Riprova",
-      removeLabel: (domain) => `Rimuovi ${domain}`,
-      removed: (domain) => `${domain} rimosso`,
+      removeLabel: "Rimuovi {domain}",
+      removed: "{domain} rimosso",
       retrying: "Nuovo tentativo",
       dialogTitle: "Aggiungi un sito web",
       dialogBody:
@@ -5659,15 +5637,15 @@ const it: Messages = {
       yourWebsites: "I suoi siti web",
       yourWebsitesHelp: "Un sito senza piano non può generare né pubblicare articoli.",
       noPlanYet: "Ancora nessun piano",
-      planRenews: (plan, date) => `${plan} — si rinnova il ${date}`,
-      planEnds: (plan, date) => `${plan} — termina il ${date}`,
+      planRenews: "{plan} — si rinnova il {date}",
+      planEnds: "{plan} — termina il {date}",
       currentPlan: "Piano attuale",
       accessEnds: "L\u2019accesso termina",
       nextInvoice: "Prossima fattura",
-      onPlan: (plan) => `Ha il piano ${plan}.`,
+      onPlan: "Ha il piano {plan}.",
       noSubscription: "Nessun abbonamento attivo. Scelga un piano qui sotto per iniziare.",
-      accessEndsOn: (date) => `L\u2019accesso termina il ${date}.`,
-      renewsOn: (date) => `Si rinnova il ${date}.`,
+      accessEndsOn: "L’accesso termina il {date}.",
+      renewsOn: "Si rinnova il {date}.",
       monthly: "Mensile",
       annual: "Annuale",
       status: "Stato",
@@ -5675,13 +5653,10 @@ const it: Messages = {
       paypalReceipts: "Le sue ricevute e la disdetta si trovano nel suo account PayPal.",
       promoCodes: "I codici promozionali si inseriscono al pagamento con carta. PayPal non li supporta.",
       unlimited: "Illimitati",
-      articlesEachMonth: (n, count) =>
-        `${n} ${count === 1 ? "articolo scritto" : "articoli scritti"} ogni mese`,
-      searchTermsTracked: (n, count) =>
-        `${n} ${count === 1 ? "termine di ricerca monitorato" : "termini di ricerca monitorati"}`,
+      articlesEachMonth: "{n} articolo scritto al mese|{n} articoli scritti al mese",
+      searchTermsTracked: "{n} termine di ricerca monitorato|{n} termini di ricerca monitorati",
       oneWebsite: "Un sito web per abbonamento",
-      creditsEachMonth: (n, count) =>
-        `${n} ${count === 1 ? "credito per i link" : "crediti per i link"} ogni mese`,
+      creditsEachMonth: "{n} credito per link al mese|{n} crediti per link al mese",
       paymentReceived: "Pagamento ricevuto — stiamo confermando il suo abbonamento…",
       checkoutCancelled: "Pagamento annullato.",
       purchaseReceived: "Pagamento ricevuto — il suo acquisto comparirà a breve.",
@@ -5864,11 +5839,11 @@ const it: Messages = {
       checkBeforeSaving: "Controlliamo la connessione prima di salvare qualsiasi cosa, così lo scopre ora e non quando un articolo non parte.",
       noPlatformMatch: "Nessuna piattaforma corrisponde? Pubblichi ovunque con un webhook.",
       forDevelopers: "Per sviluppatori",
-      connectTo: (name) => `Collega ${name}`,
-      connectedTo: (name) => `Collegato a ${name}`,
-      disconnectedFrom: (name) => `Scollegato da ${name}`,
+      connectTo: "Collega {name}",
+      connectedTo: "Collegato a {name}",
+      disconnectedFrom: "Scollegato da {name}",
       draftPublished: "Bozza pubblicata. Controlli le bozze del suo sito.",
-      draftPublishedAt: (name) => `Bozza pubblicata — la apra su ${name}`,
+      draftPublishedAt: "Bozza pubblicata — la apra su {name}",
     },
     geo: {
       aiVisibility: "Visibilità nell\u2019IA",
@@ -5942,8 +5917,8 @@ const it: Messages = {
       statusLive: "Attivo",
       statusCancelled: "Annullato",
       statusRemoved: "Rimosso — credito restituito",
-      hosting: (cap, used, sites) => `Ospita fino a ${cap} link al mese (${used} usati). ${sites} sito${sites === 1 ? "" : "i"} disponibil${sites === 1 ? "e" : "i"} per collegarla.`,
-      reserved: (n) => ` (${n} riservati)`,
+      hosting: "Ospita fino a {cap} link al mese ({used} usati). {sites} sito disponibile per collegarla.|Ospita fino a {cap} link al mese ({used} usati). {sites} siti disponibili per collegarla.",
+      reserved: " ({n} riservati)",
     },
     dashboard: {
       noWebsite: "Ancora nessun sito collegato",
@@ -5953,7 +5928,7 @@ const it: Messages = {
       couldNotLoadHelp: "Riprovi o scelga un altro sito.",
       overview: "Panoramica SEO",
       openWebsite: "Apri sito",
-      performing: (domain) => `Come sta andando ${domain} nella ricerca.`,
+      performing: "Come sta andando {domain} nella ricerca.",
     },
     calendar: {
       changeTopic: "Cambia argomento",
@@ -5974,7 +5949,7 @@ const it: Messages = {
       neverExpire: "I crediti non scadono",
       useAnytime: "Li usi quando vuole",
       buyThis: "Acquista",
-      buyCredits: (n) => `Acquista ${n} crediti`,
+      buyCredits: "Acquista {n} crediti",
       unavailable: "Non disponibile",
       checkoutFailed: "Non è stato possibile avviare il pagamento. Riprovi.",
       yourPurchases: "I suoi acquisti",
@@ -6046,7 +6021,8 @@ const it: Messages = {
       allLive: "Tutto è attivo",
       finishSetup: "Completi la configurazione",
       allLiveHelp: "Tutti i sistemi necessari sono attivi. Vada alla dashboard per i dati in tempo reale.",
-      stepsLeft: (n) => `${n === 1 ? "Manca 1 passaggio" : `Mancano ${n} passaggi`} prima che tutto funzioni da solo.`,
+      stepsLeft:
+        "Manca {n} passaggio prima che tutto funzioni da solo.|Mancano {n} passaggi prima che tutto funzioni da solo.",
     },
     common: {
       cancel: "Annulla",
@@ -6589,7 +6565,7 @@ const de: Messages = {
     perMonth: " / Monat",
     unavailable:
       "Die Preise sind derzeit nicht verfügbar. Bitte versuchen Sie es in Kürze erneut.",
-    planArticles: (n) => `${n} Artikel pro Monat`,
+    planArticles: "{n} Artikel pro Monat|{n} Artikel pro Monat",
     planBacklinks: "Backlinks aus unserem Partnernetzwerk",
     planPublishing:
       "Automatisch veröffentlichen auf WordPress, Shopify und mehr",
@@ -6615,9 +6591,8 @@ const de: Messages = {
       "Jahrestarife sind nach der Anmeldung verfügbar, mit zwei Freimonaten. Jederzeit kündbar — siehe unsere",
     refundPolicy: "Rückerstattungsrichtlinie",
     features: {
-      articles: (n) =>
-        `${n} ${n === 1 ? "Artikel" : "Artikel"} pro Monat geschrieben`,
-      keywords: (n) => `${n} Suchbegriffe überwacht`,
+      articles: "{n} Artikel pro Monat geschrieben|{n} Artikel pro Monat geschrieben",
+      keywords: "{n} Suchbegriffe überwacht",
       backlinks: "Backlinks aus unserem Partnernetzwerk",
       audit: "Website-Audit, damit Ihre Seiten KI- und Google-bereit sind",
       healthChecks: "Website-Gesundheitschecks",
@@ -6941,18 +6916,15 @@ const de: Messages = {
     },
     websites: {
       title: "Websites",
-      connected: (count) =>
-        count === 1
-        ? "1 verbunden. Jede Website wird über ihren eigenen Tarif abgerechnet."
-        : `${count} verbunden. Jede Website wird über ihren eigenen Tarif abgerechnet.`,
+      connected: "1 verbunden. Jede Website wird über ihren eigenen Tarif abgerechnet.|{count} verbunden. Jede Website wird über ihren eigenen Tarif abgerechnet.",
       addWebsite: "Website hinzufügen",
       emptyTitle: "Noch keine Websites",
       emptyBody:
         "Fügen Sie Ihre Website hinzu. Wir lesen sie, ermitteln, was Ihr Unternehmen tut, und finden die Suchbegriffe, die sich lohnen.",
       addFirst: "Erste Website hinzufügen",
       tryAgain: "Erneut versuchen",
-      removeLabel: (domain) => `${domain} entfernen`,
-      removed: (domain) => `${domain} entfernt`,
+      removeLabel: "{domain} entfernen",
+      removed: "{domain} entfernt",
       retrying: "Neuer Versuch",
       dialogTitle: "Website hinzufügen",
       dialogBody:
@@ -6968,15 +6940,15 @@ const de: Messages = {
       yourWebsites: "Ihre Websites",
       yourWebsitesHelp: "Eine Website ohne Tarif kann keine Artikel erstellen oder veröffentlichen.",
       noPlanYet: "Noch kein Tarif",
-      planRenews: (plan, date) => `${plan} — verlängert sich am ${date}`,
-      planEnds: (plan, date) => `${plan} — endet am ${date}`,
+      planRenews: "{plan} — verlängert sich am {date}",
+      planEnds: "{plan} — endet am {date}",
       currentPlan: "Aktueller Tarif",
       accessEnds: "Zugriff endet",
       nextInvoice: "Nächste Rechnung",
-      onPlan: (plan) => `Sie nutzen den Tarif ${plan}.`,
+      onPlan: "Sie nutzen den Tarif {plan}.",
       noSubscription: "Noch kein aktives Abonnement. Wählen Sie unten einen Tarif, um zu starten.",
-      accessEndsOn: (date) => `Der Zugriff endet am ${date}.`,
-      renewsOn: (date) => `Verlängert sich am ${date}.`,
+      accessEndsOn: "Der Zugriff endet am {date}.",
+      renewsOn: "Verlängert sich am {date}.",
       monthly: "Monatlich",
       annual: "Jährlich",
       status: "Status",
@@ -6985,12 +6957,10 @@ const de: Messages = {
       promoCodes: "Gutscheincodes können beim Kartenzahlvorgang eingegeben werden. PayPal unterstützt sie nicht.",
       unlimited: "Unbegrenzt",
       // "Artikel" is the same in singular and plural; no ternary to write.
-      articlesEachMonth: (n) => `${n} Artikel pro Monat geschrieben`,
-      searchTermsTracked: (n, count) =>
-        `${n} ${count === 1 ? "Suchbegriff" : "Suchbegriffe"} beobachtet`,
+      articlesEachMonth: "{n} Artikel pro Monat geschrieben|{n} Artikel pro Monat geschrieben",
+      searchTermsTracked: "{n} Suchbegriff überwacht|{n} Suchbegriffe überwacht",
       oneWebsite: "Eine Website pro Abonnement",
-      creditsEachMonth: (n, count) =>
-        `${n} ${count === 1 ? "Link-Credit" : "Link-Credits"} pro Monat`,
+      creditsEachMonth: "{n} Link-Guthaben pro Monat|{n} Link-Guthaben pro Monat",
       paymentReceived: "Zahlung erhalten — Ihr Abonnement wird bestätigt…",
       checkoutCancelled: "Bezahlvorgang abgebrochen.",
       purchaseReceived: "Zahlung erhalten — Ihr Kauf erscheint in Kürze.",
@@ -7173,11 +7143,11 @@ const de: Messages = {
       checkBeforeSaving: "Wir prüfen die Verbindung, bevor wir etwas speichern — so erfahren Sie es jetzt und nicht erst, wenn ein Artikel scheitert.",
       noPlatformMatch: "Keine passende Plattform? Veröffentlichen Sie überall per Webhook.",
       forDevelopers: "Für Entwickler",
-      connectTo: (name) => `${name} verbinden`,
-      connectedTo: (name) => `Mit ${name} verbunden`,
-      disconnectedFrom: (name) => `Von ${name} getrennt`,
+      connectTo: "{name} verbinden",
+      connectedTo: "Mit {name} verbunden",
+      disconnectedFrom: "Von {name} getrennt",
       draftPublished: "Entwurf veröffentlicht. Sehen Sie in den Entwürfen Ihrer Website nach.",
-      draftPublishedAt: (name) => `Entwurf veröffentlicht — öffnen Sie ihn unter ${name}`,
+      draftPublishedAt: "Entwurf veröffentlicht — öffnen Sie ihn unter {name}",
     },
     geo: {
       aiVisibility: "KI-Sichtbarkeit",
@@ -7251,8 +7221,8 @@ const de: Messages = {
       statusLive: "Aktiv",
       statusCancelled: "Abgebrochen",
       statusRemoved: "Entfernt — Credit erstattet",
-      hosting: (cap, used, sites) => `Nimmt bis zu ${cap} Links pro Monat auf (${used} genutzt). ${sites} Website${sites === 1 ? "" : "s"} können auf Sie verlinken.`,
-      reserved: (n) => ` (${n} reserviert)`,
+      hosting: "Nimmt bis zu {cap} Links pro Monat auf ({used} genutzt). {sites} Website kann auf Sie verlinken.|Nimmt bis zu {cap} Links pro Monat auf ({used} genutzt). {sites} Websites können auf Sie verlinken.",
+      reserved: " ({n} reserviert)",
     },
     dashboard: {
       noWebsite: "Noch keine Website verbunden",
@@ -7262,7 +7232,7 @@ const de: Messages = {
       couldNotLoadHelp: "Versuchen Sie es erneut oder wählen Sie eine andere Website.",
       overview: "SEO-Überblick",
       openWebsite: "Website öffnen",
-      performing: (domain) => `Wie ${domain} in der Suche abschneidet.`,
+      performing: "Wie {domain} in der Suche abschneidet.",
     },
     calendar: {
       changeTopic: "Thema ändern",
@@ -7283,7 +7253,7 @@ const de: Messages = {
       neverExpire: "Credits verfallen nicht",
       useAnytime: "Jederzeit einsetzbar",
       buyThis: "Kaufen",
-      buyCredits: (n) => `${n} Credits kaufen`,
+      buyCredits: "{n} Credits kaufen",
       unavailable: "Nicht verfügbar",
       checkoutFailed: "Der Bezahlvorgang konnte nicht gestartet werden. Bitte erneut versuchen.",
       yourPurchases: "Ihre Käufe",
@@ -7355,7 +7325,7 @@ const de: Messages = {
       allLive: "Alle Systeme aktiv",
       finishSetup: "Einrichtung abschließen",
       allLiveHelp: "Alle erforderlichen Systeme sind aktiv. Ihre Live-Zahlen finden Sie im Dashboard.",
-      stepsLeft: (n) => `Noch ${n} Schritt${n === 1 ? "" : "e"}, bis alles von selbst läuft.`,
+      stepsLeft: "Noch {n} Schritt, bis alles von selbst läuft.|Noch {n} Schritte, bis alles von selbst läuft.",
     },
     common: {
       cancel: "Abbrechen",

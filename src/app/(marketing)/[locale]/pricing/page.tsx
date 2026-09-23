@@ -14,6 +14,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { formatPrice, listPlans } from "@/lib/billing";
+import { format, plural } from "@/lib/i18n/format";
 import { isLocale, localePath, LOCALES } from "@/lib/i18n/config";
 import { getMessages } from "@/lib/i18n/messages";
 
@@ -132,10 +133,12 @@ export default async function LocalisedPricingPage({
                   <CardContent>
                     <ul className="space-y-2.5 text-sm">
                       {[
-                        t.pricing.features.articles(plan.articleLimit),
-                        t.pricing.features.keywords(
-                          plan.keywordLimit.toLocaleString(locale),
-                        ),
+                        plural(t.pricing.features.articles, plan.articleLimit, {
+                          n: plan.articleLimit,
+                        }),
+                        format(t.pricing.features.keywords, {
+                          n: plan.keywordLimit.toLocaleString(locale),
+                        }),
                         /*
                           Capability, not counts. The website and credit
                           figures were dropped at the client's request; the

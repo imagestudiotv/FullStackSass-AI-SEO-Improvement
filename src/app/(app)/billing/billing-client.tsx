@@ -38,7 +38,7 @@ import { SUPPORT_EMAIL } from "@/lib/config/site";
 import { createCheckoutSession } from "@/lib/stripe/actions";
 import { createPortalSession, type PortalFlow } from "@/lib/stripe/portal";
 import type { Locale } from "@/lib/i18n/config";
-import { formatDate, formatNumber } from "@/lib/i18n/format";
+import { format, formatDate, formatNumber, plural } from "@/lib/i18n/format";
 import type { Messages } from "@/lib/i18n/messages";
 
 type BillingClientProps = {
@@ -84,8 +84,12 @@ function planFeatures(
     n < 0 ? t.unlimited : formatNumber(n, locale);
 
   return [
-    t.articlesEachMonth(unlimited(plan.articleLimit), plan.articleLimit),
-    t.searchTermsTracked(unlimited(plan.keywordLimit), plan.keywordLimit),
+    plural(t.articlesEachMonth, plan.articleLimit, {
+      n: unlimited(plan.articleLimit),
+    }),
+    plural(t.searchTermsTracked, plan.keywordLimit, {
+      n: unlimited(plan.keywordLimit),
+    }),
     /*
       One website, not plan.siteLimit. Subscriptions are per WEBSITE since
       migration 0021, so a plan row's siteLimit describes a cap that is no
@@ -93,7 +97,9 @@ function planFeatures(
       sites for one payment. See lib/plans/features.ts.
     */
     t.oneWebsite,
-    t.creditsEachMonth(unlimited(plan.monthlyCredits), plan.monthlyCredits),
+    plural(t.creditsEachMonth, plan.monthlyCredits, {
+      n: unlimited(plan.monthlyCredits),
+    }),
   ];
 }
 
@@ -312,14 +318,14 @@ export function BillingClient({
                       {row.planName
                         ? row.currentPeriodEnd
                           ? row.cancelAtPeriodEnd
-                            ? t.planEnds(
-                                row.planName,
-                                formatDate(row.currentPeriodEnd, locale),
-                              )
-                            : t.planRenews(
-                                row.planName,
-                                formatDate(row.currentPeriodEnd, locale),
-                              )
+                            ? format(t.planEnds, {
+                                plan: row.planName,
+                                date: formatDate(row.currentPeriodEnd, locale),
+                              })
+                            : format(t.planRenews, {
+                                plan: row.planName,
+                                date: formatDate(row.currentPeriodEnd, locale),
+                              })
                           : row.planName
                         : t.noPlanYet}
                     </p>
@@ -483,7 +489,7 @@ export function BillingClient({
           </CardTitle>
           <CardDescription>
             {subscription?.planName
-              ? t.onPlan(subscription.planName)
+              ? format(t.onPlan, { plan: subscription.planName })
               : t.noSubscription}
           </CardDescription>
         </CardHeader>
@@ -491,8 +497,12 @@ export function BillingClient({
         {subscription?.currentPeriodEnd ? (
           <CardContent className="text-sm text-muted-foreground">
             {subscription.cancelAtPeriodEnd
-              ? t.accessEndsOn(formatDate(subscription.currentPeriodEnd, locale))
-              : t.renewsOn(formatDate(subscription.currentPeriodEnd, locale))}
+              ? format(t.accessEndsOn, {
+                  date: formatDate(subscription.currentPeriodEnd, locale),
+                })
+              : format(t.renewsOn, {
+                  date: formatDate(subscription.currentPeriodEnd, locale),
+                })}
           </CardContent>
         ) : null}
 
