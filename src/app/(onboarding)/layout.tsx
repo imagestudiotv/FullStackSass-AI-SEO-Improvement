@@ -2,6 +2,7 @@
 import { BrandLogo } from "@/components/brand-logo";
 import { HeaderTrailing } from "@/components/onboarding/header-trailing";
 import { UserMenu } from "@/components/user-menu";
+import { isAdmin } from "@/lib/admin/guard";
 import { ensureOrganization } from "@/lib/auth";
 import { requireSession } from "@/lib/auth-guard";
 import { getAppMessages } from "@/lib/i18n/app-locale";
@@ -34,6 +35,21 @@ export const dynamic = "force-dynamic";
 export default async function OnboardingLayout({ children }: LayoutProps<"/">) {
   const session = await requireSession();
   const { t } = await getAppMessages(session.user.id);
+
+  /**
+   * Administrators get a way out of the wizard.
+   *
+   * Everything else in this header was deliberately removed - see the note
+   * above - and that is right for a customer, who should be finishing setup
+   * rather than wandering into a content planner. An administrator is not a
+   * customer: signing in with a fresh admin account lands here, and with no
+   * link anywhere on the screen there was no way to reach /admin short of
+   * typing the URL or completing a setup flow they have no reason to.
+   *
+   * It rides in the account menu rather than as a second header button, so
+   * the wizard's chrome stays as bare as the client asked for.
+   */
+  const admin = await isAdmin();
 
   /**
    * Recover a signed-in user who has no organization.
@@ -102,6 +118,8 @@ export default async function OnboardingLayout({ children }: LayoutProps<"/">) {
             name={session.user.name}
             email={session.user.email}
             image={session.user.image}
+            isAdmin={admin}
+            adminLabel={t.app.common.admin}
           />
         </div>
       </header>

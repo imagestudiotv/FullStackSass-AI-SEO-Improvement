@@ -233,14 +233,15 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         ) : null}
 
         <div className="ml-auto flex items-center gap-1">
-          {admin ? (
-            <Link
-              href="/admin"
-              className="rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-            >
-              {t.app.common.admin}
-            </Link>
-          ) : null}
+          {/*
+            The admin link moved into the account menu.
+
+            It was a header button here and NOWHERE ELSE, so it disappeared
+            the moment an administrator left this route group - including on
+            /onboarding, which is where signing in with a fresh admin account
+            actually lands. The account menu is rendered by both layouts, so
+            one entry covers every authenticated screen.
+          */}
           {/*
             Count is rendered on the server so the badge is correct on first
             paint. The list itself loads when the bell is opened.
@@ -250,6 +251,8 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             name={session.user.name}
             email={session.user.email}
             image={session.user.image}
+            isAdmin={admin}
+            adminLabel={t.app.common.admin}
           />
         </div>
       </header>
