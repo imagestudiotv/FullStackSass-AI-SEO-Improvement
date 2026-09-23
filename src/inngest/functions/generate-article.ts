@@ -645,6 +645,50 @@ export const generateArticle = inngest.createFunction(
      * been changed while the article was being written.
      */
     const autoPublished = await step.run("auto-publish", async () => {
+      /**
+       * Not before the day the calendar says.
+       *
+       * Articles are written up to LOOKAHEAD_DAYS ahead so finished work is
+       * always waiting — but publishing inherited that head start, and the
+       * whole batch went live the moment it was written. A customer looking
+       * at their plan saw tomorrow's and the next day's articles already
+       * marked Published, which is not a schedule at all.
+       *
+       * Compared by DATE, not by instant: the calendar stores noon on the
+       * day, and a customer who plans an article "for the 24th" means the
+       * day, not 12:00. Publishing at 06:00 on the 24th is on time; at 06:00
+       * on the 23rd it is a day early.
+       *
+       * An article with no calendar item — written from the button, or
+       * one-off — has no date to wait for and publishes as it always did.
+       */
+      if (brief.calendarItemId) {
+        const [item] = await db
+          .select({ scheduledFor: calendarItems.scheduledFor })
+          .from(calendarItems)
+          .where(eq(calendarItems.id, brief.calendarItemId))
+          .limit(1);
+
+        const due = item?.scheduledFor;
+        if (due) {
+          const startOfDay = (d: Date) =>
+            Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+
+          if (startOfDay(new Date()) < startOfDay(due)) {
+            logger.info(
+              {
+                step: "auto-publish",
+                articleId,
+                websiteId: brief.websiteId,
+                scheduledFor: due.toISOString(),
+              },
+              "Written ahead of its date — holding as a draft until then",
+            );
+            return false;
+          }
+        }
+      }
+
       const [site] = await db
         .select({ autoPublish: websites.autoPublish })
         .from(websites)

@@ -3,7 +3,7 @@ import { and, eq, isNull, lte, or, sql as raw } from "drizzle-orm";
 import { inngest } from "@/inngest/client";
 import { queueArticleForCalendarItem } from "@/inngest/functions/generate-article";
 import { db } from "@/lib/db";
-import { calendarItems, websites } from "@/lib/db/schema";
+import { articles, calendarItems, websites } from "@/lib/db/schema";
 import { notify } from "@/lib/notifications/create";
 import { checkLimit } from "@/lib/usage";
 import { UNLIMITED } from "@/lib/usage-shared";
@@ -61,6 +61,58 @@ function isPublishingDay(days: unknown, today: number): boolean {
   // should generate, not silently stop.
   if (!Array.isArray(days) || days.length === 0) return true;
   return days.includes(today);
+}
+
+/**
+ * Publishes the drafts whose calendar date has now arrived.
+ *
+ * The other half of writing ahead. generate-article holds an article back
+ * when it is finished before its date, so without this it would sit as a
+ * draft forever — the customer would have swapped publishing too early for
+ * never publishing at all.
+ *
+ * Only articles that are still drafts, attached to a calendar item whose date
+ * has passed, on a site with auto-publish on and a CMS connected: the same
+ * conditions generate-article checks, so nothing can reach a customer's site
+ * through this path that would not have reached it through the other one.
+ */
+async function publishDueDrafts(): Promise<number> {
+  const rows = await db
+    .select({
+      id: articles.id,
+      websiteId: articles.websiteId,
+      organizationId: websites.organizationId,
+    })
+    .from(articles)
+    .innerJoin(calendarItems, eq(calendarItems.id, articles.calendarItemId))
+    .innerJoin(websites, eq(websites.id, articles.websiteId))
+    .where(
+      and(
+        eq(articles.status, "draft"),
+        eq(websites.autoPublish, true),
+        lte(calendarItems.scheduledFor, new Date()),
+        raw`exists (
+          select 1 from integrations i
+          where i.website_id = ${articles.websiteId}
+            and i.status = 'connected'
+        )`,
+      ),
+    )
+    .limit(MAX_PER_WEBSITE * WEBSITE_BATCH);
+
+  for (const row of rows) {
+    await inngest.send({
+      name: "article/publish.requested",
+      data: {
+        articleId: row.id,
+        websiteId: row.websiteId,
+        organizationId: row.organizationId,
+        status: "publish" as const,
+      },
+    });
+  }
+
+  return rows.length;
 }
 
 export const scheduledArticles = inngest.createFunction(
@@ -171,7 +223,19 @@ export const scheduledArticles = inngest.createFunction(
         { step: "select-websites", websiteCount: 0, today },
         "No websites have calendar items due — nothing queued this run",
       );
-      return { websites: 0, queued: 0 };
+
+      /*
+        Still release anything already written and now due. Nothing NEW being
+        due says nothing about drafts written on an earlier run, and returning
+        here without this is how a held article would wait for a day on which
+        the calendar happened to have something new to write.
+      */
+      const releasedOnly = await step.run("publish-due-drafts", publishDueDrafts);
+      logger.info(
+        { step: "publish-due-drafts", released: releasedOnly },
+        "Held drafts released for publishing",
+      );
+      return { websites: 0, queued: 0, released: releasedOnly };
     }
 
     let queued = 0;
@@ -354,6 +418,35 @@ export const scheduledArticles = inngest.createFunction(
     });
 
     /**
+     * Publish the drafts whose day has now arrived.
+     *
+     * The other half of writing ahead. generate-article holds an article back
+     * when it is finished before its calendar date, so without this step it
+     * would sit as a draft forever — the customer would have swapped
+     * publishing too early for never publishing at all.
+     *
+     * Runs on the same daily cron, so an article dated the 24th is written on
+     * the 21st and published by the first run on the 24th.
+     *
+     * Only articles that are still drafts, still attached to a calendar item
+     * whose date has passed, on a site with auto-publish on and a CMS
+     * connected — the same conditions generate-article checks, so an article
+     * cannot reach the customer's site through this path that would not have
+     * reached it through the other one.
+     */
+    /**
+     * Publish the drafts whose day has now arrived. See publishDueDrafts.
+     *
+     * Runs on the same daily cron, so an article dated the 24th is written on
+     * the 21st and published by the first run on the 24th.
+     */
+    const released = await step.run("publish-due-drafts", publishDueDrafts);
+    logger.info(
+      { step: "publish-due-drafts", released },
+      "Held drafts released for publishing",
+    );
+
+    /**
      * The one line that answers "why did no articles appear today".
      *
      * `queued: 0` against a non-zero `websites` means every site was filtered
@@ -365,11 +458,12 @@ export const scheduledArticles = inngest.createFunction(
         step: "done",
         websites: due.length,
         queued,
+        released,
         limitReachedOrganizations: new Set(limitReached).size,
       },
       "Scheduled article run complete",
     );
 
-    return { websites: due.length, queued };
+    return { websites: due.length, queued, released };
   },
 );
