@@ -25,6 +25,30 @@ import { Label } from "@/components/ui/label";
 const CALLBACK_URL = "/dashboard";
 
 /**
+ * Where to go after signing in, from ?next=.
+ *
+ * AN OPEN-REDIRECT GUARD, not a convenience. Whatever lands here is put
+ * straight into a navigation the moment a session exists, so an unchecked
+ * value turns our own sign-in page into a redirector to anywhere - the
+ * classic phishing setup, where the victim really did sign in to RepGet and
+ * really was then handed to somebody else's site.
+ *
+ * Only a path on this origin is allowed:
+ *  - must start with a single "/"
+ *  - "//evil.com" is rejected: browsers read it as a protocol-relative URL
+ *  - a backslash is rejected too, since some clients normalise "/\" to "//"
+ *
+ * Anything else falls back to the dashboard rather than erroring. A bad
+ * `next` is not the customer's problem to solve; they came here to sign in.
+ */
+function safeNext(value: string | null): string {
+  if (!value) return CALLBACK_URL;
+  if (!value.startsWith("/")) return CALLBACK_URL;
+  if (value.startsWith("//") || value.startsWith("/\\")) return CALLBACK_URL;
+  return value;
+}
+
+/**
  * What Better Auth's OAuth error codes mean to a customer.
  *
  * Its own codes read like internals — "account_not_linked" tells someone
@@ -73,6 +97,14 @@ export function AuthForm({
   const isSignUp = mode === "sign-up";
 
   const [name, setName] = useState("");
+  /**
+   * Prefilled from ?email= when an invitation sent them here.
+   *
+   * An invitation is addressed to ONE mailbox and is only accepted by an
+   * account with that address, so typing a different one here produces an
+   * account that cannot accept it. Prefilling removes that trap, and the
+   * field stays editable for anyone who genuinely wants a different address.
+   */
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [pending, setPending] = useState(false);
@@ -92,18 +124,54 @@ export function AuthForm({
    * stripped from the address, so a reload does not repeat it.
    */
   const searchParams = useSearchParams();
+
+  /**
+   * Where to land afterwards. Validated - see safeNext.
+   *
+   * Carried through the whole flow so an invitation link that bounced an
+   * unknown visitor to sign-up returns them to the invitation once they
+   * have an account, instead of stranding them on the dashboard with no
+   * idea what they were invited to.
+   */
+  const next = safeNext(searchParams.get("next"));
+
+  /**
+   * Prefill the address an invitation was sent to.
+   *
+   * In an effect rather than useState's initialiser because useSearchParams
+   * returns null during the initial server render, so the initialiser would
+   * read nothing. Only ever sets it once, and never over something typed.
+   */
+  useEffect(() => {
+    const invited = searchParams.get("email");
+    if (invited) setEmail((current) => current || invited);
+  }, [searchParams]);
+
   useEffect(() => {
     const code = searchParams.get("error");
     if (!code) return;
     toast.error(OAUTH_ERRORS[code] ?? "Sign-in did not complete. Try again.");
-    window.history.replaceState(null, "", window.location.pathname);
+    /*
+      Strip ONLY the error, keeping the rest of the query. It used to reset
+      the address to the bare pathname, which also threw away ?next= and
+      ?email= - so a failed Google attempt from an invitation link silently
+      turned into an ordinary sign-up, and the invitation was never accepted.
+    */
+    const rest = new URLSearchParams(searchParams.toString());
+    rest.delete("error");
+    const query = rest.toString();
+    window.history.replaceState(
+      null,
+      "",
+      query ? `${window.location.pathname}?${query}` : window.location.pathname,
+    );
   }, [searchParams]);
 
   async function handleGoogle() {
     setGooglePending(true);
     const { error } = await authClient.signIn.social({
       provider: "google",
-      callbackURL: CALLBACK_URL,
+      callbackURL: next,
       /**
        * Where a failure DURING the OAuth round trip lands.
        *
@@ -150,7 +218,7 @@ export function AuthForm({
       return;
     }
 
-    router.push(CALLBACK_URL);
+    router.push(next);
     router.refresh();
   }
 

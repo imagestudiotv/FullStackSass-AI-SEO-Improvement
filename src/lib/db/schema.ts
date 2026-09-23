@@ -1358,3 +1358,58 @@ export const websiteMembers = pgTable(
     index("website_members_user_idx").on(table.userId),
   ],
 );
+
+/**
+ * An invitation to work on one website, sent to somebody with no account yet.
+ *
+ * WHY NOT Better Auth's `invitation` TABLE: that one is scoped to an
+ * organization, and joining a workspace is a different and larger thing than
+ * being given access to a single site. A freelance editor brought in for one
+ * client must not gain the others, which is the whole reason website_members
+ * exists — routing invitations through the organization table would undo it.
+ *
+ * THE TOKEN IS STORED HASHED. It is a bearer credential: whoever holds it
+ * becomes an editor on a customer's website. Storing it in the clear would
+ * mean a leaked backup, a stray log line or read access to this table is
+ * enough to take over a site. Only the hash is here; the token itself exists
+ * in the emailed link and nowhere else — which is also why a lost invitation
+ * is re-sent as a NEW one rather than recovered.
+ */
+export const websiteInvitations = pgTable(
+  "website_invitations",
+  {
+    id: pk(),
+    websiteId: websiteId(),
+    /** Lower-cased at the call site, so a match is a plain equality test. */
+    email: text("email").notNull(),
+    /** "editor" | "viewer", the same two roles as websiteMembers. */
+    role: text("role").default("editor").notNull(),
+    /** sha256 of the token. Never the token itself. See the note above. */
+    tokenHash: text("token_hash").notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    /**
+     * When it was accepted. Null while pending.
+     *
+     * Kept rather than deleted so the row remains a record of who let whom
+     * in, which the admin log cannot reconstruct once the invitation is gone.
+     */
+    acceptedAt: timestamp("accepted_at"),
+    invitedBy: text("invited_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    ...timestamps,
+  },
+  (table) => [
+    /**
+     * One live invitation per address per site. A second invite updates the
+     * row — issuing a fresh token and expiry — rather than leaving two valid
+     * links, of which revoking one would silently leave the other working.
+     */
+    uniqueIndex("website_invitations_site_email_uidx").on(
+      table.websiteId,
+      table.email,
+    ),
+    // The accept route looks an invitation up by its hash alone.
+    uniqueIndex("website_invitations_token_uidx").on(table.tokenHash),
+  ],
+);

@@ -3,7 +3,9 @@
 import {
   Crown,
   Loader2,
+  MailX,
   MoreVertical,
+  Send,
   Trash2,
   UserPlus,
 } from "lucide-react";
@@ -54,8 +56,12 @@ import {
 import type { Messages } from "@/lib/i18n/messages";
 import {
   addWebsiteMember,
+  listWebsiteInvitations,
   listWebsiteMembers,
   removeWebsiteMember,
+  resendWebsiteInvitation,
+  revokeWebsiteInvitation,
+  type WebsiteInvitation,
   type WebsiteMember,
 } from "@/lib/websites/members";
 
@@ -67,11 +73,11 @@ import {
  * cannot express. The workspace's own people are listed too, as the Admin
  * rows; they hold access through the account rather than through an invite.
  *
- * Matches an existing account by email rather than sending an invitation.
- * Email needs a provider, a token table and an expiry policy; matching an
- * account covers the case actually asked for — a colleague or freelancer who
- * already uses the product — and anyone else signs up first, which they would
- * have to do regardless.
+ * Two kinds of row, because there are two ways in. Someone who already has an
+ * account is granted access on the spot and appears as Active. Someone who
+ * does not is emailed an invitation, and appears as Invited until they accept
+ * it — which is what finally makes the Status column worth reading, rather
+ * than a word that said "Active" on every row.
  */
 export type OwnedSite = { id: string; domain: string };
 
@@ -79,18 +85,22 @@ export function WebsiteMembers({
   sites,
   initialWebsiteId,
   initialMembers,
+  initialInvitations,
   t,
 }: {
   /** Every website this person owns. Access is granted per site. */
   sites: OwnedSite[];
   initialWebsiteId: string;
   initialMembers: WebsiteMember[];
+  /** Invitations sent but not yet accepted. Owner-only; empty for an editor. */
+  initialInvitations: WebsiteInvitation[];
   /** This screen's copy, already in the reader's language. */
   t: Messages["app"]["settings"];
 }) {
   const router = useRouter();
   const [websiteId, setWebsiteId] = useState(initialWebsiteId);
   const [members, setMembers] = useState(initialMembers);
+  const [invitations, setInvitations] = useState(initialInvitations);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<"editor" | "viewer">("editor");
   const [pending, startTransition] = useTransition();
@@ -125,13 +135,23 @@ export function WebsiteMembers({
   async function loadMembers(id: string) {
     setLoadingMembers(true);
     try {
-      const rows = await listWebsiteMembers(id);
+      /*
+        Both lists in parallel: they render in one table, so arriving
+        separately would show the members and then reflow as the pending
+        rows appeared underneath them.
+      */
+      const [rows, pending] = await Promise.all([
+        listWebsiteMembers(id),
+        listWebsiteInvitations(id),
+      ]);
       // Ignore a slow reply for a site that is no longer the chosen one.
       if (wantedSite.current !== id) return;
       setMembers(rows);
+      setInvitations(pending);
     } catch {
       if (wantedSite.current !== id) return;
       setMembers([]);
+      setInvitations([]);
       toast.error("Could not load who works on this website.");
     } finally {
       if (wantedSite.current === id) setLoadingMembers(false);
@@ -144,13 +164,19 @@ export function WebsiteMembers({
     // Clear first: showing the previous site's people under a new domain, even
     // briefly, reads as though those people have access to it.
     setMembers([]);
+    setInvitations([]);
     void loadMembers(id);
   }
 
   /** Re-reads the current site's list after a change, without a navigation. */
   async function refreshMembers() {
     try {
-      setMembers(await listWebsiteMembers(websiteId));
+      const [rows, pending] = await Promise.all([
+        listWebsiteMembers(websiteId),
+        listWebsiteInvitations(websiteId),
+      ]);
+      setMembers(rows);
+      setInvitations(pending);
     } catch {
       router.refresh();
     }
@@ -164,7 +190,28 @@ export function WebsiteMembers({
         toast.error(result.error);
         return;
       }
-      toast.success(`${email} can now work on ${domain}`);
+
+      /*
+        The two paths produce different truths, so they say different things.
+        "Can now work on" is false for someone who has only been emailed a
+        link — they cannot do anything until they accept it, and telling the
+        owner otherwise is how a pending invitation gets forgotten.
+      */
+      if (result.data.invited) {
+        toast.success(`${t.inviteSent} — ${email}`);
+      } else if (result.data.emailSent) {
+        toast.success(`${email} can now work on ${domain}`);
+      } else {
+        /*
+          Access was granted but the notification did not send. Reported
+          rather than swallowed: the owner is the only person who can tell
+          them, and they will assume we did.
+        */
+        toast.success(
+          `${email} can now work on ${domain}, but we could not email them.`,
+        );
+      }
+
       setEmail("");
       setInviteOpen(false);
       await refreshMembers();
@@ -184,6 +231,39 @@ export function WebsiteMembers({
       await refreshMembers();
     });
   }
+
+  /** Sends a fresh link. The old one stops working — see the action. */
+  function resend(invitationId: string, inviteEmail: string) {
+    setBusyId(invitationId);
+    startTransition(async () => {
+      const result = await resendWebsiteInvitation(websiteId, invitationId);
+      setBusyId(null);
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success(`${t.inviteResent} — ${inviteEmail}`);
+      await refreshMembers();
+    });
+  }
+
+  /** Withdraws it, which is what makes the emailed link stop working. */
+  function revoke(invitationId: string, inviteEmail: string) {
+    setBusyId(invitationId);
+    startTransition(async () => {
+      const result = await revokeWebsiteInvitation(websiteId, invitationId);
+      setBusyId(null);
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success(`${t.inviteCancelled} — ${inviteEmail}`);
+      await refreshMembers();
+    });
+  }
+
+  /* The table is empty only when BOTH lists are. */
+  const nothingToShow = members.length === 0 && invitations.length === 0;
 
   return (
     <Card>
