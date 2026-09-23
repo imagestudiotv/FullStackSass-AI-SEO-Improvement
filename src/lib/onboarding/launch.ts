@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { cache } from "react";
 
 import { db } from "@/lib/db";
@@ -7,6 +7,7 @@ import {
   brandVoice,
   calendarItems,
   geoPrompts,
+  integrationKeys,
   integrations,
   networkSites,
   websites,
@@ -118,8 +119,8 @@ const CMS_KINDS = [
 
 /**
  * Deduplicated per request: the sidebar badge and the setup page both read
- * this on the same render, and without the cache that is two sets of six
- * queries for one page view.
+ * this on the same render, and without the cache that is two full sets
+ * of these queries for one page view.
  */
 export const getLaunchState = cache(async function getLaunchState(
   websiteId: string,
@@ -127,11 +128,11 @@ export const getLaunchState = cache(async function getLaunchState(
   const base = `/websites/${websiteId}`;
 
   /**
-   * One round trip for all six lookups. Each is an existence check —
+   * One round trip for every lookup. Each is an existence check —
    * `limit(1)`, not a count — because the question is only ever "is there
    * any?", and counting rows a customer may have thousands of is wasted work.
    */
-  const [site, cms, gsc, audit, voice, network, prompts, planned] =
+  const [site, cms, plugin, gsc, audit, voice, network, prompts, planned] =
     await Promise.all([
       /*
         The profile columns analysis fills in. Read as a row rather than an
@@ -157,6 +158,29 @@ export const getLaunchState = cache(async function getLaunchState(
             // Connected, not merely created: a half-finished integration that
             // has never authenticated cannot publish anything.
             eq(integrations.status, "connected"),
+          ),
+        )
+        .limit(1),
+      /**
+       * The plugin is the OTHER way a site gets connected, and it leaves no
+       * row in `integrations` — it authenticates with an integration key,
+       * which lives in its own table. Without this the checklist told a
+       * customer publishing happily through the plugin that they had still
+       * not connected their site, and kept a step they had finished sitting
+       * open forever.
+       *
+       * lastUsedAt, not mere existence: a key that was created and never used
+       * means the plugin is not installed yet, which is genuinely incomplete.
+       * Revoked keys are excluded for the same reason — they cannot publish.
+       */
+      db
+        .select({ id: integrationKeys.id })
+        .from(integrationKeys)
+        .where(
+          and(
+            eq(integrationKeys.websiteId, websiteId),
+            isNotNull(integrationKeys.lastUsedAt),
+            isNull(integrationKeys.revokedAt),
           ),
         )
         .limit(1),
@@ -235,7 +259,8 @@ export const getLaunchState = cache(async function getLaunchState(
       title: "Connect your site",
       description:
         "So finished articles can publish themselves to your blog. Nothing goes live until you say so.",
-      done: cms.length > 0,
+      // Either route counts: a CMS connection, or a live plugin key.
+      done: cms.length > 0 || plugin.length > 0,
       optional: false,
       /*
         /integrations, not /publishing. This step is about connecting a CMS,
