@@ -884,6 +884,7 @@ export type Messages = {
       critical: string;
       suggestion: string;
       warning: string;
+      importData: string;
       auditIntro: string;
       losingTrafficIntro: string;
       noCompetitorsFound: string;
@@ -2179,6 +2180,7 @@ const en: Messages = {
       critical: "Critical",
       suggestion: "Suggestion",
       warning: "Warning",
+      importData: "Import data",
       auditIntro: "We check your pages and list what is holding your website back on Google, with the exact page each problem is on.",
       losingTrafficIntro: "Pages getting fewer clicks than they did a month ago, from your Search Console data.",
       noCompetitorsFound: "We did not find any from your site. Add the rivals you know of and we will use them to find content gaps.",
@@ -3484,6 +3486,7 @@ const es: Messages = {
       critical: "Crítico",
       suggestion: "Sugerencia",
       warning: "Advertencia",
+      importData: "Importar datos",
       auditIntro: "Revisamos sus páginas y enumeramos qué frena su sitio web en Google, indicando la página exacta de cada problema.",
       losingTrafficIntro: "Páginas que reciben menos clics que hace un mes, según sus datos de Search Console.",
       noCompetitorsFound: "No encontramos ninguno en su sitio. Añada los rivales que conozca y los usaremos para detectar huecos de contenido.",
@@ -4792,6 +4795,7 @@ const fr: Messages = {
       critical: "Critique",
       suggestion: "Suggestion",
       warning: "Avertissement",
+      importData: "Importer les données",
       auditIntro: "Nous examinons vos pages et listons ce qui freine votre site sur Google, en indiquant la page exacte de chaque problème.",
       losingTrafficIntro: "Pages recevant moins de clics qu\u2019il y a un mois, d\u2019après vos données Search Console.",
       noCompetitorsFound: "Nous n\u2019en avons trouvé aucun depuis votre site. Ajoutez les concurrents que vous connaissez et nous les utiliserons pour repérer les manques de contenu.",
@@ -6093,6 +6097,7 @@ const it: Messages = {
       critical: "Critico",
       suggestion: "Suggerimento",
       warning: "Avviso",
+      importData: "Importa dati",
       auditIntro: "Controlliamo le sue pagine ed elenchiamo che cosa frena il suo sito su Google, indicando la pagina esatta di ogni problema.",
       losingTrafficIntro: "Pagine che ricevono meno clic rispetto a un mese fa, secondo i suoi dati di Search Console.",
       noCompetitorsFound: "Non ne abbiamo trovato nessuno dal suo sito. Aggiunga i concorrenti che conosce e li useremo per individuare lacune nei contenuti.",
@@ -7401,6 +7406,7 @@ const de: Messages = {
       critical: "Kritisch",
       suggestion: "Vorschlag",
       warning: "Warnung",
+      importData: "Daten importieren",
       auditIntro: "Wir prüfen Ihre Seiten und listen auf, was Ihre Website bei Google bremst — mit der genauen Seite zu jedem Problem.",
       losingTrafficIntro: "Seiten mit weniger Klicks als vor einem Monat, laut Ihren Search-Console-Daten.",
       noCompetitorsFound: "Wir haben auf Ihrer Website keine gefunden. Fügen Sie die Wettbewerber hinzu, die Sie kennen, und wir finden damit Inhaltslücken.",

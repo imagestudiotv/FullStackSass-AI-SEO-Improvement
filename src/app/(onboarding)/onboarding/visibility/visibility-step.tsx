@@ -403,7 +403,7 @@ export function VisibilityStep({
               className="h-10 shrink-0 rounded-xl"
               onClick={() => handleAdd(draft)}
               disabled={adding || atLimit || !draft.trim()}
-              aria-label="Add question"
+              aria-label={t.addQuestion}
             >
               {adding ? (
                 <Loader2 className="size-4 animate-spin" aria-hidden="true" />

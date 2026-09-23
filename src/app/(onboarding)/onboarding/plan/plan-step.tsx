@@ -329,7 +329,7 @@ export function PlanStep({
               type="button"
               role="switch"
               aria-checked={annual}
-              aria-label="Pay yearly"
+              aria-label={t.payYearly}
               onClick={() => setAnnual((current) => !current)}
               className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
                 annual ? "bg-primary" : "bg-muted-foreground/25"

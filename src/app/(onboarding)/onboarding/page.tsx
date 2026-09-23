@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { requireSession } from "@/lib/auth-guard";
+import { getAppMessages } from "@/lib/i18n/app-locale";
 import { getOnboardingState } from "@/lib/onboarding/steps";
 import { requireOrg } from "@/lib/tenant";
 
@@ -35,7 +36,8 @@ export const dynamic = "force-dynamic";
 export default async function OnboardingPage({
   searchParams,
 }: PageProps<"/onboarding">) {
-  await requireSession();
+  const session = await requireSession();
+  const { t } = await getAppMessages(session.user.id);
   const { orgId } = await requireOrg();
 
   /**
@@ -82,7 +84,7 @@ export default async function OnboardingPage({
           aria-valuenow={doneCount}
           aria-valuemin={0}
           aria-valuemax={state.steps.length}
-          aria-label="Setup progress"
+          aria-label={t.app.common.setupProgress}
         >
           <div
             className="h-full rounded-full bg-primary transition-all"
@@ -103,9 +105,8 @@ export default async function OnboardingPage({
           <CardContent className="flex items-center gap-3 py-4 text-sm">
             <Loader2 className="size-4 animate-spin" aria-hidden="true" />
             <span>
-              We are reading your website now. This usually takes a minute or
-              two — the next steps open up when it finishes.
-            </span>
+              {t.app.onboarding.readingNow}
+              </span>
           </CardContent>
         </Card>
       ) : null}
@@ -159,13 +160,13 @@ export default async function OnboardingPage({
                   {isCurrent && step.href ? (
                     <Button asChild>
                       <Link href={step.href}>
-                        Continue
+                        {t.app.onboarding.continueLabel}
                         <ArrowRight className="size-4" />
                       </Link>
                     </Button>
                   ) : step.done && step.href ? (
                     <Button variant="ghost" size="sm" asChild>
-                      <Link href={step.href}>View</Link>
+                      <Link href={step.href}>{t.app.onboarding.view}</Link>
                     </Button>
                   ) : null}
                 </CardContent>
@@ -179,7 +180,7 @@ export default async function OnboardingPage({
         <div className="mt-8 text-center">
           <Button asChild>
             <Link href="/dashboard">
-              Go to your dashboard
+              {t.app.onboarding.goToDashboard}
               <ArrowRight className="size-4" />
             </Link>
           </Button>

@@ -153,7 +153,7 @@ export function GoogleStep({
 
         <OnboardingAside
           title={t.whyWeAsk}
-          note="We read performance only — clicks, impressions and sessions for your own site. We never post, change or delete anything in your Google account, and you can disconnect at any time."
+          note={t.readPerformanceOnly}
         />
       </div>
     </div>

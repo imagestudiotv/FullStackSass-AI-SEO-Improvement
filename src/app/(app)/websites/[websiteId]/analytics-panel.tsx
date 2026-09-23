@@ -357,7 +357,7 @@ export function AnalyticsPanel({
           ) : (
             <Download className="size-4" />
           )}
-          Import data
+          {tCommon.importData}
         </Button>
         <Button
           variant="ghost"
