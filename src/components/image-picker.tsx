@@ -142,8 +142,8 @@ export function ImagePicker({
           type="search"
           value={term}
           onChange={(event) => setTerm(event.target.value)}
-          placeholder="Search your images"
-          aria-label="Search your images"
+          placeholder={tCommon.searchYourImages}
+          aria-label={tCommon.searchYourImages}
           className="h-10 w-full rounded-full border border-input bg-transparent pl-9 pr-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
         />
       </div>

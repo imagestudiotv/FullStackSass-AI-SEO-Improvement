@@ -202,7 +202,7 @@ export function SetupTracker({
           <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-[11px] font-semibold text-primary-foreground">
             {remaining.length}
           </span>
-          <span className="text-sm font-medium">Set up</span>
+          <span className="text-sm font-medium">{t.setUp}</span>
           <ChevronUp className="size-4 text-muted-foreground" aria-hidden="true" />
         </button>
       </div>
