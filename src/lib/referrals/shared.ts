@@ -34,4 +34,4 @@ export type ReferralSummary = {
  * importing the database client — the public affiliate page needs the number,
  * not the machinery.
  */
-export const REFERRAL_REWARD_CREDITS = 10;
+export const REFERRAL_REWARD_CREDITS = 20;
