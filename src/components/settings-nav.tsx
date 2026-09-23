@@ -54,10 +54,17 @@ const SECTIONS: Section[] = [
     href: (id) => `/websites/${id}/publishing`,
     match: (p, id) => p.startsWith(`/websites/${id}/publishing`),
   },
+  /*
+    Integrations is the CMS connection, so it points at /integrations.
+
+    It used to point at /google, back when that page carried the publishing
+    panel as well as the Google one. Splitting them left this tab naming a
+    page that no longer had any integration on it.
+  */
   {
     label: "integrations",
-    href: (id) => `/websites/${id}/google`,
-    match: (p, id) => p.startsWith(`/websites/${id}/google`),
+    href: (id) => `/websites/${id}/integrations`,
+    match: (p, id) => p.startsWith(`/websites/${id}/integrations`),
   },
   {
     label: "account",
