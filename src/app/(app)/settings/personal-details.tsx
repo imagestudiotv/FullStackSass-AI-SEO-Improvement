@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label";
 import { authClient } from "@/lib/auth-client";
 import { LOCALE_NAMES, LOCALES, type Locale } from "@/lib/i18n/config";
 import type { Messages } from "@/lib/i18n/messages";
+import { setFirstPassword } from "./password-actions";
 
 /**
  * Personal details: name, email, password, and the dashboard language.
@@ -46,7 +47,10 @@ const LANGUAGES = LOCALES.map((id) => ({ id, label: LOCALE_NAMES[id] }));
 export function PersonalDetails({
   initialName,
   email,
-  /** False when the account signs in with Google and has no password to change. */
+  /**
+   * False when the account signs in with Google and has never set a
+   * password. Both cases offer the button; this picks the form behind it.
+   */
   hasPassword,
   initialLocale,
   t,
@@ -163,27 +167,36 @@ export function PersonalDetails({
             <p className="truncate text-sm text-muted-foreground">{email}</p>
           </div>
 
-          {hasPassword ? (
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setChanging((open) => !open)}
-            >
-              {t.changePassword}
-            </Button>
-          ) : (
-            /*
-              Google sign-in with no password set. Offering "change password"
-              would open a form asking for a current password that does not
-              exist, and the failure would look like a bug rather than an
-              explanation.
-            */
-            <p className="text-xs text-muted-foreground">{t.googleNote}</p>
-          )}
+          {/*
+            Offered whether or not a password exists.
+
+            It used to be hidden for Google accounts, replaced by a note
+            reading "You sign in with Google" — accurate, and a dead end. The
+            client asked for the opposite: "We'd like to permit change
+            password also for google registered accounts. In this way it will
+            ask for a new password directly. I think it will be useful, many
+            are comfortable to still having login email and password."
+
+            So the button is unconditional and the FORM differs: with a
+            password it asks for the current one first, without a password it
+            asks for the new one only. Adding a password does not take Google
+            away — the account keeps both ways in, which is the point.
+          */}
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setChanging((open) => !open)}
+          >
+            {hasPassword ? t.changePassword : t.setPassword}
+          </Button>
         </div>
 
         {changing ? (
-          <ChangePassword onDone={() => setChanging(false)} t={t} />
+          <ChangePassword
+            hasPassword={hasPassword}
+            onDone={() => setChanging(false)}
+            t={t}
+          />
         ) : null}
 
         <div className="space-y-1.5">
@@ -211,26 +224,40 @@ export function PersonalDetails({
 }
 
 /**
- * The change-password form.
+ * The password form, in either of its two shapes.
  *
- * Asks for the current password as well as the new one — Better Auth requires
- * it, and so it should: a session left open on a shared machine should not be
- * enough to lock the owner out of their own account.
+ * WITH an existing password it asks for the current one as well as the new
+ * one — Better Auth requires it, and so it should: a session left open on a
+ * shared machine should not be enough to lock the owner out of their own
+ * account. revokeOtherSessions is ON for that path. Somebody changing their
+ * password is usually doing it because they think someone else has it;
+ * leaving other sessions signed in would defeat the point of the exercise.
  *
- * revokeOtherSessions is ON. Somebody changing their password is usually
- * doing it because they think someone else has it; leaving other sessions
- * signed in would defeat the point of the exercise.
+ * WITHOUT one — a Google account adding email-and-password sign-in — there is
+ * no current password to ask for, so the form asks for the new one directly
+ * and other sessions are left signed in. Nothing was compromised; an account
+ * is only gaining a second way in, and signing someone out of their phone for
+ * it would read as a bug.
+ *
+ * The two paths also differ in HOW they reach Better Auth. changePassword is
+ * a normal client call. setPassword is serverOnly and has no client method,
+ * for good reason — it needs no current password — so it goes through a
+ * server action. See password-actions.ts.
  */
 function ChangePassword({
+  hasPassword,
   onDone,
   t,
 }: {
+  /** False for a Google account that has never set one. */
+  hasPassword: boolean;
   onDone: () => void;
   t: Messages["app"]["settings"];
 }) {
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [pending, startTransition] = useTransition();
+  const router = useRouter();
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -242,6 +269,35 @@ function ChangePassword({
     }
 
     startTransition(async () => {
+      if (!hasPassword) {
+        const result = await setFirstPassword(next);
+
+        if (!result.ok) {
+          toast.error(
+            result.error === "TOO_SHORT" ? t.passwordTooShort : t.passwordError,
+          );
+          /*
+            ALREADY_SET means this screen was rendered from stale data — a
+            password was added in another tab since. Re-reading the page
+            swaps this form for the change-password one, so the retry asks
+            for the current password as it should.
+          */
+          if (result.error === "ALREADY_SET") router.refresh();
+          return;
+        }
+
+        setNext("");
+        toast.success(t.passwordCreated);
+        /*
+          The page decides which form to show from whether a password
+          exists, and one now does. Without this the panel would keep
+          offering to set a first password until the next full load.
+        */
+        router.refresh();
+        onDone();
+        return;
+      }
+
       const { error } = await authClient.changePassword({
         currentPassword: current,
         newPassword: next,
@@ -265,17 +321,33 @@ function ChangePassword({
       onSubmit={handleSubmit}
       className="space-y-3 rounded-xl border bg-muted/30 p-4"
     >
-      <div className="space-y-1.5">
-        <Label htmlFor="current-password">{t.currentPassword}</Label>
-        <Input
-          id="current-password"
-          type="password"
-          autoComplete="current-password"
-          value={current}
-          onChange={(e) => setCurrent(e.target.value)}
-          required
-        />
-      </div>
+      {/*
+        Explains why this form is here at all for a Google account, where
+        "set a password" is an offer rather than the expected chore. Not
+        shown on the change path, where the button already said it.
+      */}
+      {!hasPassword ? (
+        <p className="text-xs text-muted-foreground">{t.setPasswordIntro}</p>
+      ) : null}
+
+      {/*
+        Only where there is a current password to give. Rendering it disabled
+        or empty for a Google account would ask for something that does not
+        exist — the dead end this whole change removes.
+      */}
+      {hasPassword ? (
+        <div className="space-y-1.5">
+          <Label htmlFor="current-password">{t.currentPassword}</Label>
+          <Input
+            id="current-password"
+            type="password"
+            autoComplete="current-password"
+            value={current}
+            onChange={(e) => setCurrent(e.target.value)}
+            required
+          />
+        </div>
+      ) : null}
 
       <div className="space-y-1.5">
         <Label htmlFor="new-password">{t.newPassword}</Label>
@@ -287,7 +359,15 @@ function ChangePassword({
           onChange={(e) => setNext(e.target.value)}
           required
         />
-        <p className="text-xs text-muted-foreground">{t.passwordHelp}</p>
+        <p className="text-xs text-muted-foreground">
+          {/*
+            The change path warns that other devices get signed out. The set
+            path must not carry that line: it does not revoke anything, and
+            promising a sign-out that never happens is worse than saying
+            nothing.
+          */}
+          {hasPassword ? t.passwordHelp : t.setPasswordHelp}
+        </p>
       </div>
 
       <div className="flex gap-2">
@@ -295,10 +375,12 @@ function ChangePassword({
           {pending ? (
             <>
               <Loader2 className="size-4 animate-spin" />
-              {t.changing}
+              {hasPassword ? t.changing : t.settingPassword}
             </>
-          ) : (
+          ) : hasPassword ? (
             t.changePassword
+          ) : (
+            t.setPassword
           )}
         </Button>
         <Button type="button" size="sm" variant="ghost" onClick={onDone}>

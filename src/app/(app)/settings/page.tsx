@@ -58,11 +58,19 @@ export default async function SettingsPage() {
   const appUrl = canonicalSiteUrl();
 
   /*
-    A credential row means a password exists. Better Auth stores one account
-    row per sign-in method, so a Google-only user has no "credential" row.
+    A credential row with a hash in it means a password exists. Better Auth
+    stores one account row per sign-in method, so a Google-only user has no
+    "credential" row at all.
+
+    The password column is checked as well as the row, not just the row.
+    Better Auth's own setPassword handles a credential row whose password is
+    null as "no password yet" and fills it in, so treating the bare row as
+    proof of a password would show someone a current-password field for a
+    password they do not have — the exact dead end this screen is trying to
+    remove.
   */
   const [credential] = await db
-    .select({ id: account.id })
+    .select({ password: account.password })
     .from(account)
     .where(
       and(
@@ -71,7 +79,7 @@ export default async function SettingsPage() {
       ),
     )
     .limit(1);
-  const hasPassword = Boolean(credential);
+  const hasPassword = Boolean(credential?.password);
 
   return (
     <PageShell>
@@ -94,10 +102,12 @@ export default async function SettingsPage() {
         initialName={session.user.name ?? ""}
         email={session.user.email}
         /*
-          Whether there is a password to change at all. An account created
-          through Google has a "google" provider row and no credential one,
-          so offering "change password" would open a form asking for a
-          current password that does not exist.
+          Whether there is an existing password, which decides WHICH form the
+          button opens rather than whether the button appears. An account
+          created through Google has a "google" provider row and no
+          credential one: it gets a form that asks for a new password only,
+          because there is no current password to ask for. Both roads end at
+          a customer who can sign in with an email and a password.
         */
         hasPassword={hasPassword}
         initialLocale={locale}
