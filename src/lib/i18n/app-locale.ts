@@ -44,6 +44,22 @@ export async function resolveAppLocale(userId: string): Promise<Locale> {
 }
 
 /**
+ * The language for someone who is not signed in.
+ *
+ * Sign-in and sign-up run before any account exists, so there is no stored
+ * preference to read — the browser's own header is the only signal there is.
+ * Separate from resolveAppLocale because that one takes a user id, and
+ * passing a fake one to reach the same fallback would read as a bug.
+ */
+export async function getPublicMessages(): Promise<{
+  locale: Locale;
+  t: Messages;
+}> {
+  const locale = (await localeFromRequest()) ?? DEFAULT_LOCALE;
+  return { locale, t: getMessages(locale) };
+}
+
+/**
  * The best-matching locale from the browser's Accept-Language header.
  *
  * Parsed by hand rather than with a library: the header is a comma-separated

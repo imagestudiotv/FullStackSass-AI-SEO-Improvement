@@ -1016,6 +1016,28 @@ export type Messages = {
       view: string;
       addAWebsite: string;
     };
+    auth: {
+      redirecting: string;
+      continueWithGoogle: string;
+      orContinueWithEmail: string;
+      fullName: string;
+      namePlaceholder: string;
+      email: string;
+      emailPlaceholder: string;
+      password: string;
+      passwordHint: string;
+      organizations: string;
+      loading: string;
+      createOrganization: string;
+      orgHelp: string;
+      name: string;
+      orgPlaceholder: string;
+      cancel: string;
+      notifications: string;
+      markAllRead: string;
+      nothingYet: string;
+      unread: string;
+    };
   };
 };
 
@@ -2179,6 +2201,28 @@ const en: Messages = {
       whyThisTopic: "Why this topic?",
       view: "View",
       addAWebsite: "Add a website",
+    },
+    auth: {
+      redirecting: "Redirecting…",
+      continueWithGoogle: "Continue with Google",
+      orContinueWithEmail: "Or continue with email",
+      fullName: "Full name",
+      namePlaceholder: "John Doe",
+      email: "Email",
+      emailPlaceholder: "you@example.com",
+      password: "Password",
+      passwordHint: "At least 8 characters, including a number and a letter.",
+      organizations: "Organizations",
+      loading: "Loading…",
+      createOrganization: "Create organization",
+      orgHelp: "Each organization has its own websites, content and billing.",
+      name: "Name",
+      orgPlaceholder: "Acme Marketing",
+      cancel: "Cancel",
+      notifications: "Notifications",
+      markAllRead: "Mark all read",
+      nothingYet: "Nothing yet. We will tell you here when your articles and audits are ready.",
+      unread: "Unread",
     },
   },
 };
@@ -3353,6 +3397,28 @@ const es: Messages = {
       whyThisTopic: "¿Por qué este tema?",
       view: "Ver",
       addAWebsite: "Añadir un sitio web",
+    },
+    auth: {
+      redirecting: "Redirigiendo…",
+      continueWithGoogle: "Continuar con Google",
+      orContinueWithEmail: "O continuar con el correo",
+      fullName: "Nombre completo",
+      namePlaceholder: "Juan Pérez",
+      email: "Correo electrónico",
+      emailPlaceholder: "usted@ejemplo.com",
+      password: "Contraseña",
+      passwordHint: "Al menos 8 caracteres, incluyendo un número y una letra.",
+      organizations: "Organizaciones",
+      loading: "Cargando…",
+      createOrganization: "Crear organización",
+      orgHelp: "Cada organización tiene sus propios sitios web, contenidos y facturación.",
+      name: "Nombre",
+      orgPlaceholder: "Acme Marketing",
+      cancel: "Cancelar",
+      notifications: "Notificaciones",
+      markAllRead: "Marcar todo como leído",
+      nothingYet: "Todavía nada. Le avisaremos aquí cuando sus artículos y auditorías estén listos.",
+      unread: "Sin leer",
     },
   },
 };
@@ -4531,6 +4597,28 @@ const fr: Messages = {
       view: "Voir",
       addAWebsite: "Ajouter un site",
     },
+    auth: {
+      redirecting: "Redirection…",
+      continueWithGoogle: "Continuer avec Google",
+      orContinueWithEmail: "Ou continuer avec un e-mail",
+      fullName: "Nom complet",
+      namePlaceholder: "Jean Dupont",
+      email: "E-mail",
+      emailPlaceholder: "vous@exemple.com",
+      password: "Mot de passe",
+      passwordHint: "Au moins 8 caractères, dont un chiffre et une lettre.",
+      organizations: "Organisations",
+      loading: "Chargement…",
+      createOrganization: "Créer une organisation",
+      orgHelp: "Chaque organisation a ses propres sites, contenus et facturation.",
+      name: "Nom",
+      orgPlaceholder: "Acme Marketing",
+      cancel: "Annuler",
+      notifications: "Notifications",
+      markAllRead: "Tout marquer comme lu",
+      nothingYet: "Rien pour l\u2019instant. Nous vous préviendrons ici dès que vos articles et audits seront prêts.",
+      unread: "Non lu",
+    },
   },
 };
 
@@ -5700,6 +5788,28 @@ const it: Messages = {
       whyThisTopic: "Perché questo argomento?",
       view: "Vedi",
       addAWebsite: "Aggiungi un sito",
+    },
+    auth: {
+      redirecting: "Reindirizzamento…",
+      continueWithGoogle: "Continua con Google",
+      orContinueWithEmail: "Oppure continua con l\u2019e-mail",
+      fullName: "Nome completo",
+      namePlaceholder: "Mario Rossi",
+      email: "E-mail",
+      emailPlaceholder: "lei@esempio.com",
+      password: "Password",
+      passwordHint: "Almeno 8 caratteri, con un numero e una lettera.",
+      organizations: "Organizzazioni",
+      loading: "Caricamento…",
+      createOrganization: "Crea organizzazione",
+      orgHelp: "Ogni organizzazione ha i propri siti, contenuti e fatturazione.",
+      name: "Nome",
+      orgPlaceholder: "Acme Marketing",
+      cancel: "Annulla",
+      notifications: "Notifiche",
+      markAllRead: "Segna tutto come letto",
+      nothingYet: "Ancora nulla. La avviseremo qui quando i suoi articoli e audit saranno pronti.",
+      unread: "Non letto",
     },
   },
 };
@@ -6877,6 +6987,28 @@ const de: Messages = {
       whyThisTopic: "Warum dieses Thema?",
       view: "Ansehen",
       addAWebsite: "Website hinzufügen",
+    },
+    auth: {
+      redirecting: "Weiterleitung…",
+      continueWithGoogle: "Mit Google fortfahren",
+      orContinueWithEmail: "Oder mit E-Mail fortfahren",
+      fullName: "Vollständiger Name",
+      namePlaceholder: "Max Mustermann",
+      email: "E-Mail",
+      emailPlaceholder: "sie@beispiel.de",
+      password: "Passwort",
+      passwordHint: "Mindestens 8 Zeichen, davon eine Ziffer und ein Buchstabe.",
+      organizations: "Organisationen",
+      loading: "Wird geladen…",
+      createOrganization: "Organisation erstellen",
+      orgHelp: "Jede Organisation hat eigene Websites, Inhalte und Abrechnung.",
+      name: "Name",
+      orgPlaceholder: "Acme Marketing",
+      cancel: "Abbrechen",
+      notifications: "Benachrichtigungen",
+      markAllRead: "Alle als gelesen markieren",
+      nothingYet: "Noch nichts. Wir sagen Ihnen hier Bescheid, sobald Ihre Artikel und Audits fertig sind.",
+      unread: "Ungelesen",
     },
   },
 };

@@ -1,6 +1,7 @@
 "use client";
 
 import { AlertTriangle, Bell, Check, CheckCheck } from "lucide-react";
+import { getMessages, type Messages } from "@/lib/i18n/messages";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
@@ -31,8 +32,11 @@ import type { NotificationView } from "@/lib/notifications/shared";
  */
 export function NotificationBell({
   initialUnread,
+  t = getMessages("en").app.auth,
 }: {
   initialUnread: number;
+  /** The panel's wording, defaulting to English. */
+  t?: Messages["app"]["auth"];
 }) {
   const router = useRouter();
   const [items, setItems] = useState<NotificationView[] | null>(null);
@@ -111,19 +115,18 @@ export function NotificationBell({
               className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
             >
               <CheckCheck className="size-3" aria-hidden="true" />
-              Mark all read
+              {t.markAllRead}
             </button>
           ) : null}
         </div>
 
         {loading ? (
           <p className="px-3 py-8 text-center text-sm text-muted-foreground">
-            Loading…
+            {t.loading}
           </p>
         ) : !items || items.length === 0 ? (
           <p className="px-3 py-8 text-center text-sm text-muted-foreground">
-            Nothing yet. We will tell you here when your articles and audits are
-            ready.
+            {t.nothingYet}
           </p>
         ) : (
           <ul className="max-h-96 divide-y overflow-y-auto">

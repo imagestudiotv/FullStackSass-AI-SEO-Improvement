@@ -245,7 +245,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             Count is rendered on the server so the badge is correct on first
             paint. The list itself loads when the bell is opened.
           */}
-          <NotificationBell initialUnread={unread} />
+          <NotificationBell initialUnread={unread} t={t.app.auth} />
           <UserMenu
             name={session.user.name}
             email={session.user.email}

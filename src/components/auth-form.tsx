@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { getMessages, type Messages } from "@/lib/i18n/messages";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -55,7 +56,19 @@ const OAUTH_ERRORS: Record<string, string> = {
  * action, with the password behind a "sign in with a password instead" link,
  * exactly as the reference has it.
  */
-export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
+export function AuthForm({
+  mode,
+  t = getMessages("en").app.auth,
+}: {
+  mode: "sign-in" | "sign-up";
+  /**
+   * The form's wording.
+   *
+   * From Accept-Language, not an account: nobody is signed in on this
+   * screen, so there is no stored preference to read.
+   */
+  t?: Messages["app"]["auth"];
+}) {
   const router = useRouter();
   const isSignUp = mode === "sign-up";
 
@@ -174,12 +187,12 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
         {googlePending ? (
           <>
             <Loader2 className="size-4 animate-spin" />
-            Redirecting…
+            {t.redirecting}
           </>
         ) : (
           <>
             <GoogleMark className="size-5" />
-            Continue with Google
+            {t.continueWithGoogle}
             <ArrowRight className="ml-auto size-4 text-muted-foreground" aria-hidden="true" />
           </>
         )}
@@ -189,7 +202,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
       <div className="my-6 flex items-center gap-3">
         <span className="h-px flex-1 bg-border" />
         <span className="text-xs text-muted-foreground">
-          Or continue with email
+          {t.orContinueWithEmail}
         </span>
         <span className="h-px flex-1 bg-border" />
       </div>
@@ -197,13 +210,13 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
       <form onSubmit={handleSubmit} className="space-y-4">
         {isSignUp ? (
           <div className="space-y-1.5">
-            <Label htmlFor="name">Full name</Label>
+            <Label htmlFor="name">{t.fullName}</Label>
             <div className="relative">
               <Input
                 id="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="John Doe"
+                placeholder={t.namePlaceholder}
                 autoComplete="name"
                 className="h-12 pl-10"
                 required
@@ -217,7 +230,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
         ) : null}
 
         <div className="space-y-1.5">
-          <Label htmlFor="email">Email</Label>
+          <Label htmlFor="email">{t.email}</Label>
           {/*
             The icon sits inside the field as drawn. relative on the wrapper
             and pl-10 on the input rather than absolute positioning against the
@@ -229,7 +242,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
+              placeholder={t.emailPlaceholder}
               autoComplete="email"
               className="h-12 pl-10"
               required
@@ -242,7 +255,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="password">Password</Label>
+          <Label htmlFor="password">{t.password}</Label>
           <div className="relative">
             <Input
               id="password"
@@ -275,7 +288,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
           {isSignUp ? (
             // Stated before they choose one, not after the form rejects it.
             <p className="text-xs text-muted-foreground">
-              At least 8 characters, including a number and a letter.
+              {t.passwordHint}
             </p>
           ) : null}
         </div>
