@@ -148,7 +148,10 @@ export const webflowProvider: CmsProvider = {
   id: "webflow",
   name: "Webflow",
   description: "Publish into a CMS collection on your Webflow site.",
-  helpUrl: "https://developers.webflow.com/data/reference/token/authorization",
+  // The /token/authorization path 404s. This one documents the site token
+  // the field below asks for, and the steps match its help text.
+  helpUrl:
+    "https://developers.webflow.com/data/reference/authentication/site-token",
   fields: [
     {
       key: "apiToken",

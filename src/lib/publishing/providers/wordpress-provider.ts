@@ -43,7 +43,14 @@ export const wordpressProvider: CmsProvider = {
   id: "wordpress",
   name: "WordPress",
   description: "Publish straight to your WordPress site.",
-  helpUrl: "https://wordpress.org/documentation/article/application-passwords/",
+  /**
+   * developer.wordpress.org, not the wordpress.org/documentation/article/…
+   * path this used to point at: that page 404s, so the one link on the
+   * connect form sent people to an error page at the exact moment they were
+   * looking for their credential. Checked against the live URL.
+   */
+  helpUrl:
+    "https://developer.wordpress.org/advanced-administration/security/application-passwords/",
   fields: [
     {
       key: "siteUrl",

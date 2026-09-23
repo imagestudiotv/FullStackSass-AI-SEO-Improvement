@@ -114,7 +114,8 @@ export const wixProvider: CmsProvider = {
   id: "wix",
   name: "Wix",
   description: "Publish to the blog on your Wix site.",
-  helpUrl: "https://dev.wix.com/docs/rest/articles/getting-started/api-keys",
+  // Wix moved this from /getting-started/ to /get-started/; the old path 404s.
+  helpUrl: "https://dev.wix.com/docs/rest/articles/get-started/api-keys",
   fields: [
     {
       key: "apiKey",

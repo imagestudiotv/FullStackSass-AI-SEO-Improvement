@@ -77,7 +77,7 @@ export const INTEGRATION_DOCS: IntegrationDoc[] = [
       },
     ],
     officialUrl:
-      "https://wordpress.org/documentation/article/application-passwords/",
+      "https://developer.wordpress.org/advanced-administration/security/application-passwords/",
   },
   {
     slug: "ghost",
@@ -212,7 +212,7 @@ export const INTEGRATION_DOCS: IntegrationDoc[] = [
       },
     ],
     officialUrl:
-      "https://developers.webflow.com/data/reference/token/authorization",
+      "https://developers.webflow.com/data/reference/authentication/site-token",
   },
   {
     slug: "wix",
@@ -250,7 +250,7 @@ export const INTEGRATION_DOCS: IntegrationDoc[] = [
         fix: "Expected. Wix stores rich content in its own format; we send the article as a single HTML block, which renders correctly on the published page but appears as one embedded element while editing.",
       },
     ],
-    officialUrl: "https://dev.wix.com/docs/rest/articles/getting-started/api-keys",
+    officialUrl: "https://dev.wix.com/docs/rest/articles/get-started/api-keys",
   },
   {
     slug: "webhook",
