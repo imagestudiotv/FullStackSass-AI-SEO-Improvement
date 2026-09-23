@@ -141,7 +141,18 @@ export function OnboardingAside({
           Sitting above the card it captions the map directly, which is the
           job the line was doing all along.
         */}
-        <p className="relative pt-8 text-center text-[10px] font-medium tracking-[0.18em] text-muted-foreground/70 uppercase">
+        {/*
+          Weight and contrast, because this line is doing persuasion.
+
+          At 10px in muted-foreground/70 it was the faintest text on a screen
+          asking for a card — lighter than the stat captions above it, which
+          are only labels. A reassurance nobody reads reassures nobody, so it
+          now carries the same visual weight as the numbers it sits under:
+          full foreground, semibold, 12px. The wide tracking and uppercase
+          stay, since that is what marks it as a caption for the map rather
+          than another heading.
+        */}
+        <p className="relative pt-8 text-center text-xs font-semibold tracking-[0.18em] text-foreground uppercase">
           {t.trustedByBusinesses}
         </p>
 
