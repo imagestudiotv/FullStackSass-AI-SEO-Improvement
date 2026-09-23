@@ -881,6 +881,14 @@ export type Messages = {
       skipForNow: string;
       verifiedCustomer: string;
       searchYourImages: string;
+      critical: string;
+      suggestion: string;
+      warning: string;
+      write: string;
+      writingAndPublishing: string;
+      featuredImage: string;
+      backlinksLabel: string;
+      uploadLabel: string;
       aiAssistantsTracked: string;
       freshArticles: string;
       toSetUp: string;
@@ -2153,6 +2161,14 @@ const en: Messages = {
       skipForNow: "Skip for now",
       verifiedCustomer: "Verified customer",
       searchYourImages: "Search your images",
+      critical: "Critical",
+      suggestion: "Suggestion",
+      warning: "Warning",
+      write: "Write",
+      writingAndPublishing: "Writing and publishing",
+      featuredImage: "Featured image",
+      backlinksLabel: "Backlinks",
+      uploadLabel: "Upload",
       aiAssistantsTracked: "AI assistants tracked",
       freshArticles: "Fresh articles",
       toSetUp: "To set up",
@@ -3435,6 +3451,14 @@ const es: Messages = {
       skipForNow: "Omitir por ahora",
       verifiedCustomer: "Cliente verificado",
       searchYourImages: "Buscar en sus imágenes",
+      critical: "Crítico",
+      suggestion: "Sugerencia",
+      warning: "Advertencia",
+      write: "Escribir",
+      writingAndPublishing: "Redacción y publicación",
+      featuredImage: "Imagen destacada",
+      backlinksLabel: "Enlaces entrantes",
+      uploadLabel: "Subir",
       aiAssistantsTracked: "Asistentes de IA supervisados",
       freshArticles: "Artículos nuevos",
       toSetUp: "Por configurar",
@@ -4720,6 +4744,14 @@ const fr: Messages = {
       skipForNow: "Ignorer pour l’instant",
       verifiedCustomer: "Client vérifié",
       searchYourImages: "Rechercher dans vos images",
+      critical: "Critique",
+      suggestion: "Suggestion",
+      warning: "Avertissement",
+      write: "Rédiger",
+      writingAndPublishing: "Rédaction et publication",
+      featuredImage: "Image à la une",
+      backlinksLabel: "Liens entrants",
+      uploadLabel: "Importer",
       aiAssistantsTracked: "Assistants IA suivis",
       freshArticles: "Nouveaux articles",
       toSetUp: "À configurer",
@@ -5998,6 +6030,14 @@ const it: Messages = {
       skipForNow: "Salta per ora",
       verifiedCustomer: "Cliente verificato",
       searchYourImages: "Cerca tra le sue immagini",
+      critical: "Critico",
+      suggestion: "Suggerimento",
+      warning: "Avviso",
+      write: "Scrivi",
+      writingAndPublishing: "Scrittura e pubblicazione",
+      featuredImage: "Immagine in evidenza",
+      backlinksLabel: "Link in entrata",
+      uploadLabel: "Carica",
       aiAssistantsTracked: "Assistenti IA monitorati",
       freshArticles: "Articoli nuovi",
       toSetUp: "Da configurare",
@@ -7283,6 +7323,14 @@ const de: Messages = {
       skipForNow: "Vorerst überspringen",
       verifiedCustomer: "Bestätigter Kunde",
       searchYourImages: "Ihre Bilder durchsuchen",
+      critical: "Kritisch",
+      suggestion: "Vorschlag",
+      warning: "Warnung",
+      write: "Schreiben",
+      writingAndPublishing: "Schreiben und Veröffentlichen",
+      featuredImage: "Beitragsbild",
+      backlinksLabel: "Backlinks",
+      uploadLabel: "Hochladen",
       aiAssistantsTracked: "Beobachtete KI-Assistenten",
       freshArticles: "Neue Artikel",
       toSetUp: "Einzurichten",

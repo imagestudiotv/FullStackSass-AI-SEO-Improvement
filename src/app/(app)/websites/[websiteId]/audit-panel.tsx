@@ -33,11 +33,16 @@ type AuditPanelProps = {
 
 const SEVERITY_META: Record<
   string,
-  { label: string; variant: "destructive" | "default" | "secondary"; icon: typeof Info }
+  {
+    /** A key into `common`, not the text: built before any locale exists. */
+    label: keyof Messages["app"]["common"]
+    variant: "destructive" | "default" | "secondary"
+    icon: typeof Info
+  }
 > = {
-  critical: { label: "Critical", variant: "destructive", icon: AlertTriangle },
-  warning: { label: "Warning", variant: "default", icon: AlertTriangle },
-  info: { label: "Suggestion", variant: "secondary", icon: Info },
+  critical: { label: "critical", variant: "destructive", icon: AlertTriangle },
+  warning: { label: "warning", variant: "default", icon: AlertTriangle },
+  info: { label: "suggestion", variant: "secondary", icon: Info },
 };
 
 /** Colour band for the headline score. */

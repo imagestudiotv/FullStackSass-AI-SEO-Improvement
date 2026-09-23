@@ -93,7 +93,7 @@ export function AuthorityPanel({
               {t.websiteAuthority}
             </p>
             <h2 className="mt-1 flex items-center gap-2 text-lg font-semibold">
-              Backlinks
+              {t.backlinks}
             </h2>
           </div>
           <Button variant="ghost" size="sm" asChild className="size-8 p-0">

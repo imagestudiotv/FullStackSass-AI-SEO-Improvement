@@ -137,7 +137,7 @@ export function RefreshPanel({
                     ) : (
                       <RefreshCw className="size-4" />
                     )}
-                    Rewrite
+                    {t.rewrite}
                   </Button>
                 ) : (
                   // Not one of ours, so there is nothing to regenerate.

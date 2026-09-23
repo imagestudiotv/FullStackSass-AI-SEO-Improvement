@@ -122,7 +122,7 @@ export function FeaturedImage({
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
-          Featured image
+          {tCommon.featuredImage}
           {pending ? (
             <Loader2
               className="size-4 animate-spin text-muted-foreground"

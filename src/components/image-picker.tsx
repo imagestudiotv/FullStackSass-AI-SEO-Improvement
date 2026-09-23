@@ -160,7 +160,7 @@ export function ImagePicker({
           ) : (
             <Upload className="size-5" aria-hidden="true" />
           )}
-          <span className="text-xs">Upload</span>
+          <span className="text-xs">{tCommon.uploadLabel}</span>
         </button>
 
         {loading ? (

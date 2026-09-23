@@ -178,7 +178,7 @@ export function GenerationPanel({
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
-          Writing and publishing
+          {t.writingAndPublishing}
           {pending ? (
             <Loader2
               className="size-4 animate-spin text-muted-foreground"

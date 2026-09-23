@@ -421,7 +421,7 @@ export function ContentCalendar({
               ) : (
                 <PenLine className="size-3" />
               )}
-              Write
+              {tCommon.write}
             </Button>
             <Button
               type="button"
