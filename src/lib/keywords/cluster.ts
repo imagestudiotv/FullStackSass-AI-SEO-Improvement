@@ -60,7 +60,18 @@ const SCHEMA = {
   additionalProperties: false,
 } as const;
 
-const SYSTEM = `You group SEO keywords into topics. One topic becomes one article.
+/**
+ * `target` is how many topics the plan would like, so the instruction can ask
+ * for that many rather than a fixed range.
+ *
+ * This said "Prefer 5-15 topics" unconditionally, which quietly capped every
+ * content plan at fifteen articles however large the subscription — a Scale
+ * customer paying for a hundred got the same fifteen as someone on Launch.
+ * The number of topics should follow what the customer bought and what the
+ * keywords support, not a constant written into a prompt.
+ */
+function system(target: number): string {
+  return `You group SEO keywords into topics. One topic becomes one or more articles.
 
 Rules:
 - Group keywords that a SINGLE article could satisfy. If two keywords need
@@ -69,12 +80,22 @@ Rules:
 - Every supplied term appears in exactly one topic.
 - The pillar keyword is the most commercially valuable term in its topic, not
   necessarily the highest volume one.
-- Prefer 5-15 topics. A topic holding one keyword is fine when nothing else
-  fits it.
+- Aim for about ${target} topics, but never at the cost of the first rule:
+  forcing unrelated keywords apart to reach a number produces topics nobody
+  searches for. Fewer, coherent topics is the better answer.
+- A topic holding one keyword is fine when nothing else fits it.
 - Topic names are human labels for a content calendar, not keywords.`;
+}
 
 export async function clusterKeywords(
   keywords: ClusterInput[],
+  /**
+   * Roughly how many topics to aim for — the plan's article allowance.
+   *
+   * Defaults to 12, the middle of the range this used to hardcode, so a
+   * caller that does not know the plan behaves exactly as before.
+   */
+  target = 12,
 ): Promise<KeywordCluster[]> {
   if (!isAiConfigured()) {
     throw new Error("ANTHROPIC_API_KEY is not set");
@@ -88,7 +109,7 @@ export async function clusterKeywords(
   const response = await anthropic.messages.create({
     model: MODELS.GENERATION,
     max_tokens: 4000,
-    system: SYSTEM,
+    system: system(target),
     output_config: { format: { type: "json_schema", schema: SCHEMA } },
     messages: [{ role: "user", content: `Keywords:\n${list}` }],
   });

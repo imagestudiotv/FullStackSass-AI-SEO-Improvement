@@ -47,14 +47,18 @@ const SCHEMA = {
 const SYSTEM = `You write article titles for an SEO content calendar.
 
 Rules:
-- Each title targets exactly one supplied pillar keyword, used naturally — never
+- Each title targets exactly one supplied keyword, used naturally — never
   stuffed or repeated.
 - Titles are specific and useful: "Teeth Whitening in Dublin: Costs and Options"
   rather than "Everything About Teeth Whitening".
 - 50-65 characters where possible, so the title is not truncated in results.
 - No clickbait, no invented statistics, no year numbers unless the keyword has one.
 - Vary the format across the set: how-to, cost guide, comparison, checklist.
-- Return one article per supplied keyword, in the order given.`;
+- Return one article per supplied keyword, in the order given.
+- Several keywords may belong to the same topic. When they do, each title must
+  answer a DIFFERENT question — a cost guide, a how-to and a comparison, not
+  three rewordings of one article. Two titles that would produce the same
+  article are a failure.`;
 
 /**
  * Fills consecutive days, several per day where the plan allows it.
@@ -103,9 +107,62 @@ export async function planCalendar(
   }
   if (clusters.length === 0 || limit <= 0) return [];
 
-  // Clusters arrive ranked, so taking the first `limit` spends the plan's
-  // allowance on the most valuable topics.
-  const selected = clusters.slice(0, limit);
+  /**
+   * One slot per article the plan pays for, spread across the topics.
+   *
+   * This was `clusters.slice(0, limit)` — one article per topic, so the plan
+   * could never be larger than the number of topics research happened to
+   * produce. Clustering aims for 5-15, so a Grow customer paying for 30
+   * articles got 11, and a Scale customer paying for 100 got the same 11.
+   * The allowance was a ceiling that nothing ever reached.
+   *
+   * Slots are dealt ROUND-ROBIN rather than filling each topic in turn: the
+   * clusters arrive ranked, so pass one gives every topic its pillar article,
+   * pass two adds a second angle to each, and so on. A plan that runs out
+   * partway therefore covers the most topics it can, instead of exhausting
+   * the first topic before the second is touched.
+   *
+   * Each extra slot targets a DIFFERENT supporting keyword from the same
+   * cluster, which is what keeps the articles distinct — three articles on
+   * three real search terms, not three rewrites of one. A topic is only
+   * revisited once every other topic has had a slot at that depth, and never
+   * beyond the keywords it actually holds.
+   */
+  const slots: { cluster: KeywordCluster; keyword: string }[] = [];
+
+  for (let depth = 0; slots.length < limit; depth += 1) {
+    const before = slots.length;
+
+    for (const cluster of clusters) {
+      if (slots.length >= limit) break;
+
+      /*
+        Depth 0 is the pillar. Deeper passes take the cluster's other terms in
+        order, so the second article targets its strongest supporting keyword.
+        `terms` includes the pillar, so it is filtered out to avoid planning
+        the same keyword twice.
+      */
+      const supporting = cluster.terms.filter(
+        (term) => term.toLowerCase() !== cluster.pillarKeyword.toLowerCase(),
+      );
+      const keyword = depth === 0 ? cluster.pillarKeyword : supporting[depth - 1];
+
+      // This cluster has no keyword left at this depth; others may.
+      if (!keyword) continue;
+
+      slots.push({ cluster, keyword });
+    }
+
+    /*
+      A full pass that added nothing means every cluster is exhausted — the
+      keywords genuinely do not support a plan this size. Stopping here is
+      what prevents an infinite loop, and the shorter calendar is the honest
+      outcome: padding it would mean inventing keywords nobody searches for.
+    */
+    if (slots.length === before) break;
+  }
+
+  if (slots.length === 0) return [];
 
   const response = await anthropic.messages.create({
     model: MODELS.GENERATION,
@@ -115,8 +172,8 @@ export async function planCalendar(
     messages: [
       {
         role: "user",
-        content: selected
-          .map((c) => `${c.pillarKeyword} (topic: ${c.name})`)
+        content: slots
+          .map((slot) => `${slot.keyword} (topic: ${slot.cluster.name})`)
           .join("\n"),
       },
     ],
@@ -142,19 +199,23 @@ export async function planCalendar(
     byKeyword.set(targetKeyword.trim().toLowerCase(), title.trim().slice(0, 200));
   }
 
-  const dates = scheduleDates(selected.length);
+  const dates = scheduleDates(slots.length);
 
   /**
-   * Built from the clusters, not from the model's list: a missing or renamed
-   * title falls back to the cluster name rather than dropping the article, so
-   * the calendar always has exactly one entry per selected topic.
+   * Built from the slots, not from the model's list: a missing or renamed
+   * title falls back to the keyword rather than dropping the article, so the
+   * calendar always has exactly one entry per slot.
+   *
+   * The fallback is the KEYWORD, not the cluster name. With several articles
+   * per topic, falling back to the topic name would give two entries the same
+   * title — a keyword is at least unique to its slot and describes what the
+   * article is about.
    */
-  return selected.map((cluster, index) => ({
-    title:
-      byKeyword.get(cluster.pillarKeyword.toLowerCase()) ?? cluster.name,
-    targetKeyword: cluster.pillarKeyword,
-    intent: intentByTerm.get(cluster.pillarKeyword) ?? null,
-    clusterName: cluster.name,
+  return slots.map((slot, index) => ({
+    title: byKeyword.get(slot.keyword.toLowerCase()) ?? slot.keyword,
+    targetKeyword: slot.keyword,
+    intent: intentByTerm.get(slot.keyword) ?? null,
+    clusterName: slot.cluster.name,
     scheduledFor: dates[index],
   }));
 }

@@ -480,11 +480,25 @@ export const researchKeywords = inngest.createFunction(
         list shown to the model, and excluding these would put us back where
         we started.
       */
+      /**
+       * How many topics to aim for: the plan's article allowance.
+       *
+       * Clustering used to prefer 5-15 topics whatever the plan, and the
+       * calendar took one article per topic — so every subscription produced
+       * at most fifteen articles. Telling it what the plan needs is half the
+       * fix; the calendar filling each topic with several angles is the
+       * other half. Read here rather than in the calendar step because the
+       * shape of the clusters has to know it first.
+       */
+      const articles = await checkLimit(websiteId, "articles");
+      const target = articles.limit === UNLIMITED ? 12 : articles.limit;
+
       const result = await clusterKeywords(
         all.map((keyword) => ({
           ...keyword,
           priorityScore: keyword.priorityScore ?? 0,
         })),
+        target,
       );
 
       const price = PRICING.llm[MODELS.GENERATION];
