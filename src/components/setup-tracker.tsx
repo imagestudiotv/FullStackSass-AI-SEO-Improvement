@@ -49,6 +49,15 @@ const STORAGE_KEY = "repget:setup-tracker-hidden";
 /** The permanent key this replaced, cleared on sight. */
 const LEGACY_KEY = "repget:setup-tracker-dismissed";
 
+/**
+ * Fired by this component after it writes to sessionStorage.
+ *
+ * The browser's own `storage` event only fires in OTHER tabs, never the one
+ * that wrote — so it cannot tell this component about its own change, which
+ * is exactly what the badge needs to know about.
+ */
+const STORAGE_EVENT = "repget:setup-tracker-changed";
+
 export function SetupTracker({
   steps,
   t = getMessages("en").app.common,
@@ -80,8 +89,25 @@ export function SetupTracker({
    * after mount.
    */
   const dismissedBefore = useSyncExternalStore(
-    // Nothing to subscribe to: storage is only written by this component.
-    () => () => {},
+    /**
+     * Storage IS only written by this component — but it is still written,
+     * and without a subscription React never re-reads the snapshot.
+     *
+     * That is what broke the badge. Clicking it called restore(), which
+     * cleared the key and set dismissedNow to false, but `dismissed` is
+     * `dismissedBefore || dismissedNow` and dismissedBefore was still the
+     * `true` captured when the panel was hidden. The badge re-rendered as a
+     * badge, so the one control that exists to bring the panel back did
+     * nothing at all — the trap the comment below says was already fixed
+     * once, reintroduced by the caching.
+     *
+     * Subscribing to a local event makes the snapshot re-read whenever this
+     * component writes, so restore() takes effect on the click.
+     */
+    (onStoreChange) => {
+      window.addEventListener(STORAGE_EVENT, onStoreChange);
+      return () => window.removeEventListener(STORAGE_EVENT, onStoreChange);
+    },
     () => {
       try {
         /*
@@ -121,6 +147,7 @@ export function SetupTracker({
     setDismissedNow(true);
     try {
       window.sessionStorage.setItem(STORAGE_KEY, "1");
+      window.dispatchEvent(new Event(STORAGE_EVENT));
     } catch {
       // Nothing to do — it simply reappears on the next page.
     }
@@ -131,6 +158,9 @@ export function SetupTracker({
     setDismissedNow(false);
     try {
       window.sessionStorage.removeItem(STORAGE_KEY);
+      // Tells the snapshot above to re-read; without it the cached `true`
+      // keeps the panel hidden and this click does nothing.
+      window.dispatchEvent(new Event(STORAGE_EVENT));
     } catch {
       /*
         Storage refused the write. The panel still reopens for this render
