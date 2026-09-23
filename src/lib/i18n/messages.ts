@@ -973,6 +973,49 @@ export type Messages = {
       pickOneBelow: string;
       closeImagePicker: string;
     };
+    dash: {
+      bestArticles: string;
+      bestArticlesHelp: string;
+      openGoogleResults: string;
+      connectForPages: string;
+      clicks: string;
+      impressions: string;
+      position: string;
+      searchPerformance: string;
+      websiteTraffic: string;
+      aiSearchTraffic: string;
+      googleTraffic: string;
+      vsLastMonth: string;
+      averagePosition: string;
+      connectForClicks: string;
+      achievements: string;
+      achievementsHelp: string;
+      last30Days: string;
+      adSpendSaved: string;
+      adSpendHelp: string;
+      backlinkCostSaved: string;
+      showedUpHelp: string;
+      visitorsFromArticles: string;
+      siteHealth: string;
+      siteHealthHelp: string;
+      websiteAuthority: string;
+      backlinks: string;
+      openBacklinks: string;
+      backlinkExchange: string;
+      getCredits: string;
+      verifiedBacklinks: string;
+      availableCredits: string;
+      noLinksYet: string;
+      todaysArticle: string;
+      nothingWrittenYet: string;
+      openContentPlan: string;
+      searchVolume: string;
+      difficulty: string;
+      articleType: string;
+      whyThisTopic: string;
+      view: string;
+      addAWebsite: string;
+    };
   };
 };
 
@@ -2093,6 +2136,49 @@ const en: Messages = {
       noImageSelected: "No image selected",
       pickOneBelow: "Pick one below, or upload your own.",
       closeImagePicker: "Close image picker",
+    },
+    dash: {
+      bestArticles: "Best articles",
+      bestArticlesHelp: "Your pages that bring the most people from Google.",
+      openGoogleResults: "Open Google results",
+      connectForPages: "Connect Google Search Console to see which of your pages people find.",
+      clicks: "Clicks",
+      impressions: "Impressions",
+      position: "Position",
+      searchPerformance: "Search performance",
+      websiteTraffic: "Website traffic",
+      aiSearchTraffic: "AI search traffic",
+      googleTraffic: "Google traffic",
+      vsLastMonth: "vs last month",
+      averagePosition: "Average position",
+      connectForClicks: "Connect Google Search Console to see clicks, impressions and position.",
+      achievements: "Achievements",
+      achievementsHelp: "All of this happened automatically since you joined.",
+      last30Days: "Last 30 days",
+      adSpendSaved: "Ad spend saved",
+      adSpendHelp: "What this traffic would cost in Google Ads.",
+      backlinkCostSaved: "Backlink cost saved",
+      showedUpHelp: "How often you showed up in Google.",
+      visitorsFromArticles: "Visitors from articles",
+      siteHealth: "Your site\u2019s health",
+      siteHealthHelp: "Out of 100, from your latest check.",
+      websiteAuthority: "Website authority",
+      backlinks: "Backlinks",
+      openBacklinks: "Open backlinks",
+      backlinkExchange: "Backlink exchange",
+      getCredits: "Get credits",
+      verifiedBacklinks: "Verified backlinks",
+      availableCredits: "Available credits",
+      noLinksYet: "No links yet. Once other sites in the network link to yours, they appear here.",
+      todaysArticle: "Today\u2019s article",
+      nothingWrittenYet: "Nothing written yet. Once your content plan is built, the article for today shows here.",
+      openContentPlan: "Open the content plan",
+      searchVolume: "Search volume",
+      difficulty: "Difficulty",
+      articleType: "Article type",
+      whyThisTopic: "Why this topic?",
+      view: "View",
+      addAWebsite: "Add a website",
     },
   },
 };
@@ -3224,6 +3310,49 @@ const es: Messages = {
       noImageSelected: "Ninguna imagen seleccionada",
       pickOneBelow: "Elija una de abajo o suba la suya.",
       closeImagePicker: "Cerrar el selector de imágenes",
+    },
+    dash: {
+      bestArticles: "Mejores artículos",
+      bestArticlesHelp: "Sus páginas que traen más gente desde Google.",
+      openGoogleResults: "Abrir resultados de Google",
+      connectForPages: "Conecte Google Search Console para ver qué páginas suyas encuentra la gente.",
+      clicks: "Clics",
+      impressions: "Impresiones",
+      position: "Posición",
+      searchPerformance: "Rendimiento en búsquedas",
+      websiteTraffic: "Tráfico del sitio",
+      aiSearchTraffic: "Tráfico de búsquedas con IA",
+      googleTraffic: "Tráfico de Google",
+      vsLastMonth: "frente al mes pasado",
+      averagePosition: "Posición media",
+      connectForClicks: "Conecte Google Search Console para ver clics, impresiones y posición.",
+      achievements: "Logros",
+      achievementsHelp: "Todo esto ha ocurrido automáticamente desde que se unió.",
+      last30Days: "Últimos 30 días",
+      adSpendSaved: "Ahorro en publicidad",
+      adSpendHelp: "Lo que costaría este tráfico en Google Ads.",
+      backlinkCostSaved: "Ahorro en enlaces",
+      showedUpHelp: "Con qué frecuencia apareció en Google.",
+      visitorsFromArticles: "Visitantes desde artículos",
+      siteHealth: "La salud de su sitio",
+      siteHealthHelp: "Sobre 100, según su última comprobación.",
+      websiteAuthority: "Autoridad del sitio",
+      backlinks: "Enlaces entrantes",
+      openBacklinks: "Abrir enlaces",
+      backlinkExchange: "Red de enlaces",
+      getCredits: "Conseguir créditos",
+      verifiedBacklinks: "Enlaces verificados",
+      availableCredits: "Créditos disponibles",
+      noLinksYet: "Todavía no hay enlaces. Cuando otros sitios de la red enlacen al suyo, aparecerán aquí.",
+      todaysArticle: "El artículo de hoy",
+      nothingWrittenYet: "Todavía no hay nada escrito. Cuando su plan de contenidos esté listo, el artículo de hoy aparecerá aquí.",
+      openContentPlan: "Abrir el plan de contenidos",
+      searchVolume: "Volumen de búsqueda",
+      difficulty: "Dificultad",
+      articleType: "Tipo de artículo",
+      whyThisTopic: "¿Por qué este tema?",
+      view: "Ver",
+      addAWebsite: "Añadir un sitio web",
     },
   },
 };
@@ -4359,6 +4488,49 @@ const fr: Messages = {
       pickOneBelow: "Choisissez ci-dessous, ou importez la vôtre.",
       closeImagePicker: "Fermer le sélecteur d\u2019images",
     },
+    dash: {
+      bestArticles: "Meilleurs articles",
+      bestArticlesHelp: "Vos pages qui amènent le plus de visiteurs depuis Google.",
+      openGoogleResults: "Ouvrir les résultats Google",
+      connectForPages: "Connectez Google Search Console pour voir quelles pages les gens trouvent.",
+      clicks: "Clics",
+      impressions: "Impressions",
+      position: "Position",
+      searchPerformance: "Performance dans la recherche",
+      websiteTraffic: "Trafic du site",
+      aiSearchTraffic: "Trafic des recherches IA",
+      googleTraffic: "Trafic Google",
+      vsLastMonth: "vs mois dernier",
+      averagePosition: "Position moyenne",
+      connectForClicks: "Connectez Google Search Console pour voir clics, impressions et position.",
+      achievements: "Résultats",
+      achievementsHelp: "Tout cela s\u2019est produit automatiquement depuis votre inscription.",
+      last30Days: "30 derniers jours",
+      adSpendSaved: "Budget pub économisé",
+      adSpendHelp: "Ce que ce trafic coûterait en Google Ads.",
+      backlinkCostSaved: "Coût des liens économisé",
+      showedUpHelp: "À quelle fréquence vous êtes apparu dans Google.",
+      visitorsFromArticles: "Visiteurs venus des articles",
+      siteHealth: "La santé de votre site",
+      siteHealthHelp: "Sur 100, d\u2019après votre dernière analyse.",
+      websiteAuthority: "Autorité du site",
+      backlinks: "Liens entrants",
+      openBacklinks: "Ouvrir les liens",
+      backlinkExchange: "Réseau de liens",
+      getCredits: "Obtenir des crédits",
+      verifiedBacklinks: "Liens vérifiés",
+      availableCredits: "Crédits disponibles",
+      noLinksYet: "Aucun lien pour l\u2019instant. Dès que d\u2019autres sites du réseau pointeront vers le vôtre, ils apparaîtront ici.",
+      todaysArticle: "L\u2019article du jour",
+      nothingWrittenYet: "Rien de rédigé pour l\u2019instant. Une fois votre plan de contenu établi, l\u2019article du jour apparaîtra ici.",
+      openContentPlan: "Ouvrir le plan de contenu",
+      searchVolume: "Volume de recherche",
+      difficulty: "Difficulté",
+      articleType: "Type d\u2019article",
+      whyThisTopic: "Pourquoi ce sujet ?",
+      view: "Voir",
+      addAWebsite: "Ajouter un site",
+    },
   },
 };
 
@@ -5485,6 +5657,49 @@ const it: Messages = {
       noImageSelected: "Nessuna immagine selezionata",
       pickOneBelow: "Ne scelga una qui sotto o carichi la sua.",
       closeImagePicker: "Chiudi il selettore di immagini",
+    },
+    dash: {
+      bestArticles: "Articoli migliori",
+      bestArticlesHelp: "Le sue pagine che portano più persone da Google.",
+      openGoogleResults: "Apri i risultati Google",
+      connectForPages: "Colleghi Google Search Console per vedere quali sue pagine trovano le persone.",
+      clicks: "Clic",
+      impressions: "Impressioni",
+      position: "Posizione",
+      searchPerformance: "Rendimento nella ricerca",
+      websiteTraffic: "Traffico del sito",
+      aiSearchTraffic: "Traffico da ricerche IA",
+      googleTraffic: "Traffico da Google",
+      vsLastMonth: "rispetto al mese scorso",
+      averagePosition: "Posizione media",
+      connectForClicks: "Colleghi Google Search Console per vedere clic, impressioni e posizione.",
+      achievements: "Risultati",
+      achievementsHelp: "Tutto questo è avvenuto automaticamente da quando si è iscritto.",
+      last30Days: "Ultimi 30 giorni",
+      adSpendSaved: "Spesa pubblicitaria risparmiata",
+      adSpendHelp: "Quanto costerebbe questo traffico in Google Ads.",
+      backlinkCostSaved: "Costo dei link risparmiato",
+      showedUpHelp: "Quante volte è comparso su Google.",
+      visitorsFromArticles: "Visitatori dagli articoli",
+      siteHealth: "La salute del suo sito",
+      siteHealthHelp: "Su 100, secondo il suo ultimo controllo.",
+      websiteAuthority: "Autorevolezza del sito",
+      backlinks: "Link in entrata",
+      openBacklinks: "Apri i link",
+      backlinkExchange: "Rete di link",
+      getCredits: "Ottieni crediti",
+      verifiedBacklinks: "Link verificati",
+      availableCredits: "Crediti disponibili",
+      noLinksYet: "Ancora nessun link. Quando altri siti della rete collegheranno il suo, compariranno qui.",
+      todaysArticle: "L\u2019articolo di oggi",
+      nothingWrittenYet: "Ancora nulla di scritto. Una volta pronto il piano dei contenuti, l\u2019articolo di oggi comparirà qui.",
+      openContentPlan: "Apri il piano dei contenuti",
+      searchVolume: "Volume di ricerca",
+      difficulty: "Difficoltà",
+      articleType: "Tipo di articolo",
+      whyThisTopic: "Perché questo argomento?",
+      view: "Vedi",
+      addAWebsite: "Aggiungi un sito",
     },
   },
 };
@@ -6619,6 +6834,49 @@ const de: Messages = {
       noImageSelected: "Kein Bild ausgewählt",
       pickOneBelow: "Wählen Sie unten eines aus oder laden Sie ein eigenes hoch.",
       closeImagePicker: "Bildauswahl schließen",
+    },
+    dash: {
+      bestArticles: "Beste Artikel",
+      bestArticlesHelp: "Ihre Seiten, die die meisten Menschen über Google bringen.",
+      openGoogleResults: "Google-Ergebnisse öffnen",
+      connectForPages: "Verbinden Sie Google Search Console, um zu sehen, welche Ihrer Seiten gefunden werden.",
+      clicks: "Klicks",
+      impressions: "Impressionen",
+      position: "Position",
+      searchPerformance: "Suchleistung",
+      websiteTraffic: "Website-Traffic",
+      aiSearchTraffic: "Traffic aus KI-Suchen",
+      googleTraffic: "Google-Traffic",
+      vsLastMonth: "ggü. Vormonat",
+      averagePosition: "Durchschnittliche Position",
+      connectForClicks: "Verbinden Sie Google Search Console, um Klicks, Impressionen und Position zu sehen.",
+      achievements: "Ergebnisse",
+      achievementsHelp: "All das ist seit Ihrer Anmeldung automatisch passiert.",
+      last30Days: "Letzte 30 Tage",
+      adSpendSaved: "Gespartes Werbebudget",
+      adSpendHelp: "Was dieser Traffic in Google Ads kosten würde.",
+      backlinkCostSaved: "Gesparte Linkkosten",
+      showedUpHelp: "Wie oft Sie in Google erschienen sind.",
+      visitorsFromArticles: "Besucher über Artikel",
+      siteHealth: "Der Zustand Ihrer Website",
+      siteHealthHelp: "Von 100, aus Ihrer letzten Prüfung.",
+      websiteAuthority: "Autorität der Website",
+      backlinks: "Backlinks",
+      openBacklinks: "Backlinks öffnen",
+      backlinkExchange: "Link-Netzwerk",
+      getCredits: "Credits holen",
+      verifiedBacklinks: "Bestätigte Backlinks",
+      availableCredits: "Verfügbare Credits",
+      noLinksYet: "Noch keine Links. Sobald andere Websites im Netzwerk auf Ihre verlinken, erscheinen sie hier.",
+      todaysArticle: "Der heutige Artikel",
+      nothingWrittenYet: "Noch nichts geschrieben. Sobald Ihr Contentplan steht, erscheint der heutige Artikel hier.",
+      openContentPlan: "Contentplan öffnen",
+      searchVolume: "Suchvolumen",
+      difficulty: "Schwierigkeit",
+      articleType: "Artikelart",
+      whyThisTopic: "Warum dieses Thema?",
+      view: "Ansehen",
+      addAWebsite: "Website hinzufügen",
     },
   },
 };

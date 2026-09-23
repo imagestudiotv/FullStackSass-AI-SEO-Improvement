@@ -1,4 +1,5 @@
 import { ArrowUpRight, Sparkles } from "lucide-react";
+import { getMessages, type Messages } from "@/lib/i18n/messages";
 import Link from "next/link";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -30,25 +31,28 @@ function money(value: number): string {
 export function BestArticlesPanel({
   websiteId,
   articles,
+  t = getMessages("en").app.dash,
 }: {
   websiteId: string;
   articles: BestArticle[];
+  /** The panel's wording, defaulting to English. */
+  t?: Messages["app"]["dash"];
 }) {
   return (
     <Card>
       <CardContent className="space-y-4">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-base font-semibold">Best articles</h2>
+            <h2 className="text-base font-semibold">{t.bestArticles}</h2>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Your pages that bring the most people from Google.
+              {t.bestArticlesHelp}
             </p>
           </div>
           <Link
             href={`/websites/${websiteId}/google`}
             className="shrink-0 text-xs font-medium text-primary hover:underline"
           >
-            Open Google results
+            {t.openGoogleResults}
           </Link>
         </div>
 
@@ -65,9 +69,9 @@ export function BestArticlesPanel({
                   <th className="pb-2 text-left font-medium">
                     Articles ({articles.length})
                   </th>
-                  <th className="pb-2 text-right font-medium">Clicks</th>
-                  <th className="pb-2 text-right font-medium">Impressions</th>
-                  <th className="pb-2 text-right font-medium">Position</th>
+                  <th className="pb-2 text-right font-medium">{t.clicks}</th>
+                  <th className="pb-2 text-right font-medium">{t.impressions}</th>
+                  <th className="pb-2 text-right font-medium">{t.position}</th>
                 </tr>
               </thead>
               <tbody>
@@ -107,25 +111,27 @@ export function BestArticlesPanel({
 export function SearchPerformancePanel({
   websiteId,
   performance,
+  t = getMessages("en").app.dash,
 }: {
   websiteId: string;
   performance: SearchPerformance;
+  t?: Messages["app"]["dash"];
 }) {
   return (
     <Card>
       <CardContent className="space-y-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-            Search performance
+            {t.searchPerformance}
           </p>
-          <h2 className="mt-1 text-lg font-semibold">Website traffic</h2>
+          <h2 className="mt-1 text-lg font-semibold">{t.websiteTraffic}</h2>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
           <div className="rounded-lg border bg-muted/30 p-4">
             <p className="flex items-center gap-2 text-sm font-medium">
               <Sparkles className="size-4 text-primary" aria-hidden="true" />
-              AI search traffic
+              {t.aiSearchTraffic}
             </p>
             <p className="mt-4 text-sm text-muted-foreground">
               {!performance.hasAnalytics
@@ -138,7 +144,7 @@ export function SearchPerformancePanel({
 
           <div className="rounded-lg border bg-muted/30 p-4">
             <div className="flex items-center justify-between gap-2">
-              <p className="text-sm font-medium">Google traffic</p>
+              <p className="text-sm font-medium">{t.googleTraffic}</p>
               <Link
                 href={`/websites/${websiteId}/google`}
                 aria-label="Open Google results"
@@ -151,22 +157,22 @@ export function SearchPerformancePanel({
             {performance.hasGoogle ? (
               <dl className="mt-4 grid grid-cols-3 gap-3">
                 <div>
-                  <dt className="text-xs text-muted-foreground">Clicks</dt>
+                  <dt className="text-xs text-muted-foreground">{t.clicks}</dt>
                   <dd className="mt-1 text-xl font-semibold tabular-nums">
                     {compact(performance.clicks)}
                   </dd>
-                  <Delta value={performance.clicksDelta} format={compact} label="vs last month" />
+                  <Delta value={performance.clicksDelta} format={compact} label={t.vsLastMonth} />
                 </div>
                 <div>
-                  <dt className="text-xs text-muted-foreground">Impressions</dt>
+                  <dt className="text-xs text-muted-foreground">{t.impressions}</dt>
                   <dd className="mt-1 text-xl font-semibold tabular-nums">
                     {compact(performance.impressions)}
                   </dd>
-                  <Delta value={performance.impressionsDelta} format={compact} label="vs last month" />
+                  <Delta value={performance.impressionsDelta} format={compact} label={t.vsLastMonth} />
                 </div>
                 <div>
                   <dt className="text-xs text-muted-foreground">
-                    Average position
+                    {t.averagePosition}
                   </dt>
                   <dd className="mt-1 text-xl font-semibold tabular-nums">
                     {performance.position || "—"}
@@ -188,8 +194,10 @@ export function SearchPerformancePanel({
 
 export function AchievementsPanel({
   achievements,
+  t = getMessages("en").app.dash,
 }: {
   achievements: Achievements;
+  t?: Messages["app"]["dash"];
 }) {
   const {
     articles,
@@ -207,7 +215,7 @@ export function AchievementsPanel({
       <CardContent className="space-y-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-            Achievements
+            {t.achievements}
           </p>
           <h2 className="mt-1 text-lg font-semibold">
             {totalValue > 0
@@ -215,13 +223,13 @@ export function AchievementsPanel({
               : "What we have built for you"}
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            All of this happened automatically since you joined.
+            {t.achievementsHelp}
           </p>
         </div>
 
         <div className="flex flex-wrap gap-2 text-xs">
           <span className="rounded-full bg-muted px-2.5 py-1 font-medium">
-            Last 30 days
+            {t.last30Days}
           </span>
           <span className="rounded-full bg-primary/10 px-2.5 py-1 font-medium text-primary">
             +{articles} articles
@@ -233,17 +241,17 @@ export function AchievementsPanel({
 
         <dl className="grid gap-4 sm:grid-cols-3 lg:grid-cols-5">
           <div>
-            <dt className="text-xs text-muted-foreground">Ad spend saved</dt>
+            <dt className="text-xs text-muted-foreground">{t.adSpendSaved}</dt>
             <dd className="mt-1 text-xl font-semibold tabular-nums">
               {money(adSpendSaved)}
             </dd>
             <p className="text-xs text-muted-foreground">
-              What this traffic would cost in Google Ads.
+              {t.adSpendHelp}
             </p>
           </div>
           <div>
             <dt className="text-xs text-muted-foreground">
-              Backlink cost saved
+              {t.backlinkCostSaved}
             </dt>
             <dd className="mt-1 text-xl font-semibold tabular-nums">
               {money(backlinkCostSaved)}
@@ -253,17 +261,17 @@ export function AchievementsPanel({
             </p>
           </div>
           <div>
-            <dt className="text-xs text-muted-foreground">Impressions</dt>
+            <dt className="text-xs text-muted-foreground">{t.impressions}</dt>
             <dd className="mt-1 text-xl font-semibold tabular-nums">
               {compact(impressions)}
             </dd>
             <p className="text-xs text-muted-foreground">
-              How often you showed up in Google.
+              {t.showedUpHelp}
             </p>
           </div>
           <div>
             <dt className="text-xs text-muted-foreground">
-              Visitors from articles
+              {t.visitorsFromArticles}
             </dt>
             <dd className="mt-1 text-xl font-semibold tabular-nums">
               {compact(visitors)}
@@ -274,13 +282,13 @@ export function AchievementsPanel({
           </div>
           <div>
             <dt className="text-xs text-muted-foreground">
-              Your site&apos;s health
+              {t.siteHealth}
             </dt>
             <dd className="mt-1 text-xl font-semibold tabular-nums">
               {authority ?? "—"}
             </dd>
             <p className="text-xs text-muted-foreground">
-              Out of 100, from your latest check.
+              {t.siteHealthHelp}
             </p>
           </div>
         </dl>

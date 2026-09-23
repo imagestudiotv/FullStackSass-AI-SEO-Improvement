@@ -1,4 +1,5 @@
 import { CheckCircle2, FileText, Link2, MousePointerClick, Stethoscope } from "lucide-react";
+import { getMessages, type Messages } from "@/lib/i18n/messages";
 import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
@@ -30,7 +31,14 @@ function formatRange(): string {
   return `${fmt(start)} – ${fmt(end)}`;
 }
 
-export function ActivityFeed({ items }: { items: ActivityItem[] }) {
+export function ActivityFeed({
+  items,
+  t = getMessages("en").app.dash,
+}: {
+  items: ActivityItem[];
+  /** The panel's wording, defaulting to English. */
+  t?: Messages["app"]["dash"];
+}) {
   return (
     <Card>
       <CardContent className="space-y-4">
@@ -81,7 +89,7 @@ export function ActivityFeed({ items }: { items: ActivityItem[] }) {
                       href={item.href}
                       className="shrink-0 text-xs font-medium text-primary hover:underline"
                     >
-                      View
+                      {t.view}
                     </Link>
                   ) : null}
                 </li>

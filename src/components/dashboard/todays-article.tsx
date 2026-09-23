@@ -1,4 +1,5 @@
 import { ExternalLink, FileText } from "lucide-react";
+import { getMessages, type Messages } from "@/lib/i18n/messages";
 import Link from "next/link";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,26 +17,28 @@ import type { TodaysArticle } from "@/lib/dashboard/overview";
 export function TodaysArticlePanel({
   websiteId,
   article,
+  t = getMessages("en").app.dash,
 }: {
   websiteId: string;
   article: TodaysArticle | null;
+  /** The panel's wording, defaulting to English. */
+  t?: Messages["app"]["dash"];
 }) {
   if (!article) {
     return (
       <Card>
         <CardContent className="space-y-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-            Today&apos;s article
+            {t.todaysArticle}
           </p>
           <p className="text-sm text-muted-foreground">
-            Nothing written yet. Once your content plan is built, the article
-            being worked on appears here.
+            {t.nothingWrittenYet}
           </p>
           <Link
             href={`/websites/${websiteId}/content`}
             className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
           >
-            Open the content plan
+            {t.openContentPlan}
           </Link>
         </CardContent>
       </Card>
@@ -48,7 +51,7 @@ export function TodaysArticlePanel({
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0 space-y-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-              Today&apos;s article
+              {t.todaysArticle}
             </p>
             <h2 className="text-xl font-semibold leading-tight">
               <Link
@@ -96,19 +99,19 @@ export function TodaysArticlePanel({
 
         <dl className="grid grid-cols-3 gap-3 rounded-lg border bg-muted/30 p-4">
           <div>
-            <dt className="text-xs text-muted-foreground">Search volume</dt>
+            <dt className="text-xs text-muted-foreground">{t.searchVolume}</dt>
             <dd className="mt-1 font-semibold tabular-nums">
               {article.volume !== null ? `${article.volume}/mo` : "—"}
             </dd>
           </div>
           <div>
-            <dt className="text-xs text-muted-foreground">Difficulty</dt>
+            <dt className="text-xs text-muted-foreground">{t.difficulty}</dt>
             <dd className="mt-1 font-semibold tabular-nums">
               {article.difficulty !== null ? `${article.difficulty}/100` : "—"}
             </dd>
           </div>
           <div>
-            <dt className="text-xs text-muted-foreground">Article type</dt>
+            <dt className="text-xs text-muted-foreground">{t.articleType}</dt>
             <dd className="mt-1 font-semibold capitalize">
               {article.intent ?? "Guide"}
             </dd>
@@ -117,7 +120,7 @@ export function TodaysArticlePanel({
 
         {article.targetKeyword ? (
           <p className="text-sm text-muted-foreground">
-            <span className="font-medium text-foreground">Why this topic?</span>{" "}
+            <span className="font-medium text-foreground">{t.whyThisTopic}</span>{" "}
             It targets {article.targetKeyword}
             {article.volume !== null
               ? `, searched about ${article.volume} times a month`

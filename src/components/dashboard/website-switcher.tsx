@@ -1,6 +1,7 @@
 "use client";
 
 import { Check, ChevronsUpDown, Globe, Plus } from "lucide-react";
+import { getMessages, type Messages } from "@/lib/i18n/messages";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
@@ -23,11 +24,14 @@ export function WebsiteSwitcher({
   websites,
   current,
   compact = false,
+  t = getMessages("en").app.dash,
 }: {
   websites: { id: string; domain: string; brandName: string | null }[];
   current: { id: string; domain: string; brandName: string | null };
   /** Smaller, for the header, where it sits beside the workspace picker. */
   compact?: boolean;
+  /** The switcher's wording, defaulting to English. */
+  t?: Messages["app"]["dash"];
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -183,7 +187,7 @@ export function WebsiteSwitcher({
               className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-sm font-medium text-primary transition-colors hover:bg-accent/60"
             >
               <Plus className="size-4 shrink-0" aria-hidden="true" />
-              Add a website
+              {t.addAWebsite}
             </Link>
         </div>
       ) : null}

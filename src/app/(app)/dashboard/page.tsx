@@ -144,6 +144,7 @@ export default async function DashboardPage({
       <SearchPerformancePanel
         websiteId={overview.websiteId}
         performance={overview.performance}
+        t={t.app.dash}
       />
 
       {/*
@@ -159,18 +160,21 @@ export default async function DashboardPage({
             verifiedBacklinks={overview.authority.verifiedBacklinks}
             availableCredits={overview.authority.availableCredits}
             chart={overview.authority.chart}
+            t={t.app.dash}
           />
-          <ActivityFeed items={overview.activity} />
+          <ActivityFeed items={overview.activity} t={t.app.dash} />
         </div>
 
         <div className="space-y-4">
           <TodaysArticlePanel
             websiteId={overview.websiteId}
             article={overview.todaysArticle}
+            t={t.app.dash}
           />
           <BestArticlesPanel
             websiteId={overview.websiteId}
             articles={overview.bestArticles}
+            t={t.app.dash}
           />
         </div>
       </div>
@@ -179,7 +183,10 @@ export default async function DashboardPage({
         Last: what all of it has been worth. A summary of months of work reads
         as a closing statement, not an opening one.
       */}
-      <AchievementsPanel achievements={overview.achievements} />
+      <AchievementsPanel
+        achievements={overview.achievements}
+        t={t.app.dash}
+      />
     </PageShell>
   );
 }

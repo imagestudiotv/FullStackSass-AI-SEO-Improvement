@@ -1,4 +1,5 @@
 import { ArrowUpRight, Link2 } from "lucide-react";
+import { getMessages, type Messages } from "@/lib/i18n/messages";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
@@ -71,11 +72,14 @@ export function AuthorityPanel({
   verifiedBacklinks,
   availableCredits,
   chart,
+  t = getMessages("en").app.dash,
 }: {
   websiteId: string;
   verifiedBacklinks: number;
   availableCredits: number;
   chart: AuthorityPoint[];
+  /** The panel's wording, defaulting to English. */
+  t?: Messages["app"]["dash"];
 }) {
   const first = chart[0];
   const last = chart[chart.length - 1];
@@ -86,7 +90,7 @@ export function AuthorityPanel({
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-              Website authority
+              {t.websiteAuthority}
             </p>
             <h2 className="mt-1 flex items-center gap-2 text-lg font-semibold">
               Backlinks
@@ -95,7 +99,7 @@ export function AuthorityPanel({
           <Button variant="ghost" size="sm" asChild className="size-8 p-0">
             <Link
               href={`/websites/${websiteId}/backlinks`}
-              aria-label="Open backlinks"
+              aria-label={t.openBacklinks}
             >
               <ArrowUpRight className="size-4" />
             </Link>
@@ -106,10 +110,10 @@ export function AuthorityPanel({
           <div className="flex items-center justify-between gap-3">
             <p className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
               <Link2 className="size-3.5" aria-hidden="true" />
-              Backlink exchange
+              {t.backlinkExchange}
             </p>
             <Button variant="outline" size="sm" asChild className="h-7 text-xs">
-              <Link href="/billing">Get credits</Link>
+              <Link href="/billing">{t.getCredits}</Link>
             </Button>
           </div>
 
@@ -118,13 +122,13 @@ export function AuthorityPanel({
               <p className="text-2xl font-semibold tabular-nums">
                 {verifiedBacklinks}
               </p>
-              <p className="text-xs text-muted-foreground">Verified backlinks</p>
+              <p className="text-xs text-muted-foreground">{t.verifiedBacklinks}</p>
             </div>
             <div>
               <p className="text-2xl font-semibold tabular-nums">
                 {availableCredits}
               </p>
-              <p className="text-xs text-muted-foreground">Available credits</p>
+              <p className="text-xs text-muted-foreground">{t.availableCredits}</p>
             </div>
           </div>
 
@@ -138,8 +142,7 @@ export function AuthorityPanel({
             </div>
           ) : (
             <p className="mt-4 text-xs text-muted-foreground">
-              No links yet. Once other sites in the network link to yours, the
-              count and the trend appear here.
+              {t.noLinksYet}
             </p>
           )}
         </div>

@@ -227,6 +227,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
               websites={ownedWebsites}
               current={selected}
               compact
+              t={t.app.dash}
             />
           </div>
         ) : null}
