@@ -237,7 +237,13 @@ export const getLaunchState = cache(async function getLaunchState(
         "So finished articles can publish themselves to your blog. Nothing goes live until you say so.",
       done: cms.length > 0,
       optional: false,
-      href: `${base}/publishing`,
+      /*
+        /integrations, not /publishing. This step is about connecting a CMS,
+        and /publishing is the article GENERATION settings — pressing "Connect
+        your site" landed on a form about how articles are written, with
+        nothing on it to connect.
+      */
+      href: `${base}/integrations`,
       icon: "site",
     },
     {

@@ -80,7 +80,24 @@ export const navItems: NavItem[] = [
   { title: "plannedArticles", segment: "content", icon: FileText },
   { title: "backlinkExchange", segment: "backlinks", icon: Link2 },
   { title: "websiteHealth", segment: "", icon: Stethoscope },
-  { title: "googleResults", segment: "google", icon: BarChart3 },
+  /**
+   * Google Analytics 4 and Search Console: connect them here, and read them
+   * here once connected.
+   *
+   * Renamed from "Google Results" at the client's request — "the smart thing
+   * we can do is adding Google Search in the left dashboard menu, so we can
+   * find it always here when we need to integrate google search or either
+   * google analytics." Connecting used to be reachable only from a setup
+   * step, so once that step was ticked off, or skipped since it is optional,
+   * there was no route back to it without knowing the URL.
+   *
+   * One entry rather than two, even though it does two jobs. The panel
+   * already shows the connect prompt when there is no connection and the
+   * numbers once there is, and two sidebar rows sharing a path would both
+   * highlight as active — the sidebar decides that from the pathname alone.
+   */
+  { title: "googleConnect", segment: "google", icon: BarChart3 },
+
   { title: "aiVisibility", segment: "ai-visibility", icon: Bot },
   { title: "losingTraffic", segment: "traffic", icon: TrendingDown },
 

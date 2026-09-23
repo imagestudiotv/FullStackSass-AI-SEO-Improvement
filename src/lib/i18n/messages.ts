@@ -367,7 +367,16 @@ export type Messages = {
       nameError: string;
       emailLabel: string;
       changePassword: string;
-      googleNote: string;
+      /**
+       * The set-a-first-password path, for an account that signs in with
+       * Google. `googleNote` ("You sign in with Google") used to sit where
+       * the button now is; it is gone because the button replaced it.
+       */
+      setPassword: string;
+      setPasswordIntro: string;
+      setPasswordHelp: string;
+      settingPassword: string;
+      passwordCreated: string;
       languageLabel: string;
       languageHelp: string;
       languageError: string;
@@ -897,6 +906,7 @@ export type Messages = {
       backlinkExchange: string;
       websiteHealth: string;
       googleResults: string;
+      googleConnect: string;
       aiVisibility: string;
       losingTraffic: string;
       settings: string;
@@ -1492,7 +1502,13 @@ const en: Messages = {
       nameError: "Could not save your name",
       emailLabel: "Email",
       changePassword: "Change password",
-      googleNote: "You sign in with Google",
+      setPassword: "Set a password",
+      setPasswordIntro:
+        "You sign in with Google. Set a password to sign in with your email as well — Google will keep working.",
+      setPasswordHelp: "At least 8 characters.",
+      settingPassword: "Setting…",
+      passwordCreated:
+        "Password set. You can now sign in with your email and password.",
       languageLabel: "Dashboard language",
       languageHelp: "The language of this dashboard. Your articles are written in the language set on the Business tab.",
       languageError: "Could not save your language",
@@ -2011,6 +2027,7 @@ const en: Messages = {
       backlinkExchange: "Backlink Exchange",
       websiteHealth: "Website Health",
       googleResults: "Google Results",
+      googleConnect: "Google Search & Analytics",
       aiVisibility: "AI Visibility",
       losingTraffic: "Losing Traffic",
       settings: "Settings",
@@ -2614,7 +2631,13 @@ const es: Messages = {
       nameError: "No se pudo guardar su nombre",
       emailLabel: "Correo electrónico",
       changePassword: "Cambiar contraseña",
-      googleNote: "Inicia sesión con Google",
+      setPassword: "Establecer una contraseña",
+      setPasswordIntro:
+        "Usted inicia sesión con Google. Establezca una contraseña para entrar también con su correo: Google seguirá funcionando.",
+      setPasswordHelp: "Al menos 8 caracteres.",
+      settingPassword: "Estableciendo…",
+      passwordCreated:
+        "Contraseña establecida. Ya puede iniciar sesión con su correo y su contraseña.",
       languageLabel: "Idioma del panel",
       languageHelp: "El idioma de este panel. Sus artículos se escriben en el idioma configurado en la pestaña Negocio.",
       languageError: "No se pudo guardar su idioma",
@@ -3135,6 +3158,7 @@ const es: Messages = {
       backlinkExchange: "Red de enlaces",
       websiteHealth: "Salud del sitio",
       googleResults: "Resultados de Google",
+      googleConnect: "Google Search y Analytics",
       aiVisibility: "Visibilidad en IA",
       losingTraffic: "Tráfico en caída",
       settings: "Ajustes",
@@ -3741,7 +3765,13 @@ const fr: Messages = {
       nameError: "Impossible d\u2019enregistrer votre nom",
       emailLabel: "E-mail",
       changePassword: "Changer le mot de passe",
-      googleNote: "Vous vous connectez avec Google",
+      setPassword: "Définir un mot de passe",
+      setPasswordIntro:
+        "Vous vous connectez avec Google. Définissez un mot de passe pour vous connecter aussi avec votre e-mail : Google continuera de fonctionner.",
+      setPasswordHelp: "Au moins 8 caractères.",
+      settingPassword: "Définition…",
+      passwordCreated:
+        "Mot de passe défini. Vous pouvez désormais vous connecter avec votre e-mail et votre mot de passe.",
       languageLabel: "Langue du tableau de bord",
       languageHelp: "La langue de ce tableau de bord. Vos articles sont rédigés dans la langue définie dans l\u2019onglet Entreprise.",
       languageError: "Impossible d\u2019enregistrer votre langue",
@@ -4262,6 +4292,7 @@ const fr: Messages = {
       backlinkExchange: "Réseau de liens",
       websiteHealth: "Santé du site",
       googleResults: "Résultats Google",
+      googleConnect: "Google Search et Analytics",
       aiVisibility: "Visibilité dans l\u2019IA",
       losingTraffic: "Perte de trafic",
       settings: "Paramètres",
@@ -4861,7 +4892,13 @@ const it: Messages = {
       nameError: "Impossibile salvare il nome",
       emailLabel: "E-mail",
       changePassword: "Cambia password",
-      googleNote: "Accede con Google",
+      setPassword: "Imposta una password",
+      setPasswordIntro:
+        "Lei accede con Google. Imposti una password per accedere anche con la sua email: Google continuerà a funzionare.",
+      setPasswordHelp: "Almeno 8 caratteri.",
+      settingPassword: "Impostazione…",
+      passwordCreated:
+        "Password impostata. Ora può accedere con la sua email e la sua password.",
       languageLabel: "Lingua del pannello",
       languageHelp: "La lingua di questo pannello. I suoi articoli vengono scritti nella lingua impostata nella scheda Attività.",
       languageError: "Impossibile salvare la lingua",
@@ -5382,6 +5419,7 @@ const it: Messages = {
       backlinkExchange: "Rete di link",
       websiteHealth: "Salute del sito",
       googleResults: "Risultati Google",
+      googleConnect: "Google Search e Analytics",
       aiVisibility: "Visibilità nell\u2019IA",
       losingTraffic: "Traffico in calo",
       settings: "Impostazioni",
@@ -5988,7 +6026,13 @@ const de: Messages = {
       nameError: "Ihr Name konnte nicht gespeichert werden",
       emailLabel: "E-Mail",
       changePassword: "Passwort ändern",
-      googleNote: "Sie melden sich mit Google an",
+      setPassword: "Passwort festlegen",
+      setPasswordIntro:
+        "Sie melden sich mit Google an. Legen Sie ein Passwort fest, um sich auch mit Ihrer E-Mail-Adresse anzumelden — Google funktioniert weiterhin.",
+      setPasswordHelp: "Mindestens 8 Zeichen.",
+      settingPassword: "Wird festgelegt…",
+      passwordCreated:
+        "Passwort festgelegt. Sie können sich jetzt mit Ihrer E-Mail-Adresse und Ihrem Passwort anmelden.",
       languageLabel: "Sprache des Dashboards",
       languageHelp: "Die Sprache dieses Dashboards. Ihre Artikel werden in der Sprache verfasst, die im Tab Unternehmen eingestellt ist.",
       languageError: "Ihre Sprache konnte nicht gespeichert werden",
@@ -6509,6 +6553,7 @@ const de: Messages = {
       backlinkExchange: "Link-Netzwerk",
       websiteHealth: "Website-Zustand",
       googleResults: "Google-Ergebnisse",
+      googleConnect: "Google Search & Analytics",
       aiVisibility: "KI-Sichtbarkeit",
       losingTraffic: "Traffic-Verlust",
       settings: "Einstellungen",
