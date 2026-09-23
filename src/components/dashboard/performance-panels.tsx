@@ -58,8 +58,7 @@ export function BestArticlesPanel({
 
         {articles.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            Connect Google Search Console to see which of your pages people
-            find, and how that changes as we publish.
+            {t.connectForPages}
           </p>
         ) : (
           <div className="overflow-x-auto">
@@ -147,7 +146,7 @@ export function SearchPerformancePanel({
               <p className="text-sm font-medium">{t.googleTraffic}</p>
               <Link
                 href={`/websites/${websiteId}/google`}
-                aria-label="Open Google results"
+                aria-label={t.openGoogleResults}
                 className="text-muted-foreground hover:text-foreground"
               >
                 <ArrowUpRight className="size-4" />
@@ -181,8 +180,7 @@ export function SearchPerformancePanel({
               </dl>
             ) : (
               <p className="mt-4 text-sm text-muted-foreground">
-                Connect Google Search Console to see clicks, impressions and
-                where you rank.
+                {t.connectForClicks}
               </p>
             )}
           </div>
