@@ -17,6 +17,7 @@
     "db:seed-addons": "node scripts/seed-addons.mjs",
     "db:seed": "node scripts/seed-plans.mjs",
     "db:reset": "node scripts/reset-test-data.mjs",
+    "db:rls": "node scripts/enable-rls.mjs",
     "stripe:setup": "node scripts/stripe-setup.mjs",
     "paypal:setup": "node scripts/paypal-setup.mjs"
   },
