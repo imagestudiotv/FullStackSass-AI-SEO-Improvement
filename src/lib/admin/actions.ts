@@ -1,6 +1,16 @@
 "use server";
 
-import { and, desc, eq, gte, ilike, isNull, or, sql as raw } from "drizzle-orm";
+import {
+  and,
+  desc,
+  eq,
+  gte,
+  ilike,
+  inArray,
+  isNull,
+  or,
+  sql as raw,
+} from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { requireAdmin } from "@/lib/admin/guard";
@@ -15,6 +25,7 @@ import {
   subscriptions,
   usageEvents,
   user,
+  websiteMembers,
   websites,
 } from "@/lib/db/schema";
 import { sanitizeHtml, countWords } from "@/lib/articles/generate";
@@ -385,20 +396,44 @@ export async function updateAnyArticle(
   return { ok: true, data: null };
 }
 
+/** One website this person can work on, and how they got there. */
+export type AdminUserWebsite = {
+  id: string;
+  domain: string;
+  /**
+   * "admin" when their workspace owns the site, otherwise the role on their
+   * website_members row ("editor" | "viewer").
+   *
+   * The two are genuinely different kinds of access, not two values of one
+   * field: workspace access covers every site the workspace owns and cannot
+   * be revoked per site, while an invitation covers exactly one. An operator
+   * asked "why can this person see that?" needs to know which.
+   */
+  role: string;
+  /** True when the access comes from owning the workspace. */
+  viaWorkspace: boolean;
+};
+
 export type AdminUser = {
   id: string;
   name: string;
   email: string;
   createdAt: Date;
-  /**
-   * One ROW PER MEMBERSHIP, not per person: someone who belongs to three
-   * workspaces appears three times, because the thing an operator acts on is
-   * the workspace, not the account.
-   */
   organizationId: string | null;
   organizationName: string | null;
   /** The workspace's subscription status, so suspension is visible here too. */
   organizationStatus: string | null;
+  /**
+   * What they pay for, as a plan NAME rather than a status.
+   *
+   * "Growth" answers the question an operator actually has when a customer
+   * writes in; "active" only says a subscription exists. Null when the
+   * workspace has never subscribed.
+   */
+  planName: string | null;
+  planInterval: string | null;
+  /** Every site they can work on, both routes in. Empty for most people. */
+  websites: AdminUserWebsite[];
 };
 
 export async function listUsers(
@@ -458,6 +493,8 @@ export async function listUsers(
       organizationId: organization.id,
       organizationName: organization.name,
       organizationStatus: subscriptions.status,
+      planName: plans.name,
+      planInterval: plans.interval,
     })
     .from(user)
     .leftJoin(member, eq(member.userId, user.id))
@@ -466,12 +503,113 @@ export async function listUsers(
       subscriptions,
       eq(subscriptions.organizationId, organization.id),
     )
+    /*
+      The plan NAME, not just the status. "Growth" is what an operator needs
+      when a customer writes in; "active" says a subscription exists without
+      saying what it bought.
+    */
+    .leftJoin(plans, eq(plans.id, subscriptions.planId))
     .where(where)
     .orderBy(desc(user.createdAt))
     .limit(ADMIN_PAGE_SIZE)
     .offset((page - 1) * ADMIN_PAGE_SIZE);
 
-  return { rows, total: counted?.n ?? 0, page, pageSize: ADMIN_PAGE_SIZE };
+  /**
+   * The websites each person can reach, for the whole page at once.
+   *
+   * NOT a join onto the query above: a person in two workspaces holding four
+   * sites each would multiply into eight rows and be listed eight times. NOT
+   * a query per row either - that is fifty round trips for one screen. Two
+   * queries keyed by user id, stitched in memory below.
+   *
+   * TWO ROUTES IN, kept apart because they are different tables and mean
+   * different things:
+   *
+   *   1. Their workspace OWNS the site. That is admin access to every site
+   *      the workspace holds, and it cannot be withdrawn per site.
+   *   2. They were INVITED to one site (website_members) as editor or
+   *      viewer, which grants nothing anywhere else.
+   *
+   * Someone can have both, so the workspace route wins in the stitch.
+   */
+  const ids = rows.map((row) => row.id);
+
+  const [viaWorkspace, viaInvitation] = await Promise.all([
+    ids.length === 0
+      ? []
+      : db
+          .select({
+            userId: member.userId,
+            websiteId: websites.id,
+            domain: websites.domain,
+          })
+          .from(member)
+          .innerJoin(
+            websites,
+            eq(websites.organizationId, member.organizationId),
+          )
+          .where(inArray(member.userId, ids)),
+    ids.length === 0
+      ? []
+      : db
+          .select({
+            userId: websiteMembers.userId,
+            websiteId: websites.id,
+            domain: websites.domain,
+            role: websiteMembers.role,
+          })
+          .from(websiteMembers)
+          .innerJoin(websites, eq(websites.id, websiteMembers.websiteId))
+          .where(inArray(websiteMembers.userId, ids)),
+  ]);
+
+  const byUser = new Map<string, Map<string, AdminUserWebsite>>();
+
+  function put(userId: string, site: AdminUserWebsite) {
+    let sites = byUser.get(userId);
+    if (!sites) {
+      sites = new Map();
+      byUser.set(userId, sites);
+    }
+    /*
+      Workspace access wins a collision. Someone who owns a site AND was
+      invited to it as a viewer is an admin on it; showing "viewer" would
+      understate what they can do.
+    */
+    const existing = sites.get(site.id);
+    if (existing?.viaWorkspace) return;
+    sites.set(site.id, site);
+  }
+
+  for (const row of viaInvitation) {
+    put(row.userId, {
+      id: row.websiteId,
+      domain: row.domain,
+      role: row.role,
+      viaWorkspace: false,
+    });
+  }
+  // Second, so it overwrites an invitation on the same site.
+  for (const row of viaWorkspace) {
+    put(row.userId, {
+      id: row.websiteId,
+      domain: row.domain,
+      role: "admin",
+      viaWorkspace: true,
+    });
+  }
+
+  return {
+    rows: rows.map((row) => ({
+      ...row,
+      websites: [...(byUser.get(row.id)?.values() ?? [])].sort((a, b) =>
+        a.domain.localeCompare(b.domain),
+      ),
+    })),
+    total: counted?.n ?? 0,
+    page,
+    pageSize: ADMIN_PAGE_SIZE,
+  };
 }
 
 

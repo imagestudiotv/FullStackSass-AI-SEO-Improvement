@@ -1,7 +1,8 @@
 import { Users } from "lucide-react";
 import { listUsers } from "@/lib/admin/actions";
 import { DATE_RANGES, pageFrom } from "@/lib/admin/shared";
-import { EmptyRows } from "../empty-rows";
+import { EmptyRows } from "../empty-rows";
+
 import { FilterBar } from "../filter-bar";
 import { Pagination } from "../pagination";
 import { PageHeader, PageShell } from "@/components/ui/page-header";
@@ -22,12 +23,18 @@ import {
 } from "@/components/ui/table";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { AdminSearch } from "../admin-search";
-import { WorkspaceActions } from "../organizations/workspace-actions";
-import {
-  BulkCheckbox,
-  BulkDeleteBar,
-  BulkSelectionProvider,
-} from "../bulk-delete";
+import { WorkspaceActions } from "../organizations/workspace-actions";
+
+import {
+
+  BulkCheckbox,
+
+  BulkDeleteBar,
+
+  BulkSelectionProvider,
+
+} from "../bulk-delete";
+
 import { DeleteUserButton } from "./delete-user";
 
 export const dynamic = "force-dynamic";
@@ -49,7 +56,8 @@ export default async function AdminUsersPage({
   });
 
   return (
-    <BulkSelectionProvider>
+    <BulkSelectionProvider>
+
     <PageShell width="default">
       <PageHeader
         title="Users"
@@ -115,16 +123,21 @@ export default async function AdminUsersPage({
             />
 
           ) : (
-          <Table minWidth="46rem">
+          <Table minWidth="62rem">
             <TableHeader>
               <TableRow>
                 <TableHead className="w-10" />
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead className="hidden md:table-cell">
-                  Organization
+                {/*
+                  Name and email in one column. They identify the same person
+                  and were using two columns to say it, which is what left no
+                  room for the website access an operator actually came for.
+                */}
+                <TableHead>Person</TableHead>
+                <TableHead className="hidden lg:table-cell">
+                  Workspace
                 </TableHead>
-                <TableHead className="w-32">Status</TableHead>
+                <TableHead>Websites</TableHead>
+                <TableHead className="w-36">Plan</TableHead>
                 <TableHead className="hidden w-28 sm:table-cell">
                   Joined
                 </TableHead>
@@ -145,17 +158,104 @@ export default async function AdminUsersPage({
                       <BulkCheckbox id={row.id} label={row.email} />
                     ) : null}
                   </TableCell>
-                  <TableCell className="font-medium">{row.name}</TableCell>
-                  <TableCell className="max-w-56 truncate text-muted-foreground">
-                    {row.email}
+                  <TableCell>
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{row.name}</p>
+                      <p className="truncate text-sm text-muted-foreground">
+                        {row.email}
+                      </p>
+                    </div>
                   </TableCell>
-                  <TableCell className="hidden text-muted-foreground md:table-cell">
+
+                  <TableCell className="hidden max-w-48 truncate text-muted-foreground lg:table-cell">
                     {row.organizationName ?? "—"}
                   </TableCell>
+
                   <TableCell>
-                    {row.organizationStatus ? (
+                    {/*
+                      What this person can actually work on, and how they got
+                      there. The two routes are shown differently on purpose:
+                      workspace access covers every site the workspace owns
+                      and cannot be withdrawn per site, while an invitation
+                      covers exactly one. An operator asked "why can they see
+                      that?" needs to tell them apart.
+                    */}
+                    {row.websites.length === 0 ? (
+                      <span className="text-sm text-muted-foreground">
+                        None
+                      </span>
+                    ) : (
+                      <div className="flex flex-wrap gap-1">
+                        {row.websites.slice(0, 3).map((site) => (
+                          <span
+                            key={site.id}
+                            title={
+                              site.viaWorkspace
+                                ? `${site.domain} — through the workspace`
+                                : `${site.domain} — invited as ${site.role}`
+                            }
+                            className={
+                              site.viaWorkspace
+                                ? "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs"
+                                : "inline-flex items-center gap-1 rounded-full border border-dashed px-2 py-0.5 text-xs text-muted-foreground"
+                            }
+                          >
+                            <span className="max-w-32 truncate">
+                              {site.domain}
+                            </span>
+                            <span className="text-[10px] uppercase tracking-wide opacity-70">
+                              {site.role}
+                            </span>
+                          </span>
+                        ))}
+                        {/*
+                          A count rather than a fourth chip. Someone with
+                          twelve sites would otherwise make one row taller
+                          than the rest of the table.
+                        */}
+                        {row.websites.length > 3 ? (
+                          <span
+                            title={row.websites
+                              .slice(3)
+                              .map((site) => site.domain)
+                              .join(", ")}
+                            className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs text-muted-foreground"
+                          >
+                            +{row.websites.length - 3}
+                          </span>
+                        ) : null}
+                      </div>
+                    )}
+                  </TableCell>
+
+                  <TableCell>
+                    {/*
+                      The plan NAME with the subscription status under it.
+                      "Growth" is the answer to what a customer pays for;
+                      "active" only says a subscription exists.
+                    */}
+                    {row.planName ? (
+                      <div className="min-w-0 space-y-1">
+                        <p className="truncate text-sm font-medium">
+                          {row.planName}
+                          {row.planInterval ? (
+                            <span className="font-normal text-muted-foreground">
+                              {" "}
+                              / {row.planInterval}
+                            </span>
+                          ) : null}
+                        </p>
+                        {row.organizationStatus ? (
+                          <StatusBadge status={row.organizationStatus} />
+                        ) : null}
+                      </div>
+                    ) : row.organizationStatus ? (
                       <StatusBadge status={row.organizationStatus} />
-                    ) : null}
+                    ) : (
+                      <span className="text-sm text-muted-foreground">
+                        No plan
+                      </span>
+                    )}
                   </TableCell>
                   <TableCell className="hidden text-muted-foreground sm:table-cell">
                     {new Date(row.createdAt).toLocaleDateString()}
