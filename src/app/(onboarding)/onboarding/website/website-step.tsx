@@ -20,6 +20,7 @@ import {
   Tag,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { getMessages, type Messages } from "@/lib/i18n/messages";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -49,7 +50,12 @@ import { previewWebsite, type WebsitePreview } from "@/lib/websites/preview";
  * the analysis job will try again on its own schedule where a retry costs the
  * customer nothing.
  */
-export function WebsiteStep() {
+export function WebsiteStep({
+  t = getMessages("en").app.onboarding,
+}: {
+  /** This step's copy, defaulting to English. */
+  t?: Messages["app"]["onboarding"];
+} = {}) {
   const router = useRouter();
   const [value, setValue] = useState("");
   const [preview, setPreview] = useState<WebsitePreview | null>(null);
@@ -116,7 +122,7 @@ export function WebsiteStep() {
           STEP 01 <span className="text-muted-foreground">/ 02</span>
         </p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
-          What&apos;s your website?
+          {t.whatsYourWebsite}
         </h1>
         <p className="mt-3 text-muted-foreground">
           Enter your website and we will work out what your business does, who
@@ -125,7 +131,7 @@ export function WebsiteStep() {
 
         <form onSubmit={handleLook} className="mt-8">
           <Label htmlFor="site-url" className="sr-only">
-            Your website address
+            {t.websiteAddress}
           </Label>
           <div className="relative">
             <Globe
@@ -140,7 +146,7 @@ export function WebsiteStep() {
                 // The card belongs to the address that produced it.
                 setPreview(null);
               }}
-              placeholder="yourbusiness.com"
+              placeholder={t.websitePlaceholder}
               autoComplete="url"
               inputMode="url"
               className="h-14 rounded-full pr-14 pl-11 text-base"
@@ -149,7 +155,7 @@ export function WebsiteStep() {
             <button
               type="submit"
               disabled={looking || !value.trim()}
-              aria-label="Look up this website"
+              aria-label={t.lookUpWebsite}
               className="absolute top-1/2 right-2 flex size-10 -translate-y-1/2 items-center justify-center rounded-full bg-foreground text-background transition-opacity disabled:opacity-40"
             >
               {looking ? (
@@ -180,7 +186,7 @@ export function WebsiteStep() {
               </p>
             </div>
             <span className="flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-600">
-              Detected
+              {t.detected}
               <Check className="size-3" aria-hidden="true" />
             </span>
           </div>
@@ -200,11 +206,11 @@ export function WebsiteStep() {
           {pending ? (
             <>
               <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-              Adding your website…
+              {t.addingWebsite}
             </>
           ) : (
             <>
-              Continue
+              {t.continueLabel}
               <ArrowRight className="size-4" aria-hidden="true" />
             </>
           )}
@@ -227,7 +233,7 @@ export function WebsiteStep() {
       </div>
 
       <div>
-        <WebsiteCard preview={preview} looking={looking} />
+        <WebsiteCard preview={preview} looking={looking} t={t} />
 
         {/*
           The handwritten note from the design. Decorative, so it is hidden
@@ -257,9 +263,11 @@ export function WebsiteStep() {
 function WebsiteCard({
   preview,
   looking,
+  t,
 }: {
   preview: WebsitePreview | null;
   looking: boolean;
+  t: Messages["app"]["onboarding"];
 }) {
   return (
     <div className="overflow-hidden rounded-2xl border bg-card shadow-[0_24px_60px_-30px_rgba(0,0,0,0.25)]">
@@ -337,16 +345,16 @@ function WebsiteCard({
             {looking ? (
               <p className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
-                Reading your website…
+                {t.readingWebsite}
               </p>
             ) : preview ? (
               <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-600">
-                Website found
+                {t.websiteFound}
                 <Check className="size-3" aria-hidden="true" />
               </span>
             ) : (
               <p className="text-sm text-muted-foreground">
-                Enter your address to see what we find.
+                {t.enterAddressToSee}
               </p>
             )}
 
@@ -396,12 +404,12 @@ function WebsiteCard({
               ) : null}
               <span className="flex items-center gap-1.5 border-l pl-4 first:border-l-0 first:pl-0">
                 <Tag className="size-3.5 shrink-0" aria-hidden="true" />
-                Region and category next
+                {t.regionNext}
               </span>
             </div>
 
             <p className="mt-4 text-center text-xs text-muted-foreground">
-              We will use your website to understand your business.
+              {t.weWillUseWebsite}
             </p>
           </>
         ) : null}

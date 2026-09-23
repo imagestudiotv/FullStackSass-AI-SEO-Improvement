@@ -1056,6 +1056,68 @@ export type Messages = {
       nothingYet: string;
       unread: string;
     };
+    onboarding: {
+      whatsYourWebsite: string;
+      websiteIntro: string;
+      websiteAddress: string;
+      websitePlaceholder: string;
+      lookUpWebsite: string;
+      detected: string;
+      addingWebsite: string;
+      continueLabel: string;
+      pressArrow: string;
+      readingWebsite: string;
+      websiteFound: string;
+      enterAddressToSee: string;
+      regionNext: string;
+      weWillUseWebsite: string;
+      activateRepGet: string;
+      seeHowAiTalks: string;
+      trackQuestions: string;
+      trackingOn: string;
+      noAssistants: string;
+      questionsWorthTracking: string;
+      suggestedFromSite: string;
+      writingQuestions: string;
+      noQuestionsYet: string;
+      addQuestionPlaceholder: string;
+      addQuestion: string;
+      writing: string;
+      suggestMore: string;
+      getStarted: string;
+      setupProgress: string;
+      readingNow: string;
+      view: string;
+      goToDashboard: string;
+      searchOpportunities: string;
+      topicClusters: string;
+      publishingPlan: string;
+      articlesContentBacklinks: string;
+      heresWhatWellBuild: string;
+      thenOnChecklist: string;
+      buildMyPlan: string;
+      starting: string;
+      takesFewMinutes: string;
+      connectGoogle: string;
+      analyticsTellUs: string;
+      connectedChangeLater: string;
+      openingGoogle: string;
+      whyWeAsk: string;
+      readPerformanceOnly: string;
+      connected: string;
+      plansUnavailable: string;
+      growthEngineReady: string;
+      plan: string;
+      payYearly: string;
+      paypalNoTrial: string;
+      cancelAnyTime: string;
+      whatsIncluded: string;
+      secureByStripe: string;
+      paymentTakingLonger: string;
+      activatingNow: string;
+      goToMyWebsite: string;
+      checkBilling: string;
+    };
   };
 };
 
@@ -2259,6 +2321,68 @@ const en: Messages = {
       markAllRead: "Mark all read",
       nothingYet: "Nothing yet. We will tell you here when your articles and audits are ready.",
       unread: "Unread",
+    },
+    onboarding: {
+      whatsYourWebsite: "What\u2019s your website?",
+      websiteIntro: "Enter your website and we will work out what your business does, who it is for, and what it should rank for.",
+      websiteAddress: "Your website address",
+      websitePlaceholder: "yourbusiness.com",
+      lookUpWebsite: "Look up this website",
+      detected: "Detected",
+      addingWebsite: "Adding your website…",
+      continueLabel: "Continue",
+      pressArrow: "Press the arrow to check your website first, or continue straight away.",
+      readingWebsite: "Reading your website…",
+      websiteFound: "Website found",
+      enterAddressToSee: "Enter your address to see what we find.",
+      regionNext: "Region and category next",
+      weWillUseWebsite: "We will use your website to understand your business.",
+      activateRepGet: "Activate RepGet",
+      seeHowAiTalks: "See how AI talks about your brand",
+      trackQuestions: "Track the questions customers ask AI before they discover your company.",
+      trackingOn: "Tracking on",
+      noAssistants: "No assistants are configured on this deployment yet. Questions are saved and checked once one is.",
+      questionsWorthTracking: "Questions worth tracking",
+      suggestedFromSite: "We have suggested these from your website and market. Remove any that do not fit.",
+      writingQuestions: "Writing questions your customers would ask…",
+      noQuestionsYet: "No questions yet. Add one below, or ask for suggestions.",
+      addQuestionPlaceholder: "Add a question your customers would ask",
+      addQuestion: "Add question",
+      writing: "Writing…",
+      suggestMore: "Suggest more",
+      getStarted: "Get started",
+      setupProgress: "Setup progress",
+      readingNow: "We are reading your website now. This usually takes a minute or two.",
+      view: "View",
+      goToDashboard: "Go to your dashboard",
+      searchOpportunities: "Search opportunities",
+      topicClusters: "Topic clusters",
+      publishingPlan: "Publishing plan",
+      articlesContentBacklinks: "Articles, content & backlinks",
+      heresWhatWellBuild: "Here\u2019s what we\u2019ll build",
+      thenOnChecklist: "Then, on your setup checklist",
+      buildMyPlan: "Build my content plan",
+      starting: "Starting…",
+      takesFewMinutes: "Takes a few minutes. You can continue while we build it in the background.",
+      connectGoogle: "Connect Google",
+      analyticsTellUs: "Analytics and Search Console tell us which articles are working, so we can write more of what does.",
+      connectedChangeLater: "Connected. You can change this later in Integrations.",
+      openingGoogle: "Opening Google…",
+      whyWeAsk: "Why we ask for this",
+      readPerformanceOnly: "We read performance only — clicks, impressions and sessions for your own site. We never post, change or delete anything in your Google account, and you can disconnect at any time.",
+      connected: "Connected",
+      plansUnavailable: "Plans are not available right now. Please check back shortly.",
+      growthEngineReady: "Your growth engine is ready",
+      plan: "Plan",
+      payYearly: "Pay yearly",
+      paypalNoTrial: "PayPal starts your plan straight away, without the free trial.",
+      cancelAnyTime: "Cancel any time. A promotion code can be entered at checkout.",
+      whatsIncluded: "What\u2019s included",
+      secureByStripe: "Secure checkout by Stripe. Your card details never reach us.",
+      paymentTakingLonger: "Your payment went through. Activating the plan is taking longer than usual.",
+      activatingNow: "Thank you. We are activating your plan now; this usually takes a few seconds.",
+      goToMyWebsite: "Go to my website",
+      checkBilling: "Check billing",
     },
   },
 };
@@ -3473,6 +3597,68 @@ const es: Messages = {
       markAllRead: "Marcar todo como leído",
       nothingYet: "Todavía nada. Le avisaremos aquí cuando sus artículos y auditorías estén listos.",
       unread: "Sin leer",
+    },
+    onboarding: {
+      whatsYourWebsite: "¿Cuál es su sitio web?",
+      websiteIntro: "Introduzca su sitio web y averiguaremos a qué se dedica su negocio, para quién es y por qué debería posicionarse.",
+      websiteAddress: "La dirección de su sitio web",
+      websitePlaceholder: "sunegocio.com",
+      lookUpWebsite: "Analizar este sitio web",
+      detected: "Detectado",
+      addingWebsite: "Añadiendo su sitio web…",
+      continueLabel: "Continuar",
+      pressArrow: "Pulse la flecha para comprobar su sitio primero, o continúe directamente.",
+      readingWebsite: "Leyendo su sitio web…",
+      websiteFound: "Sitio web encontrado",
+      enterAddressToSee: "Introduzca su dirección para ver qué encontramos.",
+      regionNext: "Región y categoría a continuación",
+      weWillUseWebsite: "Usaremos su sitio web para entender su negocio.",
+      activateRepGet: "Activar RepGet",
+      seeHowAiTalks: "Vea cómo habla la IA de su marca",
+      trackQuestions: "Siga las preguntas que los clientes hacen a la IA antes de descubrir su empresa.",
+      trackingOn: "Seguimiento activo",
+      noAssistants: "Todavía no hay asistentes configurados en esta instalación. Las preguntas se guardan y se comprueban en cuanto haya uno.",
+      questionsWorthTracking: "Preguntas que merece la pena seguir",
+      suggestedFromSite: "Las hemos sugerido a partir de su sitio web y su mercado. Quite las que no encajen.",
+      writingQuestions: "Redactando preguntas que harían sus clientes…",
+      noQuestionsYet: "Todavía no hay preguntas. Añada una abajo o pida sugerencias.",
+      addQuestionPlaceholder: "Añada una pregunta que harían sus clientes",
+      addQuestion: "Añadir pregunta",
+      writing: "Redactando…",
+      suggestMore: "Sugerir más",
+      getStarted: "Empezar",
+      setupProgress: "Progreso de la configuración",
+      readingNow: "Estamos leyendo su sitio web. Esto suele tardar un minuto o dos.",
+      view: "Ver",
+      goToDashboard: "Ir a su panel",
+      searchOpportunities: "Oportunidades de búsqueda",
+      topicClusters: "Grupos temáticos",
+      publishingPlan: "Plan de publicación",
+      articlesContentBacklinks: "Artículos, contenidos y enlaces",
+      heresWhatWellBuild: "Esto es lo que vamos a construir",
+      thenOnChecklist: "Después, en su lista de configuración",
+      buildMyPlan: "Crear mi plan de contenidos",
+      starting: "Empezando…",
+      takesFewMinutes: "Tarda unos minutos. Puede continuar mientras lo preparamos en segundo plano.",
+      connectGoogle: "Conectar Google",
+      analyticsTellUs: "Analytics y Search Console nos dicen qué artículos funcionan, para escribir más de lo que da resultado.",
+      connectedChangeLater: "Conectado. Puede cambiarlo más adelante en Integraciones.",
+      openingGoogle: "Abriendo Google…",
+      whyWeAsk: "Por qué se lo pedimos",
+      readPerformanceOnly: "Solo leemos el rendimiento: clics, impresiones y sesiones de su propio sitio. Nunca publicamos, cambiamos ni borramos nada en su cuenta de Google, y puede desconectarla cuando quiera.",
+      connected: "Conectado",
+      plansUnavailable: "Los planes no están disponibles ahora mismo. Vuelva a intentarlo en breve.",
+      growthEngineReady: "Su motor de crecimiento está listo",
+      plan: "Plan",
+      payYearly: "Pago anual",
+      paypalNoTrial: "PayPal inicia su plan de inmediato, sin la prueba gratuita.",
+      cancelAnyTime: "Cancele cuando quiera. Puede introducir un código promocional al pagar.",
+      whatsIncluded: "Qué incluye",
+      secureByStripe: "Pago seguro con Stripe. Los datos de su tarjeta nunca llegan a nosotros.",
+      paymentTakingLonger: "Su pago se ha realizado. Activar el plan está tardando más de lo habitual.",
+      activatingNow: "Gracias. Estamos activando su plan; esto suele tardar unos segundos.",
+      goToMyWebsite: "Ir a mi sitio web",
+      checkBilling: "Ver la facturación",
     },
   },
 };
@@ -4691,6 +4877,68 @@ const fr: Messages = {
       nothingYet: "Rien pour l\u2019instant. Nous vous préviendrons ici dès que vos articles et audits seront prêts.",
       unread: "Non lu",
     },
+    onboarding: {
+      whatsYourWebsite: "Quel est votre site web ?",
+      websiteIntro: "Saisissez votre site et nous déterminerons ce que fait votre entreprise, pour qui, et sur quoi elle doit se positionner.",
+      websiteAddress: "L\u2019adresse de votre site",
+      websitePlaceholder: "votreentreprise.com",
+      lookUpWebsite: "Analyser ce site",
+      detected: "Détecté",
+      addingWebsite: "Ajout de votre site…",
+      continueLabel: "Continuer",
+      pressArrow: "Appuyez sur la flèche pour vérifier votre site d\u2019abord, ou continuez directement.",
+      readingWebsite: "Lecture de votre site…",
+      websiteFound: "Site trouvé",
+      enterAddressToSee: "Saisissez votre adresse pour voir ce que nous trouvons.",
+      regionNext: "Région et catégorie ensuite",
+      weWillUseWebsite: "Nous utiliserons votre site pour comprendre votre entreprise.",
+      activateRepGet: "Activer RepGet",
+      seeHowAiTalks: "Voyez comment l\u2019IA parle de votre marque",
+      trackQuestions: "Suivez les questions que les clients posent à l\u2019IA avant de découvrir votre entreprise.",
+      trackingOn: "Suivi actif",
+      noAssistants: "Aucun assistant n\u2019est encore configuré sur ce déploiement. Les questions sont enregistrées et vérifiées dès qu\u2019il y en a un.",
+      questionsWorthTracking: "Questions à suivre",
+      suggestedFromSite: "Nous les avons suggérées à partir de votre site et de votre marché. Retirez celles qui ne conviennent pas.",
+      writingQuestions: "Rédaction des questions que poseraient vos clients…",
+      noQuestionsYet: "Aucune question pour l\u2019instant. Ajoutez-en une ci-dessous, ou demandez des suggestions.",
+      addQuestionPlaceholder: "Ajoutez une question que poseraient vos clients",
+      addQuestion: "Ajouter la question",
+      writing: "Rédaction…",
+      suggestMore: "Suggérer plus",
+      getStarted: "Commencer",
+      setupProgress: "Progression de la configuration",
+      readingNow: "Nous lisons votre site. Cela prend généralement une à deux minutes.",
+      view: "Voir",
+      goToDashboard: "Aller à votre tableau de bord",
+      searchOpportunities: "Opportunités de recherche",
+      topicClusters: "Groupes de sujets",
+      publishingPlan: "Plan de publication",
+      articlesContentBacklinks: "Articles, contenu et liens",
+      heresWhatWellBuild: "Voici ce que nous allons construire",
+      thenOnChecklist: "Ensuite, sur votre liste de configuration",
+      buildMyPlan: "Créer mon plan de contenu",
+      starting: "Démarrage…",
+      takesFewMinutes: "Cela prend quelques minutes. Vous pouvez continuer pendant que nous le préparons en arrière-plan.",
+      connectGoogle: "Connecter Google",
+      analyticsTellUs: "Analytics et Search Console nous disent quels articles fonctionnent, pour en écrire davantage.",
+      connectedChangeLater: "Connecté. Vous pourrez le changer plus tard dans Intégrations.",
+      openingGoogle: "Ouverture de Google…",
+      whyWeAsk: "Pourquoi nous le demandons",
+      readPerformanceOnly: "Nous lisons uniquement les performances : clics, impressions et sessions de votre propre site. Nous ne publions, ne modifions ni ne supprimons rien dans votre compte Google, et vous pouvez vous déconnecter à tout moment.",
+      connected: "Connecté",
+      plansUnavailable: "Les forfaits ne sont pas disponibles pour le moment. Revenez bientôt.",
+      growthEngineReady: "Votre moteur de croissance est prêt",
+      plan: "Forfait",
+      payYearly: "Paiement annuel",
+      paypalNoTrial: "PayPal démarre votre forfait immédiatement, sans essai gratuit.",
+      cancelAnyTime: "Annulez à tout moment. Un code promo peut être saisi au paiement.",
+      whatsIncluded: "Ce qui est inclus",
+      secureByStripe: "Paiement sécurisé par Stripe. Vos données bancaires ne nous parviennent jamais.",
+      paymentTakingLonger: "Votre paiement est passé. L\u2019activation du forfait prend plus de temps que d\u2019habitude.",
+      activatingNow: "Merci. Nous activons votre forfait ; cela prend généralement quelques secondes.",
+      goToMyWebsite: "Aller à mon site",
+      checkBilling: "Voir la facturation",
+    },
   },
 };
 
@@ -5900,6 +6148,68 @@ const it: Messages = {
       markAllRead: "Segna tutto come letto",
       nothingYet: "Ancora nulla. La avviseremo qui quando i suoi articoli e audit saranno pronti.",
       unread: "Non letto",
+    },
+    onboarding: {
+      whatsYourWebsite: "Qual è il suo sito web?",
+      websiteIntro: "Inserisca il suo sito e capiremo di cosa si occupa la sua attività, a chi si rivolge e per cosa dovrebbe posizionarsi.",
+      websiteAddress: "L\u2019indirizzo del suo sito",
+      websitePlaceholder: "lasuaattivita.com",
+      lookUpWebsite: "Analizza questo sito",
+      detected: "Rilevato",
+      addingWebsite: "Aggiunta del suo sito…",
+      continueLabel: "Continua",
+      pressArrow: "Prema la freccia per controllare prima il suo sito, oppure continui subito.",
+      readingWebsite: "Lettura del suo sito…",
+      websiteFound: "Sito trovato",
+      enterAddressToSee: "Inserisca il suo indirizzo per vedere che cosa troviamo.",
+      regionNext: "Poi regione e categoria",
+      weWillUseWebsite: "Useremo il suo sito per capire la sua attività.",
+      activateRepGet: "Attiva RepGet",
+      seeHowAiTalks: "Veda come l\u2019IA parla del suo marchio",
+      trackQuestions: "Monitori le domande che i clienti pongono all\u2019IA prima di scoprire la sua azienda.",
+      trackingOn: "Monitoraggio attivo",
+      noAssistants: "Su questa installazione non è ancora configurato alcun assistente. Le domande vengono salvate e controllate appena ce ne sarà uno.",
+      questionsWorthTracking: "Domande che vale la pena monitorare",
+      suggestedFromSite: "Le abbiamo suggerite dal suo sito e dal suo mercato. Rimuova quelle che non le sembrano adatte.",
+      writingQuestions: "Stiamo scrivendo le domande che porrebbero i suoi clienti…",
+      noQuestionsYet: "Ancora nessuna domanda. Ne aggiunga una qui sotto o chieda dei suggerimenti.",
+      addQuestionPlaceholder: "Aggiunga una domanda che porrebbero i suoi clienti",
+      addQuestion: "Aggiungi domanda",
+      writing: "Scrittura…",
+      suggestMore: "Suggerisci altre",
+      getStarted: "Inizia",
+      setupProgress: "Avanzamento della configurazione",
+      readingNow: "Stiamo leggendo il suo sito. Di solito ci vogliono uno o due minuti.",
+      view: "Vedi",
+      goToDashboard: "Vai alla sua dashboard",
+      searchOpportunities: "Opportunità di ricerca",
+      topicClusters: "Gruppi di argomenti",
+      publishingPlan: "Piano di pubblicazione",
+      articlesContentBacklinks: "Articoli, contenuti e link",
+      heresWhatWellBuild: "Ecco che cosa costruiremo",
+      thenOnChecklist: "Poi, nella sua lista di configurazione",
+      buildMyPlan: "Crea il mio piano dei contenuti",
+      starting: "Avvio…",
+      takesFewMinutes: "Ci vogliono alcuni minuti. Può continuare mentre lo prepariamo in background.",
+      connectGoogle: "Collega Google",
+      analyticsTellUs: "Analytics e Search Console ci dicono quali articoli funzionano, così ne scriviamo di più.",
+      connectedChangeLater: "Collegato. Potrà cambiarlo più avanti in Integrazioni.",
+      openingGoogle: "Apertura di Google…",
+      whyWeAsk: "Perché glielo chiediamo",
+      readPerformanceOnly: "Leggiamo solo i dati di rendimento: clic, impressioni e sessioni del suo sito. Non pubblichiamo, modifichiamo né cancelliamo nulla nel suo account Google, e può scollegarlo quando vuole.",
+      connected: "Collegato",
+      plansUnavailable: "I piani non sono disponibili al momento. Riprovi tra poco.",
+      growthEngineReady: "Il suo motore di crescita è pronto",
+      plan: "Piano",
+      payYearly: "Pagamento annuale",
+      paypalNoTrial: "PayPal avvia subito il suo piano, senza la prova gratuita.",
+      cancelAnyTime: "Disdica quando vuole. Al pagamento può inserire un codice promozionale.",
+      whatsIncluded: "Che cosa include",
+      secureByStripe: "Pagamento sicuro con Stripe. I dati della sua carta non arrivano mai a noi.",
+      paymentTakingLonger: "Il pagamento è andato a buon fine. L\u2019attivazione del piano sta richiedendo più del solito.",
+      activatingNow: "Grazie. Stiamo attivando il suo piano; di solito ci vogliono pochi secondi.",
+      goToMyWebsite: "Vai al mio sito",
+      checkBilling: "Vedi la fatturazione",
     },
   },
 };
@@ -7117,6 +7427,68 @@ const de: Messages = {
       markAllRead: "Alle als gelesen markieren",
       nothingYet: "Noch nichts. Wir sagen Ihnen hier Bescheid, sobald Ihre Artikel und Audits fertig sind.",
       unread: "Ungelesen",
+    },
+    onboarding: {
+      whatsYourWebsite: "Wie lautet Ihre Website?",
+      websiteIntro: "Geben Sie Ihre Website ein, und wir ermitteln, was Ihr Unternehmen tut, für wen, und wofür es ranken sollte.",
+      websiteAddress: "Ihre Website-Adresse",
+      websitePlaceholder: "ihrunternehmen.de",
+      lookUpWebsite: "Diese Website prüfen",
+      detected: "Erkannt",
+      addingWebsite: "Ihre Website wird hinzugefügt…",
+      continueLabel: "Weiter",
+      pressArrow: "Tippen Sie auf den Pfeil, um Ihre Website zuerst zu prüfen, oder fahren Sie direkt fort.",
+      readingWebsite: "Ihre Website wird gelesen…",
+      websiteFound: "Website gefunden",
+      enterAddressToSee: "Geben Sie Ihre Adresse ein, um zu sehen, was wir finden.",
+      regionNext: "Als Nächstes Region und Kategorie",
+      weWillUseWebsite: "Wir nutzen Ihre Website, um Ihr Unternehmen zu verstehen.",
+      activateRepGet: "RepGet aktivieren",
+      seeHowAiTalks: "Sehen Sie, wie KI über Ihre Marke spricht",
+      trackQuestions: "Verfolgen Sie die Fragen, die Kunden einer KI stellen, bevor sie Ihr Unternehmen entdecken.",
+      trackingOn: "Verfolgung aktiv",
+      noAssistants: "Auf dieser Installation ist noch kein Assistent eingerichtet. Fragen werden gespeichert und geprüft, sobald einer da ist.",
+      questionsWorthTracking: "Fragen, die sich zu verfolgen lohnen",
+      suggestedFromSite: "Diese haben wir aus Ihrer Website und Ihrem Markt vorgeschlagen. Entfernen Sie, was nicht passt.",
+      writingQuestions: "Wir formulieren Fragen, die Ihre Kunden stellen würden…",
+      noQuestionsYet: "Noch keine Fragen. Fügen Sie unten eine hinzu oder lassen Sie sich welche vorschlagen.",
+      addQuestionPlaceholder: "Fügen Sie eine Frage hinzu, die Ihre Kunden stellen würden",
+      addQuestion: "Frage hinzufügen",
+      writing: "Wird geschrieben…",
+      suggestMore: "Mehr vorschlagen",
+      getStarted: "Loslegen",
+      setupProgress: "Fortschritt der Einrichtung",
+      readingNow: "Wir lesen gerade Ihre Website. Das dauert meist ein bis zwei Minuten.",
+      view: "Ansehen",
+      goToDashboard: "Zu Ihrem Dashboard",
+      searchOpportunities: "Such-Chancen",
+      topicClusters: "Themencluster",
+      publishingPlan: "Veröffentlichungsplan",
+      articlesContentBacklinks: "Artikel, Inhalte und Backlinks",
+      heresWhatWellBuild: "Das werden wir aufbauen",
+      thenOnChecklist: "Danach in Ihrer Einrichtungscheckliste",
+      buildMyPlan: "Meinen Contentplan erstellen",
+      starting: "Wird gestartet…",
+      takesFewMinutes: "Das dauert einige Minuten. Sie können weitermachen, während wir ihn im Hintergrund erstellen.",
+      connectGoogle: "Google verbinden",
+      analyticsTellUs: "Analytics und Search Console zeigen uns, welche Artikel wirken — damit wir mehr davon schreiben.",
+      connectedChangeLater: "Verbunden. Sie können das später unter Integrationen ändern.",
+      openingGoogle: "Google wird geöffnet…",
+      whyWeAsk: "Warum wir danach fragen",
+      readPerformanceOnly: "Wir lesen ausschließlich Leistungsdaten: Klicks, Impressionen und Sitzungen Ihrer eigenen Website. Wir veröffentlichen, ändern oder löschen nichts in Ihrem Google-Konto, und Sie können die Verbindung jederzeit trennen.",
+      connected: "Verbunden",
+      plansUnavailable: "Tarife sind derzeit nicht verfügbar. Schauen Sie bitte in Kürze wieder vorbei.",
+      growthEngineReady: "Ihr Wachstumsmotor steht bereit",
+      plan: "Tarif",
+      payYearly: "Jährlich zahlen",
+      paypalNoTrial: "PayPal startet Ihren Tarif sofort, ohne die kostenlose Testphase.",
+      cancelAnyTime: "Jederzeit kündbar. Einen Gutscheincode können Sie beim Bezahlen eingeben.",
+      whatsIncluded: "Was enthalten ist",
+      secureByStripe: "Sichere Zahlung über Stripe. Ihre Kartendaten erreichen uns nie.",
+      paymentTakingLonger: "Ihre Zahlung ist eingegangen. Die Aktivierung des Tarifs dauert länger als üblich.",
+      activatingNow: "Vielen Dank. Wir aktivieren Ihren Tarif; das dauert meist wenige Sekunden.",
+      goToMyWebsite: "Zu meiner Website",
+      checkBilling: "Abrechnung ansehen",
     },
   },
 };

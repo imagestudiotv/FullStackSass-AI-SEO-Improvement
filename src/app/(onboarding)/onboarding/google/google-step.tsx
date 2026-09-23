@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowRight, BarChart3, Check, Loader2, Search } from "lucide-react";
+import { getMessages, type Messages } from "@/lib/i18n/messages";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -28,9 +29,12 @@ import {
 export function GoogleStep({
   websiteId,
   connection,
+  t = getMessages("en").app.onboarding,
 }: {
   websiteId: string;
   connection: AnalyticsConnection;
+  /** This step's copy, defaulting to English. */
+  t?: Messages["app"]["onboarding"];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -71,7 +75,7 @@ export function GoogleStep({
             </span>
           </p>
           <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
-            Connect Google
+            {t.connectGoogle}
           </h1>
           <p className="mt-3 text-muted-foreground">
             Analytics and Search Console tell us which articles are working, so
@@ -80,12 +84,14 @@ export function GoogleStep({
 
           <div className="mt-6 space-y-3">
             <SourceRow
+              t={t}
               icon={BarChart3}
               name="Google Analytics 4"
               detail="Track AI-driven traffic and measure content performance."
               connected={connected}
             />
             <SourceRow
+              t={t}
               icon={Search}
               name="Google Search Console"
               detail="Monitor organic search clicks and impressions."
@@ -107,7 +113,7 @@ export function GoogleStep({
               {pending ? (
                 <>
                   <Loader2 className="size-4 animate-spin" />
-                  Opening Google…
+                  {t.openingGoogle}
                 </>
               ) : (
                 "Connect Google"
@@ -137,7 +143,7 @@ export function GoogleStep({
               <Loader2 className="size-4 animate-spin" />
             ) : connected ? (
               <>
-                Continue
+                {t.continueLabel}
                 <ArrowRight className="size-4" />
               </>
             ) : (
@@ -147,7 +153,7 @@ export function GoogleStep({
         </div>
 
         <OnboardingAside
-          title="Why we ask for this"
+          title={t.whyWeAsk}
           note="We read performance only — clicks, impressions and sessions for your own site. We never post, change or delete anything in your Google account, and you can disconnect at any time."
         />
       </div>
@@ -161,7 +167,9 @@ function SourceRow({
   name,
   detail,
   connected,
+  t,
 }: {
+  t: Messages["app"]["onboarding"];
   icon: typeof BarChart3;
   name: string;
   detail: string;
@@ -183,7 +191,7 @@ function SourceRow({
       {connected ? (
         <span className="flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
           <Check className="size-3" aria-hidden="true" />
-          Connected
+          {t.connected}
         </span>
       ) : null}
     </div>

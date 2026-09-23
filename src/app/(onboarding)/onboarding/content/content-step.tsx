@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowRight, Check, Clock, Loader2, Sparkles } from "lucide-react";
+import { getMessages, type Messages } from "@/lib/i18n/messages";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -43,6 +44,7 @@ export function ContentStep({
   hasKeywords,
   hasPlan,
   articlesPerMonth,
+  t = getMessages("en").app.onboarding,
 }: {
   websiteId: string;
   /** Named in the subtitle, as the design shows. */
@@ -51,6 +53,8 @@ export function ContentStep({
   hasPlan: boolean;
   /** Null when the plan is unlimited. */
   articlesPerMonth: number | null;
+  /** This step's copy, defaulting to English. */
+  t?: Messages["app"]["onboarding"];
 }) {
   const router = useRouter();
 
@@ -171,15 +175,15 @@ export function ContentStep({
    */
   const deliverables = [
     {
-      title: "Search opportunities",
+      title: t.searchOpportunities,
       body: "Find real search demand and the terms worth targeting.",
     },
     {
-      title: "Topic clusters",
+      title: t.topicClusters,
       body: "Group related searches so one article covers a subject properly.",
     },
     {
-      title: "Publishing plan",
+      title: t.publishingPlan,
       body: articlesPerMonth
         ? `A calendar of ${articlesPerMonth} briefs a month, each with a title, term and intent.`
         : "A calendar of briefs, each with a title, target term and intent.",
@@ -203,7 +207,7 @@ export function ContentStep({
   return (
     <div>
       <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-        Articles, content &amp; backlinks
+        {t.articlesContentBacklinks}
       </h1>
       <p className="mt-2 text-muted-foreground">
         We&apos;ll turn what we learned about {brandName} into a plan you can
@@ -248,7 +252,7 @@ export function ContentStep({
         </div>
 
         <p className="mt-7 text-xs font-semibold tracking-[0.12em] text-muted-foreground uppercase">
-          Here&apos;s what we&apos;ll build
+          {t.heresWhatWellBuild}
         </p>
 
         {/*
@@ -290,7 +294,7 @@ export function ContentStep({
         */}
         <div className="mt-6 rounded-xl border border-dashed bg-muted/30 px-4 py-3.5">
           <p className="text-xs font-semibold tracking-[0.12em] text-muted-foreground uppercase">
-            Then, on your setup checklist
+            {t.thenOnChecklist}
           </p>
           <ul className="mt-2 flex flex-wrap gap-x-5 gap-y-1.5">
             {nextUp.map((item) => (
@@ -317,7 +321,7 @@ export function ContentStep({
             >
               {status === "idle" ? (
                 <>
-                  Build my content plan
+                  {t.buildMyPlan}
                   <ArrowRight className="size-4" aria-hidden="true" />
                 </>
               ) : (
@@ -329,7 +333,7 @@ export function ContentStep({
                 */
                 <>
                   <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-                  Starting…
+                  {t.starting}
                 </>
               )}
             </Button>

@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowRight, Check, Loader2, ShieldCheck, Star } from "lucide-react";
+import { getMessages, type Messages } from "@/lib/i18n/messages";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -51,12 +52,15 @@ export function PlanStep({
   annualPlans,
   paypalAvailable,
   websiteId,
+  t = getMessages("en").app.onboarding,
 }: {
   monthlyPlans: PickerPlan[];
   annualPlans: PickerPlan[];
   paypalAvailable: boolean;
   /** The website this plan pays for. Always present: step one created it. */
   websiteId: string;
+  /** This step's copy, defaulting to English. */
+  t?: Messages["app"]["onboarding"];
 }) {
   const [annual, setAnnual] = useState(false);
   /**
@@ -203,7 +207,7 @@ export function PlanStep({
         </span>
       </p>
       <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
-        Your growth engine is ready
+        {t.growthEngineReady}
       </h1>
 
       {/*
@@ -339,7 +343,7 @@ export function PlanStep({
               />
             </button>
             <span className="text-sm">
-              Pay yearly
+              {t.payYearly}
               {saving ? (
                 <span className="ml-1.5 font-semibold text-primary">
                   &middot; save {saving}%
@@ -431,7 +435,7 @@ export function PlanStep({
 
         <div className="mt-6 border-t pt-6">
           <p className="text-xs font-semibold tracking-[0.12em] text-muted-foreground uppercase">
-            What&apos;s included
+            {t.whatsIncluded}
           </p>
           {/*
             Two columns from `sm` up, as the design draws it. Below that they

@@ -12,6 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { getMessages, type Messages } from "@/lib/i18n/messages";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -63,6 +64,7 @@ export function VisibilityStep({
   engines,
   /** How many this website's plan may track: 20 on Grow, 50 on Scale. */
   allowance,
+  t = getMessages("en").app.onboarding,
 }: {
   websiteId: string;
   market: string | null;
@@ -70,6 +72,8 @@ export function VisibilityStep({
   initialPrompts: GeoPromptView[];
   engines: EngineView[];
   allowance: number;
+  /** This step's copy, defaulting to English. */
+  t?: Messages["app"]["onboarding"];
 }) {
   const router = useRouter();
   const [prompts, setPrompts] = useState(initialPrompts);
@@ -217,10 +221,10 @@ export function VisibilityStep({
   return (
     <div>
       <p className="text-xs font-semibold tracking-[0.14em] text-primary uppercase">
-        Activate RepGet
+        {t.activateRepGet}
       </p>
       <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
-        See how AI talks about your brand
+        {t.seeHowAiTalks}
       </h1>
       <p className="mt-2 text-muted-foreground">
         Track the questions customers ask AI before they discover your company.
@@ -273,7 +277,7 @@ export function VisibilityStep({
 
       {/* Which assistants we can actually ask. */}
       <div className="mt-4 rounded-2xl border bg-card p-5">
-        <p className="font-semibold">Tracking on</p>
+        <p className="font-semibold">{t.trackingOn}</p>
         {liveEngines.length === 0 ? (
           <p className="mt-2 text-sm text-muted-foreground">
             No assistants are configured on this deployment yet. Questions are
@@ -318,7 +322,7 @@ export function VisibilityStep({
       <div className="mt-4 rounded-2xl border bg-card p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="font-semibold">Questions worth tracking</p>
+            <p className="font-semibold">{t.questionsWorthTracking}</p>
             <p className="mt-1 text-sm text-muted-foreground">
               We have suggested these from your website and market. Remove any
               you do not want to track.
@@ -339,11 +343,11 @@ export function VisibilityStep({
               className="size-4 shrink-0 animate-spin"
               aria-hidden="true"
             />
-            Writing questions your customers would ask…
+            {t.writingQuestions}
           </div>
         ) : prompts.length === 0 ? (
           <div className="mt-4 rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
-            No questions yet. Add one below, or ask for suggestions.
+            {t.noQuestionsYet}
           </div>
         ) : (
           /*
@@ -387,7 +391,7 @@ export function VisibilityStep({
             <Input
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
-              placeholder="Add a question your customers would ask"
+              placeholder={t.addQuestionPlaceholder}
               className="h-10 rounded-xl"
               disabled={adding || atLimit}
               onKeyDown={(event) => {
@@ -420,12 +424,12 @@ export function VisibilityStep({
             {suggesting ? (
               <>
                 <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-                Writing…
+                {t.writing}
               </>
             ) : (
               <>
                 <RefreshCw className="size-4" aria-hidden="true" />
-                Suggest more
+                {t.suggestMore}
               </>
             )}
           </Button>
