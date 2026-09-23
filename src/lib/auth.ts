@@ -1,9 +1,20 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { organization } from "better-auth/plugins";
+import { emailOTP, organization } from "better-auth/plugins";
 
 import { db } from "@/lib/db";
+import { sendOtpEmail } from "@/lib/email/otp";
 import * as schema from "@/lib/db/schema";
+
+/**
+ * How long a one-time code lasts, in seconds.
+ *
+ * ONE constant, used by the plugin AND by the email that quotes it. Written
+ * twice they drift, and the failure is a message that promises ten minutes
+ * over a code that died after five — which reads as a broken product rather
+ * than a stale code.
+ */
+const OTP_EXPIRES_IN = 10 * 60;
 
 function required(name: string): string {
   const value = process.env[name];
@@ -162,6 +173,70 @@ function createAuth() {
       },
     },
     plugins: [
+      /**
+       * One-time codes by email: sign in without a password, verify an
+       * address, reset a password.
+       *
+       * A code rather than a magic link. A link in an email is followed by
+       * corporate mail scanners, by link previews, and by whichever device
+       * happens to open the message — none of which is the device trying to
+       * sign in. A six-digit number typed into the page the person already
+       * has open cannot be consumed by anything else.
+       */
+      emailOTP({
+        /**
+         * HASHED, not the default "plain".
+         *
+         * Better Auth stores the code as written unless told otherwise, so a
+         * leaked database would hand over every live code — and a live code
+         * is a sign-in. Hashing costs nothing here because the plugin only
+         * ever compares, never reads one back.
+         */
+        storeOTP: "hashed",
+
+        /**
+         * Ten minutes rather than the default five.
+         *
+         * Long enough to find the email on a phone while sitting at a
+         * laptop, short enough that a code left in an inbox is not a standing
+         * key. The email says the same number — see expiresInSeconds below —
+         * so the promise and the enforcement cannot drift.
+         */
+        expiresIn: OTP_EXPIRES_IN,
+
+        /*
+          Three tries, the default, stated because it is a security property
+          rather than a detail: six digits is a million combinations, and
+          without a cap an attacker holding an address could simply work
+          through them.
+        */
+        allowedAttempts: 3,
+
+        /**
+         * Sending never throws, and that is deliberate.
+         *
+         * sendEmail reports failures rather than rejecting, so a provider
+         * outage leaves the code issued and unsent instead of failing the
+         * whole request halfway — the same rule the rest of lib/email
+         * follows. Logged loudly so an unsent code is findable, because to
+         * the customer it looks identical to an email that never arrived.
+         */
+        async sendVerificationOTP({ email, otp, type }) {
+          const result = await sendOtpEmail({
+            to: email,
+            code: otp,
+            purpose: type,
+            expiresInSeconds: OTP_EXPIRES_IN,
+          });
+
+          if (!result.ok) {
+            console.error("[auth] could not send one-time code", {
+              type,
+              error: result.error,
+            });
+          }
+        },
+      }),
       organization({
         /**
          * Customers do not create workspaces.

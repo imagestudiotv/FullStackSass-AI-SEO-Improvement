@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  emailOTPClient,
   inferAdditionalFields,
   organizationClient,
 } from "better-auth/client/plugins";
@@ -19,7 +20,12 @@ import type { auth } from "@/lib/auth";
  */
 export const authClient = createAuthClient({
   baseURL: process.env.NEXT_PUBLIC_APP_URL,
-  plugins: [organizationClient(), inferAdditionalFields<typeof auth>()],
+  plugins: [
+    organizationClient(),
+    // Mirrors emailOTP() on the server; see the note above.
+    emailOTPClient(),
+    inferAdditionalFields<typeof auth>(),
+  ],
 });
 
 export const { signIn, signUp, signOut, useSession } = authClient;
