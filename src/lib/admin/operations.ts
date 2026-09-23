@@ -1,6 +1,6 @@
 "use server";
 
-import { and, desc, eq, inArray, sql as raw } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, sql as raw } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { requireAdmin } from "@/lib/admin/guard";
@@ -16,6 +16,7 @@ import {
   payments,
   subscriptions,
   user,
+  websites,
 } from "@/lib/db/schema";
 import { isStripeConfigured, stripe } from "@/lib/stripe/client";
 import type { ActionResult } from "@/lib/websites/actions";
@@ -827,5 +828,215 @@ export async function deleteManyUsers(
 
   revalidatePath("/admin/users");
   revalidatePath("/admin/organizations");
+  return { ok: true, data: { deleted, failures } };
+}
+
+
+/* ------------------------------------------------------------------------- */
+/* Websites                                                                   */
+/* ------------------------------------------------------------------------- */
+
+/**
+ * Permanently removes ONE website.
+ *
+ * WHY THIS IS SEPARATE FROM deleteOrganization: removing a single site used
+ * to mean deleting the workspace that owned it, which also took the
+ * customer's account, their other websites, their payment history and their
+ * colleagues. An operator asked to remove one wrong domain had no
+ * proportionate way to do it.
+ *
+ * Its articles, keywords, integrations and results cascade from the foreign
+ * keys on websites.id. The workspace, its members and its payments are
+ * untouched - which is the entire point of having this at all.
+ *
+ * REFUSES WHILE STRIPE WOULD KEEP CHARGING, exactly as deleteOrganization
+ * does. Subscriptions are per-WEBSITE here (subscriptions.website_id) and
+ * they cascade from this row, so deleting a site with a live plan would
+ * destroy the only local record of a subscription Stripe goes on billing -
+ * and with the row gone there is nothing left to trace the charge back to.
+ * Cancel or refund first; both already exist above.
+ *
+ * The count of what went with it is taken BEFORE the delete, when there is
+ * still something to count.
+ */
+export async function deleteWebsite(
+  websiteId: string,
+  reason: string,
+  confirmation: string,
+): Promise<ActionResult<{ domain: string; articles: number }>> {
+  const admin = await requireAdmin();
+
+  if (confirmation !== DELETE_CONFIRMATION) {
+    return { ok: false, error: `Type ${DELETE_CONFIRMATION} to confirm.` };
+  }
+  const note = reason.trim();
+  if (note.length < 3) {
+    return { ok: false, error: "Say why this website is being deleted." };
+  }
+
+  const [site] = await db
+    .select({
+      id: websites.id,
+      domain: websites.domain,
+      url: websites.url,
+      organizationId: websites.organizationId,
+      organizationName: organization.name,
+    })
+    .from(websites)
+    .leftJoin(organization, eq(organization.id, websites.organizationId))
+    .where(eq(websites.id, websiteId))
+    .limit(1);
+
+  if (!site) return { ok: false, error: "Website not found." };
+
+  /*
+    What goes with it, counted while it still exists. "Deleted a website"
+    without saying it took 84 articles is not a record anyone can act on
+    months later, and after the delete there is nothing left to count.
+  */
+  const [counts] = await db
+    .select({
+      articles: raw<number>`(select count(*) from articles where website_id = ${websiteId})::int`,
+      keywords: raw<number>`(select count(*) from keywords where website_id = ${websiteId})::int`,
+    })
+    .from(raw`(select 1) as _`);
+
+  /*
+    Scoped to THIS website, not to the workspace.
+
+    subscriptions.website_id is the link that matters: a customer with three
+    sites has three subscriptions, and refusing because a DIFFERENT site is
+    being billed would make the common case impossible to serve. Rows created
+    before that column existed have it null and are caught by the
+    organization-level check below.
+  */
+  const [live] = await db
+    .select({
+      status: subscriptions.status,
+      stripeSubscriptionId: subscriptions.stripeSubscriptionId,
+    })
+    .from(subscriptions)
+    .where(
+      and(
+        eq(subscriptions.websiteId, websiteId),
+        inArray(subscriptions.status, ["active", "trialing", "past_due"]),
+      ),
+    )
+    .limit(1);
+
+  if (live) {
+    return {
+      ok: false,
+      error:
+        "This website still has a live subscription. Cancel or refund it first, or Stripe will keep charging for a site that no longer exists.",
+    };
+  }
+
+  /*
+    Legacy rows, from before subscriptions named their website.
+
+    They carry website_id = null, so the check above cannot see them - but
+    they DO belong to this workspace, and if the workspace has exactly one
+    website then this is the site being paid for. Refusing on that narrow
+    case is right: the alternative is silently deleting the last trace of a
+    live charge. A workspace with several sites is left alone, because an
+    unattributed subscription cannot be blamed on any one of them.
+  */
+  const [legacy] = await db
+    .select({ status: subscriptions.status })
+    .from(subscriptions)
+    .where(
+      and(
+        eq(subscriptions.organizationId, site.organizationId),
+        isNull(subscriptions.websiteId),
+        inArray(subscriptions.status, ["active", "trialing", "past_due"]),
+        raw`(select count(*) from websites w where w.organization_id = ${site.organizationId})::int = 1`,
+      ),
+    )
+    .limit(1);
+
+  if (legacy) {
+    return {
+      ok: false,
+      error:
+        "This workspace has a live subscription and this is its only website. Cancel or refund it first, or Stripe will keep charging.",
+    };
+  }
+
+  await recordAdminAction({
+    actorEmail: admin.email,
+    action: "website.deleted",
+    targetType: "website",
+    targetId: site.id,
+    organizationId: site.organizationId,
+    summary: `Deleted ${site.domain} from ${site.organizationName ?? "an unnamed workspace"} — ${counts?.articles ?? 0} articles, ${counts?.keywords ?? 0} keywords — ${note}`,
+    detail: {
+      domain: site.domain,
+      url: site.url,
+      organizationName: site.organizationName,
+      ...counts,
+      reason: note,
+    },
+  });
+
+  await db.delete(websites).where(eq(websites.id, websiteId));
+
+  revalidatePath("/admin/websites");
+  revalidatePath("/admin/organizations");
+  revalidatePath("/admin/articles");
+  return {
+    ok: true,
+    data: { domain: site.domain, articles: counts?.articles ?? 0 },
+  };
+}
+
+/**
+ * Deletes several websites in one go.
+ *
+ * Each goes through deleteWebsite, so every guard and every audit entry
+ * applies identically - there is no faster path that skips the checks. Same
+ * reasoning as deleteManyOrganizations above: an operator who has to repeat a
+ * destructive action forty times stops reading the dialog by the fifth.
+ *
+ * Sequential rather than Promise.all. These are writes against one database
+ * and each one writes an audit row; running forty concurrently buys nothing
+ * and makes the failure list arrive out of order.
+ */
+export async function deleteManyWebsites(
+  websiteIds: string[],
+  reason: string,
+  confirmation: string,
+): Promise<
+  ActionResult<{ deleted: number; failures: { id: string; error: string }[] }>
+> {
+  await requireAdmin();
+
+  if (websiteIds.length === 0) {
+    return { ok: false, error: "Nothing selected." };
+  }
+
+  let deleted = 0;
+  const failures: { id: string; error: string }[] = [];
+
+  for (const id of websiteIds) {
+    const result = await deleteWebsite(id, reason, confirmation);
+    if (result.ok) {
+      deleted += 1;
+    } else {
+      failures.push({ id, error: result.error });
+    }
+  }
+
+  /*
+    A batch where every item refused is a failure, not a partial success -
+    reporting "0 deleted" as ok would leave the operator believing something
+    happened. The first error stands in for all of them; they share a cause
+    when nothing succeeds (a bad confirmation, a missing reason).
+  */
+  if (deleted === 0) {
+    return { ok: false, error: failures[0]?.error ?? "Nothing was deleted." };
+  }
+
+  revalidatePath("/admin/websites");
   return { ok: true, data: { deleted, failures } };
 }

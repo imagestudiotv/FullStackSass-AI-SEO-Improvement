@@ -4,6 +4,7 @@ import {
   BarChart3,
   Building2,
   FileText,
+  Globe,
   Receipt,
   ScrollText,
   Users,
@@ -26,6 +27,11 @@ import { cn } from "@/lib/utils";
 const NAV: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/admin", label: "Overview", icon: BarChart3 },
   { href: "/admin/organizations", label: "Organizations", icon: Building2 },
+  /*
+    Between Organizations and Articles, matching the hierarchy: a workspace
+    owns websites, a website owns articles.
+  */
+  { href: "/admin/websites", label: "Websites", icon: Globe },
   { href: "/admin/articles", label: "Articles", icon: FileText },
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/payments", label: "Payments", icon: Receipt },

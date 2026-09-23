@@ -475,6 +475,108 @@ export async function listUsers(
 }
 
 
+export type AdminWebsite = {
+  id: string;
+  domain: string;
+  url: string;
+  status: string;
+  organizationId: string;
+  organizationName: string | null;
+  createdAt: Date;
+  articleCount: number;
+  /** Null when the workspace has never subscribed. */
+  subscriptionStatus: string | null;
+};
+
+/**
+ * Every website on the platform, newest first.
+ *
+ * WHY THIS LIST EXISTS: a website could only be removed by deleting the
+ * workspace that owned it, which is a far larger act - it takes the
+ * customer's account, their other sites, their payment history and their
+ * colleagues with it. An operator asked to remove ONE site (a customer who
+ * added the wrong domain, a typo, a site sold to someone else) had no way to
+ * do it that did not destroy four other things.
+ *
+ * Reads across tenants, so it starts at requireAdmin() like everything else
+ * in this file.
+ */
+export async function listWebsites(
+  search = "",
+  page = 1,
+  filters: { status?: string; added?: string } = {},
+): Promise<Page<AdminWebsite>> {
+  await requireAdmin();
+
+  const conditions = [];
+  if (search) {
+    /*
+      Domain OR workspace name. An operator is given one or the other -
+      "delete example.com" or "clean up Acme's account" - and searching only
+      one of them means half the requests find nothing.
+    */
+    conditions.push(
+      or(
+        ilike(websites.domain, `%${search}%`),
+        ilike(websites.url, `%${search}%`),
+        ilike(organization.name, `%${search}%`),
+      ),
+    );
+  }
+
+  if (filters.status && filters.status !== "all") {
+    conditions.push(eq(websites.status, filters.status));
+  }
+
+  const since = sinceFrom(filters.added);
+  if (since) conditions.push(gte(websites.createdAt, since));
+
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+  /*
+    The join to organization is in the count as well as the page, because the
+    search filters on organization.name - without it the total would count
+    rows the filter excludes and the pager would promise pages that are empty.
+  */
+  const [counted] = await db
+    .select({ n: raw<number>`count(*)::int` })
+    .from(websites)
+    .leftJoin(organization, eq(organization.id, websites.organizationId))
+    .where(where);
+
+  const rows = await db
+    .select({
+      id: websites.id,
+      domain: websites.domain,
+      url: websites.url,
+      status: websites.status,
+      organizationId: websites.organizationId,
+      organizationName: organization.name,
+      createdAt: websites.createdAt,
+      /*
+        Counted per row rather than joined and grouped: a join to articles
+        would multiply the website rows and need a GROUP BY across every
+        selected column, which is slower to read and no faster to run at this
+        size.
+      */
+      articleCount: raw<number>`(select count(*) from articles a where a.website_id = ${websites.id})::int`,
+      subscriptionStatus: subscriptions.status,
+    })
+    .from(websites)
+    .leftJoin(organization, eq(organization.id, websites.organizationId))
+    .leftJoin(
+      subscriptions,
+      eq(subscriptions.organizationId, websites.organizationId),
+    )
+    .where(where)
+    .orderBy(desc(websites.createdAt))
+    .limit(ADMIN_PAGE_SIZE)
+    .offset((page - 1) * ADMIN_PAGE_SIZE);
+
+  return { rows, total: counted?.n ?? 0, page, pageSize: ADMIN_PAGE_SIZE };
+}
+
+
 export type AdminPayment = {
   id: string;
   organizationId: string;

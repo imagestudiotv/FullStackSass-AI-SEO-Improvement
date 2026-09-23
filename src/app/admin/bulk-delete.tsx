@@ -20,6 +20,7 @@ import { Label } from "@/components/ui/label";
 import {
   deleteManyOrganizations,
   deleteManyUsers,
+  deleteManyWebsites,
 } from "@/lib/admin/operations";
 
 /**
@@ -101,7 +102,7 @@ export function BulkDeleteBar({
   kind,
 }: {
   /** Which table this is, so the wording and the action match. */
-  kind: "organizations" | "users";
+  kind: "organizations" | "users" | "websites";
 }) {
   const router = useRouter();
   const { selected, clear } = useSelection();
@@ -116,7 +117,9 @@ export function BulkDeleteBar({
   const noun =
     kind === "organizations"
       ? `workspace${count === 1 ? "" : "s"}`
-      : `account${count === 1 ? "" : "s"}`;
+      : kind === "websites"
+        ? `website${count === 1 ? "" : "s"}`
+        : `account${count === 1 ? "" : "s"}`;
 
   function submit() {
     const ids = [...selected];
@@ -124,7 +127,9 @@ export function BulkDeleteBar({
       const result =
         kind === "organizations"
           ? await deleteManyOrganizations(ids, reason, confirm)
-          : await deleteManyUsers(ids, reason, confirm);
+          : kind === "websites"
+            ? await deleteManyWebsites(ids, reason, confirm)
+            : await deleteManyUsers(ids, reason, confirm);
 
       if (!result.ok) {
         toast.error(result.error);
@@ -185,16 +190,18 @@ export function BulkDeleteBar({
             <DialogDescription>
               {kind === "organizations"
                 ? "Each workspace is removed with everything in it — websites, articles, keywords, credits and payment history. This cannot be undone."
-                : "Each account is removed with its sessions and sign-in methods. Their workspaces are not deleted. This cannot be undone."}
+                : kind === "websites"
+                  ? "Each website is removed with its articles, keywords and connections. The workspace that owns it, its members and its payment history are kept. This cannot be undone."
+                  : "Each account is removed with its sessions and sign-in methods. Their workspaces are not deleted. This cannot be undone."}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
             <ul className="space-y-1 rounded-xl border bg-muted/40 p-3 text-xs text-muted-foreground">
               <li>
-                Anything that cannot be deleted safely is skipped and reported
-                — a workspace still being billed by Stripe, or your own
-                account.
+                {kind === "websites"
+                  ? "Anything that cannot be deleted safely is skipped and reported — a website still being billed by Stripe."
+                  : "Anything that cannot be deleted safely is skipped and reported — a workspace still being billed by Stripe, or your own account."}
               </li>
               <li>Every deletion is recorded separately in the admin log.</li>
             </ul>

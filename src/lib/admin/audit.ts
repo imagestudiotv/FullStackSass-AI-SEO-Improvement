@@ -26,7 +26,8 @@ export type AdminAction =
   | "article.updated"
   | "article.deleted"
   | "user.deleted"
-  | "organization.deleted";
+  | "organization.deleted"
+  | "website.deleted";
 
 export type AuditEntry = {
   actorEmail: string;
