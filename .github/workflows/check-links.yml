@@ -1,0 +1,41 @@
+# Are the documentation links we send customers to still alive?
+#
+# These point at other companies' docs, which move without telling us. Three
+# of the five publishing providers were dead at once — including WordPress's,
+# the single link on the connect form — and nothing surfaced it until a
+# customer hit it. That is the failure this catches.
+#
+# Weekly rather than per-push, because nothing in a commit breaks these: the
+# other end does, on its own schedule. Running it on every push would spend CI
+# minutes re-confirming links that were fine an hour ago, and train people to
+# ignore a check that is almost always green for reasons unrelated to their
+# change.
+#
+# workflow_dispatch so it can be run by hand right after editing a help URL,
+# without waiting for Monday.
+name: Check documentation links
+
+on:
+  schedule:
+    # Mondays, 08:00 UTC — a weekday morning, so a failure is seen and fixed
+    # rather than sitting over a weekend.
+    - cron: "0 8 * * 1"
+  workflow_dispatch:
+
+jobs:
+  links:
+    runs-on: ubuntu-latest
+    # A hung documentation host must not hold a runner for six hours.
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # No npm install: the checker uses only node: builtins and global fetch,
+      # so the dependency tree is irrelevant to it and skipping the install
+      # keeps the run to a few seconds.
+      - name: Check links
+        run: npm run check:links
