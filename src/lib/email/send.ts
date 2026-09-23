@@ -108,9 +108,21 @@ export async function sendEmail(options: {
         short one is returned — the raw text names our sending domain and
         account, which is not a customer's business.
       */
+      /*
+        Fields read off the error rather than the object itself.
+
+        Resend's error is a class instance whose own properties are not
+        enumerable, so logging it whole printed "[email] send refused {}" —
+        every refusal looked identical and none said why. The message is the
+        part that matters: "You can only send testing emails to your own
+        email address" and "domain is not verified" are different problems
+        with different fixes, and neither was visible.
+      */
       console.error("[email] send refused", {
         subject: options.subject,
-        error,
+        to: options.to,
+        name: error.name,
+        message: error.message,
       });
       return { ok: false, error: error.message };
     }

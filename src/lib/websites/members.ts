@@ -333,9 +333,19 @@ export async function addWebsiteMember(
     in place so re-sending reuses the slot, and the error says what happened.
   */
   if (!sent.ok) {
+    /*
+      The provider's own reason, not "check the email settings".
+
+      That sentence told an administrator nothing they could act on, and the
+      real cause is usually specific and fixable — the commonest being
+      Resend's sandbox rule, which only delivers to the account owner's
+      address until a domain is verified. Naming it turns a dead end into an
+      instruction. The message is written for whoever runs the deployment,
+      which is who sees this screen.
+    */
     return {
       ok: false,
-      error: `Could not email ${cleaned}. The invitation was not sent - try again, or check the email settings.`,
+      error: `Could not email ${cleaned}: ${sent.error}`,
     };
   }
 
@@ -413,7 +423,11 @@ export async function resendWebsiteInvitation(
   });
 
   if (!sent.ok) {
-    return { ok: false, error: `Could not email ${invitation.email}.` };
+    // Same reasoning as the first send: name the cause, not the category.
+    return {
+      ok: false,
+      error: `Could not email ${invitation.email}: ${sent.error}`,
+    };
   }
 
   revalidatePath(`/websites/${websiteId}/settings`);
