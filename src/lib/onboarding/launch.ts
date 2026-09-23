@@ -317,7 +317,19 @@ export const getLaunchState = cache(async function getLaunchState(
         "Tone, words to avoid, and the standing rules every article should follow.",
       done: voice.length > 0,
       optional: false,
-      href: `${base}/profile`,
+      /*
+        /publishing — the Article Settings tab — not /profile.
+
+        This pointed at /profile, which is the Business tab and belongs to the
+        step ABOVE it. Analysis fills that one in automatically, so clicking
+        "Configure your article preferences" landed the customer on a form
+        that was already complete, with nothing on the page relating to tone
+        or standing rules. Filling it in changed nothing, the step stayed
+        open, and the checklist looked broken when it was only pointing at
+        the wrong page. ArticleSettingsForm — the form that actually writes
+        the brand_voice row this step reads — lives here.
+      */
+      href: `${base}/publishing`,
       icon: "settings",
     },
     {
