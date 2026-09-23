@@ -452,11 +452,38 @@ export const researchKeywords = inngest.createFunction(
     });
 
     const grouped = await step.run("cluster", async () => {
+      /**
+       * EVERY keyword on the website, not only the ones this run found.
+       *
+       * Clustering used to read `stored`, which is this run's output alone.
+       * Terms the customer typed themselves therefore never reached it: they
+       * sat in the table, outside every cluster, and so outside the content
+       * plan that is built from the clusters — which is the one thing adding
+       * them was supposed to achieve.
+       *
+       * Reading the table instead means a manual term is clustered like any
+       * other. It has no volume or score of its own, which is fine: the model
+       * groups on meaning, and the metrics only order what it returns.
+       */
+      const all = await db
+        .select({
+          term: keywords.term,
+          volume: keywords.volume,
+          priorityScore: keywords.priorityScore,
+        })
+        .from(keywords)
+        .where(eq(keywords.websiteId, websiteId));
+
+      /*
+        A manually added term has no priority score — nothing measured it.
+        Zero rather than null so it still clusters: the score only orders the
+        list shown to the model, and excluding these would put us back where
+        we started.
+      */
       const result = await clusterKeywords(
-        stored.map((keyword) => ({
-          term: keyword.term,
-          volume: keyword.volume,
-          priorityScore: keyword.priorityScore,
+        all.map((keyword) => ({
+          ...keyword,
+          priorityScore: keyword.priorityScore ?? 0,
         })),
       );
 
@@ -474,7 +501,8 @@ export const researchKeywords = inngest.createFunction(
         {
           step: "cluster",
           websiteId,
-          inputKeywords: stored.length,
+          // Everything on the site, including manually added terms.
+          inputKeywords: all.length,
           clusterCount: result.length,
           model: MODELS.GENERATION,
           names: result.slice(0, 8).map((c) => c.name),

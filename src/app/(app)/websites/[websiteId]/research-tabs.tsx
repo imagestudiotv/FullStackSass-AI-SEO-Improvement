@@ -4,6 +4,7 @@ import {
   CalendarDays,
   FileText,
   Loader2,
+  Plus,
   Search,
   Sparkles,
   Trash2,
@@ -18,6 +19,7 @@ import { toast } from "sonner";
 import { ContentCalendar } from "./content-calendar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Card,
   CardContent,
@@ -35,6 +37,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  addKeywords,
   deleteKeyword,
   startResearch,
   type CalendarRow,
@@ -114,6 +117,8 @@ export function ResearchTabs({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
+  /** The add-keywords field. */
+  const [newKeywords, setNewKeywords] = useState("");
 
   function handleResearch() {
     startTransition(async () => {
@@ -123,6 +128,39 @@ export function ResearchTabs({
         return;
       }
       toast.success(t.researching);
+      router.refresh();
+    });
+  }
+
+  /**
+   * Adds the keywords somebody typed.
+   *
+   * The field is cleared only on success: a failed submission that also wipes
+   * what was typed makes the customer retype a list they may have pasted from
+   * somewhere else.
+   */
+  function handleAddKeywords(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!newKeywords.trim()) return;
+
+    startTransition(async () => {
+      const result = await addKeywords(websiteId, newKeywords);
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+
+      setNewKeywords("");
+      /*
+        Both numbers, because "8 added" on a list of ten reads as a bug
+        unless the other two are accounted for. Skipped covers duplicates and
+        terms that did not fit the plan's allowance.
+      */
+      toast.success(
+        result.data.skipped > 0
+          ? `Added ${result.data.added}. Skipped ${result.data.skipped} already tracked or over your plan.`
+          : `Added ${result.data.added}.`,
+      );
       router.refresh();
     });
   }
@@ -333,6 +371,45 @@ export function ResearchTabs({
             <CardDescription>{t.keywordsHelp}</CardDescription>
           </CardHeader>
           <CardContent>
+            {/*
+              Add your own terms.
+
+              Research is good at the obvious phrases and blind to the ones a
+              business knows from its own customers — and what it finds caps
+              everything downstream, because the topics are built from the
+              keywords and the content plan is built from the topics. A niche
+              business whose research returned thirty terms got a plan far
+              smaller than the one they pay for, with no way to say so.
+
+              Above the table rather than below it: on a long list the control
+              would otherwise be off-screen at the moment someone reads a term
+              and thinks of one we missed.
+            */}
+            <form onSubmit={handleAddKeywords} className="mb-4 flex gap-2">
+              <Input
+                value={newKeywords}
+                onChange={(event) => setNewKeywords(event.target.value)}
+                placeholder={t.addKeywordsPlaceholder}
+                aria-label={t.addKeywordsLabel}
+                disabled={pending}
+              />
+              <Button
+                type="submit"
+                variant="outline"
+                disabled={pending || !newKeywords.trim()}
+              >
+                {pending ? (
+                  <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                ) : (
+                  <Plus className="size-4" aria-hidden="true" />
+                )}
+                {t.addKeywordsButton}
+              </Button>
+            </form>
+            <p className="mb-4 text-xs text-muted-foreground">
+              {t.addKeywordsHelp}
+            </p>
+
             <Table minWidth="34rem">
               <TableHeader>
                 <TableRow>

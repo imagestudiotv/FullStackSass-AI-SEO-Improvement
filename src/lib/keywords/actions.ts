@@ -10,6 +10,7 @@ import { requireWebsite } from "@/lib/tenant";
 import { requireEditor } from "@/lib/websites/require-editor";
 import { withinRateLimit } from "@/lib/billing/rate-limit";
 import { checkLimit } from "@/lib/usage";
+import { UNLIMITED } from "@/lib/usage-shared";
 import type { ActionResult } from "@/lib/websites/actions";
 
 /**
@@ -217,6 +218,133 @@ export async function deleteCalendarItem(
 
   revalidatePath(`/websites/${site.id}`);
   return { ok: true, data: null };
+}
+
+/** How many terms one submission may add. */
+const MAX_PER_SUBMISSION = 50;
+
+/** Longest a single keyword may be. */
+const MAX_TERM_LENGTH = 120;
+
+/**
+ * Adds keywords the customer typed themselves.
+ *
+ * WHY THIS EXISTS: research is the only way terms got into the table, and
+ * what it finds is the ceiling on everything downstream — the clusters are
+ * built from the keywords, and the content calendar is built from the
+ * clusters. A niche business whose research returned thirty terms therefore
+ * got a calendar far smaller than the plan it bought, with no way to say "you
+ * have missed the phrase my customers actually search for".
+ *
+ * The owner usually knows those phrases. This lets them say so.
+ *
+ * Added terms carry no volume, difficulty or CPC: those come from the SEO
+ * provider, and inventing them would put numbers on screen that nothing
+ * measured. They are left null and the table shows a dash, which is honest
+ * and still lets the term reach clustering — which reads the text, not the
+ * metrics.
+ *
+ * `source: "manual"` distinguishes them from "ai_seed" for support, and
+ * because re-running research must not silently delete work somebody typed.
+ */
+export async function addKeywords(
+  websiteId: string,
+  /** One per line, or comma-separated — people paste both. */
+  input: string,
+): Promise<ActionResult<{ added: number; skipped: number }>> {
+  const guard = await requireEditor(websiteId);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { site } = guard.context;
+
+  /*
+    Split on newlines AND commas: a customer pasting from a spreadsheet gets
+    one per line, one pasting from a sentence gets commas, and neither should
+    have to reformat. Lowercased so "Wedding Videographer" and "wedding
+    videographer" cannot both be stored — the unique index is case-sensitive
+    and would happily take both.
+  */
+  const terms = Array.from(
+    new Set(
+      input
+        .split(/[\n,]/)
+        .map((term) => term.trim().toLowerCase().replace(/\s+/g, " "))
+        .filter((term) => term.length > 0 && term.length <= MAX_TERM_LENGTH),
+    ),
+  );
+
+  if (terms.length === 0) {
+    return { ok: false, error: "Type at least one keyword" };
+  }
+  if (terms.length > MAX_PER_SUBMISSION) {
+    return {
+      ok: false,
+      error: `Add up to ${MAX_PER_SUBMISSION} keywords at a time. You pasted ${terms.length}.`,
+    };
+  }
+
+  /**
+   * The plan's keyword allowance, counted the same way research counts it.
+   *
+   * Typing is a way into the same table, so it has to respect the same cap —
+   * otherwise the limit only applies to the path that happens to be
+   * automated, and a plan's headline number means nothing.
+   */
+  const limit = await checkLimit(site.id, "keywords");
+  if (
+    limit.reason === "no_active_plan" ||
+    limit.reason === "subscription_inactive"
+  ) {
+    return {
+      ok: false,
+      error: "Choose a plan for this website before adding keywords",
+    };
+  }
+
+  const room =
+    limit.limit === UNLIMITED
+      ? terms.length
+      : Math.max(limit.limit - limit.used, 0);
+
+  if (room === 0) {
+    return {
+      ok: false,
+      error: `Your plan tracks ${limit.limit} keywords and you are using all of them. Remove some first.`,
+    };
+  }
+
+  const accepted = terms.slice(0, room);
+
+  /**
+   * onConflictDoNothing, not an error.
+   *
+   * Research and the customer will name the same obvious phrases, and a
+   * submission of ten terms where two already exist should add the eight —
+   * not fail and make them work out which two. The count returned below says
+   * what actually happened.
+   */
+  const inserted = await db
+    .insert(keywords)
+    .values(
+      accepted.map((term) => ({
+        websiteId: site.id,
+        term,
+        source: "manual",
+      })),
+    )
+    .onConflictDoNothing({
+      target: [keywords.websiteId, keywords.term],
+    })
+    .returning({ id: keywords.id });
+
+  revalidatePath(`/websites/${site.id}`);
+  return {
+    ok: true,
+    data: {
+      added: inserted.length,
+      // Already present, over the plan's cap, or trimmed as duplicates.
+      skipped: terms.length - inserted.length,
+    },
+  };
 }
 
 export async function deleteKeyword(
