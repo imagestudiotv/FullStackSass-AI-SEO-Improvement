@@ -32,12 +32,15 @@ export function ReferralCard({
   rewardCredits,
   appUrl,
   t,
+  tCommon,
 }: {
   summary: ReferralSummary;
   rewardCredits: number;
   appUrl: string;
   /** This screen's copy, already in the reader's language. */
   t: Messages["app"]["referral"];
+  /** Shared words: the credits explainer. */
+  tCommon: Messages["app"]["common"];
 }) {
   const [copied, setCopied] = useState(false);
   const link = `${appUrl}/r/${summary.code}`;
@@ -149,11 +152,8 @@ export function ReferralCard({
           part people most often assume otherwise.
         */}
         <p className="text-xs text-muted-foreground">
-          Credits are added to your account and can be spent on link building.
-          They are not cash and cannot be withdrawn. A referral counts once the
-          person you referred pays for their first month, and each person can
-          be referred once.
-        </p>
+          {tCommon.creditsExplainer}
+          </p>
       </CardContent>
     </Card>
   );

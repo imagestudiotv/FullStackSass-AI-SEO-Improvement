@@ -69,9 +69,8 @@ export function RefreshPanel({
           {t.losingTraffic}
         </CardTitle>
         <CardDescription>
-          Pages getting fewer clicks than they did a month ago, from your Search
-          Console data.
-        </CardDescription>
+          {t.losingTrafficIntro}
+          </CardDescription>
       </CardHeader>
 
       <CardContent className="space-y-4">

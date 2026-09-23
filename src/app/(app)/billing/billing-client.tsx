@@ -663,9 +663,8 @@ export function BillingClient({
 
       {paypalAvailable ? (
         <p className="text-center text-xs text-muted-foreground">
-          Promo codes can be entered at card checkout. PayPal does not support
-          discount codes.
-        </p>
+          {tCommon.promoCodesHelp}
+          </p>
       ) : null}
 
       {visible.length === 0 ? (

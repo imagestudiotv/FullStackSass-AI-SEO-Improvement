@@ -322,9 +322,8 @@ export function BacklinksPanel({
 
             {status.available < 1 && !showRequest ? (
               <p className="text-sm text-muted-foreground">
-                No credits left. Include a link for someone else to earn one, or
-                wait for next month&apos;s allowance.
-              </p>
+                {tCommon.noCreditsLeft}
+                </p>
             ) : null}
 
             {requests.length === 0 ? (

@@ -73,9 +73,8 @@ export function CompetitorsCard({
       <div className="border-b px-4 py-3">
         <p className="font-medium">{t.competitors}</p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Who else shows up when buyers search your space. We use these to find
-          content gaps and the terms worth going after.
-        </p>
+          {t.competitorsHelp}
+          </p>
       </div>
 
       <div className="p-4">
@@ -91,9 +90,8 @@ export function CompetitorsCard({
             result, and points at the one thing the customer can do about it.
           */
           <p className="text-sm text-muted-foreground">
-            We did not find any from your site. Add the rivals you know of and
-            we will use them to find content gaps.
-          </p>
+            {t.noCompetitorsFound}
+            </p>
         ) : (
           <div className="grid gap-2 sm:grid-cols-2">
             {rivals.map((rival) => (

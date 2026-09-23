@@ -395,9 +395,8 @@ export function ContentCalendar({
         */}
         {inProgress ? (
           <p className="mt-1.5 rounded-md bg-muted/60 px-2 py-1.5 text-[0.65rem] leading-snug text-muted-foreground">
-            This article can no longer be rescheduled or edited as it is in
-            progress.
-          </p>
+            {tCommon.articleInProgress}
+            </p>
         ) : null}
 
         {/*

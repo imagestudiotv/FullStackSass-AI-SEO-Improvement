@@ -884,6 +884,21 @@ export type Messages = {
       critical: string;
       suggestion: string;
       warning: string;
+      auditIntro: string;
+      losingTrafficIntro: string;
+      noCompetitorsFound: string;
+      competitorsHelp: string;
+      connectWebsiteFirst: string;
+      generationHelp: string;
+      altHelp: string;
+      featuredImageHelp: string;
+      factsOnePerLine: string;
+      voiceBehindArticles: string;
+      creditsExplainer: string;
+      articleInProgress: string;
+      researchIntro: string;
+      noCreditsLeft: string;
+      promoCodesHelp: string;
       write: string;
       writingAndPublishing: string;
       featuredImage: string;
@@ -2164,6 +2179,21 @@ const en: Messages = {
       critical: "Critical",
       suggestion: "Suggestion",
       warning: "Warning",
+      auditIntro: "We check your pages and list what is holding your website back on Google, with the exact page each problem is on.",
+      losingTrafficIntro: "Pages getting fewer clicks than they did a month ago, from your Search Console data.",
+      noCompetitorsFound: "We did not find any from your site. Add the rivals you know of and we will use them to find content gaps.",
+      competitorsHelp: "Who else shows up when buyers search your space. We use these to find content gaps and the terms worth going after.",
+      connectWebsiteFirst: "Connect a website below first. Until then articles stay as drafts.",
+      generationHelp: "How your articles get written, and what happens to them when they are ready.",
+      altHelp: "Read aloud to people using a screen reader, and by search engines.",
+      featuredImageHelp: "The picture at the top of the article, and the one shown when it is shared.",
+      factsOnePerLine: "One per line. These are the only specifics we will state outright about your business — everything else stays general.",
+      voiceBehindArticles: "The voice behind every article. Merged in from its own panel, so one Save covers the whole screen.",
+      creditsExplainer: "Credits are added to your account and can be spent on link building. They are not cash and cannot be withdrawn. A referral counts once the person you referred pays for their first month, and each person can be referred once.",
+      articleInProgress: "This article can no longer be rescheduled or edited as it is in progress.",
+      researchIntro: "We will find the search terms your customers use, group them into topics, and turn those into a plan of articles to publish.",
+      noCreditsLeft: "No credits left. Include a link for someone else to earn one, or wait for next month\u2019s allowance.",
+      promoCodesHelp: "Promo codes can be entered at card checkout. PayPal does not support discount codes.",
       write: "Write",
       writingAndPublishing: "Writing and publishing",
       featuredImage: "Featured image",
@@ -3454,6 +3484,21 @@ const es: Messages = {
       critical: "Crítico",
       suggestion: "Sugerencia",
       warning: "Advertencia",
+      auditIntro: "Revisamos sus páginas y enumeramos qué frena su sitio web en Google, indicando la página exacta de cada problema.",
+      losingTrafficIntro: "Páginas que reciben menos clics que hace un mes, según sus datos de Search Console.",
+      noCompetitorsFound: "No encontramos ninguno en su sitio. Añada los rivales que conozca y los usaremos para detectar huecos de contenido.",
+      competitorsHelp: "Quién más aparece cuando los compradores buscan en su sector. Los usamos para encontrar huecos de contenido y los términos que merecen la pena.",
+      connectWebsiteFirst: "Conecte primero un sitio web abajo. Hasta entonces los artículos quedan como borradores.",
+      generationHelp: "Cómo se escriben sus artículos y qué ocurre con ellos cuando están listos.",
+      altHelp: "Se lee en voz alta a quienes usan lector de pantalla, y la leen los buscadores.",
+      featuredImageHelp: "La imagen de la parte superior del artículo, y la que se muestra al compartirlo.",
+      factsOnePerLine: "Uno por línea. Son los únicos datos concretos que afirmaremos sobre su negocio; todo lo demás queda general.",
+      voiceBehindArticles: "La voz detrás de cada artículo. Integrada desde su propio panel, así que un solo Guardar cubre toda la pantalla.",
+      creditsExplainer: "Los créditos se añaden a su cuenta y pueden gastarse en construcción de enlaces. No son dinero y no se pueden retirar. Una recomendación cuenta cuando la persona recomendada paga su primer mes, y cada persona puede ser recomendada una sola vez.",
+      articleInProgress: "Este artículo ya no se puede reprogramar ni editar porque está en curso.",
+      researchIntro: "Encontraremos los términos que usan sus clientes, los agruparemos por temas y los convertiremos en un plan de artículos que publicar.",
+      noCreditsLeft: "No le quedan créditos. Incluya un enlace para que alguien gane uno, o espere a la asignación del mes que viene.",
+      promoCodesHelp: "Los códigos promocionales se introducen al pagar con tarjeta. PayPal no admite códigos de descuento.",
       write: "Escribir",
       writingAndPublishing: "Redacción y publicación",
       featuredImage: "Imagen destacada",
@@ -4747,6 +4792,21 @@ const fr: Messages = {
       critical: "Critique",
       suggestion: "Suggestion",
       warning: "Avertissement",
+      auditIntro: "Nous examinons vos pages et listons ce qui freine votre site sur Google, en indiquant la page exacte de chaque problème.",
+      losingTrafficIntro: "Pages recevant moins de clics qu\u2019il y a un mois, d\u2019après vos données Search Console.",
+      noCompetitorsFound: "Nous n\u2019en avons trouvé aucun depuis votre site. Ajoutez les concurrents que vous connaissez et nous les utiliserons pour repérer les manques de contenu.",
+      competitorsHelp: "Qui d\u2019autre apparaît quand les acheteurs cherchent dans votre domaine. Nous les utilisons pour repérer les manques de contenu et les termes qui valent la peine.",
+      connectWebsiteFirst: "Connectez d\u2019abord un site ci-dessous. En attendant, les articles restent en brouillon.",
+      generationHelp: "Comment vos articles sont rédigés, et ce qu\u2019ils deviennent une fois prêts.",
+      altHelp: "Lu à voix haute aux personnes utilisant un lecteur d\u2019écran, et lu par les moteurs de recherche.",
+      featuredImageHelp: "L\u2019image en haut de l\u2019article, et celle affichée lors d\u2019un partage.",
+      factsOnePerLine: "Un par ligne. Ce sont les seuls éléments précis que nous affirmerons sur votre entreprise ; tout le reste reste général.",
+      voiceBehindArticles: "La voix derrière chaque article. Intégrée depuis son propre panneau, un seul Enregistrer couvre tout l\u2019écran.",
+      creditsExplainer: "Les crédits sont ajoutés à votre compte et peuvent servir à la création de liens. Ce n\u2019est pas de l\u2019argent et ils ne peuvent pas être retirés. Un parrainage compte dès que la personne parrainée paie son premier mois, et chaque personne ne peut être parrainée qu\u2019une fois.",
+      articleInProgress: "Cet article ne peut plus être replanifié ni modifié car il est en cours.",
+      researchIntro: "Nous trouverons les termes que vos clients utilisent, les regrouperons par sujets et en ferons un plan d\u2019articles à publier.",
+      noCreditsLeft: "Plus de crédits. Incluez un lien pour que quelqu\u2019un en gagne un, ou attendez l\u2019allocation du mois prochain.",
+      promoCodesHelp: "Les codes promo se saisissent au paiement par carte. PayPal n\u2019accepte pas les codes de réduction.",
       write: "Rédiger",
       writingAndPublishing: "Rédaction et publication",
       featuredImage: "Image à la une",
@@ -6033,6 +6093,21 @@ const it: Messages = {
       critical: "Critico",
       suggestion: "Suggerimento",
       warning: "Avviso",
+      auditIntro: "Controlliamo le sue pagine ed elenchiamo che cosa frena il suo sito su Google, indicando la pagina esatta di ogni problema.",
+      losingTrafficIntro: "Pagine che ricevono meno clic rispetto a un mese fa, secondo i suoi dati di Search Console.",
+      noCompetitorsFound: "Non ne abbiamo trovato nessuno dal suo sito. Aggiunga i concorrenti che conosce e li useremo per individuare lacune nei contenuti.",
+      competitorsHelp: "Chi altro compare quando gli acquirenti cercano nel suo settore. Li usiamo per trovare lacune nei contenuti e i termini che vale la pena presidiare.",
+      connectWebsiteFirst: "Colleghi prima un sito qui sotto. Fino ad allora gli articoli restano bozze.",
+      generationHelp: "Come vengono scritti i suoi articoli e che cosa ne succede quando sono pronti.",
+      altHelp: "Viene letta ad alta voce a chi usa uno screen reader, e dai motori di ricerca.",
+      featuredImageHelp: "L\u2019immagine in cima all\u2019articolo, e quella mostrata quando viene condiviso.",
+      factsOnePerLine: "Uno per riga. Sono gli unici dati precisi che affermeremo sulla sua attività; tutto il resto resta generico.",
+      voiceBehindArticles: "La voce dietro ogni articolo. Integrata dal suo pannello, così un solo Salva copre tutta la schermata.",
+      creditsExplainer: "I crediti vengono aggiunti al suo account e possono essere spesi per la creazione di link. Non sono denaro e non sono prelevabili. Un invito conta quando la persona invitata paga il primo mese, e ogni persona può essere invitata una sola volta.",
+      articleInProgress: "Questo articolo non può più essere riprogrammato né modificato perché è in lavorazione.",
+      researchIntro: "Troveremo i termini che usano i suoi clienti, li raggrupperemo per argomenti e ne faremo un piano di articoli da pubblicare.",
+      noCreditsLeft: "Crediti esauriti. Includa un link perché qualcun altro ne guadagni uno, oppure attenda la quota del mese prossimo.",
+      promoCodesHelp: "I codici promozionali si inseriscono al pagamento con carta. PayPal non supporta i codici sconto.",
       write: "Scrivi",
       writingAndPublishing: "Scrittura e pubblicazione",
       featuredImage: "Immagine in evidenza",
@@ -7326,6 +7401,21 @@ const de: Messages = {
       critical: "Kritisch",
       suggestion: "Vorschlag",
       warning: "Warnung",
+      auditIntro: "Wir prüfen Ihre Seiten und listen auf, was Ihre Website bei Google bremst — mit der genauen Seite zu jedem Problem.",
+      losingTrafficIntro: "Seiten mit weniger Klicks als vor einem Monat, laut Ihren Search-Console-Daten.",
+      noCompetitorsFound: "Wir haben auf Ihrer Website keine gefunden. Fügen Sie die Wettbewerber hinzu, die Sie kennen, und wir finden damit Inhaltslücken.",
+      competitorsHelp: "Wer sonst auftaucht, wenn Käufer in Ihrem Bereich suchen. Wir nutzen das, um Inhaltslücken und lohnende Suchbegriffe zu finden.",
+      connectWebsiteFirst: "Verbinden Sie zuerst unten eine Website. Bis dahin bleiben Artikel Entwürfe.",
+      generationHelp: "Wie Ihre Artikel geschrieben werden und was mit ihnen geschieht, wenn sie fertig sind.",
+      altHelp: "Wird Menschen mit Screenreader vorgelesen und von Suchmaschinen gelesen.",
+      featuredImageHelp: "Das Bild oben im Artikel und das Bild, das beim Teilen erscheint.",
+      factsOnePerLine: "Eines pro Zeile. Nur diese Angaben nennen wir ausdrücklich über Ihr Unternehmen; alles andere bleibt allgemein.",
+      voiceBehindArticles: "Die Stimme hinter jedem Artikel. Aus dem eigenen Bereich übernommen, sodass ein Speichern den ganzen Bildschirm abdeckt.",
+      creditsExplainer: "Credits werden Ihrem Konto gutgeschrieben und können für Linkaufbau eingesetzt werden. Sie sind kein Bargeld und nicht auszahlbar. Eine Empfehlung zählt, sobald die empfohlene Person ihren ersten Monat bezahlt, und jede Person kann nur einmal empfohlen werden.",
+      articleInProgress: "Dieser Artikel kann nicht mehr umgeplant oder bearbeitet werden, da er gerade erstellt wird.",
+      researchIntro: "Wir finden die Suchbegriffe Ihrer Kunden, gruppieren sie nach Themen und machen daraus einen Plan für Artikel zum Veröffentlichen.",
+      noCreditsLeft: "Keine Credits mehr. Nehmen Sie einen Link auf, damit jemand anderes einen verdient, oder warten Sie auf das Kontingent des nächsten Monats.",
+      promoCodesHelp: "Gutscheincodes können beim Kartenzahlvorgang eingegeben werden. PayPal unterstützt keine Rabattcodes.",
       write: "Schreiben",
       writingAndPublishing: "Schreiben und Veröffentlichen",
       featuredImage: "Beitragsbild",

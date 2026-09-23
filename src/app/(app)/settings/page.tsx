@@ -147,6 +147,7 @@ export default async function SettingsPage() {
         rewardCredits={REFERRAL_REWARD_CREDITS}
         appUrl={appUrl}
         t={t.app.referral}
+        tCommon={t.app.common}
       />
     </PageShell>
   );

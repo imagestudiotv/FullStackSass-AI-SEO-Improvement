@@ -131,9 +131,8 @@ export function FeaturedImage({
           ) : null}
         </CardTitle>
         <CardDescription>
-          The picture at the top of the article, and the one shown when it is
-          shared.
-        </CardDescription>
+          {tCommon.featuredImageHelp}
+          </CardDescription>
       </CardHeader>
 
       <CardContent className="space-y-4">
@@ -174,9 +173,8 @@ export function FeaturedImage({
               placeholder={t.altPlaceholder}
             />
             <p className="text-xs text-muted-foreground">
-              Read aloud to people using a screen reader, and by search
-              engines.
-            </p>
+              {tCommon.altHelp}
+              </p>
           </div>
         ) : null}
 

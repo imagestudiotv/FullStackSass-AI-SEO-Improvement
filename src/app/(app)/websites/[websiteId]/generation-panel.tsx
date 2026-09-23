@@ -187,9 +187,8 @@ export function GenerationPanel({
           ) : null}
         </CardTitle>
         <CardDescription>
-          How your articles get written, and what happens to them when they are
-          ready.
-        </CardDescription>
+          {t.generationHelp}
+          </CardDescription>
       </CardHeader>
 
       <CardContent className="space-y-5">
@@ -255,9 +254,8 @@ export function GenerationPanel({
             </p>
             {publish && !hasIntegration ? (
               <p className="text-sm text-muted-foreground">
-                Connect a website below first. Until then articles stay as
-                drafts.
-              </p>
+                {t.connectWebsiteFirst}
+                </p>
             ) : null}
           </div>
           <Toggle

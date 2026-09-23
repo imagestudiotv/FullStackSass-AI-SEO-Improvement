@@ -446,9 +446,8 @@ export function ArticleSettingsForm({
         <div>
           <h2 className="text-base font-semibold">{t.howWeWrite}</h2>
           <p className="text-sm text-muted-foreground">
-            The voice behind every article. Merged in from its own panel, so
-            one Save covers the whole screen.
-          </p>
+            {tCommon.voiceBehindArticles}
+            </p>
         </div>
 
         <div className="space-y-1.5">
@@ -491,9 +490,8 @@ export function ArticleSettingsForm({
             them.
           */}
           <p className="text-xs text-muted-foreground">
-            One per line. These are the only specifics we will state outright
-            about your business — everything else stays general.
-          </p>
+            {tCommon.factsOnePerLine}
+            </p>
         </div>
 
         <div className="space-y-1.5">

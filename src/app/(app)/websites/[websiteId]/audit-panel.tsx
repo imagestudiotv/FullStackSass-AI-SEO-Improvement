@@ -112,9 +112,8 @@ export function AuditPanel({
             {t.websiteHealth}
           </CardTitle>
           <CardDescription>
-            We check your pages and list what is holding your website back on
-            Google, with the exact page each problem is on.
-          </CardDescription>
+            {t.auditIntro}
+            </CardDescription>
         </CardHeader>
         <CardContent>
           <Button onClick={handleAudit} disabled={pending}>

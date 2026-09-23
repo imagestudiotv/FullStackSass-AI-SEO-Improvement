@@ -171,9 +171,8 @@ export function ResearchTabs({
             {tCommon.noOpportunities}
           </CardTitle>
           <CardDescription>
-            We will find the search terms your customers use, group them into
-            topics, and turn those into a plan of articles to publish.
-          </CardDescription>
+            {tCommon.researchIntro}
+            </CardDescription>
         </CardHeader>
         <CardContent>
           <Button onClick={handleResearch} disabled={pending || researching}>
