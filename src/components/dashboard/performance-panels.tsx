@@ -174,7 +174,7 @@ export function SearchPerformancePanel({
                     {t.averagePosition}
                   </dt>
                   <dd className="mt-1 text-xl font-semibold tabular-nums">
-                    {performance.position || "—"}
+                    {performance.position || "-"}
                   </dd>
                 </div>
               </dl>
@@ -283,7 +283,7 @@ export function AchievementsPanel({
               {t.siteHealth}
             </dt>
             <dd className="mt-1 text-xl font-semibold tabular-nums">
-              {authority ?? "—"}
+              {authority ?? "-"}
             </dd>
             <p className="text-xs text-muted-foreground">
               {t.siteHealthHelp}

@@ -104,7 +104,7 @@ export const verifyBacklinks = inngest.createFunction(
       */
       logger.info(
         { step: "select-placements", placementCount: 0 },
-        "No placements due for re-check — nothing to verify",
+        "No placements due for re-check - nothing to verify",
       );
       return { checked: 0, removed: 0 };
     }
@@ -275,7 +275,7 @@ export const verifyBacklinks = inngest.createFunction(
                 hostWebsiteId: placement.hostWebsiteId,
                 credits: placement.credits,
               },
-              "Host website row missing — refunded the requester without deducting from the host",
+              "Host website row missing - refunded the requester without deducting from the host",
             );
           }
         } else {
@@ -287,7 +287,7 @@ export const verifyBacklinks = inngest.createFunction(
               placementId: placement.id,
               credits: placement.credits,
             },
-            "Placement has no host website — refunded the requester with no offsetting deduction",
+            "Placement has no host website - refunded the requester with no offsetting deduction",
           );
         }
 

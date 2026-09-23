@@ -244,7 +244,7 @@ export function PublishingPanel({
                     )}
                   </div>
                   <p className="mt-0.5 truncate text-sm text-muted-foreground">
-                    {integration.siteName ?? "—"}
+                    {integration.siteName ?? "-"}
                     {integration.accountLabel
                       ? ` · ${integration.accountLabel}`
                       : ""}

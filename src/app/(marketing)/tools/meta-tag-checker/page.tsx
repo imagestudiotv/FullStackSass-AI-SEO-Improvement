@@ -12,7 +12,7 @@ import { checkMetaTags, type TagStatus } from "@/lib/tools/meta-tags";
 export const metadata = {
   title: "Meta Tag Checker",
   description:
-    "Check every meta tag Google and the social networks read on your page — titles, descriptions, Open Graph and Twitter cards. Free, no signup.",
+    "Check every meta tag Google and the social networks read on your page - titles, descriptions, Open Graph and Twitter cards. Free, no signup.",
 };
 
 export const dynamic = "force-dynamic";
@@ -173,7 +173,7 @@ export default async function MetaTagCheckerPage({
           },
           {
             heading: "The one people miss",
-            body: "og:image. Without it your link shares as a grey box on every platform, and you only find out after somebody posts it — by which point the post is already up and getting the clicks it was going to get. It costs nothing to set and it is the single highest-impact tag on this list.",
+            body: "og:image. Without it your link shares as a grey box on every platform, and you only find out after somebody posts it - by which point the post is already up and getting the clicks it was going to get. It costs nothing to set and it is the single highest-impact tag on this list.",
           },
         ]}
       />

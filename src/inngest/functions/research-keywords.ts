@@ -176,7 +176,7 @@ export const researchKeywords = inngest.createFunction(
     if (seeds.length === 0) {
       logger.error(
         { step: "generate-seeds", websiteId, seedCount: 0 },
-        "No seeds produced — website has no profile, aborting",
+        "No seeds produced - website has no profile, aborting",
       );
       await db
         .update(websites)
@@ -200,7 +200,7 @@ export const researchKeywords = inngest.createFunction(
         */
         logger.warn(
           { step: "fetch-metrics", websiteId, seedCount: seeds.length },
-          "DataForSEO not configured — continuing without search volumes",
+          "DataForSEO not configured - continuing without search volumes",
         );
         return {
           configured: false,
@@ -242,7 +242,7 @@ export const researchKeywords = inngest.createFunction(
           */
           logger.error(
             { step: "fetch-metrics", websiteId, provider: "dataforseo", call: "keywordIdeas", err: error },
-            "keywordIdeas failed — continuing without its metrics",
+            "keywordIdeas failed - continuing without its metrics",
           );
           return { metrics: [] as KeywordMetrics[], cached: true, failed: true };
         }),
@@ -250,7 +250,7 @@ export const researchKeywords = inngest.createFunction(
         keywordsForSite(site.domain, location, language).catch((error) => {
           logger.error(
             { step: "fetch-metrics", websiteId, provider: "dataforseo", call: "keywordsForSite", domain: site.domain, err: error },
-            "keywordsForSite failed — continuing without its metrics",
+            "keywordsForSite failed - continuing without its metrics",
           );
           return { metrics: [] as KeywordMetrics[], cached: true };
         }),
@@ -271,7 +271,7 @@ export const researchKeywords = inngest.createFunction(
             language,
             seedCount: seeds.length,
           },
-          "Provider returned no metrics — falling back to seed terms only",
+          "Provider returned no metrics - falling back to seed terms only",
         );
         return {
           configured: false,
@@ -373,7 +373,7 @@ export const researchKeywords = inngest.createFunction(
             reason: limit.reason,
             ranked: ranked.length,
           },
-          "No active plan — refusing to store zero keywords silently",
+          "No active plan - refusing to store zero keywords silently",
         );
         await db
           .update(websites)
@@ -618,7 +618,7 @@ export const researchKeywords = inngest.createFunction(
         */
         logger.warn(
           { step: "save-calendar", websiteId, plannedArticles: 0 },
-          "No calendar items to save — content plan will be empty",
+          "No calendar items to save - content plan will be empty",
         );
 
         /**

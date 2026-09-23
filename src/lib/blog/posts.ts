@@ -128,11 +128,11 @@ const POSTS: BlogPost[] = [
     ],
     sources: [
       {
-        label: "Google Search Central — SEO Starter Guide",
+        label: "Google Search Central - SEO Starter Guide",
         url: "https://developers.google.com/search/docs/fundamentals/seo-starter-guide",
       },
       {
-        label: "Google Search Central — Link spam policies",
+        label: "Google Search Central - Link spam policies",
         url: "https://developers.google.com/search/docs/essentials/spam-policies#link-spam",
       },
     ],
@@ -140,7 +140,7 @@ const POSTS: BlogPost[] = [
 <p>If you have a website and it brings you no enquiries, you are not doing anything unusual. Most small business websites are invisible on Google, and almost always for one of four reasons. They are worth knowing apart, because the fix for each is completely different.</p>
 
 <h2>1. Google cannot read your pages properly</h2>
-<p>Every page needs a title and a description. Not a heading you can see on the page — the title tag, which is what Google shows in the results list. A surprising number of sites have pages titled "Home" or "Untitled", or the same title repeated on every page.</p>
+<p>Every page needs a title and a description. Not a heading you can see on the page - the title tag, which is what Google shows in the results list. A surprising number of sites have pages titled "Home" or "Untitled", or the same title repeated on every page.</p>
 <p>This is the most common problem and the easiest to fix. If two pages share a title, Google has to guess which one to show, and it often shows neither.</p>
 
 <h2>2. You are writing about the wrong things</h2>
@@ -152,11 +152,11 @@ const POSTS: BlogPost[] = [
 <p>This is the slowest problem to fix, and the one where most money gets wasted. Buying links is against Google's guidelines and can make things actively worse.</p>
 
 <h2>4. You are being answered without being visited</h2>
-<p>This one is new. People increasingly ask an AI assistant for a recommendation instead of searching, and the assistant names a handful of businesses. If you are not one of them, you never find out — there is no ranking to check and no traffic report showing what you missed.</p>
+<p>This one is new. People increasingly ask an AI assistant for a recommendation instead of searching, and the assistant names a handful of businesses. If you are not one of them, you never find out - there is no ranking to check and no traffic report showing what you missed.</p>
 
 <h2>Which one is yours?</h2>
 <p>Usually more than one, but rarely all four. The order matters: fixing your titles is worth doing before chasing links, because the first costs an afternoon and the second takes months.</p>
-<p>If you want to know which applies to your site specifically, our <a href="/audit">free website check</a> reads your pages and tells you what it finds — no account needed.</p>
+<p>If you want to know which applies to your site specifically, our <a href="/audit">free website check</a> reads your pages and tells you what it finds - no account needed.</p>
 `.trim(),
   },
   {
@@ -169,7 +169,7 @@ const POSTS: BlogPost[] = [
     author: "The SEO Platform team",
     readingMinutes: 5,
     shortAnswer:
-      "AI assistants name a business when it has been described clearly and consistently across sources the model has seen, and when those descriptions are easy to quote. You cannot buy a position and there is no tag to add. What you can do is measure it — ask the assistant the questions your customers ask, and see whether you come up.",
+      "AI assistants name a business when it has been described clearly and consistently across sources the model has seen, and when those descriptions are easy to quote. You cannot buy a position and there is no tag to add. What you can do is measure it - ask the assistant the questions your customers ask, and see whether you come up.",
     faqs: [
       {
         question: "Can I pay to appear in ChatGPT's answers?",
@@ -184,7 +184,7 @@ const POSTS: BlogPost[] = [
       {
         question: "How do I know if AI already mentions my business?",
         answer:
-          "<p>Ask it. Use the questions a customer would actually type, not your business name — being named when someone asks for you is not the same as being named when someone asks for what you sell. Repeat them over time, since answers drift as models update.</p>",
+          "<p>Ask it. Use the questions a customer would actually type, not your business name - being named when someone asks for you is not the same as being named when someone asks for what you sell. Repeat them over time, since answers drift as models update.</p>",
       },
     ],
     body: `
@@ -192,14 +192,14 @@ const POSTS: BlogPost[] = [
 <p>If your business is not on it, nothing tells you. There is no ranking to check, no impression count, no drop in a report. You are simply not mentioned, and you never learn it happened.</p>
 
 <h2>Where the answer comes from</h2>
-<p>An assistant is not looking up a directory. It is drawing on what it learned from a very large amount of text, and increasingly on web results it fetches while answering. In practice that means a business gets named when it is <em>written about</em> — consistently, across sources the model has seen.</p>
+<p>An assistant is not looking up a directory. It is drawing on what it learned from a very large amount of text, and increasingly on web results it fetches while answering. In practice that means a business gets named when it is <em>written about</em> - consistently, across sources the model has seen.</p>
 <p>That is a meaningful difference from classic SEO. You cannot buy a position, and there is no tag to add. What moves the needle is being described clearly and repeatedly in places that get indexed.</p>
 
 <h2>What seems to matter</h2>
 <ul>
 <li><strong>Being described in plain terms.</strong> A page that says what you do, where, and for whom is easier for a model to associate with a question than one full of marketing language.</li>
 <li><strong>Consistency.</strong> The same business name, the same location, the same services, wherever you appear. Contradictory details make a model less confident about naming you.</li>
-<li><strong>Being mentioned elsewhere.</strong> Directories, local press, industry sites. Not for the link — for the description.</li>
+<li><strong>Being mentioned elsewhere.</strong> Directories, local press, industry sites. Not for the link - for the description.</li>
 <li><strong>Answering real questions.</strong> Content that addresses what customers ask tends to surface when those questions are asked.</li>
 </ul>
 
@@ -207,7 +207,7 @@ const POSTS: BlogPost[] = [
 <p>Keyword density, meta keywords, and the various tricks that stopped working for Google years ago do nothing here either. Neither does volume for its own sake: fifty thin pages are not better than five good ones, and may be worse.</p>
 
 <h2>The honest part</h2>
-<p>This is a young field and anyone claiming a reliable method is ahead of the evidence. What can be done today is measure it: ask the assistant the questions your customers ask, and see whether you come up. That is the only way to know where you stand, and it is what our AI visibility tracking does — the same questions, asked repeatedly, so you can see the answer change.</p>
+<p>This is a young field and anyone claiming a reliable method is ahead of the evidence. What can be done today is measure it: ask the assistant the questions your customers ask, and see whether you come up. That is the only way to know where you stand, and it is what our AI visibility tracking does - the same questions, asked repeatedly, so you can see the answer change.</p>
 `.trim(),
   },
   {
@@ -244,7 +244,7 @@ const POSTS: BlogPost[] = [
 <p>A page nothing links to is a page Google may never find. Every page should be reachable by clicking from your homepage in two or three steps. Orphan pages are common on sites that have grown over years.</p>
 
 <h2>Third: find out what people actually search for</h2>
-<p>Before writing anything new, find out what your customers type. The phrases are usually more specific and more practical than a business expects — less "quality dental care", more "does a filling hurt".</p>
+<p>Before writing anything new, find out what your customers type. The phrases are usually more specific and more practical than a business expects - less "quality dental care", more "does a filling hurt".</p>
 <p>Writing before doing this is the most expensive mistake on the list, because the cost is not the writing. It is the months you wait for pages that were never going to rank.</p>
 
 <h2>Fourth: write pages that answer those questions</h2>

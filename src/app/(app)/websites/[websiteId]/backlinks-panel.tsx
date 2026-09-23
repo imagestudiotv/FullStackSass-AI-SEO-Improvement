@@ -383,7 +383,7 @@ export function BacklinksPanel({
                     secondary: true,
                     render: (row) => (
                       <span className="text-muted-foreground">
-                        {row.hostDomain ?? "—"}
+                        {row.hostDomain ?? "-"}
                       </span>
                     ),
                   },
@@ -469,12 +469,12 @@ export function BacklinksPanel({
                         </Link>
                       ) : (
                         /*
-                          The article can be gone — articleId is set null when
-                          one is deleted — so the anchor text is the only thing
+                          The article can be gone - articleId is set null when
+                          one is deleted - so the anchor text is the only thing
                           left describing the link.
                         */
                         <span className="text-muted-foreground">
-                          {row.anchor ?? "—"}
+                          {row.anchor ?? "-"}
                         </span>
                       ),
                   },

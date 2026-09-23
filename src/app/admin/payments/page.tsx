@@ -180,7 +180,7 @@ export default async function AdminPaymentsPage({
                         </Link>
                       </TableCell>
                       <TableCell className="hidden max-w-56 truncate text-muted-foreground md:table-cell">
-                        {row.description ?? "—"}
+                        {row.description ?? "-"}
                       </TableCell>
                       <TableCell className="tabular-nums">{amount}</TableCell>
                       <TableCell>

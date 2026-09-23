@@ -143,7 +143,7 @@ export function BulkDeleteBar({
        */
       if (failures.length > 0) {
         toast.warning(
-          `Deleted ${deleted}. ${failures.length} refused — ${failures[0].error}`,
+          `Deleted ${deleted}. ${failures.length} refused - ${failures[0].error}`,
         );
       } else {
         toast.success(`Deleted ${deleted} ${noun}`);
@@ -189,7 +189,7 @@ export function BulkDeleteBar({
             </DialogTitle>
             <DialogDescription>
               {kind === "organizations"
-                ? "Each workspace is removed with everything in it — websites, articles, keywords, credits and payment history. This cannot be undone."
+                ? "Each workspace is removed with everything in it - websites, articles, keywords, credits and payment history. This cannot be undone."
                 : kind === "websites"
                   ? "Each website is removed with its articles, keywords and connections. The workspace that owns it, its members and its payment history are kept. This cannot be undone."
                   : "Each account is removed with its sessions and sign-in methods. Their workspaces are not deleted. This cannot be undone."}
@@ -200,8 +200,8 @@ export function BulkDeleteBar({
             <ul className="space-y-1 rounded-xl border bg-muted/40 p-3 text-xs text-muted-foreground">
               <li>
                 {kind === "websites"
-                  ? "Anything that cannot be deleted safely is skipped and reported — a website still being billed by Stripe."
-                  : "Anything that cannot be deleted safely is skipped and reported — a workspace still being billed by Stripe, or your own account."}
+                  ? "Anything that cannot be deleted safely is skipped and reported - a website still being billed by Stripe."
+                  : "Anything that cannot be deleted safely is skipped and reported - a workspace still being billed by Stripe, or your own account."}
               </li>
               <li>Every deletion is recorded separately in the admin log.</li>
             </ul>

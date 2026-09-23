@@ -198,7 +198,7 @@ export function WebsiteMembers({
         owner otherwise is how a pending invitation gets forgotten.
       */
       if (result.data.invited) {
-        toast.success(`${t.inviteSent} — ${email}`);
+        toast.success(`${t.inviteSent} - ${email}`);
       } else if (result.data.emailSent) {
         toast.success(`${email} can now work on ${domain}`);
       } else {
@@ -242,7 +242,7 @@ export function WebsiteMembers({
         toast.error(result.error);
         return;
       }
-      toast.success(`${t.inviteResent} — ${inviteEmail}`);
+      toast.success(`${t.inviteResent} - ${inviteEmail}`);
       await refreshMembers();
     });
   }
@@ -257,7 +257,7 @@ export function WebsiteMembers({
         toast.error(result.error);
         return;
       }
-      toast.success(`${t.inviteCancelled} — ${inviteEmail}`);
+      toast.success(`${t.inviteCancelled} - ${inviteEmail}`);
       await refreshMembers();
     });
   }

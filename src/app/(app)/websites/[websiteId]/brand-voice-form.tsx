@@ -68,7 +68,7 @@ export function BrandVoiceForm({
         toast.error(result.error);
         return;
       }
-      toast.success("Saved — your next articles will use this");
+      toast.success("Saved - your next articles will use this");
       router.refresh();
     });
   }
@@ -160,7 +160,7 @@ export function BrandVoiceForm({
             className={textarea}
           />
           <p className="text-xs text-muted-foreground">
-            One per line. We never make up details about your business — these
+            One per line. We never make up details about your business - these
             are the only specifics we will mention, so anything you add here
             must be true.
           </p>

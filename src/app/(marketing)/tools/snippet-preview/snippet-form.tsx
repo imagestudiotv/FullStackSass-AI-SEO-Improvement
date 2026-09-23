@@ -63,7 +63,7 @@ export function SnippetForm() {
             id="title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Emergency dentist in Utrecht — open Saturdays"
+            placeholder="Emergency dentist in Utrecht - open Saturdays"
           />
           <p className="text-xs text-muted-foreground">{titleCheck.advice}</p>
         </div>
@@ -110,7 +110,7 @@ export function SnippetForm() {
           <p className="mt-1 text-sm text-muted-foreground">
             {description.trim()
               ? truncate(description.trim(), SNIPPET_LIMITS.metaMax)
-              : "Your description appears here. Without one, Google picks a sentence from the page — often the wrong one."}
+              : "Your description appears here. Without one, Google picks a sentence from the page - often the wrong one."}
           </p>
         </div>
         {/*

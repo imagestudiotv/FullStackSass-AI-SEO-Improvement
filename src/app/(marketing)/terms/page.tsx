@@ -26,7 +26,7 @@ export default function TermsPage() {
       <h2>What the service does</h2>
       <p>
         The service analyses websites you own, researches search terms, writes
-        articles, and — if you connect a publishing integration — publishes
+        articles, and - if you connect a publishing integration - publishes
         those articles to your website. It can also connect to Google Search
         Console and Google Analytics to report on performance.
       </p>
@@ -109,8 +109,8 @@ export default function TermsPage() {
       <p>
         We aim to keep the service available but do not guarantee uninterrupted
         access. We may need to suspend it for maintenance, and parts of it
-        depend on third parties — Google, Stripe, and our AI and data providers
-        — whose availability is outside our control.
+        depend on third parties - Google, Stripe, and our AI and data providers
+        - whose availability is outside our control.
       </p>
 
       <h2>Ending your account</h2>

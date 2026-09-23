@@ -153,7 +153,7 @@ export default async function AdminWebsitesPage({
                         {row.domain}
                       </TableCell>
                       <TableCell className="hidden max-w-48 truncate text-muted-foreground md:table-cell">
-                        {row.organizationName ?? "—"}
+                        {row.organizationName ?? "-"}
                       </TableCell>
                       <TableCell>
                         <StatusBadge status={row.status} />

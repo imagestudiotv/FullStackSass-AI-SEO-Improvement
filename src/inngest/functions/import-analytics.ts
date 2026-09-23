@@ -90,7 +90,7 @@ export const importAnalytics = inngest.createFunction(
         */
         logger.warn(
           { step: "import-search-console", websiteId, imported: 0 },
-          "No Search Console property connected — skipping the import",
+          "No Search Console property connected - skipping the import",
         );
         return { imported: 0, skipped: "not_configured" as const };
       }
@@ -121,7 +121,7 @@ export const importAnalytics = inngest.createFunction(
               reason: error.message,
               durationMs: Date.now() - startedAt,
             },
-            "Search Console access is forbidden — import skipped, access must be re-granted",
+            "Search Console access is forbidden - import skipped, access must be re-granted",
           );
           return { imported: 0, skipped: "forbidden" as const };
         }
@@ -214,7 +214,7 @@ export const importAnalytics = inngest.createFunction(
         // explicit record: connected to one Google product is not both.
         logger.warn(
           { step: "import-analytics", websiteId, imported: 0 },
-          "No Analytics property connected — skipping the import",
+          "No Analytics property connected - skipping the import",
         );
         return { imported: 0, skipped: "not_configured" as const };
       }
@@ -239,7 +239,7 @@ export const importAnalytics = inngest.createFunction(
               reason: error.message,
               durationMs: Date.now() - startedAt,
             },
-            "Analytics access is forbidden — import skipped, access must be re-granted",
+            "Analytics access is forbidden - import skipped, access must be re-granted",
           );
           return { imported: 0, skipped: "forbidden" as const };
         }

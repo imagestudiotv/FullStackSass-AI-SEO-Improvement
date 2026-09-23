@@ -44,7 +44,7 @@ const KIND_COPY: Record<ProviderErrorKind, PublishFailure> = {
   },
   api_disabled: {
     summary:
-      "WordPress is online but its publishing API is switched off — often a security plugin.",
+      "WordPress is online but its publishing API is switched off - often a security plugin.",
     action: "Re-enable the WordPress REST API, then test the connection.",
   },
   unsupported: {

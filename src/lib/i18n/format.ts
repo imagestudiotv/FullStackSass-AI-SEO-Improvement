@@ -34,7 +34,7 @@ export function formatDate(
   const date = value instanceof Date ? value : new Date(value);
   // An unparseable value renders as an em dash rather than "Invalid Date",
   // which is a stack trace leaking into the interface.
-  if (Number.isNaN(date.getTime())) return "—";
+  if (Number.isNaN(date.getTime())) return "-";
   return date.toLocaleDateString(intlTag(locale), options);
 }
 

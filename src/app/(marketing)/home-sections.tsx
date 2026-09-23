@@ -911,8 +911,8 @@ export function HowItWorks({ t }: SectionProps) {
           {t.steps.map((step, index) => (
             /*
               The badge sits on a WRAPPER rather than on the Card. Card carries
-              overflow-hidden — it needs it so images clip to the rounded
-              corners — so a badge positioned outside the card is cut in half
+              overflow-hidden - it needs it so images clip to the rounded
+              corners - so a badge positioned outside the card is cut in half
               at the border.
             */
             <div key={step.title} className="relative pt-3">

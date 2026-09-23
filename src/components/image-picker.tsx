@@ -199,7 +199,7 @@ export function ImagePicker({
           <p className="self-center text-sm text-muted-foreground">
             {term
               ? "Nothing matches that."
-              : "No pictures yet — upload one to start."}
+              : "No pictures yet - upload one to start."}
           </p>
         ) : null}
       </div>

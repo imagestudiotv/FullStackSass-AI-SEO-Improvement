@@ -251,7 +251,7 @@ async function fetchFollowing(
       if (response.status === 403 || response.status === 451) {
         throw new CrawlError(
           "This site blocks automated visitors, so we cannot read it. " +
-            "Your site is fine — the block is a security setting on it.",
+            "Your site is fine - the block is a security setting on it.",
           "http_error",
           response.status,
         );

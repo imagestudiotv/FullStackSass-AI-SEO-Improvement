@@ -259,7 +259,7 @@ export function AuditResult({ result }: { result: PublicAuditResult }) {
             value: result.language?.toUpperCase() ?? "Not set",
             note: result.language
               ? "What the page declares."
-              : "No lang attribute — search engines have to guess.",
+              : "No lang attribute - search engines have to guess.",
           },
           {
             icon: Layers,

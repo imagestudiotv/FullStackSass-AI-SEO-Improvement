@@ -168,7 +168,7 @@ export default async function AdminUsersPage({
                   </TableCell>
 
                   <TableCell className="hidden max-w-48 truncate text-muted-foreground lg:table-cell">
-                    {row.organizationName ?? "—"}
+                    {row.organizationName ?? "-"}
                   </TableCell>
 
                   <TableCell>
@@ -191,8 +191,8 @@ export default async function AdminUsersPage({
                             key={site.id}
                             title={
                               site.viaWorkspace
-                                ? `${site.domain} — through the workspace`
-                                : `${site.domain} — invited as ${site.role}`
+                                ? `${site.domain} - through the workspace`
+                                : `${site.domain} - invited as ${site.role}`
                             }
                             className={
                               site.viaWorkspace

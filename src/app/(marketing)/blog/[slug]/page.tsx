@@ -318,7 +318,7 @@ export default async function BlogPostPage({
             See how your own site is doing
           </h2>
           <p className="mx-auto mt-3 max-w-md text-pretty opacity-80">
-            We read your pages and show you what is holding you back — on Google
+            We read your pages and show you what is holding you back - on Google
             and with AI assistants. Free, no account needed.
           </p>
           <Link

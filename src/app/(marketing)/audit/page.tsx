@@ -41,7 +41,7 @@ export default async function AuditPage({
         </h1>
         <p className="mx-auto mt-4 max-w-xl text-pretty text-muted-foreground sm:text-lg">
           Enter your website and we will read your pages, score them, and show
-          you what is holding you back on Google — and whether AI assistants can
+          you what is holding you back on Google - and whether AI assistants can
           read your site at all.
         </p>
       </div>

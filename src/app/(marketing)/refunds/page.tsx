@@ -37,7 +37,7 @@ export default function RefundsPage() {
       </p>
       <p>
         We do not usually refund part of a period you have already used. If
-        something has gone wrong on our side, tell us — we would rather resolve
+        something has gone wrong on our side, tell us - we would rather resolve
         it than have you leave unhappy.
       </p>
 
@@ -60,7 +60,7 @@ export default function RefundsPage() {
 
       <h2>Link credits</h2>
       <p>
-        Unused link credits are not refunded for cash — they are part of your
+        Unused link credits are not refunded for cash - they are part of your
         plan rather than a separate purchase. If a link you paid for is removed
         by the other website, the credit is returned to your balance
         automatically.

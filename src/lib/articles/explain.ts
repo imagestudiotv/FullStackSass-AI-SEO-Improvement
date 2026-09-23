@@ -58,7 +58,7 @@ const PATTERNS: { match: RegExp; failure: GenerationFailure }[] = [
     match: /timeout|timed out|ETIMEDOUT|ECONNRESET/i,
     failure: {
       summary: "Writing took too long and stopped.",
-      action: "Try again — this is usually temporary.",
+      action: "Try again - this is usually temporary.",
     },
   },
   {

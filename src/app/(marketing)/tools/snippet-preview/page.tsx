@@ -29,11 +29,11 @@ export default function SnippetPreviewPage() {
         columns={[
           {
             heading: "What this checks",
-            body: "Your title and description are measured against the lengths Google actually truncates at, and the preview updates as you type. Nothing is sent anywhere — this one runs entirely in your browser.",
+            body: "Your title and description are measured against the lengths Google actually truncates at, and the preview updates as you type. Nothing is sent anywhere - this one runs entirely in your browser.",
           },
           {
             heading: "Why the order matters",
-            body: "Truncation always takes the end. Put what distinguishes you first and your brand name last: a title reading \"Emergency plumber, open 24/7 — Acme\" survives the cut where \"Acme — the trusted name in…\" loses everything that would have earned the click.",
+            body: "Truncation always takes the end. Put what distinguishes you first and your brand name last: a title reading \"Emergency plumber, open 24/7 - Acme\" survives the cut where \"Acme - the trusted name in…\" loses everything that would have earned the click.",
           },
         ]}
       />

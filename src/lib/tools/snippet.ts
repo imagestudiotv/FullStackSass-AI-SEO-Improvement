@@ -65,7 +65,7 @@ export function checkDescription(text: string): SnippetCheck {
   if (length === 0) {
     verdict = "short";
     advice =
-      "Without a description, Google picks a sentence from the page — often the wrong one.";
+      "Without a description, Google picks a sentence from the page - often the wrong one.";
   } else if (length < LIMITS.metaMin) {
     verdict = "short";
     advice = `Use the space: ${LIMITS.metaMin}–${LIMITS.metaMax} characters gives you room to say why to click.`;

@@ -161,7 +161,7 @@ export const getOnboardingState = cache(async function getOnboardingState(
       id: "plan",
       title: "Choose a plan",
       description: agency
-        ? "This workspace is set up by us — no plan needed."
+        ? "This workspace is set up by us - no plan needed."
         : "Each website has its own plan. Start from EUR 1 a month.",
       done: hasPlan,
       /*

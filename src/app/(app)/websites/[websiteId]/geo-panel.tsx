@@ -219,7 +219,7 @@ export function GeoPanel({
             />
             <Stat
               label={t.averagePosition}
-              value={overview.averagePosition ?? "—"}
+              value={overview.averagePosition ?? "-"}
               hint={
                 overview.averagePosition === null
                   ? t.notYetNamed
@@ -231,7 +231,7 @@ export function GeoPanel({
               value={
                 overview.lastCheckedAt
                   ? new Date(overview.lastCheckedAt).toLocaleDateString()
-                  : "—"
+                  : "-"
               }
             />
           </div>

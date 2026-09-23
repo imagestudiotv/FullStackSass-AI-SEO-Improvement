@@ -361,7 +361,7 @@ export function BillingClient({
               {t.currentPlan}
             </p>
             <p className="mt-2 text-xl font-semibold tracking-tight">
-              {subscription.planName ?? "—"}
+              {subscription.planName ?? "-"}
             </p>
           </div>
 
@@ -376,7 +376,7 @@ export function BillingClient({
                     day: "numeric",
                     month: "short",
                   })
-                : "—"}
+                : "-"}
             </p>
           </div>
 

@@ -184,7 +184,7 @@ export const webhookProvider: CmsProvider = {
     {
       key: "signingSecret",
       label: "Signing secret",
-      help: "Any long random string. We send an X-Signature header — an HMAC-SHA256 of the request body using this secret — so your endpoint can verify the request came from us.",
+      help: "Any long random string. We send an X-Signature header - an HMAC-SHA256 of the request body using this secret - so your endpoint can verify the request came from us.",
       secret: true,
     },
   ],

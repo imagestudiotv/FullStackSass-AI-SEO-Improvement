@@ -27,7 +27,7 @@ export type IssueFix = {
 
 export const ISSUE_FIXES: Record<string, IssueFix> = {
   noindex: {
-    fix: "This page tells search engines to ignore it. Unless that is deliberate, remove the noindex tag — in WordPress it is usually a checkbox in your SEO plugin marked 'discourage search engines'.",
+    fix: "This page tells search engines to ignore it. Unless that is deliberate, remove the noindex tag - in WordPress it is usually a checkbox in your SEO plugin marked 'discourage search engines'.",
     effort: "minutes",
   },
   broken_page: {
@@ -36,7 +36,7 @@ export const ISSUE_FIXES: Record<string, IssueFix> = {
     needsDeveloper: true,
   },
   unreachable_page: {
-    fix: "We could not load this page at all. Check it opens in your own browser — if it does, your host may be blocking automated visitors, which also blocks Google.",
+    fix: "We could not load this page at all. Check it opens in your own browser - if it does, your host may be blocking automated visitors, which also blocks Google.",
     effort: "an hour",
     needsDeveloper: true,
   },
@@ -45,7 +45,7 @@ export const ISSUE_FIXES: Record<string, IssueFix> = {
     effort: "minutes",
   },
   title_too_long: {
-    fix: "Shorten the title so the important part is not cut off in search results. Put what matters first — the end is what gets trimmed.",
+    fix: "Shorten the title so the important part is not cut off in search results. Put what matters first - the end is what gets trimmed.",
     effort: "minutes",
   },
   title_too_short: {
@@ -65,7 +65,7 @@ export const ISSUE_FIXES: Record<string, IssueFix> = {
     effort: "minutes",
   },
   missing_h1: {
-    fix: "The page has no main heading. Add one that says what the page is about — it is the first thing both a reader and a search engine use to understand the page.",
+    fix: "The page has no main heading. Add one that says what the page is about - it is the first thing both a reader and a search engine use to understand the page.",
     effort: "minutes",
   },
   multiple_h1: {
@@ -81,7 +81,7 @@ export const ISSUE_FIXES: Record<string, IssueFix> = {
     effort: "an hour",
   },
   missing_canonical: {
-    fix: "The same content is reachable at more than one address, so search engines have to guess which is the real one. A canonical tag tells them — most SEO plugins add it automatically once switched on.",
+    fix: "The same content is reachable at more than one address, so search engines have to guess which is the real one. A canonical tag tells them - most SEO plugins add it automatically once switched on.",
     effort: "minutes",
     needsDeveloper: true,
   },
@@ -103,7 +103,7 @@ export const ISSUE_FIXES: Record<string, IssueFix> = {
     effort: "minutes",
   },
   no_internal_links: {
-    fix: "Nothing on your site links to this page, so both visitors and search engines struggle to find it. Link to it from a related page — your homepage or a relevant article.",
+    fix: "Nothing on your site links to this page, so both visitors and search engines struggle to find it. Link to it from a related page - your homepage or a relevant article.",
     effort: "minutes",
   },
 };

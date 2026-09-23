@@ -194,7 +194,7 @@ export function AuditSteps({ result }: { result: PublicAuditResult }) {
                 value: result.language?.toUpperCase() ?? "Not set",
                 note: result.language
                   ? "What the page declares."
-                  : "No lang attribute — engines have to guess.",
+                  : "No lang attribute - engines have to guess.",
               },
             ].map((item) => {
               const Icon = item.icon;
@@ -290,7 +290,7 @@ export function AuditSteps({ result }: { result: PublicAuditResult }) {
             comes from the design.
           */}
           <p className="mt-3 text-sm text-muted-foreground">
-            Your profile and first backlink are set up when you join — we match
+            Your profile and first backlink are set up when you join - we match
             you with a business in a related field and your article carries a
             link back to your site.
           </p>

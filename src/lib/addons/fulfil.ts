@@ -103,7 +103,7 @@ export async function fulfilAddonPurchase(
     await notify({
       organizationId: input.organizationId,
       type: "addon.purchased",
-      title: `${addon.name} — payment received`,
+      title: `${addon.name} - payment received`,
       body: "We will start work and email you when it is done.",
       href: "/billing",
     });

@@ -63,7 +63,7 @@ export async function sendInvitationEmail(options: {
       emailText(escapeHtml(roleSentence(options.role))),
       emailButton(options.acceptUrl, "Accept invitation"),
       emailText(
-        `<span style="color:#71717a;font-size:13px;">This invitation expires in ${options.expiresInDays} days. If you were not expecting it, you can ignore this email — nothing will be created.</span>`,
+        `<span style="color:#71717a;font-size:13px;">This invitation expires in ${options.expiresInDays} days. If you were not expecting it, you can ignore this email - nothing will be created.</span>`,
       ),
       emailFallback(options.acceptUrl, "Or paste this link into your browser:"),
     ].join(""),
@@ -116,7 +116,7 @@ export async function sendAccessGrantedEmail(options: {
       emailText(escapeHtml(roleSentence(options.role))),
       emailButton(options.websiteUrl, "Open the website"),
       emailText(
-        `<span style="color:#71717a;font-size:13px;">Sign in with the account you already use — nothing new to set up.</span>`,
+        `<span style="color:#71717a;font-size:13px;">Sign in with the account you already use - nothing new to set up.</span>`,
       ),
       emailFallback(options.websiteUrl, "Or paste this link into your browser:"),
     ].join(""),

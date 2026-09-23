@@ -88,7 +88,7 @@ export default async function RobotsCheckerPage({
                 <div>
                   <p className="font-medium">No robots.txt found</p>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    That is usually fine — with no file, search engines may read
+                    That is usually fine - with no file, search engines may read
                     everything. Adding one lets you point them at your sitemap.
                   </p>
                 </div>

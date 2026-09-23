@@ -193,7 +193,7 @@ export default async function AdminArticlesPage({
                     />
                   </TableCell>
                   <TableCell className="hidden tabular-nums sm:table-cell">
-                    {row.wordCount?.toLocaleString() ?? "—"}
+                    {row.wordCount?.toLocaleString() ?? "-"}
                   </TableCell>
                 </TableRow>
               ))}

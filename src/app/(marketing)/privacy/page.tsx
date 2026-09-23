@@ -51,13 +51,13 @@ export default function PrivacyPage() {
       </p>
       <p>
         <strong>Search and analytics data.</strong> If you connect Google Search
-        Console or Google Analytics, we import performance figures — searches,
-        clicks, impressions, rankings, sessions and page views — so we can show
+        Console or Google Analytics, we import performance figures - searches,
+        clicks, impressions, rankings, sessions and page views - so we can show
         you how your pages perform. See &quot;Google user data&quot; below.
       </p>
       <p>
-        <strong>Integration credentials.</strong> If you connect your website —
-        WordPress, Ghost, Shopify or your own webhook — or a Google account, we
+        <strong>Integration credentials.</strong> If you connect your website -
+        WordPress, Ghost, Shopify or your own webhook - or a Google account, we
         store the credentials needed to keep that connection working.
       </p>
       <p>
@@ -67,7 +67,7 @@ export default function PrivacyPage() {
       </p>
       <p>
         <strong>Usage records.</strong> We record which operations ran for your
-        account — pages crawled, articles written, external API calls — so we
+        account - pages crawled, articles written, external API calls - so we
         can enforce plan limits and understand our own costs.
       </p>
 
@@ -78,11 +78,11 @@ export default function PrivacyPage() {
       </p>
       <ul>
         <li>
-          <strong>Search Console (read only)</strong> — to read which searches
+          <strong>Search Console (read only)</strong> - to read which searches
           brought people to your website, and how your pages rank.
         </li>
         <li>
-          <strong>Analytics (read only)</strong> — to read visitor and session
+          <strong>Analytics (read only)</strong> - to read visitor and session
           figures for your website.
         </li>
       </ul>
@@ -126,15 +126,15 @@ export default function PrivacyPage() {
       <p>
         We use Anthropic&apos;s Claude models to describe your business, suggest
         search terms, and write articles. To do this we send the relevant
-        content — your website text, your business profile, and the article
-        brief — to Anthropic for processing. We do not send your Google
+        content - your website text, your business profile, and the article
+        brief - to Anthropic for processing. We do not send your Google
         analytics data, your credentials, or your payment information.
       </p>
 
       <h2>How we protect your data</h2>
       <p>
-        Integration credentials — publishing keys and passwords, and Google
-        refresh tokens — are encrypted before they are stored, using AES-256-GCM
+        Integration credentials - publishing keys and passwords, and Google
+        refresh tokens - are encrypted before they are stored, using AES-256-GCM
         with a key held separately from the database. They are never shown back
         to you or to anyone else, in any form.
       </p>
@@ -155,25 +155,25 @@ export default function PrivacyPage() {
       </p>
       <ul>
         <li>
-          <strong>Supabase</strong> — database hosting
+          <strong>Supabase</strong> - database hosting
         </li>
         <li>
-          <strong>Vercel</strong> — application hosting
+          <strong>Vercel</strong> - application hosting
         </li>
         <li>
-          <strong>Stripe</strong> — payment processing
+          <strong>Stripe</strong> - payment processing
         </li>
         <li>
-          <strong>Anthropic</strong> — AI text generation
+          <strong>Anthropic</strong> - AI text generation
         </li>
         <li>
-          <strong>DataForSEO</strong> — search volume and keyword data
+          <strong>DataForSEO</strong> - search volume and keyword data
         </li>
         <li>
-          <strong>Inngest</strong> — background job processing
+          <strong>Inngest</strong> - background job processing
         </li>
         <li>
-          <strong>Sentry</strong> — error monitoring
+          <strong>Sentry</strong> - error monitoring
         </li>
       </ul>
 

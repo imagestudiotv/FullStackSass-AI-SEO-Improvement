@@ -388,7 +388,7 @@ async function loadActivity(websiteId: string): Promise<ActivityItem[]> {
   if (audit) {
     items.push({
       kind: "audit",
-      title: `Website health checked — score ${audit.score}`,
+      title: `Website health checked - score ${audit.score}`,
       detail: "We look for what is holding the site back on Google",
       at: audit.createdAt,
       href: `/websites/${websiteId}`,

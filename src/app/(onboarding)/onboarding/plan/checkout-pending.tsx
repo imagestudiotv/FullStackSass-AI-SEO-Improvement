@@ -82,7 +82,7 @@ export function CheckoutPending({
       </span>
 
       <h1 className="mt-6 text-2xl font-semibold tracking-tight">
-        {stuck ? "Payment received" : "Payment received — setting up"}
+        {stuck ? "Payment received" : "Payment received - setting up"}
       </h1>
 
       <p className="mt-3 text-muted-foreground">

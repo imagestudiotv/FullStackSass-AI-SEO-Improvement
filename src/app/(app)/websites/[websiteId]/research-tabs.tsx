@@ -96,7 +96,7 @@ function difficultyLabel(
   value: number | null,
   t: Messages["app"]["research"],
 ): string {
-  if (value === null) return "—";
+  if (value === null) return "-";
   if (value < 30) return t.difficultyLow;
   if (value < 50) return t.difficultyMedium;
   if (value < 70) return t.difficultyHigh;
@@ -342,7 +342,7 @@ export function ResearchTabs({
                           <Badge variant={status.variant}>{status.label}</Badge>
                         </TableCell>
                         <TableCell className="hidden text-muted-foreground sm:table-cell">
-                          {article.wordCount?.toLocaleString() ?? "—"}
+                          {article.wordCount?.toLocaleString() ?? "-"}
                         </TableCell>
                         <TableCell>
                           <Button
@@ -447,16 +447,16 @@ export function ResearchTabs({
                       </div>
                     </TableCell>
                     <TableCell className="font-medium">
-                      {keyword.priorityScore?.toFixed(1) ?? "—"}
+                      {keyword.priorityScore?.toFixed(1) ?? "-"}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {keyword.volume?.toLocaleString() ?? "—"}
+                      {keyword.volume?.toLocaleString() ?? "-"}
                     </TableCell>
                     <TableCell className="hidden text-muted-foreground sm:table-cell">
                       {difficultyLabel(keyword.difficulty, t)}
                     </TableCell>
                     <TableCell className="hidden text-muted-foreground md:table-cell">
-                      {keyword.clusterName ?? "—"}
+                      {keyword.clusterName ?? "-"}
                     </TableCell>
                     <TableCell>
                       <Button

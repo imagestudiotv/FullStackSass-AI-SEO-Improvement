@@ -151,7 +151,7 @@ export function AuditPanel({
             <div
               className={`text-3xl font-semibold tabular-nums ${scoreTone(audit.score ?? 0)}`}
             >
-              {audit.score ?? "—"}
+              {audit.score ?? "-"}
             </div>
             <div className="text-xs text-muted-foreground">out of 100</div>
           </div>

@@ -31,7 +31,7 @@ export default async function SitemapCheckerPage({
     <div>
       <ToolHero
         title="Sitemap Checker & Finder"
-        description="Finds your sitemap the way a search engine does — robots.txt first, then the usual locations — then checks it actually parses and counts what is in it. Index files are followed, so you get a real page count rather than a zero."
+        description="Finds your sitemap the way a search engine does - robots.txt first, then the usual locations - then checks it actually parses and counts what is in it. Index files are followed, so you get a real page count rather than a zero."
       >
         <DomainToolForm
           key={domain}
@@ -114,7 +114,7 @@ export default async function SitemapCheckerPage({
                 <p className="font-medium">We could not find a sitemap</p>
                 <p className="mt-1 text-sm text-muted-foreground">
                   We checked robots.txt and the six usual locations. Without one,
-                  search engines have to find every page by following links —
+                  search engines have to find every page by following links -
                   which usually means the newest pages are found last.
                 </p>
               </div>
@@ -207,7 +207,7 @@ export default async function SitemapCheckerPage({
             />
             <p className="text-sm text-muted-foreground">
               A sitemap is a list of your pages written for machines. It does not
-              make you rank, but it does make sure everything gets found —
+              make you rank, but it does make sure everything gets found -
               especially pages nothing links to yet.
             </p>
           </div>
@@ -222,7 +222,7 @@ export default async function SitemapCheckerPage({
           },
           {
             heading: "Why a broken sitemap is invisible",
-            body: "Nothing on your website tells you the sitemap 404s, lists staging URLs, or was never declared in robots.txt. The site looks fine. Search engines just quietly fall back to following links, and the pages nothing links to — new products, recent posts — are the ones that never get indexed.",
+            body: "Nothing on your website tells you the sitemap 404s, lists staging URLs, or was never declared in robots.txt. The site looks fine. Search engines just quietly fall back to following links, and the pages nothing links to - new products, recent posts - are the ones that never get indexed.",
           },
         ]}
       />

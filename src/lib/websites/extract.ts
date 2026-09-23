@@ -91,7 +91,7 @@ Rules:
 - Use only what the page supports. Do not invent facts, awards, locations or figures.
 - If a field is not evident, return null (or an empty array) rather than guessing.
 - "industry" should be specific enough to guide keyword research.
-- "competitors" should name established companies in the same niche and market — ones with a recognisable brand and a real website. Prefer a well-known name over a precise guess: the domain is verified against DNS before it is stored, so something that does not resolve is discarded automatically. Returning nothing helps nobody; returning three real rivals is the useful answer.
+- "competitors" should name established companies in the same niche and market - ones with a recognisable brand and a real website. Prefer a well-known name over a precise guess: the domain is verified against DNS before it is stored, so something that does not resolve is discarded automatically. Returning nothing helps nobody; returning three real rivals is the useful answer.
 - Do not list general platforms, marketplaces or tools (Vimeo, YouTube, Wix, directories) as competitors. A competitor sells what this business sells, to the same customers.
 - Ignore navigation, cookie banners, and boilerplate.`;
 

@@ -37,7 +37,7 @@ const GROUPS: { lead: Panel; supporting: [Panel, Panel] }[] = [
   {
     lead: {
       headline: "Articles written and published for you",
-      body: "Researched against what your customers actually search for, written for your site, and posted to it — WordPress, Ghost, Shopify or a webhook. You approve them first unless you say otherwise.",
+      body: "Researched against what your customers actually search for, written for your site, and posted to it - WordPress, Ghost, Shopify or a webhook. You approve them first unless you say otherwise.",
     },
     supporting: [
       {
@@ -69,7 +69,7 @@ const GROUPS: { lead: Panel; supporting: [Panel, Panel] }[] = [
   {
     lead: {
       headline: "See whether AI assistants name you",
-      body: "We ask the questions your customers ask ChatGPT, Claude and Perplexity, and track whether your business comes up in the answer — the search everyone is still pretending does not matter.",
+      body: "We ask the questions your customers ask ChatGPT, Claude and Perplexity, and track whether your business comes up in the answer - the search everyone is still pretending does not matter.",
     },
     supporting: [
       {
@@ -176,8 +176,8 @@ export function AuthShowcase() {
           product does for the person reading instead.
         */}
         <p className="mt-4 max-w-md text-muted-foreground">
-          Everything a small business needs to get found — articles, backlinks
-          and the rankings that follow — in one place, running on its own.
+          Everything a small business needs to get found - articles, backlinks
+          and the rankings that follow - in one place, running on its own.
         </p>
 
         <div className="mt-8 grid gap-4 xl:grid-cols-5">
@@ -285,7 +285,7 @@ export function AuthShowcase() {
             <p className="font-semibold">Your site, scored in a minute</p>
             <p className="mt-1 text-sm text-muted-foreground">
               What is holding it back, what to fix first, and whether AI
-              assistants mention you — before you pay anything.
+              assistants mention you - before you pay anything.
             </p>
           </div>
         </div>

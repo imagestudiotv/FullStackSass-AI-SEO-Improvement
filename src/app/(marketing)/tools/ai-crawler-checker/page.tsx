@@ -90,7 +90,7 @@ export default async function AiCrawlerCheckerPage({
     <div>
       <ToolHero
         title="AI Crawler Checker"
-        description="Checks whether the assistants people now ask for recommendations are allowed to read your site. Blocking them is almost always an accident — and nothing in your own dashboard will ever tell you it happened."
+        description="Checks whether the assistants people now ask for recommendations are allowed to read your site. Blocking them is almost always an accident - and nothing in your own dashboard will ever tell you it happened."
       >
         <DomainToolForm
           key={domain}
@@ -169,7 +169,7 @@ export default async function AiCrawlerCheckerPage({
                       {crawler.allowed
                         ? crawler.explicit
                           ? "Allowed by a rule naming it."
-                          : "Allowed — nothing blocks it."
+                          : "Allowed - nothing blocks it."
                         : crawler.explicit
                           ? "Blocked by a rule naming it directly."
                           : "Blocked by a rule applying to all crawlers."}
@@ -224,11 +224,11 @@ export default async function AiCrawlerCheckerPage({
         columns={[
           {
             heading: "What this checks",
-            body: "We fetch your robots.txt and read the rules for each AI crawler by name, respecting the precedence robots.txt actually uses — a rule naming GPTBot beats a wildcard rule blocking everything. No robots.txt at all means nothing is blocked, which is both correct and the common case.",
+            body: "We fetch your robots.txt and read the rules for each AI crawler by name, respecting the precedence robots.txt actually uses - a rule naming GPTBot beats a wildcard rule blocking everything. No robots.txt at all means nothing is blocked, which is both correct and the common case.",
           },
           {
             heading: "Why this happens by accident",
-            body: "Security plugins and copied configs add blocks for these agents by default, and a lot of sites picked one up during the wave of \"block AI scrapers\" advice. The result is that a business cannot be cited by ChatGPT at all — while their website, their rankings and their analytics all look completely normal.",
+            body: "Security plugins and copied configs add blocks for these agents by default, and a lot of sites picked one up during the wave of \"block AI scrapers\" advice. The result is that a business cannot be cited by ChatGPT at all - while their website, their rankings and their analytics all look completely normal.",
           },
         ]}
       />

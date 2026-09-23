@@ -6,7 +6,7 @@ import { BLOG_CATEGORIES, categoryCounts, listPosts } from "@/lib/blog/posts";
 export const metadata = {
   title: "Blog",
   description:
-    "Guides, comparisons and playbooks for getting found on Google and cited by AI assistants — written for people who run a business, not a marketing team.",
+    "Guides, comparisons and playbooks for getting found on Google and cited by AI assistants - written for people who run a business, not a marketing team.",
 };
 
 export default function BlogIndexPage() {

@@ -248,7 +248,7 @@ export function AnalyticsPanel({
                 value={
                   performance.averagePosition
                     ? performance.averagePosition.toFixed(1)
-                    : "—"
+                    : "-"
                 }
                 trend={
                   performance.averagePosition !== null ? (

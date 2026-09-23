@@ -83,10 +83,10 @@ function count(n: number, singular: string, plural = `${singular}s`): string {
  */
 function cadence(articlesPerMonth: number): string {
   const perDay = articlesPerMonth / 30;
-  if (perDay === 1) return " — one a day";
-  if (Number.isInteger(perDay)) return ` — ${perDay} a day`;
+  if (perDay === 1) return " - one a day";
+  if (Number.isInteger(perDay)) return ` - ${perDay} a day`;
   // 100/30 is 3.33: "about three" is true, "three" would not be.
-  if (perDay > 1) return ` — about ${Math.floor(perDay)} a day`;
+  if (perDay > 1) return ` - about ${Math.floor(perDay)} a day`;
   return "";
 }
 
@@ -141,7 +141,7 @@ export function planFeatures(plan: PickerPlan): string[] {
     `${count(plan.articleLimit, "branded article")} a month${cadence(plan.articleLimit)}, with images`,
     `${plan.keywordLimit.toLocaleString()} search terms researched and clustered`,
     ONE_WEBSITE,
-    "Priority processing — your articles are written first",
+    "Priority processing - your articles are written first",
     "Custom feature requests",
   ];
 

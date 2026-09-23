@@ -39,7 +39,7 @@ export const analyzeWebsite = inngest.createFunction(
       */
       logger.error(
         { step: "on-failure", websiteId, reason: error.message },
-        "Analysis failed after all retries — website marked failed",
+        "Analysis failed after all retries - website marked failed",
       );
 
       await db

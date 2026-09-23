@@ -101,13 +101,13 @@ export function TodaysArticlePanel({
           <div>
             <dt className="text-xs text-muted-foreground">{t.searchVolume}</dt>
             <dd className="mt-1 font-semibold tabular-nums">
-              {article.volume !== null ? `${article.volume}/mo` : "—"}
+              {article.volume !== null ? `${article.volume}/mo` : "-"}
             </dd>
           </div>
           <div>
             <dt className="text-xs text-muted-foreground">{t.difficulty}</dt>
             <dd className="mt-1 font-semibold tabular-nums">
-              {article.difficulty !== null ? `${article.difficulty}/100` : "—"}
+              {article.difficulty !== null ? `${article.difficulty}/100` : "-"}
             </dd>
           </div>
           <div>

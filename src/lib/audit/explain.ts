@@ -27,7 +27,7 @@ const PATTERNS: { match: RegExp; failure: CrawlFailure }[] = [
     match: /timed out|timeout/i,
     failure: {
       summary: "Your website took too long to respond.",
-      action: "Try again — this is often temporary on a busy server.",
+      action: "Try again - this is often temporary on a busy server.",
     },
   },
   {

@@ -153,7 +153,7 @@ export function ContentStep({
      * screen, and Planned Articles shows it when it does.
      */
     setLeaving(true);
-    toast.success("We are building your plan. You can carry on — it lands in a few minutes.");
+    toast.success("We are building your plan. You can carry on - it lands in a few minutes.");
     router.push(NEXT_HREF);
   }
 

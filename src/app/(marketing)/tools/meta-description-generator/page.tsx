@@ -75,7 +75,7 @@ export default async function MetaDescriptionGeneratorPage({
               ) : (
                 <p className="mt-2 text-sm text-muted-foreground">
                   This page has no meta description. Google is picking a
-                  sentence from the page itself — often the wrong one.
+                  sentence from the page itself - often the wrong one.
                 </p>
               )}
             </div>
@@ -100,7 +100,7 @@ export default async function MetaDescriptionGeneratorPage({
                         {description.length} characters
                         {description.fits
                           ? ""
-                          : ` — outside the ${SNIPPET_LIMITS.metaMin}–${SNIPPET_LIMITS.metaMax} range Google shows`}
+                          : ` - outside the ${SNIPPET_LIMITS.metaMin}–${SNIPPET_LIMITS.metaMax} range Google shows`}
                       </span>
                       <CopyButton text={description.text} />
                     </div>
@@ -130,11 +130,11 @@ export default async function MetaDescriptionGeneratorPage({
         columns={[
           {
             heading: "How this works",
-            body: `We fetch your page and read its actual text, then write five descriptions from it, each taking a different angle. Length is enforced in our own code afterwards rather than trusted to the model — ${SNIPPET_LIMITS.metaMin} to ${SNIPPET_LIMITS.metaMax} characters, which is what Google shows before truncating.`,
+            body: `We fetch your page and read its actual text, then write five descriptions from it, each taking a different angle. Length is enforced in our own code afterwards rather than trusted to the model - ${SNIPPET_LIMITS.metaMin} to ${SNIPPET_LIMITS.metaMax} characters, which is what Google shows before truncating.`,
           },
           {
             heading: "Read them before you use them",
-            body: "These are written from your page, but they are still written by a model, and it does not know which claims you can stand behind. Check anything specific — a guarantee, a number, a service you may not offer any more — before it becomes the sentence a stranger reads about your business.",
+            body: "These are written from your page, but they are still written by a model, and it does not know which claims you can stand behind. Check anything specific - a guarantee, a number, a service you may not offer any more - before it becomes the sentence a stranger reads about your business.",
           },
         ]}
       />

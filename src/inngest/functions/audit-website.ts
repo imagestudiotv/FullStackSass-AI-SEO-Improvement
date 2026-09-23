@@ -39,7 +39,7 @@ export const auditWebsite = inngest.createFunction(
       */
       logger.error(
         { step: "on-failure", websiteId, reason: error.message },
-        "Audit failed after all retries — crawl marked failed",
+        "Audit failed after all retries - crawl marked failed",
       );
 
       await db
@@ -157,7 +157,7 @@ export const auditWebsite = inngest.createFunction(
             failures: result.failures.length,
             reasons: result.failures.slice(0, 8).map((failure) => failure.reason),
           },
-          "Crawl returned no pages — the audit will have nothing to score",
+          "Crawl returned no pages - the audit will have nothing to score",
         );
       }
 

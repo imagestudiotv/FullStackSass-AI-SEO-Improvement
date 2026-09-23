@@ -13,7 +13,7 @@ import { generateLlmsTxt } from "@/lib/tools/llms-txt";
 export const metadata = {
   title: "llms.txt Generator",
   description:
-    "Generate a valid llms.txt from your live site — built from a real crawl of your pages, not a template. Free, no signup.",
+    "Generate a valid llms.txt from your live site - built from a real crawl of your pages, not a template. Free, no signup.",
 };
 
 export const dynamic = "force-dynamic";
@@ -31,7 +31,7 @@ export default async function LlmsTxtGeneratorPage({
     <div>
       <ToolHero
         title="llms.txt Generator"
-        description="Reads your site and writes an llms.txt from what is actually there — your real pages, with their real descriptions. Not a template with your domain pasted in."
+        description="Reads your site and writes an llms.txt from what is actually there - your real pages, with their real descriptions. Not a template with your domain pasted in."
       >
         <DomainToolForm
           key={domain}
@@ -83,7 +83,7 @@ export default async function LlmsTxtGeneratorPage({
                   {outcome.result.path}
                 </code>
                 . On most hosts that means dropping the file in your public or
-                static folder — the same place robots.txt lives.
+                static folder - the same place robots.txt lives.
               </p>
             </div>
           </div>
@@ -112,7 +112,7 @@ export default async function LlmsTxtGeneratorPage({
           },
           {
             heading: "Is this a standard?",
-            body: "Not yet — it is a proposal that some tools have started reading, and adoption is genuinely uneven. It costs one small file to add and nothing breaks if nobody reads it. Worth doing on that basis, and worth being honest that it is not the reason assistants will start recommending you.",
+            body: "Not yet - it is a proposal that some tools have started reading, and adoption is genuinely uneven. It costs one small file to add and nothing breaks if nobody reads it. Worth doing on that basis, and worth being honest that it is not the reason assistants will start recommending you.",
           },
         ]}
       />

@@ -12,7 +12,7 @@ import { checkReadability, type KeywordCount } from "@/lib/tools/readability";
 export const metadata = {
   title: "Keyword Density Checker",
   description:
-    "See what your page actually talks about — the words and phrases it uses most, and how often. Free, no signup.",
+    "See what your page actually talks about - the words and phrases it uses most, and how often. Free, no signup.",
 };
 
 export const dynamic = "force-dynamic";
@@ -65,7 +65,7 @@ export default async function KeywordDensityPage({
     <div>
       <ToolHero
         title="Keyword Density Checker"
-        description="Reads your page and counts what it actually says — the words and two-word phrases it uses most. Useful for the gap between what a page is about and what it never quite says."
+        description="Reads your page and counts what it actually says - the words and two-word phrases it uses most. Useful for the gap between what a page is about and what it never quite says."
       >
         <DomainToolForm
           key={domain}
@@ -119,7 +119,7 @@ export default async function KeywordDensityPage({
             {outcome.result.topWords.length === 0 ? (
               <div className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">
                 There is not enough repeated text on this page to find a
-                pattern. That is itself worth knowing — a page this thin rarely
+                pattern. That is itself worth knowing - a page this thin rarely
                 ranks for anything.
               </div>
             ) : (
@@ -136,7 +136,7 @@ export default async function KeywordDensityPage({
                 <section className="rounded-xl border bg-card p-5">
                   <h2 className="font-medium">Most used phrases</h2>
                   <p className="mt-1 mb-4 text-sm text-muted-foreground">
-                    Two words together — usually closer to what people search
+                    Two words together - usually closer to what people search
                     for.
                   </p>
                   {outcome.result.topPhrases.length > 0 ? (

@@ -12,7 +12,7 @@ import { checkReadability } from "@/lib/tools/readability";
 export const metadata = {
   title: "LLM HTML Visibility Checker",
   description:
-    "See how much of your page an AI assistant can actually read — the text that survives without JavaScript. Free, no signup.",
+    "See how much of your page an AI assistant can actually read - the text that survives without JavaScript. Free, no signup.",
 };
 
 export const dynamic = "force-dynamic";
@@ -36,7 +36,7 @@ export default async function LlmHtmlCheckerPage({
     <div>
       <ToolHero
         title="LLM HTML Visibility Checker"
-        description="AI assistants read the HTML your server sends, not the page a browser builds afterwards. This shows how much of your content survives that — and flags the pages that come back effectively empty."
+        description="AI assistants read the HTML your server sends, not the page a browser builds afterwards. This shows how much of your content survives that - and flags the pages that come back effectively empty."
       >
         <DomainToolForm
           key={domain}
@@ -152,7 +152,7 @@ export default async function LlmHtmlCheckerPage({
                     detail:
                       outcome.result.structure.structuredData > 0
                         ? `${outcome.result.structure.structuredData} JSON-LD block${outcome.result.structure.structuredData === 1 ? "" : "s"}`
-                        : "None — assistants have to infer the facts",
+                        : "None - assistants have to infer the facts",
                   },
                   {
                     label: "Image descriptions",
@@ -207,11 +207,11 @@ export default async function LlmHtmlCheckerPage({
         columns={[
           {
             heading: "What this checks",
-            body: "We request your page exactly as an assistant would and never run any JavaScript. Then we strip the scripts and styling and measure what is left: how many words, how much of the document is text rather than code, and whether the structural signals — headings, paragraphs, JSON-LD, image descriptions — are actually there.",
+            body: "We request your page exactly as an assistant would and never run any JavaScript. Then we strip the scripts and styling and measure what is left: how many words, how much of the document is text rather than code, and whether the structural signals - headings, paragraphs, JSON-LD, image descriptions - are actually there.",
           },
           {
             heading: "Why this differs from Google",
-            body: "Google renders JavaScript, eventually, on a second pass. AI assistants generally do not — they read the HTML that comes back and move on. A single-page app can therefore rank respectably on Google and be completely invisible to ChatGPT, which is a gap most site owners have no way to see.",
+            body: "Google renders JavaScript, eventually, on a second pass. AI assistants generally do not - they read the HTML that comes back and move on. A single-page app can therefore rank respectably on Google and be completely invisible to ChatGPT, which is a gap most site owners have no way to see.",
           },
         ]}
       />

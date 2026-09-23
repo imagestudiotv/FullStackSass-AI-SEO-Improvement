@@ -221,7 +221,7 @@ export const scheduledArticles = inngest.createFunction(
       */
       logger.warn(
         { step: "select-websites", websiteCount: 0, today },
-        "No websites have calendar items due — nothing queued this run",
+        "No websites have calendar items due - nothing queued this run",
       );
 
       /*
@@ -250,7 +250,7 @@ export const scheduledArticles = inngest.createFunction(
         */
         logger.info(
           { step: "select-websites", websiteId: site.websiteId, today },
-          "Not a publishing day for this website — skipped",
+          "Not a publishing day for this website - skipped",
         );
         continue;
       }
@@ -278,7 +278,7 @@ export const scheduledArticles = inngest.createFunction(
               planUsed: limit.used,
               planLimit: limit.limit === UNLIMITED ? "unlimited" : limit.limit,
             },
-            "Plan does not allow more articles — nothing queued for this website",
+            "Plan does not allow more articles - nothing queued for this website",
           );
           return { queued: 0, limited: limit.reason === "limit_reached" };
         }
@@ -311,7 +311,7 @@ export const scheduledArticles = inngest.createFunction(
               planUsed: limit.used,
               planLimit: limit.limit === UNLIMITED ? "unlimited" : limit.limit,
             },
-            "No article allowance remaining — nothing queued for this website",
+            "No article allowance remaining - nothing queued for this website",
           );
           return { queued: 0, limited: true };
         }

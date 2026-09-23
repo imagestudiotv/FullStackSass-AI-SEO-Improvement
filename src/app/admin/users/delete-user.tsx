@@ -94,7 +94,7 @@ export function DeleteUserButton({
         <div className="space-y-4">
           <ul className="space-y-1 rounded-xl border bg-muted/40 p-3 text-xs text-muted-foreground">
             <li>
-              Their workspaces are NOT deleted — colleagues may still be using
+              Their workspaces are NOT deleted - colleagues may still be using
               them. Delete a workspace separately from the Organizations page.
             </li>
             <li>This deletion is recorded in the admin log.</li>

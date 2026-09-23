@@ -93,7 +93,7 @@ export function stripeErrorMessage(error: unknown): string {
 
     return (
       `${shared} Stripe did not report the id as belonging to the other mode, so it ` +
-      `most likely belongs to a DIFFERENT Stripe account — every account has its own ` +
+      `most likely belongs to a DIFFERENT Stripe account - every account has its own ` +
       `separate test mode, and ids are never shared between accounts. ` +
       `Compare the account this deployment uses (visit /api/stripe/whoami as an admin) ` +
       `with the one \`npm run doctor\` prints; if they differ, this environment has the ` +

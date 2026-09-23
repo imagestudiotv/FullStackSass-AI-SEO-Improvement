@@ -38,7 +38,7 @@ export const publishArticleJob = inngest.createFunction(
       */
       logger.error(
         { step: "on-failure", articleId, reason: error.message },
-        "Publish failed after all retries — article is not live",
+        "Publish failed after all retries - article is not live",
       );
 
       await db.insert(publishLogs).values({
@@ -183,7 +183,7 @@ export const publishArticleJob = inngest.createFunction(
         */
         logger.warn(
           { step: "upload-image", articleId, websiteId },
-          "Image generation not configured — publishing without a header image",
+          "Image generation not configured - publishing without a header image",
         );
         return null;
       }
@@ -209,7 +209,7 @@ export const publishArticleJob = inngest.createFunction(
               providerId: prepared.providerId,
               imageBytes: generated.data.length,
             },
-            "Provider does not support media upload — publishing without a header image",
+            "Provider does not support media upload - publishing without a header image",
           );
           return null;
         }
@@ -250,7 +250,7 @@ export const publishArticleJob = inngest.createFunction(
             reason: error instanceof Error ? error.message : "unknown",
             durationMs: Date.now() - startedAt,
           },
-          "Header image failed — publishing without one",
+          "Header image failed - publishing without one",
         );
         return null;
       }
@@ -271,7 +271,7 @@ export const publishArticleJob = inngest.createFunction(
             websiteId,
             providerId: prepared.providerId,
           },
-          "No provider registered for this integration — cannot publish",
+          "No provider registered for this integration - cannot publish",
         );
         throw new Error(
           `No integration named ${prepared.providerId} is available`,

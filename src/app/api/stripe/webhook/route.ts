@@ -208,7 +208,7 @@ async function upsertSubscription(subscription: Stripe.Subscription) {
 
     if (!owned) {
       console.error(
-        `[stripe-webhook] websiteId ${websiteId} is not owned by org ${orgId} — refusing upsert`,
+        `[stripe-webhook] websiteId ${websiteId} is not owned by org ${orgId} - refusing upsert`,
       );
       return;
     }

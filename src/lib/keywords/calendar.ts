@@ -47,7 +47,7 @@ const SCHEMA = {
 const SYSTEM = `You write article titles for an SEO content calendar.
 
 Rules:
-- Each title targets exactly one supplied keyword, used naturally — never
+- Each title targets exactly one supplied keyword, used naturally - never
   stuffed or repeated.
 - Titles are specific and useful: "Teeth Whitening in Dublin: Costs and Options"
   rather than "Everything About Teeth Whitening".
@@ -56,7 +56,7 @@ Rules:
 - Vary the format across the set: how-to, cost guide, comparison, checklist.
 - Return one article per supplied keyword, in the order given.
 - Several keywords may belong to the same topic. When they do, each title must
-  answer a DIFFERENT question — a cost guide, a how-to and a comparison, not
+  answer a DIFFERENT question - a cost guide, a how-to and a comparison, not
   three rewordings of one article. Two titles that would produce the same
   article are a failure.`;
 

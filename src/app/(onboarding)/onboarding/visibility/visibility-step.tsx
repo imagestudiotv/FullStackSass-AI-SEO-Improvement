@@ -212,7 +212,7 @@ export function VisibilityStep({
 
     setSuggesting(false);
     if (added.length === 0) {
-      toast.info("No new questions this time — try adding one of your own.");
+      toast.info("No new questions this time - try adding one of your own.");
       return;
     }
     setPrompts((current) => [...current, ...added]);

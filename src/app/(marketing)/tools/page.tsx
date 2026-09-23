@@ -31,7 +31,7 @@ export default function ToolsPage() {
             Try our free SEO &amp; AI visibility tools
           </h1>
           <p className="mx-auto mt-4 max-w-xl text-pretty text-muted-foreground">
-            No signup required — every tool runs a real check and shows the full
+            No signup required - every tool runs a real check and shows the full
             result instantly.
           </p>
         </div>

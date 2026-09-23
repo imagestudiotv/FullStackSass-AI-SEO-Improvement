@@ -57,7 +57,7 @@ function judge(
   if (options.max !== undefined && length > options.max) {
     return {
       status: "warn",
-      note: `${length} characters — will be cut short at about ${options.max}.`,
+      note: `${length} characters - will be cut short at about ${options.max}.`,
     };
   }
   if (options.min !== undefined && length < options.min) {
@@ -166,7 +166,7 @@ export async function checkMetaTags(input: string): Promise<MetaTagOutcome> {
             min: SNIPPET_LIMITS.metaMin,
             max: SNIPPET_LIMITS.metaMax,
             missingNote:
-              "Without one, Google picks a sentence from the page — often the wrong one.",
+              "Without one, Google picks a sentence from the page - often the wrong one.",
           }),
         },
         {

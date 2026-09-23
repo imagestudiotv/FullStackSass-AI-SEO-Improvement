@@ -162,7 +162,7 @@ export default async function AdminOrganizationsPage({
                     </Link>
                   </TableCell>
                   <TableCell className="hidden max-w-56 truncate text-muted-foreground md:table-cell">
-                    {row.ownerEmail ?? "—"}
+                    {row.ownerEmail ?? "-"}
                   </TableCell>
                   <TableCell>
                     {row.planName ? (

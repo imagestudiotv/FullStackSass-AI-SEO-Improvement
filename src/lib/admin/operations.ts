@@ -221,7 +221,7 @@ export async function refundPayment(
     organizationId: row.organizationId,
     summary: `Refunded ${(amountCents / 100).toFixed(2)} ${row.currency.toUpperCase()}${
       partial ? ` of ${(row.amountCents / 100).toFixed(2)}` : ""
-    }${options.cancelSubscription ? ", subscription cancelled" : ""} — ${note}`,
+    }${options.cancelSubscription ? ", subscription cancelled" : ""} - ${note}`,
     detail: {
       provider: row.provider,
       externalId: row.externalId,
@@ -397,7 +397,7 @@ export async function adjustCredits(
     targetType: "organization",
     targetId: org.id,
     organizationId: org.id,
-    summary: `${amount > 0 ? "+" : ""}${amount} credits for ${org.name} — ${note}`,
+    summary: `${amount > 0 ? "+" : ""}${amount} credits for ${org.name} - ${note}`,
     detail: { amount, reason: note },
   });
 
@@ -456,7 +456,7 @@ export async function setWorkspaceLimits(
     targetType: "organization",
     targetId: org.id,
     organizationId: org.id,
-    summary: `Limits for ${org.name}: ${limits.siteLimit} sites, ${limits.articleLimit} articles, ${limits.keywordLimit} keywords — ${note}`,
+    summary: `Limits for ${org.name}: ${limits.siteLimit} sites, ${limits.articleLimit} articles, ${limits.keywordLimit} keywords - ${note}`,
     detail: { ...limits, reason: note },
   });
 
@@ -539,7 +539,7 @@ export async function setOrganizationActive(
     targetType: "organization",
     targetId: org.id,
     organizationId: org.id,
-    summary: `${active ? "Reactivated" : "Deactivated"} ${org.name} — ${note}`,
+    summary: `${active ? "Reactivated" : "Deactivated"} ${org.name} - ${note}`,
     detail: { previousStatus: current.status, reason: note },
   });
 
@@ -660,7 +660,7 @@ export async function deleteOrganization(
     targetType: "organization",
     targetId: org.id,
     organizationId: org.id,
-    summary: `Deleted ${org.name} — ${counts?.websites ?? 0} websites, ${counts?.members ?? 0} members, ${counts?.payments ?? 0} payments — ${note}`,
+    summary: `Deleted ${org.name} - ${counts?.websites ?? 0} websites, ${counts?.members ?? 0} members, ${counts?.payments ?? 0} payments - ${note}`,
     detail: { name: org.name, ...counts, reason: note },
   });
 
@@ -731,7 +731,7 @@ export async function deleteUser(
       orphans.length > 0
         ? ` — left ${orphans.length} workspace(s) with no members`
         : ""
-    } — ${note}`,
+    } - ${note}`,
     detail: {
       email: person.email,
       name: person.name,
@@ -969,7 +969,7 @@ export async function deleteWebsite(
     targetType: "website",
     targetId: site.id,
     organizationId: site.organizationId,
-    summary: `Deleted ${site.domain} from ${site.organizationName ?? "an unnamed workspace"} — ${counts?.articles ?? 0} articles, ${counts?.keywords ?? 0} keywords — ${note}`,
+    summary: `Deleted ${site.domain} from ${site.organizationName ?? "an unnamed workspace"} - ${counts?.articles ?? 0} articles, ${counts?.keywords ?? 0} keywords - ${note}`,
     detail: {
       domain: site.domain,
       url: site.url,

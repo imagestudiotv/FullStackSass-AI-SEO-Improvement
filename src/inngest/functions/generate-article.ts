@@ -55,7 +55,7 @@ export const generateArticle = inngest.createFunction(
       */
       logger.error(
         { step: "on-failure", articleId, reason: error.message },
-        "Generation failed after all retries — article marked failed",
+        "Generation failed after all retries - article marked failed",
       );
 
       await db
@@ -381,7 +381,7 @@ export const generateArticle = inngest.createFunction(
         */
         logger.warn(
           { step: "generate-image", articleId, websiteId: brief.websiteId },
-          "Image generation not configured — article will have no header image",
+          "Image generation not configured - article will have no header image",
         );
         return null;
       }
@@ -444,7 +444,7 @@ export const generateArticle = inngest.createFunction(
             reason: error instanceof Error ? error.message : "unknown",
             durationMs: Date.now() - startedAt,
           },
-          "Header image failed — continuing without one",
+          "Header image failed - continuing without one",
         );
         return null;
       }
@@ -477,7 +477,7 @@ export const generateArticle = inngest.createFunction(
             websiteId: brief.websiteId,
             linksAdded: 0,
           },
-          "No internal links added — no matching crawled pages to link to",
+          "No internal links added - no matching crawled pages to link to",
         );
       } else {
         logger.info(
@@ -553,7 +553,7 @@ export const generateArticle = inngest.createFunction(
               websiteId: brief.websiteId,
               placementId: brief.placementId,
             },
-            "Backlink missing from the generated article — placement stays pending, no credit awarded",
+            "Backlink missing from the generated article - placement stays pending, no credit awarded",
           );
         }
 
@@ -610,7 +610,7 @@ export const generateArticle = inngest.createFunction(
                 placementId: brief.placementId,
                 credits: placement.credits,
               },
-              "Backlink verified in the article — placement marked live, credits moved",
+              "Backlink verified in the article - placement marked live, credits moved",
             );
           }
         }
@@ -682,7 +682,7 @@ export const generateArticle = inngest.createFunction(
                 websiteId: brief.websiteId,
                 scheduledFor: due.toISOString(),
               },
-              "Written ahead of its date — holding as a draft until then",
+              "Written ahead of its date - holding as a draft until then",
             );
             return false;
           }
@@ -703,7 +703,7 @@ export const generateArticle = inngest.createFunction(
             websiteId: brief.websiteId,
             autoPublish: false,
           },
-          "Auto-publish is off — article stays a draft",
+          "Auto-publish is off - article stays a draft",
         );
         return false;
       }
@@ -735,7 +735,7 @@ export const generateArticle = inngest.createFunction(
             websiteId: brief.websiteId,
             autoPublish: true,
           },
-          "Auto-publish is on but no CMS is connected — article stays a draft",
+          "Auto-publish is on but no CMS is connected - article stays a draft",
         );
         return false;
       }

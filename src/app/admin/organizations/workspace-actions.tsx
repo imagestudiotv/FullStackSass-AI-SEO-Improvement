@@ -282,7 +282,7 @@ export function WorkspaceActions({
           <DialogHeader>
             <DialogTitle>Delete {organizationName} permanently?</DialogTitle>
             <DialogDescription>
-              This removes the workspace and everything in it — websites,
+              This removes the workspace and everything in it - websites,
               articles, keywords, credits and payment history. It cannot be
               undone. For a customer who is only leaving, Suspend is the
               reversible option.

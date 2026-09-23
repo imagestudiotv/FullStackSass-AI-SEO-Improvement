@@ -43,7 +43,7 @@ export const INTEGRATION_DOCS: IntegrationDoc[] = [
     steps: [
       {
         title: "Open your WordPress profile",
-        body: "Sign in to WordPress and go to Users → Profile. If you administer several accounts, use the one you want articles published under — the author shown on each post is this account.",
+        body: "Sign in to WordPress and go to Users → Profile. If you administer several accounts, use the one you want articles published under - the author shown on each post is this account.",
       },
       {
         title: "Create an application password",
@@ -51,7 +51,7 @@ export const INTEGRATION_DOCS: IntegrationDoc[] = [
       },
       {
         title: "Copy the password exactly",
-        body: "WordPress shows it once, in groups separated by spaces. Copy the whole thing including the spaces — it is not your login password, and your login password will not work here.",
+        body: "WordPress shows it once, in groups separated by spaces. Copy the whole thing including the spaces - it is not your login password, and your login password will not work here.",
       },
       {
         title: "Connect it here",
@@ -59,7 +59,7 @@ export const INTEGRATION_DOCS: IntegrationDoc[] = [
       },
       {
         title: "Publish a test article",
-        body: "Press Publish test article. We create a real draft on your site and hand back a link to it. If that works, scheduled articles will too — and the draft is safe to delete.",
+        body: "Press Publish test article. We create a real draft on your site and hand back a link to it. If that works, scheduled articles will too - and the draft is safe to delete.",
       },
     ],
     troubleshooting: [
@@ -69,7 +69,7 @@ export const INTEGRATION_DOCS: IntegrationDoc[] = [
       },
       {
         problem: '"Sorry, you are not allowed to create posts"',
-        fix: "The account authenticates but cannot publish. Give it the Editor or Administrator role — Author is not enough for everything we do.",
+        fix: "The account authenticates but cannot publish. Give it the Editor or Administrator role - Author is not enough for everything we do.",
       },
       {
         problem: "A security plugin blocks the connection",
@@ -98,7 +98,7 @@ export const INTEGRATION_DOCS: IntegrationDoc[] = [
       },
       {
         title: "Copy the ADMIN API key",
-        body: "Take the Admin API key, not the Content API key. It looks like two values joined by a colon — copy the whole string including the colon. The Content key can only read, so it fails at the first publish.",
+        body: "Take the Admin API key, not the Content API key. It looks like two values joined by a colon - copy the whole string including the colon. The Content key can only read, so it fails at the first publish.",
       },
       {
         title: "Connect it here",
@@ -116,7 +116,7 @@ export const INTEGRATION_DOCS: IntegrationDoc[] = [
       },
       {
         problem: "The site address is rejected",
-        fix: "Use the address of your Ghost admin, without a trailing path — https://example.com, not https://example.com/ghost.",
+        fix: "Use the address of your Ghost admin, without a trailing path - https://example.com, not https://example.com/ghost.",
       },
     ],
     officialUrl: "https://ghost.org/docs/admin-api/#token-authentication",
@@ -159,7 +159,7 @@ export const INTEGRATION_DOCS: IntegrationDoc[] = [
       },
       {
         problem: '"Access denied" when publishing',
-        fix: "The token is missing write_content. Reopen the app configuration, add it, and reinstall — changing scopes issues a new token.",
+        fix: "The token is missing write_content. Reopen the app configuration, add it, and reinstall - changing scopes issues a new token.",
       },
     ],
     officialUrl:
@@ -171,14 +171,14 @@ export const INTEGRATION_DOCS: IntegrationDoc[] = [
     summary:
       "Publish into a CMS collection on your Webflow site using a Site API token.",
     requirements: [
-      "A Webflow site on a paid plan — the CMS API is not available on the free tier",
+      "A Webflow site on a paid plan - the CMS API is not available on the free tier",
       "A CMS collection for your blog, with a rich text field for the body",
       "Permission to create API tokens on that site",
     ],
     steps: [
       {
         title: "Create a Site API token",
-        body: "In Webflow, open Site settings → Apps & integrations → API access, then Generate API token. Give it CMS read and write — a read-only token connects fine and then fails at the first publish.",
+        body: "In Webflow, open Site settings → Apps & integrations → API access, then Generate API token. Give it CMS read and write - a read-only token connects fine and then fails at the first publish.",
       },
       {
         title: "Copy the token",
@@ -208,7 +208,7 @@ export const INTEGRATION_DOCS: IntegrationDoc[] = [
       },
       {
         problem: '"That token cannot write to the CMS"',
-        fix: "The token was created without cms:write. Tokens cannot be edited after creation — generate a new one with both CMS scopes.",
+        fix: "The token was created without cms:write. Tokens cannot be edited after creation - generate a new one with both CMS scopes.",
       },
     ],
     officialUrl:
@@ -229,7 +229,7 @@ export const INTEGRATION_DOCS: IntegrationDoc[] = [
       },
       {
         title: "Give it blog permissions",
-        body: "Assign a role that includes Blog — without it the key authenticates but cannot create posts.",
+        body: "Assign a role that includes Blog - without it the key authenticates but cannot create posts.",
       },
       {
         title: "Copy the key and the Site ID",
@@ -272,7 +272,7 @@ export const INTEGRATION_DOCS: IntegrationDoc[] = [
       },
       {
         title: "Verify the signature",
-        body: "Every request carries an HMAC-SHA256 of the raw body, keyed with your signing secret. Compare it before trusting the payload — an endpoint that skips this will accept anything anyone posts to it.",
+        body: "Every request carries an HMAC-SHA256 of the raw body, keyed with your signing secret. Compare it before trusting the payload - an endpoint that skips this will accept anything anyone posts to it.",
       },
       {
         title: "Publish a test article",

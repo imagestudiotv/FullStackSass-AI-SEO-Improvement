@@ -89,7 +89,7 @@ export const checkGeo = inngest.createFunction(
       if (rows.length === 0) {
         logger.warn(
           { step: "select-websites", websiteId: websiteId ?? null, websiteCount: 0 },
-          "No websites with active prompts — nothing to check",
+          "No websites with active prompts - nothing to check",
         );
       } else {
         logger.info(
@@ -198,7 +198,7 @@ export const checkGeo = inngest.createFunction(
                 reason: message,
                 durationMs: Date.now() - startedAt,
               },
-              "Prompt check failed — no result recorded for this prompt",
+              "Prompt check failed - no result recorded for this prompt",
             );
 
             return {

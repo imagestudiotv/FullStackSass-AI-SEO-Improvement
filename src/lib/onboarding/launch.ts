@@ -377,7 +377,7 @@ export const getLaunchState = cache(async function getLaunchState(
       ? "Everything is running. Nothing more to set up."
       : "Finish the steps above and everything starts running by itself.",
     detail:
-      "Auto-publishing, AI visibility tracking and the Backlink Exchange are running for your site. Nothing more to set up — watch the results on your dashboard.",
+      "Auto-publishing, AI visibility tracking and the Backlink Exchange are running for your site. Nothing more to set up - watch the results on your dashboard.",
     done: live,
     optional: false,
     href: "/dashboard",

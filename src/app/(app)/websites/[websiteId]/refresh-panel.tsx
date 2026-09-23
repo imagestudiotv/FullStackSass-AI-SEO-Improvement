@@ -56,7 +56,7 @@ export function RefreshPanel({
         toast.error(result.error);
         return;
       }
-      toast.success("Rewriting — the new version replaces the old one");
+      toast.success("Rewriting - the new version replaces the old one");
       router.refresh();
     });
   }

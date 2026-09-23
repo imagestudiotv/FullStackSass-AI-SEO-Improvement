@@ -188,7 +188,7 @@ function briefContext(brief: ArticleBrief): string {
       OFF would still get a personal voice half the time.
     */
     brief.authorPerspective
-      ? `Write with a point of view — first person, willing to recommend.`
+      ? `Write with a point of view - first person, willing to recommend.`
       : `Stay impersonal. No first person, no personal anecdotes.`,
     brief.mentionSimilarProducts
       ? `Where it is useful, name and compare similar products or tools.`
