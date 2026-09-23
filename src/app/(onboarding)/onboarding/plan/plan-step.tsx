@@ -168,8 +168,8 @@ export function PlanStep({
     // than showing prices checkout would not honour.
     return (
       <div className="rounded-2xl border bg-card p-6 text-sm text-muted-foreground">
-        Plans are not available right now. Please check back shortly.
-      </div>
+        {t.plansUnavailable}
+        </div>
     );
   }
 
@@ -425,13 +425,13 @@ export function PlanStep({
         */}
         {paypalAvailable ? (
           <p className="mt-2 text-center text-xs text-muted-foreground">
-            PayPal starts your plan straight away, without the free trial.
-          </p>
+            {t.paypalNoTrial}
+            </p>
         ) : null}
 
         <p className="mt-3 text-center text-xs text-muted-foreground">
-          Cancel any time. A promotion code can be entered at checkout.
-        </p>
+          {t.cancelAnyTime}
+          </p>
 
         <div className="mt-6 border-t pt-6">
           <p className="text-xs font-semibold tracking-[0.12em] text-muted-foreground uppercase">
@@ -474,8 +474,8 @@ export function PlanStep({
       */}
       <p className="mt-4 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
         <ShieldCheck className="size-3.5" aria-hidden="true" />
-        Secure checkout by Stripe. Your card details never reach us.
-      </p>
+        {t.secureByStripe}
+        </p>
     </div>
   );
 }

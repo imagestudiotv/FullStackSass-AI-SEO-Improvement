@@ -227,8 +227,8 @@ export function VisibilityStep({
         {t.seeHowAiTalks}
       </h1>
       <p className="mt-2 text-muted-foreground">
-        Track the questions customers ask AI before they discover your company.
-      </p>
+        {t.trackQuestions}
+        </p>
 
       {/*
         The summary strip from the design: market, language, and how many
@@ -280,9 +280,8 @@ export function VisibilityStep({
         <p className="font-semibold">{t.trackingOn}</p>
         {liveEngines.length === 0 ? (
           <p className="mt-2 text-sm text-muted-foreground">
-            No assistants are configured on this deployment yet. Questions are
-            saved and will be checked as soon as one is connected.
-          </p>
+            {t.noAssistants}
+            </p>
         ) : (
           <>
             <div className="mt-3 grid gap-2 sm:grid-cols-3">
@@ -324,9 +323,8 @@ export function VisibilityStep({
           <div>
             <p className="font-semibold">{t.questionsWorthTracking}</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              We have suggested these from your website and market. Remove any
-              you do not want to track.
-            </p>
+              {t.suggestedFromSite}
+              </p>
           </div>
           <span className="shrink-0 text-sm text-muted-foreground tabular-nums">
             {prompts.length} / {allowance} selected

@@ -1117,6 +1117,12 @@ export type Messages = {
       activatingNow: string;
       goToMyWebsite: string;
       checkBilling: string;
+      extraordinaryBusinesses: string;
+      chooseYourPlan: string;
+      whatHappensSubscribe: string;
+      weResearchKeywords: string;
+      contentAndBacklinks: string;
+      addYourWebsite: string;
     };
   };
 };
@@ -2383,6 +2389,12 @@ const en: Messages = {
       activatingNow: "Thank you. We are activating your plan now; this usually takes a few seconds.",
       goToMyWebsite: "Go to my website",
       checkBilling: "Check billing",
+      extraordinaryBusinesses: "Extraordinary businesses deserve greater visibility.",
+      chooseYourPlan: "Choose your plan",
+      whatHappensSubscribe: "What happens the moment you subscribe",
+      weResearchKeywords: "We research your keywords, build a content calendar sized to your plan, and start writing. You will have your first article to review shortly after.",
+      contentAndBacklinks: "Content & backlinks",
+      addYourWebsite: "Add your website",
     },
   },
 };
@@ -3659,6 +3671,12 @@ const es: Messages = {
       activatingNow: "Gracias. Estamos activando su plan; esto suele tardar unos segundos.",
       goToMyWebsite: "Ir a mi sitio web",
       checkBilling: "Ver la facturación",
+      extraordinaryBusinesses: "Los negocios extraordinarios merecen mayor visibilidad.",
+      chooseYourPlan: "Elija su plan",
+      whatHappensSubscribe: "Qué ocurre en cuanto se suscribe",
+      weResearchKeywords: "Investigamos sus palabras clave, creamos un calendario de contenidos a la medida de su plan y empezamos a escribir. Poco después tendrá su primer artículo para revisar.",
+      contentAndBacklinks: "Contenidos y enlaces",
+      addYourWebsite: "Añada su sitio web",
     },
   },
 };
@@ -4938,6 +4956,12 @@ const fr: Messages = {
       activatingNow: "Merci. Nous activons votre forfait ; cela prend généralement quelques secondes.",
       goToMyWebsite: "Aller à mon site",
       checkBilling: "Voir la facturation",
+      extraordinaryBusinesses: "Les entreprises remarquables méritent plus de visibilité.",
+      chooseYourPlan: "Choisissez votre forfait",
+      whatHappensSubscribe: "Ce qui se passe dès votre abonnement",
+      weResearchKeywords: "Nous recherchons vos mots-clés, construisons un calendrier de contenu adapté à votre forfait et commençons à rédiger. Vous aurez votre premier article à relire peu après.",
+      contentAndBacklinks: "Contenu et liens",
+      addYourWebsite: "Ajoutez votre site",
     },
   },
 };
@@ -6210,6 +6234,12 @@ const it: Messages = {
       activatingNow: "Grazie. Stiamo attivando il suo piano; di solito ci vogliono pochi secondi.",
       goToMyWebsite: "Vai al mio sito",
       checkBilling: "Vedi la fatturazione",
+      extraordinaryBusinesses: "Le attività straordinarie meritano più visibilità.",
+      chooseYourPlan: "Scelga il suo piano",
+      whatHappensSubscribe: "Che cosa succede appena si abbona",
+      weResearchKeywords: "Studiamo le sue parole chiave, costruiamo un calendario di contenuti su misura per il suo piano e iniziamo a scrivere. Poco dopo avrà il primo articolo da rivedere.",
+      contentAndBacklinks: "Contenuti e link",
+      addYourWebsite: "Aggiunga il suo sito",
     },
   },
 };
@@ -7489,6 +7519,12 @@ const de: Messages = {
       activatingNow: "Vielen Dank. Wir aktivieren Ihren Tarif; das dauert meist wenige Sekunden.",
       goToMyWebsite: "Zu meiner Website",
       checkBilling: "Abrechnung ansehen",
+      extraordinaryBusinesses: "Außergewöhnliche Unternehmen verdienen mehr Sichtbarkeit.",
+      chooseYourPlan: "Wählen Sie Ihren Tarif",
+      whatHappensSubscribe: "Was passiert, sobald Sie abonnieren",
+      weResearchKeywords: "Wir recherchieren Ihre Suchbegriffe, bauen einen auf Ihren Tarif zugeschnittenen Contentplan und fangen an zu schreiben. Kurz darauf haben Sie Ihren ersten Artikel zur Durchsicht.",
+      contentAndBacklinks: "Inhalte und Backlinks",
+      addYourWebsite: "Fügen Sie Ihre Website hinzu",
     },
   },
 };

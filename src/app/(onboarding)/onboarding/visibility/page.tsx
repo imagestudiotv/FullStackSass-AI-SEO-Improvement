@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { WizardProgress } from "@/components/wizard-progress";
 import { requireSession } from "@/lib/auth-guard";
+import { getAppMessages } from "@/lib/i18n/app-locale";
 import { db } from "@/lib/db";
 import { geoPrompts, websites } from "@/lib/db/schema";
 import { ENGINES, availableEngineIds } from "@/lib/geo/engines";
@@ -26,8 +27,9 @@ export const dynamic = "force-dynamic";
 export default async function OnboardingVisibilityPage({
   searchParams,
 }: PageProps<"/onboarding/visibility">) {
-  await requireSession();
+  const session = await requireSession();
   const { orgId } = await requireOrg();
+  const { t } = await getAppMessages(session.user.id);
 
   /**
    * Which website this run of setup is about.
@@ -112,6 +114,7 @@ export default async function OnboardingVisibilityPage({
         <div>
           <VisibilityStep
             websiteId={site.id}
+            t={t.app.onboarding}
             market={site.country}
             language={site.language}
             initialPrompts={prompts.map((p) => ({ ...p, latest: null }))}

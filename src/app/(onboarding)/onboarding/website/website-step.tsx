@@ -125,9 +125,8 @@ export function WebsiteStep({
           {t.whatsYourWebsite}
         </h1>
         <p className="mt-3 text-muted-foreground">
-          Enter your website and we will work out what your business does, who
-          it is for, and what is worth writing about.
-        </p>
+          {t.websiteIntro}
+          </p>
 
         <form onSubmit={handleLook} className="mt-8">
           <Label htmlFor="site-url" className="sr-only">
@@ -226,9 +225,8 @@ export function WebsiteStep({
         */}
         {!hasLooked && !looking ? (
           <p className="mt-3 text-center text-xs text-muted-foreground">
-            Press the arrow to check your website first, or continue straight
-            on.
-          </p>
+            {t.pressArrow}
+            </p>
         ) : null}
       </div>
 
@@ -247,8 +245,8 @@ export function WebsiteStep({
           aria-hidden="true"
         >
           <span className="mr-2 text-muted-foreground/40">&mdash;</span>
-          Extraordinary businesses deserve greater visibility.
-        </p>
+          {t.extraordinaryBusinesses}
+          </p>
       </div>
     </div>
   );

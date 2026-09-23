@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import { WizardProgress } from "@/components/wizard-progress";
 import { requireSession } from "@/lib/auth-guard";
+import { getAppMessages } from "@/lib/i18n/app-locale";
 import { getAnalyticsConnection } from "@/lib/analytics/actions";
 import { getOnboardingState } from "@/lib/onboarding/steps";
 import { requireOrg } from "@/lib/tenant";
@@ -29,8 +30,9 @@ export const dynamic = "force-dynamic";
 export default async function OnboardingGooglePage({
   searchParams,
 }: PageProps<"/onboarding/google">) {
-  await requireSession();
+  const session = await requireSession();
   const { orgId } = await requireOrg();
+  const { t } = await getAppMessages(session.user.id);
 
   const params = await searchParams;
   const siteParam = typeof params.site === "string" ? params.site : undefined;
@@ -54,7 +56,11 @@ export default async function OnboardingGooglePage({
   return (
     <div>
       <WizardProgress current="google" />
-      <GoogleStep websiteId={state.websiteId} connection={connection} />
+      <GoogleStep
+        websiteId={state.websiteId}
+        connection={connection}
+        t={t.app.onboarding}
+      />
     </div>
   );
 }

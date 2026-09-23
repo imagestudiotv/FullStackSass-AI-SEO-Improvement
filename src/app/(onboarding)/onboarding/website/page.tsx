@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { requireSession } from "@/lib/auth-guard";
+import { getAppMessages } from "@/lib/i18n/app-locale";
 import { getOnboardingState } from "@/lib/onboarding/steps";
 import { requireOrg } from "@/lib/tenant";
 import { WebsiteStep } from "./website-step";
@@ -19,8 +20,9 @@ export const dynamic = "force-dynamic";
 export default async function OnboardingWebsitePage({
   searchParams,
 }: PageProps<"/onboarding/website">) {
-  await requireSession();
+  const session = await requireSession();
   const { orgId } = await requireOrg();
+  const { t } = await getAppMessages(session.user.id);
 
   const params = await searchParams;
   /**
@@ -66,7 +68,7 @@ export default async function OnboardingWebsitePage({
       shows. Two progress indicators on one screen is one too many.
     */
     <div className="mx-auto max-w-6xl px-4 py-10 sm:py-14">
-      <WebsiteStep />
+      <WebsiteStep t={t.app.onboarding} />
     </div>
   );
 }

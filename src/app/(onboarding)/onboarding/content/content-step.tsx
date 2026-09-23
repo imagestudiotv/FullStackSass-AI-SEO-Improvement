@@ -339,9 +339,8 @@ export function ContentStep({
             </Button>
             <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
               <Clock className="size-3" aria-hidden="true" />
-              Takes a few minutes. You can continue while we build it in the
-              background.
-            </p>
+              {t.takesFewMinutes}
+              </p>
           </>
         )}
       </div>

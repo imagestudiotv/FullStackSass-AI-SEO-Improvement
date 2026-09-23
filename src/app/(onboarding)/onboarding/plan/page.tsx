@@ -90,7 +90,10 @@ export default async function OnboardingPlanPage({
     return (
       <div>
         <WizardProgress current="plan" />
-        <CheckoutPending websiteId={state.websiteId} />
+        <CheckoutPending
+          websiteId={state.websiteId}
+          t={t.app.onboarding}
+        />
       </div>
     );
   }
@@ -133,6 +136,7 @@ export default async function OnboardingPlanPage({
         <div className="grid items-stretch gap-10 lg:grid-cols-2 lg:gap-12">
           <div>
             <PlanStep
+              t={t.app.onboarding}
               monthlyPlans={monthlyPlans}
               annualPlans={annualPlans}
               paypalAvailable={paypalAvailable}
@@ -141,8 +145,8 @@ export default async function OnboardingPlanPage({
           </div>
 
           <OnboardingAside
-            title="What happens the moment you subscribe"
-            note="We research your keywords, build a content calendar sized to your plan, and start writing. You will have your first article to review shortly after."
+            title={t.app.onboarding.whatHappensSubscribe}
+            note={t.app.onboarding.weResearchKeywords}
             t={t.app.common}
           >
             {/*

@@ -1,6 +1,7 @@
 "use client";
 
 import { CheckCircle2, Loader2 } from "lucide-react";
+import { getMessages, type Messages } from "@/lib/i18n/messages";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -38,7 +39,14 @@ const POLL_MS = 2000;
  */
 const GIVE_UP_MS = 30000;
 
-export function CheckoutPending({ websiteId }: { websiteId: string }) {
+export function CheckoutPending({
+  websiteId,
+  t = getMessages("en").app.onboarding,
+}: {
+  websiteId: string;
+  /** This screen's copy, defaulting to English. */
+  t?: Messages["app"]["onboarding"];
+}) {
   const router = useRouter();
   const [waited, setWaited] = useState(0);
 
@@ -80,15 +88,12 @@ export function CheckoutPending({ websiteId }: { websiteId: string }) {
       <p className="mt-3 text-muted-foreground">
         {stuck ? (
           <>
-            Your payment went through. Activating the plan is taking longer than
-            usual — it will finish on its own, and nothing further is needed
-            from you.
-          </>
+            {t.paymentTakingLonger}
+            </>
         ) : (
           <>
-            Thank you. We are activating your plan now; this usually takes a
-            couple of seconds.
-          </>
+            {t.activatingNow}
+            </>
         )}
       </p>
 
@@ -100,10 +105,10 @@ export function CheckoutPending({ websiteId }: { websiteId: string }) {
       {stuck ? (
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <Button asChild className="h-11 rounded-full px-6">
-            <Link href={`/websites/${websiteId}`}>Go to my website</Link>
+            <Link href={`/websites/${websiteId}`}>{t.goToMyWebsite}</Link>
           </Button>
           <Button asChild variant="outline" className="h-11 rounded-full px-6">
-            <Link href="/billing">Check billing</Link>
+            <Link href="/billing">{t.checkBilling}</Link>
           </Button>
         </div>
       ) : null}

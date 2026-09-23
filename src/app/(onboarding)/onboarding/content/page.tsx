@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { WizardProgress } from "@/components/wizard-progress";
 import { requireSession } from "@/lib/auth-guard";
+import { getAppMessages } from "@/lib/i18n/app-locale";
 import { db } from "@/lib/db";
 import { calendarItems, keywords, websites } from "@/lib/db/schema";
 import { getOnboardingState } from "@/lib/onboarding/steps";
@@ -30,8 +31,9 @@ export const dynamic = "force-dynamic";
 export default async function OnboardingContentPage({
   searchParams,
 }: PageProps<"/onboarding/content">) {
-  await requireSession();
+  const session = await requireSession();
   const { orgId } = await requireOrg();
+  const { t } = await getAppMessages(session.user.id);
 
   /**
    * Which website this run of setup is about.
@@ -110,6 +112,7 @@ export default async function OnboardingContentPage({
       <div className="mx-auto max-w-3xl px-4 py-10 sm:py-14">
         <ContentStep
           websiteId={site.id}
+          t={t.app.onboarding}
           brandName={site.brandName ?? site.domain}
           hasKeywords={keywordCount.length > 0}
           hasPlan={plannedCount.length > 0}

@@ -78,9 +78,8 @@ export function GoogleStep({
             {t.connectGoogle}
           </h1>
           <p className="mt-3 text-muted-foreground">
-            Analytics and Search Console tell us which articles are working, so
-            we can write more of what already earns you traffic.
-          </p>
+            {t.analyticsTellUs}
+            </p>
 
           <div className="mt-6 space-y-3">
             <SourceRow
@@ -102,8 +101,8 @@ export function GoogleStep({
           {connected ? (
             <p className="mt-6 flex items-center gap-2 text-sm font-medium text-emerald-600 dark:text-emerald-400">
               <Check className="size-4" aria-hidden="true" />
-              Connected. You can change this later in Integrations.
-            </p>
+              {t.connectedChangeLater}
+              </p>
           ) : (
             <Button
               onClick={handleConnect}
