@@ -152,14 +152,19 @@ export function ResearchTabs({
 
       setNewKeywords("");
       /*
-        Both numbers, because "8 added" on a list of ten reads as a bug
-        unless the other two are accounted for. Skipped covers duplicates and
-        terms that did not fit the plan's allowance.
+        Says what happened to every term AND what the product is now doing.
+        "8 added" on a list of ten reads as a bug unless the other two are
+        accounted for, and a content plan that silently starts rebuilding is
+        the kind of surprise that makes people press the button again.
       */
+      const { added, skipped, replanned } = result.data;
+      const counted =
+        skipped > 0
+          ? `Added ${added}. Skipped ${skipped} already tracked or over your plan.`
+          : `Added ${added}.`;
+
       toast.success(
-        result.data.skipped > 0
-          ? `Added ${result.data.added}. Skipped ${result.data.skipped} already tracked or over your plan.`
-          : `Added ${result.data.added}.`,
+        replanned ? `${counted} Rebuilding your content plan…` : counted,
       );
       router.refresh();
     });

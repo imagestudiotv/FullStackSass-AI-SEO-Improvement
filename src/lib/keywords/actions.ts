@@ -251,7 +251,9 @@ export async function addKeywords(
   websiteId: string,
   /** One per line, or comma-separated — people paste both. */
   input: string,
-): Promise<ActionResult<{ added: number; skipped: number }>> {
+): Promise<
+  ActionResult<{ added: number; skipped: number; replanned: boolean }>
+> {
   const guard = await requireEditor(websiteId);
   if (!guard.ok) return { ok: false, error: guard.error };
   const { site } = guard.context;
@@ -336,6 +338,36 @@ export async function addKeywords(
     })
     .returning({ id: keywords.id });
 
+  /**
+   * Re-plan straight away, so adding a keyword does something visible.
+   *
+   * A term that is only stored changes nothing a customer can see: the topics
+   * and the content plan are built by the research job, so without this they
+   * would have to know to press Refresh afterwards — and the one instruction
+   * a product should never rely on is "now go and press the other button".
+   *
+   * Queued ONCE per submission rather than per term, which is also why the
+   * field takes a list: someone adding ten phrases triggers one run, not ten.
+   *
+   * Re-planning is safe. Keywords are upserted, so nothing typed is lost, and
+   * save-calendar clears only items still "planned" — an article already
+   * written or published survives untouched.
+   *
+   * A failure here is not a failure of the add. The keywords are already
+   * stored, so the button reports success and the customer can press Refresh
+   * themselves; throwing would tell them nothing happened when something did.
+   */
+  let replanned = false;
+  if (inserted.length > 0) {
+    const rate = await withinRateLimit(guard.context.orgId, "seo_api");
+    if (rate.ok) {
+      replanned = await queueJob({
+        name: "website/research.requested",
+        data: { websiteId: site.id, organizationId: guard.context.orgId },
+      });
+    }
+  }
+
   revalidatePath(`/websites/${site.id}`);
   return {
     ok: true,
@@ -343,6 +375,12 @@ export async function addKeywords(
       added: inserted.length,
       // Already present, over the plan's cap, or trimmed as duplicates.
       skipped: terms.length - inserted.length,
+      /**
+       * Whether the plan is rebuilding. False when nothing was added, or when
+       * the hourly cap was reached — someone adding keywords in bursts should
+       * still get their terms stored, and the UI says what to do next.
+       */
+      replanned,
     },
   };
 }
