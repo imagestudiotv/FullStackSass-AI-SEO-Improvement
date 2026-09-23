@@ -14,7 +14,10 @@ import {
   resolveWebsiteId,
 } from "@/lib/websites/selected";
 import { ReferralCard } from "./referral-card";
-import { listWebsiteMembers } from "@/lib/websites/members";
+import {
+  listWebsiteInvitations,
+  listWebsiteMembers,
+} from "@/lib/websites/members";
 
 
 import { WebsiteMembers } from "./website-members";
@@ -138,6 +141,7 @@ export default async function SettingsPage() {
           sites={owned}
           initialWebsiteId={selectedSite.id}
           initialMembers={await listWebsiteMembers(selectedSite.id)}
+          initialInvitations={await listWebsiteInvitations(selectedSite.id)}
           t={t.app.settings}
         />
       ) : null}

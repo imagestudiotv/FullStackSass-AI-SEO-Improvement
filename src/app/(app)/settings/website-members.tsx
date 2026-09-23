@@ -386,7 +386,7 @@ export function WebsiteMembers({
             </TableHeader>
 
             <TableBody>
-              {members.length === 0 ? (
+              {nothingToShow ? (
                 <TableRow>
                   <TableCell
                     colSpan={4}
@@ -508,6 +508,115 @@ export function WebsiteMembers({
                   </TableRow>
                 ))
               )}
+
+              {/*
+                Pending invitations, under the people who actually have
+                access.
+
+                BELOW rather than interleaved by date: these are not members
+                yet, and mixing them into the list would mean the owner has to
+                read the Status column to know who can currently do anything.
+                Ordered after, they read as what they are — an outbox.
+
+                Dimmed, and with no avatar disc. The disc is a recognition aid
+                built from a name, and an invited person has no account and so
+                no name; an initial derived from their email address would
+                invent an identity for somebody who has not yet accepted.
+              */}
+              {invitations.map((invitation) => (
+                <TableRow key={invitation.id} className="bg-muted/20">
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <span
+                        className="flex size-9 shrink-0 items-center justify-center rounded-full border border-dashed text-muted-foreground"
+                        aria-hidden="true"
+                      >
+                        <UserPlus className="size-4" />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-muted-foreground">
+                          {invitation.email}
+                        </p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {invitation.expired
+                            ? t.statusExpired
+                            : `${t.statusPending} · ${invitation.expiresAt.toLocaleDateString()}`}
+                        </p>
+                      </div>
+                    </div>
+                  </TableCell>
+
+                  <TableCell>
+                    <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium capitalize text-muted-foreground">
+                      {invitation.role}
+                    </span>
+                  </TableCell>
+
+                  <TableCell>
+                    {/*
+                      Amber for waiting, grey for expired — never the green
+                      the member rows use. The whole point of this column is
+                      that these two states are not the same as Active.
+                    */}
+                    {invitation.expired ? (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                        <span
+                          className="size-1.5 rounded-full bg-muted-foreground/60"
+                          aria-hidden="true"
+                        />
+                        {t.statusExpired}
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-600">
+                        <span
+                          className="size-1.5 rounded-full bg-amber-500"
+                          aria-hidden="true"
+                        />
+                        {t.statusPending}
+                      </span>
+                    )}
+                  </TableCell>
+
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          disabled={pending}
+                          aria-label={`Manage the invitation for ${invitation.email}`}
+                          className="text-muted-foreground"
+                        >
+                          {busyId === invitation.id ? (
+                            <Loader2 className="size-4 animate-spin" />
+                          ) : (
+                            <MoreVertical className="size-4" />
+                          )}
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={() =>
+                            resend(invitation.id, invitation.email)
+                          }
+                        >
+                          <Send className="size-4" aria-hidden="true" />
+                          {t.resendInvite}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          variant="destructive"
+                          onClick={() =>
+                            revoke(invitation.id, invitation.email)
+                          }
+                        >
+                          <MailX className="size-4" aria-hidden="true" />
+                          {t.cancelInvite}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
         )}
