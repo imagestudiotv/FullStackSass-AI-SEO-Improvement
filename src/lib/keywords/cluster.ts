@@ -106,9 +106,24 @@ export async function clusterKeywords(
     .map((k) => `${k.term} (volume ${k.volume ?? "?"}, score ${k.priorityScore})`)
     .join("\n");
 
+  /**
+   * Room for every keyword to come back, not a fixed ceiling.
+   *
+   * The same failure that emptied the content calendar applies here: this
+   * response echoes each keyword into a cluster, so its length is set by the
+   * INPUT, and a flat cap silently truncates the JSON on a big plan. A Scale
+   * customer's 300 keywords could not fit in 4000 tokens, and the parse would
+   * have failed with an error naming a character offset rather than a cause.
+   *
+   * ~30 tokens per keyword covers the term repeated inside its cluster plus
+   * the array scaffolding, with the floor covering a small plan where the
+   * per-keyword estimate alone is too tight for the wrapper.
+   */
+  const maxTokens = Math.min(Math.max(keywords.length * 30, 2000), 16000);
+
   const response = await anthropic.messages.create({
     model: MODELS.GENERATION,
-    max_tokens: 4000,
+    max_tokens: maxTokens,
     system: system(target),
     output_config: { format: { type: "json_schema", schema: SCHEMA } },
     messages: [{ role: "user", content: `Keywords:\n${list}` }],
@@ -116,6 +131,13 @@ export async function clusterKeywords(
 
   if (response.stop_reason === "refusal") {
     throw new Error("The model declined to cluster these keywords");
+  }
+
+  // Truncation, named. See the note on maxTokens above.
+  if (response.stop_reason === "max_tokens") {
+    throw new Error(
+      `Clustering ran out of room: ${keywords.length} keywords needed more than ${maxTokens} tokens`,
+    );
   }
 
   const block = response.content.find((item) => item.type === "text");

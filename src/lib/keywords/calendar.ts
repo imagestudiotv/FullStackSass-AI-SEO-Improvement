@@ -164,9 +164,41 @@ export async function planCalendar(
 
   if (slots.length === 0) return [];
 
+  /**
+   * Room for one title per slot, not a fixed ceiling.
+   *
+   * THIS IS WHY THE CONTENT CALENDAR WAS EMPTY. max_tokens was a flat 2000,
+   * but the output scales with the plan: a Grow customer's 30 real keywords
+   * produced 2,799 tokens of JSON, so the response stopped at exactly 2000
+   * with stop_reason "max_tokens", mid-string. JSON.parse then threw
+   * "Unterminated string in JSON at position 2130", the whole research run
+   * failed after its retries, and the customer was left with keywords and
+   * clusters stored but nothing on the calendar - hours after signing up.
+   *
+   * Measured rather than guessed, by sweeping the budget against the exact
+   * keywords that failed. 30 slots came back at 3,067 / 3,474 / 3,807 output
+   * tokens on budgets of 5k / 6k / 8k - and truncated at 4,000.
+   *
+   * THE OUTPUT IS NOT A FIXED SIZE. Those numbers are the lesson: given more
+   * room the model writes longer titles, so a budget set just above one
+   * observed run truncates the next. My first attempt at this fix used 120
+   * per slot, which computed 3,600 for the same 30 articles and failed again
+   * exactly as before.
+   *
+   * So 250 per slot is deliberate headroom rather than a fitted estimate -
+   * about double the worst run measured. Unused tokens cost nothing; only
+   * generated ones are billed, and a truncated response costs the full
+   * budget AND produces nothing.
+   *
+   * The floor covers a small plan, where the per-slot figure alone is too
+   * tight for the JSON wrapper. The ceiling is a cost guard: the largest
+   * plan lands near it, and anything beyond is a bug rather than a plan.
+   */
+  const maxTokens = Math.min(Math.max(slots.length * 250, 4000), 32000);
+
   const response = await anthropic.messages.create({
     model: MODELS.GENERATION,
-    max_tokens: 2000,
+    max_tokens: maxTokens,
     system: SYSTEM,
     output_config: { format: { type: "json_schema", schema: SCHEMA } },
     messages: [
@@ -181,6 +213,21 @@ export async function planCalendar(
 
   if (response.stop_reason === "refusal") {
     throw new Error("The model declined to plan this calendar");
+  }
+
+  /**
+   * Truncation, named for what it is.
+   *
+   * Without this the half-written JSON fell through to JSON.parse below and
+   * surfaced as "Unterminated string in JSON at position 2130" - an error
+   * that says nothing about the cause and sent me looking at the parser
+   * rather than at the token budget. If the budget above is ever wrong again,
+   * this is the line that says so.
+   */
+  if (response.stop_reason === "max_tokens") {
+    throw new Error(
+      `Calendar planning ran out of room: ${slots.length} articles needed more than ${maxTokens} tokens`,
+    );
   }
 
   const block = response.content.find((item) => item.type === "text");

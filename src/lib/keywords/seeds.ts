@@ -106,6 +106,17 @@ export async function generateSeedKeywords(
     messages: [{ role: "user", content: buildPrompt(profile) }],
   });
 
+  /*
+    Truncation, named. Unlike clustering and calendar planning this response
+    is a fixed-size list rather than one scaled by the input, so 2000 tokens
+    is a sound cap - but a silent truncation here would still surface as a
+    JSON parse error about a character offset, which is what sent me looking
+    in the wrong place when the content calendar broke.
+  */
+  if (response.stop_reason === "max_tokens") {
+    throw new Error("Keyword seed generation ran out of room");
+  }
+
   if (response.stop_reason === "refusal") {
     throw new Error("The model declined to generate keywords");
   }
