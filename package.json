@@ -16,6 +16,7 @@
     "doctor": "node scripts/doctor.mjs",
     "db:seed-addons": "node scripts/seed-addons.mjs",
     "db:seed": "node scripts/seed-plans.mjs",
+    "db:reset": "node scripts/reset-test-data.mjs",
     "stripe:setup": "node scripts/stripe-setup.mjs",
     "paypal:setup": "node scripts/paypal-setup.mjs"
   },

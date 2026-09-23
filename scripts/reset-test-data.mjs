@@ -6,8 +6,12 @@
  * treated as a brand-new customer — no workspace, no website, so the
  * onboarding flow runs from its first step.
  *
- *   node scripts/reset-test-data.mjs              # dry run, writes nothing
- *   node scripts/reset-test-data.mjs --apply
+ *   npm run db:reset                       # dry run, writes nothing
+ *   npm run db:reset -- --apply --i-understand=<db-host>
+ *
+ * The dry run is the default and prints a row count per table. Applying
+ * needs the database's own hostname repeated back, so that emptying the
+ * wrong database takes a deliberate act rather than one stale shell.
  *
  * WHAT IS KEPT
  *   user/account/session for ADMIN_EMAILS  the login itself
@@ -29,7 +33,56 @@ import postgres from "postgres";
 nextEnv.loadEnvConfig(process.cwd());
 
 const apply = process.argv.includes("--apply");
-const sql = postgres(process.env.DIRECT_URL, { connect_timeout: 30 });
+
+/**
+ * --apply on its own is not enough to wipe a database.
+ *
+ * This reads DIRECT_URL from whatever .env the working directory happens to
+ * have, and a developer with production credentials in .env.local is one
+ * command away from deleting every customer's work — irreversibly, since
+ * nothing here is a soft delete. The flag is easy to add on autopilot;
+ * naming the host is not, because it forces a look at WHICH database is
+ * about to be emptied.
+ *
+ *   node scripts/reset-test-data.mjs --apply --i-understand=<db-host>
+ *
+ * The dry run needs none of this: it only counts.
+ */
+const url = process.env.DIRECT_URL;
+if (!url) {
+  console.error("\nDIRECT_URL is not set. Nothing to connect to.\n");
+  process.exit(1);
+}
+
+let host;
+try {
+  host = new URL(url).hostname;
+} catch {
+  console.error("\nDIRECT_URL is not a valid connection string.\n");
+  process.exit(1);
+}
+
+if (apply) {
+  const confirmed = process.argv
+    .find((arg) => arg.startsWith("--i-understand="))
+    ?.slice("--i-understand=".length);
+
+  if (confirmed !== host) {
+    console.error(
+      `\nRefusing to wipe ${host}.\n\n` +
+        `This deletes every customer's websites, articles and history, and\n` +
+        `there is no undo. To confirm you mean THIS database, re-run with:\n\n` +
+        `  node scripts/reset-test-data.mjs --apply --i-understand=${host}\n\n` +
+        `If that hostname is not the one you expected, stop and check which\n` +
+        `.env file is being loaded.\n`,
+    );
+    process.exit(1);
+  }
+}
+
+const sql = postgres(url, { connect_timeout: 30 });
+
+console.log(`\nDatabase: ${host}`);
 
 const adminEmails = (process.env.ADMIN_EMAILS ?? "")
   .split(",")
@@ -101,6 +154,13 @@ const TABLES = [
   "addon_purchases",
   "payments",
   "subscriptions",
+  /*
+    Cascades from organization like the rest, but it was missing from this
+    list — so it was being emptied and never CHECKED. The leftover guard
+    below is the point of the list: a table absent from it can quietly
+    survive a reset and nothing reports it.
+  */
+  "billing_customers",
   "usage_events",
   "credit_ledger",
   "referrals",
