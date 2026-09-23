@@ -1082,6 +1082,21 @@ export type Messages = {
       emailPlaceholder: string;
       password: string;
       passwordHint: string;
+      emailMeACode: string;
+      usePasswordInstead: string;
+      sendCode: string;
+      sendingCode: string;
+      codeLabel: string;
+      codePlaceholder: string;
+      codeHelp: string;
+      verifyCode: string;
+      verifying: string;
+      resendCode: string;
+      useDifferentEmail: string;
+      codeSent: string;
+      codeNotSent: string;
+      codeInvalid: string;
+      enterEmailFirst: string;
       organizations: string;
       loading: string;
       createOrganization: string;
@@ -2386,6 +2401,21 @@ const en: Messages = {
       emailPlaceholder: "you@example.com",
       password: "Password",
       passwordHint: "At least 8 characters, including a number and a letter.",
+      emailMeACode: "Email me a sign-in code",
+      usePasswordInstead: "Use a password instead",
+      sendCode: "Send me a code",
+      sendingCode: "Sending your code…",
+      codeLabel: "Sign-in code",
+      codePlaceholder: "123456",
+      codeHelp: "We sent a six-digit code to {email}. It expires in 10 minutes.",
+      verifyCode: "Sign in",
+      verifying: "Checking your code…",
+      resendCode: "Send another code",
+      useDifferentEmail: "Use a different email",
+      codeSent: "Check your email for the code.",
+      codeNotSent: "That code could not be sent. Try again.",
+      codeInvalid: "That code is not right, or it has expired.",
+      enterEmailFirst: "Enter your email address first.",
       organizations: "Organizations",
       loading: "Loading…",
       createOrganization: "Create organization",
@@ -3699,6 +3729,21 @@ const es: Messages = {
       emailPlaceholder: "usted@ejemplo.com",
       password: "Contraseña",
       passwordHint: "Al menos 8 caracteres, incluyendo un número y una letra.",
+      emailMeACode: "Envíenme un código por correo",
+      usePasswordInstead: "Usar una contraseña",
+      sendCode: "Enviarme un código",
+      sendingCode: "Enviando su código…",
+      codeLabel: "Código de acceso",
+      codePlaceholder: "123456",
+      codeHelp: "Hemos enviado un código de seis dígitos a {email}. Caduca en 10 minutos.",
+      verifyCode: "Iniciar sesión",
+      verifying: "Comprobando su código…",
+      resendCode: "Enviar otro código",
+      useDifferentEmail: "Usar otro correo",
+      codeSent: "Revise su correo para ver el código.",
+      codeNotSent: "No se ha podido enviar el código. Inténtelo de nuevo.",
+      codeInvalid: "Ese código no es correcto o ha caducado.",
+      enterEmailFirst: "Introduzca primero su correo electrónico.",
       organizations: "Organizaciones",
       loading: "Cargando…",
       createOrganization: "Crear organización",
@@ -5014,6 +5059,21 @@ const fr: Messages = {
       emailPlaceholder: "vous@exemple.com",
       password: "Mot de passe",
       passwordHint: "Au moins 8 caractères, dont un chiffre et une lettre.",
+      emailMeACode: "Envoyez-moi un code par e-mail",
+      usePasswordInstead: "Utiliser un mot de passe",
+      sendCode: "M\u2019envoyer un code",
+      sendingCode: "Envoi de votre code…",
+      codeLabel: "Code de connexion",
+      codePlaceholder: "123456",
+      codeHelp: "Nous avons envoyé un code à six chiffres à {email}. Il expire dans 10 minutes.",
+      verifyCode: "Se connecter",
+      verifying: "Vérification de votre code…",
+      resendCode: "Envoyer un autre code",
+      useDifferentEmail: "Utiliser une autre adresse",
+      codeSent: "Consultez votre boîte mail pour le code.",
+      codeNotSent: "Ce code n\u2019a pas pu être envoyé. Réessayez.",
+      codeInvalid: "Ce code est incorrect ou a expiré.",
+      enterEmailFirst: "Saisissez d\u2019abord votre adresse e-mail.",
       organizations: "Organisations",
       loading: "Chargement…",
       createOrganization: "Créer une organisation",
@@ -6323,6 +6383,21 @@ const it: Messages = {
       emailPlaceholder: "lei@esempio.com",
       password: "Password",
       passwordHint: "Almeno 8 caratteri, con un numero e una lettera.",
+      emailMeACode: "Inviatemi un codice via e-mail",
+      usePasswordInstead: "Usa una password",
+      sendCode: "Inviami un codice",
+      sendingCode: "Invio del codice…",
+      codeLabel: "Codice di accesso",
+      codePlaceholder: "123456",
+      codeHelp: "Abbiamo inviato un codice di sei cifre a {email}. Scade tra 10 minuti.",
+      verifyCode: "Accedi",
+      verifying: "Verifica del codice…",
+      resendCode: "Invia un altro codice",
+      useDifferentEmail: "Usa un\u2019altra e-mail",
+      codeSent: "Controlli la sua e-mail per il codice.",
+      codeNotSent: "Non è stato possibile inviare il codice. Riprovi.",
+      codeInvalid: "Il codice non è corretto o è scaduto.",
+      enterEmailFirst: "Inserisca prima il suo indirizzo e-mail.",
       organizations: "Organizzazioni",
       loading: "Caricamento…",
       createOrganization: "Crea organizzazione",
@@ -7639,6 +7714,21 @@ const de: Messages = {
       emailPlaceholder: "sie@beispiel.de",
       password: "Passwort",
       passwordHint: "Mindestens 8 Zeichen, davon eine Ziffer und ein Buchstabe.",
+      emailMeACode: "Code per E-Mail senden",
+      usePasswordInstead: "Stattdessen Passwort verwenden",
+      sendCode: "Code senden",
+      sendingCode: "Code wird gesendet…",
+      codeLabel: "Anmeldecode",
+      codePlaceholder: "123456",
+      codeHelp: "Wir haben einen sechsstelligen Code an {email} gesendet. Er läuft in 10 Minuten ab.",
+      verifyCode: "Anmelden",
+      verifying: "Code wird geprüft…",
+      resendCode: "Neuen Code senden",
+      useDifferentEmail: "Andere E-Mail verwenden",
+      codeSent: "Sehen Sie in Ihrem Postfach nach dem Code.",
+      codeNotSent: "Der Code konnte nicht gesendet werden. Versuchen Sie es erneut.",
+      codeInvalid: "Der Code ist falsch oder abgelaufen.",
+      enterEmailFirst: "Geben Sie zuerst Ihre E-Mail-Adresse ein.",
       organizations: "Organisationen",
       loading: "Wird geladen…",
       createOrganization: "Organisation erstellen",

@@ -4,9 +4,11 @@ import { useRouter } from "next/navigation";
 import { getMessages, type Messages } from "@/lib/i18n/messages";
 import Link from "next/link";
 import {
+  ArrowLeft,
   ArrowRight,
   Eye,
   EyeOff,
+  KeyRound,
   Loader2,
   Lock,
   Mail,
@@ -117,6 +119,27 @@ export function AuthForm({
   const [showPassword, setShowPassword] = useState(false);
 
   /**
+   * Password or a one-time code.
+   *
+   * Password stays the default. The code is better for somebody who never set
+   * one — a Google signup, an invited collaborator — but switching the default
+   * would make every returning customer press an extra button to reach the
+   * field their manager already filled in.
+   */
+  const [method, setMethod] = useState<"password" | "code">("password");
+
+  /**
+   * Which half of the code flow is on screen: asking for the address, or
+   * entering what arrived.
+   *
+   * One component rather than two screens, because the address typed in step
+   * one is the address step two verifies, and carrying it through a
+   * navigation would mean putting it in the URL.
+   */
+  const [codeSent, setCodeSent] = useState(false);
+  const [code, setCode] = useState("");
+
+  /**
    * Report a failure that happened during the OAuth round trip.
    *
    * Better Auth redirects back with ?error=<code>. Nothing read it, so a
@@ -190,6 +213,63 @@ export function AuthForm({
       setGooglePending(false);
       toast.error(error.message ?? "Google sign-in failed");
     }
+  }
+
+  /**
+   * Step one: ask for a code.
+   *
+   * The response is deliberately not inspected for "does this account exist".
+   * Better Auth answers the same way either way, and so does this — a form
+   * that says "no account with that address" tells anybody who asks which of
+   * your customers' addresses are registered.
+   */
+  async function handleRequestCode() {
+    const cleanEmail = email.trim();
+    if (!cleanEmail) {
+      toast.error(t.enterEmailFirst);
+      return;
+    }
+
+    setPending(true);
+    const { error } = await authClient.emailOtp.sendVerificationOtp({
+      email: cleanEmail,
+      type: "sign-in",
+    });
+    setPending(false);
+
+    if (error) {
+      toast.error(error.message ?? t.codeNotSent);
+      return;
+    }
+
+    setCodeSent(true);
+    setCode("");
+    toast.success(t.codeSent);
+  }
+
+  /** Step two: exchange the code for a session. */
+  async function handleVerifyCode(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setPending(true);
+
+    const { error } = await authClient.signIn.emailOtp({
+      email: email.trim(),
+      otp: code.trim(),
+    });
+
+    if (error) {
+      setPending(false);
+      /*
+        The code stays in the field on failure. Clearing it would be the
+        obvious thing and the wrong one: the usual cause is one mistyped
+        digit, and retyping all six to fix one is worse than correcting it.
+      */
+      toast.error(error.message ?? t.codeInvalid);
+      return;
+    }
+
+    router.push(next);
+    router.refresh();
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -275,6 +355,101 @@ export function AuthForm({
         <span className="h-px flex-1 bg-border" />
       </div>
 
+      {/*
+        THE CODE STEP REPLACES THE FORM, rather than appearing beside it.
+
+        Once a code is on its way there is exactly one thing to do with it,
+        and leaving the password field on screen invites somebody to fill in
+        the wrong one. The address is still shown — in the help line — so
+        nobody has to remember which mailbox to open.
+      */}
+      {!isSignUp && method === "code" && codeSent ? (
+        <form onSubmit={handleVerifyCode} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="otp">{t.codeLabel}</Label>
+            <div className="relative">
+              <Input
+                id="otp"
+                value={code}
+                onChange={(event) =>
+                  /*
+                    Digits only, and never more than six. People paste the
+                    code with a trailing space, or with the surrounding
+                    sentence, and a field that silently keeps the rest fails
+                    with "that code is not right" for something the form
+                    could have fixed itself.
+                  */
+                  setCode(event.target.value.replace(/\D/g, "").slice(0, 6))
+                }
+                placeholder={t.codePlaceholder}
+                /*
+                  one-time-code lets iOS and Android offer the code straight
+                  from the notification, which is the whole ergonomic win of
+                  a number over a link.
+                */
+                autoComplete="one-time-code"
+                inputMode="numeric"
+                autoFocus
+                required
+                className="h-12 pl-10 font-mono text-lg tracking-[0.3em]"
+              />
+              <KeyRound
+                className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground"
+                aria-hidden="true"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {t.codeHelp.replace("{email}", email.trim())}
+            </p>
+          </div>
+
+          <Button
+            type="submit"
+            className="h-12 w-full text-base font-semibold"
+            disabled={pending || code.length < 6}
+          >
+            {pending ? (
+              <>
+                <Loader2 className="size-4 animate-spin" />
+                {t.verifying}
+              </>
+            ) : (
+              <>
+                {t.verifyCode}
+                <ArrowRight className="size-4" aria-hidden="true" />
+              </>
+            )}
+          </Button>
+
+          {/*
+            Both ways out. A code that never arrives is the common failure,
+            and without "send another" the only recovery is reloading the
+            page — which loses the address they just typed.
+          */}
+          <div className="flex items-center justify-between gap-3 text-sm">
+            <button
+              type="button"
+              onClick={handleRequestCode}
+              disabled={pending}
+              className="text-muted-foreground underline underline-offset-4 hover:text-foreground disabled:opacity-50"
+            >
+              {t.resendCode}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setCodeSent(false);
+                setCode("");
+              }}
+              disabled={pending}
+              className="inline-flex items-center gap-1 text-muted-foreground underline underline-offset-4 hover:text-foreground disabled:opacity-50"
+            >
+              <ArrowLeft className="size-3" aria-hidden="true" />
+              {t.useDifferentEmail}
+            </button>
+          </div>
+        </form>
+      ) : (
       <form onSubmit={handleSubmit} className="space-y-4">
         {isSignUp ? (
           <div className="space-y-1.5">
@@ -322,6 +497,12 @@ export function AuthForm({
           </div>
         </div>
 
+        {/*
+          Hidden when the customer chose a code. Not merely disabled: a
+          greyed-out password field beside a "send me a code" button reads as
+          something broken rather than something not needed.
+        */}
+        {isSignUp || method === "password" ? (
         <div className="space-y-1.5">
           <Label htmlFor="password">{t.password}</Label>
           <div className="relative">
@@ -360,25 +541,60 @@ export function AuthForm({
             </p>
           ) : null}
         </div>
+        ) : null}
 
+        {/*
+          One button, two jobs: it submits the password form, or asks for a
+          code. Kept as a single control so the primary action never moves.
+        */}
         <Button
-          type="submit"
+          type={isSignUp || method === "password" ? "submit" : "button"}
+          onClick={
+            !isSignUp && method === "code" ? handleRequestCode : undefined
+          }
           className="h-12 w-full text-base font-semibold"
           disabled={pending || googlePending}
         >
           {pending ? (
             <>
               <Loader2 className="size-4 animate-spin" />
-              {isSignUp ? "Creating your account…" : "Signing you in…"}
+              {isSignUp
+                ? "Creating your account…"
+                : method === "code"
+                  ? t.sendingCode
+                  : "Signing you in…"}
             </>
           ) : (
             <>
-              {isSignUp ? "Create account" : "Sign in"}
+              {isSignUp
+                ? "Create account"
+                : method === "code"
+                  ? t.sendCode
+                  : "Sign in"}
               <ArrowRight className="size-4" aria-hidden="true" />
             </>
           )}
         </Button>
+
+        {/*
+          Switching between the two. Sign-up is excluded: an account has to
+          have a password before it can be offered as an alternative to one.
+        */}
+        {!isSignUp ? (
+          <button
+            type="button"
+            onClick={() =>
+              setMethod((current) =>
+                current === "password" ? "code" : "password",
+              )
+            }
+            className="w-full text-center text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
+          >
+            {method === "password" ? t.emailMeACode : t.usePasswordInstead}
+          </button>
+        ) : null}
       </form>
+      )}
 
       {/*
         The legal line the reference carries. It belongs on the screen where
