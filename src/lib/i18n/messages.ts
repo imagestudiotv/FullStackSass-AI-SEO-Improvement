@@ -653,6 +653,8 @@ export type Messages = {
       disconnectedFrom: string;
       draftPublished: string;
       draftPublishedAt: string;
+      pluginRowName: string;
+      pluginRowFallback: string;
     };
     geo: {
       aiVisibility: string;
@@ -1947,6 +1949,8 @@ const en: Messages = {
       disconnectedFrom: "Disconnected from {name}",
       draftPublished: "Draft published successfully. Check your site’s drafts.",
       draftPublishedAt: "Draft published — open it at {name}",
+      pluginRowName: "WordPress plugin",
+      pluginRowFallback: "Connected — waiting for its first report.",
     },
     geo: {
       aiVisibility: "AI visibility",
@@ -3246,6 +3250,8 @@ const es: Messages = {
       disconnectedFrom: "Desconectado de {name}",
       draftPublished: "Borrador publicado correctamente. Revise los borradores de su sitio.",
       draftPublishedAt: "Borrador publicado — ábralo en {name}",
+      pluginRowName: "Plugin de WordPress",
+      pluginRowFallback: "Conectado — esperando su primer informe.",
     },
     geo: {
       aiVisibility: "Visibilidad en IA",
@@ -4549,6 +4555,8 @@ const fr: Messages = {
       disconnectedFrom: "Déconnecté de {name}",
       draftPublished: "Brouillon publié. Vérifiez les brouillons de votre site.",
       draftPublishedAt: "Brouillon publié — ouvrez-le sur {name}",
+      pluginRowName: "Extension WordPress",
+      pluginRowFallback: "Connecté — en attente de son premier rapport.",
     },
     geo: {
       aiVisibility: "Visibilité dans l\u2019IA",
@@ -5844,6 +5852,8 @@ const it: Messages = {
       disconnectedFrom: "Scollegato da {name}",
       draftPublished: "Bozza pubblicata. Controlli le bozze del suo sito.",
       draftPublishedAt: "Bozza pubblicata — la apra su {name}",
+      pluginRowName: "Plugin WordPress",
+      pluginRowFallback: "Collegato — in attesa del primo rapporto.",
     },
     geo: {
       aiVisibility: "Visibilità nell\u2019IA",
@@ -7148,6 +7158,8 @@ const de: Messages = {
       disconnectedFrom: "Von {name} getrennt",
       draftPublished: "Entwurf veröffentlicht. Sehen Sie in den Entwürfen Ihrer Website nach.",
       draftPublishedAt: "Entwurf veröffentlicht — öffnen Sie ihn unter {name}",
+      pluginRowName: "WordPress-Plugin",
+      pluginRowFallback: "Verbunden — wartet auf die erste Rückmeldung.",
     },
     geo: {
       aiVisibility: "KI-Sichtbarkeit",

@@ -75,6 +75,37 @@ export function PublishingPanel({
   const selected = providers.find((p) => p.id === adding) ?? null;
   const connectedKinds = new Set(integrations.map((i) => i.kind));
 
+  /**
+   * Has the plugin ever actually called us?
+   *
+   * The plugin is a publishing destination like any other, but it does not
+   * write to the integrations table — it authenticates with an integration
+   * key, which lives in its own table. So a site publishing happily through
+   * the plugin was still told "Nothing connected yet", directly above a key
+   * showing the WordPress version it had just reported. The customer had
+   * done everything right and the screen said they had not.
+   *
+   * lastUsedAt rather than the key's existence: a key that has been created
+   * but never used means the plugin is not installed yet, which is the case
+   * the empty state is genuinely for.
+   */
+  const pluginConnected = pluginKeys.some((key) => key.lastUsedAt !== null);
+
+  /**
+   * What the most recently used key reported about the site it runs on.
+   *
+   * Most recent rather than first: a customer who reinstalled on a new domain
+   * has two used keys, and the older one describes a site that may no longer
+   * exist.
+   */
+  const pluginSiteInfo =
+    pluginKeys
+      .filter((key) => key.lastUsedAt !== null)
+      .sort(
+        (a, b) =>
+          (b.lastUsedAt?.getTime() ?? 0) - (a.lastUsedAt?.getTime() ?? 0),
+      )[0]?.siteInfo ?? null;
+
   function handleConnect() {
     if (!selected) return;
     startTransition(async () => {
@@ -188,7 +219,7 @@ export function PublishingPanel({
       </CardHeader>
 
       <CardContent className="space-y-6">
-        {integrations.length === 0 ? (
+        {integrations.length === 0 && !pluginConnected ? (
           <EmptyState
             icon={Send}
             title={t.nothingConnected}
@@ -276,6 +307,40 @@ export function PublishingPanel({
                 </div>
               </li>
             ))}
+
+            {/*
+              The plugin, listed as what it is: a live publishing destination.
+
+              Without a row here the list rendered as an empty bordered box on
+              a site connected ONLY by the plugin — the empty state suppressed,
+              nothing put in its place. It also belongs here on its own merit:
+              "what is publishing to this site?" is the question this list
+              answers, and the plugin was missing from the answer.
+
+              No disconnect button. A key is revoked in the panel below, which
+              is also where it is created — two controls for one thing, in two
+              places, is how someone revokes a key while meaning to remove a
+              CMS.
+            */}
+            {pluginConnected ? (
+              <li className="flex flex-wrap items-center justify-between gap-3 p-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{t.pluginRowName}</span>
+                    <StatusBadge status="connected" />
+                  </div>
+                  {/*
+                    siteInfo is what the plugin last reported about itself —
+                    the address, WordPress version and plugin version — which
+                    is exactly what tells the customer this row is their site
+                    rather than a stale record.
+                  */}
+                  <p className="mt-0.5 truncate text-sm text-muted-foreground">
+                    {pluginSiteInfo ?? t.pluginRowFallback}
+                  </p>
+                </div>
+              </li>
+            ) : null}
           </ul>
         )}
 
