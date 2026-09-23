@@ -34,10 +34,10 @@ function getDb(): PostgresJsDatabase<typeof schema> {
       prepare: false,
 
       /**
-       * One connection per serverless instance, not postgres-js's default 10.
+       * A small pool per serverless instance, not postgres-js's default 10.
        *
        * Every route here runs as a Vercel serverless function, so the process
-       * handles ONE request at a time — a second concurrent visitor is a
+       * serves ONE request at a time — a second concurrent visitor is a
        * second instance with its own pool, never extra load on this one. The
        * default therefore sizes a pool for concurrency that cannot happen,
        * while the instances multiply against a fixed ceiling: this project's
@@ -47,12 +47,16 @@ function getDb(): PostgresJsDatabase<typeof schema> {
        * happened to ask next — billing, the dashboard, even sign-in — which
        * is why the failures looked unrelated to each other.
        *
-       * Sequential `await`s (the layout's ~10 queries) reuse this single
-       * connection and are unaffected. A page that fans out with Promise.all
-       * has those queries queue rather than open sockets; the pooler is doing
-       * the real pooling, which is the arrangement it is built for.
+       * Four rather than one. `max: 1` is the usual advice when a pooler sits
+       * in front, and it is wrong here: this codebase fans out with
+       * Promise.all — billing/page.tsx awaits six queries at once — and
+       * measured against this database, one and two connections HANG on that
+       * page rather than queueing, while three and above return in ~2s. Four
+       * keeps a connection spare above the observed cliff and still cuts the
+       * per-instance footprint by more than half. Do not lower this below the
+       * widest Promise.all in the app without re-testing that page.
        */
-      max: 1,
+      max: 4,
 
       /**
        * Hand idle connections back instead of holding them forever (the
