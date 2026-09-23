@@ -634,22 +634,31 @@ export function ArticleSettingsForm({
       {dirty ? (
         <>
           {/*
-            KEEPS CLEAR OF THE RIGHT-HAND DASHBOARD.
+            KEPT INSIDE THE CONTENT COLUMN, ON BOTH SIDES.
 
-            The setup tracker and the chat launcher are both pinned to the
-            bottom-right corner of the viewport, above this bar in the
-            stacking order. Edge to edge, the bar ran underneath them and its
-            Save button - which sits at the right end of the row - was the
-            part they covered. The one control the bar exists for was the one
-            you could not press.
+            `fixed` positions against the viewport, not the main area, so a
+            bar spanning the full width crosses both of the things that frame
+            it.
 
-            So the strip stops short of that corner rather than running the
-            full width: sm:pr-[21rem] clears right-4 (1rem) plus the panel's
-            w-80 (20rem), at the same `sm` breakpoint the panel appears on.
-            Below `sm` the panel renders nothing, so the bar keeps the whole
-            width there and loses no room on a phone.
+            RIGHT: the setup tracker and the chat launcher are pinned to the
+            bottom-right corner, above this bar in the stacking order. Edge to
+            edge, the bar ran underneath them and its Save button - which sits
+            at the right end of the row - was the part they covered. The one
+            control the bar exists for was the one you could not press.
+            sm:pr-[21rem] clears right-4 (1rem) plus the panel's w-80 (20rem),
+            at the same `sm` breakpoint the panel appears on.
+
+            LEFT: the sidebar is an in-flow column, not an overlay, so the bar
+            ignored it and slid underneath - the strip and its top border ran
+            across the navigation, which reads as the bar belonging to the
+            whole window rather than to the form it is about. md:left-60
+            matches the sidebar's own w-60 at the same `md` breakpoint it
+            appears on.
+
+            Below those breakpoints neither element renders, so the bar keeps
+            the full width on a phone and loses no room.
           */}
-          <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 backdrop-blur sm:pr-[21rem]">
+          <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 backdrop-blur sm:pr-[21rem] md:left-60">
             <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
               <p className="text-sm text-muted-foreground">{t.unsavedChanges}</p>
               <div className="flex gap-2">
