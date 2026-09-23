@@ -1,6 +1,7 @@
 "use client";
 
 import { Building2, Clock, TrendingUp } from "lucide-react";
+import { getMessages, type Messages } from "@/lib/i18n/messages";
 
 import { WorldMap } from "@/components/onboarding/world-map";
 
@@ -35,10 +36,15 @@ import { WorldMap } from "@/components/onboarding/world-map";
  * These describe the product's own mechanics, which are true on day one:
  * nothing here is a claim about results we have not produced.
  */
-const STATS: { icon: typeof Building2; value: string; label: string }[] = [
-  { icon: Building2, value: "8", label: "AI assistants tracked" },
-  { icon: TrendingUp, value: "Weekly", label: "Fresh articles" },
-  { icon: Clock, value: "2 min", label: "To set up" },
+const STATS: {
+  icon: typeof Building2;
+  /** A literal number, or a dictionary key when the value is a word. */
+  value: string | keyof Messages["app"]["common"];
+  label: keyof Messages["app"]["common"];
+}[] = [
+  { icon: Building2, value: "8", label: "aiAssistantsTracked" },
+  { icon: TrendingUp, value: "weekly", label: "freshArticles" },
+  { icon: Clock, value: "twoMinutes", label: "toSetUp" },
 ];
 
 export function OnboardingAside({
@@ -47,9 +53,12 @@ export function OnboardingAside({
   /** A sentence under it. */
   note,
   children,
+  t = getMessages("en").app.common,
 }: {
   title: string;
   note: string;
+  /** Shared words, defaulting to English. */
+  t?: Messages["app"]["common"];
   /** Optional extra below the card — a preview of what the step produces. */
   children?: React.ReactNode;
 }) {
@@ -104,10 +113,16 @@ export function OnboardingAside({
                 />
               </span>
               <span className="text-xl font-semibold tracking-tight">
-                {stat.value}
+                {/*
+                  A plain number stays as it is; a word is looked up. "8" is
+                  the same in every language, "Weekly" is not.
+                */}
+                {stat.value in t
+                  ? t[stat.value as keyof Messages["app"]["common"]]
+                  : stat.value}
               </span>
               <span className="text-[11px] leading-tight text-muted-foreground">
-                {stat.label}
+                {t[stat.label]}
               </span>
             </div>
           ))}
@@ -127,7 +142,7 @@ export function OnboardingAside({
           job the line was doing all along.
         */}
         <p className="relative pt-8 text-center text-[10px] font-medium tracking-[0.18em] text-muted-foreground/70 uppercase">
-          Trusted by businesses worldwide
+          {t.trustedByBusinesses}
         </p>
 
         {/*

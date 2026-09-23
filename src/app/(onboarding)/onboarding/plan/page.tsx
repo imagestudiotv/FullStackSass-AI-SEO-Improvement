@@ -4,6 +4,7 @@ import { OnboardingAside } from "@/components/onboarding/onboarding-aside";
 import { TestimonialRail } from "@/components/onboarding/testimonial-rail";
 import { WizardProgress } from "@/components/wizard-progress";
 import { requireSession } from "@/lib/auth-guard";
+import { getAppMessages } from "@/lib/i18n/app-locale";
 import { listPlans } from "@/lib/billing";
 import { getOnboardingState } from "@/lib/onboarding/steps";
 import { isPayPalAvailable } from "@/lib/paypal/actions";
@@ -31,7 +32,8 @@ export const dynamic = "force-dynamic";
 export default async function OnboardingPlanPage({
   searchParams,
 }: PageProps<"/onboarding/plan">) {
-  await requireSession();
+  const session = await requireSession();
+  const { t } = await getAppMessages(session.user.id);
   const { orgId } = await requireOrg();
 
   const params = await searchParams;
@@ -141,13 +143,14 @@ export default async function OnboardingPlanPage({
           <OnboardingAside
             title="What happens the moment you subscribe"
             note="We research your keywords, build a content calendar sized to your plan, and start writing. You will have your first article to review shortly after."
+            t={t.app.common}
           >
             {/*
               Customer quotes and the public review score, as the reference
               has here. Renders nothing at all while there are none — see
               lib/marketing/testimonials.ts for why that file is empty.
             */}
-            <TestimonialRail />
+            <TestimonialRail t={t.app.common} />
           </OnboardingAside>
         </div>
       </div>

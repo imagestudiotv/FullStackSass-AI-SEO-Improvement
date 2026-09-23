@@ -4,6 +4,7 @@ import { HeaderTrailing } from "@/components/onboarding/header-trailing";
 import { UserMenu } from "@/components/user-menu";
 import { ensureOrganization } from "@/lib/auth";
 import { requireSession } from "@/lib/auth-guard";
+import { getAppMessages } from "@/lib/i18n/app-locale";
 import { NoOrganizationError, requireOrg } from "@/lib/tenant";
 
 /**
@@ -32,6 +33,7 @@ export const dynamic = "force-dynamic";
 
 export default async function OnboardingLayout({ children }: LayoutProps<"/">) {
   const session = await requireSession();
+  const { t } = await getAppMessages(session.user.id);
 
   /**
    * Recover a signed-in user who has no organization.
@@ -95,7 +97,7 @@ export default async function OnboardingLayout({ children }: LayoutProps<"/">) {
             A way out that is not the dashboard — except on the plan step,
             where it becomes the checkout reassurance. See header-trailing.
           */}
-          <HeaderTrailing />
+          <HeaderTrailing t={t.app.common} />
           <UserMenu
             name={session.user.name}
             email={session.user.email}

@@ -1,6 +1,7 @@
 "use client";
 
 import { Lock } from "lucide-react";
+import { getMessages, type Messages } from "@/lib/i18n/messages";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -23,7 +24,12 @@ import { usePathname } from "next/navigation";
  * layout client-side to learn one string would drag the session read and the
  * organization recovery with it.
  */
-export function HeaderTrailing() {
+export function HeaderTrailing({
+  t = getMessages("en").app.common,
+}: {
+  /** Shared words, defaulting to English. */
+  t?: Messages["app"]["common"];
+} = {}) {
   const pathname = usePathname();
   const onPlanStep = pathname?.startsWith("/onboarding/plan") ?? false;
 
@@ -31,7 +37,7 @@ export function HeaderTrailing() {
     return (
       <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
         <Lock className="size-3.5" aria-hidden="true" />
-        Secure checkout
+        {t.secureCheckout}
       </span>
     );
   }
@@ -41,7 +47,7 @@ export function HeaderTrailing() {
       href="/dashboard"
       className="hidden rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground sm:block"
     >
-      Skip for now
+      {t.skipForNow}
     </Link>
   );
 }

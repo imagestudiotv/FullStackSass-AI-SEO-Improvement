@@ -6,6 +6,7 @@
    optimiser round-trip for an avatar that is already the right size. */
 
 import { Quote, Star } from "lucide-react";
+import { getMessages, type Messages } from "@/lib/i18n/messages";
 import { useEffect, useState } from "react";
 
 import {
@@ -53,7 +54,13 @@ function Stars({ score, outOf }: { score: number; outOf: number }) {
   );
 }
 
-function Card({ item }: { item: Testimonial }) {
+function Card({
+  item,
+  t,
+}: {
+  item: Testimonial;
+  t: Messages["app"]["common"];
+}) {
   const initials = item.name
     .split(" ")
     .map((part) => part[0])
@@ -97,7 +104,7 @@ function Card({ item }: { item: Testimonial }) {
         </span>
         {item.verified ? (
           <span className="ml-auto shrink-0 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
-            Verified customer
+            {t.verifiedCustomer}
           </span>
         ) : null}
       </figcaption>
@@ -105,7 +112,12 @@ function Card({ item }: { item: Testimonial }) {
   );
 }
 
-export function TestimonialRail() {
+export function TestimonialRail({
+  t = getMessages("en").app.common,
+}: {
+  /** Shared words, defaulting to English. */
+  t?: Messages["app"]["common"];
+} = {}) {
   const [index, setIndex] = useState(0);
 
   useEffect(() => {
@@ -124,7 +136,7 @@ export function TestimonialRail() {
 
   return (
     <div className="space-y-4">
-      {item ? <Card item={item} /> : null}
+      {item ? <Card t={t} item={item} /> : null}
 
       {/* Dots, so someone can go back to a quote they were reading. */}
       {TESTIMONIALS.length > 1 ? (

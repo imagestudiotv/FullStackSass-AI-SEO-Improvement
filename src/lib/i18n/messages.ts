@@ -881,6 +881,12 @@ export type Messages = {
       skipForNow: string;
       verifiedCustomer: string;
       searchYourImages: string;
+      aiAssistantsTracked: string;
+      freshArticles: string;
+      toSetUp: string;
+      trustedByBusinesses: string;
+      weekly: string;
+      twoMinutes: string;
       notAvailable: string;
       notAvailableHelp: string;
       backToDashboard: string;
@@ -2079,6 +2085,12 @@ const en: Messages = {
       skipForNow: "Skip for now",
       verifiedCustomer: "Verified customer",
       searchYourImages: "Search your images",
+      aiAssistantsTracked: "AI assistants tracked",
+      freshArticles: "Fresh articles",
+      toSetUp: "To set up",
+      trustedByBusinesses: "Trusted by businesses worldwide",
+      weekly: "Weekly",
+      twoMinutes: "2 min",
       notAvailable: "This page is not available",
       notAvailableHelp: "The page may have moved, or it belongs to a workspace you are not a member of.",
       backToDashboard: "Back to dashboard",
@@ -3287,6 +3299,12 @@ const es: Messages = {
       skipForNow: "Omitir por ahora",
       verifiedCustomer: "Cliente verificado",
       searchYourImages: "Buscar en sus imágenes",
+      aiAssistantsTracked: "Asistentes de IA supervisados",
+      freshArticles: "Artículos nuevos",
+      toSetUp: "Por configurar",
+      trustedByBusinesses: "La confianza de negocios de todo el mundo",
+      weekly: "Cada semana",
+      twoMinutes: "2 min",
       notAvailable: "Esta página no está disponible",
       notAvailableHelp: "Puede que la página se haya movido o que pertenezca a un espacio de trabajo del que no forma parte.",
       backToDashboard: "Volver al panel",
@@ -4498,6 +4516,12 @@ const fr: Messages = {
       skipForNow: "Ignorer pour l’instant",
       verifiedCustomer: "Client vérifié",
       searchYourImages: "Rechercher dans vos images",
+      aiAssistantsTracked: "Assistants IA suivis",
+      freshArticles: "Nouveaux articles",
+      toSetUp: "À configurer",
+      trustedByBusinesses: "La confiance d’entreprises du monde entier",
+      weekly: "Chaque semaine",
+      twoMinutes: "2 min",
       notAvailable: "Cette page n\u2019est pas disponible",
       notAvailableHelp: "La page a peut-être été déplacée, ou elle appartient à un espace de travail dont vous n\u2019êtes pas membre.",
       backToDashboard: "Retour au tableau de bord",
@@ -5702,6 +5726,12 @@ const it: Messages = {
       skipForNow: "Salta per ora",
       verifiedCustomer: "Cliente verificato",
       searchYourImages: "Cerca tra le sue immagini",
+      aiAssistantsTracked: "Assistenti IA monitorati",
+      freshArticles: "Articoli nuovi",
+      toSetUp: "Da configurare",
+      trustedByBusinesses: "La fiducia di attività in tutto il mondo",
+      weekly: "Ogni settimana",
+      twoMinutes: "2 min",
       notAvailable: "Questa pagina non è disponibile",
       notAvailableHelp: "La pagina potrebbe essere stata spostata, oppure appartiene a uno spazio di lavoro di cui non fa parte.",
       backToDashboard: "Torna alla dashboard",
@@ -6913,6 +6943,12 @@ const de: Messages = {
       skipForNow: "Vorerst überspringen",
       verifiedCustomer: "Bestätigter Kunde",
       searchYourImages: "Ihre Bilder durchsuchen",
+      aiAssistantsTracked: "Beobachtete KI-Assistenten",
+      freshArticles: "Neue Artikel",
+      toSetUp: "Einzurichten",
+      trustedByBusinesses: "Unternehmen weltweit vertrauen darauf",
+      weekly: "Wöchentlich",
+      twoMinutes: "2 Min.",
       notAvailable: "Diese Seite ist nicht verfügbar",
       notAvailableHelp: "Die Seite wurde möglicherweise verschoben oder gehört zu einem Arbeitsbereich, in dem Sie kein Mitglied sind.",
       backToDashboard: "Zurück zum Dashboard",
