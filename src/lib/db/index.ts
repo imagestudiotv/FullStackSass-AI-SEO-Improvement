@@ -24,13 +24,59 @@ function getDb(): PostgresJsDatabase<typeof schema> {
     if (!url) {
       throw new Error("DATABASE_URL is not set");
     }
-    /**
-     * Supabase's transaction-mode pooler (port 6543) does not support prepared
-     * statements, which postgres-js uses by default. Without `prepare: false`
-     * every query works locally against a direct connection and then fails
-     * once deployed. Do not remove this flag.
-     */
-    client = postgres(url, { prepare: false });
+    client = postgres(url, {
+      /**
+       * Supabase's transaction-mode pooler (port 6543) does not support
+       * prepared statements, which postgres-js uses by default. Without
+       * `prepare: false` every query works locally against a direct
+       * connection and then fails once deployed. Do not remove this flag.
+       */
+      prepare: false,
+
+      /**
+       * One connection per serverless instance, not postgres-js's default 10.
+       *
+       * Every route here runs as a Vercel serverless function, so the process
+       * handles ONE request at a time — a second concurrent visitor is a
+       * second instance with its own pool, never extra load on this one. The
+       * default therefore sizes a pool for concurrency that cannot happen,
+       * while the instances multiply against a fixed ceiling: this project's
+       * Postgres reports max_connections = 60, so a dozen warm instances at
+       * 10 apiece exhaust it and further connections are refused. That
+       * surfaced as intermittent "Failed query" errors on whichever page
+       * happened to ask next — billing, the dashboard, even sign-in — which
+       * is why the failures looked unrelated to each other.
+       *
+       * Sequential `await`s (the layout's ~10 queries) reuse this single
+       * connection and are unaffected. A page that fans out with Promise.all
+       * has those queries queue rather than open sockets; the pooler is doing
+       * the real pooling, which is the arrangement it is built for.
+       */
+      max: 1,
+
+      /**
+       * Hand idle connections back instead of holding them forever (the
+       * default is no timeout).
+       *
+       * A serverless instance is frozen between requests rather than exited,
+       * so without this its socket stays checked out while nothing is using
+       * it — connections accumulate until the pooler reaps them. Twenty
+       * sockets were sitting idle on this database while it was refusing new
+       * ones.
+       */
+      idle_timeout: 20,
+
+      /**
+       * Fail in ten seconds rather than thirty.
+       *
+       * When the pool IS exhausted, the default leaves the request hanging
+       * past the point the customer has given up, and on a function with a
+       * shorter limit the platform kills it first — producing a timeout whose
+       * cause is invisible. Ten seconds still clears a cold start, and a
+       * clear error reaches the error boundary with a digest attached.
+       */
+      connect_timeout: 10,
+    });
     instance = drizzle(client, { schema });
   }
   return instance;
