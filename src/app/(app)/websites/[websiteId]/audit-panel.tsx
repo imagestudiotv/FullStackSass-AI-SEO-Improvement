@@ -1,3 +1,10 @@
+/*
+  eslint-disable @next/next/no-img-element --
+  The image is on the CUSTOMER's domain, which is not knowable ahead of time.
+  next/image needs every remote host in remotePatterns, so optimising it would
+  mean a wildcard - which turns our optimiser into an open image proxy. Same
+  reasoning as the public audit, which carries the same disable.
+*/
 "use client";
 
 import {
@@ -408,9 +415,36 @@ export function AuditPanel({
       */}
       <Card>
         <CardContent className="flex items-center gap-6 py-6">
+          {/*
+            The site's own og:image, read during the crawl that produced
+            these findings - the same picture the public audit shows.
+
+            Hidden below sm, where it would take a third of the card from the
+            score it sits beside. Rendered only when the crawl actually found
+            one: a broken frame looks worse than no frame, which is also why
+            nothing is guessed at (/favicon.ico is a convention, not a
+            guarantee).
+          */}
+          {context?.previewImage ? (
+            <div className="hidden size-20 shrink-0 overflow-hidden rounded-xl border sm:block">
+              <img
+                src={context.previewImage}
+                alt=""
+                className="size-full object-cover"
+              />
+            </div>
+          ) : null}
+
           <div className="min-w-0 flex-1">
             <p className="text-xs font-semibold tracking-[0.14em] text-primary uppercase">
-              {t.websiteHealth}
+              {/*
+                "AI SEO audit", matching the public report. This said
+                "Website health" - the name of the PAGE rather than of the
+                thing on it, which left the card's eyebrow repeating the
+                heading above it and named the report differently from the
+                one the same customer may have already seen at /audit.
+              */}
+              AI SEO audit
             </p>
             <h2 className="mt-2 truncate text-2xl font-semibold tracking-tight">
               {/*
