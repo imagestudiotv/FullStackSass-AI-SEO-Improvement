@@ -6,7 +6,11 @@ import { revalidatePath } from "next/cache";
 import { queueJob } from "@/inngest/send";
 import { db } from "@/lib/db";
 import { competitors, websites } from "@/lib/db/schema";
-import { requireOrg, requireWebsite } from "@/lib/tenant";
+import {
+  requireOrg,
+  requireWebsite,
+  WebsiteNotFoundError,
+} from "@/lib/tenant";
 import { requireEditor } from "@/lib/websites/require-editor";
 import { writeSelectedWebsite } from "@/lib/websites/selected";
 import { InvalidUrlError, normalizeWebsiteUrl } from "@/lib/websites/url";
@@ -274,7 +278,34 @@ export async function setAutoPublish(
 export async function selectWebsite(
   websiteId: string,
 ): Promise<ActionResult<null>> {
-  const { site } = await requireWebsite(websiteId);
+  /**
+   * A website this workspace does not own is REFUSED, not thrown.
+   *
+   * requireWebsite throws WebsiteNotFoundError, which is right for a page —
+   * it becomes a 404. It is wrong here, because sidebar-nav calls this from
+   * an effect with an id parsed out of the URL, and an unhandled rejection
+   * in a server action does not 404: it takes down the whole route with
+   * "Something went wrong on this page".
+   *
+   * That happens on ordinary paths. Deleting a website while its page is
+   * open, following a stale link or bookmark, opening a URL copied from
+   * another account, or hitting back after the workspace was reset — the
+   * customer sees a crash where the right answer is "that site is gone, use
+   * the one you have".
+   *
+   * Returning an error instead lets the caller carry on. The cookie keeps
+   * whatever it had, which is a website they DO own, and the shell renders.
+   */
+  let site;
+  try {
+    ({ site } = await requireWebsite(websiteId));
+  } catch (error) {
+    if (error instanceof WebsiteNotFoundError) {
+      return { ok: false, error: "That website is not available." };
+    }
+    throw error;
+  }
+
   await writeSelectedWebsite(site.id);
 
   // The sidebar is rendered by the layout, so the whole shell re-renders.

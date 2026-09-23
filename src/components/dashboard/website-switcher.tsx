@@ -6,6 +6,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+
 import { selectWebsite } from "@/lib/websites/actions";
 import { cn } from "@/lib/utils";
 
@@ -91,7 +93,18 @@ export function WebsiteSwitcher({
     if (id === active.id) return;
 
     startTransition(async () => {
-      await selectWebsite(id);
+      /*
+        Navigate only if the selection was accepted. The list this menu
+        renders can be stale — a website deleted in another tab is still an
+        option here — and pushing to its URL anyway would land on a 404
+        after the cookie had already refused it.
+      */
+      const result = await selectWebsite(id);
+      if (!result.ok) {
+        toast.error(result.error);
+        router.refresh();
+        return;
+      }
 
       const section = /^\/websites\/[^/]+(\/.*)?$/.exec(pathname);
       if (section) {
