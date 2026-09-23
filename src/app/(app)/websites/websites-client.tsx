@@ -196,7 +196,7 @@ export function WebsitesClient({
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
+        <DialogContent closeLabel={t.cancel}>
           <form onSubmit={handleAdd}>
             <DialogHeader>
               <DialogTitle>{t.dialogTitle}</DialogTitle>

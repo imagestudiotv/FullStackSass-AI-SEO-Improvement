@@ -51,9 +51,19 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  closeLabel = "Close",
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
+  /**
+   * The screen-reader label on the close button.
+   *
+   * Defaults to English rather than taking a dictionary: this primitive is
+   * rendered from the marketing site, the onboarding wizard and the app, and
+   * those three resolve their language three different ways. A caller that
+   * has a dictionary passes the word; the rest keep working untouched.
+   */
+  closeLabel?: string
 }) {
   return (
     <DialogPortal>
@@ -75,7 +85,7 @@ function DialogContent({
               size="icon-sm"
             >
               <XIcon />
-              <span className="sr-only">Close</span>
+              <span className="sr-only">{closeLabel}</span>
             </Button>
           </DialogPrimitive.Close>
         )}

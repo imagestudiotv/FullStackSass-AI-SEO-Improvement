@@ -50,7 +50,7 @@ export function MobileNav({
           <Menu className="size-5" />
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="w-64 p-0">
+      <SheetContent side="left" className="w-64 p-0" closeLabel={t.main}>
         <SheetHeader className="border-b p-4">
           <SheetTitle className="text-left">
             <BrandLogo height={20} />

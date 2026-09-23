@@ -206,7 +206,7 @@ export function WebsiteMembers({
             </Button>
           </DialogTrigger>
 
-          <DialogContent>
+          <DialogContent closeLabel={t.cancel}>
             <DialogHeader>
               <DialogTitle>{t.addMember}</DialogTitle>
               <DialogDescription>{t.addMemberHelp}</DialogDescription>
