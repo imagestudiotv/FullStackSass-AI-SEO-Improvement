@@ -171,7 +171,7 @@ export default async function SetupPage({ searchParams }: PageProps<"/setup">) {
         </div>
       </div>
 
-      <SetupSteps steps={launch.steps} />
+      <SetupSteps steps={launch.steps} t={t.app.common} />
     </div>
   );
 }

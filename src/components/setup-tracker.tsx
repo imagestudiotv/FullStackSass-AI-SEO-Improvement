@@ -1,6 +1,7 @@
 "use client";
 
 import { Check, ChevronDown, ChevronUp, Lock, X } from "lucide-react";
+import { getMessages, type Messages } from "@/lib/i18n/messages";
 import Link from "next/link";
 import { useState, useSyncExternalStore } from "react";
 
@@ -48,7 +49,14 @@ const STORAGE_KEY = "repget:setup-tracker-hidden";
 /** The permanent key this replaced, cleared on sight. */
 const LEGACY_KEY = "repget:setup-tracker-dismissed";
 
-export function SetupTracker({ steps }: { steps: LaunchStep[] }) {
+export function SetupTracker({
+  steps,
+  t = getMessages("en").app.common,
+}: {
+  steps: LaunchStep[];
+  /** Shared words, defaulting to English. */
+  t?: Messages["app"]["common"];
+}) {
   const [collapsed, setCollapsed] = useState(false);
   /** Set by the dismiss button, separate from what storage remembers. */
   const [dismissedNow, setDismissedNow] = useState(false);
@@ -238,7 +246,7 @@ export function SetupTracker({ steps }: { steps: LaunchStep[] }) {
           <button
             type="button"
             onClick={dismiss}
-            aria-label="Hide setup steps"
+            aria-label={t.hideSetupSteps}
             className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           >
             <X className="size-4" aria-hidden="true" />

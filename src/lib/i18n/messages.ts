@@ -869,6 +869,17 @@ export type Messages = {
       namedInstead: string;
       mostPopular: string;
       receiptInPayPal: string;
+      close: string;
+      copied: string;
+      openMenu: string;
+      changeLanguage: string;
+      brandHome: string;
+      skipped: string;
+      hideSetupSteps: string;
+      setupProgress: string;
+      secureCheckout: string;
+      skipForNow: string;
+      verifiedCustomer: string;
       notAvailable: string;
       notAvailableHelp: string;
       backToDashboard: string;
@@ -2055,6 +2066,17 @@ const en: Messages = {
       namedInstead: "Named instead of you, most often",
       mostPopular: "Most popular",
       receiptInPayPal: "Receipt in PayPal",
+      close: "Close",
+      copied: "Copied",
+      openMenu: "Open menu",
+      changeLanguage: "Change language",
+      brandHome: "RepGet home",
+      skipped: "Skipped",
+      hideSetupSteps: "Hide setup steps",
+      setupProgress: "Setup progress",
+      secureCheckout: "Secure checkout",
+      skipForNow: "Skip for now",
+      verifiedCustomer: "Verified customer",
       notAvailable: "This page is not available",
       notAvailableHelp: "The page may have moved, or it belongs to a workspace you are not a member of.",
       backToDashboard: "Back to dashboard",
@@ -3251,6 +3273,17 @@ const es: Messages = {
       namedInstead: "Mencionados en su lugar con más frecuencia",
       mostPopular: "Más popular",
       receiptInPayPal: "Recibo en PayPal",
+      close: "Cerrar",
+      copied: "Copiado",
+      openMenu: "Abrir menú",
+      changeLanguage: "Cambiar idioma",
+      brandHome: "Inicio de RepGet",
+      skipped: "Omitido",
+      hideSetupSteps: "Ocultar los pasos",
+      setupProgress: "Progreso de la configuración",
+      secureCheckout: "Pago seguro",
+      skipForNow: "Omitir por ahora",
+      verifiedCustomer: "Cliente verificado",
       notAvailable: "Esta página no está disponible",
       notAvailableHelp: "Puede que la página se haya movido o que pertenezca a un espacio de trabajo del que no forma parte.",
       backToDashboard: "Volver al panel",
@@ -4450,6 +4483,17 @@ const fr: Messages = {
       namedInstead: "Cités à votre place, le plus souvent",
       mostPopular: "Le plus choisi",
       receiptInPayPal: "Reçu dans PayPal",
+      close: "Fermer",
+      copied: "Copié",
+      openMenu: "Ouvrir le menu",
+      changeLanguage: "Changer de langue",
+      brandHome: "Accueil RepGet",
+      skipped: "Ignoré",
+      hideSetupSteps: "Masquer les étapes",
+      setupProgress: "Progression de la configuration",
+      secureCheckout: "Paiement sécurisé",
+      skipForNow: "Ignorer pour l’instant",
+      verifiedCustomer: "Client vérifié",
       notAvailable: "Cette page n\u2019est pas disponible",
       notAvailableHelp: "La page a peut-être été déplacée, ou elle appartient à un espace de travail dont vous n\u2019êtes pas membre.",
       backToDashboard: "Retour au tableau de bord",
@@ -5642,6 +5686,17 @@ const it: Messages = {
       namedInstead: "Citati al suo posto, più spesso",
       mostPopular: "Il più scelto",
       receiptInPayPal: "Ricevuta in PayPal",
+      close: "Chiudi",
+      copied: "Copiato",
+      openMenu: "Apri il menu",
+      changeLanguage: "Cambia lingua",
+      brandHome: "Home di RepGet",
+      skipped: "Saltato",
+      hideSetupSteps: "Nascondi i passaggi",
+      setupProgress: "Avanzamento della configurazione",
+      secureCheckout: "Pagamento sicuro",
+      skipForNow: "Salta per ora",
+      verifiedCustomer: "Cliente verificato",
       notAvailable: "Questa pagina non è disponibile",
       notAvailableHelp: "La pagina potrebbe essere stata spostata, oppure appartiene a uno spazio di lavoro di cui non fa parte.",
       backToDashboard: "Torna alla dashboard",
@@ -6841,6 +6896,17 @@ const de: Messages = {
       namedInstead: "Werden am häufigsten statt Ihrer genannt",
       mostPopular: "Am beliebtesten",
       receiptInPayPal: "Beleg in PayPal",
+      close: "Schließen",
+      copied: "Kopiert",
+      openMenu: "Menü öffnen",
+      changeLanguage: "Sprache ändern",
+      brandHome: "RepGet-Startseite",
+      skipped: "Übersprungen",
+      hideSetupSteps: "Schritte ausblenden",
+      setupProgress: "Fortschritt der Einrichtung",
+      secureCheckout: "Sichere Zahlung",
+      skipForNow: "Vorerst überspringen",
+      verifiedCustomer: "Bestätigter Kunde",
       notAvailable: "Diese Seite ist nicht verfügbar",
       notAvailableHelp: "Die Seite wurde möglicherweise verschoben oder gehört zu einem Arbeitsbereich, in dem Sie kein Mitglied sind.",
       backToDashboard: "Zurück zum Dashboard",

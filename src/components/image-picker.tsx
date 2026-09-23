@@ -37,9 +37,12 @@ export function ImagePicker({
   onRemove,
   onClose,
   t = getMessages("en").app.editorUi,
+  tCommon = getMessages("en").app.common,
 }: {
   /** The picker's wording, defaulting to English. */
   t?: Messages["app"]["editorUi"];
+  /** Shared words: Cancel, Remove, Upload. */
+  tCommon?: Messages["app"]["common"];
   images: PickerImage[];
   loading: boolean;
   /**
@@ -94,7 +97,7 @@ export function ImagePicker({
         type="button"
         variant="ghost"
         size="sm"
-        aria-label="Close image picker"
+        aria-label={t.closeImagePicker}
         onClick={onClose}
         className="absolute right-2 top-2 size-7 p-0"
       >
@@ -123,9 +126,9 @@ export function ImagePicker({
               aria-hidden="true"
             />
           </div>
-          <p className="mt-3 font-medium">No image selected</p>
+          <p className="mt-3 font-medium">{t.noImageSelected}</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Pick one below, or upload your own.
+            {t.pickOneBelow}
           </p>
         </div>
       )}
@@ -224,12 +227,12 @@ export function ImagePicker({
             className="mr-auto text-muted-foreground hover:text-destructive"
           >
             <Trash2 className="size-4" />
-            Remove
+            {tCommon.remove}
           </Button>
         ) : null}
 
         <Button type="button" variant="ghost" size="sm" onClick={onClose}>
-          Cancel
+          {tCommon.cancel}
         </Button>
         <Button
           type="button"

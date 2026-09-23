@@ -16,6 +16,7 @@ import {
   SkipForward,
 } from "lucide-react";
 import Link from "next/link";
+import { getMessages, type Messages } from "@/lib/i18n/messages";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -50,7 +51,14 @@ const ICONS: Record<LaunchStepIcon, typeof Globe> = {
   rocket: Rocket,
 };
 
-export function SetupSteps({ steps }: { steps: LaunchStep[] }) {
+export function SetupSteps({
+  steps,
+  t = getMessages("en").app.common,
+}: {
+  steps: LaunchStep[];
+  /** Shared words, defaulting to English. */
+  t?: Messages["app"]["common"];
+}) {
   /**
    * Which row is open.
    *
@@ -150,12 +158,12 @@ export function SetupSteps({ steps }: { steps: LaunchStep[] }) {
                   {step.done ? (
                     <>
                       <Check className="size-3" aria-hidden="true" />
-                      Done
+                      {t.done}
                     </>
                   ) : skipped ? (
                     <>
                       <SkipForward className="size-3" aria-hidden="true" />
-                      Skipped
+                      {t.skipped}
                     </>
                   ) : (
                     "To do"

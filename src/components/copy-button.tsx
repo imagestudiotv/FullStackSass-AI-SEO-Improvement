@@ -1,6 +1,7 @@
 "use client";
 
 import { Check, Copy } from "lucide-react";
+import { getMessages, type Messages } from "@/lib/i18n/messages";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";

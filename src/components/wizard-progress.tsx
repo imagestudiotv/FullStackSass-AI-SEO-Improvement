@@ -1,4 +1,5 @@
 import { Check } from "lucide-react";
+import { getMessages, type Messages } from "@/lib/i18n/messages";
 import Link from "next/link";
 
 import { WIZARD_STEPS, wizardStepIndex, type WizardStepId } from "@/lib/onboarding/wizard";
@@ -11,7 +12,14 @@ import { WIZARD_STEPS, wizardStepIndex, type WizardStepId } from "@/lib/onboardi
  * a screen whose data does not exist yet, which is how a wizard ends up
  * showing an empty form with no explanation.
  */
-export function WizardProgress({ current }: { current: WizardStepId }) {
+export function WizardProgress({
+  current,
+  t = getMessages("en").app.common,
+}: {
+  current: WizardStepId;
+  /** Shared words, defaulting to English. */
+  t?: Messages["app"]["common"];
+}) {
   const currentIndex = wizardStepIndex(current);
 
   return (
@@ -24,7 +32,7 @@ export function WizardProgress({ current }: { current: WizardStepId }) {
       Narrower too — max-w-2xl against the previous 3xl — so five dots read as
       a compact indicator rather than a full-width rule across the screen.
     */
-    <nav aria-label="Setup progress" className="bg-background">
+    <nav aria-label={t.setupProgress} className="bg-background">
       <ol className="mx-auto flex max-w-2xl items-start gap-1 px-4 pt-1 pb-6 sm:gap-2">
         {WIZARD_STEPS.map((step, index) => {
           const done = index < currentIndex;
