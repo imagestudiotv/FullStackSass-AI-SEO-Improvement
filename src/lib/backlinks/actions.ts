@@ -16,7 +16,6 @@ import {
   getAvailable,
   grantMonthlyCredits,
   listLedger,
-  recordCredit,
   type LedgerRow,
 } from "@/lib/backlinks/credits";
 import { describeNetwork, findHost } from "@/lib/backlinks/matching";
@@ -414,7 +413,20 @@ export async function getLedger(websiteId: string): Promise<LedgerRow[]> {
   return listLedger(orgId);
 }
 
-export { recordCredit };
+/*
+  recordCredit is deliberately NOT re-exported.
+
+  Every export of a "use server" module becomes a callable RPC endpoint, so
+  re-exporting this published the credit ledger's only write to the internet:
+  it takes an organizationId and an unbounded amount, with no guard at all.
+  Anyone signed in could mint themselves backlink credits — the paid currency —
+  or post a negative amount against another workspace to zero its balance. It
+  also bypassed the admin path, which caps adjustments at +/-1000 and writes an
+  audit row first.
+
+  The jobs, the webhook fulfiller, referrals and the admin operations all
+  import it from @/lib/backlinks/credits directly. Nothing needed it here.
+*/
 
 /**
  * Suggests pages on the customer's own site worth linking to.

@@ -9,7 +9,6 @@ import {
   disconnect,
   getConnection,
   GOOGLE_KIND,
-  saveTokens,
   type GoogleMeta,
 } from "@/lib/analytics/connection";
 import {
@@ -133,7 +132,15 @@ export async function selectProperties(
   websiteId: string,
   input: { searchConsoleSite?: string | null; analyticsProperty?: string | null },
 ): Promise<ActionResult<null>> {
-  const { site } = await requireWebsite(websiteId);
+  /*
+    requireEditor: this WRITES which property the site imports from, so a
+    view-only collaborator could silently repoint the owner's reporting at
+    another property. Its siblings in this file already guard this way; this
+    one was reading with requireWebsite and then writing.
+  */
+  const guard = await requireEditor(websiteId);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { site } = guard.context;
 
   const connection = await getConnection(site.id);
   if (!connection) return { ok: false, error: "Reconnect your Google account" };
@@ -356,4 +363,15 @@ export async function getPerformance(
   };
 }
 
-export { saveTokens };
+/*
+  saveTokens is deliberately NOT re-exported.
+
+  Every export of a "use server" module is a callable RPC endpoint with its own
+  action id, so re-exporting an unguarded helper publishes it to the internet.
+  saveTokens takes a websiteId and writes Google OAuth tokens for it with no
+  session check and no tenant guard — as an action, any caller could point a
+  customer's analytics at their own Google account, or wipe the connection.
+
+  The OAuth callback route imports it straight from @/lib/analytics/connection,
+  which is server-only and unreachable from a browser. Nothing else needs it.
+*/

@@ -26,6 +26,14 @@ function appUrl(): string {
 }
 
 export async function listAddons(): Promise<AddonRow[]> {
+  /*
+    Guarded like every other action in this file. The catalogue is not secret
+    — it is the same list the marketing site shows — but a server action is a
+    public endpoint that reads the database, and "this particular table is
+    harmless" is the reasoning that leaves the next unguarded query behind.
+  */
+  await requireOrg();
+
   const rows = await db
     .select({
       id: addons.id,

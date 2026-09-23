@@ -1,3 +1,12 @@
+import "server-only";
+
+/**
+ * Google OAuth tokens: saveTokens writes them for any websiteId with no
+ * guard of its own, because its only caller is the OAuth callback route,
+ * which has already run requireWebsite. Marking the module server-only makes
+ * that unreachable from a client bundle, and makes an accidental re-export
+ * from a "use server" file a build error rather than a public endpoint.
+ */
 import { and, eq } from "drizzle-orm";
 
 import { decryptSecret, encryptSecret } from "@/lib/crypto";

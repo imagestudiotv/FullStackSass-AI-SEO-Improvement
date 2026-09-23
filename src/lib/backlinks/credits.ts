@@ -1,3 +1,12 @@
+import "server-only";
+
+/**
+ * The credit ledger: recordCredit takes an organizationId and an unbounded
+ * amount, and is meant to be reached only from jobs, the webhook fulfiller
+ * and guarded actions. Marking the module server-only makes an accidental
+ * re-export from a "use server" file a build error rather than a way for
+ * anyone signed in to mint the product's paid currency.
+ */
 import { and, eq, gte, sql as raw } from "drizzle-orm";
 
 import { db } from "@/lib/db";

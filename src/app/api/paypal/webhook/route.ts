@@ -281,7 +281,21 @@ export async function POST(request: Request) {
           await db
             .insert(payments)
             .values({
-              organizationId: live.custom_id,
+              /**
+               * parsed.organizationId, not live.custom_id.
+               *
+               * custom_id is the composite "<orgId>:<websiteId>" written by
+               * createSubscription; every other read in this handler puts it
+               * through parseCustomId first. Inserting it raw made
+               * organization_id a string that is not an organization id, and
+               * payments.organization_id has a foreign key — so the insert
+               * threw, the catch below deleted the idempotency row, and the
+               * 500 sent PayPal round the retry loop again. Every retry took
+               * the same path, so the charge was never recorded at all and
+               * the customer's billing history stayed empty: the exact gap
+               * the comment above says this row exists to close.
+               */
+              organizationId: parsed.organizationId,
               provider: "paypal",
               externalId: sale.id,
               amountCents: Number.isFinite(total) ? Math.round(total * 100) : 0,

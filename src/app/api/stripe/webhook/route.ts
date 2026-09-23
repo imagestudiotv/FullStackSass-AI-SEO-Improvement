@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
@@ -10,6 +10,7 @@ import {
   plans,
   subscriptions,
   webhookEvents,
+  websites,
 } from "@/lib/db/schema";
 import { stripe } from "@/lib/stripe/client";
 import { fulfilAddonPurchase } from "@/lib/addons/fulfil";
@@ -181,6 +182,37 @@ async function upsertSubscription(subscription: Stripe.Subscription) {
    * so it is updated by its Stripe id instead. Inserting would duplicate.
    */
   if (websiteId) {
+    /**
+     * The website must belong to the organization the event names.
+     *
+     * websiteId arrives from subscription metadata, and the upsert below
+     * conflicts on websiteId ALONE while deliberately not rewriting
+     * organizationId. So a row already held by organization A, updated by an
+     * event carrying A's websiteId under organization B, would have its
+     * plan, status, period and Stripe id overwritten while still reading as
+     * A's — B's payment silently taking over A's subscription and destroying
+     * the record of A's.
+     *
+     * createCheckout re-checks ownership before writing that metadata, so
+     * this is not reachable through the product. It is reachable by anyone
+     * who can edit metadata in the Stripe dashboard, and by any future code
+     * path that sets it without the same check. This handler is the last
+     * place that can still tell, so it checks rather than assuming the
+     * caller did.
+     */
+    const [owned] = await db
+      .select({ id: websites.id })
+      .from(websites)
+      .where(and(eq(websites.id, websiteId), eq(websites.organizationId, orgId)))
+      .limit(1);
+
+    if (!owned) {
+      console.error(
+        `[stripe-webhook] websiteId ${websiteId} is not owned by org ${orgId} — refusing upsert`,
+      );
+      return;
+    }
+
     await db
       .insert(subscriptions)
       .values({ organizationId: orgId, websiteId, ...values })

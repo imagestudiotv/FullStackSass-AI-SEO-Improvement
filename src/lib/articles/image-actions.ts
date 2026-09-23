@@ -18,6 +18,7 @@ import {
   storeArticleImage,
 } from "@/lib/images/storage";
 import { requireWebsite } from "@/lib/tenant";
+import { requireEditor } from "@/lib/websites/require-editor";
 import { track } from "@/lib/usage";
 import type { ActionResult } from "@/lib/websites/actions";
 import { isEntitledToSpend } from "@/lib/billing/entitled";
@@ -41,8 +42,28 @@ import { withinRateLimit } from "@/lib/billing/rate-limit";
  */
 const MAX_REGENERATIONS = 5;
 
+/**
+ * Loads an article for a WRITE, refusing view-only callers.
+ *
+ * requireEditor, not requireWebsite. Every caller of this helper changes
+ * something — regenerating an image spends real money on the owner's plan,
+ * and removing one deletes the stored file — so a viewer reaching them could
+ * run up the workspace's image bill or destroy the pictures on a live site.
+ * requireWebsite returns successfully for `access: "viewer"`, so guarding
+ * here is what makes the Viewer role mean anything on this screen.
+ *
+ * listReusableImages is deliberately not routed through this: it only reads,
+ * and a viewer is meant to see everything.
+ *
+ * Returns `null` context on refusal so each action can surface the message
+ * rather than throw, matching how the other write actions report it.
+ */
 async function loadArticle(websiteId: string, articleId: string) {
-  const { site, orgId } = await requireWebsite(websiteId);
+  const guard = await requireEditor(websiteId);
+  if (!guard.ok) {
+    return { site: null, orgId: null, article: undefined, error: guard.error };
+  }
+  const { site, orgId } = guard.context;
 
   const [article] = await db
     .select({
@@ -55,7 +76,7 @@ async function loadArticle(websiteId: string, articleId: string) {
     .where(and(eq(articles.id, articleId), eq(articles.websiteId, site.id)))
     .limit(1);
 
-  return { site, orgId, article };
+  return { site, orgId, article, error: null as string | null };
 }
 
 export async function regenerateArticleImage(
@@ -64,8 +85,9 @@ export async function regenerateArticleImage(
   /** The customer's own description, or empty to use ours. */
   prompt: string,
 ): Promise<ActionResult<{ imageUrl: string }>> {
-  const { site, orgId, article } = await loadArticle(websiteId, articleId);
-  if (!article) return { ok: false, error: "Article not found" };
+  const { site, orgId, article, error } = await loadArticle(websiteId, articleId);
+  if (error) return { ok: false, error };
+  if (!site || !article) return { ok: false, error: "Article not found" };
 
   /*
     Entitlement before spend. Each regeneration is a billed image call, and
@@ -167,8 +189,9 @@ export async function uploadArticleImage(
   articleId: string,
   formData: FormData,
 ): Promise<ActionResult<{ imageUrl: string }>> {
-  const { site, article } = await loadArticle(websiteId, articleId);
-  if (!article) return { ok: false, error: "Article not found" };
+  const { site, article, error } = await loadArticle(websiteId, articleId);
+  if (error) return { ok: false, error };
+  if (!site || !article) return { ok: false, error: "Article not found" };
 
   if (!isImageStorageConfigured()) {
     return { ok: false, error: "Image storage is not set up yet" };
@@ -232,8 +255,9 @@ export async function uploadInlineImage(
   articleId: string,
   formData: FormData,
 ): Promise<ActionResult<{ url: string }>> {
-  const { site, article } = await loadArticle(websiteId, articleId);
-  if (!article) return { ok: false, error: "Article not found" };
+  const { site, article, error } = await loadArticle(websiteId, articleId);
+  if (error) return { ok: false, error };
+  if (!site || !article) return { ok: false, error: "Article not found" };
 
   if (!isImageStorageConfigured()) {
     return { ok: false, error: "Image storage is not set up yet" };
@@ -297,8 +321,9 @@ export async function removeArticleImage(
   websiteId: string,
   articleId: string,
 ): Promise<ActionResult<null>> {
-  const { site, article } = await loadArticle(websiteId, articleId);
-  if (!article) return { ok: false, error: "Article not found" };
+  const { site, article, error } = await loadArticle(websiteId, articleId);
+  if (error) return { ok: false, error };
+  if (!site || !article) return { ok: false, error: "Article not found" };
 
   const previous = article.imageUrl;
 
@@ -319,8 +344,9 @@ export async function updateArticleImageAlt(
   articleId: string,
   alt: string,
 ): Promise<ActionResult<null>> {
-  const { site, article } = await loadArticle(websiteId, articleId);
-  if (!article) return { ok: false, error: "Article not found" };
+  const { site, article, error } = await loadArticle(websiteId, articleId);
+  if (error) return { ok: false, error };
+  if (!site || !article) return { ok: false, error: "Article not found" };
 
   await db
     .update(articles)
