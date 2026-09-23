@@ -2,6 +2,8 @@ import { eq } from "drizzle-orm";
 
 import { inngest } from "@/inngest/client";
 import { crawlSite } from "@/lib/audit/crawler";
+import { detectPlatform, parseCrawlerAccess } from "@/lib/audit/ai-crawlers";
+import { fetchRobotsTxt } from "@/lib/audit/robots";
 import { auditPage, auditSite, scoreAudit } from "@/lib/audit/rules";
 import { db } from "@/lib/db";
 import { audits, crawls, issues, pages, websites } from "@/lib/db/schema";
@@ -240,13 +242,84 @@ export const auditWebsite = inngest.createFunction(
       return { issues: all, summary };
     });
 
+    /**
+     * The context the report shows beside the findings.
+     *
+     * ALREADY CRAWLED, just never kept. The crawl reads the declared
+     * language, the markup fingerprints that name the platform, and the
+     * outbound hosts - see PageSnapshot - and the job threw all of it away,
+     * so the signed-in report could only ever show a score and a list while
+     * the public one at /audit showed the same site's language, platform and
+     * AI-crawler access. The client asked for the two to match.
+     *
+     * robots.txt is the one extra request, and it is the only way to answer
+     * "can AI assistants read your site" - a yes/no fact rather than an
+     * estimate, invisible from the customer's own site, and completely
+     * fixable once seen.
+     *
+     * A failure here must not fail the audit. The findings are the product;
+     * the context is decoration around them, and a site that serves no
+     * robots.txt (or serves it slowly) should still get its report.
+     */
+    const context = await step.run("collect-context", async () => {
+      const home = crawled.pages[0] ?? null;
+
+      let robotsTxt: string | null = null;
+      try {
+        robotsTxt = await fetchRobotsTxt(crawlRow.url);
+      } catch (error) {
+        logger.warn(
+          { step: "collect-context", websiteId, error: String(error) },
+          "Could not read robots.txt - AI crawler access will be unknown",
+        );
+      }
+
+      /*
+        Outbound hosts across every page, most-linked first. One page's links
+        are noise; a host that appears on several is a real relationship -
+        and it is the same signal the public audit shows as "Sites you link
+        out to".
+      */
+      const hostCounts = new Map<string, number>();
+      for (const page of crawled.pages) {
+        for (const host of page.externalHosts ?? []) {
+          hostCounts.set(host, (hostCounts.get(host) ?? 0) + 1);
+        }
+      }
+
+      return {
+        siteName: home?.ogSiteName ?? home?.title ?? null,
+        language: home?.lang ?? null,
+        // Asset and link URLs carry the fingerprints; visible text does not.
+        platform: home
+          ? detectPlatform([
+              ...(home.platformSignals ?? []),
+              ...(home.images ?? []).map((image) => image.src),
+              ...(home.internalUrls ?? []),
+            ])
+          : null,
+        crawlers: parseCrawlerAccess(robotsTxt),
+        linkedHosts: [...hostCounts.entries()]
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 6)
+          .map(([host]) => host),
+        previewImage: home?.ogImageUrl ?? null,
+      };
+    });
+
     const auditId = await step.run("save-audit", async () => {
       const [audit] = await db
         .insert(audits)
         .values({
           websiteId,
           score: findings.summary.score,
-          summary: findings.summary,
+          /*
+            The context rides in `summary`, which is already a jsonb column,
+            rather than in seven new columns. These values are read together
+            and only ever shown - nothing filters or joins on them - so a
+            column each would be migration cost for no query benefit.
+          */
+          summary: { ...findings.summary, context },
         })
         .returning({ id: audits.id });
 

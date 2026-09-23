@@ -1,3 +1,5 @@
+import type { CrawlerAccess } from "@/lib/audit/ai-crawlers";
+
 import type { PageSnapshot } from "@/lib/websites/crawl";
 
 /**
@@ -248,12 +250,41 @@ export function auditSite(pages: PageSnapshot[]): Issue[] {
   return issues;
 }
 
+/**
+ * What the crawl saw about the site itself, beside what is wrong with it.
+ *
+ * Everything here is READ FROM THE SITE, never estimated - the same values
+ * the public audit shows. Each is nullable because a site may genuinely not
+ * declare it, and "Not set" is a finding of its own: a page with no lang
+ * attribute leaves search engines guessing.
+ *
+ * OPTIONAL on the summary, not required: audits written before this shipped
+ * have no context, and the report must still render for them rather than
+ * throwing on a missing key.
+ */
+export type AuditContext = {
+  /** og:site_name or the homepage title. */
+  siteName: string | null;
+  /** The language the page declares, when it declares one. */
+  language: string | null;
+  /** Guessed from markup fingerprints; null when unrecognised. */
+  platform: string | null;
+  /** Which AI crawlers robots.txt lets through. */
+  crawlers: CrawlerAccess[];
+  /** Outbound hosts, most-linked first. */
+  linkedHosts: string[];
+  /** The site's own og:image. */
+  previewImage: string | null;
+};
+
 export type AuditSummary = {
   score: number;
   pagesCrawled: number;
   counts: Record<Severity, number>;
   /** Issue types by frequency, so the UI can lead with the biggest problem. */
   topIssues: { type: string; count: number }[];
+  /** Absent on audits written before the context was collected. */
+  context?: AuditContext;
 };
 
 /**

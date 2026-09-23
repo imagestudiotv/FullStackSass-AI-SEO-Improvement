@@ -10,6 +10,7 @@ import {
   parseCrawlerAccess,
   type CrawlerAccess,
 } from "@/lib/audit/ai-crawlers";
+import { fetchRobotsTxt } from "@/lib/audit/robots";
 
 /**
  * Free public audit — the lead magnet.
@@ -327,29 +328,4 @@ export async function runPublicAudit(
   return { ok: true, result };
 }
 
-/**
- * Fetches robots.txt, returning null when there is none.
- *
- * Short timeout and a small cap: this is one extra request on a page a visitor
- * is already waiting on, and a site that hangs serving robots.txt should not
- * hold up the whole audit.
- */
-async function fetchRobotsTxt(siteUrl: string): Promise<string | null> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 8000);
-  try {
-    const response = await fetch(
-      `${new URL(siteUrl).origin}/robots.txt`,
-      {
-        signal: controller.signal,
-        headers: { accept: "text/plain", "user-agent": "SEOVisionBot/1.0" },
-      },
-    );
-    if (!response.ok) return null;
-    return (await response.text()).slice(0, 200_000);
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timer);
-  }
-}
+

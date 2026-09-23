@@ -2,11 +2,18 @@
 
 import {
   AlertTriangle,
+  Bot,
+  Check,
   ExternalLink,
+  Globe,
   Info,
+  Languages,
+  Layers,
+  Link2,
   Loader2,
   RefreshCw,
   Stethoscope,
+  X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { Messages } from "@/lib/i18n/messages";
@@ -40,13 +47,15 @@ import { FixRequest } from "./fix-request";
  * bare number in the corner of a card and one row per affected page. The
  * client asked for the two to match, and the public one is the better design.
  *
- * WHAT IS NOT COPIED, and why. The public result carries language, platform,
- * AI-crawler access and a preview image, all read during its own crawl. The
- * in-app audit stores none of them - see AuditView, which is score, summary
- * and issues. Those tiles are therefore left out rather than filled with
- * placeholders: a "Platform: Custom" tile that always says Custom is worse
- * than no tile, and inventing the rest would put numbers on screen that no
- * crawl produced.
+ * The context tiles, the AI-crawler card and the linked-hosts list were
+ * missing here at first because the in-app audit did not STORE any of it -
+ * the crawl read the language, the platform fingerprints and the outbound
+ * hosts and then threw them away. The job now keeps them (see
+ * audit-website.ts, collect-context), so the same blocks render.
+ *
+ * Every one of them is guarded on the context being present: audits written
+ * before that change have none, and the report must still render for them
+ * rather than throwing on a missing key. The next check fills them in.
  */
 
 type AuditPanelProps = {
@@ -384,6 +393,9 @@ export function AuditPanel({
   /* ------------------------------------------------------------------ */
   const counts = audit.summary?.counts ?? { critical: 0, warning: 0, info: 0 };
   const visible = showAll ? grouped : grouped.slice(0, VISIBLE_FINDINGS);
+  /** Absent on audits written before the context was collected. */
+  const context = audit.summary?.context;
+  const blockedCrawlers = context?.crawlers.filter((c) => !c.allowed) ?? [];
 
   return (
     <div className="space-y-6">
@@ -401,10 +413,21 @@ export function AuditPanel({
               {t.websiteHealth}
             </p>
             <h2 className="mt-2 truncate text-2xl font-semibold tracking-tight">
-              {domain}
+              {/*
+                The site's own name when the crawl read one, falling back to
+                the domain. "Image Studio" is what the customer calls their
+                business; imagestudio.com is what we call it.
+              */}
+              {context?.siteName ?? domain}
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              {audit.summary?.pagesCrawled ?? 0}{" "}
+              {/*
+                The domain stays on this line. The heading may now show the
+                site's own NAME, and "Image Studio" alone does not say which
+                address was checked - which matters on an account holding
+                several sites.
+              */}
+              {domain} · {audit.summary?.pagesCrawled ?? 0}{" "}
               {(audit.summary?.pagesCrawled ?? 0) === 1 ? "page" : "pages"} read
               {" · "}
               {new Date(audit.createdAt).toLocaleDateString()}
@@ -416,6 +439,151 @@ export function AuditPanel({
           <ScoreRing score={audit.score ?? 0} />
         </CardContent>
       </Card>
+
+      {/*
+        Context tiles. Every value read from the site, or honestly absent.
+
+        Rendered only once an audit carries context - an older audit shows
+        the score and findings without them rather than three tiles reading
+        "Not set", which would look like findings about the site rather than
+        gaps in our own record.
+      */}
+      {context ? (
+        <div className="grid gap-4 sm:grid-cols-3">
+          {[
+            {
+              icon: Languages,
+              label: "Language",
+              value: context.language?.toUpperCase() ?? "Not set",
+              note: context.language
+                ? "What the page declares."
+                : "No lang attribute - search engines have to guess.",
+            },
+            {
+              icon: Layers,
+              label: "Platform",
+              value: context.platform ?? "Custom",
+              note: context.platform
+                ? "What your site is built on."
+                : "We could not recognise a common platform.",
+            },
+            {
+              icon: Globe,
+              label: "Pages read",
+              value: String(audit.summary?.pagesCrawled ?? 0),
+              note: "Every check reads up to 25 pages.",
+            },
+          ].map((tile) => (
+            <Card key={tile.label}>
+              <CardContent className="py-5">
+                <p className="flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                  <tile.icon className="size-3.5" aria-hidden="true" />
+                  {tile.label}
+                </p>
+                <p className="mt-2 text-lg font-semibold">{tile.value}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {tile.note}
+                </p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : null}
+
+      {/*
+        AI crawler access.
+
+        Worth its own block rather than a finding in the list: it is a yes/no
+        fact rather than a judgement, it is invisible from the customer's own
+        site, and being blocked here is completely fixable once seen.
+      */}
+      {context && context.crawlers.length > 0 ? (
+        <Card
+          className={blockedCrawlers.length > 0 ? "border-destructive/40" : undefined}
+        >
+          <CardContent className="py-6">
+            <div className="flex items-start gap-5">
+              <div className="min-w-0 flex-1">
+                <p className="flex items-center gap-2 font-medium">
+                  <Bot className="size-4 text-primary" aria-hidden="true" />
+                  Can AI assistants read your site?
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {blockedCrawlers.length === 0
+                    ? "Your robots.txt lets every major AI crawler through."
+                    : `Your robots.txt blocks ${blockedCrawlers.length} of them. They cannot cite a site they are not allowed to read.`}
+                </p>
+              </div>
+
+              {/*
+                The allowed fraction as a dial. A yes/no list answers "which
+                ones" but not "how bad is this", and the count is what a
+                customer takes away. Green when everything is through, amber
+                otherwise - the same scale the score ring uses, so the two
+                cannot disagree about what good looks like.
+              */}
+              <div className="relative shrink-0">
+                <svg viewBox="0 0 72 72" className="size-16" aria-hidden="true">
+                  <circle
+                    cx="36"
+                    cy="36"
+                    r="30"
+                    className="fill-none stroke-muted"
+                    strokeWidth="6"
+                  />
+                  <circle
+                    cx="36"
+                    cy="36"
+                    r="30"
+                    className={`fill-none ${
+                      blockedCrawlers.length === 0
+                        ? "stroke-emerald-500"
+                        : "stroke-amber-500"
+                    }`}
+                    strokeWidth="6"
+                    strokeLinecap="round"
+                    strokeDasharray={`${
+                      ((context.crawlers.length - blockedCrawlers.length) /
+                        context.crawlers.length) *
+                      (2 * Math.PI * 30)
+                    } ${2 * Math.PI * 30}`}
+                    transform="rotate(-90 36 36)"
+                  />
+                </svg>
+                <span className="absolute inset-0 flex items-center justify-center text-sm font-semibold tabular-nums">
+                  {context.crawlers.length - blockedCrawlers.length}/
+                  {context.crawlers.length}
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {context.crawlers.map((crawler) => (
+                <div
+                  key={crawler.agent}
+                  className="flex items-center gap-2 rounded-lg border px-3 py-2"
+                >
+                  {crawler.allowed ? (
+                    <Check
+                      className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400"
+                      aria-hidden="true"
+                    />
+                  ) : (
+                    <X
+                      className="size-4 shrink-0 text-destructive"
+                      aria-hidden="true"
+                    />
+                  )}
+                  <span className="truncate text-sm">{crawler.owner}</span>
+                  <span className="ml-auto shrink-0 font-mono text-[11px] text-muted-foreground">
+                    {crawler.agent}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {/* Findings, each with how to fix it. */}
       <div>
@@ -544,6 +712,35 @@ export function AuditPanel({
           </Button>
         ) : null}
       </div>
+
+      {/*
+        Sites you link out to. Free, already crawled, and the thing a customer
+        most often did not realise: a link they forgot they were giving away.
+      */}
+      {context && context.linkedHosts.length > 0 ? (
+        <Card>
+          <CardContent className="py-6">
+            <p className="flex items-center gap-2 font-medium">
+              <Link2 className="size-4 text-primary" aria-hidden="true" />
+              Sites you link out to
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Read from your own pages. Useful for spotting links you did not
+              mean to give away.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {context.linkedHosts.map((host) => (
+                <span
+                  key={host}
+                  className="rounded-full border px-3 py-1 font-mono text-xs text-muted-foreground"
+                >
+                  {host}
+                </span>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {/*
         Offered after the findings, not before: someone should read what is
