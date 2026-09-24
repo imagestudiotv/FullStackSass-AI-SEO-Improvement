@@ -115,11 +115,22 @@ export async function clusterKeywords(
    * customer's 300 keywords could not fit in 4000 tokens, and the parse would
    * have failed with an error naming a character offset rather than a cause.
    *
-   * ~30 tokens per keyword covers the term repeated inside its cluster plus
-   * the array scaffolding, with the floor covering a small plan where the
-   * per-keyword estimate alone is too tight for the wrapper.
+   * MEASURED, NOT ESTIMATED - and the first estimate here was wrong. It was
+   * 30 tokens per keyword with a 2,000 floor, which looked generous and was
+   * not: the client hit "Clustering ran out of room: 30 keywords needed more
+   * than 2000 tokens" on a real signup. Sweeping the budget against thirty
+   * realistic keywords showed the truth - it truncates at 2,000 and needs
+   * about 3,000, because the model writes a NAME and a PILLAR KEYWORD per
+   * cluster on top of echoing every term.
+   *
+   * This is the same mistake I made on planCalendar and fixed there: fitting
+   * the budget to one observed run leaves nothing for the next, since the
+   * output is not a fixed size. 250 per keyword is roughly double the worst
+   * run measured, and the floor covers the small plans that the per-keyword
+   * figure alone leaves short. Unused tokens cost nothing; a truncated
+   * response costs the full budget AND produces nothing.
    */
-  const maxTokens = Math.min(Math.max(keywords.length * 30, 2000), 16000);
+  const maxTokens = Math.min(Math.max(keywords.length * 250, 6000), 32000);
 
   const response = await anthropic.messages.create({
     model: MODELS.GENERATION,
