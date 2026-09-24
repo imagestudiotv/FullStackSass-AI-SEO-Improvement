@@ -1,6 +1,6 @@
 "use client";
 
-import { Eye, Loader2, X } from "lucide-react";
+import { Check, Eye, Loader2, X } from "lucide-react";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
@@ -73,11 +73,19 @@ export type ArticleSettingsValues = {
 export function ArticleSettingsForm({
   websiteId,
   initial,
+  reviewed,
   t,
   tCommon,
 }: {
   websiteId: string;
   initial: ArticleSettingsValues;
+  /**
+   * Whether these settings have ever been saved.
+   *
+   * False means the launch checklist is still waiting on this step, which is
+   * what decides whether the confirm bar below is worth showing.
+   */
+  reviewed: boolean;
   /** This screen's copy, already in the reader's language. */
   t: Messages["app"]["article"];
   /** Shared words used on several screens. */
@@ -628,6 +636,43 @@ export function ArticleSettingsForm({
               </Button>
             </div>
           </div>
+        </div>
+      ) : null}
+
+      {/*
+        Keeping every default is a decision, and it needs a button.
+
+        The save bar below appears only while something has CHANGED, which is
+        right for a settings form - but it left one state with no way out: a
+        customer who read these settings, decided the defaults suited them and
+        wanted to move on had nothing to press, and the launch checklist kept
+        "Configure your article preferences" open forever. The client:
+        "If by any chance user don't change anything they can't having this
+        mark completed. But there are chances people can keep settings by
+        default, especial for the first days until they understand the
+        platform."
+
+        So a customer who has never saved gets a confirm bar instead. It calls
+        the same action, which records the review - see
+        articleSettingsReviewedAt - and the step ticks.
+
+        Gone once the settings have been saved even once: it exists to close
+        the step, and a permanent "these are fine" control on a form nobody is
+        editing is clutter.
+      */}
+      {!reviewed && !dirty ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-muted/40 px-4 py-3">
+          <p className="text-sm text-muted-foreground">
+            {tCommon.defaultsAreFine}
+          </p>
+          <Button onClick={handleSave} disabled={pending} size="sm">
+            {pending ? (
+              <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <Check className="size-4" aria-hidden="true" />
+            )}
+            {tCommon.keepDefaults}
+          </Button>
         </div>
       ) : null}
 

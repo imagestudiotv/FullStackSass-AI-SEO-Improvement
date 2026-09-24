@@ -48,6 +48,12 @@ export default async function WebsitePublishingPage({
       */}
       <ArticleSettingsForm
         websiteId={site.id}
+        /*
+          Whether these settings have ever been saved. Drives the "keep the
+          defaults" confirm bar, which exists so a customer who changes
+          nothing can still close the checklist step.
+        */
+        reviewed={site.articleSettingsReviewedAt !== null}
         initial={{
           publishAs: site.publishAs === "draft" ? "draft" : "live",
           articleStyle: site.articleStyle,

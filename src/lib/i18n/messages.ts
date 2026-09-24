@@ -893,6 +893,9 @@ export type Messages = {
       noImageYet: string;
       notScheduled: string;
       nothingPlanned: string;
+      /** The confirm bar for article settings nobody has changed. */
+      defaultsAreFine: string;
+      keepDefaults: string;
       /** The calendar tab when no plan has been built yet. */
       noPlanYet: string;
       noPlanYetHaveKeywords: string;
@@ -2222,6 +2225,8 @@ const en: Messages = {
       noImageYet: "No image yet",
       notScheduled: "Not scheduled",
       nothingPlanned: "Nothing planned for this day.",
+      defaultsAreFine: "Happy with these? You can change them any time.",
+      keepDefaults: "Keep the defaults",
       noPlanYet: "No content plan yet",
       noPlanYetHaveKeywords: "Your search terms are ready, but the plan that turns them into articles has not been built. Build it now.",
       buildPlan: "Build my content plan",
@@ -3558,6 +3563,8 @@ const es: Messages = {
       noImageYet: "Todavía sin imagen",
       notScheduled: "Sin programar",
       nothingPlanned: "Nada planificado para este día.",
+      defaultsAreFine: "¿Le parecen bien? Puede cambiarlas cuando quiera.",
+      keepDefaults: "Mantener los valores por defecto",
       noPlanYet: "Aún no hay plan de contenidos",
       noPlanYetHaveKeywords: "Sus términos de búsqueda están listos, pero aún no se ha creado el plan que los convierte en artículos. Créelo ahora.",
       buildPlan: "Crear mi plan de contenidos",
@@ -4896,6 +4903,8 @@ const fr: Messages = {
       noImageYet: "Pas encore d\u2019image",
       notScheduled: "Non planifié",
       nothingPlanned: "Rien de prévu ce jour-là.",
+      defaultsAreFine: "Cela vous convient ? Vous pourrez les modifier à tout moment.",
+      keepDefaults: "Garder les valeurs par défaut",
       noPlanYet: "Pas encore de plan de contenu",
       noPlanYetHaveKeywords: "Vos mots-clés sont prêts, mais le plan qui les transforme en articles n’a pas encore été créé. Créez-le maintenant.",
       buildPlan: "Créer mon plan de contenu",
@@ -6228,6 +6237,8 @@ const it: Messages = {
       noImageYet: "Ancora nessuna immagine",
       notScheduled: "Non pianificato",
       nothingPlanned: "Nulla in programma per questo giorno.",
+      defaultsAreFine: "Le vanno bene? Può modificarle in qualsiasi momento.",
+      keepDefaults: "Mantieni le impostazioni predefinite",
       noPlanYet: "Nessun piano editoriale",
       noPlanYetHaveKeywords: "I suoi termini di ricerca sono pronti, ma il piano che li trasforma in articoli non è ancora stato creato. Lo crei ora.",
       buildPlan: "Crea il mio piano editoriale",
@@ -7567,6 +7578,8 @@ const de: Messages = {
       noImageYet: "Noch kein Bild",
       notScheduled: "Nicht geplant",
       nothingPlanned: "Für diesen Tag ist nichts geplant.",
+      defaultsAreFine: "Passt so? Sie können die Einstellungen jederzeit ändern.",
+      keepDefaults: "Standardwerte behalten",
       noPlanYet: "Noch kein Redaktionsplan",
       noPlanYetHaveKeywords: "Ihre Suchbegriffe stehen bereit, aber der Plan, der daraus Artikel macht, wurde noch nicht erstellt. Erstellen Sie ihn jetzt.",
       buildPlan: "Redaktionsplan erstellen",
