@@ -67,17 +67,87 @@ const DROP_WITH_CONTENT =
 const URL_NOISE = new RegExp("[\\u0000-\\u0020]", "g");
 
 /**
- * True for a URL safe to publish.
+ * Schemes a link or image in an article may use. Anything with a scheme not on
+ * this list is dropped; a URL with no scheme at all is relative and kept.
  *
- * Blocks javascript: and data: — a data URL can carry an SVG with a script in
- * it. Relative and protocol-relative URLs are fine; the customer's own site is
- * the base. Noise is stripped first, because "java\tscript:alert(1)" is a URL
- * browsers still follow.
+ * AN ALLOWLIST, where this used to be a blocklist of javascript/data/vbscript/
+ * file. A blocklist has to anticipate every scheme a browser will execute; an
+ * allowlist only has to name the handful an article legitimately needs.
  */
-function safeUrl(value: string): boolean {
-  return !/^(javascript|data|vbscript|file):/i.test(
-    value.replace(URL_NOISE, ""),
-  );
+const SAFE_SCHEMES = new Set(["http", "https", "mailto", "tel"]);
+
+/** A few named references worth decoding; the rest stay literal. See below. */
+const NAMED_ENTITIES: Record<string, string> = {
+  amp: "&",
+  quot: '"',
+  apos: "'",
+  lt: "<",
+  gt: ">",
+  colon: ":",
+  tab: "\t",
+  newline: "\n",
+  sol: "/",
+  num: "#",
+  quest: "?",
+};
+
+/**
+ * Decodes the character references a browser would decode in an attribute.
+ *
+ * THIS IS THE BUG IT FIXES. The URL check used to read the attribute as
+ * written, but the browser reads it DECODED - so
+ *
+ *   <a href="&#106;avascript:alert(1)">
+ *
+ * passed the check (it does not start with "javascript:") and then became a
+ * javascript: link the moment it rendered. Invited editors can write article
+ * HTML, so that was stored XSS against the site owner and the admin panel, and
+ * it was published to the customer's live site as well.
+ *
+ * Out-of-range code points decode to nothing rather than throwing: this runs
+ * on pasted and model-written input, and one malformed reference must not
+ * fail the whole save.
+ */
+function decodeEntities(value: string): string {
+  const fromCode = (code: number) =>
+    Number.isFinite(code) && code > 0 && code <= 0x10ffff
+      ? String.fromCodePoint(code)
+      : "";
+  return value
+    .replace(/&#x([0-9a-f]+);?/gi, (_, hex: string) => fromCode(parseInt(hex, 16)))
+    .replace(/&#(\d+);?/g, (_, dec: string) => fromCode(Number(dec)))
+    .replace(/&([a-z]+);/gi, (whole: string, name: string) =>
+      NAMED_ENTITIES[name.toLowerCase()] ?? whole,
+    );
+}
+
+/**
+ * Escapes a DECODED value for output inside double quotes.
+ *
+ * Emitting the decoded-then-escaped form - never the input as written - is
+ * what makes the check above trustworthy. The browser decodes this output back
+ * to exactly the string that was validated. Any reference the decoder above
+ * does not know, such as some obscure named entity, stays literal in the
+ * validated string and is emitted as "&amp;...", so the browser shows it as
+ * text instead of decoding it into something the check never saw.
+ */
+function escapeAttr(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+}
+
+/**
+ * True for a URL safe to publish. Takes the DECODED value.
+ *
+ * Noise is stripped before looking for the scheme, because "java\tscript:"
+ * is a URL browsers still follow. Stripping interior spaces as well can only
+ * make the check stricter: "java script:" is not a scheme a browser runs, and
+ * reading it as "javascript:" rejects it, which is the safe way to be wrong.
+ */
+function safeUrl(decoded: string): boolean {
+  const scheme = /^([a-z][a-z0-9+.-]*):/i.exec(decoded.replace(URL_NOISE, ""));
+  // No scheme: relative or protocol-relative, resolved against the customer's site.
+  if (!scheme) return true;
+  return SAFE_SCHEMES.has(scheme[1].toLowerCase());
 }
 
 function cleanAttrs(tag: string, raw: string): string {
@@ -92,10 +162,10 @@ function cleanAttrs(tag: string, raw: string): string {
     const name = match[1].toLowerCase();
     if (!allowed.has(name)) continue;
 
-    const value = match[2].replace(/^["']|["']$/g, "");
+    const value = decodeEntities(match[2].replace(/^["']|["']$/g, ""));
     if ((name === "href" || name === "src") && !safeUrl(value)) continue;
 
-    out.push(`${name}="${value.replace(/"/g, "&quot;")}"`);
+    out.push(`${name}="${escapeAttr(value)}"`);
   }
 
   /**
