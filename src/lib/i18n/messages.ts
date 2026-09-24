@@ -421,12 +421,22 @@ export type Messages = {
     websites: {
       title: string;
       /**
-       * "3 connected. Each website is billed on its own plan."
+       * "3 websites. Each is billed on its own plan."
        *
-       * A function rather than a string with a token in it: the count governs
-       * the plural, and every language pluralises differently. Building the
-       * sentence in the dictionary lets each locale decide; a token would
-       * force one language's grammar onto the other four.
+       * DOES NOT SAY "CONNECTED", though the key is still named that. The
+       * word means something else everywhere else in the product - a CMS
+       * connection, a Google account - and "1 connected" on this screen read
+       * as "your WordPress is connected". The client hit exactly that: he
+       * opened this page from the setup guide and reported the site as
+       * connected before he had touched the connection.
+       *
+       * The key keeps its name so the five locale blocks stay aligned;
+       * renaming it is a separate change to make when something else in this
+       * file moves.
+       *
+       * A pluralised pair rather than a token: the count governs the plural
+       * and every language pluralises differently, so building the sentence
+       * in the dictionary lets each locale decide.
        */
       connected: string;
       addWebsite: string;
@@ -1754,7 +1764,7 @@ const en: Messages = {
     },
     websites: {
       title: "Websites",
-      connected: "1 connected. Each website is billed on its own plan.|{count} connected. Each website is billed on its own plan.",
+      connected: "1 website. Each is billed on its own plan.|{count} websites. Each is billed on its own plan.",
       addWebsite: "Add website",
       emptyTitle: "No websites yet",
       emptyBody:
@@ -3082,7 +3092,7 @@ const es: Messages = {
     },
     websites: {
       title: "Sitios web",
-      connected: "1 conectado. Cada sitio web se factura con su propio plan.|{count} conectados. Cada sitio web se factura con su propio plan.",
+      connected: "1 sitio web. Cada uno se factura con su propio plan.|{count} sitios web. Cada uno se factura con su propio plan.",
       addWebsite: "Añadir sitio web",
       emptyTitle: "Todavía no hay sitios web",
       emptyBody:
@@ -4414,7 +4424,7 @@ const fr: Messages = {
     },
     websites: {
       title: "Sites web",
-      connected: "1 connecté. Chaque site est facturé sur son propre forfait.|{count} connectés. Chaque site est facturé sur son propre forfait.",
+      connected: "1 site web. Chacun est facturé sur son propre forfait.|{count} sites web. Chacun est facturé sur son propre forfait.",
       addWebsite: "Ajouter un site",
       emptyTitle: "Aucun site pour le moment",
       emptyBody:
@@ -5738,7 +5748,7 @@ const it: Messages = {
     },
     websites: {
       title: "Siti web",
-      connected: "1 collegato. Ogni sito viene fatturato con il proprio piano.|{count} collegati. Ogni sito viene fatturato con il proprio piano.",
+      connected: "1 sito web. Ognuno viene fatturato con il proprio piano.|{count} siti web. Ognuno viene fatturato con il proprio piano.",
       addWebsite: "Aggiungi sito",
       emptyTitle: "Ancora nessun sito",
       emptyBody:
@@ -7070,7 +7080,7 @@ const de: Messages = {
     },
     websites: {
       title: "Websites",
-      connected: "1 verbunden. Jede Website wird über ihren eigenen Tarif abgerechnet.|{count} verbunden. Jede Website wird über ihren eigenen Tarif abgerechnet.",
+      connected: "1 Website. Jede wird über ihren eigenen Tarif abgerechnet.|{count} Websites. Jede wird über ihren eigenen Tarif abgerechnet.",
       addWebsite: "Website hinzufügen",
       emptyTitle: "Noch keine Websites",
       emptyBody:
