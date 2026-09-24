@@ -43,6 +43,7 @@ import {
 import { explainCrawlError } from "@/lib/audit/explain";
 import { ISSUE_LABELS } from "@/lib/audit/rules";
 import { countNeedingDeveloper, fixFor } from "@/lib/audit/fixes";
+import { AuditSummaryPanel } from "./audit-summary";
 import { FixRequest } from "./fix-request";
 
 /**
@@ -406,6 +407,32 @@ export function AuditPanel({
 
   return (
     <div className="space-y-6">
+      {/*
+        The site beside what the check found - the block the public audit
+        opens with, in its own component because its copy differs. See
+        audit-summary.tsx: the public version is written for somebody who has
+        not paid, and every "you get this when you join" line would be an
+        upsell for something this reader already has.
+      */}
+      {audit.summary ? (
+        <AuditSummaryPanel
+          domain={domain}
+          summary={audit.summary}
+          context={context}
+          /*
+            The first three grouped findings, already ordered critical-first
+            by groupIssues - so "in the order worth doing them" is true
+            rather than a claim about an arbitrary list.
+          */
+          topFindings={grouped.slice(0, 3).map((issue) => ({
+            type: issue.type,
+            detail: issue.detail,
+            pageCount: issue.pageCount,
+          }))}
+          totalFindings={grouped.length}
+        />
+      ) : null}
+
       {/*
         Header: who we looked at, and the score.
 
