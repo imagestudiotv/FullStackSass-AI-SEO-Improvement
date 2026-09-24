@@ -2,7 +2,7 @@
 /**
  * Plugin Name: RepGet Connector
  * Description: Publishes articles written by RepGet straight to this site. Paste your Integration Key to connect.
- * Version: 1.1.0
+ * Version: 1.2.0
  * Requires at least: 5.6
  * Requires PHP: 7.4
  * License: GPLv2 or later
@@ -31,10 +31,16 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('REPGET_VERSION', '1.1.0');
+define('REPGET_VERSION', '1.2.0');
 define('REPGET_OPTION_KEY', 'repget_integration_key');
 define('REPGET_OPTION_STATUS', 'repget_status');
 define('REPGET_OPTION_ENDPOINT', 'repget_endpoint');
+/*
+  Set by the activation hook, read and deleted on the next admin screen.
+  An activation hook cannot redirect - it runs inside the request WordPress
+  is still using to finish activating - so the intent is parked here.
+*/
+define('REPGET_OPTION_ACTIVATED', 'repget_just_activated');
 
 /**
  * Default API host. Overridable for self-hosted or staging installs.
@@ -177,6 +183,105 @@ function repget_admin_menu() {
         'manage_options',
         'repget',
         'repget_settings_page'
+    );
+}
+
+/**
+ * A "Settings" link on the Plugins list row.
+ *
+ * The client could not find this screen after installing: "if not I will
+ * never know it even needs to add the api key. This is very important."
+ * Settings -> RepGet is where WordPress says an options page belongs, but
+ * nothing pointed at it, and a plugin that does nothing until a key is
+ * pasted has to say where the key goes.
+ *
+ * This is the convention every established plugin follows, and it costs
+ * one filter.
+ */
+add_filter('plugin_action_links_' . plugin_basename(__FILE__), 'repget_action_links');
+function repget_action_links($links) {
+    $settings = sprintf(
+        '<a href="%s">%s</a>',
+        esc_url(admin_url('options-general.php?page=repget')),
+        esc_html__('Settings', 'repget')
+    );
+    // Prepended: the first link is the one people reach for.
+    array_unshift($links, $settings);
+    return $links;
+}
+
+/**
+ * Send the customer to the settings screen the moment the plugin activates.
+ *
+ * The strongest version of the client's request - "It should redirect in
+ * some way to the settings of the plugin in the wordpress dashboard. Right
+ * now it's not intuitive."
+ *
+ * Three guards, because an activation redirect is easy to get wrong:
+ *
+ *  - Only when OUR flag is set, cleared immediately, so it happens once.
+ *  - Never during a bulk activation. WordPress sets `activate-multi` when
+ *    several plugins are switched on together, and redirecting then would
+ *    interrupt the other activations.
+ *  - Never for somebody who cannot see the page anyway.
+ *
+ * Skipped entirely when a key is already saved: an upgrade should not throw
+ * an administrator onto a settings screen they finished with months ago.
+ */
+add_action('admin_init', 'repget_maybe_redirect_after_activation');
+function repget_maybe_redirect_after_activation() {
+    if (!get_option(REPGET_OPTION_ACTIVATED)) {
+        return;
+    }
+
+    // Once, whatever happens next.
+    delete_option(REPGET_OPTION_ACTIVATED);
+
+    if (isset($_GET['activate-multi'])) {
+        return;
+    }
+    if (!current_user_can('manage_options')) {
+        return;
+    }
+    if (repget_key() !== '') {
+        return;
+    }
+
+    wp_safe_redirect(admin_url('options-general.php?page=repget'));
+    exit;
+}
+
+/**
+ * A banner on every admin screen while the plugin is installed but idle.
+ *
+ * The redirect above covers the moment of activation; this covers everyone
+ * who navigated away, activated in bulk, or upgraded from a version that
+ * never had the redirect. Without a key the plugin publishes nothing, and
+ * silently doing nothing is the state the client was stuck in.
+ *
+ * Not shown ON the settings screen - the form is already there - and not
+ * shown to anyone who could not act on it.
+ */
+add_action('admin_notices', 'repget_setup_notice');
+function repget_setup_notice() {
+    if (!current_user_can('manage_options')) {
+        return;
+    }
+    if (repget_key() !== '') {
+        return;
+    }
+
+    $screen = function_exists('get_current_screen') ? get_current_screen() : null;
+    if ($screen && $screen->id === 'settings_page_repget') {
+        return;
+    }
+
+    printf(
+        '<div class="notice notice-warning"><p><strong>%s</strong> %s <a href="%s">%s</a></p></div>',
+        esc_html__('RepGet is not connected yet.', 'repget'),
+        esc_html__('Paste your Integration Key to start publishing articles.', 'repget'),
+        esc_url(admin_url('options-general.php?page=repget')),
+        esc_html__('Open settings', 'repget')
     );
 }
 
@@ -426,6 +531,14 @@ function repget_activate() {
         // before they reach the queue, so polling faster would only add load.
         wp_schedule_event(time() + 60, 'hourly', 'repget_sync_event');
     }
+
+    /*
+      Read once by admin_init on the next screen load, which is where the
+      redirect happens. It cannot happen here: an activation hook runs inside
+      the plugin-activation request, and redirecting from it aborts the
+      activation WordPress is still finishing.
+    */
+    add_option(REPGET_OPTION_ACTIVATED, 1);
 }
 
 register_deactivation_hook(__FILE__, 'repget_deactivate');

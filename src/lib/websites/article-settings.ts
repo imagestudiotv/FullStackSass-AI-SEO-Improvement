@@ -177,6 +177,13 @@ export async function saveArticleSettings(
   await db
     .update(websites)
     .set({
+      /*
+        Records that the settings were reviewed, whatever was in the form.
+        The checklist reads this instead of demanding a brand_voice row -
+        keeping every default is a choice, and it used to leave the step
+        open forever. See onboarding/launch.ts, the "preferences" step.
+      */
+      articleSettingsReviewedAt: new Date(),
       publishAs: input.publishAs,
       articleStyle: input.articleStyle,
       internalLinkTarget: links,

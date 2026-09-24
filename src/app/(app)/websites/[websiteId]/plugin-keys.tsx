@@ -12,7 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 import type { Messages } from "@/lib/i18n/messages";
 
@@ -47,6 +47,39 @@ export function PluginKeys({
   const [label, setLabel] = useState("");
   const [freshKey, setFreshKey] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  /**
+   * Whether a key exists that WordPress has never called.
+   *
+   * That is the waiting state: the customer has copied a key and is pasting
+   * it into their site in another tab. The moment the plugin calls
+   * /api/plugin/verify, lastUsedAt is written - but by WORDPRESS, not by the
+   * browser, so this page has no idea it happened.
+   */
+  const awaitingFirstUse = keys.some((key) => !key.lastUsedAt);
+
+  /**
+   * Poll while a key is waiting to be used.
+   *
+   * The client hit exactly this: "Status on wordpress connected, on repget is
+   * not refreshing... Now finally worked, but I need to refresh the page.
+   * Maybe we can find a way to mark complete directly?"
+   *
+   * There is no way to push from WordPress to this tab, and the connection is
+   * made in a different browser tab on a different site - so polling is the
+   * honest mechanism. Five seconds is fast enough to feel immediate while
+   * someone is pasting a key, and the whole thing stops the moment every key
+   * has been used, so a settled account polls nothing at all.
+   *
+   * router.refresh() re-runs the server component, which also re-reads the
+   * launch checklist - so "Connect your site" ticks itself without the
+   * customer reloading.
+   */
+  useEffect(() => {
+    if (!awaitingFirstUse) return;
+    const timer = setInterval(() => router.refresh(), 5000);
+    return () => clearInterval(timer);
+  }, [awaitingFirstUse, router]);
 
   function handleGenerate() {
     startTransition(async () => {

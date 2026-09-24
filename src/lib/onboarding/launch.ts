@@ -144,6 +144,8 @@ export const getLaunchState = cache(async function getLaunchState(
           description: websites.description,
           country: websites.country,
           language: websites.language,
+          // Read here so the "preferences" step below can tick on a review.
+          articleSettingsReviewedAt: websites.articleSettingsReviewedAt,
         })
         .from(websites)
         .where(eq(websites.id, websiteId))
@@ -315,7 +317,24 @@ export const getLaunchState = cache(async function getLaunchState(
       title: "Configure your article preferences",
       description:
         "Tone, words to avoid, and the standing rules every article should follow.",
-      done: voice.length > 0,
+      /**
+       * A SAVE, not a change of mind.
+       *
+       * This was `voice.length > 0` - a brand_voice row, which only exists
+       * once one of the voice FIELDS has been filled in. So a customer who
+       * opened Article Settings, read them, decided the defaults were right
+       * and pressed Save never ticked this step. The client called it: "If by
+       * any chance user don't change anything they can't having this mark
+       * completed. But there are chances people can keep settings by default,
+       * especial for the first days until they understand the platform."
+       *
+       * Keeping the defaults IS a configuration. What the step asks is that
+       * somebody looked, and `articleSettingsReviewedAt` records exactly
+       * that - written by saveArticleSettings whatever the form contained.
+       * The brand_voice row still counts, so accounts that configured a voice
+       * before this shipped stay ticked.
+       */
+      done: voice.length > 0 || site[0]?.articleSettingsReviewedAt != null,
       optional: false,
       /*
         /publishing — the Article Settings tab — not /profile.

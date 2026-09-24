@@ -339,6 +339,16 @@ export const websites = pgTable("websites", {
   authorName: text("author_name"),
   authorBio: text("author_bio"),
   authorAvatarUrl: text("author_avatar_url"),
+  /**
+   * When the customer last saved Article Settings.
+   *
+   * The launch checklist needs to know somebody LOOKED, which is not the same
+   * as somebody changing something: keeping the defaults is a legitimate
+   * choice, and the step used to require a brand_voice row that only appears
+   * when a voice field is filled in. Written by saveArticleSettings whatever
+   * the form contained.
+   */
+  articleSettingsReviewedAt: timestamp("article_settings_reviewed_at"),
 
   ...timestamps,
 });

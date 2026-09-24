@@ -286,10 +286,16 @@ export function BillingClient({
 
   return (
     <PageShell>
-      <PageHeader
-        title={t.title}
-        description={t.subtitle}
-      />
+      {/*
+        No subtitle.
+
+        It read "Each website has its own plan. Credits are shared across all
+        of them." The client cut it: the rows below already show a plan per
+        website, so the sentence explained the thing it was sitting on top
+        of. The key stays in the dictionary - removing it would mean touching
+        five locale blocks for a string nothing renders.
+      */}
+      <PageHeader title={t.title} />
 
       {/*
         One row per website.
@@ -303,7 +309,13 @@ export function BillingClient({
         <Card>
           <CardHeader>
             <CardTitle className="text-base">{t.yourWebsites}</CardTitle>
-            <CardDescription>{t.yourWebsitesHelp}</CardDescription>
+            {/*
+              No description here either. It warned "A website without a plan
+              cannot generate or publish articles" - true, but shown to
+              somebody who IS on a plan it reads as a warning about their own
+              account. Each row already carries its own status badge, which
+              says the same thing only when it applies.
+            */}
           </CardHeader>
           <CardContent className="pt-0">
             <ul className="divide-y">

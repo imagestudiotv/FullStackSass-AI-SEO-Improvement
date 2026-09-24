@@ -1,0 +1,1 @@
+ALTER TABLE "websites" ADD COLUMN "article_settings_reviewed_at" timestamp;
