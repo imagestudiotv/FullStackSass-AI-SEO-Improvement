@@ -110,7 +110,12 @@ export function WebsiteStep({
      * the switcher last remembered, so a customer adding their second website
      * would be shown the first one's details.
      */
-    router.push(`/onboarding/plan?site=${result.data.id}`);
+    /*
+      replace, not push: the website now exists, so going back to this
+      screen would offer to add another one from inside the first one's
+      setup. A finished step is not somewhere to return to.
+    */
+    router.replace(`/onboarding/plan?site=${result.data.id}`);
   }
 
   const hasLooked = preview !== null;

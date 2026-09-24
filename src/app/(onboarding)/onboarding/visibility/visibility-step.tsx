@@ -453,7 +453,7 @@ export function VisibilityStep({
           disabled={busy || prompts.length === 0}
           onClick={() => {
             setBusy(true);
-            router.push("/onboarding/content");
+            router.replace("/onboarding/content");
           }}
         >
           {busy ? (

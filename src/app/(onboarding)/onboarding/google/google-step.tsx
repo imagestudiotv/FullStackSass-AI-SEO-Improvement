@@ -54,7 +54,11 @@ export function GoogleStep({
 
   function handleNext() {
     setLeaving(true);
-    router.push(`/onboarding/visibility?site=${websiteId}`);
+    /*
+      replace: this step is done either way - connected or skipped - and its
+      server guard does not re-run on a back navigation.
+    */
+    router.replace(`/onboarding/visibility?site=${websiteId}`);
   }
 
   const connected = connection.connected;

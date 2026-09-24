@@ -154,7 +154,12 @@ export function ContentStep({
      */
     setLeaving(true);
     toast.success("We are building your plan. You can carry on - it lands in a few minutes.");
-    router.push(NEXT_HREF);
+    /*
+      replace: the content plan is building in the background and cannot be
+      started twice. Returning here would show a Start button for work
+      already in flight.
+    */
+    router.replace(NEXT_HREF);
   }
 
   /**
@@ -363,7 +368,8 @@ export function ContentStep({
         <Button
           className="h-12 rounded-full px-6"
           disabled={leaving}
-          onClick={() => router.push(NEXT_HREF)}
+          /* replace, like the auto-advance above it - same forward move. */
+          onClick={() => router.replace(NEXT_HREF)}
         >
           {leaving ? (
             <>
