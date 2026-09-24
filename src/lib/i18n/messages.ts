@@ -941,6 +941,8 @@ export type Messages = {
       invoice: string;
       copyNow: string;
       downloadPlugin: string;
+      /** Link to the step-by-step plugin guide, beside the download. */
+      pluginGuide: string;
       cantFindIntegration: string;
       adaptive: string;
       custom: string;
@@ -2260,6 +2262,7 @@ const en: Messages = {
       invoice: "Invoice",
       copyNow: "Copy this now - it is not shown again",
       downloadPlugin: "Download the plugin",
+      pluginGuide: "Setup guide",
       cantFindIntegration: "Can&rsquo;t find your integration?",
       adaptive: "Adaptive",
       custom: "Custom",
@@ -3588,6 +3591,7 @@ const es: Messages = {
       invoice: "Factura",
       copyNow: "Cópielo ahora - no se volverá a mostrar",
       downloadPlugin: "Descargar el plugin",
+      pluginGuide: "Guía de instalación",
       cantFindIntegration: "¿No encuentra su integración?",
       adaptive: "Adaptable",
       custom: "Personalizado",
@@ -4918,6 +4922,7 @@ const fr: Messages = {
       invoice: "Facture",
       copyNow: "Copiez-le maintenant - il ne sera plus affiché",
       downloadPlugin: "Télécharger le plugin",
+      pluginGuide: "Guide d’installation",
       cantFindIntegration: "Vous ne trouvez pas votre intégration ?",
       adaptive: "Adaptatif",
       custom: "Personnalisé",
@@ -6242,6 +6247,7 @@ const it: Messages = {
       invoice: "Fattura",
       copyNow: "La copi ora - non verrà mostrata di nuovo",
       downloadPlugin: "Scarica il plugin",
+      pluginGuide: "Guida all’installazione",
       cantFindIntegration: "Non trova la sua integrazione?",
       adaptive: "Adattiva",
       custom: "Personalizzata",
@@ -7573,6 +7579,7 @@ const de: Messages = {
       invoice: "Rechnung",
       copyNow: "Jetzt kopieren - wird nicht erneut angezeigt",
       downloadPlugin: "Plugin herunterladen",
+      pluginGuide: "Einrichtungsanleitung",
       cantFindIntegration: "Ihre Integration nicht gefunden?",
       adaptive: "Adaptiv",
       custom: "Eigene",

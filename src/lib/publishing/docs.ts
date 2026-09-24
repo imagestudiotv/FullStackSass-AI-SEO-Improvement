@@ -31,10 +31,94 @@ export type IntegrationDoc = {
 
 export const INTEGRATION_DOCS: IntegrationDoc[] = [
   {
+    /**
+     * The plugin, listed FIRST and before the application-password route.
+     *
+     * Both connect a WordPress site and a customer only needs one, so the
+     * order is a recommendation. The plugin is the one that works when the
+     * other does not: a host that blocks the REST API, a site behind a
+     * firewall, a security plugin that has locked things down - exactly the
+     * cases where application passwords fail, and fail confusingly.
+     *
+     * It also means we never hold a credential for their site. The plugin
+     * PULLS; nothing is pushed in from outside.
+     *
+     * This guide existed only as CONNECT-GUIDE.txt at the root of the repo -
+     * complete, carefully written, and reachable by nobody. A customer
+     * installing the plugin had the download button and no instructions.
+     */
+    slug: "wordpress-plugin",
+    name: "WordPress plugin",
+    summary:
+      "Publish to WordPress with our plugin. Works when the REST API is blocked, and we never hold a password to your site.",
+    requirements: [
+      "A self-hosted WordPress site (wordpress.org, not a free wordpress.com plan)",
+      "WordPress 5.6 or newer, and PHP 7.4 or newer",
+      "An administrator account on the WordPress site - editors and authors cannot see the settings page",
+      "An active plan for this website in RepGet",
+    ],
+    steps: [
+      {
+        title: "Download the plugin from RepGet",
+        body: "Open Websites → your site → Integrations and find the WordPress plugin panel. Press Download the plugin. This saves repget-connector.zip, about 6 KB. LEAVE IT ZIPPED - do not unpack it, and do not open it first. Some browsers unpack a zip automatically on download, which is the single most common reason the install then fails.",
+      },
+      {
+        title: "Create an integration key",
+        body: "In the same panel, press New key and give it a name you will recognise, such as Main site. The key is shown ONCE and stored only as a hash, so there is genuinely no way to look it up later - copy it now. If you lose it, revoke it and make another; nothing is lost by doing that.",
+      },
+      {
+        title: "Upload the plugin to WordPress",
+        body: "In your WordPress admin, go to Plugins → Add New Plugin → Upload Plugin. Choose the repget-connector.zip file exactly as it downloaded, press Install Now, then Activate Plugin.",
+      },
+      {
+        title: "Open Settings → RepGet",
+        body: "It lives under Settings rather than as its own top-level menu item, which is where most people look first. Only administrators can see this page, because the key controls what gets published to the site.",
+      },
+      {
+        title: "Paste the key and connect",
+        body: "Put your integration key in the Integration Key field and press Save and connect. The Status row then shows a green tick and the name of the website the key belongs to.",
+      },
+      {
+        title: "Check the website name is the right one",
+        body: "If Status names a DIFFERENT website, the key belongs to another site in your RepGet workspace. Keys belong to one website, not to your whole account - go back and copy the key for the site you meant. This is the most common mistake when you manage several websites, and it is easy to miss because the connection genuinely succeeded.",
+      },
+      {
+        title: "Fetch your first articles",
+        body: "Press Check for articles now. It reports how many were published, for example \"3 articles published.\" Zero is a normal answer and does not mean anything is wrong - it means nothing is waiting yet. Articles arrive as ordinary published posts with the featured image set, and you can edit, unpublish or delete them like any other post.",
+      },
+    ],
+    troubleshooting: [
+      {
+        problem: '"The package could not be installed"',
+        fix: "The zip was unpacked and re-zipped somewhere along the way, which some browsers do automatically on download. Download it again and upload the file exactly as it arrives, without opening it first.",
+      },
+      {
+        problem: '"The key was rejected. Check it was copied in full."',
+        fix: "One message covers every cause deliberately, so that somebody guessing at keys learns nothing from the reply. Check three things in order: was the key copied IN FULL (a partial copy is by far the most common cause); is it still ACTIVE, or was it revoked in RepGet; and is it the key for THIS website rather than another site in your workspace.",
+      },
+      {
+        problem: "I cannot see the Settings → RepGet page",
+        fix: "You need an administrator account. Editors and authors cannot see it, because the key controls what gets published.",
+      },
+      {
+        problem: "Articles are not appearing",
+        fix: "Press Check for articles now and read what it reports. Confirm the Status row still says Connected. Then check in RepGet that the articles are actually finished - anything still marked Planned or Writing has not been written yet, so there is nothing for the plugin to fetch.",
+      },
+      {
+        problem: "Articles arrive later than an hour after they are ready",
+        fix: "The plugin checks hourly by itself, but WordPress's scheduler only runs when somebody visits your site - so on a quiet site the check happens late. That is how WordPress works rather than a fault. Press Check for articles now to fetch immediately, or ask your host to set up a real cron job if the timing matters to you.",
+      },
+      {
+        problem: "I lost my key",
+        fix: "Revoke the old one in RepGet and create a new one, then paste it into Settings → RepGet and save again. Nothing is lost by doing this, and the old key stops working the moment you revoke it.",
+      },
+    ],
+  },
+  {
     slug: "wordpress",
     name: "WordPress",
     summary:
-      "Publish straight to a self-hosted WordPress site using an application password.",
+      "Publish straight to a self-hosted WordPress site using an application password. No plugin to install - but see the plugin guide if your host blocks the REST API.",
     requirements: [
       "A self-hosted WordPress site (wordpress.org, not a free wordpress.com plan)",
       "An account on it with the Editor or Administrator role",

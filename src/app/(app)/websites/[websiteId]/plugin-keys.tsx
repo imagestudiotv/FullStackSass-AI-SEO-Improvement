@@ -1,9 +1,11 @@
 "use client";
 
 import {
+  BookOpen,
   Check,
   Copy,
   Download,
+  ExternalLink,
   KeyRound,
   Loader2,
   Plus,
@@ -98,14 +100,38 @@ export function PluginKeys({
           and download attributes on a same-origin file are handled by the
           browser without any JavaScript to go wrong.
         */}
-        <a
-          href="/repget-connector.zip"
-          download
-          className="mt-2 inline-flex items-center gap-1 text-sm underline underline-offset-4"
-        >
-          <Download className="size-3.5" aria-hidden="true" />
-          {tCommon.downloadPlugin}
-        </a>
+        {/*
+          Download and guide together.
+
+          The panel offered the file and nothing else - so somebody who had
+          never installed a WordPress plugin got a zip, a key, and no
+          instructions. The written guide existed the whole time, as a text
+          file at the root of the repository that no customer could reach.
+
+          The guide opens in a new tab ON PURPOSE: it is read WHILE working
+          through this panel, and navigating away would lose a freshly
+          generated key that is shown exactly once.
+        */}
+        <div className="mt-2 flex flex-wrap items-center gap-4">
+          <a
+            href="/repget-connector.zip"
+            download
+            className="inline-flex items-center gap-1 text-sm underline underline-offset-4"
+          >
+            <Download className="size-3.5" aria-hidden="true" />
+            {tCommon.downloadPlugin}
+          </a>
+          <a
+            href="/docs/integrations/wordpress-plugin"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-sm underline underline-offset-4"
+          >
+            <BookOpen className="size-3.5" aria-hidden="true" />
+            {tCommon.pluginGuide}
+            <ExternalLink className="size-3" aria-hidden="true" />
+          </a>
+        </div>
       </div>
 
       {/* The one and only sighting of the key. */}
