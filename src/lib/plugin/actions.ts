@@ -59,7 +59,7 @@ export async function generateIntegrationKey(
 
   const { key } = await createIntegrationKey(site.id, label);
 
-  revalidatePath(`/websites/${site.id}`);
+  revalidatePath(`/websites/${site.id}/integrations`);
   return { ok: true, data: { key } };
 }
 
@@ -73,6 +73,6 @@ export async function revokeKey(
 
   await revokeIntegrationKey(site.id, keyId);
 
-  revalidatePath(`/websites/${site.id}`);
+  revalidatePath(`/websites/${site.id}/integrations`);
   return { ok: true, data: null };
 }

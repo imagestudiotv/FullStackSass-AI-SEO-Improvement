@@ -93,7 +93,7 @@ export async function disconnectGoogle(
   if (!guard.ok) return { ok: false, error: guard.error };
   const { site } = guard.context;
   await disconnect(site.id);
-  revalidatePath(`/websites/${site.id}`);
+  revalidatePath(`/websites/${site.id}/google`);
   return { ok: true, data: null };
 }
 
@@ -157,7 +157,7 @@ export async function selectProperties(
     })
     .where(eq(integrations.id, connection.integrationId));
 
-  revalidatePath(`/websites/${site.id}`);
+  revalidatePath(`/websites/${site.id}/google`);
   return { ok: true, data: null };
 }
 
@@ -181,7 +181,7 @@ export async function startImport(
     data: { websiteId: site.id, organizationId: orgId },
   });
 
-  revalidatePath(`/websites/${site.id}`);
+  revalidatePath(`/websites/${site.id}/google`);
   return { ok: true, data: null };
 }
 

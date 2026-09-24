@@ -278,7 +278,6 @@ export async function addWebsiteMember(
       websiteUrl: `${siteUrl()}/websites/${websiteId}`,
     });
 
-    revalidatePath(`/websites/${websiteId}/settings`);
     revalidatePath("/settings");
     return { ok: true, data: { invited: false, emailSent: sent.ok } };
   }
@@ -349,7 +348,6 @@ export async function addWebsiteMember(
     };
   }
 
-  revalidatePath(`/websites/${websiteId}/settings`);
   revalidatePath("/settings");
   return { ok: true, data: { invited: true, emailSent: true } };
 }
@@ -430,7 +428,6 @@ export async function resendWebsiteInvitation(
     };
   }
 
-  revalidatePath(`/websites/${websiteId}/settings`);
   revalidatePath("/settings");
   return { ok: true, data: null };
 }
@@ -461,7 +458,6 @@ export async function revokeWebsiteInvitation(
       ),
     );
 
-  revalidatePath(`/websites/${websiteId}/settings`);
   revalidatePath("/settings");
   return { ok: true, data: null };
 }
@@ -490,6 +486,11 @@ export async function removeWebsiteMember(
       ),
     );
 
-  revalidatePath(`/websites/${websiteId}/settings`);
+  /*
+    /settings, not /websites/[id]/settings - that route does not exist. The
+    members panel lives on the top-level Settings page, so this was a dead
+    call and removing somebody left the list unchanged until a hard reload.
+  */
+  revalidatePath("/settings");
   return { ok: true, data: null };
 }

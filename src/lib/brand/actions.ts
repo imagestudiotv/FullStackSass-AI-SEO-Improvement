@@ -162,6 +162,6 @@ export async function updateBrandVoice(
     // One row per website, enforced by the table's unique constraint.
     .onConflictDoUpdate({ target: brandVoice.websiteId, set: values });
 
-  revalidatePath(`/websites/${site.id}`);
+  revalidatePath(`/websites/${site.id}/publishing`);
   return { ok: true, data: null };
 }

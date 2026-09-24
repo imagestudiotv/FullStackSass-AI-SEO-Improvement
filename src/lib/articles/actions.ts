@@ -114,7 +114,7 @@ export async function generateFromCalendarItem(
   );
   if (!result.ok) return { ok: false, error: result.error };
 
-  revalidatePath(`/websites/${site.id}`);
+  revalidatePath(`/websites/${site.id}/content`);
   return { ok: true, data: { articleId: result.articleId } };
 }
 
@@ -218,7 +218,7 @@ export async function updateArticle(
   await db.update(articles).set(patch).where(eq(articles.id, articleId));
 
   revalidatePath(`/websites/${site.id}/articles/${articleId}`);
-  revalidatePath(`/websites/${site.id}`);
+  revalidatePath(`/websites/${site.id}/content`);
   return { ok: true, data: null };
 }
 
@@ -234,6 +234,6 @@ export async function deleteArticle(
     .delete(articles)
     .where(and(eq(articles.id, articleId), eq(articles.websiteId, site.id)));
 
-  revalidatePath(`/websites/${site.id}`);
+  revalidatePath(`/websites/${site.id}/content`);
   return { ok: true, data: null };
 }

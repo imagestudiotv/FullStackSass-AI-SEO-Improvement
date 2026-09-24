@@ -108,6 +108,12 @@ export async function refreshArticle(
     data: { articleId, websiteId: site.id, organizationId: orgId },
   });
 
-  revalidatePath(`/websites/${site.id}`);
+  /*
+    Both routes. Refreshing is triggered FROM the article's own page, so
+    revalidating only the list would leave the editor showing the old draft -
+    the exact stale-view bug this pass is fixing elsewhere.
+  */
+  revalidatePath(`/websites/${site.id}/articles/${articleId}`);
+  revalidatePath(`/websites/${site.id}/content`);
   return { ok: true, data: null };
 }

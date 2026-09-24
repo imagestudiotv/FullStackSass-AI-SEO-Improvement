@@ -155,7 +155,7 @@ export async function startResearch(
     data: { websiteId: site.id, organizationId: orgId },
   });
 
-  revalidatePath(`/websites/${site.id}`);
+  revalidatePath(`/websites/${site.id}/content`);
   return { ok: true, data: null };
 }
 
@@ -198,7 +198,7 @@ export async function updateCalendarItem(
       and(eq(calendarItems.id, itemId), eq(calendarItems.websiteId, site.id)),
     );
 
-  revalidatePath(`/websites/${site.id}`);
+  revalidatePath(`/websites/${site.id}/content`);
   return { ok: true, data: null };
 }
 
@@ -216,7 +216,7 @@ export async function deleteCalendarItem(
       and(eq(calendarItems.id, itemId), eq(calendarItems.websiteId, site.id)),
     );
 
-  revalidatePath(`/websites/${site.id}`);
+  revalidatePath(`/websites/${site.id}/content`);
   return { ok: true, data: null };
 }
 
@@ -368,7 +368,7 @@ export async function addKeywords(
     }
   }
 
-  revalidatePath(`/websites/${site.id}`);
+  revalidatePath(`/websites/${site.id}/content`);
   return {
     ok: true,
     data: {
@@ -397,7 +397,7 @@ export async function deleteKeyword(
     .delete(keywords)
     .where(and(eq(keywords.id, keywordId), eq(keywords.websiteId, site.id)));
 
-  revalidatePath(`/websites/${site.id}`);
+  revalidatePath(`/websites/${site.id}/content`);
   return { ok: true, data: null };
 }
 

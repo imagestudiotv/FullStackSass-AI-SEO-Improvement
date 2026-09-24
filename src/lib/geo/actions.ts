@@ -232,7 +232,7 @@ export async function addGeoPrompt(
       .values({ websiteId: site.id, prompt: cleaned, isSuggested: false })
       .returning({ id: geoPrompts.id });
 
-    revalidatePath(`/websites/${site.id}`);
+    revalidatePath(`/websites/${site.id}/ai-visibility`);
     return { ok: true, data: { id: row.id } };
   } catch {
     // The unique index on (website, prompt) is the only realistic failure.
@@ -254,7 +254,7 @@ export async function removeGeoPrompt(
     .delete(geoPrompts)
     .where(and(eq(geoPrompts.id, promptId), eq(geoPrompts.websiteId, site.id)));
 
-  revalidatePath(`/websites/${site.id}`);
+  revalidatePath(`/websites/${site.id}/ai-visibility`);
   return { ok: true, data: null };
 }
 
@@ -471,7 +471,7 @@ export async function ensureGeoPrompts(
     .onConflictDoNothing()
     .returning();
 
-  revalidatePath(`/websites/${site.id}`);
+  revalidatePath(`/websites/${site.id}/ai-visibility`);
   return { ok: true, data: rows.map(toView) };
 }
 

@@ -138,7 +138,20 @@ export async function joinNetwork(
     .values({ websiteId: site.id, ...values })
     .onConflictDoUpdate({ target: networkSites.websiteId, set: values });
 
-  revalidatePath(`/websites/${site.id}`);
+  /*
+    The BACKLINKS route, not the website index.
+
+    This said `/websites/${site.id}` until the client reported that Join did
+    nothing until a hard reload. The pages were split out of one stacked
+    website page into routes of their own (see websites/sections.ts) and the
+    revalidation calls did not follow - so this invalidated the index while
+    the panel that triggered it renders on a child route. router.refresh()
+    then re-fetched a page whose cache had never been cleared, and the button
+    looked broken while the write had actually succeeded.
+
+    Every action in this file had the same fault, as did five other modules.
+  */
+  revalidatePath(`/websites/${site.id}/backlinks`);
   return { ok: true, data: null };
 }
 
@@ -159,7 +172,7 @@ export async function leaveNetwork(
     .set({ acceptingLinks: false, updatedAt: new Date() })
     .where(eq(networkSites.websiteId, site.id));
 
-  revalidatePath(`/websites/${site.id}`);
+  revalidatePath(`/websites/${site.id}/backlinks`);
   return { ok: true, data: null };
 }
 
@@ -349,7 +362,7 @@ export async function requestBacklink(
      * cannot be matched today often can next week — refusing outright would
      * make the customer re-enter it.
      */
-    revalidatePath(`/websites/${site.id}`);
+    revalidatePath(`/websites/${site.id}/backlinks`);
     return { ok: true, data: { matched: false, hostDomain: null } };
   }
 
@@ -366,7 +379,7 @@ export async function requestBacklink(
     .set({ status: "matched", updatedAt: new Date() })
     .where(eq(backlinkRequests.id, request.id));
 
-  revalidatePath(`/websites/${site.id}`);
+  revalidatePath(`/websites/${site.id}/backlinks`);
   return { ok: true, data: { matched: true, hostDomain: host.domain } };
 }
 
@@ -404,7 +417,7 @@ export async function cancelRequest(
     .set({ status: "cancelled", creditsReserved: 0, updatedAt: new Date() })
     .where(eq(backlinkRequests.id, request.id));
 
-  revalidatePath(`/websites/${site.id}`);
+  revalidatePath(`/websites/${site.id}/backlinks`);
   return { ok: true, data: null };
 }
 

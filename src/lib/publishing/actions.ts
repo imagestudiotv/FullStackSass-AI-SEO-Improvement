@@ -201,7 +201,7 @@ export async function connectProvider(
       .values({ websiteId: site.id, kind: provider.id, ...row });
   }
 
-  revalidatePath(`/websites/${site.id}`);
+  revalidatePath(`/websites/${site.id}/integrations`);
   return { ok: true, data: { siteName: info.siteName } };
 }
 
@@ -224,7 +224,7 @@ export async function disconnectProvider(
       ),
     );
 
-  revalidatePath(`/websites/${site.id}`);
+  revalidatePath(`/websites/${site.id}/integrations`);
   return { ok: true, data: null };
 }
 
@@ -391,7 +391,7 @@ export async function publishTestArticle(
     });
 
 
-    revalidatePath(`/websites/${site.id}`);
+    revalidatePath(`/websites/${site.id}/integrations`);
     return { ok: true, data: { remoteUrl: result.remoteUrl ?? null } };
   } catch (error) {
     const message =
@@ -400,7 +400,7 @@ export async function publishTestArticle(
         : "The test post could not be published. Check the connection details.";
 
 
-    revalidatePath(`/websites/${site.id}`);
+    revalidatePath(`/websites/${site.id}/integrations`);
     return { ok: false, error: message };
   }
 }
