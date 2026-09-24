@@ -2,6 +2,7 @@ import { and, eq, inArray, sql as raw } from "drizzle-orm";
 import { NonRetriableError } from "inngest";
 
 import { inngest } from "@/inngest/client";
+import { queueJob } from "@/inngest/send";
 import { MODELS } from "@/lib/ai/client";
 import { db } from "@/lib/db";
 import { calendarItems, clusters, keywords, websites } from "@/lib/db/schema";
@@ -688,6 +689,55 @@ export const researchKeywords = inngest.createFunction(
         body: `${stored.length} terms found, and ${planned.length} ${planned.length === 1 ? "article" : "articles"} planned.`,
         href: `/websites/${websiteId}`,
       });
+    });
+
+    /**
+     * Start writing now rather than at tomorrow's cron.
+     *
+     * The scheduler runs once a day at 06:00 UTC. Without this, a customer
+     * who paid at 11am had a planned calendar and an empty Articles page
+     * until the following morning - nineteen hours of nothing, on the screen
+     * they judge the product by. The client asked for the opposite: "we want
+     * it like instant, in this way people can start using instantly this
+     * feature."
+     *
+     * Nothing about the scheduler changes. It picks up whatever is due inside
+     * its look-ahead window, which now includes today's first article because
+     * planCalendar dates it now; this event just means it runs within seconds
+     * of the plan existing instead of waiting for the clock.
+     *
+     * queueJob rather than step.sendEvent, matching every other caller in
+     * this codebase: it swallows an unreachable queue rather than failing the
+     * run. The research genuinely succeeded and the keywords and calendar are
+     * stored - losing the kick costs a delay until the next cron, where
+     * throwing here would cost the whole plan.
+     */
+    await step.run("start-writing", async () => {
+      if (planned.length === 0) {
+        logger.info(
+          { step: "start-writing", websiteId, plannedArticles: 0 },
+          "Nothing planned - not waking the scheduler",
+        );
+        return;
+      }
+
+      /*
+        The scheduler ignores this payload - it scans every website with
+        something due, which is deliberate: the same run also releases
+        drafts whose day has arrived on OTHER sites. The ids are carried
+        anyway so the Inngest timeline says which signup triggered the run.
+      */
+      const sent = await queueJob({
+        name: "articles/scheduled.requested",
+        data: { websiteId, organizationId },
+      });
+
+      logger.info(
+        { step: "start-writing", websiteId, plannedArticles: planned.length, sent },
+        sent
+          ? "Scheduler woken - the first articles start now"
+          : "Could not wake the scheduler - the daily run will pick these up",
+      );
     });
 
     /**

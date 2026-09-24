@@ -68,13 +68,25 @@ Rules:
  * empty boxes between each. The calendar is the screen a customer judges the
  * product on, and a mostly empty month reads as a product that is not working.
  *
- * So: start tomorrow, fill every day in order, and put more than one on a day
+ * So: start TODAY, fill every day in order, and put more than one on a day
  * only when the monthly allowance is larger than a month. A plan with fewer
  * articles than days simply runs out partway through the month rather than
  * rationing itself across it — an article a day for a fortnight is a better
  * start than one a week forever, and the next month's research refills it.
  *
- * Starts tomorrow so the first item is never already overdue.
+ * THE FIRST ITEM IS DATED NOW, not tomorrow. It used to start a day out so
+ * that nothing was ever "already overdue" — but overdue was the wrong thing
+ * to optimise for. The effect was that a customer who paid at 11am had an
+ * empty calendar until the 6am cron the following morning: nineteen hours of
+ * nothing, on the screen they judge the product by. The client put it
+ * plainly: "we want it like instant, in this way people can start using
+ * instantly this feature".
+ *
+ * Dating the first slot now costs nothing downstream. The scheduler already
+ * queues anything due inside its look-ahead window, and generate-article
+ * already publishes rather than holds an article whose date is today — see
+ * its startOfDay comparison. So "due now" simply means the first article is
+ * written on the first run instead of the second.
  */
 export function scheduleDates(count: number, from: Date = new Date()): Date[] {
   if (count <= 0) return [];
@@ -87,12 +99,27 @@ export function scheduleDates(count: number, from: Date = new Date()): Date[] {
 
   return Array.from({ length: count }, (_, index) => {
     const date = new Date(from);
-    date.setDate(date.getDate() + 1 + Math.floor(index / perDay));
+    // Day 0 is today. See the note above on why this is not `+ 1`.
+    date.setDate(date.getDate() + Math.floor(index / perDay));
     /**
      * Staggered through the working day when several share a date, so the
      * order within a day is stable and a reader can tell them apart.
      */
     date.setHours(9 + (index % perDay) * 3, 0, 0, 0);
+
+    /**
+     * Never dated later today than it already is.
+     *
+     * The stagger puts articles at 09:00, 12:00, 15:00 — so a customer who
+     * signs up at 16:00 would have every one of today's slots in the past
+     * hours of the same day, and the "instant" first article would sit
+     * waiting for a time that had already gone. Pulled back to `from` when
+     * that happens, which is the moment they paid.
+     *
+     * Only ever applies to day 0: tomorrow's 09:00 is always ahead of now.
+     */
+    if (date.getTime() < from.getTime()) return new Date(from);
+
     return date;
   });
 }

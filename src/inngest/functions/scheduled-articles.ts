@@ -124,6 +124,20 @@ export const scheduledArticles = inngest.createFunction(
       // 6am UTC: before the working day in Europe, so an article is waiting
       // rather than appearing while someone is looking at the page.
       { cron: "0 6 * * *" },
+      /*
+        A second pass in the early afternoon.
+
+        The first run of a brand-new website queues ONE article deliberately
+        (see firstRun below), so without this the customer's second and third
+        would not arrive until 6am the next day. The client asked for them
+        "in next hours", not the next morning.
+
+        14:00 UTC rather than something closer: the first article has to
+        finish generating and be read before more are useful, and a run every
+        hour would re-scan every website on the platform for no gain - the
+        calendar schedules by DATE, so a second pass finds the same items.
+      */
+      { cron: "0 14 * * *" },
     ],
   },
   async ({ step, logger }) => {
@@ -298,7 +312,30 @@ export const scheduledArticles = inngest.createFunction(
           limit.limit === UNLIMITED
             ? 1
             : Math.max(1, Math.ceil(limit.limit / 30));
-        const take = Math.min(MAX_PER_WEBSITE * perDay, remaining);
+
+        /**
+         * ONE article on a website's very first run, whatever the plan size.
+         *
+         * The client was explicit about the first one: "Just one... but we
+         * want it like instant, in this way people can start using instantly
+         * this feature. And in next hours it generates 2 more days ahead."
+         *
+         * Without this a Scale customer's first run queues nine at once -
+         * three a day across the three-day window - so the first thing they
+         * see is nine articles appearing together, minutes after paying, on
+         * a site they have not reviewed a single word of. One arrives, they
+         * read it, and the normal cadence takes over from the next run.
+         *
+         * `limit.used === 0` is the signal, and it is exactly right: articles
+         * are counted per billing period, so it means this website has not
+         * produced anything this period. A returning customer whose period
+         * just rolled over gets the same gentle restart, which is no bad
+         * thing; an established site mid-month never hits it.
+         */
+        const firstRun = limit.used === 0;
+        const take = firstRun
+          ? Math.min(1, remaining)
+          : Math.min(MAX_PER_WEBSITE * perDay, remaining);
         if (take === 0) {
           // Allowed by the plan check above but with no headroom left, which
           // is the same outcome for the customer and needs the same record.
@@ -314,6 +351,18 @@ export const scheduledArticles = inngest.createFunction(
             "No article allowance remaining - nothing queued for this website",
           );
           return { queued: 0, limited: true };
+        }
+
+        if (firstRun) {
+          logger.info(
+            {
+              step: `queue-${site.websiteId}`,
+              websiteId: site.websiteId,
+              organizationId: site.organizationId,
+              take,
+            },
+            "First run for this website - queueing one article only",
+          );
         }
 
         const items = await db
