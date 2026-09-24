@@ -4,10 +4,18 @@
  *
  *   npm run db:seed-addons
  *
- * PRICES ARE PLACEHOLDERS. The brief specifies the citations add-on but shows
- * its price only in a screenshot, so the numbers below are round guesses that
- * exist to make the flow work end to end. Change them here, re-run this, then
- * run `npm run stripe:setup` to create the matching Stripe prices.
+ * THE CREDIT PACK PRICES ARE THE CLIENT'S, taken from the pricing screen he
+ * sent: 79 / 149 / 299 EUR for 10 / 25 / 50 credits. They were placeholders
+ * at 19 / 39 / 69 until then.
+ *
+ * The two service add-ons below are still guide figures - the brief shows
+ * their prices only in a screenshot.
+ *
+ * CHANGING A PRICE IS TWO STEPS. Stripe prices are IMMUTABLE: editing this
+ * file and re-running it updates what the card SHOWS while checkout still
+ * charges the old amount, because stripe_price_id still points at the old
+ * price object. Always follow with `npm run stripe:setup`, which creates the
+ * new prices and rewrites those ids.
  *
  * stripePriceId stays null until that setup runs. Checkout refuses an add-on
  * without one, so a half-configured add-on cannot take money.
@@ -29,7 +37,7 @@ const ADDONS = [
     slug: "credits_10",
     name: "10 link credits",
     description: "Request ten more backlinks from the network.",
-    priceCents: 1900,
+    priceCents: 7900,
     creditsGranted: 10,
     kind: "credits",
     sortOrder: 1,
@@ -38,7 +46,7 @@ const ADDONS = [
     slug: "credits_25",
     name: "25 link credits",
     description: "Request twenty-five more backlinks. Better value per credit.",
-    priceCents: 3900,
+    priceCents: 14900,
     creditsGranted: 25,
     kind: "credits",
     sortOrder: 2,
@@ -47,7 +55,7 @@ const ADDONS = [
     slug: "credits_50",
     name: "50 link credits",
     description: "Request fifty more backlinks. Best value per credit.",
-    priceCents: 6900,
+    priceCents: 29900,
     creditsGranted: 50,
     kind: "credits",
     sortOrder: 3,
