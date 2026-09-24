@@ -84,9 +84,25 @@ const OAUTH_ERRORS: Record<string, string> = {
  */
 export function AuthForm({
   mode,
+  initialEmail = "",
   t = getMessages("en").app.auth,
 }: {
   mode: "sign-in" | "sign-up";
+  /**
+   * The address an invitation was sent to, read from ?email= by the PAGE.
+   *
+   * An invitation is only accepted by an account with that exact address, so
+   * typing a different one here produces an account that cannot accept it.
+   * Prefilling removes that trap; the field stays editable.
+   *
+   * A prop rather than read here with useSearchParams in an effect. The effect
+   * was written on the belief that the hook is empty during the server render
+   * - true only for PRERENDERED routes, and these pages are force-dynamic -
+   * and it set state inside an effect, which the React Compiler flags as a
+   * cascading render. The Next docs recommend exactly this instead: read
+   * searchParams in the page and pass it down.
+   */
+  initialEmail?: string;
   /**
    * The form's wording.
    *
@@ -99,15 +115,8 @@ export function AuthForm({
   const isSignUp = mode === "sign-up";
 
   const [name, setName] = useState("");
-  /**
-   * Prefilled from ?email= when an invitation sent them here.
-   *
-   * An invitation is addressed to ONE mailbox and is only accepted by an
-   * account with that address, so typing a different one here produces an
-   * account that cannot accept it. Prefilling removes that trap, and the
-   * field stays editable for anyone who genuinely wants a different address.
-   */
-  const [email, setEmail] = useState("");
+  // Prefilled for an invitation - see the initialEmail prop.
+  const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState("");
   const [pending, setPending] = useState(false);
   const [googlePending, setGooglePending] = useState(false);
@@ -157,18 +166,6 @@ export function AuthForm({
    * idea what they were invited to.
    */
   const next = safeNext(searchParams.get("next"));
-
-  /**
-   * Prefill the address an invitation was sent to.
-   *
-   * In an effect rather than useState's initialiser because useSearchParams
-   * returns null during the initial server render, so the initialiser would
-   * read nothing. Only ever sets it once, and never over something typed.
-   */
-  useEffect(() => {
-    const invited = searchParams.get("email");
-    if (invited) setEmail((current) => current || invited);
-  }, [searchParams]);
 
   useEffect(() => {
     const code = searchParams.get("error");

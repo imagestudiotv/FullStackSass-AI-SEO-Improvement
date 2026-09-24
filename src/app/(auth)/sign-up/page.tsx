@@ -19,7 +19,7 @@ export const metadata = { title: "Sign up" };
 export default async function SignUpPage({
   searchParams,
 }: PageProps<"/sign-up">) {
-  const { next } = await searchParams;
+  const { next, email } = await searchParams;
   const target = typeof next === "string" ? next : null;
   const safe =
     target &&
@@ -33,5 +33,12 @@ export default async function SignUpPage({
     redirect(safe);
   }
   const { t } = await getPublicMessages();
-  return <AuthForm mode="sign-up" t={t.app.auth} />;
+  return (
+    <AuthForm
+      mode="sign-up"
+      /* An invitation link carries the invited address. See AuthForm. */
+      initialEmail={typeof email === "string" ? email : ""}
+      t={t.app.auth}
+    />
+  );
 }

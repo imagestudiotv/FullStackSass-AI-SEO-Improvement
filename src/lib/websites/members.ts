@@ -9,7 +9,6 @@ import {
   user,
   websiteInvitations,
   websiteMembers,
-  websites,
 } from "@/lib/db/schema";
 import {
   sendAccessGrantedEmail,

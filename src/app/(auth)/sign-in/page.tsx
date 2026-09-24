@@ -19,7 +19,7 @@ export const metadata = { title: "Sign in" };
 export default async function SignInPage({
   searchParams,
 }: PageProps<"/sign-in">) {
-  const { next } = await searchParams;
+  const { next, email } = await searchParams;
   const target = typeof next === "string" ? next : null;
   const safe =
     target &&
@@ -33,5 +33,12 @@ export default async function SignInPage({
     redirect(safe);
   }
   const { t } = await getPublicMessages();
-  return <AuthForm mode="sign-in" t={t.app.auth} />;
+  return (
+    <AuthForm
+      mode="sign-in"
+      /* An invitation link carries the invited address. See AuthForm. */
+      initialEmail={typeof email === "string" ? email : ""}
+      t={t.app.auth}
+    />
+  );
 }

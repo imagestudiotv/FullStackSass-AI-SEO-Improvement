@@ -60,7 +60,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     // Once. A second failure is a real fault and must surface, not loop.
     ctx = await requireOrg();
   }
-  const { orgId, role } = ctx;
+  const { orgId } = ctx;
 
   /**
    * Every website, for the switcher in the header and to work out which one
@@ -76,8 +76,6 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     .from(websites)
     .where(eq(websites.organizationId, orgId))
     .orderBy(websites.createdAt);
-
-  const firstWebsiteId = ownedWebsites[0]?.id ?? null;
 
   /**
    * The website to fall back to when the address does not name one.
