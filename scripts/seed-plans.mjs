@@ -70,7 +70,13 @@ const TIERS = [
     articleLimit: 100,
     keywordLimit: 1500,
     siteLimit: 10,
-    monthlyCredits: 100,
+    /*
+      60, not 100. The client cut it - "For scale we offering 60 link
+      credits, 100 is a huge" - and the live rows were updated then. This
+      file still said 100, so the next `npm run db:seed` would have silently
+      put it back.
+    */
+    monthlyCredits: 60,
     sortOrder: 1,
   },
 ];
