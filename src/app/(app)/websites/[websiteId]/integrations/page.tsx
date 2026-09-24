@@ -47,6 +47,8 @@ export default async function WebsiteIntegrationsPage({
         providers={providers}
         integrations={integrations}
         pluginKeys={pluginKeys}
+        /* For the links into the customer's own WordPress admin. */
+        siteUrl={site.url}
         t={t.app.publishing}
         tKeys={t.app.keys}
         tCommon={t.app.common}

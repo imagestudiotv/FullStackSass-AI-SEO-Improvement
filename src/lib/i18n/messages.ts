@@ -817,6 +817,9 @@ export type Messages = {
       keyCopyFailed: string;
       keyRevoked: string;
       newKeyLabel: string;
+      /** Deep links into the customer's own WordPress admin. */
+      openWordPress: string;
+      connectInWordPress: string;
       neverUsed: string;
       pluginTitle: string;
       pluginHelp: string;
@@ -2141,6 +2144,8 @@ const en: Messages = {
       keyCopyFailed: "Could not copy. Select the key and copy it manually.",
       keyRevoked: "Key revoked",
       newKeyLabel: "Your new integration key",
+      openWordPress: "Open my WordPress",
+      connectInWordPress: "Open WordPress with this key",
       neverUsed: "Never used",
       pluginTitle: "WordPress plugin",
       pluginHelp: "Install our plugin, paste a key, and articles publish here automatically.",
@@ -3471,6 +3476,8 @@ const es: Messages = {
       keyCopyFailed: "No se pudo copiar. Seleccione la clave y cópiela manualmente.",
       keyRevoked: "Clave revocada",
       newKeyLabel: "Su nueva clave de integración",
+      openWordPress: "Abrir mi WordPress",
+      connectInWordPress: "Abrir WordPress con esta clave",
       neverUsed: "Nunca usada",
       pluginTitle: "Plugin de WordPress",
       pluginHelp: "Instale nuestro plugin, pegue una clave y los artículos se publicarán aquí automáticamente.",
@@ -4805,6 +4812,8 @@ const fr: Messages = {
       keyCopyFailed: "Copie impossible. Sélectionnez la clé et copiez-la manuellement.",
       keyRevoked: "Clé révoquée",
       newKeyLabel: "Votre nouvelle clé d\u2019intégration",
+      openWordPress: "Ouvrir mon WordPress",
+      connectInWordPress: "Ouvrir WordPress avec cette clé",
       neverUsed: "Jamais utilisée",
       pluginTitle: "Plugin WordPress",
       pluginHelp: "Installez notre plugin, collez une clé, et les articles se publient ici automatiquement.",
@@ -6131,6 +6140,8 @@ const it: Messages = {
       keyCopyFailed: "Copia non riuscita. Selezioni la chiave e la copi manualmente.",
       keyRevoked: "Chiave revocata",
       newKeyLabel: "La sua nuova chiave di integrazione",
+      openWordPress: "Apri il mio WordPress",
+      connectInWordPress: "Apri WordPress con questa chiave",
       neverUsed: "Mai usata",
       pluginTitle: "Plugin WordPress",
       pluginHelp: "Installi il nostro plugin, incolli una chiave e gli articoli verranno pubblicati qui automaticamente.",
@@ -7466,6 +7477,8 @@ const de: Messages = {
       keyCopyFailed: "Kopieren nicht möglich. Markieren Sie den Schlüssel und kopieren Sie ihn von Hand.",
       keyRevoked: "Schlüssel widerrufen",
       newKeyLabel: "Ihr neuer Integrationsschlüssel",
+      openWordPress: "Mein WordPress öffnen",
+      connectInWordPress: "WordPress mit diesem Schlüssel öffnen",
       neverUsed: "Nie verwendet",
       pluginTitle: "WordPress-Plugin",
       pluginHelp: "Installieren Sie unser Plugin, fügen Sie einen Schlüssel ein, und Artikel erscheinen hier automatisch.",

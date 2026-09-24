@@ -2,7 +2,7 @@
 Requires at least: 5.6
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.1.0
+Stable tag: 1.3.0
 License: GPLv2 or later
 
 Publishes articles written by RepGet straight to your WordPress site.
@@ -22,9 +22,13 @@ disabled the WordPress API.
 
 1. In RepGet, open your website, then Publishing.
 2. Under "WordPress plugin", click New key and copy the key. It is shown once.
-3. In WordPress, go to Plugins → Add New → Upload Plugin and upload the zip.
-4. Activate it.
-5. Go to Settings → RepGet, paste the key, and click Save and connect.
+3. Back in RepGet, click "Open my WordPress". It takes you straight to the
+   upload screen. Choose the zip and install it.
+4. Activate it. WordPress brings you to the RepGet screen automatically.
+5. Click "Open WordPress with this key" in RepGet - the key arrives already
+   filled in - then press Save and connect.
+
+RepGet appears in your WordPress menu, below Settings.
 
 You should see "Connected" and the name of the website it linked to. If the
 name is not the site you expected, the key belongs to a different website in
@@ -58,6 +62,14 @@ can help when something goes wrong. Nothing else is sent. The plugin only
 fetches articles and reports whether each one published.
 
 == Changelog ==
+
+= 1.3.0 =
+* The key can arrive from a RepGet link, so it never has to be copied by hand.
+
+= 1.2.0 =
+* RepGet now has its own menu item instead of hiding under Settings.
+* Activating the plugin opens its settings screen.
+* A reminder banner while no key is set, and a Settings link on the plugins list.
 
 = 1.0.0 =
 * First release: connect with an Integration Key, hourly sync, featured images.

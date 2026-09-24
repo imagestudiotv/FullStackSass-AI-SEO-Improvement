@@ -49,6 +49,7 @@ export function PublishingPanel({
   providers,
   integrations,
   pluginKeys,
+  siteUrl,
   t,
   tKeys,
   tCommon,
@@ -58,6 +59,8 @@ export function PublishingPanel({
   providers: ProviderInfo[];
   integrations: IntegrationView[];
   pluginKeys: IntegrationKeyView[];
+  /** The customer's own site address, for deep links into their wp-admin. */
+  siteUrl: string;
   /** This screen's copy, already in the reader's language. */
   t: Messages["app"]["publishing"];
   /** The key panel's own slice, forwarded to it. */
@@ -453,6 +456,7 @@ export function PublishingPanel({
 
         <PluginKeys
           websiteId={websiteId}
+          siteUrl={siteUrl}
           keys={pluginKeys}
           t={tKeys}
           tCommon={tCommon}
