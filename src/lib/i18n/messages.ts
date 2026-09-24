@@ -676,6 +676,9 @@ export type Messages = {
       draftPublished: string;
       draftPublishedAt: string;
       pluginRowName: string;
+      /** The plugin row between creating a key and WordPress first calling. */
+      pluginAwaiting: string;
+      pluginAwaitingHelp: string;
       pluginRowFallback: string;
     };
     geo: {
@@ -2000,6 +2003,8 @@ const en: Messages = {
       draftPublished: "Draft published successfully. Check your site’s drafts.",
       draftPublishedAt: "Draft published - open it at {name}",
       pluginRowName: "WordPress plugin",
+      pluginAwaiting: "Waiting for WordPress",
+      pluginAwaitingHelp: "Key created. Paste it into the RepGet screen in your WordPress menu.",
       pluginRowFallback: "Connected - waiting for its first report.",
     },
     geo: {
@@ -3328,6 +3333,8 @@ const es: Messages = {
       draftPublished: "Borrador publicado correctamente. Revise los borradores de su sitio.",
       draftPublishedAt: "Borrador publicado - ábralo en {name}",
       pluginRowName: "Plugin de WordPress",
+      pluginAwaiting: "Esperando a WordPress",
+      pluginAwaitingHelp: "Clave creada. Péguela en la pantalla RepGet del menú de WordPress.",
       pluginRowFallback: "Conectado - esperando su primer informe.",
     },
     geo: {
@@ -4660,6 +4667,8 @@ const fr: Messages = {
       draftPublished: "Brouillon publié. Vérifiez les brouillons de votre site.",
       draftPublishedAt: "Brouillon publié - ouvrez-le sur {name}",
       pluginRowName: "Extension WordPress",
+      pluginAwaiting: "En attente de WordPress",
+      pluginAwaitingHelp: "Clé créée. Collez-la dans l’écran RepGet du menu WordPress.",
       pluginRowFallback: "Connecté - en attente de son premier rapport.",
     },
     geo: {
@@ -5984,6 +5993,8 @@ const it: Messages = {
       draftPublished: "Bozza pubblicata. Controlli le bozze del suo sito.",
       draftPublishedAt: "Bozza pubblicata - la apra su {name}",
       pluginRowName: "Plugin WordPress",
+      pluginAwaiting: "In attesa di WordPress",
+      pluginAwaitingHelp: "Chiave creata. La incolli nella schermata RepGet del menu WordPress.",
       pluginRowFallback: "Collegato - in attesa del primo rapporto.",
     },
     geo: {
@@ -7317,6 +7328,8 @@ const de: Messages = {
       draftPublished: "Entwurf veröffentlicht. Sehen Sie in den Entwürfen Ihrer Website nach.",
       draftPublishedAt: "Entwurf veröffentlicht - öffnen Sie ihn unter {name}",
       pluginRowName: "WordPress-Plugin",
+      pluginAwaiting: "Warte auf WordPress",
+      pluginAwaitingHelp: "Schlüssel erstellt. Fügen Sie ihn im RepGet-Bildschirm des WordPress-Menüs ein.",
       pluginRowFallback: "Verbunden - wartet auf die erste Rückmeldung.",
     },
     geo: {

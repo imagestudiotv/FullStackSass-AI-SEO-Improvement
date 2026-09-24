@@ -71,8 +71,8 @@ export const INTEGRATION_DOCS: IntegrationDoc[] = [
         body: "In your WordPress admin, go to Plugins → Add New Plugin → Upload Plugin. Choose the repget-connector.zip file exactly as it downloaded, press Install Now, then Activate Plugin.",
       },
       {
-        title: "Open Settings → RepGet",
-        body: "It lives under Settings rather than as its own top-level menu item, which is where most people look first. Only administrators can see this page, because the key controls what gets published to the site.",
+        title: "Open RepGet in your WordPress menu",
+        body: "RepGet appears in the left-hand menu of your WordPress admin, below Settings. Activating the plugin takes you straight there the first time, and the Plugins list carries a Settings link to it. Only administrators can see it, because the key controls what gets published to your site.",
       },
       {
         title: "Paste the key and connect",
@@ -97,7 +97,7 @@ export const INTEGRATION_DOCS: IntegrationDoc[] = [
         fix: "One message covers every cause deliberately, so that somebody guessing at keys learns nothing from the reply. Check three things in order: was the key copied IN FULL (a partial copy is by far the most common cause); is it still ACTIVE, or was it revoked in RepGet; and is it the key for THIS website rather than another site in your workspace.",
       },
       {
-        problem: "I cannot see the Settings → RepGet page",
+        problem: "I cannot see RepGet in the WordPress menu",
         fix: "You need an administrator account. Editors and authors cannot see it, because the key controls what gets published.",
       },
       {
@@ -110,7 +110,7 @@ export const INTEGRATION_DOCS: IntegrationDoc[] = [
       },
       {
         problem: "I lost my key",
-        fix: "Revoke the old one in RepGet and create a new one, then paste it into Settings → RepGet and save again. Nothing is lost by doing this, and the old key stops working the moment you revoke it.",
+        fix: "Revoke the old one in RepGet and create a new one, then paste it into the RepGet screen in WordPress and save again. Nothing is lost by doing this, and the old key stops working the moment you revoke it.",
       },
     ],
   },

@@ -176,10 +176,48 @@ function repget_request($path, $args = array()) {
 
 add_action('admin_menu', 'repget_admin_menu');
 function repget_admin_menu() {
-    add_options_page(
+    /*
+      A TOP-LEVEL menu item, not a Settings submenu.
+
+      It was add_options_page, which is where WordPress says an options page
+      belongs - and for a plugin that is configured once and forgotten, that
+      is right. This one is not: it holds the key, the connection status and
+      the "check for articles now" button, and a customer who cannot find it
+      cannot tell whether their site is publishing.
+
+      The client asked for exactly this, comparing us with the product he was
+      already using: "And I like a lot it's showing on the main dashboard
+      without going to the settings and find the plugin there."
+
+      Position 58 sits it just below Settings, away from the content menus a
+      writer uses daily. The dashicon is the generic admin-links mark rather
+      than a bespoke SVG - this menu is found by its name, and a custom icon
+      is weight for nothing.
+    */
+    add_menu_page(
         'RepGet',
         'RepGet',
         // Only administrators: this key controls what gets published.
+        'manage_options',
+        'repget',
+        'repget_settings_page',
+        'dashicons-admin-links',
+        58
+    );
+
+    /*
+      Settings -> RepGet still works.
+
+      It was the only way in for every install before this version, so it is
+      in browser histories, in our own setup guide and in the links shared
+      with the client. Registered as a hidden submenu of the same slug: the
+      page renders identically and the old URL keeps resolving, without a
+      duplicate entry appearing under Settings.
+    */
+    add_submenu_page(
+        'options-general.php',
+        'RepGet',
+        'RepGet',
         'manage_options',
         'repget',
         'repget_settings_page'
@@ -202,7 +240,7 @@ add_filter('plugin_action_links_' . plugin_basename(__FILE__), 'repget_action_li
 function repget_action_links($links) {
     $settings = sprintf(
         '<a href="%s">%s</a>',
-        esc_url(admin_url('options-general.php?page=repget')),
+        esc_url(admin_url('admin.php?page=repget')),
         esc_html__('Settings', 'repget')
     );
     // Prepended: the first link is the one people reach for.
@@ -247,7 +285,7 @@ function repget_maybe_redirect_after_activation() {
         return;
     }
 
-    wp_safe_redirect(admin_url('options-general.php?page=repget'));
+    wp_safe_redirect(admin_url('admin.php?page=repget'));
     exit;
 }
 
@@ -271,8 +309,14 @@ function repget_setup_notice() {
         return;
     }
 
+    /*
+      Both screen ids. The page is now reachable two ways - the top-level
+      menu (toplevel_page_repget) and the Settings alias kept for old links
+      (settings_page_repget) - and the banner must not appear above the form
+      it is pointing at, whichever route the customer took.
+    */
     $screen = function_exists('get_current_screen') ? get_current_screen() : null;
-    if ($screen && $screen->id === 'settings_page_repget') {
+    if ($screen && in_array($screen->id, array('toplevel_page_repget', 'settings_page_repget'), true)) {
         return;
     }
 
@@ -280,7 +324,7 @@ function repget_setup_notice() {
         '<div class="notice notice-warning"><p><strong>%s</strong> %s <a href="%s">%s</a></p></div>',
         esc_html__('RepGet is not connected yet.', 'repget'),
         esc_html__('Paste your Integration Key to start publishing articles.', 'repget'),
-        esc_url(admin_url('options-general.php?page=repget')),
+        esc_url(admin_url('admin.php?page=repget')),
         esc_html__('Open settings', 'repget')
     );
 }

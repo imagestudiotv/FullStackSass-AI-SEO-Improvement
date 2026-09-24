@@ -92,6 +92,20 @@ export function PublishingPanel({
   const pluginConnected = pluginKeys.some((key) => key.lastUsedAt !== null);
 
   /**
+   * A key exists, but WordPress has never called with it.
+   *
+   * Between creating a key and pasting it into WordPress, this panel showed
+   * NOTHING - no row, no state - so the customer had no way to tell whether
+   * the thing they were halfway through was registered at all. The client
+   * described the same gap from the other side: "Status on wordpress
+   * connected, on repget is not refreshing."
+   *
+   * Named rather than left blank, the way the reference product names it:
+   * awaiting the first call, then connected.
+   */
+  const pluginAwaiting = !pluginConnected && pluginKeys.length > 0;
+
+  /**
    * What the most recently used key reported about the site it runs on.
    *
    * Most recent rather than first: a customer who reinstalled on a new domain
@@ -322,12 +336,29 @@ export function PublishingPanel({
               places, is how someone revokes a key while meaning to remove a
               CMS.
             */}
-            {pluginConnected ? (
+            {pluginConnected || pluginAwaiting ? (
               <li className="flex flex-wrap items-center justify-between gap-3 p-3">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="font-medium">{t.pluginRowName}</span>
-                    <StatusBadge status="connected" />
+                    {/*
+                      Two states, not one. A key that has been created but
+                      never used is a real position to be in - the customer
+                      is pasting it into WordPress in another tab - and
+                      showing no row at all made it look like nothing had
+                      happened.
+                    */}
+                    {pluginConnected ? (
+                      <StatusBadge status="connected" />
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-600 dark:text-amber-400">
+                        <span
+                          className="size-1.5 animate-pulse rounded-full bg-amber-500"
+                          aria-hidden="true"
+                        />
+                        {t.pluginAwaiting}
+                      </span>
+                    )}
                   </div>
                   {/*
                     siteInfo is what the plugin last reported about itself —
@@ -336,7 +367,9 @@ export function PublishingPanel({
                     rather than a stale record.
                   */}
                   <p className="mt-0.5 truncate text-sm text-muted-foreground">
-                    {pluginSiteInfo ?? t.pluginRowFallback}
+                    {pluginConnected
+                      ? (pluginSiteInfo ?? t.pluginRowFallback)
+                      : t.pluginAwaitingHelp}
                   </p>
                 </div>
               </li>
