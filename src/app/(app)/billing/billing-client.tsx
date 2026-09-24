@@ -674,7 +674,7 @@ export function BillingClient({
                       disabled={pendingPlanId !== null}
                       onClick={() => handlePayPal(plan.id)}
                     >
-                      <PayPalMark className="size-5" />
+                      <PayPalMark className="size-6" />
                       {tCommon.payWithPayPal}
                     </Button>
                   ) : null}

@@ -22,10 +22,25 @@
  *
  * aria-hidden: every button that carries this also says "PayPal" in its
  * label, so announcing the mark as well would read the word twice.
+ *
+ * THE VIEWBOX IS TIGHT TO THE ARTWORK, and that is the whole reason this
+ * reads at a sensible size. Drawn inside a square 24x24 box the mark filled
+ * 59% of the width and 50% of the height - it is a tall narrow glyph in a
+ * square frame - so at size-5 the visible logo was barely 10px and looked
+ * shrunken next to its own label. Measured the paths and cropped the box to
+ * them with a hair of padding, which makes the drawing fill the space it is
+ * given instead of floating in the middle of it.
+ *
+ * The default is size-6 rather than size-4 for the same reason: this sits on
+ * a 48px payment button, not in a line of body text.
  */
-export function PayPalMark({ className = "size-4" }: { className?: string }) {
+export function PayPalMark({ className = "size-6" }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" aria-hidden="true">
+    <svg
+      className={className}
+      viewBox="1.86 2.26 15.8 19.48"
+      aria-hidden="true"
+    >
       {/* The back "P" - darker navy. */}
       <path
         fill="#003087"

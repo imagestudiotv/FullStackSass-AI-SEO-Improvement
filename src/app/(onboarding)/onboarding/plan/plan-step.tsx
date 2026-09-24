@@ -420,7 +420,7 @@ export function PlanStep({
                   screen where a customer is deciding whether to hand over
                   money, and a stand-in logo reads as an imitation.
                 */}
-                <PayPalMark className="size-5" />
+                <PayPalMark className="size-6" />
                 Pay with PayPal
               </>
             )}
