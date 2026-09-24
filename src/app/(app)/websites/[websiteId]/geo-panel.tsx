@@ -304,6 +304,30 @@ export function GeoPanel({
             icon={Bot}
             title={t.noQuestions}
             description={t.noQuestionsHelp}
+            /*
+              The action belongs here, not only in the row above the list.
+
+              This is the state a customer arrives in from the launch
+              checklist - "Generate prompts & start AI tracking" - and an
+              empty panel with nothing to press is how a step becomes a dead
+              end. The Suggest control does sit further up the page, but a
+              customer who has just been sent here is looking at the empty
+              box, not above it.
+            */
+            action={
+              <Button
+                variant="outline"
+                onClick={handleSuggest}
+                disabled={suggesting || pending}
+              >
+                {suggesting ? (
+                  <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                ) : (
+                  <Sparkles className="size-4" aria-hidden="true" />
+                )}
+                {t.suggest}
+              </Button>
+            }
           />
         ) : (
           <ul className="divide-y rounded-xl border">
