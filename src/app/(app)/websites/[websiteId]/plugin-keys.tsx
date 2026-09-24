@@ -270,7 +270,13 @@ export function PluginKeys({
           */}
           {adminUrls ? (
             <a
-              href={`${adminUrls.settings}&repget_key=${encodeURIComponent(freshKey)}`}
+              /*
+                The FRAGMENT, not the query string. Browsers never send the
+                part after # to a server, so the key stays out of the
+                customer's access logs and Referer headers; the plugin reads
+                it in the page and then clears the address bar.
+              */
+              href={`${adminUrls.settings}#repget_key=${encodeURIComponent(freshKey)}`}
               target="_blank"
               rel="noopener noreferrer"
               className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-primary underline-offset-4 hover:underline"

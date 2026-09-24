@@ -2,7 +2,7 @@
 Requires at least: 5.6
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.3.0
+Stable tag: 1.3.1
 License: GPLv2 or later
 
 Publishes articles written by RepGet straight to your WordPress site.
@@ -62,6 +62,10 @@ can help when something goes wrong. Nothing else is sent. The plugin only
 fetches articles and reports whether each one published.
 
 == Changelog ==
+
+= 1.3.1 =
+* The key from a RepGet link is read from the part of the address after #,
+  which is never sent to a server, so it no longer appears in access logs.
 
 = 1.3.0 =
 * The key can arrive from a RepGet link, so it never has to be copied by hand.
