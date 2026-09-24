@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { STARTER_TIER } from "@/lib/plans/features";
 import { Button } from "@/components/ui/button";
+import { PayPalMark } from "@/components/paypal-mark";
 import {
   Card,
   CardContent,
@@ -673,6 +674,7 @@ export function BillingClient({
                       disabled={pendingPlanId !== null}
                       onClick={() => handlePayPal(plan.id)}
                     >
+                      <PayPalMark className="size-5" />
                       {tCommon.payWithPayPal}
                     </Button>
                   ) : null}

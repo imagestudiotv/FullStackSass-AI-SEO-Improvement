@@ -6,6 +6,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { PayPalMark } from "@/components/paypal-mark";
 import { formatPrice } from "@/lib/billing-shared";
 import {
   planFeatures,
@@ -413,7 +414,15 @@ export function PlanStep({
                 Redirecting to PayPal&hellip;
               </>
             ) : (
-              "Pay with PayPal"
+              <>
+                {/*
+                  The real mark, not a generic wallet icon. This is the one
+                  screen where a customer is deciding whether to hand over
+                  money, and a stand-in logo reads as an imitation.
+                */}
+                <PayPalMark className="size-5" />
+                Pay with PayPal
+              </>
             )}
           </Button>
         ) : null}
