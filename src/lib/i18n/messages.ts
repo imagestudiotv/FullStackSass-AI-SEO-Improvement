@@ -893,6 +893,10 @@ export type Messages = {
       noImageYet: string;
       notScheduled: string;
       nothingPlanned: string;
+      /** The calendar tab when no plan has been built yet. */
+      noPlanYet: string;
+      noPlanYetHaveKeywords: string;
+      buildPlan: string;
       requestLink: string;
       admin: string;
       articleLanguageHelp: string;
@@ -2218,6 +2222,9 @@ const en: Messages = {
       noImageYet: "No image yet",
       notScheduled: "Not scheduled",
       nothingPlanned: "Nothing planned for this day.",
+      noPlanYet: "No content plan yet",
+      noPlanYetHaveKeywords: "Your search terms are ready, but the plan that turns them into articles has not been built. Build it now.",
+      buildPlan: "Build my content plan",
       requestLink: "Request a link",
       admin: "Admin",
       articleLanguageHelp: "Your articles are written in this language.",
@@ -3551,6 +3558,9 @@ const es: Messages = {
       noImageYet: "Todavía sin imagen",
       notScheduled: "Sin programar",
       nothingPlanned: "Nada planificado para este día.",
+      noPlanYet: "Aún no hay plan de contenidos",
+      noPlanYetHaveKeywords: "Sus términos de búsqueda están listos, pero aún no se ha creado el plan que los convierte en artículos. Créelo ahora.",
+      buildPlan: "Crear mi plan de contenidos",
       requestLink: "Solicitar un enlace",
       admin: "Administración",
       articleLanguageHelp: "Sus artículos se escriben en este idioma.",
@@ -4886,6 +4896,9 @@ const fr: Messages = {
       noImageYet: "Pas encore d\u2019image",
       notScheduled: "Non planifié",
       nothingPlanned: "Rien de prévu ce jour-là.",
+      noPlanYet: "Pas encore de plan de contenu",
+      noPlanYetHaveKeywords: "Vos mots-clés sont prêts, mais le plan qui les transforme en articles n’a pas encore été créé. Créez-le maintenant.",
+      buildPlan: "Créer mon plan de contenu",
       requestLink: "Demander un lien",
       admin: "Administration",
       articleLanguageHelp: "Vos articles sont rédigés dans cette langue.",
@@ -6215,6 +6228,9 @@ const it: Messages = {
       noImageYet: "Ancora nessuna immagine",
       notScheduled: "Non pianificato",
       nothingPlanned: "Nulla in programma per questo giorno.",
+      noPlanYet: "Nessun piano editoriale",
+      noPlanYetHaveKeywords: "I suoi termini di ricerca sono pronti, ma il piano che li trasforma in articoli non è ancora stato creato. Lo crei ora.",
+      buildPlan: "Crea il mio piano editoriale",
       requestLink: "Richiedi un link",
       admin: "Amministrazione",
       articleLanguageHelp: "I suoi articoli vengono scritti in questa lingua.",
@@ -7551,6 +7567,9 @@ const de: Messages = {
       noImageYet: "Noch kein Bild",
       notScheduled: "Nicht geplant",
       nothingPlanned: "Für diesen Tag ist nichts geplant.",
+      noPlanYet: "Noch kein Redaktionsplan",
+      noPlanYetHaveKeywords: "Ihre Suchbegriffe stehen bereit, aber der Plan, der daraus Artikel macht, wurde noch nicht erstellt. Erstellen Sie ihn jetzt.",
+      buildPlan: "Redaktionsplan erstellen",
       requestLink: "Link anfragen",
       admin: "Verwaltung",
       articleLanguageHelp: "Ihre Artikel werden in dieser Sprache verfasst.",

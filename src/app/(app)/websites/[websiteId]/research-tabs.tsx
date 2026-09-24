@@ -280,6 +280,52 @@ export function ResearchTabs({
       </div>
 
       <TabsContent value="calendar" className="mt-4">
+        {/*
+          A calendar with nothing in it needs to say so, and offer the way
+          out.
+
+          The full-page empty state above only appears when there are NO
+          keywords AND no calendar. A run that stored keywords and then
+          failed before planning - which is exactly what happened to the
+          client when clustering ran out of room - lands here instead: a
+          month grid reading "0 Planned", every day blank, and the only
+          control a small outline "Refresh" beside the tabs. He described it
+          precisely: "I'm on this step but users can't do nothing here. They
+          are not having options, and they can't go ahead."
+
+          So the state gets named and given the same button the empty state
+          has, in the place the customer is already looking.
+        */}
+        {calendar.length === 0 ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <CalendarDays className="size-4" aria-hidden="true" />
+                {tCommon.noPlanYet}
+              </CardTitle>
+              <CardDescription>
+                {keywords.length > 0
+                  ? tCommon.noPlanYetHaveKeywords
+                  : tCommon.researchIntro}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button onClick={handleResearch} disabled={pending || researching}>
+                {researching ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" />
+                    {t.looking}
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="size-4" />
+                    {tCommon.buildPlan}
+                  </>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">{t.plannedArticles}</CardTitle>
@@ -296,6 +342,7 @@ export function ResearchTabs({
             />
           </CardContent>
         </Card>
+        )}
       </TabsContent>
 
       <TabsContent value="articles" className="mt-4">
