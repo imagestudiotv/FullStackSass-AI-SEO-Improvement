@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, inArray, sql as raw } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lte, sql as raw } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import {
@@ -6,6 +6,7 @@ import {
   audits,
   gaMetrics,
   gscMetrics,
+  siteDailyMetrics,
   keywords,
   placements,
   websites,
@@ -354,15 +355,17 @@ async function loadActivity(websiteId: string): Promise<ActivityItem[]> {
   }
 
   /** Clicks are a weekly total, not one item per day, which would drown the feed. */
+  // Site-wide daily totals: summing the per-query rows drops anonymised
+  // searches and undercounts. See siteDailyMetrics.
   const [clicks] = await db
     .select({
-      total: raw<number>`coalesce(sum(${gscMetrics.clicks}), 0)::int`,
+      total: raw<number>`coalesce(sum(${siteDailyMetrics.gscClicks}), 0)::int`,
     })
-    .from(gscMetrics)
+    .from(siteDailyMetrics)
     .where(
       and(
-        eq(gscMetrics.websiteId, websiteId),
-        gte(gscMetrics.date, isoDate(since)),
+        eq(siteDailyMetrics.websiteId, websiteId),
+        gte(siteDailyMetrics.date, isoDate(since)),
       ),
     );
 
@@ -450,39 +453,64 @@ function titleFromUrl(url: string): string {
   }
 }
 
+/** Days in each of the dashboard's two comparison windows. */
+const PERFORMANCE_DAYS = 30;
+
+/** An ISO date shifted by whole days. */
+function shiftIso(iso: string, days: number): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+async function searchWindow(websiteId: string, from: string, to: string) {
+  const d = siteDailyMetrics;
+  const [row] = await db
+    .select({
+      clicks: raw<number>`coalesce(sum(${d.gscClicks}), 0)::int`,
+      impressions: raw<number>`coalesce(sum(${d.gscImpressions}), 0)::int`,
+      // Weighted by impressions: a plain average let a day with one
+      // impression at position 90 count as much as the busiest day.
+      position: raw<number>`coalesce(
+        sum(${d.gscPosition} * ${d.gscImpressions}) / nullif(sum(${d.gscImpressions}), 0),
+        0)::float`,
+      days: raw<number>`count(${d.gscClicks})::int`,
+    })
+    .from(d)
+    .where(and(eq(d.websiteId, websiteId), gte(d.date, from), lte(d.date, to)));
+  return row;
+}
+
 async function loadPerformance(websiteId: string): Promise<SearchPerformance> {
-  const now = isoDate(daysAgo(0));
   const monthAgo = isoDate(daysAgo(30));
-  const twoMonthsAgo = isoDate(daysAgo(60));
 
-  const [current] = await db
-    .select({
-      clicks: raw<number>`coalesce(sum(${gscMetrics.clicks}), 0)::int`,
-      impressions: raw<number>`coalesce(sum(${gscMetrics.impressions}), 0)::int`,
-      position: raw<number>`coalesce(avg(${gscMetrics.position}), 0)::float`,
-      rows: raw<number>`count(*)::int`,
-    })
-    .from(gscMetrics)
+  /*
+    Site-wide daily totals, in two windows ending on the newest day Google has
+    reported rather than today - Google runs about three days behind, so a
+    window ending today compared 27 days of data against 30.
+  */
+  const [latest] = await db
+    .select({ date: raw<string | null>`max(${siteDailyMetrics.date})::text` })
+    .from(siteDailyMetrics)
     .where(
       and(
-        eq(gscMetrics.websiteId, websiteId),
-        gte(gscMetrics.date, monthAgo),
+        eq(siteDailyMetrics.websiteId, websiteId),
+        raw`${siteDailyMetrics.gscClicks} is not null`,
       ),
     );
+  const end = latest?.date ?? isoDate(daysAgo(0));
+  const currentStart = shiftIso(end, -(PERFORMANCE_DAYS - 1));
+  const previousEnd = shiftIso(currentStart, -1);
+  const previousStart = shiftIso(previousEnd, -(PERFORMANCE_DAYS - 1));
 
-  const [previous] = await db
-    .select({
-      clicks: raw<number>`coalesce(sum(${gscMetrics.clicks}), 0)::int`,
-      impressions: raw<number>`coalesce(sum(${gscMetrics.impressions}), 0)::int`,
-    })
-    .from(gscMetrics)
-    .where(
-      and(
-        eq(gscMetrics.websiteId, websiteId),
-        gte(gscMetrics.date, twoMonthsAgo),
-        raw`${gscMetrics.date} < ${monthAgo}`,
-      ),
-    );
+  const [current, previous] = await Promise.all([
+    searchWindow(websiteId, currentStart, end),
+    searchWindow(websiteId, previousStart, previousEnd),
+  ]);
+
+  // No change shown unless the earlier window is complete; Delta renders
+  // nothing for 0. A half-imported window is where +368% came from.
+  const comparable = (previous?.days ?? 0) >= PERFORMANCE_DAYS;
 
   /**
    * Sessions from AI assistants. Referrals from chat products are the only
@@ -499,16 +527,18 @@ async function loadPerformance(websiteId: string): Promise<SearchPerformance> {
       and(eq(gaMetrics.websiteId, websiteId), gte(gaMetrics.date, monthAgo)),
     );
 
-  void now;
-
   return {
     clicks: current?.clicks ?? 0,
     impressions: current?.impressions ?? 0,
     position: Math.round((current?.position ?? 0) * 10) / 10,
-    clicksDelta: (current?.clicks ?? 0) - (previous?.clicks ?? 0),
-    impressionsDelta: (current?.impressions ?? 0) - (previous?.impressions ?? 0),
+    clicksDelta: comparable
+      ? (current?.clicks ?? 0) - (previous?.clicks ?? 0)
+      : 0,
+    impressionsDelta: comparable
+      ? (current?.impressions ?? 0) - (previous?.impressions ?? 0)
+      : 0,
     aiSessions: ai?.sessions ?? 0,
-    hasGoogle: (current?.rows ?? 0) > 0,
+    hasGoogle: (current?.days ?? 0) > 0,
     hasAnalytics: (ai?.rows ?? 0) > 0,
   };
 }
@@ -539,14 +569,14 @@ async function loadAchievements(websiteId: string): Promise<Achievements> {
 
   const [search] = await db
     .select({
-      impressions: raw<number>`coalesce(sum(${gscMetrics.impressions}), 0)::int`,
-      clicks: raw<number>`coalesce(sum(${gscMetrics.clicks}), 0)::int`,
+      impressions: raw<number>`coalesce(sum(${siteDailyMetrics.gscImpressions}), 0)::int`,
+      clicks: raw<number>`coalesce(sum(${siteDailyMetrics.gscClicks}), 0)::int`,
     })
-    .from(gscMetrics)
+    .from(siteDailyMetrics)
     .where(
       and(
-        eq(gscMetrics.websiteId, websiteId),
-        gte(gscMetrics.date, isoDate(since)),
+        eq(siteDailyMetrics.websiteId, websiteId),
+        gte(siteDailyMetrics.date, isoDate(since)),
       ),
     );
 

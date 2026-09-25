@@ -130,7 +130,9 @@ export async function fetchSearchAnalytics(
   siteUrl: string,
   startDate: string,
   endDate: string,
-  maxRows = 5000,
+  // Sixty days broken down by page and query runs well past 5,000 rows for an
+  // established site; the tail would silently vanish from Losing Traffic.
+  maxRows = 25000,
 ): Promise<SearchRow[]> {
   const rows: SearchRow[] = [];
   const PAGE = 1000;
@@ -178,6 +180,58 @@ export async function fetchSearchAnalytics(
   }
 
   return rows;
+}
+
+export type DailySearchTotal = {
+  date: string;
+  clicks: number;
+  impressions: number;
+  position: number;
+};
+
+/**
+ * Site-wide Search Console totals per day.
+ *
+ * Grouped by date ONLY. Any query or page dimension makes Google drop
+ * anonymised searches from the result, which is why totals summed from
+ * fetchSearchAnalytics came out at less than half the real figure. With date
+ * alone, the numbers match the Search Console Performance report.
+ */
+export async function fetchSearchDailyTotals(
+  accessToken: string,
+  siteUrl: string,
+  startDate: string,
+  endDate: string,
+): Promise<DailySearchTotal[]> {
+  const data = await call<{
+    rows?: {
+      keys?: string[];
+      clicks?: number;
+      impressions?: number;
+      position?: number;
+    }[];
+  }>(
+    `${SEARCH_CONSOLE}/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`,
+    accessToken,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        startDate,
+        endDate,
+        dimensions: ["date"],
+        rowLimit: 1000,
+      }),
+    },
+  );
+
+  return (data.rows ?? [])
+    .filter((row) => row.keys?.[0])
+    .map((row) => ({
+      date: row.keys![0],
+      clicks: row.clicks ?? 0,
+      impressions: row.impressions ?? 0,
+      position: row.position ?? 0,
+    }));
 }
 
 /* ------------------------------------------------------------------ */
@@ -248,7 +302,7 @@ export async function fetchAnalyticsReport(
         { name: "engagementRate" },
         { name: "conversions" },
       ],
-      limit: 5000,
+      limit: 25000,
     }),
   });
 
@@ -270,5 +324,54 @@ export async function fetchAnalyticsReport(
       engagementRate: Number(metrics[2]?.value ?? 0),
       conversions: Number(metrics[3]?.value ?? 0),
     };
+  });
+}
+
+export type DailyAnalyticsTotal = {
+  date: string;
+  sessions: number;
+  users: number;
+};
+
+/**
+ * Site-wide GA4 sessions and users per day.
+ *
+ * Grouped by date only. Broken down by page, GA counts one session once for
+ * every page it viewed, so the per-page rows cannot be added back up into a
+ * visit count.
+ */
+export async function fetchAnalyticsDailyTotals(
+  accessToken: string,
+  property: string,
+  startDate: string,
+  endDate: string,
+): Promise<DailyAnalyticsTotal[]> {
+  const data = await call<{
+    rows?: {
+      dimensionValues?: { value?: string }[];
+      metricValues?: { value?: string }[];
+    }[];
+  }>(`${ANALYTICS_DATA}/${property}:runReport`, accessToken, {
+    method: "POST",
+    body: JSON.stringify({
+      dateRanges: [{ startDate, endDate }],
+      dimensions: [{ name: "date" }],
+      metrics: [{ name: "sessions" }, { name: "totalUsers" }],
+      limit: 1000,
+    }),
+  });
+
+  return (data.rows ?? []).flatMap((row) => {
+    const raw = row.dimensionValues?.[0]?.value ?? "";
+    // GA returns dates as YYYYMMDD; the column is a real date.
+    if (raw.length !== 8) return [];
+    const metrics = row.metricValues ?? [];
+    return [
+      {
+        date: `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}`,
+        sessions: Number(metrics[0]?.value ?? 0),
+        users: Number(metrics[1]?.value ?? 0),
+      },
+    ];
   });
 }

@@ -14,7 +14,7 @@ import { analyzeWebsite } from "./analyze-website";
 import { auditWebsite } from "./audit-website";
 import { checkGeo } from "./check-geo";
 import { generateArticle } from "./generate-article";
-import { importAnalytics } from "./import-analytics";
+import { importAnalytics, importAnalyticsDaily } from "./import-analytics";
 import { publishArticleJob } from "./publish-article";
 import { researchKeywords } from "./research-keywords";
 import { scheduledArticles } from "./scheduled-articles";
@@ -31,4 +31,5 @@ export const functions = [
   publishArticleJob,
   scheduledArticles,
   importAnalytics,
+  importAnalyticsDaily,
 ];

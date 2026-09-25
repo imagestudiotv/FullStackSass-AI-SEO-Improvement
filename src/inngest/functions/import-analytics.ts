@@ -1,14 +1,22 @@
-import { eq, sql as raw } from "drizzle-orm";
+import { and, eq, sql as raw } from "drizzle-orm";
 
 import { inngest } from "@/inngest/client";
-import { getConnection } from "@/lib/analytics/connection";
+import { getConnection, GOOGLE_KIND } from "@/lib/analytics/connection";
 import {
+  fetchAnalyticsDailyTotals,
   fetchAnalyticsReport,
   fetchSearchAnalytics,
+  fetchSearchDailyTotals,
   GoogleApiError,
 } from "@/lib/analytics/google-api";
 import { db } from "@/lib/db";
-import { gaMetrics, gscMetrics, integrations } from "@/lib/db/schema";
+import {
+  gaMetrics,
+  gscMetrics,
+  integrations,
+  siteDailyMetrics,
+  websites,
+} from "@/lib/db/schema";
 import { PRICING, track } from "@/lib/usage";
 
 /**
@@ -22,11 +30,15 @@ import { PRICING, track } from "@/lib/usage";
 /**
  * Days imported per run.
  *
- * Search Console revises the last two to three days as data settles, so a
- * window shorter than that would store numbers that are still changing.
- * Re-importing is safe: rows upsert on (website, date, page, query).
+ * SIXTY, because every screen that reads this compares two back-to-back
+ * windows: the Google page 28 days against the 28 before, the dashboard and
+ * Losing Traffic 30 against 30. At thirty days the earlier window held only a
+ * few days of data, so every site showed growth of several hundred percent.
+ *
+ * Search Console revises the last two to three days as data settles, so each
+ * run re-imports the whole window. Re-importing is safe: rows upsert.
  */
-const IMPORT_DAYS = 30;
+const IMPORT_DAYS = 60;
 
 /** Google reports up to three days behind, so today is always empty. */
 const LAG_DAYS = 3;
@@ -97,7 +109,14 @@ export const importAnalytics = inngest.createFunction(
 
       const startedAt = Date.now();
       let rows;
+      let totals;
       try {
+        totals = await fetchSearchDailyTotals(
+          connection.accessToken,
+          connection.meta.searchConsoleSite,
+          range.startDate,
+          range.endDate,
+        );
         rows = await fetchSearchAnalytics(
           connection.accessToken,
           connection.meta.searchConsoleSite,
@@ -126,6 +145,30 @@ export const importAnalytics = inngest.createFunction(
           return { imported: 0, skipped: "forbidden" as const };
         }
         throw error;
+      }
+
+      // The site-wide totals the headline numbers read. See siteDailyMetrics.
+      if (totals.length > 0) {
+        await db
+          .insert(siteDailyMetrics)
+          .values(
+            totals.map((day) => ({
+              websiteId,
+              date: day.date,
+              gscClicks: day.clicks,
+              gscImpressions: day.impressions,
+              gscPosition: day.position,
+            })),
+          )
+          .onConflictDoUpdate({
+            target: [siteDailyMetrics.websiteId, siteDailyMetrics.date],
+            set: {
+              gscClicks: raw`excluded.gsc_clicks`,
+              gscImpressions: raw`excluded.gsc_impressions`,
+              gscPosition: raw`excluded.gsc_position`,
+              updatedAt: new Date(),
+            },
+          });
       }
 
       // Chunked: a busy site returns thousands of rows and one statement with
@@ -221,7 +264,14 @@ export const importAnalytics = inngest.createFunction(
 
       const startedAt = Date.now();
       let rows;
+      let totals;
       try {
+        totals = await fetchAnalyticsDailyTotals(
+          connection.accessToken,
+          connection.meta.analyticsProperty,
+          range.startDate,
+          range.endDate,
+        );
         rows = await fetchAnalyticsReport(
           connection.accessToken,
           connection.meta.analyticsProperty,
@@ -244,6 +294,27 @@ export const importAnalytics = inngest.createFunction(
           return { imported: 0, skipped: "forbidden" as const };
         }
         throw error;
+      }
+
+      if (totals.length > 0) {
+        await db
+          .insert(siteDailyMetrics)
+          .values(
+            totals.map((day) => ({
+              websiteId,
+              date: day.date,
+              gaSessions: day.sessions,
+              gaUsers: day.users,
+            })),
+          )
+          .onConflictDoUpdate({
+            target: [siteDailyMetrics.websiteId, siteDailyMetrics.date],
+            set: {
+              gaSessions: raw`excluded.ga_sessions`,
+              gaUsers: raw`excluded.ga_users`,
+              updatedAt: new Date(),
+            },
+          });
       }
 
       const CHUNK = 500;
@@ -343,5 +414,72 @@ export const importAnalytics = inngest.createFunction(
       analyticsRows: analytics.imported,
       range,
     };
+  },
+);
+
+/**
+ * Re-imports every connected website once a day.
+ *
+ * Until this existed the numbers only moved when somebody pressed Import data,
+ * so the Google page, the dashboard and Losing Traffic all went quietly stale -
+ * and Losing Traffic is the one screen whose whole point is noticing a change
+ * the customer has not.
+ *
+ * It only queues the per-website import above, which already handles a
+ * missing property, revoked access and an expired token. Websites with no
+ * property chosen are skipped here rather than queued to do nothing.
+ */
+export const importAnalyticsDaily = inngest.createFunction(
+  {
+    id: "import-analytics-daily",
+    retries: 1,
+    triggers: [{ cron: "0 5 * * *" }],
+  },
+  async ({ step, logger }) => {
+    const targets = await step.run("select-websites", async () => {
+      const rows = await db
+        .select({
+          websiteId: integrations.websiteId,
+          organizationId: websites.organizationId,
+          meta: integrations.meta,
+        })
+        .from(integrations)
+        .innerJoin(websites, eq(integrations.websiteId, websites.id))
+        .where(
+          and(
+            eq(integrations.kind, GOOGLE_KIND),
+            eq(integrations.status, "connected"),
+          ),
+        );
+
+      return rows
+        .filter((row) => {
+          const meta = (row.meta ?? {}) as {
+            searchConsoleSite?: string | null;
+            analyticsProperty?: string | null;
+          };
+          return Boolean(meta.searchConsoleSite || meta.analyticsProperty);
+        })
+        .map(({ websiteId, organizationId }) => ({ websiteId, organizationId }));
+    });
+
+    if (targets.length === 0) {
+      logger.info({ step: "select-websites", websiteCount: 0 }, "No connected websites to import");
+      return { queued: 0 };
+    }
+
+    await step.sendEvent(
+      "queue-imports",
+      targets.map((target) => ({
+        name: "website/analytics.import.requested",
+        data: target,
+      })),
+    );
+
+    logger.info(
+      { step: "queue-imports", websiteCount: targets.length },
+      "Daily analytics imports queued",
+    );
+    return { queued: targets.length };
   },
 );

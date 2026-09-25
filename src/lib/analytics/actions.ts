@@ -1,6 +1,6 @@
 "use server";
 
-import { and, desc, eq, gte, lt, sql as raw } from "drizzle-orm";
+import { and, desc, eq, gte, lte, sql as raw } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { queueJob } from "@/inngest/send";
@@ -21,7 +21,11 @@ import {
 } from "@/lib/analytics/google-api";
 import { authorizeUrl, isGoogleConfigured } from "@/lib/analytics/google-oauth";
 import { db } from "@/lib/db";
-import { gaMetrics, gscMetrics, integrations } from "@/lib/db/schema";
+import {
+  gscMetrics,
+  integrations,
+  siteDailyMetrics,
+} from "@/lib/db/schema";
 import { requireWebsite } from "@/lib/tenant";
 import { requireEditor } from "@/lib/websites/require-editor";
 import type { ActionResult } from "@/lib/websites/actions";
@@ -208,96 +212,83 @@ export type PerformanceSummary = {
    * import only covers the current period has nothing to compare against, and
    * treating absent history as zero would report every number as a gain.
    */
+  /**
+   * The same figures for the window before. Each source is null when that
+   * window is not fully imported - a comparison against a half-empty window
+   * is how every site came to show growth of several hundred percent.
+   */
   previous: {
-    clicks: number;
-    impressions: number;
+    clicks: number | null;
+    impressions: number | null;
     averagePosition: number | null;
-    sessions: number;
-    users: number;
+    sessions: number | null;
+    users: number | null;
   } | null;
 };
 
 /** Aggregated performance for the last `days` days. */
+/** An ISO date shifted by whole days. */
+function shiftDate(iso: string, days: number): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Site-wide totals for an inclusive date window, from site_daily_metrics.
+ *
+ * gscDays / gaDays count the days that source actually reported, which is how
+ * a caller tells "a quiet month" from "a month we never imported".
+ */
+async function windowTotals(websiteId: string, from: string, to: string) {
+  const d = siteDailyMetrics;
+  const [row] = await db
+    .select({
+      clicks: raw<number>`coalesce(sum(${d.gscClicks}), 0)::int`,
+      impressions: raw<number>`coalesce(sum(${d.gscImpressions}), 0)::int`,
+      // Each day's position is already Google's impression-weighted average,
+      // so days are weighted by impressions too - a quiet day must not count
+      // as much as a busy one.
+      position: raw<number | null>`
+        case when sum(${d.gscImpressions}) > 0
+        then (sum(${d.gscPosition} * ${d.gscImpressions}) / sum(${d.gscImpressions}))::float
+        else null end`,
+      gscDays: raw<number>`count(${d.gscClicks})::int`,
+      sessions: raw<number>`coalesce(sum(${d.gaSessions}), 0)::int`,
+      // Summed per day, so a person visiting on two days counts twice. Not
+      // shown anywhere; unique users over a window needs its own GA query.
+      users: raw<number>`coalesce(sum(${d.gaUsers}), 0)::int`,
+      gaDays: raw<number>`count(${d.gaSessions})::int`,
+    })
+    .from(d)
+    .where(and(eq(d.websiteId, websiteId), gte(d.date, from), lte(d.date, to)));
+  return row;
+}
+
 export async function getPerformance(
   websiteId: string,
   days = 28,
 ): Promise<PerformanceSummary> {
   const { site } = await requireWebsite(websiteId);
 
-  const since = new Date();
-  since.setDate(since.getDate() - days);
-  const sinceDate = since.toISOString().slice(0, 10);
+  /*
+    Both windows end on the newest day Google has reported, not on today.
+    Google runs about three days behind, so a window ending today held three
+    empty days and compared 25 days of data against 28.
+  */
+  const [latest] = await db
+    .select({ date: raw<string | null>`max(${siteDailyMetrics.date})::text` })
+    .from(siteDailyMetrics)
+    .where(eq(siteDailyMetrics.websiteId, site.id));
+  const end = latest?.date ?? new Date().toISOString().slice(0, 10);
+  const currentStart = shiftDate(end, -(days - 1));
+  const previousEnd = shiftDate(currentStart, -1);
+  const previousStart = shiftDate(previousEnd, -(days - 1));
 
-  /**
-   * The window of equal length ending where the current one starts, so
-   * "last 28 days" compares against the 28 before it.
-   */
-  const previousSince = new Date(since);
-  previousSince.setDate(previousSince.getDate() - days);
-  const previousSinceDate = previousSince.toISOString().slice(0, 10);
-
-  const [totals] = await db
-    .select({
-      clicks: raw<number>`coalesce(sum(${gscMetrics.clicks}), 0)::int`,
-      impressions: raw<number>`coalesce(sum(${gscMetrics.impressions}), 0)::int`,
-      /**
-       * Weighted by impressions, not a plain average: a query seen 10,000
-       * times at position 8 describes the site far better than one seen twice
-       * at position 1, and averaging them equally would flatter the numbers.
-       */
-      position: raw<number | null>`
-        case when sum(${gscMetrics.impressions}) > 0
-        then sum(${gscMetrics.position} * ${gscMetrics.impressions}) / sum(${gscMetrics.impressions})
-        else null end`,
-    })
-    .from(gscMetrics)
-    .where(and(eq(gscMetrics.websiteId, site.id), gte(gscMetrics.date, sinceDate)));
-
-  const [gaTotals] = await db
-    .select({
-      sessions: raw<number>`coalesce(sum(${gaMetrics.sessions}), 0)::int`,
-      users: raw<number>`coalesce(sum(${gaMetrics.users}), 0)::int`,
-    })
-    .from(gaMetrics)
-    .where(and(eq(gaMetrics.websiteId, site.id), gte(gaMetrics.date, sinceDate)));
-
-  /**
-   * The preceding window, queried the same way so the comparison is like for
-   * like — same weighting on position, same coalesce to zero.
-   */
-  const [previousTotals] = await db
-    .select({
-      clicks: raw<number>`coalesce(sum(${gscMetrics.clicks}), 0)::int`,
-      impressions: raw<number>`coalesce(sum(${gscMetrics.impressions}), 0)::int`,
-      rows: raw<number>`count(*)::int`,
-      position: raw<number | null>`
-        case when sum(${gscMetrics.impressions}) > 0
-        then sum(${gscMetrics.position} * ${gscMetrics.impressions}) / sum(${gscMetrics.impressions})
-        else null end`,
-    })
-    .from(gscMetrics)
-    .where(
-      and(
-        eq(gscMetrics.websiteId, site.id),
-        gte(gscMetrics.date, previousSinceDate),
-        lt(gscMetrics.date, sinceDate),
-      ),
-    );
-
-  const [previousGa] = await db
-    .select({
-      sessions: raw<number>`coalesce(sum(${gaMetrics.sessions}), 0)::int`,
-      users: raw<number>`coalesce(sum(${gaMetrics.users}), 0)::int`,
-      rows: raw<number>`count(*)::int`,
-    })
-    .from(gaMetrics)
-    .where(
-      and(
-        eq(gaMetrics.websiteId, site.id),
-        gte(gaMetrics.date, previousSinceDate),
-        lt(gaMetrics.date, sinceDate),
-      ),
-    );
+  const [current, before] = await Promise.all([
+    windowTotals(site.id, currentStart, end),
+    windowTotals(site.id, previousStart, previousEnd),
+  ]);
 
   const topQueries = await db
     .select({
@@ -309,7 +300,8 @@ export async function getPerformance(
     .where(
       and(
         eq(gscMetrics.websiteId, site.id),
-        gte(gscMetrics.date, sinceDate),
+        gte(gscMetrics.date, currentStart),
+        lte(gscMetrics.date, end),
         raw`${gscMetrics.query} is not null`,
       ),
     )
@@ -326,7 +318,8 @@ export async function getPerformance(
     .where(
       and(
         eq(gscMetrics.websiteId, site.id),
-        gte(gscMetrics.date, sinceDate),
+        gte(gscMetrics.date, currentStart),
+        lte(gscMetrics.date, end),
         raw`${gscMetrics.pageUrl} is not null`,
       ),
     )
@@ -334,29 +327,26 @@ export async function getPerformance(
     .orderBy(desc(raw`sum(${gscMetrics.clicks})`))
     .limit(10);
 
-  /**
-   * Only offered when the earlier window actually holds rows. Absent history
-   * is not zero traffic, and reporting it as such would show a first-time
-   * customer a fictional across-the-board gain.
-   */
-  const hasPrevious =
-    (previousTotals?.rows ?? 0) > 0 || (previousGa?.rows ?? 0) > 0;
+  // A comparison only when the earlier window is complete for that source.
+  const gscComparable = (before?.gscDays ?? 0) >= days;
+  const gaComparable = (before?.gaDays ?? 0) >= days;
 
   return {
-    clicks: totals?.clicks ?? 0,
-    impressions: totals?.impressions ?? 0,
-    averagePosition: totals?.position ?? null,
-    sessions: gaTotals?.sessions ?? 0,
-    users: gaTotals?.users ?? 0,
-    previous: hasPrevious
-      ? {
-          clicks: previousTotals?.clicks ?? 0,
-          impressions: previousTotals?.impressions ?? 0,
-          averagePosition: previousTotals?.position ?? null,
-          sessions: previousGa?.sessions ?? 0,
-          users: previousGa?.users ?? 0,
-        }
-      : null,
+    clicks: current?.clicks ?? 0,
+    impressions: current?.impressions ?? 0,
+    averagePosition: current?.position ?? null,
+    sessions: current?.sessions ?? 0,
+    users: current?.users ?? 0,
+    previous:
+      gscComparable || gaComparable
+        ? {
+            clicks: gscComparable ? (before?.clicks ?? 0) : null,
+            impressions: gscComparable ? (before?.impressions ?? 0) : null,
+            averagePosition: gscComparable ? (before?.position ?? null) : null,
+            sessions: gaComparable ? (before?.sessions ?? 0) : null,
+            users: gaComparable ? (before?.users ?? 0) : null,
+          }
+        : null,
     topQueries: topQueries
       .filter((row): row is { query: string; clicks: number; impressions: number } =>
         row.query !== null,
@@ -365,7 +355,7 @@ export async function getPerformance(
     topPages: topPages
       .filter((row): row is { pageUrl: string; clicks: number } => row.pageUrl !== null)
       .map((row) => ({ pageUrl: row.pageUrl, clicks: row.clicks })),
-    hasData: (totals?.impressions ?? 0) > 0 || (gaTotals?.sessions ?? 0) > 0,
+    hasData: (current?.impressions ?? 0) > 0 || (current?.sessions ?? 0) > 0,
   };
 }
 

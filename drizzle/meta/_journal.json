@@ -197,6 +197,13 @@
       "when": 1790273830036,
       "tag": "0027_nosy_carmella_unuscione",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1790313489438,
+      "tag": "0028_furry_serpent_society",
+      "breakpoints": true
     }
   ]
 }

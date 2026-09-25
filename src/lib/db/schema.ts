@@ -664,6 +664,45 @@ export const gaMetrics = pgTable(
  * Prompts are stored rather than regenerated per run because changing the
  * question changes the answer, which would make a trend meaningless.
  */
+/**
+ * One row per website per day: the site-wide totals Google reports.
+ *
+ * WHY THIS EXISTS BESIDE gsc_metrics AND ga_metrics. Those hold the breakdown -
+ * clicks by page and search term, sessions by page - and adding them up gives
+ * the wrong total in both directions:
+ *
+ *  - Search Console leaves rare and private searches out of any report broken
+ *    down by query, so summing gsc_metrics UNDERCOUNTS. imagestudio.com showed
+ *    131 clicks where Search Console itself showed about 300 for the month.
+ *  - GA4 counts a session once for every page it viewed when the report is
+ *    broken down by page, so summing ga_metrics OVERCOUNTS sessions and users.
+ *
+ * Headline numbers read from here; the breakdown tables still feed "what
+ * people searched", top pages and Losing Traffic.
+ *
+ * The two halves are written by separate import steps, so each is nullable: a
+ * site with only Search Console connected has null GA columns, which is "not
+ * connected", not "zero visits".
+ */
+export const siteDailyMetrics = pgTable(
+  "site_daily_metrics",
+  {
+    id: pk(),
+    websiteId: websiteId(),
+    date: date("date").notNull(),
+    gscClicks: integer("gsc_clicks"),
+    gscImpressions: integer("gsc_impressions"),
+    /** Google's own impression-weighted average position for the day. */
+    gscPosition: real("gsc_position"),
+    gaSessions: integer("ga_sessions"),
+    gaUsers: integer("ga_users"),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("site_daily_metrics_unique_idx").on(table.websiteId, table.date),
+  ],
+);
+
 export const geoPrompts = pgTable(
   "geo_prompts",
   {
