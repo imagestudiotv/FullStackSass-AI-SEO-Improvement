@@ -30,6 +30,8 @@ import {
   hasConnectedIntegration,
   pendingFirstArticle,
 } from "@/lib/publishing/policy";
+import { describeArticleScene } from "@/lib/images/scene";
+import { isImageStorageConfigured, storeArticleImage } from "@/lib/images/storage";
 import { notify } from "@/lib/notifications/create";
 
 /**
@@ -369,30 +371,66 @@ export const generateArticle = inngest.createFunction(
     });
 
     /**
-     * A header image, when an image provider is configured. Skipped entirely
-     * otherwise, and a failure never fails the article: an article without an
-     * image is still the thing the customer paid for, whereas a failed run
-     * would lose the writing too.
+     * The header image: one that matches what the article is about, saved
+     * with the article so it shows in the preview and goes out with it.
      *
-     * The image is uploaded to the customer's own CMS at publish time, not
-     * here — the provider URL expires within hours.
+     * The subject comes from the article itself - describeArticleScene reads
+     * the title, headings and opening and describes one photograph - because
+     * the client asked for an image that matches the content, and a prompt
+     * built from the title alone matched the headline's words at best.
+     *
+     * SAVED HERE, and published as-is by every path: the WordPress plugin
+     * sets it as the featured image, and a direct CMS upload uses these same
+     * bytes. It used to be generated, logged and thrown away, so plugin posts
+     * had no image and direct publishes paid for a second, different one.
+     *
+     * An article that already has an image keeps it: a rewrite must not
+     * replace a picture the customer chose or uploaded. A failure never fails
+     * the article - the writing is what they paid for.
      */
     const image = await step.run("generate-image", async () => {
-      if (!isImageGenerationConfigured()) {
+      const [current] = await db
+        .select({ imageUrl: articles.imageUrl, imageAlt: articles.imageAlt })
+        .from(articles)
+        .where(eq(articles.id, articleId))
+        .limit(1);
+      if (current?.imageUrl) {
+        logger.info(
+          { step: "generate-image", articleId, websiteId: brief.websiteId },
+          "Article already has an image - keeping it",
+        );
+        return { url: current.imageUrl, alt: current.imageAlt ?? brief.brief.title };
+      }
+
+      if (!isImageGenerationConfigured() || !isImageStorageConfigured()) {
         /*
           Not an error: the article is written either way. Logged because an
           article arriving without a header image looks like a bug from the
-          outside, and "no provider is configured" is the answer.
+          outside, and "not configured" is the answer.
         */
         logger.warn(
-          { step: "generate-image", articleId, websiteId: brief.websiteId },
-          "Image generation not configured - article will have no header image",
+          {
+            step: "generate-image",
+            articleId,
+            websiteId: brief.websiteId,
+            generation: isImageGenerationConfigured(),
+            storage: isImageStorageConfigured(),
+          },
+          "Image generation or storage not configured - article will have no header image",
         );
         return null;
       }
 
       const startedAt = Date.now();
       try {
+        const scene = await describeArticleScene({
+          title: brief.brief.title,
+          targetKeyword: brief.brief.targetKeyword,
+          industry: brief.brief.industry,
+          country: brief.brief.country,
+          bodyHtml: written.bodyHtml,
+        });
+
         const generated = await generateArticleImage(
           brief.brief.title,
           brief.brief.industry,
@@ -401,7 +439,16 @@ export const generateArticle = inngest.createFunction(
             style: brief.brief.imageStyle,
             brief: brief.brief.imageBrief,
             instructions: brief.brief.imageInstructions,
+            scene: scene?.scene,
+            alt: scene?.alt,
           },
+        );
+
+        const url = await storeArticleImage(
+          brief.websiteId,
+          articleId,
+          generated.data,
+          generated.contentType,
         );
 
         await track(organizationId, {
@@ -412,34 +459,26 @@ export const generateArticle = inngest.createFunction(
           metadata: { purpose: "article_header", articleId },
         });
 
-        /**
-         * Base64 rather than a Buffer: step.run results are serialised to
-         * JSON, and a Buffer would come back as an unusable object.
-         */
         logger.info(
           {
             step: "generate-image",
             articleId,
             websiteId: brief.websiteId,
-            contentType: generated.contentType,
+            matchedToContent: Boolean(scene),
             imageBytes: generated.data.length,
             costUsd: generated.costUsd,
             durationMs: Date.now() - startedAt,
           },
-          "Header image generated",
+          "Header image generated and saved",
         );
 
-        return {
-          base64: generated.data.toString("base64"),
-          contentType: generated.contentType,
-          alt: generated.alt,
-        };
+        return { url, alt: generated.alt };
       } catch (error) {
         /*
-          The swallow is the point of this log. The catch is deliberate — an
-          image failure must not lose the writing — but it means a provider
+          The swallow is the point of this log. The catch is deliberate - an
+          image failure must not lose the writing - but it means a provider
           outage, an expired key or a content refusal all end as a silent
-          `null` that nothing else in the run explains.
+          null that nothing else in the run explains.
         */
         logger.warn(
           {
@@ -505,6 +544,8 @@ export const generateArticle = inngest.createFunction(
         .update(articles)
         .set({
           bodyHtml: linkedHtml.html,
+          // Saved with the article; see the generate-image step.
+          imageUrl: image?.url ?? null,
           imageAlt: image?.alt ?? null,
           metaDescription: written.metaDescription,
           slug: written.slug,

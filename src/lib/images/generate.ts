@@ -110,10 +110,18 @@ function buildPrompt(
   brief?: string | null,
   /** Standing exclusions - "never show faces" and the like. */
   instructions?: string | null,
+  /**
+   * What to show, read from the article (lib/images/scene.ts). When present
+   * it replaces the title as the subject, so the picture matches the content
+   * rather than the headline's words.
+   */
+  scene?: string | null,
 ): string {
   const context = industry ? ` for a ${industry} business` : "";
   return [
-    `An image illustrating "${title}"${context}.`,
+    scene
+      ? `A photograph for an article titled "${title}": ${scene}`
+      : `An image illustrating "${title}"${context}.`,
     imageStylePrompt(style),
     brief ? `Brand look: ${brief}` : null,
     instructions,
@@ -292,6 +300,9 @@ export async function generateArticleImage(
     style?: string | null;
     brief?: string | null;
     instructions?: string | null;
+    /** The article-matched scene and its alt text. See lib/images/scene.ts. */
+    scene?: string | null;
+    alt?: string | null;
   },
 ): Promise<GeneratedImage> {
   const provider = activeProvider();
@@ -308,6 +319,7 @@ export async function generateArticleImage(
         settings?.style,
         settings?.brief,
         settings?.instructions,
+        settings?.scene,
       );
   const generated =
     provider === "openai"
@@ -323,7 +335,7 @@ export async function generateArticleImage(
      * screen-reader user gains nothing from "a photograph", and search engines
      * read this too.
      */
-    alt: title,
+    alt: settings?.alt?.trim() || title,
     // Measured from the response where the provider reports it.
     costUsd: generated.costUsd,
   };

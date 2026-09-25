@@ -9,6 +9,7 @@ import {
   generateArticleImage,
   isImageGenerationConfigured,
 } from "@/lib/images/generate";
+import { describeArticleScene } from "@/lib/images/scene";
 import {
   ALLOWED_IMAGE_TYPES,
   deleteArticleImage,
@@ -69,6 +70,8 @@ async function loadArticle(websiteId: string, articleId: string) {
     .select({
       id: articles.id,
       title: articles.title,
+      targetKeyword: articles.targetKeyword,
+      bodyHtml: articles.bodyHtml,
       imageUrl: articles.imageUrl,
       imageAttempts: articles.imageAttempts,
     })
@@ -120,18 +123,47 @@ export async function regenerateArticleImage(
   }
 
   const [website] = await db
-    .select({ industry: websites.industry })
+    .select({
+      industry: websites.industry,
+      country: websites.country,
+      imageStyle: websites.imageStyle,
+      imageBrief: websites.imageBrief,
+      imageInstructions: websites.imageInstructions,
+    })
     .from(websites)
     .where(eq(websites.id, site.id))
     .limit(1);
 
   let stored: string;
+  let alt: string = article.title;
   try {
+    /*
+      Without their own description, the picture is matched to the article's
+      content - the same way a new article's image is made - rather than to
+      the title alone. The website's image style applies either way.
+    */
+    const scene = prompt.trim()
+      ? null
+      : await describeArticleScene({
+          title: article.title,
+          targetKeyword: article.targetKeyword,
+          industry: website?.industry ?? null,
+          country: website?.country ?? null,
+          bodyHtml: article.bodyHtml,
+        });
     const generated = await generateArticleImage(
       article.title,
       website?.industry ?? null,
       prompt,
+      {
+        style: website?.imageStyle,
+        brief: website?.imageBrief,
+        instructions: website?.imageInstructions,
+        scene: scene?.scene,
+        alt: scene?.alt,
+      },
     );
+    alt = generated.alt;
 
     stored = await storeArticleImage(
       site.id,
@@ -168,8 +200,9 @@ export async function regenerateArticleImage(
     .update(articles)
     .set({
       imageUrl: stored,
-      // Their prompt describes the picture better than the title does.
-      imageAlt: prompt.trim() ? prompt.trim().slice(0, 300) : article.title,
+      // Their prompt, or the matched scene, describes the picture better
+      // than the title does.
+      imageAlt: prompt.trim() ? prompt.trim().slice(0, 300) : alt,
       imageAttempts: attempts + 1,
       updatedAt: new Date(),
     })

@@ -6,6 +6,7 @@ import { articles, publishLogs, websites } from "@/lib/db/schema";
 import { loadCredentials } from "@/lib/publishing/credentials";
 import { notify } from "@/lib/notifications/create";
 import { markFirstArticleSent } from "@/lib/publishing/policy";
+import { describeArticleScene } from "@/lib/images/scene";
 import {
   generateArticleImage,
   isImageGenerationConfigured,
@@ -156,6 +157,10 @@ export const publishArticleJob = inngest.createFunction(
         remoteId: previous?.remoteId ?? null,
         // Used to steer the header image toward the customer's sector.
         industry: site?.industry ?? null,
+        // The image saved with the article, published as-is when present.
+        image: article.imageUrl
+          ? { url: article.imageUrl, alt: article.imageAlt ?? article.title }
+          : null,
         post: {
           title: article.title,
           contentHtml: article.bodyHtml,
@@ -176,7 +181,9 @@ export const publishArticleJob = inngest.createFunction(
      * without an image rather than not publishing it.
      */
     const featuredMedia = await step.run("upload-image", async () => {
-      if (!isImageGenerationConfigured()) {
+      // Nothing to upload only when there is no saved image AND none can be
+      // generated; a saved image needs no provider.
+      if (!prepared.image && !isImageGenerationConfigured()) {
         /*
           Not an error: the post goes up either way. Logged because a post
           appearing without its header image looks like a bug from the
@@ -191,10 +198,41 @@ export const publishArticleJob = inngest.createFunction(
 
       const startedAt = Date.now();
       try {
-        const generated = await generateArticleImage(
-          prepared.post.title,
-          prepared.industry,
-        );
+        /*
+          The image the article already has - the one generated to match its
+          content when it was written, or one the customer chose - rather than
+          a new one. This used to generate a second, different picture here,
+          so what went live was not what the preview showed, and it was paid
+          for twice. Only an article with no image gets one generated now,
+          from its content as well.
+        */
+        let generated: { data: Buffer; contentType: string; alt: string; costUsd: number };
+        if (prepared.image) {
+          const response = await fetch(prepared.image.url, {
+            signal: AbortSignal.timeout(30_000),
+          });
+          if (!response.ok) {
+            throw new Error(`Could not load the article image (${response.status})`);
+          }
+          generated = {
+            data: Buffer.from(await response.arrayBuffer()),
+            contentType: response.headers.get("content-type") ?? "image/png",
+            alt: prepared.image.alt,
+            costUsd: 0,
+          };
+        } else {
+          const scene = await describeArticleScene({
+            title: prepared.post.title,
+            industry: prepared.industry,
+            bodyHtml: prepared.post.contentHtml,
+          });
+          generated = await generateArticleImage(
+            prepared.post.title,
+            prepared.industry,
+            null,
+            { scene: scene?.scene, alt: scene?.alt },
+          );
+        }
         const provider = getProvider(prepared.providerId);
         // Not every CMS takes uploads. Shopify and the webhook adapter both
         // reference an image by URL instead, so publishing continues without
@@ -218,7 +256,10 @@ export const publishArticleJob = inngest.createFunction(
         const media = await provider.uploadMedia(prepared.credentials, {
           data: generated.data,
           contentType: generated.contentType,
-          filename: `${prepared.post.slug ?? "header"}.png`,
+          filename: `${prepared.post.slug ?? "header"}.${
+            generated.contentType.includes("jpeg") ? "jpg"
+              : generated.contentType.includes("webp") ? "webp" : "png"
+          }`,
           alt: generated.alt,
         });
 
