@@ -1,4 +1,6 @@
 import crypto from "node:crypto";
+import http from "node:http";
+import https from "node:https";
 
 import { and, desc, eq, isNotNull, isNull, ne, or } from "drizzle-orm";
 
@@ -107,19 +109,12 @@ export async function triggerPluginSync(websiteId: string): Promise<SyncOutcome>
   const ts = Math.floor(Date.now() / 1000).toString();
   const sig = crypto.createHmac("sha256", key.keyHash).update(ts).digest("hex");
 
+  const body = new URLSearchParams({ action: "repget_sync", ts, sig }).toString();
+  const result = await postForm(key.syncUrl, body);
+  if (!result || result.status < 200 || result.status >= 300) return "unreachable";
   try {
-    const response = await fetch(key.syncUrl, {
-      method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ action: "repget_sync", ts, sig }),
-      // A redirect could lead anywhere; the stored address is the only one.
-      redirect: "error",
-      signal: AbortSignal.timeout(SYNC_TIMEOUT_MS),
-    });
-    const data = (await response.json().catch(() => null)) as {
-      success?: boolean;
-    } | null;
-    return response.ok && data?.success ? "synced" : "unreachable";
+    const data = JSON.parse(result.body) as { success?: boolean };
+    return data.success ? "synced" : "unreachable";
   } catch {
     return "unreachable";
   }
@@ -143,4 +138,65 @@ export async function nudgePluginIfDue(
   const [due] = await dueArticlesForPlugin(websiteId, 1);
   if (!due) return "nothing-due";
   return triggerPluginSync(websiteId);
+}
+
+/**
+ * One plain HTTP(S) POST, and nothing else.
+ *
+ * node:https rather than fetch, deliberately. fetch always adds headers of
+ * its own - sec-fetch-mode, accept-language, accept-encoding - and the web
+ * host's firewall in front of imagestudio.com refused every such request with
+ * a bare 403 before WordPress saw it, whatever user agent was sent, while the
+ * identical request from curl got through. This sends only the headers below,
+ * like curl does. No redirects are followed: the stored address is the only
+ * one ever called.
+ */
+function postForm(
+  url: string,
+  body: string,
+): Promise<{ status: number; body: string } | null> {
+  return new Promise((resolve) => {
+    let target: URL;
+    try {
+      target = new URL(url);
+    } catch {
+      resolve(null);
+      return;
+    }
+    const client = target.protocol === "http:" ? http : https;
+    const request = client.request(
+      {
+        hostname: target.hostname,
+        port: target.port || undefined,
+        path: `${target.pathname}${target.search}`,
+        method: "POST",
+        timeout: SYNC_TIMEOUT_MS,
+        headers: {
+          "content-type": "application/x-www-form-urlencoded",
+          "content-length": Buffer.byteLength(body),
+          accept: "application/json",
+          /*
+            Named, so a site owner reading their logs can see who is calling
+            and allow it. Node's own default ("node") is blocked outright by
+            many firewalls.
+          */
+          "user-agent": "RepGet/1.0 (+https://repget.com; WordPress plugin sync)",
+        },
+      },
+      (response) => {
+        let text = "";
+        response.setEncoding("utf8");
+        response.on("data", (chunk: string) => {
+          // A check-now reply is a few bytes of JSON; stop reading garbage.
+          if (text.length < 10_000) text += chunk;
+        });
+        response.on("end", () =>
+          resolve({ status: response.statusCode ?? 0, body: text }),
+        );
+      },
+    );
+    request.on("timeout", () => request.destroy());
+    request.on("error", () => resolve(null));
+    request.end(body);
+  });
 }
