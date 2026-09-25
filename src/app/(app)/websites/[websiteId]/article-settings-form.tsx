@@ -625,20 +625,30 @@ export function ArticleSettingsForm({
         Gone once the settings have been saved even once: it exists to close
         the step, and a permanent "these are fine" control on a form nobody is
         editing is clutter.
+
+        PINNED TO THE BOTTOM OF THE SCREEN, like the save bar it stands in for,
+        and styled to be found. It used to sit in the page between two cards
+        as a pale grey strip with a small button, and the client pointed out
+        that people scroll straight past it - which leaves the checklist step
+        open with nothing on screen saying why. Same slot and same offsets as
+        the save bar below (see the note there): the two never show at once,
+        since this one needs nothing changed and that one needs a change.
       */}
       {!reviewed && !dirty ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-muted/40 px-4 py-3">
-          <p className="text-sm text-muted-foreground">
-            {tCommon.defaultsAreFine}
-          </p>
-          <Button onClick={handleSave} disabled={pending} size="sm">
-            {pending ? (
-              <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-            ) : (
-              <Check className="size-4" aria-hidden="true" />
-            )}
-            {tCommon.keepDefaults}
-          </Button>
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t-2 border-primary bg-background/95 shadow-[0_-4px_16px_rgba(0,0,0,0.08)] backdrop-blur sm:pr-[21rem] md:left-60">
+          <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 bg-primary/5 px-4 py-3">
+            <p className="text-sm font-semibold text-foreground">
+              {tCommon.defaultsAreFine}
+            </p>
+            <Button onClick={handleSave} disabled={pending} className="font-semibold">
+              {pending ? (
+                <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+              ) : (
+                <Check className="size-4" aria-hidden="true" />
+              )}
+              {tCommon.keepDefaults}
+            </Button>
+          </div>
         </div>
       ) : null}
 
