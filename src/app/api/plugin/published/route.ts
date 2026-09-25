@@ -47,6 +47,7 @@ export async function POST(request: NextRequest) {
     url?: unknown;
     remoteId?: unknown;
     error?: unknown;
+    status?: unknown;
   };
   try {
     body = (await request.json()) as typeof body;
@@ -122,9 +123,23 @@ export async function POST(request: NextRequest) {
     remoteUrl: url,
   });
 
+  /*
+    What the plugin created. 1.3.2 reports it; older plugins always published
+    live and send nothing, so absent means "publish". A WordPress draft is not
+    live, so the article stays a draft here too - the same rule as the direct
+    WordPress connection - and publishedUrl keeps it out of the queue.
+  */
+  const created = body.status === "draft" ? "draft" : "publish";
+
   await db
     .update(articles)
-    .set({ status: "published", publishedUrl: url, error: null, updatedAt: new Date() })
+    .set({
+      status: created === "publish" ? "published" : "draft",
+      publishedUrl: url,
+      publishRequested: null,
+      error: null,
+      updatedAt: new Date(),
+    })
     .where(eq(articles.id, article.id));
 
   await notify({

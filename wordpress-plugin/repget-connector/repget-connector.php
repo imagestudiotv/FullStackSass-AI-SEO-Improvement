@@ -2,7 +2,7 @@
 /**
  * Plugin Name: RepGet Connector
  * Description: Publishes articles written by RepGet straight to this site. Paste your Integration Key to connect.
- * Version: 1.3.1
+ * Version: 1.3.2
  * Requires at least: 5.6
  * Requires PHP: 7.4
  * License: GPLv2 or later
@@ -31,7 +31,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('REPGET_VERSION', '1.3.1');
+define('REPGET_VERSION', '1.3.2');
 define('REPGET_OPTION_KEY', 'repget_integration_key');
 define('REPGET_OPTION_STATUS', 'repget_status');
 define('REPGET_OPTION_ENDPOINT', 'repget_endpoint');
@@ -367,7 +367,7 @@ function repget_settings_page() {
             $notice_type = 'error';
         } else {
             $notice = sprintf(
-                _n('%d article published.', '%d articles published.', $count, 'repget'),
+                _n('%d article sent to WordPress.', '%d articles sent to WordPress.', $count, 'repget'),
                 $count
             );
         }
@@ -414,7 +414,7 @@ function repget_settings_page() {
                             autocomplete="off"
                         />
                         <p class="description">
-                            <?php esc_html_e('Websites → your site → Publishing, in RepGet.', 'repget'); ?>
+                            <?php esc_html_e('In RepGet: Settings → Integrations → WordPress plugin → New key.', 'repget'); ?>
                         </p>
                     </td>
                 </tr>
@@ -541,6 +541,16 @@ function repget_sync() {
             continue;
         }
 
+        /*
+          Live or draft, as RepGet decided: the website's "Publish as" setting,
+          or the choice made when somebody pressed Publish. Before 1.3.2 every
+          article was published live, whatever that setting said. Anything
+          unexpected falls back to live, which is what RepGet sent it for.
+        */
+        $status = (isset($article['status']) && $article['status'] === 'draft')
+            ? 'draft'
+            : 'publish';
+
         $post_id = wp_insert_post(array(
             'post_title'   => sanitize_text_field($article['title']),
             /**
@@ -555,12 +565,12 @@ function repget_sync() {
                 ? sanitize_text_field($article['excerpt'])
                 : '',
             'post_name'    => isset($article['slug']) ? sanitize_title($article['slug']) : '',
-            'post_status'  => 'publish',
+            'post_status'  => $status,
             'post_type'    => 'post',
         ), true);
 
         if (is_wp_error($post_id)) {
-            repget_report($article['id'], null, null, $post_id->get_error_message());
+            repget_report($article['id'], null, null, $post_id->get_error_message(), $status);
             continue;
         }
 
@@ -570,7 +580,7 @@ function repget_sync() {
             repget_attach_image($post_id, $article['image']['url'], $article['image']['alt']);
         }
 
-        repget_report($article['id'], get_permalink($post_id), $post_id, null);
+        repget_report($article['id'], get_permalink($post_id), $post_id, null, $status);
         $published++;
     }
 
@@ -578,7 +588,7 @@ function repget_sync() {
 }
 
 /** Tells RepGet what happened, so the article leaves the queue. */
-function repget_report($article_id, $url, $remote_id, $error) {
+function repget_report($article_id, $url, $remote_id, $error, $status = 'publish') {
     repget_request('/api/plugin/published', array(
         'method' => 'POST',
         'body'   => wp_json_encode(array(
@@ -586,6 +596,8 @@ function repget_report($article_id, $url, $remote_id, $error) {
             'url'       => $url,
             'remoteId'  => $remote_id,
             'error'     => $error,
+            // So RepGet records a WordPress draft as a draft, not as live.
+            'status'    => $status,
         )),
     ));
 }

@@ -505,6 +505,15 @@ export const articles = pgTable(
     generationStep: text("generation_step"),
     publishedUrl: text("published_url"),
     /**
+     * "publish" or "draft" when somebody pressed Publish on a website that is
+     * connected only through the WordPress plugin; null otherwise.
+     *
+     * The plugin PULLS articles, so a Publish press cannot push anything - it
+     * is recorded here and the plugin's next check collects it with this
+     * status. Cleared when the plugin reports the post created.
+     */
+    publishRequested: text("publish_requested"),
+    /**
      * Header image. Stored as the CMS's own URL after upload rather than the
      * provider's: provider links expire within hours, which would leave the
      * customer with a broken image on a live page.

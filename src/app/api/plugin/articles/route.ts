@@ -1,9 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-import { and, asc, eq, isNull } from "drizzle-orm";
 
-import { db } from "@/lib/db";
-import { articles } from "@/lib/db/schema";
+import { dueArticlesForPlugin } from "@/lib/plugin/due";
 import { resolveIntegrationKey } from "@/lib/plugin/keys";
 
 /**
@@ -50,29 +48,7 @@ export async function GET(request: NextRequest) {
    * there is no id in the request to tamper with — a plugin cannot ask for
    * another customer's articles because it has no way to name one.
    */
-  const rows = await db
-    .select({
-      id: articles.id,
-      title: articles.title,
-      slug: articles.slug,
-      bodyHtml: articles.bodyHtml,
-      metaDescription: articles.metaDescription,
-      imageUrl: articles.imageUrl,
-      imageAlt: articles.imageAlt,
-    })
-    .from(articles)
-    .where(
-      and(
-        eq(articles.websiteId, resolved.websiteId),
-        // Approved but not yet live. A draft is still being worked on, and a
-        // published row already has its post.
-        eq(articles.status, "draft"),
-        isNull(articles.publishedUrl),
-      ),
-    )
-    // Oldest first: the queue should drain in the order it filled.
-    .orderBy(asc(articles.createdAt))
-    .limit(BATCH_SIZE);
+  const rows = await dueArticlesForPlugin(resolved.websiteId, BATCH_SIZE);
 
   return NextResponse.json(
     {
@@ -89,6 +65,11 @@ export async function GET(request: NextRequest) {
           image: row.imageUrl
             ? { url: row.imageUrl, alt: row.imageAlt ?? row.title }
             : null,
+          status:
+            row.publishRequested === "draft" ||
+            (row.publishRequested === null && row.publishAs === "draft")
+              ? "draft"
+              : "publish",
         })),
     },
     { headers: CORS },

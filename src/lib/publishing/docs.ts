@@ -52,65 +52,82 @@ export const INTEGRATION_DOCS: IntegrationDoc[] = [
     summary:
       "Publish to WordPress with our plugin. Works when the REST API is blocked, and we never hold a password to your site.",
     requirements: [
-      "A self-hosted WordPress site (wordpress.org, not a free wordpress.com plan)",
+      "A WordPress site where you can install plugins: self-hosted (wordpress.org), or a WordPress.com plan that allows plugins (Business or higher)",
       "WordPress 5.6 or newer, and PHP 7.4 or newer",
-      "An administrator account on the WordPress site - editors and authors cannot see the settings page",
+      "An administrator account on the WordPress site - editors and authors cannot install plugins or see the RepGet screen",
       "An active plan for this website in RepGet",
+      "Your website address in RepGet (Settings → Business) matching your WordPress address, so the buttons below open the right site",
     ],
     steps: [
       {
         title: "Download the plugin from RepGet",
-        body: "Open Websites → your site → Integrations and find the WordPress plugin panel. Press Download the plugin. This saves repget-connector.zip, about 6 KB. LEAVE IT ZIPPED - do not unpack it, and do not open it first. Some browsers unpack a zip automatically on download, which is the single most common reason the install then fails.",
+        body: "In RepGet, pick your website in the switcher at the top, then open Settings → Integrations and find the WordPress plugin panel. Press Download the plugin. This saves repget-connector.zip, about 10 KB. LEAVE IT ZIPPED - do not unpack it or open it first. Some browsers (Safari on a Mac, for one) unpack a zip automatically, which is the most common reason the install then fails.",
       },
       {
-        title: "Create an integration key",
-        body: "In the same panel, press New key and give it a name you will recognise, such as Main site. The key is shown ONCE and stored only as a hash, so there is genuinely no way to look it up later - copy it now. If you lose it, revoke it and make another; nothing is lost by doing that.",
+        title: "Install it in WordPress",
+        body: "Press Open my WordPress in the same panel. It opens Plugins → Add New Plugin → Upload Plugin on your own site (you can also go there yourself). Press Choose File, pick repget-connector.zip exactly as it downloaded, press Install Now, then Activate Plugin.",
       },
       {
-        title: "Upload the plugin to WordPress",
-        body: "In your WordPress admin, go to Plugins → Add New Plugin → Upload Plugin. Choose the repget-connector.zip file exactly as it downloaded, press Install Now, then Activate Plugin.",
+        title: "WordPress opens the RepGet screen",
+        body: "Activating the plugin takes you straight to its screen. Later you will find it as RepGet in the left-hand menu of your WordPress admin, between Comments and Appearance, and through the Settings link under the plugin on the Plugins page. Only administrators can see it, because the key controls what gets published to your site.",
       },
       {
-        title: "Open RepGet in your WordPress menu",
-        body: "RepGet appears in the left-hand menu of your WordPress admin, below Settings. Activating the plugin takes you straight there the first time, and the Plugins list carries a Settings link to it. Only administrators can see it, because the key controls what gets published to your site.",
+        title: "Create an integration key in RepGet",
+        body: "Go back to the RepGet tab (Settings → Integrations → WordPress plugin). Optionally type a note such as Main site, then press New key. The key is shown ONCE and stored only as a hash, so it cannot be looked up later. If you lose it, revoke it and make another - nothing is lost by doing that.",
       },
       {
-        title: "Paste the key and connect",
-        body: "Put your integration key in the Integration Key field and press Save and connect. The Status row then shows a green tick and the name of the website the key belongs to.",
+        title: "Connect with one click",
+        body: "Press Open WordPress with this key, under the new key. The RepGet screen in WordPress opens with the key already filled in and a note saying so - press Save and connect. If the key is not filled in, press Copy in RepGet and paste it into the Integration Key field yourself. The key travels after the # in the address, which browsers never send to a server, and it is removed from the address straight away.",
       },
       {
-        title: "Check the website name is the right one",
-        body: "If Status names a DIFFERENT website, the key belongs to another site in your RepGet workspace. Keys belong to one website, not to your whole account - go back and copy the key for the site you meant. This is the most common mistake when you manage several websites, and it is easy to miss because the connection genuinely succeeded.",
+        title: "Check it says Connected - and the right website",
+        body: "The Status row shows a green tick and Connected, and the message at the top names the website the key belongs to. Back in RepGet you do not need to refresh: within a few seconds the key shows your site address, WordPress version and plugin version instead of Never used. If the message names a DIFFERENT website, the key belongs to another site in your RepGet workspace - keys belong to one website, not to your whole account.",
       },
       {
-        title: "Fetch your first articles",
-        body: "Press Check for articles now. It reports how many were published, for example \"3 articles published.\" Zero is a normal answer and does not mean anything is wrong - it means nothing is waiting yet. Articles arrive as ordinary published posts with the featured image set, and you can edit, unpublish or delete them like any other post.",
+        title: "How articles arrive",
+        body: "The plugin checks RepGet every hour. RepGet only hands over articles that are due: auto-publish is on and the article's planned date has come, or you pressed Publish on the article in RepGet. Each one is created as a published post or as a draft, following Settings → Article Settings → Publish as (or the choice you made when pressing Publish), with its featured image. To fetch straight away, press Check for articles now on the RepGet screen in WordPress - it reports how many articles it sent to WordPress, and 0 simply means nothing is due yet.",
       },
     ],
     troubleshooting: [
       {
-        problem: '"The package could not be installed"',
+        problem: "\"The package could not be installed\"",
         fix: "The zip was unpacked and re-zipped somewhere along the way, which some browsers do automatically on download. Download it again and upload the file exactly as it arrives, without opening it first.",
       },
       {
-        problem: '"The key was rejected. Check it was copied in full."',
-        fix: "One message covers every cause deliberately, so that somebody guessing at keys learns nothing from the reply. Check three things in order: was the key copied IN FULL (a partial copy is by far the most common cause); is it still ACTIVE, or was it revoked in RepGet; and is it the key for THIS website rather than another site in your workspace.",
+        problem: "There is no Upload Plugin button",
+        fix: "Your account is not an administrator, or the site is on a WordPress.com plan that does not allow plugins.",
+      },
+      {
+        problem: "\"The key was rejected. Check it was copied in full.\"",
+        fix: "One message covers every cause deliberately, so that somebody guessing at keys learns nothing from the reply. Check three things in order: was the key copied IN FULL (a partial copy is by far the most common cause); is it still ACTIVE, or was it revoked in RepGet; and is it the key for THIS website rather than another site in your workspace. The quickest fix is a new key and Open WordPress with this key.",
+      },
+      {
+        problem: "Open my WordPress opens the wrong site",
+        fix: "The website address saved in RepGet is not your WordPress address. Correct it under Settings → Business, then press the button again.",
       },
       {
         problem: "I cannot see RepGet in the WordPress menu",
         fix: "You need an administrator account. Editors and authors cannot see it, because the key controls what gets published.",
       },
       {
-        problem: "Articles are not appearing",
-        fix: "Press Check for articles now and read what it reports. Confirm the Status row still says Connected. Then check in RepGet that the articles are actually finished - anything still marked Planned or Writing has not been written yet, so there is nothing for the plugin to fetch.",
+        problem: "Connected, but no articles appear",
+        fix: "Nothing is sent until an article is due. Check, in order: is auto-publish on in RepGet; has the article's planned date arrived; is the article actually written (Planned or Writing means not yet). To send one now regardless, open the article in RepGet and press Publish, then press Check for articles now in WordPress.",
       },
       {
-        problem: "Articles arrive later than an hour after they are ready",
+        problem: "Articles arrive as drafts instead of live posts",
+        fix: "Settings → Article Settings → Publish as is set to Draft, which is doing its job. Change it to Live for future articles; drafts already created can be published from the Posts screen in WordPress.",
+      },
+      {
+        problem: "Articles are published live even though Publish as is Draft",
+        fix: "The plugin is older than 1.3.2, which always published live. Download the plugin again from RepGet and upload it the same way - WordPress offers Replace current with uploaded. Your key and connection are kept.",
+      },
+      {
+        problem: "Articles arrive later than an hour after they are due",
         fix: "The plugin checks hourly by itself, but WordPress's scheduler only runs when somebody visits your site - so on a quiet site the check happens late. That is how WordPress works rather than a fault. Press Check for articles now to fetch immediately, or ask your host to set up a real cron job if the timing matters to you.",
       },
       {
         problem: "I lost my key",
-        fix: "Revoke the old one in RepGet and create a new one, then paste it into the RepGet screen in WordPress and save again. Nothing is lost by doing this, and the old key stops working the moment you revoke it.",
+        fix: "Revoke the old one in RepGet and create a new one, then use Open WordPress with this key and press Save and connect again. Nothing is lost by doing this, and the old key stops working the moment you revoke it.",
       },
     ],
   },
@@ -139,7 +156,7 @@ export const INTEGRATION_DOCS: IntegrationDoc[] = [
       },
       {
         title: "Connect it here",
-        body: "On your website page, open Publishing and choose WordPress. Enter your site address, your WordPress username, and the application password you just copied.",
+        body: "In RepGet, open Settings → Integrations and choose WordPress. Enter your site address, your WordPress username, and the application password you just copied.",
       },
       {
         title: "Publish a test article",
@@ -186,7 +203,7 @@ export const INTEGRATION_DOCS: IntegrationDoc[] = [
       },
       {
         title: "Connect it here",
-        body: "Open Publishing on your website page, choose Ghost, and enter your Ghost site address along with the Admin API key.",
+        body: "In RepGet, open Settings → Integrations, choose Ghost, and enter your Ghost site address along with the Admin API key.",
       },
       {
         title: "Publish a test article",
@@ -233,7 +250,7 @@ export const INTEGRATION_DOCS: IntegrationDoc[] = [
       },
       {
         title: "Connect it here",
-        body: "Open Publishing, choose Shopify, and enter your store address (example.myshopify.com), the access token, and pick which blog to publish to.",
+        body: "In RepGet, open Settings → Integrations, choose Shopify, and enter your store address (example.myshopify.com), the access token, and pick which blog to publish to.",
       },
     ],
     troubleshooting: [
@@ -274,7 +291,7 @@ export const INTEGRATION_DOCS: IntegrationDoc[] = [
       },
       {
         title: "Connect it here",
-        body: "Open Publishing on your website page, choose Webflow, and enter the token and collection id. We check the collection has somewhere to put an article body before accepting it.",
+        body: "In RepGet, open Settings → Integrations, choose Webflow, and enter the token and collection id. We check the collection has somewhere to put an article body before accepting it.",
       },
       {
         title: "Publish a test article",
@@ -321,7 +338,7 @@ export const INTEGRATION_DOCS: IntegrationDoc[] = [
       },
       {
         title: "Connect it here",
-        body: "Open Publishing, choose Wix, and enter both values. We list your existing posts to confirm the key can reach the blog.",
+        body: "In RepGet, open Settings → Integrations, choose Wix, and enter both values. We list your existing posts to confirm the key can reach the blog.",
       },
     ],
     troubleshooting: [
@@ -352,7 +369,7 @@ export const INTEGRATION_DOCS: IntegrationDoc[] = [
       },
       {
         title: "Connect it here",
-        body: "Open Publishing, choose Custom (webhook), and enter the endpoint URL and a signing secret you generate.",
+        body: "In RepGet, open Settings → Integrations, choose Custom (webhook), and enter the endpoint URL and a signing secret you generate.",
       },
       {
         title: "Verify the signature",

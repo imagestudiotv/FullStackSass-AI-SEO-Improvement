@@ -1,12 +1,17 @@
 "use server";
 
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNotNull, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { queueJob } from "@/inngest/send";
 import { encryptSecret, maskSecret } from "@/lib/crypto";
 import { db } from "@/lib/db";
-import { articles, integrations, publishLogs } from "@/lib/db/schema";
+import {
+  articles,
+  integrationKeys,
+  integrations,
+  publishLogs,
+} from "@/lib/db/schema";
 import {
   ProviderError,
   type Credentials,
@@ -293,7 +298,35 @@ export async function publishArticle(
     .limit(1);
 
   if (!connected) {
-    return { ok: false, error: "Connect somewhere to publish to first" };
+    /*
+      Connected through the WordPress plugin instead? It pulls, so the press
+      is recorded and the plugin collects it on its next check - which the
+      customer can trigger with "Check for articles now". A key that has
+      never been used is not a connection yet.
+    */
+    const [plugin] = await db
+      .select({ id: integrationKeys.id })
+      .from(integrationKeys)
+      .where(
+        and(
+          eq(integrationKeys.websiteId, site.id),
+          isNull(integrationKeys.revokedAt),
+          isNotNull(integrationKeys.lastUsedAt),
+        ),
+      )
+      .limit(1);
+
+    if (!plugin) {
+      return { ok: false, error: "Connect somewhere to publish to first" };
+    }
+
+    await db
+      .update(articles)
+      .set({ publishRequested: status, updatedAt: new Date() })
+      .where(and(eq(articles.id, articleId), eq(articles.websiteId, site.id)));
+
+    revalidatePath(`/websites/${site.id}/articles/${articleId}`);
+    return { ok: true, data: null };
   }
 
   await queueJob({

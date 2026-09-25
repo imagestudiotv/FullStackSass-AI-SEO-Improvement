@@ -2,7 +2,7 @@
 Requires at least: 5.6
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.3.1
+Stable tag: 1.3.2
 License: GPLv2 or later
 
 Publishes articles written by RepGet straight to your WordPress site.
@@ -62,6 +62,13 @@ can help when something goes wrong. Nothing else is sent. The plugin only
 fetches articles and reports whether each one published.
 
 == Changelog ==
+
+= 1.3.2 =
+* Articles are created as posts or drafts according to RepGet's "Publish as"
+  setting, instead of always being published live.
+* RepGet now only sends articles that are due: auto-publish on and the planned
+  date reached, or Publish pressed in RepGet.
+* The settings screen says where to find the key in the current RepGet menus.
 
 = 1.3.1 =
 * The key from a RepGet link is read from the part of the address after #,
