@@ -5,6 +5,7 @@ import { queueArticleForCalendarItem } from "@/inngest/functions/generate-articl
 import { db } from "@/lib/db";
 import { articles, calendarItems, websites } from "@/lib/db/schema";
 import { notify } from "@/lib/notifications/create";
+import { PUBLISHING_KINDS } from "@/lib/publishing/kinds";
 import {
   automaticStatus,
   batchStillAhead,
@@ -130,6 +131,8 @@ async function publishDueDrafts(): Promise<number> {
           select 1 from integrations i
           where i.website_id = ${articles.websiteId}
             and i.status = 'connected'
+            -- A CMS, not the Google connection. See publishing/kinds.ts.
+            and i.kind in ${raw.raw(`(${PUBLISHING_KINDS.map((k) => `'${k}'`).join(", ")})`)}
         )`,
       ),
     )

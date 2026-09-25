@@ -27,6 +27,7 @@ import {
 } from "@/lib/publishing/policy";
 import type { IntegrationView, ProviderInfo } from "@/lib/publishing/shared";
 import { triggerPluginSync } from "@/lib/plugin/sync";
+import { isPublishingConnection } from "@/lib/publishing/kinds";
 import { requireWebsite } from "@/lib/tenant";
 import { requireEditor } from "@/lib/websites/require-editor";
 import { normalizeWebsiteUrl, InvalidUrlError } from "@/lib/websites/url";
@@ -326,15 +327,12 @@ export async function publishArticle(
     return { ok: false, error: "This article has not been written yet" };
   }
 
+  // A CMS connection, not merely any connection: the Google one lives in the
+  // same table and cannot publish. See lib/publishing/kinds.ts.
   const [connected] = await db
     .select({ id: integrations.id })
     .from(integrations)
-    .where(
-      and(
-        eq(integrations.websiteId, site.id),
-        eq(integrations.status, "connected"),
-      ),
-    )
+    .where(and(eq(integrations.websiteId, site.id), isPublishingConnection()))
     .limit(1);
 
   if (!connected) {

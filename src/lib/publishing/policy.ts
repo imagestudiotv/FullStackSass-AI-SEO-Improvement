@@ -1,6 +1,7 @@
 import { and, eq, isNotNull, isNull, or, sql as raw } from "drizzle-orm";
 
 import { db } from "@/lib/db";
+import { isPublishingConnection, PUBLISHING_KINDS } from "@/lib/publishing/kinds";
 import { articles, calendarItems, integrations, websites } from "@/lib/db/schema";
 
 /**
@@ -102,12 +103,8 @@ export async function hasConnectedIntegration(websiteId: string) {
   const [row] = await db
     .select({ id: integrations.id })
     .from(integrations)
-    .where(
-      and(
-        eq(integrations.websiteId, websiteId),
-        eq(integrations.status, "connected"),
-      ),
-    )
+    // A CMS, not the Google connection that shares this table.
+    .where(and(eq(integrations.websiteId, websiteId), isPublishingConnection()))
     .limit(1);
   return Boolean(row);
 }
@@ -148,6 +145,7 @@ export async function websitesAwaitingFirstArticle() {
           select 1 from ${integrations}
           where ${integrations.websiteId} = ${websites.id}
             and ${integrations.status} = 'connected'
+            and ${integrations.kind} in ${raw.raw(`(${PUBLISHING_KINDS.map((k) => `'${k}'`).join(", ")})`)}
         )`,
       ),
     );
