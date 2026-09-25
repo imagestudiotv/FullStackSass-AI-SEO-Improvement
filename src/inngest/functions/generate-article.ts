@@ -31,6 +31,7 @@ import {
   pendingFirstArticle,
 } from "@/lib/publishing/policy";
 import { describeArticleScene } from "@/lib/images/scene";
+import { nudgePluginIfDue } from "@/lib/plugin/sync";
 import { isImageStorageConfigured, storeArticleImage } from "@/lib/images/storage";
 import { notify } from "@/lib/notifications/create";
 
@@ -721,11 +722,16 @@ export const generateArticle = inngest.createFunction(
       const first = await pendingFirstArticle(brief.websiteId);
       if (first?.id === articleId) {
         if (!connected) {
+          // No CMS - the WordPress plugin may be connected instead. It pulls,
+          // so ask it to collect now rather than at its next hourly check.
+          const nudged = await nudgePluginIfDue(brief.websiteId);
           logger.info(
-            { step: "auto-publish", articleId, websiteId: brief.websiteId, first: true },
-            "First article written - it goes out as soon as a website is connected",
+            { step: "auto-publish", articleId, websiteId: brief.websiteId, first: true, plugin: nudged },
+            nudged === "synced"
+              ? "First article - WordPress plugin collected it"
+              : "First article written - it goes out as soon as a website is connected",
           );
-          return false;
+          return nudged === "synced";
         }
         // Live, in every mode - the first article is the one exception.
         await inngest.send({
@@ -802,12 +808,21 @@ export const generateArticle = inngest.createFunction(
       }
 
       if (!connected) {
+        // A plugin-only site: the article is due now, so ask the plugin to
+        // collect it now. See nudgePluginIfDue.
+        const nudged = await nudgePluginIfDue(brief.websiteId);
+        if (nudged === "synced") {
+          logger.info(
+            { step: "auto-publish", articleId, websiteId: brief.websiteId, plugin: nudged },
+            "Due article - WordPress plugin collected it",
+          );
+          return true;
+        }
         /*
           Auto-publish is ON and nothing happens. This is the branch that
           looks broken from the customer's side - they switched the setting on
           and their article still sits as a draft - so it is a warning rather
-          than an info line. (A plugin-only site is served by the plugin's own
-          queue instead; see lib/plugin/due.ts.)
+          than an info line.
         */
         logger.warn(
           {

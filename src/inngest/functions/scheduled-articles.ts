@@ -1,10 +1,11 @@
-import { and, eq, isNull, lte, or, sql as raw } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, lte, or, sql as raw } from "drizzle-orm";
 
 import { inngest } from "@/inngest/client";
 import { queueArticleForCalendarItem } from "@/inngest/functions/generate-article";
 import { db } from "@/lib/db";
-import { articles, calendarItems, websites } from "@/lib/db/schema";
+import { articles, calendarItems, integrationKeys, websites } from "@/lib/db/schema";
 import { notify } from "@/lib/notifications/create";
+import { nudgePluginIfDue } from "@/lib/plugin/sync";
 import { PUBLISHING_KINDS } from "@/lib/publishing/kinds";
 import {
   automaticStatus,
@@ -152,7 +153,30 @@ async function publishDueDrafts(): Promise<number> {
     });
   }
 
-  return released + rows.length;
+  /*
+    WordPress plugin sites. They pull, and their own hourly check only runs
+    when someone visits the site, so each release pass asks every connected
+    plugin that has something due to collect it now. Nothing due, nothing
+    sent. See nudgePluginIfDue.
+  */
+  const plugins = await db
+    .selectDistinct({ websiteId: integrationKeys.websiteId })
+    .from(integrationKeys)
+    .where(
+      and(
+        isNull(integrationKeys.revokedAt),
+        isNotNull(integrationKeys.lastUsedAt),
+        isNotNull(integrationKeys.syncUrl),
+      ),
+    )
+    .limit(WEBSITE_BATCH);
+  let nudged = 0;
+  for (const plugin of plugins) {
+    const outcome = await nudgePluginIfDue(plugin.websiteId).catch(() => "unreachable" as const);
+    if (outcome === "synced") nudged += 1;
+  }
+
+  return released + rows.length + nudged;
 }
 
 export const scheduledArticles = inngest.createFunction(

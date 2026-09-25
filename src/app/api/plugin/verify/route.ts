@@ -1,11 +1,11 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { after, NextResponse, type NextRequest } from "next/server";
 
 import { eq } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { websites } from "@/lib/db/schema";
 import { recordSiteInfo, resolveIntegrationKey } from "@/lib/plugin/keys";
-import { recordSyncUrl } from "@/lib/plugin/sync";
+import { nudgePluginIfDue, recordSyncUrl } from "@/lib/plugin/sync";
 
 /**
  * Plugin handshake: POST /api/plugin/verify
@@ -78,6 +78,14 @@ export async function POST(request: NextRequest) {
   if (siteInfo) {
     await recordSiteInfo(resolved.keyId, siteInfo);
   }
+
+  /*
+    Anything already due - the website's first article above all - goes out
+    now that the plugin is connected, not at its next hourly check. After the
+    response: the plugin is waiting on this reply to show "Connected", and
+    the nudge calls back into that same site.
+  */
+  after(() => nudgePluginIfDue(resolved.websiteId).catch(() => undefined));
 
   const [site] = await db
     .select({ domain: websites.domain, brandName: websites.brandName })

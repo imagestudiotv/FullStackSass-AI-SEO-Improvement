@@ -4,6 +4,7 @@ import { and, desc, eq, isNotNull, isNull, ne, or } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { integrationKeys, websites } from "@/lib/db/schema";
+import { dueArticlesForPlugin } from "@/lib/plugin/due";
 
 /**
  * "Check now" for the WordPress plugin, so Publish publishes immediately.
@@ -122,4 +123,24 @@ export async function triggerPluginSync(websiteId: string): Promise<SyncOutcome>
   } catch {
     return "unreachable";
   }
+}
+
+/**
+ * Asks the plugin to check now - but only when it has something to collect.
+ *
+ * The plugin's own hourly check is WordPress cron, which only runs when
+ * somebody visits the site: imagestudio.com's first article sat written for
+ * 21 minutes after the plugin connected, until a visit happened to run it.
+ * RepGet therefore nudges the plugin at the moments something becomes due -
+ * when the plugin connects, when an article finishes writing, and on each
+ * scheduled release - so plugin sites publish on time without visitors.
+ *
+ * A no-op when nothing is due, or for plugins before 1.4.0 (no address).
+ */
+export async function nudgePluginIfDue(
+  websiteId: string,
+): Promise<SyncOutcome | "nothing-due"> {
+  const [due] = await dueArticlesForPlugin(websiteId, 1);
+  if (!due) return "nothing-due";
+  return triggerPluginSync(websiteId);
 }
