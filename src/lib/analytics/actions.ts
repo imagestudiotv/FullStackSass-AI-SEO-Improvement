@@ -4,7 +4,10 @@ import { and, desc, eq, gte, lt, sql as raw } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { queueJob } from "@/inngest/send";
-import { signState } from "@/app/api/integrations/google/callback/route";
+import {
+  signState,
+  type ConnectOrigin,
+} from "@/app/api/integrations/google/callback/route";
 import {
   disconnect,
   getConnection,
@@ -74,6 +77,7 @@ export async function getAnalyticsConnection(
 /** Produces the Google consent URL for this website. */
 export async function startGoogleConnect(
   websiteId: string,
+  origin: ConnectOrigin = "app",
 ): Promise<ActionResult<{ url: string }>> {
   const guard = await requireEditor(websiteId);
   if (!guard.ok) return { ok: false, error: guard.error };
@@ -83,7 +87,9 @@ export async function startGoogleConnect(
     return { ok: false, error: "Google integration is not configured yet." };
   }
 
-  return { ok: true, data: { url: authorizeUrl(signState(site.id)) } };
+  // Anything but the one other known value means the app page.
+  const from: ConnectOrigin = origin === "onboarding" ? "onboarding" : "app";
+  return { ok: true, data: { url: authorizeUrl(signState(site.id, from)) } };
 }
 
 export async function disconnectGoogle(

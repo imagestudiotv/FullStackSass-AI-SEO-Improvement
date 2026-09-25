@@ -105,8 +105,8 @@ export function AnalyticsPanel({
     if (!message) return;
     if (message.ok) toast.success(t[message.key]);
     else toast.error(t[message.key]);
-    // Cleared so a refresh does not repeat the toast.
-    router.replace(`/websites/${websiteId}`);
+    // Cleared so a refresh does not repeat the toast. Stays on this page.
+    router.replace(`/websites/${websiteId}/google`);
   }, [callback, router, websiteId, t]);
 
   // Property lists are only fetched once connected, since the call needs a

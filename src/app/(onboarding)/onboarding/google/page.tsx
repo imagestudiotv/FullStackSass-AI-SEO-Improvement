@@ -53,12 +53,28 @@ export default async function OnboardingGooglePage({
 
   const connection = await getAnalyticsConnection(state.websiteId);
 
+  /*
+    The result of coming back from Google (?google=), resolved to a message
+    here where the analytics copy is available.
+  */
+  const outcome = typeof params.google === "string" ? params.google : null;
+  const status = t.app.analytics;
+  const outcomes: Record<string, { ok: boolean; text: string }> = {
+    connected: { ok: true, text: status.statusConnected },
+    cancelled: { ok: false, text: status.statusCancelled },
+    forbidden: { ok: false, text: status.statusForbidden },
+    invalid_request: { ok: false, text: status.statusInvalid },
+    error: { ok: false, text: status.statusError },
+  };
+  const callbackMessage = outcome ? (outcomes[outcome] ?? null) : null;
+
   return (
     <div>
       <WizardProgress current="google" />
       <GoogleStep
         websiteId={state.websiteId}
         connection={connection}
+        callbackMessage={callbackMessage}
         t={t.app.onboarding}
       />
     </div>

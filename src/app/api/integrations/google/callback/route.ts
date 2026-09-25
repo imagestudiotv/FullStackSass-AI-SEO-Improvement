@@ -24,22 +24,39 @@ function stateSecret(): string {
   return value;
 }
 
-export function signState(websiteId: string): string {
+/**
+ * Where the customer pressed Connect, so the callback can send them back there.
+ *
+ * Signed into the state with the website id, so it cannot be swapped for
+ * somewhere else on the way through Google, and it only ever selects one of
+ * two fixed paths - never a URL.
+ */
+export type ConnectOrigin = "app" | "onboarding";
+
+export function signState(
+  websiteId: string,
+  origin: ConnectOrigin = "app",
+): string {
   const nonce = Math.random().toString(36).slice(2, 10);
-  const payload = `${websiteId}.${nonce}`;
+  const payload = `${websiteId}.${nonce}.${origin}`;
   const signature = createHmac("sha256", stateSecret())
     .update(payload)
     .digest("base64url");
   return `${payload}.${signature}`;
 }
 
-function verifyState(state: string): string | null {
+function verifyState(
+  state: string,
+): { websiteId: string; origin: ConnectOrigin } | null {
   const parts = state.split(".");
-  if (parts.length !== 3) return null;
+  // Three parts is a link made before the origin was added; it came from the
+  // app, which is the only place Connect existed then.
+  if (parts.length !== 3 && parts.length !== 4) return null;
 
-  const [websiteId, nonce, signature] = parts;
+  const signature = parts[parts.length - 1];
+  const payload = parts.slice(0, -1).join(".");
   const expected = createHmac("sha256", stateSecret())
-    .update(`${websiteId}.${nonce}`)
+    .update(payload)
     .digest("base64url");
 
   const a = Buffer.from(signature);
@@ -47,14 +64,35 @@ function verifyState(state: string): string | null {
   // Length check first: timingSafeEqual throws on a mismatch.
   if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
 
-  return websiteId;
+  return {
+    websiteId: parts[0],
+    origin: parts[2] === "onboarding" ? "onboarding" : "app",
+  };
 }
 
-function back(websiteId: string | null, params: Record<string, string>) {
+/**
+ * Back to the screen Connect was pressed on.
+ *
+ * This used to be /websites/<id> - the Website Health page - from before the
+ * Google panel moved to its own page. The customer came back from Google to a
+ * screen with no Google panel, no "Google connected" message and no property
+ * pickers, so a connection that had worked looked exactly like one that had
+ * not. From onboarding it also dropped them out of the wizard.
+ */
+function back(
+  target: { websiteId: string; origin: ConnectOrigin } | null,
+  params: Record<string, string>,
+) {
   const base = (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "");
-  const path = websiteId ? `/websites/${websiteId}` : "/websites";
-  const query = new URLSearchParams(params).toString();
-  return NextResponse.redirect(`${base}${path}?${query}`);
+  const query = new URLSearchParams(params);
+  let path = "/websites";
+  if (target?.origin === "onboarding") {
+    path = "/onboarding/google";
+    query.set("site", target.websiteId);
+  } else if (target) {
+    path = `/websites/${target.websiteId}/google`;
+  }
+  return NextResponse.redirect(`${base}${path}?${query.toString()}`);
 }
 
 export async function GET(request: Request) {
@@ -63,21 +101,23 @@ export async function GET(request: Request) {
   const state = url.searchParams.get("state");
   const error = url.searchParams.get("error");
 
-  const websiteId = state ? verifyState(state) : null;
+  const target = state ? verifyState(state) : null;
 
-  if (!websiteId) {
+  if (!target) {
     // A tampered or missing state is not something to explain in detail.
     return back(null, { google: "invalid_request" });
   }
 
   if (error) {
     // The user pressed Cancel on Google's consent screen; not a failure.
-    return back(websiteId, { google: error === "access_denied" ? "cancelled" : "error" });
+    return back(target, { google: error === "access_denied" ? "cancelled" : "error" });
   }
 
   if (!code) {
-    return back(websiteId, { google: "error" });
+    return back(target, { google: "error" });
   }
+
+  const { websiteId } = target;
 
   try {
     /**
@@ -98,10 +138,11 @@ export async function GET(request: Request) {
     await saveTokens(websiteId, tokens);
   } catch (caught) {
     if (caught instanceof GoogleAuthError) {
-      return back(websiteId, { google: "error" });
+      console.error(`[google] connecting ${websiteId} failed: ${caught.message}`);
+      return back(target, { google: "error" });
     }
     throw caught;
   }
 
-  return back(websiteId, { google: "connected" });
+  return back(target, { google: "connected" });
 }

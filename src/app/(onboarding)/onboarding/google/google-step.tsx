@@ -3,7 +3,7 @@
 import { ArrowRight, BarChart3, Check, Loader2, Search } from "lucide-react";
 import { getMessages, type Messages } from "@/lib/i18n/messages";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { OnboardingAside } from "@/components/onboarding/onboarding-aside";
@@ -29,10 +29,13 @@ import {
 export function GoogleStep({
   websiteId,
   connection,
+  callbackMessage = null,
   t = getMessages("en").app.onboarding,
 }: {
   websiteId: string;
   connection: AnalyticsConnection;
+  /** How the trip to Google ended, when this render is the return from it. */
+  callbackMessage?: { ok: boolean; text: string } | null;
   /** This step's copy, defaulting to English. */
   t?: Messages["app"]["onboarding"];
 }) {
@@ -40,9 +43,21 @@ export function GoogleStep({
   const [pending, startTransition] = useTransition();
   const [leaving, setLeaving] = useState(false);
 
+  /*
+    Said once, then cleared from the address so a refresh does not repeat it.
+    Before this, a failed connection came back to this step looking exactly
+    like one that was never tried.
+  */
+  useEffect(() => {
+    if (!callbackMessage) return;
+    if (callbackMessage.ok) toast.success(callbackMessage.text);
+    else toast.error(callbackMessage.text);
+    router.replace(`/onboarding/google?site=${websiteId}`);
+  }, [callbackMessage, router, websiteId]);
+
   function handleConnect() {
     startTransition(async () => {
-      const result = await startGoogleConnect(websiteId);
+      const result = await startGoogleConnect(websiteId, "onboarding");
       if (!result.ok) {
         toast.error(result.error);
         return;
