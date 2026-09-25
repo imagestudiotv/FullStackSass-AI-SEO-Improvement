@@ -630,6 +630,36 @@ export const gscMetrics = pgTable(
   ],
 );
 
+/**
+ * Search Console clicks per page per day, from Google's PAGE report.
+ *
+ * gsc_metrics is broken down by page AND search term, and Google leaves rare
+ * and private searches out of any report that includes the search term - so a
+ * page's clicks added up from it came out far too low, and unevenly so. Losing
+ * Traffic judged pages on those numbers. This is the same data grouped by page
+ * only, which Google reports in full.
+ */
+export const gscPageMetrics = pgTable(
+  "gsc_page_metrics",
+  {
+    id: pk(),
+    websiteId: websiteId(),
+    date: date("date").notNull(),
+    pageUrl: text("page_url").notNull(),
+    clicks: integer("clicks").default(0).notNull(),
+    impressions: integer("impressions").default(0).notNull(),
+    /** Google's impression-weighted average position for that page and day. */
+    position: real("position"),
+  },
+  (table) => [
+    uniqueIndex("gsc_page_metrics_unique_idx").on(
+      table.websiteId,
+      table.date,
+      table.pageUrl,
+    ),
+  ],
+);
+
 export const gaMetrics = pgTable(
   "ga_metrics",
   {

@@ -23,6 +23,7 @@ import { authorizeUrl, isGoogleConfigured } from "@/lib/analytics/google-oauth";
 import { db } from "@/lib/db";
 import {
   gscMetrics,
+  gscPageMetrics,
   integrations,
   siteDailyMetrics,
 } from "@/lib/db/schema";
@@ -309,22 +310,22 @@ export async function getPerformance(
     .orderBy(desc(raw`sum(${gscMetrics.clicks})`))
     .limit(10);
 
+  // Google's per-page report, which counts private searches too.
   const topPages = await db
     .select({
-      pageUrl: gscMetrics.pageUrl,
-      clicks: raw<number>`sum(${gscMetrics.clicks})::int`,
+      pageUrl: gscPageMetrics.pageUrl,
+      clicks: raw<number>`sum(${gscPageMetrics.clicks})::int`,
     })
-    .from(gscMetrics)
+    .from(gscPageMetrics)
     .where(
       and(
-        eq(gscMetrics.websiteId, site.id),
-        gte(gscMetrics.date, currentStart),
-        lte(gscMetrics.date, end),
-        raw`${gscMetrics.pageUrl} is not null`,
+        eq(gscPageMetrics.websiteId, site.id),
+        gte(gscPageMetrics.date, currentStart),
+        lte(gscPageMetrics.date, end),
       ),
     )
-    .groupBy(gscMetrics.pageUrl)
-    .orderBy(desc(raw`sum(${gscMetrics.clicks})`))
+    .groupBy(gscPageMetrics.pageUrl)
+    .orderBy(desc(raw`sum(${gscPageMetrics.clicks})`))
     .limit(10);
 
   // A comparison only when the earlier window is complete for that source.

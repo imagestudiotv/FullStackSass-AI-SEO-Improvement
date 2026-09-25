@@ -6,10 +6,10 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { articles } from "@/lib/db/schema";
 import {
-  findDecayedPages,
+  findTrafficChanges,
   getTrafficSeries,
-  type DecayedPage,
   type TrafficPoint,
+  type TrafficReport,
 } from "@/lib/articles/decay";
 import { queueJob } from "@/inngest/send";
 import { requireWebsite } from "@/lib/tenant";
@@ -26,11 +26,11 @@ import type { ActionResult } from "@/lib/websites/actions";
  * action that fixes it: rewrite the page.
  */
 
-export async function getDecayedPages(
+export async function getTrafficChanges(
   websiteId: string,
-): Promise<DecayedPage[]> {
+): Promise<TrafficReport> {
   const { site } = await requireWebsite(websiteId);
-  return findDecayedPages(site.id);
+  return findTrafficChanges(site.id);
 }
 
 /**

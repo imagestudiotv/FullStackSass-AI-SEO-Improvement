@@ -182,6 +182,74 @@ export async function fetchSearchAnalytics(
   return rows;
 }
 
+export type PageDayRow = {
+  date: string;
+  pageUrl: string;
+  clicks: number;
+  impressions: number;
+  position: number;
+};
+
+/**
+ * Search Console per page per day, grouped by date and page only.
+ *
+ * Without the query dimension Google includes the anonymised searches it
+ * drops from query reports, so these are the page's real clicks. See
+ * gscPageMetrics.
+ */
+export async function fetchSearchPageDaily(
+  accessToken: string,
+  siteUrl: string,
+  startDate: string,
+  endDate: string,
+  maxRows = 100_000,
+): Promise<PageDayRow[]> {
+  const rows: PageDayRow[] = [];
+  // Google's own per-request maximum.
+  const PAGE = 25_000;
+
+  for (let start = 0; start < maxRows; start += PAGE) {
+    const data = await call<{
+      rows?: {
+        keys?: string[];
+        clicks?: number;
+        impressions?: number;
+        position?: number;
+      }[];
+    }>(
+      `${SEARCH_CONSOLE}/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`,
+      accessToken,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          startDate,
+          endDate,
+          dimensions: ["date", "page"],
+          rowLimit: PAGE,
+          startRow: start,
+        }),
+      },
+    );
+
+    const batch = data.rows ?? [];
+    for (const row of batch) {
+      const [date, page] = row.keys ?? [];
+      if (!date || !page) continue;
+      rows.push({
+        date,
+        pageUrl: page,
+        clicks: row.clicks ?? 0,
+        impressions: row.impressions ?? 0,
+        position: row.position ?? 0,
+      });
+    }
+
+    if (batch.length < PAGE) break;
+  }
+
+  return rows;
+}
+
 export type DailySearchTotal = {
   date: string;
   clicks: number;

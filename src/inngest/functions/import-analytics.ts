@@ -7,12 +7,14 @@ import {
   fetchAnalyticsReport,
   fetchSearchAnalytics,
   fetchSearchDailyTotals,
+  fetchSearchPageDaily,
   GoogleApiError,
 } from "@/lib/analytics/google-api";
 import { db } from "@/lib/db";
 import {
   gaMetrics,
   gscMetrics,
+  gscPageMetrics,
   integrations,
   siteDailyMetrics,
   websites,
@@ -110,7 +112,14 @@ export const importAnalytics = inngest.createFunction(
       const startedAt = Date.now();
       let rows;
       let totals;
+      let pageRows;
       try {
+        pageRows = await fetchSearchPageDaily(
+          connection.accessToken,
+          connection.meta.searchConsoleSite,
+          range.startDate,
+          range.endDate,
+        );
         totals = await fetchSearchDailyTotals(
           connection.accessToken,
           connection.meta.searchConsoleSite,
@@ -167,6 +176,33 @@ export const importAnalytics = inngest.createFunction(
               gscImpressions: raw`excluded.gsc_impressions`,
               gscPosition: raw`excluded.gsc_position`,
               updatedAt: new Date(),
+            },
+          });
+      }
+
+      // Per page, in full - what Losing Traffic and "top pages" read.
+      for (let i = 0; i < pageRows.length; i += 500) {
+        const batch = pageRows.slice(i, i + 500).map((row) => ({
+          websiteId,
+          date: row.date,
+          pageUrl: row.pageUrl,
+          clicks: row.clicks,
+          impressions: row.impressions,
+          position: row.position,
+        }));
+        await db
+          .insert(gscPageMetrics)
+          .values(batch)
+          .onConflictDoUpdate({
+            target: [
+              gscPageMetrics.websiteId,
+              gscPageMetrics.date,
+              gscPageMetrics.pageUrl,
+            ],
+            set: {
+              clicks: raw`excluded.clicks`,
+              impressions: raw`excluded.impressions`,
+              position: raw`excluded.position`,
             },
           });
       }

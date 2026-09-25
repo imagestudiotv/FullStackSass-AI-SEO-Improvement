@@ -5,7 +5,7 @@ import {
   articles,
   audits,
   gaMetrics,
-  gscMetrics,
+  gscPageMetrics,
   siteDailyMetrics,
   keywords,
   placements,
@@ -403,26 +403,25 @@ async function loadActivity(websiteId: string): Promise<ActivityItem[]> {
 
 async function loadBestArticles(websiteId: string): Promise<BestArticle[]> {
   /**
-   * Grouped by page, because Search Console reports one row per page AND
-   * query — the same article appears once per search term that found it, and
-   * showing those separately would list one article twenty times.
+   * From Google's per-page report (gsc_page_metrics), not the page-and-query
+   * breakdown: that one leaves private searches out, so every article's
+   * clicks came out too low. Position is weighted by impressions, as Google
+   * weights it, rather than a plain average of daily rows.
    */
+  const p = gscPageMetrics;
   const rows = await db
     .select({
-      url: gscMetrics.pageUrl,
-      clicks: raw<number>`sum(${gscMetrics.clicks})::int`,
-      impressions: raw<number>`sum(${gscMetrics.impressions})::int`,
-      position: raw<number>`avg(${gscMetrics.position})::float`,
+      url: p.pageUrl,
+      clicks: raw<number>`sum(${p.clicks})::int`,
+      impressions: raw<number>`sum(${p.impressions})::int`,
+      position: raw<number>`coalesce(
+        sum(${p.position} * ${p.impressions}) / nullif(sum(${p.impressions}), 0),
+        0)::float`,
     })
-    .from(gscMetrics)
-    .where(
-      and(
-        eq(gscMetrics.websiteId, websiteId),
-        gte(gscMetrics.date, isoDate(daysAgo(30))),
-      ),
-    )
-    .groupBy(gscMetrics.pageUrl)
-    .orderBy(raw`sum(${gscMetrics.clicks}) desc`)
+    .from(p)
+    .where(and(eq(p.websiteId, websiteId), gte(p.date, isoDate(daysAgo(30)))))
+    .groupBy(p.pageUrl)
+    .orderBy(raw`sum(${p.clicks}) desc`)
     .limit(20);
 
   return rows
