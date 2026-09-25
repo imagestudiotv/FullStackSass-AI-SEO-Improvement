@@ -6,6 +6,8 @@ import { db } from "@/lib/db";
 import { articles, publishLogs } from "@/lib/db/schema";
 import { notify } from "@/lib/notifications/create";
 import { resolveIntegrationKey } from "@/lib/plugin/keys";
+import { markFirstArticleSent } from "@/lib/publishing/policy";
+import { queueJob } from "@/inngest/send";
 
 /**
  * Publication confirmed: POST /api/plugin/published
@@ -141,6 +143,20 @@ export async function POST(request: NextRequest) {
       updatedAt: new Date(),
     })
     .where(eq(articles.id, article.id));
+
+  /*
+    The website's first article is out. Record it, so the first-article
+    rule never fires again, and - only for the call that recorded it -
+    start writing the next two days' articles now rather than at the next
+    scheduled run: "the first article published immediately, and then the
+    other next-2-day articles". See lib/publishing/policy.ts.
+  */
+  if (await markFirstArticleSent(resolved.websiteId)) {
+    await queueJob({
+      name: "articles/scheduled.requested",
+      data: { websiteId: resolved.websiteId },
+    });
+  }
 
   await notify({
     organizationId: resolved.organizationId,

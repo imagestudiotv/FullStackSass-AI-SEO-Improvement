@@ -20,14 +20,13 @@ import type { ActionResult } from "@/lib/websites/actions";
  * a state the customer never chose — some fields written, some not, with
  * nothing saying which.
  *
- * The existing setAutoPublish and setGenerationMode stay. They are used by
+ * The existing setFinishedMode and setGenerationMode stay. They are used by
  * toggles elsewhere that write immediately and have no Save button of their
  * own; this is the form path, not a replacement.
  */
 
 /** What the form sends. Every field optional: a partial save is legitimate. */
 export type ArticleSettingsInput = {
-  publishAs?: "live" | "draft";
   articleStyle?: string;
   internalLinkTarget?: number;
   /** Null means adaptive — chosen per article rather than fixed. */
@@ -184,7 +183,6 @@ export async function saveArticleSettings(
         open forever. See onboarding/launch.ts, the "preferences" step.
       */
       articleSettingsReviewedAt: new Date(),
-      publishAs: input.publishAs,
       articleStyle: input.articleStyle,
       internalLinkTarget: links,
       targetWordCount: words,

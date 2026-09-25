@@ -36,7 +36,6 @@ import {
  */
 
 export type ArticleSettingsValues = {
-  publishAs: "live" | "draft";
   articleStyle: string;
   internalLinkTarget: number;
   targetWordCount: number | null;
@@ -135,44 +134,11 @@ export function ArticleSettingsForm({
           <p className="text-sm text-muted-foreground">{t.contentSeoHelp}</p>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-5">
-          <div className="min-w-0">
-            <p className="text-sm font-medium">{t.publishAs}</p>
-            <p className="text-sm text-muted-foreground">
-              {values.publishAs === "live"
-                ? t.publishLive
-                : t.publishDraft}
-            </p>
-          </div>
-          {/*
-            A segmented control, not a checkbox. Live and Draft are both real
-            choices with names; a tickbox labelled "publish as draft" makes
-            one of them the absence of the other.
-          */}
-          <div
-            role="radiogroup"
-            aria-label={t.publishAs}
-            className="flex shrink-0 rounded-full border bg-muted/50 p-1"
-          >
-            {(["live", "draft"] as const).map((option) => (
-              <button
-                key={option}
-                type="button"
-                role="radio"
-                aria-checked={values.publishAs === option}
-                onClick={() => set("publishAs", option)}
-                className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-                  values.publishAs === option
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {option === "live" ? t.live : t.draft}
-              </button>
-            ))}
-          </div>
-        </div>
-
+        {/*
+          "Publish as" used to be here. It is now one of the three answers to
+          "When an article is finished", in Writing and publishing below,
+          next to the setting it was always half of. See publishing/policy.ts.
+        */}
         <div className="grid gap-5 border-t pt-5 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="article-style">{t.articleStyle}</Label>

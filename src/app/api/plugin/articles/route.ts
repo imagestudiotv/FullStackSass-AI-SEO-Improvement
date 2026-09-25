@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 
 import { dueArticlesForPlugin } from "@/lib/plugin/due";
+import { automaticStatus } from "@/lib/publishing/policy";
 import { resolveIntegrationKey } from "@/lib/plugin/keys";
 
 /**
@@ -65,11 +66,12 @@ export async function GET(request: NextRequest) {
           image: row.imageUrl
             ? { url: row.imageUrl, alt: row.imageAlt ?? row.title }
             : null,
+          // A Publish press decides; otherwise the website's setting, which
+          // the first article follows too. See lib/publishing/policy.ts.
           status:
-            row.publishRequested === "draft" ||
-            (row.publishRequested === null && row.publishAs === "draft")
-              ? "draft"
-              : "publish",
+            row.publishRequested === "draft" || row.publishRequested === "publish"
+              ? row.publishRequested
+              : automaticStatus(row),
         })),
     },
     { headers: CORS },

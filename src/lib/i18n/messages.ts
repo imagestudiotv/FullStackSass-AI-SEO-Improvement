@@ -993,6 +993,14 @@ export type Messages = {
       writeAutomatically: string;
       daysToWrite: string;
       publishWithoutAsking: string;
+      whenFinished: string;
+      finishedReview: string;
+      finishedReviewHelp: string;
+      finishedDraft: string;
+      finishedDraftHelp: string;
+      finishedLive: string;
+      finishedLiveHelp: string;
+      firstArticleNote: string;
     };
     nav: {
       dashboard: string;
@@ -2271,7 +2279,7 @@ const en: Messages = {
       losingTrafficIntro: "Pages getting fewer clicks, or showing up less in Google, than a month ago. From your Search Console data.",
       noCompetitorsFound: "We did not find any from your site. Add the rivals you know of and we will use them to find content gaps.",
       competitorsHelp: "Who else shows up when buyers search your space. We use these to find content gaps and the terms worth going after.",
-      connectWebsiteFirst: "Connect a website below first. Until then articles stay as drafts.",
+      connectWebsiteFirst: "Connect your website under Settings → Integrations first. Until then, articles wait in RepGet.",
       generationHelp: "How your articles get written, and what happens to them when they are ready.",
       altHelp: "Read aloud to people using a screen reader, and by search engines.",
       featuredImageHelp: "The picture at the top of the article, and the one shown when it is shared.",
@@ -2336,6 +2344,14 @@ const en: Messages = {
       writeAutomatically: "Write articles automatically",
       daysToWrite: "Days to write on",
       publishWithoutAsking: "Publish without asking me",
+      whenFinished: "When an article is finished",
+      finishedReview: "Keep it in RepGet for me to review",
+      finishedReviewHelp: "Nothing reaches your website until you press Publish on the article.",
+      finishedDraft: "Send it to my site as a draft",
+      finishedDraftHelp: "It appears in your CMS as a draft on its planned day. You publish it there.",
+      finishedLive: "Publish it live on its planned day",
+      finishedLiveHelp: "It goes live on your website on its planned day, with nothing for you to do.",
+      firstArticleNote: "Your first article is published as soon as it is written, whichever you choose, so you can see straight away how articles look on your site.",
     },
     nav: {
       dashboard: "Dashboard",
@@ -3623,7 +3639,7 @@ const es: Messages = {
       losingTrafficIntro: "Páginas que reciben menos clics, o aparecen menos en Google, que hace un mes. Según sus datos de Search Console.",
       noCompetitorsFound: "No encontramos ninguno en su sitio. Añada los rivales que conozca y los usaremos para detectar huecos de contenido.",
       competitorsHelp: "Quién más aparece cuando los compradores buscan en su sector. Los usamos para encontrar huecos de contenido y los términos que merecen la pena.",
-      connectWebsiteFirst: "Conecte primero un sitio web abajo. Hasta entonces los artículos quedan como borradores.",
+      connectWebsiteFirst: "Conecte primero su sitio web en Ajustes → Integraciones. Hasta entonces, los artículos esperan en RepGet.",
       generationHelp: "Cómo se escriben sus artículos y qué ocurre con ellos cuando están listos.",
       altHelp: "Se lee en voz alta a quienes usan lector de pantalla, y la leen los buscadores.",
       featuredImageHelp: "La imagen de la parte superior del artículo, y la que se muestra al compartirlo.",
@@ -3688,6 +3704,14 @@ const es: Messages = {
       writeAutomatically: "Escribir artículos automáticamente",
       daysToWrite: "Días en los que escribir",
       publishWithoutAsking: "Publicar sin preguntarme",
+      whenFinished: "Cuando un artículo esté terminado",
+      finishedReview: "Guardarlo en RepGet para que lo revise",
+      finishedReviewHelp: "Nada llega a su sitio web hasta que pulse Publicar en el artículo.",
+      finishedDraft: "Enviarlo a mi sitio como borrador",
+      finishedDraftHelp: "Aparece en su CMS como borrador el día previsto. Usted lo publica allí.",
+      finishedLive: "Publicarlo el día previsto",
+      finishedLiveHelp: "Se publica en su sitio web el día previsto, sin que tenga que hacer nada.",
+      firstArticleNote: "Su primer artículo se publica en cuanto está escrito, elija lo que elija, para que vea enseguida cómo quedan los artículos en su sitio.",
     },
     nav: {
       dashboard: "Panel",
@@ -4977,7 +5001,7 @@ const fr: Messages = {
       losingTrafficIntro: "Pages qui reçoivent moins de clics, ou apparaissent moins dans Google, qu’il y a un mois. D’après vos données Search Console.",
       noCompetitorsFound: "Nous n\u2019en avons trouvé aucun depuis votre site. Ajoutez les concurrents que vous connaissez et nous les utiliserons pour repérer les manques de contenu.",
       competitorsHelp: "Qui d\u2019autre apparaît quand les acheteurs cherchent dans votre domaine. Nous les utilisons pour repérer les manques de contenu et les termes qui valent la peine.",
-      connectWebsiteFirst: "Connectez d\u2019abord un site ci-dessous. En attendant, les articles restent en brouillon.",
+      connectWebsiteFirst: "Connectez d’abord votre site dans Paramètres → Intégrations. En attendant, les articles restent dans RepGet.",
       generationHelp: "Comment vos articles sont rédigés, et ce qu\u2019ils deviennent une fois prêts.",
       altHelp: "Lu à voix haute aux personnes utilisant un lecteur d\u2019écran, et lu par les moteurs de recherche.",
       featuredImageHelp: "L\u2019image en haut de l\u2019article, et celle affichée lors d\u2019un partage.",
@@ -5042,6 +5066,14 @@ const fr: Messages = {
       writeAutomatically: "Rédiger les articles automatiquement",
       daysToWrite: "Jours de rédaction",
       publishWithoutAsking: "Publier sans me demander",
+      whenFinished: "Quand un article est terminé",
+      finishedReview: "Le garder dans RepGet pour que je le relise",
+      finishedReviewHelp: "Rien n’arrive sur votre site tant que vous n’appuyez pas sur Publier dans l’article.",
+      finishedDraft: "L’envoyer sur mon site en brouillon",
+      finishedDraftHelp: "Il apparaît en brouillon dans votre CMS le jour prévu. Vous le publiez depuis celui-ci.",
+      finishedLive: "Le publier le jour prévu",
+      finishedLiveHelp: "Il est mis en ligne sur votre site le jour prévu, sans rien à faire de votre part.",
+      firstArticleNote: "Votre premier article est publié dès qu’il est rédigé, quel que soit votre choix, pour que vous voyiez tout de suite le rendu sur votre site.",
     },
     nav: {
       dashboard: "Tableau de bord",
@@ -6325,7 +6357,7 @@ const it: Messages = {
       losingTrafficIntro: "Pagine che ricevono meno clic, o compaiono meno su Google, rispetto a un mese fa. Secondo i suoi dati di Search Console.",
       noCompetitorsFound: "Non ne abbiamo trovato nessuno dal suo sito. Aggiunga i concorrenti che conosce e li useremo per individuare lacune nei contenuti.",
       competitorsHelp: "Chi altro compare quando gli acquirenti cercano nel suo settore. Li usiamo per trovare lacune nei contenuti e i termini che vale la pena presidiare.",
-      connectWebsiteFirst: "Colleghi prima un sito qui sotto. Fino ad allora gli articoli restano bozze.",
+      connectWebsiteFirst: "Colleghi prima il suo sito in Impostazioni → Integrazioni. Fino ad allora, gli articoli restano in RepGet.",
       generationHelp: "Come vengono scritti i suoi articoli e che cosa ne succede quando sono pronti.",
       altHelp: "Viene letta ad alta voce a chi usa uno screen reader, e dai motori di ricerca.",
       featuredImageHelp: "L\u2019immagine in cima all\u2019articolo, e quella mostrata quando viene condiviso.",
@@ -6390,6 +6422,14 @@ const it: Messages = {
       writeAutomatically: "Scrivi articoli automaticamente",
       daysToWrite: "Giorni in cui scrivere",
       publishWithoutAsking: "Pubblica senza chiedermelo",
+      whenFinished: "Quando un articolo è pronto",
+      finishedReview: "Tenerlo in RepGet per rivederlo",
+      finishedReviewHelp: "Nulla arriva sul suo sito finché non preme Pubblica sull’articolo.",
+      finishedDraft: "Inviarlo al mio sito come bozza",
+      finishedDraftHelp: "Compare come bozza nel suo CMS nel giorno previsto. Lo pubblica lei da lì.",
+      finishedLive: "Pubblicarlo nel giorno previsto",
+      finishedLiveHelp: "Va online sul suo sito nel giorno previsto, senza che debba fare nulla.",
+      firstArticleNote: "Il suo primo articolo viene pubblicato appena è scritto, qualunque sia la scelta, così vede subito come appaiono gli articoli sul suo sito.",
     },
     nav: {
       dashboard: "Dashboard",
@@ -7680,7 +7720,7 @@ const de: Messages = {
       losingTrafficIntro: "Seiten, die weniger Klicks bekommen oder seltener in Google erscheinen als vor einem Monat. Laut Ihren Search-Console-Daten.",
       noCompetitorsFound: "Wir haben auf Ihrer Website keine gefunden. Fügen Sie die Wettbewerber hinzu, die Sie kennen, und wir finden damit Inhaltslücken.",
       competitorsHelp: "Wer sonst auftaucht, wenn Käufer in Ihrem Bereich suchen. Wir nutzen das, um Inhaltslücken und lohnende Suchbegriffe zu finden.",
-      connectWebsiteFirst: "Verbinden Sie zuerst unten eine Website. Bis dahin bleiben Artikel Entwürfe.",
+      connectWebsiteFirst: "Verbinden Sie zuerst Ihre Website unter Einstellungen → Integrationen. Bis dahin warten Artikel in RepGet.",
       generationHelp: "Wie Ihre Artikel geschrieben werden und was mit ihnen geschieht, wenn sie fertig sind.",
       altHelp: "Wird Menschen mit Screenreader vorgelesen und von Suchmaschinen gelesen.",
       featuredImageHelp: "Das Bild oben im Artikel und das Bild, das beim Teilen erscheint.",
@@ -7745,6 +7785,14 @@ const de: Messages = {
       writeAutomatically: "Artikel automatisch schreiben",
       daysToWrite: "Tage zum Schreiben",
       publishWithoutAsking: "Ohne Rückfrage veröffentlichen",
+      whenFinished: "Wenn ein Artikel fertig ist",
+      finishedReview: "In RepGet zur Prüfung behalten",
+      finishedReviewHelp: "Nichts erscheint auf Ihrer Website, bis Sie beim Artikel auf Veröffentlichen klicken.",
+      finishedDraft: "Als Entwurf an meine Website senden",
+      finishedDraftHelp: "Er erscheint am geplanten Tag als Entwurf in Ihrem CMS. Sie veröffentlichen ihn dort.",
+      finishedLive: "Am geplanten Tag live veröffentlichen",
+      finishedLiveHelp: "Er geht am geplanten Tag auf Ihrer Website live, ohne dass Sie etwas tun müssen.",
+      firstArticleNote: "Ihr erster Artikel wird veröffentlicht, sobald er geschrieben ist, egal was Sie wählen, damit Sie sofort sehen, wie Artikel auf Ihrer Website aussehen.",
     },
     nav: {
       dashboard: "Dashboard",

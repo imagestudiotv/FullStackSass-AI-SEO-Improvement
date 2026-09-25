@@ -11,6 +11,7 @@ import {
   integrationKeys,
   integrations,
   publishLogs,
+  websites,
 } from "@/lib/db/schema";
 import {
   ProviderError,
@@ -21,6 +22,7 @@ import {
   readStoredCredentials,
   type StoredCredentials,
 } from "@/lib/publishing/credentials";
+import { automaticStatus, pendingFirstArticle } from "@/lib/publishing/policy";
 import type { IntegrationView, ProviderInfo } from "@/lib/publishing/shared";
 import { requireWebsite } from "@/lib/tenant";
 import { requireEditor } from "@/lib/websites/require-editor";
@@ -204,6 +206,29 @@ export async function connectProvider(
     await db
       .insert(integrations)
       .values({ websiteId: site.id, kind: provider.id, ...row });
+  }
+
+  /*
+    A first article written before the website was connected goes out now,
+    rather than waiting for the next daily release - the client wants the
+    first article on the site immediately. See lib/publishing/policy.ts.
+  */
+  const first = await pendingFirstArticle(site.id);
+  if (first) {
+    const [settings] = await db
+      .select({ autoPublish: websites.autoPublish, publishAs: websites.publishAs })
+      .from(websites)
+      .where(eq(websites.id, site.id))
+      .limit(1);
+    await queueJob({
+      name: "article/publish.requested",
+      data: {
+        articleId: first.id,
+        websiteId: site.id,
+        organizationId: site.organizationId,
+        status: settings ? automaticStatus(settings) : "publish",
+      },
+    });
   }
 
   revalidatePath(`/websites/${site.id}/integrations`);

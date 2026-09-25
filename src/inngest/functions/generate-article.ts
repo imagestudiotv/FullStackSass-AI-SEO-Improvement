@@ -8,7 +8,6 @@ import {
   articleVersions,
   brandVoice,
   calendarItems,
-  integrations,
   keywords,
   websites,
 } from "@/lib/db/schema";
@@ -25,6 +24,11 @@ import {
   generateArticleImage,
   isImageGenerationConfigured,
 } from "@/lib/images/generate";
+import {
+  automaticStatus,
+  hasConnectedIntegration,
+  pendingFirstArticle,
+} from "@/lib/publishing/policy";
 import { notify } from "@/lib/notifications/create";
 
 /**
@@ -645,22 +649,69 @@ export const generateArticle = inngest.createFunction(
      * been changed while the article was being written.
      */
     const autoPublished = await step.run("auto-publish", async () => {
+      const [site] = await db
+        .select({
+          autoPublish: websites.autoPublish,
+          publishAs: websites.publishAs,
+        })
+        .from(websites)
+        .where(eq(websites.id, brief.websiteId))
+        .limit(1);
+      if (!site) return false;
+
+      // What the customer chose: Live, or a draft in their CMS. Every direct
+      // connection used to publish live regardless. See publishing/policy.ts.
+      const status = automaticStatus(site);
+      const connected = await hasConnectedIntegration(brief.websiteId);
+
+      /**
+       * The website's first article goes out now, whatever the setting.
+       *
+       * The client's rule: the first article after subscribing is published
+       * automatically and immediately, with auto-publish on OR off, so the
+       * customer sees the product work on their own site at once. Its
+       * calendar date is not waited for either.
+       *
+       * Not connected yet: it waits, and goes the moment a website is
+       * connected (connectIntegration and the daily release), or the
+       * WordPress plugin collects it on its first check.
+       */
+      const first = await pendingFirstArticle(brief.websiteId);
+      if (first?.id === articleId) {
+        if (!connected) {
+          logger.info(
+            { step: "auto-publish", articleId, websiteId: brief.websiteId, first: true },
+            "First article written - it goes out as soon as a website is connected",
+          );
+          return false;
+        }
+        await inngest.send({
+          name: "article/publish.requested",
+          data: { articleId, websiteId: brief.websiteId, organizationId, status },
+        });
+        logger.info(
+          { step: "auto-publish", articleId, websiteId: brief.websiteId, first: true, status },
+          "First article - publishing immediately, whatever the setting",
+        );
+        return true;
+      }
+
       /**
        * Not before the day the calendar says.
        *
-       * Articles are written up to LOOKAHEAD_DAYS ahead so finished work is
-       * always waiting — but publishing inherited that head start, and the
-       * whole batch went live the moment it was written. A customer looking
-       * at their plan saw tomorrow's and the next day's articles already
-       * marked Published, which is not a schedule at all.
+       * Articles are written ahead so finished work is always waiting - but
+       * publishing inherited that head start, and the whole batch went live
+       * the moment it was written. A customer looking at their plan saw
+       * tomorrow's and the next day's articles already marked Published,
+       * which is not a schedule at all.
        *
        * Compared by DATE, not by instant: the calendar stores noon on the
        * day, and a customer who plans an article "for the 24th" means the
        * day, not 12:00. Publishing at 06:00 on the 24th is on time; at 06:00
        * on the 23rd it is a day early.
        *
-       * An article with no calendar item — written from the button, or
-       * one-off — has no date to wait for and publishes as it always did.
+       * An article with no calendar item - written from the button, or
+       * one-off - has no date to wait for and publishes as it always did.
        */
       if (brief.calendarItemId) {
         const [item] = await db
@@ -689,13 +740,7 @@ export const generateArticle = inngest.createFunction(
         }
       }
 
-      const [site] = await db
-        .select({ autoPublish: websites.autoPublish })
-        .from(websites)
-        .where(eq(websites.id, brief.websiteId))
-        .limit(1);
-
-      if (!site?.autoPublish) {
+      if (!site.autoPublish) {
         logger.info(
           {
             step: "auto-publish",
@@ -703,30 +748,18 @@ export const generateArticle = inngest.createFunction(
             websiteId: brief.websiteId,
             autoPublish: false,
           },
-          "Auto-publish is off - article stays a draft",
+          "Set to wait for review - article stays in RepGet",
         );
         return false;
       }
 
-      // Nowhere to publish to is not a failure; it is a customer who has not
-      // connected a CMS yet, and the article waits for them as a draft.
-      const [connected] = await db
-        .select({ id: integrations.id })
-        .from(integrations)
-        .where(
-          and(
-            eq(integrations.websiteId, brief.websiteId),
-            eq(integrations.status, "connected"),
-          ),
-        )
-        .limit(1);
-
       if (!connected) {
         /*
           Auto-publish is ON and nothing happens. This is the branch that
-          looks broken from the customer's side — they switched the setting on
-          and their article still sits as a draft — so it is a warning rather
-          than an info line.
+          looks broken from the customer's side - they switched the setting on
+          and their article still sits as a draft - so it is a warning rather
+          than an info line. (A plugin-only site is served by the plugin's own
+          queue instead; see lib/plugin/due.ts.)
         */
         logger.warn(
           {
@@ -742,16 +775,11 @@ export const generateArticle = inngest.createFunction(
 
       await inngest.send({
         name: "article/publish.requested",
-        data: {
-          articleId,
-          websiteId: brief.websiteId,
-          organizationId,
-          status: "publish" as const,
-        },
+        data: { articleId, websiteId: brief.websiteId, organizationId, status },
       });
 
       logger.info(
-        { step: "auto-publish", articleId, websiteId: brief.websiteId, autoPublish: true },
+        { step: "auto-publish", articleId, websiteId: brief.websiteId, autoPublish: true, status },
         "Publish requested for this article",
       );
       return true;

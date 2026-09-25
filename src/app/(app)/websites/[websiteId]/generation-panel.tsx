@@ -14,7 +14,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { setAutoPublish, setGenerationMode } from "@/lib/websites/actions";
+import { setFinishedMode, setGenerationMode } from "@/lib/websites/actions";
+import type { FinishedMode } from "@/lib/publishing/policy";
 import { cn } from "@/lib/utils";
 
 /**
@@ -86,14 +87,16 @@ export function GenerationPanel({
   websiteId,
   mode,
   days,
-  autoPublish,
+  finishedMode,
   hasIntegration,
   t,
 }: {
   websiteId: string;
   mode: "automatic" | "manual";
   days: number[];
-  autoPublish: boolean;
+  /** What happens to a finished article. See lib/publishing/policy.ts. */
+  finishedMode: FinishedMode;
+  /** A direct CMS connection or a WordPress plugin that has checked in. */
   hasIntegration: boolean;
   /** Shared words used on several screens. */
   t: Messages["app"]["common"];
@@ -108,7 +111,7 @@ export function GenerationPanel({
    */
   const [auto, setAuto] = useState(mode === "automatic");
   const [selectedDays, setSelectedDays] = useState<number[]>(days);
-  const [publish, setPublish] = useState(autoPublish);
+  const [finished, setFinished] = useState<FinishedMode>(finishedMode);
 
   function saveMode(nextAuto: boolean, nextDays: number[]) {
     const previousAuto = auto;
@@ -132,18 +135,29 @@ export function GenerationPanel({
     });
   }
 
-  function togglePublish(next: boolean) {
-    setPublish(next);
+  function chooseFinished(next: FinishedMode) {
+    const previous = finished;
+    setFinished(next);
     startTransition(async () => {
-      const result = await setAutoPublish(websiteId, next);
+      const result = await setFinishedMode(websiteId, next);
       if (!result.ok) {
-        setPublish(!next);
+        setFinished(previous);
         toast.error(result.error);
         return;
       }
       router.refresh();
     });
   }
+
+  const FINISHED_OPTIONS: {
+    value: FinishedMode;
+    label: string;
+    help: string;
+  }[] = [
+    { value: "review", label: t.finishedReview, help: t.finishedReviewHelp },
+    { value: "draft", label: t.finishedDraft, help: t.finishedDraftHelp },
+    { value: "live", label: t.finishedLive, help: t.finishedLiveHelp },
+  ];
 
   /**
    * Turns one day on or off.
@@ -242,28 +256,72 @@ export function GenerationPanel({
           </div>
         ) : null}
 
-        <div className="flex items-start justify-between gap-4 border-t pt-5">
-          <div className="space-y-1">
-            <label htmlFor="auto-publish" className="text-sm font-medium">
-              {t.publishWithoutAsking}
-            </label>
-            <p className="text-sm text-muted-foreground">
-              {publish
-                ? "Finished articles go live on your website by themselves."
-                : "Finished articles are saved as drafts for you to review first."}
-            </p>
-            {publish && !hasIntegration ? (
-              <p className="text-sm text-muted-foreground">
-                {t.connectWebsiteFirst}
-                </p>
-            ) : null}
+        {/*
+          ONE setting, where there used to be "Publish without asking me" here
+          and "Publish as" in the Content & SEO card - two controls, with
+          "draft" meaning a different thing in each. See publishing/policy.ts.
+        */}
+        <div className="space-y-3 border-t pt-5">
+          <p id="when-finished" className="text-sm font-medium">
+            {t.whenFinished}
+          </p>
+          <div
+            role="radiogroup"
+            aria-labelledby="when-finished"
+            className="grid gap-2"
+          >
+            {FINISHED_OPTIONS.map((option) => {
+              const selected = finished === option.value;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  disabled={pending}
+                  onClick={() => chooseFinished(option.value)}
+                  className={cn(
+                    "flex items-start gap-3 rounded-xl border p-3 text-left transition-colors disabled:opacity-60",
+                    selected
+                      ? "border-primary bg-primary/5"
+                      : "hover:bg-muted/50",
+                  )}
+                >
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border",
+                      selected ? "border-primary" : "border-input",
+                    )}
+                  >
+                    {selected ? (
+                      <span className="size-2 rounded-full bg-primary" />
+                    ) : null}
+                  </span>
+                  <span className="space-y-0.5">
+                    <span className="block text-sm font-medium">
+                      {option.label}
+                    </span>
+                    <span className="block text-sm text-muted-foreground">
+                      {option.help}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
           </div>
-          <Toggle
-            id="auto-publish"
-            checked={publish}
-            disabled={pending}
-            onChange={togglePublish}
-          />
+
+          {/*
+            Said here because it overrides the choice above: the client's rule
+            is that the first article goes out whatever is picked.
+          */}
+          <p className="text-xs text-muted-foreground">{t.firstArticleNote}</p>
+
+          {!hasIntegration ? (
+            <p className="text-sm text-muted-foreground">
+              {t.connectWebsiteFirst}
+            </p>
+          ) : null}
         </div>
       </CardContent>
     </Card>

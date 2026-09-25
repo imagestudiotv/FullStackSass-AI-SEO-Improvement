@@ -248,6 +248,14 @@ export const websites = pgTable("websites", {
    */
   autoPublish: boolean("auto_publish").default(false).notNull(),
   /**
+   * When this website's first article was sent to its site; null until then.
+   *
+   * The first article is published as soon as it is written whatever the
+   * publishing setting says (lib/publishing/policy.ts), and this makes that
+   * happen once. Set by every publishing path when a post is created.
+   */
+  firstArticleSentAt: timestamp("first_article_sent_at"),
+  /**
    * Whether articles are written on a schedule or only when asked.
    *
    * "automatic" is the default for a new website: the product is sold as

@@ -5,6 +5,10 @@ import { getBrandVoice } from "@/lib/brand/actions";
 import { ArticleSettingsForm } from "../article-settings-form";
 import { GenerationPanel } from "../generation-panel";
 import { requirePlan } from "@/lib/billing/require-plan";
+import { finishedModeOf } from "@/lib/publishing/policy";
+import { and, eq, isNotNull, isNull } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { integrationKeys } from "@/lib/db/schema";
 
 export const metadata = { title: "Publishing" };
 
@@ -30,9 +34,22 @@ export default async function WebsitePublishingPage({
     Integrations, so their three queries moved with them rather than being
     fetched here for a panel that is no longer on the page.
   */
-  const [integrations, voice] = await Promise.all([
+  const [integrations, voice, plugin] = await Promise.all([
     listIntegrations(site.id),
     getBrandVoice(site.id),
+    // A WordPress plugin that has checked in is a connection too; it keeps
+    // no integrations row, so it is looked up on its own.
+    db
+      .select({ id: integrationKeys.id })
+      .from(integrationKeys)
+      .where(
+        and(
+          eq(integrationKeys.websiteId, site.id),
+          isNull(integrationKeys.revokedAt),
+          isNotNull(integrationKeys.lastUsedAt),
+        ),
+      )
+      .limit(1),
   ]);
 
   return (
@@ -55,7 +72,6 @@ export default async function WebsitePublishingPage({
         */
         reviewed={site.articleSettingsReviewedAt !== null}
         initial={{
-          publishAs: site.publishAs === "draft" ? "draft" : "live",
           articleStyle: site.articleStyle,
           internalLinkTarget: site.internalLinkTarget,
           targetWordCount: site.targetWordCount,
@@ -109,8 +125,11 @@ export default async function WebsitePublishingPage({
             ? (site.publishingDays as number[])
             : []
         }
-        autoPublish={site.autoPublish}
-        hasIntegration={integrations.some((i) => i.status === "connected")}
+        finishedMode={finishedModeOf(site)}
+        hasIntegration={
+          integrations.some((i) => i.status === "connected") ||
+          plugin.length > 0
+        }
       />
 
 

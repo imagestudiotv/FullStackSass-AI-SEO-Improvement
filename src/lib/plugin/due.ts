@@ -2,6 +2,7 @@ import { and, asc, eq, isNotNull, isNull, lte, or } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { articles, calendarItems, websites } from "@/lib/db/schema";
+import { isFirstArticle } from "@/lib/publishing/policy";
 
 /**
  * Articles the WordPress plugin should create now, for one website.
@@ -15,6 +16,8 @@ import { articles, calendarItems, websites } from "@/lib/db/schema";
  * rules the direct WordPress connection follows (see publishDueDrafts in
  * inngest/functions/scheduled-articles.ts):
  *
+ *  - it is the website's FIRST article, which goes out as soon as it is
+ *    written whatever the setting (lib/publishing/policy.ts), or
  *  - somebody pressed Publish on it (publish_requested), or
  *  - the site has auto-publish on AND the article's planned date has come -
  *    an article with no planned date is due as soon as it is written.
@@ -39,6 +42,7 @@ export function dueArticlesForPlugin(
       imageAlt: articles.imageAlt,
       publishRequested: articles.publishRequested,
       publishAs: websites.publishAs,
+      autoPublish: websites.autoPublish,
     })
     .from(articles)
     .innerJoin(websites, eq(websites.id, articles.websiteId))
@@ -50,6 +54,9 @@ export function dueArticlesForPlugin(
         eq(articles.status, "draft"),
         isNull(articles.publishedUrl),
         or(
+          // The first article: nothing sent for this site yet, and this is
+          // its earliest article. Same rule as pendingFirstArticle.
+          isFirstArticle,
           isNotNull(articles.publishRequested),
           and(
             eq(websites.autoPublish, true),

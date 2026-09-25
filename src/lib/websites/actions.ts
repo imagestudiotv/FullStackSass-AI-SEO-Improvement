@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { queueJob } from "@/inngest/send";
 import { db } from "@/lib/db";
 import { competitors, websites } from "@/lib/db/schema";
+import { settingsForMode, type FinishedMode } from "@/lib/publishing/policy";
 import {
   requireOrg,
   requireWebsite,
@@ -243,24 +244,29 @@ export async function updateWebsiteServices(
 }
 
 /**
- * Turns automatic publishing on or off.
+ * What happens to an article once it is written: kept for review, sent to the
+ * CMS as a draft, or published live on its planned day.
  *
- * Off means a finished article is saved as a draft for review; on means it
- * goes to the connected CMS by itself. Off is the default and stays the
- * default: publishing to someone's live website without them seeing it first
- * is not something to opt people out of.
+ * One setting stored as the two columns it replaced (auto_publish and
+ * publish_as), which were two controls in two cards before - see
+ * lib/publishing/policy.ts. Anything but the three known values is refused
+ * rather than guessed at.
  */
-export async function setAutoPublish(
+export async function setFinishedMode(
   websiteId: string,
-  enabled: boolean,
+  mode: FinishedMode,
 ): Promise<ActionResult<null>> {
   const guard = await requireEditor(websiteId);
   if (!guard.ok) return { ok: false, error: guard.error };
   const { site } = guard.context;
 
+  if (mode !== "review" && mode !== "draft" && mode !== "live") {
+    return { ok: false, error: "Unknown publishing choice" };
+  }
+
   await db
     .update(websites)
-    .set({ autoPublish: enabled, updatedAt: new Date() })
+    .set({ ...settingsForMode(mode), updatedAt: new Date() })
     .where(eq(websites.id, site.id));
 
   revalidatePath(`/websites/${site.id}/publishing`);

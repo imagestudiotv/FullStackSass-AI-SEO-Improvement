@@ -5,6 +5,12 @@ import { queueArticleForCalendarItem } from "@/inngest/functions/generate-articl
 import { db } from "@/lib/db";
 import { articles, calendarItems, websites } from "@/lib/db/schema";
 import { notify } from "@/lib/notifications/create";
+import {
+  automaticStatus,
+  batchStillAhead,
+  pendingFirstArticle,
+  websitesAwaitingFirstArticle,
+} from "@/lib/publishing/policy";
 import { checkLimit } from "@/lib/usage";
 import { UNLIMITED } from "@/lib/usage-shared";
 
@@ -29,31 +35,35 @@ import { UNLIMITED } from "@/lib/usage-shared";
 /** How many websites one run will look at. */
 const WEBSITE_BATCH = 200;
 /**
- * How many days ahead of today a calendar item may be written.
+ * How many days after today a calendar item may be written.
  *
  * Articles are written before their date, not on it, so a customer always has
- * finished work waiting rather than an empty page while a job runs. Three
- * days is the window the product promises: today plus the next two are
- * "generating", everything beyond that stays queued and can still be
- * reordered, retitled or dropped.
+ * finished work waiting rather than an empty page while a job runs. The
+ * window is today plus the next TWO days - the client's "next-2-day
+ * articles". Everything beyond stays planned and can still be reordered,
+ * retitled or dropped.
  *
- * Writing further ahead would take that away — an article already written is
- * an article the customer can no longer change their mind about.
+ * It was 3, which with the end-of-day rounding below reached FOUR calendar
+ * days (today to today+3), one more than the product promised.
  */
-const LOOKAHEAD_DAYS = 3;
+const LOOKAHEAD_DAYS = 2;
 
 /**
- * Articles queued per website per run.
+ * Days of articles written per batch: the next two days' worth.
  *
- * A cap rather than "everything due", because a calendar that was paused for
- * a fortnight comes back with fourteen items due at once. Publishing two
- * weeks of articles in one morning is not what the customer asked for, and it
- * would empty their monthly allowance in a single day.
- *
- * Scaled by the plan's daily cadence below: a customer on three a day needs
- * nine in flight to keep three days ahead, where one a day needs three.
+ * With publishing automatic, a website gets one batch at a time - the next
+ * batch is written only once the previous one has been published (see
+ * batchStillAhead). The client's rule: "the other next-2-day articles have to
+ * be generated as drafts and published on their scheduled days, and then
+ * another next-2-day batch generated after the previous ones are published".
  */
-const MAX_PER_WEBSITE = 3;
+const BATCH_DAYS = 2;
+
+/**
+ * Drafts one release pass will publish per website: enough for a calendar
+ * that was paused for a while, without emptying a month in a morning.
+ */
+const MAX_RELEASE_PER_WEBSITE = 3;
 
 /** 0 = Sunday, matching Date.getUTCDay(). */
 function isPublishingDay(days: unknown, today: number): boolean {
@@ -77,11 +87,35 @@ function isPublishingDay(days: unknown, today: number): boolean {
  * through this path that would not have reached it through the other one.
  */
 async function publishDueDrafts(): Promise<number> {
+  let released = 0;
+
+  /*
+    First articles still waiting. Normally the first article goes out the
+    moment it is written; this catches one written before the website was
+    connected, and one whose publish failed. See lib/publishing/policy.ts.
+  */
+  for (const site of await websitesAwaitingFirstArticle()) {
+    const first = await pendingFirstArticle(site.websiteId);
+    if (!first) continue;
+    await inngest.send({
+      name: "article/publish.requested",
+      data: {
+        articleId: first.id,
+        websiteId: site.websiteId,
+        organizationId: site.organizationId,
+        status: automaticStatus(site),
+      },
+    });
+    released += 1;
+  }
+
   const rows = await db
     .select({
       id: articles.id,
       websiteId: articles.websiteId,
       organizationId: websites.organizationId,
+      autoPublish: websites.autoPublish,
+      publishAs: websites.publishAs,
     })
     .from(articles)
     .innerJoin(calendarItems, eq(calendarItems.id, articles.calendarItemId))
@@ -98,7 +132,7 @@ async function publishDueDrafts(): Promise<number> {
         )`,
       ),
     )
-    .limit(MAX_PER_WEBSITE * WEBSITE_BATCH);
+    .limit(MAX_RELEASE_PER_WEBSITE * WEBSITE_BATCH);
 
   for (const row of rows) {
     await inngest.send({
@@ -107,12 +141,14 @@ async function publishDueDrafts(): Promise<number> {
         articleId: row.id,
         websiteId: row.websiteId,
         organizationId: row.organizationId,
-        status: "publish" as const,
+        // Live or a CMS draft, as the customer chose. This always published
+        // live before, whatever "Publish as" said.
+        status: automaticStatus(row),
       },
     });
   }
 
-  return rows.length;
+  return released + rows.length;
 }
 
 export const scheduledArticles = inngest.createFunction(
@@ -190,6 +226,7 @@ export const scheduledArticles = inngest.createFunction(
           organizationId: websites.organizationId,
           domain: websites.domain,
           publishingDays: websites.publishingDays,
+          autoPublish: websites.autoPublish,
         })
         .from(websites)
         .innerJoin(
@@ -299,7 +336,7 @@ export const scheduledArticles = inngest.createFunction(
 
         const remaining =
           limit.limit === UNLIMITED
-            ? MAX_PER_WEBSITE
+            ? BATCH_DAYS
             : Math.max(limit.limit - limit.used, 0);
 
         /**
@@ -333,9 +370,34 @@ export const scheduledArticles = inngest.createFunction(
          * thing; an established site mid-month never hits it.
          */
         const firstRun = limit.used === 0;
+
+        /*
+          One batch at a time when publishing is automatic: nothing new is
+          written while any article from the previous batch is still waiting
+          for its date. Due articles do not count - this same run releases
+          them - so the next batch starts on the day the last one goes out.
+
+          Not applied when the customer reviews articles themselves: those are
+          never published automatically, so the batch would never finish and
+          writing would stop for good. They get the plain two-day window.
+        */
+        if (site.autoPublish && !firstRun) {
+          const ahead = await batchStillAhead(site.websiteId);
+          if (ahead > 0) {
+            logger.info(
+              {
+                step: `queue-${site.websiteId}`,
+                websiteId: site.websiteId,
+                waitingToPublish: ahead,
+              },
+              "Previous batch not published yet - next batch waits",
+            );
+            return { queued: 0, limited: false };
+          }
+        }
         const take = firstRun
           ? Math.min(1, remaining)
-          : Math.min(MAX_PER_WEBSITE * perDay, remaining);
+          : Math.min(BATCH_DAYS * perDay, remaining);
         if (take === 0) {
           // Allowed by the plan check above but with no headroom left, which
           // is the same outcome for the customer and needs the same record.
