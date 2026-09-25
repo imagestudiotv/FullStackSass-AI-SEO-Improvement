@@ -1,7 +1,7 @@
 import { and, asc, eq, isNotNull, isNull, lte, or, sql as raw } from "drizzle-orm";
 
 import { db } from "@/lib/db";
-import { articles, calendarItems, websites } from "@/lib/db/schema";
+import { articles, calendarItems, publishLogs, websites } from "@/lib/db/schema";
 import { isFirstArticle } from "@/lib/publishing/policy";
 
 /**
@@ -73,4 +73,32 @@ export function dueArticlesForPlugin(
     // Oldest first: the queue should drain in the order it filled.
     .orderBy(asc(articles.createdAt))
     .limit(limit);
+}
+
+/**
+ * The WordPress posts the plugin has created for a website, with the article
+ * each one is. The plugin uses this to move them when the customer changes
+ * which content type RepGet articles are published as (1.5.0+) - including
+ * posts created before the plugin tagged them itself.
+ *
+ * Plugin publishes carry no integration id; direct CMS publishes do, and are
+ * not the plugin's to move.
+ */
+export function pluginPostsForWebsite(websiteId: string) {
+  return db
+    .selectDistinct({
+      articleId: publishLogs.articleId,
+      postId: publishLogs.remoteId,
+    })
+    .from(publishLogs)
+    .innerJoin(articles, eq(articles.id, publishLogs.articleId))
+    .where(
+      and(
+        eq(articles.websiteId, websiteId),
+        eq(publishLogs.status, "published"),
+        isNull(publishLogs.integrationId),
+        isNotNull(publishLogs.remoteId),
+      ),
+    )
+    .limit(500);
 }

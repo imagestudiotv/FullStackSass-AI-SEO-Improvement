@@ -118,6 +118,10 @@ export const INTEGRATION_DOCS: IntegrationDoc[] = [
         fix: "Nothing is sent until an article is due. Check, in order: is auto-publish on in RepGet; has the article's planned date arrived; is the article actually written (Planned or Writing means not yet). To send one now regardless, open the article in RepGet and press Publish, then press Check for articles now in WordPress.",
       },
       {
+        problem: "The article is cut off, or looks like a portfolio or project page",
+        fix: "Your theme shows ordinary WordPress Posts in a different layout from your blog - often a portfolio or project page with a short text panel - so a full article does not fit. On the RepGet screen in WordPress, set Publish articles as to the content type your existing blog articles use (for example Editorial), then press Save and connect. The articles RepGet already created are moved there too, and RepGet is told their new addresses. Needs plugin 1.5 or later.",
+      },
+      {
         problem: "Articles arrive as drafts instead of live posts",
         fix: "Settings → Article Settings → When an article is finished is set to Send it to my site as a draft, which is doing its job. Choose Publish it live on its planned day for future articles; drafts already created can be published from the Posts screen in WordPress.",
       },

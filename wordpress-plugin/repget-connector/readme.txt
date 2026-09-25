@@ -2,7 +2,7 @@
 Requires at least: 5.6
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.4.0
+Stable tag: 1.5.0
 License: GPLv2 or later
 
 Publishes articles written by RepGet straight to your WordPress site.
@@ -64,6 +64,12 @@ Nothing else is sent. The plugin only
 fetches articles and reports whether each one published.
 
 == Changelog ==
+
+= 1.5.0 =
+* Choose which content type articles are published as - for themes that show
+  ordinary Posts as portfolio or project pages rather than as articles.
+  Changing it moves the articles RepGet already created, and RepGet is told
+  their new addresses.
 
 = 1.4.0 =
 * Publish in RepGet now publishes straight away: RepGet asks the plugin to

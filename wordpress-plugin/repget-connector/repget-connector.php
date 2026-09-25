@@ -2,7 +2,7 @@
 /**
  * Plugin Name: RepGet Connector
  * Description: Publishes articles written by RepGet straight to this site. Paste your Integration Key to connect.
- * Version: 1.4.0
+ * Version: 1.5.0
  * Requires at least: 5.6
  * Requires PHP: 7.4
  * License: GPLv2 or later
@@ -31,10 +31,14 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('REPGET_VERSION', '1.4.0');
+define('REPGET_VERSION', '1.5.0');
 define('REPGET_OPTION_KEY', 'repget_integration_key');
 define('REPGET_OPTION_STATUS', 'repget_status');
 define('REPGET_OPTION_ENDPOINT', 'repget_endpoint');
+/** Which content type RepGet articles are created as. See repget_post_type(). */
+define('REPGET_OPTION_POST_TYPE', 'repget_post_type');
+/** Marks a post as a RepGet article, with the RepGet article id. */
+define('REPGET_META_ARTICLE', '_repget_article_id');
 /*
   Set by the activation hook, read and deleted on the next admin screen.
   An activation hook cannot redirect - it runs inside the request WordPress
@@ -352,6 +356,23 @@ function repget_settings_page() {
             : '';
         update_option(REPGET_OPTION_KEY, $key);
 
+        $moved_notice = '';
+        if (isset($_POST['repget_post_type'])) {
+            $wanted = sanitize_key(wp_unslash($_POST['repget_post_type']));
+            $choices = repget_post_type_choices();
+            if (isset($choices[$wanted]) && $wanted !== repget_post_type()) {
+                update_option(REPGET_OPTION_POST_TYPE, $wanted);
+                $moved = repget_move_articles_to($wanted);
+                if (!is_wp_error($moved) && $moved > 0) {
+                    $moved_notice = ' ' . sprintf(
+                        _n('Moved %1$d existing article to %2$s.', 'Moved %1$d existing articles to %2$s.', $moved, 'repget'),
+                        $moved,
+                        $choices[$wanted]
+                    );
+                }
+            }
+        }
+
         $result = repget_verify();
         if (is_wp_error($result)) {
             $notice = $result->get_error_message();
@@ -361,6 +382,7 @@ function repget_settings_page() {
             $notice = $name !== ''
                 ? sprintf(__('Connected to %s.', 'repget'), esc_html($name))
                 : __('Connected.', 'repget');
+            $notice .= $moved_notice;
         }
     }
 
@@ -419,6 +441,23 @@ function repget_settings_page() {
                         />
                         <p class="description">
                             <?php esc_html_e('In RepGet: Settings → Integrations → WordPress plugin → New key.', 'repget'); ?>
+                        </p>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row">
+                        <label for="repget_post_type"><?php esc_html_e('Publish articles as', 'repget'); ?></label>
+                    </th>
+                    <td>
+                        <select id="repget_post_type" name="repget_post_type">
+                            <?php foreach (repget_post_type_choices() as $type => $label) : ?>
+                                <option value="<?php echo esc_attr($type); ?>" <?php selected(repget_post_type(), $type); ?>>
+                                    <?php echo esc_html($label); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <p class="description">
+                            <?php esc_html_e('Where your blog articles live on this site. Many themes show ordinary Posts as something else - a portfolio or project page - so choose the type your existing articles use. Changing it moves the articles RepGet already created.', 'repget'); ?>
                         </p>
                     </td>
                 </tr>
@@ -571,7 +610,7 @@ function repget_sync() {
                 : '',
             'post_name'    => isset($article['slug']) ? sanitize_title($article['slug']) : '',
             'post_status'  => $status,
-            'post_type'    => 'post',
+            'post_type'    => repget_post_type(),
         ), true);
 
         if (is_wp_error($post_id)) {
@@ -585,11 +624,106 @@ function repget_sync() {
             repget_attach_image($post_id, $article['image']['url'], $article['image']['alt']);
         }
 
+        update_post_meta($post_id, REPGET_META_ARTICLE, sanitize_text_field($article['id']));
         repget_report($article['id'], get_permalink($post_id), $post_id, null, $status);
         $published++;
     }
 
     return $published;
+}
+
+/**
+ * The content type RepGet articles are created as.
+ *
+ * 'post' unless the site owner chose otherwise. Some themes show ordinary
+ * Posts as portfolio or project pages - imagestudio.com shows them as a
+ * full-screen slider whose text panel has a fixed height, so a full article
+ * was cut off below its Read More - while the real blog uses a custom type.
+ * A choice that no longer exists falls back to 'post' rather than failing.
+ */
+function repget_post_type() {
+    $type = get_option(REPGET_OPTION_POST_TYPE, 'post');
+    $choices = repget_post_type_choices();
+    return isset($choices[$type]) ? $type : 'post';
+}
+
+/**
+ * Content types an article can be published as: public, editable in the
+ * admin and with a body - so not media, not page-builder templates.
+ *
+ * @return array<string,string> slug => label, e.g. 'custom_post' => 'Editorial'
+ */
+function repget_post_type_choices() {
+    $choices = array();
+    foreach (get_post_types(array('public' => true, 'show_ui' => true), 'objects') as $type) {
+        if (in_array($type->name, array('attachment', 'elementor_library', 'e-floating-buttons'), true)) {
+            continue;
+        }
+        if (!post_type_supports($type->name, 'editor')) {
+            continue;
+        }
+        $label = $type->labels->name ? $type->labels->name : $type->name;
+        $choices[$type->name] = $type->name === $label ? $label : sprintf('%s (%s)', $label, $type->name);
+    }
+    if (!isset($choices['post'])) {
+        $choices = array('post' => __('Posts', 'repget')) + $choices;
+    }
+    return $choices;
+}
+
+/**
+ * Moves the articles RepGet already created to another content type, and
+ * tells RepGet their new addresses.
+ *
+ * Found two ways: posts this plugin tagged (1.5.0+), and the post ids RepGet
+ * recorded when older versions created them - those carry no tag. Only those
+ * posts are touched; nothing else on the site is.
+ *
+ * @return int|WP_Error how many posts moved
+ */
+function repget_move_articles_to($post_type) {
+    $targets = array(); // post id => RepGet article id
+
+    $tagged = get_posts(array(
+        'post_type'      => 'any',
+        'post_status'    => 'any',
+        'posts_per_page' => 500,
+        'meta_key'       => REPGET_META_ARTICLE,
+        'fields'         => 'ids',
+    ));
+    foreach ($tagged as $post_id) {
+        $targets[(int) $post_id] = get_post_meta($post_id, REPGET_META_ARTICLE, true);
+    }
+
+    $result = repget_request('/api/plugin/articles', array('method' => 'GET'));
+    if (!is_wp_error($result) && isset($result['sent']) && is_array($result['sent'])) {
+        foreach ($result['sent'] as $row) {
+            if (!empty($row['postId']) && !empty($row['articleId'])) {
+                $targets[(int) $row['postId']] = sanitize_text_field($row['articleId']);
+            }
+        }
+    }
+
+    $moved = 0;
+    foreach ($targets as $post_id => $article_id) {
+        $post = get_post($post_id);
+        if (!$post || $post->post_type === $post_type || $post->post_type === 'revision') {
+            continue;
+        }
+        if (is_wp_error(set_post_type($post_id, $post_type))) {
+            continue;
+        }
+        clean_post_cache($post_id);
+        update_post_meta($post_id, REPGET_META_ARTICLE, $article_id);
+        $moved++;
+
+        // Its address changed with its type; RepGet links to it.
+        if ($article_id !== '') {
+            $status = get_post_status($post_id) === 'publish' ? 'publish' : 'draft';
+            repget_report($article_id, get_permalink($post_id), $post_id, null, $status);
+        }
+    }
+    return $moved;
 }
 
 /** Tells RepGet what happened, so the article leaves the queue. */

@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 
-import { dueArticlesForPlugin } from "@/lib/plugin/due";
+import { dueArticlesForPlugin, pluginPostsForWebsite } from "@/lib/plugin/due";
 import { recordSyncUrl } from "@/lib/plugin/sync";
 import { automaticStatus, FIRST_ARTICLE_STATUS } from "@/lib/publishing/policy";
 import { resolveIntegrationKey } from "@/lib/plugin/keys";
@@ -60,11 +60,19 @@ export async function GET(request: NextRequest) {
     await recordSyncUrl(resolved.keyId, resolved.websiteDomain, reportedSyncUrl);
   }
 
-  const rows = await dueArticlesForPlugin(resolved.websiteId, BATCH_SIZE);
+  const [rows, sent] = await Promise.all([
+    dueArticlesForPlugin(resolved.websiteId, BATCH_SIZE),
+    pluginPostsForWebsite(resolved.websiteId),
+  ]);
 
   return NextResponse.json(
     {
       ok: true,
+      // Posts this plugin already created, for moving them to another
+      // content type. Ignored by plugins before 1.5.0.
+      sent: sent
+        .filter((row) => row.postId && /^\d+$/.test(row.postId))
+        .map((row) => ({ articleId: row.articleId, postId: Number(row.postId) })),
       articles: rows
         // An article with no body is mid-generation, not ready to publish.
         .filter((row) => Boolean(row.bodyHtml))
