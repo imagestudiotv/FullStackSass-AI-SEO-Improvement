@@ -163,13 +163,28 @@ export function ArticleEditor({
         toast.error(result.error);
         return;
       }
-      toast.success(
-        viaPlugin
-          ? t.publishViaPlugin
-          : status === "publish"
+      const { publishedUrl, queued } = result.data;
+      if (publishedUrl) {
+        // Created on the site before this returned: say so, with the link.
+        toast.success(
+          status === "publish" ? t.publishedToSite : t.sentAsDraftToSite,
+          {
+            action: {
+              label: t.viewOnSite,
+              onClick: () => window.open(publishedUrl, "_blank", "noopener"),
+            },
+          },
+        );
+      } else if (viaPlugin && queued) {
+        // The site did not answer; it waits for the plugin's hourly check.
+        toast.warning(t.publishViaPlugin, { duration: 15000 });
+      } else {
+        toast.success(
+          status === "publish"
             ? `Publishing to ${destinationName ?? "your site"}…`
             : t.sendingDraft,
-      );
+        );
+      }
       router.refresh();
     });
   }
@@ -247,6 +262,18 @@ export function ArticleEditor({
         <p className="text-sm text-muted-foreground">
           {article.targetKeyword ? `Target: ${article.targetKeyword}` : null}
         </p>
+        {/*
+          Where it is on the real site, once it is there - the question the
+          client asked after publishing ("where do I find it?").
+        */}
+        {article.publishedUrl ? (
+          <Button variant="outline" size="sm" asChild className="mt-2">
+            <a href={article.publishedUrl} target="_blank" rel="noopener noreferrer">
+              <ExternalLink className="size-4" />
+              {t.viewOnSite}
+            </a>
+          </Button>
+        ) : null}
       </div>
 
       {/*

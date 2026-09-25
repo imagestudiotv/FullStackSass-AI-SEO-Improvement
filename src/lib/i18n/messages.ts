@@ -583,6 +583,9 @@ export type Messages = {
       saved: string;
       rewriting: string;
       sendAsDraft: string;
+      publishedToSite: string;
+      sentAsDraftToSite: string;
+      viewOnSite: string;
       connectToPublish: string;
       publishViaPlugin: string;
       waitingForPlugin: string;
@@ -1945,8 +1948,11 @@ const en: Messages = {
       saved: "Saved",
       rewriting: "Rewriting the article…",
       sendAsDraft: "Send as draft",
+      publishedToSite: "Published - it is live on your website.",
+      sentAsDraftToSite: "Sent to your website as a draft.",
+      viewOnSite: "View on your website",
       connectToPublish: "Connect your website to publish",
-      publishViaPlugin: "Queued - your WordPress plugin sends it on its next check. Press Check for articles now in WordPress to send it straight away.",
+      publishViaPlugin: "Your website did not answer, so the article is queued: the WordPress plugin sends it on its next check, within the hour. Update the plugin to 1.4 or later to publish instantly.",
       waitingForPlugin: "Waiting for WordPress plugin",
       updatePost: "Update post",
       publish: "Publish",
@@ -3307,8 +3313,11 @@ const es: Messages = {
       saved: "Guardado",
       rewriting: "Reescribiendo el artículo…",
       sendAsDraft: "Enviar como borrador",
+      publishedToSite: "Publicado: ya está en su sitio web.",
+      sentAsDraftToSite: "Enviado a su sitio web como borrador.",
+      viewOnSite: "Ver en su sitio web",
       connectToPublish: "Conecte su sitio web para publicar",
-      publishViaPlugin: "En cola: el plugin de WordPress lo envía en su próxima comprobación. Pulse Check for articles now en WordPress para enviarlo ya.",
+      publishViaPlugin: "Su sitio web no respondió, así que el artículo queda en cola: el plugin de WordPress lo envía en su próxima comprobación, antes de una hora. Actualice el plugin a la versión 1.4 o posterior para publicar al instante.",
       waitingForPlugin: "Esperando al plugin de WordPress",
       updatePost: "Actualizar publicación",
       publish: "Publicar",
@@ -4673,8 +4682,11 @@ const fr: Messages = {
       saved: "Enregistré",
       rewriting: "Réécriture de l\u2019article…",
       sendAsDraft: "Envoyer en brouillon",
+      publishedToSite: "Publié : il est en ligne sur votre site.",
+      sentAsDraftToSite: "Envoyé sur votre site en brouillon.",
+      viewOnSite: "Voir sur votre site",
       connectToPublish: "Connectez votre site pour publier",
-      publishViaPlugin: "En file d’attente : le plugin WordPress l’envoie à sa prochaine vérification. Appuyez sur Check for articles now dans WordPress pour l’envoyer tout de suite.",
+      publishViaPlugin: "Votre site n’a pas répondu, l’article est donc en file d’attente : le plugin WordPress l’envoie à sa prochaine vérification, dans l’heure. Mettez le plugin à jour en 1.4 ou plus pour publier instantanément.",
       waitingForPlugin: "En attente du plugin WordPress",
       updatePost: "Mettre à jour",
       publish: "Publier",
@@ -6031,8 +6043,11 @@ const it: Messages = {
       saved: "Salvato",
       rewriting: "Riscrittura dell\u2019articolo…",
       sendAsDraft: "Invia come bozza",
+      publishedToSite: "Pubblicato: è online sul suo sito.",
+      sentAsDraftToSite: "Inviato al suo sito come bozza.",
+      viewOnSite: "Vedi sul suo sito",
       connectToPublish: "Colleghi il suo sito per pubblicare",
-      publishViaPlugin: "In coda: il plugin WordPress lo invia al prossimo controllo. Prema Check for articles now in WordPress per inviarlo subito.",
+      publishViaPlugin: "Il suo sito non ha risposto, quindi l’articolo è in coda: il plugin WordPress lo invia al prossimo controllo, entro un’ora. Aggiorni il plugin alla versione 1.4 o successiva per pubblicare subito.",
       waitingForPlugin: "In attesa del plugin WordPress",
       updatePost: "Aggiorna articolo",
       publish: "Pubblica",
@@ -7398,8 +7413,11 @@ const de: Messages = {
       saved: "Gespeichert",
       rewriting: "Artikel wird neu geschrieben…",
       sendAsDraft: "Als Entwurf senden",
+      publishedToSite: "Veröffentlicht - der Artikel ist live auf Ihrer Website.",
+      sentAsDraftToSite: "Als Entwurf an Ihre Website gesendet.",
+      viewOnSite: "Auf Ihrer Website ansehen",
       connectToPublish: "Website verbinden, um zu veröffentlichen",
-      publishViaPlugin: "In der Warteschlange: Das WordPress-Plugin sendet ihn bei der nächsten Prüfung. Klicken Sie in WordPress auf Check for articles now, um ihn sofort zu senden.",
+      publishViaPlugin: "Ihre Website hat nicht geantwortet, daher steht der Artikel in der Warteschlange: Das WordPress-Plugin sendet ihn bei der nächsten Prüfung, innerhalb einer Stunde. Aktualisieren Sie das Plugin auf 1.4 oder neuer, um sofort zu veröffentlichen.",
       waitingForPlugin: "Warte auf das WordPress-Plugin",
       updatePost: "Beitrag aktualisieren",
       publish: "Veröffentlichen",

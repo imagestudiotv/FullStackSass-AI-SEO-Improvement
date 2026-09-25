@@ -26,6 +26,7 @@ import {
   pendingFirstArticle,
 } from "@/lib/publishing/policy";
 import type { IntegrationView, ProviderInfo } from "@/lib/publishing/shared";
+import { triggerPluginSync } from "@/lib/plugin/sync";
 import { requireWebsite } from "@/lib/tenant";
 import { requireEditor } from "@/lib/websites/require-editor";
 import { normalizeWebsiteUrl, InvalidUrlError } from "@/lib/websites/url";
@@ -288,12 +289,29 @@ export async function listPublishLogs(
     .limit(10);
 }
 
-/** Queues a publish. The HTTP call runs in a job so the UI is not held open. */
+/** What a Publish press led to, so the page can say it plainly. */
+export type PublishResult = {
+  /** The post on the customer's site, when it already exists. */
+  publishedUrl: string | null;
+  /**
+   * True when the WordPress plugin could not be reached and the article is
+   * waiting for its next hourly check instead.
+   */
+  queued: boolean;
+};
+
+/**
+ * Publishes an article.
+ *
+ * A direct CMS connection is queued as a job, so the UI is not held open
+ * while the CMS answers. The WordPress plugin is told to collect it NOW -
+ * see lib/plugin/sync.ts - and this waits for that, so the press publishes.
+ */
 export async function publishArticle(
   websiteId: string,
   articleId: string,
   status: "publish" | "draft" = "publish",
-): Promise<ActionResult<null>> {
+): Promise<ActionResult<PublishResult>> {
   const guard = await requireEditor(websiteId);
   if (!guard.ok) return { ok: false, error: guard.error };
   const { site, orgId } = guard.context;
@@ -347,8 +365,29 @@ export async function publishArticle(
       .set({ publishRequested: status, updatedAt: new Date() })
       .where(and(eq(articles.id, articleId), eq(articles.websiteId, site.id)));
 
+    /*
+      The client's rule: pressing Publish publishes. The plugin collects the
+      article on its own site right now, and reports back before this
+      returns. When the site cannot be reached - an older plugin, or a host
+      that blocks the call - it stays queued for the plugin's hourly check,
+      and the page says so rather than claiming it is live.
+    */
+    await triggerPluginSync(site.id);
+
+    const [after] = await db
+      .select({ publishedUrl: articles.publishedUrl })
+      .from(articles)
+      .where(eq(articles.id, articleId))
+      .limit(1);
+
     revalidatePath(`/websites/${site.id}/articles/${articleId}`);
-    return { ok: true, data: null };
+    return {
+      ok: true,
+      data: {
+        publishedUrl: after?.publishedUrl ?? null,
+        queued: !after?.publishedUrl,
+      },
+    };
   }
 
   await queueJob({
@@ -357,7 +396,7 @@ export async function publishArticle(
   });
 
   revalidatePath(`/websites/${site.id}/articles/${articleId}`);
-  return { ok: true, data: null };
+  return { ok: true, data: { publishedUrl: null, queued: false } };
 }
 
 /**

@@ -1,0 +1,125 @@
+import crypto from "node:crypto";
+
+import { and, desc, eq, isNotNull, isNull, ne, or } from "drizzle-orm";
+
+import { db } from "@/lib/db";
+import { integrationKeys, websites } from "@/lib/db/schema";
+
+/**
+ * "Check now" for the WordPress plugin, so Publish publishes immediately.
+ *
+ * The plugin PULLS: it asks RepGet for due articles every hour. A Publish
+ * press therefore used to wait up to an hour, or for the customer to press
+ * "Check for articles now" inside WordPress - and the client's rule is that
+ * pressing Publish publishes. From 1.4.0 the plugin exposes one action on its
+ * own site that runs that same check, and RepGet calls it after a press.
+ *
+ * admin-ajax.php rather than the REST API: the plugin exists for sites whose
+ * host blocks /wp-json, and admin-ajax is what every WordPress site keeps
+ * open for its own front end.
+ *
+ * AUTHENTICATION without a new secret. RepGet stores only the SHA-256 of the
+ * integration key; the plugin holds the key itself and can compute the same
+ * hash. That hash signs a timestamp (HMAC-SHA256), the plugin rejects
+ * anything older than five minutes or seen before, and all a valid call can
+ * do is make the plugin fetch its own due articles from RepGet - nothing an
+ * attacker could steer.
+ */
+
+/** Long enough to create a post and pull in its featured image. */
+const SYNC_TIMEOUT_MS = 60_000;
+
+const bare = (host: string) => host.toLowerCase().replace(/^www\./, "");
+
+/**
+ * The plugin's check-now address, if it is safe to call.
+ *
+ * Only http(s), and only on the website's own domain. The plugin reports
+ * this address itself, so without the domain check a key holder could point
+ * RepGet's servers at any URL - an internal address included.
+ */
+export function acceptableSyncUrl(
+  value: unknown,
+  websiteDomain: string,
+): string | null {
+  if (typeof value !== "string" || value.length > 500) return null;
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+  if (url.username || url.password) return null;
+  const domain = bare(websiteDomain.replace(/^https?:\/\//, "").split("/")[0]);
+  if (bare(url.hostname) !== domain) return null;
+  if (!url.pathname.endsWith("/admin-ajax.php")) return null;
+  return url.toString();
+}
+
+/** Stores the address a plugin reported, when it changed and is acceptable. */
+export async function recordSyncUrl(
+  keyId: string,
+  websiteDomain: string,
+  reported: unknown,
+): Promise<void> {
+  const url = acceptableSyncUrl(reported, websiteDomain);
+  if (!url) return;
+  await db
+    .update(integrationKeys)
+    .set({ syncUrl: url, updatedAt: new Date() })
+    // Only when it changed: every hourly check reports it.
+    .where(
+      and(
+        eq(integrationKeys.id, keyId),
+        or(isNull(integrationKeys.syncUrl), ne(integrationKeys.syncUrl, url)),
+      ),
+    );
+}
+
+export type SyncOutcome =
+  /** The plugin ran its check; anything due has been created. */
+  | "synced"
+  /** A plugin before 1.4.0, or one that has not reported its address yet. */
+  | "no-endpoint"
+  /** The site did not answer, or refused. The article stays queued. */
+  | "unreachable";
+
+/** Asks the website's plugin to collect its due articles now. */
+export async function triggerPluginSync(websiteId: string): Promise<SyncOutcome> {
+  const [key] = await db
+    .select({ keyHash: integrationKeys.keyHash, syncUrl: integrationKeys.syncUrl })
+    .from(integrationKeys)
+    .innerJoin(websites, eq(websites.id, integrationKeys.websiteId))
+    .where(
+      and(
+        eq(integrationKeys.websiteId, websiteId),
+        isNull(integrationKeys.revokedAt),
+        isNotNull(integrationKeys.lastUsedAt),
+        isNotNull(integrationKeys.syncUrl),
+      ),
+    )
+    .orderBy(desc(integrationKeys.lastUsedAt))
+    .limit(1);
+  if (!key?.syncUrl) return "no-endpoint";
+
+  const ts = Math.floor(Date.now() / 1000).toString();
+  const sig = crypto.createHmac("sha256", key.keyHash).update(ts).digest("hex");
+
+  try {
+    const response = await fetch(key.syncUrl, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ action: "repget_sync", ts, sig }),
+      // A redirect could lead anywhere; the stored address is the only one.
+      redirect: "error",
+      signal: AbortSignal.timeout(SYNC_TIMEOUT_MS),
+    });
+    const data = (await response.json().catch(() => null)) as {
+      success?: boolean;
+    } | null;
+    return response.ok && data?.success ? "synced" : "unreachable";
+  } catch {
+    return "unreachable";
+  }
+}

@@ -85,7 +85,11 @@ export const INTEGRATION_DOCS: IntegrationDoc[] = [
       },
       {
         title: "How articles arrive",
-        body: "The plugin checks RepGet every hour. RepGet only hands over articles that are due: auto-publish is on and the article's planned date has come, or you pressed Publish on the article in RepGet. Each one is created as a published post or as a draft, following Settings → Article Settings → Publish as (or the choice you made when pressing Publish), with its featured image. To fetch straight away, press Check for articles now on the RepGet screen in WordPress - it reports how many articles it sent to WordPress, and 0 simply means nothing is due yet.",
+        body: "Your first article is published live as soon as it is written. After that, RepGet sends articles according to Settings → Article Settings → When an article is finished: kept in RepGet for you to review, sent as a draft on its planned day, or published live on its planned day. Pressing Publish on an article in RepGet publishes it straight away - RepGet asks the plugin to check immediately (plugin 1.4 or later). The plugin also checks by itself every hour, and Check for articles now on the RepGet screen in WordPress fetches anything due at once.",
+      },
+      {
+        title: "Find your published articles",
+        body: "In RepGet, open the article: a published one has a View on your website button under its title, and its history lists the link. In WordPress, go to Posts → All Posts - RepGet articles are ordinary posts you can edit, unpublish or delete. On your live site they appear at their own address (for example yoursite.com/article-title/, depending on Settings → Permalinks) and in your blog listing, which is the page chosen under Settings → Reading → Posts page.",
       },
     ],
     troubleshooting: [
@@ -115,11 +119,11 @@ export const INTEGRATION_DOCS: IntegrationDoc[] = [
       },
       {
         problem: "Articles arrive as drafts instead of live posts",
-        fix: "Settings → Article Settings → Publish as is set to Draft, which is doing its job. Change it to Live for future articles; drafts already created can be published from the Posts screen in WordPress.",
+        fix: "Settings → Article Settings → When an article is finished is set to Send it to my site as a draft, which is doing its job. Choose Publish it live on its planned day for future articles; drafts already created can be published from the Posts screen in WordPress.",
       },
       {
-        problem: "Articles are published live even though Publish as is Draft",
-        fix: "The plugin is older than 1.3.2, which always published live. Download the plugin again from RepGet and upload it the same way - WordPress offers Replace current with uploaded. Your key and connection are kept.",
+        problem: "Pressing Publish in RepGet says the article is queued",
+        fix: "Your site did not answer when RepGet asked the plugin to check, so the article waits for the plugin's hourly check. Most often the plugin is older than 1.4.0 - download it again from RepGet and upload it the same way (WordPress offers Replace current with uploaded; your key is kept). Otherwise a security plugin or firewall may be blocking requests to wp-admin/admin-ajax.php from outside; allow requests with action=repget_sync.",
       },
       {
         problem: "Articles arrive later than an hour after they are due",

@@ -1177,6 +1177,12 @@ export const integrationKeys = pgTable(
     lastUsedAt: timestamp("last_used_at"),
     /** Reported by the plugin, for support: "6.4.3 / plugin 1.0.0". */
     siteInfo: text("site_info"),
+    /**
+     * The plugin's "check now" address on the customer's site (1.4.0+),
+     * which RepGet calls so Publish publishes immediately. Only ever an
+     * admin-ajax.php URL on the website's own domain; see lib/plugin/sync.ts.
+     */
+    syncUrl: text("sync_url"),
     /** Null until revoked. Revoked keys are kept for the audit trail. */
     revokedAt: timestamp("revoked_at"),
     ...timestamps,

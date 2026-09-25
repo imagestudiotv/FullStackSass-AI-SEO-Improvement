@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 
 import { dueArticlesForPlugin } from "@/lib/plugin/due";
+import { recordSyncUrl } from "@/lib/plugin/sync";
 import { automaticStatus, FIRST_ARTICLE_STATUS } from "@/lib/publishing/policy";
 import { resolveIntegrationKey } from "@/lib/plugin/keys";
 
@@ -49,6 +50,16 @@ export async function GET(request: NextRequest) {
    * there is no id in the request to tamper with — a plugin cannot ask for
    * another customer's articles because it has no way to name one.
    */
+  /*
+    1.4.0+ sends its check-now address on every request, so a site that
+    upgrades the plugin becomes instant-publish on its next hourly check
+    without reconnecting. Stored only when on the site's own domain.
+  */
+  const reportedSyncUrl = request.headers.get("x-repget-sync-url");
+  if (reportedSyncUrl) {
+    await recordSyncUrl(resolved.keyId, resolved.websiteDomain, reportedSyncUrl);
+  }
+
   const rows = await dueArticlesForPlugin(resolved.websiteId, BATCH_SIZE);
 
   return NextResponse.json(

@@ -2,7 +2,7 @@
 /**
  * Plugin Name: RepGet Connector
  * Description: Publishes articles written by RepGet straight to this site. Paste your Integration Key to connect.
- * Version: 1.3.2
+ * Version: 1.4.0
  * Requires at least: 5.6
  * Requires PHP: 7.4
  * License: GPLv2 or later
@@ -31,7 +31,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('REPGET_VERSION', '1.3.2');
+define('REPGET_VERSION', '1.4.0');
 define('REPGET_OPTION_KEY', 'repget_integration_key');
 define('REPGET_OPTION_STATUS', 'repget_status');
 define('REPGET_OPTION_ENDPOINT', 'repget_endpoint');
@@ -138,6 +138,10 @@ function repget_request($path, $args = array()) {
             'X-Integration-Key' => $key,
             'Content-Type'      => 'application/json',
             'Accept'            => 'application/json',
+            // Where RepGet can ask this site to check now - see
+            // repget_remote_sync. Sent every time so an upgraded plugin is
+            // picked up on its next check, without reconnecting.
+            'X-RepGet-Sync-Url' => admin_url('admin-ajax.php'),
         ),
     );
 
@@ -507,6 +511,7 @@ function repget_verify() {
             'siteUrl'       => get_site_url(),
             'wpVersion'     => get_bloginfo('version'),
             'pluginVersion' => REPGET_VERSION,
+            'syncUrl'       => admin_url('admin-ajax.php'),
         )),
     ));
 
@@ -654,6 +659,62 @@ function repget_deactivate() {
     // Leaving a scheduled event behind would keep calling an API the site no
     // longer has a plugin for.
     wp_clear_scheduled_hook('repget_sync_event');
+}
+
+/**
+ * "Check now", called by RepGet when somebody presses Publish.
+ *
+ * Without it a Publish press waited for the hourly check below. It runs that
+ * same check - fetch due articles from RepGet and create them - and nothing
+ * else, so the worst a caller could do is make this site ask RepGet for its
+ * own articles early.
+ *
+ * admin-ajax.php, not the REST API: this plugin exists for hosts that block
+ * /wp-json, and admin-ajax is what every site keeps open for its own pages.
+ * nopriv because RepGet is not a logged-in WordPress user; the request is
+ * authenticated by its signature instead:
+ *
+ *   sig = HMAC-SHA256(timestamp, SHA-256 of the integration key)
+ *
+ * RepGet stores only that hash and this site holds the key, so both can
+ * compute it and nobody else can. Anything older than five minutes, or
+ * already seen, is refused, and only one runs at a time.
+ */
+add_action('wp_ajax_nopriv_repget_sync', 'repget_remote_sync');
+add_action('wp_ajax_repget_sync', 'repget_remote_sync');
+function repget_remote_sync() {
+    $key = repget_key();
+    $ts  = isset($_POST['ts']) ? sanitize_text_field(wp_unslash($_POST['ts'])) : '';
+    $sig = isset($_POST['sig']) ? sanitize_text_field(wp_unslash($_POST['sig'])) : '';
+
+    if ($key === '' || $sig === '' || !ctype_digit($ts) || abs(time() - (int) $ts) > 300) {
+        wp_send_json_error(array('error' => 'rejected'), 403);
+    }
+
+    $expected = hash_hmac('sha256', $ts, hash('sha256', trim($key)));
+    if (!hash_equals($expected, $sig)) {
+        wp_send_json_error(array('error' => 'rejected'), 403);
+    }
+
+    // A signature is good for one call.
+    $seen = 'repget_sync_seen_' . md5($sig);
+    if (get_transient($seen)) {
+        wp_send_json_error(array('error' => 'replayed'), 409);
+    }
+    set_transient($seen, 1, 10 * MINUTE_IN_SECONDS);
+
+    // One check at a time: two would create the same post twice.
+    if (get_transient('repget_sync_running')) {
+        wp_send_json_error(array('error' => 'busy'), 429);
+    }
+    set_transient('repget_sync_running', 1, 2 * MINUTE_IN_SECONDS);
+    $result = repget_sync();
+    delete_transient('repget_sync_running');
+
+    if (is_wp_error($result)) {
+        wp_send_json_error(array('error' => $result->get_error_message()), 502);
+    }
+    wp_send_json_success(array('created' => (int) $result));
 }
 
 add_action('repget_sync_event', 'repget_cron_sync');

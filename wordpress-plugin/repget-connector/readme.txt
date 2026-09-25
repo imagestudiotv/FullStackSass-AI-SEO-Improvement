@@ -2,7 +2,7 @@
 Requires at least: 5.6
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.3.2
+Stable tag: 1.4.0
 License: GPLv2 or later
 
 Publishes articles written by RepGet straight to your WordPress site.
@@ -58,10 +58,17 @@ nobody — including us — can look yours up after it is created.
 = Does this send my site's data to RepGet? =
 
 It reports your site address, WordPress version and plugin version, so support
-can help when something goes wrong. Nothing else is sent. The plugin only
+can help when something goes wrong, and the address of your site's admin-ajax.php
+so RepGet can ask the plugin to check for articles when you press Publish.
+Nothing else is sent. The plugin only
 fetches articles and reports whether each one published.
 
 == Changelog ==
+
+= 1.4.0 =
+* Publish in RepGet now publishes straight away: RepGet asks the plugin to
+  check immediately instead of waiting for the hourly check. The request is
+  signed with your integration key and can only trigger that check.
 
 = 1.3.2 =
 * Articles are created as posts or drafts according to RepGet's "Publish as"

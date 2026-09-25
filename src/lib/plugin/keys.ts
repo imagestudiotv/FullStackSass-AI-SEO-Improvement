@@ -60,6 +60,8 @@ export type ResolvedKey = {
   keyId: string;
   websiteId: string;
   organizationId: string;
+  /** The website's domain, for checking addresses the plugin reports. */
+  websiteDomain: string;
 };
 
 /**
@@ -85,6 +87,8 @@ export async function resolveIntegrationKey(
       keyId: integrationKeys.id,
       websiteId: integrationKeys.websiteId,
       organizationId: websites.organizationId,
+      // For checking the address a plugin reports. See lib/plugin/sync.ts.
+      websiteDomain: websites.domain,
     })
     .from(integrationKeys)
     .innerJoin(websites, eq(integrationKeys.websiteId, websites.id))

@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { websites } from "@/lib/db/schema";
 import { recordSiteInfo, resolveIntegrationKey } from "@/lib/plugin/keys";
+import { recordSyncUrl } from "@/lib/plugin/sync";
 
 /**
  * Plugin handshake: POST /api/plugin/verify
@@ -61,7 +62,9 @@ export async function POST(request: NextRequest) {
       wpVersion?: unknown;
       pluginVersion?: unknown;
       siteUrl?: unknown;
+      syncUrl?: unknown;
     };
+    await recordSyncUrl(resolved.keyId, resolved.websiteDomain, body.syncUrl);
     const parts = [
       typeof body.siteUrl === "string" ? body.siteUrl : null,
       typeof body.wpVersion === "string" ? `WP ${body.wpVersion}` : null,
