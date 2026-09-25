@@ -1,5 +1,8 @@
 import { and, eq } from "drizzle-orm";
+import { notFound, redirect } from "next/navigation";
+import { cache } from "react";
 
+import { ensureOrganization } from "@/lib/auth";
 import { getSession } from "@/lib/auth-guard";
 import { db } from "@/lib/db";
 import { member, websiteMembers, websites } from "@/lib/db/schema";
@@ -17,27 +20,11 @@ import { member, websiteMembers, websites } from "@/lib/db/schema";
  * every server action, route handler and page that touches tenant data.
  */
 
-export class UnauthenticatedError extends Error {
-  readonly status = 401;
-  constructor() {
-    super("Not signed in");
-    this.name = "UnauthenticatedError";
-  }
-}
-
 export class NoOrganizationError extends Error {
   readonly status = 403;
   constructor() {
     super("User belongs to no organization");
     this.name = "NoOrganizationError";
-  }
-}
-
-export class NotAMemberError extends Error {
-  readonly status = 403;
-  constructor() {
-    super("Not a member of the active organization");
-    this.name = "NotAMemberError";
   }
 }
 
@@ -70,11 +57,32 @@ const UUID_RE =
  * activeOrganizationId from the session is NOT trusted: a user removed from an
  * organization can still hold a session naming it. The membership row is the
  * authority, always.
+ *
+ * IT RECOVERS RATHER THAN THROWS, and it has to be here rather than in a
+ * layout. Next renders a layout and its page IN PARALLEL, so the recovery the
+ * app and onboarding layouts used to do - create the missing workspace, then
+ * retry - never ran before the page's own requireOrg. The page threw
+ * NoOrganizationError first and the customer got the error screen: digest
+ * 589590434 in production, on /dashboard, for an account whose workspace was
+ * gone. Every caller now gets the same answer, whichever runs first.
+ *
+ *  - No session: redirect to sign-in, as requireSession does. Throwing here
+ *    showed "something went wrong" to anyone whose session expired on a
+ *    website page, because the page ran alongside the layout's redirect.
+ *  - The session names an organization the user is no longer in: use one they
+ *    ARE in. The stale id is never honoured, so nothing is granted; the
+ *    customer simply lands in their own workspace instead of on an error.
+ *  - No membership at all: create the workspace signup would have created.
+ *    ensureOrganization takes a per-user lock, so the layout and page arriving
+ *    here together make one workspace, not two.
+ *
+ * cache(): one resolution per request, shared by the layout, the page and
+ * everything they call.
  */
-export async function requireOrg(): Promise<OrgContext> {
+export const requireOrg = cache(async (): Promise<OrgContext> => {
   const session = await getSession();
   if (!session) {
-    throw new UnauthenticatedError();
+    redirect("/sign-in");
   }
 
   const userId = session.user.id;
@@ -87,26 +95,34 @@ export async function requireOrg(): Promise<OrgContext> {
         eq(member.userId, userId),
       ),
     });
-    // Session names an organization the user is not (or no longer) in.
-    if (!membership) {
-      throw new NotAMemberError();
+    if (membership) {
+      return { orgId: activeOrganizationId, userId, role: membership.role };
     }
-    return { orgId: activeOrganizationId, userId, role: membership.role };
+    // Stale: the session names an organization the user is not (or no longer)
+    // in. Fall through to one they really belong to.
   }
 
-  // No active organization on the session (e.g. first request after signup).
-  // Fall back to a real membership row rather than trusting session state.
-  const fallback = await db.query.member.findFirst({
-    where: eq(member.userId, userId),
-  });
-  if (!fallback) {
+  const fallback = await findMembership(userId);
+  if (fallback) return { ...fallback, userId };
+
+  console.warn(
+    `[tenant] user ${userId} had no workspace - creating one`,
+  );
+  await ensureOrganization(session.user);
+
+  const created = await findMembership(userId);
+  // A second miss is a real fault (the insert failed) and must surface.
+  if (!created) {
     throw new NoOrganizationError();
   }
-  return {
-    orgId: fallback.organizationId,
-    userId,
-    role: fallback.role,
-  };
+  return { ...created, userId };
+});
+
+async function findMembership(userId: string) {
+  const row = await db.query.member.findFirst({
+    where: eq(member.userId, userId),
+  });
+  return row ? { orgId: row.organizationId, role: row.role } : null;
 }
 
 export type WebsiteContext = OrgContext & {
@@ -128,9 +144,9 @@ export type WebsiteContext = OrgContext & {
  * A website belonging to another organization is indistinguishable from one
  * that does not exist — both throw WebsiteNotFoundError (404).
  */
-export async function requireWebsite(
+export const requireWebsite = cache(async (
   websiteId: string,
-): Promise<WebsiteContext> {
+): Promise<WebsiteContext> => {
   const ctx = await requireOrg();
 
   // A malformed id must 404, not blow up with a Postgres cast error.
@@ -186,4 +202,28 @@ export async function requireWebsite(
     access: invited.role === "viewer" ? "viewer" : "editor",
     ...ctx,
   };
+});
+
+/**
+ * requireWebsite for a PAGE or LAYOUT: a website that is not the caller's
+ * renders the 404 screen.
+ *
+ * The websites layout already turned WebsiteNotFoundError into notFound(), but
+ * it renders in parallel with the page, so the page's own throw reached
+ * error.tsx first - "Trying again usually works" for a website that was
+ * deleted, which trying again never fixes. Seen in production on every
+ * section of a removed site.
+ *
+ * Server actions and route handlers keep calling requireWebsite and catching
+ * the error themselves; they answer with their own responses, not a page.
+ */
+export async function requireWebsitePage(
+  websiteId: string,
+): Promise<WebsiteContext> {
+  try {
+    return await requireWebsite(websiteId);
+  } catch (error) {
+    if (error instanceof WebsiteNotFoundError) notFound();
+    throw error;
+  }
 }

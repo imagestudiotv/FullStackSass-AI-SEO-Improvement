@@ -16,7 +16,7 @@ import { ErrorState } from "@/components/ui/states";
  * back. The customer's own conclusion is that the product is broken.
  *
  * `notFound()` is NOT handled here — Next routes that to not-found.tsx — so
- * the 404 that requireWebsite() raises for another tenant's website id keeps
+ * the 404 that requireWebsitePage() raises for another tenant's website id keeps
  * its existing meaning. Nothing in this file weakens that boundary.
  */
 

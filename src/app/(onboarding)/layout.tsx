@@ -3,10 +3,9 @@ import { BrandLogo } from "@/components/brand-logo";
 import { HeaderTrailing } from "@/components/onboarding/header-trailing";
 import { UserMenu } from "@/components/user-menu";
 import { isAdmin } from "@/lib/admin/guard";
-import { ensureOrganization } from "@/lib/auth";
 import { requireSession } from "@/lib/auth-guard";
 import { getAppMessages } from "@/lib/i18n/app-locale";
-import { NoOrganizationError, requireOrg } from "@/lib/tenant";
+import { requireOrg } from "@/lib/tenant";
 
 /**
  * Setup runs without the dashboard around it.
@@ -51,23 +50,8 @@ export default async function OnboardingLayout({ children }: LayoutProps<"/">) {
    */
   const admin = await isAdmin();
 
-  /**
-   * Recover a signed-in user who has no organization.
-   *
-   * Same recovery as the app layout, and needed more here than there: this is
-   * the first screen after signing up, so an account whose creation hook lost
-   * its database write would hit it before anything else. A LAYOUT that throws
-   * cannot be caught by error.tsx in its own segment, so without this the
-   * customer's first sight of the product is a blank browser error page.
-   */
-  try {
-    await requireOrg();
-  } catch (error) {
-    if (!(error instanceof NoOrganizationError)) throw error;
-    await ensureOrganization(session.user);
-    // Once. A second failure is a real fault and must surface, not loop.
-    await requireOrg();
-  }
+  // Creates the workspace for an account that has none. See requireOrg.
+  await requireOrg();
 
   return (
     <div className="flex min-h-svh flex-col bg-background">

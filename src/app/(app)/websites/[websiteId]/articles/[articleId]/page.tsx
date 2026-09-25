@@ -4,7 +4,7 @@ import { requireSession } from "@/lib/auth-guard";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import { requirePlan } from "@/lib/billing/require-plan";
 import { getArticle } from "@/lib/articles/actions";
-import { requireWebsite } from "@/lib/tenant";
+import { requireWebsitePage } from "@/lib/tenant";
 import { listIntegrations, listPublishLogs } from "@/lib/publishing/actions";
 import { WebsiteNotFoundError } from "@/lib/tenant";
 import { ArticleEditor } from "./article-editor";
@@ -45,7 +45,7 @@ export default async function ArticlePage({
     listPublishLogs(websiteId, article.id),
     // Scopes to the caller's organisation and throws for anything else.
     // Needed only for the domain, to tell internal links from external.
-    requireWebsite(websiteId),
+    requireWebsitePage(websiteId),
   ]);
 
   const { t } = await getAppMessages(websiteCtx.userId);

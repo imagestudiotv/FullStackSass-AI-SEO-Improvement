@@ -1,9 +1,7 @@
-import { notFound } from "next/navigation";
-
 import { SettingsNav } from "@/components/settings-nav";
 import { PageShell } from "@/components/ui/page-header";
 import { requireSession } from "@/lib/auth-guard";
-import { requireWebsite, WebsiteNotFoundError } from "@/lib/tenant";
+import { requireWebsitePage } from "@/lib/tenant";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 
 /**
@@ -25,16 +23,9 @@ export default async function WebsiteLayout({
   await requireSession();
   const { websiteId } = await params;
 
-  let site;
-  let userId;
-  try {
-    ({ site, userId } = await requireWebsite(websiteId));
-  } catch (error) {
-    // Another tenant's id is a 404, not a 403: confirming the id exists would
-    // tell a stranger which websites we host.
-    if (error instanceof WebsiteNotFoundError) notFound();
-    throw error;
-  }
+  // Another tenant's id is a 404, not a 403: confirming the id exists would
+  // tell a stranger which websites we host.
+  const { site, userId } = await requireWebsitePage(websiteId);
 
   const { t } = await getAppMessages(userId);
 

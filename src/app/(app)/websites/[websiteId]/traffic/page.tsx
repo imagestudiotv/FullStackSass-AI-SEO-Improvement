@@ -1,4 +1,4 @@
-import { requireWebsite } from "@/lib/tenant";
+import { requireWebsitePage } from "@/lib/tenant";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import {
   getDecayedPages,
@@ -15,7 +15,7 @@ export default async function WebsiteTrafficPage({
   params,
 }: PageProps<"/websites/[websiteId]/traffic">) {
   const { websiteId } = await params;
-  const { orgId, site, userId } = await requireWebsite(websiteId);
+  const { orgId, site, userId } = await requireWebsitePage(websiteId);
   const { t } = await getAppMessages(userId);
 
   // Paywall. See lib/billing/require-plan.ts.

@@ -1,4 +1,4 @@
-import { requireWebsite } from "@/lib/tenant";
+import { requireWebsitePage } from "@/lib/tenant";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import {
   getAnalyticsConnection,
@@ -29,7 +29,7 @@ export default async function WebsiteGooglePage({
   params,
 }: PageProps<"/websites/[websiteId]/google">) {
   const { websiteId } = await params;
-  const { orgId, site, userId } = await requireWebsite(websiteId);
+  const { orgId, site, userId } = await requireWebsitePage(websiteId);
   const { locale, t } = await getAppMessages(userId);
 
   // Paywall. See lib/billing/require-plan.ts.

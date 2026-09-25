@@ -1,6 +1,7 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { emailOTP, organization } from "better-auth/plugins";
+import { sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { sendOtpEmail } from "@/lib/email/otp";
@@ -45,27 +46,40 @@ export async function ensureOrganization(user: {
   name?: string | null;
   email: string;
 }): Promise<void> {
-  const existing = await db.query.member.findFirst({
-    where: (member, { eq }) => eq(member.userId, user.id),
-  });
-  if (existing) return;
+  /*
+    One transaction holding a per-user lock, so the check and the insert
+    cannot interleave. Without it, two requests for a user with no workspace
+    - the layout and the page render in parallel and both reach requireOrg,
+    or the signup hook racing the first page load - each saw "no membership"
+    and each created a workspace, leaving the customer with two. The lock is
+    released when the transaction ends; the second caller then finds the
+    first one's row and returns.
+  */
+  await db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${user.id}))`);
 
-  const displayName = user.name?.trim() || user.email.split("@")[0];
-  const organizationId = crypto.randomUUID();
+    const existing = await tx.query.member.findFirst({
+      where: (member, { eq }) => eq(member.userId, user.id),
+    });
+    if (existing) return;
 
-  await db.insert(schema.organization).values({
-    id: organizationId,
-    name: `${displayName}'s Workspace`,
-    slug: `${slugify(displayName)}-${organizationId.slice(0, 8)}`,
-    createdAt: new Date(),
-  });
+    const displayName = user.name?.trim() || user.email.split("@")[0];
+    const organizationId = crypto.randomUUID();
 
-  await db.insert(schema.member).values({
-    id: crypto.randomUUID(),
-    organizationId,
-    userId: user.id,
-    role: "owner",
-    createdAt: new Date(),
+    await tx.insert(schema.organization).values({
+      id: organizationId,
+      name: `${displayName}'s Workspace`,
+      slug: `${slugify(displayName)}-${organizationId.slice(0, 8)}`,
+      createdAt: new Date(),
+    });
+
+    await tx.insert(schema.member).values({
+      id: crypto.randomUUID(),
+      organizationId,
+      userId: user.id,
+      role: "owner",
+      createdAt: new Date(),
+    });
   });
 }
 

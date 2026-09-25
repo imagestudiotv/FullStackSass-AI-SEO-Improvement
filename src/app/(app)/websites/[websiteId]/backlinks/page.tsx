@@ -1,4 +1,4 @@
-import { requireWebsite } from "@/lib/tenant";
+import { requireWebsitePage } from "@/lib/tenant";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import {
   getNetworkStatus,
@@ -16,7 +16,7 @@ export default async function WebsiteBacklinksPage({
   params,
 }: PageProps<"/websites/[websiteId]/backlinks">) {
   const { websiteId } = await params;
-  const { orgId, site, userId } = await requireWebsite(websiteId);
+  const { orgId, site, userId } = await requireWebsitePage(websiteId);
 
   // Paywall. See lib/billing/require-plan.ts.
   await requirePlan(orgId);

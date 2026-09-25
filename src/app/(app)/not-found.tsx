@@ -11,7 +11,7 @@ import { getAppMessages } from "@/lib/i18n/app-locale";
  * 404 inside the signed-in app.
  *
  * Reached two ways, and the wording has to serve both without saying which:
- * a genuinely mistyped address, and requireWebsite() refusing a website id
+ * a genuinely mistyped address, and requireWebsitePage() refusing a website id
  * that belongs to another organisation. The second is why this says "not
  * available" rather than "does not exist" — confirming that an id exists but
  * is someone else's is exactly the disclosure tenant.ts avoids by raising 404

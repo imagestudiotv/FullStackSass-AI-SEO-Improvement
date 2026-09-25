@@ -1,4 +1,4 @@
-import { requireWebsite } from "@/lib/tenant";
+import { requireWebsitePage } from "@/lib/tenant";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import { getIntegrationKeys } from "@/lib/plugin/actions";
 import {
@@ -28,7 +28,7 @@ export default async function WebsiteIntegrationsPage({
   params,
 }: PageProps<"/websites/[websiteId]/integrations">) {
   const { websiteId } = await params;
-  const { orgId, site, userId } = await requireWebsite(websiteId);
+  const { orgId, site, userId } = await requireWebsitePage(websiteId);
   const { t } = await getAppMessages(userId);
 
   // Paywall. See lib/billing/require-plan.ts.

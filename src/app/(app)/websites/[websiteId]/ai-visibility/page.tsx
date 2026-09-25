@@ -1,4 +1,4 @@
-import { requireWebsite } from "@/lib/tenant";
+import { requireWebsitePage } from "@/lib/tenant";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import { getGeoOverview } from "@/lib/geo/actions";
 import { GeoPanel } from "../geo-panel";
@@ -12,7 +12,7 @@ export default async function WebsiteAiVisibilityPage({
   params,
 }: PageProps<"/websites/[websiteId]/ai-visibility">) {
   const { websiteId } = await params;
-  const { orgId, site, userId } = await requireWebsite(websiteId);
+  const { orgId, site, userId } = await requireWebsitePage(websiteId);
   // Paywall. See lib/billing/require-plan.ts.
   await requirePlan(orgId);
   const overview = await getGeoOverview(site.id);

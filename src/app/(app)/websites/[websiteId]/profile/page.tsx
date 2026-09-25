@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { competitors } from "@/lib/db/schema";
-import { requireWebsite } from "@/lib/tenant";
+import { requireWebsitePage } from "@/lib/tenant";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import { WebsiteDetailClient } from "../website-detail-client";
 import { CompetitorsCard } from "./competitors-card";
@@ -16,7 +16,7 @@ export default async function WebsiteProfilePage({
   params,
 }: PageProps<"/websites/[websiteId]/profile">) {
   const { websiteId } = await params;
-  const { orgId, site, userId } = await requireWebsite(websiteId);
+  const { orgId, site, userId } = await requireWebsitePage(websiteId);
   const { t } = await getAppMessages(userId);
   // Paywall. See lib/billing/require-plan.ts.
   await requirePlan(orgId);

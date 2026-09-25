@@ -13,7 +13,6 @@ import { WebsiteSwitcher } from "@/components/dashboard/website-switcher";
 import { isAdmin } from "@/lib/admin/guard";
 import { requireSession } from "@/lib/auth-guard";
 import { getAppMessages } from "@/lib/i18n/app-locale";
-import { ensureOrganization } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { addons, notifications, organization, websites } from "@/lib/db/schema";
 import { clearReferralCode, readReferralCode } from "@/lib/referrals/cookie";
@@ -21,7 +20,7 @@ import { attachReferral } from "@/lib/referrals/core";
 import { getLaunchState } from "@/lib/onboarding/launch";
 import { SetupTracker } from "@/components/setup-tracker";
 import { getSubscription } from "@/lib/billing";
-import { NoOrganizationError, requireOrg } from "@/lib/tenant";
+import { requireOrg } from "@/lib/tenant";
 import { readSelectedWebsite, resolveWebsiteId } from "@/lib/websites/selected";
 
 /**
@@ -35,32 +34,12 @@ export const dynamic = "force-dynamic";
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const session = await requireSession();
 
-  /**
-   * Recover a signed-in user who has no organization.
-   *
-   * ensureOrganization runs in Better Auth's user.create.after hook, so it
-   * fires exactly once and never again. Any account that got past signup
-   * without a membership row — one created before that hook existed, or one
-   * whose hook lost its database write — was then locked out permanently:
-   * requireOrg throws NoOrganizationError here, and a LAYOUT that throws
-   * cannot be caught by error.tsx in its own segment, so the whole app
-   * rendered as a blank browser error page immediately after a successful
-   * sign-in.
-   *
-   * Creating the workspace is the same work signup would have done, and
-   * ensureOrganization already returns early when a membership exists, so
-   * this is a no-op on every normal request. Only the retry is new.
-   */
-  let ctx;
-  try {
-    ctx = await requireOrg();
-  } catch (error) {
-    if (!(error instanceof NoOrganizationError)) throw error;
-    await ensureOrganization(session.user);
-    // Once. A second failure is a real fault and must surface, not loop.
-    ctx = await requireOrg();
-  }
-  const { orgId } = ctx;
+  /*
+    requireOrg creates the workspace for an account that has none - see its
+    comment. That recovery used to live here, but this layout renders in
+    parallel with the page, so the page crashed before it ran.
+  */
+  const { orgId } = await requireOrg();
 
   /**
    * Every website, for the switcher in the header and to work out which one
