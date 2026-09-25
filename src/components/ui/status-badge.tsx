@@ -157,6 +157,24 @@ const TONE_CLASS: Record<StatusTone, string> = {
     "bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-900",
 };
 
+/**
+ * Filled versions, for the one badge a page is ABOUT - an article's own
+ * status in its header. The tinted pill above is right in a table of fifty
+ * rows and far too quiet as the answer to "is this live yet?": the client
+ * could not find the Draft badge next to the article title.
+ *
+ * Every pairing keeps at least 4.5:1 contrast for the bold small text: amber
+ * takes dark text, since white on amber is unreadable.
+ */
+const SOLID_TONE_CLASS: Record<StatusTone, string> = {
+  neutral: "border-slate-700 bg-slate-700 text-white",
+  // Darker than the brand orange: white on --primary is only about 3.4:1.
+  active: "border-orange-700 bg-orange-700 text-white",
+  positive: "border-emerald-700 bg-emerald-700 text-white",
+  warning: "border-amber-400 bg-amber-400 text-amber-950",
+  critical: "border-red-700 bg-red-700 text-white",
+};
+
 /** Title-cases an unmapped value so it reads as a word, not a column value. */
 function fallbackLabel(status: string): string {
   const words = status.replace(/[_-]+/g, " ").trim();
@@ -211,29 +229,42 @@ export function StatusBadge({
    * because a still icon on "Writing article" reads as stalled.
    */
   animate,
+  /** "lg" and filled, for the status a page is about. See SOLID_TONE_CLASS. */
+  size = "sm",
+  /** Overrides the mapped tone where a page means more by it. */
+  tone: toneOverride,
   className,
 }: {
   status: string;
   label?: string;
   t?: Messages["app"]["status"];
   animate?: boolean;
+  size?: "sm" | "lg";
+  tone?: StatusTone;
   className?: string;
 }) {
   const meta = statusMeta(status);
-  const tone = meta?.tone ?? "neutral";
+  const tone = toneOverride ?? meta?.tone ?? "neutral";
+  const large = size === "lg";
   const Icon = meta?.icon ?? CircleDashed;
   const spin = (animate ?? tone === "active") && Icon === Loader2;
 
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium whitespace-nowrap",
-        TONE_CLASS[tone],
+        "inline-flex items-center gap-1.5 rounded-full border whitespace-nowrap",
+        large
+          ? "px-3 py-1 text-sm font-semibold shadow-sm"
+          : "px-2 py-0.5 text-xs font-medium",
+        large ? SOLID_TONE_CLASS[tone] : TONE_CLASS[tone],
         className,
       )}
     >
       <Icon
-        className={cn("size-3 shrink-0", spin && "animate-spin")}
+        className={cn(
+          large ? "size-4 shrink-0" : "size-3 shrink-0",
+          spin && "animate-spin",
+        )}
         aria-hidden="true"
       />
       {label ?? statusLabel(status, t)}

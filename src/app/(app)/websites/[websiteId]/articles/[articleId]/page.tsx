@@ -1,3 +1,7 @@
+import { and, eq, isNotNull, isNull } from "drizzle-orm";
+
+import { db } from "@/lib/db";
+import { integrationKeys } from "@/lib/db/schema";
 import { notFound } from "next/navigation";
 
 import { requireSession } from "@/lib/auth-guard";
@@ -50,12 +54,37 @@ export default async function ArticlePage({
 
   const { t } = await getAppMessages(websiteCtx.userId);
 
+  /*
+    The WordPress plugin keeps no integrations row, so it is looked up on its
+    own. Without this a plugin-only site had no Publish button at all.
+  */
+  const [plugin] = await db
+    .select({ id: integrationKeys.id })
+    .from(integrationKeys)
+    .where(
+      and(
+        eq(integrationKeys.websiteId, websiteId),
+        isNull(integrationKeys.revokedAt),
+        isNotNull(integrationKeys.lastUsedAt),
+      ),
+    )
+    .limit(1);
+  const pluginConnected = Boolean(plugin);
+
   return (
     <ArticleEditor
       websiteId={websiteId}
       article={article}
-      // Any connected destination is enough to offer publishing.
-      canPublish={cmsIntegrations.some((i) => i.status === "connected")}
+      // Any connected destination is enough to offer publishing - a direct
+      // CMS connection, or the WordPress plugin once it has checked in.
+      canPublish={
+        cmsIntegrations.some((i) => i.status === "connected") ||
+        pluginConnected
+      }
+      viaPlugin={
+        !cmsIntegrations.some((i) => i.status === "connected") &&
+        pluginConnected
+      }
       destinationName={
         cmsIntegrations.find((i) => i.status === "connected")?.providerName ??
         null

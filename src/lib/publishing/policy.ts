@@ -21,10 +21,13 @@ import { articles, calendarItems, integrations, websites } from "@/lib/db/schema
  *
  * THE FIRST ARTICLE is the exception, by the client's rule: a website's first
  * article is published as soon as it is written, whichever mode is set, so
- * the customer sees the product work on their own site straight away. It
- * follows "draft" when that is the mode - a customer who asked for drafts
- * gets a draft - and is published live otherwise.
+ * the customer sees the product work on their own site straight away. It is
+ * ALWAYS published live - in "draft" mode too, by the client's decision: the
+ * point is to see a real post on the real site.
  */
+
+/** How the first article goes out, in every mode. See above. */
+export const FIRST_ARTICLE_STATUS = "publish" as const;
 
 export type FinishedMode = "review" | "draft" | "live";
 

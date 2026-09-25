@@ -65,6 +65,13 @@ export type ArticleDetail = ArticleRow & {
   imageAlt: string | null;
   /** Regenerations already used, so the UI can say how many remain. */
   imageAttempts: number;
+  /** Where the post is on the customer's site, once it has been sent. */
+  publishedUrl: string | null;
+  /**
+   * "publish" or "draft" while waiting for the WordPress plugin to collect
+   * it after Publish was pressed; null otherwise.
+   */
+  publishRequested: string | null;
 };
 
 export async function getArticle(
@@ -95,6 +102,8 @@ export async function getArticle(
     imageUrl: row.imageUrl,
     imageAlt: row.imageAlt,
     imageAttempts: row.imageAttempts,
+    publishedUrl: row.publishedUrl,
+    publishRequested: row.publishRequested,
   };
 }
 

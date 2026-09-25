@@ -11,7 +11,6 @@ import {
   integrationKeys,
   integrations,
   publishLogs,
-  websites,
 } from "@/lib/db/schema";
 import {
   ProviderError,
@@ -22,7 +21,10 @@ import {
   readStoredCredentials,
   type StoredCredentials,
 } from "@/lib/publishing/credentials";
-import { automaticStatus, pendingFirstArticle } from "@/lib/publishing/policy";
+import {
+  FIRST_ARTICLE_STATUS,
+  pendingFirstArticle,
+} from "@/lib/publishing/policy";
 import type { IntegrationView, ProviderInfo } from "@/lib/publishing/shared";
 import { requireWebsite } from "@/lib/tenant";
 import { requireEditor } from "@/lib/websites/require-editor";
@@ -215,18 +217,13 @@ export async function connectProvider(
   */
   const first = await pendingFirstArticle(site.id);
   if (first) {
-    const [settings] = await db
-      .select({ autoPublish: websites.autoPublish, publishAs: websites.publishAs })
-      .from(websites)
-      .where(eq(websites.id, site.id))
-      .limit(1);
     await queueJob({
       name: "article/publish.requested",
       data: {
         articleId: first.id,
         websiteId: site.id,
         organizationId: site.organizationId,
-        status: settings ? automaticStatus(settings) : "publish",
+        status: FIRST_ARTICLE_STATUS,
       },
     });
   }

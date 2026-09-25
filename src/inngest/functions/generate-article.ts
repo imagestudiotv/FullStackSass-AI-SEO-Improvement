@@ -26,6 +26,7 @@ import {
 } from "@/lib/images/generate";
 import {
   automaticStatus,
+  FIRST_ARTICLE_STATUS,
   hasConnectedIntegration,
   pendingFirstArticle,
 } from "@/lib/publishing/policy";
@@ -685,13 +686,19 @@ export const generateArticle = inngest.createFunction(
           );
           return false;
         }
+        // Live, in every mode - the first article is the one exception.
         await inngest.send({
           name: "article/publish.requested",
-          data: { articleId, websiteId: brief.websiteId, organizationId, status },
+          data: {
+            articleId,
+            websiteId: brief.websiteId,
+            organizationId,
+            status: FIRST_ARTICLE_STATUS,
+          },
         });
         logger.info(
-          { step: "auto-publish", articleId, websiteId: brief.websiteId, first: true, status },
-          "First article - publishing immediately, whatever the setting",
+          { step: "auto-publish", articleId, websiteId: brief.websiteId, first: true },
+          "First article - publishing live immediately, whatever the setting",
         );
         return true;
       }

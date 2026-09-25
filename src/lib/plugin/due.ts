@@ -1,4 +1,4 @@
-import { and, asc, eq, isNotNull, isNull, lte, or } from "drizzle-orm";
+import { and, asc, eq, isNotNull, isNull, lte, or, sql as raw } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { articles, calendarItems, websites } from "@/lib/db/schema";
@@ -43,6 +43,8 @@ export function dueArticlesForPlugin(
       publishRequested: articles.publishRequested,
       publishAs: websites.publishAs,
       autoPublish: websites.autoPublish,
+      // Goes out live whatever the mode. See FIRST_ARTICLE_STATUS.
+      isFirst: raw<boolean>`coalesce((${isFirstArticle}), false)`,
     })
     .from(articles)
     .innerJoin(websites, eq(websites.id, articles.websiteId))

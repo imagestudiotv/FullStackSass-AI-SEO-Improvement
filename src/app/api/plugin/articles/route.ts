@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 
 import { dueArticlesForPlugin } from "@/lib/plugin/due";
-import { automaticStatus } from "@/lib/publishing/policy";
+import { automaticStatus, FIRST_ARTICLE_STATUS } from "@/lib/publishing/policy";
 import { resolveIntegrationKey } from "@/lib/plugin/keys";
 
 /**
@@ -68,8 +68,9 @@ export async function GET(request: NextRequest) {
             : null,
           // A Publish press decides; otherwise the website's setting, which
           // the first article follows too. See lib/publishing/policy.ts.
-          status:
-            row.publishRequested === "draft" || row.publishRequested === "publish"
+          status: row.isFirst
+            ? FIRST_ARTICLE_STATUS
+            : row.publishRequested === "draft" || row.publishRequested === "publish"
               ? row.publishRequested
               : automaticStatus(row),
         })),

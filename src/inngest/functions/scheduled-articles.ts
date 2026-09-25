@@ -8,6 +8,7 @@ import { notify } from "@/lib/notifications/create";
 import {
   automaticStatus,
   batchStillAhead,
+  FIRST_ARTICLE_STATUS,
   pendingFirstArticle,
   websitesAwaitingFirstArticle,
 } from "@/lib/publishing/policy";
@@ -103,7 +104,7 @@ async function publishDueDrafts(): Promise<number> {
         articleId: first.id,
         websiteId: site.websiteId,
         organizationId: site.organizationId,
-        status: automaticStatus(site),
+        status: FIRST_ARTICLE_STATUS,
       },
     });
     released += 1;

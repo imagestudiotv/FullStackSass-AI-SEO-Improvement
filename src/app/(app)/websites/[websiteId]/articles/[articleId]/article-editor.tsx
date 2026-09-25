@@ -63,6 +63,7 @@ export function ArticleEditor({
   websiteId,
   article,
   canPublish,
+  viaPlugin,
   destinationName,
   websiteDomain,
   publishLogs,
@@ -75,6 +76,12 @@ export function ArticleEditor({
   websiteId: string;
   article: ArticleDetail;
   canPublish: boolean;
+  /**
+   * Connected only through the WordPress plugin, which PULLS articles: a
+   * Publish press is queued for its next check rather than sent now, and an
+   * article it has already created cannot be updated from here.
+   */
+  viaPlugin: boolean;
   /**
    * Where this article publishes, e.g. "Ghost". Null when nothing is
    * connected. Named rather than assumed: the product now publishes to four
@@ -157,9 +164,11 @@ export function ArticleEditor({
         return;
       }
       toast.success(
-        status === "publish"
-          ? `Publishing to ${destinationName ?? "your site"}…`
-          : t.sendingDraft,
+        viaPlugin
+          ? t.publishViaPlugin
+          : status === "publish"
+            ? `Publishing to ${destinationName ?? "your site"}…`
+            : t.sendingDraft,
       );
       router.refresh();
     });
@@ -223,7 +232,17 @@ export function ArticleEditor({
           <h1 className="text-2xl font-semibold tracking-tight">
             {article.title}
           </h1>
-          <StatusBadge status={article.status} t={tStatus} />
+          {/*
+            Large and filled: this is the answer to "is it on my site yet?".
+            A draft reads amber - not live - rather than the grey it has in
+            lists, where grey is right.
+          */}
+          <StatusBadge
+            status={article.status}
+            t={tStatus}
+            size="lg"
+            tone={article.status === "draft" ? "warning" : undefined}
+          />
         </div>
         <p className="text-sm text-muted-foreground">
           {article.targetKeyword ? `Target: ${article.targetKeyword}` : null}
@@ -359,7 +378,25 @@ export function ArticleEditor({
                 <RefreshCw className="size-4" />
                 {tCommon.rewrite}
               </Button>
-              {canPublish ? (
+              {/*
+                Always something here. It used to render nothing unless a
+                direct CMS connection existed, so a plugin-only site - and any
+                site not connected yet - had no way to publish a draft at all.
+              */}
+              {!canPublish ? (
+                <Button size="sm" asChild>
+                  <Link href={`/websites/${websiteId}/integrations`}>
+                    <Upload className="size-4" />
+                    {t.connectToPublish}
+                  </Link>
+                </Button>
+              ) : viaPlugin && article.publishRequested ? (
+                // Queued; the plugin collects it on its next check.
+                <Button size="sm" disabled>
+                  <Loader2 className="size-4 animate-spin" />
+                  {t.waitingForPlugin}
+                </Button>
+              ) : viaPlugin && article.publishedUrl ? null : (
                 <>
                   <Button
                     variant="outline"
@@ -378,7 +415,7 @@ export function ArticleEditor({
                     {article.status === "published" ? t.updatePost : t.publish}
                   </Button>
                 </>
-              ) : null}
+              )}
             </div>
           </div>
 
@@ -411,7 +448,7 @@ export function ArticleEditor({
                  * document tags stripped.
                  */}
                 <div
-                  className="prose prose-sm max-w-none dark:prose-invert [&_h2]:mt-6 [&_h2]:text-lg [&_h2]:font-semibold [&_li]:my-1 [&_p]:my-3 [&_ul]:list-disc [&_ul]:pl-6 [&_img]:my-6 [&_img]:block [&_img]:mx-auto [&_img]:max-w-xl [&_img]:max-h-[30rem] [&_img]:h-auto [&_img]:w-auto [&_img]:rounded-lg [&_img]:border [&_img]:object-contain"
+                  className="prose prose-sm max-w-none dark:prose-invert [overflow-wrap:anywhere] [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto [&_pre]:overflow-x-auto [&_iframe]:max-w-full [&_video]:max-w-full [&_h2]:mt-6 [&_h2]:text-lg [&_h2]:font-semibold [&_li]:my-1 [&_p]:my-3 [&_ul]:list-disc [&_ul]:pl-6 [&_img]:my-6 [&_img]:block [&_img]:mx-auto [&_img]:max-w-xl [&_img]:max-h-[30rem] [&_img]:h-auto [&_img]:w-auto [&_img]:rounded-lg [&_img]:border [&_img]:object-contain"
                   dangerouslySetInnerHTML={{ __html: article.bodyHtml }}
                 />
               </CardContent>

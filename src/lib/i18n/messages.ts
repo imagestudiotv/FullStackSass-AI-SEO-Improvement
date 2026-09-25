@@ -583,6 +583,9 @@ export type Messages = {
       saved: string;
       rewriting: string;
       sendAsDraft: string;
+      connectToPublish: string;
+      publishViaPlugin: string;
+      waitingForPlugin: string;
       updatePost: string;
       publish: string;
       sendingDraft: string;
@@ -1942,6 +1945,9 @@ const en: Messages = {
       saved: "Saved",
       rewriting: "Rewriting the article…",
       sendAsDraft: "Send as draft",
+      connectToPublish: "Connect your website to publish",
+      publishViaPlugin: "Queued - your WordPress plugin sends it on its next check. Press Check for articles now in WordPress to send it straight away.",
+      waitingForPlugin: "Waiting for WordPress plugin",
       updatePost: "Update post",
       publish: "Publish",
       sendingDraft: "Sending as a draft…",
@@ -3301,6 +3307,9 @@ const es: Messages = {
       saved: "Guardado",
       rewriting: "Reescribiendo el artículo…",
       sendAsDraft: "Enviar como borrador",
+      connectToPublish: "Conecte su sitio web para publicar",
+      publishViaPlugin: "En cola: el plugin de WordPress lo envía en su próxima comprobación. Pulse Check for articles now en WordPress para enviarlo ya.",
+      waitingForPlugin: "Esperando al plugin de WordPress",
       updatePost: "Actualizar publicación",
       publish: "Publicar",
       sendingDraft: "Enviando como borrador…",
@@ -4664,6 +4673,9 @@ const fr: Messages = {
       saved: "Enregistré",
       rewriting: "Réécriture de l\u2019article…",
       sendAsDraft: "Envoyer en brouillon",
+      connectToPublish: "Connectez votre site pour publier",
+      publishViaPlugin: "En file d’attente : le plugin WordPress l’envoie à sa prochaine vérification. Appuyez sur Check for articles now dans WordPress pour l’envoyer tout de suite.",
+      waitingForPlugin: "En attente du plugin WordPress",
       updatePost: "Mettre à jour",
       publish: "Publier",
       sendingDraft: "Envoi en brouillon…",
@@ -6019,6 +6031,9 @@ const it: Messages = {
       saved: "Salvato",
       rewriting: "Riscrittura dell\u2019articolo…",
       sendAsDraft: "Invia come bozza",
+      connectToPublish: "Colleghi il suo sito per pubblicare",
+      publishViaPlugin: "In coda: il plugin WordPress lo invia al prossimo controllo. Prema Check for articles now in WordPress per inviarlo subito.",
+      waitingForPlugin: "In attesa del plugin WordPress",
       updatePost: "Aggiorna articolo",
       publish: "Pubblica",
       sendingDraft: "Invio come bozza…",
@@ -7383,6 +7398,9 @@ const de: Messages = {
       saved: "Gespeichert",
       rewriting: "Artikel wird neu geschrieben…",
       sendAsDraft: "Als Entwurf senden",
+      connectToPublish: "Website verbinden, um zu veröffentlichen",
+      publishViaPlugin: "In der Warteschlange: Das WordPress-Plugin sendet ihn bei der nächsten Prüfung. Klicken Sie in WordPress auf Check for articles now, um ihn sofort zu senden.",
+      waitingForPlugin: "Warte auf das WordPress-Plugin",
       updatePost: "Beitrag aktualisieren",
       publish: "Veröffentlichen",
       sendingDraft: "Wird als Entwurf gesendet…",
