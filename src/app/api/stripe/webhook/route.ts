@@ -6,6 +6,7 @@ import type Stripe from "stripe";
 import { db } from "@/lib/db";
 import {
   billingCustomers,
+  organization,
   payments,
   plans,
   subscriptions,
@@ -77,12 +78,30 @@ async function planIdForSubscription(
  * because session metadata does not propagate. The customer lookup is the last
  * resort for subscriptions created outside our checkout - e.g. by hand in the
  * Stripe dashboard.
+ *
+ * Metadata is only trusted while that workspace still EXISTS. Stripe keeps the
+ * id it was given at checkout forever, so a subscription whose workspace was
+ * deleted kept naming it, every insert failed its foreign key, the handler
+ * returned 500, and Stripe retried the same invoice.paid every hour for days.
+ * A deleted workspace now falls through to the customer mapping, and when
+ * that finds nothing either the event is logged and acknowledged like any
+ * other subscription with no owner.
  */
 async function organizationIdFor(
   subscription: Stripe.Subscription,
 ): Promise<string | null> {
   const fromMetadata = subscription.metadata?.organizationId;
-  if (fromMetadata) return fromMetadata;
+  if (fromMetadata) {
+    const [exists] = await db
+      .select({ id: organization.id })
+      .from(organization)
+      .where(eq(organization.id, fromMetadata))
+      .limit(1);
+    if (exists) return fromMetadata;
+    console.error(
+      `[stripe-webhook] subscription ${subscription.id} names deleted organization ${fromMetadata}`,
+    );
+  }
 
   const customerId =
     typeof subscription.customer === "string"
@@ -427,6 +446,11 @@ export async function POST(request: Request) {
          */
         {
           const orgId = await organizationIdFor(subscription);
+          if (!orgId) {
+            console.error(
+              `[stripe-webhook] ${event.type} ${invoice.id} has no workspace - payment not recorded`,
+            );
+          }
           if (orgId && invoice.id) {
             await db
               .insert(payments)
