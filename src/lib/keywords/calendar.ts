@@ -172,7 +172,8 @@ export async function planCalendar(
       const supporting = cluster.terms.filter(
         (term) => term.toLowerCase() !== cluster.pillarKeyword.toLowerCase(),
       );
-      const keyword = depth === 0 ? cluster.pillarKeyword : supporting[depth - 1];
+      const keyword =
+        depth === 0 ? cluster.pillarKeyword : supporting[depth - 1];
 
       // This cluster has no keyword left at this depth; others may.
       if (!keyword) continue;
@@ -223,20 +224,43 @@ export async function planCalendar(
    */
   const maxTokens = Math.min(Math.max(slots.length * 250, 4000), 32000);
 
-  const response = await anthropic.messages.create({
-    model: MODELS.GENERATION,
-    max_tokens: maxTokens,
-    system: SYSTEM,
-    output_config: { format: { type: "json_schema", schema: SCHEMA } },
-    messages: [
-      {
-        role: "user",
-        content: slots
-          .map((slot) => `${slot.keyword} (topic: ${slot.cluster.name})`)
-          .join("\n"),
-      },
-    ],
-  });
+  /*
+    STREAMED, not messages.create. The Anthropic SDK refuses a non-streaming
+    request whose max_tokens could take over ten minutes to generate - about
+    21,000 tokens - and throws before sending it. With enough keywords the
+    budget above reaches its 32,000 cap, so every keyword research run for a
+    site with ~90+ keywords failed at this step ("Streaming is required for
+    operations that may take longer than 10 minutes"), and no content plan
+    was ever built. Streaming lifts that guard; the answer itself is small,
+    so it finishes in well under a minute either way. finalMessage() returns
+    the same Message that create() did.
+  */
+  const response = await anthropic.messages
+    .stream({
+      model: MODELS.GENERATION,
+      max_tokens: maxTokens,
+      /*
+        No extended thinking. Sonnet 5 thinks by default, and the thinking
+        counts against max_tokens: on 289 real keywords it filled the whole
+        32,000-token budget and ran 279 seconds - a hair under Vercel's
+        300-second limit - without ever finishing the answer, which itself
+        is about 4,000 tokens. Sorting terms into topics does not need it:
+        with thinking off the same run took 32 seconds and placed the terms
+        just as well.
+      */
+      thinking: { type: "disabled" },
+      system: SYSTEM,
+      output_config: { format: { type: "json_schema", schema: SCHEMA } },
+      messages: [
+        {
+          role: "user",
+          content: slots
+            .map((slot) => `${slot.keyword} (topic: ${slot.cluster.name})`)
+            .join("\n"),
+        },
+      ],
+    })
+    .finalMessage();
 
   if (response.stop_reason === "refusal") {
     throw new Error("The model declined to plan this calendar");
@@ -269,8 +293,12 @@ export async function planCalendar(
   for (const item of raw) {
     if (typeof item !== "object" || item === null) continue;
     const { title, targetKeyword } = item as Record<string, unknown>;
-    if (typeof title !== "string" || typeof targetKeyword !== "string") continue;
-    byKeyword.set(targetKeyword.trim().toLowerCase(), title.trim().slice(0, 200));
+    if (typeof title !== "string" || typeof targetKeyword !== "string")
+      continue;
+    byKeyword.set(
+      targetKeyword.trim().toLowerCase(),
+      title.trim().slice(0, 200),
+    );
   }
 
   const dates = scheduleDates(slots.length);

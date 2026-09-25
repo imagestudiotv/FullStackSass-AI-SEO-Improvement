@@ -62,7 +62,9 @@ export const researchKeywords = inngest.createFunction(
         type: "keywords.failed",
         title: "Search term research could not be completed",
         body: error.message.slice(0, 200),
-        href: `/websites/${websiteId}`,
+        // The content plan screen, where the retry button is - not Website
+        // Health, which has nothing to do with research.
+        href: `/websites/${websiteId}/content`,
       });
     },
   },

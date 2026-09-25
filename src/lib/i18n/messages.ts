@@ -622,6 +622,7 @@ export type Messages = {
       opportunities: string;
       refresh: string;
       looking: string;
+      researchFailed: string;
       plannedArticles: string;
       plannedHelp: string;
       articles: string;
@@ -1972,6 +1973,7 @@ const en: Messages = {
       opportunities: "Opportunities",
       refresh: "Refresh",
       looking: "Looking…",
+      researchFailed: "Research could not finish, so no content plan was built. Press the button to try again - if it fails twice, contact support.",
       plannedArticles: "Planned articles",
       plannedHelp: "Your content plan, by the day each article is due. Hover a planned topic to write it now, change it, or take it off the plan.",
       articles: "Articles",
@@ -3322,6 +3324,7 @@ const es: Messages = {
       opportunities: "Oportunidades",
       refresh: "Actualizar",
       looking: "Buscando…",
+      researchFailed: "La investigación no pudo terminar, así que no se creó ningún plan de contenido. Pulse el botón para intentarlo de nuevo; si falla dos veces, contacte con soporte.",
       plannedArticles: "Artículos planificados",
       plannedHelp: "Su plan de contenidos, por el día en que vence cada artículo. Pase el cursor sobre un tema planificado para escribirlo ahora, cambiarlo o quitarlo del plan.",
       articles: "Artículos",
@@ -4676,6 +4679,7 @@ const fr: Messages = {
       opportunities: "Opportunités",
       refresh: "Actualiser",
       looking: "Recherche…",
+      researchFailed: "La recherche n’a pas pu aboutir, aucun plan de contenu n’a donc été créé. Appuyez sur le bouton pour réessayer ; en cas de second échec, contactez le support.",
       plannedArticles: "Articles planifiés",
       plannedHelp: "Votre plan de contenu, par date de publication prévue. Survolez un sujet planifié pour le rédiger maintenant, le modifier ou le retirer du plan.",
       articles: "Articles",
@@ -6022,6 +6026,7 @@ const it: Messages = {
       opportunities: "Opportunità",
       refresh: "Aggiorna",
       looking: "Ricerca…",
+      researchFailed: "La ricerca non è riuscita a terminare, quindi non è stato creato alcun piano dei contenuti. Prema il pulsante per riprovare; se non riesce di nuovo, contatti l’assistenza.",
       plannedArticles: "Articoli pianificati",
       plannedHelp: "Il suo piano dei contenuti, per giorno di pubblicazione previsto. Passi il cursore su un argomento pianificato per scriverlo subito, modificarlo o toglierlo dal piano.",
       articles: "Articoli",
@@ -7377,6 +7382,7 @@ const de: Messages = {
       opportunities: "Chancen",
       refresh: "Aktualisieren",
       looking: "Suche…",
+      researchFailed: "Die Recherche konnte nicht abgeschlossen werden, daher wurde kein Inhaltsplan erstellt. Klicken Sie auf die Schaltfläche, um es erneut zu versuchen - schlägt es zweimal fehl, wenden Sie sich an den Support.",
       plannedArticles: "Geplante Artikel",
       plannedHelp: "Ihr Contentplan, nach dem Tag, an dem jeder Artikel fällig ist. Fahren Sie über ein geplantes Thema, um es jetzt zu schreiben, zu ändern oder aus dem Plan zu nehmen.",
       articles: "Artikel",

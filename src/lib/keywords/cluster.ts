@@ -103,7 +103,9 @@ export async function clusterKeywords(
   if (keywords.length === 0) return [];
 
   const list = keywords
-    .map((k) => `${k.term} (volume ${k.volume ?? "?"}, score ${k.priorityScore})`)
+    .map(
+      (k) => `${k.term} (volume ${k.volume ?? "?"}, score ${k.priorityScore})`,
+    )
     .join("\n");
 
   /**
@@ -132,13 +134,36 @@ export async function clusterKeywords(
    */
   const maxTokens = Math.min(Math.max(keywords.length * 250, 6000), 32000);
 
-  const response = await anthropic.messages.create({
-    model: MODELS.GENERATION,
-    max_tokens: maxTokens,
-    system: system(target),
-    output_config: { format: { type: "json_schema", schema: SCHEMA } },
-    messages: [{ role: "user", content: `Keywords:\n${list}` }],
-  });
+  /*
+    STREAMED, not messages.create. The Anthropic SDK refuses a non-streaming
+    request whose max_tokens could take over ten minutes to generate - about
+    21,000 tokens - and throws before sending it. With enough keywords the
+    budget above reaches its 32,000 cap, so every keyword research run for a
+    site with ~90+ keywords failed at this step ("Streaming is required for
+    operations that may take longer than 10 minutes"), and no content plan
+    was ever built. Streaming lifts that guard; the answer itself is small,
+    so it finishes in well under a minute either way. finalMessage() returns
+    the same Message that create() did.
+  */
+  const response = await anthropic.messages
+    .stream({
+      model: MODELS.GENERATION,
+      max_tokens: maxTokens,
+      /*
+        No extended thinking. Sonnet 5 thinks by default, and the thinking
+        counts against max_tokens: on 289 real keywords it filled the whole
+        32,000-token budget and ran 279 seconds - a hair under Vercel's
+        300-second limit - without ever finishing the answer, which itself
+        is about 4,000 tokens. Sorting terms into topics does not need it:
+        with thinking off the same run took 32 seconds and placed the terms
+        just as well.
+      */
+      thinking: { type: "disabled" },
+      system: system(target),
+      output_config: { format: { type: "json_schema", schema: SCHEMA } },
+      messages: [{ role: "user", content: `Keywords:\n${list}` }],
+    })
+    .finalMessage();
 
   if (response.stop_reason === "refusal") {
     throw new Error("The model declined to cluster these keywords");

@@ -120,6 +120,34 @@ export function ResearchTabs({
   /** The add-keywords field. */
   const [newKeywords, setNewKeywords] = useState("");
 
+  /*
+    Follow a research run to its end.
+
+    `researching` comes from the server render, and nothing re-rendered this
+    screen until the customer reloaded - so a run that failed four minutes in
+    left "Looking…" spinning for as long as they cared to watch. Refreshing
+    every few seconds while it runs lets the screen change the moment the job
+    does, and stops as soon as it has.
+  */
+  React.useEffect(() => {
+    if (!researching) return;
+    const timer = window.setInterval(() => router.refresh(), 5000);
+    return () => window.clearInterval(timer);
+  }, [researching, router]);
+
+  /*
+    A run that ends with no content plan did not succeed: on success the job
+    saves the plan before it clears "researching". Said here rather than left
+    to the notification bell, where the only trace used to be a raw SDK error.
+  */
+  const wasResearching = React.useRef(researching);
+  React.useEffect(() => {
+    if (wasResearching.current && !researching && calendar.length === 0) {
+      toast.error(t.researchFailed, { duration: 15000 });
+    }
+    wasResearching.current = researching;
+  }, [researching, calendar.length, t.researchFailed]);
+
   function handleResearch() {
     startTransition(async () => {
       const result = await startResearch(websiteId);
