@@ -3,6 +3,7 @@ import { NonRetriableError } from "inngest";
 
 import { inngest } from "@/inngest/client";
 import { queueJob } from "@/inngest/send";
+import { labsMarket } from "@/lib/providers/dataforseo-markets";
 import { MODELS } from "@/lib/ai/client";
 import { db } from "@/lib/db";
 import { calendarItems, clusters, keywords, websites } from "@/lib/db/schema";
@@ -216,8 +217,21 @@ export const researchKeywords = inngest.createFunction(
         };
       }
 
-      const location = site.country || "United States";
-      const language = site.language || "English";
+      /*
+        A pair DataForSEO actually has data for. The website's own pair is
+        used when it can be; see labsMarket for why it sometimes cannot.
+      */
+      const market = labsMarket(
+        site.country || "United States",
+        site.language || "English",
+      );
+      const { location, language } = market;
+      if (market.fallback) {
+        logger.warn(
+          { step: "fetch-metrics", websiteId, country: site.country, language: site.language, location, marketLanguage: language },
+          `Keyword market fallback: ${market.fallback}`,
+        );
+      }
 
       /**
        * Both provider calls tolerate failure.

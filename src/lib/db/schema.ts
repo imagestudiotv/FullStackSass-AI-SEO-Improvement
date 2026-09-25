@@ -11,7 +11,7 @@
  *  - Column names are snake_case in SQL, camelCase in TypeScript.
  */
 
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
   boolean,
   date,
@@ -812,7 +812,18 @@ export const creditLedger = pgTable(
     note: text("note"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
-  (table) => [index("credit_ledger_org_idx").on(table.organizationId)],
+  (table) => [
+    index("credit_ledger_org_idx").on(table.organizationId),
+    /*
+      One plan grant per workspace per billing month, enforced by the
+      database. grantMonthlyCredits used to check for the month's row and then
+      insert it, so two page loads at the same moment could both see "not yet"
+      and grant the month's credits twice.
+    */
+    uniqueIndex("credit_ledger_plan_grant_unique_idx")
+      .on(table.organizationId, table.referenceId)
+      .where(sql`${table.type} = 'plan_grant'`),
+  ],
 );
 
 export const backlinkRequests = pgTable("backlink_requests", {

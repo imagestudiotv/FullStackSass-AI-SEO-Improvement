@@ -2,6 +2,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
+import { guardClient } from "./deadline";
 import * as schema from "./schema";
 
 /**
@@ -80,8 +81,18 @@ function getDb(): PostgresJsDatabase<typeof schema> {
        * clear error reaches the error boundary with a digest attached.
        */
       connect_timeout: 10,
+
+      /*
+        Replace every connection after five minutes, busy or not. The
+        postgres.js default is 30-60 minutes, and a connection that long-lived
+        is the one most likely to have been dropped by the pooler or a NAT
+        while this function instance was frozen between requests - the dead
+        connection behind the backlinks page's 300-second hangs.
+      */
+      max_lifetime: 60 * 5,
     });
-    instance = drizzle(client, { schema });
+    // Every query gets a deadline and a slow-query log. See deadline.ts.
+    instance = drizzle(guardClient(client), { schema });
   }
   return instance;
 }

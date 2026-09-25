@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "credit_ledger_plan_grant_unique_idx" ON "credit_ledger" USING btree ("organization_id","reference_id") WHERE "credit_ledger"."type" = 'plan_grant';

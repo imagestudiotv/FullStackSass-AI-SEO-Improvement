@@ -134,26 +134,26 @@ export async function grantMonthlyCredits(
   const period = sub.periodStart ?? new Date();
   const key = `plan_grant:${period.toISOString().slice(0, 7)}`;
 
-  const [existing] = await db
-    .select({ id: creditLedger.id })
-    .from(creditLedger)
-    .where(
-      and(
-        eq(creditLedger.organizationId, organizationId),
-        eq(creditLedger.referenceId, key),
-      ),
-    )
-    .limit(1);
+  if (sub.monthlyCredits === 0) return 0;
 
-  if (existing) return 0;
+  /*
+    One statement, not check-then-insert: the unique index on (organization,
+    reference) for plan grants makes a second grant for the same month a
+    no-op, however many page loads arrive together. See creditLedger.
+  */
+  const granted = await db
+    .insert(creditLedger)
+    .values({
+      organizationId,
+      type: "plan_grant",
+      amount: sub.monthlyCredits,
+      referenceId: key,
+      note: "Monthly plan allowance",
+    })
+    .onConflictDoNothing()
+    .returning({ id: creditLedger.id });
 
-  await recordCredit(organizationId, {
-    type: "plan_grant",
-    amount: sub.monthlyCredits,
-    referenceId: key,
-    note: "Monthly plan allowance",
-  });
-  return sub.monthlyCredits;
+  return granted.length > 0 ? sub.monthlyCredits : 0;
 }
 
 export type LedgerRow = {

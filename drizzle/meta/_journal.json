@@ -204,6 +204,13 @@
       "when": 1790313489438,
       "tag": "0028_furry_serpent_society",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1790335529284,
+      "tag": "0029_cute_stark_industries",
+      "breakpoints": true
     }
   ]
 }
