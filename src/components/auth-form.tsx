@@ -325,7 +325,7 @@ export function AuthForm({
       <Button
         type="button"
         variant="outline"
-        className="mt-8 h-14 w-full rounded-full border-primary/30 text-base font-semibold shadow-sm ring-4 ring-primary/5 transition-shadow hover:ring-primary/10"
+        className="relative mt-8 h-14 w-full rounded-full border-primary/30 text-base font-semibold shadow-sm ring-4 ring-primary/5 transition-shadow hover:ring-primary/10"
         onClick={handleGoogle}
         disabled={googlePending || pending}
       >
@@ -338,7 +338,15 @@ export function AuthForm({
           <>
             <GoogleMark className="size-5" />
             {t.continueWithGoogle}
-            <ArrowRight className="ml-auto size-4 text-muted-foreground" aria-hidden="true" />
+            {/*
+              Pinned to the right edge rather than pushed there with ml-auto,
+              which dragged the logo and label to the left. The client asked
+              for them centred in the row; the arrow stays where it was.
+            */}
+            <ArrowRight
+              className="absolute right-5 size-4 text-muted-foreground"
+              aria-hidden="true"
+            />
           </>
         )}
       </Button>
