@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { organization } from "@/lib/db/auth-tables";
-import { websites } from "@/lib/db/schema";
+import { networkSites, websites } from "@/lib/db/schema";
 import { createTestDb, type TestDb } from "@/test/db";
 import { seedWebsite } from "@/test/fixtures";
 
@@ -82,6 +82,16 @@ describe("adding websites (free analysis)", () => {
     const rows = await test.db.select().from(websites).where(eq(websites.organizationId, orgId));
     expect(rows).toHaveLength(FREE_ANALYSES_PER_WORKSPACE_PER_DAY);
     expect(inngestMock.send).toHaveBeenCalledTimes(FREE_ANALYSES_PER_WORKSPACE_PER_DAY);
+  });
+
+  it("a new website gets the client's defaults from the application, and joins the Partner Network", async () => {
+    await newWorkspace();
+    const added = await addWebsite(`https://d-${state.orgId.slice(4, 12)}.com`);
+    if (!added.ok) throw new Error(added.error);
+    const [site] = await test.db.select().from(websites).where(eq(websites.id, added.data.id));
+    expect(site).toMatchObject({ autoPublish: true, publishAs: "live", tableOfContents: true, mentionSimilarProducts: true, poweredByLink: true });
+    const [network] = await test.db.select().from(networkSites).where(eq(networkSites.websiteId, added.data.id));
+    expect(network).toMatchObject({ acceptingLinks: true, monthlyCap: 3 });
   });
 
   it("accepts a website while the queue is down, and hands the slot back only when delivery is given up", async () => {

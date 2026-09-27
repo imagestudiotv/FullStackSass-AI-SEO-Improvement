@@ -5,7 +5,8 @@ import { revalidatePath } from "next/cache";
 
 import { isEntitledToSpend } from "@/lib/billing/entitled";
 import { db } from "@/lib/db";
-import { competitors, websites } from "@/lib/db/schema";
+import { competitors, networkSites, websites } from "@/lib/db/schema";
+import { NEW_SITE_DEFAULTS, NEW_SITE_NETWORK } from "@/lib/websites/new-site-defaults";
 import { settingsForMode, type FinishedMode } from "@/lib/publishing/policy";
 import {
   requireOrg,
@@ -124,8 +125,22 @@ export async function addWebsite(
         url: normalized.url,
         domain: normalized.domain,
         status: "pending",
+        // Written here, not as column defaults: see new-site-defaults.ts.
+        ...NEW_SITE_DEFAULTS,
       })
       .returning({ id: websites.id });
+    /*
+      New websites JOIN the managed Partner Network by default (client
+      decision, migration 0043), in the same transaction as the website, so
+      the two cannot disagree. It is visible and can be switched off on the
+      Backlinks screen. Existing websites are not touched. The hosting cap is
+      the product's existing default (see joinNetwork); nothing is spent or
+      matched by joining - the RepGet team places links (lib/backlinks/managed.ts).
+    */
+    await tx
+      .insert(networkSites)
+      .values({ websiteId: created.id, ...NEW_SITE_NETWORK })
+      .onConflictDoNothing({ target: networkSites.websiteId });
     return created.id;
   });
   if (!queued.ok) return { ok: false, error: queued.error };
