@@ -705,6 +705,13 @@ export const articles = pgTable(
     generationStep: text("generation_step"),
     publishedUrl: text("published_url"),
     /**
+     * When RepGet first saw this article LIVE on the customer's site (a
+     * delivery the CMS stored as published). Not set by a draft delivery, an
+     * edit or a republish. Null: not live yet, or live before this was
+     * recorded and the date cannot be established (migration 0045).
+     */
+    firstLiveAt: timestamp("first_live_at"),
+    /**
      * "publish" or "draft" when somebody pressed Publish on a website that is
      * connected only through the WordPress plugin; null otherwise.
      *
@@ -894,12 +901,27 @@ export const publishLogs = pgTable("publish_logs", {
   integrationId: uuid("integration_id").references(() => integrations.id, {
     onDelete: "set null",
   }),
+  /**
+   * "published" means DELIVERED to the CMS - not necessarily live. It keeps
+   * that meaning because earlier builds find a post to update by it (and a
+   * rolled-back build still does). What the CMS actually stored is
+   * remoteStatus.
+   */
   status: text("status").notNull(),
   remoteId: text("remote_id"),
   remoteUrl: text("remote_url"),
+  /**
+   * The post status the CMS reported ("publish", "draft", "future", ...).
+   * Null on rows written before it was recorded: unknown, never assumed live.
+   */
+  remoteStatus: text("remote_status"),
+  /** The dispatch this row records. One "published" row per dispatch, so a repeated report logs once. */
+  dispatchId: uuid("dispatch_id").references(() => publicationDispatches.id, { onDelete: "set null" }),
   error: text("error"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => [
+  uniqueIndex("publish_logs_dispatch_uidx").on(table.dispatchId).where(sql`${table.dispatchId} is not null and ${table.status} = 'published'`),
+]);
 
 export const gscMetrics = pgTable(
   "gsc_metrics",
@@ -1403,9 +1425,13 @@ export const platformControls = pgTable("platform_controls", {
  * recorded. At most one in-flight row per article, enforced by the database.
  *
  * status: in_flight -> sent | failed (the site provably refused; nothing
- * created) | uncertain (no answer: the post may exist) | abandoned (a plugin
- * hand-over never acknowledged in time; safe to re-offer - the plugin
- * de-duplicates by article id).
+ * created) | uncertain (a direct send with no answer: the post may exist; it
+ * is resolved only by finding the post by its marker or by an audited
+ * decision) | expired (a plugin hand-over whose lease ran out unacknowledged;
+ * it may still be acknowledged - "abandoned" in rows before 0045) | released
+ * (an operator released an unacknowledged legacy-plugin hand-over).
+ * A lease running out is NOT completion: expired and uncertain rows are
+ * outstanding until settled.
  */
 export const publicationDispatches = pgTable(
   "publication_dispatches",
@@ -1426,8 +1452,35 @@ export const publicationDispatches = pgTable(
     status: text("status").default("in_flight").notNull(),
     /** The job run or request that owns it. */
     owner: text("owner"),
+    /**
+     * direct | plugin_v2 (the plugin echoes this dispatch's id) |
+     * plugin_legacy (plugins before 1.6.0: correlated by article, and only
+     * one revision may be outstanding at a time).
+     */
+    protocol: text("protocol"),
+    /** The direct integration the request went to. Reconciliation uses it, not whatever is connected later. */
+    integrationId: uuid("integration_id"),
+    /**
+     * What was sent, captured before sending: title, slug, requested status,
+     * content hash and the ownership marker. Reconciling an old dispatch reads
+     * this, never the article's current (mutable) fields.
+     */
+    requestSnapshot: jsonb("request_snapshot"),
     remoteId: text("remote_id"),
     remoteUrl: text("remote_url"),
+    /** The post status the CMS reported for this delivery. */
+    remoteStatus: text("remote_status"),
+    /** Settled after a newer dispatch of the article existed: history, not current delivery. */
+    late: boolean("late").default(false).notNull(),
+    /** Ownership lookups run for an uncertain send, the last one, and what it found. */
+    lookupAttempts: integer("lookup_attempts").default(0).notNull(),
+    lastLookupAt: timestamp("last_lookup_at"),
+    /** none | found | ambiguous | error */
+    lookupResult: text("lookup_result"),
+    /** An explicit, audited decision by a person (who, when, why). */
+    reconciledBy: text("reconciled_by"),
+    reconciledAt: timestamp("reconciled_at"),
+    reconcileNote: text("reconcile_note"),
     error: text("error"),
     claimedAt: timestamp("claimed_at").defaultNow().notNull(),
     completedAt: timestamp("completed_at"),
