@@ -315,7 +315,8 @@ export async function publishArticle(
 ): Promise<ActionResult<PublishResult>> {
   const guard = await requireEditor(websiteId);
   if (!guard.ok) return { ok: false, error: guard.error };
-  const { site, orgId } = guard.context;
+  /* ownerOrgId: the job belongs to the workspace that pays for the site. */
+  const { site, ownerOrgId } = guard.context;
 
   const [article] = await db
     .select({ id: articles.id, bodyHtml: articles.bodyHtml })
@@ -390,7 +391,7 @@ export async function publishArticle(
 
   await queueJob({
     name: "article/publish.requested",
-    data: { articleId, websiteId: site.id, organizationId: orgId, status },
+    data: { articleId, websiteId: site.id, organizationId: ownerOrgId, status },
   });
 
   revalidatePath(`/websites/${site.id}/articles/${articleId}`);

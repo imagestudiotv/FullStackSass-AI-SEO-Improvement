@@ -74,11 +74,83 @@ export function readStoredCredentials(
 }
 
 /**
+ * Which integration a website publishes through, WITHOUT decrypting anything.
+ *
+ * WHY THIS EXISTS SEPARATELY. A background job runs in steps, and every step's
+ * return value is PERSISTED by the job runner so a retry can resume without
+ * re-running it. The publish job used to resolve the integration and return its
+ * decrypted credentials from the first step, which wrote a customer's WordPress
+ * application password into durable job state — readable in the Inngest
+ * dashboard, and retained for as long as run history is kept.
+ *
+ * So the job resolves the IDENTIFIER here, carries that between steps, and each
+ * step that actually talks to the CMS calls loadCredentialsById itself. Nothing
+ * secret crosses a step boundary.
+ *
+ * A SECOND BENEFIT: credentials are re-read on every attempt. A customer who
+ * rotates their application password between a failure and its retry has the
+ * new one used, where a value captured in step state would have retried with
+ * the stale secret until the job ran out of attempts.
+ */
+export async function resolveIntegration(websiteId: string): Promise<{
+  integrationId: string;
+  providerId: string;
+} | null> {
+  const found = await loadCredentials(websiteId);
+  if (!found) return null;
+  // Deliberately drops `credentials`. The caller gets identifiers only.
+  return {
+    integrationId: found.integrationId,
+    providerId: found.providerId,
+  };
+}
+
+/**
+ * Decrypted credentials for one integration row, by its id.
+ *
+ * The companion to resolveIntegration: the job holds the id and asks for the
+ * secret only inside the step that sends the request. Returns null when the row
+ * is gone, is no longer connected, or can no longer be decrypted — all of which
+ * mean "the customer must reconnect" rather than "retry".
+ */
+export async function loadCredentialsById(integrationId: string): Promise<{
+  integrationId: string;
+  providerId: string;
+  credentials: Credentials;
+} | null> {
+  const [row] = await db
+    .select()
+    .from(integrations)
+    .where(
+      and(
+        eq(integrations.id, integrationId),
+        eq(integrations.status, "connected"),
+      ),
+    )
+    .limit(1);
+  if (!row) return null;
+
+  const provider = getProvider(row.kind);
+  if (!provider) return null;
+
+  const credentials = readStoredCredentials(
+    provider,
+    row.credentials as StoredCredentials | null,
+  );
+  if (!credentials) return null;
+
+  return { integrationId: row.id, providerId: provider.id, credentials };
+}
+
+/**
  * Decrypted credentials for a publish, with the provider that owns them.
  *
  * Callable only from server code that has already established what it is
  * allowed to touch: the publish job, which is dispatched with a website id the
  * platform itself chose. Never call this with an id that came from a request.
+ *
+ * NOT FOR USE ACROSS JOB STEPS. The return value contains plaintext secrets, so
+ * it must never be a step's return value — see resolveIntegration above.
  */
 export async function loadCredentials(websiteId: string): Promise<{
   integrationId: string;
