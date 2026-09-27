@@ -4,10 +4,17 @@ import { and, desc, eq, gte, lte, sql as raw } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { queueJob } from "@/inngest/send";
+/*
+  The state helper lives in lib/, not in the callback route. A server action
+  importing from a route handler drags that module's whole import graph into the
+  action's bundle, and the type it wanted is a domain type rather than part of
+  the HTTP endpoint.
+*/
 import {
-  signState,
+  createOAuthState,
   type ConnectOrigin,
-} from "@/app/api/integrations/google/callback/route";
+} from "@/lib/analytics/oauth-state";
+import { getSession } from "@/lib/auth-guard";
 import {
   disconnect,
   getConnection,
@@ -94,7 +101,25 @@ export async function startGoogleConnect(
 
   // Anything but the one other known value means the app page.
   const from: ConnectOrigin = origin === "onboarding" ? "onboarding" : "app";
-  return { ok: true, data: { url: authorizeUrl(signState(site.id, from)) } };
+
+  /**
+   * requireEditor above already proved this person may write to the site; the
+   * session is read here only to BIND the state to them, so a callback URL that
+   * leaks cannot be completed by anyone else. requireEditor redirects when
+   * there is no session, so this is defensive rather than a real branch.
+   */
+  const session = await getSession();
+  if (!session) return { ok: false, error: "Sign in to connect Google." };
+
+  const { state, codeChallenge } = await createOAuthState({
+    provider: "google",
+    websiteId: site.id,
+    userId: session.user.id,
+    sessionId: session.session.id,
+    origin: from,
+  });
+
+  return { ok: true, data: { url: authorizeUrl(state, codeChallenge) } };
 }
 
 export async function disconnectGoogle(
@@ -177,7 +202,8 @@ export async function startImport(
 ): Promise<ActionResult<null>> {
   const guard = await requireEditor(websiteId);
   if (!guard.ok) return { ok: false, error: guard.error };
-  const { site, orgId } = guard.context;
+  /* ownerOrgId: metered work is charged to the site's owner, not the guest. */
+  const { site, ownerOrgId } = guard.context;
 
   const connection = await getAnalyticsConnection(site.id);
   if (!connection.connected) {
@@ -189,7 +215,7 @@ export async function startImport(
 
   await queueJob({
     name: "website/analytics.import.requested",
-    data: { websiteId: site.id, organizationId: orgId },
+    data: { websiteId: site.id, organizationId: ownerOrgId },
   });
 
   revalidatePath(`/websites/${site.id}/google`);

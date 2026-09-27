@@ -52,7 +52,15 @@ export function redirectUri(): string {
  * forced, so a user who reconnects would otherwise get an access token that
  * expires in an hour and no way to renew it.
  */
-export function authorizeUrl(state: string): string {
+export function authorizeUrl(
+  state: string,
+  /**
+   * The S256 PKCE challenge. Optional so a caller without one still works, but
+   * every caller in this codebase sends one - see lib/analytics/oauth-state.ts
+   * for why a confidential client uses PKCE anyway.
+   */
+  codeChallenge?: string,
+): string {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   if (!clientId) throw new GoogleAuthError("GOOGLE_CLIENT_ID is not set", "config");
 
@@ -65,6 +73,9 @@ export function authorizeUrl(state: string): string {
     prompt: "consent",
     include_granted_scopes: "true",
     state,
+    ...(codeChallenge
+      ? { code_challenge: codeChallenge, code_challenge_method: "S256" }
+      : {}),
   });
   return `${AUTH_ENDPOINT}?${params.toString()}`;
 }
@@ -122,12 +133,21 @@ async function tokenRequest(
   };
 }
 
-export async function exchangeCode(code: string): Promise<TokenSet> {
+export async function exchangeCode(
+  code: string,
+  /**
+   * The PKCE verifier for this authorization, held server side for the whole
+   * flow. Without it an intercepted code is redeemable by whoever holds it;
+   * with it, only the server that started the flow can complete it.
+   */
+  codeVerifier?: string | null,
+): Promise<TokenSet> {
   return tokenRequest(
     {
       code,
       redirect_uri: redirectUri(),
       grant_type: "authorization_code",
+      ...(codeVerifier ? { code_verifier: codeVerifier } : {}),
     },
     "exchange",
   );
