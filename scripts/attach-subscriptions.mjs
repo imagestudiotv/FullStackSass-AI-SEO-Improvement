@@ -60,6 +60,17 @@ const rows = await sql`
   from subscriptions s
   join organization o on o.id = s.organization_id
   where s.website_id is null
+    -- An ended subscription with no website is usually one whose site was
+    -- deleted (website_id is ON DELETE SET NULL). Attaching it to another
+    -- site would let that site's next checkout overwrite its provider ids.
+    and s.status not in ('canceled', 'incomplete_expired')
+    -- A site that already has a subscription keeps it. An unattached live one
+    -- beside it is a second checkout the webhook recorded for support.
+    and not exists (
+      select 1 from subscriptions s2
+      join websites w2 on w2.id = s2.website_id
+      where w2.organization_id = s.organization_id
+    )
   order by s.created_at asc`;
 
 if (rows.length === 0) {

@@ -1,15 +1,17 @@
-import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
-import { db } from "@/lib/db";
-import { payments, plans, subscriptions, webhookEvents } from "@/lib/db/schema";
+import { processPayPalEvent, type PayPalEvent } from "@/lib/billing/paypal-events";
+import {
+  claimWebhookEvent,
+  completeWebhookEvent,
+  releaseWebhookEvent,
+} from "@/lib/billing/webhook-events";
 import { isPayPalConfigured, payPalRequest } from "@/lib/paypal/client";
-import { getSubscription, mapStatus,
-  parseCustomId,
-} from "@/lib/paypal/subscriptions";
 
 /**
- * PayPal webhook. THE ONLY PLACE PAYPAL SUBSCRIPTION STATE CHANGES.
+ * PayPal webhook. THE ONLY PLACE PAYPAL SUBSCRIPTION STATE CHANGES (with the
+ * recovery job, which replays events stored here, and the in-app cancel,
+ * which reads PayPal back through the same sync).
  *
  * As with Stripe, access is never granted from the return redirect — a
  * customer can reach that URL without completing payment. If it is not written
@@ -19,21 +21,11 @@ import { getSubscription, mapStatus,
  * can check locally, the raw headers and body are posted back to PayPal, which
  * answers SUCCESS or FAILURE. That is an extra network call per webhook, but it
  * is the only supported method.
+ *
+ * What each event does lives in lib/billing/paypal-events.ts.
  */
 
 export const dynamic = "force-dynamic";
-
-type PayPalEvent = {
-  id: string;
-  event_type: string;
-  resource?: {
-    id?: string;
-    status?: string;
-    custom_id?: string;
-    plan_id?: string;
-    billing_info?: { next_billing_time?: string };
-  };
-};
 
 /** Asks PayPal whether this delivery is genuine. */
 async function verifySignature(
@@ -77,75 +69,6 @@ async function verifySignature(
   }
 }
 
-/** Writes the subscription row for one website. */
-async function upsertSubscription(
-  organizationId: string,
-  /** The site this pays for; null for a subscription made before per-site billing. */
-  websiteId: string | null,
-  paypalSubscriptionId: string,
-  paypalPlanId: string | null,
-  status: string,
-  nextBilling: string | null,
-) {
-  let planId: string | null = null;
-  if (paypalPlanId) {
-    const [plan] = await db
-      .select({ id: plans.id })
-      .from(plans)
-      .where(eq(plans.paypalPlanId, paypalPlanId))
-      .limit(1);
-    planId = plan?.id ?? null;
-  }
-
-  const values = {
-    provider: "paypal",
-    paypalSubscriptionId,
-    status,
-    currentPeriodEnd: nextBilling ? new Date(nextBilling) : null,
-    // Keep the existing plan if this PayPal plan is not one of ours.
-    ...(planId ? { planId } : {}),
-    updatedAt: new Date(),
-  };
-
-  /**
-   * Keyed on the WEBSITE, matching Stripe and the unique index. Upserting on
-   * the organization meant a second site's subscription overwrote the first.
-   */
-  if (websiteId) {
-    await db
-      .insert(subscriptions)
-      .values({ organizationId, websiteId, ...values })
-      .onConflictDoUpdate({
-        target: subscriptions.websiteId,
-        set: values,
-      });
-    return;
-  }
-
-  /**
-   * No website: a subscription created before per-site billing. Updated by
-   * its PayPal id rather than inserted, which would duplicate it.
-   */
-  const [existing] = await db
-    .select({ id: subscriptions.id })
-    .from(subscriptions)
-    .where(eq(subscriptions.paypalSubscriptionId, paypalSubscriptionId))
-    .limit(1);
-
-  if (existing) {
-    await db
-      .update(subscriptions)
-      .set(values)
-      .where(eq(subscriptions.id, existing.id));
-    return;
-  }
-
-  console.warn(
-    `[paypal-webhook] subscription ${paypalSubscriptionId} has no website; recording without one`,
-  );
-  await db.insert(subscriptions).values({ organizationId, ...values });
-}
-
 export async function POST(request: Request) {
   if (!isPayPalConfigured() || !process.env.PAYPAL_WEBHOOK_ID) {
     console.error("[paypal-webhook] PayPal is not configured");
@@ -171,168 +94,35 @@ export async function POST(request: Request) {
   }
 
   /**
-   * Idempotency gate, shared with Stripe's handler. PayPal retries for up to
-   * three days on a non-2xx, so a duplicate must be free rather than applied
-   * twice.
+   * Idempotency gate, shared with Stripe's handler: the event is CLAIMED under
+   * a lease and a token, and stored, so a handler killed mid-run is finished
+   * by the recovery job. See lib/billing/webhook-events.ts.
    */
-  const inserted = await db
-    .insert(webhookEvents)
-    .values({
-      id: event.id,
-      provider: "paypal",
-      type: event.event_type,
-      payload: event as unknown as Record<string, unknown>,
-    })
-    .onConflictDoNothing()
-    .returning({ id: webhookEvents.id });
+  const claim = await claimWebhookEvent({
+    id: event.id,
+    provider: "paypal",
+    type: event.event_type,
+    payload: event,
+  });
 
-  if (inserted.length === 0) {
-    return NextResponse.json({ received: true, duplicate: true });
+  if (!claim.claimed) {
+    return NextResponse.json({
+      received: true,
+      duplicate: true,
+      reason: claim.reason,
+    });
   }
 
   try {
-    const resource = event.resource ?? {};
-    const subscriptionId = resource.id ?? null;
-
-    switch (event.event_type) {
-      case "BILLING.SUBSCRIPTION.ACTIVATED":
-      case "BILLING.SUBSCRIPTION.UPDATED":
-      case "BILLING.SUBSCRIPTION.CANCELLED":
-      case "BILLING.SUBSCRIPTION.SUSPENDED":
-      case "BILLING.SUBSCRIPTION.EXPIRED": {
-        if (!subscriptionId) break;
-
-        /**
-         * Re-fetched rather than trusting the event body: the payload is a
-         * snapshot that may already be stale, and custom_id is not present on
-         * every event type.
-         */
-        const live = await getSubscription(subscriptionId);
-        /**
-         * custom_id now carries "<organizationId>:<websiteId>". parseCustomId
-         * tolerates the old single-id form, still sent by subscriptions
-         * created before per-site billing.
-         */
-        const { organizationId, websiteId } = parseCustomId(
-          live.custom_id ?? resource.custom_id,
-        );
-
-        if (!organizationId) {
-          // Nothing to attach it to, and retrying cannot fix that.
-          console.error(
-            `[paypal-webhook] no organization for subscription ${subscriptionId}`,
-          );
-          break;
-        }
-
-        await upsertSubscription(
-          organizationId,
-          websiteId,
-          subscriptionId,
-          live.plan_id ?? null,
-          mapStatus(live.status),
-          live.billing_info?.next_billing_time ?? null,
-        );
-        break;
-      }
-
-      case "PAYMENT.SALE.COMPLETED":
-      case "PAYMENT.SALE.DENIED": {
-        // A payment moves the subscription's status; read it back rather than
-        // inferring from the payment itself.
-        const billingId =
-          (resource as { billing_agreement_id?: string }).billing_agreement_id ??
-          null;
-        if (!billingId) break;
-
-        const live = await getSubscription(billingId);
-        if (!live.custom_id) break;
-
-        const parsed = parseCustomId(live.custom_id);
-        if (!parsed.organizationId) break;
-
-        await upsertSubscription(
-          parsed.organizationId,
-          parsed.websiteId,
-          billingId,
-          live.plan_id ?? null,
-          mapStatus(live.status),
-          live.billing_info?.next_billing_time ?? null,
-        );
-
-        /**
-         * Record the payment.
-         *
-         * This is the half that had nowhere to live. PayPal offers no portal
-         * API we can open for a customer, so without this row their only
-         * record of a charge is inside their own PayPal account — and a
-         * customer asking "what did you bill me last month" had no answer
-         * anywhere in the product.
-         */
-        const sale = resource as {
-          id?: string;
-          amount?: { total?: string; currency?: string };
-        };
-        if (sale.id) {
-          // PayPal reports decimal strings ("29.00"); everything else in the
-          // product is minor units, so convert once here rather than at every
-          // read site.
-          const total = Number.parseFloat(sale.amount?.total ?? "0");
-          await db
-            .insert(payments)
-            .values({
-              /**
-               * parsed.organizationId, not live.custom_id.
-               *
-               * custom_id is the composite "<orgId>:<websiteId>" written by
-               * createSubscription; every other read in this handler puts it
-               * through parseCustomId first. Inserting it raw made
-               * organization_id a string that is not an organization id, and
-               * payments.organization_id has a foreign key — so the insert
-               * threw, the catch below deleted the idempotency row, and the
-               * 500 sent PayPal round the retry loop again. Every retry took
-               * the same path, so the charge was never recorded at all and
-               * the customer's billing history stayed empty: the exact gap
-               * the comment above says this row exists to close.
-               */
-              organizationId: parsed.organizationId,
-              provider: "paypal",
-              externalId: sale.id,
-              amountCents: Number.isFinite(total) ? Math.round(total * 100) : 0,
-              currency: (sale.amount?.currency ?? "EUR").toLowerCase(),
-              status:
-                event.event_type === "PAYMENT.SALE.COMPLETED"
-                  ? "paid"
-                  : "failed",
-              description: "Subscription payment",
-            })
-            .onConflictDoUpdate({
-              target: [payments.provider, payments.externalId],
-              set: {
-                status:
-                  event.event_type === "PAYMENT.SALE.COMPLETED"
-                    ? "paid"
-                    : "failed",
-                updatedAt: new Date(),
-              },
-            });
-        }
-        break;
-      }
-
-      default:
-        // Recorded above and acknowledged.
-        break;
-    }
+    await processPayPalEvent(event);
   } catch (error) {
-    /**
-     * Handling failed after the event was recorded, so a retry would hit the
-     * idempotency gate and skip. Remove the record to make the retry work.
-     */
-    await db.delete(webhookEvents).where(eq(webhookEvents.id, event.id));
+    await releaseWebhookEvent(event.id, claim.token, error);
     console.error(`[paypal-webhook] ${event.event_type} failed`, error);
     return NextResponse.json({ error: "handler failed" }, { status: 500 });
   }
+
+  // Finished - if this attempt still owns the claim.
+  await completeWebhookEvent(event.id, claim.token);
 
   return NextResponse.json({ received: true });
 }

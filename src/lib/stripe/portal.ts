@@ -1,9 +1,9 @@
 "use server";
 
-import { and, desc, eq, isNotNull } from "drizzle-orm";
+import { and, eq, isNotNull } from "drizzle-orm";
 
 import { db } from "@/lib/db";
-import { billingCustomers, subscriptions } from "@/lib/db/schema";
+import { billingCustomers, subscriptions, websites } from "@/lib/db/schema";
 import { isStripeConfigured, stripe } from "@/lib/stripe/client";
 import { stripeErrorMessage } from "@/lib/stripe/errors";
 import { requireOrg } from "@/lib/tenant";
@@ -48,6 +48,11 @@ export type PortalFlow = "manage" | "cancel";
  */
 export async function createPortalSession(
   flow: PortalFlow = "manage",
+  /**
+   * The website whose subscription a "cancel" is for. Required for cancel:
+   * a workspace pays per website, and the deep link names one subscription.
+   */
+  websiteId?: string | null,
 ): Promise<PortalResult> {
   const { orgId } = await requireOrg();
 
@@ -76,25 +81,33 @@ export async function createPortalSession(
   /**
    * The subscription to cancel, needed only for the deep link.
    *
-   * Newest first: a workspace can hold one per website, and the cancel flow
-   * names exactly one. Falling back to the portal home when there is none is
-   * the right outcome — there is nothing to cancel, and the home screen says
-   * so better than an error would.
+   * THE SELECTED WEBSITE'S, never "the newest in the workspace": that used to
+   * be picked, and in a workspace paying for several sites the cancel screen
+   * could open on a different site's subscription than the one the customer
+   * pressed cancel for. The website must belong to the caller, and must be
+   * paying through Stripe; otherwise this refuses rather than guessing.
    */
   let subscriptionId: string | null = null;
   if (flow === "cancel") {
-    const [active] = await db
-      .select({ id: subscriptions.stripeSubscriptionId })
+    if (!websiteId) {
+      return { error: "Choose the website whose subscription you want to cancel." };
+    }
+    const [target] = await db
+      .select({ id: subscriptions.stripeSubscriptionId, provider: subscriptions.provider })
       .from(subscriptions)
+      .innerJoin(websites, eq(websites.id, subscriptions.websiteId))
       .where(
         and(
-          eq(subscriptions.organizationId, orgId),
+          eq(subscriptions.websiteId, websiteId),
+          eq(websites.organizationId, orgId),
           isNotNull(subscriptions.stripeSubscriptionId),
         ),
       )
-      .orderBy(desc(subscriptions.createdAt))
       .limit(1);
-    subscriptionId = active?.id ?? null;
+    if (!target?.id) {
+      return { error: "This website has no card subscription to cancel." };
+    }
+    subscriptionId = target.id;
   }
 
   try {
