@@ -128,7 +128,11 @@ function update_post_meta($id, $k, $v) { $GLOBALS['meta'][$id][$k] = $v; return 
 function get_post_meta($id, $k, $single = false) {
     return isset($GLOBALS['meta'][$id][$k]) ? $GLOBALS['meta'][$id][$k] : '';
 }
-function get_post_status($id) { return isset($GLOBALS['posts'][$id]) ? 'publish' : false; }
+/** What the post row holds, as core returns it; false for a post that does not exist. */
+function get_post_status($id) {
+    if (!isset($GLOBALS['posts'][$id])) return false;
+    return isset($GLOBALS['posts'][$id]['post_status']) ? $GLOBALS['posts'][$id]['post_status'] : 'publish';
+}
 function get_posts($args) {
     $out = array();
     foreach ($GLOBALS['meta'] as $id => $m) {
@@ -234,6 +238,8 @@ function esc_url_raw($v) { return preg_match('#^https?://#', (string) $v) ? (str
 $GLOBALS['queue'] = array();
 $GLOBALS['ack_works'] = true;
 $GLOBALS['ack_calls'] = 0;
+$GLOBALS['ack_bodies'] = array();
+$GLOBALS['http'] = array();
 
 function repget_key() { return 'test-key'; }
 function repget_post_type() { return 'post'; }
@@ -249,6 +255,7 @@ function repget_request($path, $args = array()) {
             return new WP_Error('http', 'could not reach RepGet');
         }
         $body = json_decode($args['body'], true);
+        $GLOBALS['ack_bodies'][] = $body;
         unset($GLOBALS['queue'][$body['articleId']]);
         return array('ok' => true);
     }
@@ -278,6 +285,8 @@ function wp_safe_redirect($u) {}
 function wp_remote_post($u, $a) { return array(); }
 function wp_remote_get($u, $a) { return array(); }
 function wp_remote_retrieve_body($r) { return ''; }
+/** The real repget_request's transport: records what would be sent. */
+function wp_remote_request($u, $a) { $GLOBALS['http'][] = array($u, $a); return array(); }
 function wp_remote_retrieve_response_code($r) { return 200; }
 function trailingslashit($s) { return rtrim($s, '/') . '/'; }
 function untrailingslashit($s) { return rtrim($s, '/'); }
@@ -312,16 +321,19 @@ function reset_all() {
     $GLOBALS['posts'] = array(); $GLOBALS['meta'] = array();
     $GLOBALS['next_id'] = 100; $GLOBALS['images'] = array();
     $GLOBALS['insert_calls'] = 0; $GLOBALS['update_calls'] = 0;
-    $GLOBALS['ack_calls'] = 0; $GLOBALS['ack_works'] = true;
+    $GLOBALS['ack_calls'] = 0; $GLOBALS['ack_works'] = true; $GLOBALS['ack_bodies'] = array(); $GLOBALS['http'] = array();
     $GLOBALS['queue'] = array();
     $GLOBALS['after_row'] = null; $GLOBALS['before_row'] = null;
     $GLOBALS['between_check_and_insert'] = null;
     $GLOBALS['db_fail'] = null;
 }
-function article($id, $title = 'Hello', $status = 'publish') {
-    return array('id' => $id, 'title' => $title, 'html' => '<p>x</p>', 'status' => $status,
+function article($id, $title = 'Hello', $status = 'publish', $dispatch = null) {
+    $a = array('id' => $id, 'title' => $title, 'html' => '<p>x</p>', 'status' => $status,
         'image' => array('url' => 'https://img.test/a.png', 'alt' => 'a'));
+    if ($dispatch !== null) $a['dispatch'] = array('id' => $dispatch, 'revision' => 'r');
+    return $a;
 }
+function dispatch_uuid($n) { return sprintf('00000000-0000-4000-8000-%012d', $n); }
 function post_count() { return count($GLOBALS['posts']); }
 /** A lock left behind by a process that died, and old enough to be stolen. */
 function abandoned_lock($token = 'dead') {
@@ -514,6 +526,60 @@ $r = repget_sync_locked();
 $GLOBALS['db_fail'] = null;
 check('a sync that cannot confirm its lock stops', is_wp_error($r) && $r->get_error_code() === 'repget_lock_error', is_wp_error($r) ? '(' . $r->get_error_code() . ')' : '(not an error)');
 check('...without writing a post', post_count() === 0);
+
+echo "\nPROTOCOL v2 (1.6.0): the plugin announces itself and echoes the hand-over it answers\n";
+reset_all();
+__unused_repget_request('/api/plugin/articles', array('method' => 'GET'));
+$sent_headers = $GLOBALS['http'][0][1]['headers'];
+check('X-RepGet-Plugin-Version is sent', isset($sent_headers['X-RepGet-Plugin-Version']) && $sent_headers['X-RepGet-Plugin-Version'] === REPGET_VERSION);
+check('...and the version is 1.6.0', REPGET_VERSION === '1.6.0');
+$GLOBALS['queue']['v1'] = article('v1', 'Hello', 'publish', dispatch_uuid(1));
+repget_sync_locked();
+check('the report names the dispatch', isset($GLOBALS['ack_bodies'][0]['dispatchId']) && $GLOBALS['ack_bodies'][0]['dispatchId'] === dispatch_uuid(1));
+check('...and the status WordPress stored', $GLOBALS['ack_bodies'][0]['status'] === 'publish');
+
+echo "\nTWO HAND-OVERS of one article, reports failing: both are kept, each with its own dispatch\n";
+reset_all();
+$GLOBALS['ack_works'] = false;
+$GLOBALS['queue']['t1'] = article('t1', 'Revision A', 'publish', dispatch_uuid(10));
+repget_sync_locked();
+$GLOBALS['queue']['t1'] = article('t1', 'Revision B', 'publish', dispatch_uuid(11));
+repget_sync_locked();
+$parked = repget_pending_acks();
+check('two reports parked (1.5.x kept only the last)', count($parked) === 2, '(got ' . count($parked) . ')');
+$GLOBALS['ack_works'] = true;
+$GLOBALS['queue'] = array();
+repget_sync_locked();
+$ids = array_map(function ($b) { return isset($b['dispatchId']) ? $b['dispatchId'] : null; }, $GLOBALS['ack_bodies']);
+$flushed = array_slice($ids, -2);
+sort($flushed);
+check('both flushed with their own dispatch ids', $flushed === array(dispatch_uuid(10), dispatch_uuid(11)), json_encode($ids));
+check('queue empty afterwards', count(repget_pending_acks()) === 0);
+check('one post', post_count() === 1);
+
+echo "\nA REPORT PARKED BY 1.5.x (keyed by article) is still delivered, without a dispatch\n";
+reset_all();
+$GLOBALS['posts'][300] = array('post_title' => 'Old', 'guid' => get_permalink(300), 'post_status' => 'publish');
+update_option(REPGET_OPTION_PENDING_ACK, array('legacy1' => array('post_id' => 300, 'url' => get_permalink(300), 'status' => 'publish')));
+repget_sync_locked();
+check('reported', count($GLOBALS['ack_bodies']) === 1 && $GLOBALS['ack_bodies'][0]['articleId'] === 'legacy1');
+check('...with no dispatch id', !isset($GLOBALS['ack_bodies'][0]['dispatchId']));
+check('...and cleared', count(repget_pending_acks()) === 0);
+
+echo "\nACTUAL STATUS: an update of a post the customer keeps as a draft reports 'draft'\n";
+reset_all();
+$GLOBALS['queue']['s1'] = article('s1', 'One', 'draft', dispatch_uuid(20));
+repget_sync_locked();
+$GLOBALS['queue']['s1'] = article('s1', 'One, edited', 'publish', dispatch_uuid(21));
+repget_sync_locked();
+$last = end($GLOBALS['ack_bodies']);
+check('requested publish, WordPress kept draft: reported draft', $last['status'] === 'draft' && $last['dispatchId'] === dispatch_uuid(21), json_encode($last));
+
+echo "\nA MALFORMED dispatch id is not echoed\n";
+reset_all();
+$GLOBALS['queue']['m1'] = article('m1', 'Hello', 'publish', "x'; DROP");
+repget_sync_locked();
+check('reported without a dispatch id', !isset($GLOBALS['ack_bodies'][0]['dispatchId']));
 
 echo "\n" . ($failures === 0 ? "ALL PASSED" : "{$failures} FAILURE(S)") . "\n";
 exit($failures === 0 ? 0 : 1);

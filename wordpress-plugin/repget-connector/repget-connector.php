@@ -2,7 +2,7 @@
 /**
  * Plugin Name: RepGet Connector
  * Description: Publishes articles written by RepGet straight to this site. Paste your Integration Key to connect.
- * Version: 1.5.2
+ * Version: 1.6.0
  * Requires at least: 5.6
  * Requires PHP: 7.4
  * License: GPLv2 or later
@@ -31,7 +31,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('REPGET_VERSION', '1.5.2');
+define('REPGET_VERSION', '1.6.0');
 define('REPGET_OPTION_KEY', 'repget_integration_key');
 define('REPGET_OPTION_STATUS', 'repget_status');
 define('REPGET_OPTION_ENDPOINT', 'repget_endpoint');
@@ -164,6 +164,12 @@ function repget_request($path, $args = array()) {
             // repget_remote_sync. Sent every time so an upgraded plugin is
             // picked up on its next check, without reconnecting.
             'X-RepGet-Sync-Url' => admin_url('admin-ajax.php'),
+            /*
+              1.6.0+: tells RepGet this plugin echoes each hand-over's
+              dispatch id in its report (protocol v2), so a report settles
+              exactly the delivery it answers - never a newer one.
+            */
+            'X-RepGet-Plugin-Version' => REPGET_VERSION,
         ),
     );
 
@@ -674,10 +680,29 @@ function repget_keep_oldest($article_id, $post_id) {
     return $ids[0];
 }
 
-/** Acknowledgements waiting to be confirmed by RepGet. */
+/**
+ * Acknowledgements waiting to be confirmed by RepGet.
+ *
+ * Keyed by the HAND-OVER they answer ("dispatch:<id>", 1.6.0+). 1.5.x keyed
+ * them by article id, so a report for an older hand-over and one for a newer
+ * revision of the same article overwrote each other; entries parked by 1.5.x
+ * are still read (their key is the article id, with no dispatch) and
+ * reported as before.
+ */
 function repget_pending_acks() {
     $acks = get_option(REPGET_OPTION_PENDING_ACK, array());
     return is_array($acks) ? $acks : array();
+}
+
+/** The queue key for a report: the dispatch when RepGet sent one, else the article (1.5.x). */
+function repget_ack_key($article_id, $dispatch_id) {
+    return $dispatch_id !== '' ? 'dispatch:' . $dispatch_id : (string) $article_id;
+}
+
+/** A dispatch id from the feed: a UUID, or '' (a RepGet too old to send one). */
+function repget_dispatch_id($article) {
+    $id = isset($article['dispatch']['id']) && is_string($article['dispatch']['id']) ? strtolower($article['dispatch']['id']) : '';
+    return preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/', $id) ? $id : '';
 }
 
 /**
@@ -688,12 +713,14 @@ function repget_pending_acks() {
  * ordering is the point: the alternative loses the fact of publication and the
  * next poll creates a duplicate.
  */
-function repget_remember_ack($article_id, $post_id, $url, $status) {
+function repget_remember_ack($article_id, $dispatch_id, $post_id, $url, $status) {
     $acks = repget_pending_acks();
-    $acks[(string) $article_id] = array(
-        'post_id' => (int) $post_id,
-        'url'     => (string) $url,
-        'status'  => (string) $status,
+    $acks[repget_ack_key($article_id, $dispatch_id)] = array(
+        'article_id'  => (string) $article_id,
+        'dispatch_id' => (string) $dispatch_id,
+        'post_id'     => (int) $post_id,
+        'url'         => (string) $url,
+        'status'      => (string) $status,
     );
     /*
       Bounded. A site that cannot reach RepGet for a long time should not grow
@@ -706,9 +733,9 @@ function repget_remember_ack($article_id, $post_id, $url, $status) {
     update_option(REPGET_OPTION_PENDING_ACK, $acks, false);
 }
 
-function repget_forget_ack($article_id) {
+function repget_forget_ack($key) {
     $acks = repget_pending_acks();
-    unset($acks[(string) $article_id]);
+    unset($acks[(string) $key]);
     update_option(REPGET_OPTION_PENDING_ACK, $acks, false);
 }
 
@@ -720,8 +747,11 @@ function repget_forget_ack($article_id) {
  * Publishing and acknowledging are separate concerns and fail separately.
  */
 function repget_flush_acks() {
-    foreach (repget_pending_acks() as $article_id => $ack) {
+    foreach (repget_pending_acks() as $key => $ack) {
         $post_id = isset($ack['post_id']) ? (int) $ack['post_id'] : 0;
+        // Entries parked by 1.5.x: keyed by article id, no dispatch.
+        $article_id = isset($ack['article_id']) ? (string) $ack['article_id'] : (string) $key;
+        $dispatch_id = isset($ack['dispatch_id']) ? (string) $ack['dispatch_id'] : '';
 
         /*
           The post was deleted and purged locally. Nothing to confirm, and
@@ -729,19 +759,20 @@ function repget_flush_acks() {
           RepGet hand the article over again and a fresh post be made.
         */
         if ($post_id > 0 && get_post_status($post_id) === false) {
-            repget_forget_ack($article_id);
+            repget_forget_ack($key);
             continue;
         }
 
         $reported = repget_report(
             $article_id,
+            $dispatch_id,
             isset($ack['url']) ? $ack['url'] : null,
             $post_id > 0 ? $post_id : null,
             null,
             isset($ack['status']) ? $ack['status'] : 'publish'
         );
         if (!is_wp_error($reported)) {
-            repget_forget_ack($article_id);
+            repget_forget_ack($key);
         }
     }
 }
@@ -783,6 +814,9 @@ function repget_sync($token = null) {
         }
 
         $article_id = sanitize_text_field($article['id']);
+        // The hand-over this is (1.6.0+): echoed in the report so RepGet
+        // settles exactly this delivery.
+        $dispatch_id = repget_dispatch_id($article);
 
         /*
           Still ours? Renewing is also the check: a worker that stalled past its
@@ -871,7 +905,7 @@ function repget_sync($token = null) {
         }
 
         if (is_wp_error($post_id)) {
-            repget_report($article_id, null, null, $post_id->get_error_message(), $status);
+            repget_report($article_id, $dispatch_id, null, null, $post_id->get_error_message(), $status);
             continue;
         }
 
@@ -902,11 +936,19 @@ function repget_sync($token = null) {
           published. repget_flush_acks retries it on the next run.
         */
         $permalink = get_permalink($post_id);
-        repget_remember_ack($article_id, $post_id, $permalink, $status);
+        /*
+          What WordPress actually holds, not what was asked for: an update
+          keeps the customer's own status (see above), and a site can store a
+          requested "publish" as pending or draft (a workflow plugin, an
+          account without publish rights). RepGet counts only "publish" as live.
+        */
+        $stored = get_post_status($post_id);
+        $actual = is_string($stored) && $stored !== '' ? $stored : $status;
+        repget_remember_ack($article_id, $dispatch_id, $post_id, $permalink, $actual);
 
-        $reported = repget_report($article_id, $permalink, $post_id, null, $status);
+        $reported = repget_report($article_id, $dispatch_id, $permalink, $post_id, null, $actual);
         if (!is_wp_error($reported)) {
-            repget_forget_ack($article_id);
+            repget_forget_ack(repget_ack_key($article_id, $dispatch_id));
         }
 
         $published++;
@@ -1185,8 +1227,9 @@ function repget_move_articles_to($post_type) {
 
         // Its address changed with its type; RepGet links to it.
         if ($article_id !== '') {
-            $status = get_post_status($post_id) === 'publish' ? 'publish' : 'draft';
-            repget_report($article_id, get_permalink($post_id), $post_id, null, $status);
+            // Not a delivery: RepGet records the new address of a post it already knows.
+            $status = get_post_status($post_id);
+            repget_report($article_id, '', get_permalink($post_id), $post_id, null, is_string($status) ? $status : 'publish');
         }
     }
     return $moved;
@@ -1199,18 +1242,25 @@ function repget_move_articles_to($post_type) {
  * so a report that never arrived was indistinguishable from one that did - and
  * an article RepGet never heard about is handed out again on the next poll.
  * repget_sync parks a failed report and repget_flush_acks retries it.
+ *
+ * `dispatchId` (1.6.0+) names the exact hand-over; '' for reports that are
+ * not a delivery (a moved post) or were parked by 1.5.x. `status` is the
+ * post status WordPress stored.
  */
-function repget_report($article_id, $url, $remote_id, $error, $status = 'publish') {
+function repget_report($article_id, $dispatch_id, $url, $remote_id, $error, $status = 'publish') {
+    $body = array(
+        'articleId' => $article_id,
+        'url'       => $url,
+        'remoteId'  => $remote_id,
+        'error'     => $error,
+        'status'    => $status,
+    );
+    if ($dispatch_id !== '') {
+        $body['dispatchId'] = $dispatch_id;
+    }
     return repget_request('/api/plugin/published', array(
         'method' => 'POST',
-        'body'   => wp_json_encode(array(
-            'articleId' => $article_id,
-            'url'       => $url,
-            'remoteId'  => $remote_id,
-            'error'     => $error,
-            // So RepGet records a WordPress draft as a draft, not as live.
-            'status'    => $status,
-        )),
+        'body'   => wp_json_encode($body),
     ));
 }
 

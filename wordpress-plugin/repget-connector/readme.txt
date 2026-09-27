@@ -2,7 +2,7 @@
 Requires at least: 5.6
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.5.2
+Stable tag: 1.6.0
 License: GPLv2 or later
 
 Publishes articles written by RepGet straight to your WordPress site.
@@ -64,6 +64,18 @@ Nothing else is sent. The plugin only
 fetches articles and reports whether each one published.
 
 == Changelog ==
+
+= 1.6.0 =
+* Each report to RepGet now names the exact delivery it answers. When a
+  check was slow and RepGet had meanwhile sent a newer version of the same
+  article, an older report could be taken for the newer one; it no longer can.
+* Reports waiting to be retried are kept per delivery, so a report for an
+  older version and one for a newer version of the same article are both
+  delivered (1.5.x kept only the last). Reports parked by 1.5.x are still sent.
+* RepGet is told the status WordPress actually stored - for example a post you
+  keep as a draft, or a post your site saved as pending - rather than the
+  status it asked for, so RepGet no longer counts such a post as live.
+* The plugin tells RepGet its version with each request.
 
 = 1.5.2 =
 * A check interrupted at the exact moment a post is created no longer causes a

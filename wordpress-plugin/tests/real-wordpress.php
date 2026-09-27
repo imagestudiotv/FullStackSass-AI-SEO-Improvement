@@ -13,7 +13,9 @@
  *  - wp_insert_post really writes the row before meta_input, and a supplied
  *    guid survives (esc_url_raw, wp_filter_kses) inside that same INSERT;
  *  - MySQL really reports 0 affected rows for an UPDATE that changes nothing;
- *  - INSERT IGNORE on wp_options is really exclusive.
+ *  - INSERT IGNORE on wp_options is really exclusive;
+ *  - protocol v2 (1.6.0): the version header goes out, reports echo the
+ *    dispatch id, and the status reported is the one WordPress stored.
  */
 
 if ($argc < 3) {
@@ -38,14 +40,18 @@ function check($label, $cond, $detail = '') {
 // ---------------------------------------------------------- fake RepGet API --
 $GLOBALS['queue'] = array();
 $GLOBALS['acks'] = 0;
+$GLOBALS['reports'] = array();
+$GLOBALS['headers_seen'] = array();
 update_option(REPGET_OPTION_KEY, 'test-key-not-real');
 add_filter('pre_http_request', function ($pre, $args, $url) {
     $path = parse_url($url, PHP_URL_PATH);
+    $GLOBALS['headers_seen'][] = isset($args['headers']) ? $args['headers'] : array();
     if ($path === '/api/plugin/articles') {
         $body = array('articles' => array_values($GLOBALS['queue']));
     } elseif ($path === '/api/plugin/published') {
         $GLOBALS['acks']++;
         $sent = json_decode($args['body'], true);
+        $GLOBALS['reports'][] = $sent;
         unset($GLOBALS['queue'][$sent['articleId']]);
         $body = array('ok' => true);
     } else {
@@ -57,8 +63,10 @@ add_filter('pre_http_request', function ($pre, $args, $url) {
     );
 }, 10, 3);
 
-function article($id, $title = 'Hello') {
-    return array('id' => $id, 'title' => $title, 'html' => '<p>x</p>', 'status' => 'publish');
+function article($id, $title = 'Hello', $status = 'publish', $dispatch = null) {
+    $a = array('id' => $id, 'title' => $title, 'html' => '<p>x</p>', 'status' => $status);
+    if ($dispatch !== null) $a['dispatch'] = array('id' => $dispatch, 'revision' => 'r');
+    return $a;
 }
 function repget_post_ids() {
     global $wpdb;
@@ -72,6 +80,8 @@ function reset_state() {
     $wpdb->query($wpdb->prepare("DELETE FROM {$wpdb->options} WHERE option_name = %s", REPGET_LOCK));
     delete_option(REPGET_OPTION_PENDING_ACK);
     $GLOBALS['queue'] = array();
+    $GLOBALS['reports'] = array();
+    $GLOBALS['headers_seen'] = array();
 }
 
 echo "\nWordPress " . get_bloginfo('version') . ", MySQL " . $wpdb->db_version() . "\n";
@@ -134,6 +144,25 @@ $a = wp_insert_post(array('post_title' => 'A', 'post_status' => 'publish', 'guid
 $b = wp_insert_post(array('post_title' => 'B', 'post_status' => 'publish', 'guid' => repget_identity_guid('d1')));
 check('the newer duplicate is removed', repget_keep_oldest('d1', $b) === $a && get_post($b) === null);
 check('the oldest is kept and findable', repget_find_post('d1') === $a);
+
+echo "\nPROTOCOL v2 (1.6.0) on real WordPress\n";
+reset_state();
+$d1 = '00000000-0000-4000-8000-000000000001';
+$d2 = '00000000-0000-4000-8000-000000000002';
+$GLOBALS['queue']['v1'] = article('v1', 'Draft first', 'draft', $d1);
+repget_sync_locked();
+$h = $GLOBALS['headers_seen'][0];
+check('X-RepGet-Plugin-Version sent', isset($h['X-RepGet-Plugin-Version']) && $h['X-RepGet-Plugin-Version'] === REPGET_VERSION);
+check('report echoes the dispatch id', isset($GLOBALS['reports'][0]['dispatchId']) && $GLOBALS['reports'][0]['dispatchId'] === $d1);
+check('report carries the stored status (draft)', $GLOBALS['reports'][0]['status'] === 'draft');
+$post = repget_find_post('v1');
+// RepGet sends the next revision asking for "publish"; the customer's draft is kept.
+$GLOBALS['queue']['v1'] = article('v1', 'Draft first, edited', 'publish', $d2);
+repget_sync_locked();
+$last = end($GLOBALS['reports']);
+check('the update report names the new dispatch', $last['dispatchId'] === $d2);
+check('...and reports what WordPress kept: draft, not the requested publish', $last['status'] === 'draft' && get_post_status($post) === 'draft', json_encode($last));
+check('one post', count(repget_post_ids()) === 1);
 
 reset_state();
 echo "\n" . ($failures === 0 ? "ALL PASSED" : "{$failures} FAILURE(S)") . "\n";
