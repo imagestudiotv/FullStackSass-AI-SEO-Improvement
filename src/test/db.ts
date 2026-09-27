@@ -21,7 +21,21 @@ const root = path.resolve(__dirname, "../..");
 
 type Journal = { entries: { tag: string }[] };
 
-export async function createTestDb() {
+/** Applies one migration file to a database, statement by statement. */
+export async function applyMigration(client: PGlite, tag: string) {
+  const file = readFileSync(path.join(root, "drizzle", `${tag}.sql`), "utf8");
+  const statements = file
+    .replace(/vector\(\d+\)/g, "text")
+    .split("--> statement-breakpoint")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  for (const statement of statements) await client.exec(statement);
+}
+
+export async function createTestDb(
+  /** Stop after this migration tag, to test what a later one does to existing rows. */
+  options: { through?: string } = {},
+) {
   const client = new PGlite();
   const journal = JSON.parse(
     readFileSync(path.join(root, "drizzle/meta/_journal.json"), "utf8"),
@@ -37,6 +51,7 @@ export async function createTestDb() {
     for (const statement of statements) {
       await client.exec(statement);
     }
+    if (options.through === tag) break;
   }
 
   const db = drizzle(client, { schema });

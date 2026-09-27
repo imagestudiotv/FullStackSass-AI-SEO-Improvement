@@ -1,0 +1,437 @@
+"use client";
+
+import { CheckCircle2, Link2, Loader2, RotateCcw, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useMemo, useState, useTransition } from "react";
+import { toast } from "sonner";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { PageHeader, PageShell } from "@/components/ui/page-header";
+import {
+  approveForRelease,
+  changePlacementCredits,
+  checkTarget,
+  placeLink,
+  removePlacement,
+  reopenForReview,
+} from "@/lib/admin/network";
+import type { getReviewArticle } from "@/lib/admin/network";
+
+type Review = NonNullable<Awaited<ReturnType<typeof getReviewArticle>>>;
+
+const RELEASE_TEXT: Record<string, string> = {
+  queued: "Approved - queued for publishing now.",
+  plugin: "Approved - the WordPress plugin was asked to collect it now.",
+  waiting_for_day: "Approved - it will be released on its planned day.",
+  customer_publishes: "Approved - the customer's mode is review, so they publish it.",
+  nothing_connected: "Approved - it goes out once the website is connected.",
+};
+
+/**
+ * One article's review: its text, its network links, and the approval.
+ *
+ * Every change is sent with the review version this screen was opened at.
+ * If another administrator changed the article meanwhile, the server
+ * refuses and asks for a reload - nothing is silently overwritten.
+ */
+export function ReviewWorkspace({ review }: { review: Review }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const { article, placements, candidates, limits } = review;
+  const version = article.reviewVersion;
+
+  const [beneficiaryId, setBeneficiaryId] = useState("");
+  const [targetUrl, setTargetUrl] = useState("");
+  const [targetTitle, setTargetTitle] = useState<string | null>(null);
+  const [anchor, setAnchor] = useState("");
+  const [credits, setCredits] = useState(String(limits.defaultCredits));
+  const [reason, setReason] = useState("");
+  const [note, setNote] = useState("");
+
+  const beneficiary = useMemo(() => candidates.find((c) => c.websiteId === beneficiaryId) ?? null, [candidates, beneficiaryId]);
+  const live = placements.filter((p) => p.status !== "cancelled");
+  const editable = article.status === "draft" && !article.publishedUrl && article.reviewStatus !== null;
+  const mode = !article.autoPublish ? "Review (customer publishes)" : article.publishAs === "draft" ? "CMS draft on the planned day" : "Live on the planned day";
+
+  function run<T>(action: () => Promise<{ ok: true; data: T } | { ok: false; error: string }>, done: (data: T) => void) {
+    start(async () => {
+      const result = await action();
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      done(result.data);
+      router.refresh();
+    });
+  }
+
+  return (
+    <PageShell width="wide">
+      <PageHeader
+        title={article.title}
+        description={`${article.domain} · ${article.organizationName} · ${article.language ?? "language unknown"} · planned ${
+          article.plannedFor ? new Date(article.plannedFor).toISOString().slice(0, 10) : "with no date"
+        }`}
+      />
+      <p className="text-sm">
+        <Link href="/admin/network" className="underline-offset-4 hover:underline">
+          ← Review queue
+        </Link>
+      </p>
+
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <Badge variant={article.approvedCurrent ? "default" : "secondary"}>
+          {article.approvedCurrent
+            ? "Approved"
+            : article.reviewStatus === "approved"
+              ? "Changed since approval"
+              : article.reviewStatus === "pending"
+                ? "Waiting for review"
+                : "Not in review"}
+        </Badge>
+        <span className="text-muted-foreground">Publishing mode: {mode}</span>
+        <span className="text-muted-foreground">Version {version}</span>
+        {article.approvedCurrent && article.reviewApprovedBy ? (
+          <span className="text-muted-foreground">
+            Approved by {article.reviewApprovedBy}
+            {article.reviewApprovedAt ? ` on ${new Date(article.reviewApprovedAt).toISOString().slice(0, 16).replace("T", " ")} UTC` : ""}
+          </span>
+        ) : null}
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
+        <Card className="min-w-0">
+          <CardHeader>
+            <CardTitle>Article</CardTitle>
+            <CardDescription>What will be delivered. Network links appear as ordinary links in the text.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {/* Sanitised on every save (lib/articles/sanitize.ts). */}
+            <div
+              className="prose prose-sm max-w-none dark:prose-invert [overflow-wrap:anywhere] [&_a]:text-primary [&_a]:underline [&_h2]:mt-6 [&_h2]:text-lg [&_h2]:font-semibold [&_h3]:mt-4 [&_h3]:font-semibold [&_li]:my-1 [&_p]:my-3 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-lg"
+              dangerouslySetInnerHTML={{ __html: article.bodyHtml ?? "" }}
+            />
+          </CardContent>
+        </Card>
+
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Network links ({live.length}/{limits.maxPerArticle})</CardTitle>
+              <CardDescription>
+                Credits are reserved now, charged only once the link is seen live on the published page.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {live.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No network link in this article.</p>
+              ) : null}
+              {live.map((placement) => (
+                <PlacementRow
+                  key={placement.id}
+                  placement={placement}
+                  hostOrg={article.organizationName}
+                  disabled={pending || !editable}
+                  onCredits={(value, why) =>
+                    run(
+                      () => changePlacementCredits({ articleId: article.id, placementId: placement.id, expectedVersion: version, credits: value, reason: why }),
+                      () => toast.success("Credits updated"),
+                    )
+                  }
+                  onRemove={(why) =>
+                    run(
+                      () => removePlacement({ articleId: article.id, placementId: placement.id, expectedVersion: version, reason: why }),
+                      () => toast.success("Link withdrawn and credits released"),
+                    )
+                  }
+                />
+              ))}
+            </CardContent>
+          </Card>
+
+          {editable ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Place a link</CardTitle>
+                <CardDescription>
+                  Choose a participating website, one of its verified pages, and words already in the article.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="space-y-1">
+                  <Label htmlFor="beneficiary">Website that receives the link</Label>
+                  <select
+                    id="beneficiary"
+                    className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+                    value={beneficiaryId}
+                    onChange={(e) => {
+                      setBeneficiaryId(e.target.value);
+                      setTargetUrl("");
+                      setTargetTitle(null);
+                    }}
+                  >
+                    <option value="">Choose…</option>
+                    {candidates.map((c) => (
+                      <option key={c.websiteId} value={c.websiteId} disabled={!c.relevant || c.reciprocal || c.meetsMinimum === false}>
+                        {c.domain} · {c.available} available
+                        {!c.relevant ? " · not related" : ""}
+                        {c.reciprocal ? " · already links back" : ""}
+                        {c.minSourceRank !== null ? ` · wants DataForSEO Rank ≥ ${c.minSourceRank}${c.meetsMinimum === false ? " (not met)" : ""}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  {beneficiary ? (
+                    <p className="text-xs text-muted-foreground">
+                      {beneficiary.organizationName} · {beneficiary.industry ?? "no topic"} · {beneficiary.language ?? "no language"} ·{" "}
+                      {beneficiary.available} credits available ({beneficiary.reserved} reserved) - shared by the whole workspace
+                      {beneficiary.minSourceRank !== null
+                        ? ` · accepts only sources at DataForSEO Rank ≥ ${beneficiary.minSourceRank}; this website is at ${
+                            review.hostAuthority?.status === "ok" ? review.hostAuthority.value : "an unknown rank"
+                          }`
+                        : ""}
+                    </p>
+                  ) : null}
+                </div>
+
+                {beneficiary && beneficiary.targets.length > 0 ? (
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">Their target pages, in priority order</p>
+                    <ul className="space-y-1 text-xs">
+                      {beneficiary.targets.map((t) => (
+                        <li key={t.url}>
+                          <button
+                            type="button"
+                            className="break-all text-left underline-offset-4 hover:underline"
+                            onClick={() => {
+                              setTargetUrl(t.url);
+                              setTargetTitle(null);
+                            }}
+                          >
+                            {t.url}
+                          </button>{" "}
+                          <span className="text-muted-foreground">({t.priority}{t.note ? ` · ${t.note}` : ""})</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+
+                <div className="space-y-1">
+                  <Label htmlFor="target">Page to link to</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="target"
+                      value={targetUrl}
+                      onChange={(e) => {
+                        setTargetUrl(e.target.value);
+                        setTargetTitle(null);
+                      }}
+                      placeholder="https://…"
+                      disabled={!beneficiary}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={!beneficiary || !targetUrl || pending}
+                      onClick={() =>
+                        run(
+                          () => checkTarget(beneficiaryId, targetUrl),
+                          (data) => {
+                            setTargetUrl(data.url);
+                            setTargetTitle(data.title ?? "");
+                            toast.success("Page confirmed");
+                          },
+                        )
+                      }
+                    >
+                      Check
+                    </Button>
+                  </div>
+                  {targetTitle !== null ? (
+                    <p className="text-xs text-muted-foreground">Confirmed: {targetTitle || "(no title)"}</p>
+                  ) : null}
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="anchor">Anchor words (already in the article)</Label>
+                  <Input id="anchor" value={anchor} onChange={(e) => setAnchor(e.target.value)} placeholder="e.g. wedding videography" />
+                </div>
+
+                <div className="grid grid-cols-[100px_minmax(0,1fr)] gap-2">
+                  <div className="space-y-1">
+                    <Label htmlFor="credits">Credits</Label>
+                    <Input
+                      id="credits"
+                      type="number"
+                      min={1}
+                      max={limits.maxCredits}
+                      step={1}
+                      value={credits}
+                      onChange={(e) => setCredits(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="reason">Why this link</Label>
+                    <Input id="reason" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Relevant because…" />
+                  </div>
+                </div>
+                {beneficiary ? (
+                  <p className="text-xs text-muted-foreground">
+                    {beneficiary.organizationName} spends {credits || "?"}; {article.organizationName} earns {credits || "?"} -
+                    only once the link is verified live.
+                  </p>
+                ) : null}
+
+                <Button
+                  type="button"
+                  disabled={pending || !beneficiary || !targetUrl || !anchor.trim() || live.length >= limits.maxPerArticle}
+                  onClick={() =>
+                    run(
+                      () =>
+                        placeLink({
+                          articleId: article.id,
+                          expectedVersion: version,
+                          beneficiaryWebsiteId: beneficiaryId,
+                          targetUrl,
+                          anchor,
+                          credits: Number(credits),
+                          reason,
+                        }),
+                      () => {
+                        toast.success("Link placed and credits reserved");
+                        setAnchor("");
+                        setReason("");
+                        setTargetUrl("");
+                        setTargetTitle(null);
+                      },
+                    )
+                  }
+                >
+                  {pending ? <Loader2 className="size-4 animate-spin" /> : <Link2 className="size-4" />}
+                  Place link
+                </Button>
+              </CardContent>
+            </Card>
+          ) : null}
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Approval</CardTitle>
+              <CardDescription>
+                Approving releases this exact version. Any later change - text, image or links - holds it again.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {article.approvedCurrent ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={pending}
+                  onClick={() =>
+                    run(
+                      () => reopenForReview({ articleId: article.id, expectedVersion: version }),
+                      () => toast.success("Sent back for review"),
+                    )
+                  }
+                >
+                  <RotateCcw className="size-4" />
+                  Reopen for review
+                </Button>
+              ) : editable ? (
+                <>
+                  {live.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      No network link will be placed. Approve only if there is no relevant target for this article.
+                    </p>
+                  ) : null}
+                  <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (optional)" />
+                  <Button
+                    type="button"
+                    disabled={pending}
+                    onClick={() =>
+                      run(
+                        () => approveForRelease({ articleId: article.id, expectedVersion: version, note }),
+                        (data) => toast.success(RELEASE_TEXT[data.release] ?? "Approved"),
+                      )
+                    }
+                  >
+                    <CheckCircle2 className="size-4" />
+                    {live.length === 0 ? "Approve without a network link" : "Approve and release"}
+                  </Button>
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground">This article is not waiting for review.</p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </PageShell>
+  );
+}
+
+function PlacementRow({
+  placement,
+  hostOrg,
+  disabled,
+  onCredits,
+  onRemove,
+}: {
+  placement: Review["placements"][number];
+  hostOrg: string;
+  disabled: boolean;
+  onCredits: (credits: number, reason: string) => void;
+  onRemove: (reason: string) => void;
+}) {
+  const [value, setValue] = useState(String(placement.credits));
+  const draft = placement.status === "drafted";
+  return (
+    <div className="space-y-2 rounded-lg border p-3 text-sm">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="font-medium">{placement.beneficiaryDomain}</p>
+          <p className="break-all text-xs text-muted-foreground">{placement.targetUrl}</p>
+          <p className="text-xs">Anchor: “{placement.anchor}”</p>
+          {placement.reason ? <p className="text-xs text-muted-foreground">Why: {placement.reason}</p> : null}
+        </div>
+        <Badge variant="secondary">{placement.status}</Badge>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        The receiving workspace spends {placement.credits}; {hostOrg} earns {placement.credits} - once verified live.
+        {placement.createdBy ? ` Placed by ${placement.createdBy}.` : ""}
+      </p>
+      {draft ? (
+        <div className="flex flex-wrap items-end gap-2">
+          <Input
+            aria-label="Credits for this link"
+            className="w-20"
+            type="number"
+            min={1}
+            max={10}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            disabled={disabled}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={disabled || Number(value) === placement.credits}
+            onClick={() => onCredits(Number(value), "Adjusted in review")}
+          >
+            Save credits
+          </Button>
+          <Button type="button" variant="ghost" size="sm" disabled={disabled} onClick={() => onRemove("Withdrawn in review")}>
+            <Trash2 className="size-4" />
+            Withdraw
+          </Button>
+        </div>
+      ) : null}
+    </div>
+  );
+}

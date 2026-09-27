@@ -19,6 +19,7 @@ import {
   type LedgerRow,
 } from "@/lib/backlinks/credits";
 import { describeNetwork, findHost } from "@/lib/backlinks/matching";
+import { DEFAULT_MONTHLY_CAP } from "@/lib/backlinks/network-defaults";
 import { requireWebsite } from "@/lib/tenant";
 import { requireEditor } from "@/lib/websites/require-editor";
 import { isPublicWebsiteUrl } from "@/lib/websites/url";
@@ -100,7 +101,7 @@ export async function getNetworkStatus(
     niche: row?.niche ?? site.industry,
     language: row?.language ?? site.language,
     country: row?.country ?? site.country,
-    monthlyCap: row?.monthlyCap ?? 3,
+    monthlyCap: row?.monthlyCap ?? DEFAULT_MONTHLY_CAP,
     linksGivenThisMonth: given?.n ?? 0,
     balance: credits.balance,
     reserved: credits.reserved,
@@ -130,7 +131,7 @@ export async function joinNetwork(
   if (!guard.ok) return { ok: false, error: guard.error };
   const { site } = guard.context;
 
-  const cap = Math.max(0, Math.min(input.monthlyCap ?? 3, 20));
+  const cap = Math.max(0, Math.min(input.monthlyCap ?? DEFAULT_MONTHLY_CAP, 20));
   const values = {
     acceptingLinks: input.acceptingLinks,
     niche: input.niche?.trim() || site.industry,
@@ -201,6 +202,8 @@ export type RequestRow = {
    * misrepresent their balance.
    */
   creditsUsed: number;
+  /** Placed by the RepGet team: withdrawn by an administrator, not cancelled here. */
+  managed: boolean;
 };
 
 export async function listRequests(websiteId: string): Promise<RequestRow[]> {
@@ -217,6 +220,7 @@ export async function listRequests(websiteId: string): Promise<RequestRow[]> {
       hostDomain: websites.domain,
       liveUrl: placements.liveUrl,
       creditsUsed: raw<number>`coalesce(${placements.credits}, ${backlinkRequests.creditsReserved})::int`,
+      managed: raw<boolean>`coalesce(${placements.managed}, false)`,
     })
     .from(backlinkRequests)
     /**
@@ -300,6 +304,9 @@ export async function listGiven(websiteId: string): Promise<GivenRow[]> {
 
 const CREDITS_PER_LINK = 1;
 
+/** Customer-initiated requests are off while the network is managed. */
+const MANAGED_NETWORK = true;
+
 /**
  * Requests a link, reserving the credit and matching a host immediately.
  *
@@ -315,6 +322,21 @@ export async function requestBacklink(
   if (!guard.ok) return { ok: false, error: guard.error };
   /* ownerOrgId: the credit spent on this request is the site owner's. */
   const { site, ownerOrgId } = guard.context;
+
+  /*
+    OFF for launch: the Partner Network is managed by the RepGet team
+    (lib/backlinks/managed.ts). Customers list the pages they want links to
+    (backlink_targets); administrators choose placements. Refused here, on
+    the server, because every export of this module is callable - hiding the
+    form would not stop a crafted request from reserving credits and running
+    automatic matching. The code below stays for the requests already made.
+  */
+  if (MANAGED_NETWORK) {
+    return {
+      ok: false,
+      error: "Links are arranged by the RepGet team now. Add the page to your target pages and we will place links to it.",
+    };
+  }
 
   /**
    * The target is one PAGE, so it is not put through normalizeWebsiteUrl.
@@ -448,6 +470,20 @@ export async function cancelRequest(
     .limit(1);
 
   if (!request) return { ok: false, error: "Request not found" };
+  /*
+    A link the RepGet team placed is in someone else's draft, reserved and
+    audited; withdrawing it is theirs to do (it unwraps the link from the
+    draft too). Deleting it here would leave the link in the text with
+    nothing tracking it.
+  */
+  const [managed] = await db
+    .select({ id: placements.id })
+    .from(placements)
+    .where(and(eq(placements.requestId, request.id), eq(placements.managed, true)))
+    .limit(1);
+  if (managed) {
+    return { ok: false, error: "This link was arranged by the RepGet team. Contact support to change it." };
+  }
   if (request.status === "live") {
     return { ok: false, error: "That link is already live and cannot be cancelled" };
   }

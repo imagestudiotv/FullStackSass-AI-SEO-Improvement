@@ -55,6 +55,25 @@ export function nicheGroup(niche: string | null): string | null {
   return null;
 }
 
+/**
+ * The relevance rule, shared by automatic matching and administrator
+ * placements (lib/backlinks/managed.ts) so they cannot drift apart:
+ *
+ *  - both niches known and in the same group: a real topical match;
+ *  - neither classified: no evidence either way, so allowed - a new network
+ *    is mostly unclassified sites and refusing all of them would leave every
+ *    request unmatched;
+ *  - anything else (different groups, or only one side known): refused.
+ */
+export function isRelevantPair(requesterNiche: string | null, hostNiche: string | null): boolean {
+  const requesterGroup = nicheGroup(requesterNiche);
+  const hostGroup = nicheGroup(hostNiche);
+  return (
+    (requesterGroup !== null && hostGroup !== null && requesterGroup === hostGroup) ||
+    (requesterGroup === null && hostGroup === null)
+  );
+}
+
 /** Weights. Reciprocity and capacity are hard rules; the rest is preference. */
 const SCORE = {
   sameNiche: 40,
@@ -157,13 +176,7 @@ export async function findHost(
        * offered a crypto blog. Country and capacity say nothing about whether
        * a link makes sense, so they can no longer carry a match on their own.
        */
-      const relevant =
-        // Both sides known and in the same group: a real topical match.
-        (requesterGroup !== null && hostGroup !== null && requesterGroup === hostGroup) ||
-        // Neither side classified: no evidence either way, so allow it. A new
-        // network is mostly unclassified sites and refusing all of them would
-        // leave every request unmatched.
-        (requesterGroup === null && hostGroup === null);
+      const relevant = isRelevantPair(input.niche, row.niche);
 
       if (!relevant) return null;
 

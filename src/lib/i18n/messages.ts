@@ -749,6 +749,9 @@ export type Messages = {
       destinationWebsiteHint: string;
       creditsEarned: string;
       creditsEarnedHint: string;
+      /** A credit amount not yet settled: placed, not verified live. */
+      onceLive: string;
+      held: string;
       cancelRequest: string;
       untitledArticle: string;
       joined: string;
@@ -833,6 +836,49 @@ export type Messages = {
       copyNowHelp: string;
       newKey: string;
       keyNotePlaceholder: string;
+      /* First-time setup: the key prepared on arrival, and recovery. */
+      preparing: string;
+      readyTitle: string;
+      nextSteps: string;
+      unseenTitle: string;
+      unseenHelp: string;
+      replaceKey: string;
+      revokedHelp: string;
+    };
+    partnerNetwork: {
+      title: string;
+      subtitle: string;
+      participationTitle: string;
+      participationHelp: string;
+      enabled: string;
+      disabled: string;
+      whatTitle: string;
+      whatBody: string;
+      offNote: string;
+      inReview: string;
+      ratingTitle: string;
+      ratingHelp: string;
+      ratingUnconfigured: string;
+      targetsTitle: string;
+      targetsHelp: string;
+      addTarget: string;
+      urlLabel: string;
+      noteLabel: string;
+      priorityLabel: string;
+      high: string;
+      medium: string;
+      low: string;
+      moveUp: string;
+      moveDown: string;
+      remove: string;
+      noTargets: string;
+      targetAdded: string;
+      saved: string;
+      turnedOn: string;
+      turnedOff: string;
+      creditsLine: string;
+      add: string;
+      cancel: string;
     };
     image: {
       altLabel: string;
@@ -2035,7 +2081,7 @@ const en: Messages = {
       publishing: "Publishing…",
       disconnect: "Disconnect",
       connected: "Connected",
-      cantFind: "Can&rsquo;t find your integration?",
+      cantFind: "Can’t find your integration?",
       cantFindHelp: "Tell us which platform you use and we will look at adding it.",
       contactUs: "Contact us",
       whereDoIFind: "Where do I find these?",
@@ -2099,9 +2145,9 @@ const en: Messages = {
       anchorPlaceholder: "teeth whitening in Dublin",
       requesting: "Requesting…",
       requestLink: "Request link (1 credit)",
-      noRequests: "No link requests yet",
-      noRequestsHelp: "Request a link and we find another business in the network to publish it in their next article. Each live link costs one credit.",
-      noneGiven: "None yet. When we write your next article, a link to another business may be included and you will earn a credit.",
+      noRequests: "No links received yet",
+      noRequestsHelp: "Add the pages you want links to under Partner Network above. The RepGet team places them in relevant partners' articles; a link costs its credits only once it is verified live.",
+      noneGiven: "None yet. The RepGet team may place a relevant partner's link in one of your articles before it is published; you earn its credits once it is verified live.",
       sourceArticle: "Source article",
       sourceArticleHint: "The article on another website that links to you. Follow it to read the live link.",
       customerWebsite: "Customer website",
@@ -2113,6 +2159,8 @@ const en: Messages = {
       destinationWebsiteHint: "The website your article links out to.",
       creditsEarned: "Credits earned",
       creditsEarnedHint: "Credits this link earned you, to spend on links back to your own site.",
+      onceLive: "+{n} once live",
+      held: "{n} held",
       cancelRequest: "Cancel request",
       untitledArticle: "Untitled article",
       joined: "You are in the network",
@@ -2194,6 +2242,48 @@ const en: Messages = {
       copyNowHelp: "We only store a scrambled version, so it cannot be looked up later. If you lose it, revoke it and make a new one.",
       newKey: "New key",
       keyNotePlaceholder: "What is this key for? (optional)",
+      preparing: "Preparing your key…",
+      readyTitle: "Your key is ready",
+      nextSteps: "Next: download the plugin, install and activate it in WordPress, then paste this key into the RepGet settings screen there (or use Connect in WordPress).",
+      unseenTitle: "Keys are shown only once",
+      unseenHelp: "A key was already created for this site but cannot be shown again (for example, it was opened in another tab). If you did not copy it, replace it with a new one. A key that is already connected is never replaced.",
+      replaceKey: "Replace unused key",
+      revokedHelp: "Your keys were revoked. Create a new key when you are ready to connect WordPress again.",
+    },
+    partnerNetwork: {
+      title: "Partner Network",
+      subtitle: "Control how your website takes part in RepGet's backlink network.",
+      participationTitle: "Network participation",
+      participationHelp: "Take part in the RepGet partner network to host relevant links and receive links to your pages.",
+      enabled: "Enabled",
+      disabled: "Disabled",
+      whatTitle: "What this does",
+      whatBody: "The RepGet team places relevant links from partners' articles to the pages you list, and may place partners' links in your articles before they are published. Your workspace earns credits for each link you host and spends credits for each link you receive, only once a link is verified live. You never have to choose partners or approve each link.",
+      offNote: "Turning this off stops new links being arranged. Links already placed stay as they are, and are still verified and credited.",
+      inReview: "{n} of your articles are with the RepGet team for review.",
+      ratingTitle: "Minimum authority",
+      ratingHelp: "The lowest authority a site linking to you should have.",
+      ratingUnconfigured: "Not available yet: authority is not measured for network sites, so a minimum cannot be enforced. The RepGet team checks every linking site by hand.",
+      targetsTitle: "Link targeting",
+      targetsHelp: "Choose and prioritize which pages on your site should receive backlinks.",
+      addTarget: "Add target page",
+      urlLabel: "Page address",
+      noteLabel: "What this page is (optional)",
+      priorityLabel: "Priority",
+      high: "High",
+      medium: "Medium",
+      low: "Low",
+      moveUp: "Move up",
+      moveDown: "Move down",
+      remove: "Remove",
+      noTargets: "No target pages yet. Add the pages you most want links to.",
+      targetAdded: "Target page added",
+      saved: "Saved",
+      turnedOn: "You're in the Partner Network",
+      turnedOff: "You've left the Partner Network",
+      creditsLine: "{available} credits available · {reserved} reserved",
+      add: "Add",
+      cancel: "Cancel",
     },
     image: {
       altLabel: "Image description",
@@ -2330,7 +2420,7 @@ const en: Messages = {
       copyNow: "Copy this now - it is not shown again",
       downloadPlugin: "Download the plugin",
       pluginGuide: "Setup guide",
-      cantFindIntegration: "Can&rsquo;t find your integration?",
+      cantFindIntegration: "Can’t find your integration?",
       adaptive: "Adaptive",
       custom: "Custom",
       wordRange: "Between 300 and 5,000.",
@@ -2363,7 +2453,7 @@ const en: Messages = {
       finishedDraftHelp: "It appears in your CMS as a draft on its planned day. You publish it there.",
       finishedLive: "Publish it live on its planned day",
       finishedLiveHelp: "It goes live on your website on its planned day, with nothing for you to do.",
-      firstArticleNote: "Your first article is published as soon as it is written, whichever you choose, so you can see straight away how articles look on your site.",
+      firstArticleNote: "Your first article goes out as soon as it is ready, whichever you choose, so you can see how articles look on your site. While your website is in the Partner Network, every article - the first one too - is checked by the RepGet team first, and none goes out before its planned day.",
     },
     nav: {
       dashboard: "Dashboard",
@@ -3464,9 +3554,9 @@ const es: Messages = {
       anchorPlaceholder: "blanqueamiento dental en Dublín",
       requesting: "Solicitando…",
       requestLink: "Solicitar enlace (1 crédito)",
-      noRequests: "Todavía no hay solicitudes de enlace",
-      noRequestsHelp: "Solicite un enlace y buscaremos otro negocio de la red que lo publique en su próximo artículo. Cada enlace activo cuesta un crédito.",
-      noneGiven: "Todavía ninguno. Cuando escribamos su próximo artículo, puede incluirse un enlace a otro negocio y usted ganará un crédito.",
+      noRequests: "Todavía no ha recibido enlaces",
+      noRequestsHelp: "Añada arriba, en Red de socios, las páginas a las que quiere recibir enlaces. El equipo de RepGet los coloca en artículos relevantes de socios; un enlace consume sus créditos solo cuando se verifica que está activo.",
+      noneGiven: "Todavía ninguno. El equipo de RepGet puede colocar el enlace de un socio relevante en uno de sus artículos antes de publicarlo; usted gana sus créditos cuando se verifica que está activo.",
       sourceArticle: "Artículo de origen",
       sourceArticleHint: "El artículo de otro sitio web que enlaza al suyo. Ábralo para ver el enlace activo.",
       customerWebsite: "Sitio web del cliente",
@@ -3478,6 +3568,8 @@ const es: Messages = {
       destinationWebsiteHint: "El sitio web al que enlaza su artículo.",
       creditsEarned: "Créditos ganados",
       creditsEarnedHint: "Créditos que le dio este enlace, para gastarlos en enlaces hacia su propio sitio.",
+      onceLive: "+{n} al activarse",
+      held: "{n} reservados",
       cancelRequest: "Cancelar solicitud",
       untitledArticle: "Artículo sin título",
       joined: "Ya está en la red",
@@ -3559,6 +3651,48 @@ const es: Messages = {
       copyNowHelp: "Solo guardamos una versión cifrada, así que no se puede consultar después. Si la pierde, revóquela y cree una nueva.",
       newKey: "Nueva clave",
       keyNotePlaceholder: "¿Para qué es esta clave? (opcional)",
+      preparing: "Preparando tu clave…",
+      readyTitle: "Tu clave está lista",
+      nextSteps: "Siguiente: descarga el plugin, instálalo y actívalo en WordPress y pega esta clave en la pantalla de ajustes de RepGet (o usa Conectar en WordPress).",
+      unseenTitle: "Las claves solo se muestran una vez",
+      unseenHelp: "Ya se creó una clave para este sitio, pero no se puede volver a mostrar (por ejemplo, se abrió en otra pestaña). Si no la copiaste, sustitúyela por una nueva. Una clave ya conectada nunca se sustituye.",
+      replaceKey: "Sustituir clave sin usar",
+      revokedHelp: "Tus claves se revocaron. Crea una clave nueva cuando quieras volver a conectar WordPress.",
+    },
+    partnerNetwork: {
+      title: "Red de socios",
+      subtitle: "Controla cómo participa tu web en la red de enlaces de RepGet.",
+      participationTitle: "Participación en la red",
+      participationHelp: "Participa en la red de socios de RepGet para alojar enlaces relevantes y recibir enlaces a tus páginas.",
+      enabled: "Activada",
+      disabled: "Desactivada",
+      whatTitle: "Qué hace",
+      whatBody: "El equipo de RepGet coloca enlaces relevantes desde artículos de socios hacia las páginas que indiques, y puede colocar enlaces de socios en tus artículos antes de publicarlos. Tu espacio gana créditos por cada enlace que alojas y gasta créditos por cada enlace que recibes, solo cuando el enlace se verifica publicado. No tienes que elegir socios ni aprobar cada enlace.",
+      offNote: "Si la desactivas, no se organizan enlaces nuevos. Los enlaces ya colocados se mantienen y se siguen verificando y acreditando.",
+      inReview: "{n} de tus artículos están en revisión con el equipo de RepGet.",
+      ratingTitle: "Autoridad mínima",
+      ratingHelp: "La autoridad mínima que debe tener un sitio que te enlace.",
+      ratingUnconfigured: "Aún no disponible: la autoridad de los sitios de la red no se mide, así que no se puede exigir un mínimo. El equipo de RepGet revisa a mano cada sitio que enlaza.",
+      targetsTitle: "Páginas objetivo",
+      targetsHelp: "Elige y prioriza qué páginas de tu web deben recibir enlaces.",
+      addTarget: "Añadir página objetivo",
+      urlLabel: "Dirección de la página",
+      noteLabel: "Qué es esta página (opcional)",
+      priorityLabel: "Prioridad",
+      high: "Alta",
+      medium: "Media",
+      low: "Baja",
+      moveUp: "Subir",
+      moveDown: "Bajar",
+      remove: "Quitar",
+      noTargets: "Aún no hay páginas objetivo. Añade las páginas a las que más quieres enlaces.",
+      targetAdded: "Página objetivo añadida",
+      saved: "Guardado",
+      turnedOn: "Estás en la Red de socios",
+      turnedOff: "Has salido de la Red de socios",
+      creditsLine: "{available} créditos disponibles · {reserved} reservados",
+      add: "Añadir",
+      cancel: "Cancelar",
     },
     image: {
       altLabel: "Descripción de la imagen",
@@ -3729,7 +3863,7 @@ const es: Messages = {
       finishedDraftHelp: "Aparece en su CMS como borrador el día previsto. Usted lo publica allí.",
       finishedLive: "Publicarlo el día previsto",
       finishedLiveHelp: "Se publica en su sitio web el día previsto, sin que tenga que hacer nada.",
-      firstArticleNote: "Su primer artículo se publica en cuanto está escrito, elija lo que elija, para que vea enseguida cómo quedan los artículos en su sitio.",
+      firstArticleNote: "Su primer artículo se envía en cuanto está listo, elija lo que elija, para que vea cómo quedan los artículos en su sitio. Mientras su web esté en la Red de socios, el equipo de RepGet revisa antes cada artículo - también el primero - y ninguno se envía antes de su día previsto.",
     },
     nav: {
       dashboard: "Panel",
@@ -4833,9 +4967,9 @@ const fr: Messages = {
       anchorPlaceholder: "blanchiment dentaire à Dublin",
       requesting: "Demande…",
       requestLink: "Demander un lien (1 crédit)",
-      noRequests: "Aucune demande de lien",
-      noRequestsHelp: "Demandez un lien et nous trouverons une autre entreprise du réseau pour le publier dans son prochain article. Chaque lien actif coûte un crédit.",
-      noneGiven: "Aucun pour l\u2019instant. Lors de votre prochain article, un lien vers une autre entreprise pourra être inclus et vous gagnerez un crédit.",
+      noRequests: "Aucun lien reçu pour l’instant",
+      noRequestsHelp: "Ajoutez ci-dessus, dans Réseau partenaire, les pages vers lesquelles vous souhaitez des liens. L’équipe RepGet les place dans des articles pertinents de partenaires ; un lien ne coûte ses crédits qu’une fois vérifié en ligne.",
+      noneGiven: "Aucun pour l’instant. L’équipe RepGet peut placer le lien d’un partenaire pertinent dans l’un de vos articles avant sa publication ; vous gagnez ses crédits une fois le lien vérifié en ligne.",
       sourceArticle: "Article source",
       sourceArticleHint: "L\u2019article d\u2019un autre site qui pointe vers vous. Ouvrez-le pour voir le lien en ligne.",
       customerWebsite: "Site du client",
@@ -4847,6 +4981,8 @@ const fr: Messages = {
       destinationWebsiteHint: "Le site vers lequel votre article pointe.",
       creditsEarned: "Crédits gagnés",
       creditsEarnedHint: "Crédits rapportés par ce lien, à dépenser pour des liens vers votre propre site.",
+      onceLive: "+{n} une fois en ligne",
+      held: "{n} réservés",
       cancelRequest: "Annuler la demande",
       untitledArticle: "Article sans titre",
       joined: "Vous êtes dans le réseau",
@@ -4928,6 +5064,48 @@ const fr: Messages = {
       copyNowHelp: "Nous n\u2019en stockons qu\u2019une version chiffrée : elle ne peut pas être retrouvée ensuite. Si vous la perdez, révoquez-la et créez-en une autre.",
       newKey: "Nouvelle clé",
       keyNotePlaceholder: "À quoi sert cette clé ? (facultatif)",
+      preparing: "Préparation de votre clé…",
+      readyTitle: "Votre clé est prête",
+      nextSteps: "Ensuite : téléchargez l'extension, installez-la et activez-la dans WordPress, puis collez cette clé dans l'écran de réglages RepGet (ou utilisez Connecter dans WordPress).",
+      unseenTitle: "Les clés ne s'affichent qu'une fois",
+      unseenHelp: "Une clé a déjà été créée pour ce site mais ne peut plus être affichée (par exemple, elle a été ouverte dans un autre onglet). Si vous ne l'avez pas copiée, remplacez-la par une nouvelle. Une clé déjà connectée n'est jamais remplacée.",
+      replaceKey: "Remplacer la clé inutilisée",
+      revokedHelp: "Vos clés ont été révoquées. Créez une nouvelle clé lorsque vous voudrez reconnecter WordPress.",
+    },
+    partnerNetwork: {
+      title: "Réseau partenaire",
+      subtitle: "Gérez la participation de votre site au réseau de liens de RepGet.",
+      participationTitle: "Participation au réseau",
+      participationHelp: "Participez au réseau partenaire de RepGet pour héberger des liens pertinents et recevoir des liens vers vos pages.",
+      enabled: "Activée",
+      disabled: "Désactivée",
+      whatTitle: "Ce que cela fait",
+      whatBody: "L’équipe RepGet place des liens pertinents depuis des articles de partenaires vers les pages que vous indiquez, et peut placer des liens de partenaires dans vos articles avant leur publication. Votre espace gagne des crédits pour chaque lien hébergé et en dépense pour chaque lien reçu, uniquement une fois le lien vérifié en ligne. Vous n’avez ni partenaire à choisir ni lien à approuver.",
+      offNote: "La désactiver arrête l’organisation de nouveaux liens. Les liens déjà placés restent, et sont toujours vérifiés et crédités.",
+      inReview: "{n} de vos articles sont en relecture chez l’équipe RepGet.",
+      ratingTitle: "Autorité minimale",
+      ratingHelp: "L’autorité minimale d’un site qui vous fait un lien.",
+      ratingUnconfigured: "Pas encore disponible : l’autorité des sites du réseau n’est pas mesurée, donc un minimum ne peut pas être imposé. L’équipe RepGet vérifie chaque site à la main.",
+      targetsTitle: "Pages cibles",
+      targetsHelp: "Choisissez et priorisez les pages de votre site qui doivent recevoir des liens.",
+      addTarget: "Ajouter une page cible",
+      urlLabel: "Adresse de la page",
+      noteLabel: "Ce qu’est cette page (facultatif)",
+      priorityLabel: "Priorité",
+      high: "Haute",
+      medium: "Moyenne",
+      low: "Basse",
+      moveUp: "Monter",
+      moveDown: "Descendre",
+      remove: "Retirer",
+      noTargets: "Aucune page cible. Ajoutez les pages pour lesquelles vous voulez le plus de liens.",
+      targetAdded: "Page cible ajoutée",
+      saved: "Enregistré",
+      turnedOn: "Vous faites partie du Réseau partenaire",
+      turnedOff: "Vous avez quitté le Réseau partenaire",
+      creditsLine: "{available} crédits disponibles · {reserved} réservés",
+      add: "Ajouter",
+      cancel: "Annuler",
     },
     image: {
       altLabel: "Description de l\u2019image",
@@ -5097,7 +5275,7 @@ const fr: Messages = {
       finishedDraftHelp: "Il apparaît en brouillon dans votre CMS le jour prévu. Vous le publiez depuis celui-ci.",
       finishedLive: "Le publier le jour prévu",
       finishedLiveHelp: "Il est mis en ligne sur votre site le jour prévu, sans rien à faire de votre part.",
-      firstArticleNote: "Votre premier article est publié dès qu’il est rédigé, quel que soit votre choix, pour que vous voyiez tout de suite le rendu sur votre site.",
+      firstArticleNote: "Votre premier article est envoyé dès qu’il est prêt, quel que soit votre choix, pour que vous voyiez le rendu sur votre site. Tant que votre site fait partie du Réseau partenaire, l’équipe RepGet vérifie chaque article - le premier aussi - et aucun ne part avant son jour prévu.",
     },
     nav: {
       dashboard: "Tableau de bord",
@@ -6194,9 +6372,9 @@ const it: Messages = {
       anchorPlaceholder: "sbiancamento dentale a Dublino",
       requesting: "Richiesta…",
       requestLink: "Richiedi link (1 credito)",
-      noRequests: "Ancora nessuna richiesta di link",
-      noRequestsHelp: "Richieda un link e troveremo un\u2019altra attività della rete che lo pubblichi nel suo prossimo articolo. Ogni link attivo costa un credito.",
-      noneGiven: "Ancora nessuno. Quando scriveremo il suo prossimo articolo, potrà essere incluso un link a un\u2019altra attività e lei guadagnerà un credito.",
+      noRequests: "Ancora nessun link ricevuto",
+      noRequestsHelp: "Aggiunga qui sopra, in Rete partner, le pagine verso cui desidera ricevere link. Il team RepGet li inserisce in articoli pertinenti dei partner; un link costa i suoi crediti solo dopo essere stato verificato online.",
+      noneGiven: "Ancora nessuno. Il team RepGet può inserire il link di un partner pertinente in uno dei suoi articoli prima della pubblicazione; lei guadagna i crediti quando il link è verificato online.",
       sourceArticle: "Articolo di origine",
       sourceArticleHint: "L\u2019articolo su un altro sito che la collega. Lo apra per vedere il link attivo.",
       customerWebsite: "Sito del cliente",
@@ -6208,6 +6386,8 @@ const it: Messages = {
       destinationWebsiteHint: "Il sito verso cui punta il suo articolo.",
       creditsEarned: "Crediti guadagnati",
       creditsEarnedHint: "Crediti che questo link le ha fatto guadagnare, da spendere per link verso il suo sito.",
+      onceLive: "+{n} quando online",
+      held: "{n} riservati",
       cancelRequest: "Annulla richiesta",
       untitledArticle: "Articolo senza titolo",
       joined: "È nella rete",
@@ -6289,6 +6469,48 @@ const it: Messages = {
       copyNowHelp: "Ne conserviamo solo una versione cifrata, quindi non è più recuperabile. Se la perde, la revochi e ne crei una nuova.",
       newKey: "Nuova chiave",
       keyNotePlaceholder: "A che cosa serve questa chiave? (facoltativo)",
+      preparing: "Preparazione della chiave…",
+      readyTitle: "La tua chiave è pronta",
+      nextSteps: "Poi: scarica il plugin, installalo e attivalo in WordPress, quindi incolla questa chiave nella schermata delle impostazioni di RepGet (oppure usa Collega in WordPress).",
+      unseenTitle: "Le chiavi vengono mostrate una sola volta",
+      unseenHelp: "Per questo sito è già stata creata una chiave, ma non può essere mostrata di nuovo (per esempio, è stata aperta in un'altra scheda). Se non l'hai copiata, sostituiscila con una nuova. Una chiave già collegata non viene mai sostituita.",
+      replaceKey: "Sostituisci chiave non usata",
+      revokedHelp: "Le tue chiavi sono state revocate. Crea una nuova chiave quando vuoi ricollegare WordPress.",
+    },
+    partnerNetwork: {
+      title: "Rete partner",
+      subtitle: "Gestisci come il tuo sito partecipa alla rete di link di RepGet.",
+      participationTitle: "Partecipazione alla rete",
+      participationHelp: "Partecipa alla rete partner di RepGet per ospitare link pertinenti e ricevere link alle tue pagine.",
+      enabled: "Attiva",
+      disabled: "Disattiva",
+      whatTitle: "Cosa fa",
+      whatBody: "Il team RepGet inserisce link pertinenti dagli articoli dei partner verso le pagine che indichi, e può inserire link dei partner nei tuoi articoli prima della pubblicazione. Il tuo spazio guadagna crediti per ogni link ospitato e li spende per ogni link ricevuto, solo quando il link è verificato online. Non devi scegliere partner né approvare ogni link.",
+      offNote: "Disattivandola non vengono più organizzati nuovi link. I link già inseriti restano e continuano a essere verificati e accreditati.",
+      inReview: "{n} dei tuoi articoli sono in revisione presso il team RepGet.",
+      ratingTitle: "Autorità minima",
+      ratingHelp: "L’autorità minima di un sito che ti linka.",
+      ratingUnconfigured: "Non ancora disponibile: l’autorità dei siti della rete non viene misurata, quindi non si può imporre un minimo. Il team RepGet controlla a mano ogni sito che linka.",
+      targetsTitle: "Pagine obiettivo",
+      targetsHelp: "Scegli e ordina per priorità le pagine del tuo sito che devono ricevere link.",
+      addTarget: "Aggiungi pagina obiettivo",
+      urlLabel: "Indirizzo della pagina",
+      noteLabel: "Che pagina è (facoltativo)",
+      priorityLabel: "Priorità",
+      high: "Alta",
+      medium: "Media",
+      low: "Bassa",
+      moveUp: "Sposta su",
+      moveDown: "Sposta giù",
+      remove: "Rimuovi",
+      noTargets: "Nessuna pagina obiettivo. Aggiungi le pagine per cui vuoi più link.",
+      targetAdded: "Pagina obiettivo aggiunta",
+      saved: "Salvato",
+      turnedOn: "Fai parte della Rete partner",
+      turnedOff: "Hai lasciato la Rete partner",
+      creditsLine: "{available} crediti disponibili · {reserved} riservati",
+      add: "Aggiungi",
+      cancel: "Annulla",
     },
     image: {
       altLabel: "Descrizione dell\u2019immagine",
@@ -6459,7 +6681,7 @@ const it: Messages = {
       finishedDraftHelp: "Compare come bozza nel suo CMS nel giorno previsto. Lo pubblica lei da lì.",
       finishedLive: "Pubblicarlo nel giorno previsto",
       finishedLiveHelp: "Va online sul suo sito nel giorno previsto, senza che debba fare nulla.",
-      firstArticleNote: "Il suo primo articolo viene pubblicato appena è scritto, qualunque sia la scelta, così vede subito come appaiono gli articoli sul suo sito.",
+      firstArticleNote: "Il suo primo articolo viene inviato appena è pronto, qualunque sia la scelta, così vede come appaiono gli articoli sul suo sito. Finché il sito fa parte della Rete partner, il team RepGet controlla prima ogni articolo - anche il primo - e nessuno esce prima del giorno previsto.",
     },
     nav: {
       dashboard: "Dashboard",
@@ -7564,9 +7786,9 @@ const de: Messages = {
       anchorPlaceholder: "Zahnaufhellung in Dublin",
       requesting: "Wird angefragt…",
       requestLink: "Link anfragen (1 Credit)",
-      noRequests: "Noch keine Linkanfragen",
-      noRequestsHelp: "Fragen Sie einen Link an, und wir finden ein anderes Unternehmen im Netzwerk, das ihn im nächsten Artikel veröffentlicht. Jeder aktive Link kostet ein Credit.",
-      noneGiven: "Noch keine. Wenn wir Ihren nächsten Artikel schreiben, kann ein Link zu einem anderen Unternehmen enthalten sein, und Sie verdienen ein Credit.",
+      noRequests: "Noch keine Links erhalten",
+      noRequestsHelp: "Fügen Sie oben im Partnernetzwerk die Seiten hinzu, auf die Links zeigen sollen. Das RepGet-Team platziert sie in passenden Artikeln von Partnern; ein Link kostet seine Credits erst, wenn er als live bestätigt ist.",
+      noneGiven: "Noch keine. Das RepGet-Team kann vor der Veröffentlichung den Link eines passenden Partners in einen Ihrer Artikel setzen; Sie erhalten die Credits, sobald er als live bestätigt ist.",
       sourceArticle: "Quellartikel",
       sourceArticleHint: "Der Artikel auf einer anderen Website, der auf Sie verlinkt. Öffnen Sie ihn, um den aktiven Link zu sehen.",
       customerWebsite: "Website des Kunden",
@@ -7578,6 +7800,8 @@ const de: Messages = {
       destinationWebsiteHint: "Die Website, auf die Ihr Artikel verlinkt.",
       creditsEarned: "Verdiente Credits",
       creditsEarnedHint: "Credits, die Ihnen dieser Link eingebracht hat - für Links zurück auf Ihre eigene Seite.",
+      onceLive: "+{n} sobald live",
+      held: "{n} reserviert",
       cancelRequest: "Anfrage abbrechen",
       untitledArticle: "Artikel ohne Titel",
       joined: "Sie sind im Netzwerk",
@@ -7659,6 +7883,48 @@ const de: Messages = {
       copyNowHelp: "Wir speichern nur eine verschlüsselte Fassung, sie lässt sich später nicht nachschlagen. Geht sie verloren, widerrufen Sie sie und erstellen eine neue.",
       newKey: "Neuer Schlüssel",
       keyNotePlaceholder: "Wofür ist dieser Schlüssel? (optional)",
+      preparing: "Schlüssel wird vorbereitet…",
+      readyTitle: "Ihr Schlüssel ist bereit",
+      nextSteps: "Als Nächstes: Laden Sie das Plugin herunter, installieren und aktivieren Sie es in WordPress und fügen Sie diesen Schlüssel dort in den RepGet-Einstellungen ein (oder nutzen Sie In WordPress verbinden).",
+      unseenTitle: "Schlüssel werden nur einmal angezeigt",
+      unseenHelp: "Für diese Website wurde bereits ein Schlüssel erstellt, der nicht erneut angezeigt werden kann (zum Beispiel in einem anderen Tab geöffnet). Wenn Sie ihn nicht kopiert haben, ersetzen Sie ihn durch einen neuen. Ein bereits verbundener Schlüssel wird nie ersetzt.",
+      replaceKey: "Unbenutzten Schlüssel ersetzen",
+      revokedHelp: "Ihre Schlüssel wurden widerrufen. Erstellen Sie einen neuen Schlüssel, wenn Sie WordPress wieder verbinden möchten.",
+    },
+    partnerNetwork: {
+      title: "Partnernetzwerk",
+      subtitle: "Legen Sie fest, wie Ihre Website am Backlink-Netzwerk von RepGet teilnimmt.",
+      participationTitle: "Teilnahme am Netzwerk",
+      participationHelp: "Nehmen Sie am RepGet-Partnernetzwerk teil, um relevante Links zu hosten und Links zu Ihren Seiten zu erhalten.",
+      enabled: "Aktiviert",
+      disabled: "Deaktiviert",
+      whatTitle: "Was das bewirkt",
+      whatBody: "Das RepGet-Team setzt relevante Links aus Partnerartikeln auf die von Ihnen genannten Seiten und kann Partnerlinks in Ihre Artikel setzen, bevor diese veröffentlicht werden. Ihr Workspace verdient Credits für jeden gehosteten Link und gibt Credits für jeden erhaltenen Link aus – erst wenn der Link live bestätigt ist. Sie müssen weder Partner auswählen noch jeden Link freigeben.",
+      offNote: "Wenn Sie das ausschalten, werden keine neuen Links mehr arrangiert. Bereits gesetzte Links bleiben bestehen und werden weiter geprüft und gutgeschrieben.",
+      inReview: "{n} Ihrer Artikel werden vom RepGet-Team geprüft.",
+      ratingTitle: "Mindestautorität",
+      ratingHelp: "Die Mindestautorität einer Website, die auf Sie verlinkt.",
+      ratingUnconfigured: "Noch nicht verfügbar: Die Autorität der Netzwerk-Websites wird nicht gemessen, daher kann kein Minimum durchgesetzt werden. Das RepGet-Team prüft jede verlinkende Website von Hand.",
+      targetsTitle: "Zielseiten",
+      targetsHelp: "Wählen und priorisieren Sie, welche Seiten Ihrer Website Backlinks erhalten sollen.",
+      addTarget: "Zielseite hinzufügen",
+      urlLabel: "Seitenadresse",
+      noteLabel: "Was diese Seite ist (optional)",
+      priorityLabel: "Priorität",
+      high: "Hoch",
+      medium: "Mittel",
+      low: "Niedrig",
+      moveUp: "Nach oben",
+      moveDown: "Nach unten",
+      remove: "Entfernen",
+      noTargets: "Noch keine Zielseiten. Fügen Sie die Seiten hinzu, für die Sie am meisten Links möchten.",
+      targetAdded: "Zielseite hinzugefügt",
+      saved: "Gespeichert",
+      turnedOn: "Sie sind im Partnernetzwerk",
+      turnedOff: "Sie haben das Partnernetzwerk verlassen",
+      creditsLine: "{available} Credits verfügbar · {reserved} reserviert",
+      add: "Hinzufügen",
+      cancel: "Abbrechen",
     },
     image: {
       altLabel: "Bildbeschreibung",
@@ -7828,7 +8094,7 @@ const de: Messages = {
       finishedDraftHelp: "Er erscheint am geplanten Tag als Entwurf in Ihrem CMS. Sie veröffentlichen ihn dort.",
       finishedLive: "Am geplanten Tag live veröffentlichen",
       finishedLiveHelp: "Er geht am geplanten Tag auf Ihrer Website live, ohne dass Sie etwas tun müssen.",
-      firstArticleNote: "Ihr erster Artikel wird veröffentlicht, sobald er geschrieben ist, egal was Sie wählen, damit Sie sofort sehen, wie Artikel auf Ihrer Website aussehen.",
+      firstArticleNote: "Ihr erster Artikel wird gesendet, sobald er fertig ist, egal was Sie wählen, damit Sie sehen, wie Artikel auf Ihrer Website aussehen. Solange Ihre Website im Partnernetzwerk ist, prüft das RepGet-Team jeden Artikel vorher - auch den ersten - und keiner geht vor seinem geplanten Tag raus.",
     },
     nav: {
       dashboard: "Dashboard",

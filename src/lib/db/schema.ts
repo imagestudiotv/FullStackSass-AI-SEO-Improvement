@@ -422,12 +422,15 @@ export const websites = pgTable("websites", {
   targetAudience: text("target_audience"),
   status: text("status").default("pending").notNull(),
   /**
-   * Whether a finished article goes live by itself.
+   * Whether a finished article goes out by itself (with publishAs, the
+   * publishing mode - see lib/publishing/policy.ts).
    *
-   * Off by default, deliberately. Publishing to someone's live website without
-   * them looking first is not a default to opt people out of — the first
-   * article they never saw is the one that reads wrong, and it is already
-   * public. On, articles publish; off, they are sent as drafts for review.
+   * The COLUMN default stays off. New websites get "Publish live on the
+   * planned day" (the client's decision) from the application, which writes
+   * it explicitly when it creates a website - see
+   * lib/websites/new-site-defaults.ts. A database default would also reach
+   * websites created by an older build still running during a deploy or
+   * after a rollback, which knows nothing of the review gate.
    */
   autoPublish: boolean("auto_publish").default(false).notNull(),
   /**
@@ -507,13 +510,19 @@ export const websites = pgTable("websites", {
   /** Anything to avoid in images — "never show faces" and the like. */
   imageInstructions: text("image_instructions"),
 
-  /** Adds a contents list built from the article's headings. */
+  /**
+   * Adds a contents list built from the article's headings. On for new
+   * websites, written by the application (lib/websites/new-site-defaults.ts).
+   */
   tableOfContents: boolean("table_of_contents").default(false).notNull(),
   /** Finds and embeds a relevant video. */
   youtubeVideo: boolean("youtube_video").default(false).notNull(),
   /** Writes in the first person, as somebody with a view. */
   authorPerspective: boolean("author_perspective").default(true).notNull(),
-  /** References comparable products and tools. */
+  /**
+   * References comparable products and tools. On for new websites, written
+   * by the application (lib/websites/new-site-defaults.ts).
+   */
   mentionSimilarProducts: boolean("mention_similar_products")
     .default(false)
     .notNull(),
@@ -720,6 +729,26 @@ export const articles = pgTable(
      */
     imageAttempts: integer("image_attempts").default(0).notNull(),
     error: text("error"),
+    /**
+     * The RepGet team's review, for articles written for a website in the
+     * managed Partner Network (lib/articles/review.ts).
+     *
+     * null      not in the managed workflow - published by the ordinary rules.
+     *           Every article written before this existed stays null.
+     * pending   written, waiting for an administrator to prepare and approve
+     *           it. Held by every publishing path.
+     * approved  released for delivery, but ONLY while the article still
+     *           hashes to reviewApprovedHash: an edit after approval holds it
+     *           again, so no job can publish a revision nobody approved.
+     */
+    reviewStatus: text("review_status"),
+    /** Bumped by every review change, so two administrators cannot overwrite each other. */
+    reviewVersion: integer("review_version").default(0).notNull(),
+    reviewApprovedAt: timestamp("review_approved_at"),
+    /** The approving administrator's email (as admin_audit_log records actors). */
+    reviewApprovedBy: text("review_approved_by"),
+    /** SHA-256 of the approved title, body and image. See reviewHashSql. */
+    reviewApprovedHash: text("review_approved_hash"),
     ...timestamps,
   },
   (table) => [
@@ -1172,12 +1201,46 @@ export const placements = pgTable("placements", {
    * See lib/backlinks/placements.ts.
    */
   status: text("status").default("pending").notNull(),
+  /**
+   * Placed by an administrator in the managed Partner Network, rather than by
+   * automatic matching. Same lifecycle and credits; see lib/backlinks/managed.ts.
+   */
+  managed: boolean("managed").default(false).notNull(),
+  /** The administrator who placed it (email), for managed placements. */
+  createdBy: text("created_by"),
+  /** Why this host, target and amount - written by the administrator. */
+  reason: text("reason"),
   lastVerifiedAt: timestamp("last_verified_at"),
   publishedAt: timestamp("published_at"),
   liveAt: timestamp("live_at"),
   removedAt: timestamp("removed_at"),
   ...timestamps,
 });
+
+/**
+ * Pages on a website its owner wants backlinks to, in priority order.
+ *
+ * PREFERENCES, not orders: the RepGet team reads these when placing links
+ * (lib/backlinks/managed.ts). Nothing here reserves credits or starts
+ * matching - that happens only when an administrator commits a placement.
+ */
+export const backlinkTargets = pgTable(
+  "backlink_targets",
+  {
+    id: pk(),
+    websiteId: websiteId(),
+    /** A page on this website, verified to exist when it was added. */
+    url: text("url").notNull(),
+    /** What the page is, in the owner's words. */
+    note: text("note"),
+    /** high | medium | low. */
+    priority: text("priority").default("medium").notNull(),
+    /** Order within the list, lowest first. */
+    position: integer("position").default(0).notNull(),
+    ...timestamps,
+  },
+  (table) => [uniqueIndex("backlink_targets_site_url_uidx").on(table.websiteId, table.url)],
+);
 
 export const linkChecks = pgTable("link_checks", {
   id: pk(),

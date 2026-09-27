@@ -302,6 +302,13 @@
       "when": 1790434701237,
       "tag": "0042_article_baseline_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1790492099512,
+      "tag": "0043_managed_network",
+      "breakpoints": true
     }
   ]
 }

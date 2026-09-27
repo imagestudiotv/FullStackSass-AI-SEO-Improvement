@@ -29,7 +29,17 @@ export type AdminAction =
   | "article.deleted"
   | "user.deleted"
   | "organization.deleted"
-  | "website.deleted";
+  | "website.deleted"
+  /* The managed Partner Network (lib/backlinks/managed.ts). */
+  | "network.placement_added"
+  | "network.placement_removed"
+  | "network.placement_credits"
+  | "network.article_approved"
+  | "network.article_reopened"
+  /* Operations (lib/admin/operations.ts). */
+  | "platform.control_changed"
+  | "authority.collection_requested"
+  | "valuation.policy_published";
 
 export type AuditEntry = {
   actorEmail: string;
