@@ -1,4 +1,5 @@
 import { InvalidUrlError, isPublicWebsiteUrl, normalizeWebsiteUrl } from "@/lib/websites/url";
+import { safeFetch } from "@/lib/net/safe-fetch";
 
 /**
  * Sitemap finder and validator.
@@ -70,14 +71,18 @@ async function fetchText(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
-    const response = await fetch(url, {
+    const response = await safeFetch(url, {
       signal: controller.signal,
+      // Cut while streaming, and the deadline covers reading the body too.
+      maxBytes: MAX_BYTES,
+      overflow: "truncate",
+      timeoutMs: TIMEOUT_MS,
       headers: { "user-agent": "SEOVisionBot/1.0", accept: "application/xml,text/xml,*/*" },
     });
 
     // Read only as much as we allow, rather than buffering a huge file.
     const buffer = await response.arrayBuffer();
-    const text = new TextDecoder().decode(buffer.slice(0, MAX_BYTES));
+    const text = new TextDecoder().decode(buffer);
     return { status: response.status, text };
   } catch {
     return null;

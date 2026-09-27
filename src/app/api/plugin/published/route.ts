@@ -1,32 +1,36 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-import { and, eq } from "drizzle-orm";
-
-import { db } from "@/lib/db";
-import { articles, publishLogs } from "@/lib/db/schema";
 import { notify } from "@/lib/notifications/create";
 import { resolveIntegrationKey } from "@/lib/plugin/keys";
-import { markFirstArticleSent } from "@/lib/publishing/policy";
-import { queueJob } from "@/inngest/send";
+import { markFirstArticleSentAndContinue } from "@/lib/publishing/policy";
+import { recordArticlePublication } from "@/lib/backlinks/placements";
+import { acknowledgePluginDispatch, type PluginReport } from "@/lib/publishing/acknowledge";
 
 /**
  * Publication confirmed: POST /api/plugin/published
  *
- * The plugin reports back after creating the post. Without this the same
- * article would be handed out on every poll forever, because nothing else
- * tells us it landed.
+ * The plugin reports back after creating (or failing to create) the post.
+ * Without this the same article would be handed out on every poll forever,
+ * because nothing else tells us it landed. The plugin is the only thing that
+ * knows the resulting URL, so this is also where publishedUrl comes from.
  *
- * The plugin is the only thing that knows the resulting URL, so this is also
- * where publishedUrl comes from.
+ * Each report settles exactly the hand-over it answers - see
+ * lib/publishing/acknowledge.ts: 1.6.0+ plugins send `dispatchId` and the
+ * status WordPress actually stored; older plugins are correlated by article.
+ * A repeated report changes nothing; a late one is recorded as history.
  */
 
 export const dynamic = "force-dynamic";
 
 const CORS = {
   "access-control-allow-origin": "*",
-  "access-control-allow-headers": "content-type, x-integration-key",
+  "access-control-allow-headers": "content-type, x-integration-key, x-repget-plugin-version",
   "access-control-allow-methods": "POST, OPTIONS",
 };
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** WordPress post statuses a report may carry. */
+const POST_STATUSES = new Set(["publish", "future", "draft", "pending", "private"]);
 
 export function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: CORS });
@@ -46,6 +50,7 @@ export async function POST(request: NextRequest) {
 
   let body: {
     articleId?: unknown;
+    dispatchId?: unknown;
     url?: unknown;
     remoteId?: unknown;
     error?: unknown;
@@ -67,104 +72,84 @@ export async function POST(request: NextRequest) {
       { status: 400, headers: CORS },
     );
   }
+  const dispatchId = typeof body.dispatchId === "string" && UUID.test(body.dispatchId) ? body.dispatchId : null;
+
+  // The plugin reports failures too; a post that could not be created must
+  // not be recorded as live.
+  const failure = typeof body.error === "string" ? body.error : null;
+  /*
+    What WordPress stored. 1.6.0 reports get_post_status after saving; 1.3.2
+    to 1.5.x report the status they were asked for; older plugins send
+    nothing and always published live, so absent means "publish".
+  */
+  const reported = typeof body.status === "string" && POST_STATUSES.has(body.status) ? body.status : "publish";
+  const report: PluginReport = failure
+    ? { kind: "failed", error: failure }
+    : {
+        kind: "sent",
+        remoteUrl: typeof body.url === "string" ? body.url : null,
+        remoteId: typeof body.remoteId === "string" || typeof body.remoteId === "number" ? String(body.remoteId) : null,
+        remoteStatus: reported,
+      };
 
   /**
-   * Scoped to the key's website. An articleId from another workspace matches
-   * nothing here, so a key cannot mark someone else's article as published.
+   * Scoped to the key's website. An articleId (or dispatchId) from another
+   * workspace matches nothing, so a key cannot settle someone else's article.
    */
-  const [article] = await db
-    .select({ id: articles.id, title: articles.title })
-    .from(articles)
-    .where(
-      and(
-        eq(articles.id, articleId),
-        eq(articles.websiteId, resolved.websiteId),
-      ),
-    )
-    .limit(1);
+  const ack = await acknowledgePluginDispatch({ websiteId: resolved.websiteId, articleId, dispatchId, report });
 
-  if (!article) {
-    return NextResponse.json(
-      { ok: false, error: "No such article." },
-      { status: 404, headers: CORS },
-    );
+  if (ack.result === "unknown_article") {
+    return NextResponse.json({ ok: false, error: "No such article." }, { status: 404, headers: CORS });
+  }
+  if (ack.result === "unknown_dispatch") {
+    return NextResponse.json({ ok: false, error: "No such delivery for this article." }, { status: 404, headers: CORS });
+  }
+  if (ack.result === "moved") {
+    // The post's new address: backlinks it carries are checked there.
+    await recordArticlePublication(ack.article.id, ack.remoteUrl, ack.live ? "publish" : "draft");
+    return NextResponse.json({ ok: true, recorded: "moved" }, { headers: CORS });
+  }
+  // Answered with 200 so the plugin drops the report from its queue.
+  if (ack.result === "duplicate" || ack.result === "late") {
+    return NextResponse.json({ ok: true, recorded: ack.result }, { headers: CORS });
   }
 
-  // The plugin reports failures too; a post that could not be created must not
-  // be recorded as live.
-  const failure = typeof body.error === "string" ? body.error : null;
-
-  if (failure) {
-    await db.insert(publishLogs).values({
-      articleId: article.id,
-      status: "failed",
-      error: failure.slice(0, 500),
-    });
-
+  const href = `/websites/${resolved.websiteId}/articles/${ack.article.id}`;
+  if (ack.report.kind === "failed") {
     await notify({
       organizationId: resolved.organizationId,
       type: "article.failed",
       title: "An article could not be published",
-      body: failure.slice(0, 200),
-      href: `/websites/${resolved.websiteId}/articles/${article.id}`,
+      body: ack.report.error.slice(0, 200),
+      href,
     });
-
     return NextResponse.json({ ok: true, recorded: "failed" }, { headers: CORS });
   }
 
-  const url = typeof body.url === "string" ? body.url : null;
-  const remoteId =
-    typeof body.remoteId === "string" || typeof body.remoteId === "number"
-      ? String(body.remoteId)
-      : null;
-
-  await db.insert(publishLogs).values({
-    articleId: article.id,
-    status: "published",
-    remoteId,
-    remoteUrl: url,
-  });
-
   /*
-    What the plugin created. 1.3.2 reports it; older plugins always published
-    live and send nothing, so absent means "publish". A WordPress draft is not
-    live, so the article stays a draft here too - the same rule as the direct
-    WordPress connection - and publishedUrl keeps it out of the queue.
+    The real URL of any backlink this article carries, so it can be checked
+    live before anyone is charged (lib/backlinks/placements.ts). A WordPress
+    draft is not publication.
   */
-  const created = body.status === "draft" ? "draft" : "publish";
-
-  await db
-    .update(articles)
-    .set({
-      status: created === "publish" ? "published" : "draft",
-      publishedUrl: url,
-      publishRequested: null,
-      error: null,
-      updatedAt: new Date(),
-    })
-    .where(eq(articles.id, article.id));
+  await recordArticlePublication(ack.article.id, ack.report.remoteUrl, ack.live ? "publish" : "draft");
 
   /*
     The website's first article is out. Record it, so the first-article
     rule never fires again, and - only for the call that recorded it -
     start writing the next two days' articles now rather than at the next
-    scheduled run: "the first article published immediately, and then the
-    other next-2-day articles". See lib/publishing/policy.ts.
+    scheduled run. See lib/publishing/policy.ts.
   */
-  if (await markFirstArticleSent(resolved.websiteId)) {
-    await queueJob({
-      name: "articles/scheduled.requested",
-      data: { websiteId: resolved.websiteId },
-    });
-  }
+  await markFirstArticleSentAndContinue(resolved.websiteId);
 
   await notify({
     organizationId: resolved.organizationId,
     type: "article.published",
-    title: `"${article.title}" is live`,
-    body: url ?? undefined,
-    href: `/websites/${resolved.websiteId}/articles/${article.id}`,
+    // A WordPress draft is not live; saying otherwise would send the
+    // customer looking for a page nobody can visit.
+    title: ack.live ? `"${ack.article.title}" is live` : `"${ack.article.title}" was saved as a draft`,
+    body: ack.live ? ack.report.remoteUrl ?? undefined : "Publish it from WordPress when ready.",
+    href,
   });
 
-  return NextResponse.json({ ok: true, recorded: "published" }, { headers: CORS });
+  return NextResponse.json({ ok: true, recorded: ack.live ? "published" : "draft" }, { headers: CORS });
 }

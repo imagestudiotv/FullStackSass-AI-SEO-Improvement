@@ -1,8 +1,10 @@
 import { and, eq, isNotNull, isNull, or, sql as raw } from "drizzle-orm";
 
 import { db } from "@/lib/db";
+import { deliverNow, enqueueJob } from "@/lib/jobs/outbox";
 import { isPublishingConnection, PUBLISHING_KINDS } from "@/lib/publishing/kinds";
 import { articles, calendarItems, integrations, websites } from "@/lib/db/schema";
+import { notBeforePlannedSql, releasableSql } from "@/lib/articles/review";
 
 /**
  * What happens to an article once it is written - the rules every publishing
@@ -86,6 +88,15 @@ export function pendingFirstArticleQuery(websiteId: string) {
         eq(articles.status, "draft"),
         isNull(articles.publishedUrl),
         isNotNull(articles.bodyHtml),
+        /*
+          The review gate and the planned day (lib/articles/review.ts): the
+          first-article exception releases an article early, but never one
+          the RepGet team has not approved, and never a reviewed one before
+          its planned day. This query feeds the daily release and the
+          release on connecting a CMS, so both obey it.
+        */
+        releasableSql,
+        notBeforePlannedSql,
       ),
     )
     .limit(1);
@@ -114,13 +125,40 @@ export async function hasConnectedIntegration(websiteId: string) {
  * only for the call that actually set it, so the caller can do the one-time
  * follow-up (queueing the next articles) exactly once.
  */
-export async function markFirstArticleSent(websiteId: string): Promise<boolean> {
-  const rows = await db
+export async function markFirstArticleSent(
+  websiteId: string,
+  executor: Pick<typeof db, "update"> = db,
+): Promise<boolean> {
+  const rows = await executor
     .update(websites)
     .set({ firstArticleSentAt: new Date() })
     .where(and(eq(websites.id, websiteId), isNull(websites.firstArticleSentAt)))
     .returning({ id: websites.id });
   return rows.length > 0;
+}
+
+/**
+ * Marks the first article sent and, only for the call that marked it,
+ * records the "write the next articles" job - in ONE transaction, then
+ * delivers it (lib/jobs/outbox.ts).
+ *
+ * The mark is one-time, so the follow-up can only ever be attempted by the
+ * call that set it. Sending after committing the mark meant a failed send
+ * lost the follow-up for good: the next call saw the mark and did nothing.
+ */
+export async function markFirstArticleSentAndContinue(websiteId: string): Promise<boolean> {
+  const eventId = `articles-scheduled:first-article:${websiteId}`;
+  const first = await db.transaction(async (tx) => {
+    if (!(await markFirstArticleSent(websiteId, tx))) return false;
+    await enqueueJob(tx, {
+      id: eventId,
+      name: "articles/scheduled.requested",
+      data: { websiteId },
+    });
+    return true;
+  });
+  if (first) await deliverNow(eventId);
+  return first;
 }
 
 /** Websites still waiting on their first article, for the daily release. */

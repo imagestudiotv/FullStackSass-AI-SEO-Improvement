@@ -3,12 +3,21 @@
 import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
+import { checkoutProviderOps } from "@/lib/billing/checkout-providers";
+import {
+  beginCheckout,
+  markCheckoutFailed,
+  recordCheckoutRequest,
+  recordCheckoutStarted,
+} from "@/lib/billing/checkouts";
+import { syncPayPalSubscription } from "@/lib/billing/paypal-events";
 import { db } from "@/lib/db";
 import { plans, subscriptions, websites } from "@/lib/db/schema";
 import { isPayPalConfigured, PayPalError } from "@/lib/paypal/client";
 import {
   cancelSubscription,
   createSubscription,
+  reviseSubscription,
 } from "@/lib/paypal/subscriptions";
 import { requireOrg } from "@/lib/tenant";
 import {
@@ -20,8 +29,8 @@ import {
  * PayPal checkout actions.
  *
  * Mirrors lib/stripe/actions.ts deliberately: same guard, same result shape,
- * same rule that access is granted only by the webhook. The billing page can
- * then treat the two processors identically.
+ * same rule that access is granted only by the webhook, and the same
+ * one-subscription-per-website decision (beginCheckout).
  */
 
 export type PayPalResult = { url: string } | { error: string };
@@ -37,7 +46,8 @@ export async function isPayPalAvailable(): Promise<boolean> {
 }
 
 /**
- * Starts a PayPal subscription for the caller's organization.
+ * Starts a PayPal subscription for a website - or revises the plan of the
+ * one it already has.
  *
  * Returns the approval URL. Nothing is charged until the customer approves on
  * PayPal, and nothing is granted until the webhook confirms activation.
@@ -86,8 +96,7 @@ export async function createPayPalCheckout(
   if (!plan.paypalPlanId) {
     /**
      * Reported plainly rather than failing: a plan can legitimately exist in
-     * Stripe before it has been mirrored into PayPal, and the customer should
-     * be told to use a card rather than shown an error.
+     * Stripe before it has been mirrored into PayPal.
      */
     return {
       error: `"${plan.name}" is not available through PayPal yet. Please pay by card.`,
@@ -95,22 +104,79 @@ export async function createPayPalCheckout(
   }
 
   const base = appUrl();
+  const returnUrl = `${base}${checkoutReturnPath(origin, "success", websiteId, "paypal")}`;
+  const cancelUrl = `${base}${checkoutReturnPath(origin, "cancelled", websiteId, "paypal")}`;
+
+  let begun: Awaited<ReturnType<typeof beginCheckout>>;
   try {
+    begun = await beginCheckout(
+      db,
+      { organizationId: orgId, websiteId, provider: "paypal", planId: plan.id },
+      checkoutProviderOps,
+    );
+  } catch (error) {
+    console.error("[paypal] could not start checkout", error);
+    return { error: "We could not start the checkout. Please try again." };
+  }
+
+  if (begun.kind === "refuse") return { error: begun.error };
+  if (begun.kind === "reuse") return { url: begun.url };
+
+  if (begun.kind === "change_plan") {
+    if (begun.current.planId === plan.id) {
+      return { error: `This website is already on ${plan.name}.` };
+    }
+    /*
+      The same subscription, revised: PayPal asks the buyer to approve the
+      new price and the UPDATED webhook records it. Never a second one.
+    */
+    try {
+      const revised = await reviseSubscription({
+        subscriptionId: begun.current.providerSubscriptionId,
+        planId: plan.paypalPlanId,
+        returnUrl,
+        cancelUrl,
+      });
+      return { url: revised.approveUrl ?? returnUrl };
+    } catch (error) {
+      if (error instanceof PayPalError) {
+        return { error: "PayPal could not change the plan." };
+      }
+      throw error;
+    }
+  }
+
+  const { checkoutId } = begun;
+  const idempotencyKey = `checkout:${checkoutId}`;
+  try {
+    await recordCheckoutRequest(db, checkoutId, {
+      idempotencyKey,
+      params: { plan: plan.paypalPlanId },
+    });
     const result = await createSubscription({
       planId: plan.paypalPlanId,
       organizationId: orgId,
-
       websiteId,
-      /*
-        Back where they started, as with Stripe: someone approving mid-setup
-        was landed in the dashboard's billing screen rather than the next
-        step of the flow they were in.
-      */
-      returnUrl: `${base}${checkoutReturnPath(origin, "success", websiteId, "paypal")}`,
-      cancelUrl: `${base}${checkoutReturnPath(origin, "cancelled", websiteId, "paypal")}`,
+      checkoutId,
+      returnUrl,
+      cancelUrl,
+    });
+    await recordCheckoutStarted(db, checkoutId, {
+      providerSubscriptionId: result.subscriptionId,
+      checkoutUrl: result.approveUrl,
     });
     return { url: result.approveUrl };
   } catch (error) {
+    /*
+      Only a definite refusal marks it failed. A timeout ("unknown") may have
+      created an approval at PayPal, which cannot be looked up by our ids: the
+      row stays open and becomes unresolved, blocking deletion.
+    */
+    if (error instanceof PayPalError && error.kind !== "unknown") {
+      await markCheckoutFailed(db, checkoutId).catch((markError) =>
+        console.error("[paypal] could not mark checkout failed", markError),
+      );
+    }
     if (error instanceof PayPalError) {
       return { error: "PayPal could not start the subscription." };
     }
@@ -121,26 +187,41 @@ export async function createPayPalCheckout(
 export type CancelResult = { ok: true } | { ok: false; error: string };
 
 /**
- * Cancels a PayPal subscription.
+ * Cancels THE PayPal subscription of ONE website.
  *
- * PayPal has no hosted management portal equivalent to Stripe's, so
- * cancellation happens here. The webhook still writes the resulting state —
- * this only asks PayPal to cancel.
+ * It used to take no argument and cancel whichever PayPal row the workspace
+ * query happened to return first - in a workspace paying for several sites,
+ * possibly not the one the customer meant. Now the website is named,
+ * ownership is checked, and exactly that website's current PayPal
+ * subscription is cancelled. Nothing is marked cancelled locally unless
+ * PayPal confirms it: after the call the subscription is read back from
+ * PayPal through the same sync the webhook uses.
  */
-export async function cancelPayPalSubscription(): Promise<CancelResult> {
+export async function cancelPayPalSubscription(websiteId: string): Promise<CancelResult> {
   const { orgId } = await requireOrg();
 
   const [row] = await db
     .select({
       provider: subscriptions.provider,
+      status: subscriptions.status,
       paypalSubscriptionId: subscriptions.paypalSubscriptionId,
     })
     .from(subscriptions)
-    .where(eq(subscriptions.organizationId, orgId))
+    .innerJoin(websites, eq(websites.id, subscriptions.websiteId))
+    .where(
+      and(
+        eq(subscriptions.websiteId, websiteId),
+        // Ownership: the website must belong to the caller's workspace.
+        eq(websites.organizationId, orgId),
+      ),
+    )
     .limit(1);
 
   if (!row || row.provider !== "paypal" || !row.paypalSubscriptionId) {
-    return { ok: false, error: "No PayPal subscription to cancel" };
+    return { ok: false, error: "This website has no PayPal subscription to cancel." };
+  }
+  if (row.status === "canceled") {
+    return { ok: false, error: "This website's PayPal subscription is already cancelled." };
   }
 
   try {
@@ -151,6 +232,11 @@ export async function cancelPayPalSubscription(): Promise<CancelResult> {
     }
     throw error;
   }
+
+  // Read back from PayPal: the local row changes only to what PayPal says.
+  await syncPayPalSubscription(row.paypalSubscriptionId).catch((error) =>
+    console.error("[paypal] cancelled, but reading it back failed; the webhook will record it", error),
+  );
 
   revalidatePath("/billing");
   return { ok: true };

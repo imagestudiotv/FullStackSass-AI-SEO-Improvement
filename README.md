@@ -2,6 +2,11 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
+Copy `.env.example` to `.env.local` and fill it in. Credentials live only
+there and in the host's environment settings, never in the repository or in
+notes files. See [docs/credentials.md](docs/credentials.md) for every
+variable, the `npm run check:secrets` scan, and the rotation plan.
+
 First, run the development server:
 
 ```bash

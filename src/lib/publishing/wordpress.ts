@@ -1,4 +1,5 @@
 import { isPublicWebsiteUrl } from "@/lib/websites/url";
+import { safeFetch } from "@/lib/net/safe-fetch";
 
 /**
  * WordPress REST API client.
@@ -73,9 +74,11 @@ async function request<T>(
 
   let response: Response;
   try {
-    response = await fetch(apiUrl(credentials.siteUrl, path), {
+    response = await safeFetch(apiUrl(credentials.siteUrl, path), {
       ...init,
       signal: controller.signal,
+      // The deadline also covers reading the body.
+      timeoutMs: TIMEOUT_MS,
       headers: {
         // content-type first so a caller can override it: the media endpoint
         // takes raw image bytes rather than JSON.
@@ -141,9 +144,13 @@ async function fetchSiteInfo(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
-    const response = await fetch(
+    const response = await safeFetch(
       `${credentials.siteUrl.replace(/\/+$/, "")}/wp-json`,
-      { signal: controller.signal, headers: { accept: "application/json" } },
+      {
+        signal: controller.signal,
+        headers: { accept: "application/json" },
+        timeoutMs: TIMEOUT_MS,
+      },
     );
     if (!response.ok) return {};
     return (await response.json()) as { name?: string; description?: string };
@@ -249,6 +256,32 @@ export async function publishPost(
     remoteUrl: post.link,
     status: post.status,
   };
+}
+
+/**
+ * Posts that may carry RepGet's ownership marker for one dispatch
+ * (lib/publishing/ownership.ts), in any status the application password can
+ * see, with their STORED content so the caller can check the marker itself -
+ * WordPress's search is a loose text match, never proof on its own.
+ *
+ * This replaced a lookup by slug: a slug can belong to someone else's post,
+ * is suffixed ("-2") when taken, and changes when the article is edited.
+ */
+export async function searchPostsByMarker(
+  credentials: WordPressCredentials,
+  term: string,
+): Promise<Array<{ remoteId: string; remoteUrl: string; status: string; rawContent: string | null }>> {
+  const posts = await request<Array<{ id: number; link: string; status: string; content?: { raw?: string } }>>(
+    credentials,
+    `/posts?search=${encodeURIComponent(term)}&status=publish,future,draft,pending,private&context=edit&per_page=20&_fields=id,link,status,content`,
+    { method: "GET" },
+  );
+  return (posts ?? []).map((p) => ({
+    remoteId: String(p.id),
+    remoteUrl: p.link,
+    status: p.status,
+    rawContent: typeof p.content?.raw === "string" ? p.content.raw : null,
+  }));
 }
 
 /** Updates a post we published earlier, identified by its WordPress id. */

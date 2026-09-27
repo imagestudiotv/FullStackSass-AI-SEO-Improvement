@@ -1,4 +1,5 @@
 import { normalizeWebsiteUrl, InvalidUrlError } from "@/lib/websites/url";
+import { safeFetch } from "@/lib/net/safe-fetch";
 
 /**
  * robots.txt and sitemap checker.
@@ -125,8 +126,12 @@ export async function checkRobots(input: string): Promise<RobotsOutcome> {
 
   let response: Response;
   try {
-    response = await fetch(robotsUrl, {
+    response = await safeFetch(robotsUrl, {
       signal: controller.signal,
+      // Cut while streaming, and the deadline covers reading the body too.
+      maxBytes: MAX_BYTES,
+      overflow: "truncate",
+      timeoutMs: TIMEOUT_MS,
       headers: { accept: "text/plain", "user-agent": "SEOVisionBot/1.0" },
     });
   } catch {
@@ -165,8 +170,7 @@ export async function checkRobots(input: string): Promise<RobotsOutcome> {
     };
   }
 
-  const raw = await response.text();
-  const content = raw.slice(0, MAX_BYTES);
+  const content = await response.text();
   const parsed = parseRobots(content);
 
   return {

@@ -1,5 +1,7 @@
 import { lookup } from "node:dns/promises";
 
+import { safeFetch, UnsafeUrlError } from "@/lib/net/safe-fetch";
+
 /**
  * Checks that a suggested competitor domain actually exists.
  *
@@ -56,10 +58,16 @@ export async function verifyDomain(domain: string): Promise<DomainCheck> {
      * homepage can be megabytes. Falls back to GET below, because some servers
      * reject HEAD outright.
      */
-    const response = await fetch(`https://${domain}`, {
+    /*
+      safeFetch: the domain is a model's suggestion or a customer's entry, so
+      it is a destination someone else chose. It used to be resolved here and
+      then again by fetch, with no check that either answer was public.
+    */
+    const response = await safeFetch(`https://${domain}`, {
       method: "HEAD",
       redirect: "follow",
       signal: controller.signal,
+      timeoutMs: TIMEOUT_MS,
       headers: {
         // Without a real agent string many hosts answer 403 to anything that
         // looks automated, which would fail domains that are perfectly alive.
@@ -72,7 +80,17 @@ export async function verifyDomain(domain: string): Promise<DomainCheck> {
       return { domain, alive: true, reason: `http ${response.status}` };
     }
     return { domain, alive: false, reason: `http ${response.status}` };
-  } catch {
+  } catch (error) {
+    /*
+      A REFUSAL, not "registered, no response". The name resolves to - or
+      redirects to - an address off the public internet (loopback, a private
+      network, cloud metadata). That is not a competitor's website, and
+      counting it alive stored it as one: the catch below kept anything that
+      threw, and a blocked destination throws.
+    */
+    if (error instanceof UnsafeUrlError) {
+      return { domain, alive: false, reason: "not a public website" };
+    }
     /**
      * The request failed — a refused connection, an expired certificate, a
      * timeout, or a host that will not answer HEAD.

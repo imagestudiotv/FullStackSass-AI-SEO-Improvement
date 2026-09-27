@@ -1,0 +1,138 @@
+# Does the change still type-check, lint, pass its tests and build?
+#
+# Every push and pull request. Nothing here uses a production secret, a shared
+# database or a payment provider:
+#  - the unit and regression tests run against in-process PGlite, and the
+#    concurrency tests against a throwaway pgvector Postgres service;
+#  - the WordPress plugin is tested against a throwaway WordPress + MySQL, with
+#    RepGet's API faked inside each PHP process;
+#  - the build runs with no environment at all - every client (database,
+#    Stripe, Better Auth) is built on first use, so a clean clone builds.
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  app:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      # The real-Postgres suites need independent connections, which PGlite
+      # cannot give. pgvector because migration 0001 uses vector(1536) and no
+      # migration creates the extension: it is an environment prerequisite,
+      # exactly as it is on the production database.
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci --no-audit --no-fund
+
+      # tsconfig includes .next/types, which only exist after typegen.
+      - name: Generate route types
+        run: npx next typegen
+
+      - name: Type-check
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint
+
+      # REQUIRE_* turn "no database, skip" into a failure: a CI run that
+      # silently skipped the concurrency tests would report a green it did
+      # not earn.
+      - name: Test
+        run: npm test
+        env:
+          TEST_POSTGRES_URL: postgres://postgres@127.0.0.1:5432/postgres
+          REQUIRE_TEST_POSTGRES: "1"
+          REQUIRE_PGVECTOR: "1"
+
+      # No secrets, on purpose: proves a fresh clone or deploy can build.
+      - name: Build
+        run: npm run build
+
+  wordpress-plugin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: throwaway-ci-only
+          MYSQL_DATABASE: wp_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -pthrowaway-ci-only"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 30
+    env:
+      WP_VERSION: "6.8.3"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The upgrade test runs plugin 1.5.0 from history.
+          fetch-depth: 0
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: mysqli
+          coverage: none
+
+      - name: Plugin harness (stubbed WordPress)
+        run: npm run plugin:test
+
+      - name: Packaged ZIP matches the tested source
+        run: |
+          mkdir -p "$RUNNER_TEMP/zip"
+          unzip -q public/repget-connector.zip -d "$RUNNER_TEMP/zip"
+          diff -r "$RUNNER_TEMP/zip/repget-connector" wordpress-plugin/repget-connector
+
+      - name: Throwaway WordPress
+        run: |
+          curl -fsSL "https://wordpress.org/wordpress-${WP_VERSION}.tar.gz" | tar -xz -C "$RUNNER_TEMP"
+          cd "$RUNNER_TEMP/wordpress"
+          sed -e "s/database_name_here/wp_test/" \
+              -e "s/username_here/root/" \
+              -e "s/password_here/throwaway-ci-only/" \
+              -e "s/localhost/127.0.0.1:3306/" \
+              wp-config-sample.php > wp-config.php
+          php "$GITHUB_WORKSPACE/wordpress-plugin/tests/install-wordpress.php" "$RUNNER_TEMP/wordpress"
+
+      - name: Plugin against real WordPress + MySQL
+        run: php wordpress-plugin/tests/real-wordpress.php "$RUNNER_TEMP/wordpress" wordpress-plugin/repget-connector/repget-connector.php
+
+      # Separate PHP processes released together at a barrier: lock races,
+      # lease takeover, a process killed mid-insert, failed acknowledgements,
+      # overlapping entry points, and the upgrade from 1.5.0.
+      - name: Plugin under concurrent processes
+        run: |
+          git show a02ac24db2e0ae2a88f831899c88654615eb9827:wordpress-plugin/repget-connector/repget-connector.php > "$RUNNER_TEMP/plugin-1.5.0.php"
+          grep -q "Version: *1.5.0" "$RUNNER_TEMP/plugin-1.5.0.php"
+          php wordpress-plugin/tests/real-wordpress-concurrency.php "$RUNNER_TEMP/wordpress" wordpress-plugin/repget-connector/repget-connector.php "$RUNNER_TEMP/plugin-1.5.0.php"

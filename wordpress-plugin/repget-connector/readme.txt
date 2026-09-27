@@ -2,7 +2,7 @@
 Requires at least: 5.6
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.5.0
+Stable tag: 1.6.0
 License: GPLv2 or later
 
 Publishes articles written by RepGet straight to your WordPress site.
@@ -64,6 +64,47 @@ Nothing else is sent. The plugin only
 fetches articles and reports whether each one published.
 
 == Changelog ==
+
+= 1.6.0 =
+* Each report to RepGet now names the exact delivery it answers. When a
+  check was slow and RepGet had meanwhile sent a newer version of the same
+  article, an older report could be taken for the newer one; it no longer can.
+* Reports waiting to be retried are kept per delivery, so a report for an
+  older version and one for a newer version of the same article are both
+  delivered (1.5.x kept only the last). Reports parked by 1.5.x are still sent.
+* RepGet is told the status WordPress actually stored - for example a post you
+  keep as a draft, or a post your site saved as pending - rather than the
+  status it asked for, so RepGet no longer counts such a post as live.
+* The plugin tells RepGet its version with each request.
+
+= 1.5.2 =
+* A check interrupted at the exact moment a post is created no longer causes a
+  duplicate: every RepGet post now carries its article's identity in the post
+  itself, so a post whose details were not fully saved is still recognised and
+  repaired on the next check.
+* Only one check runs at a time, reliably. The previous lock could, rarely, be
+  taken by two checks arriving at the same instant.
+* A check that stalls for longer than five minutes stops before writing any
+  further post once another check has taken over, and can no longer release
+  the other check's lock.
+* A check that creates several posts within the same second no longer stops
+  after the first one, and a database error while confirming the lock stops
+  the check safely instead of being mistaken for another check taking over.
+
+= 1.5.1 =
+* Never creates a duplicate post. An article is identified by its RepGet id, so
+  a repeated check, a report that did not reach RepGet, or a check interrupted
+  half way through now updates the post it already made instead of adding a
+  second one competing with it.
+* Reports that fail to reach RepGet are retried on the next check, separately
+  from publishing, so a network problem no longer costs you a duplicate.
+* Only one check runs at a time, whether it was started by RepGet, by the
+  hourly schedule, or by the button on this screen. Previously the three could
+  overlap.
+* A check interrupted by a fatal error or a timeout no longer blocks later
+  checks: an abandoned lock is reclaimed automatically.
+* Republishing an edited article keeps the status and content type you chose -
+  an article you moved back to draft stays a draft.
 
 = 1.5.0 =
 * Choose which content type articles are published as - for themes that show

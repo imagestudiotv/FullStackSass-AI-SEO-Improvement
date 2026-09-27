@@ -53,11 +53,19 @@ export function PlanStep({
   annualPlans,
   paypalAvailable,
   websiteId,
+  trialEligible = true,
   t = getMessages("en").app.onboarding,
 }: {
   monthlyPlans: PickerPlan[];
   annualPlans: PickerPlan[];
   paypalAvailable: boolean;
+  /**
+   * Whether checkout will actually grant the free trial: only a workspace
+   * that has never subscribed (lib/billing/checkouts.ts isTrialEligible).
+   * Promising a trial checkout will not give would be a false statement
+   * about money on the screen where the card is entered.
+   */
+  trialEligible?: boolean;
   /** The website this plan pays for. Always present: step one created it. */
   websiteId: string;
   /** This step's copy, defaulting to English. */
@@ -369,7 +377,7 @@ export function PlanStep({
             </>
           ) : (
             <>
-              Start {TRIAL_DAYS}-day free trial
+              {trialEligible ? `Start ${TRIAL_DAYS}-day free trial` : "Continue to payment"}
               <ArrowRight className="size-4" aria-hidden="true" />
             </>
           )}
@@ -384,17 +392,25 @@ export function PlanStep({
           any time": someone entering a card is owed the date money leaves
           their account, not a reassuring phrase.
         */}
-        <p className="mt-3 text-center text-sm">
-          <span className="font-medium">
-            {formatPrice(0, plan.currency)} today
-          </span>
-          <span className="text-muted-foreground">
-            {" "}
-            &middot; then {formatPrice(plan.priceCents, plan.currency)}{" "}
-            {annual ? "a year" : "a month"} after your {TRIAL_DAYS}-day free
-            trial. Cancel before it ends and you are not charged.
-          </span>
-        </p>
+        {trialEligible ? (
+          <p className="mt-3 text-center text-sm">
+            <span className="font-medium">
+              {formatPrice(0, plan.currency)} today
+            </span>
+            <span className="text-muted-foreground">
+              {" "}
+              &middot; then {formatPrice(plan.priceCents, plan.currency)}{" "}
+              {annual ? "a year" : "a month"} after your {TRIAL_DAYS}-day free
+              trial. Cancel before it ends and you are not charged.
+            </span>
+          </p>
+        ) : (
+          <p className="mt-3 text-center text-sm text-muted-foreground">
+            {formatPrice(plan.priceCents, plan.currency)}{" "}
+            {annual ? "a year" : "a month"}, charged today. This workspace has
+            already had its free trial.
+          </p>
+        )}
 
         {/*
           PayPal, per the brief: "We include also PayPal payments, not just

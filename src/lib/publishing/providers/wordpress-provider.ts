@@ -1,5 +1,6 @@
 import {
   publishPost,
+  searchPostsByMarker as searchWordPressPosts,
   testConnection as testWordPress,
   updatePost,
   uploadMedia as uploadWordPressMedia,
@@ -103,6 +104,14 @@ export const wordpressProvider: CmsProvider = {
           ? Number(input.featuredMediaId)
           : null,
       });
+    } catch (error) {
+      rethrow(error);
+    }
+  },
+
+  async searchPostsByMarker(credentials, term) {
+    try {
+      return await searchWordPressPosts(toWordPress(credentials), term);
     } catch (error) {
       rethrow(error);
     }

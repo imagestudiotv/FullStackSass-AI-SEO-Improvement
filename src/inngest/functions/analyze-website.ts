@@ -3,6 +3,11 @@ import { NonRetriableError } from "inngest";
 
 import { inngest } from "@/inngest/client";
 import { MODELS } from "@/lib/ai/client";
+import {
+  paidCall,
+  releaseUnspent,
+  type Reservation,
+} from "@/lib/billing/spend-quota";
 import { db } from "@/lib/db";
 import { competitors, pages, websites } from "@/lib/db/schema";
 import { keepLiveDomains } from "@/lib/websites/verify-domain";
@@ -46,12 +51,23 @@ export const analyzeWebsite = inngest.createFunction(
         .update(websites)
         .set({ status: "failed", updatedAt: new Date() })
         .where(eq(websites.id, websiteId));
+
+      /*
+        Only an analysis that never reached the model hands its slot back. One
+        that paid for extraction and failed afterwards has spent it.
+      */
+      await releaseUnspent(
+        event.data.event.data.reservations as Reservation[] | undefined,
+        "job_failed_before_spend",
+      );
     },
   },
   async ({ event, step, logger }) => {
-    const { websiteId, organizationId } = event.data as {
+    const { websiteId, organizationId, reservations } = event.data as {
       websiteId: string;
+      /** The website's owner: whoever pays. */
       organizationId: string;
+      reservations?: Reservation[];
     };
 
     /**
@@ -216,7 +232,11 @@ export const analyzeWebsite = inngest.createFunction(
     });
 
     const profile = await step.run("extract-profile", async () => {
-      const extracted = await extractProfile(snapshot);
+      // The paid call. Analysis is free to the customer, so there is no plan
+      // to re-check - the reservation it was admitted under is the gate.
+      const extracted = await paidCall(reservations, () =>
+        extractProfile(snapshot),
+      );
 
       /**
        * Cost is recorded from the model's own token counts rather than an

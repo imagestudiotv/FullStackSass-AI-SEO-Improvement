@@ -9,6 +9,7 @@ import {
   ScrollText,
   Users,
   type LucideIcon,
+  Network,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -33,6 +34,7 @@ const NAV: { href: string; label: string; icon: LucideIcon }[] = [
   */
   { href: "/admin/websites", label: "Websites", icon: Globe },
   { href: "/admin/articles", label: "Articles", icon: FileText },
+  { href: "/admin/network", label: "Partner Network", icon: Network },
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/payments", label: "Payments", icon: Receipt },
   { href: "/admin/activity", label: "Activity", icon: ScrollText },

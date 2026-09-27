@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache";
 import {
   createIntegrationKey,
   listIntegrationKeys,
+  provisionFirstKey,
+  replaceUnusedKey,
   revokeIntegrationKey,
   type IntegrationKeyView,
 } from "@/lib/plugin/keys";
@@ -75,4 +77,61 @@ export async function revokeKey(
 
   revalidatePath(`/websites/${site.id}/integrations`);
   return { ok: true, data: null };
+}
+
+export type SetupResult =
+  | { state: "created"; key: string; keyPrefix: string }
+  | { state: "exists"; keyPrefix: string; connected: boolean }
+  | { state: "revoked" };
+
+/**
+ * Entering WordPress setup: a ready key for a website that has never had one.
+ *
+ * Called by the setup screen AFTER it has mounted, as a server action - a
+ * POST, so nothing is created by rendering, a GET, or a link prefetch. The
+ * editor check is the same one "New key" has. See provisionFirstKey for why
+ * repeated and concurrent calls create exactly one key, and why nothing is
+ * created again once the customer has revoked their keys.
+ */
+export async function startWordPressSetup(websiteId: string): Promise<ActionResult<SetupResult>> {
+  const guard = await requireEditor(websiteId);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { site } = guard.context;
+
+  const outcome = await provisionFirstKey(site.id);
+  if (outcome.kind === "created") {
+    revalidatePath(`/websites/${site.id}/integrations`);
+    return { ok: true, data: { state: "created", key: outcome.key, keyPrefix: outcome.keyPrefix } };
+  }
+  if (outcome.kind === "exists") {
+    return { ok: true, data: { state: "exists", keyPrefix: outcome.keyPrefix, connected: outcome.connected } };
+  }
+  return { ok: true, data: { state: "revoked" } };
+}
+
+/**
+ * "I never saw my key": replaces an UNUSED key with a new one, shown once.
+ * Refused for a key WordPress has used - that installation is working, and
+ * the customer can add a second key instead of breaking it.
+ */
+export async function replaceUnusedIntegrationKey(
+  websiteId: string,
+  keyId: string,
+): Promise<ActionResult<{ key: string }>> {
+  const guard = await requireEditor(websiteId);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { site } = guard.context;
+
+  const outcome = await replaceUnusedKey(site.id, keyId);
+  if (!outcome.ok) {
+    return {
+      ok: false,
+      error:
+        outcome.reason === "connected"
+          ? "That key is connected to WordPress, so it was not replaced. Create an additional key instead."
+          : "Key not found",
+    };
+  }
+  revalidatePath(`/websites/${site.id}/integrations`);
+  return { ok: true, data: { key: outcome.key } };
 }

@@ -2,7 +2,7 @@
 /**
  * Plugin Name: RepGet Connector
  * Description: Publishes articles written by RepGet straight to this site. Paste your Integration Key to connect.
- * Version: 1.5.0
+ * Version: 1.6.0
  * Requires at least: 5.6
  * Requires PHP: 7.4
  * License: GPLv2 or later
@@ -31,7 +31,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('REPGET_VERSION', '1.5.0');
+define('REPGET_VERSION', '1.6.0');
 define('REPGET_OPTION_KEY', 'repget_integration_key');
 define('REPGET_OPTION_STATUS', 'repget_status');
 define('REPGET_OPTION_ENDPOINT', 'repget_endpoint');
@@ -39,6 +39,24 @@ define('REPGET_OPTION_ENDPOINT', 'repget_endpoint');
 define('REPGET_OPTION_POST_TYPE', 'repget_post_type');
 /** Marks a post as a RepGet article, with the RepGet article id. */
 define('REPGET_META_ARTICLE', '_repget_article_id');
+/*
+  Acknowledgements RepGet has not confirmed yet.
+
+  A post can be created successfully and the report back to RepGet can still
+  fail - the site's outbound request times out, RepGet is briefly down, the PHP
+  process is killed. The article then stays in RepGet's queue and the next poll
+  hands it over again. Before 1.5.1 that produced a SECOND post every time,
+  which is exactly the duplicate-content problem this product exists to avoid.
+
+  So an unconfirmed acknowledgement is parked here and retried on the next sync,
+  independently of publishing. Shape:
+    [ article_id => array('post_id' => int, 'url' => string, 'status' => string) ]
+*/
+define('REPGET_OPTION_PENDING_ACK', 'repget_pending_acks');
+/** Name of the atomic cross-entry-point sync lock. See repget_sync_locked(). */
+define('REPGET_LOCK', 'repget_sync_lock');
+/** Longest a sync may hold the lock before another entry point may steal it. */
+define('REPGET_LOCK_TTL', 300);
 /*
   Set by the activation hook, read and deleted on the next admin screen.
   An activation hook cannot redirect - it runs inside the request WordPress
@@ -146,6 +164,12 @@ function repget_request($path, $args = array()) {
             // repget_remote_sync. Sent every time so an upgraded plugin is
             // picked up on its next check, without reconnecting.
             'X-RepGet-Sync-Url' => admin_url('admin-ajax.php'),
+            /*
+              1.6.0+: tells RepGet this plugin echoes each hand-over's
+              dispatch id in its report (protocol v2), so a report settles
+              exactly the delivery it answers - never a newer one.
+            */
+            'X-RepGet-Plugin-Version' => REPGET_VERSION,
         ),
     );
 
@@ -387,7 +411,9 @@ function repget_settings_page() {
     }
 
     if (isset($_POST['repget_sync']) && check_admin_referer('repget_save_key')) {
-        $count = repget_sync();
+        // Through the lock, like every other entry point: a button press
+        // overlapping a cron run or a remote nudge used to double-create posts.
+        $count = repget_sync_locked();
         if (is_wp_error($count)) {
             $notice = $count->get_error_message();
             $notice_type = 'error';
@@ -563,12 +589,214 @@ function repget_verify() {
 }
 
 /**
- * Pulls waiting articles and creates posts.
+ * The identity a RepGet article's post carries IN ITS OWN ROW.
+ *
+ * wp_insert_post writes the posts row first and the meta_input afterwards, in
+ * separate queries (wp-includes/post.php: $wpdb->insert() of the row, then
+ * update_post_meta() for each meta_input entry). meta_input therefore does NOT
+ * make the post and its identity atomic: a process killed between the two
+ * leaves a post that the meta lookup can never find, and the next poll made a
+ * second one.
+ *
+ * The guid, when passed in, is part of that single INSERT - and WordPress
+ * never rewrites a guid it was given (it only fills an EMPTY one with the
+ * permalink). So the article id is carried in the guid as well: whatever
+ * point a process dies at, a post that exists can be found.
+ *
+ * An https URL on a reserved, never-resolving host, because WordPress runs
+ * guids through esc_url_raw and would strip any other scheme. Independent of
+ * the site's own address, so it survives a domain move. Feeds mark guids
+ * isPermaLink="false", so nothing treats it as a link.
+ */
+function repget_identity_guid($article_id) {
+    return 'https://repget.invalid/articles/' . rawurlencode((string) $article_id);
+}
+
+/** Posts carrying this article's guid, oldest first. Never revisions or media. */
+function repget_posts_by_guid($article_id) {
+    global $wpdb;
+    $ids = $wpdb->get_col($wpdb->prepare(
+        "SELECT ID FROM {$wpdb->posts} WHERE guid = %s"
+        . " AND post_type NOT IN ('revision', 'attachment') ORDER BY ID ASC",
+        repget_identity_guid($article_id)
+    ));
+    return array_map('intval', is_array($ids) ? $ids : array());
+}
+
+/**
+ * The post already created for a RepGet article, if there is one.
+ *
+ * THE REPGET ARTICLE ID IS THE PUBLICATION IDENTITY. Before 1.5.1 repget_sync
+ * called wp_insert_post unconditionally, so the same article arriving twice
+ * produced two posts competing for the same keyword.
+ *
+ * Looked up by meta first (every version writes it), then by the identity
+ * guid - which finds a post whose meta write was interrupted, and repairs the
+ * meta so the fast path works next time.
+ *
+ * 'any' covers every status including draft, trash and pending. A trashed post
+ * is deliberately treated as existing: re-creating one the customer threw away
+ * would be worse than updating it in place, and restoring it is one click.
+ */
+function repget_find_post($article_id) {
+    $found = get_posts(array(
+        'post_type'        => 'any',
+        'post_status'      => 'any',
+        'numberposts'      => 1,
+        'fields'           => 'ids',
+        'meta_key'         => REPGET_META_ARTICLE,
+        'meta_value'       => $article_id,
+        'suppress_filters' => false,
+    ));
+    if (!empty($found)) {
+        return (int) $found[0];
+    }
+
+    $by_guid = repget_posts_by_guid($article_id);
+    if (!empty($by_guid)) {
+        update_post_meta($by_guid[0], REPGET_META_ARTICLE, $article_id);
+        return $by_guid[0];
+    }
+    return 0;
+}
+
+/**
+ * After an insert: if another post already carries this article's identity,
+ * keep the OLDEST and remove the one just made.
+ *
+ * The sync lock makes this unreachable in normal operation. It is here for the
+ * one case a lock cannot rule out: a worker that ran past its lease (a stalled
+ * PHP process) and inserted after a newer worker had taken over and inserted
+ * the same article. Both converge: only the newer post is ever deleted, and
+ * only by the worker that created it.
+ */
+function repget_keep_oldest($article_id, $post_id) {
+    $ids = repget_posts_by_guid($article_id);
+    if (count($ids) <= 1 || $ids[0] === (int) $post_id) {
+        return (int) $post_id;
+    }
+    wp_delete_post((int) $post_id, true);
+    update_post_meta($ids[0], REPGET_META_ARTICLE, $article_id);
+    return $ids[0];
+}
+
+/**
+ * Acknowledgements waiting to be confirmed by RepGet.
+ *
+ * Keyed by the HAND-OVER they answer ("dispatch:<id>", 1.6.0+). 1.5.x keyed
+ * them by article id, so a report for an older hand-over and one for a newer
+ * revision of the same article overwrote each other; entries parked by 1.5.x
+ * are still read (their key is the article id, with no dispatch) and
+ * reported as before.
+ */
+function repget_pending_acks() {
+    $acks = get_option(REPGET_OPTION_PENDING_ACK, array());
+    return is_array($acks) ? $acks : array();
+}
+
+/** The queue key for a report: the dispatch when RepGet sent one, else the article (1.5.x). */
+function repget_ack_key($article_id, $dispatch_id) {
+    return $dispatch_id !== '' ? 'dispatch:' . $dispatch_id : (string) $article_id;
+}
+
+/** A dispatch id from the feed: a UUID, or '' (a RepGet too old to send one). */
+function repget_dispatch_id($article) {
+    $id = isset($article['dispatch']['id']) && is_string($article['dispatch']['id']) ? strtolower($article['dispatch']['id']) : '';
+    return preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/', $id) ? $id : '';
+}
+
+/**
+ * Parks an acknowledgement so a later sync can retry it.
+ *
+ * Written BEFORE the report is attempted, so a process killed during the
+ * outbound request still leaves a record that this article was published. That
+ * ordering is the point: the alternative loses the fact of publication and the
+ * next poll creates a duplicate.
+ */
+function repget_remember_ack($article_id, $dispatch_id, $post_id, $url, $status) {
+    $acks = repget_pending_acks();
+    $acks[repget_ack_key($article_id, $dispatch_id)] = array(
+        'article_id'  => (string) $article_id,
+        'dispatch_id' => (string) $dispatch_id,
+        'post_id'     => (int) $post_id,
+        'url'         => (string) $url,
+        'status'      => (string) $status,
+    );
+    /*
+      Bounded. A site that cannot reach RepGet for a long time should not grow
+      this option without limit; the oldest entries are dropped, and RepGet's
+      own queue still holds those articles, so they remain recoverable.
+    */
+    if (count($acks) > 200) {
+        $acks = array_slice($acks, -200, null, true);
+    }
+    update_option(REPGET_OPTION_PENDING_ACK, $acks, false);
+}
+
+function repget_forget_ack($key) {
+    $acks = repget_pending_acks();
+    unset($acks[(string) $key]);
+    update_option(REPGET_OPTION_PENDING_ACK, $acks, false);
+}
+
+/**
+ * Retries acknowledgements for posts that were already created.
+ *
+ * Runs before articles are pulled, so RepGet learns about the previous run's
+ * posts before deciding what is still due - which is what stops the duplicate.
+ * Publishing and acknowledging are separate concerns and fail separately.
+ */
+function repget_flush_acks() {
+    foreach (repget_pending_acks() as $key => $ack) {
+        $post_id = isset($ack['post_id']) ? (int) $ack['post_id'] : 0;
+        // Entries parked by 1.5.x: keyed by article id, no dispatch.
+        $article_id = isset($ack['article_id']) ? (string) $ack['article_id'] : (string) $key;
+        $dispatch_id = isset($ack['dispatch_id']) ? (string) $ack['dispatch_id'] : '';
+
+        /*
+          The post was deleted and purged locally. Nothing to confirm, and
+          holding the entry for ever would retry for ever; dropping it lets
+          RepGet hand the article over again and a fresh post be made.
+        */
+        if ($post_id > 0 && get_post_status($post_id) === false) {
+            repget_forget_ack($key);
+            continue;
+        }
+
+        $reported = repget_report(
+            $article_id,
+            $dispatch_id,
+            isset($ack['url']) ? $ack['url'] : null,
+            $post_id > 0 ? $post_id : null,
+            null,
+            isset($ack['status']) ? $ack['status'] : 'publish'
+        );
+        if (!is_wp_error($reported)) {
+            repget_forget_ack($key);
+        }
+    }
+}
+
+/**
+ * Pulls waiting articles and creates or updates posts.
  *
  * Every outcome is reported back, success or failure. An article we fail to
  * create must not stay in the queue silently, and must not be marked live.
+ *
+ * IDEMPOTENT BY ARTICLE ID. An article already published here updates its
+ * existing post instead of creating a second one, so a repeated poll, a failed
+ * acknowledgement or an interrupted run converge on one post rather than
+ * multiplying. Call through repget_sync_locked(), never directly: `$token` is
+ * that call's lock, renewed before every post written here.
  */
-function repget_sync() {
+function repget_sync($token = null) {
+    /*
+      Unconfirmed acknowledgements first. If one succeeds, RepGet drops that
+      article from the queue and the request below will not return it at all -
+      the cheapest way to avoid re-handling it.
+    */
+    repget_flush_acks();
+
     $result = repget_request('/api/plugin/articles', array('method' => 'GET'));
     if (is_wp_error($result)) {
         return $result;
@@ -585,6 +813,32 @@ function repget_sync() {
             continue;
         }
 
+        $article_id = sanitize_text_field($article['id']);
+        // The hand-over this is (1.6.0+): echoed in the report so RepGet
+        // settles exactly this delivery.
+        $dispatch_id = repget_dispatch_id($article);
+
+        /*
+          Still ours? Renewing is also the check: a worker that stalled past its
+          lease must not write another post after someone else took over.
+        */
+        if ($token !== null) {
+            $lease = repget_lock_renew($token);
+            if ($lease === 'lost') {
+                return new WP_Error(
+                    'repget_lock_lost',
+                    __('Another check took over; this one stopped.', 'repget')
+                );
+            }
+            if ($lease !== 'owned') {
+                // Ownership unknown: writing now could race another worker.
+                return new WP_Error(
+                    'repget_lock_error',
+                    __('The site database could not confirm this check still owns its lock; it stopped and will retry.', 'repget')
+                );
+            }
+        }
+
         /*
           Live or draft, as RepGet decided: the website's "Publish as" setting,
           or the choice made when somebody pressed Publish. Before 1.3.2 every
@@ -595,7 +849,9 @@ function repget_sync() {
             ? 'draft'
             : 'publish';
 
-        $post_id = wp_insert_post(array(
+        $existing = repget_find_post($article_id);
+
+        $fields = array(
             'post_title'   => sanitize_text_field($article['title']),
             /**
              * wp_kses_post rather than raw HTML. The body comes from an API,
@@ -609,27 +865,279 @@ function repget_sync() {
                 ? sanitize_text_field($article['excerpt'])
                 : '',
             'post_name'    => isset($article['slug']) ? sanitize_title($article['slug']) : '',
-            'post_status'  => $status,
-            'post_type'    => repget_post_type(),
-        ), true);
+        );
+
+        if ($existing > 0) {
+            $fields['ID'] = $existing;
+
+            /*
+              THE CUSTOMER'S OWN DECISIONS ARE KEPT.
+
+              post_status and post_type are deliberately NOT overwritten on an
+              update. Somebody who unpublished a RepGet article back to draft,
+              or moved it to another content type, chose that; a republish of
+              edited content must not undo it and silently push a draft live.
+              The status is set only when the post is first created.
+            */
+            $post_id = wp_update_post($fields, true);
+        } else {
+            $fields['post_status'] = $status;
+            $fields['post_type']   = repget_post_type();
+
+            /*
+              The identity goes INTO THE ROW as its guid, which wp_insert_post
+              writes in the same INSERT as the post itself. meta_input alone is
+              not enough: WordPress writes it with separate queries after the
+              row, so a process killed in between left a post the meta lookup
+              could never find. See repget_identity_guid().
+            */
+            $fields['guid']       = repget_identity_guid($article_id);
+            $fields['meta_input'] = array(REPGET_META_ARTICLE => $article_id);
+
+            $inserted = wp_insert_post($fields, true);
+            // A stalled worker may have created it too: keep only the oldest.
+            $post_id = is_wp_error($inserted)
+                ? $inserted
+                : repget_keep_oldest($article_id, (int) $inserted);
+            if (!is_wp_error($inserted) && $post_id !== (int) $inserted) {
+                $existing = $post_id;
+            }
+        }
 
         if (is_wp_error($post_id)) {
-            repget_report($article['id'], null, null, $post_id->get_error_message(), $status);
+            repget_report($article_id, $dispatch_id, null, null, $post_id->get_error_message(), $status);
             continue;
         }
 
-        // The header image, when one was generated. A failure here is not
-        // fatal: the article is still published, just without its image.
-        if (!empty($article['image']['url'])) {
+        $post_id = (int) $post_id;
+
+        /*
+          Defensive: covers an update to a post whose meta was somehow lost, a
+          post whose insert was interrupted before its meta, and posts created
+          before meta_input was used here.
+        */
+        if (get_post_meta($post_id, REPGET_META_ARTICLE, true) !== $article_id) {
+            update_post_meta($post_id, REPGET_META_ARTICLE, $article_id);
+        }
+
+        /*
+          The header image, when one was generated. A failure here is not fatal:
+          the article is still published, just without its image. Only on
+          creation - re-downloading on every update would add a duplicate
+          attachment to the media library each time.
+        */
+        if ($existing === 0 && !empty($article['image']['url'])) {
             repget_attach_image($post_id, $article['image']['url'], $article['image']['alt']);
         }
 
-        update_post_meta($post_id, REPGET_META_ARTICLE, sanitize_text_field($article['id']));
-        repget_report($article['id'], get_permalink($post_id), $post_id, null, $status);
+        /*
+          Recorded before the report goes out, so a failure to reach RepGet - or
+          a process killed mid-request - leaves proof this article was
+          published. repget_flush_acks retries it on the next run.
+        */
+        $permalink = get_permalink($post_id);
+        /*
+          What WordPress actually holds, not what was asked for: an update
+          keeps the customer's own status (see above), and a site can store a
+          requested "publish" as pending or draft (a workflow plugin, an
+          account without publish rights). RepGet counts only "publish" as live.
+        */
+        $stored = get_post_status($post_id);
+        $actual = is_string($stored) && $stored !== '' ? $stored : $status;
+        repget_remember_ack($article_id, $dispatch_id, $post_id, $permalink, $actual);
+
+        $reported = repget_report($article_id, $dispatch_id, $permalink, $post_id, null, $actual);
+        if (!is_wp_error($reported)) {
+            repget_forget_ack(repget_ack_key($article_id, $dispatch_id));
+        }
+
         $published++;
     }
 
     return $published;
+}
+
+/**
+ * The sync lock: one owner at a time, identified by a token.
+ *
+ * NOT add_option(). It looks like an atomic "create if absent", but WordPress
+ * checks get_option() first and then runs INSERT ... ON DUPLICATE KEY UPDATE:
+ * two requests arriving together both see no lock, both write, and both get
+ * true - the second silently overwriting the first. A plain INSERT IGNORE on
+ * the options table's unique option_name is atomic in the database, so
+ * exactly one caller creates the row.
+ *
+ * The value is "<token>|<unix time>". The token is what makes it OWNED:
+ * renewing and releasing are conditional on it, so a worker whose lease ran
+ * out while another took over can neither extend nor delete the new owner's
+ * lock. Reads go straight to the table, never the object cache, because a
+ * cached value is exactly the stale view a lock must not act on.
+ */
+function repget_lock_read() {
+    global $wpdb;
+    $value = $wpdb->get_var($wpdb->prepare(
+        "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s LIMIT 1",
+        REPGET_LOCK
+    ));
+    return $value === null ? null : (string) $value;
+}
+
+/** [token, time] from a stored lock. A pre-1.5.2 lock is a bare timestamp. */
+function repget_lock_parse($value) {
+    $parts = explode('|', (string) $value, 2);
+    return count($parts) === 2
+        ? array($parts[0], (int) $parts[1])
+        : array('', (int) $value);
+}
+
+/** Takes the lock, or steals an abandoned one. Returns the token, or null if held. */
+function repget_lock_acquire() {
+    global $wpdb;
+    $now   = time();
+    $token = wp_generate_password(24, false, false);
+    $value = $token . '|' . $now;
+
+    $inserted = $wpdb->query($wpdb->prepare(
+        "INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, 'no')",
+        REPGET_LOCK,
+        $value
+    ));
+    wp_cache_delete(REPGET_LOCK, 'options');
+    if ($inserted) {
+        return $token;
+    }
+
+    $held = repget_lock_read();
+    if ($held !== null) {
+        list(, $taken) = repget_lock_parse($held);
+        if ($taken > 0 && ($now - $taken) < REPGET_LOCK_TTL) {
+            return null;
+        }
+        /*
+          Abandoned: its owner was killed. Stolen with a conditional UPDATE, so
+          if two callers both decide to steal it, only the one whose WHERE still
+          matches the old value wins.
+        */
+        $stolen = $wpdb->query($wpdb->prepare(
+            "UPDATE {$wpdb->options} SET option_value = %s WHERE option_name = %s AND option_value = %s",
+            $value,
+            REPGET_LOCK,
+            $held
+        ));
+        wp_cache_delete(REPGET_LOCK, 'options');
+        return $stolen ? $token : null;
+    }
+    // Released between the insert and the read: try once more.
+    $inserted = $wpdb->query($wpdb->prepare(
+        "INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, 'no')",
+        REPGET_LOCK,
+        $value
+    ));
+    wp_cache_delete(REPGET_LOCK, 'options');
+    return $inserted ? $token : null;
+}
+
+/**
+ * Extends the lease - only while `token` still owns the lock.
+ *
+ * Returns one of three answers, because they mean different things:
+ *
+ *   'owned' - the lock is ours (renewed, or confirmed unchanged);
+ *   'lost'  - another worker holds it, or nobody does: stop writing;
+ *   'error' - the database could not answer: ownership is unknown, so stop
+ *             writing too, but do not report it as a takeover.
+ *
+ * An UPDATE's result is a count of CHANGED rows, not matched ones. Renewing
+ * twice within the same second writes the value that is already there, and
+ * MySQL reports 0 rows although the lock is ours - reading that as "lost"
+ * made a fast sync stop after its first post. So a zero is never taken at
+ * face value in either direction: the same-second case is recognised before
+ * writing, and any other zero is resolved by reading the lock back.
+ */
+function repget_lock_renew($token) {
+    global $wpdb;
+    $held = repget_lock_read();
+    if ($held === null) {
+        return $wpdb->last_error !== '' ? 'error' : 'lost';
+    }
+    list($owner) = repget_lock_parse($held);
+    if ($owner === '' || !hash_equals($owner, (string) $token)) {
+        return 'lost';
+    }
+
+    $fresh = $token . '|' . time();
+    if ($fresh === $held) {
+        // Renewed already this second; the read just confirmed it is ours.
+        return 'owned';
+    }
+
+    $renewed = $wpdb->query($wpdb->prepare(
+        "UPDATE {$wpdb->options} SET option_value = %s WHERE option_name = %s AND option_value = %s",
+        $fresh,
+        REPGET_LOCK,
+        $held
+    ));
+    wp_cache_delete(REPGET_LOCK, 'options');
+    if ($renewed === false) {
+        return 'error';
+    }
+    if ($renewed > 0) {
+        return 'owned';
+    }
+
+    // Nothing changed: find out why rather than guess.
+    $now = repget_lock_read();
+    if ($now === null) {
+        return $wpdb->last_error !== '' ? 'error' : 'lost';
+    }
+    list($current) = repget_lock_parse($now);
+    return ($current !== '' && hash_equals($current, (string) $token)) ? 'owned' : 'lost';
+}
+
+/** Releases the lock - only if `token` still owns it. */
+function repget_lock_release($token) {
+    global $wpdb;
+    $wpdb->query($wpdb->prepare(
+        "DELETE FROM {$wpdb->options} WHERE option_name = %s AND option_value LIKE %s",
+        REPGET_LOCK,
+        $wpdb->esc_like((string) $token . '|') . '%'
+    ));
+    wp_cache_delete(REPGET_LOCK, 'options');
+}
+
+/**
+ * Runs a sync while holding the lock, whoever asked for it.
+ *
+ * EVERY ENTRY POINT GOES THROUGH HERE: the remote nudge from RepGet, WordPress
+ * cron, and the "Check for articles now" button. Before 1.5.1 only the remote
+ * nudge took a lock, so the three overlapped and each created the same post.
+ *
+ * A STALE LOCK CANNOT WEDGE THE SITE: one older than REPGET_LOCK_TTL is
+ * treated as abandoned and stolen. And a worker that was merely SLOW - still
+ * running when its lease was stolen - cannot do harm afterwards: repget_sync
+ * renews the lease before every post it writes and stops the moment that
+ * fails, and its release at the end cannot remove the new owner's lock.
+ *
+ * Returns a WP_Error with code 'repget_busy' when another sync holds the lock.
+ */
+function repget_sync_locked() {
+    $token = repget_lock_acquire();
+    if ($token === null) {
+        return new WP_Error(
+            'repget_busy',
+            __('A check is already running. Try again in a moment.', 'repget')
+        );
+    }
+
+    /*
+      Released whatever happens, including on an exception, so a failed sync
+      does not hold it for the full TTL - but only ever this owner's lock.
+    */
+    try {
+        return repget_sync($token);
+    } finally {
+        repget_lock_release($token);
+    }
 }
 
 /**
@@ -719,25 +1227,40 @@ function repget_move_articles_to($post_type) {
 
         // Its address changed with its type; RepGet links to it.
         if ($article_id !== '') {
-            $status = get_post_status($post_id) === 'publish' ? 'publish' : 'draft';
-            repget_report($article_id, get_permalink($post_id), $post_id, null, $status);
+            // Not a delivery: RepGet records the new address of a post it already knows.
+            $status = get_post_status($post_id);
+            repget_report($article_id, '', get_permalink($post_id), $post_id, null, is_string($status) ? $status : 'publish');
         }
     }
     return $moved;
 }
 
-/** Tells RepGet what happened, so the article leaves the queue. */
-function repget_report($article_id, $url, $remote_id, $error, $status = 'publish') {
-    repget_request('/api/plugin/published', array(
+/**
+ * Tells RepGet what happened, so the article leaves the queue.
+ *
+ * RETURNS THE RESULT, and the caller must look at it. This used to discard it,
+ * so a report that never arrived was indistinguishable from one that did - and
+ * an article RepGet never heard about is handed out again on the next poll.
+ * repget_sync parks a failed report and repget_flush_acks retries it.
+ *
+ * `dispatchId` (1.6.0+) names the exact hand-over; '' for reports that are
+ * not a delivery (a moved post) or were parked by 1.5.x. `status` is the
+ * post status WordPress stored.
+ */
+function repget_report($article_id, $dispatch_id, $url, $remote_id, $error, $status = 'publish') {
+    $body = array(
+        'articleId' => $article_id,
+        'url'       => $url,
+        'remoteId'  => $remote_id,
+        'error'     => $error,
+        'status'    => $status,
+    );
+    if ($dispatch_id !== '') {
+        $body['dispatchId'] = $dispatch_id;
+    }
+    return repget_request('/api/plugin/published', array(
         'method' => 'POST',
-        'body'   => wp_json_encode(array(
-            'articleId' => $article_id,
-            'url'       => $url,
-            'remoteId'  => $remote_id,
-            'error'     => $error,
-            // So RepGet records a WordPress draft as a draft, not as live.
-            'status'    => $status,
-        )),
+        'body'   => wp_json_encode($body),
     ));
 }
 
@@ -793,6 +1316,17 @@ function repget_deactivate() {
     // Leaving a scheduled event behind would keep calling an API the site no
     // longer has a plugin for.
     wp_clear_scheduled_hook('repget_sync_event');
+
+    /*
+      Release the sync lock on the way out. A site deactivated mid-sync would
+      otherwise carry a held lock until its TTL expired, and the first check
+      after reactivating would refuse with "already running".
+
+      Pending acknowledgements are deliberately KEPT: those posts exist on this
+      site, and RepGet still needs to be told about them if the plugin comes
+      back.
+    */
+    delete_option(REPGET_LOCK);
 }
 
 /**
@@ -837,15 +1371,20 @@ function repget_remote_sync() {
     }
     set_transient($seen, 1, 10 * MINUTE_IN_SECONDS);
 
-    // One check at a time: two would create the same post twice.
-    if (get_transient('repget_sync_running')) {
-        wp_send_json_error(array('error' => 'busy'), 429);
-    }
-    set_transient('repget_sync_running', 1, 2 * MINUTE_IN_SECONDS);
-    $result = repget_sync();
-    delete_transient('repget_sync_running');
+    /*
+      One check at a time, through the SHARED lock.
+
+      This used to be its own get_transient/set_transient pair, which is a
+      check-then-act race two simultaneous requests both pass, and which cron
+      and the admin button did not participate in at all. repget_sync_locked
+      holds the only lock now, atomically, and every entry point uses it.
+    */
+    $result = repget_sync_locked();
 
     if (is_wp_error($result)) {
+        if ($result->get_error_code() === 'repget_busy') {
+            wp_send_json_error(array('error' => 'busy'), 429);
+        }
         wp_send_json_error(array('error' => $result->get_error_message()), 502);
     }
     wp_send_json_success(array('created' => (int) $result));
@@ -856,5 +1395,10 @@ function repget_cron_sync() {
     if (repget_key() === '') {
         return;
     }
-    repget_sync();
+    /*
+      Through the lock. WordPress cron fires on a visitor's request, so it can
+      easily land while a remote nudge or an admin check is already running -
+      and before 1.5.1 it took no lock at all.
+    */
+    repget_sync_locked();
 }

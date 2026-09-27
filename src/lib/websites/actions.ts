@@ -1,17 +1,20 @@
 "use server";
 
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, lt, notInArray, or } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
-import { queueJob } from "@/inngest/send";
+import { isEntitledToSpend } from "@/lib/billing/entitled";
 import { db } from "@/lib/db";
-import { competitors, websites } from "@/lib/db/schema";
+import { competitors, networkSites, websites } from "@/lib/db/schema";
+import { NEW_SITE_DEFAULTS, NEW_SITE_NETWORK } from "@/lib/websites/new-site-defaults";
 import { settingsForMode, type FinishedMode } from "@/lib/publishing/policy";
 import {
   requireOrg,
   requireWebsite,
   WebsiteNotFoundError,
 } from "@/lib/tenant";
+import { deleteWebsiteAsOwner } from "@/lib/websites/deletion";
+import { queueAnalysis } from "@/lib/websites/analysis-quota";
 import { requireEditor } from "@/lib/websites/require-editor";
 import { writeSelectedWebsite } from "@/lib/websites/selected";
 import { InvalidUrlError, normalizeWebsiteUrl } from "@/lib/websites/url";
@@ -100,30 +103,50 @@ export async function addWebsite(
    * limited by what the customer is willing to pay for rather than by a
    * siteLimit on one plan. A new site starts unsubscribed and cannot generate
    * anything until it has a plan of its own, which is the real gate.
+   *
+   * Analysis is the exception: it runs on an unpaid site, so it draws on a
+   * bounded free allowance, reserved before the row exists so a refusal
+   * leaves nothing behind. See lib/websites/analysis-quota.ts.
    */
-
-  const [created] = await db
-    .insert(websites)
-    .values({
-      organizationId: orgId,
-      url: normalized.url,
-      domain: normalized.domain,
-      status: "pending",
-    })
-    .returning({ id: websites.id });
-
   /**
    * Analysis runs in the background: fetching a homepage and calling a model
    * takes seconds to tens of seconds, which is far too long to hold a form
-   * submission open. The row is already visible as "pending".
+   * submission open. The row is visible as "pending" at once.
+   *
+   * The reservation, the website row and the analysis job commit together
+   * (queueAnalysis), so a site can never sit "pending" with no job behind
+   * it. A queue outage only delays the analysis.
    */
-  await queueJob({
-    name: "website/analyze.requested",
-    data: { websiteId: created.id, organizationId: orgId },
+  const queued = await queueAnalysis(orgId, { entitled: false }, async (tx) => {
+    const [created] = await tx
+      .insert(websites)
+      .values({
+        organizationId: orgId,
+        url: normalized.url,
+        domain: normalized.domain,
+        status: "pending",
+        // Written here, not as column defaults: see new-site-defaults.ts.
+        ...NEW_SITE_DEFAULTS,
+      })
+      .returning({ id: websites.id });
+    /*
+      New websites JOIN the managed Partner Network by default (client
+      decision, migration 0043), in the same transaction as the website, so
+      the two cannot disagree. It is visible and can be switched off on the
+      Backlinks screen. Existing websites are not touched. The hosting cap is
+      the product's existing default (see joinNetwork); nothing is spent or
+      matched by joining - the RepGet team places links (lib/backlinks/managed.ts).
+    */
+    await tx
+      .insert(networkSites)
+      .values({ websiteId: created.id, ...NEW_SITE_NETWORK })
+      .onConflictDoNothing({ target: networkSites.websiteId });
+    return created.id;
   });
+  if (!queued.ok) return { ok: false, error: queued.error };
 
   revalidatePath("/websites");
-  return { ok: true, data: { id: created.id } };
+  return { ok: true, data: { id: queued.websiteId } };
 }
 
 /**
@@ -438,6 +461,9 @@ export async function removeCompetitor(
   return { ok: true, data: null };
 }
 
+/** An analysis takes well under a minute; one this old is not coming back. */
+const STALE_ANALYSIS_MS = 15 * 60 * 1000;
+
 /**
  * Re-runs analysis for a website whose last attempt failed or stalled.
  *
@@ -455,32 +481,77 @@ export async function reanalyzeWebsite(
   */
   const guard = await requireEditor(websiteId);
   if (!guard.ok) return { ok: false, error: guard.error };
-  const { site, orgId } = guard.context;
+  const { site } = guard.context;
+  // Billed to the website's owner, not an invited editor's own workspace.
+  const ownerOrgId = site.organizationId;
 
-  await db
-    .update(websites)
-    .set({ status: "pending", updatedAt: new Date() })
-    .where(eq(websites.id, site.id));
+  /*
+    A paid site draws on its workspace's hourly ceiling; an unpaid one (still
+    in onboarding) on the bounded free allowance. See analysis-quota.ts.
+  */
+  const entitled = await isEntitledToSpend(site.id);
 
-  await queueJob({
-    name: "website/analyze.requested",
-    data: { websiteId: site.id, organizationId: orgId },
-  });
+  /*
+    Claimed atomically: only a site that is not already being analysed moves
+    to "pending", so simultaneous presses queue one crawl, not several. A run
+    that died without reaching onFailure stops blocking after STALE_ANALYSIS_MS.
+    The claim, the reservation and the job commit together; a press that
+    finds it already running backs out of all three.
+  */
+  const queued = await queueAnalysis(
+    ownerOrgId,
+    { entitled: entitled.ok, websiteId: site.id },
+    async (tx) => {
+      const claimed = await tx
+        .update(websites)
+        .set({ status: "pending", updatedAt: new Date() })
+        .where(
+          and(
+            eq(websites.id, site.id),
+            or(
+              notInArray(websites.status, ["pending", "crawling"]),
+              lt(websites.updatedAt, new Date(Date.now() - STALE_ANALYSIS_MS)),
+            ),
+          ),
+        )
+        .returning({ id: websites.id });
+      return claimed.length > 0 ? site.id : false;
+    },
+  );
+  if (!queued.ok) {
+    return {
+      ok: false,
+      error: queued.declined ? "This website is already being analysed" : queued.error,
+    };
+  }
 
   revalidatePath("/websites");
   revalidatePath(`/websites/${site.id}`);
   return { ok: true, data: null };
 }
 
+/**
+ * Deletes a website - owners only, and never while it is still being billed.
+ *
+ * Not requireEditor: that let an invited editor delete the whole site. See
+ * lib/websites/deletion.ts for both rules, which the admin tool shares.
+ */
 export async function deleteWebsite(
   websiteId: string,
 ): Promise<ActionResult<null>> {
-  const guard = await requireEditor(websiteId);
-  if (!guard.ok) return { ok: false, error: guard.error };
-  const { site } = guard.context;
+  let context;
+  try {
+    context = await requireWebsite(websiteId);
+  } catch (error) {
+    if (error instanceof WebsiteNotFoundError) {
+      return { ok: false, error: "That website is not available." };
+    }
+    throw error;
+  }
 
   // Pages, keywords, articles and the rest cascade via their foreign keys.
-  await db.delete(websites).where(eq(websites.id, site.id));
+  const result = await deleteWebsiteAsOwner(db, context);
+  if (!result.ok) return result;
 
   revalidatePath("/websites");
   return { ok: true, data: null };

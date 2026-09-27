@@ -14,6 +14,8 @@ import {
   pendingFirstArticle,
   websitesAwaitingFirstArticle,
 } from "@/lib/publishing/policy";
+import { releasableSql } from "@/lib/articles/review";
+import { isControlEnabled } from "@/lib/publishing/controls";
 import { checkLimit } from "@/lib/usage";
 import { UNLIMITED } from "@/lib/usage-shared";
 
@@ -89,8 +91,15 @@ function isPublishingDay(days: unknown, today: number): boolean {
  * conditions generate-article checks, so nothing can reach a customer's site
  * through this path that would not have reached it through the other one.
  */
-async function publishDueDrafts(): Promise<number> {
+export async function publishDueDrafts(): Promise<number> {
   let released = 0;
+
+  /*
+    Publishing is frozen by an operator: queue nothing. (Each job would be
+    held at its dispatch claim anyway - this avoids filling the queue with
+    work that cannot run. See lib/publishing/controls.ts.)
+  */
+  if (await isControlEnabled("publication_freeze")) return 0;
 
   /*
     First articles still waiting. Normally the first article goes out the
@@ -107,6 +116,7 @@ async function publishDueDrafts(): Promise<number> {
         websiteId: site.websiteId,
         organizationId: site.organizationId,
         status: FIRST_ARTICLE_STATUS,
+        trigger: "first_article",
       },
     });
     released += 1;
@@ -128,6 +138,8 @@ async function publishDueDrafts(): Promise<number> {
         eq(articles.status, "draft"),
         eq(websites.autoPublish, true),
         lte(calendarItems.scheduledFor, new Date()),
+        // Held for, or changed since, the RepGet team's review: not released.
+        releasableSql,
         raw`exists (
           select 1 from integrations i
           where i.website_id = ${articles.websiteId}
@@ -149,6 +161,7 @@ async function publishDueDrafts(): Promise<number> {
         // Live or a CMS draft, as the customer chose. This always published
         // live before, whatever "Publish as" said.
         status: automaticStatus(row),
+        trigger: "automatic",
       },
     });
   }
@@ -483,7 +496,6 @@ export const scheduledArticles = inngest.createFunction(
         const rejected: string[] = [];
         for (const item of items) {
           const outcome = await queueArticleForCalendarItem(
-            site.organizationId,
             site.websiteId,
             item.id,
           );

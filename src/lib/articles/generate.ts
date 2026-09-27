@@ -74,7 +74,10 @@ export type ArticleBrief = {
    * size, which is why "Adaptive" is the default rather than a round figure.
    */
   targetWordCount: number | null;
-  /** Internal links to work in. */
+  /**
+   * The most automatic internal links to add after writing (0 for none).
+   * Deliberately NOT given to the writer - see briefContext.
+   */
   internalLinkTarget: number | null;
   /** Adds a contents list built from the headings. */
   tableOfContents: boolean;
@@ -175,12 +178,19 @@ function briefContext(brief: ArticleBrief): string {
     brief.targetWordCount
       ? `Length: aim for about ${brief.targetWordCount} words.`
       : `Length: choose what suits this article type rather than padding to a target.`,
-    brief.internalLinkTarget
-      ? `Work in about ${brief.internalLinkTarget} internal links to other pages on this site where they genuinely help the reader.`
-      : null,
-    brief.tableOfContents
-      ? `Open with a short contents list linking to the main headings.`
-      : null,
+    /*
+      No request for internal links. It used to ask for "about N internal
+      links to other pages on this site" without naming a single page, so the
+      writer invented them: "#" placeholders and paths the site never had.
+      Internal links are now added after writing, only to pages verified to
+      exist (lib/articles/internal-links.ts); internalLinkTarget is how many.
+    */
+    /*
+      No contents-list instruction either: the contents list is built from
+      the real headings after writing (lib/articles/toc.ts), so it can only
+      ever link to sections that exist. Asked to write one, the model linked
+      to ids that were never there.
+    */
     /*
       Stated in both directions rather than only when on. "Write in the
       first person" and silence are not opposites to a model — left unsaid
@@ -191,7 +201,7 @@ function briefContext(brief: ArticleBrief): string {
       ? `Write with a point of view - first person, willing to recommend.`
       : `Stay impersonal. No first person, no personal anecdotes.`,
     brief.mentionSimilarProducts
-      ? `Where it is useful, name and compare similar products or tools.`
+      ? `Where it genuinely helps the reader, mention well-known similar products, tools or alternatives by name, in general terms. Do not state features, prices, ratings or claims about them that are not common knowledge, do not invent products, and skip this entirely when nothing relevant exists.`
       : null,
     brief.tone ? `Brand tone: ${brief.tone}` : null,
     brief.avoid ? `Avoid: ${brief.avoid}` : null,
@@ -253,6 +263,15 @@ Output rules:
 - NO <html>, <head>, <body>, <h1>, style attributes, classes or scripts. The
   title is rendered separately, so a second H1 would compete with it.
 - 900-1,400 words unless instructed otherwise.
+
+Link rules:
+- Do NOT link to pages of the business's own website. Those links are added
+  afterwards, only to pages checked to exist. Never guess one of its URLs.
+- Only link to an address given in the brief (a required link, a social
+  profile) or to a "#id" of a heading in this article.
+- Never write a link without a real destination: no href="#", no empty or
+  placeholder addresses. If there is nothing real to link to, write plain
+  text.
 
 Writing rules:
 - Use the target keyword in the first paragraph, then only where it reads

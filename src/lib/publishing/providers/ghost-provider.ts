@@ -7,6 +7,7 @@ import {
   type PublishInput,
 } from "@/lib/publishing/provider";
 import { isPublicWebsiteUrl } from "@/lib/websites/url";
+import { safeFetch } from "@/lib/net/safe-fetch";
 
 /**
  * Ghost.
@@ -97,9 +98,11 @@ async function request<T>(
 
   let response: Response;
   try {
-    response = await fetch(apiUrl(credentials.siteUrl, path), {
+    response = await safeFetch(apiUrl(credentials.siteUrl, path), {
       ...init,
       signal: controller.signal,
+      // The deadline also covers reading the body.
+      timeoutMs: TIMEOUT_MS,
       headers: {
         "content-type": "application/json",
         ...init.headers,
@@ -317,9 +320,11 @@ export const ghostProvider: CmsProvider = {
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
     try {
-      const response = await fetch(apiUrl(credentials.siteUrl, "/images/upload/"), {
+      const response = await safeFetch(apiUrl(credentials.siteUrl, "/images/upload/"), {
         method: "POST",
         signal: controller.signal,
+      // The deadline also covers reading the body.
+      timeoutMs: TIMEOUT_MS,
         // No content-type: fetch sets the multipart boundary itself, and
         // setting it by hand produces a body the server cannot parse.
         headers: {

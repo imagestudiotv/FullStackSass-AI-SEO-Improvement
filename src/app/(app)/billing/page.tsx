@@ -76,6 +76,17 @@ export default async function BillingPage({
       listPayments(orgId),
     ]);
 
+  /*
+    What the page describes and acts on: the SELECTED website's subscription.
+    Each website is billed separately, and describing the workspace's
+    "first" subscription here labelled another site's plan "Current plan" -
+    and "Switch to this plan" then bought a second subscription.
+  */
+  const selected = websiteId
+    ? websiteSubscriptions.find((row) => row.websiteId === websiteId)
+    : undefined;
+  const current = selected ? (selected.planId ? selected : null) : subscription;
+
   const params = earlyParams;
   const checkout =
     typeof params.checkout === "string" ? params.checkout : undefined;
@@ -97,8 +108,8 @@ export default async function BillingPage({
 
       <BillingClient
         plans={plans}
-        subscription={subscription}
-        entitled={isEntitled(subscription?.status)}
+        subscription={current}
+        entitled={isEntitled(current?.status)}
         paypalAvailable={paypalAvailable}
         checkout={checkout}
         addonResult={addonResult}

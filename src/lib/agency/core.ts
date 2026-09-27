@@ -34,8 +34,10 @@ export type AgencyLimits = {
  */
 export async function agencyLimits(
   orgId: string,
+  /** A transaction to read inside, when the caller holds one. See checkLimit. */
+  executor: Pick<typeof db, "select"> = db,
 ): Promise<AgencyLimits | null> {
-  const [row] = await db
+  const [row] = await executor
     .select({
       articles: agencyWorkspaces.articleLimit,
       keywords: agencyWorkspaces.keywordLimit,

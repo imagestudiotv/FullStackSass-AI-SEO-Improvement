@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/lib/db";
@@ -23,7 +23,13 @@ import { requireEditor } from "@/lib/websites/require-editor";
 import { track } from "@/lib/usage";
 import type { ActionResult } from "@/lib/websites/actions";
 import { isEntitledToSpend } from "@/lib/billing/entitled";
-import { withinRateLimit } from "@/lib/billing/rate-limit";
+import {
+  paidCall,
+  releaseUnspent,
+  reserveAll,
+} from "@/lib/billing/spend-quota";
+import { syncApproval } from "@/lib/articles/review";
+import { ArticleInFlightError, editArticle, isInFlight } from "@/lib/publishing/dispatch";
 
 /**
  * Changing an article's picture.
@@ -44,6 +50,11 @@ import { withinRateLimit } from "@/lib/billing/rate-limit";
 const MAX_REGENERATIONS = 5;
 
 /**
+ * Image generations per workspace per sliding hour, across all its articles.
+ */
+const IMAGES_PER_WORKSPACE_PER_HOUR = 20;
+
+/**
  * Loads an article for a WRITE, refusing view-only callers.
  *
  * requireEditor, not requireWebsite. Every caller of this helper changes
@@ -62,9 +73,14 @@ const MAX_REGENERATIONS = 5;
 async function loadArticle(websiteId: string, articleId: string) {
   const guard = await requireEditor(websiteId);
   if (!guard.ok) {
-    return { site: null, orgId: null, article: undefined, error: guard.error };
+    return { site: null, article: undefined, error: guard.error };
   }
-  const { site, orgId } = guard.context;
+  /*
+    No organization id is returned. Callers read site.organizationId - the
+    workspace that PAYS for the site - and returning the caller's own `orgId`
+    beside it only invited the two to be confused. See lib/tenant.ts.
+  */
+  const { site } = guard.context;
 
   const [article] = await db
     .select({
@@ -79,7 +95,7 @@ async function loadArticle(websiteId: string, articleId: string) {
     .where(and(eq(articles.id, articleId), eq(articles.websiteId, site.id)))
     .limit(1);
 
-  return { site, orgId, article, error: null as string | null };
+  return { site, article, error: null as string | null };
 }
 
 export async function regenerateArticleImage(
@@ -88,9 +104,13 @@ export async function regenerateArticleImage(
   /** The customer's own description, or empty to use ours. */
   prompt: string,
 ): Promise<ActionResult<{ imageUrl: string }>> {
-  const { site, orgId, article, error } = await loadArticle(websiteId, articleId);
+  const { site, article, error } = await loadArticle(websiteId, articleId);
   if (error) return { ok: false, error };
   if (!site || !article) return { ok: false, error: "Article not found" };
+  // Not while it is being sent: the paid picture could not be saved.
+  if (await isInFlight(article.id)) return { ok: false, error: new ArticleInFlightError().message };
+  // Billed to the website's owner, not an invited editor's own workspace.
+  const ownerOrgId = site.organizationId;
 
   /*
     Entitlement before spend. Each regeneration is a billed image call, and
@@ -99,14 +119,6 @@ export async function regenerateArticleImage(
   const entitled = await isEntitledToSpend(site.id);
   if (!entitled.ok) return { ok: false, error: entitled.error };
 
-  /*
-    MAX_REGENERATIONS caps one article; nothing capped the workspace. Someone
-    cycling through thirty articles pressing regenerate on each stayed under
-    every per-article limit while spending thirty image calls.
-  */
-  const rate = await withinRateLimit(orgId, "image");
-  if (!rate.ok) return { ok: false, error: rate.error };
-
   if (!isImageGenerationConfigured()) {
     return { ok: false, error: "Image generation is not set up yet" };
   }
@@ -114,11 +126,48 @@ export async function regenerateArticleImage(
     return { ok: false, error: "Image storage is not set up yet" };
   }
 
-  const attempts = article.imageAttempts ?? 0;
-  if (attempts >= MAX_REGENERATIONS) {
+  /*
+    Two caps, reserved together and atomically before anything is paid for:
+    MAX_REGENERATIONS for this article over its lifetime, and an hourly
+    ceiling for the workspace, since someone cycling through thirty articles
+    stays under every per-article cap. The per-article cap used to read
+    imageAttempts, call the provider and write attempts + 1 afterwards, so
+    simultaneous presses all read the same count and all paid.
+  */
+  const slot = await reserveAll(
+    [
+      {
+        key: `image-regenerate:article:${article.id}`,
+        limit: MAX_REGENERATIONS,
+        window: { since: new Date(0) },
+        // Regenerations made before the ledger existed still count.
+        floor: async (tx) => {
+          const [row] = await tx
+            .select({ attempts: articles.imageAttempts })
+            .from(articles)
+            .where(eq(articles.id, article.id));
+          return row?.attempts ?? 0;
+        },
+      },
+      {
+        key: `image:org:${ownerOrgId}`,
+        limit: IMAGES_PER_WORKSPACE_PER_HOUR,
+        window: { seconds: 60 * 60 },
+      },
+    ],
+    {
+      operation: "image.regenerate",
+      organizationId: ownerOrgId,
+      websiteId: site.id,
+      metadata: { articleId: article.id },
+    },
+  );
+  if (!slot.ok) {
     return {
       ok: false,
-      error: `You have regenerated this image ${MAX_REGENERATIONS} times. Upload your own picture instead.`,
+      error: slot.rule.key.startsWith("image-regenerate:article:")
+        ? `You have regenerated this image ${MAX_REGENERATIONS} times. Upload your own picture instead.`
+        : "You have generated many images in the last hour. Please try again shortly.",
     };
   }
 
@@ -144,14 +193,14 @@ export async function regenerateArticleImage(
     */
     const scene = prompt.trim()
       ? null
-      : await describeArticleScene({
+      : await paidCall(slot.reservations, () => describeArticleScene({
           title: article.title,
           targetKeyword: article.targetKeyword,
           industry: website?.industry ?? null,
           country: website?.country ?? null,
           bodyHtml: article.bodyHtml,
-        });
-    const generated = await generateArticleImage(
+        }));
+    const generated = await paidCall(slot.reservations, () => generateArticleImage(
       article.title,
       website?.industry ?? null,
       prompt,
@@ -162,7 +211,7 @@ export async function regenerateArticleImage(
         scene: scene?.scene,
         alt: scene?.alt,
       },
-    );
+    ));
     alt = generated.alt;
 
     stored = await storeArticleImage(
@@ -172,7 +221,7 @@ export async function regenerateArticleImage(
       generated.contentType,
     );
 
-    await track(orgId, {
+    await track(ownerOrgId, {
       kind: "image",
       websiteId: site.id,
       provider: "image",
@@ -180,6 +229,8 @@ export async function regenerateArticleImage(
       metadata: { purpose: "article_header_regenerate", articleId },
     });
   } catch (error) {
+    // A refusal before any charge hands the slots back; a spent call keeps them.
+    await releaseUnspent(slot.reservations, "provider_refused");
     /**
      * The provider's own message, not a generic one. "Your prompt was
      * rejected" is actionable; "Something went wrong" sends the customer to
@@ -196,23 +247,24 @@ export async function regenerateArticleImage(
 
   const previous = article.imageUrl;
 
-  await db
-    .update(articles)
-    .set({
-      imageUrl: stored,
-      // Their prompt, or the matched scene, describes the picture better
-      // than the title does.
-      imageAlt: prompt.trim() ? prompt.trim().slice(0, 300) : alt,
-      imageAttempts: attempts + 1,
-      updatedAt: new Date(),
-    })
-    .where(eq(articles.id, article.id));
+  const refused = await writeImage(article.id, {
+    imageUrl: stored,
+    // Their prompt, or the matched scene, describes the picture better
+    // than the title does.
+    imageAlt: prompt.trim() ? prompt.trim().slice(0, 300) : alt,
+    // Display only; the reservation above is what enforces the cap.
+    imageAttempts: sql`${articles.imageAttempts} + 1`,
+    updatedAt: new Date(),
+  });
+  if (refused) {
+    await deleteArticleImage(stored);
+    return { ok: false, error: refused };
+  }
 
   // After the row is updated: losing the old file matters less than losing
   // the new one, and this way a delete failure cannot strand the article
   // pointing at a picture that no longer exists.
   if (previous) await deleteArticleImage(previous);
-
   revalidatePath(`/websites/${site.id}/articles/${articleId}`);
   return { ok: true, data: { imageUrl: stored } };
 }
@@ -259,13 +311,13 @@ export async function uploadArticleImage(
 
   const previous = article.imageUrl;
 
-  await db
-    .update(articles)
-    .set({ imageUrl: stored, updatedAt: new Date() })
-    .where(eq(articles.id, article.id));
+  const refused = await writeImage(article.id, { imageUrl: stored, updatedAt: new Date() });
+  if (refused) {
+    await deleteArticleImage(stored);
+    return { ok: false, error: refused };
+  }
 
   if (previous) await deleteArticleImage(previous);
-
   revalidatePath(`/websites/${site.id}/articles/${articleId}`);
   return { ok: true, data: { imageUrl: stored } };
 }
@@ -350,6 +402,25 @@ export async function listReusableImages(
   };
 }
 
+/**
+ * Writes an image change under the article's row lock, and returns it to
+ * the review queue when it changes an approved article. Refused while the
+ * article is being sent to the website (lib/publishing/dispatch.ts).
+ */
+async function writeImage(articleId: string, patch: Parameters<ReturnType<typeof db.update<typeof articles>>["set"]>[0]): Promise<string | null> {
+  try {
+    await editArticle(articleId, async (tx) => {
+      await tx.update(articles).set(patch).where(eq(articles.id, articleId));
+      // An image change after approval goes back to the review queue.
+      await syncApproval(articleId, tx);
+    });
+    return null;
+  } catch (error) {
+    if (error instanceof ArticleInFlightError) return error.message;
+    throw error;
+  }
+}
+
 export async function removeArticleImage(
   websiteId: string,
   articleId: string,
@@ -360,13 +431,10 @@ export async function removeArticleImage(
 
   const previous = article.imageUrl;
 
-  await db
-    .update(articles)
-    .set({ imageUrl: null, imageAlt: null, updatedAt: new Date() })
-    .where(eq(articles.id, article.id));
+  const refused = await writeImage(article.id, { imageUrl: null, imageAlt: null, updatedAt: new Date() });
+  if (refused) return { ok: false, error: refused };
 
   if (previous) await deleteArticleImage(previous);
-
   revalidatePath(`/websites/${site.id}/articles/${articleId}`);
   return { ok: true, data: null };
 }
@@ -381,11 +449,8 @@ export async function updateArticleImageAlt(
   if (error) return { ok: false, error };
   if (!site || !article) return { ok: false, error: "Article not found" };
 
-  await db
-    .update(articles)
-    .set({ imageAlt: alt.trim().slice(0, 300) || null, updatedAt: new Date() })
-    .where(eq(articles.id, article.id));
-
+  const refused = await writeImage(article.id, { imageAlt: alt.trim().slice(0, 300) || null, updatedAt: new Date() });
+  if (refused) return { ok: false, error: refused };
   revalidatePath(`/websites/${site.id}/articles/${articleId}`);
   return { ok: true, data: null };
 }

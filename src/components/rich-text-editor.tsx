@@ -4,6 +4,7 @@ import Image from "@tiptap/extension-image";
 import Link from "@tiptap/extension-link";
 import { EditorContent, useEditor, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
+import { Extension } from "@tiptap/core";
 import {
   Bold,
   Code,
@@ -50,6 +51,33 @@ import { getMessages, type Messages } from "@/lib/i18n/messages";
  * save, so offering them would be offering a button that silently does
  * nothing. Headings start at H2 because the title is the page's H1.
  */
+
+/**
+ * Keeps a heading's id through editing.
+ *
+ * The contents list links to "#heading-id", and Tiptap's heading node drops
+ * every attribute it does not know - so one save in the editor used to strip
+ * the ids and leave every contents link pointing nowhere. The sanitiser still
+ * decides which ids survive (safe slugs only), and the publishing path
+ * repairs any that are missing (lib/articles/toc.ts).
+ */
+const HeadingIds = Extension.create({
+  name: "headingIds",
+  addGlobalAttributes() {
+    return [
+      {
+        types: ["heading"],
+        attributes: {
+          id: {
+            default: null,
+            parseHTML: (element) => element.getAttribute("id"),
+            renderHTML: (attributes) => (attributes.id ? { id: attributes.id } : {}),
+          },
+        },
+      },
+    ];
+  },
+});
 
 function ToolbarButton({
   onClick,
@@ -403,6 +431,7 @@ export function RichTextEditor({
         HTMLAttributes: { rel: "noopener nofollow", target: "_blank" },
       }),
       Image.configure({ inline: false }),
+      HeadingIds,
     ],
     content: value,
     // Next renders this on the server first; without it React reports a
@@ -457,7 +486,7 @@ export function RichTextEditor({
          * preview tab styles the same HTML, so the two views agree.
          */
         class:
-          "min-h-[28rem] px-3 py-2 text-sm focus:outline-none [&_h2]:mt-6 [&_h2]:text-lg [&_h2]:font-semibold [&_h3]:mt-5 [&_h3]:text-base [&_h3]:font-semibold [&_p]:my-3 [&_ul]:my-3 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:my-3 [&_ol]:list-decimal [&_ol]:pl-6 [&_li]:my-1 [&_a]:text-primary [&_a]:underline [&_blockquote]:my-3 [&_blockquote]:border-l-2 [&_blockquote]:pl-4 [&_blockquote]:text-muted-foreground [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-xs [&_img]:my-6 [&_img]:block [&_img]:mx-auto [&_img]:max-w-xl [&_img]:max-h-[30rem] [&_img]:h-auto [&_img]:w-auto [&_img]:rounded-lg [&_img]:border [&_img]:object-contain",
+          "min-h-[28rem] px-3 py-2 text-sm focus:outline-none [&_h2]:mt-6 [&_h2]:text-lg [&_h2]:font-semibold [&_h3]:mt-5 [&_h3]:text-base [&_h3]:font-semibold [&_p]:my-3 [&_ul]:my-3 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:my-3 [&_ol]:list-decimal [&_ol]:pl-6 [&_li]:my-1 [&_a]:text-primary [&_a]:underline [&_blockquote]:my-3 [&_blockquote]:border-l-2 [&_blockquote]:pl-4 [&_blockquote]:text-muted-foreground [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-xs [&_img]:my-6 [&_img]:block [&_img]:mx-auto [&_img]:max-w-[min(100%,36rem)] [&_img]:max-h-[30rem] [&_img]:h-auto [&_img]:w-auto [&_img]:rounded-lg [&_img]:border [&_img]:object-contain",
       },
     },
     onUpdate: ({ editor: instance }) => onChange(instance.getHTML()),

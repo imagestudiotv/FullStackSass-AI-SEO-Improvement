@@ -7,6 +7,7 @@ import {
   type PublishInput,
 } from "@/lib/publishing/provider";
 import { isPublicWebsiteUrl } from "@/lib/websites/url";
+import { safeFetch } from "@/lib/net/safe-fetch";
 
 /**
  * A generic webhook, for everything else.
@@ -82,9 +83,12 @@ async function send(
 
   let response: Response;
   try {
-    response = await fetch(credentials.endpointUrl, {
+    response = await safeFetch(credentials.endpointUrl, {
       method: "POST",
       signal: controller.signal,
+      // A reply is a little JSON; the deadline covers reading it.
+      maxBytes: 1024 * 1024,
+      timeoutMs: TIMEOUT_MS,
       headers: {
         "content-type": "application/json",
         accept: "application/json",

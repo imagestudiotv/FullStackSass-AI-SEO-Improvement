@@ -137,6 +137,11 @@ export async function attachReferral(
   }
 }
 
+/** The ledger operation id for a referral's reward. */
+export function referralCreditKey(referralId: string): string {
+  return `referral:${referralId}`;
+}
+
 /**
  * Converts a pending referral once the referred workspace has paid.
  *
@@ -144,57 +149,71 @@ export async function attachReferral(
  * repeatedly: the update is conditional on the row still being pending, so a
  * webhook retry or a second invoice cannot pay the referrer twice.
  *
+ * THE STATUS CHANGE AND THE CREDIT COMMIT TOGETHER. They used to be two
+ * statements: the referral was marked rewarded, then the credit written. A
+ * failure between them left a referral that said "rewarded" with no credit
+ * behind it, and every retry skipped it because it was no longer pending -
+ * the reward was lost for good. Now both are in one transaction, so a
+ * failure leaves the referral pending and the next paid invoice (or the
+ * webhook's retry) converts it. The credit also carries an idempotency key,
+ * so even a duplicate write cannot double it. The notification is sent after
+ * commit, and failing to send it changes nothing.
+ *
  * Returns whether a reward was actually granted.
  */
 export async function convertReferral(referredOrgId: string): Promise<boolean> {
-  const [pending] = await db
-    .select({
-      id: referrals.id,
-      referrerOrgId: referrals.referrerOrgId,
-    })
-    .from(referrals)
-    .where(
-      and(
-        eq(referrals.referredOrgId, referredOrgId),
-        eq(referrals.status, "pending"),
-      ),
-    )
-    .limit(1);
+  const rewarded = await db.transaction(async (tx) => {
+    /**
+     * The status change is the guard. Constraining the UPDATE to rows still
+     * pending means two concurrent webhooks race on the same row and exactly
+     * one wins — without this, both would read "pending" and both would
+     * credit.
+     */
+    const [updated] = await tx
+      .update(referrals)
+      .set({
+        status: "rewarded",
+        rewardCredits: REFERRAL_REWARD_CREDITS,
+        rewardedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(referrals.referredOrgId, referredOrgId),
+          eq(referrals.status, "pending"),
+        ),
+      )
+      .returning({ id: referrals.id, referrerOrgId: referrals.referrerOrgId });
 
-  if (!pending) return false;
+    if (!updated) return null;
 
-  /**
-   * The status change is the guard. Constraining the UPDATE to rows still
-   * pending means two concurrent webhooks race on the same row and exactly one
-   * wins — without this, both would read "pending" and both would credit.
-   */
-  const updated = await db
-    .update(referrals)
-    .set({
-      status: "rewarded",
-      rewardCredits: REFERRAL_REWARD_CREDITS,
-      rewardedAt: new Date(),
-      updatedAt: new Date(),
-    })
-    .where(and(eq(referrals.id, pending.id), eq(referrals.status, "pending")))
-    .returning({ id: referrals.id });
-
-  if (updated.length === 0) return false;
-
-  await recordCredit(pending.referrerOrgId, {
-    type: "referral",
-    amount: REFERRAL_REWARD_CREDITS,
-    referenceId: pending.id,
-    note: "Someone you referred started a paid plan",
+    await recordCredit(
+      updated.referrerOrgId,
+      {
+        type: "referral",
+        amount: REFERRAL_REWARD_CREDITS,
+        referenceId: updated.id,
+        idempotencyKey: referralCreditKey(updated.id),
+        note: "Someone you referred started a paid plan",
+      },
+      tx,
+    );
+    return updated;
   });
 
-  await notify({
-    organizationId: pending.referrerOrgId,
-    type: "referral.rewarded",
-    title: `You earned ${REFERRAL_REWARD_CREDITS} credits`,
-    body: "Someone you referred started a paid plan. Thank you.",
-    href: "/settings",
-  });
+  if (!rewarded) return false;
+
+  try {
+    await notify({
+      organizationId: rewarded.referrerOrgId,
+      type: "referral.rewarded",
+      title: `You earned ${REFERRAL_REWARD_CREDITS} credits`,
+      body: "Someone you referred started a paid plan. Thank you.",
+      href: "/settings",
+    });
+  } catch (error) {
+    console.error("[referrals] reward granted but the notification failed", error);
+  }
 
   return true;
 }

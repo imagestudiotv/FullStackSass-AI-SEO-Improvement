@@ -1,6 +1,7 @@
 import { requireWebsitePage } from "@/lib/tenant";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import { getIntegrationKeys } from "@/lib/plugin/actions";
+import { hasEverHadKey } from "@/lib/plugin/keys";
 import {
   listAvailableProviders,
   listIntegrations,
@@ -28,16 +29,21 @@ export default async function WebsiteIntegrationsPage({
   params,
 }: PageProps<"/websites/[websiteId]/integrations">) {
   const { websiteId } = await params;
-  const { orgId, site, userId } = await requireWebsitePage(websiteId);
+  const { ownerOrgId, site, userId, access } = await requireWebsitePage(websiteId);
   const { t } = await getAppMessages(userId);
 
   // Paywall. See lib/billing/require-plan.ts.
-  await requirePlan(orgId);
+  // The OWNER's plan pays for this website, not the caller's own
+  // workspace: a guest invited to a paid site must not be bounced to a
+  // plan screen for a workspace that is not paying for it. See tenant.ts.
+  await requirePlan(ownerOrgId);
 
-  const [providers, integrations, pluginKeys] = await Promise.all([
+  const [providers, integrations, pluginKeys, everHadKey] = await Promise.all([
     listAvailableProviders(),
     listIntegrations(site.id),
     getIntegrationKeys(site.id),
+    // Read-only: whether a key was ever made. Rendering never creates one.
+    hasEverHadKey(site.id),
   ]);
 
   return (
@@ -47,6 +53,8 @@ export default async function WebsiteIntegrationsPage({
         providers={providers}
         integrations={integrations}
         pluginKeys={pluginKeys}
+        canEdit={access !== "viewer"}
+        everHadKey={everHadKey}
         /* For the links into the customer's own WordPress admin. */
         siteUrl={site.url}
         t={t.app.publishing}

@@ -239,6 +239,90 @@
       "when": 1790345273883,
       "tag": "0033_funny_wendigo",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1790393453382,
+      "tag": "0034_spend_quotas",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1790393591607,
+      "tag": "0035_subscription_website_set_null",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1790419000825,
+      "tag": "0036_billing_checkouts",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1790419158579,
+      "tag": "0037_spend_reservations",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1790419806524,
+      "tag": "0038_oauth_states",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1790421737344,
+      "tag": "0039_webhook_event_claims",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1790424118323,
+      "tag": "0040_billing_integrity",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1790424122349,
+      "tag": "0041_article_allowance_baseline",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1790434701237,
+      "tag": "0042_article_baseline_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1790492099512,
+      "tag": "0043_managed_network",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1790500937717,
+      "tag": "0044_dispatch_reporting",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1790524041506,
+      "tag": "0045_dispatch_identity",
+      "breakpoints": true
     }
   ]
 }

@@ -149,6 +149,19 @@ export type CmsProvider = {
    * Optional: a provider that cannot take media simply omits this, and
    * publishing proceeds without a header image rather than failing.
    */
+  /**
+   * Posts whose content may carry RepGet's ownership marker for one dispatch
+   * (lib/publishing/ownership.ts), with each post's STORED content so the
+   * marker is checked here, not trusted to the site's search. Used ONLY to
+   * reconcile a create whose answer never arrived. Throws when the site
+   * cannot be asked. Providers without such a lookup omit this; their
+   * unknown outcomes wait for a person to check.
+   */
+  searchPostsByMarker?(
+    credentials: Credentials,
+    term: string,
+  ): Promise<Array<{ remoteId: string; remoteUrl: string; status: string; rawContent: string | null }>>;
+
   uploadMedia?(
     credentials: Credentials,
     file: { data: Buffer; contentType: string; filename: string; alt: string },

@@ -2,6 +2,7 @@ import * as cheerio from "cheerio";
 
 import { InvalidUrlError, isPublicWebsiteUrl, normalizeWebsiteUrl } from "@/lib/websites/url";
 import { SNIPPET_LIMITS } from "@/lib/tools/snippet";
+import { safeFetch } from "@/lib/net/safe-fetch";
 
 /**
  * Meta tag checker.
@@ -93,8 +94,12 @@ export async function checkMetaTags(input: string): Promise<MetaTagOutcome> {
   let html: string;
   let finalUrl: string;
   try {
-    const response = await fetch(normalized.url, {
+    const response = await safeFetch(normalized.url, {
       signal: controller.signal,
+      // Cut while streaming, and the deadline covers reading the body too.
+      maxBytes: MAX_BYTES,
+      overflow: "truncate",
+      timeoutMs: TIMEOUT_MS,
       headers: {
         "user-agent": "SEOVisionBot/1.0",
         accept: "text/html,application/xhtml+xml",
@@ -107,7 +112,7 @@ export async function checkMetaTags(input: string): Promise<MetaTagOutcome> {
       };
     }
     const buffer = await response.arrayBuffer();
-    html = new TextDecoder().decode(buffer.slice(0, MAX_BYTES));
+    html = new TextDecoder().decode(buffer);
     finalUrl = response.url || normalized.url;
   } catch {
     return {

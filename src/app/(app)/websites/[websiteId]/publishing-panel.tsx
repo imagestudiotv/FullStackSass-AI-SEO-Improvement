@@ -49,6 +49,8 @@ export function PublishingPanel({
   providers,
   integrations,
   pluginKeys,
+  canEdit,
+  everHadKey,
   siteUrl,
   t,
   tKeys,
@@ -59,6 +61,10 @@ export function PublishingPanel({
   providers: ProviderInfo[];
   integrations: IntegrationView[];
   pluginKeys: IntegrationKeyView[];
+  /** False for a viewer. See PluginKeys. */
+  canEdit: boolean;
+  /** Whether the website has ever had an integration key. See PluginKeys. */
+  everHadKey: boolean;
   /** The customer's own site address, for deep links into their wp-admin. */
   siteUrl: string;
   /** This screen's copy, already in the reader's language. */
@@ -458,6 +464,8 @@ export function PublishingPanel({
           websiteId={websiteId}
           siteUrl={siteUrl}
           keys={pluginKeys}
+          canEdit={canEdit}
+          everHadKey={everHadKey}
           t={tKeys}
           tCommon={tCommon}
         />

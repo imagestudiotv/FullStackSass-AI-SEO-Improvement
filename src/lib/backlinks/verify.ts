@@ -1,4 +1,5 @@
 import { isPublicWebsiteUrl } from "@/lib/websites/url";
+import { safeFetch } from "@/lib/net/safe-fetch";
 
 /**
  * Checks whether a placed link is still on the page.
@@ -16,6 +17,11 @@ const MAX_BYTES = 3_000_000;
 export type LinkCheckResult = {
   /** True when the target URL appears as an href on the page. */
   alive: boolean;
+  /**
+   * The rel attribute of the matching link as the page has it ("" when it
+   * has none). Only set when the link was found - otherwise unknown.
+   */
+  rel?: string | null;
   httpStatus: number | null;
   /** Set when the page could not be fetched at all. */
   error: string | null;
@@ -46,12 +52,20 @@ function comparable(url: string): string {
  * Deliberately not cheerio: this runs against every placement on a schedule,
  * and a regex over the raw HTML is enough to answer "is this URL linked".
  */
-function hrefs(html: string): string[] {
-  const found: string[] = [];
-  const pattern = /<a\b[^>]*\shref\s*=\s*["']([^"']+)["']/gi;
+function anchors(html: string): Array<{ href: string; rel: string | null }> {
+  const found: Array<{ href: string; rel: string | null }> = [];
+  const pattern = /<a\b([^>]*)>/gi;
   let match: RegExpExecArray | null;
   while ((match = pattern.exec(html)) !== null) {
-    found.push(match[1]);
+    const attributes = ` ${match[1]}`;
+    const href = /\shref\s*=\s*["']([^"']+)["']/i.exec(attributes);
+    if (!href) continue;
+    // The rel the page really has - what search engines see - not what we sent.
+    const rel = /\srel\s*=\s*["']([^"']*)["']/i.exec(attributes);
+    found.push({
+      href: href[1],
+      rel: rel ? rel[1].trim().toLowerCase().replace(/\s+/g, " ").slice(0, 100) : null,
+    });
     if (found.length > 2000) break;
   }
   return found;
@@ -72,9 +86,14 @@ export async function checkLink(
 
   let response: Response;
   try {
-    response = await fetch(pageUrl, {
+    response = await safeFetch(pageUrl, {
       signal: controller.signal,
       redirect: "follow",
+      // The reader below stops at MAX_BYTES; this bounds the transfer and
+      // keeps the deadline running while it reads.
+      maxBytes: MAX_BYTES,
+      overflow: "truncate",
+      timeoutMs: TIMEOUT_MS,
       headers: {
         "user-agent":
           "Mozilla/5.0 (compatible; AiSeoPlatformBot/1.0; +https://example.com/bot)",
@@ -123,7 +142,7 @@ export async function checkLink(
   const html = new TextDecoder("utf-8").decode(merged);
 
   const wanted = comparable(targetUrl);
-  const alive = hrefs(html).some((href) => {
+  const found = anchors(html).find(({ href }) => {
     try {
       // Resolved against the page so relative hrefs are handled.
       return comparable(new URL(href, pageUrl).toString()) === wanted;
@@ -132,14 +151,11 @@ export async function checkLink(
     }
   });
 
-  return { alive, httpStatus: response.status, error: null };
+  return {
+    alive: Boolean(found),
+    // "" is a plain followed link; null (not found) is unknown.
+    rel: found ? (found.rel ?? "") : null,
+    httpStatus: response.status,
+    error: null,
+  };
 }
-
-/**
- * Consecutive failures before a link is treated as removed.
- *
- * A site being down for an hour is not the same as a link being deleted.
- * Refunding on the first failure would delete real, live links every time a
- * customer's host had a bad afternoon.
- */
-export const FAILURES_BEFORE_REMOVED = 3;

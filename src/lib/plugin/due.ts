@@ -3,6 +3,9 @@ import { and, asc, eq, isNotNull, isNull, lte, or, sql as raw } from "drizzle-or
 import { db } from "@/lib/db";
 import { articles, calendarItems, publishLogs, websites } from "@/lib/db/schema";
 import { isFirstArticle } from "@/lib/publishing/policy";
+import { notBeforePlannedSql, releasableSql } from "@/lib/articles/review";
+import { notFrozenSql } from "@/lib/publishing/controls";
+import { notInFlightSql } from "@/lib/publishing/dispatch";
 
 /**
  * Articles the WordPress plugin should create now, for one website.
@@ -55,10 +58,22 @@ export function dueArticlesForPlugin(
         // Written but not yet live. A published row already has its post.
         eq(articles.status, "draft"),
         isNull(articles.publishedUrl),
+        // Never an article held for, or changed since, the RepGet team's
+        // review - whatever else makes it due. See lib/articles/review.ts.
+        releasableSql,
+        /*
+          Nothing while publishing is frozen, and not an article already
+          handed to the plugin and not yet acknowledged (it is offered again
+          only once that hand-over times out). The route still claims each
+          article at the dispatch boundary; these just keep the feed honest.
+        */
+        notFrozenSql,
+        notInFlightSql,
         or(
           // The first article: nothing sent for this site yet, and this is
-          // its earliest article. Same rule as pendingFirstArticle.
-          isFirstArticle,
+          // its earliest article. Same rule as pendingFirstArticle - which
+          // for a reviewed article also waits for its planned day.
+          and(isFirstArticle, notBeforePlannedSql),
           isNotNull(articles.publishRequested),
           and(
             eq(websites.autoPublish, true),

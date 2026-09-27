@@ -230,7 +230,8 @@ export function BillingClient({
   async function handlePortal(flow: PortalFlow = "manage") {
     setPortalPending(flow);
     try {
-      const result = await createPortalSession(flow);
+      // The selected website's subscription, never "the newest one".
+      const result = await createPortalSession(flow, websiteId);
       if ("error" in result) {
         toast.error(result.error);
         setPortalPending(null);

@@ -109,9 +109,14 @@ export const subscriptions = pgTable(
      *
      * Nullable only so existing rows survive the migration; a subscription
      * created from here on always names its website.
+     *
+     * SET NULL, not cascade: deleting a website must not delete the record of
+     * what was billed for it. The provider ids on this row are what reconciles
+     * a charge months later. Deletion refuses while the subscription could
+     * still bill (lib/websites/deletion.ts), so a detached row has ended.
      */
     websiteId: uuid("website_id").references(() => websites.id, {
-      onDelete: "cascade",
+      onDelete: "set null",
     }),
     /** "stripe" | "paypal". Which processor owns this subscription. */
     provider: text("provider").default("stripe").notNull(),
@@ -129,6 +134,14 @@ export const subscriptions = pgTable(
     currentPeriodStart: timestamp("current_period_start"),
     currentPeriodEnd: timestamp("current_period_end"),
     cancelAtPeriodEnd: boolean("cancel_at_period_end").default(false).notNull(),
+    /**
+     * The website this subscription was bought for, per our checkout's
+     * provider metadata. Kept when the row is DETACHED (website_id null) - a
+     * duplicate, a superseded or a deleted site's subscription - so
+     * reconciliation can say which site it concerns. No foreign key: the
+     * site may be gone, and that is exactly when this matters.
+     */
+    claimedWebsiteId: uuid("claimed_website_id"),
     ...timestamps,
   },
   (table) => [
@@ -182,20 +195,190 @@ export const billingCustomers = pgTable("billing_customers", {
 });
 
 /**
- * Every webhook event we have already handled, by the processor's own event id.
+ * Every checkout a customer was sent to, and what became of it.
+ *
+ * Written BEFORE the redirect to Stripe or PayPal, so website and workspace
+ * deletion can see a checkout that is open but not yet paid, settle it with
+ * the provider, and refuse while it can still be paid. Status is "open",
+ * "completed", "expired", "abandoned" or "failed" - see
+ * lib/billing/checkouts.ts.
+ *
+ * website_id is SET NULL so the record outlives a deleted site, like the
+ * subscription it may have produced.
+ */
+export const billingCheckouts = pgTable(
+  "billing_checkouts",
+  {
+    id: pk(),
+    organizationId: organizationId(),
+    websiteId: uuid("website_id").references(() => websites.id, {
+      onDelete: "set null",
+    }),
+    /** "stripe" | "paypal". */
+    provider: text("provider").notNull(),
+    planId: uuid("plan_id").references(() => plans.id, { onDelete: "set null" }),
+    stripeSessionId: text("stripe_session_id"),
+    /** PayPal's id from creation; Stripe's once the checkout completes. */
+    providerSubscriptionId: text("provider_subscription_id"),
+    status: text("status").default("open").notNull(),
+    /**
+     * When Stripe says the session stops accepting payment. A HINT for when
+     * to ask again, never proof: a session completed a second before it
+     * expired, whose webhook is late, is still a subscription.
+     */
+    expiresAt: timestamp("expires_at"),
+    /** Where the customer was sent, so a repeated request can reuse it. */
+    checkoutUrl: text("checkout_url"),
+    /** Trial days this checkout offered; 0 when not eligible. */
+    trialDays: integer("trial_days").default(0).notNull(),
+    /**
+     * The provider idempotency key the create call used, and the exact
+     * request, so a process that died before recording the provider's answer
+     * can replay the same call and learn what was created.
+     */
+    idempotencyKey: text("idempotency_key"),
+    requestParams: jsonb("request_params"),
+    /** The provider's own word for the checkout when last asked. */
+    providerState: text("provider_state"),
+    lastCheckedAt: timestamp("last_checked_at"),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("billing_checkouts_stripe_session_uidx").on(table.stripeSessionId),
+    index("billing_checkouts_website_status_idx").on(table.websiteId, table.status),
+    index("billing_checkouts_org_status_idx").on(
+      table.organizationId,
+      table.status,
+    ),
+    index("billing_checkouts_provider_subscription_idx").on(
+      table.providerSubscriptionId,
+    ),
+  ],
+);
+
+/**
+ * Provider cancellations we owe, until the provider confirms them.
+ *
+ * A subscription that activates for a website or workspace that was deleted
+ * must be cancelled at the provider. Doing that inline in the webhook and
+ * logging a failure left the retry to "the next event", which may never
+ * come. The obligation is written in the same transaction that records the
+ * subscription, and lib/billing/cancellations.ts works it off with backoff -
+ * straight after the webhook, and from the billing-maintenance job whether
+ * or not another event ever arrives.
+ *
+ * One row per provider subscription: owing the same cancellation twice is
+ * one obligation.
+ */
+export const providerCancellations = pgTable(
+  "provider_cancellations",
+  {
+    id: pk(),
+    provider: text("provider").notNull(),
+    providerSubscriptionId: text("provider_subscription_id").notNull(),
+    /** Why it is owed, e.g. "detached_deleted_website". */
+    reason: text("reason").notNull(),
+    /** pending | completed | abandoned */
+    status: text("status").default("pending").notNull(),
+    attempts: integer("attempts").default(0).notNull(),
+    nextAttemptAt: timestamp("next_attempt_at").defaultNow().notNull(),
+    /** Held while one worker is calling the provider. */
+    claimToken: uuid("claim_token"),
+    claimedUntil: timestamp("claimed_until"),
+    lastError: text("last_error"),
+    completedAt: timestamp("completed_at"),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("provider_cancellations_subscription_uidx").on(
+      table.provider,
+      table.providerSubscriptionId,
+    ),
+    index("provider_cancellations_due_idx").on(table.status, table.nextAttemptAt),
+  ],
+);
+
+/**
+ * Every webhook event we have seen, by the processor's own event id.
  *
  * Stripe and PayPal both retry on non-2xx and can deliver duplicates even on
- * success, so handlers MUST be idempotent. The primary key is the event id:
- * inserting it is the lock, and a conflict means "already processed, skip".
+ * success, so handlers MUST be idempotent.
+ *
+ * RECEIVING AN EVENT IS NOT THE SAME AS COMPLETING IT, and conflating the two
+ * is what this table's `status` column exists to fix. The row used to be
+ * inserted before the handler ran, with the insert itself acting as the lock:
+ * a conflict meant "already done, skip". The handler's catch deleted the row so
+ * a provider retry would work, which covers a thrown error and nothing else.
+ *
+ * It does not cover the process DYING - a function timeout, an out-of-memory
+ * kill, an instance recycled mid-request. The row was then left behind with no
+ * owner and no handler, every later retry of that event id hit the gate and was
+ * acknowledged as a duplicate, and the event was never processed. Nothing
+ * reported it: a permanently dropped subscription change or payment, indistin-
+ * guishable from one handled correctly.
+ *
+ * So the lifecycle is explicit: claimed ("processing"), finished ("completed"),
+ * or available again ("received"). A "processing" row whose lease has expired is
+ * assumed abandoned and may be reclaimed by the next delivery, so a crash heals
+ * itself on the provider's next retry rather than needing a database edit.
+ *
+ * FINANCIAL IDEMPOTENCY DOES NOT DEPEND ON THIS TABLE. It rests on the unique
+ * indexes on payments (provider, external_id) and addon_purchases
+ * (stripe_session_id), so even a genuinely double-processed event cannot take
+ * money twice. This table stops work being LOST; those indexes stop it being
+ * DOUBLED.
  */
-export const webhookEvents = pgTable("webhook_events", {
-  /** The processor's event id, e.g. Stripe "evt_...". */
-  id: text("id").primaryKey(),
-  provider: text("provider").notNull(),
-  type: text("type").notNull(),
-  payload: jsonb("payload"),
-  processedAt: timestamp("processed_at").defaultNow().notNull(),
-});
+export const webhookEvents = pgTable(
+  "webhook_events",
+  {
+    /** The processor's event id, e.g. Stripe "evt_...". */
+    id: text("id").primaryKey(),
+    provider: text("provider").notNull(),
+    type: text("type").notNull(),
+    payload: jsonb("payload"),
+    /**
+     * When the row was first written. Kept under its original name so existing
+     * reads and the admin tooling are unaffected; `completedAt` is what now
+     * says the work actually finished.
+     */
+    processedAt: timestamp("processed_at").defaultNow().notNull(),
+
+    /**
+     * "received" | "processing" | "completed".
+     *
+     * DEFAULTS TO "completed", which matters for the migration: every row
+     * already in this table represents work that finished under the old
+     * insert-is-the-lock scheme. Defaulting to "received" would present the
+     * entire history as reclaimable and invite a replay of months of events.
+     */
+    status: text("status").default("completed").notNull(),
+    /** When the current attempt took the row. Null once completed. */
+    claimedAt: timestamp("claimed_at"),
+    completedAt: timestamp("completed_at"),
+    /**
+     * Attempts so far. A row climbing this without completing is the signal
+     * that an event fails every time rather than being merely slow.
+     */
+    attempts: integer("attempts").default(0).notNull(),
+    /** Why the last attempt failed, truncated. Never a credential. */
+    lastError: text("last_error"),
+    /**
+     * Identifies the attempt holding the claim. Completing or releasing
+     * requires it, so a worker whose lease expired and was taken over cannot
+     * finish or free the new owner's claim.
+     */
+    claimToken: uuid("claim_token"),
+    /**
+     * When the recovery job may next retry a released event. Recovery does
+     * not wait for the provider to redeliver.
+     */
+    nextAttemptAt: timestamp("next_attempt_at"),
+  },
+  (table) => [
+    /** The stale-claim sweep reads exactly these two columns. */
+    index("webhook_events_status_claimed_idx").on(table.status, table.claimedAt),
+  ],
+);
 
 export const usageEvents = pgTable(
   "usage_events",
@@ -239,12 +422,15 @@ export const websites = pgTable("websites", {
   targetAudience: text("target_audience"),
   status: text("status").default("pending").notNull(),
   /**
-   * Whether a finished article goes live by itself.
+   * Whether a finished article goes out by itself (with publishAs, the
+   * publishing mode - see lib/publishing/policy.ts).
    *
-   * Off by default, deliberately. Publishing to someone's live website without
-   * them looking first is not a default to opt people out of — the first
-   * article they never saw is the one that reads wrong, and it is already
-   * public. On, articles publish; off, they are sent as drafts for review.
+   * The COLUMN default stays off. New websites get "Publish live on the
+   * planned day" (the client's decision) from the application, which writes
+   * it explicitly when it creates a website - see
+   * lib/websites/new-site-defaults.ts. A database default would also reach
+   * websites created by an older build still running during a deploy or
+   * after a rollback, which knows nothing of the review gate.
    */
   autoPublish: boolean("auto_publish").default(false).notNull(),
   /**
@@ -324,13 +510,19 @@ export const websites = pgTable("websites", {
   /** Anything to avoid in images — "never show faces" and the like. */
   imageInstructions: text("image_instructions"),
 
-  /** Adds a contents list built from the article's headings. */
+  /**
+   * Adds a contents list built from the article's headings. On for new
+   * websites, written by the application (lib/websites/new-site-defaults.ts).
+   */
   tableOfContents: boolean("table_of_contents").default(false).notNull(),
   /** Finds and embeds a relevant video. */
   youtubeVideo: boolean("youtube_video").default(false).notNull(),
   /** Writes in the first person, as somebody with a view. */
   authorPerspective: boolean("author_perspective").default(true).notNull(),
-  /** References comparable products and tools. */
+  /**
+   * References comparable products and tools. On for new websites, written
+   * by the application (lib/websites/new-site-defaults.ts).
+   */
   mentionSimilarProducts: boolean("mention_similar_products")
     .default(false)
     .notNull(),
@@ -513,6 +705,13 @@ export const articles = pgTable(
     generationStep: text("generation_step"),
     publishedUrl: text("published_url"),
     /**
+     * When RepGet first saw this article LIVE on the customer's site (a
+     * delivery the CMS stored as published). Not set by a draft delivery, an
+     * edit or a republish. Null: not live yet, or live before this was
+     * recorded and the date cannot be established (migration 0045).
+     */
+    firstLiveAt: timestamp("first_live_at"),
+    /**
      * "publish" or "draft" when somebody pressed Publish on a website that is
      * connected only through the WordPress plugin; null otherwise.
      *
@@ -537,6 +736,26 @@ export const articles = pgTable(
      */
     imageAttempts: integer("image_attempts").default(0).notNull(),
     error: text("error"),
+    /**
+     * The RepGet team's review, for articles written for a website in the
+     * managed Partner Network (lib/articles/review.ts).
+     *
+     * null      not in the managed workflow - published by the ordinary rules.
+     *           Every article written before this existed stays null.
+     * pending   written, waiting for an administrator to prepare and approve
+     *           it. Held by every publishing path.
+     * approved  released for delivery, but ONLY while the article still
+     *           hashes to reviewApprovedHash: an edit after approval holds it
+     *           again, so no job can publish a revision nobody approved.
+     */
+    reviewStatus: text("review_status"),
+    /** Bumped by every review change, so two administrators cannot overwrite each other. */
+    reviewVersion: integer("review_version").default(0).notNull(),
+    reviewApprovedAt: timestamp("review_approved_at"),
+    /** The approving administrator's email (as admin_audit_log records actors). */
+    reviewApprovedBy: text("review_approved_by"),
+    /** SHA-256 of the approved title, body and image. See reviewHashSql. */
+    reviewApprovedHash: text("review_approved_hash"),
     ...timestamps,
   },
   (table) => [
@@ -602,6 +821,78 @@ export const integrations = pgTable("integrations", {
   ...timestamps,
 });
 
+/**
+ * One pending OAuth authorization, for the Google Search Console/Analytics
+ * connect flow.
+ *
+ * WHY A TABLE RATHER THAN A SIGNED STRING. The state parameter used to be an
+ * HMAC over "<websiteId>.<nonce>.<origin>", which proved the link came from us
+ * and nothing else. A signature is not a session and it is not single-use, so
+ * that state was:
+ *
+ *  - REPLAYABLE for ever. It never expired, and nothing recorded that it had
+ *    been used, so one captured callback URL could be redeemed repeatedly.
+ *  - NOT BOUND TO THE PERSON WHO STARTED IT. Anybody holding the URL could
+ *    complete a connection someone else initiated, attaching their own Google
+ *    account to that website.
+ *  - UNABLE TO CARRY A PKCE VERIFIER, which by definition must be kept server
+ *    side and never travel through the browser.
+ *
+ * The nonce was `Math.random()` as well, which is not a CSPRNG.
+ *
+ * Rows are consumed exactly once by a conditional UPDATE (see
+ * lib/analytics/oauth-state.ts), so a replay finds nothing to consume. Expired
+ * and consumed rows are pruned by the same helper rather than a scheduled job:
+ * the flow is low volume and a sweep on use keeps the table self-maintaining.
+ */
+export const oauthStates = pgTable(
+  "oauth_states",
+  {
+    /**
+     * The state value sent to the provider: 32 random bytes, base64url.
+     *
+     * The primary key, so two requests cannot share one and an insert is the
+     * allocation. Not a uuid: this is a bearer value that travels through the
+     * provider and back, and it wants full entropy rather than a version-4
+     * layout.
+     */
+    state: text("state").primaryKey(),
+    /** Which provider this belongs to; "google" today. */
+    provider: text("provider").notNull(),
+    websiteId: uuid("website_id")
+      .notNull()
+      .references(() => websites.id, { onDelete: "cascade" }),
+    /**
+     * Who started it. The callback refuses unless the same user completes it,
+     * which is what stops a forwarded callback URL working.
+     */
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    /**
+     * The session that started it, so signing out and back in — or another of
+     * the same person's browsers — cannot finish somebody else's flow.
+     */
+    sessionId: text("session_id"),
+    /** "app" | "onboarding": which screen to return to. Never a URL. */
+    origin: text("origin").default("app").notNull(),
+    /**
+     * PKCE verifier, kept server side and sent only to the token endpoint.
+     * Nullable so a row written before PKCE still verifies.
+     */
+    codeVerifier: text("code_verifier"),
+    /** Short: a consent screen is completed in seconds, not hours. */
+    expiresAt: timestamp("expires_at").notNull(),
+    /** Set by the single-use consume; a second attempt finds it non-null. */
+    consumedAt: timestamp("consumed_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("oauth_states_expires_idx").on(table.expiresAt),
+    index("oauth_states_website_idx").on(table.websiteId),
+  ],
+);
+
 export const publishLogs = pgTable("publish_logs", {
   id: pk(),
   articleId: uuid("article_id")
@@ -610,12 +901,27 @@ export const publishLogs = pgTable("publish_logs", {
   integrationId: uuid("integration_id").references(() => integrations.id, {
     onDelete: "set null",
   }),
+  /**
+   * "published" means DELIVERED to the CMS - not necessarily live. It keeps
+   * that meaning because earlier builds find a post to update by it (and a
+   * rolled-back build still does). What the CMS actually stored is
+   * remoteStatus.
+   */
   status: text("status").notNull(),
   remoteId: text("remote_id"),
   remoteUrl: text("remote_url"),
+  /**
+   * The post status the CMS reported ("publish", "draft", "future", ...).
+   * Null on rows written before it was recorded: unknown, never assumed live.
+   */
+  remoteStatus: text("remote_status"),
+  /** The dispatch this row records. One "published" row per dispatch, so a repeated report logs once. */
+  dispatchId: uuid("dispatch_id").references(() => publicationDispatches.id, { onDelete: "set null" }),
   error: text("error"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => [
+  uniqueIndex("publish_logs_dispatch_uidx").on(table.dispatchId).where(sql`${table.dispatchId} is not null and ${table.status} = 'published'`),
+]);
 
 export const gscMetrics = pgTable(
   "gsc_metrics",
@@ -840,6 +1146,14 @@ export const networkSites = pgTable("network_sites", {
   language: text("language"),
   country: text("country"),
   authority: integer("authority"),
+  /**
+   * The owner's minimum for sites that link TO this website, on the scale of
+   * the platform's authority metric (lib/authority/metric.ts - DataForSEO
+   * Rank, 0-100). Null: no preference. The admin placement workflow enforces
+   * it (lib/backlinks/managed.ts); a host whose metric is unknown cannot
+   * satisfy a minimum.
+   */
+  minSourceRank: integer("min_source_rank"),
   acceptingLinks: boolean("accepting_links").default(true).notNull(),
   monthlyCap: integer("monthly_cap").default(0).notNull(),
   linksGiven: integer("links_given").default(0).notNull(),
@@ -857,10 +1171,20 @@ export const creditLedger = pgTable(
     amount: integer("amount").notNull(),
     referenceId: text("reference_id"),
     note: text("note"),
+    /**
+     * Stable id of the business operation this movement belongs to, e.g.
+     * "purchase:<purchaseId>" or "placement:<id>:charge". Unique, so a
+     * retried or concurrent delivery writes the movement once. Null for
+     * rows written before it existed and for admin adjustments.
+     */
+    idempotencyKey: text("idempotency_key"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [
     index("credit_ledger_org_idx").on(table.organizationId),
+    uniqueIndex("credit_ledger_idempotency_uidx")
+      .on(table.idempotencyKey)
+      .where(sql`${table.idempotencyKey} is not null`),
     /*
       One plan grant per workspace per billing month, enforced by the
       database. grantMonthlyCredits used to check for the month's row and then
@@ -897,10 +1221,61 @@ export const placements = pgTable("placements", {
   liveUrl: text("live_url"),
   anchor: text("anchor"),
   credits: integer("credits").default(0).notNull(),
+  /**
+   * pending   - matched to a host, waiting for an article.
+   * drafted   - the link is in a generated article that is not live yet.
+   * published - the article is live at liveUrl; the link is not yet seen.
+   * live      - the link was seen at liveUrl; credits moved.
+   * removed   - a live link repeatedly missing; credits returned.
+   * unverified- published, but the link was never seen; nothing charged.
+   * See lib/backlinks/placements.ts.
+   */
   status: text("status").default("pending").notNull(),
+  /**
+   * Placed by an administrator in the managed Partner Network, rather than by
+   * automatic matching. Same lifecycle and credits; see lib/backlinks/managed.ts.
+   */
+  managed: boolean("managed").default(false).notNull(),
+  /** The administrator who placed it (email), for managed placements. */
+  createdBy: text("created_by"),
+  /** Why this host, target and amount - written by the administrator. */
+  reason: text("reason"),
   lastVerifiedAt: timestamp("last_verified_at"),
+  /**
+   * When the beneficiary last asked for an early re-check. Rate-limits the
+   * request (lib/reporting/recheck.ts); it never moves credits by itself.
+   */
+  recheckRequestedAt: timestamp("recheck_requested_at"),
+  publishedAt: timestamp("published_at"),
+  liveAt: timestamp("live_at"),
+  removedAt: timestamp("removed_at"),
   ...timestamps,
 });
+
+/**
+ * Pages on a website its owner wants backlinks to, in priority order.
+ *
+ * PREFERENCES, not orders: the RepGet team reads these when placing links
+ * (lib/backlinks/managed.ts). Nothing here reserves credits or starts
+ * matching - that happens only when an administrator commits a placement.
+ */
+export const backlinkTargets = pgTable(
+  "backlink_targets",
+  {
+    id: pk(),
+    websiteId: websiteId(),
+    /** A page on this website, verified to exist when it was added. */
+    url: text("url").notNull(),
+    /** What the page is, in the owner's words. */
+    note: text("note"),
+    /** high | medium | low. */
+    priority: text("priority").default("medium").notNull(),
+    /** Order within the list, lowest first. */
+    position: integer("position").default(0).notNull(),
+    ...timestamps,
+  },
+  (table) => [uniqueIndex("backlink_targets_site_url_uidx").on(table.websiteId, table.url)],
+);
 
 export const linkChecks = pgTable("link_checks", {
   id: pk(),
@@ -909,8 +1284,214 @@ export const linkChecks = pgTable("link_checks", {
     .references(() => placements.id, { onDelete: "cascade" }),
   alive: boolean("alive").default(false).notNull(),
   httpStatus: integer("http_status"),
+  /**
+   * alive | missing | error. Only "missing" - the page answered and the link
+   * was not on it - counts toward removal; an outage ("error") does not.
+   * Null on rows written before the distinction existed.
+   */
+  outcome: text("outcome"),
+  /**
+   * The rel attribute of the matching link as found on the live page
+   * ("noopener nofollow", "" for none). Null when no link was found or the
+   * row predates it - unknown, not "followed".
+   */
+  rel: text("rel"),
+  /** Why an "error" check failed (timeout, DNS), trimmed. No page content. */
+  error: text("error"),
   checkedAt: timestamp("checked_at").defaultNow().notNull(),
 });
+
+/* ------------------------------------------------------------------------- */
+/* Authority metrics and value estimates                                       */
+/* ------------------------------------------------------------------------- */
+
+/**
+ * One provider metric for one domain, as last collected.
+ *
+ * A FACT ABOUT A PUBLIC DOMAIN, not about a tenant - like provider_cache it
+ * is shared, so a domain linked from ten websites costs one lookup. What is
+ * stored is exactly what the provider said and when: its metric name and
+ * native scale travel with the value, so a DataForSEO Rank is never shown as
+ * another company's score. Missing data stays missing: `value` is null until
+ * a lookup succeeds, and `status` says why.
+ *
+ * status: pending (queued, never collected) | ok | no_data (the provider
+ * knows no backlinks for the domain) | no_access (the account lacks the API,
+ * e.g. DataForSEO 40204) | error (temporary; retried later).
+ */
+export const domainMetrics = pgTable(
+  "domain_metrics",
+  {
+    id: pk(),
+    domain: text("domain").notNull(),
+    provider: text("provider").notNull(),
+    metric: text("metric").notNull(),
+    /** The top of the provider's scale for this value, e.g. 100. */
+    scaleMax: integer("scale_max").notNull(),
+    value: integer("value"),
+    status: text("status").default("pending").notNull(),
+    error: text("error"),
+    /** When the provider's value was obtained. Null until one is. */
+    observedAt: timestamp("observed_at"),
+    /** Last collection attempt, successful or not. */
+    attemptedAt: timestamp("attempted_at"),
+    attempts: integer("attempts").default(0).notNull(),
+    /** Not collected again before this. */
+    nextAttemptAt: timestamp("next_attempt_at").defaultNow().notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("domain_metrics_domain_metric_uidx").on(table.domain, table.provider, table.metric),
+    index("domain_metrics_due_idx").on(table.nextAttemptAt),
+  ],
+);
+
+/**
+ * How RepGet estimates the equivalent value of traffic and backlinks.
+ *
+ * VERSIONED and append-only: a figure on a report can always be traced to
+ * the policy that produced it, and changing the rates is a new row, not an
+ * edit that silently rewrites every past number. The policy in force is the
+ * newest whose effectiveFrom has passed. No row: no estimate is shown
+ * ("Estimate not configured") - RepGet never invents market prices.
+ */
+export const valuationPolicies = pgTable(
+  "valuation_policies",
+  {
+    id: pk(),
+    version: integer("version").notNull(),
+    /** ISO 4217, e.g. "USD". Every rate below is in this currency. */
+    currency: text("currency").notNull(),
+    /**
+     * keyword_cpc: each generated article's Search Console clicks times the
+     *   cost per click of the keyword it targets (DataForSEO reports USD, so
+     *   only a USD policy can use it);
+     * fixed: those clicks times fixedClickRate;
+     * none: traffic is not valued.
+     */
+    clickValueMode: text("click_value_mode").default("none").notNull(),
+    fixedClickRate: numeric("fixed_click_rate", { precision: 10, scale: 2 }),
+    /**
+     * Value of ONE verified received backlink, by source authority band:
+     * [{ "minRank": 0-100 | null, "value": number }]. The band with the
+     * highest minRank at or below the source's rank applies; minRank null is
+     * the rate for a source whose rank is unknown. Empty: not valued.
+     */
+    backlinkRates: jsonb("backlink_rates").default([]).notNull(),
+    /** Where the rates come from, in words. Required. */
+    sources: text("sources").notNull(),
+    notes: text("notes"),
+    effectiveFrom: timestamp("effective_from").notNull(),
+    createdBy: text("created_by"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [uniqueIndex("valuation_policies_version_uidx").on(table.version)],
+);
+
+/* ------------------------------------------------------------------------- */
+/* Publication control                                                         */
+/* ------------------------------------------------------------------------- */
+
+/**
+ * Operator switches that every publishing path reads at dispatch time.
+ *
+ *   publication_freeze - when enabled, NOTHING is sent to a customer's site:
+ *     direct publishing, the plugin feed, scheduled and queued jobs all hold
+ *     at their dispatch boundary. For incidents and for rollback.
+ *   managed_review     - when enabled, new drafts on Partner Network websites
+ *     enter the RepGet team's review. Off until an operator enables it once a
+ *     deploy has completed, so no article is held for review while an older
+ *     build that ignores the review gate may still be running.
+ *
+ * A missing row means disabled.
+ */
+export const platformControls = pgTable("platform_controls", {
+  key: text("key").primaryKey(),
+  enabled: boolean("enabled").default(false).notNull(),
+  reason: text("reason"),
+  updatedBy: text("updated_by"),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+/**
+ * One attempt to send one revision of an article to a customer's site.
+ *
+ * THE DISPATCH BOUNDARY (lib/publishing/dispatch.ts). Every external send -
+ * each direct-publish attempt, each plugin hand-over - first claims a row
+ * here, in the transaction that locks the article and re-checks the review
+ * gate, the exact revision, the schedule and the freeze. From that commit
+ * the revision is IN FLIGHT: it may reach the site and can no longer be
+ * recalled, so edits and review changes are refused until the outcome is
+ * recorded. At most one in-flight row per article, enforced by the database.
+ *
+ * status: in_flight -> sent | failed (the site provably refused; nothing
+ * created) | uncertain (a direct send with no answer: the post may exist; it
+ * is resolved only by finding the post by its marker or by an audited
+ * decision) | expired (a plugin hand-over whose lease ran out unacknowledged;
+ * it may still be acknowledged - "abandoned" in rows before 0045) | released
+ * (an operator released an unacknowledged legacy-plugin hand-over).
+ * A lease running out is NOT completion: expired and uncertain rows are
+ * outstanding until settled.
+ */
+export const publicationDispatches = pgTable(
+  "publication_dispatches",
+  {
+    id: pk(),
+    articleId: uuid("article_id")
+      .notNull()
+      .references(() => articles.id, { onDelete: "cascade" }),
+    websiteId: websiteId(),
+    /** direct | plugin */
+    channel: text("channel").notNull(),
+    /** Why it was sent: manual | automatic | first_article | approval | connection | plugin. */
+    trigger: text("trigger").notNull(),
+    /** reviewHash() of the revision sent (lib/articles/review.ts). */
+    revisionHash: text("revision_hash").notNull(),
+    /** publish | draft, as requested. */
+    requestedStatus: text("requested_status").notNull(),
+    status: text("status").default("in_flight").notNull(),
+    /** The job run or request that owns it. */
+    owner: text("owner"),
+    /**
+     * direct | plugin_v2 (the plugin echoes this dispatch's id) |
+     * plugin_legacy (plugins before 1.6.0: correlated by article, and only
+     * one revision may be outstanding at a time).
+     */
+    protocol: text("protocol"),
+    /** The direct integration the request went to. Reconciliation uses it, not whatever is connected later. */
+    integrationId: uuid("integration_id"),
+    /**
+     * What was sent, captured before sending: title, slug, requested status,
+     * content hash and the ownership marker. Reconciling an old dispatch reads
+     * this, never the article's current (mutable) fields.
+     */
+    requestSnapshot: jsonb("request_snapshot"),
+    remoteId: text("remote_id"),
+    remoteUrl: text("remote_url"),
+    /** The post status the CMS reported for this delivery. */
+    remoteStatus: text("remote_status"),
+    /** Settled after a newer dispatch of the article existed: history, not current delivery. */
+    late: boolean("late").default(false).notNull(),
+    /** Ownership lookups run for an uncertain send, the last one, and what it found. */
+    lookupAttempts: integer("lookup_attempts").default(0).notNull(),
+    lastLookupAt: timestamp("last_lookup_at"),
+    /** none | found | ambiguous | error */
+    lookupResult: text("lookup_result"),
+    /** An explicit, audited decision by a person (who, when, why). */
+    reconciledBy: text("reconciled_by"),
+    reconciledAt: timestamp("reconciled_at"),
+    reconcileNote: text("reconcile_note"),
+    error: text("error"),
+    claimedAt: timestamp("claimed_at").defaultNow().notNull(),
+    completedAt: timestamp("completed_at"),
+  },
+  (table) => [
+    index("publication_dispatches_article_idx").on(table.articleId, table.claimedAt),
+    uniqueIndex("publication_dispatches_in_flight_uidx")
+      .on(table.articleId)
+      .where(sql`${table.status} = 'in_flight'`),
+  ],
+);
 
 /* ------------------------------------------------------------------------- */
 /* Infrastructure                                                             */
@@ -929,6 +1510,134 @@ export const providerCache = pgTable(
   },
   (table) => [
     uniqueIndex("provider_cache_params_hash_idx").on(table.paramsHash),
+  ],
+);
+
+/**
+ * Spend reservations: how many paid calls one key has claimed in one window.
+ *
+ * Taken BEFORE the paid call, in one atomic upsert, so simultaneous requests
+ * cannot all read "under the limit" and then all spend — which counting
+ * usage_events cannot prevent, because those are written after the call
+ * finishes. See lib/billing/spend-quota.ts.
+ *
+ * Keys are opaque strings ("public-meta:global", "article-rewrite:<site>");
+ * nothing here is tenant data, and anonymous callers appear only as a hash.
+ */
+export const spendQuotas = pgTable(
+  "spend_quotas",
+  {
+    id: pk(),
+    key: text("key").notNull(),
+    windowStart: timestamp("window_start").notNull(),
+    used: integer("used").default(0).notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("spend_quotas_key_window_key").on(table.key, table.windowStart),
+    index("spend_quotas_window_idx").on(table.windowStart),
+  ],
+);
+
+/**
+ * One row per spend reservation: capacity for a paid call, taken before it.
+ *
+ * Supersedes spend_quotas, whose shared counter let a repeated release hand
+ * back somebody else's slot. Each row moves reserved → consumed | released
+ * through guarded updates; see lib/billing/spend-quota.ts.
+ *
+ * A LEDGER: no foreign keys, so deleting an article or a website does not
+ * give its allowance back.
+ */
+export const spendReservations = pgTable(
+  "spend_reservations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    key: text("key").notNull(),
+    operation: text("operation").notNull(),
+    /** The organization that pays: the website's owner. */
+    organizationId: text("organization_id"),
+    websiteId: uuid("website_id"),
+    /** reserved | consumed | released */
+    state: text("state").default("reserved").notNull(),
+    /** The rule it was admitted under, so a late job can re-check it. */
+    limitValue: integer("limit_value").notNull(),
+    windowSeconds: integer("window_seconds"),
+    windowSince: timestamp("window_since"),
+    /** When the capacity was taken; window counting uses this. */
+    countedAt: timestamp("counted_at").defaultNow().notNull(),
+    /** paid | ambiguous | legacy, set on consume */
+    spendOutcome: text("spend_outcome"),
+    consumedAt: timestamp("consumed_at"),
+    releasedAt: timestamp("released_at"),
+    releaseReason: text("release_reason"),
+    /**
+     * Set, durably, BEFORE the paid call is made. From then on the
+     * reservation can never be released: the provider may have billed even
+     * if the process dies, the consume write fails or the job fails later.
+     * `spendToken` identifies the attempt that set it, so only that attempt
+     * may clear it again on a provable refusal.
+     */
+    spendStartedAt: timestamp("spend_started_at"),
+    spendToken: uuid("spend_token"),
+    /** What was paid for, e.g. the article id. Makes the baseline idempotent. */
+    subjectId: text("subject_id"),
+    metadata: jsonb("metadata"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("spend_reservations_key_counted_idx").on(table.key, table.countedAt),
+    index("spend_reservations_state_created_idx").on(table.state, table.createdAt),
+    /** One reservation per operation and subject: one baseline row per article. */
+    uniqueIndex("spend_reservations_subject_uidx")
+      .on(table.operation, table.key, table.subjectId)
+      .where(sql`${table.subjectId} is not null`),
+  ],
+);
+
+/** An expiring single-holder lease, released only by its holder. */
+export const operationLeases = pgTable("operation_leases", {
+  key: text("key").primaryKey(),
+  holder: uuid("holder").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  acquiredAt: timestamp("acquired_at").defaultNow().notNull(),
+});
+
+/**
+ * Background jobs we have promised to run: a transactional outbox.
+ *
+ * Written in the SAME transaction as the business change that needs the job
+ * (an article queued, a website added), so the two commit together or not
+ * at all. Delivery to Inngest happens after commit and is retried with
+ * backoff until Inngest accepts it, by the request itself and by the
+ * job-outbox cron - a queue outage delays work instead of stranding it.
+ * `eventId` is also the Inngest event id, so a delivery repeated after a
+ * lost acknowledgement is de-duplicated there. See lib/jobs/outbox.ts.
+ */
+export const jobOutbox = pgTable(
+  "job_outbox",
+  {
+    id: pk(),
+    /** Stable: the Inngest event id. */
+    eventId: text("event_id").notNull(),
+    name: text("name").notNull(),
+    data: jsonb("data").notNull(),
+    /** pending | sent | failed */
+    status: text("status").default("pending").notNull(),
+    attempts: integer("attempts").default(0).notNull(),
+    nextAttemptAt: timestamp("next_attempt_at").defaultNow().notNull(),
+    /** Held while one worker is sending. */
+    claimToken: uuid("claim_token"),
+    claimedUntil: timestamp("claimed_until"),
+    lastError: text("last_error"),
+    sentAt: timestamp("sent_at"),
+    failedAt: timestamp("failed_at"),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("job_outbox_event_uidx").on(table.eventId),
+    index("job_outbox_due_idx").on(table.status, table.nextAttemptAt),
   ],
 );
 
@@ -1293,6 +2002,17 @@ export const payments = pgTable(
     /** What it was for, in the customer's terms. */
     description: text("description"),
     paidAt: timestamp("paid_at").defaultNow().notNull(),
+    /**
+     * The provider subscription this payment belongs to, as the provider
+     * reported it (Stripe invoice parent, PayPal billing agreement). What a
+     * refund-with-cancellation must cancel - never "the newest subscription
+     * in the workspace". Null on rows recorded before it was kept.
+     */
+    providerSubscriptionId: text("provider_subscription_id"),
+    /** Our row for that subscription, when it was recorded. */
+    subscriptionId: uuid("subscription_id").references(() => subscriptions.id, {
+      onDelete: "set null",
+    }),
     ...timestamps,
   },
   (table) => [
@@ -1301,6 +2021,7 @@ export const payments = pgTable(
       table.externalId,
     ),
     index("payments_org_paid_idx").on(table.organizationId, table.paidAt),
+    index("payments_provider_subscription_idx").on(table.providerSubscriptionId),
   ],
 );
 

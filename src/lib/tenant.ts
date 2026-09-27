@@ -136,7 +136,53 @@ export type WebsiteContext = OrgContext & {
    * its other sites.
    */
   access: "owner" | "editor" | "viewer";
+
+  /**
+   * THE WORKSPACE THAT PAYS FOR THIS WEBSITE.
+   *
+   * Use this for anything that costs money or belongs to the site: plan
+   * allowances, metered usage, the credit ledger, background-job ownership and
+   * notifications to the site's owner.
+   *
+   * WHY IT IS A SEPARATE FIELD. This type spreads OrgContext, so `orgId` is
+   * whatever organization the CALLER belongs to. For an owner those are the
+   * same value and nothing was ever visibly wrong. For a guest — somebody
+   * invited to one site through website_members, who belongs to a different
+   * workspace — they differ, and every `orgId` read here was the guest's own
+   * workspace. A guest editor generating an article therefore spent THEIR
+   * workspace's credits and allowance on somebody else's website, and jobs were
+   * queued under the wrong owner.
+   *
+   * Read from the website row, so it cannot disagree with the site being acted
+   * on.
+   */
+  ownerOrgId: string;
+
+  /**
+   * THE CALLER'S OWN WORKSPACE.
+   *
+   * Use this for authorization and audit only: who did this, and what are they
+   * allowed to do. Never for billing — see ownerOrgId.
+   *
+   * Same value as `orgId`, named so that a reader can tell which of the two
+   * meanings a call site intended. `orgId` is kept because ~150 call sites read
+   * it and most are genuinely actor-scoped or owner-only paths; the two explicit
+   * names exist so new code states which it means rather than inheriting an
+   * ambiguity.
+   */
+  actorOrgId: string;
 };
+
+/**
+ * True when the caller is acting on a website their own workspace does not own.
+ *
+ * The condition that made issue 14 invisible: it is false for every owner, so
+ * the wrong-organization bug could not be reproduced without an invited member,
+ * and website_members was empty.
+ */
+export function isGuestContext(ctx: WebsiteContext): boolean {
+  return ctx.ownerOrgId !== ctx.actorOrgId;
+}
 
 /**
  * Loads a website scoped to the caller's organization.
@@ -161,7 +207,18 @@ export const requireWebsite = cache(async (
     where: and(eq(websites.id, websiteId), eq(websites.organizationId, ctx.orgId)),
   });
   if (owned) {
-    return { site: owned, access: "owner", ...ctx };
+    /*
+      Owner path: the caller's workspace IS the owning workspace, so both
+      organization fields are the same value. Set explicitly rather than
+      derived, so the two paths below return the same shape.
+    */
+    return {
+      site: owned,
+      access: "owner",
+      ownerOrgId: owned.organizationId,
+      actorOrgId: ctx.orgId,
+      ...ctx,
+    };
   }
 
   /**
@@ -197,9 +254,17 @@ export const requireWebsite = cache(async (
     throw new WebsiteNotFoundError();
   }
 
+  /*
+    GUEST PATH. site.organizationId is another workspace's id - the one that
+    pays for this website - while ctx.orgId is the guest's own. This is the case
+    where the two diverge, and where reading `orgId` for billing charged the
+    wrong workspace.
+  */
   return {
     site,
     access: invited.role === "viewer" ? "viewer" : "editor",
+    ownerOrgId: site.organizationId,
+    actorOrgId: ctx.orgId,
     ...ctx,
   };
 });

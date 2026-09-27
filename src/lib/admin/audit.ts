@@ -1,7 +1,9 @@
 import { and, desc, eq, gte, sql as raw } from "drizzle-orm";
+import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 
 import { ADMIN_PAGE_SIZE, type Page } from "@/lib/admin/shared";
 import { db } from "@/lib/db";
+import type * as schema from "@/lib/db/schema";
 import { adminAuditLog } from "@/lib/db/schema";
 
 /**
@@ -27,7 +29,18 @@ export type AdminAction =
   | "article.deleted"
   | "user.deleted"
   | "organization.deleted"
-  | "website.deleted";
+  | "website.deleted"
+  /* The managed Partner Network (lib/backlinks/managed.ts). */
+  | "network.placement_added"
+  | "network.placement_removed"
+  | "network.placement_credits"
+  | "network.article_approved"
+  | "network.article_reopened"
+  /* Operations (lib/admin/operations.ts). */
+  | "platform.control_changed"
+  | "publication.dispatch_resolved"
+  | "authority.collection_requested"
+  | "valuation.policy_published";
 
 export type AuditEntry = {
   actorEmail: string;
@@ -41,11 +54,20 @@ export type AuditEntry = {
   detail?: Record<string, unknown> | null;
 };
 
+/** Anything that can insert: the shared client, or an open transaction. */
+type AuditWriter = Pick<PgDatabase<PgQueryResultHKT, typeof schema>, "insert">;
+
 /**
  * Writes one entry. Throws on failure, deliberately — see above.
+ *
+ * Pass `writer` to write inside a transaction, so the entry commits or rolls
+ * back together with the change it records.
  */
-export async function recordAdminAction(entry: AuditEntry): Promise<void> {
-  await db.insert(adminAuditLog).values({
+export async function recordAdminAction(
+  entry: AuditEntry,
+  writer: AuditWriter = db,
+): Promise<void> {
+  await writer.insert(adminAuditLog).values({
     actorEmail: entry.actorEmail,
     action: entry.action,
     targetType: entry.targetType,

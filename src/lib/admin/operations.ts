@@ -1,6 +1,6 @@
 "use server";
 
-import { and, desc, eq, inArray, isNull, sql as raw } from "drizzle-orm";
+import { and, desc, eq, sql as raw } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { requireAdmin } from "@/lib/admin/guard";
@@ -20,6 +20,10 @@ import {
 } from "@/lib/db/schema";
 import { isStripeConfigured, stripe } from "@/lib/stripe/client";
 import type { ActionResult } from "@/lib/websites/actions";
+import {
+  deleteWebsiteIfBillingResolved,
+  deleteWorkspaceIfBillingResolved,
+} from "@/lib/websites/deletion";
 
 /**
  * Operator actions: the things support actually has to do.
@@ -38,6 +42,91 @@ import type { ActionResult } from "@/lib/websites/actions";
 /* ------------------------------------------------------------------------- */
 /* Refunds                                                                    */
 /* ------------------------------------------------------------------------- */
+
+type PaymentForTarget = {
+  id: string;
+  organizationId: string;
+  provider: string;
+  externalId: string;
+  subscriptionId: string | null;
+  providerSubscriptionId: string | null;
+};
+
+type TargetSubscription = {
+  id: string;
+  websiteId: string | null;
+  claimedWebsiteId: string | null;
+  status: string;
+  stripeSubscriptionId: string | null;
+};
+
+/**
+ * The subscription a payment paid for - exactly that one, or null.
+ *
+ * WHAT WAS WRONG. Both the refund quote and refund-with-cancellation took
+ * "the newest subscription in the workspace". In a workspace paying for
+ * several websites that is whichever site was bought last, so refunding an
+ * older invoice cancelled a different site's plan and prorated against the
+ * wrong allowance.
+ *
+ * NOW, in order: the subscription recorded on the payment by the webhook;
+ * the provider subscription id recorded on it; and for older Stripe rows,
+ * the subscription Stripe itself names on the invoice. The row must belong
+ * to the payment's workspace. Anything else is null - ambiguous - and the
+ * caller refuses rather than guessing.
+ */
+async function subscriptionForPayment(
+  payment: PaymentForTarget,
+): Promise<TargetSubscription | null> {
+  let providerId = payment.providerSubscriptionId;
+  if (
+    !payment.subscriptionId &&
+    !providerId &&
+    payment.provider === "stripe" &&
+    payment.externalId.startsWith("in_") &&
+    isStripeConfigured()
+  ) {
+    const invoice = await stripe.invoices.retrieve(payment.externalId);
+    const fromParent = invoice.parent?.subscription_details?.subscription;
+    const line = invoice.lines?.data?.[0]?.subscription;
+    providerId =
+      (typeof fromParent === "string" ? fromParent : (fromParent?.id ?? null)) ??
+      (typeof line === "string" ? line : (line?.id ?? null));
+  }
+
+  const condition = payment.subscriptionId
+    ? eq(subscriptions.id, payment.subscriptionId)
+    : providerId
+      ? payment.provider === "paypal"
+        ? eq(subscriptions.paypalSubscriptionId, providerId)
+        : eq(subscriptions.stripeSubscriptionId, providerId)
+      : null;
+  if (!condition) return null;
+
+  const rows = await db
+    .select({
+      id: subscriptions.id,
+      organizationId: subscriptions.organizationId,
+      websiteId: subscriptions.websiteId,
+      claimedWebsiteId: subscriptions.claimedWebsiteId,
+      status: subscriptions.status,
+      stripeSubscriptionId: subscriptions.stripeSubscriptionId,
+    })
+    .from(subscriptions)
+    .where(condition)
+    .limit(2);
+  if (rows.length !== 1 || rows[0].organizationId !== payment.organizationId) {
+    return null;
+  }
+  const [found] = rows;
+  return {
+    id: found.id,
+    websiteId: found.websiteId,
+    claimedWebsiteId: found.claimedWebsiteId,
+    status: found.status,
+    stripeSubscriptionId: found.stripeSubscriptionId,
+  };
+}
 
 /**
  * What a payment is worth refunding, given what the customer already used.
@@ -70,7 +159,12 @@ export async function quoteRefund(
 
   const [row] = await db
     .select({
+      id: payments.id,
       organizationId: payments.organizationId,
+      provider: payments.provider,
+      externalId: payments.externalId,
+      subscriptionId: payments.subscriptionId,
+      providerSubscriptionId: payments.providerSubscriptionId,
       amountCents: payments.amountCents,
       currency: payments.currency,
     })
@@ -80,27 +174,16 @@ export async function quoteRefund(
   if (!row) return { ok: false, error: "Payment not found." };
 
   /**
-   * Usage for the website this payment subscribed, not the whole account.
+   * Usage for the website THIS payment subscribed (subscriptionForPayment),
+   * not the workspace's newest subscription: a workspace with three sites
+   * would otherwise prorate against whichever plan was bought last.
    *
-   * Each website is billed separately, so the unused fraction has to be read
-   * from the site the money paid for — a workspace with three sites would
-   * otherwise prorate a refund against whichever plan happened to be found
-   * first.
-   */
-  const [subscribed] = await db
-    .select({ websiteId: subscriptions.websiteId })
-    .from(subscriptions)
-    .where(eq(subscriptions.organizationId, row.organizationId))
-    .orderBy(desc(subscriptions.createdAt))
-    .limit(1);
-
-  /**
-   * No website on the subscription means nothing to prorate against — a row
-   * predating per-site billing, or a workspace whose site was deleted. The
+   * An unknown or deleted website means nothing to prorate against, and the
    * full amount is the honest answer there rather than a guess.
    */
-  const usage = subscribed?.websiteId
-    ? await checkLimit(subscribed.websiteId, "articles")
+  const target = await subscriptionForPayment(row).catch(() => null);
+  const usage = target?.websiteId
+    ? await checkLimit(target.websiteId, "articles")
     : { allowed: true, used: 0, limit: UNLIMITED, reason: null };
 
   /**
@@ -163,6 +246,8 @@ export async function refundPayment(
       organizationId: payments.organizationId,
       provider: payments.provider,
       externalId: payments.externalId,
+      subscriptionId: payments.subscriptionId,
+      providerSubscriptionId: payments.providerSubscriptionId,
       amountCents: payments.amountCents,
       currency: payments.currency,
       status: payments.status,
@@ -208,6 +293,28 @@ export async function refundPayment(
   const partial = amountCents < row.amountCents;
 
   /**
+   * The subscription to cancel is resolved BEFORE any money moves. When it
+   * cannot be told for certain, nothing happens and the operator is told
+   * why - a refund that then cancels the wrong website's plan, or silently
+   * cancels nothing, is worse than asking them to cancel it by hand.
+   */
+  let target: TargetSubscription | null = null;
+  if (options.cancelSubscription) {
+    try {
+      target = await subscriptionForPayment(row);
+    } catch (error) {
+      console.error("[admin] could not resolve the payment's subscription", error);
+    }
+    if (!target?.stripeSubscriptionId) {
+      return {
+        ok: false,
+        error:
+          "Could not tell which subscription this payment belongs to, so nothing was refunded. Refund without cancelling, or cancel the subscription in Stripe.",
+      };
+    }
+  }
+
+  /**
    * Logged BEFORE the money moves. A Stripe refund cannot be undone, so the
    * ordering matters: if the log write fails nothing has happened yet, but if
    * the refund succeeded and the log then failed there would be money out the
@@ -221,7 +328,7 @@ export async function refundPayment(
     organizationId: row.organizationId,
     summary: `Refunded ${(amountCents / 100).toFixed(2)} ${row.currency.toUpperCase()}${
       partial ? ` of ${(row.amountCents / 100).toFixed(2)}` : ""
-    }${options.cancelSubscription ? ", subscription cancelled" : ""} - ${note}`,
+    }${target ? `, cancelling ${target.stripeSubscriptionId}` : ""} - ${note}`,
     detail: {
       provider: row.provider,
       externalId: row.externalId,
@@ -229,6 +336,8 @@ export async function refundPayment(
       originalAmountCents: row.amountCents,
       partial,
       cancelSubscription: Boolean(options.cancelSubscription),
+      cancelTarget: target?.stripeSubscriptionId ?? null,
+      cancelTargetWebsiteId: target?.websiteId ?? target?.claimedWebsiteId ?? null,
       description: row.description,
       reason: note,
     },
@@ -297,44 +406,31 @@ export async function refundPayment(
     .where(eq(payments.id, row.id));
 
   let cancelled = false;
-  if (options.cancelSubscription) {
+  if (target?.stripeSubscriptionId) {
     /**
      * Cancelled AFTER the money is back. If cancelling failed first, the
      * operator would be left with a stopped account and no refund — the worse
      * of the two halves to get stuck with.
      *
-     * Failure here does not fail the action: the refund succeeded and is
-     * already recorded, and telling the operator it failed would invite them
-     * to refund again. The subscription can still be suspended by hand, and
-     * the audit entry says a cancellation was intended.
+     * Exactly the payment's own subscription (resolved above), with an
+     * idempotency key so a repeated press cancels once. The local row is
+     * changed ONLY to what Stripe answers: it used to be set to "canceled"
+     * even when no Stripe call was made or the call failed, so the customer
+     * lost access while Stripe kept billing. A failure does not fail the
+     * action - the refund went through and is recorded - and `cancelled:
+     * false` tells the operator to cancel by hand.
      */
     try {
-      const [current] = await db
-        .select({
-          id: subscriptions.id,
-          stripeSubscriptionId: subscriptions.stripeSubscriptionId,
-        })
-        .from(subscriptions)
-        .where(eq(subscriptions.organizationId, row.organizationId))
-        .orderBy(desc(subscriptions.createdAt))
-        .limit(1);
-
-      if (current?.stripeSubscriptionId) {
-        await stripe.subscriptions.cancel(current.stripeSubscriptionId);
-      }
-      if (current) {
-        /**
-         * Set locally as well as in Stripe. The webhook will say the same
-         * thing shortly, but every limit check reads this row, and waiting
-         * for the webhook would leave the customer able to generate articles
-         * they have just been refunded for.
-         */
-        await db
-          .update(subscriptions)
-          .set({ status: "canceled", updatedAt: new Date() })
-          .where(eq(subscriptions.id, current.id));
-        cancelled = true;
-      }
+      const result = await stripe.subscriptions.cancel(
+        target.stripeSubscriptionId,
+        {},
+        { idempotencyKey: `refund-cancel:${row.id}` },
+      );
+      await db
+        .update(subscriptions)
+        .set({ status: result.status, updatedAt: new Date() })
+        .where(eq(subscriptions.id, target.id));
+      cancelled = result.status === "canceled";
     } catch (error) {
       console.error(
         "[admin] refund succeeded but cancelling the subscription failed",
@@ -615,56 +711,52 @@ export async function deleteOrganization(
   if (!org) return { ok: false, error: "Workspace not found." };
 
   /**
-   * Refuse while Stripe would keep charging.
+   * Refuse while a provider could keep charging, all in one transaction.
    *
    * Deleting the row does not tell Stripe anything, so a live subscription
    * would go on billing a customer whose account no longer exists — and with
    * the local record gone there would be nothing left to trace it back to.
    * Cancel or refund first; both already exist above.
+   *
+   * Same rules as website deletion (lib/websites/deletion.ts): only a status
+   * the provider reports as ended counts, and open checkouts are settled or
+   * refuse. The check, the counts, the audit entry and the delete share one
+   * transaction with the workspace locked, so a checkout or webhook cannot
+   * slip in after the check, and the log never claims a deletion that rolled
+   * back.
    */
-  const [live] = await db
-    .select({ id: subscriptions.id, status: subscriptions.status })
-    .from(subscriptions)
-    .where(
-      and(
-        eq(subscriptions.organizationId, organizationId),
-        inArray(subscriptions.status, ["active", "trialing", "past_due"]),
-      ),
-    )
-    .limit(1);
-
-  if (live) {
-    return {
-      ok: false,
-      error:
-        "This workspace still has a live subscription. Cancel or refund it first, or Stripe will keep charging them.",
-    };
-  }
-
-  /**
-   * Counted before the delete, for the audit entry. Afterwards there is
-   * nothing left to count, and "deleted a workspace" without saying how much
-   * went with it is not a useful record.
-   */
-  const [counts] = await db
-    .select({
-      websites: raw<number>`(select count(*) from websites where organization_id = ${organizationId})::int`,
-      members: raw<number>`(select count(*) from member where organization_id = ${organizationId})::int`,
-      payments: raw<number>`(select count(*) from payments where organization_id = ${organizationId})::int`,
-    })
-    .from(raw`(select 1) as _`);
-
-  await recordAdminAction({
-    actorEmail: admin.email,
-    action: "organization.deleted",
-    targetType: "organization",
-    targetId: org.id,
+  const result = await deleteWorkspaceIfBillingResolved(db, {
     organizationId: org.id,
-    summary: `Deleted ${org.name} - ${counts?.websites ?? 0} websites, ${counts?.members ?? 0} members, ${counts?.payments ?? 0} payments - ${note}`,
-    detail: { name: org.name, ...counts, reason: note },
+    beforeDelete: async (tx) => {
+      /**
+       * Counted just before the delete, for the audit entry. Afterwards
+       * there is nothing left to count, and "deleted a workspace" without
+       * saying how much went with it is not a useful record.
+       */
+      const [counts] = await tx
+        .select({
+          websites: raw<number>`(select count(*) from websites where organization_id = ${org.id})::int`,
+          members: raw<number>`(select count(*) from member where organization_id = ${org.id})::int`,
+          payments: raw<number>`(select count(*) from payments where organization_id = ${org.id})::int`,
+        })
+        .from(raw`(select 1) as _`);
+
+      await recordAdminAction(
+        {
+          actorEmail: admin.email,
+          action: "organization.deleted",
+          targetType: "organization",
+          targetId: org.id,
+          organizationId: org.id,
+          summary: `Deleted ${org.name} - ${counts?.websites ?? 0} websites, ${counts?.members ?? 0} members, ${counts?.payments ?? 0} payments - ${note}`,
+          detail: { name: org.name, ...counts, reason: note },
+        },
+        tx,
+      );
+    },
   });
 
-  await db.delete(organization).where(eq(organization.id, organizationId));
+  if (!result.ok) return result;
 
   revalidatePath("/admin/organizations");
   revalidatePath("/admin/users");
@@ -849,12 +941,12 @@ export async function deleteManyUsers(
  * keys on websites.id. The workspace, its members and its payments are
  * untouched - which is the entire point of having this at all.
  *
- * REFUSES WHILE STRIPE WOULD KEEP CHARGING, exactly as deleteOrganization
- * does. Subscriptions are per-WEBSITE here (subscriptions.website_id) and
- * they cascade from this row, so deleting a site with a live plan would
- * destroy the only local record of a subscription Stripe goes on billing -
- * and with the row gone there is nothing left to trace the charge back to.
- * Cancel or refund first; both already exist above.
+ * REFUSES WHILE A PROVIDER COULD KEEP CHARGING, exactly as the customer
+ * action does. Subscriptions are per-WEBSITE here (subscriptions.website_id);
+ * deleting a site with a live plan would leave Stripe billing for a site that
+ * no longer exists. Cancel or refund first; both already exist above. Once a
+ * subscription has ended, its row outlives the site (ON DELETE SET NULL) so
+ * the charge can still be traced.
  *
  * The count of what went with it is taken BEFORE the delete, when there is
  * still something to count.
@@ -902,84 +994,42 @@ export async function deleteWebsite(
     .from(raw`(select 1) as _`);
 
   /*
-    Scoped to THIS website, not to the workspace.
+    The same guarded delete the customer action uses: it refuses while this
+    site's subscription (or a legacy one paying for the workspace's only
+    site) could still bill, including a scheduled cancellation that has not
+    taken effect and a locally "inactive" row Stripe is still charging. The
+    subscription row is detached rather than deleted, so its provider ids
+    stay for reconciliation. See lib/websites/deletion.ts.
 
-    subscriptions.website_id is the link that matters: a customer with three
-    sites has three subscriptions, and refusing because a DIFFERENT site is
-    being billed would make the common case impossible to serve. Rows created
-    before that column existed have it null and are caught by the
-    organization-level check below.
+    The audit entry is written only once every check has passed, inside the
+    same transaction as the delete: if the log write fails the website stays,
+    and if the delete fails the entry is not left claiming it happened.
   */
-  const [live] = await db
-    .select({
-      status: subscriptions.status,
-      stripeSubscriptionId: subscriptions.stripeSubscriptionId,
-    })
-    .from(subscriptions)
-    .where(
-      and(
-        eq(subscriptions.websiteId, websiteId),
-        inArray(subscriptions.status, ["active", "trialing", "past_due"]),
-      ),
-    )
-    .limit(1);
-
-  if (live) {
-    return {
-      ok: false,
-      error:
-        "This website still has a live subscription. Cancel or refund it first, or Stripe will keep charging for a site that no longer exists.",
-    };
-  }
-
-  /*
-    Legacy rows, from before subscriptions named their website.
-
-    They carry website_id = null, so the check above cannot see them - but
-    they DO belong to this workspace, and if the workspace has exactly one
-    website then this is the site being paid for. Refusing on that narrow
-    case is right: the alternative is silently deleting the last trace of a
-    live charge. A workspace with several sites is left alone, because an
-    unattributed subscription cannot be blamed on any one of them.
-  */
-  const [legacy] = await db
-    .select({ status: subscriptions.status })
-    .from(subscriptions)
-    .where(
-      and(
-        eq(subscriptions.organizationId, site.organizationId),
-        isNull(subscriptions.websiteId),
-        inArray(subscriptions.status, ["active", "trialing", "past_due"]),
-        raw`(select count(*) from websites w where w.organization_id = ${site.organizationId})::int = 1`,
-      ),
-    )
-    .limit(1);
-
-  if (legacy) {
-    return {
-      ok: false,
-      error:
-        "This workspace has a live subscription and this is its only website. Cancel or refund it first, or Stripe will keep charging.",
-    };
-  }
-
-  await recordAdminAction({
-    actorEmail: admin.email,
-    action: "website.deleted",
-    targetType: "website",
-    targetId: site.id,
+  const result = await deleteWebsiteIfBillingResolved(db, {
+    websiteId: site.id,
     organizationId: site.organizationId,
-    summary: `Deleted ${site.domain} from ${site.organizationName ?? "an unnamed workspace"} - ${counts?.articles ?? 0} articles, ${counts?.keywords ?? 0} keywords - ${note}`,
-    detail: {
-      domain: site.domain,
-      url: site.url,
-      organizationName: site.organizationName,
-      ...counts,
-      reason: note,
-    },
+    beforeDelete: (tx) =>
+      recordAdminAction(
+        {
+          actorEmail: admin.email,
+          action: "website.deleted",
+          targetType: "website",
+          targetId: site.id,
+          organizationId: site.organizationId,
+          summary: `Deleted ${site.domain} from ${site.organizationName ?? "an unnamed workspace"} - ${counts?.articles ?? 0} articles, ${counts?.keywords ?? 0} keywords - ${note}`,
+          detail: {
+            domain: site.domain,
+            url: site.url,
+            organizationName: site.organizationName,
+            ...counts,
+            reason: note,
+          },
+        },
+        tx,
+      ),
   });
 
-  await db.delete(websites).where(eq(websites.id, websiteId));
+  if (!result.ok) return result;
 
   revalidatePath("/admin/websites");
   revalidatePath("/admin/organizations");

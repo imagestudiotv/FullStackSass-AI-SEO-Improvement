@@ -102,6 +102,8 @@ export type PayPalSubscription = {
     next_billing_time?: string;
     last_payment?: { time?: string };
   };
+  /** When the subscription started billing (after approval). */
+  start_time?: string;
   custom_id?: string;
   plan_id?: string;
 };
@@ -121,12 +123,14 @@ export type CreatedSubscription = {
 export function parseCustomId(value: string | null | undefined): {
   organizationId: string | null;
   websiteId: string | null;
+  checkoutId: string | null;
 } {
-  if (!value) return { organizationId: null, websiteId: null };
-  const [organizationId, websiteId] = value.split(":");
+  if (!value) return { organizationId: null, websiteId: null, checkoutId: null };
+  const [organizationId, websiteId, checkoutId] = value.split(":");
   return {
     organizationId: organizationId || null,
     websiteId: websiteId || null,
+    checkoutId: checkoutId || null,
   };
 }
 
@@ -142,6 +146,8 @@ export async function createSubscription(input: {
   organizationId: string;
   /** The website this pays for; each site is billed separately. */
   websiteId: string;
+  /** Our billing_checkouts id: carried back on every webhook. */
+  checkoutId: string;
   returnUrl: string;
   cancelUrl: string;
 }): Promise<CreatedSubscription> {
@@ -149,6 +155,11 @@ export async function createSubscription(input: {
     "/v1/billing/subscriptions",
     {
       method: "POST",
+      /*
+        PayPal replays a request with the same id instead of creating a
+        second subscription, so a retried create for one checkout makes one.
+      */
+      idempotencyKey: `checkout:${input.checkoutId}`,
       body: JSON.stringify({
         plan_id: input.planId,
         /**
@@ -156,12 +167,13 @@ export async function createSubscription(input: {
          * Without it a subscription event arriving weeks later could not be
          * matched to a customer.
          *
-         * Both ids, colon separated: PayPal gives one free-text field, and a
-         * subscription belongs to a website as well as a workspace now. Read
-         * back with parseCustomId, which tolerates the old single-id form
-         * still carried by subscriptions created before this.
+         * The ids, colon separated: PayPal gives one free-text field (127
+         * characters), and a subscription belongs to a website and to the
+         * checkout that made it. Read back with parseCustomId, which
+         * tolerates the older one- and two-id forms still carried by
+         * subscriptions created before this.
          */
-        custom_id: `${input.organizationId}:${input.websiteId}`,
+        custom_id: `${input.organizationId}:${input.websiteId}:${input.checkoutId}`,
         application_context: {
           brand_name: "AI SEO Platform",
           user_action: "SUBSCRIBE_NOW",
@@ -194,8 +206,41 @@ export async function cancelSubscription(
 ): Promise<void> {
   await payPalRequest(
     `/v1/billing/subscriptions/${encodeURIComponent(subscriptionId)}/cancel`,
-    { method: "POST", body: JSON.stringify({ reason }) },
+    {
+      method: "POST",
+      idempotencyKey: `cancel:${subscriptionId}`,
+      body: JSON.stringify({ reason }),
+    },
   );
+}
+
+/**
+ * Moves an existing subscription to another plan. PayPal answers with an
+ * approval link: the buyer confirms the new price on PayPal, and the
+ * BILLING.SUBSCRIPTION.UPDATED webhook records it. The subscription - and
+ * its id, history and payments - stays the same one.
+ */
+export async function reviseSubscription(input: {
+  subscriptionId: string;
+  planId: string;
+  returnUrl: string;
+  cancelUrl: string;
+}): Promise<{ approveUrl: string | null }> {
+  const revised = await payPalRequest<{ links?: { href: string; rel: string }[] }>(
+    `/v1/billing/subscriptions/${encodeURIComponent(input.subscriptionId)}/revise`,
+    {
+      method: "POST",
+      idempotencyKey: `revise:${input.subscriptionId}:${input.planId}`,
+      body: JSON.stringify({
+        plan_id: input.planId,
+        application_context: {
+          return_url: input.returnUrl,
+          cancel_url: input.cancelUrl,
+        },
+      }),
+    },
+  );
+  return { approveUrl: revised.links?.find((link) => link.rel === "approve")?.href ?? null };
 }
 
 /**

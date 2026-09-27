@@ -104,7 +104,9 @@ const STATUS: Record<string, StatusMeta> = {
   connected: { label: "connected", tone: "positive", icon: Link2 },
   disconnected: { label: "disconnected", tone: "warning", icon: Link2Off },
 
-  /* backlink placements */
+  /* backlink placements: pending → drafted → published → live | removed | unverified */
+  drafted: { label: "draft", tone: "neutral", icon: CircleDashed },
+  unverified: { label: "failed", tone: "warning", icon: AlertTriangle },
   live: { label: "live", tone: "positive", icon: Check },
   removed: { label: "removed", tone: "warning", icon: CircleSlash },
   matched: { label: "matched", tone: "active", icon: Link2 },

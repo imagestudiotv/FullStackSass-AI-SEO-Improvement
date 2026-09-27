@@ -9,6 +9,7 @@ import {
 } from "@/components/tool-page";
 import { AI_CRAWLERS, parseCrawlerAccess } from "@/lib/audit/ai-crawlers";
 import { InvalidUrlError, normalizeWebsiteUrl } from "@/lib/websites/url";
+import { safeFetch } from "@/lib/net/safe-fetch";
 
 export const metadata = {
   title: "AI Crawler Checker",
@@ -25,12 +26,15 @@ async function fetchRobotsTxt(origin: string): Promise<string | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 10_000);
   try {
-    const response = await fetch(`${origin}/robots.txt`, {
+    const response = await safeFetch(`${origin}/robots.txt`, {
       signal: controller.signal,
+      // Cut while streaming, not after downloading the whole file.
+      maxBytes: 200_000,
+      overflow: "truncate",
       headers: { accept: "text/plain", "user-agent": "SEOVisionBot/1.0" },
     });
     if (!response.ok) return null;
-    return (await response.text()).slice(0, 200_000);
+    return await response.text();
   } catch {
     return null;
   } finally {

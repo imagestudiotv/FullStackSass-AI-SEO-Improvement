@@ -6,6 +6,8 @@ import { WizardProgress } from "@/components/wizard-progress";
 import { requireSession } from "@/lib/auth-guard";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import { listPlans } from "@/lib/billing";
+import { isTrialEligible } from "@/lib/billing/checkouts";
+import { db } from "@/lib/db";
 import { getOnboardingState } from "@/lib/onboarding/steps";
 import { isPayPalAvailable } from "@/lib/paypal/actions";
 import { toPickerPlan } from "@/lib/plans/features";
@@ -35,6 +37,8 @@ export default async function OnboardingPlanPage({
   const session = await requireSession();
   const { t } = await getAppMessages(session.user.id);
   const { orgId } = await requireOrg();
+  // Whether checkout will really grant the trial the page offers.
+  const trialEligible = await isTrialEligible(db, orgId);
 
   const params = await searchParams;
   const siteParam = typeof params.site === "string" ? params.site : undefined;
@@ -141,6 +145,7 @@ export default async function OnboardingPlanPage({
               annualPlans={annualPlans}
               paypalAvailable={paypalAvailable}
               websiteId={state.websiteId}
+              trialEligible={trialEligible}
             />
           </div>
 

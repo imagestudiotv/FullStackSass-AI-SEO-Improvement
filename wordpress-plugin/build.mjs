@@ -19,6 +19,15 @@ const source = join(here, "repget-connector");
 const outDir = join(here, "..", "public");
 const outFile = join(outDir, "repget-connector.zip");
 
+/**
+ * Text files are packaged with LF line endings, exactly as git stores them.
+ * A Windows checkout (core.autocrlf) has CRLF in the working tree, so a zip
+ * built there used to differ from the source CI tests on Linux.
+ */
+function normalize(rel, data) {
+  return /\.(php|txt|md|css|js|json)$/i.test(rel) ? Buffer.from(data.toString("utf8").replace(/\r\n/g, "\n"), "utf8") : data;
+}
+
 /** Files to include, relative to the plugin folder. */
 function collect(dir, prefix = "") {
   const out = [];
@@ -26,7 +35,7 @@ function collect(dir, prefix = "") {
     const full = join(dir, name);
     const rel = prefix ? `${prefix}/${name}` : name;
     if (statSync(full).isDirectory()) out.push(...collect(full, rel));
-    else out.push({ path: `repget-connector/${rel}`, data: readFileSync(full) });
+    else out.push({ path: `repget-connector/${rel}`, data: normalize(rel, readFileSync(full)) });
   }
   return out;
 }

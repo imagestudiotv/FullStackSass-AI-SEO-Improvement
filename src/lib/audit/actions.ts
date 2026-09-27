@@ -3,7 +3,6 @@
 import { desc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
-import { queueJob } from "@/inngest/send";
 import { db } from "@/lib/db";
 import { audits, crawls, issues } from "@/lib/db/schema";
 import { requireWebsite } from "@/lib/tenant";
@@ -11,7 +10,7 @@ import { requireEditor } from "@/lib/websites/require-editor";
 import type { AuditSummary, Severity } from "@/lib/audit/rules";
 import type { ActionResult } from "@/lib/websites/actions";
 import { isEntitledToSpend } from "@/lib/billing/entitled";
-import { withinRateLimit } from "@/lib/billing/rate-limit";
+import { reserveAndQueue } from "@/lib/jobs/outbox";
 
 /**
  * Audit reads and actions.
@@ -102,12 +101,23 @@ export async function getLatestAudit(
   };
 }
 
+/**
+ * Audits a user may start, over sliding hours. Each crawls up to 25 pages of
+ * the customer's site; the ceiling is far above fixing issues and re-checking,
+ * and reserved atomically so simultaneous presses cannot all pass.
+ */
+const HOUR = 60 * 60;
+const AUDITS_PER_WEBSITE_PER_HOUR = 4;
+const AUDITS_PER_WORKSPACE_PER_HOUR = 10;
+
 export async function startAudit(
   websiteId: string,
 ): Promise<ActionResult<null>> {
   const guard = await requireEditor(websiteId);
   if (!guard.ok) return { ok: false, error: guard.error };
-  const { site, orgId } = guard.context;
+  const { site } = guard.context;
+  // Billed to the website's owner, not an invited editor's own workspace.
+  const ownerOrgId = site.organizationId;
 
   // Auditing a site still being onboarded would crawl before we know its URL
   // resolves, and the result would be discarded anyway.
@@ -128,13 +138,29 @@ export async function startAudit(
     expensive thing a paying customer can do. Entitlement says they may spend;
     this says how fast.
   */
-  const rate = await withinRateLimit(orgId, "crawl");
-  if (!rate.ok) return { ok: false, error: rate.error };
-
-  await queueJob({
-    name: "website/audit.requested",
-    data: { websiteId: site.id, organizationId: orgId },
-  });
+  /*
+    The slot and the job are recorded together (lib/jobs/outbox.ts): if the
+    queue is down the audit is accepted and delivered when it recovers, and
+    if it never can be the slot is handed back.
+  */
+  const slot = await reserveAndQueue(
+    [
+      { key: `audit:site:${site.id}`, limit: AUDITS_PER_WEBSITE_PER_HOUR, window: { seconds: HOUR } },
+      { key: `audit:org:${ownerOrgId}`, limit: AUDITS_PER_WORKSPACE_PER_HOUR, window: { seconds: HOUR } },
+    ],
+    { operation: "website.audit", organizationId: ownerOrgId, websiteId: site.id },
+    (reservations) => ({
+      id: `website-audit:${reservations[0].id}`,
+      name: "website/audit.requested",
+      data: { websiteId: site.id, organizationId: ownerOrgId, reservations },
+    }),
+  );
+  if (!slot.ok) {
+    return {
+      ok: false,
+      error: "You have run this many times in the last hour. Please try again shortly.",
+    };
+  }
 
   revalidatePath(`/websites/${site.id}`);
   return { ok: true, data: null };

@@ -1,224 +1,364 @@
-import { and, eq, isNotNull } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 
+import {
+  guardLinks,
+  internalLinkKeys,
+  siteScope,
+  type LinkFinding,
+  type LinkTarget,
+  type LinkVerdict,
+} from "@/lib/articles/link-guard";
+import { findVerifiedTargets, pageTitle } from "@/lib/articles/link-inventory";
+import { reviewHash } from "@/lib/articles/review";
+import { ArticleInFlightError, lockForEdit } from "@/lib/publishing/dispatch";
+import { cachedPages, verifyUrls, type VerifyOptions } from "@/lib/articles/link-verify";
 import { db } from "@/lib/db";
-import { articles, pages } from "@/lib/db/schema";
+import { articles, articleVersions, publishLogs, websites } from "@/lib/db/schema";
 
 /**
- * Internal linking.
+ * Internal links, end to end.
  *
- * The audit already reports pages that nothing links to; it has never been able
- * to fix them. This adds the links, which is the half customers are paying for.
+ * Three entry points, one rule - a link to the customer's site is only ever
+ * written to a page verified to exist there:
  *
- * Links are inserted AFTER generation rather than requested in the prompt. Asked
- * to add links itself, the model invents plausible URLs that do not exist —
- * broken links on a customer's live site are worse than no links, and there is
- * no reliable way to talk a model out of it. Here every href comes from a row
- * we crawled, so a link either exists or is never written.
+ *  - linkGeneratedArticle: straight after the writer. Removes any link it
+ *    made up, then adds up to the website's internalLinkTarget links to
+ *    verified, relevant pages. Nothing verifiable, nothing added.
+ *  - prepareStoredArticle: at every publication boundary (the WordPress
+ *    plugin's pull, direct CMS publishing, scheduled and retried publishes),
+ *    so drafts written before this fix are repaired before they go out.
+ *    Confirmed defects are fixed; links that could not be checked right now
+ *    are kept and reported. The original is kept as a version.
+ *  - auditArticleLinks: a dry run for one website's selected articles.
+ *    Writes nothing.
  *
- * Matching is by title and keyword overlap. The pages table has an embedding
- * column, but nothing populates it (that needs an embedding provider we do not
- * have a key for), so semantic matching is not available. Overlap is cruder but
- * it is honest about what it knows, and it never invents a target.
+ * See link-guard.ts for the per-link rules, link-verify.ts for what counts as
+ * a page existing, and link-inventory.ts for where candidates come from.
  */
 
-/** Links added to one article. Beyond this, a page reads as spam. */
-const MAX_LINKS = 4;
+type Site = { id: string; url: string; domain: string; sitemapUrl: string | null };
 
-/** A candidate must share at least this many distinctive words to qualify. */
-const MIN_OVERLAP = 2;
+async function loadSite(websiteId: string): Promise<Site | null> {
+  const [site] = await db
+    .select({ id: websites.id, url: websites.url, domain: websites.domain, sitemapUrl: websites.sitemapUrl })
+    .from(websites)
+    .where(eq(websites.id, websiteId))
+    .limit(1);
+  return site ?? null;
+}
 
-export type LinkTarget = {
-  url: string;
+/** Verified pages already known for this site: replacements that cost no request. */
+async function knownTargets(websiteId: string): Promise<LinkTarget[]> {
+  return (await cachedPages(websiteId))
+    .filter((verdict) => verdict.isHtml)
+    .map((verdict) => ({
+      url: verdict.finalUrl ?? verdict.url,
+      title: pageTitle(verdict.title) ?? "",
+      score: 0,
+    }))
+    .filter((target) => target.title);
+}
+
+const count = (findings: LinkFinding[], outcome: LinkFinding["outcome"]) =>
+  findings.filter((finding) => finding.outcome === outcome).length;
+
+/** Counts only - never URLs or text, which are the customer's content. */
+export function summarize(findings: LinkFinding[], inserted = 0) {
+  return {
+    kept: count(findings, "kept"),
+    rewritten: count(findings, "rewritten"),
+    replaced: count(findings, "replaced"),
+    unwrapped: count(findings, "unwrapped"),
+    trimmed: count(findings, "trimmed"),
+    unverified: count(findings, "unverified"),
+    inserted,
+  };
+}
+
+/* ------------------------------------------------------------------------ */
+/* New articles                                                             */
+/* ------------------------------------------------------------------------ */
+
+export type GeneratedLinkInput = {
+  websiteId: string;
+  /** The article being written, when it already has a public address (a rewrite). */
+  articleId?: string | null;
   title: string;
-  /** How many distinctive words this target shares with the article. */
-  score: number;
+  targetKeyword: string | null;
+  html: string;
+  /** The website's internalLinkTarget: a maximum for automatic links, 0 for none. */
+  internalLinkTarget: number;
+  /** A matched backlink the article must keep, whatever it is. */
+  backlinkUrl?: string | null;
+};
+
+export async function linkGeneratedArticle(
+  input: GeneratedLinkInput,
+  options: VerifyOptions = {},
+): Promise<{ html: string; inserted: LinkTarget[]; findings: LinkFinding[] }> {
+  const site = await loadSite(input.websiteId);
+  if (!site) throw new Error(`Website ${input.websiteId} not found`);
+  const scope = siteScope(site);
+
+  let articleUrl: string | null = null;
+  if (input.articleId) {
+    const [row] = await db
+      .select({ publishedUrl: articles.publishedUrl })
+      .from(articles)
+      .where(and(eq(articles.id, input.articleId), eq(articles.websiteId, input.websiteId)))
+      .limit(1);
+    articleUrl = row?.publishedUrl ?? null;
+  }
+
+  const limit = Math.max(0, Math.floor(input.internalLinkTarget || 0));
+  const keys = internalLinkKeys(input.html, scope, articleUrl);
+  const budgetMs = options.budgetMs ?? 20_000;
+  const started = Date.now();
+  const verdicts = keys.length > 0 ? await verifyUrls(site.id, keys, scope, { ...options, budgetMs }) : new Map<string, LinkVerdict>();
+
+  const remaining = Math.max(2_000, budgetMs - (Date.now() - started));
+  // With a limit of 0 every internal link is removed anyway: nothing to look up.
+  const targets =
+    limit > 0
+      ? await findVerifiedTargets(
+          {
+            websiteId: site.id,
+            scope,
+            sitemapUrl: site.sitemapUrl,
+            subject: `${input.title} ${input.targetKeyword ?? ""}`,
+            excludeUrls: articleUrl ? [articleUrl] : [],
+            limit,
+          },
+          { ...options, budgetMs: remaining },
+        )
+      : [];
+
+  const result = guardLinks(input.html, {
+    scope,
+    mode: "generated",
+    verdicts,
+    articleUrl,
+    targets,
+    maxAutoLinks: limit,
+    protectedHrefs: input.backlinkUrl ? [input.backlinkUrl] : [],
+  });
+  return { html: result.html, inserted: result.inserted, findings: result.findings };
+}
+
+/**
+ * The same rules with no network at all: every internal link the writer
+ * made is unverified, so it goes; placeholders and dead section links go.
+ * Used when checking itself failed, so a failure can only ever remove an
+ * unproven link, never publish one.
+ */
+export function stripUnverifiedLinks(
+  html: string,
+  site: { url: string; domain: string },
+  backlinkUrl?: string | null,
+): string {
+  return guardLinks(html, {
+    scope: siteScope(site),
+    mode: "generated",
+    verdicts: new Map(),
+    maxAutoLinks: 0,
+    protectedHrefs: backlinkUrl ? [backlinkUrl] : [],
+  }).html;
+}
+
+/* ------------------------------------------------------------------------ */
+/* Stored articles, at publication                                          */
+/* ------------------------------------------------------------------------ */
+
+export type PreparedArticle = {
+  /** The HTML to deliver: repaired when a confirmed defect was found. */
+  html: string;
+  changed: boolean;
+  findings: LinkFinding[];
 };
 
 /**
- * Words too common to signal that two pages are about the same thing.
- * Matching on these produces links between unrelated pages.
- */
-const STOP_WORDS = new Set([
-  "the", "a", "an", "and", "or", "but", "for", "of", "to", "in", "on", "at",
-  "by", "with", "from", "as", "is", "are", "was", "were", "be", "been", "it",
-  "its", "this", "that", "these", "those", "you", "your", "we", "our", "how",
-  "what", "why", "when", "where", "which", "who", "can", "do", "does", "will",
-  "best", "top", "guide", "tips", "new", "more", "most", "about", "home",
-]);
-
-/** Distinctive words in a phrase, lowercased and de-duplicated. */
-export function keyWords(text: string): Set<string> {
-  return new Set(
-    text
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, " ")
-      .split(/[\s-]+/)
-      .filter((word) => word.length > 3 && !STOP_WORDS.has(word)),
-  );
-}
-
-/** Distinctive words shared by two phrases. */
-export function overlap(a: string, b: string): number {
-  const wordsB = keyWords(b);
-  let shared = 0;
-  for (const word of keyWords(a)) {
-    if (wordsB.has(word)) shared += 1;
-  }
-  return shared;
-}
-
-/**
- * Finds pages on the customer's own site worth linking to from this article.
+ * Checks a stored article's links before it is published, fixes confirmed
+ * defects in the stored copy, and returns exactly what was stored.
  *
- * Ranked by shared words, and anything under MIN_OVERLAP is dropped entirely
- * rather than padded out to fill MAX_LINKS. A weak link is worse than no link:
- * it dilutes the page and reads as filler to both search engines and readers.
+ * - The original is saved as a version first, so nothing is lost.
+ * - The update only lands if the body is still the one that was checked:
+ *   an edit saved in between wins, and that newer body is checked instead.
+ * - A link that could not be verified right now is KEPT (and reported):
+ *   stored content may be hand-edited, and a timeout proves nothing.
+ * - Nothing is added here; automatic links are chosen when an article is
+ *   written, not at publication.
  */
-export async function findLinkTargets(
+export async function prepareStoredArticle(
+  articleId: string,
   websiteId: string,
-  articleTitle: string,
-  targetKeyword: string | null,
-  excludeUrl: string | null,
-): Promise<LinkTarget[]> {
-  const crawled = await db
-    .select({ url: pages.url, title: pages.title })
-    .from(pages)
-    .where(and(eq(pages.websiteId, websiteId), isNotNull(pages.title)));
+  options: VerifyOptions = {},
+): Promise<PreparedArticle | null> {
+  const site = await loadSite(websiteId);
+  if (!site) return null;
+  const scope = siteScope(site);
+  const targets = await knownTargets(websiteId);
 
-  /**
-   * Published articles are candidates too, so a site's own content links to
-   * itself as the library grows — the compounding effect customers expect.
-   */
-  const published = await db
-    .select({ url: articles.publishedUrl, title: articles.title })
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const [article] = await db
+      .select({
+        bodyHtml: articles.bodyHtml,
+        publishedUrl: articles.publishedUrl,
+        title: articles.title,
+        slug: articles.slug,
+        metaDescription: articles.metaDescription,
+        imageUrl: articles.imageUrl,
+        imageAlt: articles.imageAlt,
+        reviewStatus: articles.reviewStatus,
+        reviewApprovedHash: articles.reviewApprovedHash,
+      })
+      .from(articles)
+      .where(and(eq(articles.id, articleId), eq(articles.websiteId, websiteId)))
+      .limit(1);
+    if (!article?.bodyHtml) return null;
+    const original = article.bodyHtml;
+
+    const keys = internalLinkKeys(original, scope, article.publishedUrl);
+    const verdicts = keys.length > 0 ? await verifyUrls(websiteId, keys, scope, options) : new Map<string, LinkVerdict>();
+    const result = guardLinks(original, {
+      scope,
+      mode: "existing",
+      verdicts,
+      articleUrl: article.publishedUrl,
+      targets,
+    });
+    if (!result.changed) return { html: original, changed: false, findings: result.findings };
+
+    /*
+      An APPROVED article (lib/articles/review.ts) that is still exactly what
+      was approved: a repair that only removes or re-points broken links
+      keeps the approval, re-hashed to the repaired text. A repair that puts
+      a DIFFERENT page in (a replacement) withdraws it - an administrator
+      looks again before anything with new content goes out.
+    */
+    const approvedAndCurrent =
+      article.reviewStatus === "approved" && article.reviewApprovedHash === reviewHash(article);
+    const substituted = result.findings.some((finding) => finding.outcome === "replaced");
+    const review =
+      approvedAndCurrent && !substituted
+        ? { reviewApprovedHash: reviewHash({ ...article, bodyHtml: result.html }) }
+        : approvedAndCurrent
+          ? {
+              reviewStatus: "pending",
+              reviewApprovedAt: null,
+              reviewApprovedBy: null,
+              reviewApprovedHash: null,
+              reviewVersion: sql`${articles.reviewVersion} + 1`,
+            }
+          : {};
+
+    /*
+      Under the article's row lock like every edit; while a revision of it is
+      being sent (lib/publishing/dispatch.ts) the repair waits for the next
+      delivery rather than changing what is in flight.
+    */
+    const saved = await db.transaction(async (tx) => {
+      try {
+        await lockForEdit(tx, articleId);
+      } catch (error) {
+        if (error instanceof ArticleInFlightError) return false;
+        throw error;
+      }
+      const updated = await tx
+        .update(articles)
+        .set({ bodyHtml: result.html, updatedAt: new Date(), ...review })
+        .where(and(eq(articles.id, articleId), eq(articles.bodyHtml, original)))
+        .returning({ id: articles.id });
+      if (updated.length === 0) return false;
+      // The pre-repair body, as the editor keeps every earlier body.
+      await tx.insert(articleVersions).values({ articleId, bodyHtml: original });
+      return true;
+    });
+    if (saved) return { html: result.html, changed: true, findings: result.findings };
+    // Edited while we checked: check the newer body instead.
+  }
+
+  const [latest] = await db
+    .select({ bodyHtml: articles.bodyHtml })
     .from(articles)
-    .where(
-      and(
-        eq(articles.websiteId, websiteId),
-        eq(articles.status, "published"),
-        isNotNull(articles.publishedUrl),
-      ),
-    );
-
-  const subject = `${articleTitle} ${targetKeyword ?? ""}`;
-  const seen = new Set<string>();
-  const candidates: LinkTarget[] = [];
-
-  for (const row of [...crawled, ...published]) {
-    if (!row.url || !row.title) continue;
-    // Never link a page to itself, and never link the same target twice.
-    if (excludeUrl && row.url === excludeUrl) continue;
-    if (seen.has(row.url)) continue;
-    seen.add(row.url);
-
-    const score = overlap(subject, row.title);
-    if (score >= MIN_OVERLAP) {
-      candidates.push({ url: row.url, title: row.title, score });
-    }
-  }
-
-  return candidates.sort((a, b) => b.score - a.score).slice(0, MAX_LINKS);
+    .where(and(eq(articles.id, articleId), eq(articles.websiteId, websiteId)))
+    .limit(1);
+  return latest?.bodyHtml ? { html: latest.bodyHtml, changed: false, findings: [] } : null;
 }
 
-/** Escapes a string for safe use inside a regular expression. */
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
+/* ------------------------------------------------------------------------ */
+/* Dry-run audit                                                            */
+/* ------------------------------------------------------------------------ */
 
-/** HTML-escapes an attribute value. */
-function escapeAttr(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/"/g, "&quot;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-}
+export type AuditRow = {
+  articleId: string;
+  title: string;
+  status: string;
+  /** The WordPress (or other CMS) post id, when a publish recorded one. */
+  remotePostId: string | null;
+  publicUrl: string | null;
+  findings: LinkFinding[];
+  /** What the stored body would become. Nothing is written. */
+  wouldChange: boolean;
+};
 
 /**
- * Inserts links into article HTML.
- *
- * Anchor text is an existing phrase in the body, not text we add: rewriting a
- * sentence to fit a link changes the customer's copy, and a link that reads as
- * bolted on is worse for the reader than no link.
- *
- * Only the FIRST occurrence of a phrase is linked, and only inside a paragraph.
- * Linking every occurrence produces the over-optimised look search engines
- * penalise, and linking inside a heading breaks the page outline.
+ * Reports what prepareStoredArticle would do to each selected article, and
+ * does none of it: no article, version or cache row is written. The network
+ * checks are real (read-only GETs of the customer's own pages).
  */
-export function insertLinks(html: string, targets: LinkTarget[]): string {
-  let result = html;
-  let inserted = 0;
-
-  for (const target of targets) {
-    if (inserted >= MAX_LINKS) break;
-
-    /**
-     * Longest words first: a specific phrase makes better anchor text than a
-     * single common word, and reads more naturally to a human.
-     */
-    const phrases = [...keyWords(target.title)].sort(
-      (a, b) => b.length - a.length,
-    );
-
-    for (const phrase of phrases) {
-      /**
-       * Matched only in body text: the negative lookahead skips anything
-       * already inside a tag or an existing anchor, so links are never nested
-       * and attributes are never corrupted.
-       */
-      const pattern = new RegExp(
-        `(<p>(?:(?!</p>|<a\\b).)*?)\\b(${escapeRegExp(phrase)})\\b`,
-        "i",
-      );
-
-      if (!pattern.test(result)) continue;
-
-      result = result.replace(
-        pattern,
-        `$1<a href="${escapeAttr(target.url)}">$2</a>`,
-      );
-      inserted += 1;
-      break;
-    }
-  }
-
-  return result;
-}
-
-/**
- * Adds internal links to an article body.
- *
- * Returns the original HTML unchanged when there is nothing worth linking to —
- * a new site with three crawled pages genuinely has no good targets, and
- * forcing links there would create exactly the low-quality pattern this is
- * meant to avoid.
- */
-export async function addInternalLinks(
+export async function auditArticleLinks(
   websiteId: string,
-  articleTitle: string,
-  targetKeyword: string | null,
-  bodyHtml: string,
-  excludeUrl: string | null = null,
-): Promise<{ html: string; linked: LinkTarget[] }> {
-  const targets = await findLinkTargets(
-    websiteId,
-    articleTitle,
-    targetKeyword,
-    excludeUrl,
-  );
+  articleIds: string[],
+  options: VerifyOptions = {},
+): Promise<AuditRow[]> {
+  const site = await loadSite(websiteId);
+  if (!site) throw new Error(`Website ${websiteId} not found`);
+  if (articleIds.length === 0) return [];
+  const scope = siteScope(site);
+  const targets = await knownTargets(websiteId);
 
-  if (targets.length === 0) {
-    return { html: bodyHtml, linked: [] };
+  const rows = await db
+    .select({
+      id: articles.id,
+      title: articles.title,
+      status: articles.status,
+      bodyHtml: articles.bodyHtml,
+      publishedUrl: articles.publishedUrl,
+    })
+    .from(articles)
+    // Scoped to the website: an article id from elsewhere finds nothing.
+    .where(and(eq(articles.websiteId, websiteId), inArray(articles.id, articleIds)));
+
+  const out: AuditRow[] = [];
+  for (const row of rows) {
+    const [log] = await db
+      .select({ remoteId: publishLogs.remoteId, remoteUrl: publishLogs.remoteUrl })
+      .from(publishLogs)
+      .where(and(eq(publishLogs.articleId, row.id), eq(publishLogs.status, "published")))
+      .orderBy(desc(publishLogs.createdAt))
+      .limit(1);
+
+    const html = row.bodyHtml ?? "";
+    const keys = internalLinkKeys(html, scope, row.publishedUrl);
+    const verdicts = keys.length > 0
+      ? await verifyUrls(websiteId, keys, scope, { ...options, writeCache: false })
+      : new Map<string, LinkVerdict>();
+    const result = guardLinks(html, {
+      scope,
+      mode: "existing",
+      verdicts,
+      articleUrl: row.publishedUrl,
+      targets,
+    });
+    out.push({
+      articleId: row.id,
+      title: row.title,
+      status: row.status,
+      remotePostId: log?.remoteId ?? null,
+      publicUrl: row.publishedUrl ?? log?.remoteUrl ?? null,
+      findings: result.findings.filter((finding) => finding.outcome !== "kept"),
+      wouldChange: result.changed,
+    });
   }
-
-  const html = insertLinks(bodyHtml, targets);
-
-  /**
-   * Reports only the targets whose URL actually appears in the result. A phrase
-   * may not be present in the body, in which case no link was written, and
-   * claiming otherwise would misreport what we did to the customer's article.
-   */
-  const linked = targets.filter((t) => html.includes(`href="${escapeAttr(t.url)}"`));
-
-  return { html, linked };
+  return out;
 }

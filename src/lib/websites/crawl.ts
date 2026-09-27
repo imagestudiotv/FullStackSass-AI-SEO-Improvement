@@ -291,7 +291,24 @@ export async function fetchHomepage(
   isAllowedHost: (candidate: string) => boolean,
 ): Promise<PageSnapshot> {
   const { response, finalUrl } = await fetchFollowing(url, isAllowedHost);
-  const html = await readCapped(response);
+  /*
+    The body read can fail on its own now - the fetch deadline runs until the
+    last byte, and a dropped connection surfaces as an error instead of a read
+    that waits forever - so it is reported the way a failed fetch is.
+  */
+  let html: string;
+  try {
+    html = await readCapped(response);
+  } catch (error) {
+    const name = error instanceof Error ? error.name : "";
+    if (name === "TimeoutError" || name === "AbortError") {
+      throw new CrawlError(`Timed out after ${FETCH_TIMEOUT_MS}ms`, "timeout");
+    }
+    throw new CrawlError(
+      error instanceof Error ? error.message : "The site stopped sending the page",
+      "unreachable",
+    );
+  }
   const $ = cheerio.load(html);
 
   /**

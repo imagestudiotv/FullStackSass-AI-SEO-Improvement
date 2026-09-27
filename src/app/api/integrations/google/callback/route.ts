@@ -1,83 +1,47 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 
+import { getSession } from "@/lib/auth-guard";
 import { saveTokens } from "@/lib/analytics/connection";
 import { exchangeCode, GoogleAuthError } from "@/lib/analytics/google-oauth";
-import { requireWebsite, WebsiteNotFoundError } from "@/lib/tenant";
+import {
+  consumeOAuthState,
+  type ConnectOrigin,
+} from "@/lib/analytics/oauth-state";
+import { requireEditor } from "@/lib/websites/require-editor";
+import { WebsiteNotFoundError } from "@/lib/tenant";
 
 /**
  * Google OAuth callback.
  *
- * The `state` parameter is signed, not merely random. It carries the website
- * id the tokens belong to, and without a signature an attacker could craft a
- * callback naming someone else's website and attach their own Google account
- * to it. The membership check still runs afterwards, so this is defence in
- * depth rather than the only guard.
+ * WHAT CHANGED AND WHY. The state used to be an HMAC over
+ * "<websiteId>.<nonce>.<origin>" with a Math.random() nonce, no expiry and no
+ * record of use, and the handler then called requireWebsite - READ access -
+ * before storing tokens. So:
+ *
+ *   - a captured callback URL could be replayed for ever;
+ *   - anybody holding it could complete a connection someone else started;
+ *   - somebody downgraded from editor to viewer while on Google's consent
+ *     screen could still attach a Google account to that website.
+ *
+ * Now the state is a random single-use row (lib/analytics/oauth-state.ts) bound
+ * to the initiating user, session and website, and CURRENT editor access is
+ * re-checked before any token is written.
+ *
+ * ORDER MATTERS HERE. State is consumed first, then permissions are checked,
+ * then the code is exchanged. Consuming first means a replay is refused before
+ * it can reach Google; checking permissions before the exchange means a
+ * demoted user never causes a token to be minted at all.
  */
 
 export const dynamic = "force-dynamic";
 
-function stateSecret(): string {
-  const value =
-    process.env.CREDENTIALS_ENCRYPTION_KEY ?? process.env.BETTER_AUTH_SECRET;
-  if (!value) throw new Error("No secret available to sign OAuth state");
-  return value;
-}
-
-/**
- * Where the customer pressed Connect, so the callback can send them back there.
- *
- * Signed into the state with the website id, so it cannot be swapped for
- * somewhere else on the way through Google, and it only ever selects one of
- * two fixed paths - never a URL.
- */
-export type ConnectOrigin = "app" | "onboarding";
-
-export function signState(
-  websiteId: string,
-  origin: ConnectOrigin = "app",
-): string {
-  const nonce = Math.random().toString(36).slice(2, 10);
-  const payload = `${websiteId}.${nonce}.${origin}`;
-  const signature = createHmac("sha256", stateSecret())
-    .update(payload)
-    .digest("base64url");
-  return `${payload}.${signature}`;
-}
-
-function verifyState(
-  state: string,
-): { websiteId: string; origin: ConnectOrigin } | null {
-  const parts = state.split(".");
-  // Three parts is a link made before the origin was added; it came from the
-  // app, which is the only place Connect existed then.
-  if (parts.length !== 3 && parts.length !== 4) return null;
-
-  const signature = parts[parts.length - 1];
-  const payload = parts.slice(0, -1).join(".");
-  const expected = createHmac("sha256", stateSecret())
-    .update(payload)
-    .digest("base64url");
-
-  const a = Buffer.from(signature);
-  const b = Buffer.from(expected);
-  // Length check first: timingSafeEqual throws on a mismatch.
-  if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
-
-  return {
-    websiteId: parts[0],
-    origin: parts[2] === "onboarding" ? "onboarding" : "app",
-  };
-}
-
 /**
  * Back to the screen Connect was pressed on.
  *
- * This used to be /websites/<id> - the Website Health page - from before the
- * Google panel moved to its own page. The customer came back from Google to a
- * screen with no Google panel, no "Google connected" message and no property
- * pickers, so a connection that had worked looked exactly like one that had
- * not. From onboarding it also dropped them out of the wizard.
+ * `origin` selects one of two fixed paths and is never a URL, so this cannot
+ * become an open redirect however the callback is called. It is read from the
+ * consumed state row rather than from the query string, so it cannot be
+ * swapped on the way through Google either.
  */
 function back(
   target: { websiteId: string; origin: ConnectOrigin } | null,
@@ -101,32 +65,81 @@ export async function GET(request: Request) {
   const state = url.searchParams.get("state");
   const error = url.searchParams.get("error");
 
-  const target = state ? verifyState(state) : null;
-
-  if (!target) {
-    // A tampered or missing state is not something to explain in detail.
+  /**
+   * A session is required before the state is even looked at: the state is
+   * bound to the session that created it, so an unauthenticated callback can
+   * never match one. Nothing is consumed on this path.
+   */
+  const session = await getSession();
+  if (!session) {
     return back(null, { google: "invalid_request" });
   }
 
+  if (!state) {
+    return back(null, { google: "invalid_request" });
+  }
+
+  /**
+   * CANCELLED IS HANDLED BEFORE CONSUMING.
+   *
+   * Google sends error=access_denied when the customer presses Cancel. Burning
+   * the state there would mean a customer who cancels and immediately presses
+   * Connect again is fine (a new state is issued), but a customer who cancels
+   * and uses the back button is not. The state is left to expire on its own
+   * instead, and the error is reported without redeeming anything.
+   *
+   * The website id is not known at this point - it lives in the unconsumed row
+   * - so this returns to the generic websites list rather than disclosing which
+   * site a state refers to before proving who is asking.
+   */
   if (error) {
-    // The user pressed Cancel on Google's consent screen; not a failure.
-    return back(target, { google: error === "access_denied" ? "cancelled" : "error" });
+    return back(null, {
+      google: error === "access_denied" ? "cancelled" : "error",
+    });
   }
 
   if (!code) {
-    return back(target, { google: "error" });
+    return back(null, { google: "error" });
   }
 
-  const { websiteId } = target;
+  /**
+   * Single-use redemption, bound to this user and session. Unknown, expired,
+   * already-used and someone-else's states are all refused identically - see
+   * consumeOAuthState for why they are not distinguished.
+   */
+  const consumed = await consumeOAuthState({
+    state,
+    provider: "google",
+    userId: session.user.id,
+    sessionId: session.session.id,
+  });
 
+  if (!consumed.ok) {
+    return back(null, { google: "invalid_request" });
+  }
+
+  const { websiteId, origin, codeVerifier } = consumed.state;
+  const target = { websiteId, origin };
+
+  /**
+   * CURRENT permission, not the permission held when Connect was pressed.
+   *
+   * requireEditor, not requireWebsite: storing a Google token is a write, and
+   * a viewer must not be able to complete one. Someone downgraded from editor
+   * to viewer while on the consent screen is refused here - which is the
+   * window the old code left open.
+   */
   try {
-    /**
-     * Membership is re-checked here even though state is signed: the signature
-     * proves the link came from us, not that THIS session may connect that
-     * website. A shared or forwarded callback URL must not work.
-     */
-    await requireWebsite(websiteId);
+    const guard = await requireEditor(websiteId);
+    if (!guard.ok) {
+      return back(target, { google: "forbidden" });
+    }
   } catch (caught) {
+    /*
+      The website was deleted, or this person is no longer in the workspace that
+      owns it. Reported without the website id, since the target may no longer
+      be theirs to know about.
+    */
     if (caught instanceof WebsiteNotFoundError) {
       return back(null, { google: "forbidden" });
     }
@@ -134,10 +147,15 @@ export async function GET(request: Request) {
   }
 
   try {
-    const tokens = await exchangeCode(code);
+    /*
+      The verifier proves this exchange belongs to the authorization this server
+      started. It never went through the browser.
+    */
+    const tokens = await exchangeCode(code, codeVerifier);
     await saveTokens(websiteId, tokens);
   } catch (caught) {
     if (caught instanceof GoogleAuthError) {
+      // The message, never the code or any token.
       console.error(`[google] connecting ${websiteId} failed: ${caught.message}`);
       return back(target, { google: "error" });
     }

@@ -1,5 +1,6 @@
-import { request as httpsRequest } from "node:https";
-import { Readable } from "node:stream";
+import { safeFetch, type SafeFetchDeps, type SafeFetchInit } from "@/lib/net/safe-fetch";
+
+type BodyLimits = Pick<SafeFetchInit, "maxBytes" | "overflow">;
 
 /**
  * Fetches a customer's page over Node's classic TLS stack rather than `fetch`.
@@ -32,9 +33,6 @@ import { Readable } from "node:stream";
  * is the only thing that changes: redirects, timeouts and byte caps stay with
  * the caller.
  */
-
-/** Response headers we surface. Node lowercases these for us. */
-type Headers_ = Record<string, string | string[] | undefined>;
 
 /**
  * The header set a current Chrome actually sends for a top-level navigation.
@@ -84,111 +82,53 @@ function requestOnce(
   headers: Record<string, string>,
   timeoutMs: number,
   signal: AbortSignal,
+  deps: SafeFetchDeps,
+  limits: BodyLimits,
 ): Promise<Response> {
-  return new Promise((resolve, reject) => {
-    const req = httpsRequest(
-      url,
-      { method: "GET", headers, signal },
-      (res) => {
-        const status = res.statusCode ?? 0;
-        const raw = res.headers as Headers_;
-
-        const out = new Headers();
-        for (const [key, value] of Object.entries(raw)) {
-          if (value === undefined) continue;
-          // set-cookie arrives as an array; everything else is a string.
-          if (Array.isArray(value)) for (const v of value) out.append(key, v);
-          else out.set(key, value);
-        }
-
-        /*
-          A 204/304 must not carry a body, and constructing a Response with
-          one for those statuses throws. Redirects are bodyless in practice
-          and we only want their Location header.
-        */
-        const bodyless = status === 204 || status === 304;
-        if (bodyless) {
-          res.resume();
-          resolve(new Response(null, { status, headers: out }));
-          return;
-        }
-
-        /**
-         * The body stream needs its OWN error handler, or an abort mid-download
-         * hangs the caller forever.
-         *
-         * This promise has already resolved by the time the body streams, so a
-         * later error cannot reject it — it lands on `res` instead. Without a
-         * listener there, Node raises it as an unhandled 'error' event and the
-         * web stream that readCapped is awaiting simply never settles: no
-         * chunk, no `done`, no throw. The request looks alive, the screen
-         * spins, and nothing times out because the socket did receive data.
-         *
-         * babylovegrowth.ai is the case that showed this up. Its homepage is
-         * 1.56 MB behind two redirects, so the body takes seconds to arrive —
-         * a wide enough window for the caller's deadline to land in the middle
-         * of the download rather than before it, which is when this path is
-         * taken. Destroying the stream converts the dangling read into a
-         * rejection the caller can actually see.
-         */
-        res.on("error", (error) => {
-          res.destroy();
-          // Surfaces through readCapped's pending read() as a rejection.
-          void error;
-        });
-
-        resolve(
-          new Response(Readable.toWeb(res) as ReadableStream, {
-            status,
-            headers: out,
-          }),
-        );
-      },
-    );
-
-    /*
-      Node's socket timeout fires on inactivity, not total duration, so the
-      caller's AbortSignal remains the real deadline. This only stops a
-      connection that opens and then says nothing at all.
-    */
-    req.setTimeout(timeoutMs, () => {
-      req.destroy(new Error(`Timed out after ${timeoutMs}ms`));
-    });
-
-    req.on("error", reject);
-    req.end();
-  });
+  /*
+    Through safeFetch, which is node:https underneath (the transport this file
+    exists for) and which checks every address the hostname resolves to and
+    connects only to those - the crawler's per-hop hostname check alone let a
+    public name that resolves to 127.0.0.1 or 169.254.169.254 through.
+    "manual": the caller follows redirects itself, one validated hop at a time.
+  */
+  return safeFetch(
+    url,
+    // timeoutMs is one deadline for the whole exchange, body included: the
+    // crawler's own timer stops when headers arrive, before the body is read.
+    { method: "GET", headers, signal, redirect: "manual", timeoutMs, ...limits },
+    { idleTimeoutMs: timeoutMs, ...deps },
+  );
 }
 
 /**
- * Fetches a page, preferring node:https and falling back to global fetch.
+ * Fetches a page over the guarded node:https transport.
  *
- * THE FALLBACK IS NOT REDUNDANT. node:https speaks only HTTP/1.1, and while
- * every server in use today still offers it, a host that one day serves
- * HTTP/2 exclusively would fail here and succeed on undici. The two clients
- * fail in different circumstances, so trying both is strictly better than
- * either alone — and this function is on the path of the very first screen a
- * customer sees, where a failure costs the whole signup.
+ * NO FALLBACK TO fetch ANY MORE. It used to retry with global fetch after any
+ * transport failure, as insurance against a hypothetical HTTP/2-only server -
+ * and that retry bypassed every address check: a blocked private address
+ * failed here and was then fetched by undici, which resolves the name itself.
+ * A guard with a way around it is not a guard.
  *
- * Only a TRANSPORT failure falls through. An HTTP response of any status —
- * including the 403 this file exists to avoid — is returned as-is, because
- * the caller distinguishes those and a retry would not change the answer.
+ * An HTTP response of any status is returned as-is; the caller distinguishes
+ * those.
  */
 export async function fetchPage(
   url: string,
   headers: Record<string, string>,
   timeoutMs: number,
   signal: AbortSignal,
+  /** Test seam: simulated DNS and sockets. See lib/net/safe-fetch.ts. */
+  deps: SafeFetchDeps = {},
+  /**
+   * Body limits, passed to safeFetch. With overflow "truncate" the body ends
+   * cleanly at maxBytes and the connection is dropped - the way to read only
+   * the start of a page. Cancelling a body part way instead can make Node's
+   * stream bridge throw "Controller is already closed" outside any handler.
+   */
+  limits: BodyLimits = {},
 ): Promise<Response> {
-  let response: Response;
-  try {
-    response = await requestOnce(url, headers, timeoutMs, signal);
-  } catch (error) {
-    // An abort is the caller's own deadline; retrying would ignore it.
-    if (signal.aborted) throw error;
-
-    response = await fetch(url, { signal, redirect: "manual", headers });
-  }
+  const response = await requestOnce(url, headers, timeoutMs, signal, deps, limits);
 
   /**
    * A refusal gets ONE second attempt with a full browser header set.
@@ -232,6 +172,8 @@ export async function fetchPage(
         { ...headers, ...BROWSER_HEADERS },
         timeoutMs,
         signal,
+        deps,
+        limits,
       );
       // Only take the retry if it actually did better.
       if (retried.status < 400) return retried;

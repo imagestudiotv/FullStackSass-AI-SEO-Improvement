@@ -1,4 +1,5 @@
 import { isPublicWebsiteUrl, normalizeWebsiteUrl } from "@/lib/websites/url";
+import { safeFetch } from "@/lib/net/safe-fetch";
 
 /**
  * Reading a site's own sitemap to find pages worth linking to.
@@ -67,14 +68,17 @@ async function fetchText(url: string): Promise<string | null> {
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
-    const response = await fetch(url, {
+    const response = await safeFetch(url, {
       signal: controller.signal,
+      // Cut while streaming, and the deadline covers reading the body too.
+      maxBytes: MAX_BYTES,
+      overflow: "truncate",
+      timeoutMs: TIMEOUT_MS,
       headers: { accept: "application/xml,text/xml", "user-agent": "SEOVisionBot/1.0" },
     });
     if (!response.ok) return null;
 
-    const text = await response.text();
-    return text.slice(0, MAX_BYTES);
+    return await response.text();
   } catch {
     return null;
   } finally {
@@ -89,7 +93,7 @@ async function fetchText(url: string): Promise<string | null> {
  * is capped, and adding a parser dependency for one tag is not a trade worth
  * making. Entities are decoded because & is legal and common in query strings.
  */
-function extractLocs(xml: string): { loc: string; lastmod: string | null }[] {
+export function extractLocs(xml: string): { loc: string; lastmod: string | null }[] {
   const out: { loc: string; lastmod: string | null }[] = [];
 
   // Each <url> or <sitemap> block, so lastmod stays paired with its loc.
@@ -116,7 +120,7 @@ function extractLocs(xml: string): { loc: string; lastmod: string | null }[] {
 }
 
 /** True when this looks like an index of other sitemaps rather than pages. */
-function isSitemapIndex(xml: string): boolean {
+export function isSitemapIndex(xml: string): boolean {
   return /<sitemapindex[\s>]/i.test(xml);
 }
 
@@ -138,7 +142,15 @@ function isUsefulTarget(url: string, origin: string): boolean {
   // Only the customer's own site: a sitemap can legally list anything.
   if (parsed.origin !== origin) return false;
 
-  const path = parsed.pathname.replace(/\/+$/, "");
+  return isUsefulPath(parsed.pathname);
+}
+
+/**
+ * The path half of isUsefulTarget, for callers that decide "same site"
+ * themselves (the internal linker accepts a site's www twin as well).
+ */
+export function isUsefulPath(pathname: string): boolean {
+  const path = pathname.replace(/\/+$/, "");
 
   // The homepage. It needs the link least and is what people pick by default.
   if (path === "") return false;

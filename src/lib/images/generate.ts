@@ -1,4 +1,18 @@
 import { imageStylePrompt } from "@/lib/websites/article-options";
+import { safeFetch } from "@/lib/net/safe-fetch";
+import {
+  ARTICLE_IMAGE_HEIGHT,
+  ARTICLE_IMAGE_WIDTH,
+  LANDSCAPE_COMPOSITION,
+  openAiSize,
+  toArticleImage,
+} from "@/lib/images/process";
+
+/**
+ * Downloading a generated image from the URL a provider returned: public
+ * addresses only, at most 25 MB (checked while streaming), within 60 seconds.
+ */
+const IMAGE_DOWNLOAD = { maxBytes: 25 * 1024 * 1024, timeoutMs: 60_000 };
 
 /**
  * Article images.
@@ -26,10 +40,12 @@ import { imageStylePrompt } from "@/lib/websites/article-options";
 export type ImageProvider = "openai" | "replicate";
 
 export type GeneratedImage = {
-  /** Raw image bytes, ready to upload to the customer's CMS. */
+  /** Raw image bytes, ready to upload: always a 1280 x 720 JPEG (lib/images/process.ts). */
   data: Buffer;
-  /** MIME type, for the upload. */
+  /** MIME type, for the upload: image/jpeg. */
   contentType: string;
+  width: number;
+  height: number;
   /** Alt text describing the image, required for accessibility and SEO. */
   alt: string;
   /** What it cost us, in USD, for per-tenant cost tracking. */
@@ -126,6 +142,7 @@ function buildPrompt(
     brief ? `Brand look: ${brief}` : null,
     instructions,
     "Suitable as a blog header.",
+    LANDSCAPE_COMPOSITION,
     "No text, no words, no letters, no logos, no watermarks in the image.",
   ]
     .filter(Boolean)
@@ -163,12 +180,14 @@ async function generateWithOpenAi(
       prompt,
       n: 1,
       /**
-       * gpt-image-2 accepts arbitrary resolutions, but 1024x1024 is the one
-       * size every image model supports, so switching models never breaks the
-       * request. `response_format` is deliberately NOT sent: it is a dall-e
+       * The widest landscape size THIS model documents (1536x1024 for the
+       * gpt-image models), or the universal square for anything else - never
+       * the final 1280x720, which no model offers. The result is cropped or
+       * fitted to 1280x720 afterwards (lib/images/process.ts).
+       * `response_format` is deliberately NOT sent: it is a dall-e
        * parameter, and the GPT image models reject it.
        */
-      size: "1024x1024",
+      size: openAiSize(openAiModel()),
     }),
   });
 
@@ -207,7 +226,9 @@ async function generateWithOpenAi(
    * links expire, and a stored one becomes a broken image on a live page.
    */
   if (first?.url) {
-    const image = await fetch(first.url);
+    // A URL the provider's response named: fetched through the public-
+    // address guard like any other destination we did not choose.
+    const image = await safeFetch(first.url, IMAGE_DOWNLOAD);
     if (!image.ok) throw new Error("Could not download the generated image");
     return { data: Buffer.from(await image.arrayBuffer()), costUsd };
   }
@@ -261,7 +282,7 @@ async function generateWithReplicate(
   const url = Array.isArray(body.output) ? body.output[0] : body.output;
   if (!url) throw new Error("Image provider returned no image");
 
-  const image = await fetch(url);
+  const image = await safeFetch(url, IMAGE_DOWNLOAD);
   if (!image.ok) throw new Error("Could not download the generated image");
   return {
     data: Buffer.from(await image.arrayBuffer()),
@@ -312,7 +333,7 @@ export async function generateArticleImage(
 
   const wanted = customPrompt?.trim();
   const prompt = wanted
-    ? `${wanted.slice(0, 500)} No text, no words, no letters, no logos, no watermarks in the image.`
+    ? `${wanted.slice(0, 500)} ${LANDSCAPE_COMPOSITION} No text, no words, no letters, no logos, no watermarks in the image.`
     : buildPrompt(
         title,
         industry,
@@ -326,10 +347,18 @@ export async function generateArticleImage(
       ? await generateWithOpenAi(prompt)
       : await generateWithReplicate(prompt);
 
+  /*
+    Whatever the provider sent - a 3:2 PNG, a 16:9 WebP, a square - becomes a
+    verified 1280x720 JPEG here, for the first generation, a regeneration
+    and a publish-time generation alike: all three come through this function.
+  */
+  const image = await toArticleImage(generated.data);
+
   return {
-    data: generated.data,
-    // Both providers return PNG by default for these models.
-    contentType: "image/png",
+    data: image.data,
+    contentType: image.contentType,
+    width: ARTICLE_IMAGE_WIDTH,
+    height: ARTICLE_IMAGE_HEIGHT,
     /**
      * Alt text describes the article subject rather than the picture. A
      * screen-reader user gains nothing from "a photograph", and search engines

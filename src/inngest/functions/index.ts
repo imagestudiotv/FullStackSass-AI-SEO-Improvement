@@ -13,8 +13,10 @@ import { activateExchange } from "./activate-exchange";
 import { analyzeWebsite } from "./analyze-website";
 import { auditWebsite } from "./audit-website";
 import { checkGeo } from "./check-geo";
+import { collectAuthority } from "./collect-authority";
 import { generateArticle } from "./generate-article";
 import { importAnalytics, importAnalyticsDaily } from "./import-analytics";
+import { billingMaintenance, deliverOutbox } from "./maintenance";
 import { publishArticleJob } from "./publish-article";
 import { researchKeywords } from "./research-keywords";
 import { scheduledArticles } from "./scheduled-articles";
@@ -32,4 +34,7 @@ export const functions = [
   scheduledArticles,
   importAnalytics,
   importAnalyticsDaily,
+  deliverOutbox,
+  billingMaintenance,
+  collectAuthority,
 ];

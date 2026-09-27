@@ -9,6 +9,20 @@ import { getSession } from "@/lib/auth-guard";
  * outside the database entirely. Changing who is an admin means a deploy,
  * which is the correct amount of friction for this.
  *
+ * AN ALLOWLISTED ADDRESS IS NOT ENOUGH: IT MUST BE PROVEN. Email/password
+ * signup is open and does not verify the address, so anyone could register
+ * an allowlisted address with a password of their choosing and, before this
+ * check, walk straight into the admin area. Admin access therefore also
+ * requires `emailVerified === true` on the session's user, which Better Auth
+ * only sets after the mailbox was proven - a Google sign-in, or a one-time
+ * code sent to that address. The one-time-code sign-in also revokes every
+ * password, linked account and session the account held before the proof
+ * (see lib/auth.ts), so a pre-registered password cannot ride along. Anything
+ * other than the boolean `true` - false, missing, null - is not verified.
+ *
+ * requireAdmin() and isAdmin() apply the SAME rule (adminFromSession), because
+ * isAdmin() is not only cosmetic: API routes use it as their gate.
+ *
  * There is deliberately no UI for granting it.
  */
 
@@ -43,20 +57,34 @@ export function isAdminEmail(email: string | null | undefined): boolean {
 
 export type AdminContext = { userId: string; email: string };
 
-/** Throws NotAdminError unless the caller is a listed administrator. */
-export async function requireAdmin(): Promise<AdminContext> {
-  const session = await getSession();
-  if (!session) throw new NotAdminError();
+type SessionLike = {
+  user: { id: string; email: string; emailVerified?: boolean | null };
+} | null | undefined;
 
-  if (!isAdminEmail(session.user.email)) {
-    throw new NotAdminError();
-  }
-
+/**
+ * The admin decision, for a session already read. Null unless there is a
+ * session, its user's address is PROVEN (emailVerified strictly true), and
+ * that address is on the allowlist.
+ */
+export function adminFromSession(session: SessionLike): AdminContext | null {
+  if (!session?.user) return null;
+  if (session.user.emailVerified !== true) return null;
+  if (!isAdminEmail(session.user.email)) return null;
   return { userId: session.user.id, email: session.user.email };
 }
 
-/** True when the current caller is an admin. For conditional UI only. */
+/** Throws NotAdminError unless the caller is a verified, listed administrator. */
+export async function requireAdmin(): Promise<AdminContext> {
+  const admin = adminFromSession(await getSession());
+  if (!admin) throw new NotAdminError();
+  return admin;
+}
+
+/**
+ * True when the current caller is a verified, listed administrator. The same
+ * rule as requireAdmin: API routes rely on it as an authorization check, and
+ * the menu must not offer an area the server would refuse.
+ */
 export async function isAdmin(): Promise<boolean> {
-  const session = await getSession();
-  return isAdminEmail(session?.user.email);
+  return adminFromSession(await getSession()) !== null;
 }
