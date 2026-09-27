@@ -28,7 +28,7 @@ import {
   summarize,
 } from "@/lib/articles/internal-links";
 import { applyTableOfContents } from "@/lib/articles/toc";
-import { checkReleasable, inManagedNetwork } from "@/lib/articles/review";
+import { checkReleasable, reviewStatusForNewDraft } from "@/lib/articles/review";
 import { ArticleInFlightError, lockForEdit } from "@/lib/publishing/dispatch";
 import {
   generateArticleImage,
@@ -659,36 +659,39 @@ export const generateArticle = inngest.createFunction(
         (lib/articles/review.ts). Decided now, from the website as it is
         today. A rewrite of an approved article is held again: it is new text.
       */
-      const reviewStatus = (await inManagedNetwork(brief.websiteId)) ? "pending" : null;
-      await db
-        .update(articles)
-        .set({
-          reviewStatus,
-          reviewApprovedAt: null,
-          reviewApprovedBy: null,
-          reviewApprovedHash: null,
-          reviewVersion: sql`${articles.reviewVersion} + 1`,
-          bodyHtml: linkedHtml.html,
-          // Saved with the article; see the generate-image step.
-          imageUrl: image?.url ?? null,
-          imageAlt: image?.alt ?? null,
-          metaDescription: written.metaDescription,
-          slug: written.slug,
-          wordCount: written.wordCount,
-          status: "draft",
-          generationStep: null,
-          error: null,
-          updatedAt: new Date(),
-        })
-        .where(eq(articles.id, articleId));
+      await db.transaction(async (tx) => {
+        // Decided in this transaction, under the managed-review lock: see reviewStatusForNewDraft.
+        const reviewStatus = await reviewStatusForNewDraft(tx, brief.websiteId);
+        await tx
+          .update(articles)
+          .set({
+            reviewStatus,
+            reviewApprovedAt: null,
+            reviewApprovedBy: null,
+            reviewApprovedHash: null,
+            reviewVersion: sql`${articles.reviewVersion} + 1`,
+            bodyHtml: linkedHtml.html,
+            // Saved with the article; see the generate-image step.
+            imageUrl: image?.url ?? null,
+            imageAlt: image?.alt ?? null,
+            metaDescription: written.metaDescription,
+            slug: written.slug,
+            wordCount: written.wordCount,
+            status: "draft",
+            generationStep: null,
+            error: null,
+            updatedAt: new Date(),
+          })
+          .where(eq(articles.id, articleId));
 
-      /**
-       * First version snapshot. Every later edit adds another, so a user who
-       * regenerates or edits badly can see what the original said.
-       */
-      await db.insert(articleVersions).values({
-        articleId,
-        bodyHtml: linkedHtml.html,
+        /**
+         * First version snapshot. Every later edit adds another, so a user who
+         * regenerates or edits badly can see what the original said.
+         */
+        await tx.insert(articleVersions).values({
+          articleId,
+          bodyHtml: linkedHtml.html,
+      });
       });
 
       if (brief.calendarItemId) {

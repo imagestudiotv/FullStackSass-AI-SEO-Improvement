@@ -93,16 +93,16 @@ vi.mock("@/lib/publishing/registry", async () => {
       cms.posts.set(remoteId, input);
       return { remoteId, remoteUrl: `https://site.test/?p=${remoteId}`, status: input.status };
     }),
-    findPostBySlug: vi.fn(async (_c: unknown, slug: string) => {
-      cms.calls.push(`find:${slug}`);
-      for (const [id, post] of cms.posts) {
-        if (post.slug === slug) return { remoteId: id, remoteUrl: `https://site.test/?p=${id}`, status: post.status };
-      }
-      return null;
+    // The ownership lookup: WordPress's text search, returning stored content (lib/publishing/ownership.ts).
+    searchPostsByMarker: vi.fn(async (_c: unknown, term: string) => {
+      cms.calls.push(`search:${term}`);
+      return [...cms.posts]
+        .filter(([, post]) => post.contentHtml.includes(term))
+        .map(([id, post]) => ({ remoteId: id, remoteUrl: `https://site.test/?p=${id}`, status: post.status, rawContent: post.contentHtml }));
     }),
   };
   return {
-    getProvider: () => (cms.searchable ? provider : { ...provider, findPostBySlug: undefined }),
+    getProvider: () => (cms.searchable ? provider : { ...provider, searchPostsByMarker: undefined }),
   };
 });
 const keyMock = vi.hoisted(() => ({ websiteId: "" }));
@@ -328,9 +328,12 @@ describe("the schedule is checked at dispatch, for automatic sends", () => {
     await expect(run(reviewed, replayingSteps(), { trigger: "manual" })).resolves.toEqual({ held: "pending_review" });
   });
 
-  it("an event from the previous build (no trigger) keeps that build's send-time rule, and the gate", async () => {
+  it("an event from the previous build (no trigger) gets the strict automatic rule, never a press's - and the gate", async () => {
+    // Nothing says whether a person pressed Publish or a schedule queued it.
     const s = await scene({ plannedFor: new Date(Date.now() + 5 * 86_400_000) });
-    await expect(run(s, replayingSteps(), { trigger: undefined })).resolves.toMatchObject({ status: "publish" });
+    await expect(run(s, replayingSteps(), { trigger: undefined })).resolves.toEqual({ held: "not_due" });
+    const due = await scene({ plannedFor: new Date(Date.now() - 86_400_000) });
+    await expect(run(due, replayingSteps(), { trigger: undefined })).resolves.toMatchObject({ status: "publish" });
     const reviewed = await scene({ reviewed: true });
     await expect(run(reviewed, replayingSteps(), { trigger: undefined })).resolves.toEqual({ held: "pending_review" });
   });
@@ -417,7 +420,7 @@ describe("a send whose answer was lost", () => {
 
     cms.createError = null;
     await expect(run(s, steps)).resolves.toMatchObject({ status: "publish", remoteUrl: "https://site.test/?p=1" });
-    // Found by slug - the same revision, so nothing is sent again, and no second post.
+    // Found by its dispatch's marker - the same revision, so nothing is sent again, and no second post.
     expect(cms.calls.filter((c) => c === "create")).toHaveLength(1);
     expect(cms.posts.size).toBe(1);
     expect((await dispatches(s.post.id)).map((d) => d.status)).toEqual(["sent"]);
@@ -431,20 +434,17 @@ describe("a send whose answer was lost", () => {
     expect(cms.posts.size).toBe(1);
   });
 
-  it("when the lookup finds nothing, the post provably does not exist and is created", async () => {
+  it("a lookup that finds nothing is not proof: nothing is created, and it stays uncertain for a later lookup or a person", async () => {
     const s = await scene();
     const steps = replayingSteps();
     cms.createError = new ProviderError("Bad gateway", "unknown", 502);
-    cms.onCreate = async () => {
-      // A 5xx that did NOT create it: remove what the simulation stored.
-      cms.onCreate = null;
-    };
     await expect(run(s, steps)).rejects.toThrow();
+    // A 5xx that did NOT create it - but nothing on our side can know that.
     cms.posts.clear();
     cms.createError = null;
-    await expect(run(s, steps)).resolves.toMatchObject({ status: "publish" });
-    expect(cms.calls.filter((c) => c === "create")).toHaveLength(2);
-    expect((await dispatches(s.post.id)).map((d) => d.status)).toEqual(["failed", "sent"]);
+    await expect(run(s, steps)).resolves.toEqual({ held: "uncertain_previous" });
+    expect(cms.calls.filter((c) => c === "create")).toHaveLength(1);
+    expect((await dispatches(s.post.id)).map((d) => [d.status, d.lookupResult])).toEqual([["uncertain", "none"]]);
   });
 
   it("a site that cannot be searched waits for a person; their confirmation allows a new attempt", async () => {
@@ -513,7 +513,7 @@ describe("the plugin hand-over", () => {
     expect((await dispatches(s.post.id)).map((d) => [d.status, d.remoteId])).toEqual([["sent", "44"]]);
   });
 
-  it("an unacknowledged hand-over is offered again after the timeout - the plugin finds its own post by article id", async () => {
+  it("an unacknowledged hand-over is offered again after the timeout, under the same dispatch for an older plugin", async () => {
     const s = await pluginScene();
     await poll();
     await test.db
@@ -521,7 +521,8 @@ describe("the plugin hand-over", () => {
       .set({ claimedAt: new Date(Date.now() - IN_FLIGHT_TIMEOUT_MS - 60_000) })
       .where(eq(publicationDispatches.articleId, s.post.id));
     expect((await poll()).articles.map((a) => a.id)).toEqual([s.post.id]);
-    expect((await dispatches(s.post.id)).map((d) => d.status)).toEqual(["abandoned", "in_flight"]);
+    // A pre-1.6 plugin reports by article only: the same revision stays one hand-over.
+    expect((await dispatches(s.post.id)).map((d) => [d.status, d.protocol])).toEqual([["in_flight", "plugin_legacy"]]);
   });
 
   it("sends the revision it claimed: an article held for review is not handed over", async () => {

@@ -1,6 +1,6 @@
 import {
-  findPostBySlug as findWordPressPost,
   publishPost,
+  searchPostsByMarker as searchWordPressPosts,
   testConnection as testWordPress,
   updatePost,
   uploadMedia as uploadWordPressMedia,
@@ -109,9 +109,9 @@ export const wordpressProvider: CmsProvider = {
     }
   },
 
-  async findPostBySlug(credentials, slug) {
+  async searchPostsByMarker(credentials, term) {
     try {
-      return await findWordPressPost(toWordPress(credentials), slug);
+      return await searchWordPressPosts(toWordPress(credentials), term);
     } catch (error) {
       rethrow(error);
     }

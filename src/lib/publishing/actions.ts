@@ -308,10 +308,13 @@ export type PublishResult = {
  * The customer checked their site after a send that got no answer
  * (lib/publishing/dispatch.ts, "uncertain") and the post is NOT there.
  *
- * Recorded on the dispatch, with who said so, and the article's error is
- * cleared, so the next Publish press creates it. Nothing is sent from here.
- * A site that CAN be searched (WordPress) is reconciled automatically and
- * never needs this.
+ * Recorded on the dispatch - who decided, when, and why (reconciled_by /
+ * reconciled_at / reconcile_note) - and the article's error is cleared, so
+ * the next Publish press creates it. Nothing is sent from here. On
+ * WordPress the post is looked for automatically by the dispatch's own
+ * marker (lib/publishing/reconcile.ts) and adopted when found; a lookup
+ * that finds nothing is never taken as proof, so this decision stays a
+ * person's.
  */
 export async function confirmNotPublished(
   websiteId: string,
@@ -328,10 +331,12 @@ export async function confirmNotPublished(
   if (!article) return { ok: false, error: "Article not found" };
   const unknown = await latestUncertain(article.id);
   if (!unknown) return { ok: false, error: "There is no unconfirmed publication to resolve" };
-  await reconcileUncertain(unknown.id, {
-    status: "failed",
-    error: `Confirmed not on the site by ${guard.context.userId ?? "an editor"}`,
-  });
+  const by = `user:${guard.context.userId ?? "editor"}`;
+  await reconcileUncertain(
+    unknown.id,
+    { status: "failed", error: "Confirmed not on the site by a person" },
+    { by, note: "Checked the website and confirmed the post is not there" },
+  );
   await db.update(articles).set({ error: null, updatedAt: new Date() }).where(eq(articles.id, article.id));
   revalidatePath(`/websites/${site.id}/articles/${articleId}`);
   return { ok: true, data: null };

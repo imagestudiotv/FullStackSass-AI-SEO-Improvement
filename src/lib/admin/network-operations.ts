@@ -1,6 +1,6 @@
 "use server";
 
-import { and, count, eq, sql } from "drizzle-orm";
+import { and, count, eq, inArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { inngest } from "@/inngest/client";
@@ -8,10 +8,11 @@ import { recordAdminAction } from "@/lib/admin/audit";
 import { requireAdmin } from "@/lib/admin/guard";
 import { AUTHORITY_METRIC } from "@/lib/authority/metric";
 import { db } from "@/lib/db";
-import { domainMetrics, publicationDispatches } from "@/lib/db/schema";
+import { articles, domainMetrics, publicationDispatches, publishLogs, websites } from "@/lib/db/schema";
 import { isDataForSeoConfigured } from "@/lib/providers/dataforseo";
-import { readControls, writeControl, type ControlKey, type ControlState } from "@/lib/publishing/controls";
-import { IN_FLIGHT_TIMEOUT_MS } from "@/lib/publishing/dispatch";
+import { readControls, switchControl, type ControlKey, type ControlState } from "@/lib/publishing/controls";
+import { dailyRequestLimit, type DailyRequestLimit } from "@/lib/authority/collect";
+import { IN_FLIGHT_TIMEOUT_MS, reconcileUncertain, UNACKNOWLEDGED } from "@/lib/publishing/dispatch";
 import {
   activePolicy,
   listPolicies,
@@ -40,12 +41,40 @@ const utc = (date: Date) => date.toISOString();
  * transaction as the change.
  */
 
+/** A delivery attempt whose outcome is not known yet. */
+export type UnresolvedDispatch = {
+  id: string;
+  articleId: string;
+  articleTitle: string;
+  domain: string;
+  channel: string;
+  protocol: string | null;
+  /** in_flight (live), in_flight_stale (lease ran out), uncertain, expired. */
+  state: "in_flight" | "in_flight_stale" | "uncertain" | "expired";
+  claimedAt: Date;
+  lookupAttempts: number;
+  lookupResult: string | null;
+};
+
 export type Operations = {
   controls: ControlState[];
-  /** Sends in flight now (claimed within the in-flight timeout, no outcome yet). */
-  inFlight: number;
+  /**
+   * Delivery attempts whose outcome is not known yet. A send can reach a
+   * customer's site until its outcome is recorded, so "drained" means ALL
+   * of these are zero - not merely that nothing was claimed recently. A
+   * lease running out (in_flight_stale, expired) is not completion.
+   */
+  drain: {
+    inFlight: number;
+    inFlightStale: number;
+    uncertain: number;
+    unacknowledged: number;
+    drained: boolean;
+  };
+  unresolved: UnresolvedDispatch[];
   authority: {
     configured: boolean;
+    dailyLimit: DailyRequestLimit;
     metric: string;
     byStatus: Record<string, number>;
     lastAttemptAt: Date | null;
@@ -58,12 +87,37 @@ export type Operations = {
 export async function getOperations(): Promise<Operations> {
   await requireAdmin();
   const since = new Date(Date.now() - IN_FLIGHT_TIMEOUT_MS);
-  const [controls, [flying], statuses, [last], policy, policies] = await Promise.all([
+  const open = ["in_flight", "uncertain", ...UNACKNOWLEDGED];
+  const [controls, [drain], unresolved, statuses, [last], policy, policies] = await Promise.all([
     readControls(),
     db
-      .select({ n: count() })
+      .select({
+        inFlight: sql<number>`count(*) filter (where ${publicationDispatches.status} = 'in_flight' and ${publicationDispatches.claimedAt} > ${utc(since)})::int`,
+        inFlightStale: sql<number>`count(*) filter (where ${publicationDispatches.status} = 'in_flight' and ${publicationDispatches.claimedAt} <= ${utc(since)})::int`,
+        uncertain: sql<number>`count(*) filter (where ${publicationDispatches.status} = 'uncertain')::int`,
+        unacknowledged: sql<number>`count(*) filter (where ${publicationDispatches.status} in ('expired', 'abandoned'))::int`,
+      })
       .from(publicationDispatches)
-      .where(and(eq(publicationDispatches.status, "in_flight"), sql`${publicationDispatches.claimedAt} > ${utc(since)}`)),
+      .where(inArray(publicationDispatches.status, open)),
+    db
+      .select({
+        id: publicationDispatches.id,
+        articleId: publicationDispatches.articleId,
+        articleTitle: articles.title,
+        domain: websites.domain,
+        channel: publicationDispatches.channel,
+        protocol: publicationDispatches.protocol,
+        status: publicationDispatches.status,
+        claimedAt: publicationDispatches.claimedAt,
+        lookupAttempts: publicationDispatches.lookupAttempts,
+        lookupResult: publicationDispatches.lookupResult,
+      })
+      .from(publicationDispatches)
+      .innerJoin(articles, eq(articles.id, publicationDispatches.articleId))
+      .innerJoin(websites, eq(websites.id, publicationDispatches.websiteId))
+      .where(inArray(publicationDispatches.status, open))
+      .orderBy(publicationDispatches.claimedAt)
+      .limit(50),
     db
       .select({ status: domainMetrics.status, n: count() })
       .from(domainMetrics)
@@ -78,11 +132,33 @@ export async function getOperations(): Promise<Operations> {
     activePolicy(),
     listPolicies(),
   ]);
+  const counts = {
+    inFlight: Number(drain?.inFlight ?? 0),
+    inFlightStale: Number(drain?.inFlightStale ?? 0),
+    uncertain: Number(drain?.uncertain ?? 0),
+    unacknowledged: Number(drain?.unacknowledged ?? 0),
+  };
   return {
     controls,
-    inFlight: flying?.n ?? 0,
+    drain: { ...counts, drained: Object.values(counts).every((n) => n === 0) },
+    unresolved: unresolved.map((row) => ({
+      id: row.id,
+      articleId: row.articleId,
+      articleTitle: row.articleTitle,
+      domain: row.domain,
+      channel: row.channel,
+      protocol: row.protocol,
+      state:
+        row.status === "in_flight"
+          ? row.claimedAt > since ? "in_flight" : "in_flight_stale"
+          : row.status === "uncertain" ? "uncertain" : "expired",
+      claimedAt: row.claimedAt,
+      lookupAttempts: row.lookupAttempts,
+      lookupResult: row.lookupResult,
+    })),
     authority: {
       configured: isDataForSeoConfigured(),
+      dailyLimit: dailyRequestLimit(),
       metric: `${AUTHORITY_METRIC.label} (0-${AUTHORITY_METRIC.scaleMax})`,
       byStatus: Object.fromEntries(statuses.map((s) => [s.status, s.n])),
       lastAttemptAt: last?.at ?? null,
@@ -99,19 +175,92 @@ export async function setControl(key: ControlKey, enabled: boolean, reason: stri
   const why = reason.trim();
   if (why.length < 3) return { ok: false, error: "Give a short reason - it is kept in the audit log" };
   await db.transaction(async (tx) => {
+    // The switch first: it waits for open claims / saves (lib/publishing/controls.ts).
+    const { heldForReview } = await switchControl(tx, key, enabled, { reason: why, actor: admin.email });
     await recordAdminAction(
       {
         actorEmail: admin.email,
         action: "platform.control_changed",
         targetType: "platform_control",
         targetId: key,
-        summary: `${enabled ? "Enabled" : "Disabled"} ${key.replace("_", " ")}: ${why}`,
-        detail: { key, enabled, reason: why },
+        summary: `${enabled ? "Enabled" : "Disabled"} ${key.replace("_", " ")}: ${why}${heldForReview ? ` (${heldForReview} drafts held for review)` : ""}`,
+        detail: { key, enabled, reason: why, heldForReview },
       },
       tx,
     );
-    await writeControl(key, enabled, { reason: why, actor: admin.email }, tx);
   });
+  revalidatePath("/admin/network/operations");
+  return { ok: true, data: null };
+}
+
+/**
+ * An operator's explicit decision on a delivery whose outcome is unknown,
+ * audited with who, when and why - on the dispatch row and in the admin log.
+ *
+ *   uncertain direct send, "not_published" - an operator checked the site:
+ *     the post is not there. The next publish may create it.
+ *   uncertain direct send, "published"     - an operator found the post;
+ *     its id and URL are recorded, so the next publish UPDATES it.
+ *   expired plugin hand-over, "release"     - an older plugin never
+ *     reported it and the article must move on. Its report, if it ever
+ *     arrives, is still recorded (as late) - see lib/publishing/acknowledge.ts.
+ */
+export async function resolveDispatch(input: {
+  dispatchId: string;
+  decision: "not_published" | "published" | "release";
+  reason: string;
+  remoteId?: string;
+  remoteUrl?: string;
+}): Promise<ActionResult<null>> {
+  const admin = await requireAdmin();
+  const why = input.reason.trim();
+  if (why.length < 3) return { ok: false, error: "Give a short reason - it is kept in the audit log" };
+  const audit = { by: `admin:${admin.email}`, note: why };
+  const outcome = await db.transaction(async (tx) => {
+    const [row] = await tx
+      .select()
+      .from(publicationDispatches)
+      .where(eq(publicationDispatches.id, input.dispatchId))
+      .for("update")
+      .limit(1);
+    if (!row) return "Delivery not found";
+    if (input.decision === "release") {
+      if (row.channel !== "plugin" || !(UNACKNOWLEDGED as readonly string[]).includes(row.status)) {
+        return "Only an expired plugin hand-over can be released";
+      }
+      await tx
+        .update(publicationDispatches)
+        .set({ status: "released", reconciledBy: audit.by, reconciledAt: new Date(), reconcileNote: why.slice(0, 500), completedAt: new Date() })
+        .where(eq(publicationDispatches.id, row.id));
+    } else if (row.status !== "uncertain") {
+      return "Only an uncertain send can be resolved this way";
+    } else if (input.decision === "not_published") {
+      await reconcileUncertain(row.id, { status: "failed", error: "Confirmed not on the site by an operator" }, audit, tx);
+      await tx.update(articles).set({ error: null, updatedAt: new Date() }).where(eq(articles.id, row.articleId));
+    } else {
+      const remoteId = (input.remoteId ?? "").trim();
+      const remoteUrl = (input.remoteUrl ?? "").trim();
+      if (!/^\d+$/.test(remoteId) || !/^https?:\/\//.test(remoteUrl)) return "Give the post's id and its address";
+      await reconcileUncertain(row.id, { status: "sent", remoteId, remoteUrl }, audit, tx);
+      await tx
+        .insert(publishLogs)
+        .values({ articleId: row.articleId, integrationId: row.integrationId, dispatchId: row.id, status: "published", remoteId, remoteUrl })
+        .onConflictDoNothing();
+    }
+    await recordAdminAction(
+      {
+        actorEmail: admin.email,
+        action: "publication.dispatch_resolved",
+        targetType: "publication_dispatch",
+        targetId: row.id,
+        summary: `${input.decision} for article ${row.articleId}: ${why}`,
+        detail: { decision: input.decision, reason: why, previousStatus: row.status, remoteId: input.remoteId ?? null, remoteUrl: input.remoteUrl ?? null },
+      },
+      tx,
+    );
+    return null;
+  });
+  if (outcome) return { ok: false, error: outcome };
   revalidatePath("/admin/network/operations");
   return { ok: true, data: null };
 }

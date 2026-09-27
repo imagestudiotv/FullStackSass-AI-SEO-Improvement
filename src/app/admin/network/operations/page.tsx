@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader, PageShell } from "@/components/ui/page-header";
 import { getOperations } from "@/lib/admin/network-operations";
-import { CollectAuthorityButton, ControlToggle, PolicyForm } from "./operations-forms";
+import { CollectAuthorityButton, ControlToggle, PolicyForm, ResolveDispatchForm } from "./operations-forms";
 
 export const dynamic = "force-dynamic";
 
@@ -36,13 +36,21 @@ export default async function NetworkOperationsPage() {
             </CardTitle>
             <CardDescription>
               While on, no publishing path sends anything to a customer site: direct publishing, the plugin feed, scheduled and queued
-              jobs all hold at their dispatch claim. Sends already in flight finish. Use before a rollback (see the rollback procedure).
+              jobs all hold at their dispatch claim. Turning it on waits for claims already being made. Sends already admitted cannot be
+              recalled: their outcome must be known before switching builds (see the rollback procedure).
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
-            <p>
-              In flight now: <strong>{ops.inFlight}</strong>
-              {freeze.enabled && ops.inFlight > 0 ? " - wait for this to reach 0 before switching builds." : ""}
+            <ul className="grid grid-cols-2 gap-1 text-sm">
+              <li>In flight: <strong>{ops.drain.inFlight}</strong></li>
+              <li>Lease ran out, no outcome: <strong>{ops.drain.inFlightStale}</strong></li>
+              <li>Uncertain direct sends: <strong>{ops.drain.uncertain}</strong></li>
+              <li>Unacknowledged plugin hand-overs: <strong>{ops.drain.unacknowledged}</strong></li>
+            </ul>
+            <p className={ops.drain.drained ? "font-medium" : "font-medium text-destructive"}>
+              {ops.drain.drained
+                ? "Drained: no delivery has an unknown outcome."
+                : "Not drained: resolve every attempt listed under Unresolved deliveries before switching builds."}
             </p>
             <p className="text-xs text-muted-foreground">
               Last change: {when(freeze.updatedAt)} by {freeze.updatedBy ?? "-"}{freeze.reason ? ` - ${freeze.reason}` : ""}
@@ -94,10 +102,20 @@ export default async function NetworkOperationsPage() {
                 </ul>
                 {ops.authority.byStatus.no_access ? (
                   <p className="text-sm text-destructive">
-                    The DataForSEO account answered 40204: the Backlinks API subscription is not active. Enable it in the DataForSEO
+                    DataForSEO answered 40204 (no Backlinks API access) for the configured account. Enable it in the DataForSEO
                     account (an operator decision - nothing is purchased from here); collection retries weekly.
                   </p>
                 ) : null}
+                <p className="text-xs">
+                  Daily request limit:{" "}
+                  {ops.authority.dailyLimit.source === "invalid" ? (
+                    <span className="text-destructive">AUTHORITY_DAILY_REQUESTS is not a whole number - collection is disabled until it is fixed</span>
+                  ) : ops.authority.dailyLimit.source === "disabled" ? (
+                    "0 - collection disabled (AUTHORITY_DAILY_REQUESTS=0)"
+                  ) : (
+                    `${ops.authority.dailyLimit.limit} per day${ops.authority.dailyLimit.source === "default" ? " (default)" : ""}`
+                  )}
+                </p>
                 <p className="text-xs text-muted-foreground">
                   Last attempt: {when(ops.authority.lastAttemptAt)}{ops.authority.lastError ? ` - ${ops.authority.lastError}` : ""}
                 </p>
@@ -148,6 +166,42 @@ export default async function NetworkOperationsPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Unresolved deliveries ({ops.unresolved.length})</CardTitle>
+          <CardDescription>
+            Attempts whose outcome is not known. An uncertain direct send is looked up automatically by its ownership marker and adopted
+            only when exactly one post carries it; an empty lookup is not proof. An expired hand-over from a plugin older than 1.6.0 blocks
+            newer revisions of that article until the plugin reports it or it is released here.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {ops.unresolved.length === 0 ? (
+            <p className="text-sm text-muted-foreground">None.</p>
+          ) : (
+            <ul className="divide-y">
+              {ops.unresolved.map((d) => (
+                <li key={d.id} className="grid gap-2 py-3 text-sm lg:grid-cols-[1fr_minmax(0,24rem)]">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{d.articleTitle}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {d.domain} · {d.channel}{d.protocol ? ` (${d.protocol})` : ""} · {d.state.replace(/_/g, " ")} · claimed {when(d.claimedAt)}
+                      {d.lookupAttempts ? ` · ${d.lookupAttempts} lookups, last: ${d.lookupResult ?? "-"}` : ""}
+                    </p>
+                    <p className="font-mono text-[11px] text-muted-foreground">{d.id}</p>
+                  </div>
+                  {d.state === "uncertain" || (d.state === "expired" && d.channel === "plugin") ? (
+                    <ResolveDispatchForm dispatchId={d.id} kind={d.state === "uncertain" ? "uncertain" : "expired"} />
+                  ) : (
+                    <p className="text-xs text-muted-foreground">Waiting for its outcome.</p>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

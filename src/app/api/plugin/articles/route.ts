@@ -10,9 +10,9 @@ import { db } from "@/lib/db";
 import { websites } from "@/lib/db/schema";
 import { dueArticlesForPlugin, pluginPostsForWebsite } from "@/lib/plugin/due";
 import { recordSyncUrl } from "@/lib/plugin/sync";
-import { automaticStatus, FIRST_ARTICLE_STATUS } from "@/lib/publishing/policy";
 import { resolveIntegrationKey } from "@/lib/plugin/keys";
 import { claimDispatch } from "@/lib/publishing/dispatch";
+import { pluginProtocol } from "@/lib/plugin/protocol";
 
 /**
  * Articles waiting to be published: GET /api/plugin/articles
@@ -30,7 +30,7 @@ export const dynamic = "force-dynamic";
 
 const CORS = {
   "access-control-allow-origin": "*",
-  "access-control-allow-headers": "content-type, x-integration-key",
+  "access-control-allow-headers": "content-type, x-integration-key, x-repget-plugin-version, x-repget-sync-url",
   "access-control-allow-methods": "GET, OPTIONS",
 };
 
@@ -75,6 +75,13 @@ export async function GET(request: NextRequest) {
     await recordSyncUrl(resolved.keyId, resolved.websiteDomain, reportedSyncUrl);
   }
 
+  /*
+    1.6.0+ echoes each hand-over's dispatch id in its report, so reports are
+    matched exactly; older plugins report by article only and get the
+    one-outstanding-revision rule (lib/publishing/dispatch.ts).
+  */
+  const protocol = pluginProtocol(request.headers.get("x-repget-plugin-version"));
+
   const [due, sent] = await Promise.all([
     dueArticlesForPlugin(resolved.websiteId, BATCH_SIZE),
     pluginPostsForWebsite(resolved.websiteId),
@@ -116,25 +123,23 @@ export async function GET(request: NextRequest) {
       freeze, the review gate and the schedule, and records this revision as
       in flight - so an edit or a review change saved after this point is
       refused until the plugin reports back, rather than racing it. What is
-      sent is exactly the claimed revision.
+      sent is exactly the claimed revision, as the status the claim decided
+      from the settings now (a Publish press, the first-article rule, or
+      "Publish as").
     */
-    const status = row.isFirst
-      ? FIRST_ARTICLE_STATUS
-      : row.publishRequested === "draft" || row.publishRequested === "publish"
-        ? row.publishRequested
-        : automaticStatus(row);
     const claim = await claimDispatch({
       articleId: row.id,
       websiteId: resolved.websiteId,
       channel: "plugin",
       trigger: "plugin",
-      requestedStatus: status,
+      protocol,
       owner: `plugin:${resolved.keyId}`,
     });
     if (!claim.ok) continue;
     rows.push({
       ...row,
-      status,
+      status: claim.status,
+      dispatch: { id: claim.dispatchId, revision: claim.revisionHash },
       title: claim.article.title,
       slug: claim.article.slug,
       metaDescription: claim.article.metaDescription,
@@ -168,9 +173,11 @@ export async function GET(request: NextRequest) {
           image: row.imageUrl
             ? { url: row.imageUrl, alt: row.imageAlt ?? row.title }
             : null,
-          // A Publish press decides; otherwise the website's setting, which
-          // the first article follows too. See lib/publishing/policy.ts.
+          // Decided at the claim: a Publish press, the first-article rule,
+          // or the website's setting now. See lib/publishing/dispatch.ts.
           status: row.status,
+          // Echoed back by 1.6.0+ in its report; ignored by older plugins.
+          dispatch: row.dispatch,
         })),
     },
     { headers: CORS },

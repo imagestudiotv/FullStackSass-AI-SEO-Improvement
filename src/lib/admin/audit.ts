@@ -38,6 +38,7 @@ export type AdminAction =
   | "network.article_reopened"
   /* Operations (lib/admin/operations.ts). */
   | "platform.control_changed"
+  | "publication.dispatch_resolved"
   | "authority.collection_requested"
   | "valuation.policy_published";
 

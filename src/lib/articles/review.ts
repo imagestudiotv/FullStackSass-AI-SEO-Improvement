@@ -150,6 +150,19 @@ export async function inManagedNetwork(websiteId: string, executor: Executor = d
 }
 
 /**
+ * The review state a freshly written draft is saved with, decided INSIDE the
+ * saving transaction under REVIEW_LOCK (shared). Switching managed review on
+ * takes that lock exclusively and then holds the drafts written while it was
+ * off (lib/publishing/controls.ts), so a save that decided "not reviewed"
+ * can never land after that sweep: it either commits first (and the sweep
+ * holds it) or waits and sees the switch on.
+ */
+export async function reviewStatusForNewDraft(tx: Executor, websiteId: string): Promise<"pending" | null> {
+  await tx.execute(sql`select pg_advisory_xact_lock_shared(hashtext('repget:managed-review'))`);
+  return (await inManagedNetwork(websiteId, tx)) ? "pending" : null;
+}
+
+/**
  * An approved article was changed: back to pending, visibly. The hash check
  * already holds it; this makes the review queue show it again.
  */

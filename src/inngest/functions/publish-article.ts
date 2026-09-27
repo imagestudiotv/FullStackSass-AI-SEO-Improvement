@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 
 import { inngest } from "@/inngest/client";
 import { db } from "@/lib/db";
@@ -15,10 +15,11 @@ import {
   claimDispatch,
   HOLD_MESSAGES,
   latestUncertain,
-  reconcileUncertain,
   settleDispatch,
   type DispatchTrigger,
 } from "@/lib/publishing/dispatch";
+import { withOwnershipMarker } from "@/lib/publishing/ownership";
+import { nextLookupDelayMs, reconcileDirectUncertain } from "@/lib/publishing/reconcile";
 import { notify } from "@/lib/notifications/create";
 import { markFirstArticleSentAndContinue } from "@/lib/publishing/policy";
 import { recordArticlePublication } from "@/lib/backlinks/placements";
@@ -97,12 +98,13 @@ export const publishArticleJob = inngest.createFunction(
       trigger?: DispatchTrigger;
     };
     /*
-      Events queued by a build before this field existed carry no trigger.
-      They are treated as a Publish press - the rule that build applied at
-      send time (none) - while the gate, the exact revision and the freeze
-      are still checked at dispatch like any other.
+      Events queued by a build before this field existed carry no trigger,
+      and nothing says whether a person pressed Publish or a schedule queued
+      them. They get the strict rule ("legacy": automatic, or first-article
+      while it is the first article), never a press's - a press held this
+      way is pressed again. See DispatchTrigger in lib/publishing/dispatch.ts.
     */
-    const trigger: DispatchTrigger = sentTrigger ?? "manual";
+    const trigger: DispatchTrigger = sentTrigger ?? "legacy";
 
     /**
      * Structured logs, one per step, so the Inngest timeline explains itself.
@@ -536,47 +538,44 @@ export const publishArticleJob = inngest.createFunction(
       let reconciled: { remoteId: string; remoteUrl: string; status: string } | null = null;
 
       /*
-        1. An earlier create got no answer: the post may exist. Look it up
-        before creating anything; never create "just in case".
+        1. An earlier create got no answer: the post may exist. It is looked
+        for by THAT dispatch's own ownership marker, on the integration it
+        was sent to (lib/publishing/reconcile.ts) - never by slug, never from
+        the article's current fields - and adopted only on proof. Nothing
+        found is not proof it does not exist: the send stays held and is
+        looked up again later; only a person can declare it not published.
       */
       if (!remoteId) {
         const unknown = await latestUncertain(articleId);
         if (unknown) {
-          const [current] = await db
-            .select({ slug: articles.slug })
-            .from(articles)
-            .where(eq(articles.id, articleId))
-            .limit(1);
-          if (!provider.findPostBySlug || !current?.slug) {
+          const outcome = await reconcileDirectUncertain(unknown, provider, prepared.integrationId);
+          if (outcome.adopted) {
+            remoteId = outcome.remoteId;
+            reconciled = outcome;
+            logger.info(
+              { step: "send-to-cms", articleId, websiteId, dispatchId: unknown.id, remoteId },
+              "Earlier send had created the post (found by its marker) - updating it instead of creating another",
+            );
+          } else {
             await db
               .update(articles)
               .set({ error: HOLD_MESSAGES.uncertain_previous, updatedAt: new Date() })
               .where(eq(articles.id, articleId));
+            const delay = outcome.result === "none" || outcome.result === "error" ? nextLookupDelayMs(outcome.attempts) : null;
+            if (delay !== null) {
+              // Looked up again later: a slow create can land after an empty lookup.
+              await inngest.send({
+                id: `publish-recheck:${unknown.id}:${outcome.attempts}`,
+                name: "article/publish.requested",
+                data: { ...event.data, trigger },
+                ts: Date.now() + delay,
+              });
+            }
             logger.warn(
-              { step: "send-to-cms", articleId, websiteId, dispatchId: unknown.id },
-              "Earlier send got no answer and this site cannot be searched - waiting for a person to check",
+              { step: "send-to-cms", articleId, websiteId, dispatchId: unknown.id, lookup: outcome.result, attempts: outcome.attempts, recheckInMs: delay },
+              "Earlier send got no answer and its post is not proven - nothing is created; waiting",
             );
             return { held: "uncertain_previous" as const, sent: null, title: null };
-          }
-          // Throws on an outage: the lookup is retried, nothing is created.
-          const found = await provider.findPostBySlug(integration.credentials, current.slug);
-          if (found) {
-            await reconcileUncertain(unknown.id, { status: "sent", remoteId: found.remoteId, remoteUrl: found.remoteUrl });
-            await db.insert(publishLogs).values({
-              articleId,
-              integrationId: prepared.integrationId,
-              status: "published",
-              remoteId: found.remoteId,
-              remoteUrl: found.remoteUrl,
-            });
-            remoteId = found.remoteId;
-            reconciled = found;
-            logger.info(
-              { step: "send-to-cms", articleId, websiteId, remoteId },
-              "Earlier send had created the post - updating it instead of creating another",
-            );
-          } else {
-            await reconcileUncertain(unknown.id, { status: "failed", error: "Not found on the site when reconciled" });
           }
         }
       }
@@ -587,7 +586,9 @@ export const publishArticleJob = inngest.createFunction(
         websiteId,
         channel: "direct",
         trigger,
+        // A Publish press's own choice; every other trigger is decided from the settings now.
         requestedStatus: status,
+        integrationId: prepared.integrationId,
         expectedRevision: prepared.revisionHash,
         owner: `publish-article:${event.id ?? "run"}`,
         refuseAfterUncertain: !remoteId,
@@ -595,14 +596,15 @@ export const publishArticleJob = inngest.createFunction(
       if (!claim.ok && claim.reason === "already_sent" && reconciled) {
         /*
           The unanswered create DID make the post, and it is this very
-          revision: nothing to send - record it as published, once.
+          revision: nothing to send. Its delivery was logged when it was
+          found; the article is brought up to date below, once.
         */
         const [current] = await db
           .select({ title: articles.title })
           .from(articles)
           .where(eq(articles.id, articleId))
           .limit(1);
-        return { held: null, sent: reconciled, title: current?.title ?? "" };
+        return { held: null, sent: reconciled, title: current?.title ?? "", dispatchId: null as string | null };
       }
       if (!claim.ok) {
         logger.info(
@@ -632,13 +634,22 @@ export const publishArticleJob = inngest.createFunction(
         .limit(1);
       const post = {
         title: claim.article.title,
-        contentHtml: prepareForDelivery(claim.article.bodyHtml, {
-          poweredBy: site?.poweredByLink ?? false,
-          siteHosts: site ? siteScope(site).hosts : undefined,
-        }),
+        /*
+          The dispatch's ownership marker rides along (an HTML comment): if
+          this request's answer is lost, the post is found by it and nothing
+          else (lib/publishing/ownership.ts).
+        */
+        contentHtml: withOwnershipMarker(
+          prepareForDelivery(claim.article.bodyHtml, {
+            poweredBy: site?.poweredByLink ?? false,
+            siteHosts: site ? siteScope(site).hosts : undefined,
+          }),
+          { articleId, websiteId, dispatchId: claim.dispatchId },
+        ),
         slug: claim.article.slug,
         excerpt: claim.article.metaDescription,
-        status,
+        // Decided at the claim from the settings now, not when this was queued.
+        status: claim.status,
         featuredMediaId: featuredMedia?.id ?? null,
       };
 
@@ -647,7 +658,7 @@ export const publishArticleJob = inngest.createFunction(
         const sent = remoteId
           ? await provider.updatePost(integration.credentials, remoteId, post)
           : await provider.createPost(integration.credentials, post);
-        await settleDispatch(claim.dispatchId, { status: "sent", remoteId: sent.remoteId, remoteUrl: sent.remoteUrl });
+        await settleDispatch(claim.dispatchId, { status: "sent", remoteId: sent.remoteId, remoteUrl: sent.remoteUrl, remoteStatus: sent.status });
 
         /**
          * `returnedStatus` is read back from the CMS rather than assumed: a
@@ -663,14 +674,14 @@ export const publishArticleJob = inngest.createFunction(
             providerId: prepared.providerId,
             operation: remoteId ? "update" : "create",
             remoteId: sent.remoteId,
-            requestedStatus: status,
+            requestedStatus: claim.status,
             returnedStatus: sent.status,
             dispatchId: claim.dispatchId,
             durationMs: Date.now() - startedAt,
           },
           "Article sent to the CMS",
         );
-        return { held: null, sent, title: claim.article.title };
+        return { held: null, sent, title: claim.article.title, dispatchId: claim.dispatchId as string | null };
       } catch (error) {
         /*
           Did the post get created? A refusal the site answered with a 4xx
@@ -711,9 +722,10 @@ export const publishArticleJob = inngest.createFunction(
           await db.insert(publishLogs).values({
             articleId,
             integrationId: prepared.integrationId,
+            dispatchId: claim.dispatchId,
             status: "failed",
             error: `${error.kind}: ${error.message}`.slice(0, 500),
-          });
+          }).onConflictDoNothing();
           throw new Error(error.message);
         }
         throw error;
@@ -728,20 +740,34 @@ export const publishArticleJob = inngest.createFunction(
     const sentTitle = sendOutcome.title ?? "";
 
     await step.run("record-result", async () => {
-      await db.insert(publishLogs).values({
-        articleId,
-        integrationId: prepared.integrationId,
-        status: "published",
-        remoteId: result.remoteId,
-        remoteUrl: result.remoteUrl,
-      });
+      /*
+        Keyed by the dispatch: a retried step writes nothing twice. (An
+        adopted post was logged under its own dispatch when it was found.)
+      */
+      if (sendOutcome.dispatchId) {
+        await db
+          .insert(publishLogs)
+          .values({
+            articleId,
+            integrationId: prepared.integrationId,
+            dispatchId: sendOutcome.dispatchId,
+            status: "published",
+            remoteId: result.remoteId,
+            remoteUrl: result.remoteUrl,
+            remoteStatus: result.status,
+          })
+          .onConflictDoNothing();
+      }
 
+      const live = result.status === "publish";
       await db
         .update(articles)
         .set({
           // A WordPress draft is not live, so the article is not "published".
-          status: result.status === "publish" ? "published" : "draft",
+          status: live ? "published" : "draft",
           publishedUrl: result.remoteUrl,
+          // When it FIRST went live; a republish or a later edit keeps it.
+          ...(live ? { firstLiveAt: sql`coalesce(${articles.firstLiveAt}, timezone('utc', now()))` } : {}),
           // The CMS's own URL, which does not expire the way the provider's
           // does. Left untouched when no image was uploaded this run.
           ...(featuredMedia ? { imageUrl: featuredMedia.url } : {}),

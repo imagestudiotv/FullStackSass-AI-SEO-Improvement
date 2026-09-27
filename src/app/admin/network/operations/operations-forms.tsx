@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { publishValuationPolicy, requestAuthorityCollection, setControl } from "@/lib/admin/network-operations";
+import { publishValuationPolicy, requestAuthorityCollection, resolveDispatch, setControl } from "@/lib/admin/network-operations";
 import type { ClickValueMode } from "@/lib/valuation/policy";
 
 /** One operator switch, with the reason the audit log requires. */
@@ -51,6 +51,63 @@ export function ControlToggle({
         {pending ? <Loader2 className="size-4 animate-spin" /> : null}
         {enabled ? `Turn off` : `Turn on`}
       </Button>
+    </form>
+  );
+}
+
+/**
+ * An operator's decision on a delivery whose outcome is unknown. Every
+ * decision needs a reason and is audited; see resolveDispatch.
+ */
+export function ResolveDispatchForm({ dispatchId, kind }: { dispatchId: string; kind: "uncertain" | "expired" }) {
+  const router = useRouter();
+  const [reason, setReason] = useState("");
+  const [decision, setDecision] = useState<"not_published" | "published" | "release">(kind === "expired" ? "release" : "not_published");
+  const [remoteId, setRemoteId] = useState("");
+  const [remoteUrl, setRemoteUrl] = useState("");
+  const [pending, start] = useTransition();
+  const id = `resolve-${dispatchId}`;
+  return (
+    <form
+      className="flex flex-col gap-2"
+      onSubmit={(event) => {
+        event.preventDefault();
+        start(async () => {
+          const result = await resolveDispatch({ dispatchId, decision, reason, remoteId, remoteUrl });
+          if (!result.ok) return void toast.error(result.error);
+          toast.success("Recorded");
+          router.refresh();
+        });
+      }}
+    >
+      {kind === "uncertain" ? (
+        <div className="flex flex-wrap gap-3 text-xs">
+          <label className="flex items-center gap-1">
+            <input type="radio" name={`${id}-d`} checked={decision === "not_published"} onChange={() => setDecision("not_published")} />
+            Checked: not on the site
+          </label>
+          <label className="flex items-center gap-1">
+            <input type="radio" name={`${id}-d`} checked={decision === "published"} onChange={() => setDecision("published")} />
+            Found the post
+          </label>
+        </div>
+      ) : null}
+      {decision === "published" ? (
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Input aria-label="Post id" placeholder="Post id" value={remoteId} onChange={(e) => setRemoteId(e.target.value)} inputMode="numeric" />
+          <Input aria-label="Post address" placeholder="https://" value={remoteUrl} onChange={(e) => setRemoteUrl(e.target.value)} />
+        </div>
+      ) : null}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+        <div className="flex-1 space-y-1">
+          <Label htmlFor={id}>Reason (kept in the audit log)</Label>
+          <Input id={id} value={reason} onChange={(e) => setReason(e.target.value)} required minLength={3} maxLength={300} />
+        </div>
+        <Button type="submit" size="sm" variant="outline" disabled={pending}>
+          {pending ? <Loader2 className="size-4 animate-spin" /> : null}
+          {kind === "expired" ? "Release" : "Record decision"}
+        </Button>
+      </div>
     </form>
   );
 }

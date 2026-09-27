@@ -6,7 +6,7 @@ import { articles, articleVersions, calendarItems, pages, publishLogs, websites 
 import { createTestDb, type TestDb } from "@/test/db";
 import { seedWebsite } from "@/test/fixtures";
 import { NEW_SITE_DEFAULTS } from "@/lib/websites/new-site-defaults";
-import { settlePluginDispatch } from "@/lib/publishing/dispatch";
+import { acknowledgePluginDispatch } from "@/lib/publishing/acknowledge";
 
 /**
  * Internal links end to end, against a disposable database and a simulated
@@ -300,7 +300,7 @@ ${poweredByHtml()}`);
     // (lib/publishing/dispatch.ts) ...
     expect((await pluginPayload()).articles.find((a) => a.id === articleId)).toBeUndefined();
     // ... until the plugin reports back - here, that it could not create it.
-    await settlePluginDispatch(articleId, { status: "failed", error: "simulated plugin error" });
+    await acknowledgePluginDispatch({ websiteId, articleId, dispatchId: null, report: { kind: "failed", error: "simulated plugin error" } });
     const again = await pluginPayload();
     expect(again.articles.find((a) => a.id === articleId)!.html).toBe(sent);
     expect(await test.db.select().from(articleVersions).where(eq(articleVersions.articleId, articleId))).toHaveLength(1);
