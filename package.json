@@ -7,12 +7,16 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "vitest run",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "check:images": "node scripts/check-image-provider.mjs",
     "check:links": "node scripts/check-links.mjs",
+    "check:secrets": "node scripts/check-secrets.mjs",
+    "reconcile:report": "node scripts/reconcile-report.mjs",
     "plugin:build": "node wordpress-plugin/build.mjs",
+    "plugin:test": "php wordpress-plugin/tests/sync-idempotency.php wordpress-plugin/repget-connector/repget-connector.php",
     "doctor": "node scripts/doctor.mjs",
     "db:seed-addons": "node scripts/seed-addons.mjs",
     "db:seed": "node scripts/seed-plans.mjs",
@@ -55,6 +59,7 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
@@ -64,6 +69,11 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.3",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vite": "^7.3.6",
+    "vitest": "^4.1.11"
+  },
+  "overrides": {
+    "qs": "^6.16.0"
   }
 }
