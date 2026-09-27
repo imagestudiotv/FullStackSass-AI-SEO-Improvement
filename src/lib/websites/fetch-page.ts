@@ -1,4 +1,6 @@
-import { safeFetch, type SafeFetchDeps } from "@/lib/net/safe-fetch";
+import { safeFetch, type SafeFetchDeps, type SafeFetchInit } from "@/lib/net/safe-fetch";
+
+type BodyLimits = Pick<SafeFetchInit, "maxBytes" | "overflow">;
 
 /**
  * Fetches a customer's page over Node's classic TLS stack rather than `fetch`.
@@ -81,6 +83,7 @@ function requestOnce(
   timeoutMs: number,
   signal: AbortSignal,
   deps: SafeFetchDeps,
+  limits: BodyLimits,
 ): Promise<Response> {
   /*
     Through safeFetch, which is node:https underneath (the transport this file
@@ -93,7 +96,7 @@ function requestOnce(
     url,
     // timeoutMs is one deadline for the whole exchange, body included: the
     // crawler's own timer stops when headers arrive, before the body is read.
-    { method: "GET", headers, signal, redirect: "manual", timeoutMs },
+    { method: "GET", headers, signal, redirect: "manual", timeoutMs, ...limits },
     { idleTimeoutMs: timeoutMs, ...deps },
   );
 }
@@ -117,8 +120,15 @@ export async function fetchPage(
   signal: AbortSignal,
   /** Test seam: simulated DNS and sockets. See lib/net/safe-fetch.ts. */
   deps: SafeFetchDeps = {},
+  /**
+   * Body limits, passed to safeFetch. With overflow "truncate" the body ends
+   * cleanly at maxBytes and the connection is dropped - the way to read only
+   * the start of a page. Cancelling a body part way instead can make Node's
+   * stream bridge throw "Controller is already closed" outside any handler.
+   */
+  limits: BodyLimits = {},
 ): Promise<Response> {
-  const response = await requestOnce(url, headers, timeoutMs, signal, deps);
+  const response = await requestOnce(url, headers, timeoutMs, signal, deps, limits);
 
   /**
    * A refusal gets ONE second attempt with a full browser header set.
@@ -163,6 +173,7 @@ export async function fetchPage(
         timeoutMs,
         signal,
         deps,
+        limits,
       );
       // Only take the retry if it actually did better.
       if (retried.status < 400) return retried;

@@ -57,7 +57,24 @@ const ALLOWED_TAGS = new Set([
 const ALLOWED_ATTRS: Record<string, Set<string>> = {
   a: new Set(["href", "title"]),
   img: new Set(["src", "alt", "title"]),
+  /*
+    Heading ids, so a contents list's "#section" links have something to
+    point at. They were dropped with every other attribute, which left each
+    contents-list link pointing nowhere once published.
+  */
+  h2: new Set(["id"]),
+  h3: new Set(["id"]),
+  h4: new Set(["id"]),
+  h5: new Set(["id"]),
+  h6: new Set(["id"]),
 };
+
+/**
+ * A heading id worth keeping: a plain slug. Anything else is dropped rather
+ * than escaped - an id is only ever a link target, so it needs no characters
+ * that could mean something to a browser or a stylesheet.
+ */
+const SAFE_ID = /^[A-Za-z][A-Za-z0-9_-]{0,80}$/;
 
 /** Tags whose content goes with them, rather than being unwrapped. */
 const DROP_WITH_CONTENT =
@@ -150,7 +167,27 @@ function safeUrl(decoded: string): boolean {
   return SAFE_SCHEMES.has(scheme[1].toLowerCase());
 }
 
-function cleanAttrs(tag: string, raw: string): string {
+export type SanitizeOptions = {
+  /**
+   * Hostnames that are the customer's own site. Links to them are internal
+   * links: they open in the same tab and are NOT nofollow. Without this, an
+   * absolute link to the site's own page was marked nofollow, which tells
+   * search engines to ignore the very internal links the article is for.
+   */
+  siteHosts?: ReadonlySet<string>;
+};
+
+function isSiteLink(hrefAttr: string, siteHosts: ReadonlySet<string> | undefined): boolean {
+  if (!siteHosts || siteHosts.size === 0) return false;
+  const value = hrefAttr.slice('href="'.length, -1).replace(/&amp;/g, "&");
+  try {
+    return siteHosts.has(new URL(value).hostname.toLowerCase().replace(/\.$/, ""));
+  } catch {
+    return false;
+  }
+}
+
+function cleanAttrs(tag: string, raw: string, options: SanitizeOptions = {}): string {
   const allowed = ALLOWED_ATTRS[tag];
   if (!allowed) return "";
 
@@ -164,6 +201,7 @@ function cleanAttrs(tag: string, raw: string): string {
 
     const value = decodeEntities(match[2].replace(/^["']|["']$/g, ""));
     if ((name === "href" || name === "src") && !safeUrl(value)) continue;
+    if (name === "id" && !SAFE_ID.test(value)) continue;
 
     out.push(`${name}="${escapeAttr(value)}"`);
   }
@@ -175,7 +213,7 @@ function cleanAttrs(tag: string, raw: string): string {
    */
   if (tag === "a") {
     const href = out.find((attr) => attr.startsWith("href="));
-    if (href && /^href="https?:\/\//i.test(href)) {
+    if (href && /^href="https?:\/\//i.test(href) && !isSiteLink(href, options.siteHosts)) {
       out.push('target="_blank"', 'rel="noopener nofollow"');
     }
   }
@@ -183,7 +221,7 @@ function cleanAttrs(tag: string, raw: string): string {
   return out.length > 0 ? ` ${out.join(" ")}` : "";
 }
 
-export function sanitizeHtml(html: string): string {
+export function sanitizeHtml(html: string, options: SanitizeOptions = {}): string {
   return (
     html
       .replace(DROP_WITH_CONTENT, "")
@@ -209,7 +247,7 @@ export function sanitizeHtml(html: string): string {
           if (closing) return `</${tag}>`;
 
           const selfClosing = tag === "br" || tag === "hr" || tag === "img";
-          return `<${tag}${cleanAttrs(tag, attrs)}${selfClosing ? " /" : ""}>`;
+          return `<${tag}${cleanAttrs(tag, attrs, options)}${selfClosing ? " /" : ""}>`;
         },
       )
       // What an editor leaves behind when a block is emptied.
