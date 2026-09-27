@@ -32,9 +32,36 @@ export const MAX_DOMAINS_PER_RUN = 200;
 const TRACKED_DOMAIN_LIMIT = 2000;
 const NO_ACCESS_RETRY_DAYS = 7;
 
-function dailyRequestLimit(): number {
-  const configured = Number(process.env.AUTHORITY_DAILY_REQUESTS ?? "");
-  return Number.isFinite(configured) && configured >= 0 ? Math.floor(configured) : 4;
+/** Requests per day when AUTHORITY_DAILY_REQUESTS is not set. */
+export const DEFAULT_DAILY_REQUESTS = 4;
+
+export type DailyRequestLimit = { limit: number; source: "default" | "configured" | "disabled" | "invalid" };
+
+/**
+ * AUTHORITY_DAILY_REQUESTS, read deliberately:
+ *
+ *   unset or blank        - the default, 4 requests a day;
+ *   "0"                   - collection disabled;
+ *   a whole number ("12") - that many a day;
+ *   anything else ("-1", "2.5", "abc", "1e3", "0x10") - INVALID: collection
+ *     is disabled (nothing is spent on a value nobody meant) and the
+ *     operations page says the setting is invalid.
+ *
+ * This used to read an unset variable as Number("") = 0, which silently
+ * disabled collection on every deployment that did not set it - the
+ * documented default of 4 never applied.
+ */
+export function parseDailyRequestLimit(raw: string | undefined | null): DailyRequestLimit {
+  const value = (raw ?? "").trim();
+  if (value === "") return { limit: DEFAULT_DAILY_REQUESTS, source: "default" };
+  if (!/^\d+$/.test(value)) return { limit: 0, source: "invalid" };
+  const limit = Number(value);
+  if (!Number.isSafeInteger(limit)) return { limit: 0, source: "invalid" };
+  return limit === 0 ? { limit: 0, source: "disabled" } : { limit, source: "configured" };
+}
+
+export function dailyRequestLimit(): DailyRequestLimit {
+  return parseDailyRequestLimit(process.env.AUTHORITY_DAILY_REQUESTS);
 }
 
 const days = (n: number) => n * 86_400_000;
@@ -92,6 +119,10 @@ export async function enqueueDomains(domains: string[], now: Date = new Date()):
 
 export type CollectOutcome =
   | { status: "not_configured" }
+  /** AUTHORITY_DAILY_REQUESTS=0. */
+  | { status: "disabled" }
+  /** AUTHORITY_DAILY_REQUESTS is set to something that is not a whole number. */
+  | { status: "invalid_limit" }
   | { status: "nothing_due" }
   | { status: "quota_reached" }
   | { status: "collected"; domains: number; withValue: number }
@@ -101,6 +132,10 @@ export type CollectOutcome =
 /** One collection round. Called by the background job only. */
 export async function collectDueAuthority(now: Date = new Date()): Promise<CollectOutcome> {
   if (!isDataForSeoConfigured()) return { status: "not_configured" };
+  // Decided before anything is requested or reserved.
+  const daily = dailyRequestLimit();
+  if (daily.source === "disabled") return { status: "disabled" };
+  if (daily.source === "invalid") return { status: "invalid_limit" };
 
   await enqueueDomains(await trackedDomains(), now);
 
@@ -120,7 +155,7 @@ export async function collectDueAuthority(now: Date = new Date()): Promise<Colle
   if (due.length === 0) return { status: "nothing_due" };
 
   const reservation = await reserve(
-    { key: "authority:dataforseo", limit: dailyRequestLimit(), window: { seconds: 24 * 60 * 60 } },
+    { key: "authority:dataforseo", limit: daily.limit, window: { seconds: 24 * 60 * 60 } },
     { operation: "authority.bulk_ranks", metadata: { domains: due.length } },
     { now },
   );
@@ -150,10 +185,10 @@ export async function collectDueAuthority(now: Date = new Date()): Promise<Colle
       await releaseUnspent([reservation], "provider_refused").catch(() => {});
     }
     if (error instanceof DataForSeoError && error.apiStatusCode === 40204) {
-      // The account has no Backlinks API subscription. Not bought from here.
+      // DataForSEO answered 40204 for this account: no Backlinks API access. Not bought from here.
       await db
         .update(domainMetrics)
-        .set({ status: "no_access", error: "The DataForSEO account does not include the Backlinks API", attemptedAt: now, nextAttemptAt: new Date(now.getTime() + days(NO_ACCESS_RETRY_DAYS)), updatedAt: now })
+        .set({ status: "no_access", error: "DataForSEO answered 40204 (no Backlinks API access) for the configured account", attemptedAt: now, nextAttemptAt: new Date(now.getTime() + days(NO_ACCESS_RETRY_DAYS)), updatedAt: now })
         .where(inArray(domainMetrics.id, ids));
       return { status: "no_access", domains: due.length };
     }
