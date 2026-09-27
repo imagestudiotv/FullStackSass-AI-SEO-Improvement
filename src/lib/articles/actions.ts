@@ -12,7 +12,10 @@ import {
 import { requireWebsite } from "@/lib/tenant";
 import { requireEditor } from "@/lib/websites/require-editor";
 import { sanitizeHtml, countWords } from "@/lib/articles/generate";
+import { siteScope } from "@/lib/articles/link-guard";
 import type { ActionResult } from "@/lib/websites/actions";
+import { syncApproval } from "@/lib/articles/review";
+import { ArticleInFlightError, editArticle } from "@/lib/publishing/dispatch";
 
 /**
  * Article reads and actions.
@@ -212,20 +215,34 @@ export async function updateArticle(
      * by the user and later published to their live site, so a script pasted
      * into the editor must not survive the round trip.
      */
-    const clean = sanitizeHtml(input.bodyHtml);
+    // Links to the site itself stay followed internal links (see sanitize.ts).
+    const clean = sanitizeHtml(input.bodyHtml, { siteHosts: siteScope(site).hosts });
     patch.bodyHtml = clean;
     patch.wordCount = countWords(clean);
-
-    // Snapshot the PREVIOUS body so an edit is always recoverable.
-    if (existing.bodyHtml && existing.bodyHtml !== clean) {
-      await db.insert(articleVersions).values({
-        articleId,
-        bodyHtml: existing.bodyHtml,
-      });
-    }
   }
 
-  await db.update(articles).set(patch).where(eq(articles.id, articleId));
+  /*
+    Under the article's row lock, refused while a revision is being sent to
+    the website (lib/publishing/dispatch.ts): an edit must either be in what
+    is sent, or wait - never race it.
+  */
+  try {
+    await editArticle(articleId, async (tx) => {
+      // Snapshot the PREVIOUS body so an edit is always recoverable.
+      if (typeof patch.bodyHtml === "string" && existing.bodyHtml && existing.bodyHtml !== patch.bodyHtml) {
+        await tx.insert(articleVersions).values({
+          articleId,
+          bodyHtml: existing.bodyHtml,
+        });
+      }
+      await tx.update(articles).set(patch).where(eq(articles.id, articleId));
+      // Changed after the RepGet team approved it: back to their queue.
+      await syncApproval(articleId, tx);
+    });
+  } catch (error) {
+    if (error instanceof ArticleInFlightError) return { ok: false, error: error.message };
+    throw error;
+  }
 
   revalidatePath(`/websites/${site.id}/articles/${articleId}`);
   revalidatePath(`/websites/${site.id}/content`);

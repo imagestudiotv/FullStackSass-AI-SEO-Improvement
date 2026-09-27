@@ -5,6 +5,8 @@ import { integrationKeys } from "@/lib/db/schema";
 import { notFound } from "next/navigation";
 
 import { requireSession } from "@/lib/auth-guard";
+import { latestUncertain } from "@/lib/publishing/dispatch";
+import { UncertainPublication } from "./uncertain-publication";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import { requirePlan } from "@/lib/billing/require-plan";
 import { getArticle } from "@/lib/articles/actions";
@@ -57,12 +59,14 @@ export default async function ArticlePage({
     notFound();
   }
 
-  const [cmsIntegrations, logs, websiteCtx] = await Promise.all([
+  const [cmsIntegrations, logs, websiteCtx, uncertain] = await Promise.all([
     listIntegrations(websiteId),
     listPublishLogs(websiteId, article.id),
     // Scopes to the caller's organisation and throws for anything else.
     // Needed only for the domain, to tell internal links from external.
     requireWebsitePage(websiteId),
+    // A send whose outcome is unknown (lib/publishing/dispatch.ts).
+    latestUncertain(article.id),
   ]);
 
   const { t } = await getAppMessages(websiteCtx.userId);
@@ -85,6 +89,20 @@ export default async function ArticlePage({
   const pluginConnected = Boolean(plugin);
 
   return (
+    <>
+    {uncertain ? (
+      <UncertainPublication
+        websiteId={websiteId}
+        articleId={article.id}
+        canEdit={websiteCtx.access !== "viewer"}
+        text={{
+          title: t.app.reports.uncertainTitle,
+          help: t.app.reports.uncertainHelp,
+          confirm: t.app.reports.uncertainConfirm,
+          confirmed: t.app.reports.uncertainConfirmed,
+        }}
+      />
+    ) : null}
     <ArticleEditor
       websiteId={websiteId}
       article={article}
@@ -110,5 +128,6 @@ export default async function ArticlePage({
       tEditorUi={t.app.editorUi}
       publishLogs={logs}
     />
+    </>
   );
 }

@@ -1,4 +1,5 @@
 import {
+  findPostBySlug as findWordPressPost,
   publishPost,
   testConnection as testWordPress,
   updatePost,
@@ -103,6 +104,14 @@ export const wordpressProvider: CmsProvider = {
           ? Number(input.featuredMediaId)
           : null,
       });
+    } catch (error) {
+      rethrow(error);
+    }
+  },
+
+  async findPostBySlug(credentials, slug) {
+    try {
+      return await findWordPressPost(toWordPress(credentials), slug);
     } catch (error) {
       rethrow(error);
     }

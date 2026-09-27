@@ -7,6 +7,18 @@ import {
   loadCredentialsById,
   resolveIntegration,
 } from "@/lib/publishing/credentials";
+import { prepareStoredArticle, summarize } from "@/lib/articles/internal-links";
+import { prepareForDelivery } from "@/lib/articles/delivery";
+import { siteScope } from "@/lib/articles/link-guard";
+import { checkReleasable, releaseCheckFor, reviewHash } from "@/lib/articles/review";
+import {
+  claimDispatch,
+  HOLD_MESSAGES,
+  latestUncertain,
+  reconcileUncertain,
+  settleDispatch,
+  type DispatchTrigger,
+} from "@/lib/publishing/dispatch";
 import { notify } from "@/lib/notifications/create";
 import { markFirstArticleSentAndContinue } from "@/lib/publishing/policy";
 import { recordArticlePublication } from "@/lib/backlinks/placements";
@@ -76,12 +88,21 @@ export const publishArticleJob = inngest.createFunction(
     },
   },
   async ({ event, step, logger }) => {
-    const { articleId, websiteId, status } = event.data as {
+    const { articleId, websiteId, status, trigger: sentTrigger } = event.data as {
       articleId: string;
       websiteId: string;
       organizationId: string;
       status: "publish" | "draft";
+      /** Why it was queued; decides the schedule rule at dispatch. */
+      trigger?: DispatchTrigger;
     };
+    /*
+      Events queued by a build before this field existed carry no trigger.
+      They are treated as a Publish press - the rule that build applied at
+      send time (none) - while the gate, the exact revision and the freeze
+      are still checked at dispatch like any other.
+    */
+    const trigger: DispatchTrigger = sentTrigger ?? "manual";
 
     /**
      * Structured logs, one per step, so the Inngest timeline explains itself.
@@ -105,12 +126,95 @@ export const publishArticleJob = inngest.createFunction(
       if (!article) throw new Error(`Article ${articleId} not found`);
       if (!article.bodyHtml) throw new Error("Article has no content to publish");
 
+      /*
+        THE REVIEW GATE, enforced by the job itself - whatever queued it: the
+        scheduled release, the first-article release, connecting a CMS, a
+        Publish press or a retry. An article held for the RepGet team, or
+        changed since they approved it, is not sent. See lib/articles/review.ts.
+      */
+      const before = releaseCheckFor(article);
+      if (!before.ok) {
+        logger.info(
+          { step: "load-article", articleId, websiteId, reason: before.reason },
+          "Held for the RepGet team's review - not published",
+        );
+        return { held: before.reason };
+      }
+
+      /*
+        Links checked before publishing: a draft written before links were
+        verified can hold "#" placeholders and invented paths. Confirmed
+        defects are fixed in the stored copy (original kept as a version),
+        and the repaired copy is what is sent - this step's result is what a
+        retry replays, so scheduled and retried publishes send the same
+        checked HTML. A link that could not be checked right now stays.
+        A failure here never blocks publishing. See lib/articles/internal-links.ts.
+      */
+      let contentHtml = article.bodyHtml;
+      try {
+        const checked = await prepareStoredArticle(articleId, websiteId, { budgetMs: 20_000 });
+        if (checked) {
+          contentHtml = checked.html;
+          if (checked.changed) {
+            logger.info(
+              { step: "load-article", articleId, websiteId, ...summarize(checked.findings) },
+              "Broken links fixed before publishing",
+            );
+          }
+        }
+      } catch (error) {
+        logger.warn(
+          {
+            step: "load-article",
+            articleId,
+            websiteId,
+            reason: error instanceof Error ? error.message : "unknown",
+          },
+          "Link check failed - publishing the stored copy as it is",
+        );
+      }
+
+      /*
+        Read again AFTER the link check, and checked again: an edit saved in
+        between must not ride out on an earlier approval. What is sent below
+        is exactly this row - the one that passed the gate.
+      */
+      const [current] = await db
+        .select()
+        .from(articles)
+        .where(and(eq(articles.id, articleId), eq(articles.websiteId, websiteId)))
+        .limit(1);
+      if (!current?.bodyHtml) throw new Error("Article has no content to publish");
+      const after = releaseCheckFor(current);
+      if (!after.ok) {
+        logger.info(
+          { step: "load-article", articleId, websiteId, reason: after.reason },
+          "Changed during the link check - held for the RepGet team's review",
+        );
+        return { held: after.reason };
+      }
+
       // Industry lives on the website, and steers the header image prompt.
       const [site] = await db
-        .select({ industry: websites.industry })
+        .select({
+          industry: websites.industry,
+          url: websites.url,
+          domain: websites.domain,
+          poweredByLink: websites.poweredByLink,
+        })
         .from(websites)
         .where(eq(websites.id, websiteId))
         .limit(1);
+
+      /*
+        What is sent: the checked stored copy, plus the delivery-only changes
+        (the "Powered by RepGet" line per the website's setting, responsive
+        images, section-link repair). See lib/articles/delivery.ts.
+      */
+      contentHtml = prepareForDelivery(current.bodyHtml, {
+        poweredBy: site?.poweredByLink ?? false,
+        siteHosts: site ? siteScope(site).hosts : undefined,
+      });
 
       /**
        * IDENTIFIERS ONLY. This step's return value is persisted by Inngest so a
@@ -155,14 +259,21 @@ export const publishArticleJob = inngest.createFunction(
           integrationId: integration.integrationId,
           providerId: integration.providerId,
           isUpdate: Boolean(previous?.remoteId),
-          htmlBytes: article.bodyHtml.length,
-          hasSlug: Boolean(article.slug),
-          hasExcerpt: Boolean(article.metaDescription),
+          htmlBytes: contentHtml.length,
+          hasSlug: Boolean(current.slug),
+          hasExcerpt: Boolean(current.metaDescription),
         },
         "Article and integration loaded",
       );
 
       return {
+        held: null,
+        /*
+          The exact revision prepared here. The send step claims the dispatch
+          only if the article is STILL this revision (lib/publishing/dispatch.ts),
+          so nothing prepared from an older revision can go out.
+        */
+        revisionHash: reviewHash(current),
         integrationId: integration.integrationId,
         providerId: integration.providerId,
         // No `credentials` key, deliberately: see above.
@@ -170,18 +281,23 @@ export const publishArticleJob = inngest.createFunction(
         // Used to steer the header image toward the customer's sector.
         industry: site?.industry ?? null,
         // The image saved with the article, published as-is when present.
-        image: article.imageUrl
-          ? { url: article.imageUrl, alt: article.imageAlt ?? article.title }
+        image: current.imageUrl
+          ? { url: current.imageUrl, alt: current.imageAlt ?? current.title }
           : null,
         post: {
-          title: article.title,
-          contentHtml: article.bodyHtml,
-          slug: article.slug,
-          excerpt: article.metaDescription,
+          title: current.title,
+          contentHtml,
+          slug: current.slug,
+          excerpt: current.metaDescription,
           status,
         },
       };
     });
+
+    // Held by the review gate: nothing to publish, and nothing failed.
+    if (prepared.held !== null) {
+      return { held: prepared.held };
+    }
 
     /**
      * The header image is generated here rather than carried from article
@@ -193,6 +309,13 @@ export const publishArticleJob = inngest.createFunction(
      * without an image rather than not publishing it.
      */
     const featuredMedia = await step.run("upload-image", async () => {
+      /*
+        Not uploaded for a revision that is already held: the dispatch claim
+        would refuse it anyway, and a media item nobody sends is litter in
+        the customer's library. (Not the gate itself - that is the claim.)
+      */
+      const now = await checkReleasable(articleId);
+      if (!now.ok) return null;
       // Nothing to upload only when there is no saved image AND none can be
       // generated; a saved image needs no provider.
       if (!prepared.image && !isImageGenerationConfigured()) {
@@ -338,7 +461,26 @@ export const publishArticleJob = inngest.createFunction(
       }
     });
 
-    const result = await step.run("send-to-cms", async () => {
+    /*
+      THE DISPATCH BOUNDARY, at every attempt (lib/publishing/dispatch.ts).
+
+      This step used to send `prepared.post` - HTML read when the job began -
+      with no fresh check, so an approval withdrawn or an edit saved during
+      the image upload, or between a failed attempt and its retry (earlier
+      steps are replayed from cache), still went out. Now each attempt:
+
+        1. reconciles an earlier create whose answer never arrived, so a
+           retry updates that post instead of creating a second one;
+        2. CLAIMS the dispatch: in one transaction holding the article's row
+           lock it re-checks the freeze, the review gate, that the article is
+           still exactly the revision prepared, and the schedule rule for why
+           it was queued - and records the revision as in flight;
+        3. sends THAT locked revision, and records the outcome at once.
+
+      Edits and review changes take the same row lock and are refused while
+      a revision is in flight, so nothing can slip between check and send.
+    */
+    const sendOutcome = await step.run("send-to-cms", async () => {
       const provider = getProvider(prepared.providerId);
       if (!provider) {
         /*
@@ -379,17 +521,133 @@ export const publishArticleJob = inngest.createFunction(
         throw new Error("The publishing integration is no longer connected");
       }
 
+      /*
+        Which remote post this is, read NOW rather than when the job began:
+        another attempt may have created it since.
+      */
+      const [previous] = await db
+        .select({ remoteId: publishLogs.remoteId })
+        .from(publishLogs)
+        .where(and(eq(publishLogs.articleId, articleId), eq(publishLogs.status, "published")))
+        .orderBy(desc(publishLogs.createdAt))
+        .limit(1);
+      let remoteId = previous?.remoteId ?? null;
+      /** A post an earlier, unanswered create turned out to have made. */
+      let reconciled: { remoteId: string; remoteUrl: string; status: string } | null = null;
+
+      /*
+        1. An earlier create got no answer: the post may exist. Look it up
+        before creating anything; never create "just in case".
+      */
+      if (!remoteId) {
+        const unknown = await latestUncertain(articleId);
+        if (unknown) {
+          const [current] = await db
+            .select({ slug: articles.slug })
+            .from(articles)
+            .where(eq(articles.id, articleId))
+            .limit(1);
+          if (!provider.findPostBySlug || !current?.slug) {
+            await db
+              .update(articles)
+              .set({ error: HOLD_MESSAGES.uncertain_previous, updatedAt: new Date() })
+              .where(eq(articles.id, articleId));
+            logger.warn(
+              { step: "send-to-cms", articleId, websiteId, dispatchId: unknown.id },
+              "Earlier send got no answer and this site cannot be searched - waiting for a person to check",
+            );
+            return { held: "uncertain_previous" as const, sent: null, title: null };
+          }
+          // Throws on an outage: the lookup is retried, nothing is created.
+          const found = await provider.findPostBySlug(integration.credentials, current.slug);
+          if (found) {
+            await reconcileUncertain(unknown.id, { status: "sent", remoteId: found.remoteId, remoteUrl: found.remoteUrl });
+            await db.insert(publishLogs).values({
+              articleId,
+              integrationId: prepared.integrationId,
+              status: "published",
+              remoteId: found.remoteId,
+              remoteUrl: found.remoteUrl,
+            });
+            remoteId = found.remoteId;
+            reconciled = found;
+            logger.info(
+              { step: "send-to-cms", articleId, websiteId, remoteId },
+              "Earlier send had created the post - updating it instead of creating another",
+            );
+          } else {
+            await reconcileUncertain(unknown.id, { status: "failed", error: "Not found on the site when reconciled" });
+          }
+        }
+      }
+
+      // 2. The claim.
+      const claim = await claimDispatch({
+        articleId,
+        websiteId,
+        channel: "direct",
+        trigger,
+        requestedStatus: status,
+        expectedRevision: prepared.revisionHash,
+        owner: `publish-article:${event.id ?? "run"}`,
+        refuseAfterUncertain: !remoteId,
+      });
+      if (!claim.ok && claim.reason === "already_sent" && reconciled) {
+        /*
+          The unanswered create DID make the post, and it is this very
+          revision: nothing to send - record it as published, once.
+        */
+        const [current] = await db
+          .select({ title: articles.title })
+          .from(articles)
+          .where(eq(articles.id, articleId))
+          .limit(1);
+        return { held: null, sent: reconciled, title: current?.title ?? "" };
+      }
+      if (!claim.ok) {
+        logger.info(
+          { step: "send-to-cms", articleId, websiteId, trigger, reason: claim.reason },
+          `Not sent: ${HOLD_MESSAGES[claim.reason]}`,
+        );
+        if (claim.reason === "revision_changed") {
+          /*
+            Changed while this job prepared it. Nothing stale is sent; a
+            fresh job prepares the new revision from the start (links
+            checked, footer, image) and claims again under the same rules.
+          */
+          await inngest.send({
+            id: `publish-revision:${articleId}:${Date.now()}`,
+            name: "article/publish.requested",
+            data: { ...event.data, trigger },
+          });
+        }
+        return { held: claim.reason, sent: null, title: null };
+      }
+
+      // 3. Send exactly the claimed revision.
+      const [site] = await db
+        .select({ url: websites.url, domain: websites.domain, poweredByLink: websites.poweredByLink })
+        .from(websites)
+        .where(eq(websites.id, websiteId))
+        .limit(1);
+      const post = {
+        title: claim.article.title,
+        contentHtml: prepareForDelivery(claim.article.bodyHtml, {
+          poweredBy: site?.poweredByLink ?? false,
+          siteHosts: site ? siteScope(site).hosts : undefined,
+        }),
+        slug: claim.article.slug,
+        excerpt: claim.article.metaDescription,
+        status,
+        featuredMediaId: featuredMedia?.id ?? null,
+      };
+
       const startedAt = Date.now();
       try {
-        const sent = prepared.remoteId
-          ? await provider.updatePost(integration.credentials, prepared.remoteId, {
-              ...prepared.post,
-              featuredMediaId: featuredMedia?.id ?? null,
-            })
-          : await provider.createPost(integration.credentials, {
-              ...prepared.post,
-              featuredMediaId: featuredMedia?.id ?? null,
-            });
+        const sent = remoteId
+          ? await provider.updatePost(integration.credentials, remoteId, post)
+          : await provider.createPost(integration.credentials, post);
+        await settleDispatch(claim.dispatchId, { status: "sent", remoteId: sent.remoteId, remoteUrl: sent.remoteUrl });
 
         /**
          * `returnedStatus` is read back from the CMS rather than assumed: a
@@ -403,16 +661,30 @@ export const publishArticleJob = inngest.createFunction(
             articleId,
             websiteId,
             providerId: prepared.providerId,
-            operation: prepared.remoteId ? "update" : "create",
+            operation: remoteId ? "update" : "create",
             remoteId: sent.remoteId,
             requestedStatus: status,
             returnedStatus: sent.status,
+            dispatchId: claim.dispatchId,
             durationMs: Date.now() - startedAt,
           },
           "Article sent to the CMS",
         );
-        return sent;
+        return { held: null, sent, title: claim.article.title };
       } catch (error) {
+        /*
+          Did the post get created? A refusal the site answered with a 4xx
+          is a clear "no". No answer at all (timeout, connection lost), or a
+          5xx on a CREATE, may have created it: recorded as uncertain, and
+          the retry reconciles before creating anything. An UPDATE is safe
+          to repeat, so its failures are plain failures.
+        */
+        const httpStatus = error instanceof ProviderError ? error.status : undefined;
+        const refused = typeof httpStatus === "number" && httpStatus < 500;
+        const uncertain = !remoteId && !refused;
+        const message = error instanceof Error ? error.message : "unknown";
+        await settleDispatch(claim.dispatchId, { status: uncertain ? "uncertain" : "failed", error: message });
+
         if (error instanceof ProviderError) {
           /*
             `kind` is what separates bad credentials from a site that is down
@@ -425,9 +697,10 @@ export const publishArticleJob = inngest.createFunction(
               articleId,
               websiteId,
               providerId: prepared.providerId,
-              operation: prepared.remoteId ? "update" : "create",
+              operation: remoteId ? "update" : "create",
               kind: error.kind,
               reason: error.message,
+              uncertain,
               durationMs: Date.now() - startedAt,
             },
             "CMS rejected the article",
@@ -446,6 +719,13 @@ export const publishArticleJob = inngest.createFunction(
         throw error;
       }
     });
+
+    // Held at the dispatch boundary: nothing was sent, and nothing failed.
+    if (sendOutcome.held !== null || !sendOutcome.sent) {
+      return { held: sendOutcome.held };
+    }
+    const result = sendOutcome.sent;
+    const sentTitle = sendOutcome.title ?? "";
 
     await step.run("record-result", async () => {
       await db.insert(publishLogs).values({
@@ -513,8 +793,8 @@ export const publishArticleJob = inngest.createFunction(
         // A WordPress draft is not live, and saying otherwise would have the
         // customer believing a page exists that nobody can visit.
         title: live
-          ? `"${prepared.post.title}" is live`
-          : `"${prepared.post.title}" was saved as a draft`,
+          ? `"${sentTitle}" is live`
+          : `"${sentTitle}" was saved as a draft`,
         body: live ? result.remoteUrl : "Publish it from WordPress when ready.",
         href: `/websites/${websiteId}/articles/${articleId}`,
       });

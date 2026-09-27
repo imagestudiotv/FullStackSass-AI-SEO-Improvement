@@ -22,7 +22,14 @@ import {
 import { articleAllowanceRule, checkLimit, PRICING, track } from "@/lib/usage";
 import { backlinkRequests, placements } from "@/lib/db/schema";
 import { markPlacementDrafted } from "@/lib/backlinks/placements";
-import { addInternalLinks } from "@/lib/articles/internal-links";
+import {
+  linkGeneratedArticle,
+  stripUnverifiedLinks,
+  summarize,
+} from "@/lib/articles/internal-links";
+import { applyTableOfContents } from "@/lib/articles/toc";
+import { checkReleasable, inManagedNetwork } from "@/lib/articles/review";
+import { ArticleInFlightError, lockForEdit } from "@/lib/publishing/dispatch";
 import {
   generateArticleImage,
   isImageGenerationConfigured,
@@ -553,18 +560,65 @@ export const generateArticle = inngest.createFunction(
     });
 
     /**
-     * Internal links are added after the body is written, never asked for in
-     * the prompt: a model asked to link invents URLs that do not exist, and a
-     * broken link on a live site is worse than no link. Every href here comes
-     * from a page we actually crawled.
+     * Internal links are chosen here, never by the writer: asked to link, a
+     * model invents "#" placeholders and paths the site never had. This
+     * removes any link to the site it could not verify, then adds up to the
+     * website's internalLinkTarget links to pages verified to exist and to be
+     * about the same thing (lib/articles/internal-links.ts). No verified,
+     * relevant page: no link, and the words stay as plain text.
+     *
+     * If checking itself fails, every unverified internal link is removed
+     * instead - a failure can drop a link, never publish an invented one.
      */
     const linkedHtml = await step.run("add-internal-links", async () => {
-      const { html, linked } = await addInternalLinks(
-        brief.websiteId,
-        brief.brief.title,
-        brief.brief.targetKeyword ?? null,
-        written.bodyHtml,
-      );
+      let html: string;
+      let linked: unknown[];
+      /*
+        The contents list first, built from the real headings with unique ids
+        (lib/articles/toc.ts), so the link checks below see - and keep - only
+        section links that resolve.
+      */
+      const structured = applyTableOfContents(written.bodyHtml, {
+        enabled: brief.brief.tableOfContents,
+        language: brief.brief.language,
+      });
+      try {
+        const result = await linkGeneratedArticle({
+          websiteId: brief.websiteId,
+          articleId,
+          title: brief.brief.title,
+          targetKeyword: brief.brief.targetKeyword ?? null,
+          html: structured,
+          internalLinkTarget: brief.brief.internalLinkTarget ?? 0,
+          backlinkUrl: brief.brief.backlink?.url ?? null,
+        });
+        html = result.html;
+        linked = result.inserted;
+        const summary = summarize(result.findings, result.inserted.length);
+        if (summary.unwrapped + summary.trimmed + summary.replaced > 0) {
+          logger.info(
+            { step: "add-internal-links", articleId, websiteId: brief.websiteId, ...summary },
+            "Unverified links removed from the written article",
+          );
+        }
+      } catch (error) {
+        const [site] = await db
+          .select({ url: websites.url, domain: websites.domain })
+          .from(websites)
+          .where(eq(websites.id, brief.websiteId))
+          .limit(1);
+        html = site ? stripUnverifiedLinks(structured, site, brief.brief.backlink?.url) : structured;
+        linked = [];
+        logger.warn(
+          {
+            step: "add-internal-links",
+            articleId,
+            websiteId: brief.websiteId,
+            reason: error instanceof Error ? error.message : "unknown",
+          },
+          "Link checking failed - unverified internal links removed, none added",
+        );
+      }
 
       /*
         Zero links is a legitimate outcome on a site with nothing else crawled
@@ -579,7 +633,7 @@ export const generateArticle = inngest.createFunction(
             websiteId: brief.websiteId,
             linksAdded: 0,
           },
-          "No internal links added - no matching crawled pages to link to",
+          "No internal links added - no verified, relevant page on the site to link to",
         );
       } else {
         logger.info(
@@ -598,9 +652,22 @@ export const generateArticle = inngest.createFunction(
     });
 
     await step.run("save-article", async () => {
+      /*
+        The managed Partner Network's review gate: a website accepting network
+        links has every new draft held for the RepGet team, who place links
+        and approve it before any publishing path may deliver it
+        (lib/articles/review.ts). Decided now, from the website as it is
+        today. A rewrite of an approved article is held again: it is new text.
+      */
+      const reviewStatus = (await inManagedNetwork(brief.websiteId)) ? "pending" : null;
       await db
         .update(articles)
         .set({
+          reviewStatus,
+          reviewApprovedAt: null,
+          reviewApprovedBy: null,
+          reviewApprovedHash: null,
+          reviewVersion: sql`${articles.reviewVersion} + 1`,
           bodyHtml: linkedHtml.html,
           // Saved with the article; see the generate-image step.
           imageUrl: image?.url ?? null,
@@ -708,6 +775,20 @@ export const generateArticle = inngest.createFunction(
         .limit(1);
       if (!site) return false;
 
+      /*
+        The managed Partner Network's review gate comes before everything
+        else here - the first-article exception included. A held article is
+        released by its approval (lib/admin/network.ts), not by this step.
+      */
+      const gate = await checkReleasable(articleId);
+      if (!gate.ok) {
+        logger.info(
+          { step: "auto-publish", articleId, websiteId: brief.websiteId, reason: gate.reason },
+          "Held for the RepGet team's review - released when approved",
+        );
+        return false;
+      }
+
       // What the customer chose: Live, or a draft in their CMS. Every direct
       // connection used to publish live regardless. See publishing/policy.ts.
       const status = automaticStatus(site);
@@ -747,6 +828,7 @@ export const generateArticle = inngest.createFunction(
             websiteId: brief.websiteId,
             organizationId,
             status: FIRST_ARTICLE_STATUS,
+            trigger: "first_article",
           },
         });
         logger.info(
@@ -844,7 +926,7 @@ export const generateArticle = inngest.createFunction(
 
       await inngest.send({
         name: "article/publish.requested",
-        data: { articleId, websiteId: brief.websiteId, organizationId, status },
+        data: { articleId, websiteId: brief.websiteId, organizationId, status, trigger: "automatic" },
       });
 
       logger.info(
@@ -1163,6 +1245,16 @@ export async function requeueArticle(input: {
     previousStatus: current.status,
   });
   const claimed = await db.transaction(async (tx) => {
+    /*
+      A rewrite replaces what the article delivers, so it waits while a
+      revision is being sent to the site (lib/publishing/dispatch.ts).
+    */
+    try {
+      await lockForEdit(tx, articleId);
+    } catch (error) {
+      if (error instanceof ArticleInFlightError) return "in_flight" as const;
+      throw error;
+    }
     const rows = await tx
       .update(articles)
       .set({
@@ -1187,6 +1279,10 @@ export async function requeueArticle(input: {
     return rows.length > 0;
   });
 
+  if (claimed === "in_flight") {
+    await releaseUnspent(slot.reservations, "already_running");
+    return { ok: false, error: new ArticleInFlightError().message };
+  }
   if (!claimed) {
     await releaseUnspent(slot.reservations, "already_running");
     return { ok: false, error: ALREADY_WRITING };

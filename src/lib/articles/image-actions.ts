@@ -28,6 +28,8 @@ import {
   releaseUnspent,
   reserveAll,
 } from "@/lib/billing/spend-quota";
+import { syncApproval } from "@/lib/articles/review";
+import { ArticleInFlightError, editArticle, isInFlight } from "@/lib/publishing/dispatch";
 
 /**
  * Changing an article's picture.
@@ -105,6 +107,8 @@ export async function regenerateArticleImage(
   const { site, article, error } = await loadArticle(websiteId, articleId);
   if (error) return { ok: false, error };
   if (!site || !article) return { ok: false, error: "Article not found" };
+  // Not while it is being sent: the paid picture could not be saved.
+  if (await isInFlight(article.id)) return { ok: false, error: new ArticleInFlightError().message };
   // Billed to the website's owner, not an invited editor's own workspace.
   const ownerOrgId = site.organizationId;
 
@@ -243,24 +247,24 @@ export async function regenerateArticleImage(
 
   const previous = article.imageUrl;
 
-  await db
-    .update(articles)
-    .set({
-      imageUrl: stored,
-      // Their prompt, or the matched scene, describes the picture better
-      // than the title does.
-      imageAlt: prompt.trim() ? prompt.trim().slice(0, 300) : alt,
-      // Display only; the reservation above is what enforces the cap.
-      imageAttempts: sql`${articles.imageAttempts} + 1`,
-      updatedAt: new Date(),
-    })
-    .where(eq(articles.id, article.id));
+  const refused = await writeImage(article.id, {
+    imageUrl: stored,
+    // Their prompt, or the matched scene, describes the picture better
+    // than the title does.
+    imageAlt: prompt.trim() ? prompt.trim().slice(0, 300) : alt,
+    // Display only; the reservation above is what enforces the cap.
+    imageAttempts: sql`${articles.imageAttempts} + 1`,
+    updatedAt: new Date(),
+  });
+  if (refused) {
+    await deleteArticleImage(stored);
+    return { ok: false, error: refused };
+  }
 
   // After the row is updated: losing the old file matters less than losing
   // the new one, and this way a delete failure cannot strand the article
   // pointing at a picture that no longer exists.
   if (previous) await deleteArticleImage(previous);
-
   revalidatePath(`/websites/${site.id}/articles/${articleId}`);
   return { ok: true, data: { imageUrl: stored } };
 }
@@ -307,13 +311,13 @@ export async function uploadArticleImage(
 
   const previous = article.imageUrl;
 
-  await db
-    .update(articles)
-    .set({ imageUrl: stored, updatedAt: new Date() })
-    .where(eq(articles.id, article.id));
+  const refused = await writeImage(article.id, { imageUrl: stored, updatedAt: new Date() });
+  if (refused) {
+    await deleteArticleImage(stored);
+    return { ok: false, error: refused };
+  }
 
   if (previous) await deleteArticleImage(previous);
-
   revalidatePath(`/websites/${site.id}/articles/${articleId}`);
   return { ok: true, data: { imageUrl: stored } };
 }
@@ -398,6 +402,25 @@ export async function listReusableImages(
   };
 }
 
+/**
+ * Writes an image change under the article's row lock, and returns it to
+ * the review queue when it changes an approved article. Refused while the
+ * article is being sent to the website (lib/publishing/dispatch.ts).
+ */
+async function writeImage(articleId: string, patch: Parameters<ReturnType<typeof db.update<typeof articles>>["set"]>[0]): Promise<string | null> {
+  try {
+    await editArticle(articleId, async (tx) => {
+      await tx.update(articles).set(patch).where(eq(articles.id, articleId));
+      // An image change after approval goes back to the review queue.
+      await syncApproval(articleId, tx);
+    });
+    return null;
+  } catch (error) {
+    if (error instanceof ArticleInFlightError) return error.message;
+    throw error;
+  }
+}
+
 export async function removeArticleImage(
   websiteId: string,
   articleId: string,
@@ -408,13 +431,10 @@ export async function removeArticleImage(
 
   const previous = article.imageUrl;
 
-  await db
-    .update(articles)
-    .set({ imageUrl: null, imageAlt: null, updatedAt: new Date() })
-    .where(eq(articles.id, article.id));
+  const refused = await writeImage(article.id, { imageUrl: null, imageAlt: null, updatedAt: new Date() });
+  if (refused) return { ok: false, error: refused };
 
   if (previous) await deleteArticleImage(previous);
-
   revalidatePath(`/websites/${site.id}/articles/${articleId}`);
   return { ok: true, data: null };
 }
@@ -429,11 +449,8 @@ export async function updateArticleImageAlt(
   if (error) return { ok: false, error };
   if (!site || !article) return { ok: false, error: "Article not found" };
 
-  await db
-    .update(articles)
-    .set({ imageAlt: alt.trim().slice(0, 300) || null, updatedAt: new Date() })
-    .where(eq(articles.id, article.id));
-
+  const refused = await writeImage(article.id, { imageAlt: alt.trim().slice(0, 300) || null, updatedAt: new Date() });
+  if (refused) return { ok: false, error: refused };
   revalidatePath(`/websites/${site.id}/articles/${articleId}`);
   return { ok: true, data: null };
 }

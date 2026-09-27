@@ -258,6 +258,24 @@ export async function publishPost(
   };
 }
 
+/**
+ * A post by slug, in any status the application password can see. Used to
+ * reconcile a create whose response was lost: WordPress keeps the slug we
+ * sent (or a -2 variant when taken, which this deliberately does not match).
+ */
+export async function findPostBySlug(
+  credentials: WordPressCredentials,
+  slug: string,
+): Promise<PublishResult | null> {
+  const posts = await request<Array<{ id: number; link: string; status: string; slug: string }>>(
+    credentials,
+    `/posts?slug=${encodeURIComponent(slug)}&status=publish,future,draft,pending,private&context=edit&_fields=id,link,status,slug`,
+    { method: "GET" },
+  );
+  const post = (posts ?? []).find((p) => p.slug === slug);
+  return post ? { remoteId: String(post.id), remoteUrl: post.link, status: post.status } : null;
+}
+
 /** Updates a post we published earlier, identified by its WordPress id. */
 export async function updatePost(
   credentials: WordPressCredentials,

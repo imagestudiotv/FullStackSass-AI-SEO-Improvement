@@ -8,6 +8,7 @@ import { notify } from "@/lib/notifications/create";
 import { resolveIntegrationKey } from "@/lib/plugin/keys";
 import { markFirstArticleSentAndContinue } from "@/lib/publishing/policy";
 import { recordArticlePublication } from "@/lib/backlinks/placements";
+import { settlePluginDispatch } from "@/lib/publishing/dispatch";
 
 /**
  * Publication confirmed: POST /api/plugin/published
@@ -95,6 +96,8 @@ export async function POST(request: NextRequest) {
   const failure = typeof body.error === "string" ? body.error : null;
 
   if (failure) {
+    // The hand-over is over: the article may be edited and offered again.
+    await settlePluginDispatch(article.id, { status: "failed", error: failure });
     await db.insert(publishLogs).values({
       articleId: article.id,
       status: "failed",
@@ -117,6 +120,9 @@ export async function POST(request: NextRequest) {
     typeof body.remoteId === "string" || typeof body.remoteId === "number"
       ? String(body.remoteId)
       : null;
+
+  // Ends the in-flight hand-over (lib/publishing/dispatch.ts).
+  await settlePluginDispatch(article.id, { status: "sent", remoteId, remoteUrl: url });
 
   await db.insert(publishLogs).values({
     articleId: article.id,

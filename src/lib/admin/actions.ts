@@ -29,7 +29,10 @@ import {
   websites,
 } from "@/lib/db/schema";
 import { sanitizeHtml, countWords } from "@/lib/articles/generate";
+import { siteScope } from "@/lib/articles/link-guard";
 import type { ActionResult } from "@/lib/websites/actions";
+import { syncApproval } from "@/lib/articles/review";
+import { ArticleInFlightError, editArticle } from "@/lib/publishing/dispatch";
 
 /**
  * Administrator queries.
@@ -384,12 +387,30 @@ export async function updateAnyArticle(
     patch.title = title.slice(0, 200);
   }
   if (typeof input.bodyHtml === "string") {
-    const clean = sanitizeHtml(input.bodyHtml);
+    // Links to the article's own site stay followed internal links (see sanitize.ts).
+    const [site] = await db
+      .select({ url: websites.url, domain: websites.domain })
+      .from(articles)
+      .innerJoin(websites, eq(websites.id, articles.websiteId))
+      .where(eq(articles.id, articleId))
+      .limit(1);
+    const clean = sanitizeHtml(input.bodyHtml, site ? { siteHosts: siteScope(site).hosts } : {});
     patch.bodyHtml = clean;
     patch.wordCount = countWords(clean);
   }
 
-  await db.update(articles).set(patch).where(eq(articles.id, articleId));
+  // Under the article's row lock; refused while it is being sent
+  // (lib/publishing/dispatch.ts).
+  try {
+    await editArticle(articleId, async (tx) => {
+      await tx.update(articles).set(patch).where(eq(articles.id, articleId));
+      // An admin edit after approval needs approving too (lib/articles/review.ts).
+      await syncApproval(articleId, tx);
+    });
+  } catch (error) {
+    if (error instanceof ArticleInFlightError) return { ok: false, error: error.message };
+    throw error;
+  }
 
   revalidatePath("/admin/articles");
   revalidatePath(`/admin/articles/${articleId}`);

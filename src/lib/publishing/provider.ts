@@ -149,6 +149,15 @@ export type CmsProvider = {
    * Optional: a provider that cannot take media simply omits this, and
    * publishing proceeds without a header image rather than failing.
    */
+  /**
+   * Finds a post this integration may have created, by slug - used ONLY to
+   * reconcile a create whose answer never arrived (lib/publishing/dispatch.ts),
+   * so a retry updates that post instead of creating a second one. Null means
+   * the site answered and has no such post. Providers without a reliable
+   * lookup omit this; their unknown outcomes wait for a person to check.
+   */
+  findPostBySlug?(credentials: Credentials, slug: string): Promise<PublishResult | null>;
+
   uploadMedia?(
     credentials: Credentials,
     file: { data: Buffer; contentType: string; filename: string; alt: string },

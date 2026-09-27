@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { deliverNow, enqueueJob } from "@/lib/jobs/outbox";
 import { isPublishingConnection, PUBLISHING_KINDS } from "@/lib/publishing/kinds";
 import { articles, calendarItems, integrations, websites } from "@/lib/db/schema";
+import { notBeforePlannedSql, releasableSql } from "@/lib/articles/review";
 
 /**
  * What happens to an article once it is written - the rules every publishing
@@ -87,6 +88,15 @@ export function pendingFirstArticleQuery(websiteId: string) {
         eq(articles.status, "draft"),
         isNull(articles.publishedUrl),
         isNotNull(articles.bodyHtml),
+        /*
+          The review gate and the planned day (lib/articles/review.ts): the
+          first-article exception releases an article early, but never one
+          the RepGet team has not approved, and never a reviewed one before
+          its planned day. This query feeds the daily release and the
+          release on connecting a CMS, so both obey it.
+        */
+        releasableSql,
+        notBeforePlannedSql,
       ),
     )
     .limit(1);

@@ -12,6 +12,7 @@ import {
   integrations,
   publishLogs,
 } from "@/lib/db/schema";
+import { checkReleasable, HELD_MESSAGE } from "@/lib/articles/review";
 import {
   ProviderError,
   type Credentials,
@@ -27,6 +28,7 @@ import {
 } from "@/lib/publishing/policy";
 import type { IntegrationView, ProviderInfo } from "@/lib/publishing/shared";
 import { triggerPluginSync } from "@/lib/plugin/sync";
+import { latestUncertain, reconcileUncertain } from "@/lib/publishing/dispatch";
 import { isPublishingConnection } from "@/lib/publishing/kinds";
 import { requireWebsite } from "@/lib/tenant";
 import { requireEditor } from "@/lib/websites/require-editor";
@@ -226,6 +228,7 @@ export async function connectProvider(
         websiteId: site.id,
         organizationId: site.organizationId,
         status: FIRST_ARTICLE_STATUS,
+        trigger: "connection",
       },
     });
   }
@@ -302,6 +305,39 @@ export type PublishResult = {
 };
 
 /**
+ * The customer checked their site after a send that got no answer
+ * (lib/publishing/dispatch.ts, "uncertain") and the post is NOT there.
+ *
+ * Recorded on the dispatch, with who said so, and the article's error is
+ * cleared, so the next Publish press creates it. Nothing is sent from here.
+ * A site that CAN be searched (WordPress) is reconciled automatically and
+ * never needs this.
+ */
+export async function confirmNotPublished(
+  websiteId: string,
+  articleId: string,
+): Promise<ActionResult<null>> {
+  const guard = await requireEditor(websiteId);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { site } = guard.context;
+  const [article] = await db
+    .select({ id: articles.id })
+    .from(articles)
+    .where(and(eq(articles.id, articleId), eq(articles.websiteId, site.id)))
+    .limit(1);
+  if (!article) return { ok: false, error: "Article not found" };
+  const unknown = await latestUncertain(article.id);
+  if (!unknown) return { ok: false, error: "There is no unconfirmed publication to resolve" };
+  await reconcileUncertain(unknown.id, {
+    status: "failed",
+    error: `Confirmed not on the site by ${guard.context.userId ?? "an editor"}`,
+  });
+  await db.update(articles).set({ error: null, updatedAt: new Date() }).where(eq(articles.id, article.id));
+  revalidatePath(`/websites/${site.id}/articles/${articleId}`);
+  return { ok: true, data: null };
+}
+
+/**
  * Publishes an article.
  *
  * A direct CMS connection is queued as a job, so the UI is not held open
@@ -327,6 +363,13 @@ export async function publishArticle(
   if (!article.bodyHtml) {
     return { ok: false, error: "This article has not been written yet" };
   }
+  /*
+    The review gate applies to a Publish press too: the press decides WHEN,
+    never whether an unapproved (or since-changed) revision may go out.
+    Enforced here and again by the publish job itself.
+  */
+  const gate = await checkReleasable(article.id);
+  if (!gate.ok) return { ok: false, error: HELD_MESSAGE };
 
   // A CMS connection, not merely any connection: the Google one lives in the
   // same table and cannot publish. See lib/publishing/kinds.ts.
@@ -391,7 +434,7 @@ export async function publishArticle(
 
   await queueJob({
     name: "article/publish.requested",
-    data: { articleId, websiteId: site.id, organizationId: ownerOrgId, status },
+    data: { articleId, websiteId: site.id, organizationId: ownerOrgId, status, trigger: "manual" },
   });
 
   revalidatePath(`/websites/${site.id}/articles/${articleId}`);
