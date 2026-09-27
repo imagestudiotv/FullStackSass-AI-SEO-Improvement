@@ -90,8 +90,17 @@ describe("window boundaries", () => {
   it("counts a period window from its start", async () => {
     const rule: QuotaRule = { key: "p", limit: 2, window: { since: new Date("2026-09-01T00:00:00Z") } };
     await reserve(rule, ctx, { now: new Date("2026-08-31T23:59:00Z") }); // before the period
-    expect(await reserve(rule, ctx, { now: new Date("2026-09-10T00:00:00Z") })).not.toBeNull();
-    expect(await reserve(rule, ctx, { now: new Date("2026-09-20T00:00:00Z") })).not.toBeNull();
+    /*
+      Spent, as period quotas are: reserve() occasionally sweeps with the
+      caller's `now`, and ten days later an UNSPENT reservation is rightly
+      released as abandoned - which made this test fail about 2% of runs.
+    */
+    const first = await reserve(rule, ctx, { now: new Date("2026-09-10T00:00:00Z") });
+    expect(first).not.toBeNull();
+    await consumeReservation(first!.id, "paid");
+    const second = await reserve(rule, ctx, { now: new Date("2026-09-20T00:00:00Z") });
+    expect(second).not.toBeNull();
+    await consumeReservation(second!.id, "paid");
     expect(await reserve(rule, ctx, { now: new Date("2026-09-25T00:00:00Z") })).toBeNull();
   });
 });
