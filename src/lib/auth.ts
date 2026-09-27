@@ -105,6 +105,37 @@ function createAuth() {
     emailAndPassword: {
       enabled: true,
     },
+
+    /**
+     * Endpoints that mark an address VERIFIED without clearing the access an
+     * unverified account already had, and that nothing in this app uses.
+     *
+     * Signup does not verify addresses, so someone can register a victim's
+     * (or an administrator's) address with their own password and keep that
+     * session. If the owner then proved the mailbox through one of these
+     * endpoints, the account would become verified with the intruder's
+     * password and session still attached - and lib/admin/guard.ts treats a
+     * verified allowlisted address as an administrator.
+     *
+     * The paths the app does use are safe: signing in with a one-time code
+     * revokes every password, linked account and session that predates the
+     * proof (Better Auth's revokeUnprovenAccountAccess), and Google is not
+     * linked to an unverified local account (accountLinking's
+     * requireLocalEmailVerified, true by default in Better Auth 1.7). Email
+     * changes stay disabled: neither `user.changeEmail` nor the plugin's
+     * `changeEmail` is enabled.
+     *
+     * Disabled at the HTTP router, which is what an outside caller reaches.
+     */
+    disabledPaths: [
+      "/email-otp/verify-email",
+      "/email-otp/request-password-reset",
+      "/forget-password/email-otp",
+      "/email-otp/reset-password",
+      "/verify-email",
+      "/request-password-reset",
+      "/reset-password",
+    ],
     socialProviders: {
       google: {
         clientId: required("GOOGLE_CLIENT_ID"),
