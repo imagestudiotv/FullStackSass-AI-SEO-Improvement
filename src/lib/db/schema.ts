@@ -1124,6 +1124,14 @@ export const networkSites = pgTable("network_sites", {
   language: text("language"),
   country: text("country"),
   authority: integer("authority"),
+  /**
+   * The owner's minimum for sites that link TO this website, on the scale of
+   * the platform's authority metric (lib/authority/metric.ts - DataForSEO
+   * Rank, 0-100). Null: no preference. The admin placement workflow enforces
+   * it (lib/backlinks/managed.ts); a host whose metric is unknown cannot
+   * satisfy a minimum.
+   */
+  minSourceRank: integer("min_source_rank"),
   acceptingLinks: boolean("accepting_links").default(true).notNull(),
   monthlyCap: integer("monthly_cap").default(0).notNull(),
   linksGiven: integer("links_given").default(0).notNull(),
@@ -1211,6 +1219,11 @@ export const placements = pgTable("placements", {
   /** Why this host, target and amount - written by the administrator. */
   reason: text("reason"),
   lastVerifiedAt: timestamp("last_verified_at"),
+  /**
+   * When the beneficiary last asked for an early re-check. Rate-limits the
+   * request (lib/reporting/recheck.ts); it never moves credits by itself.
+   */
+  recheckRequestedAt: timestamp("recheck_requested_at"),
   publishedAt: timestamp("published_at"),
   liveAt: timestamp("live_at"),
   removedAt: timestamp("removed_at"),
@@ -1255,8 +1268,177 @@ export const linkChecks = pgTable("link_checks", {
    * Null on rows written before the distinction existed.
    */
   outcome: text("outcome"),
+  /**
+   * The rel attribute of the matching link as found on the live page
+   * ("noopener nofollow", "" for none). Null when no link was found or the
+   * row predates it - unknown, not "followed".
+   */
+  rel: text("rel"),
+  /** Why an "error" check failed (timeout, DNS), trimmed. No page content. */
+  error: text("error"),
   checkedAt: timestamp("checked_at").defaultNow().notNull(),
 });
+
+/* ------------------------------------------------------------------------- */
+/* Authority metrics and value estimates                                       */
+/* ------------------------------------------------------------------------- */
+
+/**
+ * One provider metric for one domain, as last collected.
+ *
+ * A FACT ABOUT A PUBLIC DOMAIN, not about a tenant - like provider_cache it
+ * is shared, so a domain linked from ten websites costs one lookup. What is
+ * stored is exactly what the provider said and when: its metric name and
+ * native scale travel with the value, so a DataForSEO Rank is never shown as
+ * another company's score. Missing data stays missing: `value` is null until
+ * a lookup succeeds, and `status` says why.
+ *
+ * status: pending (queued, never collected) | ok | no_data (the provider
+ * knows no backlinks for the domain) | no_access (the account lacks the API,
+ * e.g. DataForSEO 40204) | error (temporary; retried later).
+ */
+export const domainMetrics = pgTable(
+  "domain_metrics",
+  {
+    id: pk(),
+    domain: text("domain").notNull(),
+    provider: text("provider").notNull(),
+    metric: text("metric").notNull(),
+    /** The top of the provider's scale for this value, e.g. 100. */
+    scaleMax: integer("scale_max").notNull(),
+    value: integer("value"),
+    status: text("status").default("pending").notNull(),
+    error: text("error"),
+    /** When the provider's value was obtained. Null until one is. */
+    observedAt: timestamp("observed_at"),
+    /** Last collection attempt, successful or not. */
+    attemptedAt: timestamp("attempted_at"),
+    attempts: integer("attempts").default(0).notNull(),
+    /** Not collected again before this. */
+    nextAttemptAt: timestamp("next_attempt_at").defaultNow().notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("domain_metrics_domain_metric_uidx").on(table.domain, table.provider, table.metric),
+    index("domain_metrics_due_idx").on(table.nextAttemptAt),
+  ],
+);
+
+/**
+ * How RepGet estimates the equivalent value of traffic and backlinks.
+ *
+ * VERSIONED and append-only: a figure on a report can always be traced to
+ * the policy that produced it, and changing the rates is a new row, not an
+ * edit that silently rewrites every past number. The policy in force is the
+ * newest whose effectiveFrom has passed. No row: no estimate is shown
+ * ("Estimate not configured") - RepGet never invents market prices.
+ */
+export const valuationPolicies = pgTable(
+  "valuation_policies",
+  {
+    id: pk(),
+    version: integer("version").notNull(),
+    /** ISO 4217, e.g. "USD". Every rate below is in this currency. */
+    currency: text("currency").notNull(),
+    /**
+     * keyword_cpc: each generated article's Search Console clicks times the
+     *   cost per click of the keyword it targets (DataForSEO reports USD, so
+     *   only a USD policy can use it);
+     * fixed: those clicks times fixedClickRate;
+     * none: traffic is not valued.
+     */
+    clickValueMode: text("click_value_mode").default("none").notNull(),
+    fixedClickRate: numeric("fixed_click_rate", { precision: 10, scale: 2 }),
+    /**
+     * Value of ONE verified received backlink, by source authority band:
+     * [{ "minRank": 0-100 | null, "value": number }]. The band with the
+     * highest minRank at or below the source's rank applies; minRank null is
+     * the rate for a source whose rank is unknown. Empty: not valued.
+     */
+    backlinkRates: jsonb("backlink_rates").default([]).notNull(),
+    /** Where the rates come from, in words. Required. */
+    sources: text("sources").notNull(),
+    notes: text("notes"),
+    effectiveFrom: timestamp("effective_from").notNull(),
+    createdBy: text("created_by"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [uniqueIndex("valuation_policies_version_uidx").on(table.version)],
+);
+
+/* ------------------------------------------------------------------------- */
+/* Publication control                                                         */
+/* ------------------------------------------------------------------------- */
+
+/**
+ * Operator switches that every publishing path reads at dispatch time.
+ *
+ *   publication_freeze - when enabled, NOTHING is sent to a customer's site:
+ *     direct publishing, the plugin feed, scheduled and queued jobs all hold
+ *     at their dispatch boundary. For incidents and for rollback.
+ *   managed_review     - when enabled, new drafts on Partner Network websites
+ *     enter the RepGet team's review. Off until an operator enables it once a
+ *     deploy has completed, so no article is held for review while an older
+ *     build that ignores the review gate may still be running.
+ *
+ * A missing row means disabled.
+ */
+export const platformControls = pgTable("platform_controls", {
+  key: text("key").primaryKey(),
+  enabled: boolean("enabled").default(false).notNull(),
+  reason: text("reason"),
+  updatedBy: text("updated_by"),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+/**
+ * One attempt to send one revision of an article to a customer's site.
+ *
+ * THE DISPATCH BOUNDARY (lib/publishing/dispatch.ts). Every external send -
+ * each direct-publish attempt, each plugin hand-over - first claims a row
+ * here, in the transaction that locks the article and re-checks the review
+ * gate, the exact revision, the schedule and the freeze. From that commit
+ * the revision is IN FLIGHT: it may reach the site and can no longer be
+ * recalled, so edits and review changes are refused until the outcome is
+ * recorded. At most one in-flight row per article, enforced by the database.
+ *
+ * status: in_flight -> sent | failed (the site provably refused; nothing
+ * created) | uncertain (no answer: the post may exist) | abandoned (a plugin
+ * hand-over never acknowledged in time; safe to re-offer - the plugin
+ * de-duplicates by article id).
+ */
+export const publicationDispatches = pgTable(
+  "publication_dispatches",
+  {
+    id: pk(),
+    articleId: uuid("article_id")
+      .notNull()
+      .references(() => articles.id, { onDelete: "cascade" }),
+    websiteId: websiteId(),
+    /** direct | plugin */
+    channel: text("channel").notNull(),
+    /** Why it was sent: manual | automatic | first_article | approval | connection | plugin. */
+    trigger: text("trigger").notNull(),
+    /** reviewHash() of the revision sent (lib/articles/review.ts). */
+    revisionHash: text("revision_hash").notNull(),
+    /** publish | draft, as requested. */
+    requestedStatus: text("requested_status").notNull(),
+    status: text("status").default("in_flight").notNull(),
+    /** The job run or request that owns it. */
+    owner: text("owner"),
+    remoteId: text("remote_id"),
+    remoteUrl: text("remote_url"),
+    error: text("error"),
+    claimedAt: timestamp("claimed_at").defaultNow().notNull(),
+    completedAt: timestamp("completed_at"),
+  },
+  (table) => [
+    index("publication_dispatches_article_idx").on(table.articleId, table.claimedAt),
+    uniqueIndex("publication_dispatches_in_flight_uidx")
+      .on(table.articleId)
+      .where(sql`${table.status} = 'in_flight'`),
+  ],
+);
 
 /* ------------------------------------------------------------------------- */
 /* Infrastructure                                                             */
