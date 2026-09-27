@@ -1,4 +1,7 @@
-import { and, eq } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
+
+import { and, eq, lt, notInArray, or, sql } from "drizzle-orm";
+import { NonRetriableError } from "inngest";
 
 import { inngest } from "@/inngest/client";
 import { MODELS } from "@/lib/ai/client";
@@ -16,9 +19,9 @@ import {
   generateOutline,
   type ArticleBrief,
 } from "@/lib/articles/generate";
-import { checkLimit, PRICING, track } from "@/lib/usage";
+import { articleAllowanceRule, checkLimit, PRICING, track } from "@/lib/usage";
 import { backlinkRequests, placements } from "@/lib/db/schema";
-import { recordCredit } from "@/lib/backlinks/credits";
+import { markPlacementDrafted } from "@/lib/backlinks/placements";
 import { addInternalLinks } from "@/lib/articles/internal-links";
 import {
   generateArticleImage,
@@ -34,6 +37,15 @@ import { describeArticleScene } from "@/lib/images/scene";
 import { nudgePluginIfDue } from "@/lib/plugin/sync";
 import { isImageStorageConfigured, storeArticleImage } from "@/lib/images/storage";
 import { notify } from "@/lib/notifications/create";
+import {
+  paidCall,
+  releaseUnspent,
+  reserve,
+  reserveAll,
+  type Reservation,
+} from "@/lib/billing/spend-quota";
+import { requireEntitledForSpend } from "@/lib/billing/entitled";
+import { deliverNow, enqueueJob } from "@/lib/jobs/outbox";
 
 /**
  * Article generation.
@@ -76,6 +88,16 @@ export const generateArticle = inngest.createFunction(
         })
         .where(eq(articles.id, articleId));
 
+      /*
+        Hands back only what was never spent. A run that paid for an outline
+        and then failed on the body keeps its allowance consumed: failing is
+        not the same as not spending. See lib/billing/spend-quota.ts.
+      */
+      await releaseUnspent(
+        event.data.event.data.reservations as Reservation[] | undefined,
+        "job_failed_before_spend",
+      );
+
       /**
        * The failure the customer most needs to hear about: they asked for an
        * article, and there is no article. Read from the event rather than
@@ -93,9 +115,11 @@ export const generateArticle = inngest.createFunction(
     },
   },
   async ({ event, step, logger }) => {
-    const { articleId, organizationId } = event.data as {
+    const { articleId, organizationId, reservations } = event.data as {
       articleId: string;
       organizationId: string;
+      /** Allowance this run was admitted under; absent on older events. */
+      reservations?: Reservation[];
     };
 
     /**
@@ -127,6 +151,22 @@ export const generateArticle = inngest.createFunction(
         .where(eq(websites.id, article.websiteId))
         .limit(1);
       if (!site) throw new Error(`Website ${article.websiteId} not found`);
+
+      /*
+        Entitlement again, at the moment of spending. The queue checked it,
+        but a subscription can be cancelled between queueing and running, and
+        this is the last point before the model is paid. Not retried: waiting
+        will not make a cancelled plan active.
+      */
+      const entitlement = await checkLimit(article.websiteId, "articles");
+      if (
+        entitlement.reason === "no_active_plan" ||
+        entitlement.reason === "subscription_inactive"
+      ) {
+        throw new NonRetriableError(
+          "This website's subscription is not active, so the article was not written.",
+        );
+      }
 
       /**
        * Related keywords come from the article's cluster. They are what makes
@@ -288,7 +328,13 @@ export const generateArticle = inngest.createFunction(
 
     const outline = await step.run("write-outline", async () => {
       const startedAt = Date.now();
-      const result = await generateOutline(brief.brief);
+      // Entitlement and allowance re-checked HERE, inside the paid step, so a
+      // retry after cancellation cannot replay build-brief's cached answer.
+      const result = await paidCall(
+        reservations,
+        () => generateOutline(brief.brief),
+        { beforeSpend: () => requireEntitledForSpend(brief.websiteId) },
+      );
 
       const price = PRICING.llm[MODELS.GENERATION];
       await track(organizationId, {
@@ -329,7 +375,11 @@ export const generateArticle = inngest.createFunction(
 
     const written = await step.run("write-body", async () => {
       const startedAt = Date.now();
-      const result = await generateBody(brief.brief, outline);
+      const result = await paidCall(
+        reservations,
+        () => generateBody(brief.brief, outline),
+        { beforeSpend: () => requireEntitledForSpend(brief.websiteId) },
+      );
 
       const price = PRICING.llm[MODELS.GENERATION];
       // Roughly 2k in / 2.5k out for a 1,000-word article.
@@ -424,25 +474,32 @@ export const generateArticle = inngest.createFunction(
 
       const startedAt = Date.now();
       try {
-        const scene = await describeArticleScene({
-          title: brief.brief.title,
-          targetKeyword: brief.brief.targetKeyword,
-          industry: brief.brief.industry,
-          country: brief.brief.country,
-          bodyHtml: written.bodyHtml,
-        });
+        // Both calls are paid; a cancellation between them stops the second.
+        const beforeSpend = () => requireEntitledForSpend(brief.websiteId);
+        const scene = await paidCall(
+          reservations,
+          () =>
+            describeArticleScene({
+              title: brief.brief.title,
+              targetKeyword: brief.brief.targetKeyword,
+              industry: brief.brief.industry,
+              country: brief.brief.country,
+              bodyHtml: written.bodyHtml,
+            }),
+          { beforeSpend },
+        );
 
-        const generated = await generateArticleImage(
-          brief.brief.title,
-          brief.brief.industry,
-          null,
-          {
-            style: brief.brief.imageStyle,
-            brief: brief.brief.imageBrief,
-            instructions: brief.brief.imageInstructions,
-            scene: scene?.scene,
-            alt: scene?.alt,
-          },
+        const generated = await paidCall(
+          reservations,
+          () =>
+            generateArticleImage(brief.brief.title, brief.brief.industry, null, {
+              style: brief.brief.imageStyle,
+              brief: brief.brief.imageBrief,
+              instructions: brief.brief.imageInstructions,
+              scene: scene?.scene,
+              alt: scene?.alt,
+            }),
+          { beforeSpend },
         );
 
         const url = await storeArticleImage(
@@ -575,23 +632,20 @@ export const generateArticle = inngest.createFunction(
       }
 
       /**
-       * The placement only counts once the link is actually in the article.
-       * Credits move here rather than at match time: paying for a link that
-       * was promised but never written would be paying for nothing.
+       * A backlink the article was asked to carry.
        *
-       * Verified against the generated HTML — if the model omitted the link,
-       * the placement stays pending for the next article rather than silently
-       * awarding a credit for a link nobody can see.
+       * Written into the DRAFT is not placed: nothing is published yet, and
+       * the host may never publish it. So no credits move here - they used
+       * to, charging the requester and paying the host for a link that
+       * existed only in our database. The placement is marked "drafted";
+       * publication records its URL, and the verification job charges only
+       * once it has SEEN the link live (lib/backlinks/placements.ts).
+       *
+       * Checked against the generated HTML: if the model omitted the link,
+       * the placement stays pending for the next article.
        */
       if (brief.placementId && brief.brief.backlink) {
         const included = linkedHtml.html.includes(brief.brief.backlink.url);
-
-        /*
-          The model was asked for this link and did not write it. No credit
-          moves and the placement stays pending, which is correct — but it is
-          also invisible: the requester keeps waiting on a link that was
-          assigned to an article and then quietly dropped.
-        */
         if (!included) {
           logger.warn(
             {
@@ -600,66 +654,18 @@ export const generateArticle = inngest.createFunction(
               websiteId: brief.websiteId,
               placementId: brief.placementId,
             },
-            "Backlink missing from the generated article - placement stays pending, no credit awarded",
+            "Backlink missing from the generated article - placement stays pending",
           );
-        }
-
-        if (included) {
-          await db
-            .update(placements)
-            .set({ articleId, status: "live", updatedAt: new Date() })
-            .where(eq(placements.id, brief.placementId));
-
-          const [placement] = await db
-            .select({
-              requestId: placements.requestId,
-              credits: placements.credits,
-            })
-            .from(placements)
-            .where(eq(placements.id, brief.placementId))
-            .limit(1);
-
-          if (placement) {
-            await db
-              .update(backlinkRequests)
-              .set({ status: "live", updatedAt: new Date() })
-              .where(eq(backlinkRequests.id, placement.requestId));
-
-            const [requester] = await db
-              .select({ organizationId: websites.organizationId })
-              .from(backlinkRequests)
-              .innerJoin(websites, eq(backlinkRequests.websiteId, websites.id))
-              .where(eq(backlinkRequests.id, placement.requestId))
-              .limit(1);
-
-            if (requester) {
-              await recordCredit(requester.organizationId, {
-                type: "link_received",
-                amount: -placement.credits,
-                referenceId: brief.placementId,
-                note: "Backlink placed",
-              });
-            }
-            await recordCredit(organizationId, {
-              type: "link_given",
-              amount: placement.credits,
-              referenceId: brief.placementId,
-              note: "Hosted a backlink",
-            });
-
-            // Credits moving is a money event, so it gets its own line rather
-            // than being inferred from the placement's status changing.
-            logger.info(
-              {
-                step: "save-article",
-                articleId,
-                websiteId: brief.websiteId,
-                placementId: brief.placementId,
-                credits: placement.credits,
-              },
-              "Backlink verified in the article - placement marked live, credits moved",
-            );
-          }
+        } else if (await markPlacementDrafted(brief.placementId, articleId)) {
+          logger.info(
+            {
+              step: "save-article",
+              articleId,
+              websiteId: brief.websiteId,
+              placementId: brief.placementId,
+            },
+            "Backlink written into the draft - charged only once it is seen live",
+          );
         }
       }
 
@@ -894,17 +900,88 @@ export const generateArticle = inngest.createFunction(
 );
 
 /**
+ * Rewrites of an existing article allowed per website per day, counted over
+ * a sliding 24 hours.
+ *
+ * A rewrite creates no new article, so the monthly allowance never sees it:
+ * before this, one article could be regenerated without end at a full
+ * generation's cost each time. A rewrite that is refused or never dispatched
+ * hands its slot back; one that reached the model keeps it, even if the run
+ * later failed.
+ */
+export const REWRITES_PER_WEBSITE_PER_DAY = 10;
+
+/**
+ * How long an article may sit "queued" or "generating" before another request
+ * may take it over. Generation takes a few minutes; this only matters when a
+ * job died without reaching onFailure, which would otherwise pin the article
+ * forever.
+ */
+const STALE_CLAIM_MS = 30 * 60 * 1000;
+
+type QueueOutcome =
+  | { ok: true; articleId: string }
+  | { ok: false; error: string };
+
+const NOT_ENTITLED =
+  "This workspace has no active plan. Choose one to keep writing.";
+const ALREADY_WRITING = "This article is already being written";
+
+function isInactive(reason: string | null): boolean {
+  return reason === "no_active_plan" || reason === "subscription_inactive";
+}
+
+/**
+ * The organization that pays for a website: its OWNER.
+ *
+ * Read from the row rather than taken from the caller. An editor invited to
+ * one site acts from their own workspace, and billing, usage and allowances
+ * must land on the owner's.
+ */
+async function ownerOf(websiteId: string): Promise<string | null> {
+  const [row] = await db
+    .select({ organizationId: websites.organizationId })
+    .from(websites)
+    .where(eq(websites.id, websiteId))
+    .limit(1);
+  return row?.organizationId ?? null;
+}
+
+/**
+ * The generation job for some work, recorded in the outbox (lib/jobs/
+ * outbox.ts) inside the caller's transaction. Its id is derived from the
+ * reservation, so a repeated delivery of the same work is de-duplicated by
+ * Inngest rather than run twice.
+ */
+function generationJob(data: {
+  articleId: string;
+  websiteId: string;
+  organizationId: string;
+  reservations: Reservation[];
+  /** For a requeue: what the row goes back to if the job can never be delivered. */
+  previousStatus?: string;
+}) {
+  return {
+    id: `article-generate:${data.reservations[0]?.id ?? data.articleId}`,
+    name: "article/generate.requested",
+    data,
+  };
+}
+
+/**
  * Creates the article row for a calendar item and queues generation.
  *
  * Separate from the generation function so the limit check and row creation
  * happen once, in the caller's request, where an error can be shown — rather
  * than inside a background job the user cannot see.
+ *
+ * ENTITLEMENT FIRST, FOR EVERY PATH: an existing article is rewritten only on
+ * a live plan, exactly like a new one.
  */
 export async function queueArticleForCalendarItem(
-  organizationId: string,
   websiteId: string,
   calendarItemId: string,
-): Promise<{ ok: true; articleId: string } | { ok: false; error: string }> {
+): Promise<QueueOutcome> {
   const [item] = await db
     .select()
     .from(calendarItems)
@@ -917,35 +994,74 @@ export async function queueArticleForCalendarItem(
     .limit(1);
   if (!item) return { ok: false, error: "Calendar item not found" };
 
+  const entitlement = await checkLimit(websiteId, "articles");
+  if (isInactive(entitlement.reason)) {
+    return { ok: false, error: NOT_ENTITLED };
+  }
+
   // Reuse an existing article for this item rather than creating a second one.
   const [existing] = await db
-    .select({ id: articles.id, status: articles.status })
+    .select({ id: articles.id })
     .from(articles)
     .where(eq(articles.calendarItemId, calendarItemId))
     .limit(1);
 
-  if (existing && existing.status === "generating") {
-    return { ok: false, error: "This article is already being written" };
-  }
-
-  const limit = await checkLimit(websiteId, "articles");
-  if (!limit.allowed && !existing) {
-    return {
-      ok: false,
-      error:
-        limit.reason === "limit_reached"
-          ? `Your plan includes ${limit.limit} articles per month (${limit.used} used)`
-          : "This workspace has no active plan. Choose one to keep writing.",
-    };
-  }
-
-  let articleId: string;
   if (existing) {
-    articleId = existing.id;
-  } else {
-    const [created] = await db
+    return requeueArticle({ websiteId, articleId: existing.id, status: "queued" });
+  }
+
+  /**
+   * A NEW article: one slot of this period's allowance, reserved in the same
+   * transaction that creates the row.
+   *
+   * The allowance is a ledger entry, not the row: deleting the article later
+   * does not give the slot back. The per-item lock stops two simultaneous
+   * presses on one calendar item from creating two rows.
+   */
+  const created = await db.transaction(async (tx) => {
+    await tx.execute(
+      sql`select pg_advisory_xact_lock(hashtextextended(${`article-item:${calendarItemId}`}, 0))`,
+    );
+
+    // Another request may have created it while this one waited.
+    const [raced] = await tx
+      .select({ id: articles.id })
+      .from(articles)
+      .where(eq(articles.calendarItemId, calendarItemId))
+      .limit(1);
+    if (raced) return { ok: false as const, error: ALREADY_WRITING };
+
+    const allowance = await articleAllowanceRule(websiteId, tx);
+    if (!allowance.ok) return { ok: false as const, error: NOT_ENTITLED };
+
+    /*
+      The id is chosen here so the reservation can name the article it pays
+      for: that is what keeps the historical baseline (usage.ts) from ever
+      counting this article a second time.
+    */
+    const articleId = randomUUID();
+    const slot = await reserve(
+      allowance.rule,
+      {
+        operation: "article.generate",
+        organizationId: allowance.organizationId,
+        websiteId,
+        subjectId: articleId,
+        metadata: { calendarItemId, articleId },
+      },
+      { executor: tx },
+    );
+    if (!slot) {
+      return {
+        ok: false as const,
+        error: `Your plan includes ${allowance.rule.limit} articles per month, and they have all been used.`,
+      };
+    }
+
+    const [row] = await tx
       .insert(articles)
       .values({
+        id: articleId,
         websiteId,
         calendarItemId,
         title: item.title,
@@ -953,13 +1069,129 @@ export async function queueArticleForCalendarItem(
         status: "queued",
       })
       .returning({ id: articles.id });
-    articleId = created.id;
+
+    /*
+      The job is recorded in the same transaction as the article and its
+      reservation: the three commit together or not at all, so there is no
+      moment at which an article is "queued" with nothing behind it.
+    */
+    const job = generationJob({
+      articleId: row.id,
+      websiteId,
+      organizationId: allowance.organizationId,
+      reservations: [slot],
+    });
+    await enqueueJob(tx, job);
+    return { ok: true as const, articleId: row.id, eventId: job.id };
+  });
+  if (!created.ok) return created;
+
+  /*
+    Delivered now if the queue is up. If not, the work is accepted all the
+    same - the article shows "queued" - and the outbox retries delivery; if
+    it can never be delivered the slot is returned and the article marked
+    failed (outbox giveUp).
+  */
+  await deliverNow(created.eventId);
+  return { ok: true, articleId: created.articleId };
+}
+
+/**
+ * Queues another generation of an article that already exists: a retry, a
+ * regeneration or a refresh.
+ *
+ * Three guards, in order:
+ *  1. entitlement — a live subscription, whatever state the article is in;
+ *  2. a rewrite slot, reserved atomically before anything is queued
+ *     (REWRITES_PER_WEBSITE_PER_DAY);
+ *  3. an atomic claim of the row. The UPDATE matches only while the article
+ *     is not already queued or generating, and Postgres re-checks that after
+ *     a concurrent press's write, so of two simultaneous presses exactly one
+ *     queues a job.
+ */
+export async function requeueArticle(input: {
+  websiteId: string;
+  articleId: string;
+  /** What the row shows while waiting: a refresh shows "generating" at once. */
+  status: "queued" | "generating";
+}): Promise<QueueOutcome> {
+  const { websiteId, articleId } = input;
+
+  const entitlement = await checkLimit(websiteId, "articles");
+  if (isInactive(entitlement.reason)) {
+    return { ok: false, error: NOT_ENTITLED };
+  }
+  const organizationId = await ownerOf(websiteId);
+  if (!organizationId) return { ok: false, error: "Article not found" };
+
+  // Scoped by website as well as id: an id alone came from the client.
+  const [current] = await db
+    .select({ status: articles.status })
+    .from(articles)
+    .where(and(eq(articles.id, articleId), eq(articles.websiteId, websiteId)))
+    .limit(1);
+  if (!current) return { ok: false, error: "Article not found" };
+
+  const slot = await reserveAll(
+    [
+      {
+        key: `article-rewrite:${websiteId}`,
+        limit: REWRITES_PER_WEBSITE_PER_DAY,
+        window: { seconds: 24 * 60 * 60 },
+      },
+    ],
+    {
+      operation: "article.rewrite",
+      organizationId,
+      websiteId,
+      metadata: { articleId },
+    },
+  );
+  if (!slot.ok) {
+    return {
+      ok: false,
+      error: `This website has rewritten ${REWRITES_PER_WEBSITE_PER_DAY} articles in the last day. Try again later.`,
+    };
   }
 
-  await inngest.send({
-    name: "article/generate.requested",
-    data: { articleId, organizationId },
+  const job = generationJob({
+    articleId,
+    websiteId,
+    organizationId,
+    reservations: slot.reservations,
+    // If the job can never be delivered, a draft goes back to being a draft.
+    previousStatus: current.status,
+  });
+  const claimed = await db.transaction(async (tx) => {
+    const rows = await tx
+      .update(articles)
+      .set({
+        status: input.status,
+        error: null,
+        generationStep: null,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(articles.id, articleId),
+          eq(articles.websiteId, websiteId),
+          or(
+            notInArray(articles.status, ["queued", "generating"]),
+            lt(articles.updatedAt, new Date(Date.now() - STALE_CLAIM_MS)),
+          ),
+        ),
+      )
+      .returning({ id: articles.id });
+    // The claim and its job commit together (lib/jobs/outbox.ts).
+    if (rows.length > 0) await enqueueJob(tx, job);
+    return rows.length > 0;
   });
 
+  if (!claimed) {
+    await releaseUnspent(slot.reservations, "already_running");
+    return { ok: false, error: ALREADY_WRITING };
+  }
+
+  await deliverNow(job.id);
   return { ok: true, articleId };
 }

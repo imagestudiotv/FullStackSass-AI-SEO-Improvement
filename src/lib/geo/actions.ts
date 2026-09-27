@@ -13,12 +13,32 @@ import {
   type GeoOverview,
   type GeoPromptView,
 } from "@/lib/geo/shared";
-import { queueJob } from "@/inngest/send";
 import { requireWebsite } from "@/lib/tenant";
 import { requireEditor } from "@/lib/websites/require-editor";
 import type { ActionResult } from "@/lib/websites/actions";
 import { isEntitledToSpend } from "@/lib/billing/entitled";
-import { withinGeoRateLimit } from "@/lib/billing/rate-limit";
+import { paidCall, releaseUnspent, reserve } from "@/lib/billing/spend-quota";
+import { reserveAndQueue } from "@/lib/jobs/outbox";
+import { PRICING, track } from "@/lib/usage";
+
+/**
+ * Suggestion requests per workspace per hour. Onboarding fills a list once and
+ * "suggest more" is pressed a handful of times; thirty is room for both and a
+ * ceiling on a loop.
+ */
+const SUGGESTIONS_PER_WORKSPACE_PER_HOUR = 30;
+
+/** Tracked questions quoted back to the model; the largest plan tracks 50. */
+const MAX_EXISTING_SENT = 60;
+
+/**
+ * Visibility checks a user may start. A check is one model call per prompt
+ * per engine - up to a hundred for the largest plan - so two an hour per
+ * website, and ten per paying workspace, over sliding windows. The weekly
+ * scheduled check is not counted here; it re-checks entitlement per call.
+ */
+const GEO_CHECKS_PER_WEBSITE_PER_HOUR = 2;
+const GEO_CHECKS_PER_WORKSPACE_PER_HOUR = 10;
 
 /**
  * GEO server actions.
@@ -295,16 +315,39 @@ export async function runGeoCheck(
   if (!entitled.ok) return { ok: false, error: entitled.error };
 
   /*
-    One model call per prompt per engine, so a single press is already tens of
-    calls. Counted from geo_results because check-geo records no usage_events.
+    Reserved before queueing, atomically: the previous limit counted
+    geo_results rows, which a check writes only as it finishes, so presses
+    arriving together all counted the same zero. Billed to the owner.
   */
-  const rate = await withinGeoRateLimit(site.id);
-  if (!rate.ok) return { ok: false, error: rate.error };
-
-  await queueJob({
-    name: "geo/check.requested",
-    data: { websiteId: site.id },
-  });
+  const ownerOrgId = site.organizationId;
+  const slot = await reserveAndQueue(
+    [
+      {
+        key: `geo-check:site:${site.id}`,
+        limit: GEO_CHECKS_PER_WEBSITE_PER_HOUR,
+        window: { seconds: 60 * 60 },
+      },
+      {
+        key: `geo-check:org:${ownerOrgId}`,
+        limit: GEO_CHECKS_PER_WORKSPACE_PER_HOUR,
+        window: { seconds: 60 * 60 },
+      },
+    ],
+    { operation: "geo.check", organizationId: ownerOrgId, websiteId: site.id },
+    // Recorded with the slot; delivered now or retried (lib/jobs/outbox.ts).
+    (reservations) => ({
+      id: `geo-check:${reservations[0].id}`,
+      name: "geo/check.requested",
+      data: { websiteId: site.id, organizationId: ownerOrgId, reservations },
+    }),
+  );
+  if (!slot.ok) {
+    return {
+      ok: false,
+      error:
+        "You have checked AI visibility several times in the last hour. Please try again shortly.",
+    };
+  }
 
   return { ok: true, data: null };
 }
@@ -332,10 +375,48 @@ export async function suggestGeoPrompts(
    */
   existing: string[] = [],
 ): Promise<ActionResult<string[]>> {
-  const { site } = await requireWebsite(websiteId);
+  /*
+    A paid model call, so it is guarded like every other spend: an editor, on
+    a website with a live plan, within an hourly allowance. It used to need
+    only read access - a viewer, or a cancelled customer, could call it in a
+    loop - and it took `wanted` and `existing` from the client unchecked,
+    both of which size the prompt that is paid for.
+  */
+  const guard = await requireEditor(websiteId);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { site } = guard.context;
+  // Billed to the website's owner, not an invited editor's own workspace.
+  const ownerOrgId = site.organizationId;
 
   if (!isAiConfigured()) {
     return { ok: false, error: "AI is not configured on this deployment" };
+  }
+
+  const entitled = await isEntitledToSpend(site.id);
+  if (!entitled.ok) return { ok: false, error: entitled.error };
+
+  const allowance = await maxPromptsFor(site.id);
+  const count = Number.isInteger(wanted)
+    ? Math.min(Math.max(wanted, 1), Math.max(allowance, 1))
+    : 6;
+  const tracked = (Array.isArray(existing) ? existing : [])
+    .filter((e): e is string => typeof e === "string")
+    .slice(0, MAX_EXISTING_SENT)
+    .map((e) => e.slice(0, MAX_PROMPT_LENGTH));
+
+  const slot = await reserve(
+    {
+      key: `geo-suggest:org:${ownerOrgId}`,
+      limit: SUGGESTIONS_PER_WORKSPACE_PER_HOUR,
+      window: { seconds: 60 * 60 },
+    },
+    { operation: "geo.suggest", organizationId: ownerOrgId, websiteId: site.id },
+  );
+  if (!slot) {
+    return {
+      ok: false,
+      error: "You have asked for suggestions many times this hour. Please try again shortly.",
+    };
   }
 
   const description = [
@@ -351,25 +432,26 @@ export async function suggestGeoPrompts(
    * again. Without this, "suggest more" comes back with rephrasings of what
    * is already on screen and the button looks broken.
    */
-  const avoid = existing.length
+  const avoid = tracked.length
     ? [
         "- Do NOT repeat or rephrase any of these, which are already tracked:",
-        ...existing.map((e) => `  - ${e}`),
+        ...tracked.map((e) => `  - ${e}`),
       ].join("\n")
     : "";
 
+  let response;
   try {
-    const response = await anthropic.messages.create({
+    response = await paidCall([slot], () => anthropic.messages.create({
       model: MODELS.EXTRACTION,
       // ~60 tokens a question plus overhead; 50 questions needs real room.
-      max_tokens: Math.min(4000, 400 + wanted * 70),
+      max_tokens: Math.min(4000, 400 + count * 70),
       messages: [
         {
           role: "user",
           content: `A business has this website: ${site.domain}
 ${description}
 
-Write ${wanted} questions a potential customer might ask an AI assistant when looking for a business like this one.
+Write ${count} questions a potential customer might ask an AI assistant when looking for a business like this one.
 
 Rules:
 - Never name this business. The question must be one someone asks BEFORE they know it exists.
@@ -381,8 +463,30 @@ ${avoid}
 Reply with JSON only: {"prompts": ["...", "..."]}`,
         },
       ],
-    });
+    }));
+  } catch {
+    /*
+      A provider refusal was not billed, so its slot goes back; a timeout may
+      have been, and paidCall has already recorded it as spent - releasing a
+      consumed reservation changes nothing.
+    */
+    await releaseUnspent([slot], "provider_refused");
+    return { ok: false, error: "Could not suggest questions. Try again." };
+  }
 
+  const price = PRICING.llm[MODELS.EXTRACTION];
+  await track(ownerOrgId, {
+    kind: "llm",
+    websiteId: site.id,
+    provider: "anthropic",
+    model: MODELS.EXTRACTION,
+    costUsd:
+      (response.usage.input_tokens / 1000) * price.inputPer1k +
+      (response.usage.output_tokens / 1000) * price.outputPer1k,
+    metadata: { purpose: "geo_suggest", wanted: count },
+  }).catch(() => {});
+
+  try {
     const text = response.content
       .filter((b) => b.type === "text")
       .map((b) => (b.type === "text" ? b.text : ""))
@@ -397,7 +501,7 @@ Reply with JSON only: {"prompts": ["...", "..."]}`,
           .filter((p): p is string => typeof p === "string")
           .map((p) => cleanPrompt(p))
           .filter((p): p is string => p !== null)
-          .slice(0, wanted)
+          .slice(0, count)
       : [];
 
     if (suggestions.length === 0) {

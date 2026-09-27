@@ -3,12 +3,11 @@
 import { and, asc, desc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
-import { queueJob } from "@/inngest/send";
 import { db } from "@/lib/db";
 import { calendarItems, clusters, keywords } from "@/lib/db/schema";
 import { requireWebsite } from "@/lib/tenant";
 import { requireEditor } from "@/lib/websites/require-editor";
-import { withinRateLimit } from "@/lib/billing/rate-limit";
+import { reserveAndQueue } from "@/lib/jobs/outbox";
 import { checkLimit } from "@/lib/usage";
 import { UNLIMITED } from "@/lib/usage-shared";
 import type { ActionResult } from "@/lib/websites/actions";
@@ -105,13 +104,45 @@ export async function listCalendar(websiteId: string): Promise<CalendarRow[]> {
   );
 }
 
+/**
+ * Research runs a user may start, over sliding hours. Each is three model
+ * calls plus provider lookups billed per row, and re-running minutes apart
+ * produces the same clusters. Reserved atomically before queueing and billed
+ * to the website's owner.
+ */
+const RESEARCH_PER_WEBSITE_PER_HOUR = 3;
+const RESEARCH_PER_WORKSPACE_PER_HOUR = 6;
+
+/**
+ * Reserves a research run and records its job in one transaction (lib/jobs/
+ * outbox.ts). False only when the hourly allowance is used up: a queue
+ * outage delays the run, it does not refuse it.
+ */
+async function startResearchJob(websiteId: string, ownerOrgId: string): Promise<boolean> {
+  const slot = await reserveAndQueue(
+    [
+      { key: `research:site:${websiteId}`, limit: RESEARCH_PER_WEBSITE_PER_HOUR, window: { seconds: 3600 } },
+      { key: `research:org:${ownerOrgId}`, limit: RESEARCH_PER_WORKSPACE_PER_HOUR, window: { seconds: 3600 } },
+    ],
+    { operation: "keywords.research", organizationId: ownerOrgId, websiteId },
+    (reservations) => ({
+      id: `website-research:${reservations[0].id}`,
+      name: "website/research.requested",
+      data: { websiteId, organizationId: ownerOrgId, reservations },
+    }),
+  );
+  return slot.ok;
+}
+
 /** Starts (or re-runs) keyword research for a website. */
 export async function startResearch(
   websiteId: string,
 ): Promise<ActionResult<null>> {
   const guard = await requireEditor(websiteId);
   if (!guard.ok) return { ok: false, error: guard.error };
-  const { site, orgId } = guard.context;
+  const { site } = guard.context;
+  // Billed to the website's owner, not an invited editor's own workspace.
+  const ownerOrgId = site.organizationId;
 
   // Research reads the extracted profile; without it the seeds would be
   // generated from nothing and the model call wasted.
@@ -147,13 +178,12 @@ export async function startResearch(
     on the same site minutes apart produces the same clusters. Counted on
     seo_api, which research-keywords records once per billable provider call.
   */
-  const rate = await withinRateLimit(orgId, "seo_api");
-  if (!rate.ok) return { ok: false, error: rate.error };
-
-  await queueJob({
-    name: "website/research.requested",
-    data: { websiteId: site.id, organizationId: orgId },
-  });
+  if (!(await startResearchJob(site.id, ownerOrgId))) {
+    return {
+      ok: false,
+      error: "You have run this many times in the last hour. Please try again shortly.",
+    };
+  }
 
   revalidatePath(`/websites/${site.id}/content`);
   return { ok: true, data: null };
@@ -359,13 +389,7 @@ export async function addKeywords(
    */
   let replanned = false;
   if (inserted.length > 0) {
-    const rate = await withinRateLimit(guard.context.orgId, "seo_api");
-    if (rate.ok) {
-      replanned = await queueJob({
-        name: "website/research.requested",
-        data: { websiteId: site.id, organizationId: guard.context.orgId },
-      });
-    }
+    replanned = await startResearchJob(site.id, site.organizationId);
   }
 
   revalidatePath(`/websites/${site.id}/content`);

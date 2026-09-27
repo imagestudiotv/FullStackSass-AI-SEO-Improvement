@@ -1,12 +1,19 @@
-import { and, count, eq, gte } from "drizzle-orm";
+import { and, count, eq, gte, inArray, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { UNLIMITED, type LimitCheck } from "@/lib/usage-shared";
 import { agencyLimits } from "@/lib/agency/core";
+import type { QuotaRule } from "@/lib/billing/spend-quota";
+import {
+  billingAnchor,
+  calendarMonth,
+  entitlementPeriod,
+} from "@/lib/billing/entitlement-period";
 import {
   articles,
   keywords,
   plans,
+  spendReservations,
   subscriptions,
   usageEvents,
   websites,
@@ -130,38 +137,228 @@ export type { LimitCheck } from "@/lib/usage-shared";
 const ENTITLED_STATUSES = new Set(["active", "trialing", "past_due"]);
 
 /**
- * Start of the org's current billing period, or the calendar month.
+ * Start of the MONTHLY allowance period for a subscription.
  *
- * Prefers the period start recorded by the webhook. The fallback derives one
- * from the period end, clamping the day to the target month's length: a naive
- * `setMonth(getMonth() - 1)` overflows FORWARD on long months — for a period
- * ending 31 Mar it yields 3 Mar (Feb has no 31st), so nearly the whole period
- * would fall outside the `createdAt >= from` window and usage would be
- * undercounted, handing out quota for free. Clamping yields 28 Feb instead.
+ * Not the billing period: an annual plan's billing period is a year, and
+ * using it as the usage window let an annual customer spend one month's
+ * allowance and then wait eleven months. Periods are months anchored on the
+ * billing anchor - see lib/billing/entitlement-period.ts for the full policy
+ * (month ends, leap years, trials, upgrades, UTC).
  */
 function periodStart(
-  currentPeriodStart: Date | null,
-  currentPeriodEnd: Date | null,
+  sub: {
+    currentPeriodStart: Date | null;
+    currentPeriodEnd: Date | null;
+    interval: string | null;
+    createdAt: Date | null;
+  },
+  now: Date = new Date(),
 ): Date {
-  if (currentPeriodStart) {
-    return currentPeriodStart;
+  const anchor = billingAnchor(sub);
+  return anchor ? entitlementPeriod(anchor, now).start : calendarMonth(now).start;
+}
+
+/**
+ * The plan paying for a website, its limits and the start of its period, or
+ * why there is none. Shared by checkLimit and articleAllowanceRule so the
+ * display and the enforcement can never disagree.
+ */
+async function resolvePlan(
+  websiteId: string,
+  executor: Pick<typeof db, "select">,
+) {
+  /**
+   * The owning workspace, still needed for agency limits and metered usage,
+   * both of which are account-level. Read from the website rather than passed
+   * in so the two can never disagree.
+   */
+  const [site] = await executor
+    .select({ organizationId: websites.organizationId })
+    .from(websites)
+    .where(eq(websites.id, websiteId))
+    .limit(1);
+
+  if (!site) {
+    return { ok: false as const, reason: "no_active_plan" as const };
   }
-  if (currentPeriodEnd) {
-    const start = new Date(currentPeriodEnd);
-    const day = start.getDate();
-    // Day 0 of month N+1 is the last day of month N — i.e. its length.
-    const daysInPrevMonth = new Date(
-      start.getFullYear(),
-      start.getMonth(),
-      0,
-    ).getDate();
-    // Set the day before the month so the intermediate value cannot overflow.
-    start.setDate(Math.min(day, daysInPrevMonth));
-    start.setMonth(start.getMonth() - 1);
-    return start;
+  const orgId = site.organizationId;
+  /**
+   * Agency workspaces are ours, not sold, so they have no subscription and
+   * would otherwise fail the entitlement check below. Their limits come from
+   * their own row — real numbers rather than unlimited, so an internal
+   * workspace still cannot run away with cost.
+   *
+   * Checked first because the two branches are mutually exclusive: an agency
+   * workspace never has a plan to fall back to.
+   */
+  const agency = await agencyLimits(orgId, executor);
+
+  const [sub] = await executor
+    .select({
+      currentPeriodStart: subscriptions.currentPeriodStart,
+      currentPeriodEnd: subscriptions.currentPeriodEnd,
+      createdAt: subscriptions.createdAt,
+      interval: plans.interval,
+      status: subscriptions.status,
+      articleLimit: plans.articleLimit,
+      keywordLimit: plans.keywordLimit,
+    })
+    .from(subscriptions)
+    .leftJoin(plans, eq(subscriptions.planId, plans.id))
+    // This website's own subscription, not the workspace's.
+    .where(eq(subscriptions.websiteId, websiteId))
+    .limit(1);
+
+  // leftJoin makes every plan column nullable; no plan row means no plan.
+  if (
+    !agency &&
+    (!sub || sub.articleLimit === null || sub.keywordLimit === null)
+  ) {
+    return { ok: false as const, reason: "no_active_plan" as const };
   }
-  const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), 1);
+
+  // A plan row alone is not entitlement: a cancelled or unpaid subscription
+  // still points at the plan it used to have.
+  if (!agency && sub && !ENTITLED_STATUSES.has(sub.status)) {
+    return { ok: false as const, reason: "subscription_inactive" as const };
+  }
+
+  const planLimits = agency ?? {
+    articles: sub!.articleLimit!,
+    keywords: sub!.keywordLimit!,
+  };
+
+  /**
+   * An agency workspace has no billing period, so its monthly counts run from
+   * the calendar month. Without this, periodStart would be given two nulls
+   * and every article ever written would count against the monthly limit.
+   */
+  const from = agency ? calendarMonth().start : periodStart(sub!);
+
+  return { ok: true as const, orgId, planLimits, from };
+}
+
+/** Ledger key for a website's monthly article allowance. */
+export function articleAllowanceKey(websiteId: string): string {
+  return `articles:${websiteId}`;
+}
+
+/**
+ * Articles on this website since `from` that the ledger does not yet know
+ * about - created before the ledger existed (or by old code during the
+ * deploy). The same predicate as migration 0042 (which corrects 0041's) and
+ * the articles_allowance_baseline trigger it installs.
+ */
+function uncoveredArticles(websiteId: string, from: Date) {
+  const key = articleAllowanceKey(websiteId);
+  return sql`
+    from ${articles} a
+    where a.website_id = ${websiteId}
+      and a.created_at >= ${from.toISOString()}::timestamp
+      and not exists (
+        select 1 from ${spendReservations} r
+        where r.key = ${key}
+          and (
+            -- The article's OWN reservation covers it in any state: one that
+            -- was released (its job never ran) must not be re-counted here.
+            r.subject_id = a.id::text
+            or r.metadata ->> 'articleId' = a.id::text
+            or (a.calendar_item_id is not null
+                and r.state in ('reserved', 'consumed')
+                and r.metadata ->> 'calendarItemId' = a.calendar_item_id::text)
+          )
+      )`;
+}
+
+/**
+ * Makes legacy article consumption DURABLE: one consumed ledger row per
+ * article the ledger does not know about, dated when the article was made.
+ *
+ * Runs under the allowance key's lock, before counting (QuotaRule.backfill),
+ * and does what migration 0041 did for every site, for the articles old code
+ * created after that migration ran. Once written, deleting the article
+ * changes nothing - which is the point. The previous max(ledger, rows)
+ * transition let deleting a legacy article hand its slot back.
+ */
+export async function materializeArticleBaseline(
+  executor: Pick<typeof db, "execute">,
+  websiteId: string,
+  from: Date,
+): Promise<void> {
+  const key = articleAllowanceKey(websiteId);
+  await executor.execute(sql`
+    insert into ${spendReservations} (
+      key, operation, organization_id, website_id, state, limit_value,
+      counted_at, spend_outcome, consumed_at, subject_id, metadata,
+      created_at, updated_at
+    )
+    select ${key}, 'article.legacy',
+      (select w.organization_id from ${websites} w where w.id = a.website_id),
+      a.website_id, 'consumed', 0, a.created_at, 'legacy', timezone('utc', now()),
+      a.id::text, jsonb_build_object('source', 'baseline'), timezone('utc', now()), timezone('utc', now())
+    ${uncoveredArticles(websiteId, from)}
+    on conflict (operation, key, subject_id) where subject_id is not null
+    do nothing`);
+}
+
+/**
+ * Articles used on a website since `from`: the ledger, plus articles the
+ * ledger has not absorbed yet (see materializeArticleBaseline). The two sets
+ * are disjoint by construction, so nothing is counted twice, and a reserve
+ * absorbs the second into the first before it counts.
+ */
+async function articlesUsedSince(
+  executor: Pick<typeof db, "select" | "execute">,
+  websiteId: string,
+  from: Date,
+): Promise<number> {
+  const [ledger] = await executor
+    .select({ n: count() })
+    .from(spendReservations)
+    .where(
+      and(
+        eq(spendReservations.key, articleAllowanceKey(websiteId)),
+        inArray(spendReservations.state, ["reserved", "consumed"]),
+        gte(spendReservations.countedAt, from),
+      ),
+    );
+  const result = await executor.execute(
+    sql`select count(*)::int as n ${uncoveredArticles(websiteId, from)}`,
+  );
+  const rows = (Array.isArray(result) ? result : (result as { rows: unknown[] }).rows) as {
+    n: number;
+  }[];
+  return (ledger?.n ?? 0) + Number(rows[0]?.n ?? 0);
+}
+
+/**
+ * The reservation rule for one more article this period, or why not.
+ *
+ * Counted from spend_reservations, not from article rows: a row can be
+ * deleted, and counting rows meant generate, delete, generate again spent
+ * the same slot over and over. Legacy articles are made ledger rows first
+ * (backfill), so they count durably too.
+ */
+export async function articleAllowanceRule(
+  websiteId: string,
+  executor: Pick<typeof db, "select" | "execute"> = db,
+): Promise<
+  | { ok: true; rule: QuotaRule; organizationId: string }
+  | { ok: false; reason: "no_active_plan" | "subscription_inactive" }
+> {
+  const plan = await resolvePlan(websiteId, executor);
+  if (!plan.ok) return plan;
+  return {
+    ok: true,
+    organizationId: plan.orgId,
+    rule: {
+      key: articleAllowanceKey(websiteId),
+      limit: plan.planLimits.articles,
+      // The monthly period, resolved in one place (resolvePlan/periodStart).
+      window: { since: plan.from },
+      backfill: (tx) => materializeArticleBaseline(tx, websiteId, plan.from),
+    },
+  };
 }
 
 /**
@@ -181,94 +378,30 @@ export async function checkLimit(
    */
   websiteId: string,
   kind: LimitKind,
+  /**
+   * Where to run the queries. A caller holding a lock inside a transaction
+   * passes the transaction, so the count it reads is the one the lock
+   * protects. See queueArticleForCalendarItem.
+   */
+  executor: Pick<typeof db, "select" | "execute"> = db,
 ): Promise<LimitCheck> {
-  /**
-   * The owning workspace, still needed for agency limits and metered usage,
-   * both of which are account-level. Read from the website rather than passed
-   * in so the two can never disagree.
-   */
-  const [site] = await db
-    .select({ organizationId: websites.organizationId })
-    .from(websites)
-    .where(eq(websites.id, websiteId))
-    .limit(1);
-
-  if (!site) {
-    return { allowed: false, used: 0, limit: 0, reason: "no_active_plan" };
+  const plan = await resolvePlan(websiteId, executor);
+  if (!plan.ok) {
+    return { allowed: false, used: 0, limit: 0, reason: plan.reason };
   }
-  const orgId = site.organizationId;
-  /**
-   * Agency workspaces are ours, not sold, so they have no subscription and
-   * would otherwise fail the entitlement check below. Their limits come from
-   * their own row — real numbers rather than unlimited, so an internal
-   * workspace still cannot run away with cost.
-   *
-   * Checked first because the two branches are mutually exclusive: an agency
-   * workspace never has a plan to fall back to.
-   */
-  const agency = await agencyLimits(orgId);
-
-  const [sub] = await db
-    .select({
-      currentPeriodStart: subscriptions.currentPeriodStart,
-      currentPeriodEnd: subscriptions.currentPeriodEnd,
-      status: subscriptions.status,
-      articleLimit: plans.articleLimit,
-      keywordLimit: plans.keywordLimit,
-    })
-    .from(subscriptions)
-    .leftJoin(plans, eq(subscriptions.planId, plans.id))
-    // This website's own subscription, not the workspace's.
-    .where(eq(subscriptions.websiteId, websiteId))
-    .limit(1);
-
-  // leftJoin makes every plan column nullable; no plan row means no plan.
-  if (
-    !agency &&
-    (!sub || sub.articleLimit === null || sub.keywordLimit === null)
-  ) {
-    return { allowed: false, used: 0, limit: 0, reason: "no_active_plan" };
-  }
-
-  // A plan row alone is not entitlement: a cancelled or unpaid subscription
-  // still points at the plan it used to have.
-  if (!agency && sub && !ENTITLED_STATUSES.has(sub.status)) {
-    return { allowed: false, used: 0, limit: 0, reason: "subscription_inactive" };
-  }
-
-  const planLimits = agency ?? {
-    articles: sub!.articleLimit!,
-    keywords: sub!.keywordLimit!,
-  };
-
-  /**
-   * An agency workspace has no billing period, so its monthly counts run from
-   * the calendar month. Without this, periodStart would be given two nulls
-   * and every article ever written would count against the monthly limit.
-   */
-  const from = agency
-    ? new Date(new Date().getFullYear(), new Date().getMonth(), 1)
-    : periodStart(sub!.currentPeriodStart, sub!.currentPeriodEnd);
+  const { orgId, planLimits, from } = plan;
 
   let used: number;
   let limit: number;
 
   if (kind === "articles") {
-    // This website's articles this period, not the whole account's.
+    // This website's allowance used this period, from the ledger: deleting
+    // an article does not give its slot back. See articleAllowanceRule.
     limit = planLimits.articles;
-    const [row] = await db
-      .select({ n: count() })
-      .from(articles)
-      .where(
-        and(
-          eq(articles.websiteId, websiteId),
-          gte(articles.createdAt, from),
-        ),
-      );
-    used = row?.n ?? 0;
+    used = await articlesUsedSince(executor, websiteId, from);
   } else if (kind === "keywords") {
     limit = planLimits.keywords;
-    const [row] = await db
+    const [row] = await executor
       .select({ n: count() })
       .from(keywords)
       .where(eq(keywords.websiteId, websiteId));
@@ -276,7 +409,7 @@ export async function checkLimit(
   } else {
     // Metered provider usage: counted from usage_events for the period.
     limit = UNLIMITED;
-    const [row] = await db
+    const [row] = await executor
       .select({ n: count() })
       .from(usageEvents)
       .where(

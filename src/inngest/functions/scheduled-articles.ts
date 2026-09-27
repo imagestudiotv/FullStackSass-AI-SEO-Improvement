@@ -483,7 +483,6 @@ export const scheduledArticles = inngest.createFunction(
         const rejected: string[] = [];
         for (const item of items) {
           const outcome = await queueArticleForCalendarItem(
-            site.organizationId,
             site.websiteId,
             item.id,
           );

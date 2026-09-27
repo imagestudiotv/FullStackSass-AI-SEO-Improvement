@@ -4,6 +4,12 @@ import { inngest } from "@/inngest/client";
 import { db } from "@/lib/db";
 import { geoPrompts, geoResults, websites } from "@/lib/db/schema";
 import { ENGINE, runCheck } from "@/lib/geo/check";
+import { isEntitledToSpend } from "@/lib/billing/entitled";
+import {
+  paidCall,
+  releaseUnspent,
+  type Reservation,
+} from "@/lib/billing/spend-quota";
 
 /**
  * Checks whether an AI assistant recommends a customer's business.
@@ -28,6 +34,13 @@ export const checkGeo = inngest.createFunction(
     // rate limit or a malformed answer, and both resolve on the next run.
     retries: 2,
     concurrency: [{ key: "event.data.websiteId", limit: 2 }],
+    onFailure: async ({ event }) => {
+      // Only a check that never reached the model gives its slot back.
+      await releaseUnspent(
+        event.data.event.data?.reservations as Reservation[] | undefined,
+        "job_failed_before_spend",
+      );
+    },
     triggers: [
       { event: "geo/check.requested" },
       /**
@@ -48,6 +61,11 @@ export const checkGeo = inngest.createFunction(
       data && typeof data === "object" && "websiteId" in data &&
       typeof data.websiteId === "string"
         ? data.websiteId
+        : undefined;
+    /** Present when a user started this check; the weekly sweep has none. */
+    const reservations =
+      data && typeof data === "object" && "reservations" in data
+        ? (data.reservations as Reservation[] | undefined)
         : undefined;
 
     /**
@@ -156,8 +174,23 @@ export const checkGeo = inngest.createFunction(
          */
         const outcome = await step.run(`check-${prompt.id}`, async () => {
           const startedAt = Date.now();
+
+          /*
+            Entitlement at the moment of spending, in the step itself, so an
+            Inngest retry cannot replay an earlier answer. This also stops the
+            weekly sweep paying for websites whose plan has ended - it used to
+            check every site with active prompts, subscribed or not.
+          */
+          const entitled = await isEntitledToSpend(target.websiteId);
+          if (!entitled.ok) {
+            return { ok: false as const, message: "not_entitled", stop: true };
+          }
+
           try {
-            const result = await runCheck(prompt.prompt, brand, target.domain);
+            const result = await paidCall(
+              target.websiteId === websiteId ? reservations : undefined,
+              () => runCheck(prompt.prompt, brand, target.domain),
+            );
 
             logger.info(
               {
@@ -204,11 +237,19 @@ export const checkGeo = inngest.createFunction(
             return {
               ok: false as const,
               message,
+              stop: false,
             };
           }
         });
 
         if (!outcome.ok) {
+          if (outcome.stop) {
+            logger.warn(
+              { step: `check-${prompt.id}`, websiteId: target.websiteId },
+              "Website is not entitled to spend - remaining prompts skipped",
+            );
+            break;
+          }
           failed += 1;
           continue;
         }

@@ -11,7 +11,7 @@ import {
   type TrafficPoint,
   type TrafficReport,
 } from "@/lib/articles/decay";
-import { queueJob } from "@/inngest/send";
+import { requeueArticle } from "@/inngest/functions/generate-article";
 import { requireWebsite } from "@/lib/tenant";
 import { requireEditor } from "@/lib/websites/require-editor";
 import { checkLimit } from "@/lib/usage";
@@ -65,10 +65,10 @@ export async function refreshArticle(
   */
   const guard = await requireEditor(websiteId);
   if (!guard.ok) return { ok: false, error: guard.error };
-  const { site, orgId } = guard.context;
+  const { site } = guard.context;
 
   const [article] = await db
-    .select({ id: articles.id, status: articles.status })
+    .select({ id: articles.id })
     .from(articles)
     .where(and(eq(articles.id, articleId), eq(articles.websiteId, site.id)))
     .limit(1);
@@ -76,10 +76,6 @@ export async function refreshArticle(
   // Scoped by website, so an id from another tenant is simply not found.
   if (!article) {
     return { ok: false, error: "That article no longer exists" };
-  }
-
-  if (article.status === "generating") {
-    return { ok: false, error: "That article is already being written" };
   }
 
   /**
@@ -98,15 +94,17 @@ export async function refreshArticle(
     };
   }
 
-  await db
-    .update(articles)
-    .set({ status: "generating", error: null, updatedAt: new Date() })
-    .where(eq(articles.id, articleId));
-
-  await queueJob({
-    name: "article/generate.requested",
-    data: { articleId, websiteId: site.id, organizationId: orgId },
+  /*
+    The same claim every rewrite goes through: entitlement, a daily rewrite
+    slot, and an atomic status change, so two presses cannot both queue a
+    paid generation of the same article.
+  */
+  const queued = await requeueArticle({
+    websiteId: site.id,
+    articleId,
+    status: "generating",
   });
+  if (!queued.ok) return { ok: false, error: queued.error };
 
   /*
     Both routes. Refreshing is triggered FROM the article's own page, so

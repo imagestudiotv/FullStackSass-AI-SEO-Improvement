@@ -9,6 +9,12 @@ import { db } from "@/lib/db";
 import { audits, crawls, issues, pages, websites } from "@/lib/db/schema";
 import { PRICING, track } from "@/lib/usage";
 import { notify } from "@/lib/notifications/create";
+import { requireEntitledForSpend } from "@/lib/billing/entitled";
+import {
+  paidCall,
+  releaseUnspent,
+  type Reservation,
+} from "@/lib/billing/spend-quota";
 
 /**
  * Site audit: crawl, apply rules, store the findings.
@@ -53,6 +59,12 @@ export const auditWebsite = inngest.createFunction(
         })
         .where(eq(crawls.websiteId, websiteId));
 
+      // Only an audit that never started crawling gives its slot back.
+      await releaseUnspent(
+        event.data.event.data.reservations as Reservation[] | undefined,
+        "job_failed_before_spend",
+      );
+
       await notify({
         organizationId: event.data.event.data.organizationId as string,
         type: "audit.failed",
@@ -63,9 +75,11 @@ export const auditWebsite = inngest.createFunction(
     },
   },
   async ({ event, step, logger }) => {
-    const { websiteId, organizationId } = event.data as {
+    const { websiteId, organizationId, reservations } = event.data as {
       websiteId: string;
+      /** The website's owner: whoever pays. */
       organizationId: string;
+      reservations?: Reservation[];
     };
 
     /**
@@ -104,12 +118,19 @@ export const auditWebsite = inngest.createFunction(
 
     const crawled = await step.run("crawl-site", async () => {
       const startedAt = Date.now();
-      const result = await crawlSite(crawlRow.url, MAX_PAGES, async (done, found) => {
-        await db
-          .update(crawls)
-          .set({ pagesCrawled: done, pagesFound: found })
-          .where(eq(crawls.id, crawlRow.crawlId));
-      });
+      // Entitlement re-checked inside the spending step, so a retry after
+      // cancellation stops here rather than replaying an earlier "yes".
+      const result = await paidCall(
+        reservations,
+        () =>
+          crawlSite(crawlRow.url, MAX_PAGES, async (done, found) => {
+            await db
+              .update(crawls)
+              .set({ pagesCrawled: done, pagesFound: found })
+              .where(eq(crawls.id, crawlRow.crawlId));
+          }),
+        { beforeSpend: () => requireEntitledForSpend(websiteId) },
+      );
 
       await track(organizationId, {
         kind: "crawl",

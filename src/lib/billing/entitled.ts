@@ -1,3 +1,5 @@
+import { NonRetriableError } from "inngest";
+
 import { checkLimit } from "@/lib/usage";
 
 /**
@@ -39,4 +41,22 @@ export async function isEntitledToSpend(
   }
 
   return { ok: true };
+}
+
+/**
+ * The same question for a background job, asked INSIDE the step that spends.
+ *
+ * Inngest memoises completed steps: a job that checked entitlement in an
+ * early step and failed later replays that step's cached "yes" on retry, even
+ * if the subscription was cancelled in between. Asking again at the moment of
+ * each paid call is the only check a retry cannot skip. Not retried: waiting
+ * does not reactivate a cancelled plan.
+ */
+export async function requireEntitledForSpend(websiteId: string): Promise<void> {
+  const entitled = await isEntitledToSpend(websiteId);
+  if (!entitled.ok) {
+    throw new NonRetriableError(
+      "This website's subscription is not active, so nothing further was spent.",
+    );
+  }
 }

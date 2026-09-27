@@ -3,10 +3,15 @@ import { and, desc, eq } from "drizzle-orm";
 import { inngest } from "@/inngest/client";
 import { db } from "@/lib/db";
 import { articles, publishLogs, websites } from "@/lib/db/schema";
-import { loadCredentials } from "@/lib/publishing/credentials";
+import {
+  loadCredentialsById,
+  resolveIntegration,
+} from "@/lib/publishing/credentials";
 import { notify } from "@/lib/notifications/create";
-import { markFirstArticleSent } from "@/lib/publishing/policy";
+import { markFirstArticleSentAndContinue } from "@/lib/publishing/policy";
+import { recordArticlePublication } from "@/lib/backlinks/placements";
 import { describeArticleScene } from "@/lib/images/scene";
+import { safeFetch } from "@/lib/net/safe-fetch";
 import {
   generateArticleImage,
   isImageGenerationConfigured,
@@ -107,7 +112,14 @@ export const publishArticleJob = inngest.createFunction(
         .where(eq(websites.id, websiteId))
         .limit(1);
 
-      const integration = await loadCredentials(websiteId);
+      /**
+       * IDENTIFIERS ONLY. This step's return value is persisted by Inngest so a
+       * retry can resume from it, and it used to carry the decrypted
+       * credentials - putting a customer's WordPress application password into
+       * durable job state. Each step that talks to the CMS now loads the secret
+       * itself from this id. See lib/publishing/credentials.ts.
+       */
+      const integration = await resolveIntegration(websiteId);
       if (!integration) throw new Error("No publishing integration is connected");
 
       /**
@@ -153,7 +165,7 @@ export const publishArticleJob = inngest.createFunction(
       return {
         integrationId: integration.integrationId,
         providerId: integration.providerId,
-        credentials: integration.credentials,
+        // No `credentials` key, deliberately: see above.
         remoteId: previous?.remoteId ?? null,
         // Used to steer the header image toward the customer's sector.
         industry: site?.industry ?? null,
@@ -208,8 +220,17 @@ export const publishArticleJob = inngest.createFunction(
         */
         let generated: { data: Buffer; contentType: string; alt: string; costUsd: number };
         if (prepared.image) {
-          const response = await fetch(prepared.image.url, {
+          /*
+            safeFetch: after a publish this address is whatever the
+            customer's CMS reported for the uploaded image, so it is a URL a
+            third-party server chose - never fetched without the public-
+            address check. See lib/net/safe-fetch.ts.
+          */
+          const response = await safeFetch(prepared.image.url, {
             signal: AbortSignal.timeout(30_000),
+            // Checked while streaming: a CMS-reported URL could serve anything.
+            maxBytes: 25 * 1024 * 1024,
+            timeoutMs: 30_000,
           });
           if (!response.ok) {
             throw new Error(`Could not load the article image (${response.status})`);
@@ -253,7 +274,26 @@ export const publishArticleJob = inngest.createFunction(
           return null;
         }
 
-        const media = await provider.uploadMedia(prepared.credentials, {
+        /*
+          Loaded here, inside the step that sends it, rather than carried in
+          from the previous step's persisted result. Re-read on every attempt,
+          so a password rotated between a failure and its retry is picked up.
+        */
+        const integration = await loadCredentialsById(prepared.integrationId);
+        if (!integration) {
+          logger.warn(
+            {
+              step: "upload-image",
+              articleId,
+              websiteId,
+              integrationId: prepared.integrationId,
+            },
+            "Integration is no longer connected - publishing without a header image",
+          );
+          return null;
+        }
+
+        const media = await provider.uploadMedia(integration.credentials, {
           data: generated.data,
           contentType: generated.contentType,
           filename: `${prepared.post.slug ?? "header"}.${
@@ -320,14 +360,33 @@ export const publishArticleJob = inngest.createFunction(
         );
       }
 
+      /*
+        The secret is fetched here, in the step that sends the request, and is
+        never returned from it. Re-read per attempt so a rotated credential is
+        used on a retry rather than the value a previous attempt captured.
+      */
+      const integration = await loadCredentialsById(prepared.integrationId);
+      if (!integration) {
+        logger.error(
+          {
+            step: "send-to-cms",
+            articleId,
+            websiteId,
+            integrationId: prepared.integrationId,
+          },
+          "Integration is no longer connected - cannot publish",
+        );
+        throw new Error("The publishing integration is no longer connected");
+      }
+
       const startedAt = Date.now();
       try {
         const sent = prepared.remoteId
-          ? await provider.updatePost(prepared.credentials, prepared.remoteId, {
+          ? await provider.updatePost(integration.credentials, prepared.remoteId, {
               ...prepared.post,
               featuredMediaId: featuredMedia?.id ?? null,
             })
-          : await provider.createPost(prepared.credentials, {
+          : await provider.createPost(integration.credentials, {
               ...prepared.post,
               featuredMediaId: featuredMedia?.id ?? null,
             });
@@ -412,15 +471,24 @@ export const publishArticleJob = inngest.createFunction(
         .where(eq(articles.id, articleId));
 
       /*
+        A backlink carried by this article now has a real URL to be checked
+        at. Nothing is charged here: credits move only once the verifier has
+        seen the link live (lib/backlinks/placements.ts).
+      */
+      await recordArticlePublication(
+        articleId,
+        result.remoteUrl ?? null,
+        result.status === "publish" ? "publish" : "draft",
+      );
+
+      /*
         The website's first article is out. Record it, so the first-article
         rule never fires again, and - only for the call that recorded it -
         start writing the next two days' articles now rather than at the next
         scheduled run: "the first article published immediately, and then the
         other next-2-day articles". See lib/publishing/policy.ts.
       */
-      if (await markFirstArticleSent(websiteId)) {
-        await inngest.send({ name: "articles/scheduled.requested", data: { websiteId } });
-      }
+      await markFirstArticleSentAndContinue(websiteId);
 
       logger.info(
         {

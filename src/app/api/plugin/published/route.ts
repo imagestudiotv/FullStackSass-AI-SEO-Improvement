@@ -6,8 +6,8 @@ import { db } from "@/lib/db";
 import { articles, publishLogs } from "@/lib/db/schema";
 import { notify } from "@/lib/notifications/create";
 import { resolveIntegrationKey } from "@/lib/plugin/keys";
-import { markFirstArticleSent } from "@/lib/publishing/policy";
-import { queueJob } from "@/inngest/send";
+import { markFirstArticleSentAndContinue } from "@/lib/publishing/policy";
+import { recordArticlePublication } from "@/lib/backlinks/placements";
 
 /**
  * Publication confirmed: POST /api/plugin/published
@@ -145,18 +145,20 @@ export async function POST(request: NextRequest) {
     .where(eq(articles.id, article.id));
 
   /*
+    The real URL of any backlink this article carries, so it can be checked
+    live before anyone is charged (lib/backlinks/placements.ts). A WordPress
+    draft is not publication.
+  */
+  await recordArticlePublication(article.id, url, created);
+
+  /*
     The website's first article is out. Record it, so the first-article
     rule never fires again, and - only for the call that recorded it -
     start writing the next two days' articles now rather than at the next
     scheduled run: "the first article published immediately, and then the
     other next-2-day articles". See lib/publishing/policy.ts.
   */
-  if (await markFirstArticleSent(resolved.websiteId)) {
-    await queueJob({
-      name: "articles/scheduled.requested",
-      data: { websiteId: resolved.websiteId },
-    });
-  }
+  await markFirstArticleSentAndContinue(resolved.websiteId);
 
   await notify({
     organizationId: resolved.organizationId,

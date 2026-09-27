@@ -5,7 +5,10 @@ import { revalidatePath } from "next/cache";
 
 import { db } from "@/lib/db";
 import { articles, articleVersions } from "@/lib/db/schema";
-import { queueArticleForCalendarItem } from "@/inngest/functions/generate-article";
+import {
+  queueArticleForCalendarItem,
+  requeueArticle,
+} from "@/inngest/functions/generate-article";
 import { requireWebsite } from "@/lib/tenant";
 import { requireEditor } from "@/lib/websites/require-editor";
 import { sanitizeHtml, countWords } from "@/lib/articles/generate";
@@ -114,13 +117,10 @@ export async function generateFromCalendarItem(
 ): Promise<ActionResult<{ articleId: string }>> {
   const guard = await requireEditor(websiteId);
   if (!guard.ok) return { ok: false, error: guard.error };
-  const { site, orgId } = guard.context;
+  const { site } = guard.context;
 
-  const result = await queueArticleForCalendarItem(
-    orgId,
-    site.id,
-    calendarItemId,
-  );
+  // Billed to the website's owner, whoever pressed the button.
+  const result = await queueArticleForCalendarItem(site.id, calendarItemId);
   if (!result.ok) return { ok: false, error: result.error };
 
   revalidatePath(`/websites/${site.id}/content`);
@@ -134,7 +134,7 @@ export async function regenerateArticle(
 ): Promise<ActionResult<null>> {
   const guard = await requireEditor(websiteId);
   if (!guard.ok) return { ok: false, error: guard.error };
-  const { site, orgId } = guard.context;
+  const { site } = guard.context;
 
   const [article] = await db
     .select({ id: articles.id, calendarItemId: articles.calendarItemId })
@@ -146,11 +146,12 @@ export async function regenerateArticle(
     return { ok: false, error: "This article has no plan entry to rebuild from" };
   }
 
-  const result = await queueArticleForCalendarItem(
-    orgId,
-    site.id,
-    article.calendarItemId,
-  );
+  // This exact article, not whichever one a calendar lookup finds first.
+  const result = await requeueArticle({
+    websiteId: site.id,
+    articleId: article.id,
+    status: "queued",
+  });
   if (!result.ok) return { ok: false, error: result.error };
 
   revalidatePath(`/websites/${site.id}/articles/${articleId}`);

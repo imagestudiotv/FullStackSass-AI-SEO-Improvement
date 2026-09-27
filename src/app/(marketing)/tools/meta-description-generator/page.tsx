@@ -1,4 +1,5 @@
 import { PenLine } from "lucide-react";
+import { headers } from "next/headers";
 
 import { CopyButton } from "@/components/copy-button";
 import { DomainToolForm } from "@/components/domain-tool-form";
@@ -9,7 +10,10 @@ import {
   ToolHero,
 } from "@/components/tool-page";
 import { SNIPPET_LIMITS } from "@/lib/tools/snippet";
-import { writeDescriptions } from "@/lib/tools/description-writer";
+import {
+  visitorKey,
+  writeDescriptions,
+} from "@/lib/tools/description-writer";
 
 export const metadata = {
   title: "Meta Description Generator",
@@ -26,7 +30,10 @@ export default async function MetaDescriptionGeneratorPage({
 }: PageProps<"/tools/meta-description-generator">) {
   const params = await searchParams;
   const domain = typeof params.domain === "string" ? params.domain.trim() : "";
-  const outcome = domain ? await writeDescriptions(domain) : null;
+  // Each lookup may be a paid model call, so it is counted per visitor.
+  const outcome = domain
+    ? await writeDescriptions(domain, visitorKey(await headers()))
+    : null;
 
   return (
     <div>

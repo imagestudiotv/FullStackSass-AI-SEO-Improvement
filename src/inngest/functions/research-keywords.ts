@@ -3,6 +3,12 @@ import { NonRetriableError } from "inngest";
 
 import { inngest } from "@/inngest/client";
 import { queueJob } from "@/inngest/send";
+import { requireEntitledForSpend } from "@/lib/billing/entitled";
+import {
+  paidCall,
+  releaseUnspent,
+  type Reservation,
+} from "@/lib/billing/spend-quota";
 import { labsMarket } from "@/lib/providers/dataforseo-markets";
 import { MODELS } from "@/lib/ai/client";
 import { db } from "@/lib/db";
@@ -53,6 +59,12 @@ export const researchKeywords = inngest.createFunction(
         .set({ status: "ready", updatedAt: new Date() })
         .where(eq(websites.id, websiteId));
 
+      // Only a run that never reached a paid call gives its slot back.
+      await releaseUnspent(
+        event.data.event.data.reservations as Reservation[] | undefined,
+        "job_failed_before_spend",
+      );
+
       /**
        * Without this the status quietly returns to "ready" and the customer is
        * left believing research ran, with no keywords and no explanation.
@@ -69,10 +81,22 @@ export const researchKeywords = inngest.createFunction(
     },
   },
   async ({ event, step, logger }) => {
-    const { websiteId, organizationId } = event.data as {
+    const { websiteId, organizationId, reservations } = event.data as {
       websiteId: string;
+      /** The website's owner: whoever pays. */
       organizationId: string;
+      reservations?: Reservation[];
     };
+
+    /*
+      Every paid call below re-checks entitlement inside its own step, so a
+      retry after cancellation cannot replay an earlier step's cached "yes",
+      and spends against the reservation this run was admitted under.
+    */
+    const spend = <T,>(call: () => Promise<T>) =>
+      paidCall(reservations, call, {
+        beforeSpend: () => requireEntitledForSpend(websiteId),
+      });
 
     /**
      * Structured logs, one per step, so the Inngest timeline explains itself.
@@ -126,7 +150,7 @@ export const researchKeywords = inngest.createFunction(
     });
 
     const seeds = await step.run("generate-seeds", async () => {
-      const generated = await generateSeedKeywords({
+      const generated = await spend(() => generateSeedKeywords({
         brandName: site.brandName,
         industry: site.industry,
         country: site.country,
@@ -136,7 +160,7 @@ export const researchKeywords = inngest.createFunction(
         services: Array.isArray(site.services)
           ? (site.services as string[])
           : [],
-      });
+      }));
 
       const price = PRICING.llm[MODELS.EXTRACTION];
       await track(organizationId, {
@@ -245,7 +269,7 @@ export const researchKeywords = inngest.createFunction(
        * the same one used when no credentials are configured: keep the terms,
        * lose the volume and difficulty figures.
        */
-      const [ideas, ranked] = await Promise.all([
+      const [ideas, ranked] = await spend(() => Promise.all([
         keywordIdeas(
           seeds.map((seed) => seed.term),
           location,
@@ -271,7 +295,7 @@ export const researchKeywords = inngest.createFunction(
           );
           return { metrics: [] as KeywordMetrics[], cached: true };
         }),
-      ]);
+      ]));
 
       /**
        * Nothing came back from the provider. Fall through to seed-only rows
@@ -510,12 +534,14 @@ export const researchKeywords = inngest.createFunction(
       const articles = await checkLimit(websiteId, "articles");
       const target = articles.limit === UNLIMITED ? 12 : articles.limit;
 
-      const result = await clusterKeywords(
-        all.map((keyword) => ({
-          ...keyword,
-          priorityScore: keyword.priorityScore ?? 0,
-        })),
-        target,
+      const result = await spend(() =>
+        clusterKeywords(
+          all.map((keyword) => ({
+            ...keyword,
+            priorityScore: keyword.priorityScore ?? 0,
+          })),
+          target,
+        ),
       );
 
       const price = PRICING.llm[MODELS.GENERATION];
@@ -586,7 +612,7 @@ export const researchKeywords = inngest.createFunction(
           .map((keyword) => [keyword.term, keyword.intent as string]),
       );
 
-      const articles = await planCalendar(grouped, allowance, intents);
+      const articles = await spend(() => planCalendar(grouped, allowance, intents));
 
       const price = PRICING.llm[MODELS.GENERATION];
       await track(organizationId, {
