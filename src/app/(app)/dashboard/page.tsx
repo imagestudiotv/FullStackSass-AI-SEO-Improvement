@@ -2,14 +2,14 @@ import { Plus } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { ActivityFeed } from "@/components/dashboard/activity-feed";
-import { AuthorityPanel } from "@/components/dashboard/authority-panel";
+import { AchievementsSection } from "@/components/dashboard/achievements";
 import {
-  AchievementsPanel,
-  BestArticlesPanel,
-  SearchPerformancePanel,
-} from "@/components/dashboard/performance-panels";
-import { TodaysArticlePanel } from "@/components/dashboard/todays-article";
+  AuthorityCard,
+  BestArticlesCard,
+  SearchPanels,
+  TodaysArticleCard,
+  WinsCard,
+} from "@/components/dashboard/overview-cards";
 import { Button } from "@/components/ui/button";
 import { PageHeader, PageShell } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/states";
@@ -60,7 +60,7 @@ export default async function DashboardPage({
   }
 
   const websites = await listWebsites();
-  const { t } = await getAppMessages(session.user.id);
+  const { t, locale } = await getAppMessages(session.user.id);
 
   if (websites.length === 0) {
     return (
@@ -101,7 +101,18 @@ export default async function DashboardPage({
   const current =
     ordered.find((site) => site.id === requested) ?? ordered[0];
 
-  const overview = await getDashboardOverview(orgId, current.id);
+  /*
+    The website's OWNER pays and owns the credits: listWebsites only returns
+    this workspace's sites, so its members are owners. Guests never reach a
+    website that is not theirs here (an id from elsewhere falls back above).
+  */
+  const range = typeof params.range === "string" ? params.range : null;
+  const overview = await getDashboardOverview({
+    websiteId: current.id,
+    ownerOrgId: orgId,
+    showCredits: true,
+    range,
+  });
 
   if (!overview) {
     return (
@@ -114,8 +125,12 @@ export default async function DashboardPage({
     );
   }
 
+  const r = t.app.reports;
+  const metric = (["value", "articles", "backlinks", "impressions", "clicks", "sessions"] as const).find((m) => m === params.metric) ?? "value";
+  const view = params.view === "details" ? "details" : "chart";
+
   return (
-    <PageShell>
+    <PageShell width="wide">
       {/*
         Which site these numbers describe. Every figure below belongs to one
         website, and without the domain on the page a customer with several
@@ -136,60 +151,31 @@ export default async function DashboardPage({
       />
 
       {/*
-        Search performance first.
-
-        The page is meant to answer "how is my SEO doing?", and this is the
-        only panel that answers it directly — clicks, impressions and the
-        movement in both. It sat third, below the credit balance and the
-        in-progress article, so the outcome the customer pays for was the
-        last thing they read.
-      */}
-      <SearchPerformancePanel
-        websiteId={overview.websiteId}
-        performance={overview.performance}
-        t={t.app.dash}
-      />
-
-      {/*
-        Then the work: authority and today's article side by side — one is the
-        site's standing, the other is what is being written now. The activity
-        feed sits under authority because both answer "what has changed
-        lately".
+        The reference layout: authority and today's article across the top,
+        the week's wins and best articles beneath, the achievements across
+        the full width, then Google and AI search.
       */}
       <div className="grid items-start gap-4 lg:grid-cols-2">
-        <div className="space-y-4">
-          <AuthorityPanel
-            websiteId={overview.websiteId}
-            verifiedBacklinks={overview.authority.verifiedBacklinks}
-            availableCredits={overview.authority.availableCredits}
-            chart={overview.authority.chart}
-            t={t.app.dash}
-          />
-          <ActivityFeed items={overview.activity} t={t.app.dash} />
-        </div>
-
-        <div className="space-y-4">
-          <TodaysArticlePanel
-            websiteId={overview.websiteId}
-            article={overview.todaysArticle}
-            t={t.app.dash}
-          />
-          <BestArticlesPanel
-            websiteId={overview.websiteId}
-            articles={overview.bestArticles}
-            t={t.app.dash}
-          />
-        </div>
+        <AuthorityCard overview={overview} t={r} locale={locale} />
+        <TodaysArticleCard overview={overview} t={r} locale={locale} />
+        <WinsCard overview={overview} t={r} locale={locale} />
+        <BestArticlesCard overview={overview} t={r} locale={locale} />
       </div>
 
-      {/*
-        Last: what all of it has been worth. A summary of months of work reads
-        as a closing statement, not an opening one.
-      */}
-      <AchievementsPanel
-        achievements={overview.achievements}
-        t={t.app.dash}
-      />
+      {overview.achievements.ok ? (
+        <AchievementsSection
+          data={overview.achievements.data}
+          websiteId={overview.websiteId}
+          initialMetric={metric}
+          initialView={view}
+          t={r}
+          locale={locale}
+        />
+      ) : (
+        <p className="rounded-xl border bg-card p-5 text-sm text-muted-foreground">{r.sectionUnavailable}</p>
+      )}
+
+      <SearchPanels overview={overview} t={r} locale={locale} />
     </PageShell>
   );
 }
