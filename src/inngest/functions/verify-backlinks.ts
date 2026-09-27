@@ -74,7 +74,10 @@ export const verifyBacklinks = inngest.createFunction(
       const transition = await step.run(`check-${placement.id}`, async () => {
         const result = await checkLink(placement.liveUrl, placement.targetUrl);
         const outcome = classifyCheck(result);
-        const applied = await applyCheck(placement.id, outcome, result.httpStatus);
+        const applied = await applyCheck(placement.id, outcome, result.httpStatus, new Date(), {
+          rel: result.rel ?? null,
+          error: result.error,
+        });
         if (outcome !== "alive") {
           logger.warn(
             {

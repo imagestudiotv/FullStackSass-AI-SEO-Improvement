@@ -165,10 +165,19 @@ export async function placementsDue(
       and(
         inArray(placements.status, ["published", "live"]),
         isNotNull(placements.liveUrl),
-        or(isNull(placements.lastVerifiedAt), lt(placements.lastVerifiedAt, recheckBefore)),
+        or(
+          isNull(placements.lastVerifiedAt),
+          lt(placements.lastVerifiedAt, recheckBefore),
+          // A recheck asked for since the last check (lib/reporting/recheck.ts).
+          sql`${placements.recheckRequestedAt} > ${placements.lastVerifiedAt}`,
+        ),
       ),
     )
-    .orderBy(placements.lastVerifiedAt)
+    // Asked-for rechecks first, then the longest unchecked.
+    .orderBy(
+      sql`(${placements.recheckRequestedAt} > coalesce(${placements.lastVerifiedAt}, 'epoch'::timestamp)) desc nulls last`,
+      placements.lastVerifiedAt,
+    )
     .limit(limit);
   return rows.map((row) => ({ ...row, liveUrl: row.liveUrl! }));
 }
@@ -201,6 +210,8 @@ export async function applyCheck(
   outcome: CheckOutcome,
   httpStatus: number | null,
   now: Date = new Date(),
+  /** What the check saw, for the customer's row details. */
+  detail: { rel?: string | null; error?: string | null } = {},
 ): Promise<Transition> {
   return db.transaction(async (tx): Promise<Transition> => {
     const [placement] = await tx
@@ -221,6 +232,8 @@ export async function applyCheck(
       alive: outcome === "alive",
       httpStatus,
       outcome,
+      rel: outcome === "alive" ? (detail.rel ?? null) : null,
+      error: outcome === "error" && detail.error ? detail.error.slice(0, 200) : null,
       checkedAt: now,
     });
     await tx
