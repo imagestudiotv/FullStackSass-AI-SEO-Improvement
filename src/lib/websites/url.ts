@@ -1,3 +1,5 @@
+import { isInternalHostname, normalizeHostname } from "@/lib/net/ip";
+
 /**
  * URL normalisation for website records.
  *
@@ -41,60 +43,21 @@ const BLOCKED_HOSTS = new Set([
 ]);
 
 /**
- * Rejects hosts that resolve inside our own network.
+ * Rejects hosts that are not a public website by NAME or by IP literal.
  *
- * Without this the crawler is an SSRF primitive: a user could add
- * "http://localhost:3000/api/..." or a cloud metadata address and have our
- * server fetch it with our credentials and network position. Checked here
- * because this is the only place a user-supplied host enters the system.
+ * The rules live in lib/net/ip.ts and are shared with the fetch guard. This
+ * used to be its own text check, and it compared "localhost." (the
+ * fully-qualified spelling, trailing dot) against "localhost", found no match,
+ * saw a dot and let it through - and it had no IPv6 handling beyond "::1", so
+ * "[::ffff:7f00:1]" (IPv4-mapped loopback) passed as well.
+ *
+ * A NAME CHECK IS NOT ENOUGH ON ITS OWN: a public-looking name can resolve to
+ * a private address. The resolved addresses are checked at connect time by
+ * lib/net/safe-fetch.ts, which every request to a user's URL goes through.
+ * This stays as the early, cheap rejection with a clear message.
  */
 function isPrivateHost(host: string): boolean {
-  if (host === "localhost" || host.endsWith(".localhost")) return true;
-  if (host === "[::1]" || host === "::1") return true;
-  // Anything without a dot cannot be a public domain (e.g. "intranet").
-  if (!host.includes(".")) return true;
-  // AWS/GCP/Azure link-local metadata endpoint, by address.
-  if (host === "169.254.169.254") return true;
-
-  /**
-   * Metadata and internal services by NAME rather than by address.
-   *
-   * The IP check above missed these entirely: "metadata.google.internal"
-   * contains a dot, is not an IP, and so was treated as an ordinary public
-   * website. On GCP that name resolves to 169.254.169.254 and returns service
-   * account tokens, and the free audit tool fetches whatever URL an anonymous
-   * visitor types.
-   *
-   * Blocked by suffix rather than by listing hostnames, because the same
-   * shape recurs across providers and private networks — .internal, .local
-   * (mDNS), .home.arpa, and the reserved .test/.example/.invalid — and a list
-   * of exact names is one new provider away from being wrong again.
-   */
-  const INTERNAL_SUFFIXES = [
-    ".internal",
-    ".local",
-    ".localdomain",
-    ".home.arpa",
-    ".intranet",
-    ".private",
-    ".corp",
-    ".lan",
-    ".test",
-    ".invalid",
-  ];
-  if (INTERNAL_SUFFIXES.some((suffix) => host.endsWith(suffix))) return true;
-
-  const ipv4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
-  if (ipv4) {
-    const [a, b] = ipv4.slice(1).map(Number);
-    if (a === 10 || a === 127 || a === 0) return true;
-    if (a === 192 && b === 168) return true;
-    if (a === 172 && b >= 16 && b <= 31) return true;
-    if (a === 169 && b === 254) return true;
-    // A bare public IP is still not a website someone owns a domain for.
-    return false;
-  }
-  return false;
+  return isInternalHostname(host);
 }
 
 export function normalizeWebsiteUrl(input: string): NormalizedUrl {
@@ -119,7 +82,9 @@ export function normalizeWebsiteUrl(input: string): NormalizedUrl {
     throw new InvalidUrlError();
   }
 
-  const host = parsed.hostname.toLowerCase();
+  // Normalised: lowercase, no IPv6 brackets, no trailing dot ("example.com."
+  // is example.com - and "localhost." is localhost).
+  const host = normalizeHostname(parsed.hostname);
   if (isPrivateHost(host)) {
     throw new InvalidUrlError("That address is not a public website");
   }
@@ -196,5 +161,6 @@ export function isPublicWebsiteUrl(candidate: string): boolean {
     return false;
   }
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return false;
-  return !isPrivateHost(parsed.hostname.toLowerCase());
+  if (parsed.username || parsed.password) return false;
+  return !isPrivateHost(parsed.hostname);
 }

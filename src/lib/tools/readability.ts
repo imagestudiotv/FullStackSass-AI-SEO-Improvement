@@ -1,6 +1,7 @@
 import * as cheerio from "cheerio";
 
 import { InvalidUrlError, isPublicWebsiteUrl, normalizeWebsiteUrl } from "@/lib/websites/url";
+import { safeFetch } from "@/lib/net/safe-fetch";
 
 /**
  * Two checks that both need the raw HTML of one page.
@@ -141,8 +142,12 @@ export async function checkReadability(
   let html: string;
   let finalUrl: string;
   try {
-    const response = await fetch(normalized.url, {
+    const response = await safeFetch(normalized.url, {
       signal: controller.signal,
+      // Cut while streaming, and the deadline covers reading the body too.
+      maxBytes: MAX_BYTES,
+      overflow: "truncate",
+      timeoutMs: TIMEOUT_MS,
       headers: {
         "user-agent": "SEOVisionBot/1.0",
         accept: "text/html,application/xhtml+xml",
@@ -155,7 +160,7 @@ export async function checkReadability(
       };
     }
     const buffer = await response.arrayBuffer();
-    html = new TextDecoder().decode(buffer.slice(0, MAX_BYTES));
+    html = new TextDecoder().decode(buffer);
     finalUrl = response.url || normalized.url;
   } catch {
     return {

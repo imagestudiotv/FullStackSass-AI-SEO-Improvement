@@ -1,4 +1,11 @@
 import { imageStylePrompt } from "@/lib/websites/article-options";
+import { safeFetch } from "@/lib/net/safe-fetch";
+
+/**
+ * Downloading a generated image from the URL a provider returned: public
+ * addresses only, at most 25 MB (checked while streaming), within 60 seconds.
+ */
+const IMAGE_DOWNLOAD = { maxBytes: 25 * 1024 * 1024, timeoutMs: 60_000 };
 
 /**
  * Article images.
@@ -207,7 +214,9 @@ async function generateWithOpenAi(
    * links expire, and a stored one becomes a broken image on a live page.
    */
   if (first?.url) {
-    const image = await fetch(first.url);
+    // A URL the provider's response named: fetched through the public-
+    // address guard like any other destination we did not choose.
+    const image = await safeFetch(first.url, IMAGE_DOWNLOAD);
     if (!image.ok) throw new Error("Could not download the generated image");
     return { data: Buffer.from(await image.arrayBuffer()), costUsd };
   }
@@ -261,7 +270,7 @@ async function generateWithReplicate(
   const url = Array.isArray(body.output) ? body.output[0] : body.output;
   if (!url) throw new Error("Image provider returned no image");
 
-  const image = await fetch(url);
+  const image = await safeFetch(url, IMAGE_DOWNLOAD);
   if (!image.ok) throw new Error("Could not download the generated image");
   return {
     data: Buffer.from(await image.arrayBuffer()),

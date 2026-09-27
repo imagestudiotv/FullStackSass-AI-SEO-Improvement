@@ -1,11 +1,10 @@
 import crypto from "node:crypto";
-import http from "node:http";
-import https from "node:https";
 
 import { and, desc, eq, isNotNull, isNull, ne, or } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { integrationKeys, websites } from "@/lib/db/schema";
+import { safeFetch } from "@/lib/net/safe-fetch";
 import { dueArticlesForPlugin } from "@/lib/plugin/due";
 
 /**
@@ -141,39 +140,30 @@ export async function nudgePluginIfDue(
 }
 
 /**
- * One plain HTTP(S) POST, and nothing else.
+ * One plain POST through safeFetch (lib/net/safe-fetch.ts).
  *
- * node:https rather than fetch, deliberately. fetch always adds headers of
- * its own - sec-fetch-mode, accept-language, accept-encoding - and the web
- * host's firewall in front of imagestudio.com refused every such request with
- * a bare 403 before WordPress saw it, whatever user agent was sent, while the
- * identical request from curl got through. This sends only the headers below,
- * like curl does. No redirects are followed: the stored address is the only
- * one ever called.
+ * node:https underneath, sending only the headers below, like curl: the web
+ * host's firewall in front of imagestudio.com refused fetch's extra headers
+ * with a bare 403 before WordPress saw the request, while the identical
+ * request from curl got through.
+ *
+ * safeFetch also checks every address the site's hostname RESOLVES to.
+ * acceptableSyncUrl only compares the reported address against the website's
+ * domain, and a domain can point its DNS at 127.0.0.1 or 169.254.169.254 -
+ * which would otherwise have RepGet's servers posting to our own network.
+ * Redirects are refused: the stored address is the only one ever called.
  */
-function postForm(
+async function postForm(
   url: string,
   body: string,
 ): Promise<{ status: number; body: string } | null> {
-  return new Promise((resolve) => {
-    let target: URL;
-    try {
-      target = new URL(url);
-    } catch {
-      resolve(null);
-      return;
-    }
-    const client = target.protocol === "http:" ? http : https;
-    const request = client.request(
+  try {
+    const response = await safeFetch(
+      url,
       {
-        hostname: target.hostname,
-        port: target.port || undefined,
-        path: `${target.pathname}${target.search}`,
         method: "POST",
-        timeout: SYNC_TIMEOUT_MS,
         headers: {
           "content-type": "application/x-www-form-urlencoded",
-          "content-length": Buffer.byteLength(body),
           accept: "application/json",
           /*
             Named, so a site owner reading their logs can see who is calling
@@ -182,21 +172,18 @@ function postForm(
           */
           "user-agent": "RepGet/1.0 (+https://repget.com; WordPress plugin sync)",
         },
+        body,
+        redirect: "error",
+        signal: AbortSignal.timeout(SYNC_TIMEOUT_MS),
+        // A check-now reply is a few bytes of JSON: refuse anything bigger
+        // while it streams, rather than reading it all and slicing.
+        maxBytes: 64 * 1024,
+        timeoutMs: SYNC_TIMEOUT_MS,
       },
-      (response) => {
-        let text = "";
-        response.setEncoding("utf8");
-        response.on("data", (chunk: string) => {
-          // A check-now reply is a few bytes of JSON; stop reading garbage.
-          if (text.length < 10_000) text += chunk;
-        });
-        response.on("end", () =>
-          resolve({ status: response.statusCode ?? 0, body: text }),
-        );
-      },
+      { idleTimeoutMs: SYNC_TIMEOUT_MS },
     );
-    request.on("timeout", () => request.destroy());
-    request.on("error", () => resolve(null));
-    request.end(body);
-  });
+    return { status: response.status, body: await response.text() };
+  } catch {
+    return null;
+  }
 }

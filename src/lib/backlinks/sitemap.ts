@@ -1,4 +1,5 @@
 import { isPublicWebsiteUrl, normalizeWebsiteUrl } from "@/lib/websites/url";
+import { safeFetch } from "@/lib/net/safe-fetch";
 
 /**
  * Reading a site's own sitemap to find pages worth linking to.
@@ -67,14 +68,17 @@ async function fetchText(url: string): Promise<string | null> {
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
-    const response = await fetch(url, {
+    const response = await safeFetch(url, {
       signal: controller.signal,
+      // Cut while streaming, and the deadline covers reading the body too.
+      maxBytes: MAX_BYTES,
+      overflow: "truncate",
+      timeoutMs: TIMEOUT_MS,
       headers: { accept: "application/xml,text/xml", "user-agent": "SEOVisionBot/1.0" },
     });
     if (!response.ok) return null;
 
-    const text = await response.text();
-    return text.slice(0, MAX_BYTES);
+    return await response.text();
   } catch {
     return null;
   } finally {

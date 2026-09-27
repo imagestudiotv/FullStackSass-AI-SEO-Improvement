@@ -1,4 +1,5 @@
 import "server-only";
+import { safeFetch } from "@/lib/net/safe-fetch";
 
 /**
  * robots.txt, shared by the public audit and the signed-in one.
@@ -20,8 +21,12 @@ export async function fetchRobotsTxt(siteUrl: string): Promise<string | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 8000);
   try {
-    const response = await fetch(`${new URL(siteUrl).origin}/robots.txt`, {
+    const response = await safeFetch(`${new URL(siteUrl).origin}/robots.txt`, {
       signal: controller.signal,
+      // Cut while streaming, not after downloading the whole file.
+      maxBytes: 200_000,
+      overflow: "truncate",
+      timeoutMs: 8000,
       headers: {
         accept: "text/plain",
         /*
@@ -34,7 +39,7 @@ export async function fetchRobotsTxt(siteUrl: string): Promise<string | null> {
       },
     });
     if (!response.ok) return null;
-    return (await response.text()).slice(0, 200_000);
+    return await response.text();
   } catch {
     return null;
   } finally {
