@@ -1,10 +1,10 @@
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const inngestMock = vi.hoisted(() => ({ send: vi.fn() }));
 vi.mock("@/inngest/client", () => ({ inngest: inngestMock }));
 
-import { processCancellations, type CancellationOps } from "@/lib/billing/cancellations";
+import { oweCancellation, processCancellations, type CancellationOps } from "@/lib/billing/cancellations";
 import { beginCheckout, type CheckoutProviderOps } from "@/lib/billing/checkouts";
 import { syncProviderSubscription } from "@/lib/billing/subscription-sync";
 import { deliverJobs, MAX_DELIVERY_ATTEMPTS } from "@/lib/jobs/outbox";
@@ -381,10 +381,13 @@ describe.skipIf(!available)("billing locks on real Postgres", () => {
         return "cancelled";
       },
     };
-    await a.execute(
-      sql`insert into provider_cancellations (provider, provider_subscription_id, reason)
-          values ('stripe', 'sub_owed', 'detached_deleted_website')`,
-    );
+    /*
+      Owed the way production owes it. A raw INSERT took next_attempt_at from
+      the database clock (microseconds), while the workers compare against
+      the app's Date (milliseconds): a worker that ran in the same
+      millisecond found the row not yet due, and nothing was cancelled.
+    */
+    await oweCancellation(a, { provider: "stripe", providerSubscriptionId: "sub_owed", reason: "detached_deleted_website" });
     const [first, second] = await Promise.all([
       processCancellations(a, slow),
       processCancellations(b, slow),
