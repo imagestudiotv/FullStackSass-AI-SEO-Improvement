@@ -17,7 +17,7 @@ Internal links are covered separately in [internal-links.md](internal-links.md).
 | Article images | Every generated or regenerated header image is stored as a 1280 × 720 JPEG, verified after encoding. Customer uploads are never cropped. | `src/lib/images/process.ts`, `generate.ts` |
 | First WordPress key | Created by an authorised mutation when an editor first opens the setup screen, and shown once. It is never created on GET, SSR or prefetch. | `src/lib/plugin/keys.ts`, `actions.ts`, `plugin-keys.tsx` |
 | New-site defaults | For new websites only: table of contents on, similar products on, publishing live on the planned day, and Partner Network participation on. Written by the application, not as database defaults. | `src/lib/websites/new-site-defaults.ts`, `websites/actions.ts` |
-| Dispatch boundary | Every send to a customer site (every attempt, every path) re-checks the gate, the exact revision, the schedule and the freeze while holding the article's row lock. Edits wait while a send is in flight. | `src/lib/publishing/dispatch.ts` |
+| Dispatch boundary | Every send to a customer site (every attempt, every path) re-checks the gate, the exact revision, the schedule, the publishing mode and the freeze while holding the article's row lock, and records its identity before sending. Edits wait while a send is in flight. Unknown outcomes are reconciled by ownership marker or an audited decision; plugin reports settle exactly their own hand-over. | `src/lib/publishing/dispatch.ts`, `reconcile.ts`, `acknowledge.ts` |
 | Operator controls | A publication freeze, and a managed-review switch that is enabled after a deploy completes. | `src/lib/publishing/controls.ts`, `/admin/network/operations` |
 | Reporting | Backlinks Overview, Earned Backlinks, Hosted links, Credit activity and the dashboard, all from one reporting layer. | [backlink-reporting.md](backlink-reporting.md) |
 | Footer | When the setting is on, "Powered by RepGet" appears exactly once, at delivery. It is not stored in the article. | `src/lib/articles/delivery.ts` |
@@ -189,16 +189,19 @@ Every external send now **claims a dispatch** (`src/lib/publishing/dispatch.ts`,
 - the publication freeze;
 - the review gate: approved, and exactly the approved revision;
 - that the article is still **exactly the revision this job prepared** (`reviewHash`);
-- the schedule rule for **why** it was queued (the `trigger` on the event).
+- the schedule rule for **why** it was queued (the `trigger` on the event), and the status it goes out as.
 
 The same transaction then records that revision as **in flight**. The trigger decides the schedule rule:
 
 | Trigger | Rule at send time |
 |---|---|
-| Publish button | None: the customer decides when. |
+| Publish button | None: the customer decides when, and chooses live or draft. |
 | Automatic release | Auto-publish must still be on, and the planned UTC day must have come. |
-| First article / connection / approval | While it is still the first article, the first-article rule applies. A reviewed article never goes before its planned day. |
-| Event without a trigger (queued by the previous build) | Treated as a Publish press, which is what that build applied at send time. The gate, the revision and the freeze are still checked. |
+| First article / connection / approval | While it is still the first article, the first-article rule applies. A reviewed article never goes before its planned day. Otherwise the automatic rule. |
+| Plugin hand-over | First-article rule; else a recorded Publish press; else the automatic rule. |
+| Event without a trigger (queued by the previous build) | **The strict rule**: the first-article rule while it is the first article, otherwise the automatic rule. Nothing on such an event says whether a person pressed Publish, so it is never treated as a press. A press held this way is pressed again. |
+
+**The status is decided at the claim, from the settings now.** Only a Publish press carries its own live/draft choice. Every other send reads `publish_as`, `auto_publish` and the first-article rule inside the claim, so a site switched to "draft" after an article was queued gets a draft, on the direct path and in the plugin feed alike. The first article is always live. A second request for the same revision **and the same effective status** sends nothing (`already_sent`).
 
 **Edits wait.** Every write to what an article delivers takes the same row lock and is refused while a revision is in flight:
 
@@ -210,56 +213,108 @@ The same transaction then records that revision as **in flight**. The trigger de
 
 Whichever commits first wins. If the edit commits first, the claim sees a new revision and holds (`revision_changed`, and a fresh job prepares the new revision). If the claim commits first, the edit is refused with "being delivered right now; try again in a minute". On real Postgres, a claim and an edit racing on separate connections never both won, across repeated trials.
 
-**When a send can no longer be recalled.** From the claim's commit until its outcome is recorded:
+**Identity and request snapshot, recorded before sending.** The claim writes the dispatch id, the article, the website, the direct integration (`integration_id`) or the plugin protocol (`protocol`), and a `request_snapshot` (title, slug, effective status, revision hash, publish press at claim time, ownership marker) in the same transaction, before any request leaves. Reconciliation reads these, never the article's current, editable fields.
 
-- `sent`;
-- `failed`: the site answered with a refusal (4xx), so nothing was created;
-- `uncertain`: no answer, or a 5xx on a create, so the post may exist.
+**Outcomes.** From the claim's commit until its outcome is recorded, the send cannot be recalled:
 
-A claim with no outcome after 10 minutes is presumed dead. A direct create is then marked `uncertain`, and a plugin hand-over `abandoned`.
+| Status | Meaning |
+|---|---|
+| `in_flight` | Claimed; the request may reach the site at any moment. |
+| `sent` | Delivered. `remote_status` is what the CMS stored (`publish`, `draft`, `pending`, `future`, `private`). `late = true` when a newer dispatch of the article already existed. |
+| `failed` | The site refused (4xx) or the plugin reported an error. |
+| `uncertain` | A direct create got no answer, or a 5xx: the post may exist. |
+| `expired` | A plugin hand-over whose 10-minute lease ran out unacknowledged (`abandoned` before 0045). The plugin may still report it. |
+| `released` | An operator released an expired hand-over from a pre-1.6 plugin (audited). |
 
-**Uncertain outcomes are reconciled, never blindly retried.**
+**A lease running out is not completion.** After 10 minutes a direct claim with no outcome becomes `uncertain` and a plugin hand-over `expired`, so it no longer blocks edits, but neither counts as delivered.
 
-- Before creating anything, the next attempt looks the post up by slug on WordPress (`findPostBySlug`). If it finds the post, the article is recorded as published, or updated when the text has changed since. If the lookup finds nothing, the post is created.
-- Providers without a reliable lookup (Ghost, Shopify, Webflow, Wix, webhook) hold. The article page then shows "the last attempt got no answer from your website". Once an editor has checked their site, "It is not on my site - allow publishing again" records who confirmed it.
-- Updates of an existing post are idempotent and are simply repeated.
-- **A second request for the same revision** (a repeated press, a release racing another path) sends nothing (`already_sent`).
-- The database allows at most one in-flight dispatch per article.
+**Uncertain direct sends: proof of ownership, never a slug.** Every direct send carries an invisible marker in its content, `<!-- repget:v1 article=<id> website=<id> dispatch=<id> -->` (`src/lib/publishing/ownership.ts`). Before creating anything for an article whose last direct send is uncertain, the job searches the site **the dispatch was sent to** for that dispatch id (`searchPostsByMarker`, WordPress REST `search` with `context=edit`) and checks the marker in each candidate's stored content (`src/lib/publishing/reconcile.ts`):
+
+- **exactly one** post carries this dispatch's marker for this article and website: it is adopted (`reconciled_by = system:ownership-marker`) and logged once; the next revision updates it;
+- **none**: not proof. The dispatch stays `uncertain`, the lookup is counted (`lookup_attempts`, `last_lookup_at`, `lookup_result = none`), nothing is created, and another lookup is scheduled (5, 10, 20 … minutes, up to 8 automatic lookups);
+- **several**, or a marker with another article/website: `ambiguous`, held for a person;
+- content withheld, a send from before markers (no snapshot), a CMS without a lookup (Ghost, Shopify, Webflow, Wix, webhook), or the integration gone: held for a person.
+
+Only a person ends an uncertainty without proof, and it is audited on the dispatch (`reconciled_by`, `reconciled_at`, `reconcile_note`): the customer's "It is not on my site - allow publishing again", or an operator at `/admin/network/operations` ("Checked: not on the site", or "Found the post" with its id and address, which the next publish then updates). The earlier slug lookup adopted an unrelated post that owned the slug, missed a suffixed slug (`-2`) and missed an edited slug; it has been removed.
 
 **Plugin delivery.** Handing an article to the plugin (`GET /api/plugin/articles`) is a dispatch too.
 
-- **Claim:** each article in the response is claimed as it is built, and the feed never offers an article that is in flight.
-- **Settle:** the plugin's report (`POST /api/plugin/published`, success or error) settles it.
-- **Timeout:** an unanswered hand-over is offered again after 10 minutes. This is safe because the plugin finds its own earlier post by article id (post meta `_repget_article_id` plus the GUID identity) and updates it instead of creating another.
+- **Claim:** each article in the response is claimed as it is built; the feed never offers an article that is in flight; the response carries `dispatch: { id, revision }` and the effective status.
+- **Report (`POST /api/plugin/published`):** `src/lib/publishing/acknowledge.ts` settles, in one transaction holding the article's row lock, **exactly** the hand-over the report answers.
+  - Plugin **1.6.0+** sends `X-RepGet-Plugin-Version` and echoes `dispatchId`, with the status WordPress actually stored.
+  - **Older plugins** report by article only. For them at most **one revision is outstanding per article**: after a lease runs out, the same revision is re-offered under the same dispatch; a different revision waits (`awaiting_plugin`) until the outstanding one is reported or an operator releases it. Their report therefore always settles the right hand-over. Their status is the one they were asked for, not necessarily what WordPress kept.
+  - A report for an already-settled dispatch is a **duplicate**: nothing is written again (no second log, notification or first-article follow-up). Publish logs are unique per delivered dispatch.
+  - A report for a dispatch that has a **newer** dispatch is **late**: recorded on its own row and log, but it does not change the article's current state, clear a newer Publish press, notify, or continue anything. A late report of a live post only sets the first-live date if none was known.
+  - Only a post stored as `publish` makes the article published and sets `first_live_at`. A WordPress draft keeps the article a draft.
+  - A report without a dispatch for a post already delivered, at a new address, is the plugin moving the post (content-type change): only the address is updated.
 - **Limit:** once a response has left RepGet, the content in it will be created by the plugin. The claim is that point of no return.
+
+## WordPress plugin 1.6.0 (protocol v2)
+
+**An update is required for exact correlation.** Earlier versions of this document said the plugin needed no update; that is no longer true. Plugin 1.6.0 (`public/repget-connector.zip`, rebuilt with `npm run plugin:build`):
+
+- sends `X-RepGet-Plugin-Version: 1.6.0` on every request;
+- echoes each hand-over's `dispatchId` in its report;
+- keeps unsent reports per hand-over (`dispatch:<id>`), so reports for an older and a newer revision of one article are both delivered (1.5.x kept only the last); reports parked by 1.5.x are still sent;
+- reports `get_post_status()` after saving, not the requested status.
+
+**Older plugins keep working, more conservatively:** one outstanding revision per article, as above; a revision edited while a hand-over is unacknowledged waits for the report (or an operator's release), and a draft kept by WordPress on an update may be reported as the requested status. Customers should be asked to update. Nothing on the server requires 1.6.0.
+
+Verified: `npm run plugin:test` (the stubbed-WordPress harness, including the new protocol cases, which fail against 1.5.2), and the server-side endpoint tests in `src/lib/publishing/corrections.test.ts`. A disposable real WordPress run of 1.6.0 is listed under the remaining staging checks.
+
+## Publication freeze and drain
+
+**Enabling the freeze is serialized with admission.** Every claim holds `pg_advisory_xact_lock_shared(hashtext('repget:publication-freeze'))` while it reads the freeze and records the dispatch; switching the freeze on takes the same lock exclusively. When the switch returns, no claim that read "not frozen" is still open, and nothing more is admitted. Proven on real Postgres with a claim parked at a barrier (`src/lib/publishing/corrections.postgres.test.ts`); the same test fails with the lock removed.
+
+**Drained means no delivery has an unknown outcome**, not "nothing was claimed in the last 10 minutes". The operations page counts, and lists with their lookups:
+
+- in flight (within the lease);
+- in flight past the lease with no outcome;
+- uncertain direct sends;
+- unacknowledged plugin hand-overs (`expired`/`abandoned`).
+
+It says "Drained" only when all four are zero. Resolve the rest there (audited) before switching builds.
+
+## Managed-review activation and the deploy cutover
+
+Migration 0045 writes a cutover marker (`platform_controls` key `managed_review_cutover`, disabled, `updated_at` = migration time). Turning **Managed review** on:
+
+1. takes `hashtext('repget:managed-review')` exclusively. The generation save step takes it shared while it decides a new draft's review state and writes it (`reviewStatusForNewDraft`), so no save that decided "not reviewed" can land after step 2;
+2. holds for review (`review_status = pending`) every draft created **since the cutover** on a website in the network that is unpublished (`draft`/`generating`/`queued`, no `published_url`), not already under review, and not in flight. The number is recorded in the audit log.
+
+So drafts written while the switch was off during the deploy, and drafts written by jobs the previous build queued and the new build ran, are brought under review. Drafts created **before** the migration keep the behaviour they were written under (as before). Proven on real Postgres with a save parked at a barrier; the same interleaving without the lock leaves the draft unreviewed.
 
 ## Deploy, migrate, roll back
 
-Migrations `0043` (managed network) and `0044` (dispatch, controls, authority, valuation) only add tables and nullable columns. **No default of an existing column changes and no existing row is updated.** Both were rehearsed on a disposable Postgres 17 database that already held websites, a live placement, link checks and ledger rows at 0042:
+Migrations `0043` (managed network), `0044` (dispatch, controls, authority, valuation) and `0045` (dispatch identity, acknowledgements, actual CMS outcomes, page identity) are forward-only. 0043 and 0044 may already be on a persistent database; 0045 is a new forward migration and does not assume otherwise. 0045:
 
-- all existing rows were unchanged;
-- a website inserted the way the previous build inserts one still got the old defaults;
-- the in-flight uniqueness rule was enforced.
+- adds nullable or defaulted columns only (`publication_dispatches`: protocol, integration_id, request_snapshot, remote_status, late, lookup_*, reconciled_*; `publish_logs`: remote_status, dispatch_id; `articles`: first_live_at);
+- adds the immutable SQL function `repget_page_key(url, fallback_host)`;
+- renames the status `abandoned` to `expired` and backfills `protocol` (`plugin_legacy` for plugin rows, `direct` otherwise);
+- backfills `first_live_at` **only** for a published article with exactly one delivery on record; everything else stays unknown (see [backlink-reporting.md](backlink-reporting.md));
+- inserts the managed-review cutover marker (disabled).
 
-**Deploy order**
+A build older than 0045 ignores all of it; it treats an `expired` row as settled history, as it treated `abandoned`. The rollback patch holds such articles (below).
 
-1. Back up the database. Apply `0043` and `0044` with the normal migration process against `DIRECT_URL`. The previous build keeps working against them.
-2. Deploy the application. Nothing is held for review yet, because `managed_review` is off, so an older instance that is still serving cannot publish a held article.
-3. When the deploy is complete (no older instance serving, no queued jobs from it), turn on **Managed review** at `/admin/network/operations`.
-4. Optional: publish a valuation policy, and configure authority collection (see [backlink-reporting.md](backlink-reporting.md)).
+**Deploy order (exact cutover)**
 
-`sharp` is a direct dependency (0.35.4, already in the lockfile). `NEXT_PUBLIC_APP_URL` must be the canonical app URL, because it is the footer link. `AUTHORITY_DAILY_REQUESTS` (default 4) caps DataForSEO authority requests per day.
+1. Back up the database. Apply pending migrations (`0043`–`0045` as needed) against `DIRECT_URL`. The previous build keeps working against them.
+2. Deploy the application. `managed_review` stays off, so an older instance still serving cannot publish a held article.
+3. Wait until the deploy is complete: no older instance serving, and the Inngest app synced to the new build. Events the previous build queued are then run by the new code (with the strict rule for events without a trigger).
+4. Turn on **Managed review** at `/admin/network/operations`. It waits for in-progress generation saves and holds the drafts written since the migration (step 2 above); the audit log records how many.
+5. Ask plugin customers to update to 1.6.0.
+6. Optional: publish a valuation policy, and configure authority collection (see [backlink-reporting.md](backlink-reporting.md)).
 
-**Rollback: never redeploy the previous build unpatched.** It ignores `review_status`. Its Publish button and publish job only check that an article has content, so it would publish held articles, and reopening an article cannot protect it from code that never reads the field. Use a publication freeze plus a rollback-compatible build:
+`sharp` is a direct dependency (0.35.4, already in the lockfile). `NEXT_PUBLIC_APP_URL` must be the canonical app URL, because it is the footer link. `AUTHORITY_DAILY_REQUESTS`: unset or blank = 4 per day; `0` = collection disabled; a whole number = that limit; anything else (negative, fractional, `1e3`, text) = **invalid, collection disabled**, and the operations page says so.
 
-1. **Freeze publishing** at `/admin/network/operations`, or with the SQL in `scripts/managed-network/rollback/README.md`. Every path of the new build holds at its next dispatch claim. Wait until **in flight** reaches 0 (at most 10 minutes).
-2. **Deploy the rollback-compatible previous release.** Check out `d62e257`, apply `scripts/managed-network/rollback/previous-release-gate.patch` and build. The patch makes that release honour the review gate (with the exact approved revision), the planned day for reviewed articles, the freeze and in-flight sends, on its plugin feed, first-article release, scheduled release, Publish button and publish job (at preparation and at every send attempt). It was rehearsed locally: the previous release's code ran against a database migrated through 0044, all 6 scenarios passed, its own suite passed with the patch (427 tests), and it typechecks.
-3. Do **not** roll the migrations back. The patched build needs 0043 and 0044, and dropping them would lose review, placement, dispatch and ledger history.
-4. **Unfreeze** when ready. Held articles stay held; the patched build cannot approve. Nothing is mass-approved. They are released when the newer build returns.
+**Rollback: never redeploy the previous build unpatched.** It ignores `review_status`, the freeze and unknown outcomes. Use a publication freeze plus the rollback-compatible build:
 
-Residual risk in the patched previous build: it has no row lock between its check and its send, so an edit made in the same instant as a send could still go out on an invalidated approval. That is why step 1 freezes first.
+1. **Freeze publishing** at `/admin/network/operations` (it waits for open claims). Then resolve every unresolved delivery listed there until it says **Drained**. A delayed send whose lease ran out still counts; an uncertain one needs its lookup or an audited decision.
+2. **Deploy the rollback-compatible previous release.** Check out `d62e257`, apply `scripts/managed-network/rollback/previous-release-gate.patch` and build. Do not run or roll back migrations.
+3. Verify on the rolled-back deployment that held articles appear neither in the plugin feed nor in the scheduled release.
+4. **Unfreeze only if needed.** The patched build has no dispatch coordination, so it is deliberately stricter than the newer build: it holds **every** article under managed review (approved ones too) and every article with an unresolved delivery (in flight of any age, uncertain, expired/abandoned), on every path. After unfreezing it publishes only unreviewed articles without unresolved deliveries — what that release always published. **Limitation:** approved network articles wait for the newer build; nothing is mass-approved or mass-resolved.
 
-**The WordPress plugin needs no update.** Plugin 1.5.2 stores the HTML it is sent and de-duplicates by article id. The footer, heading ids, image style and network link arrived intact on a disposable WordPress 6.8.3, with a 1280 × 720 featured image. The dispatch boundary uses the plugin's existing report endpoint.
+The rollback was rehearsed locally: the previous release's code ran against a database migrated through 0045; 11/11 scenarios passed (including delayed and uncertain sends and expired/abandoned plugin hand-overs, 4 of which fail with the earlier patch); its own suite passed with the patch (432 passed, 19 skipped); `tsc` 0 errors. See `scripts/managed-network/rollback/README.md`.
 
 ## Operator action (separate from this change)
 

@@ -44,7 +44,7 @@ Filters, sort, page and page size live in the URL (`?tab=&type=&q=&from=&to=&iss
 **Dates.** All dates come from recorded events, never from `updated_at`, and are shown in UTC:
 
 - *First verified:* `placements.live_at`. Older rows fall back to the first "alive" link check, then the settlement ledger entry. If none exists, the date is **unknown**: it is never guessed, and such links are counted as "undated" and left off charts.
-- *Published:* `placements.published_at`, else the article's first successful publish log.
+- *Published:* `placements.published_at`, else when the carrying article first went live (`articles.first_live_at`). A delivery the CMS kept as a draft is not publication. If neither is known, the date is unknown.
 - *Removed:* `placements.removed_at`, else the refund entry.
 - *The listed date:* each row shows its latest step (verified, removed, published or placed), labelled. The date filter applies to that same date.
 
@@ -55,9 +55,21 @@ Filters, sort, page and page size live in the URL (`?tab=&type=&q=&from=&to=&iss
 - *Active* counts links verified live at the end of each day. It **falls** when links are removed.
 - *Cumulative* counts first verifications and never falls.
 
-**Articles published** counts an article's **first** successful publish. Edits and republishing are not new publications.
+**Articles published** counts articles that first went **live** in the window: `articles.first_live_at`, set by the first delivery the CMS actually stored as `publish` (the direct connection reads the status WordPress returns; plugin 1.6.0+ reports `get_post_status()`). A draft delivered today and published next week counts next week, when RepGet delivers it live. Edits, repeated or late acknowledgements and republishing are not new publications.
 
-**Article traffic** is **page-scoped**: Search Console clicks and impressions for the pages RepGet published, matched by normalised URL. Google Analytics sessions on those pages are a separate measure and are never added to clicks. Site-wide Google totals are labelled "whole site".
+*Historical articles.* Before migration 0045, a publish log meant "delivered", not "live". The migration sets `first_live_at` only where that is unambiguous (the article is published and has exactly one delivery on record). Other published articles have an **unknown** first-live date: they are not counted in any window, and the dashboard says how many there are. A post a customer publishes by hand in WordPress after a draft delivery is not seen by RepGet until it is delivered again.
+
+**Article traffic** is **page-scoped**: Search Console clicks and impressions for the pages RepGet published. Google Analytics sessions on those pages are a separate measure and are never added to clicks. Site-wide Google totals are labelled "whole site".
+
+*Page identity* (`src/lib/reporting/page-key.ts`, and its SQL twin `repget_page_key` from migration 0045, tested against each other) is conservative:
+
+- ignored: the scheme, a leading `www.`, host case, a default port, a trailing slash, the `#fragment`, tracking parameters (`utm_*`, `gclid`, `gbraid`, `wbraid`, `dclid`, `fbclid`, `msclkid`, `yclid`, `igshid`, `mc_cid`, `mc_eid`, `_ga`, `_gl`) and the order of the remaining parameters;
+- kept: **path case** and **every other query parameter**, so WordPress plain permalinks (`/?p=101`, `/?p=202`) and language variants (`?lang=fr`, `?lang=en`) are different pages;
+- Google Analytics reports a path only; it is resolved against the website's own domain.
+
+Each page is counted **once**, however many article rows point at it (it belongs to the article that went live first). No canonical or redirect mapping is stored in RepGet, so none is applied: a page reached under two genuinely different URLs is two pages.
+
+*Totals* (headline, cards, chart) are computed over **every** page. The details list shows the top 200 pages by clicks and says so when there are more; the totals above it do not depend on it.
 
 **Verification banner.** It counts distinct **articles** of this website where a partner's link was not found after repeated confirmed checks. Temporary errors and unpublished articles never count. "Review & resolve" opens the filtered view. Dismissing the banner is a per-browser preference keyed by an issue fingerprint: new issues bring it back, and no verification or credit state changes.
 
@@ -74,18 +86,18 @@ Filters, sort, page and page size live in the URL (`?tab=&type=&q=&from=&to=&iss
   |---|---|
   | collecting | Not measured yet |
   | no_data | The provider has nothing for the domain |
-  | no_access | DataForSEO answered 40204: the account has no Backlinks API subscription |
+  | no_access | DataForSEO answered 40204 (no Backlinks API access) for the configured account. Shown only when that answer was actually received. |
   | error | Temporary; retried |
   | not_configured | No credentials on this deployment |
   | stale | Older than 30 days (the value is still shown) |
 
 - **Collection.** It runs only in the background (`collect-authority` Inngest function), daily or on an admin request.
   - It tracks only Partner Network websites with a live subscription, plus the sites linking to them, each domain once. Up to 200 domains go in one request.
-  - Each request takes a spend reservation first (key `authority:dataforseo`, capped by `AUTHORITY_DAILY_REQUESTS`, default 4 per day).
+  - Each request takes a spend reservation first (key `authority:dataforseo`), capped per day by `AUTHORITY_DAILY_REQUESTS`: unset or blank = **4**; `0` = collection disabled; a whole number = that limit; anything else (negative, fractional, `1e3`, `0x10`, text) = **invalid, collection disabled** (nothing is spent) and the operations page shows the setting as invalid. An earlier version read an unset value as 0 and so never collected; that is fixed and covered by tests that do not stub the setting.
   - A provable refusal returns the reservation.
   - Failures back off. An account without access is asked again only weekly.
   - **Page views, filters and pagination only read `domain_metrics`**; they never call the provider.
-- **External prerequisite.** The existing DataForSEO keyword access does **not** include the Backlinks API, which is a separate DataForSEO subscription. Until an operator enables it, the product shows "Needs the DataForSEO Backlinks API". Nothing is purchased from the product.
+- **External prerequisite.** The Backlinks API is a separate DataForSEO product from the keyword APIs. Whether the configured account has access has **not** been observed from this environment: the 40204 behaviour is covered by a recorded-shape fixture, not by a call to the real account (no paid call was made). An earlier version of this document stated that the account lacks access; that was not established. If DataForSEO answers 40204, the product shows "Needs the DataForSEO Backlinks API". Nothing is purchased from the product.
 - **Minimum authority** (customer setting) uses the same metric, and admin placement enforces it.
 
 ## Estimated equivalent value
@@ -110,7 +122,7 @@ Filters, sort, page and page size live in the URL (`?tab=&type=&q=&from=&to=&iss
 
 ## AI citations (Earned Backlinks column)
 
-A **measured** value only: how many of the website's own AI Visibility answers (`geo_results.cited`, last 90 days) cited the page that carries the link, matched by normalised URL.
+A **measured** value only: how many of the website's own AI Visibility answers (`geo_results.cited`, last 90 days) cited the page that carries the link, matched by the same page identity as article traffic (query strings and path case kept).
 
 - If the website ran no AI checks in that period, or the page is not published, the column says **not measured**. It is never inferred from authority or verification.
 - No paid AI checks are run to fill it.
