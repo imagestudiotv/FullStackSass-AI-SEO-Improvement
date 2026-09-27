@@ -481,11 +481,14 @@ describe("the generation job", () => {
       "update spend_reservations set state = 'released' where key = $1",
       [`articles:${websiteId}`],
     );
-    // ...and the slot has since been used by other work.
+    // ...and the slot has since been used by other work. counted_at from the
+    // app's clock, as reserve() writes it: the database's now() has
+    // microseconds (and the host's zone in PGlite), and a quota check in the
+    // same millisecond would not count it.
     await test.client.query(
       `insert into spend_reservations (key, operation, state, limit_value, counted_at)
-       values ($1, 'article.generate', 'consumed', 1, now())`,
-      [`articles:${websiteId}`],
+       values ($1, 'article.generate', 'consumed', 1, $2)`,
+      [`articles:${websiteId}`, new Date(Date.now() - 1000).toISOString()],
     );
 
     await expect(job.handler({ event: { data }, step: memoisedStep(), logger })).rejects.toThrow(
