@@ -7,8 +7,19 @@ import "server-only";
  * re-export from a "use server" file a build error rather than a way for
  * anyone signed in to mint the product's paid currency.
  */
-import { and, eq, gte, sql as raw } from "drizzle-orm";
+import {
+  and,
+  asc,
+  eq,
+  gte,
+  inArray,
+  isNotNull,
+  isNull,
+  ne,
+  sql as raw,
+} from "drizzle-orm";
 
+import { billingAnchor, entitlementPeriod } from "@/lib/billing/entitlement-period";
 import { db } from "@/lib/db";
 import { backlinkRequests, creditLedger, plans, subscriptions } from "@/lib/db/schema";
 
@@ -45,21 +56,49 @@ export type CreditEntry = {
   amount: number;
   referenceId?: string | null;
   note?: string | null;
+  /**
+   * Stable id of the operation, e.g. "purchase:<id>". With one, a repeated
+   * or concurrent write of the same movement is a no-op (unique index), so
+   * every automated movement passes one. Admin adjustments do not.
+   */
+  idempotencyKey?: string | null;
 };
 
-/** Records one movement. The only way credits ever change. */
+type Writer = Pick<typeof db, "insert">;
+
+/**
+ * Records one movement. The only way credits ever change.
+ *
+ * Pass the caller's transaction as `executor` to commit the movement WITH
+ * the business change that causes it - a purchase recorded, a referral
+ * rewarded, a placement going live - so neither can exist without the other.
+ *
+ * Returns whether a row was written: false for a zero amount, or for an
+ * idempotency key that was already used.
+ */
 export async function recordCredit(
   organizationId: string,
   entry: CreditEntry,
-): Promise<void> {
-  if (entry.amount === 0) return;
-  await db.insert(creditLedger).values({
+  executor: Writer = db,
+): Promise<boolean> {
+  if (entry.amount === 0) return false;
+  const insert = executor.insert(creditLedger).values({
     organizationId,
     type: entry.type,
     amount: entry.amount,
     referenceId: entry.referenceId ?? null,
     note: entry.note ?? null,
+    idempotencyKey: entry.idempotencyKey ?? null,
   });
+  const rows = entry.idempotencyKey
+    ? await insert
+        .onConflictDoNothing({
+          target: creditLedger.idempotencyKey,
+          where: raw`${creditLedger.idempotencyKey} is not null`,
+        })
+        .returning({ id: creditLedger.id })
+    : await insert.returning({ id: creditLedger.id });
+  return rows.length > 0;
 }
 
 /** Sum of every movement ever recorded. */
@@ -105,55 +144,126 @@ export async function getAvailable(organizationId: string): Promise<{
   return { balance, reserved, available: Math.max(balance - reserved, 0) };
 }
 
+const ENTITLED_STATUSES = ["active", "trialing", "past_due"];
+
+/** Plan grants from before per-subscription keys: "plan_grant:YYYY-MM". */
+const LEGACY_GRANT = /^plan_grant:\d{4}-\d{2}$/;
+
+/** The grant id for one subscription's one monthly entitlement period. */
+export function planGrantKey(subscriptionId: string, periodStart: Date): string {
+  return `plan_grant:${subscriptionId}:${periodStart.toISOString()}`;
+}
+
 /**
- * Grants the plan's monthly credit allowance, once per billing month.
+ * Grants each paid website's monthly credit allowance, once per
+ * subscription per monthly entitlement period.
  *
- * Idempotent by design: this runs on demand rather than from a scheduler, so
- * it can be called on every page load. The reference id encodes the month, and
- * an existing row for that month means the grant already happened.
+ * WHAT WAS WRONG. One arbitrary subscription row was read for the whole
+ * workspace, so a workspace paying for three sites was granted one site's
+ * credits; and the key was the calendar month of the BILLING period start,
+ * which for an annual plan is one month a year.
+ *
+ * NOW. Every entitled subscription attached to a website contributes its own
+ * plan's credits, keyed `plan_grant:<subscription>:<period start>` where the
+ * period is the MONTHLY entitlement period (lib/billing/entitlement-period.ts)
+ * - so monthly and annual customers get the advertised monthly amount, and
+ * the key is idempotent under any number of concurrent page loads.
+ *
+ * Only the CURRENT period is ever granted. Nothing is back-filled for months
+ * that passed without a page load, and nothing already granted is removed.
+ *
+ * TRANSITION. A grant written under the old workspace-wide key
+ * ("plan_grant:YYYY-MM") inside a subscription's current period is counted
+ * towards that period, against the first eligible subscription (oldest
+ * first) whose period contains it, so the rollout month is not granted twice.
  */
 export async function grantMonthlyCredits(
   organizationId: string,
+  now: Date = new Date(),
 ): Promise<number> {
-  const [sub] = await db
+  const subs = await db
     .select({
+      id: subscriptions.id,
       status: subscriptions.status,
       monthlyCredits: plans.monthlyCredits,
-      periodStart: subscriptions.currentPeriodStart,
+      interval: plans.interval,
+      currentPeriodStart: subscriptions.currentPeriodStart,
+      currentPeriodEnd: subscriptions.currentPeriodEnd,
+      createdAt: subscriptions.createdAt,
     })
     .from(subscriptions)
-    .leftJoin(plans, eq(subscriptions.planId, plans.id))
-    .where(eq(subscriptions.organizationId, organizationId))
-    .limit(1);
+    .innerJoin(plans, eq(subscriptions.planId, plans.id))
+    .where(
+      and(
+        eq(subscriptions.organizationId, organizationId),
+        isNotNull(subscriptions.websiteId),
+        inArray(subscriptions.status, ENTITLED_STATUSES),
+      ),
+    )
+    .orderBy(asc(subscriptions.createdAt), asc(subscriptions.id));
 
-  if (!sub || sub.monthlyCredits === null) return 0;
-  if (!["active", "trialing", "past_due"].includes(sub.status)) return 0;
+  const eligible = subs.filter((sub) => sub.monthlyCredits > 0);
+  if (eligible.length === 0) return 0;
 
-  // Keyed on the billing period when known, so a customer who upgrades
-  // mid-month does not get a second full allowance for the same period.
-  const period = sub.periodStart ?? new Date();
-  const key = `plan_grant:${period.toISOString().slice(0, 7)}`;
+  const legacy = (
+    await db
+      .select({
+        id: creditLedger.id,
+        amount: creditLedger.amount,
+        referenceId: creditLedger.referenceId,
+        createdAt: creditLedger.createdAt,
+      })
+      .from(creditLedger)
+      .where(
+        and(
+          eq(creditLedger.organizationId, organizationId),
+          eq(creditLedger.type, "plan_grant"),
+          isNull(creditLedger.idempotencyKey),
+        ),
+      )
+  ).filter((row) => row.referenceId && LEGACY_GRANT.test(row.referenceId));
+  const attributed = new Set<string>();
 
-  if (sub.monthlyCredits === 0) return 0;
+  let total = 0;
+  for (const sub of eligible) {
+    const anchor = billingAnchor(sub);
+    if (!anchor) continue;
+    const period = entitlementPeriod(anchor, now);
 
-  /*
-    One statement, not check-then-insert: the unique index on (organization,
-    reference) for plan grants makes a second grant for the same month a
-    no-op, however many page loads arrive together. See creditLedger.
-  */
-  const granted = await db
-    .insert(creditLedger)
-    .values({
-      organizationId,
-      type: "plan_grant",
-      amount: sub.monthlyCredits,
-      referenceId: key,
-      note: "Monthly plan allowance",
-    })
-    .onConflictDoNothing()
-    .returning({ id: creditLedger.id });
+    let already = 0;
+    for (const grant of legacy) {
+      if (attributed.has(grant.id)) continue;
+      if (grant.createdAt >= period.start && grant.createdAt < period.end) {
+        attributed.add(grant.id);
+        already += grant.amount;
+      }
+    }
+    const amount = Math.max(sub.monthlyCredits - already, 0);
+    const key = planGrantKey(sub.id, period.start);
 
-  return granted.length > 0 ? sub.monthlyCredits : 0;
+    /*
+      Written even when the old grant already covered it (amount 0): the row
+      is the record that this period is settled. One statement, keyed, so
+      simultaneous page loads grant once.
+    */
+    const granted = await db
+      .insert(creditLedger)
+      .values({
+        organizationId,
+        type: "plan_grant",
+        amount,
+        referenceId: key,
+        idempotencyKey: key,
+        note:
+          already > 0
+            ? `Monthly plan allowance (${already} already granted this month)`
+            : "Monthly plan allowance",
+      })
+      .onConflictDoNothing()
+      .returning({ id: creditLedger.id });
+    if (granted.length > 0) total += amount;
+  }
+  return total;
 }
 
 export type LedgerRow = {
@@ -177,7 +287,8 @@ export async function listLedger(
       createdAt: creditLedger.createdAt,
     })
     .from(creditLedger)
-    .where(eq(creditLedger.organizationId, organizationId))
+    // Zero rows only mark a period as settled (grantMonthlyCredits).
+    .where(and(eq(creditLedger.organizationId, organizationId), ne(creditLedger.amount, 0)))
     .orderBy(raw`${creditLedger.createdAt} desc`)
     .limit(limit);
 }
