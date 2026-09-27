@@ -139,10 +139,10 @@ index 55cc9b1..2f90045 100644
      .limit(1);
 diff --git a/src/lib/publishing/rollback-gate.ts b/src/lib/publishing/rollback-gate.ts
 new file mode 100644
-index 0000000..f017e6e
+index 0000000..0dfdd55
 --- /dev/null
 +++ b/src/lib/publishing/rollback-gate.ts
-@@ -0,0 +1,80 @@
+@@ -0,0 +1,76 @@
 +import { sql, type SQL } from "drizzle-orm";
 +
 +import { db } from "@/lib/db";
@@ -150,55 +150,50 @@ index 0000000..f017e6e
 +/**
 + * ROLLBACK COMPATIBILITY for the release before the managed Partner Network.
 + *
-+ * This release knows nothing of the review gate, but the database it may be
-+ * rolled back onto does (migrations 0043 and 0044): articles held for the
-+ * RepGet team's review, approvals tied to an exact revision, the operator's
-+ * publication freeze, and sends in flight. Without this file, rolling back
-+ * would publish every held article on the next scheduled release.
++ * This release knows nothing of the review gate or the dispatch boundary, but
++ * the database it may be rolled back onto does (migrations 0043-0045):
++ * articles held for the RepGet team's review, approvals tied to an exact
++ * revision, the operator's publication freeze, and deliveries whose outcome
++ * is not known yet. Without this file, rolling back would publish every held
++ * article on the next scheduled release, and create a second post for a send
++ * whose answer was lost.
 + *
-+ * Requires migrations 0043 and 0044 to be applied - which they are on any
-+ * database the newer build has run against. The rules match
-+ * lib/articles/review.ts and lib/publishing/dispatch.ts in the newer build:
++ * Requires migrations 0043 and 0044 (0045 is optional) - applied on any
++ * database the newer build has run against.
 + *
-+ *   - an article with a review_status goes out only when approved AND still
-+ *     exactly the approved revision (same SHA-256 over title, slug, excerpt,
-+ *     body, image URL and alt, joined with U+001F);
-+ *   - a reviewed article is not released automatically before its planned day;
-+ *   - nothing is sent while platform_controls.publication_freeze is enabled;
-+ *   - nothing is sent while a newer build's dispatch of it is in flight.
++ * DELIBERATELY STRICTER THAN THE NEWER BUILD. This build has no row lock
++ * between its check and its send, so it cannot keep an edit from riding out
++ * on an approval the edit invalidated, and it cannot reconcile an unanswered
++ * send. So it sends only what the release before always sent, and holds:
 + *
-+ * What this build cannot do: approve, reopen or place links. Held articles
-+ * stay held until the newer build is deployed again. Nothing is approved in
-+ * bulk to make a rollback convenient.
++ *   - EVERY article under the managed review (review_status set) - pending
++ *     AND approved. Approved articles wait for the newer build;
++ *   - every article with a delivery whose outcome is unknown: in flight (of
++ *     any age - a lease running out is not completion), uncertain (a create
++ *     whose answer was lost: sending again could duplicate the post), or an
++ *     unacknowledged plugin hand-over (expired, "abandoned" before 0045);
++ *   - everything while platform_controls.publication_freeze is enabled.
++ *
++ * What this build cannot do: approve, reopen, place links, or resolve an
++ * unknown outcome. Those wait for the newer build. Nothing is approved or
++ * resolved in bulk to make a rollback convenient.
 + */
-+
-+const HASH = sql.raw(`encode(sha256(convert_to(
-+  coalesce("articles"."title", '') || chr(31) || coalesce("articles"."slug", '') || chr(31) ||
-+  coalesce("articles"."meta_description", '') || chr(31) || coalesce("articles"."body_html", '') || chr(31) ||
-+  coalesce("articles"."image_url", '') || chr(31) || coalesce("articles"."image_alt", ''),
-+  'UTF8')), 'hex')`);
 +
 +const FROZEN = sql.raw(
 +  `exists (select 1 from platform_controls pc where pc.key = 'publication_freeze' and pc.enabled)`,
 +);
 +
-+const IN_FLIGHT = sql.raw(`exists (
++const UNRESOLVED = sql.raw(`exists (
 +  select 1 from publication_dispatches pd
-+  where pd.article_id = "articles"."id" and pd.status = 'in_flight'
-+    and pd.claimed_at > timezone('utc', now()) - interval '10 minutes'
++  where pd.article_id = "articles"."id"
++    and pd.status in ('in_flight', 'uncertain', 'expired', 'abandoned')
 +)`);
 +
 +/** For queries that pick articles to send. `articles` must be in scope. */
 +export const rollbackReleasableSql: SQL = sql`(
-+  ("articles"."review_status" is null
-+    or ("articles"."review_status" = 'approved' and "articles"."review_approved_hash" = ${HASH}))
-+  and ("articles"."review_status" is null or not exists (
-+    select 1 from calendar_items planned
-+    where planned.id = "articles"."calendar_item_id"
-+      and planned.scheduled_for::date > timezone('utc', now())::date
-+  ))
++  "articles"."review_status" is null
 +  and not ${FROZEN}
-+  and not ${IN_FLIGHT}
++  and not ${UNRESOLVED}
 +)`;
 +
 +/**
@@ -209,17 +204,18 @@ index 0000000..f017e6e
 +  const result = await db.execute(sql`
 +    select ${FROZEN} as frozen,
 +           "articles"."review_status" as review_status,
-+           coalesce("articles"."review_approved_hash" = ${HASH}, false) as matches,
-+           ${IN_FLIGHT} as in_flight
++           ${UNRESOLVED} as unresolved
 +    from articles where "articles"."id" = ${articleId}
 +  `);
 +  const rows = (Array.isArray(result) ? result : (result as { rows: unknown[] }).rows) as unknown[];
-+  const row = rows[0] as { frozen: boolean; review_status: string | null; matches: boolean; in_flight: boolean } | undefined;
++  const row = rows[0] as { frozen: boolean; review_status: string | null; unresolved: boolean } | undefined;
 +  if (!row) return null;
 +  if (row.frozen) return "Publishing is paused by the RepGet team.";
-+  if (row.in_flight) return "This article is already being delivered.";
-+  if (row.review_status !== null && !(row.review_status === "approved" && row.matches)) {
-+    return "This article is being prepared by the RepGet team for the Partner Network. It goes out as soon as they approve it.";
++  if (row.unresolved) {
++    return "An earlier delivery of this article has not been confirmed yet. It waits until the RepGet team resolves it.";
++  }
++  if (row.review_status !== null) {
++    return "This article is being prepared by the RepGet team for the Partner Network. It goes out once the full release is back.";
 +  }
 +  return null;
 +}

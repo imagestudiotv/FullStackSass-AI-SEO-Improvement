@@ -10,9 +10,12 @@ import { seedWebsite } from "@/test/fixtures";
 
 /**
  * ROLLBACK REHEARSAL: the PREVIOUS release's code (d62e257 + the rollback
- * patch) against a database migrated by the NEWER build (0043 + 0044).
- * Every publishing path of the old code must hold what the newer build
- * holds, and release what it releases.
+ * patch) against a database migrated by the NEWER build (0043 - 0045).
+ * Every publishing path of the old code must hold every reviewed article
+ * (approved ones too: this build cannot keep an edit from riding out on an
+ * approval) and every article whose last delivery has an unknown outcome -
+ * delayed, uncertain or unacknowledged - and release only what the release
+ * before always released.
  */
 
 const state = vi.hoisted(() => ({ db: null as unknown }));
@@ -138,8 +141,12 @@ describe("the previous release, patched, on a database the newer build migrated"
     await expect(everyPath(await site("approved_then_edited"))).resolves.toEqual({ plugin: false, scheduled: false, press: false, job: "held" });
   });
 
-  it("releases an approved, unchanged article, and an article outside the review, as before", async () => {
-    await expect(everyPath(await site("approved"))).resolves.toEqual({ plugin: true, scheduled: true, press: true, job: "sent" });
+  it("holds an approved, unchanged article too - it waits for the newer build", async () => {
+    await expect(everyPath(await site("approved"))).resolves.toEqual({ plugin: false, scheduled: false, press: false, job: "held" });
+    expect(cms.created).toEqual([]);
+  });
+
+  it("releases an article outside the review, as before", async () => {
     await expect(everyPath(await site("none"))).resolves.toEqual({ plugin: true, scheduled: true, press: true, job: "sent" });
   });
 
@@ -160,6 +167,39 @@ describe("the previous release, patched, on a database the newer build migrated"
     // claimed_at as the newer build writes it: UTC wall-clock time.
     await test.db.execute(sql`update publication_dispatches set claimed_at = timezone('utc', now()) where article_id = ${s.post.id}`);
     await expect(everyPath(s)).resolves.toMatchObject({ plugin: false, scheduled: false, job: "held" });
+  });
+
+  it("a DELAYED send (in flight past the newer build's lease) is still held: a lease running out is not completion", async () => {
+    const s = await site("none");
+    await test.db.execute(sql`insert into publication_dispatches (article_id, website_id, channel, trigger, revision_hash, requested_status, status, claimed_at)
+      values (${s.post.id}, ${s.websiteId}, 'direct', 'manual', 'x', 'publish', 'in_flight', timezone('utc', now()) - interval '2 hours')`);
+    await expect(everyPath(s)).resolves.toEqual({ plugin: false, scheduled: false, press: false, job: "held" });
+    expect(cms.created).toEqual([]);
+  });
+
+  it("an UNCERTAIN send (answer lost) is held on every path: sending again could create a second post", async () => {
+    const s = await site("none");
+    await test.db.execute(sql`insert into publication_dispatches (article_id, website_id, channel, trigger, revision_hash, requested_status, status)
+      values (${s.post.id}, ${s.websiteId}, 'direct', 'manual', 'x', 'publish', 'uncertain')`);
+    await expect(everyPath(s)).resolves.toEqual({ plugin: false, scheduled: false, press: false, job: "held" });
+    expect(cms.created).toEqual([]);
+  });
+
+  it("an unacknowledged plugin hand-over (expired, or abandoned before 0045) is held on every path", async () => {
+    for (const status of ["expired", "abandoned"]) {
+      const s = await site("none");
+      await test.db.execute(sql`insert into publication_dispatches (article_id, website_id, channel, trigger, revision_hash, requested_status, status, protocol)
+        values (${s.post.id}, ${s.websiteId}, 'plugin', 'plugin', 'x', 'publish', ${status}, 'plugin_legacy')`);
+      await expect(everyPath(s)).resolves.toEqual({ plugin: false, scheduled: false, press: false, job: "held" });
+    }
+    expect(cms.created).toEqual([]);
+  });
+
+  it("a settled delivery does not hold the article", async () => {
+    const s = await site("none");
+    await test.db.execute(sql`insert into publication_dispatches (article_id, website_id, channel, trigger, revision_hash, requested_status, status)
+      values (${s.post.id}, ${s.websiteId}, 'direct', 'manual', 'x', 'publish', 'failed')`);
+    await expect(everyPath(s)).resolves.toEqual({ plugin: true, scheduled: true, press: true, job: "sent" });
   });
 
   it("the plugin feed of the previous release hands out nothing held", async () => {
