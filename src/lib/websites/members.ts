@@ -78,7 +78,14 @@ export async function listWebsiteMembers(
    * working on the site is not privileged, and hiding it would make the page
    * look empty to the very people collaborating on it.
    */
-  const { orgId } = await requireWebsite(websiteId);
+  /**
+   * ownerOrgId, not orgId. This lists the workspace that OWNS the site. For a
+   * guest - somebody invited to this one website from another workspace -
+   * `orgId` is their own workspace, so this query returned THEIR colleagues
+   * instead of the site owner's team: wrong data on the page, and a disclosure
+   * of one tenant's member list to another.
+   */
+  const { ownerOrgId } = await requireWebsite(websiteId);
 
   const workspace = await db
     .select({
@@ -91,7 +98,7 @@ export async function listWebsiteMembers(
     })
     .from(member)
     .innerJoin(user, eq(user.id, member.userId))
-    .where(eq(member.organizationId, orgId))
+    .where(eq(member.organizationId, ownerOrgId))
     .orderBy(member.createdAt);
 
   const guests = await db

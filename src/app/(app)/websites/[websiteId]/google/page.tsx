@@ -29,11 +29,14 @@ export default async function WebsiteGooglePage({
   params,
 }: PageProps<"/websites/[websiteId]/google">) {
   const { websiteId } = await params;
-  const { orgId, site, userId } = await requireWebsitePage(websiteId);
+  const { ownerOrgId, site, userId } = await requireWebsitePage(websiteId);
   const { locale, t } = await getAppMessages(userId);
 
   // Paywall. See lib/billing/require-plan.ts.
-  await requirePlan(orgId);
+  // The OWNER's plan pays for this website, not the caller's own
+  // workspace: a guest invited to a paid site must not be bounced to a
+  // plan screen for a workspace that is not paying for it. See tenant.ts.
+  await requirePlan(ownerOrgId);
 
   const [connection, performance] = await Promise.all([
     getAnalyticsConnection(site.id),

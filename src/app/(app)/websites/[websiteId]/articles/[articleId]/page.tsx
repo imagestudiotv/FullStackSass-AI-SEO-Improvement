@@ -12,7 +12,6 @@ import { requireWebsitePage } from "@/lib/tenant";
 import { listIntegrations, listPublishLogs } from "@/lib/publishing/actions";
 import { WebsiteNotFoundError } from "@/lib/tenant";
 import { ArticleEditor } from "./article-editor";
-import { requireOrg } from "@/lib/tenant";
 
 export const metadata = { title: "Article" };
 
@@ -23,10 +22,24 @@ export default async function ArticlePage({
   params,
 }: PageProps<"/websites/[websiteId]/articles/[articleId]">) {
   await requireSession();
-  const { orgId } = await requireOrg();
-  // Paywall. See lib/billing/require-plan.ts.
-  await requirePlan(orgId);
   const { websiteId, articleId } = await params;
+
+  /**
+   * The website is resolved BEFORE the paywall, so the paywall can ask about
+   * the workspace that pays for this site.
+   *
+   * It used to call requirePlan(orgId) from requireOrg() - the CALLER's own
+   * workspace. For a guest invited to one website that is the wrong workspace
+   * entirely: a guest whose own workspace has no plan was redirected to a
+   * plan screen for a site somebody else is already paying for.
+   *
+   * requireWebsitePage 404s a site that is not the caller's, so this is also
+   * the access check; it is request-cached, so the later call in the
+   * Promise.all below costs nothing.
+   */
+  const gate = await requireWebsitePage(websiteId);
+  // Paywall. See lib/billing/require-plan.ts.
+  await requirePlan(gate.ownerOrgId);
 
   // try/catch wraps only the fetch: JSX returned inside it is rendered later
   // and would not be covered by the handler.
