@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { integrationKeys, websites } from "@/lib/db/schema";
@@ -39,11 +39,13 @@ export function hashKey(key: string): string {
 export async function createIntegrationKey(
   websiteId: string,
   label?: string | null,
+  /** The caller's transaction, when the key must commit with something else. */
+  executor: Pick<typeof db, "insert"> = db,
 ): Promise<{ key: string; id: string }> {
   // 32 random bytes, base64url. Far beyond guessing, and safe in a header.
   const key = `${KEY_PREFIX}${crypto.randomBytes(32).toString("base64url")}`;
 
-  const [row] = await db
+  const [row] = await executor
     .insert(integrationKeys)
     .values({
       websiteId,
@@ -180,4 +182,124 @@ export async function revokeIntegrationKey(
         eq(integrationKeys.websiteId, websiteId),
       ),
     );
+}
+
+/* ------------------------------------------------------------------------ */
+/* First-time setup                                                         */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * What entering WordPress setup found or did.
+ *
+ * - created: this website had NEVER had a key, so one was made. The only
+ *   time its plaintext exists outside the customer's clipboard.
+ * - exists: an active key is already there (made by another tab, an earlier
+ *   visit, or a retry whose response was lost). Never rotated automatically,
+ *   and its plaintext cannot be shown again - only its prefix.
+ * - revoked: every key this website had was revoked on purpose. Nothing is
+ *   created automatically after that; the customer makes one by hand. That
+ *   is what prevents a create -> revoke -> create loop.
+ */
+export type FirstKeyOutcome =
+  | { kind: "created"; key: string; id: string; keyPrefix: string }
+  | { kind: "exists"; id: string; keyPrefix: string; connected: boolean; createdAt: Date }
+  | { kind: "revoked" };
+
+/** Serialises key provisioning per website, across requests and tabs. */
+async function lockWebsiteKeys(tx: Pick<typeof db, "execute">, websiteId: string) {
+  await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`integration-key:${websiteId}`}))`);
+}
+
+/**
+ * Makes the first key for a website that has never had one.
+ *
+ * Under a per-website advisory lock, inside one transaction: two tabs, a
+ * React development double-effect, a refresh or a retried request all
+ * serialise here, and only the first finds "never had a key". The rest get
+ * "exists" and create nothing.
+ *
+ * Never called while rendering or from a GET: the setup screen calls it as
+ * a server action (a POST) once it has mounted.
+ */
+export async function provisionFirstKey(websiteId: string): Promise<FirstKeyOutcome> {
+  return db.transaction(async (tx) => {
+    await lockWebsiteKeys(tx, websiteId);
+    const rows = await tx
+      .select({
+        id: integrationKeys.id,
+        keyPrefix: integrationKeys.keyPrefix,
+        lastUsedAt: integrationKeys.lastUsedAt,
+        revokedAt: integrationKeys.revokedAt,
+        createdAt: integrationKeys.createdAt,
+      })
+      .from(integrationKeys)
+      .where(eq(integrationKeys.websiteId, websiteId))
+      .orderBy(desc(integrationKeys.createdAt));
+
+    const active = rows.find((row) => !row.revokedAt);
+    if (active) {
+      return {
+        kind: "exists" as const,
+        id: active.id,
+        keyPrefix: active.keyPrefix,
+        connected: Boolean(active.lastUsedAt),
+        createdAt: active.createdAt,
+      };
+    }
+    if (rows.length > 0) return { kind: "revoked" as const };
+
+    const { key, id } = await createIntegrationKey(websiteId, null, tx);
+    return { kind: "created" as const, key, id, keyPrefix: key.slice(0, DISPLAY_PREFIX_LENGTH) };
+  });
+}
+
+/** True when this website has had a key at any time, revoked or not. */
+export async function hasEverHadKey(websiteId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ id: integrationKeys.id })
+    .from(integrationKeys)
+    .where(eq(integrationKeys.websiteId, websiteId))
+    .limit(1);
+  return Boolean(row);
+}
+
+export type ReplaceOutcome =
+  | { ok: true; key: string; id: string; keyPrefix: string }
+  | { ok: false; reason: "not_found" | "connected" };
+
+/**
+ * Recovers from a lost creation response: replaces a key that WordPress
+ * has never used with a new one, and returns the new plaintext.
+ *
+ * Only an UNUSED key. One that has connected is a working installation, and
+ * revoking it would take the customer's site offline - for that, the
+ * customer creates an additional key by hand instead. Same lock as
+ * provisioning, so a replace cannot interleave with a first-time create.
+ */
+export async function replaceUnusedKey(websiteId: string, keyId: string): Promise<ReplaceOutcome> {
+  return db.transaction(async (tx) => {
+    await lockWebsiteKeys(tx, websiteId);
+    const [row] = await tx
+      .select({ id: integrationKeys.id, lastUsedAt: integrationKeys.lastUsedAt })
+      .from(integrationKeys)
+      .where(
+        and(
+          eq(integrationKeys.id, keyId),
+          // Scoped: an id from another tenant finds nothing.
+          eq(integrationKeys.websiteId, websiteId),
+          isNull(integrationKeys.revokedAt),
+        ),
+      )
+      .for("update")
+      .limit(1);
+    if (!row) return { ok: false as const, reason: "not_found" as const };
+    if (row.lastUsedAt) return { ok: false as const, reason: "connected" as const };
+
+    await tx
+      .update(integrationKeys)
+      .set({ revokedAt: new Date(), updatedAt: new Date() })
+      .where(and(eq(integrationKeys.id, row.id), isNull(integrationKeys.lastUsedAt)));
+    const { key, id } = await createIntegrationKey(websiteId, null, tx);
+    return { ok: true as const, key, id, keyPrefix: key.slice(0, DISPLAY_PREFIX_LENGTH) };
+  });
 }

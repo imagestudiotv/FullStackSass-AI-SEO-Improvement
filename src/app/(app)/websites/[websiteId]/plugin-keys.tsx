@@ -13,13 +13,18 @@ import {
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import type { Messages } from "@/lib/i18n/messages";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { generateIntegrationKey, revokeKey } from "@/lib/plugin/actions";
+import {
+  generateIntegrationKey,
+  replaceUnusedIntegrationKey,
+  revokeKey,
+  startWordPressSetup,
+} from "@/lib/plugin/actions";
 import type { IntegrationKeyView } from "@/lib/plugin/keys";
 
 /**
@@ -34,6 +39,8 @@ export function PluginKeys({
   websiteId,
   siteUrl,
   keys,
+  canEdit,
+  everHadKey,
   t,
   tCommon,
 }: {
@@ -45,6 +52,14 @@ export function PluginKeys({
    */
   siteUrl: string | null;
   keys: IntegrationKeyView[];
+  /** False for a viewer: they see the keys, and nothing is created for them. */
+  canEdit: boolean;
+  /**
+   * Whether this website has EVER had a key, revoked ones included. Only a
+   * website that never has gets one prepared on arrival - so revoking every
+   * key never starts a create/revoke loop.
+   */
+  everHadKey: boolean;
   /** This screen's copy, already in the reader's language. */
   t: Messages["app"]["keys"];
   /** Shared words used on several screens. */
@@ -55,6 +70,42 @@ export function PluginKeys({
   const [label, setLabel] = useState("");
   const [freshKey, setFreshKey] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [preparing, setPreparing] = useState(false);
+  /** Prefixes of keys shown in full on this screen (the first 12 characters). */
+  const [shown, setShown] = useState<Set<string>>(() => new Set());
+  const reveal = (key: string) => {
+    setFreshKey(key);
+    setShown((current) => new Set(current).add(key.slice(0, 12)));
+  };
+
+  /**
+   * First entry into WordPress setup: a key ready to copy, no "Generate".
+   *
+   * Created by a server action (a POST) once this screen has MOUNTED - never
+   * while rendering, never by a GET or a prefetch - and only for an editor on
+   * a website that has never had a key. The ref stops React's development
+   * double-effect from asking twice; the server's per-website lock is what
+   * makes a second tab, a refresh or a retry safe, and it answers them with
+   * "exists" instead of a second key.
+   */
+  const setupStarted = useRef(false);
+  const autoSetup = canEdit && !everHadKey && keys.length === 0;
+  useEffect(() => {
+    if (!autoSetup || setupStarted.current) return;
+    setupStarted.current = true;
+    setPreparing(true);
+    void startWordPressSetup(websiteId)
+      .then((result) => {
+        if (!result.ok) {
+          toast.error(result.error);
+          return;
+        }
+        // Another tab or request made it first: show it masked, as it is now.
+        if (result.data.state === "created") reveal(result.data.key);
+        router.refresh();
+      })
+      .finally(() => setPreparing(false));
+  }, [autoSetup, websiteId, router]);
 
   /**
    * Whether a key exists that WordPress has never called.
@@ -123,7 +174,7 @@ export function PluginKeys({
         toast.error(result.error);
         return;
       }
-      setFreshKey(result.data.key);
+      reveal(result.data.key);
       setLabel("");
       router.refresh();
     });
@@ -139,6 +190,19 @@ export function PluginKeys({
     } catch {
       toast.error(t.keyCopyFailed);
     }
+  }
+
+  /** Lost the one sighting of a key: swap an UNUSED key for a new one. */
+  function handleReplace(keyId: string) {
+    startTransition(async () => {
+      const result = await replaceUnusedIntegrationKey(websiteId, keyId);
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      reveal(result.data.key);
+      router.refresh();
+    });
   }
 
   function handleRevoke(keyId: string) {
@@ -222,11 +286,18 @@ export function PluginKeys({
         </div>
       </div>
 
+      {preparing && !freshKey ? (
+        <p className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
+          <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+          {t.preparing}
+        </p>
+      ) : null}
+
       {/* The one and only sighting of the key. */}
       {freshKey ? (
         <div className="rounded-lg border border-primary/40 bg-primary/5 p-3">
           <p className="text-sm font-medium">
-            {tCommon.copyNow}
+            {t.readyTitle} · {tCommon.copyNow}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
             {t.copyNowHelp}
@@ -247,6 +318,7 @@ export function PluginKeys({
               {tCommon.done}
             </Button>
           </div>
+          <p className="mt-3 text-sm">{t.nextSteps}</p>
 
           {/*
             Opens WordPress with the key already in the field.
@@ -314,20 +386,51 @@ export function PluginKeys({
                   {key.siteInfo ? ` · ${key.siteInfo}` : ""}
                 </p>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleRevoke(key.id)}
-                disabled={pending}
-              >
-                <X className="size-4" />
-                {tCommon.revoke}
-              </Button>
+              {canEdit ? (
+                <div className="flex flex-wrap gap-1">
+                  {/*
+                    Offered only for a key WordPress has never used, and not
+                    while its plaintext is on screen: replacing a connected key
+                    would take a working site offline.
+                  */}
+                  {!key.lastUsedAt && !freshKey ? (
+                    <Button variant="outline" size="sm" onClick={() => handleReplace(key.id)} disabled={pending}>
+                      <KeyRound className="size-4" />
+                      {t.replaceKey}
+                    </Button>
+                  ) : null}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleRevoke(key.id)}
+                    disabled={pending}
+                  >
+                    <X className="size-4" />
+                    {tCommon.revoke}
+                  </Button>
+                </div>
+              ) : null}
             </li>
           ))}
         </ul>
       ) : null}
 
+      {/*
+        A key exists that this screen never showed - made in another tab, or
+        its response was lost. Say so plainly, and point at Replace.
+      */}
+      {canEdit && !freshKey && keys.some((key) => !key.lastUsedAt && !shown.has(key.keyPrefix)) ? (
+        <div className="rounded-lg border bg-muted/40 p-3 text-sm" role="note">
+          <p className="font-medium">{t.unseenTitle}</p>
+          <p className="mt-1 text-muted-foreground">{t.unseenHelp}</p>
+        </div>
+      ) : null}
+
+      {canEdit && everHadKey && keys.length === 0 && !freshKey ? (
+        <p className="text-sm text-muted-foreground">{t.revokedHelp}</p>
+      ) : null}
+
+      {canEdit ? (
       <div className="flex flex-col gap-2 sm:flex-row">
         <Input
           value={label}
@@ -344,6 +447,7 @@ export function PluginKeys({
           {t.newKey}
         </Button>
       </div>
+      ) : null}
     </div>
   );
 }
