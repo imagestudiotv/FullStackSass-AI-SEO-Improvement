@@ -42,8 +42,26 @@ yarn-error.log*
 next-env.d.ts
 
 .vercel
-.env*
 
 # Output of `npm run check:images`.
 image-check.png
 stripe-ids-backup.json
+
+# Credentials and backups of them. Never committed; see docs/credentials.md.
+.env*
+*.bak
+*.backup
+*.orig
+id_rsa*
+id_ed25519*
+id_ecdsa*
+*.key
+*.p12
+*.pfx
+*credentials*.json
+service-account*.json
+"env data.txt"
+
+# The template stays tracked. This must come AFTER every .env* rule: a later
+# ".env*" re-ignored it before, and a fresh copy would have been dropped.
+!.env.example
