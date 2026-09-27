@@ -23,9 +23,23 @@ export class DataForSeoError extends Error {
   constructor(
     message: string,
     readonly statusCode?: number,
+    /** DataForSEO's own status code from the response body, e.g. 40204. */
+    readonly apiStatusCode?: number,
   ) {
     super(message);
     this.name = "DataForSeoError";
+  }
+
+  /**
+   * True when DataForSEO provably refused the task, so nothing was charged:
+   * rejected credentials, or an error status in the response body (access,
+   * funds, validation). Read by classifySpendError (lib/billing/spend-quota.ts)
+   * so such a refusal hands its spend reservation back. A timeout or a 5xx
+   * is not provable and stays "ambiguous".
+   */
+  get notBilled(): boolean {
+    if (this.statusCode === 401) return true;
+    return typeof this.apiStatusCode === "number" && this.apiStatusCode >= 40000 && this.apiStatusCode < 50000;
   }
 }
 
@@ -105,6 +119,8 @@ async function post<T>(
   if (body.status_code !== 20000) {
     throw new DataForSeoError(
       `DataForSEO error ${body.status_code}: ${body.status_message}`,
+      undefined,
+      body.status_code,
     );
   }
 
@@ -113,6 +129,8 @@ async function post<T>(
   if (task.status_code !== 20000) {
     throw new DataForSeoError(
       `DataForSEO task error ${task.status_code}: ${task.status_message}`,
+      undefined,
+      task.status_code,
     );
   }
 
@@ -265,4 +283,49 @@ export async function keywordsForSite(
   }
 
   return { metrics, cached };
+}
+
+/* ------------------------------------------------------------------------ */
+/* Backlinks API: domain rank                                               */
+/* ------------------------------------------------------------------------ */
+
+/** DataForSEO Backlinks API accepts up to 1,000 targets per bulk_ranks task. */
+export const BULK_RANKS_MAX_TARGETS = 1000;
+
+type BulkRanksResult = { items?: Array<{ target?: string; rank?: number | null }> | null };
+
+/**
+ * DataForSEO Rank for up to 1,000 domains in ONE task
+ * (POST /v3/backlinks/bulk_ranks/live), on the 0-100 scale
+ * (rank_scale "one_hundred"). The rank is DataForSEO's own measure, based on
+ * the referring domains pointing at a target - it is not Ahrefs' Domain
+ * Rating or any other company's metric, and is labelled as DataForSEO Rank
+ * wherever it is shown.
+ *
+ * The Backlinks API is a separate DataForSEO subscription from the keyword
+ * APIs: an account without it answers 40204, which surfaces as a
+ * DataForSeoError with apiStatusCode 40204. Not cached here - the caller
+ * stores results in domain_metrics, which is the cache.
+ *
+ * Returns target -> rank; a target missing from the answer maps to null
+ * (DataForSEO returned nothing for it).
+ */
+export async function bulkDomainRanks(targets: string[]): Promise<Map<string, number | null>> {
+  if (targets.length === 0) return new Map();
+  if (targets.length > BULK_RANKS_MAX_TARGETS) {
+    throw new DataForSeoError(`At most ${BULK_RANKS_MAX_TARGETS} targets per request`);
+  }
+  const results = await post<BulkRanksResult>("/backlinks/bulk_ranks/live", {
+    targets,
+    rank_scale: "one_hundred",
+  });
+  const ranks = new Map<string, number | null>(targets.map((t) => [t, null]));
+  for (const result of results) {
+    for (const item of result.items ?? []) {
+      const target = item.target?.trim().toLowerCase();
+      if (!target || !ranks.has(target)) continue;
+      ranks.set(target, typeof item.rank === "number" ? Math.round(item.rank) : null);
+    }
+  }
+  return ranks;
 }

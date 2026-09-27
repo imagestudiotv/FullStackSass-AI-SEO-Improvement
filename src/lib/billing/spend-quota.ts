@@ -444,6 +444,11 @@ export function classifySpendError(error: unknown): "not_billed" | "ambiguous" {
     return "not_billed";
   }
   if (error instanceof QuotaExhaustedError) return "not_billed";
+  // A provider error that proves the request was refused before billing
+  // (DataForSeoError.notBilled: an error status in its response body).
+  if (typeof error === "object" && error !== null && (error as { notBilled?: unknown }).notBilled === true) {
+    return "not_billed";
+  }
   return "ambiguous";
 }
 

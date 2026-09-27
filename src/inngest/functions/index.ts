@@ -13,6 +13,7 @@ import { activateExchange } from "./activate-exchange";
 import { analyzeWebsite } from "./analyze-website";
 import { auditWebsite } from "./audit-website";
 import { checkGeo } from "./check-geo";
+import { collectAuthority } from "./collect-authority";
 import { generateArticle } from "./generate-article";
 import { importAnalytics, importAnalyticsDaily } from "./import-analytics";
 import { billingMaintenance, deliverOutbox } from "./maintenance";
@@ -35,4 +36,5 @@ export const functions = [
   importAnalyticsDaily,
   deliverOutbox,
   billingMaintenance,
+  collectAuthority,
 ];
