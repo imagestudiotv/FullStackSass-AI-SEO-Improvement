@@ -21,7 +21,8 @@ import {
 import { describeNetwork, findHost } from "@/lib/backlinks/matching";
 import { requireWebsite } from "@/lib/tenant";
 import { requireEditor } from "@/lib/websites/require-editor";
-import { InvalidUrlError, normalizeWebsiteUrl } from "@/lib/websites/url";
+import { isPublicWebsiteUrl } from "@/lib/websites/url";
+import { checkTargetUrl } from "@/lib/websites/ownership";
 import type { ActionResult } from "@/lib/websites/actions";
 import {
   findLinkTargets,
@@ -54,11 +55,17 @@ export type NetworkStatus = {
 export async function getNetworkStatus(
   websiteId: string,
 ): Promise<NetworkStatus> {
-  const { site, orgId } = await requireWebsite(websiteId);
+  /**
+   * ownerOrgId throughout: credits belong to the workspace that PAYS for this
+   * website. `orgId` is the caller's own workspace, which for a guest editor is
+   * a different one - so this page used to grant and spend the guest's credits
+   * on somebody else's site.
+   */
+  const { site, ownerOrgId } = await requireWebsite(websiteId);
 
   // Granted on read rather than by a scheduler: idempotent by month, so a
   // customer never has to wait for a cron to see the credits they paid for.
-  await grantMonthlyCredits(orgId);
+  await grantMonthlyCredits(ownerOrgId);
 
   const [row] = await db
     .select()
@@ -82,8 +89,8 @@ export async function getNetworkStatus(
     );
 
   const [credits, earned, network] = await Promise.all([
-    getAvailable(orgId),
-    earnedThisMonth(orgId),
+    getAvailable(ownerOrgId),
+    earnedThisMonth(ownerOrgId),
     describeNetwork(),
   ]);
 
@@ -306,27 +313,59 @@ export async function requestBacklink(
 ): Promise<ActionResult<{ matched: boolean; hostDomain: string | null }>> {
   const guard = await requireEditor(websiteId);
   if (!guard.ok) return { ok: false, error: guard.error };
-  const { site, orgId } = guard.context;
+  /* ownerOrgId: the credit spent on this request is the site owner's. */
+  const { site, ownerOrgId } = guard.context;
 
-  let targetUrl: string;
-  try {
-    targetUrl = normalizeWebsiteUrl(input.targetUrl).url;
-  } catch (error) {
-    if (error instanceof InvalidUrlError) return { ok: false, error: error.message };
-    throw error;
-  }
+  /**
+   * The target is one PAGE, so it is not put through normalizeWebsiteUrl.
+   *
+   * That helper answers "which site is this" and is built for the websites
+   * table: it drops the query string and rewrites admin-looking paths to the
+   * site root. Both are right for identifying a site and wrong for a link
+   * target — "?p=42" is the whole address on a default WordPress install, and
+   * a legitimate "/account/pricing" page would have been silently turned into
+   * a request for the home page. A trimmed string with a scheme assumed is
+   * what a target needs; checkTargetUrl parses and canonicalises the rest.
+   */
+  const typed = input.targetUrl.trim();
+  const withScheme = /^https?:\/\//i.test(typed) ? typed : `https://${typed}`;
 
-  // The target must belong to this website; requesting links to somewhere else
-  // would make the network a tool for pointing links at arbitrary sites.
-  if (!targetUrl.includes(site.domain)) {
+  /**
+   * Ownership by HOSTNAME, not by substring.
+   *
+   * `targetUrl.includes(site.domain)` accepted any URL with the domain
+   * anywhere in its text: in the query, in the path, as a deceptive suffix
+   * ("example.com.attacker.net"), or behind credentials
+   * ("example.com@evil.com"). The network then points other customers' links
+   * at whatever was stored. See lib/websites/ownership.ts for the full list
+   * and why subdomains stay allowed.
+   */
+  const checked = checkTargetUrl(withScheme, site.domain);
+  if (!checked.ok) {
     return {
       ok: false,
-      error: `The page must be on ${site.domain}`,
+      error:
+        checked.reason === "foreign_host"
+          ? `The page must be on ${site.domain}`
+          : checked.reason === "has_credentials"
+            ? "Enter the page address without a username or password"
+            : "Enter a valid page address",
     };
   }
 
-  await grantMonthlyCredits(orgId);
-  const credits = await getAvailable(orgId);
+  /**
+   * Refused for the same reason every user-supplied address is: a target on a
+   * private or loopback host would have the verifier fetching our own network.
+   * Ownership and reachability are separate questions, so both are asked.
+   */
+  if (!isPublicWebsiteUrl(checked.url)) {
+    return { ok: false, error: "That address is not a public website" };
+  }
+
+  const targetUrl = checked.url;
+
+  await grantMonthlyCredits(ownerOrgId);
+  const credits = await getAvailable(ownerOrgId);
   if (credits.available < CREDITS_PER_LINK) {
     return {
       ok: false,
@@ -350,7 +389,12 @@ export async function requestBacklink(
 
   const host = await findHost({
     requesterWebsiteId: site.id,
-    requesterOrgId: orgId,
+    /*
+      The OWNER's workspace. This is what stops a site being matched with
+      another site in the same workspace - passing the guest's workspace would
+      have compared against the wrong one and allowed a self-match.
+    */
+    requesterOrgId: ownerOrgId,
     niche: site.industry,
     language: site.language,
     country: site.country,
@@ -407,6 +451,19 @@ export async function cancelRequest(
   if (request.status === "live") {
     return { ok: false, error: "That link is already live and cannot be cancelled" };
   }
+  /*
+    A link the host has already published is being verified; cancelling now
+    would leave the host with a link nobody pays for, or charge for one that
+    was cancelled. Only links not yet published can be withdrawn.
+  */
+  const [published] = await db
+    .select({ id: placements.id })
+    .from(placements)
+    .where(and(eq(placements.requestId, request.id), eq(placements.status, "published")))
+    .limit(1);
+  if (published) {
+    return { ok: false, error: "That link has been published and is being verified; it cannot be cancelled now" };
+  }
 
   // Placement first: the request row is what holds the reservation, so
   // clearing it before the placement would briefly free a credit that is
@@ -422,8 +479,13 @@ export async function cancelRequest(
 }
 
 export async function getLedger(websiteId: string): Promise<LedgerRow[]> {
-  const { orgId } = await requireWebsite(websiteId);
-  return listLedger(orgId);
+  /*
+    The ledger of the workspace that pays for this site. A guest viewing it sees
+    the owner's credit history for the site they were invited to, not their own
+    workspace's - which is both the useful answer and the correct tenant.
+  */
+  const { ownerOrgId } = await requireWebsite(websiteId);
+  return listLedger(ownerOrgId);
 }
 
 /*

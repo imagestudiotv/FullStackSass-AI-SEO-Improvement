@@ -1,4 +1,5 @@
 import { isPublicWebsiteUrl } from "@/lib/websites/url";
+import { safeFetch } from "@/lib/net/safe-fetch";
 
 /**
  * Checks whether a placed link is still on the page.
@@ -72,9 +73,14 @@ export async function checkLink(
 
   let response: Response;
   try {
-    response = await fetch(pageUrl, {
+    response = await safeFetch(pageUrl, {
       signal: controller.signal,
       redirect: "follow",
+      // The reader below stops at MAX_BYTES; this bounds the transfer and
+      // keeps the deadline running while it reads.
+      maxBytes: MAX_BYTES,
+      overflow: "truncate",
+      timeoutMs: TIMEOUT_MS,
       headers: {
         "user-agent":
           "Mozilla/5.0 (compatible; AiSeoPlatformBot/1.0; +https://example.com/bot)",
@@ -134,12 +140,3 @@ export async function checkLink(
 
   return { alive, httpStatus: response.status, error: null };
 }
-
-/**
- * Consecutive failures before a link is treated as removed.
- *
- * A site being down for an hour is not the same as a link being deleted.
- * Refunding on the first failure would delete real, live links every time a
- * customer's host had a bad afternoon.
- */
-export const FAILURES_BEFORE_REMOVED = 3;

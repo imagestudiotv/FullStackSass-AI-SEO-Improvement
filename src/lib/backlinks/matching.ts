@@ -106,7 +106,8 @@ export async function findHost(
         select count(*)::int from placements p
         where p.host_website_id = ${networkSites.websiteId}
           and p.created_at >= ${monthStartIso}::timestamp
-          and p.status in ('pending', 'live')
+          -- Every placement the host has taken on, placed or on its way.
+          and p.status in ('pending', 'drafted', 'published', 'live')
       )`,
       /**
        * Reciprocity check. If the candidate has EVER received a link from the
