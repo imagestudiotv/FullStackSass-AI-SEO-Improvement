@@ -1,0 +1,172 @@
+import { randomUUID } from "node:crypto";
+
+import { eq, sql } from "drizzle-orm";
+import { NextRequest } from "next/server";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { articles, calendarItems, integrationKeys, integrations, websites } from "@/lib/db/schema";
+import { createTestDb, type TestDb } from "@/test/db";
+import { seedWebsite } from "@/test/fixtures";
+
+/**
+ * ROLLBACK REHEARSAL: the PREVIOUS release's code (d62e257 + the rollback
+ * patch) against a database migrated by the NEWER build (0043 + 0044).
+ * Every publishing path of the old code must hold what the newer build
+ * holds, and release what it releases.
+ */
+
+const state = vi.hoisted(() => ({ db: null as unknown }));
+vi.mock("@/lib/db", () => ({ db: new Proxy({}, { get: (_t, p) => Reflect.get(state.db as object, p) }) }));
+const inngestMock = vi.hoisted(() => ({
+  send: vi.fn(async () => ({ ids: ["evt"] })),
+  createFunction: vi.fn((config: unknown, handler: unknown) => ({ config, handler })),
+}));
+vi.mock("@/inngest/client", () => ({ inngest: inngestMock }));
+const queued = vi.hoisted(() => ({ jobs: [] as unknown[] }));
+vi.mock("@/inngest/send", () => ({ queueJob: vi.fn(async (e: unknown) => { queued.jobs.push(e); return true; }) }));
+vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+vi.mock("@/lib/notifications/create", () => ({ notify: vi.fn() }));
+vi.mock("@/lib/plugin/sync", () => ({ nudgePluginIfDue: vi.fn(async () => "nothing-due"), recordSyncUrl: vi.fn(), triggerPluginSync: vi.fn(async () => "synced") }));
+const cms = vi.hoisted(() => ({ created: [] as string[] }));
+vi.mock("@/lib/publishing/credentials", () => ({
+  resolveIntegration: vi.fn(async () => ({ integrationId: null, providerId: "wordpress" })),
+  loadCredentialsById: vi.fn(async () => ({ integrationId: null, providerId: "wordpress", credentials: {} })),
+}));
+vi.mock("@/lib/publishing/registry", () => ({
+  getProvider: () => ({
+    createPost: vi.fn(async (_c: unknown, input: { title: string }) => {
+      cms.created.push(input.title);
+      return { remoteId: String(cms.created.length), remoteUrl: `https://site.test/?p=${cms.created.length}`, status: "publish" };
+    }),
+    updatePost: vi.fn(),
+  }),
+  listProviders: () => [],
+  providerInfo: () => null,
+}));
+vi.mock("@/lib/images/generate", () => ({ isImageGenerationConfigured: () => false, generateArticleImage: vi.fn() }));
+const editor = vi.hoisted(() => ({ site: null as unknown, orgId: "" }));
+vi.mock("@/lib/websites/require-editor", () => ({
+  requireEditor: vi.fn(async () => ({ ok: true, context: { site: editor.site, ownerOrgId: editor.orgId, userId: "u", access: "owner" } })),
+}));
+const key = vi.hoisted(() => ({ websiteId: "" }));
+vi.mock("@/lib/plugin/keys", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/plugin/keys")>()),
+  resolveIntegrationKey: vi.fn(async () => ({ keyId: "k", websiteId: key.websiteId, organizationId: "o", websiteDomain: "host.test" })),
+}));
+
+import { GET as pluginArticles } from "@/app/api/plugin/articles/route";
+import { publishArticleJob } from "@/inngest/functions/publish-article";
+import { scheduledArticles } from "@/inngest/functions/scheduled-articles";
+import { dueArticlesForPlugin } from "@/lib/plugin/due";
+import { publishArticle } from "@/lib/publishing/actions";
+
+let test: TestDb;
+beforeAll(async () => {
+  test = await createTestDb();
+  state.db = test.db;
+  // Proof the database is AHEAD of this code: the newer build's tables exist.
+  const tables = await test.db.execute(sql`select to_regclass('public.publication_dispatches') as d, to_regclass('public.platform_controls') as c`);
+  const row = ((tables as unknown as { rows: Array<{ d: string; c: string }> }).rows ?? (tables as unknown as Array<{ d: string; c: string }>))[0];
+  expect(row).toEqual({ d: "publication_dispatches", c: "platform_controls" });
+});
+beforeEach(async () => {
+  cms.created.length = 0;
+  queued.jobs.length = 0;
+  inngestMock.send.mockClear();
+  await test.db.execute(sql`delete from platform_controls`);
+});
+
+/** One website with one due draft (planned yesterday), auto-publish on. */
+async function site(review: "none" | "pending" | "approved" | "approved_then_edited", options: { cms?: boolean } = {}) {
+  const { orgId, websiteId } = await seedWebsite(test);
+  await test.db.update(websites).set({ autoPublish: true, publishAs: "live", firstArticleSentAt: new Date() }).where(eq(websites.id, websiteId));
+  if (options.cms !== false) await test.db.insert(integrations).values({ websiteId, kind: "wordpress", status: "connected" });
+  const [item] = await test.db.insert(calendarItems).values({ websiteId, title: "t", scheduledFor: new Date(Date.now() - 86_400_000) }).returning();
+  const [post] = await test.db
+    .insert(articles)
+    .values({ websiteId, calendarItemId: item.id, title: `Post ${review}`, status: "draft", bodyHtml: "<p>Body.</p>" })
+    .returning();
+  if (review !== "none") {
+    // As the newer build writes it: pending, or approved with the SHA-256 of the revision.
+    await test.db.execute(sql`update articles set review_status = ${review === "pending" ? "pending" : "approved"},
+      review_approved_hash = case when ${review} = 'pending' then null else encode(sha256(convert_to(
+        coalesce(title,'') || chr(31) || coalesce(slug,'') || chr(31) || coalesce(meta_description,'') || chr(31) ||
+        coalesce(body_html,'') || chr(31) || coalesce(image_url,'') || chr(31) || coalesce(image_alt,''), 'UTF8')), 'hex') end
+      where id = ${post.id}`);
+    if (review === "approved_then_edited") {
+      await test.db.update(articles).set({ bodyHtml: "<p>Edited after approval.</p>" }).where(eq(articles.id, post.id));
+    }
+  }
+  const [s] = await test.db.select().from(websites).where(eq(websites.id, websiteId));
+  return { orgId, websiteId, post, site: s };
+}
+
+type Job = { handler: (ctx: unknown) => Promise<unknown> };
+const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+function steps() {
+  const done = new Map<string, unknown>();
+  return { run: async (id: string, fn: () => unknown) => (done.has(id) ? done.get(id) : (done.set(id, await fn()), done.get(id))) };
+}
+const job = (s: Awaited<ReturnType<typeof site>>, st = steps()) =>
+  (publishArticleJob as unknown as Job).handler({ event: { data: { articleId: s.post.id, websiteId: s.websiteId, organizationId: s.orgId, status: "publish" } }, step: st, logger });
+
+async function everyPath(s: Awaited<ReturnType<typeof site>>) {
+  editor.site = s.site;
+  editor.orgId = s.orgId;
+  const plugin = (await dueArticlesForPlugin(s.websiteId, 5)).some((a) => a.id === s.post.id);
+  inngestMock.send.mockClear();
+  // The previous release's scheduled run, as Inngest calls it: nothing new
+  // to write today, so it goes straight to releasing due drafts.
+  await (scheduledArticles as unknown as Job).handler({
+    event: { data: {} },
+    step: { run: async (id: string, fn: () => unknown) => (id === "select-websites" ? [] : fn()) },
+    logger,
+  });
+  const scheduled = (inngestMock.send.mock.calls.flat() as Array<{ data?: { articleId?: string } }>).some((e) => e.data?.articleId === s.post.id);
+  const press = await publishArticle(s.websiteId, s.post.id);
+  const sent = await job(s);
+  return { plugin, scheduled, press: press.ok, job: (sent as { held?: boolean }).held === true ? "held" : "sent" };
+}
+
+describe("the previous release, patched, on a database the newer build migrated", () => {
+  it("holds an article waiting for the RepGet team's review on every path", async () => {
+    await expect(everyPath(await site("pending"))).resolves.toEqual({ plugin: false, scheduled: false, press: false, job: "held" });
+    expect(cms.created).toEqual([]);
+  });
+
+  it("holds an approved article that was changed after approval", async () => {
+    await expect(everyPath(await site("approved_then_edited"))).resolves.toEqual({ plugin: false, scheduled: false, press: false, job: "held" });
+  });
+
+  it("releases an approved, unchanged article, and an article outside the review, as before", async () => {
+    await expect(everyPath(await site("approved"))).resolves.toEqual({ plugin: true, scheduled: true, press: true, job: "sent" });
+    await expect(everyPath(await site("none"))).resolves.toEqual({ plugin: true, scheduled: true, press: true, job: "sent" });
+  });
+
+  it("the publication freeze stops every path, including a queued job's send attempt", async () => {
+    const s = await site("none");
+    const st = steps();
+    // Prepared before the freeze (step result cached), then frozen before the send.
+    await test.db.execute(sql`insert into platform_controls (key, enabled, updated_by) values ('publication_freeze', true, 'rehearsal')`);
+    await expect(everyPath(s)).resolves.toEqual({ plugin: false, scheduled: false, press: false, job: "held" });
+    await expect(job(s, st)).resolves.toEqual({ held: true });
+    expect(cms.created).toEqual([]);
+  });
+
+  it("does not send an article a newer build is still delivering", async () => {
+    const s = await site("none");
+    await test.db.execute(sql`insert into publication_dispatches (article_id, website_id, channel, trigger, revision_hash, requested_status, status)
+      values (${s.post.id}, ${s.websiteId}, 'direct', 'manual', 'x', 'publish', 'in_flight')`);
+    // claimed_at as the newer build writes it: UTC wall-clock time.
+    await test.db.execute(sql`update publication_dispatches set claimed_at = timezone('utc', now()) where article_id = ${s.post.id}`);
+    await expect(everyPath(s)).resolves.toMatchObject({ plugin: false, scheduled: false, job: "held" });
+  });
+
+  it("the plugin feed of the previous release hands out nothing held", async () => {
+    const s = await site("pending", { cms: false });
+    await test.db.insert(integrationKeys).values({ websiteId: s.websiteId, keyHash: randomUUID(), keyPrefix: "seo_x" });
+    key.websiteId = s.websiteId;
+    const feed = await (await pluginArticles(new NextRequest("https://app.test/api/plugin/articles", { headers: { "x-integration-key": "seo_k" } }))).json();
+    expect(feed.articles).toEqual([]);
+  });
+});

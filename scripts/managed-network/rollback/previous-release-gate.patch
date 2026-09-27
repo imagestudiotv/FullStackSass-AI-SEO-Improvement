@@ -1,0 +1,225 @@
+diff --git a/src/inngest/functions/publish-article.ts b/src/inngest/functions/publish-article.ts
+index 218c024..bcbdafd 100644
+--- a/src/inngest/functions/publish-article.ts
++++ b/src/inngest/functions/publish-article.ts
+@@ -18,6 +18,7 @@ import {
+ } from "@/lib/images/generate";
+ import { ProviderError } from "@/lib/publishing/provider";
+ import { getProvider } from "@/lib/publishing/registry";
++import { rollbackHold } from "@/lib/publishing/rollback-gate";
+ 
+ /**
+  * Publishes an article to the connected WordPress site.
+@@ -104,6 +105,12 @@ export const publishArticleJob = inngest.createFunction(
+         .limit(1);
+       if (!article) throw new Error(`Article ${articleId} not found`);
+       if (!article.bodyHtml) throw new Error("Article has no content to publish");
++      // Rollback compatibility: the review gate, freeze and in-flight sends.
++      const held = await rollbackHold(articleId);
++      if (held) {
++        logger.info({ step: "load-article", articleId, websiteId, reason: held }, "Held - not published");
++        return null;
++      }
+ 
+       // Industry lives on the website, and steers the header image prompt.
+       const [site] = await db
+@@ -192,6 +199,9 @@ export const publishArticleJob = inngest.createFunction(
+      * Entirely optional. No provider, or a failure, publishes the article
+      * without an image rather than not publishing it.
+      */
++    // Held by the rollback gate: nothing to upload or send.
++    if (!prepared) return { held: true };
++
+     const featuredMedia = await step.run("upload-image", async () => {
+       // Nothing to upload only when there is no saved image AND none can be
+       // generated; a saved image needs no provider.
+@@ -339,6 +349,9 @@ export const publishArticleJob = inngest.createFunction(
+     });
+ 
+     const result = await step.run("send-to-cms", async () => {
++      // Checked again at every attempt: an approval can be withdrawn, and
++      // the freeze switched on, after the article was prepared.
++      if (await rollbackHold(articleId)) return null;
+       const provider = getProvider(prepared.providerId);
+       if (!provider) {
+         /*
+@@ -447,6 +460,8 @@ export const publishArticleJob = inngest.createFunction(
+       }
+     });
+ 
++    if (!result) return { held: true };
++
+     await step.run("record-result", async () => {
+       await db.insert(publishLogs).values({
+         articleId,
+diff --git a/src/inngest/functions/scheduled-articles.ts b/src/inngest/functions/scheduled-articles.ts
+index 93d52d7..4d53f3c 100644
+--- a/src/inngest/functions/scheduled-articles.ts
++++ b/src/inngest/functions/scheduled-articles.ts
+@@ -16,6 +16,7 @@ import {
+ } from "@/lib/publishing/policy";
+ import { checkLimit } from "@/lib/usage";
+ import { UNLIMITED } from "@/lib/usage-shared";
++import { rollbackReleasableSql } from "@/lib/publishing/rollback-gate";
+ 
+ /**
+  * Writes the articles that are due, for websites set to generate
+@@ -128,6 +129,8 @@ async function publishDueDrafts(): Promise<number> {
+         eq(articles.status, "draft"),
+         eq(websites.autoPublish, true),
+         lte(calendarItems.scheduledFor, new Date()),
++        // Rollback compatibility: the review gate, freeze and in-flight sends.
++        rollbackReleasableSql,
+         raw`exists (
+           select 1 from integrations i
+           where i.website_id = ${articles.websiteId}
+diff --git a/src/lib/plugin/due.ts b/src/lib/plugin/due.ts
+index d48491d..d1d87e6 100644
+--- a/src/lib/plugin/due.ts
++++ b/src/lib/plugin/due.ts
+@@ -3,6 +3,7 @@ import { and, asc, eq, isNotNull, isNull, lte, or, sql as raw } from "drizzle-or
+ import { db } from "@/lib/db";
+ import { articles, calendarItems, publishLogs, websites } from "@/lib/db/schema";
+ import { isFirstArticle } from "@/lib/publishing/policy";
++import { rollbackReleasableSql } from "@/lib/publishing/rollback-gate";
+ 
+ /**
+  * Articles the WordPress plugin should create now, for one website.
+@@ -55,6 +56,8 @@ export function dueArticlesForPlugin(
+         // Written but not yet live. A published row already has its post.
+         eq(articles.status, "draft"),
+         isNull(articles.publishedUrl),
++        // Rollback compatibility: the review gate, freeze and in-flight sends.
++        rollbackReleasableSql,
+         or(
+           // The first article: nothing sent for this site yet, and this is
+           // its earliest article. Same rule as pendingFirstArticle.
+diff --git a/src/lib/publishing/actions.ts b/src/lib/publishing/actions.ts
+index 6d73325..a41a474 100644
+--- a/src/lib/publishing/actions.ts
++++ b/src/lib/publishing/actions.ts
+@@ -32,6 +32,7 @@ import { requireWebsite } from "@/lib/tenant";
+ import { requireEditor } from "@/lib/websites/require-editor";
+ import { normalizeWebsiteUrl, InvalidUrlError } from "@/lib/websites/url";
+ import type { ActionResult } from "@/lib/websites/actions";
++import { rollbackHold } from "@/lib/publishing/rollback-gate";
+ 
+ /**
+  * Publishing integrations.
+@@ -327,6 +328,9 @@ export async function publishArticle(
+   if (!article.bodyHtml) {
+     return { ok: false, error: "This article has not been written yet" };
+   }
++  // Rollback compatibility: the review gate, freeze and in-flight sends.
++  const held = await rollbackHold(article.id);
++  if (held) return { ok: false, error: held };
+ 
+   // A CMS connection, not merely any connection: the Google one lives in the
+   // same table and cannot publish. See lib/publishing/kinds.ts.
+diff --git a/src/lib/publishing/policy.ts b/src/lib/publishing/policy.ts
+index 55cc9b1..2f90045 100644
+--- a/src/lib/publishing/policy.ts
++++ b/src/lib/publishing/policy.ts
+@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
+ import { deliverNow, enqueueJob } from "@/lib/jobs/outbox";
+ import { isPublishingConnection, PUBLISHING_KINDS } from "@/lib/publishing/kinds";
+ import { articles, calendarItems, integrations, websites } from "@/lib/db/schema";
++import { rollbackReleasableSql } from "@/lib/publishing/rollback-gate";
+ 
+ /**
+  * What happens to an article once it is written - the rules every publishing
+@@ -87,6 +88,8 @@ export function pendingFirstArticleQuery(websiteId: string) {
+         eq(articles.status, "draft"),
+         isNull(articles.publishedUrl),
+         isNotNull(articles.bodyHtml),
++        // Rollback compatibility: the review gate, freeze and in-flight sends.
++        rollbackReleasableSql,
+       ),
+     )
+     .limit(1);
+diff --git a/src/lib/publishing/rollback-gate.ts b/src/lib/publishing/rollback-gate.ts
+new file mode 100644
+index 0000000..f017e6e
+--- /dev/null
++++ b/src/lib/publishing/rollback-gate.ts
+@@ -0,0 +1,80 @@
++import { sql, type SQL } from "drizzle-orm";
++
++import { db } from "@/lib/db";
++
++/**
++ * ROLLBACK COMPATIBILITY for the release before the managed Partner Network.
++ *
++ * This release knows nothing of the review gate, but the database it may be
++ * rolled back onto does (migrations 0043 and 0044): articles held for the
++ * RepGet team's review, approvals tied to an exact revision, the operator's
++ * publication freeze, and sends in flight. Without this file, rolling back
++ * would publish every held article on the next scheduled release.
++ *
++ * Requires migrations 0043 and 0044 to be applied - which they are on any
++ * database the newer build has run against. The rules match
++ * lib/articles/review.ts and lib/publishing/dispatch.ts in the newer build:
++ *
++ *   - an article with a review_status goes out only when approved AND still
++ *     exactly the approved revision (same SHA-256 over title, slug, excerpt,
++ *     body, image URL and alt, joined with U+001F);
++ *   - a reviewed article is not released automatically before its planned day;
++ *   - nothing is sent while platform_controls.publication_freeze is enabled;
++ *   - nothing is sent while a newer build's dispatch of it is in flight.
++ *
++ * What this build cannot do: approve, reopen or place links. Held articles
++ * stay held until the newer build is deployed again. Nothing is approved in
++ * bulk to make a rollback convenient.
++ */
++
++const HASH = sql.raw(`encode(sha256(convert_to(
++  coalesce("articles"."title", '') || chr(31) || coalesce("articles"."slug", '') || chr(31) ||
++  coalesce("articles"."meta_description", '') || chr(31) || coalesce("articles"."body_html", '') || chr(31) ||
++  coalesce("articles"."image_url", '') || chr(31) || coalesce("articles"."image_alt", ''),
++  'UTF8')), 'hex')`);
++
++const FROZEN = sql.raw(
++  `exists (select 1 from platform_controls pc where pc.key = 'publication_freeze' and pc.enabled)`,
++);
++
++const IN_FLIGHT = sql.raw(`exists (
++  select 1 from publication_dispatches pd
++  where pd.article_id = "articles"."id" and pd.status = 'in_flight'
++    and pd.claimed_at > timezone('utc', now()) - interval '10 minutes'
++)`);
++
++/** For queries that pick articles to send. `articles` must be in scope. */
++export const rollbackReleasableSql: SQL = sql`(
++  ("articles"."review_status" is null
++    or ("articles"."review_status" = 'approved' and "articles"."review_approved_hash" = ${HASH}))
++  and ("articles"."review_status" is null or not exists (
++    select 1 from calendar_items planned
++    where planned.id = "articles"."calendar_item_id"
++      and planned.scheduled_for::date > timezone('utc', now())::date
++  ))
++  and not ${FROZEN}
++  and not ${IN_FLIGHT}
++)`;
++
++/**
++ * Why this article may not be sent now, or null. For the Publish press and
++ * the publish job, which address one article.
++ */
++export async function rollbackHold(articleId: string): Promise<string | null> {
++  const result = await db.execute(sql`
++    select ${FROZEN} as frozen,
++           "articles"."review_status" as review_status,
++           coalesce("articles"."review_approved_hash" = ${HASH}, false) as matches,
++           ${IN_FLIGHT} as in_flight
++    from articles where "articles"."id" = ${articleId}
++  `);
++  const rows = (Array.isArray(result) ? result : (result as { rows: unknown[] }).rows) as unknown[];
++  const row = rows[0] as { frozen: boolean; review_status: string | null; matches: boolean; in_flight: boolean } | undefined;
++  if (!row) return null;
++  if (row.frozen) return "Publishing is paused by the RepGet team.";
++  if (row.in_flight) return "This article is already being delivered.";
++  if (row.review_status !== null && !(row.review_status === "approved" && row.matches)) {
++    return "This article is being prepared by the RepGet team for the Partner Network. It goes out as soon as they approve it.";
++  }
++  return null;
++}
