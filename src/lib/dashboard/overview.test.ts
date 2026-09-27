@@ -56,9 +56,10 @@ async function workspace() {
 async function publishedArticle(websiteId: string, domain: string, slug: string, firstPublished: Date, keyword?: { term: string; cpc: string }) {
   const [a] = await test.db
     .insert(articles)
-    .values({ websiteId, title: `Article ${slug}`, slug, status: "published", bodyHtml: "<p>x</p>", publishedUrl: `https://${domain}/${slug}/`, targetKeyword: keyword?.term ?? null })
+    .values({ websiteId, title: `Article ${slug}`, slug, status: "published", bodyHtml: "<p>x</p>", publishedUrl: `https://${domain}/${slug}/`, targetKeyword: keyword?.term ?? null, firstLiveAt: firstPublished })
     .returning();
-  await test.db.insert(publishLogs).values({ articleId: a.id, status: "published", remoteId: "1", remoteUrl: a.publishedUrl, createdAt: firstPublished });
+  // As the publish paths record it: the delivery, with the status the CMS stored, and the first live date.
+  await test.db.insert(publishLogs).values({ articleId: a.id, status: "published", remoteId: "1", remoteUrl: a.publishedUrl, remoteStatus: "publish", createdAt: firstPublished });
   if (keyword) await test.db.insert(keywords).values({ websiteId, term: keyword.term, cpc: keyword.cpc }).onConflictDoNothing();
   return a;
 }
@@ -72,7 +73,7 @@ describe("achievements", () => {
     const a = await publishedArticle(site.id, site.domain, "old", daysAgo(60));
     // Edited and republished this week: still published 60 days ago.
     await test.db.update(articles).set({ updatedAt: new Date() }).where(eq(articles.id, a.id));
-    await test.db.insert(publishLogs).values({ articleId: a.id, status: "published", remoteId: "1", createdAt: daysAgo(1) });
+    await test.db.insert(publishLogs).values({ articleId: a.id, status: "published", remoteId: "1", remoteStatus: "publish", createdAt: daysAgo(1) });
     await publishedArticle(site.id, site.domain, "new", daysAgo(2));
     const o = await overview(orgId, site.id);
     expect(o?.achievements.ok && o.achievements.data.articlesPublished).toBe(1);

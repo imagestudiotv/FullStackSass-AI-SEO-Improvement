@@ -167,9 +167,11 @@ function facts(direction: Direction, websiteId: string, orgId: string): SQL {
         else 'unknown'
       end as lifecycle,
       case when p.status in ('published', 'live', 'removed', 'unverified') then
+        -- When the carrying article first went LIVE (articles.first_live_at);
+        -- not its first delivery, which may have been a WordPress draft.
+        -- Unknown stays unknown (null), never guessed.
         coalesce(p.published_at, (
-          select min(pl.created_at) from publish_logs pl
-          where pl.article_id = p.article_id and pl.status = 'published'
+          select a.first_live_at from articles a where a.id = p.article_id
         ))
       end as published_at,
       case when p.status in ('live', 'removed') then
@@ -222,11 +224,13 @@ function facts(direction: Direction, websiteId: string, orgId: string): SQL {
     left join lateral (
       -- AI answers (this website's AI Visibility checks) that CITED the page
       -- carrying the link. Measured data only; see LinkRow.aiCitations.
+      -- Matched by page identity (repget_page_key, lib/reporting/page-key.ts):
+      -- query strings and path case are kept, so a citation of ?p=202 is
+      -- not credited to the page at ?p=101.
       select count(*)::int as citations from geo_results gr
       where gr.website_id = ${websiteId} and gr.cited and p.live_url is not null
         and gr.checked_at > timezone('utc', now()) - interval '90 days'
-        and regexp_replace(regexp_replace(lower(split_part(gr.source_url, '?', 1)), '^https?://(www\\.)?', ''), '/+$', '')
-          = regexp_replace(regexp_replace(lower(split_part(p.live_url, '?', 1)), '^https?://(www\\.)?', ''), '/+$', '')
+        and repget_page_key(gr.source_url, null) = repget_page_key(p.live_url, null)
     ) ai on true
     left join domain_metrics dm
       on dm.domain = regexp_replace(lower(${counterpart}.domain), '^www\\.', '')

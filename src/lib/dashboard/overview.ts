@@ -40,13 +40,23 @@ const utc = (date: Date) => date.toISOString();
  * its figures rather than hidden.
  *
  * WHAT IS COUNTED
- *   articles published - articles whose FIRST successful publish (publish
- *                        log) falls in the window; editing and republishing
- *                        is not a new publication (updated_at is never used).
+ *   articles published - articles that first went LIVE in the window
+ *                        (articles.first_live_at: the first delivery the CMS
+ *                        stored as published). A WordPress draft is not a
+ *                        publication - it counts on the day it goes live;
+ *                        editing and republishing is not a new publication.
+ *                        Articles live before this was recorded, whose date
+ *                        cannot be established from their history, are
+ *                        counted as "date unknown", never given a date.
  *   backlinks          - received network links first verified in the window.
  *   article clicks and impressions - Search Console, for the pages RepGet
  *                        published for the site only (page-scoped), not the
  *                        whole site. Site-wide totals are labelled site-wide.
+ *                        Pages are matched by lib/reporting/page-key.ts (query
+ *                        strings and path case are kept), each page counted
+ *                        once however many article rows point at it, and
+ *                        totals cover EVERY page - the details list is
+ *                        limited, the totals are not.
  *   article sessions   - Google Analytics sessions on those pages; a
  *                        separate measure, never added to Search Console clicks.
  *   authority          - DataForSEO Rank (lib/authority/metric.ts); the
@@ -57,9 +67,33 @@ const utc = (date: Date) => date.toISOString();
  * Failures are not zeros: a section that cannot be loaded says so.
  */
 
-/** Page URL -> comparable key: no scheme, no www, no query/fragment, no trailing slash. */
-const normalizedUrl = (column: ReturnType<typeof sql>) =>
-  sql`regexp_replace(regexp_replace(lower(split_part(split_part(${column}, '#', 1), '?', 1)), '^https?://(www\\.)?', ''), '/+$', '')`;
+/**
+ * A page's identity for joins: repget_page_key (migration 0045), the SQL twin
+ * of lib/reporting/page-key.ts. A host-less path (Google Analytics) resolves
+ * against the website's own domain.
+ */
+const pageKeySql = (column: ReturnType<typeof sql>, domain: string) => sql`repget_page_key(${column}, ${domain})`;
+
+/**
+ * The website's article pages, ONE row per page: two article rows pointing
+ * at the same page (a re-created post, a trailing-slash variant) would
+ * otherwise each claim its traffic. The page belongs to the article that
+ * went live first.
+ */
+function articlePages(websiteId: string, domain: string) {
+  return sql`(
+    select distinct on (keyed.page_key) keyed.*
+    from (
+      select ${pageKeySql(sql`a.published_url`, domain)} as page_key,
+        a.id, a.title, a.published_url as url, a.target_keyword as keyword, a.first_live_at, a.created_at,
+        k.cpc::float as cpc
+      from articles a
+      left join keywords k on k.website_id = a.website_id and k.term = a.target_keyword
+      where a.website_id = ${websiteId} and a.published_url is not null
+    ) keyed
+    order by keyed.page_key, keyed.first_live_at asc nulls last, keyed.created_at asc, keyed.id
+  )`;
+}
 
 function rowsOf(result: unknown): Record<string, unknown>[] {
   return (Array.isArray(result) ? result : (result as { rows: unknown[] }).rows) as Record<string, unknown>[];
@@ -137,7 +171,15 @@ export type Achievements = {
   healthScore: number | null;
   searchConsoleThrough: string | null;
   analyticsThrough: string | null;
+  /**
+   * Articles live on the site whose first live date cannot be established
+   * (published before RepGet recorded it, with an ambiguous history). Not
+   * counted in any window; shown as a note.
+   */
+  unknownPublicationDates: number;
   series: Record<MetricKey, SeriesPoint[]>;
+  /** Pages in total; `breakdown` lists at most BREAKDOWN_LIMIT of them. The totals above cover all. */
+  breakdownTotal: number;
   breakdown: Array<{
     articleId: string;
     title: string;
@@ -206,7 +248,7 @@ export async function getDashboardOverview(
     load("history", () => receivedHistory(subject, window)),
     load("todays_article", () => loadTodaysArticle(site.id)),
     load("wins", () => loadWins(subject)),
-    load("best_articles", () => loadBestArticles(site.id)),
+    load("best_articles", () => loadBestArticles(site.id, site.domain)),
     load("achievements", () => loadAchievements(subject, window)),
     load("search", () => loadSearch(site.id, window)),
   ]);
@@ -283,26 +325,19 @@ async function loadTodaysArticle(websiteId: string): Promise<TodaysArticle | nul
   };
 }
 
-/** First successful publish per article (an edit or republish is not one). */
-function firstPublished(websiteId: string) {
-  return sql`(
-    select pl.article_id, min(pl.created_at) as first_published_at
-    from publish_logs pl
-    join articles a on a.id = pl.article_id
-    where pl.status = 'published' and a.website_id = ${websiteId}
-    group by pl.article_id
-  )`;
-}
+/** How many pages the details list shows; totals always cover every page. */
+export const BREAKDOWN_LIMIT = 200;
 
 async function loadWins(subject: { websiteId: string; orgId: string; domain: string }): Promise<{ from: Date; to: Date; items: Win[] }> {
   const week = resolveWindow("7d");
   const base = `/websites/${subject.websiteId}`;
   const [published, metrics, given, audit, clicks] = await Promise.all([
     db.execute(sql`
-      select a.id, a.title, to_char(fp.first_published_at, 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as at
-      from ${firstPublished(subject.websiteId)} fp join articles a on a.id = fp.article_id
-      where fp.first_published_at >= ${utc(week.from)} and fp.first_published_at < ${utc(week.to)}
-      order by fp.first_published_at desc limit 5
+      select a.id, a.title, to_char(a.first_live_at, 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as at
+      from articles a
+      where a.website_id = ${subject.websiteId}
+        and a.first_live_at >= ${utc(week.from)} and a.first_live_at < ${utc(week.to)}
+      order by a.first_live_at desc limit 5
     `),
     backlinkMetrics(subject, week),
     db.execute(sql`
@@ -349,24 +384,24 @@ async function loadWins(subject: { websiteId: string; orgId: string; domain: str
   return { from: week.from, to: week.to, items };
 }
 
-async function loadBestArticles(websiteId: string): Promise<{ through: string | null; connected: boolean; rows: BestArticle[] }> {
+async function loadBestArticles(websiteId: string, domain: string): Promise<{ through: string | null; connected: boolean; rows: BestArticle[] }> {
   // The last 30 days Search Console has reported, for pages RepGet published here.
   const [latest] = rowsOf(await db.execute(sql`select max(date)::text as through from gsc_page_metrics where website_id = ${websiteId}`));
   const through = (latest?.through as string | null) ?? null;
   if (!through) return { through: null, connected: false, rows: [] };
   const result = await db.execute(sql`
-    select a.id, a.title, a.published_url as url,
+    with pages as ${articlePages(websiteId, domain)}
+    select p.id, p.title, p.url,
       coalesce(sum(g.clicks), 0)::int as clicks,
       coalesce(sum(g.impressions), 0)::int as impressions,
       sum(g.position * g.impressions) / nullif(sum(g.impressions), 0) as position
-    from articles a
+    from pages p
     join gsc_page_metrics g
-      on g.website_id = a.website_id
-     and ${normalizedUrl(sql`g.page_url`)} = ${normalizedUrl(sql`a.published_url`)}
+      on g.website_id = ${websiteId}
+     and ${pageKeySql(sql`g.page_url`, domain)} = p.page_key
      and g.date > (${through}::date - 30) and g.date <= ${through}::date
-    where a.website_id = ${websiteId} and a.published_url is not null
-    group by a.id, a.title, a.published_url
-    order by clicks desc, impressions desc, a.id
+    group by p.id, p.title, p.url
+    order by clicks desc, impressions desc, p.id
     limit 5
   `);
   return {
@@ -389,49 +424,85 @@ async function loadAchievements(subject: { websiteId: string; orgId: string; dom
   const fromDay = isoDay(window.from);
   const toDay = isoDay(window.to);
 
-  const [perArticle, daily, freshness, backlinks, history, authority, health] = await Promise.all([
+  const site = subject.websiteId;
+  const pages = articlePages(site, subject.domain);
+  // Traffic per page for the window, keyed like the pages.
+  const gscByPage = sql`(
+    select ${pageKeySql(sql`g.page_url`, subject.domain)} as page_key,
+      sum(g.clicks)::int as clicks, sum(g.impressions)::int as impressions
+    from gsc_page_metrics g
+    where g.website_id = ${site} and g.date >= ${fromDay}::date and g.date < ${toDay}::date
+    group by 1
+  )`;
+  const gaByPage = sql`(
+    select ${pageKeySql(sql`m.page_url`, subject.domain)} as page_key, sum(m.sessions)::int as sessions
+    from ga_metrics m
+    where m.website_id = ${site} and m.date >= ${fromDay}::date and m.date < ${toDay}::date
+    group by 1
+  )`;
+
+  const [perArticle, daily, publication, freshness, backlinks, history, authority, health] = await Promise.all([
+    /*
+      The details list (top BREAKDOWN_LIMIT pages) and the TOTALS over every
+      page, in one pass: window aggregates are computed before the limit.
+    */
     db.execute(sql`
-      with fp as ${firstPublished(subject.websiteId)}
-      select a.id, a.title, a.published_url as url, a.target_keyword as keyword,
-        to_char(fp.first_published_at, 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as first_published,
-        k.cpc::float as cpc,
-        (select coalesce(sum(g.clicks), 0)::int from gsc_page_metrics g
-           where g.website_id = a.website_id and ${normalizedUrl(sql`g.page_url`)} = ${normalizedUrl(sql`a.published_url`)}
-             and g.date >= ${fromDay}::date and g.date < ${toDay}::date) as clicks,
-        (select coalesce(sum(g.impressions), 0)::int from gsc_page_metrics g
-           where g.website_id = a.website_id and ${normalizedUrl(sql`g.page_url`)} = ${normalizedUrl(sql`a.published_url`)}
-             and g.date >= ${fromDay}::date and g.date < ${toDay}::date) as impressions,
-        (select sum(m.sessions)::int from ga_metrics m
-           where m.website_id = a.website_id and ${normalizedUrl(sql`m.page_url`)} = ${normalizedUrl(sql`a.published_url`)}
-             and m.date >= ${fromDay}::date and m.date < ${toDay}::date) as sessions
-      from articles a
-      left join fp on fp.article_id = a.id
-      left join keywords k on k.website_id = a.website_id and k.term = a.target_keyword
-      where a.website_id = ${subject.websiteId} and a.published_url is not null
-      order by clicks desc, a.id
-      limit 200
+      with pages as ${pages},
+      per_page as (
+        select p.*, coalesce(gsc.clicks, 0) as clicks, coalesce(gsc.impressions, 0) as impressions, ga.sessions
+        from pages p
+        left join ${gscByPage} gsc on gsc.page_key = p.page_key
+        left join ${gaByPage} ga on ga.page_key = p.page_key
+      )
+      select pp.id, pp.title, pp.url, pp.keyword, pp.cpc, pp.clicks, pp.impressions, pp.sessions,
+        to_char(pp.first_live_at, 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as first_published,
+        count(*) over ()::int as total_pages,
+        sum(pp.clicks) over ()::int as total_clicks,
+        sum(pp.impressions) over ()::int as total_impressions,
+        sum(coalesce(pp.sessions, 0)) over ()::int as total_sessions,
+        sum(pp.clicks * coalesce(pp.cpc, 0)) over ()::float as total_cpc_value
+      from per_page pp
+      order by pp.clicks desc, pp.id
+      limit ${BREAKDOWN_LIMIT}
+    `),
+    // The chart, per day, over the same pages the totals use.
+    db.execute(sql`
+      with pages as ${pages},
+      days as (select generate_series(${fromDay}::date, ${toDay}::date - 1, interval '1 day')::date as day),
+      gsc_daily as (
+        select g.date as day, sum(g.clicks)::int as clicks, sum(g.impressions)::int as impressions,
+          sum(g.clicks * coalesce(p.cpc, 0))::float as cpc_value
+        from gsc_page_metrics g join pages p on p.page_key = ${pageKeySql(sql`g.page_url`, subject.domain)}
+        where g.website_id = ${site} and g.date >= ${fromDay}::date and g.date < ${toDay}::date
+        group by g.date
+      ),
+      ga_daily as (
+        select m.date as day, sum(m.sessions)::int as sessions
+        from ga_metrics m join pages p on p.page_key = ${pageKeySql(sql`m.page_url`, subject.domain)}
+        where m.website_id = ${site} and m.date >= ${fromDay}::date and m.date < ${toDay}::date
+        group by m.date
+      ),
+      live as (
+        select (a.first_live_at)::date as day, count(*)::int as n
+        from articles a
+        where a.website_id = ${site} and a.first_live_at >= ${fromDay}::date and a.first_live_at < ${toDay}::date
+        group by 1
+      )
+      select to_char(d.day, 'YYYY-MM-DD') as day,
+        coalesce(live.n, 0) as articles,
+        coalesce(gd.clicks, 0) as clicks,
+        coalesce(gd.impressions, 0) as impressions,
+        gd.cpc_value,
+        ga.sessions
+      from days d
+      left join live on live.day = d.day
+      left join gsc_daily gd on gd.day = d.day
+      left join ga_daily ga on ga.day = d.day
+      order by d.day
     `),
     db.execute(sql`
-      with fp as ${firstPublished(subject.websiteId)},
-      pages as (select a.id, a.published_url, k.cpc::float as cpc from articles a
-        left join keywords k on k.website_id = a.website_id and k.term = a.target_keyword
-        where a.website_id = ${subject.websiteId} and a.published_url is not null),
-      days as (select generate_series(${fromDay}::date, ${toDay}::date - 1, interval '1 day')::date as day)
-      select to_char(d.day, 'YYYY-MM-DD') as day,
-        (select count(*)::int from fp where fp.first_published_at::date = d.day) as articles,
-        (select coalesce(sum(g.clicks), 0)::int from gsc_page_metrics g join pages p
-           on ${normalizedUrl(sql`g.page_url`)} = ${normalizedUrl(sql`p.published_url`)}
-           where g.website_id = ${subject.websiteId} and g.date = d.day) as clicks,
-        (select coalesce(sum(g.impressions), 0)::int from gsc_page_metrics g join pages p
-           on ${normalizedUrl(sql`g.page_url`)} = ${normalizedUrl(sql`p.published_url`)}
-           where g.website_id = ${subject.websiteId} and g.date = d.day) as impressions,
-        (select sum(g.clicks * coalesce(p.cpc, 0))::float from gsc_page_metrics g join pages p
-           on ${normalizedUrl(sql`g.page_url`)} = ${normalizedUrl(sql`p.published_url`)}
-           where g.website_id = ${subject.websiteId} and g.date = d.day) as cpc_value,
-        (select sum(m.sessions)::int from ga_metrics m join pages p
-           on ${normalizedUrl(sql`m.page_url`)} = ${normalizedUrl(sql`p.published_url`)}
-           where m.website_id = ${subject.websiteId} and m.date = d.day) as sessions
-      from days d order by d.day
+      select count(*)::int as unknown from articles
+      where website_id = ${site} and status = 'published' and first_live_at is null
     `),
     db.execute(sql`
       select (select max(date)::text from gsc_page_metrics where website_id = ${subject.websiteId}) as gsc,
@@ -446,8 +517,10 @@ async function loadAchievements(subject: { websiteId: string; orgId: string; dom
   const fresh = rowsOf(freshness)[0] ?? {};
   const gscThrough = (fresh.gsc as string | null) ?? null;
   const gaThrough = (fresh.ga as string | null) ?? null;
-  const pages = rowsOf(perArticle);
+  const pageRows = rowsOf(perArticle);
   const days = rowsOf(daily);
+  const totals = pageRows[0] ?? {};
+  const totalPages = Number(totals.total_pages ?? 0);
 
   const clickValueOf = (clicks: number, cpc: number | null): number | null => {
     if (!valuation.usable || !policy) return null;
@@ -455,7 +528,7 @@ async function loadAchievements(subject: { websiteId: string; orgId: string; dom
     return cpc === null ? null : clicks * cpc;
   };
 
-  const breakdown = pages.map((p) => {
+  const breakdown = pageRows.map((p) => {
     const clicks = Number(p.clicks);
     const cpc = p.cpc === null ? null : Number(p.cpc);
     return {
@@ -472,11 +545,16 @@ async function loadAchievements(subject: { websiteId: string; orgId: string; dom
     };
   });
 
-  const clicks = gscThrough ? breakdown.reduce((s, r) => s + r.clicks, 0) : null;
-  const impressions = gscThrough ? breakdown.reduce((s, r) => s + r.impressions, 0) : null;
-  const sessions = gaThrough ? breakdown.reduce((s, r) => s + (r.sessions ?? 0), 0) : null;
+  // Totals over EVERY page, not the listed ones.
+  const clicks = gscThrough ? Number(totals.total_clicks ?? 0) : null;
+  const impressions = gscThrough ? Number(totals.total_impressions ?? 0) : null;
+  const sessions = gaThrough ? Number(totals.total_sessions ?? 0) : null;
   const trafficValue =
-    gscThrough && valuation.usable ? breakdown.reduce((s, r) => s + (r.value ?? 0), 0) : null;
+    gscThrough && valuation.usable && policy
+      ? valuation.mode === "fixed"
+        ? Number(totals.total_clicks ?? 0) * (policy.fixedClickRate ?? 0)
+        : Number(totals.total_cpc_value ?? 0)
+      : null;
   const trafficValueReason = !valuation.usable ? valuation.reason : !gscThrough ? "search_console_not_connected" : null;
 
   // Backlink value of links first verified in the window and still verified.
@@ -525,6 +603,7 @@ async function loadAchievements(subject: { websiteId: string; orgId: string; dom
     healthScore: health[0]?.score ?? null,
     searchConsoleThrough: gscThrough,
     analyticsThrough: gaThrough,
+    unknownPublicationDates: Number(rowsOf(publication)[0]?.unknown ?? 0),
     series: {
       value: days.map((d) => ({ day: String(d.day), value: valuePerDay(d) })),
       articles: days.map((d) => ({ day: String(d.day), value: Number(d.articles) })),
@@ -533,6 +612,7 @@ async function loadAchievements(subject: { websiteId: string; orgId: string; dom
       clicks: days.map((d) => ({ day: String(d.day), value: gscDay(d, "clicks") })),
       sessions: days.map((d) => ({ day: String(d.day), value: gaDay(d) })),
     },
+    breakdownTotal: totalPages,
     breakdown,
   };
 }

@@ -1199,6 +1199,8 @@ export type Messages = {
       unitImpressions: string;
       unitSessions: string;
       breakdownCaption: string;
+      breakdownShowing: string;
+      unknownPublicationDates: string;
       noPublishedArticles: string;
       methodologyTitle: string;
       methodologyPolicy: string;
@@ -2938,7 +2940,7 @@ const en: Messages = {
       backlinkValue: "Backlink value",
       backlinkValueHelp: "Links first verified in this period (estimate)",
       articlesPublished: "Articles published",
-      articlesPublishedHelp: "First publications (edits don't count)",
+      articlesPublishedHelp: "First time live on your site (drafts and edits don't count)",
       articleImpressions: "Article impressions",
       articleImpressionsHelp: "How often your RepGet articles showed in Google",
       articleClicks: "Article clicks",
@@ -2957,6 +2959,8 @@ const en: Messages = {
       unitImpressions: "impressions",
       unitSessions: "sessions",
       breakdownCaption: "Your RepGet articles in this period, by clicks from Google",
+      breakdownShowing: "Showing the top {shown} of {total} pages. The totals above include every page.",
+      unknownPublicationDates: "{n} earlier articles are live, but when they first went live was not recorded, so they are not counted in any period.",
       noPublishedArticles: "No published RepGet articles yet.",
       methodologyTitle: "How these figures are calculated",
       methodologyPolicy: "Valuation policy v{version}, in {currency}, in force since {date}.",
@@ -4700,7 +4704,7 @@ const es: Messages = {
       backlinkValue: "Valor de backlinks",
       backlinkValueHelp: "Enlaces verificados por primera vez en el periodo (estimación)",
       articlesPublished: "Artículos publicados",
-      articlesPublishedHelp: "Primeras publicaciones (las ediciones no cuentan)",
+      articlesPublishedHelp: "Primera vez publicados en tu sitio (los borradores y las ediciones no cuentan)",
       articleImpressions: "Impresiones de artículos",
       articleImpressionsHelp: "Cuántas veces aparecieron tus artículos de RepGet en Google",
       articleClicks: "Clics en artículos",
@@ -4719,6 +4723,8 @@ const es: Messages = {
       unitImpressions: "impresiones",
       unitSessions: "sesiones",
       breakdownCaption: "Tus artículos de RepGet en este periodo, por clics desde Google",
+      breakdownShowing: "Se muestran las {shown} primeras de {total} páginas. Los totales de arriba incluyen todas las páginas.",
+      unknownPublicationDates: "{n} artículos anteriores están publicados, pero no se registró cuándo se publicaron por primera vez, así que no se cuentan en ningún periodo.",
       noPublishedArticles: "Aún no hay artículos de RepGet publicados.",
       methodologyTitle: "Cómo se calculan estas cifras",
       methodologyPolicy: "Política de valoración v{version}, en {currency}, vigente desde el {date}.",
@@ -6466,7 +6472,7 @@ const fr: Messages = {
       backlinkValue: "Valeur des backlinks",
       backlinkValueHelp: "Liens vérifiés pour la première fois sur la période (estimation)",
       articlesPublished: "Articles publiés",
-      articlesPublishedHelp: "Premières publications (les modifications ne comptent pas)",
+      articlesPublishedHelp: "Première mise en ligne sur votre site (les brouillons et les modifications ne comptent pas)",
       articleImpressions: "Impressions des articles",
       articleImpressionsHelp: "Combien de fois vos articles RepGet sont apparus dans Google",
       articleClicks: "Clics sur les articles",
@@ -6485,6 +6491,8 @@ const fr: Messages = {
       unitImpressions: "impressions",
       unitSessions: "sessions",
       breakdownCaption: "Vos articles RepGet sur la période, par clics depuis Google",
+      breakdownShowing: "Affichage des {shown} premières pages sur {total}. Les totaux ci-dessus incluent toutes les pages.",
+      unknownPublicationDates: "{n} articles plus anciens sont en ligne, mais la date de leur première mise en ligne n'a pas été enregistrée ; ils ne sont comptés dans aucune période.",
       noPublishedArticles: "Aucun article RepGet publié pour l'instant.",
       methodologyTitle: "Comment ces chiffres sont calculés",
       methodologyPolicy: "Politique d'estimation v{version}, en {currency}, en vigueur depuis le {date}.",
@@ -8224,7 +8232,7 @@ const it: Messages = {
       backlinkValue: "Valore dei backlink",
       backlinkValueHelp: "Link verificati per la prima volta nel periodo (stima)",
       articlesPublished: "Articoli pubblicati",
-      articlesPublishedHelp: "Prime pubblicazioni (le modifiche non contano)",
+      articlesPublishedHelp: "Prima volta online sul tuo sito (bozze e modifiche non contano)",
       articleImpressions: "Impressioni degli articoli",
       articleImpressionsHelp: "Quante volte i tuoi articoli RepGet sono comparsi su Google",
       articleClicks: "Clic sugli articoli",
@@ -8243,6 +8251,8 @@ const it: Messages = {
       unitImpressions: "impressioni",
       unitSessions: "sessioni",
       breakdownCaption: "I tuoi articoli RepGet nel periodo, per clic da Google",
+      breakdownShowing: "Sono mostrate le prime {shown} pagine su {total}. I totali qui sopra includono tutte le pagine.",
+      unknownPublicationDates: "{n} articoli precedenti sono online, ma non è stato registrato quando sono andati online la prima volta, quindi non sono contati in nessun periodo.",
       noPublishedArticles: "Ancora nessun articolo RepGet pubblicato.",
       methodologyTitle: "Come vengono calcolate queste cifre",
       methodologyPolicy: "Politica di valutazione v{version}, in {currency}, in vigore dal {date}.",
@@ -9991,7 +10001,7 @@ const de: Messages = {
       backlinkValue: "Backlink-Wert",
       backlinkValueHelp: "In diesem Zeitraum erstmals bestätigte Links (Schätzung)",
       articlesPublished: "Veröffentlichte Artikel",
-      articlesPublishedHelp: "Erstveröffentlichungen (Änderungen zählen nicht)",
+      articlesPublishedHelp: "Zum ersten Mal live auf Ihrer Website (Entwürfe und Änderungen zählen nicht)",
       articleImpressions: "Artikel-Impressionen",
       articleImpressionsHelp: "Wie oft Ihre RepGet-Artikel bei Google erschienen",
       articleClicks: "Artikel-Klicks",
@@ -10010,6 +10020,8 @@ const de: Messages = {
       unitImpressions: "Impressionen",
       unitSessions: "Sitzungen",
       breakdownCaption: "Ihre RepGet-Artikel im Zeitraum, nach Klicks von Google",
+      breakdownShowing: "Angezeigt werden die ersten {shown} von {total} Seiten. Die Summen oben umfassen alle Seiten.",
+      unknownPublicationDates: "{n} ältere Artikel sind online, aber wann sie zum ersten Mal online gingen, wurde nicht erfasst. Sie werden in keinem Zeitraum gezählt.",
       noPublishedArticles: "Noch keine veröffentlichten RepGet-Artikel.",
       methodologyTitle: "Wie diese Zahlen berechnet werden",
       methodologyPolicy: "Bewertungsrichtlinie v{version}, in {currency}, gültig seit {date}.",

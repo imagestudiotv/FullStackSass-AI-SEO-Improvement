@@ -263,6 +263,14 @@ export function AchievementsSection({
               </tbody>
             </table>
           </div>
+          {data.breakdownTotal > data.breakdown.length ? (
+            <p className="text-xs text-muted-foreground">
+              {format(t.breakdownShowing, { shown: formatNumber(data.breakdown.length, locale), total: formatNumber(data.breakdownTotal, locale) })}
+            </p>
+          ) : null}
+          {data.unknownPublicationDates > 0 ? (
+            <p className="text-xs text-muted-foreground">{format(t.unknownPublicationDates, { n: formatNumber(data.unknownPublicationDates, locale) })}</p>
+          ) : null}
           <details className="rounded-lg border p-3 text-sm" open>
             <summary className="cursor-pointer font-medium">{t.methodologyTitle}</summary>
             <div className="mt-2 space-y-2 text-xs text-muted-foreground">
