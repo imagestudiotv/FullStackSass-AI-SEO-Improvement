@@ -266,6 +266,32 @@ export async function grantMonthlyCredits(
   return total;
 }
 
+/**
+ * The current month's plan credits, granted before a balance is shown or
+ * used. Never throws: a failed grant is logged, and the caller reads whatever
+ * balance exists (the next read grants again - it is keyed, so it cannot
+ * grant twice).
+ *
+ * WHY EVERY READER CALLS THIS. Monthly credits are granted lazily, on first
+ * use in each period - there is no job that grants them. The page that used
+ * to do it (the old Backlinks page, through getNetworkStatus) was replaced by
+ * the Backlinks Overview, which only READ the balance, and the managed network
+ * switched off requestBacklink, the other caller. From then on nobody's
+ * monthly credits were granted: a new Grow subscriber saw 0, and an
+ * administrator could not place a link for them. So the balance is now
+ * granted wherever it is shown or spent: the sidebar, the Backlinks pages,
+ * the dashboard, and the administrator's placement screens.
+ *
+ * Never call it inside a transaction: it writes through the shared `db`.
+ */
+export async function ensureMonthlyCredits(organizationId: string): Promise<void> {
+  try {
+    await grantMonthlyCredits(organizationId);
+  } catch (error) {
+    console.error("[credits] could not grant this month's plan credits", { organizationId, error });
+  }
+}
+
 export type LedgerRow = {
   id: string;
   type: string;

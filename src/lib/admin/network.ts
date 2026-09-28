@@ -21,6 +21,7 @@ import {
   reopenArticle,
   setPlacementCredits,
 } from "@/lib/backlinks/managed";
+import { ensureMonthlyCredits } from "@/lib/backlinks/credits";
 import { isRelevantPair } from "@/lib/backlinks/matching";
 import { readOneAuthority } from "@/lib/authority/metric";
 import { db } from "@/lib/db";
@@ -174,6 +175,7 @@ export async function getReviewQueue(): Promise<{
   for (const row of siteRows) orgs.set(row.organizationId, row.organizationName);
   const credits: OrgCredits[] = [];
   for (const [organizationId, organizationName] of orgs) {
+    await ensureMonthlyCredits(organizationId);
     credits.push({ organizationId, organizationName, ...(await creditsFor(db, organizationId)) });
   }
 
@@ -315,7 +317,10 @@ export async function getReviewArticle(articleId: string) {
   const creditCache = new Map<string, Awaited<ReturnType<typeof creditsFor>>>();
   const candidates: Candidate[] = [];
   for (const other of others) {
-    if (!creditCache.has(other.organizationId)) creditCache.set(other.organizationId, await creditsFor(db, other.organizationId));
+    if (!creditCache.has(other.organizationId)) {
+      await ensureMonthlyCredits(other.organizationId);
+      creditCache.set(other.organizationId, await creditsFor(db, other.organizationId));
+    }
     const credits = creditCache.get(other.organizationId)!;
     candidates.push({
       websiteId: other.websiteId,

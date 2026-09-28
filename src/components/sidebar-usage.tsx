@@ -1,7 +1,7 @@
 import { Gift, Link2, PenLine } from "lucide-react";
 import Link from "next/link";
 
-import { getAvailable } from "@/lib/backlinks/credits";
+import { ensureMonthlyCredits, getAvailable } from "@/lib/backlinks/credits";
 import { checkLimit } from "@/lib/usage";
 import { UNLIMITED } from "@/lib/usage-shared";
 import type { Messages } from "@/lib/i18n/messages";
@@ -38,6 +38,8 @@ export async function SidebarUsage({
    */
   websiteId: string | null;
 }) {
+  // This month's plan credits first, so the count includes them.
+  await ensureMonthlyCredits(organizationId);
   const [articles, credits] = await Promise.all([
     websiteId
       ? checkLimit(websiteId, "articles").catch(() => null)
