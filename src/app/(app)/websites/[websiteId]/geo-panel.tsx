@@ -25,6 +25,12 @@ import {
   suggestGeoPrompts,
 } from "@/lib/geo/actions";
 import type { GeoOverview } from "@/lib/geo/shared";
+import {
+  CHECK_WAIT_LIMIT_MS,
+  checkBaseline,
+  questionsStillChecking,
+  type CheckBaseline,
+} from "@/lib/geo/progress";
 
 /**
  * Visibility inside AI assistants.
@@ -59,25 +65,21 @@ export function GeoPanel({
   const [suggesting, setSuggesting] = useState(false);
 
   /**
-   * How many prompts had a result when this render began.
+   * The check the customer started, as each question's latest answer time at
+   * that moment (lib/geo/progress.ts).
    *
    * runGeoCheck only QUEUES the job — each question is two model calls, so
-   * answers land over the following minutes. Without something watching for
-   * them the panel keeps saying "Not checked" until the customer reloads by
-   * hand, which is exactly what someone who just pressed a button will not
-   * think to do.
+   * answers land one by one over the following minutes. The panel refreshes
+   * until every question in the check has a NEWER answer. It used to stop at
+   * the first answer (the rest stayed "Not checked" until a manual reload),
+   * and on a re-check it never stopped at all.
    */
-  const checkedCount = overview.prompts.filter((p) => p.latest !== null).length;
-  const [waitingFrom, setWaitingFrom] = useState<number | null>(null);
+  const [baseline, setBaseline] = useState<CheckBaseline | null>(null);
+  const [timedOut, setTimedOut] = useState(false);
 
-  /**
-   * Derived, not stored. Clearing the baseline from inside the effect would be
-   * a setState during render, which the React Compiler rightly rejects — and
-   * the comparison alone already answers "are we still waiting", so no second
-   * source of truth is needed.
-   */
+  /** Derived, not stored: the data alone answers "are we still waiting". */
   const awaitingResults =
-    waitingFrom !== null && checkedCount <= waitingFrom;
+    baseline !== null && !timedOut && questionsStillChecking(baseline, overview.prompts) > 0;
 
   useEffect(() => {
     if (!awaitingResults) return;
@@ -85,6 +87,16 @@ export function GeoPanel({
     const timer = setInterval(() => router.refresh(), 5000);
     return () => clearInterval(timer);
   }, [awaitingResults, router]);
+
+  /*
+    A question whose check failed never gets a newer answer; stop refreshing
+    after a while rather than spinning until the customer leaves.
+  */
+  useEffect(() => {
+    if (baseline === null) return;
+    const limit = setTimeout(() => setTimedOut(true), CHECK_WAIT_LIMIT_MS);
+    return () => clearTimeout(limit);
+  }, [baseline]);
 
   /**
    * Re-read on arrival. Next's client Router Cache would otherwise serve the
@@ -129,7 +141,8 @@ export function GeoPanel({
       }
       // Queued, not finished: the job asks every question, which takes a
       // while. Promising results "now" would be a lie the customer notices.
-      setWaitingFrom(checkedCount);
+      setTimedOut(false);
+      setBaseline(checkBaseline(overview.prompts));
       toast.success(t.checkQueued);
     });
   }
