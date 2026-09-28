@@ -86,14 +86,29 @@ describe("the table of contents", () => {
   });
 });
 
-describe("the Powered by RepGet line", () => {
+describe("the RepGet credit line", () => {
   const body = '<p>Text with <a href="https://imagestudio.com/wedding/">a link</a>.</p><p><img src="https://cdn.test/a.jpg" alt="A" /></p>';
 
   it("is added exactly once when the setting is on, at the end, linking to RepGet's public site", () => {
     const out = prepareForDelivery(body, { poweredBy: true, siteHosts: scope.hosts });
-    expect(out.match(/Powered by/g)).toHaveLength(1);
+    expect(out.match(/powered by/gi)).toHaveLength(1);
     expect(out.endsWith(poweredByHtml())).toBe(true);
-    expect(poweredByHtml()).toMatch(/^<p><small>Powered by <a href="https:\/\/[^"]+\/" target="_blank" rel="noopener nofollow">RepGet<\/a><\/small><\/p>$/);
+    expect(poweredByHtml()).toMatch(/^<p><small>This article was powered by <a href="https:\/\/[^"]+\/" target="_blank" rel="noopener nofollow">RepGet<\/a><\/small><\/p>$/);
+  });
+
+  it("is a full sentence, long enough that themes and reader scripts do not skip it as a label", () => {
+    // imagestudio.com's story panel drops non-heading paragraphs under 24 characters.
+    const text = poweredByHtml().replace(/<[^>]+>/g, "");
+    expect(text).toBe("This article was powered by RepGet");
+    expect(text.length).toBeGreaterThanOrEqual(24);
+  });
+
+  it("replaces the earlier, shorter wording on republish - never two credit lines", () => {
+    const earlier = `${body}<p><small>Powered by <a href="https://old.example.org/">RepGet</a></small></p>`;
+    const out = prepareForDelivery(earlier, { poweredBy: true });
+    expect(out.match(/powered by/gi)).toHaveLength(1);
+    expect(out.endsWith(poweredByHtml())).toBe(true);
+    expect(prepareForDelivery(earlier, { poweredBy: false })).not.toMatch(/powered by/i);
   });
 
   it("is never added twice - reprocessing and retries change nothing", () => {
@@ -101,7 +116,7 @@ describe("the Powered by RepGet line", () => {
     expect(prepareForDelivery(once, { poweredBy: true, siteHosts: scope.hosts })).toBe(once);
     // A copy pasted into the body (any URL) is replaced, not doubled.
     const pasted = `${body}<p>Powered by <a href="https://old.example.org/">RepGet</a></p>`;
-    expect(prepareForDelivery(pasted, { poweredBy: true }).match(/Powered by/g)).toHaveLength(1);
+    expect(prepareForDelivery(pasted, { poweredBy: true }).match(/powered by/gi)).toHaveLength(1);
   });
 
   it("is absent when the setting is off - even one pasted into the article", () => {
@@ -112,7 +127,7 @@ describe("the Powered by RepGet line", () => {
   it("survives the link checks as an ordinary external link, and is not an internal link", () => {
     const out = prepareForDelivery(body, { poweredBy: true, siteHosts: scope.hosts });
     const guarded = guardLinks(out, { scope, mode: "existing", verdicts: new Map() });
-    expect(guarded.html).toContain("Powered by");
+    expect(guarded.html).toContain("powered by");
     expect(guarded.findings.filter((f) => f.href.includes("RepGet") || f.text === "RepGet")).toEqual([]);
   });
 
