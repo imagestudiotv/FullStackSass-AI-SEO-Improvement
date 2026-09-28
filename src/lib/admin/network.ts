@@ -60,7 +60,57 @@ export type QueueSite = {
   language: string | null;
   connected: "cms" | "plugin" | "none";
   targets: { url: string; priority: string }[];
+  /** Network links this website has hosted - no cap applies, this is for pacing by hand. */
+  hosted: HostUsage;
 };
+
+/** Links placed in a website's articles, today and this calendar month (UTC). */
+export type HostUsage = { today: number; thisMonth: number };
+
+/** A placement that is, or is on its way to being, a link on the host's page. */
+const ACTIVE_PLACEMENT = ["pending", "drafted", "published", "live"] as const;
+
+/**
+ * What counts as hosted: the active ones, and "unverified" - published but
+ * not yet seen by the checker, which may still be on the page and is revived
+ * when a recheck finds it (lib/reporting/recheck.ts).
+ */
+const HOSTED_PLACEMENT = [...ACTIVE_PLACEMENT, "unverified"] as const;
+
+/**
+ * How many network links each website has hosted today and this month.
+ *
+ * There is no cap on this any more (lib/backlinks/managed.ts); the numbers
+ * are shown so administrators pace link building by hand. Placements are
+ * counted on the day they were placed, including published ones the checker
+ * has not seen yet ("unverified"); withdrawn ("cancelled") and removed links
+ * are not. The day and month boundaries come from the database's own clock,
+ * the one that stamped created_at, so the two always agree (UTC in
+ * production).
+ */
+async function hostedCounts(websiteIds: string[]): Promise<Map<string, HostUsage>> {
+  const out = new Map<string, HostUsage>(websiteIds.map((id) => [id, { today: 0, thisMonth: 0 }]));
+  if (websiteIds.length === 0) return out;
+  const rows = await db
+    .select({
+      websiteId: placements.hostWebsiteId,
+      today: sql<number>`count(*) filter (where ${placements.createdAt} >= date_trunc('day', localtimestamp))::int`,
+      thisMonth: sql<number>`count(*)::int`,
+    })
+    .from(placements)
+    .where(
+      and(
+        inArray(placements.hostWebsiteId, websiteIds),
+        inArray(placements.status, [...HOSTED_PLACEMENT]),
+        sql`${placements.createdAt} >= date_trunc('month', localtimestamp)`,
+      ),
+    )
+    .groupBy(placements.hostWebsiteId);
+  for (const row of rows) {
+    if (row.websiteId) out.set(row.websiteId, { today: Number(row.today), thisMonth: Number(row.thisMonth) });
+  }
+  return out;
+}
 
 export type QueueArticle = {
   id: string;
@@ -141,9 +191,10 @@ export async function getReviewQueue(): Promise<{
       bodyHtml: articles.bodyHtml,
       imageUrl: articles.imageUrl,
       imageAlt: articles.imageAlt,
+      // The same statuses the per-article maximum counts (lib/backlinks/managed.ts).
       placements: sql<number>`(
         select count(*)::int from ${placements} p
-        where p.article_id = ${articles.id} and p.status <> 'cancelled'
+        where p.article_id = ${articles.id} and p.status in ('pending', 'drafted', 'published', 'live')
       )`,
     })
     .from(articles)
@@ -162,6 +213,7 @@ export async function getReviewQueue(): Promise<{
 
   const ids = [...new Set([...siteRows.map((s) => s.websiteId), ...articleRows.map((a) => a.websiteId)])];
   const connection = await connectionOf(ids);
+  const hosted = await hostedCounts(siteRows.map((s) => s.websiteId));
   const targets = ids.length
     ? await db
         .select({ websiteId: backlinkTargets.websiteId, url: backlinkTargets.url, priority: backlinkTargets.priority })
@@ -184,6 +236,7 @@ export async function getReviewQueue(): Promise<{
       ...site,
       connected: connection.get(site.websiteId) ?? "none",
       targets: targets.filter((t) => t.websiteId === site.websiteId).map(({ url, priority }) => ({ url, priority })),
+      hosted: hosted.get(site.websiteId) ?? { today: 0, thisMonth: 0 },
     })),
     articles: articleRows.map((row) => ({
       id: row.id,
@@ -219,6 +272,8 @@ export type Candidate = {
   minSourceRank: number | null;
   /** Whether THIS article's website meets it (null: no minimum). */
   meetsMinimum: boolean | null;
+  /** Already linked in this article - one link per website per article. */
+  linkedHere: boolean;
 };
 
 /** Everything the review workspace for one article needs. */
@@ -310,6 +365,11 @@ export async function getReviewArticle(articleId: string) {
         .where(and(inArray(placements.hostWebsiteId, ids), eq(backlinkRequests.websiteId, article.websiteId)))
     : [];
   const reciprocal = new Set(reciprocalRows.map((r) => r.websiteId));
+  const linkedHere = new Set(
+    placed.filter((p) => (ACTIVE_PLACEMENT as readonly string[]).includes(p.status)).map((p) => p.beneficiaryWebsiteId),
+  );
+  // How many links this article's website has hosted - for pacing; no cap applies.
+  const hostUsage = (await hostedCounts([article.websiteId])).get(article.websiteId) ?? { today: 0, thisMonth: 0 };
 
   // The host's authority, on the metric the beneficiaries' minimums use.
   const hostAuthority = await readOneAuthority(article.domain);
@@ -336,6 +396,7 @@ export async function getReviewArticle(articleId: string) {
       targets: targetRows.filter((t) => t.websiteId === other.websiteId).map(({ url, note, priority }) => ({ url, note, priority })),
       minSourceRank: other.minSourceRank,
       meetsMinimum: other.minSourceRank === null ? null : hostRank !== null && hostRank >= other.minSourceRank,
+      linkedHere: linkedHere.has(other.websiteId),
     });
   }
 
@@ -347,6 +408,7 @@ export async function getReviewArticle(articleId: string) {
     placements: placed,
     candidates,
     hostAuthority,
+    hostUsage,
     limits: { maxPerArticle: MAX_PER_ARTICLE, defaultCredits: DEFAULT_PLACEMENT_CREDITS, maxCredits: MAX_PLACEMENT_CREDITS },
   };
 }

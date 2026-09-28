@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { NextRequest } from "next/server";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -89,6 +89,7 @@ import { checkReleasable, syncApproval } from "@/lib/articles/review";
 import {
   approveForRelease,
   changePlacementCredits,
+  getReviewArticle,
   getReviewQueue,
   placeLink,
   removePlacement,
@@ -514,7 +515,7 @@ describe("administrator placements", () => {
     expect(await place(s, overrides(s))).toMatchObject({ ok: false, error: expect.stringMatching(error) });
   });
 
-  it("keeps the self, same-workspace, reciprocal, relevance, language and capacity protections", async () => {
+  it("keeps the self, same-workspace, reciprocal, relevance and language protections", async () => {
     const s = await scene();
     // Same workspace as the host.
     const sibling = await site(s.hostWs.orgId, `sib-${randomUUID().slice(0, 6)}.test`);
@@ -541,10 +542,6 @@ describe("administrator placements", () => {
     await grant(it1.orgId, 3);
     const [itDomain] = await test.db.select({ d: websites.domain }).from(websites).where(eq(websites.id, itSite));
     expect(await place(s, { beneficiaryWebsiteId: itSite, targetUrl: `https://${itDomain.d}/x/` })).toMatchObject({ ok: false, error: expect.stringMatching(/different languages/) });
-    // The host's monthly cap.
-    await test.db.update(networkSites).set({ monthlyCap: 0 }).where(eq(networkSites.websiteId, s.host));
-    expect(await place(s)).toMatchObject({ ok: false, error: expect.stringMatching(/monthly limit/) });
-    await test.db.update(networkSites).set({ monthlyCap: 3 }).where(eq(networkSites.websiteId, s.host));
     // Reciprocal: the beneficiary once hosted a link to the host.
     const [req] = await test.db.insert(backlinkRequests).values({ websiteId: s.host, targetUrl: "https://host/x", status: "live" }).returning({ id: backlinkRequests.id });
     await test.db.insert(placements).values({ requestId: req.id, hostWebsiteId: s.beneficiary, status: "live", credits: 1 });
@@ -622,6 +619,14 @@ describe("settlement: only after the link is seen live, exactly once", () => {
     for (let i = 0; i < 4; i++) await applyCheck(p.id, "missing", 200);
     expect(await balance(s.benWs.orgId)).toBe(5);
     expect(await balance(s.hostWs.orgId)).toBe(0);
+    // ...and the refund is spendable: the managed request is closed, not held
+    // as a reservation that nothing would ever match again.
+    expect(await reserved(s.benWs.orgId)).toBe(0);
+    const [request] = await test.db
+      .select({ status: backlinkRequests.status, creditsReserved: backlinkRequests.creditsReserved })
+      .from(backlinkRequests)
+      .where(eq(backlinkRequests.id, p.requestId));
+    expect(request).toEqual({ status: "cancelled", creditsReserved: 0 });
     const moves = await test.db.select({ key: creditLedger.idempotencyKey }).from(creditLedger).where(eq(creditLedger.referenceId, p.id));
     expect(moves.map((m) => m.key).sort()).toEqual([
       `placement:${p.id}:charge`,
@@ -794,5 +799,158 @@ describe("monthly plan credits", () => {
     ).resolves.toMatchObject({ placementId: expect.any(String) });
     expect(await balance(s.benWs.orgId)).toBe(10);
     expect(await reserved(s.benWs.orgId)).toBe(1);
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* No hosting cap; up to 15 links an article; approving with none is normal   */
+/* ------------------------------------------------------------------------ */
+
+const PHRASES = [
+  "alpha weddings", "bravo portraits", "charlie films", "delta ceremonies", "echo receptions", "foxtrot venues",
+  "golf elopements", "hotel ballrooms", "india destinations", "juliet bouquets", "kilo gowns", "lima albums",
+  "mike drones", "november editing", "oscar lighting", "papa studios",
+];
+const MANY = PHRASES.map((p) => `<p>Our guide covers ${p} in detail for every couple.</p>`).join("");
+
+/** A receiving website in its own workspace, with credits. */
+async function beneficiary(tag: string) {
+  const ws = await workspace(`b-${tag}`);
+  const id = await site(ws.orgId, `${tag}-${randomUUID().slice(0, 6)}.test`);
+  await grant(ws.orgId, 5);
+  return { id, domain: await domainOf(id) };
+}
+
+async function placeOn(articleId: string, websiteId: string, domain: string, anchor: string) {
+  const current = await row(articleId);
+  return placeLink({
+    articleId,
+    expectedVersion: current.reviewVersion,
+    beneficiaryWebsiteId: websiteId,
+    targetUrl: `https://${domain}/page/`,
+    anchor,
+    credits: 1,
+    reason: "Relevant mention",
+  });
+}
+
+describe("no hosting cap, up to 15 links an article", () => {
+  it("a website hosts as many links as administrators place - the old monthly cap limits nothing", async () => {
+    const hostWs = await workspace("host-uncapped");
+    const host = await site(hostWs.orgId, `unc-${randomUUID().slice(0, 6)}.test`, { cms: true });
+    // Even a stored cap of 0 (it used to refuse the first link) no longer applies.
+    await test.db.update(networkSites).set({ monthlyCap: 0 }).where(eq(networkSites.websiteId, host));
+    // Five links this month across five articles - the old cap allowed three.
+    for (let i = 0; i < 5; i++) {
+      const post = await article(host);
+      const b = await beneficiary(`many${i}`);
+      expect(await placeOn(post.id, b.id, b.domain, "wedding videography")).toMatchObject({ ok: true });
+    }
+    const queue = await getReviewQueue();
+    expect(queue.sites.find((s) => s.websiteId === host)?.hosted).toEqual({ today: 5, thisMonth: 5 });
+  });
+
+  it("an article carries up to 15 network links; the 16th is refused", async () => {
+    const hostWs = await workspace("host-15");
+    const host = await site(hostWs.orgId, `h15-${randomUUID().slice(0, 6)}.test`, { cms: true });
+    const post = await article(host, { body: MANY });
+    for (let i = 0; i < 15; i++) {
+      const b = await beneficiary(`f${i}`);
+      expect(await placeOn(post.id, b.id, b.domain, PHRASES[i])).toMatchObject({ ok: true });
+    }
+    const extra = await beneficiary("f15");
+    expect(await placeOn(post.id, extra.id, extra.domain, PHRASES[15])).toMatchObject({
+      ok: false,
+      error: expect.stringMatching(/at most 15 network links/),
+    });
+    expect(await test.db.select().from(placements).where(eq(placements.articleId, post.id))).toHaveLength(15);
+
+    // The review screen: 15 of 15, and the host's pacing counts.
+    const review = await getReviewArticle(post.id);
+    expect(review?.limits.maxPerArticle).toBe(15);
+    expect(review?.hostUsage).toEqual({ today: 15, thisMonth: 15 });
+  });
+
+  it("marks a website already linked in the article, so it is not offered twice", async () => {
+    const s = await scene();
+    expect(await place(s)).toMatchObject({ ok: true });
+    const review = await getReviewArticle(s.post.id);
+    const candidate = review?.candidates.find((c) => c.websiteId === s.beneficiary);
+    expect(candidate?.linkedHere).toBe(true);
+    expect(review?.candidates.filter((c) => c.websiteId !== s.beneficiary).every((c) => !c.linkedHere)).toBe(true);
+  });
+
+  it("approving with no network links is an ordinary approval, recorded as such", async () => {
+    const ws = await workspace("zero");
+    const host = await site(ws.orgId, `zero-${randomUUID().slice(0, 6)}.test`, { cms: true });
+    const post = await article(host, { plannedFor: new Date(Date.now() - 86_400_000) });
+    expect(await approve(post.id)).toMatchObject({ ok: true, data: { placements: 0 } });
+    const audit = await test.db.select().from(adminAuditLog).where(eq(adminAuditLog.targetId, post.id));
+    expect(audit.map((a) => a.summary)).toContain("Approved an article with no network links");
+  });
+});
+
+describe("links to URLs with a query string", () => {
+  const query = (domain: string) => `https://${domain}/wedding-videography/?utm_source=repget&utm_medium=partner`;
+
+  it("places and approves a link whose URL has '&' (stored in the HTML as &amp;)", async () => {
+    const s = await scene();
+    expect(await place(s, { targetUrl: query(s.benDomain) })).toMatchObject({ ok: true });
+    expect((await row(s.post.id)).bodyHtml).toContain("&amp;utm_medium=partner");
+    expect(await approve(s.post.id)).toMatchObject({ ok: true, data: { placements: 1 } });
+  });
+
+  it("refuses a page the article already links to, query string and all", async () => {
+    const s = await scene();
+    const existing = query(s.benDomain).replace("&", "&amp;");
+    await test.db
+      .update(articles)
+      .set({ bodyHtml: `${BODY}<p>See <a href="${existing}">their films</a>.</p>` })
+      .where(eq(articles.id, s.post.id));
+    expect(await place(s, { targetUrl: query(s.benDomain) })).toMatchObject({
+      ok: false,
+      error: expect.stringMatching(/already links to that page/),
+    });
+  });
+});
+
+describe("hosted counts, for pacing by hand", () => {
+  it("counts links placed today and this month; withdrawn, removed and earlier months are not counted", async () => {
+    const hostWs = await workspace("host-counts");
+    const host = await site(hostWs.orgId, `cnt-${randomUUID().slice(0, 6)}.test`, { cms: true });
+    const post = await article(host, { body: MANY });
+    for (let i = 0; i < 5; i++) {
+      const b = await beneficiary(`cnt${i}`);
+      expect(await placeOn(post.id, b.id, b.domain, PHRASES[i])).toMatchObject({ ok: true });
+    }
+    const [withdrawn, removed, unverified, lastMonth, earlier] = await test.db
+      .select({ id: placements.id })
+      .from(placements)
+      .where(eq(placements.articleId, post.id));
+
+    await test.db.update(placements).set({ status: "cancelled" }).where(eq(placements.id, withdrawn.id));
+    await test.db.update(placements).set({ status: "removed" }).where(eq(placements.id, removed.id));
+    // Published but not seen by the checker yet: it may well be on the page.
+    await test.db.update(placements).set({ status: "unverified" }).where(eq(placements.id, unverified.id));
+    // Dates on the database's own clock - the one that stamps created_at.
+    await test.db
+      .update(placements)
+      .set({ createdAt: sql`date_trunc('month', localtimestamp) - interval '1 day'` })
+      .where(eq(placements.id, lastMonth.id));
+    await test.db
+      .update(placements)
+      .set({ createdAt: sql`greatest(date_trunc('month', localtimestamp), date_trunc('day', localtimestamp) - interval '1 hour')` })
+      .where(eq(placements.id, earlier.id));
+    // On the 1st of the month "earlier this month" can only be today.
+    const firstDay = await test.db.execute(
+      sql`select date_trunc('day', localtimestamp) = date_trunc('month', localtimestamp) as first`,
+    );
+    const first = ((firstDay as unknown as { rows: Array<{ first: boolean }> }).rows ??
+      (firstDay as unknown as Array<{ first: boolean }>))[0].first;
+
+    const expected = { today: first ? 2 : 1, thisMonth: 2 };
+    const queue = await getReviewQueue();
+    expect(queue.sites.find((s) => s.websiteId === host)?.hosted).toEqual(expected);
+    expect((await getReviewArticle(post.id))?.hostUsage).toEqual(expected);
   });
 });

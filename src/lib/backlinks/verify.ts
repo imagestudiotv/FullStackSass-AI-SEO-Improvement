@@ -75,10 +75,29 @@ export async function checkLink(
   pageUrl: string,
   targetUrl: string,
 ): Promise<LinkCheckResult> {
+  const [result] = await checkLinks(pageUrl, [targetUrl]);
+  return result;
+}
+
+/**
+ * Checks several target URLs against ONE fetch of the page, one result per
+ * target in the same order.
+ *
+ * An article can carry up to 15 network links (lib/backlinks/managed.ts), all
+ * on the same published page: fetching it once per link would send the host
+ * fifteen identical requests. A page that cannot be fetched gives every
+ * target the same result.
+ */
+export async function checkLinks(
+  pageUrl: string,
+  targetUrls: string[],
+): Promise<LinkCheckResult[]> {
+  const same = (result: LinkCheckResult) => targetUrls.map(() => ({ ...result }));
+
   // The page URL comes from a host site we do not control; the same private
   // address rules apply here as everywhere else user-supplied URLs are fetched.
   if (!isPublicWebsiteUrl(pageUrl)) {
-    return { alive: false, httpStatus: null, error: "not a public URL" };
+    return same({ alive: false, httpStatus: null, error: "not a public URL" });
   }
 
   const controller = new AbortController();
@@ -101,22 +120,22 @@ export async function checkLink(
       },
     });
   } catch (error) {
-    return {
+    return same({
       alive: false,
       httpStatus: null,
       error: error instanceof Error ? error.name === "AbortError" ? "timeout" : error.message : "fetch failed",
-    };
+    });
   } finally {
     clearTimeout(timer);
   }
 
   if (!response.ok) {
-    return { alive: false, httpStatus: response.status, error: null };
+    return same({ alive: false, httpStatus: response.status, error: null });
   }
 
   const reader = response.body?.getReader();
   if (!reader) {
-    return { alive: false, httpStatus: response.status, error: "empty body" };
+    return same({ alive: false, httpStatus: response.status, error: "empty body" });
   }
 
   const chunks: Uint8Array[] = [];
@@ -141,21 +160,24 @@ export async function checkLink(
   }
   const html = new TextDecoder("utf-8").decode(merged);
 
-  const wanted = comparable(targetUrl);
-  const found = anchors(html).find(({ href }) => {
+  // Resolved against the page so relative hrefs are handled.
+  const links = anchors(html).flatMap(({ href, rel }) => {
     try {
-      // Resolved against the page so relative hrefs are handled.
-      return comparable(new URL(href, pageUrl).toString()) === wanted;
+      return [{ url: comparable(new URL(href, pageUrl).toString()), rel }];
     } catch {
-      return false;
+      return [];
     }
   });
 
-  return {
-    alive: Boolean(found),
-    // "" is a plain followed link; null (not found) is unknown.
-    rel: found ? (found.rel ?? "") : null,
-    httpStatus: response.status,
-    error: null,
-  };
+  return targetUrls.map((targetUrl) => {
+    const wanted = comparable(targetUrl);
+    const found = links.find(({ url }) => url === wanted);
+    return {
+      alive: Boolean(found),
+      // "" is a plain followed link; null (not found) is unknown.
+      rel: found ? (found.rel ?? "") : null,
+      httpStatus: response.status,
+      error: null,
+    };
+  });
 }

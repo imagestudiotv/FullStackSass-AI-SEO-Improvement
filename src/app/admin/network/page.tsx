@@ -112,7 +112,10 @@ export default async function AdminNetworkPage() {
         <Card>
           <CardHeader>
             <CardTitle>Participating websites ({queue.sites.length})</CardTitle>
-            <CardDescription>Accepting network links, with the pages they want links to, in priority order.</CardDescription>
+            <CardDescription>
+              Accepting network links, with the pages they want links to, in priority order. No limit applies to how many
+              links a website hosts - the counts are for pacing.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
             {queue.sites.map((site) => (
@@ -121,6 +124,10 @@ export default async function AdminNetworkPage() {
                 <p className="text-xs text-muted-foreground">
                   {site.organizationName} · {site.industry ?? "No topic yet"} · {site.language ?? "No language yet"} ·{" "}
                   {connection[site.connected]}
+                </p>
+                <p className="text-xs">
+                  Hosted: <span className="tabular-nums">{site.hosted.today}</span> today ·{" "}
+                  <span className="tabular-nums">{site.hosted.thisMonth}</span> this month
                 </p>
                 {site.targets.length > 0 ? (
                   <ol className="mt-2 list-decimal space-y-0.5 pl-5 text-xs">

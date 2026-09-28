@@ -5,9 +5,10 @@ import {
   discoverPublishedPlacements,
   FAILURES_BEFORE_REMOVED,
   placementsDue,
+  type DuePlacement,
   type Transition,
 } from "@/lib/backlinks/placements";
-import { checkLink } from "@/lib/backlinks/verify";
+import { checkLinks } from "@/lib/backlinks/verify";
 
 /**
  * Checks placements at their published URL, and moves credits only on what
@@ -23,8 +24,16 @@ import { checkLink } from "@/lib/backlinks/verify";
  * read "live" placements with a liveUrl, and nothing ever wrote one.
  */
 
-/** Placements checked per run. Bounded so one run cannot take hours. */
-const BATCH_SIZE = 50;
+/**
+ * Placements checked per run. Bounded so one run cannot take hours; each
+ * page is its own step, so a run is well inside Inngest's step limit.
+ *
+ * 300 every six hours (it was 50 a day): with up to 15 network links per
+ * article and no cap on how many links a website hosts, 50 a day for the
+ * whole platform fell behind - and credits move only once a link has been
+ * SEEN live, so a backlog delayed every charge and every host reward.
+ */
+const BATCH_SIZE = 300;
 
 /** How stale a check must be before it is worth repeating. */
 const RECHECK_AFTER_HOURS = 24;
@@ -33,11 +42,23 @@ export const verifyBacklinks = inngest.createFunction(
   {
     id: "verify-backlinks",
     retries: 1,
+    /*
+      One run at a time. A run can outlast the six-hour interval, or meet an
+      admin's "verify now": two runs would select the same placements and
+      fetch every page twice. applyCheck would still move credits only once,
+      but each check also counts toward removal (FAILURES_BEFORE_REMOVED), so
+      duplicate misses must not pile up.
+    */
+    concurrency: { limit: 1 },
     triggers: [
       { event: "backlinks/verify.requested" },
-      // Daily. Links do not disappear fast enough to justify more, and each
-      // check is an HTTP request against a customer's site.
-      { cron: "0 3 * * *" },
+      /*
+        Every six hours, to work through new links promptly. Each placement is
+        still re-checked at most once a day (RECHECK_AFTER_HOURS): links do
+        not disappear fast enough to justify more, and each check is an HTTP
+        request against a customer's site.
+      */
+      { cron: "0 */6 * * *" },
     ],
   },
   async ({ step, logger }) => {
@@ -65,44 +86,62 @@ export const verifyBacklinks = inngest.createFunction(
     }
 
     /*
-      One step per placement: a retry replays the ones already done from
-      Inngest's memo rather than fetching - and possibly moving credits for -
-      them again. applyCheck is idempotent on its own as well.
+      One step per PAGE: an article can carry up to 15 network links, all on
+      the same published page, so the page is fetched once and every
+      placement on it is judged from that one fetch. A retry replays the
+      pages already done from Inngest's memo rather than fetching - and
+      possibly moving credits for - them again. applyCheck is idempotent on
+      its own as well.
     */
-    const transitions: Transition[] = [];
+    const pages = new Map<string, DuePlacement[]>();
     for (const placement of due) {
-      const transition = await step.run(`check-${placement.id}`, async () => {
-        const result = await checkLink(placement.liveUrl, placement.targetUrl);
-        const outcome = classifyCheck(result);
-        const applied = await applyCheck(placement.id, outcome, result.httpStatus, new Date(), {
-          rel: result.rel ?? null,
-          error: result.error,
-        });
-        if (outcome !== "alive") {
-          logger.warn(
-            {
-              step: "check",
-              placementId: placement.id,
-              status: placement.status,
-              outcome,
-              httpStatus: result.httpStatus,
-              transition: applied,
-            },
-            outcome === "error"
-              ? "Page could not be reached - not counted toward removal"
-              : "Backlink not found at its URL",
-          );
-        } else if (applied === "went_live") {
-          logger.info(
-            { step: "check", placementId: placement.id },
-            "Backlink seen live - requester charged, host credited",
-          );
+      const group = pages.get(placement.liveUrl);
+      if (group) group.push(placement);
+      else pages.set(placement.liveUrl, [placement]);
+    }
+
+    const transitions: Transition[] = [];
+    for (const group of pages.values()) {
+      const applied = await step.run(`check-page-${group[0].id}`, async () => {
+        const results = await checkLinks(
+          group[0].liveUrl,
+          group.map((placement) => placement.targetUrl),
+        );
+        const out: Transition[] = [];
+        for (const [index, placement] of group.entries()) {
+          const result = results[index];
+          const outcome = classifyCheck(result);
+          const transition = await applyCheck(placement.id, outcome, result.httpStatus, new Date(), {
+            rel: result.rel ?? null,
+            error: result.error,
+          });
+          if (outcome !== "alive") {
+            logger.warn(
+              {
+                step: "check",
+                placementId: placement.id,
+                status: placement.status,
+                outcome,
+                httpStatus: result.httpStatus,
+                transition,
+              },
+              outcome === "error"
+                ? "Page could not be reached - not counted toward removal"
+                : "Backlink not found at its URL",
+            );
+          } else if (transition === "went_live") {
+            logger.info(
+              { step: "check", placementId: placement.id },
+              "Backlink seen live - requester charged, host credited",
+            );
+          }
+          out.push(transition);
         }
         // Spaced out: these are requests to customers' servers.
         await new Promise((resolve) => setTimeout(resolve, 250));
-        return applied;
+        return out;
       });
-      transitions.push(transition);
+      transitions.push(...applied);
     }
 
     const summary = {
