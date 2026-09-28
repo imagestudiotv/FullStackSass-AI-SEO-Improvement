@@ -17,10 +17,11 @@ type FakeClient = {
   queries: number;
 };
 
-const pools = vi.hoisted(() => ({ created: [] as unknown[], firstAnswers: false }));
+const pools = vi.hoisted(() => ({ created: [] as unknown[], firstAnswers: false, options: [] as Array<Record<string, unknown>> }));
 
 vi.mock("postgres", () => ({
-  default: () => {
+  default: (_url: string, options: Record<string, unknown>) => {
+    pools.options.push(options);
     const answers = pools.created.length === 0 ? pools.firstAnswers : true;
     const client = (() => undefined) as unknown as FakeClient;
     client.options = { parsers: {}, serializers: {} };
@@ -45,6 +46,7 @@ vi.mock("postgres", () => ({
 beforeEach(() => {
   vi.resetModules();
   pools.created = [];
+  pools.options = [];
   pools.firstAnswers = false;
   vi.stubEnv("DATABASE_URL", "postgres://fake@127.0.0.1:1/none");
   vi.useFakeTimers();
@@ -92,5 +94,14 @@ describe("a pool whose connection died", () => {
     await db.execute(sql`select 2`);
     expect(pools.created).toHaveLength(1);
     expect((pools.created[0] as FakeClient).end).not.toHaveBeenCalled();
+  });
+});
+
+describe("the connection settings", () => {
+  it("never pipeline queries: Supabase's transaction pooler hangs on pipelined queries", async () => {
+    pools.firstAnswers = true;
+    const { db } = await import("@/lib/db");
+    await db.execute(sql`select 1`);
+    expect(pools.options[0]).toMatchObject({ max_pipeline: 0, prepare: false });
   });
 });

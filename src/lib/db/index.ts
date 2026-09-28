@@ -16,6 +16,9 @@ import * as schema from "./schema";
  * fails, with the same clear message.
  */
 
+/** See max_pipeline below. Not in postgres.js' types, so kept out of the literal. */
+const NO_PIPELINING: Record<string, number> = { max_pipeline: 0 };
+
 let client: ReturnType<typeof postgres> | null = null;
 let instance: PostgresJsDatabase<typeof schema> | null = null;
 
@@ -112,6 +115,26 @@ function getDb(): PostgresJsDatabase<typeof schema> {
         connection behind the backlinks page's 300-second hangs.
       */
       max_lifetime: 60 * 5,
+
+      /**
+       * ONE QUERY PER CONNECTION AT A TIME - never pipelined.
+       *
+       * postgres.js pipelines by default: when a page runs more queries at once
+       * than it has connections, it writes the next query down a connection
+       * before the previous one has answered. Supabase's transaction pooler
+       * does not survive that - the pipelined queries never answer. Reproduced
+       * against production on 2026-09-28 with the admin operations page's
+       * seven parallel queries: with 4 connections the second round hung,
+       * with 1 connection the first did, and every round went through once
+       * pipelining was off. That hang - 30-second timeouts on the pages that
+       * run the most queries together - is what the operations page, the
+       * backlinks page and the dashboard kept hitting. Extra queries now wait
+       * for a free connection instead.
+       *
+       * postgres.js reads max_pipeline (src/index.js) but its TypeScript
+       * types omit it, hence the spread.
+       */
+      ...NO_PIPELINING,
     });
     // Every query gets a deadline and a slow-query log. See deadline.ts.
     const created = client;
