@@ -19,6 +19,28 @@ import * as schema from "./schema";
 let client: ReturnType<typeof postgres> | null = null;
 let instance: PostgresJsDatabase<typeof schema> | null = null;
 
+/**
+ * Throws away a connection pool after one of its queries timed out.
+ *
+ * WHY. A timed-out query leaves its connection in postgres.js' pool, still
+ * "busy" with a query no one will answer: the socket died (a pooler hiccup,
+ * or the function was frozen mid-query). Every later query routed to it waits
+ * out the same 30-second deadline, so a warm function instance kept failing
+ * EVERY request - the admin operations page did, on each refresh, for over 15
+ * minutes after a brief database stall on 2026-09-28, while other instances
+ * were fine. Discarding the pool makes the next request open fresh
+ * connections. Queries still running on the old pool fail; they were queued
+ * behind a dead connection anyway.
+ */
+function discardPool(stale: ReturnType<typeof postgres>): void {
+  // Another timeout may already have replaced it.
+  if (client !== stale) return;
+  client = null;
+  instance = null;
+  console.error("[db] a query timed out - discarding this instance's connection pool; the next query reconnects");
+  stale.end({ timeout: 0 }).catch(() => {});
+}
+
 function getDb(): PostgresJsDatabase<typeof schema> {
   if (!instance) {
     const url = process.env.DATABASE_URL;
@@ -92,7 +114,8 @@ function getDb(): PostgresJsDatabase<typeof schema> {
       max_lifetime: 60 * 5,
     });
     // Every query gets a deadline and a slow-query log. See deadline.ts.
-    instance = drizzle(guardClient(client), { schema });
+    const created = client;
+    instance = drizzle(guardClient(client, { onTimeout: () => discardPool(created) }), { schema });
   }
   return instance;
 }
