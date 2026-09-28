@@ -648,6 +648,20 @@ export function linkPhrase(
   return { html, linked: false };
 }
 
+/**
+ * Whether the article has a link to exactly `url`.
+ *
+ * Compared on the parsed href, like unlinkUrl: the stored HTML escapes "&" in
+ * attributes as "&amp;", so a search of the raw text for href="<url>" misses
+ * a link to any URL with a query string.
+ */
+export function linksTo(html: string, url: string): boolean {
+  const $ = cheerio.load(html, null, false);
+  return $("a")
+    .toArray()
+    .some((el) => $(el).attr("href") === url);
+}
+
 /** Unwraps every link to exactly `url`, keeping its words. */
 export function unlinkUrl(html: string, url: string, siteHosts?: ReadonlySet<string>): { html: string; removed: number } {
   const $ = cheerio.load(html, null, false);

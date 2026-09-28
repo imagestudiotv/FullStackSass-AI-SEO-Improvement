@@ -22,7 +22,7 @@ const state = vi.hoisted(() => ({ db: null as unknown }));
 vi.mock("@/lib/db", () => ({
   db: new Proxy({}, { get: (_t, p) => Reflect.get(state.db as object, p) }),
 }));
-const linkMock = vi.hoisted(() => ({ checkLink: vi.fn() }));
+const linkMock = vi.hoisted(() => ({ checkLinks: vi.fn() }));
 vi.mock("@/lib/backlinks/verify", () => linkMock);
 vi.mock("@/inngest/client", () => ({
   inngest: { createFunction: (config: unknown, handler: unknown) => ({ config, handler }) },
@@ -34,6 +34,7 @@ import {
   discoverPublishedPlacements,
   FAILURES_BEFORE_REMOVED,
   markPlacementDrafted,
+  placementsDue,
   recordArticlePublication,
 } from "@/lib/backlinks/placements";
 import { runReconciliation } from "@/lib/billing/reconciliation";
@@ -47,8 +48,34 @@ beforeAll(async () => {
 });
 
 beforeEach(() => {
-  linkMock.checkLink.mockReset();
+  linkMock.checkLinks.mockReset();
 });
+
+/** Every target on every page: seen, or not. */
+function everyLink(alive: boolean) {
+  return async (_page: string, targets: string[]) =>
+    targets.map(() => ({ alive, httpStatus: 200, error: null }));
+}
+
+type Job = {
+  config: { concurrency?: unknown; triggers: unknown[] };
+  handler: (ctx: unknown) => Promise<{ checked: number; wentLive: number }>;
+};
+
+async function runJob() {
+  const job = verifyBacklinks as unknown as Job;
+  const steps: string[] = [];
+  const outcome = await job.handler({
+    step: {
+      run: (id: string, fn: () => unknown) => {
+        steps.push(id);
+        return fn();
+      },
+    },
+    logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+  });
+  return { outcome, steps };
+}
 
 async function org() {
   const id = `org_${randomUUID()}`;
@@ -208,18 +235,72 @@ describe("verification", () => {
 describe("the verification job and legacy placements", () => {
   it("checks published placements as well as live ones", async () => {
     const s = await published();
-    linkMock.checkLink.mockResolvedValue({ alive: true, httpStatus: 200, error: null });
-    const job = verifyBacklinks as unknown as {
-      handler: (ctx: unknown) => Promise<{ checked: number; wentLive: number }>;
-    };
-    const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
-    const outcome = await job.handler({
-      step: { run: (_: string, fn: () => unknown) => fn() },
-      logger,
-    });
+    linkMock.checkLinks.mockImplementation(everyLink(true));
+    const { outcome } = await runJob();
     expect(outcome.wentLive).toBeGreaterThanOrEqual(1);
     expect((await placementRow(s.placementId)).status).toBe("live");
-    expect(linkMock.checkLink).toHaveBeenCalledWith("https://host.test/post", "https://requester.test/page");
+    expect(linkMock.checkLinks).toHaveBeenCalledWith(
+      "https://host.test/post",
+      expect.arrayContaining(["https://requester.test/page"]),
+    );
+  });
+
+  it("fetches a page once for all the links on it, and judges each link on its own", async () => {
+    // Two links in one article - the managed network allows up to 15.
+    const first = await scenario();
+    const second = await scenario();
+    await test.db
+      .update(backlinkRequests)
+      .set({ targetUrl: "https://requester.test/other" })
+      .where(eq(backlinkRequests.id, second.requestId));
+    await markPlacementDrafted(first.placementId, first.articleId);
+    await markPlacementDrafted(second.placementId, first.articleId);
+    const page = `https://host.test/${randomUUID()}`;
+    expect(await recordArticlePublication(first.articleId, page, "publish")).toBe(2);
+
+    // The first link is on the page; the second is not.
+    linkMock.checkLinks.mockImplementation(async (_page: string, targets: string[]) =>
+      targets.map((t) => ({ alive: t === "https://requester.test/page", httpStatus: 200, error: null })),
+    );
+    const { steps } = await runJob();
+
+    const fetches = linkMock.checkLinks.mock.calls.filter(([url]) => url === page);
+    expect(fetches).toHaveLength(1);
+    expect([...fetches[0][1]].sort()).toEqual(["https://requester.test/other", "https://requester.test/page"]);
+    // One step for the page, named after its first placement.
+    expect(steps.filter((id) => id === `check-page-${first.placementId}` || id === `check-page-${second.placementId}`)).toHaveLength(1);
+
+    expect((await placementRow(first.placementId)).status).toBe("live");
+    expect(await balance(first.requesterOrg)).toBe(-5);
+    // One miss is not a removal, and nothing was charged for the unseen link.
+    expect((await placementRow(second.placementId)).status).toBe("published");
+    expect(await balance(second.requesterOrg)).toBe(0);
+  });
+
+  it("runs one at a time, every six hours", () => {
+    const job = verifyBacklinks as unknown as Job;
+    // Overlapping runs would fetch every page twice and count each miss twice toward removal.
+    expect(job.config.concurrency).toEqual({ limit: 1 });
+    expect(job.config.triggers).toContainEqual({ cron: "0 */6 * * *" });
+  });
+
+  it("checks asked-for rechecks first, then links never checked, then the longest unchecked", async () => {
+    const stale = await published();
+    const neverChecked = await published();
+    const asked = await published();
+    await test.db
+      .update(placements)
+      .set({ lastVerifiedAt: new Date(Date.now() - 10 * 86_400_000) })
+      .where(eq(placements.id, stale.placementId));
+    await test.db
+      .update(placements)
+      .set({ lastVerifiedAt: new Date(Date.now() - 3_600_000), recheckRequestedAt: new Date() })
+      .where(eq(placements.id, asked.placementId));
+
+    const due = await placementsDue(new Date(Date.now() - 24 * 3_600_000), 10_000);
+    const mine = [asked.placementId, neverChecked.placementId, stale.placementId];
+    // A link never checked has not been charged yet; it must not wait behind re-checks.
+    expect(due.map((d) => d.id).filter((id) => mine.includes(id))).toEqual(mine);
   });
 
   it("gives an old-model live placement its article's URL so it can be verified", async () => {

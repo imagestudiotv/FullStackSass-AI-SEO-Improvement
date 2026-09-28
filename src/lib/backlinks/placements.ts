@@ -173,10 +173,12 @@ export async function placementsDue(
         ),
       ),
     )
-    // Asked-for rechecks first, then the longest unchecked.
+    // Asked-for rechecks first, then never-checked links (nothing is
+    // charged until one is seen), then the longest unchecked. Postgres puts
+    // NULLs LAST in ascending order, so "nulls first" is spelled out.
     .orderBy(
       sql`(${placements.recheckRequestedAt} > coalesce(${placements.lastVerifiedAt}, 'epoch'::timestamp)) desc nulls last`,
-      placements.lastVerifiedAt,
+      sql`${placements.lastVerifiedAt} asc nulls first`,
     )
     .limit(limit);
   return rows.map((row) => ({ ...row, liveUrl: row.liveUrl! }));
@@ -221,6 +223,7 @@ export async function applyCheck(
         credits: placements.credits,
         requestId: placements.requestId,
         hostWebsiteId: placements.hostWebsiteId,
+        managed: placements.managed,
       })
       .from(placements)
       .where(eq(placements.id, placementId))
@@ -299,10 +302,26 @@ export async function applyCheck(
       return null;
     }
 
-    // The request goes back to matching: the customer still wants a link.
+    /*
+      The request goes back to matching: the customer still wants a link.
+
+      Except a MANAGED link that was live and is now gone. Nothing matches
+      managed requests automatically - an administrator places a new link by
+      hand, with a new request - and a "pending" request still counts its
+      credits_reserved as held (creditsFor in lib/backlinks/managed.ts), so
+      the refund below would stay locked up for good. Its request is closed
+      and its hold released instead. A managed link never seen live
+      ("unverified", below) keeps its pending request and hold on purpose:
+      a later recheck that finds it revives it (lib/reporting/recheck.ts).
+    */
+    const releaseManaged = placement.managed && placement.status === "live";
     await tx
       .update(backlinkRequests)
-      .set({ status: "pending", updatedAt: now })
+      .set(
+        releaseManaged
+          ? { status: "cancelled", creditsReserved: 0, updatedAt: now }
+          : { status: "pending", updatedAt: now },
+      )
       .where(eq(backlinkRequests.id, placement.requestId));
 
     if (placement.status === "published") {

@@ -54,7 +54,13 @@ export function ReviewWorkspace({ review }: { review: Review }) {
   const [note, setNote] = useState("");
 
   const beneficiary = useMemo(() => candidates.find((c) => c.websiteId === beneficiaryId) ?? null, [candidates, beneficiaryId]);
-  const live = placements.filter((p) => p.status !== "cancelled");
+  // Every link except withdrawn ones is listed, so a removed or unverified one stays visible...
+  const shown = placements.filter((p) => p.status !== "cancelled");
+  // ...but the count and the maximum use the statuses the server counts (lib/backlinks/managed.ts).
+  const live = placements.filter((p) => ["pending", "drafted", "published", "live"].includes(p.status));
+  // The same reasons the list greys a website out, so Place cannot send one the server will refuse.
+  const unavailable = (c: Review["candidates"][number]) =>
+    c.linkedHere || !c.relevant || c.reciprocal || c.meetsMinimum === false;
   const editable = article.status === "draft" && !article.publishedUrl && article.reviewStatus !== null;
   const mode = !article.autoPublish ? "Review (customer publishes)" : article.publishAs === "draft" ? "CMS draft on the planned day" : "Live on the planned day";
 
@@ -124,18 +130,21 @@ export function ReviewWorkspace({ review }: { review: Review }) {
             <CardHeader>
               <CardTitle>Network links ({live.length}/{limits.maxPerArticle})</CardTitle>
               <CardDescription>
-                Credits are reserved now, charged only once the link is seen live on the published page.
+                Credits are reserved now, charged only once the link is seen live on the published page. {article.domain} has
+                hosted {review.hostUsage.today} network link{review.hostUsage.today === 1 ? "" : "s"} today and{" "}
+                {review.hostUsage.thisMonth} this month (no limit applies).
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              {live.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No network link in this article.</p>
+              {shown.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No network links in this article.</p>
               ) : null}
-              {live.map((placement) => (
+              {shown.map((placement) => (
                 <PlacementRow
                   key={placement.id}
                   placement={placement}
                   hostOrg={article.organizationName}
+                  maxCredits={limits.maxCredits}
                   disabled={pending || !editable}
                   onCredits={(value, why) =>
                     run(
@@ -177,8 +186,13 @@ export function ReviewWorkspace({ review }: { review: Review }) {
                   >
                     <option value="">Choose…</option>
                     {candidates.map((c) => (
-                      <option key={c.websiteId} value={c.websiteId} disabled={!c.relevant || c.reciprocal || c.meetsMinimum === false}>
+                      <option
+                        key={c.websiteId}
+                        value={c.websiteId}
+                        disabled={unavailable(c)}
+                      >
                         {c.domain} · {c.available} available
+                        {c.linkedHere ? " · already linked in this article" : ""}
                         {!c.relevant ? " · not related" : ""}
                         {c.reciprocal ? " · already links back" : ""}
                         {c.minSourceRank !== null ? ` · wants DataForSEO Rank ≥ ${c.minSourceRank}${c.meetsMinimum === false ? " (not met)" : ""}` : ""}
@@ -289,7 +303,14 @@ export function ReviewWorkspace({ review }: { review: Review }) {
 
                 <Button
                   type="button"
-                  disabled={pending || !beneficiary || !targetUrl || !anchor.trim() || live.length >= limits.maxPerArticle}
+                  disabled={
+                    pending ||
+                    !beneficiary ||
+                    unavailable(beneficiary) ||
+                    !targetUrl ||
+                    !anchor.trim() ||
+                    live.length >= limits.maxPerArticle
+                  }
                   onClick={() =>
                     run(
                       () =>
@@ -304,6 +325,8 @@ export function ReviewWorkspace({ review }: { review: Review }) {
                         }),
                       () => {
                         toast.success("Link placed and credits reserved");
+                        // That website is now linked here; the next link is for another one.
+                        setBeneficiaryId("");
                         setAnchor("");
                         setReason("");
                         setTargetUrl("");
@@ -346,7 +369,7 @@ export function ReviewWorkspace({ review }: { review: Review }) {
                 <>
                   {live.length === 0 ? (
                     <p className="text-sm text-muted-foreground">
-                      No network link will be placed. Approve only if there is no relevant target for this article.
+                      No network links in this article. That is fine - approving releases it as it is.
                     </p>
                   ) : null}
                   <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (optional)" />
@@ -361,7 +384,7 @@ export function ReviewWorkspace({ review }: { review: Review }) {
                     }
                   >
                     <CheckCircle2 className="size-4" />
-                    {live.length === 0 ? "Approve without a network link" : "Approve and release"}
+                    {live.length === 0 ? "Approve without network links" : "Approve and release"}
                   </Button>
                 </>
               ) : (
@@ -378,12 +401,15 @@ export function ReviewWorkspace({ review }: { review: Review }) {
 function PlacementRow({
   placement,
   hostOrg,
+  maxCredits,
   disabled,
   onCredits,
   onRemove,
 }: {
   placement: Review["placements"][number];
   hostOrg: string;
+  /** MAX_PLACEMENT_CREDITS, from the server - the same bound the server enforces. */
+  maxCredits: number;
   disabled: boolean;
   onCredits: (credits: number, reason: string) => void;
   onRemove: (reason: string) => void;
@@ -412,7 +438,7 @@ function PlacementRow({
             className="w-20"
             type="number"
             min={1}
-            max={10}
+            max={maxCredits}
             value={value}
             onChange={(e) => setValue(e.target.value)}
             disabled={disabled}

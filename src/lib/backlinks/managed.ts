@@ -3,7 +3,7 @@ import "server-only";
 import { and, eq, inArray, ne, sql } from "drizzle-orm";
 
 import { recordAdminAction } from "@/lib/admin/audit";
-import { linkPhrase, siteScope, unlinkUrl } from "@/lib/articles/link-guard";
+import { linkPhrase, linksTo, siteScope, unlinkUrl } from "@/lib/articles/link-guard";
 import { reviewHash } from "@/lib/articles/review";
 import { readOneAuthority } from "@/lib/authority/metric";
 import { ArticleInFlightError, lockForEdit } from "@/lib/publishing/dispatch";
@@ -53,17 +53,33 @@ import type { Executor } from "@/lib/db/types";
  * Kept protections: no link to the host itself or another website of the
  * same workspace, no immediate reciprocal link (a pair that has linked one
  * way never links back), the shared relevance rule (lib/backlinks/matching.ts),
- * language match, the host's monthly cap, one link per beneficiary per
- * article, and at most MAX_PER_ARTICLE placements in any article. Reciprocal
- * links "later" was discussed but never defined, so it stays refused.
+ * language match, one link per beneficiary per article, and at most
+ * MAX_PER_ARTICLE placements in any article. Reciprocal links "later" was
+ * discussed but never defined, so it stays refused.
+ *
+ * NO LIMIT ON HOW MANY LINKS A WEBSITE HOSTS. Every managed link is placed
+ * by an administrator, one at a time, so the client decided (2026-09-28)
+ * that no per-host cap applies: the old "3 links a month" (network_sites.
+ * monthly_cap) refused the 4th link a host received in a calendar month,
+ * which blocked the daily link building the network is for. The review
+ * screens show how many links each website has hosted today and this month
+ * instead (lib/admin/network.ts), so the pace stays a visible human
+ * decision. monthly_cap is still stored; since 2026-09-28 only the old
+ * automatic exchange reads it, and that is switched off (MANAGED_NETWORK).
  */
 
 /** The existing price of one link (lib/backlinks/actions.ts). The default. */
 export const DEFAULT_PLACEMENT_CREDITS = 1;
 /** An administrator may set more for one placement, never more than this. */
 export const MAX_PLACEMENT_CREDITS = 10;
-/** Network links in one article, at most. More reads as a link farm. */
-export const MAX_PER_ARTICLE = 3;
+/**
+ * Network links in one article, at most - a ceiling, not a target: an
+ * article may carry none. The client's figure (2026-09-28): "approx 15 max,
+ * sometimes just one or zero", with mentions from authority sites placed by
+ * hand. Each still needs its own receiving website (one link per website
+ * per article).
+ */
+export const MAX_PER_ARTICLE = 15;
 
 export class PlacementError extends Error {
   constructor(message: string) {
@@ -204,7 +220,6 @@ export async function placeManagedLink(input: PlaceInput): Promise<{ placementId
         niche: networkSites.niche,
         networkLanguage: networkSites.language,
         accepting: networkSites.acceptingLinks,
-        monthlyCap: networkSites.monthlyCap,
         minSourceRank: networkSites.minSourceRank,
       })
       .from(websites)
@@ -270,23 +285,7 @@ export async function placeManagedLink(input: PlaceInput): Promise<{ placementId
       .limit(1);
     if (reciprocal) throw new PlacementError("These two websites already link the other way - no reciprocal links");
 
-    const monthStart = new Date();
-    monthStart.setUTCDate(1);
-    monthStart.setUTCHours(0, 0, 0, 0);
-    const [given] = await tx
-      .select({ n: sql<number>`count(*)::int` })
-      .from(placements)
-      .where(
-        and(
-          eq(placements.hostWebsiteId, host.id),
-          inArray(placements.status, ["pending", "drafted", "published", "live"]),
-          sql`${placements.createdAt} >= ${monthStart.toISOString()}::timestamp`,
-        ),
-      );
-    if ((given?.n ?? 0) >= (host.monthlyCap ?? 0)) {
-      throw new PlacementError(`The host website has reached its monthly limit of ${host.monthlyCap} links`);
-    }
-
+    // No per-host cap: see "NO LIMIT ON HOW MANY LINKS A WEBSITE HOSTS" above.
     const inArticle = await tx
       .select({ id: placements.id, beneficiary: backlinkRequests.websiteId, targetUrl: backlinkRequests.targetUrl })
       .from(placements)
@@ -298,7 +297,7 @@ export async function placeManagedLink(input: PlaceInput): Promise<{ placementId
     if (inArticle.some((row) => row.beneficiary === beneficiary.id)) {
       throw new PlacementError("This article already links to that website");
     }
-    if (article.bodyHtml.includes(`href="${target.toString()}"`)) {
+    if (linksTo(article.bodyHtml, target.toString())) {
       throw new PlacementError("The article already links to that page");
     }
 
@@ -523,9 +522,9 @@ export async function setPlacementCredits(input: {
 
 /**
  * Approves an article for delivery: records exactly what was approved (its
- * hash) at the version the administrator reviewed. Approving without any
- * placement is allowed - when no relevant target exists the article goes out
- * without one, and the queue says so.
+ * hash) at the version the administrator reviewed. Any number of network
+ * links from none to MAX_PER_ARTICLE is an ordinary approval - an article
+ * with no network links is released as it is, and the audit log says so.
  */
 export async function approveArticle(input: {
   articleId: string;
@@ -555,7 +554,7 @@ export async function approveArticle(input: {
       .innerJoin(backlinkRequests, eq(backlinkRequests.id, placements.requestId))
       .where(and(eq(placements.articleId, article.id), eq(placements.status, "drafted")));
     // Every committed placement's link must actually be in the text.
-    const missing = committed.filter((row) => !article.bodyHtml!.includes(`href="${row.targetUrl}"`));
+    const missing = committed.filter((row) => !linksTo(article.bodyHtml!, row.targetUrl));
     if (missing.length > 0) {
       throw new PlacementError("A placed link is missing from the text - remove that placement or restore the link first");
     }
@@ -581,7 +580,7 @@ export async function approveArticle(input: {
         summary:
           committed.length > 0
             ? `Approved an article with ${committed.length} network link${committed.length === 1 ? "" : "s"}`
-            : "Approved an article with no network link (no relevant target)",
+            : "Approved an article with no network links",
         detail: { placements: committed.length, note: input.note?.trim() || null, version: updated.reviewVersion },
       },
       tx,

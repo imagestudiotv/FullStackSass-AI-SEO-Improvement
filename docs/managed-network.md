@@ -69,7 +69,7 @@ New websites get `auto_publish`, `table_of_contents` and `mention_similar_produc
 The database column defaults stay `false`. The first version of migration 0043 changed them, but a changed column default also applies to websites created by an **older build** still serving during a deploy, or after a rollback. That build knows nothing of the review gate, and would have created live-publishing websites. 0043 was corrected before it was applied anywhere but disposable databases.
 
 - `publish_as` already defaulted to `live`, and `powered_by_link` to `true`.
-- `addWebsite` also creates the site's `network_sites` row, with participation on and a cap of 3 links a month.
+- `addWebsite` also creates the site's `network_sites` row, with participation on. The row still stores a monthly cap of 3, but since 2026-09-28 no cap applies to managed placements (see the limits below); only the switched-off automatic exchange would read it.
 - **No existing website is updated.** Each keeps its publishing mode and its opt-outs.
 
 To see which existing websites differ from the new defaults, run the read-only dry run:
@@ -120,7 +120,7 @@ The app domain is `NEXT_PUBLIC_APP_URL`. The footer is not counted as an interna
 
 - articles waiting for review, oldest planned date first, with the website, workspace, language, planned date, link count and delivery route;
 - articles that are approved but not yet published;
-- participating websites and their prioritised target pages;
+- participating websites, their prioritised target pages, and how many network links each has hosted **today** and **this month** (UTC) - for pacing by hand, since no hosting cap applies. Links are counted on the day they were placed, including published links the checker has not seen yet ("unverified"); withdrawn and removed links are not;
 - credits per **workspace**: balance, reserved and available, each counted once per organisation.
 
 **The review page (`/admin/network/<article>`).** It shows the article exactly as it will be delivered, with network links visible. An admin can:
@@ -134,11 +134,11 @@ The app domain is `NEXT_PUBLIC_APP_URL`. The footer is not counted as an interna
   | Hosts | The target must be on the beneficiary's own hosts |
   | Language and relevance | Same language; relevant niches |
   | Exclusions | No self-links, same-workspace links or reciprocal pairs |
-  | Limits | Within the monthly cap; at most 3 network links per article; one per beneficiary; no duplicate URL |
+  | Limits | At most **15** network links per article (none is fine); one per receiving website (a website already linked is marked in the list); no duplicate URL. **No limit on how many links a website hosts** - the client's decision (2026-09-28), since every link is placed by hand. The review page shows the host's links today and this month instead |
   | Credits | Enough available credits, reserved atomically |
 
 - **Withdraw** a link or **change its credits.** Both are allowed only while the link is drafted. An increase is reserved under the same lock.
-- **Approve and release.** Approval without a link is allowed. **Reopen** returns an approved article to review.
+- **Approve and release.** Approving with no network links is an ordinary choice ("Approve without network links"); the article is released as it is. **Reopen** returns an approved article to review.
 
 Every action is recorded in the admin audit log with the actor, the change, the amount and the reason. Each edit carries the review version it started from, so two admins cannot overwrite each other. The later one is refused with "This article changed after you opened it".
 
@@ -172,9 +172,9 @@ The current rule, verified in the code, is unchanged: **1 credit per link.** The
 
 - An admin may set 1–10 credits per placement. The server validates the amount.
 - **Placing reserves** the credits on the beneficiary's workspace. This is atomic under `pg_advisory_xact_lock('credits:<org>')`. Available = balance − reservations of pending or matched requests. Drafts cost nothing.
-- **Settling** happens only when the verifier sees the link live on the published page. The charge and the host reward are written exactly once, using the idempotency keys `placement:<id>:charge` and `:host_reward`. This was tested with two concurrent verifiers on real Postgres.
+- **Settling** happens only when the verifier sees the link live on the published page. The charge and the host reward are written exactly once, using the idempotency keys `placement:<id>:charge` and `:host_reward`. This was tested with two concurrent verifiers on real Postgres. The verifier (`verify-backlinks`) runs every six hours, one run at a time, up to 300 links per run, and re-checks each link at most once a day. Links never checked go first (after rechecks a customer asked for). Each published page is fetched once per run for all the links on it, so an article with 15 links costs its host one request, not 15. It used to check 50 a day, which could not keep up with up to 15 links per article.
 - **Withdrawing** before publication releases the reservation.
-- **Missing links.** A link that disappears after going live is refunded once (`:refund`), and the host reward is reversed once (`:host_reversal`). Only repeated "missing" results count; a temporary failure does not. A link that never went live was never charged, so nothing is refunded.
+- **Missing links.** A link that disappears after going live is refunded once (`:refund`), and the host reward is reversed once (`:host_reversal`). Only repeated "missing" results count; a temporary failure does not. Its request is closed ("cancelled", nothing reserved), so the refund can be spent at once; an administrator places any replacement link by hand. A link that never went live was never charged, so nothing is refunded; its request keeps its hold, because a later recheck that finds the link revives it.
 - **Settled amounts are never changed.** Credits can only be edited while the placement is drafted.
 - The duplicate, relevance, self-link and reciprocal protections still apply. A reciprocal pair created *over time* is refused at placement. No delayed reciprocal detection was added.
 
