@@ -98,10 +98,12 @@ describe("a pool whose connection died", () => {
 });
 
 describe("the connection settings", () => {
-  it("never pipeline queries: Supabase's transaction pooler hangs on pipelined queries", async () => {
+  it("no prepared statements, a small pool - and never max_pipeline: 0, which broke every transaction", async () => {
     pools.firstAnswers = true;
     const { db } = await import("@/lib/db");
     await db.execute(sql`select 1`);
-    expect(pools.options[0]).toMatchObject({ max_pipeline: 0, prepare: false });
+    expect(pools.options[0]).toMatchObject({ prepare: false, max: 4 });
+    // Pipelining is prevented by the gate (lib/db/deadline.ts) instead; see client.postgres.test.ts.
+    expect(pools.options[0]).not.toHaveProperty("max_pipeline");
   });
 });
