@@ -39,7 +39,17 @@ function summarise(sqlText: string): string {
   return sqlText.replace(/\s+/g, " ").trim().slice(0, 160);
 }
 
-type Options = { deadlineMs?: number; slowMs?: number };
+type Options = {
+  deadlineMs?: number;
+  slowMs?: number;
+  /**
+   * Called once when a query misses its deadline. The query's connection is
+   * almost certainly dead, and postgres.js keeps it in the pool with the query
+   * still pending - so every later query that lands on it waits out the same
+   * deadline. lib/db/index.ts discards the whole pool here.
+   */
+  onTimeout?: () => void;
+};
 
 type Thenable = {
   then: (
@@ -79,6 +89,11 @@ function withDeadline<Q>(query: Q, sqlText: string, options: Options): Q {
             target.cancel?.();
           } catch {
             // Nothing useful to do; the timeout below is what matters.
+          }
+          try {
+            options.onTimeout?.();
+          } catch (error) {
+            console.error("[db] onTimeout failed", error);
           }
           reject(new QueryTimeoutError(sqlText, deadlineMs));
         }, deadlineMs);
