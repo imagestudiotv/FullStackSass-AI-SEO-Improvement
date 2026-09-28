@@ -15,6 +15,7 @@ import {
 import Link from "next/link";
 
 import { listPayments } from "@/lib/admin/actions";
+import { isNoCharge } from "@/lib/billing-shared";
 import { DATE_RANGES, pageFrom } from "@/lib/admin/shared";
 import { FilterBar } from "../filter-bar";
 import { Pagination } from "../pagination";
@@ -184,12 +185,21 @@ export default async function AdminPaymentsPage({
                       </TableCell>
                       <TableCell className="tabular-nums">{amount}</TableCell>
                       <TableCell>
-                        <StatusBadge
-                          status={row.status}
-                          // A payment record states what happened; "Needs
-                          // attention" would read as a task for the operator.
-                          label={row.status === "failed" ? "Failed" : undefined}
-                        />
+                        {isNoCharge(row) ? (
+                          /*
+                            A free trial's (or a 100% discount's) zero invoice:
+                            nothing was charged. The plan's first real charge
+                            arrives as its own row when the trial ends.
+                          */
+                          <StatusBadge status="none" label="No charge" tone="neutral" />
+                        ) : (
+                          <StatusBadge
+                            status={row.status}
+                            // A payment record states what happened; "Needs
+                            // attention" would read as a task for the operator.
+                            label={row.status === "failed" ? "Failed" : undefined}
+                          />
+                        )}
                       </TableCell>
                       <TableCell className="hidden text-muted-foreground sm:table-cell">
                         {row.paidAt.toLocaleDateString("en-GB")}
@@ -200,7 +210,7 @@ export default async function AdminPaymentsPage({
                           through a different capture flow, and a button that
                           always fails is worse than no button.
                         */}
-                        {row.status === "paid" && row.provider === "stripe" ? (
+                        {row.status === "paid" && row.provider === "stripe" && !isNoCharge(row) ? (
                           <RefundButton
                             paymentId={row.id}
                             amountLabel={amount}

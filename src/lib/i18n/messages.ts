@@ -1314,6 +1314,7 @@ export type Messages = {
       namedInstead: string;
       mostPopular: string;
       receiptInPayPal: string;
+      noCharge: string;
       close: string;
       copied: string;
       openMenu: string;
@@ -3071,6 +3072,7 @@ const en: Messages = {
       namedInstead: "Named instead of you, most often",
       mostPopular: "Most popular",
       receiptInPayPal: "Receipt in PayPal",
+      noCharge: "No charge",
       close: "Close",
       copied: "Copied",
       openMenu: "Open menu",
@@ -4836,6 +4838,7 @@ const es: Messages = {
       namedInstead: "Mencionados en su lugar con más frecuencia",
       mostPopular: "Más popular",
       receiptInPayPal: "Recibo en PayPal",
+      noCharge: "Sin cargo",
       close: "Cerrar",
       copied: "Copiado",
       openMenu: "Abrir menú",
@@ -6603,6 +6606,7 @@ const fr: Messages = {
       namedInstead: "Cités à votre place, le plus souvent",
       mostPopular: "Le plus choisi",
       receiptInPayPal: "Reçu dans PayPal",
+      noCharge: "Aucun débit",
       close: "Fermer",
       copied: "Copié",
       openMenu: "Ouvrir le menu",
@@ -8364,6 +8368,7 @@ const it: Messages = {
       namedInstead: "Citati al suo posto, più spesso",
       mostPopular: "Il più scelto",
       receiptInPayPal: "Ricevuta in PayPal",
+      noCharge: "Nessun addebito",
       close: "Chiudi",
       copied: "Copiato",
       openMenu: "Apri il menu",
@@ -10132,6 +10137,7 @@ const de: Messages = {
       namedInstead: "Werden am häufigsten statt Ihrer genannt",
       mostPopular: "Am beliebtesten",
       receiptInPayPal: "Beleg in PayPal",
+      noCharge: "Keine Belastung",
       close: "Schließen",
       copied: "Kopiert",
       openMenu: "Menü öffnen",

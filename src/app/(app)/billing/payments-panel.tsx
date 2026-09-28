@@ -12,7 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { formatPrice } from "@/lib/billing-shared";
+import { formatPrice, isNoCharge } from "@/lib/billing-shared";
 import type { PaymentRow } from "@/lib/billing";
 
 /**
@@ -66,6 +66,11 @@ export function PaymentsPanel({
                   {payment.status === "failed" ? (
                     <Badge variant="destructive" className="ml-2">
                       {t.failed}
+                    </Badge>
+                  ) : isNoCharge(payment) ? (
+                    // A free trial's zero invoice: nothing was taken.
+                    <Badge variant="secondary" className="ml-2">
+                      {t.noCharge}
                     </Badge>
                   ) : null}
                 </p>
