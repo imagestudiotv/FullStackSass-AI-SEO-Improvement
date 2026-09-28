@@ -9,8 +9,12 @@ import { siteUrl } from "@/lib/site-url";
  * It changes what is SENT, never what is stored, so it cannot disturb an
  * approval (lib/articles/review.ts) and running it twice changes nothing.
  *
- *  - "Powered by RepGet": when the website's setting is on, one small
- *    credit line at the end, linking to RepGet's public site. Added here,
+ *  - "This article was powered by RepGet": when the website's setting is on,
+ *    one small credit line at the end, linking to RepGet's public site. It
+ *    is a full sentence on purpose: the shorter "Powered by RepGet" (17
+ *    characters) was dropped by themes and reader scripts that skip short
+ *    paragraphs as UI labels - imagestudio.com's story panel skips anything
+ *    under 24 characters. Added here,
  *    deterministically - never left to the writer - and exactly once: any
  *    credit line already in the article (from an earlier version, a paste,
  *    a retry) is removed first, by its text rather than its URL, so a change
@@ -23,8 +27,12 @@ import { siteUrl } from "@/lib/site-url";
  *    max-width on each image - nothing is added to the customer's theme.
  */
 
-/** The credit line, recognised by its words (any link target, any case). */
-const CREDIT_TEXT = /^\s*powered by repget\s*$/i;
+/**
+ * The credit line, recognised by its words (any link target, any case) - the
+ * current wording and the earlier "Powered by RepGet", so republishing an
+ * older article replaces its line instead of adding a second one.
+ */
+const CREDIT_TEXT = /^\s*(this article was )?powered by repget\.?\s*$/i;
 
 /** The public address the credit line links to. See lib/site-url.ts. */
 export function poweredByUrl(): string {
@@ -32,7 +40,7 @@ export function poweredByUrl(): string {
 }
 
 export function poweredByHtml(): string {
-  return `<p><small>Powered by <a href="${poweredByUrl()}" target="_blank" rel="noopener nofollow">RepGet</a></small></p>`;
+  return `<p><small>This article was powered by <a href="${poweredByUrl()}" target="_blank" rel="noopener nofollow">RepGet</a></small></p>`;
 }
 
 export type DeliveryOptions = {
