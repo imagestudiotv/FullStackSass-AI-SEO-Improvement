@@ -7,6 +7,7 @@ import { linkPhrase, siteScope, unlinkUrl } from "@/lib/articles/link-guard";
 import { reviewHash } from "@/lib/articles/review";
 import { readOneAuthority } from "@/lib/authority/metric";
 import { ArticleInFlightError, lockForEdit } from "@/lib/publishing/dispatch";
+import { ensureMonthlyCredits } from "@/lib/backlinks/credits";
 import { isRelevantPair } from "@/lib/backlinks/matching";
 import { db } from "@/lib/db";
 import {
@@ -180,6 +181,14 @@ export async function placeManagedLink(input: PlaceInput): Promise<{ placementId
   const credits = validCredits(input.credits ?? DEFAULT_PLACEMENT_CREDITS);
   const anchor = input.anchor.trim();
   if (anchor.length < 2 || anchor.length > 120) throw new PlacementError("Choose anchor words from the article (2-120 characters)");
+
+  // The beneficiary's monthly plan credits, granted before they are checked (outside the transaction).
+  const [owner] = await db
+    .select({ organizationId: websites.organizationId })
+    .from(websites)
+    .where(eq(websites.id, input.beneficiaryWebsiteId))
+    .limit(1);
+  if (owner) await ensureMonthlyCredits(owner.organizationId);
 
   return db.transaction(async (tx) => {
     const article = await lockArticle(tx, input.articleId, input.expectedVersion);
@@ -444,6 +453,17 @@ export async function setPlacementCredits(input: {
   actorEmail: string;
 }): Promise<{ reviewVersion: number }> {
   const credits = validCredits(input.credits);
+
+  // The beneficiary's monthly plan credits, granted before an increase is checked.
+  const [owner] = await db
+    .select({ organizationId: websites.organizationId })
+    .from(placements)
+    .innerJoin(backlinkRequests, eq(backlinkRequests.id, placements.requestId))
+    .innerJoin(websites, eq(websites.id, backlinkRequests.websiteId))
+    .where(eq(placements.id, input.placementId))
+    .limit(1);
+  if (owner) await ensureMonthlyCredits(owner.organizationId);
+
   return db.transaction(async (tx) => {
     const [row] = await tx
       .select({

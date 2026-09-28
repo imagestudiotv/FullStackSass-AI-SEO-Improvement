@@ -18,6 +18,8 @@ import {
   networkSites,
   organization,
   placements,
+  plans,
+  subscriptions,
   user,
   websiteMembers,
   websites,
@@ -93,6 +95,7 @@ import {
 } from "@/lib/admin/network";
 import { cancelRequest, listGiven, listRequests, requestBacklink } from "@/lib/backlinks/actions";
 import { approveArticle, placeManagedLink } from "@/lib/backlinks/managed";
+import { workspaceCredits } from "@/lib/reporting/backlinks";
 import { addTarget, moveTarget, getPartnerNetwork, setParticipation, setTargetPriority } from "@/lib/backlinks/network-settings";
 import { applyCheck, recordArticlePublication } from "@/lib/backlinks/placements";
 import { dueArticlesForPlugin } from "@/lib/plugin/due";
@@ -735,5 +738,61 @@ describe("approval into a publishing mode", () => {
     asMember(ws.userId, ws.orgId);
     expect(await publishArticle(host, post.id)).toMatchObject({ ok: true });
     expect(await approveArticle({ articleId: post.id, expectedVersion: (await row(post.id)).reviewVersion, actorEmail: ADMIN }).catch((e) => e.message)).toMatch(/Already approved/);
+  });
+});
+
+/* ------------------------------------------------------------------------ */
+/* Monthly plan credits are granted where the balance is shown or spent       */
+/* ------------------------------------------------------------------------ */
+
+/** A paid plan with monthly backlink credits (Grow-like), attached to a website. */
+async function subscribe(orgId: string, websiteId: string, monthlyCredits: number) {
+  const [plan] = await test.db
+    .insert(plans)
+    .values({ name: "Grow", tier: `grow_${randomUUID().slice(0, 6)}`, interval: "month", priceCents: 4900, articleLimit: 30, keywordLimit: 100, siteLimit: 1, monthlyCredits })
+    .returning({ id: plans.id });
+  await test.db.insert(subscriptions).values({
+    organizationId: orgId,
+    websiteId,
+    provider: "stripe",
+    planId: plan.id,
+    status: "active",
+    currentPeriodStart: new Date(Date.now() - 2 * 86_400_000),
+    currentPeriodEnd: new Date(Date.now() + 28 * 86_400_000),
+  });
+}
+
+describe("monthly plan credits", () => {
+  it("a new subscriber sees this month's credits on the Backlinks pages - no other page has to grant them first", async () => {
+    // Before: only the old Backlinks page granted them, and it was replaced; the balance stayed 0.
+    const ws = await workspace("grow");
+    const siteId = await site(ws.orgId, `grow-${randomUUID().slice(0, 6)}.test`);
+    await subscribe(ws.orgId, siteId, 10);
+    expect(await balance(ws.orgId)).toBe(0);
+
+    const credits = await workspaceCredits(ws.orgId);
+    expect(credits).toMatchObject({ balance: 10, available: 10 });
+    // Showing it again grants nothing more.
+    await workspaceCredits(ws.orgId);
+    expect(await balance(ws.orgId)).toBe(10);
+  });
+
+  it("an administrator can place a link for a customer whose only credits are this month's plan credits", async () => {
+    const s = await scene({ credits: 0 });
+    await subscribe(s.benWs.orgId, s.beneficiary, 10);
+    const current = await row(s.post.id);
+    await expect(
+      placeManagedLink({
+        articleId: s.post.id,
+        expectedVersion: current.reviewVersion,
+        beneficiaryWebsiteId: s.beneficiary,
+        targetUrl: `https://${s.benDomain}/wedding-videography/`,
+        anchor: "wedding videography",
+        credits: 1,
+        actorEmail: ADMIN,
+      }),
+    ).resolves.toMatchObject({ placementId: expect.any(String) });
+    expect(await balance(s.benWs.orgId)).toBe(10);
+    expect(await reserved(s.benWs.orgId)).toBe(1);
   });
 });

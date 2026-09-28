@@ -3,7 +3,7 @@ import "server-only";
 import { sql, type SQL } from "drizzle-orm";
 
 import { AUTHORITY_METRIC, normalizeDomain, readAuthority, type AuthorityReading } from "@/lib/authority/metric";
-import { getAvailable } from "@/lib/backlinks/credits";
+import { ensureMonthlyCredits, getAvailable } from "@/lib/backlinks/credits";
 import { db } from "@/lib/db";
 import { activePolicy, backlinkValue, backlinkValueSql, type ValuationPolicy } from "@/lib/valuation/policy";
 
@@ -684,6 +684,8 @@ export type WorkspaceCredits = {
 };
 
 export async function workspaceCredits(orgId: string): Promise<WorkspaceCredits> {
+  // This month's plan credits first, so the balance shown includes them.
+  await ensureMonthlyCredits(orgId);
   const [available, sums] = await Promise.all([
     getAvailable(orgId),
     db.execute(sql`
