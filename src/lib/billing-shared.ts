@@ -37,6 +37,21 @@ export function isEntitled(status: string | null | undefined): boolean {
  * Intl handles the symbol, placement and separators per locale, so a EUR price
  * does not have to be hand-formatted with an assumed symbol position.
  */
+/**
+ * A payment record that moved no money: a paid invoice for zero. Stripe issues
+ * one at checkout for a free trial (the plan's first charge comes when the
+ * trial ends) and for a fully discounted period. Shown as "No charge", never
+ * as a payment, and never offered for refund - there is nothing to return,
+ * and the refund action refuses a zero amount anyway.
+ *
+ * Not labelled "trial": a 100% coupon produces the same record, and the
+ * invoice description is in the customer's language, so nothing reliable
+ * tells the two apart.
+ */
+export function isNoCharge(payment: { amountCents: number; status: string }): boolean {
+  return payment.status === "paid" && payment.amountCents === 0;
+}
+
 export function formatPrice(cents: number, currency: string): string {
   return new Intl.NumberFormat("en-IE", {
     style: "currency",
