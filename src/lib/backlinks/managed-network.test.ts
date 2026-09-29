@@ -99,6 +99,7 @@ import {
 import { getAdminArticle, updateAnyArticle } from "@/lib/admin/actions";
 import { updateArticle } from "@/lib/articles/actions";
 import { cancelRequest, listGiven, listRequests, requestBacklink } from "@/lib/backlinks/actions";
+import { listWebsites } from "@/lib/admin/actions";
 import { approveArticle, placeManagedLink } from "@/lib/backlinks/managed";
 import { workspaceCredits } from "@/lib/reporting/backlinks";
 import { addTarget, moveTarget, getPartnerNetwork, setParticipation, setTargetPriority } from "@/lib/backlinks/network-settings";
@@ -1179,5 +1180,38 @@ describe("approval covers the text shown, and an article in review is edited in 
       .where(eq(articles.id, s.post.id));
     expect((await getAdminArticle(s.post.id))?.underReview).toBe(false);
     expect(await updateAnyArticle(s.post.id, { title: "Fixed after publishing" })).toMatchObject({ ok: true });
+  });
+});
+
+describe("the same site in two workspaces", () => {
+  it("is never linked to itself, and is not offered as a partner", async () => {
+    // A customer who signed up twice: imagestudio.com in two workspaces (2026-09-29).
+    const name = `dup-${randomUUID().slice(0, 6)}.test`;
+    const first = await workspace("dup-a");
+    const second = await workspace("dup-b");
+    const host = await site(first.orgId, name, { cms: true });
+    const twin = await site(second.orgId, `www.${name}`);
+    await grant(second.orgId, 5);
+    const post = await article(host);
+
+    const review = await getReviewArticle(post.id);
+    expect(review?.candidates.some((c) => c.websiteId === twin)).toBe(false);
+
+    const current = await row(post.id);
+    expect(
+      await placeLink({
+        articleId: post.id,
+        expectedVersion: current.reviewVersion,
+        beneficiaryWebsiteId: twin,
+        targetUrl: `https://www.${name}/wedding-videography/`,
+        anchor: "wedding videography",
+        credits: 1,
+        reason: "Test",
+      }),
+    ).toMatchObject({ ok: false, error: expect.stringMatching(/same site/) });
+
+    // Operators see it on the websites list: each twin counts the other.
+    const listed = await listWebsites(name);
+    expect(listed.rows.map((r) => [r.id, r.sameDomainElsewhere]).sort()).toEqual([[host, 1], [twin, 1]].sort());
   });
 });

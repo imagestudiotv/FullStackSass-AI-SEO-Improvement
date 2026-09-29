@@ -1,7 +1,7 @@
 import { requireWebsitePage } from "@/lib/tenant";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import { getIntegrationKeys } from "@/lib/plugin/actions";
-import { hasEverHadKey } from "@/lib/plugin/keys";
+import { pluginConnectionContext } from "@/lib/plugin/connection";
 import {
   listAvailableProviders,
   listIntegrations,
@@ -30,7 +30,7 @@ export default async function WebsiteIntegrationsPage({
 }: PageProps<"/websites/[websiteId]/integrations">) {
   const { websiteId } = await params;
   const { ownerOrgId, site, userId, access } = await requireWebsitePage(websiteId);
-  const { t } = await getAppMessages(userId);
+  const { t, locale } = await getAppMessages(userId);
 
   // Paywall. See lib/billing/require-plan.ts.
   // The OWNER's plan pays for this website, not the caller's own
@@ -38,12 +38,13 @@ export default async function WebsiteIntegrationsPage({
   // plan screen for a workspace that is not paying for it. See tenant.ts.
   await requirePlan(ownerOrgId);
 
-  const [providers, integrations, pluginKeys, everHadKey] = await Promise.all([
+  const [providers, integrations, pluginKeys, pluginContext] = await Promise.all([
     listAvailableProviders(),
     listIntegrations(site.id),
     getIntegrationKeys(site.id),
-    // Read-only: whether a key was ever made. Rendering never creates one.
-    hasEverHadKey(site.id),
+    // Read-only: which workspace the WordPress card connects, and the same
+    // domain in this person's other workspaces. Rendering never creates a key.
+    pluginConnectionContext(site.id, userId),
   ]);
 
   return (
@@ -54,7 +55,8 @@ export default async function WebsiteIntegrationsPage({
         integrations={integrations}
         pluginKeys={pluginKeys}
         canEdit={access !== "viewer"}
-        everHadKey={everHadKey}
+        pluginContext={pluginContext}
+        locale={locale}
         /* For the links into the customer's own WordPress admin. */
         siteUrl={site.url}
         t={t.app.publishing}

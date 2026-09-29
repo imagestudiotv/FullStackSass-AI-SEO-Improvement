@@ -22,6 +22,7 @@ import {
   websites,
 } from "@/lib/db/schema";
 import type { Executor } from "@/lib/db/types";
+import { sameSiteDomain } from "@/lib/websites/ownership";
 
 /**
  * The managed Partner Network: links placed by the RepGet team.
@@ -237,6 +238,15 @@ export async function placeManagedLink(input: PlaceInput): Promise<{ placementId
     const beneficiary = sites.find((site) => site.id === input.beneficiaryWebsiteId);
     if (!host || !beneficiary) throw new PlacementError("Website not found");
     if (host.id === beneficiary.id) throw new PlacementError("A website cannot link to itself");
+    /*
+      The same domain in two workspaces is still one site - a customer who
+      signed up twice (imagestudio.com, 2026-09-29). A link between them is an
+      internal link sold as a backlink, with credits moving between two
+      accounts of the same customer.
+    */
+    if (sameSiteDomain(host.domain, beneficiary.domain)) {
+      throw new PlacementError("Both websites are the same site (same domain) - that is not an independent link");
+    }
     if (host.organizationId === beneficiary.organizationId) {
       throw new PlacementError("Both websites belong to the same workspace - that is not an independent link");
     }

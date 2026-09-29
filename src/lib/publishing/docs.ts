@@ -72,16 +72,16 @@ export const INTEGRATION_DOCS: IntegrationDoc[] = [
         body: "Activating the plugin takes you straight to its screen. Later you will find it as RepGet in the left-hand menu of your WordPress admin, between Comments and Appearance, and through the Settings link under the plugin on the Plugins page. Only administrators can see it, because the key controls what gets published to your site.",
       },
       {
-        title: "Create an integration key in RepGet",
-        body: "Go back to the RepGet tab (Settings → Integrations → WordPress plugin). Optionally type a note such as Main site, then press New key. The key is shown ONCE and stored only as a hash, so it cannot be looked up later. If you lose it, revoke it and make another - nothing is lost by doing that.",
+        title: "Press Connect WordPress in RepGet",
+        body: "Go back to the RepGet tab (Settings → Integrations → WordPress plugin) and press Connect WordPress. RepGet makes a new key at that moment and opens the RepGet screen in your WordPress with the key already filled in. Nothing to copy. The card also says which RepGet workspace you are connecting. If WordPress asks you to log in first, log in, then press Open WordPress again in RepGet.",
       },
       {
-        title: "Connect with one click",
-        body: "Press Open WordPress with this key, under the new key. The RepGet screen in WordPress opens with the key already filled in and a note saying so - press Save and connect. If the key is not filled in, press Copy in RepGet and paste it into the Integration Key field yourself. The key travels after the # in the address, which browsers never send to a server, and it is removed from the address straight away.",
+        title: "Press Save and connect in WordPress",
+        body: "The Integration Key field is already filled in, with a note saying so - press Save and connect. The key travels after the # in the address, which browsers never send to a server, and it is removed from the address straight away. If your browser blocked the new tab, RepGet shows the key with Copy key instead: paste it into the Integration Key field yourself.",
       },
       {
-        title: "Check it says Connected - and the right website",
-        body: "The Status row shows a green tick and Connected, and the message at the top names the website the key belongs to. Back in RepGet you do not need to refresh: within a few seconds the key shows your site address, WordPress version and plugin version instead of Never used. If the message names a DIFFERENT website, the key belongs to another site in your RepGet workspace - keys belong to one website, not to your whole account.",
+        title: "Check it says Connected - and the right account",
+        body: "The Status row shows a green tick and Connected, and the message at the top names the website and the RepGet account the key belongs to. Back in RepGet you do not need to refresh: within a few seconds the card turns green and Connect your site is ticked. If the message names a DIFFERENT account or website, WordPress was connected with another key - press Connect WordPress in the account you want and Save and connect again; the key saved in WordPress decides which account publishes there.",
       },
       {
         title: "How articles arrive",
@@ -103,7 +103,7 @@ export const INTEGRATION_DOCS: IntegrationDoc[] = [
       },
       {
         problem: "\"The key was rejected. Check it was copied in full.\"",
-        fix: "One message covers every cause deliberately, so that somebody guessing at keys learns nothing from the reply. Check three things in order: was the key copied IN FULL (a partial copy is by far the most common cause); is it still ACTIVE, or was it revoked in RepGet; and is it the key for THIS website rather than another site in your workspace. The quickest fix is a new key and Open WordPress with this key.",
+        fix: "One message covers every cause deliberately, so that somebody guessing at keys learns nothing from the reply. Check three things in order: was the key copied IN FULL (a partial copy is by far the most common cause); is it still ACTIVE, or was it revoked in RepGet; and is it the key for THIS website rather than another site in your workspace. The quickest fix: press Connect WordPress in RepGet, then Save and connect in WordPress.",
       },
       {
         problem: "Open my WordPress opens the wrong site",
@@ -134,8 +134,12 @@ export const INTEGRATION_DOCS: IntegrationDoc[] = [
         fix: "The plugin checks hourly by itself, but WordPress's scheduler only runs when somebody visits your site - so on a quiet site the check happens late. That is how WordPress works rather than a fault. Press Check for articles now to fetch immediately, or ask your host to set up a real cron job if the timing matters to you.",
       },
       {
+        problem: "WordPress says Connected, but RepGet is still waiting",
+        fix: "WordPress is connected with a different key - often from another RepGet account for the same site, or an earlier test. In the RepGet account you want to use, press Connect WordPress, then press Save and connect in the WordPress tab it opens. The key you save decides which account publishes to the site. You do not need to find or copy any old key.",
+      },
+      {
         problem: "I lost my key",
-        fix: "Revoke the old one in RepGet and create a new one, then use Open WordPress with this key and press Save and connect again. Nothing is lost by doing this, and the old key stops working the moment you revoke it.",
+        fix: "You never need an old key again: press Connect WordPress in RepGet and Save and connect in WordPress. Unused keys are tidied up automatically once WordPress connects. To stop a site publishing, open Keys (advanced) and press Revoke - the site is told straight away.",
       },
     ],
   },

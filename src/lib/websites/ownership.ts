@@ -120,3 +120,15 @@ export function checkTargetUrl(input: string, domain: string): TargetUrlCheck {
 
   return { ok: true, url: parsed.toString() };
 }
+
+/**
+ * True when two stored website domains are the same site: equal once
+ * lower-cased and without a leading "www.". Unlike hostnameBelongsTo, a
+ * subdomain is NOT the same site here - blog.example.com and example.com are
+ * separate RepGet websites that may well link to each other.
+ */
+export function sameSiteDomain(a: string, b: string): boolean {
+  const bare = (value: string) => normalizeHostname(value.replace(/^https?:\/\//i, "").split("/")[0]).replace(/^www\./, "");
+  const left = bare(a);
+  return left !== "" && left === bare(b);
+}

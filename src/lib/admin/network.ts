@@ -342,6 +342,8 @@ export async function getReviewArticle(articleId: string) {
         eq(networkSites.acceptingLinks, true),
         ne(websites.id, article.websiteId),
         ne(websites.organizationId, article.organizationId),
+        // The same site in another workspace is not a partner (see placeManagedLink).
+        sql`regexp_replace(lower(${websites.domain}), '^www\\.', '') <> regexp_replace(lower(${article.domain}), '^www\\.', '')`,
       ),
     )
     .orderBy(asc(websites.domain));

@@ -151,6 +151,12 @@ export default async function AdminWebsitesPage({
                       </TableCell>
                       <TableCell className="font-medium">
                         {row.domain}
+                        {row.sameDomainElsewhere > 0 ? (
+                          <span className="block text-xs font-normal text-amber-600">
+                            Same domain in {row.sameDomainElsewhere} other website
+                            {row.sameDomainElsewhere === 1 ? "" : "s"} - WordPress publishes for one only
+                          </span>
+                        ) : null}
                       </TableCell>
                       <TableCell className="hidden max-w-48 truncate text-muted-foreground md:table-cell">
                         {row.organizationName ?? "-"}

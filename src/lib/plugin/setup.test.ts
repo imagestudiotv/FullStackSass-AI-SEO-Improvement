@@ -18,6 +18,11 @@ vi.mock("@/lib/db", () => ({
 vi.mock("@/lib/auth-guard", () => ({ getSession: async () => state.session }));
 vi.mock("@/lib/auth", () => ({ ensureOrganization: async () => {} }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+// Revoking tells WordPress after the response (lib/plugin/actions.ts): not needed here.
+vi.mock("next/server", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/server")>()),
+  after: vi.fn(),
+}));
 vi.mock("next/navigation", () => ({
   redirect: (to: string) => {
     throw new Error(`redirect:${to}`);

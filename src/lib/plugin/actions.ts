@@ -1,15 +1,20 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 
 import {
-  createIntegrationKey,
+  createManualKey,
   listIntegrationKeys,
+  MAX_LIVE_KEYS,
+  mintConnectKey,
   provisionFirstKey,
   replaceUnusedKey,
+  revokedKeyEndpoint,
   revokeIntegrationKey,
   type IntegrationKeyView,
 } from "@/lib/plugin/keys";
+import { signalRevokedKey } from "@/lib/plugin/sync";
 import { requireWebsite } from "@/lib/tenant";
 import { requireEditor } from "@/lib/websites/require-editor";
 import type { ActionResult } from "@/lib/websites/actions";
@@ -46,20 +51,16 @@ export async function generateIntegrationKey(
   if (!guard.ok) return { ok: false, error: guard.error };
   const { site } = guard.context;
 
-  const existing = await listIntegrationKeys(site.id);
-  /**
-   * A small cap. Keys are per-install, and a workspace needing more than a
-   * handful is far more likely to be looping by accident than running five
-   * WordPress sites off one website record.
-   */
-  if (existing.length >= 5) {
+  // A person's key for another install: never tidied up (see keyLabel), and
+  // under the same lock and five-key cap as "Connect WordPress".
+  const created = await createManualKey(site.id, label ?? "");
+  if (!created.ok) {
     return {
       ok: false,
-      error: "You already have five keys. Revoke one before creating another.",
+      error: `You already have ${MAX_LIVE_KEYS} keys. Revoke one you no longer use, then try again.`,
     };
   }
-
-  const { key } = await createIntegrationKey(site.id, label);
+  const { key } = created;
 
   revalidatePath(`/websites/${site.id}/integrations`);
   return { ok: true, data: { key } };
@@ -73,10 +74,50 @@ export async function revokeKey(
   if (!guard.ok) return { ok: false, error: guard.error };
   const { site } = guard.context;
 
-  await revokeIntegrationKey(site.id, keyId);
+  const revokedNow = await revokeIntegrationKey(site.id, keyId);
+
+  /*
+    A WordPress site still holding this key would say "Connected" until its
+    next hourly check. Tell it now, after the response - see signalRevokedKey.
+    Only the first time: revoking an already-revoked key sends nothing.
+  */
+  if (revokedNow) {
+    after(async () => {
+      const endpoint = await revokedKeyEndpoint(site.id, keyId).catch(() => null);
+      if (endpoint) await signalRevokedKey(endpoint).catch(() => undefined);
+    });
+  }
 
   revalidatePath(`/websites/${site.id}/integrations`);
   return { ok: true, data: null };
+}
+
+/**
+ * "Connect WordPress": a key made at the moment of the click, returned for
+ * the customer's WordPress tab (see mintConnectKey). The screen puts it in
+ * the address FRAGMENT of their WordPress settings page, which plugin 1.6.0
+ * reads into its key field; the customer presses Save and connect there.
+ * Editors only - the same check as "New key".
+ */
+export async function connectWordPress(
+  websiteId: string,
+): Promise<ActionResult<{ key: string; keyPrefix: string }>> {
+  const guard = await requireEditor(websiteId);
+  if (!guard.ok) return { ok: false, error: guard.error };
+  const { site } = guard.context;
+
+  const outcome = await mintConnectKey(site.id);
+  if (!outcome.ok) {
+    return {
+      ok: false,
+      error:
+        outcome.reason === "too_many_pending"
+          ? "Several WordPress tabs are already waiting to connect. Finish in one of them (Save and connect), or try again in 30 minutes."
+          : `You already have ${MAX_LIVE_KEYS} keys. Revoke one you no longer use under Keys (advanced), then try again.`,
+    };
+  }
+  revalidatePath(`/websites/${site.id}/integrations`);
+  return { ok: true, data: { key: outcome.key, keyPrefix: outcome.keyPrefix } };
 }
 
 export type SetupResult =

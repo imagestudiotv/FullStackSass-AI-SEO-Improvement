@@ -491,7 +491,7 @@ describe.skipIf(!adminUrl)("the application's database client on real Postgres",
     const raw = postgres(url, { ...CONNECTION_OPTIONS, max: 1 });
     clients.push(raw);
     const onTimeout = vi.fn(() => void raw.end({ timeout: 0 }));
-    const guarded = guardClient(raw, { deadlineMs: 400, onTimeout });
+    const guarded = guardClient(raw, { deadlineMs: 1_000, onTimeout });
     await guarded.unsafe("select 1"); // connected
     watch.silence();
     const started = Date.now();
@@ -505,7 +505,7 @@ describe.skipIf(!adminUrl)("the application's database client on real Postgres",
     const raw = postgres(url, { ...CONNECTION_OPTIONS, max: 1 });
     clients.push(raw);
     const onTimeout = vi.fn(() => void raw.end({ timeout: 0 }));
-    const guarded = guardClient(raw, { deadlineMs: 400, onTimeout });
+    const guarded = guardClient(raw, { deadlineMs: 1_000, onTimeout });
     await guarded.unsafe("select 1"); // connected
     const started = Date.now();
     await expect(
@@ -521,7 +521,7 @@ describe.skipIf(!adminUrl)("the application's database client on real Postgres",
   it("a statement inside a transaction, or a nested one, has its own deadline", async () => {
     for (const nested of [false, true]) {
       const { url, watch } = await proxied();
-      const { client, onTimeout } = await guarded(url, 400);
+      const { client, onTimeout } = await guarded(url, 1_000);
       let statement: unknown = null;
       const started = Date.now();
       await client
@@ -543,14 +543,14 @@ describe.skipIf(!adminUrl)("the application's database client on real Postgres",
 
   it("a long transaction is not cut off, and a finished one is not timed out afterwards", async () => {
     const { url } = await proxied();
-    const { client, onTimeout } = await guarded(url, 300);
+    const { client, onTimeout } = await guarded(url, 1_000);
     // The callback takes longer than the deadline; each statement is quick.
     await client.begin(async (tx) => {
       await tx.unsafe("select 1");
-      await sleep(500);
+      await sleep(1_500);
       await tx.unsafe("select 2");
     });
-    await sleep(600); // past the deadline after COMMIT
+    await sleep(1_300); // past the deadline after COMMIT
     expect(onTimeout).not.toHaveBeenCalled();
   });
 

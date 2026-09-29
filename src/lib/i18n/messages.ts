@@ -835,21 +835,41 @@ export type Messages = {
       newKeyLabel: string;
       /** Deep links into the customer's own WordPress admin. */
       openWordPress: string;
-      connectInWordPress: string;
       neverUsed: string;
       pluginTitle: string;
       pluginHelp: string;
       copyNowHelp: string;
       newKey: string;
       keyNotePlaceholder: string;
-      /* First-time setup: the key prepared on arrival, and recovery. */
-      preparing: string;
-      readyTitle: string;
       nextSteps: string;
-      unseenTitle: string;
-      unseenHelp: string;
-      replaceKey: string;
-      revokedHelp: string;
+      /* "Connect WordPress": a key made at the moment of the click. {placeholders} are filled in by the screen. */
+      connectingIn: string;
+      stepInstall: string;
+      stepInstallHelp: string;
+      stepConnect: string;
+      stepConnectHelp: string;
+      connectButton: string;
+      reconnectButton: string;
+      waitingTitle: string;
+      waitingHelp: string;
+      stalledHelp: string;
+      openAgain: string;
+      copyInstead: string;
+      popupBlocked: string;
+      connectedTitle: string;
+      lastCheckIn: string;
+      connectedToast: string;
+      alsoIn: string;
+      madeByConnect: string;
+      advancedTitle: string;
+      advancedHelp: string;
+      /* Waiting states, and labels shown for keys. quotedName wraps one workspace name. */
+      keyReplaced: string;
+      waitingResumed: string;
+      gaveUp: string;
+      notActiveHelp: string;
+      madeByHand: string;
+      quotedName: string;
     };
     partnerNetwork: {
       title: string;
@@ -1377,7 +1397,6 @@ export type Messages = {
       billingHistory: string;
       billingHistoryHelp: string;
       invoice: string;
-      copyNow: string;
       downloadPlugin: string;
       /** Link to the step-by-step plugin guide, beside the download. */
       pluginGuide: string;
@@ -2460,7 +2479,7 @@ const en: Messages = {
       draftPublishedAt: "Draft published - open it at {name}",
       pluginRowName: "WordPress plugin",
       pluginAwaiting: "Waiting for WordPress",
-      pluginAwaitingHelp: "Key created. Paste it into the RepGet screen in your WordPress menu.",
+      pluginAwaitingHelp: "Press Save and connect in the WordPress tab RepGet opened, or press Connect WordPress below.",
       pluginRowFallback: "Connected - waiting for its first report.",
     },
     geo: {
@@ -2600,20 +2619,39 @@ const en: Messages = {
       keyRevoked: "Key revoked",
       newKeyLabel: "Your new integration key",
       openWordPress: "Open my WordPress",
-      connectInWordPress: "Open WordPress with this key",
       neverUsed: "Never used",
       pluginTitle: "WordPress plugin",
-      pluginHelp: "Install our plugin, paste a key, and articles publish here automatically.",
+      pluginHelp: "Install our plugin, connect it in one click, and articles publish here automatically.",
       copyNowHelp: "We only store a scrambled version, so it cannot be looked up later. If you lose it, revoke it and make a new one.",
       newKey: "New key",
       keyNotePlaceholder: "What is this key for? (optional)",
-      preparing: "Preparing your key…",
-      readyTitle: "Your key is ready",
-      nextSteps: "Next: download the plugin, install and activate it in WordPress, then paste this key into the RepGet settings screen there (or use Connect in WordPress).",
-      unseenTitle: "Keys are shown only once",
-      unseenHelp: "A key was already created for this site but cannot be shown again (for example, it was opened in another tab). If you did not copy it, replace it with a new one. A key that is already connected is never replaced.",
-      replaceKey: "Replace unused key",
-      revokedHelp: "Your keys were revoked. Create a new key when you are ready to connect WordPress again.",
+      nextSteps: "In WordPress, open RepGet in the menu, paste this key and press Save and connect.",
+      connectingIn: "Connecting {domain} in workspace “{workspace}”.",
+      stepInstall: "1. Install the plugin",
+      stepInstallHelp: "Download it, then upload and activate it in WordPress (Plugins → Add New → Upload Plugin). Skip this if it is already installed.",
+      stepConnect: "2. Connect",
+      stepConnectHelp: "Opens your WordPress with a new key already filled in. Press Save and connect there - nothing to copy.",
+      connectButton: "Connect WordPress",
+      reconnectButton: "Connect again",
+      waitingTitle: "Waiting for WordPress…",
+      waitingHelp: "In the WordPress tab we opened, press Save and connect. If WordPress asks you to log in first, log in, then press Open WordPress again.",
+      stalledHelp: "Still waiting? If your WordPress already says Connected, it is using a different key - for example from another RepGet account or a test. Pressing Save and connect with the key we filled in switches it to this account.",
+      openAgain: "Open WordPress again",
+      copyInstead: "Copy key instead",
+      popupBlocked: "Your browser blocked the new tab. Use Open WordPress again, or copy the key and paste it in WordPress.",
+      connectedTitle: "Connected",
+      lastCheckIn: "Last check-in {date}",
+      connectedToast: "WordPress is connected",
+      alsoIn: "You also have {domain} in {workspaces}. One WordPress site can publish for only one of them: the key saved in WordPress decides which.",
+      madeByConnect: "Made by Connect WordPress",
+      advancedTitle: "Keys (advanced)",
+      advancedHelp: "Each WordPress install holds one key. You only need these to connect another install by hand, or to stop an install publishing (Revoke).",
+      keyReplaced: "That key was replaced or revoked before WordPress used it. Press Connect WordPress again.",
+      waitingResumed: "Waiting for WordPress to use the key made a moment ago. If you closed that WordPress tab, press Connect WordPress again.",
+      gaveUp: "Stopped waiting. If you pressed Save and connect, reload this page; otherwise press Connect WordPress again.",
+      notActiveHelp: "If WordPress says you are not allowed to access that page, the plugin is not active yet: do step 1, then press Open WordPress again.",
+      madeByHand: "Added by hand",
+      quotedName: "“{name}”",
     },
     partnerNetwork: {
       title: "Partner Network",
@@ -3138,7 +3176,6 @@ const en: Messages = {
       billingHistory: "Billing history",
       billingHistoryHelp: "Every subscription payment on this workspace.",
       invoice: "Invoice",
-      copyNow: "Copy this now - it is not shown again",
       downloadPlugin: "Download the plugin",
       pluginGuide: "Setup guide",
       cantFindIntegration: "Can’t find your integration?",
@@ -4228,7 +4265,7 @@ const es: Messages = {
       draftPublishedAt: "Borrador publicado - ábralo en {name}",
       pluginRowName: "Plugin de WordPress",
       pluginAwaiting: "Esperando a WordPress",
-      pluginAwaitingHelp: "Clave creada. Péguela en la pantalla RepGet del menú de WordPress.",
+      pluginAwaitingHelp: "Pulse Save and connect en la pestaña de WordPress que abrió RepGet, o pulse Conectar WordPress abajo.",
       pluginRowFallback: "Conectado - esperando su primer informe.",
     },
     geo: {
@@ -4368,20 +4405,39 @@ const es: Messages = {
       keyRevoked: "Clave revocada",
       newKeyLabel: "Su nueva clave de integración",
       openWordPress: "Abrir mi WordPress",
-      connectInWordPress: "Abrir WordPress con esta clave",
       neverUsed: "Nunca usada",
       pluginTitle: "Plugin de WordPress",
-      pluginHelp: "Instale nuestro plugin, pegue una clave y los artículos se publicarán aquí automáticamente.",
+      pluginHelp: "Instale nuestro plugin, conéctelo con un clic y los artículos se publicarán aquí automáticamente.",
       copyNowHelp: "Solo guardamos una versión cifrada, así que no se puede consultar después. Si la pierde, revóquela y cree una nueva.",
       newKey: "Nueva clave",
       keyNotePlaceholder: "¿Para qué es esta clave? (opcional)",
-      preparing: "Preparando tu clave…",
-      readyTitle: "Tu clave está lista",
-      nextSteps: "Siguiente: descarga el plugin, instálalo y actívalo en WordPress y pega esta clave en la pantalla de ajustes de RepGet (o usa Conectar en WordPress).",
-      unseenTitle: "Las claves solo se muestran una vez",
-      unseenHelp: "Ya se creó una clave para este sitio, pero no se puede volver a mostrar (por ejemplo, se abrió en otra pestaña). Si no la copiaste, sustitúyela por una nueva. Una clave ya conectada nunca se sustituye.",
-      replaceKey: "Sustituir clave sin usar",
-      revokedHelp: "Tus claves se revocaron. Crea una clave nueva cuando quieras volver a conectar WordPress.",
+      nextSteps: "En WordPress, abra RepGet en el menú, pegue esta clave y pulse Save and connect.",
+      connectingIn: "Conectando {domain} en el espacio de trabajo “{workspace}”.",
+      stepInstall: "1. Instale el plugin",
+      stepInstallHelp: "Descárguelo y luego súbalo y actívelo en WordPress (Plugins → Añadir nuevo → Subir plugin). Omita este paso si ya está instalado.",
+      stepConnect: "2. Conecte",
+      stepConnectHelp: "Abre su WordPress con una clave nueva ya introducida. Pulse Save and connect allí: no hay nada que copiar.",
+      connectButton: "Conectar WordPress",
+      reconnectButton: "Conectar de nuevo",
+      waitingTitle: "Esperando a WordPress…",
+      waitingHelp: "En la pestaña de WordPress que abrimos, pulse Save and connect. Si WordPress le pide iniciar sesión, hágalo y pulse Abrir WordPress de nuevo.",
+      stalledHelp: "¿Sigue esperando? Si su WordPress ya dice Connected, está usando otra clave, por ejemplo de otra cuenta de RepGet o de una prueba. Al pulsar Save and connect con la clave que introdujimos, pasa a esta cuenta.",
+      openAgain: "Abrir WordPress de nuevo",
+      copyInstead: "Copiar la clave",
+      popupBlocked: "Su navegador bloqueó la pestaña nueva. Use Abrir WordPress de nuevo, o copie la clave y péguela en WordPress.",
+      connectedTitle: "Conectado",
+      lastCheckIn: "Última conexión: {date}",
+      connectedToast: "WordPress está conectado",
+      alsoIn: "También tiene {domain} en {workspaces}. Un sitio WordPress solo puede publicar para uno de ellos: lo decide la clave guardada en WordPress.",
+      madeByConnect: "Creada con Conectar WordPress",
+      advancedTitle: "Claves (avanzado)",
+      advancedHelp: "Cada instalación de WordPress guarda una clave. Solo las necesita para conectar otra instalación a mano o para que una instalación deje de publicar (Revocar).",
+      keyReplaced: "Esa clave se reemplazó o revocó antes de que WordPress la usara. Pulse Conectar WordPress de nuevo.",
+      waitingResumed: "Esperando a que WordPress use la clave creada hace un momento. Si cerró esa pestaña de WordPress, pulse Conectar WordPress de nuevo.",
+      gaveUp: "Se dejó de esperar. Si pulsó Save and connect, recargue esta página; si no, pulse Conectar WordPress de nuevo.",
+      notActiveHelp: "Si WordPress dice que no tiene permiso para acceder a esa página, el plugin aún no está activo: haga el paso 1 y pulse Abrir WordPress de nuevo.",
+      madeByHand: "Añadida a mano",
+      quotedName: "“{name}”",
     },
     partnerNetwork: {
       title: "Red de socios",
@@ -4907,7 +4963,6 @@ const es: Messages = {
       billingHistory: "Historial de facturación",
       billingHistoryHelp: "Todos los pagos de suscripción de este espacio de trabajo.",
       invoice: "Factura",
-      copyNow: "Cópielo ahora - no se volverá a mostrar",
       downloadPlugin: "Descargar el plugin",
       pluginGuide: "Guía de instalación",
       cantFindIntegration: "¿No encuentra su integración?",
@@ -6000,7 +6055,7 @@ const fr: Messages = {
       draftPublishedAt: "Brouillon publié - ouvrez-le sur {name}",
       pluginRowName: "Extension WordPress",
       pluginAwaiting: "En attente de WordPress",
-      pluginAwaitingHelp: "Clé créée. Collez-la dans l’écran RepGet du menu WordPress.",
+      pluginAwaitingHelp: "Cliquez sur Save and connect dans l’onglet WordPress ouvert par RepGet, ou sur Connecter WordPress ci-dessous.",
       pluginRowFallback: "Connecté - en attente de son premier rapport.",
     },
     geo: {
@@ -6140,20 +6195,39 @@ const fr: Messages = {
       keyRevoked: "Clé révoquée",
       newKeyLabel: "Votre nouvelle clé d\u2019intégration",
       openWordPress: "Ouvrir mon WordPress",
-      connectInWordPress: "Ouvrir WordPress avec cette clé",
       neverUsed: "Jamais utilisée",
       pluginTitle: "Plugin WordPress",
-      pluginHelp: "Installez notre plugin, collez une clé, et les articles se publient ici automatiquement.",
+      pluginHelp: "Installez notre extension, connectez-la en un clic, et les articles se publient ici automatiquement.",
       copyNowHelp: "Nous n\u2019en stockons qu\u2019une version chiffrée : elle ne peut pas être retrouvée ensuite. Si vous la perdez, révoquez-la et créez-en une autre.",
       newKey: "Nouvelle clé",
       keyNotePlaceholder: "À quoi sert cette clé ? (facultatif)",
-      preparing: "Préparation de votre clé…",
-      readyTitle: "Votre clé est prête",
-      nextSteps: "Ensuite : téléchargez l'extension, installez-la et activez-la dans WordPress, puis collez cette clé dans l'écran de réglages RepGet (ou utilisez Connecter dans WordPress).",
-      unseenTitle: "Les clés ne s'affichent qu'une fois",
-      unseenHelp: "Une clé a déjà été créée pour ce site mais ne peut plus être affichée (par exemple, elle a été ouverte dans un autre onglet). Si vous ne l'avez pas copiée, remplacez-la par une nouvelle. Une clé déjà connectée n'est jamais remplacée.",
-      replaceKey: "Remplacer la clé inutilisée",
-      revokedHelp: "Vos clés ont été révoquées. Créez une nouvelle clé lorsque vous voudrez reconnecter WordPress.",
+      nextSteps: "Dans WordPress, ouvrez RepGet dans le menu, collez cette clé et cliquez sur Save and connect.",
+      connectingIn: "Connexion de {domain} dans l’espace de travail « {workspace} ».",
+      stepInstall: "1. Installez l’extension",
+      stepInstallHelp: "Téléchargez-la, puis téléversez-la et activez-la dans WordPress (Extensions → Ajouter → Téléverser une extension). Passez cette étape si elle est déjà installée.",
+      stepConnect: "2. Connectez",
+      stepConnectHelp: "Ouvre votre WordPress avec une nouvelle clé déjà saisie. Cliquez sur Save and connect : rien à copier.",
+      connectButton: "Connecter WordPress",
+      reconnectButton: "Connecter à nouveau",
+      waitingTitle: "En attente de WordPress…",
+      waitingHelp: "Dans l’onglet WordPress que nous avons ouvert, cliquez sur Save and connect. Si WordPress vous demande de vous connecter, faites-le, puis cliquez sur Rouvrir WordPress.",
+      stalledHelp: "Toujours en attente ? Si votre WordPress indique déjà Connected, il utilise une autre clé, par exemple d’un autre compte RepGet ou d’un test. Cliquer sur Save and connect avec la clé que nous avons saisie le bascule vers ce compte.",
+      openAgain: "Rouvrir WordPress",
+      copyInstead: "Copier la clé",
+      popupBlocked: "Votre navigateur a bloqué le nouvel onglet. Utilisez Rouvrir WordPress, ou copiez la clé et collez-la dans WordPress.",
+      connectedTitle: "Connecté",
+      lastCheckIn: "Dernier contact : {date}",
+      connectedToast: "WordPress est connecté",
+      alsoIn: "Vous avez aussi {domain} dans {workspaces}. Un site WordPress ne publie que pour l’un d’eux : c’est la clé enregistrée dans WordPress qui décide.",
+      madeByConnect: "Créée par Connecter WordPress",
+      advancedTitle: "Clés (avancé)",
+      advancedHelp: "Chaque installation WordPress conserve une clé. Vous n’en avez besoin que pour connecter une autre installation à la main, ou pour arrêter une installation (Révoquer).",
+      keyReplaced: "Cette clé a été remplacée ou révoquée avant que WordPress ne l’utilise. Cliquez à nouveau sur Connecter WordPress.",
+      waitingResumed: "En attente que WordPress utilise la clé créée il y a un instant. Si vous avez fermé cet onglet WordPress, cliquez à nouveau sur Connecter WordPress.",
+      gaveUp: "Attente interrompue. Si vous avez cliqué sur Save and connect, rechargez cette page ; sinon, cliquez à nouveau sur Connecter WordPress.",
+      notActiveHelp: "Si WordPress indique que vous n’avez pas l’autorisation d’accéder à cette page, l’extension n’est pas encore active : faites l’étape 1, puis cliquez sur Rouvrir WordPress.",
+      madeByHand: "Ajoutée à la main",
+      quotedName: "« {name} »",
     },
     partnerNetwork: {
       title: "Réseau partenaire",
@@ -6678,7 +6752,6 @@ const fr: Messages = {
       billingHistory: "Historique de facturation",
       billingHistoryHelp: "Tous les paiements d\u2019abonnement de cet espace de travail.",
       invoice: "Facture",
-      copyNow: "Copiez-le maintenant - il ne sera plus affiché",
       downloadPlugin: "Télécharger le plugin",
       pluginGuide: "Guide d’installation",
       cantFindIntegration: "Vous ne trouvez pas votre intégration ?",
@@ -7764,7 +7837,7 @@ const it: Messages = {
       draftPublishedAt: "Bozza pubblicata - la apra su {name}",
       pluginRowName: "Plugin WordPress",
       pluginAwaiting: "In attesa di WordPress",
-      pluginAwaitingHelp: "Chiave creata. La incolli nella schermata RepGet del menu WordPress.",
+      pluginAwaitingHelp: "Prema Save and connect nella scheda di WordPress aperta da RepGet, oppure Collega WordPress qui sotto.",
       pluginRowFallback: "Collegato - in attesa del primo rapporto.",
     },
     geo: {
@@ -7904,20 +7977,39 @@ const it: Messages = {
       keyRevoked: "Chiave revocata",
       newKeyLabel: "La sua nuova chiave di integrazione",
       openWordPress: "Apri il mio WordPress",
-      connectInWordPress: "Apri WordPress con questa chiave",
       neverUsed: "Mai usata",
       pluginTitle: "Plugin WordPress",
-      pluginHelp: "Installi il nostro plugin, incolli una chiave e gli articoli verranno pubblicati qui automaticamente.",
+      pluginHelp: "Installi il nostro plugin, lo colleghi con un clic e gli articoli verranno pubblicati qui automaticamente.",
       copyNowHelp: "Ne conserviamo solo una versione cifrata, quindi non è più recuperabile. Se la perde, la revochi e ne crei una nuova.",
       newKey: "Nuova chiave",
       keyNotePlaceholder: "A che cosa serve questa chiave? (facoltativo)",
-      preparing: "Preparazione della chiave…",
-      readyTitle: "La tua chiave è pronta",
-      nextSteps: "Poi: scarica il plugin, installalo e attivalo in WordPress, quindi incolla questa chiave nella schermata delle impostazioni di RepGet (oppure usa Collega in WordPress).",
-      unseenTitle: "Le chiavi vengono mostrate una sola volta",
-      unseenHelp: "Per questo sito è già stata creata una chiave, ma non può essere mostrata di nuovo (per esempio, è stata aperta in un'altra scheda). Se non l'hai copiata, sostituiscila con una nuova. Una chiave già collegata non viene mai sostituita.",
-      replaceKey: "Sostituisci chiave non usata",
-      revokedHelp: "Le tue chiavi sono state revocate. Crea una nuova chiave quando vuoi ricollegare WordPress.",
+      nextSteps: "In WordPress apra RepGet nel menu, incolli questa chiave e prema Save and connect.",
+      connectingIn: "Collegamento di {domain} nell’area di lavoro “{workspace}”.",
+      stepInstall: "1. Installi il plugin",
+      stepInstallHelp: "Lo scarichi, poi lo carichi e lo attivi in WordPress (Plugin → Aggiungi nuovo → Carica plugin). Salti questo passo se è già installato.",
+      stepConnect: "2. Colleghi",
+      stepConnectHelp: "Apre il Suo WordPress con una nuova chiave già inserita. Prema Save and connect: niente da copiare.",
+      connectButton: "Collega WordPress",
+      reconnectButton: "Collega di nuovo",
+      waitingTitle: "In attesa di WordPress…",
+      waitingHelp: "Nella scheda di WordPress che abbiamo aperto, prema Save and connect. Se WordPress chiede di accedere, acceda e poi prema Riapri WordPress.",
+      stalledHelp: "Ancora in attesa? Se il Suo WordPress dice già Connected, usa un’altra chiave, per esempio di un altro account RepGet o di una prova. Premendo Save and connect con la chiave che abbiamo inserito, passa a questo account.",
+      openAgain: "Riapri WordPress",
+      copyInstead: "Copia la chiave",
+      popupBlocked: "Il browser ha bloccato la nuova scheda. Usi Riapri WordPress, oppure copi la chiave e la incolli in WordPress.",
+      connectedTitle: "Collegato",
+      lastCheckIn: "Ultimo contatto: {date}",
+      connectedToast: "WordPress è collegato",
+      alsoIn: "Ha anche {domain} in {workspaces}. Un sito WordPress può pubblicare solo per uno di essi: lo decide la chiave salvata in WordPress.",
+      madeByConnect: "Creata con Collega WordPress",
+      advancedTitle: "Chiavi (avanzate)",
+      advancedHelp: "Ogni installazione di WordPress conserva una chiave. Servono solo per collegare a mano un’altra installazione o per fermarne una (Revoca).",
+      keyReplaced: "Quella chiave è stata sostituita o revocata prima che WordPress la usasse. Prema di nuovo Collega WordPress.",
+      waitingResumed: "In attesa che WordPress usi la chiave creata poco fa. Se ha chiuso quella scheda di WordPress, prema di nuovo Collega WordPress.",
+      gaveUp: "Attesa interrotta. Se ha premuto Save and connect, ricarichi questa pagina; altrimenti prema di nuovo Collega WordPress.",
+      notActiveHelp: "Se WordPress dice che non ha il permesso di accedere a quella pagina, il plugin non è ancora attivo: faccia il passo 1, poi prema Riapri WordPress.",
+      madeByHand: "Aggiunta a mano",
+      quotedName: "“{name}”",
     },
     partnerNetwork: {
       title: "Rete partner",
@@ -8443,7 +8535,6 @@ const it: Messages = {
       billingHistory: "Cronologia di fatturazione",
       billingHistoryHelp: "Tutti i pagamenti di abbonamento di questo spazio di lavoro.",
       invoice: "Fattura",
-      copyNow: "La copi ora - non verrà mostrata di nuovo",
       downloadPlugin: "Scarica il plugin",
       pluginGuide: "Guida all’installazione",
       cantFindIntegration: "Non trova la sua integrazione?",
@@ -9537,7 +9628,7 @@ const de: Messages = {
       draftPublishedAt: "Entwurf veröffentlicht - öffnen Sie ihn unter {name}",
       pluginRowName: "WordPress-Plugin",
       pluginAwaiting: "Warte auf WordPress",
-      pluginAwaitingHelp: "Schlüssel erstellt. Fügen Sie ihn im RepGet-Bildschirm des WordPress-Menüs ein.",
+      pluginAwaitingHelp: "Klicken Sie im von RepGet geöffneten WordPress-Tab auf Save and connect, oder unten auf WordPress verbinden.",
       pluginRowFallback: "Verbunden - wartet auf die erste Rückmeldung.",
     },
     geo: {
@@ -9677,20 +9768,39 @@ const de: Messages = {
       keyRevoked: "Schlüssel widerrufen",
       newKeyLabel: "Ihr neuer Integrationsschlüssel",
       openWordPress: "Mein WordPress öffnen",
-      connectInWordPress: "WordPress mit diesem Schlüssel öffnen",
       neverUsed: "Nie verwendet",
       pluginTitle: "WordPress-Plugin",
-      pluginHelp: "Installieren Sie unser Plugin, fügen Sie einen Schlüssel ein, und Artikel erscheinen hier automatisch.",
+      pluginHelp: "Installieren Sie unser Plugin, verbinden Sie es mit einem Klick, und Artikel erscheinen hier automatisch.",
       copyNowHelp: "Wir speichern nur eine verschlüsselte Fassung, sie lässt sich später nicht nachschlagen. Geht sie verloren, widerrufen Sie sie und erstellen eine neue.",
       newKey: "Neuer Schlüssel",
       keyNotePlaceholder: "Wofür ist dieser Schlüssel? (optional)",
-      preparing: "Schlüssel wird vorbereitet…",
-      readyTitle: "Ihr Schlüssel ist bereit",
-      nextSteps: "Als Nächstes: Laden Sie das Plugin herunter, installieren und aktivieren Sie es in WordPress und fügen Sie diesen Schlüssel dort in den RepGet-Einstellungen ein (oder nutzen Sie In WordPress verbinden).",
-      unseenTitle: "Schlüssel werden nur einmal angezeigt",
-      unseenHelp: "Für diese Website wurde bereits ein Schlüssel erstellt, der nicht erneut angezeigt werden kann (zum Beispiel in einem anderen Tab geöffnet). Wenn Sie ihn nicht kopiert haben, ersetzen Sie ihn durch einen neuen. Ein bereits verbundener Schlüssel wird nie ersetzt.",
-      replaceKey: "Unbenutzten Schlüssel ersetzen",
-      revokedHelp: "Ihre Schlüssel wurden widerrufen. Erstellen Sie einen neuen Schlüssel, wenn Sie WordPress wieder verbinden möchten.",
+      nextSteps: "Öffnen Sie in WordPress im Menü RepGet, fügen Sie diesen Schlüssel ein und klicken Sie auf Save and connect.",
+      connectingIn: "{domain} wird im Arbeitsbereich „{workspace}“ verbunden.",
+      stepInstall: "1. Plugin installieren",
+      stepInstallHelp: "Laden Sie es herunter, dann in WordPress hochladen und aktivieren (Plugins → Neues Plugin hinzufügen → Plugin hochladen). Überspringen, wenn es schon installiert ist.",
+      stepConnect: "2. Verbinden",
+      stepConnectHelp: "Öffnet Ihr WordPress mit einem neuen, bereits eingetragenen Schlüssel. Klicken Sie dort auf Save and connect – nichts zu kopieren.",
+      connectButton: "WordPress verbinden",
+      reconnectButton: "Erneut verbinden",
+      waitingTitle: "Warten auf WordPress…",
+      waitingHelp: "Klicken Sie im geöffneten WordPress-Tab auf Save and connect. Fragt WordPress zuerst nach der Anmeldung, melden Sie sich an und klicken Sie dann auf WordPress erneut öffnen.",
+      stalledHelp: "Wartet es noch? Zeigt Ihr WordPress bereits Connected an, nutzt es einen anderen Schlüssel – etwa von einem anderen RepGet-Konto oder einem Test. Ein Klick auf Save and connect mit dem eingetragenen Schlüssel stellt es auf dieses Konto um.",
+      openAgain: "WordPress erneut öffnen",
+      copyInstead: "Schlüssel kopieren",
+      popupBlocked: "Ihr Browser hat den neuen Tab blockiert. Nutzen Sie WordPress erneut öffnen, oder kopieren Sie den Schlüssel und fügen ihn in WordPress ein.",
+      connectedTitle: "Verbunden",
+      lastCheckIn: "Zuletzt gemeldet: {date}",
+      connectedToast: "WordPress ist verbunden",
+      alsoIn: "Sie haben {domain} auch in {workspaces}. Eine WordPress-Website kann nur für eines davon veröffentlichen: Das entscheidet der in WordPress gespeicherte Schlüssel.",
+      madeByConnect: "Erstellt mit WordPress verbinden",
+      advancedTitle: "Schlüssel (erweitert)",
+      advancedHelp: "Jede WordPress-Installation speichert einen Schlüssel. Sie brauchen diese nur, um eine weitere Installation von Hand zu verbinden oder eine Installation zu stoppen (Widerrufen).",
+      keyReplaced: "Dieser Schlüssel wurde ersetzt oder widerrufen, bevor WordPress ihn benutzt hat. Klicken Sie erneut auf WordPress verbinden.",
+      waitingResumed: "Warten darauf, dass WordPress den gerade erstellten Schlüssel benutzt. Haben Sie den WordPress-Tab geschlossen, klicken Sie erneut auf WordPress verbinden.",
+      gaveUp: "Warten beendet. Haben Sie auf Save and connect geklickt, laden Sie diese Seite neu; sonst klicken Sie erneut auf WordPress verbinden.",
+      notActiveHelp: "Meldet WordPress, dass Sie diese Seite nicht aufrufen dürfen, ist das Plugin noch nicht aktiv: Erledigen Sie Schritt 1 und klicken Sie dann auf WordPress erneut öffnen.",
+      madeByHand: "Von Hand hinzugefügt",
+      quotedName: "„{name}“",
     },
     partnerNetwork: {
       title: "Partnernetzwerk",
@@ -10215,7 +10325,6 @@ const de: Messages = {
       billingHistory: "Abrechnungsverlauf",
       billingHistoryHelp: "Alle Abonnementzahlungen dieses Arbeitsbereichs.",
       invoice: "Rechnung",
-      copyNow: "Jetzt kopieren - wird nicht erneut angezeigt",
       downloadPlugin: "Plugin herunterladen",
       pluginGuide: "Einrichtungsanleitung",
       cantFindIntegration: "Ihre Integration nicht gefunden?",
