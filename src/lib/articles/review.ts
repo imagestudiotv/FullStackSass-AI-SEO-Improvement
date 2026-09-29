@@ -126,6 +126,17 @@ export function releaseCheckFor(row: ReviewFields & { reviewStatus: string | nul
   return { ok: true };
 }
 
+/**
+ * An article in the RepGet team's review that can still change: a draft,
+ * never published. Administrators edit such an article on its review page
+ * only (editReviewedArticle in lib/backlinks/managed.ts), which checks the
+ * version and text they opened, keeps placed network links, and returns it
+ * for approval. The general admin editor refuses it.
+ */
+export function underReview(row: { reviewStatus: string | null; status: string; publishedUrl: string | null }): boolean {
+  return row.reviewStatus !== null && row.status === "draft" && !row.publishedUrl;
+}
+
 /** What the customer is told when a Publish press meets the gate. */
 export const HELD_MESSAGE =
   "This article is being prepared by the RepGet team for the Partner Network. It goes out as soon as they approve it.";

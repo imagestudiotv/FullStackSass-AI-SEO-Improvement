@@ -1,14 +1,15 @@
 "use client";
 
-import { CheckCircle2, Link2, Loader2, RotateCcw, Trash2 } from "lucide-react";
+import { CheckCircle2, Link2, Loader2, Pencil, RotateCcw, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 
+import { RichTextEditor } from "@/components/rich-text-editor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageHeader, PageShell } from "@/components/ui/page-header";
@@ -19,10 +20,14 @@ import {
   placeLink,
   removePlacement,
   reopenForReview,
+  saveReviewEdit,
 } from "@/lib/admin/network";
 import type { getReviewArticle } from "@/lib/admin/network";
 
 type Review = NonNullable<Awaited<ReturnType<typeof getReviewArticle>>>;
+
+/** The fields an administrator can edit in review - everything delivered except the image. */
+type Draft = { title: string; slug: string; metaDescription: string; bodyHtml: string };
 
 const RELEASE_TEXT: Record<string, string> = {
   queued: "Approved - queued for publishing now.",
@@ -38,12 +43,28 @@ const RELEASE_TEXT: Record<string, string> = {
  * Every change is sent with the review version this screen was opened at.
  * If another administrator changed the article meanwhile, the server
  * refuses and asks for a reload - nothing is silently overwritten.
+ *
+ * While the text is being edited, links, credits and approval wait: each of
+ * them changes or approves the saved article, which the open edit would
+ * then no longer match.
  */
 export function ReviewWorkspace({ review }: { review: Review }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const { article, placements, candidates, limits } = review;
   const version = article.reviewVersion;
+
+  const saved: Draft = {
+    title: article.title,
+    slug: article.slug ?? "",
+    metaDescription: article.metaDescription ?? "",
+    bodyHtml: article.bodyHtml ?? "",
+  };
+  const [draft, setDraft] = useState<Draft | null>(null);
+  const editing = draft !== null;
+  const edited = draft !== null && (Object.keys(saved) as (keyof Draft)[]).some((key) => draft[key] !== saved[key]);
+  // Every action other than the edit itself.
+  const busy = pending || editing;
 
   const [beneficiaryId, setBeneficiaryId] = useState("");
   const [targetUrl, setTargetUrl] = useState("");
@@ -111,18 +132,107 @@ export function ReviewWorkspace({ review }: { review: Review }) {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
-        <Card className="min-w-0">
+        {/* overflow-visible while editing, so the editor's toolbar can stay in view as the text scrolls. */}
+        <Card className={editing ? "min-w-0 overflow-visible" : "min-w-0"}>
           <CardHeader>
             <CardTitle>Article</CardTitle>
-            <CardDescription>What will be delivered. Network links appear as ordinary links in the text.</CardDescription>
+            <CardDescription>
+              {editing
+                ? "Network links are the linked words: keep them in the text, or use Withdraw to remove one. A link added here by hand is not a network link - it is not tracked or credited; use Place a link for that."
+                : "What will be delivered. Network links appear as ordinary links in the text."}
+            </CardDescription>
+            {editable && !editing ? (
+              <CardAction>
+                <Button type="button" variant="outline" size="sm" disabled={pending} onClick={() => setDraft(saved)}>
+                  <Pencil className="size-4" />
+                  Edit
+                </Button>
+              </CardAction>
+            ) : null}
           </CardHeader>
           <CardContent>
-            {/* Sanitised on every save (lib/articles/sanitize.ts). */}
-            <div
-              className="prose prose-sm max-w-none dark:prose-invert [overflow-wrap:anywhere] [&_a]:text-primary [&_a]:underline [&_h2]:mt-6 [&_h2]:text-lg [&_h2]:font-semibold [&_h3]:mt-4 [&_h3]:font-semibold [&_li]:my-1 [&_p]:my-3 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-lg"
-              dangerouslySetInnerHTML={{ __html: article.bodyHtml ?? "" }}
-            />
+            {draft ? (
+              <div className="space-y-4">
+                {article.approvedCurrent ? (
+                  <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm">
+                    This article is approved. Saving a change sends it back to review, and it must be approved again.
+                  </p>
+                ) : null}
+                <div className="space-y-1.5">
+                  <Label htmlFor="review-title">Title</Label>
+                  <Input id="review-title" value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="review-meta">
+                    Meta description <span className="text-muted-foreground">({draft.metaDescription.length}/158)</span>
+                  </Label>
+                  <Input
+                    id="review-meta"
+                    value={draft.metaDescription}
+                    onChange={(e) => setDraft({ ...draft, metaDescription: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="review-slug">URL slug</Label>
+                  <Input id="review-slug" value={draft.slug} onChange={(e) => setDraft({ ...draft, slug: e.target.value })} />
+                  <p className="text-xs text-muted-foreground">
+                    Tidied on save (lower case, words joined by hyphens). Leave it empty and the website makes one from the title.
+                  </p>
+                </div>
+                <div className="space-y-1.5">
+                  {/* A plain label: the editor is a contenteditable div, which htmlFor cannot focus. */}
+                  <p className="text-sm font-medium">Text</p>
+                  <RichTextEditor value={draft.bodyHtml} onChange={(bodyHtml) => setDraft((d) => (d ? { ...d, bodyHtml } : d))} />
+                </div>
+              </div>
+            ) : (
+              /* Sanitised on every save (lib/articles/sanitize.ts). */
+              <div
+                className="prose prose-sm max-w-none dark:prose-invert [overflow-wrap:anywhere] [&_a]:text-primary [&_a]:underline [&_h2]:mt-6 [&_h2]:text-lg [&_h2]:font-semibold [&_h3]:mt-4 [&_h3]:font-semibold [&_li]:my-1 [&_p]:my-3 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-lg"
+                dangerouslySetInnerHTML={{ __html: article.bodyHtml ?? "" }}
+              />
+            )}
           </CardContent>
+          {draft ? (
+            <CardFooter className="flex-wrap gap-2">
+              <Button
+                type="button"
+                disabled={pending || !edited}
+                onClick={() =>
+                  run(
+                    () =>
+                      saveReviewEdit({
+                        articleId: article.id,
+                        expectedVersion: version,
+                        expectedHash: article.contentHash,
+                        ...draft,
+                      }),
+                    (data) => {
+                      setDraft(null);
+                      toast.success(
+                        !data.changed ? "Nothing changed" : article.approvedCurrent ? "Saved - it needs approving again" : "Saved",
+                      );
+                    },
+                  )
+                }
+              >
+                {pending ? <Loader2 className="size-4 animate-spin" /> : null}
+                Save changes
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={pending}
+                onClick={() => {
+                  if (edited && !window.confirm("Discard your changes to this article?")) return;
+                  setDraft(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <p className="text-xs text-muted-foreground">Links, credits and approval wait until you save or cancel.</p>
+            </CardFooter>
+          ) : null}
         </Card>
 
         <div className="space-y-6">
@@ -145,7 +255,7 @@ export function ReviewWorkspace({ review }: { review: Review }) {
                   placement={placement}
                   hostOrg={article.organizationName}
                   maxCredits={limits.maxCredits}
-                  disabled={pending || !editable}
+                  disabled={busy || !editable}
                   onCredits={(value, why) =>
                     run(
                       () => changePlacementCredits({ articleId: article.id, placementId: placement.id, expectedVersion: version, credits: value, reason: why }),
@@ -251,7 +361,7 @@ export function ReviewWorkspace({ review }: { review: Review }) {
                     <Button
                       type="button"
                       variant="outline"
-                      disabled={!beneficiary || !targetUrl || pending}
+                      disabled={!beneficiary || !targetUrl || busy}
                       onClick={() =>
                         run(
                           () => checkTarget(beneficiaryId, targetUrl),
@@ -304,7 +414,7 @@ export function ReviewWorkspace({ review }: { review: Review }) {
                 <Button
                   type="button"
                   disabled={
-                    pending ||
+                    busy ||
                     !beneficiary ||
                     unavailable(beneficiary) ||
                     !targetUrl ||
@@ -354,7 +464,7 @@ export function ReviewWorkspace({ review }: { review: Review }) {
                 <Button
                   type="button"
                   variant="outline"
-                  disabled={pending}
+                  disabled={busy}
                   onClick={() =>
                     run(
                       () => reopenForReview({ articleId: article.id, expectedVersion: version }),
@@ -375,10 +485,10 @@ export function ReviewWorkspace({ review }: { review: Review }) {
                   <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (optional)" />
                   <Button
                     type="button"
-                    disabled={pending}
+                    disabled={busy}
                     onClick={() =>
                       run(
-                        () => approveForRelease({ articleId: article.id, expectedVersion: version, note }),
+                        () => approveForRelease({ articleId: article.id, expectedVersion: version, expectedHash: article.contentHash, note }),
                         (data) => toast.success(RELEASE_TEXT[data.release] ?? "Approved"),
                       )
                     }
@@ -427,6 +537,11 @@ function PlacementRow({
         </div>
         <Badge variant="secondary">{placement.status}</Badge>
       </div>
+      {draft && !placement.inText ? (
+        <p className="text-xs text-destructive">
+          This link is no longer in the text. Put it back with Edit, or withdraw it - approval is refused until then.
+        </p>
+      ) : null}
       <p className="text-xs text-muted-foreground">
         The receiving workspace spends {placement.credits}; {hostOrg} earns {placement.credits} - once verified live.
         {placement.createdBy ? ` Placed by ${placement.createdBy}.` : ""}

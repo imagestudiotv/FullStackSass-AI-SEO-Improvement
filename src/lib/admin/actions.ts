@@ -31,7 +31,7 @@ import {
 import { sanitizeHtml, countWords } from "@/lib/articles/generate";
 import { siteScope } from "@/lib/articles/link-guard";
 import type { ActionResult } from "@/lib/websites/actions";
-import { syncApproval } from "@/lib/articles/review";
+import { syncApproval, underReview } from "@/lib/articles/review";
 import { ArticleInFlightError, editArticle } from "@/lib/publishing/dispatch";
 
 /**
@@ -335,6 +335,8 @@ export type AdminArticleDetail = AdminArticle & {
   bodyHtml: string | null;
   metaDescription: string | null;
   targetKeyword: string | null;
+  /** In the Partner Network review: edited on its review page, not here. */
+  underReview: boolean;
 };
 
 export async function getAdminArticle(
@@ -356,18 +358,36 @@ export async function getAdminArticle(
       bodyHtml: articles.bodyHtml,
       metaDescription: articles.metaDescription,
       targetKeyword: articles.targetKeyword,
+      reviewStatus: articles.reviewStatus,
+      publishedUrl: articles.publishedUrl,
     })
     .from(articles)
     .innerJoin(websites, eq(articles.websiteId, websites.id))
     .innerJoin(organization, eq(websites.organizationId, organization.id))
     .where(eq(articles.id, articleId))
     .limit(1);
+  if (!row) return null;
 
-  return row ?? null;
+  const { reviewStatus, publishedUrl, ...detail } = row;
+  return { ...detail, underReview: underReview({ reviewStatus, status: row.status, publishedUrl }) };
 }
 
 /**
- * Edits any article on the platform.
+ * Refuses the general editor for an article in the Partner Network review.
+ * Not exported: a "use server" module exports only its actions.
+ */
+class UnderReviewError extends Error {
+  constructor() {
+    super(
+      "This article is in the Partner Network review. Edit it on its review page (Partner Network), where its network links are kept and the change goes back for approval.",
+    );
+    this.name = "UnderReviewError";
+  }
+}
+
+/**
+ * Edits any article on the platform - except one in the Partner Network
+ * review, which is edited on its review page (see underReview).
  *
  * The body is sanitised on the way in exactly as the customer-facing editor
  * does. An admin is trusted, but the HTML still ends up published on a
@@ -403,12 +423,19 @@ export async function updateAnyArticle(
   // (lib/publishing/dispatch.ts).
   try {
     await editArticle(articleId, async (tx) => {
+      // Read under the lock, so an article cannot enter the review between this check and the write.
+      const [current] = await tx
+        .select({ reviewStatus: articles.reviewStatus, status: articles.status, publishedUrl: articles.publishedUrl })
+        .from(articles)
+        .where(eq(articles.id, articleId))
+        .limit(1);
+      if (current && underReview(current)) throw new UnderReviewError();
       await tx.update(articles).set(patch).where(eq(articles.id, articleId));
       // An admin edit after approval needs approving too (lib/articles/review.ts).
       await syncApproval(articleId, tx);
     });
   } catch (error) {
-    if (error instanceof ArticleInFlightError) return { ok: false, error: error.message };
+    if (error instanceof ArticleInFlightError || error instanceof UnderReviewError) return { ok: false, error: error.message };
     throw error;
   }
 

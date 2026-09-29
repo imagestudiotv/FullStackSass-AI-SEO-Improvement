@@ -113,34 +113,51 @@ export function AdminArticleEditor({
         </TabsContent>
 
         <TabsContent value="edit" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Edit as administrator</CardTitle>
-              <CardDescription>
-                Changes apply to the customer&apos;s article immediately.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="title">Title</Label>
-                <Input
-                  id="title"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1.5">
-                {/* See the note in the customer editor on the plain label. */}
-                <p className="text-sm font-medium">Body</p>
-                <RichTextEditor value={body} onChange={setBody} />
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Button onClick={handleSave} disabled={pending}>
-                {pending ? "Saving…" : "Save changes"}
-              </Button>
-            </CardFooter>
-          </Card>
+          {article.underReview ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Edit on the review page</CardTitle>
+                <CardDescription>
+                  This article is in the Partner Network review. It is edited on its review page, where its network
+                  links are kept and the change goes back for approval.
+                </CardDescription>
+              </CardHeader>
+              <CardFooter>
+                <Button asChild>
+                  <Link href={`/admin/network/${article.id}`}>Open the review page</Link>
+                </Button>
+              </CardFooter>
+            </Card>
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Edit as administrator</CardTitle>
+                <CardDescription>
+                  Changes apply to the customer&apos;s article immediately.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="title">Title</Label>
+                  <Input
+                    id="title"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  {/* See the note in the customer editor on the plain label. */}
+                  <p className="text-sm font-medium">Body</p>
+                  <RichTextEditor value={body} onChange={setBody} />
+                </div>
+              </CardContent>
+              <CardFooter>
+                <Button onClick={handleSave} disabled={pending}>
+                  {pending ? "Saving…" : "Save changes"}
+                </Button>
+              </CardFooter>
+            </Card>
+          )}
         </TabsContent>
       </Tabs>
     </PageShell>

@@ -662,6 +662,15 @@ export function linksTo(html: string, url: string): boolean {
     .some((el) => $(el).attr("href") === url);
 }
 
+/** The words of the first link to exactly `url`, whitespace collapsed, or null. */
+export function linkTextFor(html: string, url: string): string | null {
+  const $ = cheerio.load(html, null, false);
+  const el = $("a")
+    .toArray()
+    .find((a) => $(a).attr("href") === url);
+  return el ? $(el).text().replace(/\s+/g, " ").trim() : null;
+}
+
 /** Unwraps every link to exactly `url`, keeping its words. */
 export function unlinkUrl(html: string, url: string, siteHosts?: ReadonlySet<string>): { html: string; removed: number } {
   const $ = cheerio.load(html, null, false);

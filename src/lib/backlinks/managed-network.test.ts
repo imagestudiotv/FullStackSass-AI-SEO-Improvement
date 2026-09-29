@@ -7,6 +7,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   platformControls,
   adminAuditLog,
+  articleVersions,
   articles,
   backlinkRequests,
   backlinkTargets,
@@ -85,7 +86,7 @@ import { publishDueDrafts } from "@/inngest/functions/scheduled-articles";
 import { publishArticleJob } from "@/inngest/functions/publish-article";
 import { prepareForDelivery } from "@/lib/articles/delivery";
 import { prepareStoredArticle } from "@/lib/articles/internal-links";
-import { checkReleasable, syncApproval } from "@/lib/articles/review";
+import { checkReleasable, reviewHash, syncApproval } from "@/lib/articles/review";
 import {
   approveForRelease,
   changePlacementCredits,
@@ -93,7 +94,10 @@ import {
   getReviewQueue,
   placeLink,
   removePlacement,
+  saveReviewEdit,
 } from "@/lib/admin/network";
+import { getAdminArticle, updateAnyArticle } from "@/lib/admin/actions";
+import { updateArticle } from "@/lib/articles/actions";
 import { cancelRequest, listGiven, listRequests, requestBacklink } from "@/lib/backlinks/actions";
 import { approveArticle, placeManagedLink } from "@/lib/backlinks/managed";
 import { workspaceCredits } from "@/lib/reporting/backlinks";
@@ -250,7 +254,7 @@ async function place(s: Awaited<ReturnType<typeof scene>>, overrides: Partial<Pa
 
 async function approve(articleId: string) {
   const current = await row(articleId);
-  return approveForRelease({ articleId, expectedVersion: current.reviewVersion, note: "" });
+  return approveForRelease({ articleId, expectedVersion: current.reviewVersion, expectedHash: reviewHash(current), note: "" });
 }
 
 function memoisedStep(stopAfter?: string) {
@@ -386,10 +390,11 @@ describe("approval, edits and races", () => {
 
   it("a stale or duplicate approval is refused - two administrators cannot both approve different versions", async () => {
     const s = await scene();
-    const version = (await row(s.post.id)).reviewVersion;
+    const opened = await row(s.post.id);
+    const version = opened.reviewVersion;
     const [a, b] = await Promise.all([
-      approveForRelease({ articleId: s.post.id, expectedVersion: version, note: "" }),
-      approveForRelease({ articleId: s.post.id, expectedVersion: version, note: "" }),
+      approveForRelease({ articleId: s.post.id, expectedVersion: version, expectedHash: reviewHash(opened), note: "" }),
+      approveForRelease({ articleId: s.post.id, expectedVersion: version, expectedHash: reviewHash(opened), note: "" }),
     ]);
     expect([a.ok, b.ok].sort()).toEqual([false, true]);
     const stale = await placeLink({
@@ -411,8 +416,7 @@ describe("approval, edits and races", () => {
     // An internal link, so the job's link check makes a request (the moment the edit lands).
     await test.db.update(articles).set({ bodyHtml: `${BODY}<p><a href="https://${await domainOf(s.host)}/checked/">x</a></p>` }).where(eq(articles.id, s.post.id));
     await syncApproval(s.post.id);
-    const version = (await row(s.post.id)).reviewVersion;
-    await approveForRelease({ articleId: s.post.id, expectedVersion: version, note: "" });
+    await approve(s.post.id);
     net.onRequest = async () => {
       net.onRequest = null;
       await test.db.update(articles).set({ title: "Changed mid-job" }).where(eq(articles.id, s.post.id));
@@ -742,7 +746,8 @@ describe("approval into a publishing mode", () => {
     // And now their Publish press works.
     asMember(ws.userId, ws.orgId);
     expect(await publishArticle(host, post.id)).toMatchObject({ ok: true });
-    expect(await approveArticle({ articleId: post.id, expectedVersion: (await row(post.id)).reviewVersion, actorEmail: ADMIN }).catch((e) => e.message)).toMatch(/Already approved/);
+    const current = await row(post.id);
+    expect(await approveArticle({ articleId: post.id, expectedVersion: current.reviewVersion, expectedHash: reviewHash(current), actorEmail: ADMIN }).catch((e) => e.message)).toMatch(/Already approved/);
   });
 });
 
@@ -952,5 +957,227 @@ describe("hosted counts, for pacing by hand", () => {
     const queue = await getReviewQueue();
     expect(queue.sites.find((s) => s.websiteId === host)?.hosted).toEqual(expected);
     expect((await getReviewArticle(post.id))?.hostUsage).toEqual(expected);
+  });
+});
+
+describe("editing an article in review", () => {
+  /** What the review page sends: the fields as opened, with the admin's changes. */
+  async function saveFrom(articleId: string, change: Partial<{ title: string; slug: string; metaDescription: string; bodyHtml: string }>) {
+    const review = (await getReviewArticle(articleId))!;
+    return saveReviewEdit({
+      articleId,
+      expectedVersion: review.article.reviewVersion,
+      expectedHash: review.article.contentHash,
+      title: review.article.title,
+      slug: review.article.slug ?? "",
+      metaDescription: review.article.metaDescription ?? "",
+      bodyHtml: review.article.bodyHtml ?? "",
+      ...change,
+    });
+  }
+
+  it("saves the title, slug, excerpt and text: sanitised, a new version, the old text kept, audited", async () => {
+    const s = await scene();
+    const before = await row(s.post.id);
+    const body = `${BODY}<p>Added by the team.</p><script>alert(1)</script>`;
+    const saved = await saveFrom(s.post.id, {
+      title: "  Hiring a wedding videographer ",
+      slug: "Hiring A Videographer!",
+      metaDescription: "What to ask.",
+      bodyHtml: body,
+    });
+    expect(saved).toMatchObject({ ok: true, data: { changed: true, reviewVersion: before.reviewVersion + 1 } });
+
+    const after = await row(s.post.id);
+    expect(after).toMatchObject({
+      title: "Hiring a wedding videographer",
+      slug: "hiring-a-videographer",
+      metaDescription: "What to ask.",
+      reviewStatus: "pending",
+    });
+    expect(after.bodyHtml).toContain("<p>Added by the team.</p>");
+    expect(after.bodyHtml).not.toContain("script");
+    expect(after.wordCount).toBeGreaterThan(0);
+    const versions = await test.db.select().from(articleVersions).where(eq(articleVersions.articleId, s.post.id));
+    expect(versions.map((v) => v.bodyHtml)).toEqual([BODY]);
+    const audit = await test.db
+      .select()
+      .from(adminAuditLog)
+      .where(and(eq(adminAuditLog.targetId, s.post.id), eq(adminAuditLog.action, "network.article_edited")));
+    expect(audit).toHaveLength(1);
+    expect(audit[0]).toMatchObject({ actorEmail: ADMIN, summary: "Edited an article in review (title, slug, excerpt, text)" });
+  });
+
+  it("an unchanged save writes nothing and keeps the version", async () => {
+    const s = await scene();
+    const before = await row(s.post.id);
+    expect(await saveFrom(s.post.id, {})).toMatchObject({ ok: true, data: { changed: false, reviewVersion: before.reviewVersion } });
+    expect(await test.db.select().from(articleVersions).where(eq(articleVersions.articleId, s.post.id))).toHaveLength(0);
+  });
+
+  it("editing an approved article sends it back to review; the earlier approval no longer releases it", async () => {
+    const s = await scene();
+    await place(s);
+    expect(await approve(s.post.id)).toMatchObject({ ok: true });
+    expect(await checkReleasable(s.post.id)).toEqual({ ok: true });
+
+    expect(await saveFrom(s.post.id, { title: "A better title" })).toMatchObject({ ok: true, data: { changed: true } });
+    expect(await row(s.post.id)).toMatchObject({ reviewStatus: "pending", reviewApprovedHash: null });
+    expect(await checkReleasable(s.post.id)).toEqual({ ok: false, reason: "pending_review" });
+    expect(await approve(s.post.id)).toMatchObject({ ok: true });
+  });
+
+  it("is refused, and writes nothing, when the article changed after it was opened - by the customer or another administrator", async () => {
+    const s = await scene();
+    const opened = (await getReviewArticle(s.post.id))!;
+    const send = () =>
+      saveReviewEdit({
+        articleId: s.post.id,
+        expectedVersion: opened.article.reviewVersion,
+        expectedHash: opened.article.contentHash,
+        title: "Mine",
+        slug: "",
+        metaDescription: "",
+        bodyHtml: BODY,
+      });
+
+    // The customer's own edit does not move the review version - the text is compared too.
+    await test.db.update(articles).set({ bodyHtml: `${BODY}<p>The customer's paragraph.</p>` }).where(eq(articles.id, s.post.id));
+    expect(await send()).toMatchObject({ ok: false, error: expect.stringMatching(/changed after you opened it/) });
+    expect((await row(s.post.id)).bodyHtml).toContain("The customer's paragraph.");
+    await test.db.update(articles).set({ bodyHtml: BODY }).where(eq(articles.id, s.post.id));
+
+    // Another administrator placed a link meanwhile.
+    expect(await place(s)).toMatchObject({ ok: true });
+    expect(await send()).toMatchObject({ ok: false, error: expect.stringMatching(/changed/) });
+    expect((await row(s.post.id)).title).toBe("Wedding films guide");
+  });
+
+  it("refuses an edit that deletes a placed network link, naming the website; reworded link text follows the placement", async () => {
+    const s = await scene();
+    expect(await place(s)).toMatchObject({ ok: true });
+    const linked = (await row(s.post.id)).bodyHtml!;
+    const target = `https://${s.benDomain}/wedding-videography/`;
+
+    const without = linked.replace(/<a [^>]*>wedding videography<\/a>/, "wedding videography");
+    expect(without).not.toContain(target);
+    expect(await saveFrom(s.post.id, { bodyHtml: without })).toMatchObject({
+      ok: false,
+      error: expect.stringContaining(`removes the network link to ${s.benDomain}`),
+    });
+    expect((await row(s.post.id)).bodyHtml).toBe(linked);
+
+    const reworded = linked.replace(/(<a [^>]*>)wedding videography(<\/a>)/, "$1professional wedding videography$2");
+    expect(await saveFrom(s.post.id, { bodyHtml: reworded })).toMatchObject({ ok: true, data: { changed: true } });
+    const [placement] = await test.db.select().from(placements).where(eq(placements.articleId, s.post.id));
+    expect(placement).toMatchObject({ status: "drafted", anchor: "professional wedding videography" });
+    expect(await reserved(s.benWs.orgId)).toBe(1);
+    expect(await approve(s.post.id)).toMatchObject({ ok: true, data: { placements: 1 } });
+  });
+
+  it("shows a placed link that a customer's edit removed, and an edit can put it back", async () => {
+    const s = await scene();
+    expect(await place(s)).toMatchObject({ ok: true });
+    const linked = (await row(s.post.id)).bodyHtml!;
+    // The customer deleted the linked words in their own editor.
+    await test.db
+      .update(articles)
+      .set({ bodyHtml: BODY.replace("Great wedding videography captures the day. ", "") })
+      .where(eq(articles.id, s.post.id));
+
+    expect((await getReviewArticle(s.post.id))?.placements.map((p) => p.inText)).toEqual([false]);
+    expect(await approve(s.post.id)).toMatchObject({ ok: false, error: expect.stringMatching(/missing from the text/) });
+    // A link that was already gone does not block editing something else.
+    expect(await saveFrom(s.post.id, { title: "Still editable" })).toMatchObject({ ok: true });
+
+    expect(await saveFrom(s.post.id, { bodyHtml: linked })).toMatchObject({ ok: true });
+    expect((await getReviewArticle(s.post.id))?.placements.map((p) => p.inText)).toEqual([true]);
+    expect(await approve(s.post.id)).toMatchObject({ ok: true });
+  });
+
+  it("only while the article is in review and unpublished, and only for administrators", async () => {
+    const s = await scene();
+    expect(await saveFrom(s.post.id, { title: "   " })).toMatchObject({ ok: false, error: expect.stringMatching(/title cannot be empty/) });
+
+    const opened = (await getReviewArticle(s.post.id))!;
+    asMember(s.hostWs.userId, s.hostWs.orgId);
+    await expect(
+      saveReviewEdit({
+        articleId: s.post.id,
+        expectedVersion: opened.article.reviewVersion,
+        expectedHash: opened.article.contentHash,
+        title: "Customer via admin",
+        slug: "",
+        metaDescription: "",
+        bodyHtml: BODY,
+      }),
+    ).rejects.toThrow();
+    asAdmin();
+    expect((await row(s.post.id)).title).toBe("Wedding films guide");
+
+    const outside = await article(s.host, { reviewStatus: null });
+    expect(await saveFrom(outside.id, { title: "x" })).toMatchObject({ ok: false, error: expect.stringMatching(/not in the Partner Network review/) });
+
+    await test.db.update(articles).set({ status: "published", publishedUrl: "https://host.test/p/" }).where(eq(articles.id, s.post.id));
+    expect(await saveFrom(s.post.id, { title: "x" })).toMatchObject({ ok: false, error: expect.stringMatching(/not published yet/) });
+  });
+});
+
+describe("approval covers the text shown, and an article in review is edited in one place", () => {
+  it("a customer's edit while the review page is open refuses the stale approval; reloaded, it can be approved", async () => {
+    const s = await scene();
+    const opened = (await getReviewArticle(s.post.id))!;
+    asMember(s.hostWs.userId, s.hostWs.orgId);
+    expect(await updateArticle(s.host, s.post.id, { bodyHtml: `${BODY}<p>A late paragraph.</p>` })).toMatchObject({ ok: true });
+    asAdmin();
+    // The customer's editor does not move the review version...
+    expect((await row(s.post.id)).reviewVersion).toBe(opened.article.reviewVersion);
+    // ...so the approval is checked against the text the administrator saw.
+    const stale = await approveForRelease({
+      articleId: s.post.id,
+      expectedVersion: opened.article.reviewVersion,
+      expectedHash: opened.article.contentHash,
+      note: "",
+    });
+    expect(stale).toMatchObject({ ok: false, error: expect.stringMatching(/text changed after you opened it/) });
+    expect(await row(s.post.id)).toMatchObject({ reviewStatus: "pending", reviewApprovedHash: null });
+    expect(await checkReleasable(s.post.id)).toEqual({ ok: false, reason: "pending_review" });
+
+    const reloaded = (await getReviewArticle(s.post.id))!;
+    expect(reloaded.article.bodyHtml).toContain("A late paragraph.");
+    const fresh = await approveForRelease({
+      articleId: s.post.id,
+      expectedVersion: reloaded.article.reviewVersion,
+      expectedHash: reloaded.article.contentHash,
+      note: "",
+    });
+    expect(fresh).toMatchObject({ ok: true });
+    expect(await checkReleasable(s.post.id)).toEqual({ ok: true });
+  });
+
+  it("the general admin editor refuses an article in review and points to its review page; other articles it still edits", async () => {
+    const s = await scene();
+    expect(await place(s)).toMatchObject({ ok: true });
+    const before = await row(s.post.id);
+    expect((await getAdminArticle(s.post.id))?.underReview).toBe(true);
+    // From here the placed link could be deleted with its credits still reserved, and no version check.
+    expect(await updateAnyArticle(s.post.id, { title: "Elsewhere", bodyHtml: BODY })).toMatchObject({
+      ok: false,
+      error: expect.stringMatching(/review page/),
+    });
+    expect(await row(s.post.id)).toMatchObject({ title: before.title, bodyHtml: before.bodyHtml, reviewVersion: before.reviewVersion });
+
+    const outside = await article(s.host, { reviewStatus: null });
+    expect((await getAdminArticle(outside.id))?.underReview).toBe(false);
+    expect(await updateAnyArticle(outside.id, { title: "Edited by the team" })).toMatchObject({ ok: true });
+    expect((await row(outside.id)).title).toBe("Edited by the team");
+
+    // Published, it has left the review: the general editor applies again.
+    await test.db
+      .update(articles)
+      .set({ status: "published", publishedUrl: `https://${await domainOf(s.host)}/p/` })
+      .where(eq(articles.id, s.post.id));
+    expect((await getAdminArticle(s.post.id))?.underReview).toBe(false);
+    expect(await updateAnyArticle(s.post.id, { title: "Fixed after publishing" })).toMatchObject({ ok: true });
   });
 });

@@ -4,7 +4,7 @@ import { and, asc, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { requireAdmin } from "@/lib/admin/guard";
-import { siteScope, type LinkVerdict } from "@/lib/articles/link-guard";
+import { linksTo, siteScope, type LinkVerdict } from "@/lib/articles/link-guard";
 import { verifyUrl } from "@/lib/articles/link-verify";
 import { releaseAfterApproval, type ReleaseOutcome } from "@/lib/articles/release";
 import { reviewHash } from "@/lib/articles/review";
@@ -12,6 +12,7 @@ import {
   approveArticle,
   creditsFor,
   DEFAULT_PLACEMENT_CREDITS,
+  editReviewedArticle,
   managedPlacementsFor,
   MAX_PER_ARTICLE,
   MAX_PLACEMENT_CREDITS,
@@ -19,6 +20,7 @@ import {
   PlacementError,
   removeManagedPlacement,
   reopenArticle,
+  type ReviewEdit,
   setPlacementCredits,
 } from "@/lib/backlinks/managed";
 import { ensureMonthlyCredits } from "@/lib/backlinks/credits";
@@ -400,12 +402,16 @@ export async function getReviewArticle(articleId: string) {
     });
   }
 
+  const contentHash = reviewHash(article);
   return {
     article: {
       ...article,
-      approvedCurrent: article.reviewStatus === "approved" && article.reviewApprovedHash === reviewHash(article),
+      approvedCurrent: article.reviewStatus === "approved" && article.reviewApprovedHash === contentHash,
+      /** What this screen shows; an edit is refused if the article no longer matches it. */
+      contentHash,
     },
-    placements: placed,
+    // inText: the link is in the article (a customer's edit can remove one; approval then refuses).
+    placements: placed.map((p) => ({ ...p, inText: article.bodyHtml ? linksTo(article.bodyHtml, p.targetUrl) : false })),
     candidates,
     hostAuthority,
     hostUsage,
@@ -503,9 +509,23 @@ export async function changePlacementCredits(input: {
   }
 }
 
+/** An administrator's edit of the article's title, slug, excerpt and text while it is in review. */
+export async function saveReviewEdit(input: Omit<ReviewEdit, "actorEmail">): Promise<ActionResult<{ reviewVersion: number; changed: boolean }>> {
+  const admin = await requireAdmin();
+  try {
+    const result = await editReviewedArticle({ ...input, actorEmail: admin.email });
+    refresh(input.articleId);
+    return { ok: true, data: result };
+  } catch (error) {
+    return fail(error);
+  }
+}
+
 export async function approveForRelease(input: {
   articleId: string;
   expectedVersion: number;
+  /** The review page's contentHash: approval covers exactly the text shown. */
+  expectedHash: string;
   note: string;
 }): Promise<ActionResult<{ placements: number; release: ReleaseOutcome }>> {
   const admin = await requireAdmin();

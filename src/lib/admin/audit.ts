@@ -36,6 +36,7 @@ export type AdminAction =
   | "network.placement_credits"
   | "network.article_approved"
   | "network.article_reopened"
+  | "network.article_edited"
   /* Operations (lib/admin/operations.ts). */
   | "platform.control_changed"
   | "publication.dispatch_resolved"

@@ -378,6 +378,24 @@ export function slugify(title: string): string {
 }
 
 /**
+ * A slug someone typed into an editor, tidied rather than rejected. A slug
+ * is the article's address on the customer's site, and someone typing
+ * "Wedding Films Italy!" means wedding-films-italy - refusing the input
+ * would teach them a rule they should not need to know.
+ *
+ * Empty gives null: the CMS derives one from the title instead.
+ */
+export function normaliseSlug(input: string): string | null {
+  const slug = input
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 120);
+  return slug || null;
+}
+
+/**
  * Counts words in rendered text, not markup.
  *
  * Counting the raw HTML would inflate the total with tag names and attributes,

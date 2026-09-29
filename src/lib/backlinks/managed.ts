@@ -3,8 +3,10 @@ import "server-only";
 import { and, eq, inArray, ne, sql } from "drizzle-orm";
 
 import { recordAdminAction } from "@/lib/admin/audit";
-import { linkPhrase, linksTo, siteScope, unlinkUrl } from "@/lib/articles/link-guard";
+import { countWords, normaliseSlug } from "@/lib/articles/generate";
+import { linkPhrase, linksTo, linkTextFor, siteScope, unlinkUrl } from "@/lib/articles/link-guard";
 import { reviewHash } from "@/lib/articles/review";
+import { sanitizeHtml } from "@/lib/articles/sanitize";
 import { readOneAuthority } from "@/lib/authority/metric";
 import { ArticleInFlightError, lockForEdit } from "@/lib/publishing/dispatch";
 import { ensureMonthlyCredits } from "@/lib/backlinks/credits";
@@ -12,6 +14,7 @@ import { isRelevantPair } from "@/lib/backlinks/matching";
 import { db } from "@/lib/db";
 import {
   articles,
+  articleVersions,
   backlinkRequests,
   creditLedger,
   networkSites,
@@ -142,7 +145,12 @@ async function lockArticle(tx: Executor, articleId: string, expectedVersion: num
       websiteId: articles.websiteId,
       status: articles.status,
       publishedUrl: articles.publishedUrl,
+      title: articles.title,
+      slug: articles.slug,
+      metaDescription: articles.metaDescription,
       bodyHtml: articles.bodyHtml,
+      imageUrl: articles.imageUrl,
+      imageAlt: articles.imageAlt,
       reviewStatus: articles.reviewStatus,
       reviewVersion: articles.reviewVersion,
     })
@@ -520,15 +528,138 @@ export async function setPlacementCredits(input: {
   });
 }
 
+export type ReviewEdit = {
+  articleId: string;
+  /** The article's review version the administrator is looking at. */
+  expectedVersion: number;
+  /**
+   * reviewHash of the text the administrator opened. The version alone is
+   * not enough: a customer's own edit to a pending article does not move it,
+   * and this save must not overwrite that edit unseen.
+   */
+  expectedHash: string;
+  title: string;
+  slug: string;
+  metaDescription: string;
+  bodyHtml: string;
+  actorEmail: string;
+};
+
+/**
+ * An administrator's edit of an article under review - its title, slug,
+ * excerpt and text - so the words around the network links can be worked on
+ * before approval.
+ *
+ * Under the same lock and version check as placing a link, and like any
+ * change in review it returns the article to pending with a new version: an
+ * approval given before the edit no longer covers it. The previous body is
+ * kept in article_versions, as the customer's own editor does.
+ *
+ * NETWORK LINKS STAY PLACEMENTS. A committed placement's link cannot be
+ * deleted here: its credits are reserved against that link, and approval
+ * refuses an article whose placed link is missing. The edit is refused
+ * instead, naming the website, and Withdraw is the way to remove one. The
+ * linked words may change; the placement's recorded anchor follows them.
+ */
+export async function editReviewedArticle(input: ReviewEdit): Promise<{ reviewVersion: number; changed: boolean }> {
+  const title = input.title.trim().slice(0, 200);
+  if (!title) throw new PlacementError("The title cannot be empty");
+  const slug = normaliseSlug(input.slug);
+  const metaDescription = input.metaDescription.trim().slice(0, 300) || null;
+
+  return db.transaction(async (tx) => {
+    const article = await lockArticle(tx, input.articleId, input.expectedVersion);
+    if (reviewHash(article) !== input.expectedHash) {
+      throw new PlacementError(
+        "This article was changed after you opened it (the customer may have edited it). Reload it to see the latest text, then make your change again.",
+      );
+    }
+
+    const [host] = await tx
+      .select({ url: websites.url, domain: websites.domain, organizationId: websites.organizationId })
+      .from(websites)
+      .where(eq(websites.id, article.websiteId))
+      .limit(1);
+    // Sanitised exactly as the customer's editor does: links to the site itself stay followed.
+    const bodyHtml = sanitizeHtml(input.bodyHtml, host ? { siteHosts: siteScope(host).hosts } : {});
+    if (!bodyHtml.trim()) throw new PlacementError("The article text cannot be empty");
+
+    const next = { ...article, title, slug, metaDescription, bodyHtml };
+    if (reviewHash(next) === reviewHash(article)) {
+      return { reviewVersion: article.reviewVersion, changed: false };
+    }
+
+    const committed = await tx
+      .select({ id: placements.id, anchor: placements.anchor, targetUrl: backlinkRequests.targetUrl, domain: websites.domain })
+      .from(placements)
+      .innerJoin(backlinkRequests, eq(backlinkRequests.id, placements.requestId))
+      .innerJoin(websites, eq(websites.id, backlinkRequests.websiteId))
+      .where(and(eq(placements.articleId, article.id), inArray(placements.status, ["pending", "drafted"])));
+    // Only links this edit removes: one already missing (a customer's edit) is shown on the page instead.
+    const dropped = committed.filter((p) => linksTo(article.bodyHtml, p.targetUrl) && !linksTo(bodyHtml, p.targetUrl));
+    if (dropped.length > 0) {
+      const domains = [...new Set(dropped.map((p) => p.domain))].join(", ");
+      throw new PlacementError(
+        `This edit removes the network link to ${domains}. Keep the link in the text, or withdraw it under Network links first.`,
+      );
+    }
+
+    const fields = (["title", "slug", "metaDescription", "bodyHtml"] as const).filter((field) => next[field] !== article[field]);
+    if (fields.includes("bodyHtml")) {
+      await tx.insert(articleVersions).values({ articleId: article.id, bodyHtml: article.bodyHtml });
+    }
+    const [updated] = await tx
+      .update(articles)
+      .set({ title, slug, metaDescription, bodyHtml, wordCount: countWords(bodyHtml), ...reviewReset() })
+      .where(eq(articles.id, article.id))
+      .returning({ reviewVersion: articles.reviewVersion });
+
+    const anchors: { placementId: string; from: string | null; to: string }[] = [];
+    for (const placement of committed) {
+      const words = linkTextFor(bodyHtml, placement.targetUrl)?.slice(0, 120);
+      if (!words || words === placement.anchor) continue;
+      await tx.update(placements).set({ anchor: words, updatedAt: new Date() }).where(eq(placements.id, placement.id));
+      anchors.push({ placementId: placement.id, from: placement.anchor, to: words });
+    }
+
+    const labels = { title: "title", slug: "slug", metaDescription: "excerpt", bodyHtml: "text" };
+    await recordAdminAction(
+      {
+        actorEmail: input.actorEmail,
+        action: "network.article_edited",
+        targetType: "article",
+        targetId: article.id,
+        organizationId: host?.organizationId ?? null,
+        summary: `Edited an article in review (${fields.map((field) => labels[field]).join(", ")})`,
+        detail: {
+          fields,
+          wasApproved: article.reviewStatus === "approved",
+          version: updated.reviewVersion,
+          anchors,
+        },
+      },
+      tx,
+    );
+    return { reviewVersion: updated.reviewVersion, changed: true };
+  });
+}
+
 /**
  * Approves an article for delivery: records exactly what was approved (its
  * hash) at the version the administrator reviewed. Any number of network
  * links from none to MAX_PER_ARTICLE is an ordinary approval - an article
  * with no network links is released as it is, and the audit log says so.
+ *
+ * What is approved is exactly what the administrator was shown: the text
+ * must still hash to `expectedHash`. The version alone would not catch a
+ * customer's edit made while the review page was open, since the customer's
+ * editor does not move it.
  */
 export async function approveArticle(input: {
   articleId: string;
   expectedVersion: number;
+  /** reviewHash of the article as the review page showed it. */
+  expectedHash: string;
   note?: string | null;
   actorEmail: string;
 }): Promise<{ reviewVersion: number; placements: number }> {
@@ -547,6 +678,11 @@ export async function approveArticle(input: {
       throw new PlacementError(article.reviewStatus === "approved" ? "Already approved" : "This article is not waiting for review");
     }
     if (!article.bodyHtml) throw new PlacementError("This article has not been written yet");
+    if (reviewHash(article) !== input.expectedHash) {
+      throw new PlacementError(
+        "This article's text changed after you opened it (the customer may have edited it). Reload it and review the latest version.",
+      );
+    }
 
     const committed = await tx
       .select({ id: placements.id, targetUrl: backlinkRequests.targetUrl })

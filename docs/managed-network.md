@@ -138,7 +138,18 @@ The app domain is `NEXT_PUBLIC_APP_URL`. The footer is not counted as an interna
   | Credits | Enough available credits, reserved atomically |
 
 - **Withdraw** a link or **change its credits.** Both are allowed only while the link is drafted. An increase is reserved under the same lock.
+- **Edit the article** (title, meta description, slug and text), with the editor customers use, while it is in review and unpublished (`editReviewedArticle`):
+  - The save carries the review version **and** the hash of the text the admin opened. A customer's own edit does not move the review version, so the text is compared too; either change refuses the save and asks for a reload.
+  - The text is sanitised as in the customer's editor. The previous body is kept in `article_versions`, and the edit is audited (`network.article_edited`).
+  - Like any change in review, it returns the article to pending with a new version. An approved article must be approved again.
+  - **A placed network link cannot be deleted by editing.** Its credits are reserved against it, so the save is refused, naming the website; use Withdraw. The linked words may be reworded, and the placement's recorded anchor follows them.
+  - A placement whose link is missing from the text (a customer's edit can remove one) is marked on the page, because approval refuses it. The admin can put it back by editing, or withdraw it.
+  - Links, credits and approval are paused while the editor is open, so nothing changes the saved article underneath an unsaved edit.
+  - A link typed into the editor by hand is an ordinary link, not a network link: it is not tracked or credited.
 - **Approve and release.** Approving with no network links is an ordinary choice ("Approve without network links"); the article is released as it is. **Reopen** returns an approved article to review.
+  - An approval covers exactly the text the admin was shown. It carries the review version and the hash of that text, and is refused if the text changed since the page was opened ("This article's text changed after you opened it"). The customer's editor does not move the review version, so without the hash an edit made while the page was open would have been approved unseen.
+
+The general admin editor (`/admin/articles/<id>`) does not edit an article that is in the review (a draft, never published, with a review status). It points to the review page instead, and its save is refused on the server under the article's lock. Every article therefore has one place where an admin edits it, and for articles in review that place has the checks above.
 
 Every action is recorded in the admin audit log with the actor, the change, the amount and the reason. Each edit carries the review version it started from, so two admins cannot overwrite each other. The later one is refused with "This article changed after you opened it".
 
@@ -205,7 +216,7 @@ The same transaction then records that revision as **in flight**. The trigger de
 
 **Edits wait.** Every write to what an article delivers takes the same row lock and is refused while a revision is in flight:
 
-- the customer's editor and the admin editor;
+- the customer's editor, the admin editor and the review page's editor;
 - image changes and rewrites;
 - link repair;
 - placing, withdrawing or re-crediting a network link;

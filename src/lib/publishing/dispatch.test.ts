@@ -201,7 +201,7 @@ async function scene(options: { reviewed?: boolean; plannedFor?: Date | null; au
 
 async function approve(articleId: string) {
   const [row] = await test.db.select().from(articles).where(eq(articles.id, articleId));
-  await approveArticle({ articleId, expectedVersion: row.reviewVersion, actorEmail: ADMIN });
+  await approveArticle({ articleId, expectedVersion: row.reviewVersion, expectedHash: reviewHash(row), actorEmail: ADMIN });
 }
 
 type Job = { handler: (ctx: unknown) => Promise<unknown> };

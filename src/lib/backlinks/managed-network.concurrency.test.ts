@@ -101,8 +101,8 @@ describe.skipIf(!available)("managed network locks on real Postgres", () => {
     const s = await scene(0);
     const a = await s.post();
     const results = await Promise.allSettled([
-      on(1, () => approveArticle({ articleId: a.id, expectedVersion: a.reviewVersion, actorEmail: "a@x" })),
-      on(2, () => approveArticle({ articleId: a.id, expectedVersion: a.reviewVersion, actorEmail: "b@x" })),
+      on(1, () => approveArticle({ articleId: a.id, expectedVersion: a.reviewVersion, expectedHash: reviewHash(a), actorEmail: "a@x" })),
+      on(2, () => approveArticle({ articleId: a.id, expectedVersion: a.reviewVersion, expectedHash: reviewHash(a), actorEmail: "b@x" })),
     ]);
     expect(results.map((r) => r.status).sort()).toEqual(["fulfilled", "rejected"]);
   });
