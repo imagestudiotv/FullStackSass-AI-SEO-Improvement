@@ -3,7 +3,8 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 
 import { drizzle } from "drizzle-orm/postgres-js";
-import postgres from "postgres";
+// The application's driver (patched: never pipelines - src/vendor/postgres/README.md).
+import postgres from "@/vendor/postgres";
 
 import * as schema from "@/lib/db/schema";
 
