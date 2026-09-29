@@ -72,12 +72,16 @@ export const INTEGRATION_DOCS: IntegrationDoc[] = [
         body: "Activating the plugin takes you straight to its screen. Later you will find it as RepGet in the left-hand menu of your WordPress admin, between Comments and Appearance, and through the Settings link under the plugin on the Plugins page. Only administrators can see it, because the key controls what gets published to your site.",
       },
       {
-        title: "Press Connect WordPress in RepGet",
-        body: "Go back to the RepGet tab (Settings → Integrations → WordPress plugin) and press Connect WordPress. It opens the RepGet screen in your WordPress, ready to finish. Nothing to copy. The card also says which RepGet workspace you are connecting. If WordPress asks you to log in first, log in, then press Open WordPress again in RepGet. You can also start in WordPress instead: press Connect to RepGet on the plugin's screen, sign in to RepGet if asked, and choose the website.",
+        title: "Connect - Option A: start in RepGet (recommended)",
+        body: "Go back to the RepGet tab (Settings → Integrations → WordPress plugin). The card says which RepGet workspace you are connecting - check it is the right one. Press Connect WordPress: it opens the RepGet screen in your WordPress, showing Finish connecting to RepGet. Press it. Your browser visits RepGet for a moment and comes straight back: WordPress is given its key directly by RepGet, and it never appears on screen - nothing to copy. If WordPress asks you to log in first, log in, then press Open WordPress again in RepGet. With plugin 1.6, the Integration Key field is filled in instead - press Save and connect. If your browser blocked the new tab, RepGet shows the key with Copy key: paste it under Advanced: use an Integration Key (plugin 1.7) or into the Integration Key field (1.6), then press Save and connect.",
       },
       {
-        title: "Press Finish connecting to RepGet in WordPress",
-        body: "With plugin 1.7 or later, press Finish connecting to RepGet. Your browser visits RepGet for a moment and comes straight back: WordPress is given its key directly by RepGet and it never appears on screen. If the site was connected to a different RepGet account or website, RepGet asks first and names what it will replace. With plugin 1.6, the Integration Key field is filled in instead - press Save and connect. If your browser blocked the new tab, RepGet shows the key with Copy key: paste it under Advanced: use an Integration Key (plugin 1.7) or into the Integration Key field (1.6), then press Save and connect.",
+        title: "Connect - Option B: start in WordPress",
+        body: "Instead of Option A, with plugin 1.7 or later: on the RepGet screen in WordPress, press Connect to RepGet. Sign in to RepGet if asked - with the account that should publish to this site. The page Connect yourdomain to RepGet? lists your websites with this domain and the workspace each belongs to; press Connect yourdomain on the right one. You come straight back to WordPress. If the domain is in none of your websites, RepGet says so: add the website first, or press Use a different account.",
+      },
+      {
+        title: "If the site was connected to another account",
+        body: "Either option asks first when this WordPress site is connected to a different RepGet account or website: the button then reads Move yourdomain to the workspace you chose. The old account's key stops working only once the new connection works, and that account is told. Reconnecting the same website does not ask.",
       },
       {
         title: "Check it says Connected - and the right account",
