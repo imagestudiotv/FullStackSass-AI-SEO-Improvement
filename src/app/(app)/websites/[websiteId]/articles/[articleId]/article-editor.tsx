@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useTransition } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -36,6 +36,7 @@ import { Input } from "@/components/ui/input";
 import { PageShell } from "@/components/ui/page-header";
 import { Stat } from "@/components/ui/states";
 import { articleStats } from "@/lib/articles/stats";
+import { previewHtml, sameHtml, useDraftField } from "@/lib/articles/use-draft";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -119,10 +120,12 @@ export function ArticleEditor({
     images: bodyStats.images + (article.imageUrl ? 1 : 0),
   };
   const [pending, startTransition] = useTransition();
-  const [title, setTitle] = useState(article.title);
-  const [meta, setMeta] = useState(article.metaDescription ?? "");
-  const [slug, setSlug] = useState(article.slug ?? "");
-  const [body, setBody] = useState(article.bodyHtml ?? "");
+  const [title, setTitle] = useDraftField(article.title);
+  const [meta, setMeta] = useDraftField(article.metaDescription ?? "");
+  const [slug, setSlug] = useDraftField(article.slug ?? "");
+  const [body, setBody] = useDraftField(article.bodyHtml ?? "", sameHtml);
+  // What Preview shows differs from what is saved (the save trims the title).
+  const unsaved = title.trim() !== article.title || !sameHtml(body, article.bodyHtml ?? "");
 
   const working =
     article.status === "generating" || article.status === "queued";
@@ -449,6 +452,20 @@ export function ArticleEditor({
           <TabsContent value="preview" className="mt-4">
             <Card>
               <CardContent className="pt-6">
+                {unsaved ? (
+                  <p
+                    role="status"
+                    className="mb-6 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm"
+                  >
+                    {t.previewUnsaved}
+                  </p>
+                ) : null}
+
+                {/* The title as the page will show it, above the picture. */}
+                <h2 className="mb-6 text-2xl font-semibold tracking-tight">
+                  {title}
+                </h2>
+
                 {/*
                   The illustration, above the body, where it sits on the
                   published page. It was generated with the article and
@@ -469,14 +486,15 @@ export function ArticleEditor({
                   />
                 ) : null}
 
-                {/**
-                 * The body is sanitised on generation AND on every save, so
-                 * what reaches here has already had scripts, handlers and
-                 * document tags stripped.
-                 */}
+                {/*
+                  The editor's working copy, unsaved changes included, run
+                  through the same sanitiser as a save - so nothing typed or
+                  pasted into "Edit HTML" runs here before a save would have
+                  removed it (lib/articles/use-draft.ts).
+                */}
                 <div
                   className="prose prose-sm max-w-none dark:prose-invert [overflow-wrap:anywhere] [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto [&_pre]:overflow-x-auto [&_iframe]:max-w-full [&_video]:max-w-full [&_h2]:mt-6 [&_h2]:text-lg [&_h2]:font-semibold [&_li]:my-1 [&_p]:my-3 [&_ul]:list-disc [&_ul]:pl-6 [&_img]:my-6 [&_img]:block [&_img]:mx-auto [&_img]:max-w-[min(100%,36rem)] [&_img]:max-h-[30rem] [&_img]:h-auto [&_img]:w-auto [&_img]:rounded-lg [&_img]:border [&_img]:object-contain"
-                  dangerouslySetInnerHTML={{ __html: article.bodyHtml }}
+                  dangerouslySetInnerHTML={{ __html: previewHtml(body) }}
                 />
               </CardContent>
             </Card>

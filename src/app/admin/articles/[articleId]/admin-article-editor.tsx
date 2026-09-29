@@ -3,7 +3,7 @@
 import { ArrowLeft, Eye, Pencil } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
 import { toast } from "sonner";
 
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -25,6 +25,7 @@ import {
   updateAnyArticle,
   type AdminArticleDetail,
 } from "@/lib/admin/actions";
+import { previewHtml, sameHtml, useDraftField } from "@/lib/articles/use-draft";
 
 /**
  * Admin article review.
@@ -40,8 +41,10 @@ export function AdminArticleEditor({
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [title, setTitle] = useState(article.title);
-  const [body, setBody] = useState(article.bodyHtml ?? "");
+  const [title, setTitle] = useDraftField(article.title);
+  const [body, setBody] = useDraftField(article.bodyHtml ?? "", sameHtml);
+  // Preview shows the working copy; this says when it is not saved yet.
+  const unsaved = title.trim() !== article.title || !sameHtml(body, article.bodyHtml ?? "");
 
   function handleSave() {
     startTransition(async () => {
@@ -97,11 +100,23 @@ export function AdminArticleEditor({
         <TabsContent value="preview" className="mt-4">
           <Card>
             <CardContent className="pt-6">
-              {article.bodyHtml ? (
-                // Sanitised on generation and on every save, including here.
+              {unsaved ? (
+                <p
+                  role="status"
+                  className="mb-6 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm"
+                >
+                  This preview includes changes you have not saved yet. Save
+                  them on the Edit tab.
+                </p>
+              ) : null}
+              <h2 className="mb-6 text-2xl font-semibold tracking-tight">
+                {title}
+              </h2>
+              {body ? (
+                // The working copy, sanitised as a save would (lib/articles/use-draft.ts).
                 <div
                   className="prose prose-sm max-w-none dark:prose-invert [overflow-wrap:anywhere] [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto [&_pre]:overflow-x-auto [&_iframe]:max-w-full [&_video]:max-w-full [&_h2]:mt-6 [&_h2]:text-lg [&_h2]:font-semibold [&_li]:my-1 [&_p]:my-3 [&_ul]:list-disc [&_ul]:pl-6 [&_img]:my-6 [&_img]:block [&_img]:mx-auto [&_img]:max-w-[min(100%,36rem)] [&_img]:max-h-[30rem] [&_img]:h-auto [&_img]:w-auto [&_img]:rounded-lg [&_img]:border [&_img]:object-contain"
-                  dangerouslySetInnerHTML={{ __html: article.bodyHtml }}
+                  dangerouslySetInnerHTML={{ __html: previewHtml(body) }}
                 />
               ) : (
                 <p className="text-sm text-muted-foreground">
