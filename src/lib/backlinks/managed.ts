@@ -252,12 +252,12 @@ export async function placeManagedLink(input: PlaceInput): Promise<{ placementId
       const hostRank = await readOneAuthority(host.domain);
       if (hostRank?.status !== "ok" || hostRank.value === null) {
         throw new PlacementError(
-          `${beneficiary.domain} accepts links only from sites at DataForSEO Rank ${beneficiary.minSourceRank} or above, and ${host.domain} has no rank yet`,
+          `${beneficiary.domain} accepts links only from sites with Domain Authority ${beneficiary.minSourceRank} or above, and ${host.domain} has no Domain Authority yet`,
         );
       }
       if (hostRank.value < beneficiary.minSourceRank) {
         throw new PlacementError(
-          `${beneficiary.domain} accepts links only from sites at DataForSEO Rank ${beneficiary.minSourceRank} or above; ${host.domain} is at ${hostRank.value}`,
+          `${beneficiary.domain} accepts links only from sites with Domain Authority ${beneficiary.minSourceRank} or above; ${host.domain} is at ${hostRank.value}`,
         );
       }
     }

@@ -198,7 +198,7 @@ export function PolicyForm({ current }: { current: { currency: string; clickValu
         <Input id="fixedRate" name="fixedRate" type="number" min={0} max={1000} step="0.01" disabled={mode !== "fixed"} defaultValue={current?.fixedClickRate ?? undefined} />
       </div>
       <div className="space-y-1 sm:col-span-2">
-        <Label htmlFor="bands">Value of one verified backlink, by source DataForSEO Rank band</Label>
+        <Label htmlFor="bands">Value of one verified backlink, by source Domain Authority band</Label>
         <Input id="bands" name="bands" placeholder="0:40, 30:90, 60:180, unknown:25" defaultValue={current?.bands ?? ""} />
         <p className="text-xs text-muted-foreground">Empty: backlinks are not valued. &quot;unknown&quot; is the rate for a source whose rank is not known.</p>
       </div>

@@ -305,7 +305,7 @@ export function ReviewWorkspace({ review }: { review: Review }) {
                         {c.linkedHere ? " · already linked in this article" : ""}
                         {!c.relevant ? " · not related" : ""}
                         {c.reciprocal ? " · already links back" : ""}
-                        {c.minSourceRank !== null ? ` · wants DataForSEO Rank ≥ ${c.minSourceRank}${c.meetsMinimum === false ? " (not met)" : ""}` : ""}
+                        {c.minSourceRank !== null ? ` · wants Domain Authority ≥ ${c.minSourceRank}${c.meetsMinimum === false ? " (not met)" : ""}` : ""}
                       </option>
                     ))}
                   </select>
@@ -314,7 +314,7 @@ export function ReviewWorkspace({ review }: { review: Review }) {
                       {beneficiary.organizationName} · {beneficiary.industry ?? "no topic"} · {beneficiary.language ?? "no language"} ·{" "}
                       {beneficiary.available} credits available ({beneficiary.reserved} reserved) - shared by the whole workspace
                       {beneficiary.minSourceRank !== null
-                        ? ` · accepts only sources at DataForSEO Rank ≥ ${beneficiary.minSourceRank}; this website is at ${
+                        ? ` · accepts only sources with Domain Authority ≥ ${beneficiary.minSourceRank}; this website is at ${
                             review.hostAuthority?.status === "ok" ? review.hostAuthority.value : "an unknown rank"
                           }`
                         : ""}

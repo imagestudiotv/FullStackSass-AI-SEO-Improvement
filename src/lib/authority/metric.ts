@@ -21,8 +21,11 @@ export const AUTHORITY_METRIC = {
   provider: "dataforseo",
   metric: "backlinks_rank",
   scaleMax: 100,
-  /** How it is named in the interface. */
-  label: "DataForSEO Rank",
+  /**
+   * How it is named in the interface. The client's decision (2026-09-29):
+   * "Domain Authority", and the provider is never named to customers.
+   */
+  label: "Domain Authority",
   docsUrl: "https://docs.dataforseo.com/v3/backlinks/bulk_ranks/live/",
 } as const;
 
@@ -52,8 +55,11 @@ export type AuthorityReading = {
   observedAt: Date | null;
   /** True when the value is older than AUTHORITY_STALE_AFTER_DAYS. */
   stale: boolean;
-  /** Short reason for the last failed collection, when there was one. */
-  lastError: string | null;
+  /*
+    No error text: readings go to customers' pages (and into the page data a
+    browser receives), and the provider's own messages name the provider.
+    Operators see the last error on /admin/network/operations.
+  */
 };
 
 /** Registrable-ish host as DataForSEO wants it: lower case, no www., no port. */
@@ -72,7 +78,7 @@ export function normalizeDomain(input: string | null | undefined): string | null
 
 function reading(domain: string, row: typeof domainMetrics.$inferSelect | undefined, now: Date): AuthorityReading {
   const configured = isDataForSeoConfigured();
-  const base = { domain, scaleMax: AUTHORITY_METRIC.scaleMax, lastError: row?.error ?? null };
+  const base = { domain, scaleMax: AUTHORITY_METRIC.scaleMax };
   if (!row) {
     return { ...base, status: configured ? "collecting" : "not_configured", value: null, observedAt: null, stale: false };
   }

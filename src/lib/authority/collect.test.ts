@@ -150,7 +150,10 @@ describe("collecting DataForSEO Rank", () => {
     expect(await collectDueAuthority()).toMatchObject({ status: "failed" });
     const reading = (await readAuthority([a])).get(a);
     expect(reading).toMatchObject({ status: "ok", value: 30, stale: true });
-    expect(reading?.lastError).toMatch(/timed out/);
+    // The reason is kept for operators, never put in a customer's reading.
+    expect(reading).not.toHaveProperty("lastError");
+    const [stored] = await test.db.select().from(domainMetrics).where(eq(domainMetrics.domain, a));
+    expect(stored.error).toMatch(/timed out/);
     const states = (await test.db.select().from(spendReservations)).map((r) => r.state).sort();
     expect(states).toEqual(["consumed", "consumed"]);
   });
