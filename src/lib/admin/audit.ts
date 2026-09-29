@@ -37,6 +37,12 @@ export type AdminAction =
   | "network.article_approved"
   | "network.article_reopened"
   | "network.article_edited"
+  /* RepGet's own blog (lib/admin/blog.ts). */
+  | "blog.post_created"
+  | "blog.post_saved"
+  | "blog.post_published"
+  | "blog.post_unpublished"
+  | "blog.post_deleted"
   /* Operations (lib/admin/operations.ts). */
   | "platform.control_changed"
   | "publication.dispatch_resolved"

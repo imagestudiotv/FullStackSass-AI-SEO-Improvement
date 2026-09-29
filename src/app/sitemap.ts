@@ -21,7 +21,10 @@ function baseUrl(): string {
   return canonicalSiteUrl();
 }
 
-export default function sitemap(): MetadataRoute.Sitemap {
+/** Reads the published blog posts, so it is built per request like the blog. */
+export const dynamic = "force-dynamic";
+
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = baseUrl();
   const now = new Date();
 
@@ -68,7 +71,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.5,
   }));
 
-  const posts: MetadataRoute.Sitemap = listPosts().map((post) => ({
+  const posts: MetadataRoute.Sitemap = (await listPosts()).map((post) => ({
     url: `${base}/blog/${post.slug}`,
     // The post's own date, not the build's: a build date on every URL tells a
     // crawler everything changed, which is both false and unhelpful.

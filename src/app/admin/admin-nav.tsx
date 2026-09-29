@@ -5,6 +5,7 @@ import {
   Building2,
   FileText,
   Globe,
+  Newspaper,
   Receipt,
   ScrollText,
   Users,
@@ -35,6 +36,8 @@ const NAV: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/admin/websites", label: "Websites", icon: Globe },
   { href: "/admin/articles", label: "Articles", icon: FileText },
   { href: "/admin/network", label: "Partner Network", icon: Network },
+  // RepGet's own blog (/blog), not customers' articles.
+  { href: "/admin/blog", label: "Blog", icon: Newspaper },
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/payments", label: "Payments", icon: Receipt },
   { href: "/admin/activity", label: "Activity", icon: ScrollText },

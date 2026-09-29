@@ -2247,3 +2247,58 @@ export const websiteInvitations = pgTable(
     uniqueIndex("website_invitations_token_uidx").on(table.tokenHash),
   ],
 );
+
+/**
+ * RepGet's own blog (/blog), written and published by administrators in the
+ * admin panel (lib/admin/blog.ts). The first posts were constants in the
+ * source; migration 0046 moved them here.
+ *
+ * Only `published` posts are public. The slug is the post's permanent
+ * address: it cannot change once the post has been published, because every
+ * link to it and whatever ranking it has earned depend on it.
+ */
+export const blogPosts = pgTable(
+  "blog_posts",
+  {
+    id: pk(),
+    slug: text("slug").notNull(),
+    title: text("title").notNull(),
+    /** Meta description and card summary. */
+    description: text("description").default("").notNull(),
+    /** One of BLOG_CATEGORIES (lib/blog/shared.ts). */
+    category: text("category").notNull(),
+    author: text("author").notNull(),
+    /** Plain text, shown above the article. */
+    shortAnswer: text("short_answer"),
+    /** Sanitised on every save (lib/articles/sanitize.ts). */
+    bodyHtml: text("body_html").default("").notNull(),
+    /** Each answer is sanitised HTML, like the body. */
+    faqs: jsonb("faqs")
+      .$type<{ question: string; answer: string }[]>()
+      .default([])
+      .notNull(),
+    sources: jsonb("sources")
+      .$type<{ label: string; url: string }[]>()
+      .default([])
+      .notNull(),
+    /** "draft" | "published". */
+    status: text("status").default("draft").notNull(),
+    /**
+     * First publication. Kept when a post is unpublished, so its date stays
+     * true and its slug stays locked if it comes back.
+     */
+    publishedAt: timestamp("published_at"),
+    /** Last revision after publication: "Updated" on the post, and dateModified. */
+    revisedAt: timestamp("revised_at"),
+    /** Bumped on every save: a save made from an older copy is refused. */
+    version: integer("version").default(0).notNull(),
+    /** Administrators' email addresses. */
+    createdBy: text("created_by"),
+    updatedBy: text("updated_by"),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("blog_posts_slug_uidx").on(table.slug),
+    index("blog_posts_status_published_idx").on(table.status, table.publishedAt),
+  ],
+);

@@ -1,7 +1,8 @@
 import Link from "next/link";
 
 import { PostCard } from "@/components/post-card";
-import { BLOG_CATEGORIES, categoryCounts, listPosts } from "@/lib/blog/posts";
+import { listPosts } from "@/lib/blog/posts";
+import { BLOG_CATEGORIES, categoryCounts } from "@/lib/blog/shared";
 
 export const metadata = {
   title: "Blog",
@@ -9,9 +10,12 @@ export const metadata = {
     "Guides, comparisons and playbooks for getting found on Google and cited by AI assistants - written for people who run a business, not a marketing team.",
 };
 
-export default function BlogIndexPage() {
-  const posts = listPosts();
-  const counts = categoryCounts();
+// Live posts from the database (see lib/blog/posts.ts).
+export const dynamic = "force-dynamic";
+
+export default async function BlogIndexPage() {
+  const posts = await listPosts();
+  const counts = categoryCounts(posts);
 
   return (
     <div>

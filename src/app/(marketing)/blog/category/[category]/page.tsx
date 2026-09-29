@@ -3,16 +3,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { PostCard } from "@/components/post-card";
-import {
-  BLOG_CATEGORIES,
-  categoryBySlug,
-  postsByCategory,
-} from "@/lib/blog/posts";
+import { postsByCategory } from "@/lib/blog/posts";
+import { categoryBySlug } from "@/lib/blog/shared";
 
-/** Every category is known at build time, so all of them are prerendered. */
-export function generateStaticParams() {
-  return BLOG_CATEGORIES.map((category) => ({ category: category.slug }));
-}
+// Live posts from the database (see lib/blog/posts.ts).
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
   params,
@@ -39,7 +34,7 @@ export default async function BlogCategoryPage({
   // a dead URL in the index indefinitely.
   if (!category) notFound();
 
-  const posts = postsByCategory(category.name);
+  const posts = await postsByCategory(category.name);
 
   return (
     <div>

@@ -1,4 +1,4 @@
-import type { BlogCategory } from "@/lib/blog/posts";
+import type { BlogCategory } from "@/lib/blog/shared";
 
 /**
  * The cover shown on a post card and at the top of a post.

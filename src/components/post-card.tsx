@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { PostCover } from "@/components/post-cover";
-import type { BlogPost } from "@/lib/blog/posts";
+import type { BlogPost } from "@/lib/blog/shared";
 
 /** Long-form dates, since a blog index read by humans is not a log file. */
 export function formatPostDate(iso: string): string {
