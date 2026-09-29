@@ -14,6 +14,8 @@ import {
   revokeIntegrationKey,
   type IntegrationKeyView,
 } from "@/lib/plugin/keys";
+import { getSession } from "@/lib/auth-guard";
+import { createConnectLink } from "@/lib/plugin/handshake";
 import { signalRevokedKey } from "@/lib/plugin/sync";
 import { requireWebsite } from "@/lib/tenant";
 import { requireEditor } from "@/lib/websites/require-editor";
@@ -98,10 +100,15 @@ export async function revokeKey(
  * the address FRAGMENT of their WordPress settings page, which plugin 1.6.0
  * reads into its key field; the customer presses Save and connect there.
  * Editors only - the same check as "New key".
+ *
+ * Also returns a LINK for plugin 1.7.0, which finishes with one button and a
+ * handshake instead of the key (lib/plugin/handshake.ts): approved without
+ * asking when this same session comes back with it. Null if it could not be
+ * made - the key still works.
  */
 export async function connectWordPress(
   websiteId: string,
-): Promise<ActionResult<{ key: string; keyPrefix: string }>> {
+): Promise<ActionResult<{ key: string; keyPrefix: string; link: string | null }>> {
   const guard = await requireEditor(websiteId);
   if (!guard.ok) return { ok: false, error: guard.error };
   const { site } = guard.context;
@@ -116,8 +123,12 @@ export async function connectWordPress(
           : `You already have ${MAX_LIVE_KEYS} keys. Revoke one you no longer use under Keys (advanced), then try again.`,
     };
   }
+  const session = await getSession();
+  const link = session
+    ? await createConnectLink(site.id, session.user.id, session.session.id, outcome.id).catch(() => null)
+    : null;
   revalidatePath(`/websites/${site.id}/integrations`);
-  return { ok: true, data: { key: outcome.key, keyPrefix: outcome.keyPrefix } };
+  return { ok: true, data: { key: outcome.key, keyPrefix: outcome.keyPrefix, link } };
 }
 
 export type SetupResult =

@@ -1,0 +1,9 @@
+{
+  "version": "1.7.0",
+  "package": "/repget-connector.zip",
+  "sha256": "7a6decf653d302716e457f6ebb5829e979b56252afa6864d51c1ab9a334ffc37",
+  "requires": "5.6",
+  "requires_php": "7.4",
+  "tested": "6.8",
+  "changelog": "* Connect to RepGet: one button connects this site to your RepGet account.\n  There is no key to copy - RepGet and your site exchange it directly, once,\n  and it is never shown or put in a web address.\n* The RepGet screen says which RepGet account and website this site is\n  connected to, checked with RepGet when you open it.\n* New buttons: Connect to a different RepGet account, and Disconnect.\n* Starting from RepGet's \"Connect WordPress\" now takes one press in WordPress:\n  \"Finish connecting to RepGet\".\n* Changing \"Publish articles as\" no longer holds back articles that were about\n  to publish. It used to fetch them and then drop them, leaving them waiting\n  ten minutes.\n* WordPress now offers updates to this plugin itself, and installs one only if\n  it matches the fingerprint RepGet publishes.\n* The Integration Key field moved under \"Advanced: use an Integration Key\",\n  and no longer shows the saved key."
+}

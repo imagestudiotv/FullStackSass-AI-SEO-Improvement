@@ -29,7 +29,9 @@ export type NotificationType =
   | "keywords.failed"
   | "geo.ready"
   | "referral.rewarded"
-  | "addon.purchased";
+  | "addon.purchased"
+  /** A WordPress site this workspace published to was connected to another RepGet website. */
+  | "plugin.moved";
 
 export type NewNotification = {
   organizationId: string;

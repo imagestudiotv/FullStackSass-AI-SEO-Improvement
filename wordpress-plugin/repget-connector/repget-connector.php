@@ -1,12 +1,22 @@
 <?php
 /**
  * Plugin Name: RepGet Connector
- * Description: Publishes articles written by RepGet straight to this site. Paste your Integration Key to connect.
- * Version: 1.6.0
+ * Description: Publishes articles written by RepGet straight to this site. Press Connect to RepGet to connect.
+ * Version: 1.7.0
  * Requires at least: 5.6
  * Requires PHP: 7.4
  * License: GPLv2 or later
+ * Update URI: https://full-stack-sass-ai-seo-improvement.vercel.app/repget-connector.json
  */
+
+/*
+  "Update URI" (WordPress 5.8+) is not decoration. Without it WordPress asks
+  api.wordpress.org about every installed plugin by its folder name, and
+  would offer whatever a stranger published there as "repget-connector" as an
+  update to this one - somebody else's code, installed with one click. Any
+  value other than wordpress.org opts the plugin out of that; updates come
+  only from RepGet's own manifest (see "Updates" at the end of this file).
+*/
 
 /**
  * RepGet Connector.
@@ -14,7 +24,8 @@
  * The alternative to this plugin is the application-password flow, where the
  * customer finds a screen buried in WordPress admin, understands that an
  * application password is not their login password, and hands us write access
- * to their site. This is one key, pasted once.
+ * to their site. This is one button, "Connect to RepGet" (1.7.0) - or, for
+ * sites set up before it, one key pasted once.
  *
  * It also works where the push flow cannot: a site behind a firewall, on a
  * staging domain, or with the REST API disabled by a security plugin can still
@@ -31,7 +42,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('REPGET_VERSION', '1.6.0');
+define('REPGET_VERSION', '1.7.0');
 define('REPGET_OPTION_KEY', 'repget_integration_key');
 define('REPGET_OPTION_STATUS', 'repget_status');
 define('REPGET_OPTION_ENDPOINT', 'repget_endpoint');
@@ -63,6 +74,24 @@ define('REPGET_LOCK_TTL', 300);
   is still using to finish activating - so the intent is parked here.
 */
 define('REPGET_OPTION_ACTIVATED', 'repget_just_activated');
+/*
+  Which RepGet account and website this site is connected to (1.7.0+):
+    array('workspace', 'website', 'domain', 'websiteId', 'connected_at')
+
+  The 2026-09-29 incident was a site that said "Connected" while holding a key
+  from a second RepGet account, and nothing on either screen said which. This
+  is what lets the settings page name the account even when RepGet cannot be
+  reached. Refreshed by every successful verify; never holds the key.
+*/
+define('REPGET_OPTION_CONNECTION', 'repget_connection');
+/** The live verify behind "Connected to ...", cached so the page does not call RepGet on every view. */
+define('REPGET_VERIFY_CACHE', 'repget_verify_cache');
+/** How long a pending "Connect to RepGet" stays valid - RepGet's own limit for a request it did not start. */
+define('REPGET_CONNECT_TTL', 900);
+/** The folder and slug WordPress knows this plugin by; the zip's top-level folder. */
+define('REPGET_PLUGIN_SLUG', 'repget-connector');
+/** RepGet's update manifest, cached. See repget_update_manifest(). */
+define('REPGET_UPDATE_MANIFEST', 'repget_update_manifest');
 
 /**
  * Default API host. Overridable for self-hosted or staging installs.
@@ -317,7 +346,8 @@ function repget_maybe_redirect_after_activation() {
         return;
     }
 
-    wp_safe_redirect(admin_url('admin.php?page=repget'));
+    // Straight to the Connect to RepGet button: the one thing to do next.
+    wp_safe_redirect(repget_settings_url() . '#repget-connect');
     exit;
 }
 
@@ -352,15 +382,36 @@ function repget_setup_notice() {
         return;
     }
 
+    /*
+      Points at the Connect to RepGet button (1.7.0), not at a key field: the
+      key is no longer something the customer handles. A link rather than the
+      button itself, so this banner never starts a connection by accident.
+    */
     printf(
         '<div class="notice notice-warning"><p><strong>%s</strong> %s <a href="%s">%s</a></p></div>',
         esc_html__('RepGet is not connected yet.', 'repget'),
-        esc_html__('Paste your Integration Key to start publishing articles.', 'repget'),
-        esc_url(admin_url('admin.php?page=repget')),
-        esc_html__('Open settings', 'repget')
+        esc_html__('Connect this site to RepGet to start publishing articles.', 'repget'),
+        esc_url(repget_settings_url() . '#repget-connect'),
+        esc_html__('Connect to RepGet', 'repget')
     );
 }
 
+/**
+ * The settings screen: connect, see WHICH RepGet account this site belongs
+ * to, choose the content type - and, folded away, the 1.6 key field.
+ *
+ * One connection card, in one of three states, so the customer is never asked
+ * to choose between two ways of doing the same thing:
+ *
+ *  - ?repget_link=... : RepGet's "Connect WordPress" sent the admin here to
+ *    finish (flow A in docs/wordpress-connect.md). One button.
+ *  - no key           : one sentence and Connect to RepGet (flow B).
+ *  - a key            : "Connected to <workspace> · <domain>", checked live
+ *    against RepGet (cached five minutes), with what to do next.
+ *
+ * Every action that changes something is a nonce-checked POST, and the page
+ * itself is only for manage_options. Everything printed is escaped.
+ */
 function repget_settings_page() {
     if (!current_user_can('manage_options')) {
         return;
@@ -368,33 +419,46 @@ function repget_settings_page() {
 
     $notice = '';
     $notice_type = 'success';
+    $advanced_open = false;
 
+    /*
+      Left by the connect callback, Disconnect or a failed start, which all
+      redirect here. Carried in a per-user transient rather than the URL: a
+      message in the query string could be written by any link.
+    */
+    $flash = repget_take_flash();
+    if ($flash !== null) {
+        $notice = $flash['message'];
+        $notice_type = $flash['type'];
+    }
 
-    /**
-     * Nonce-checked. Without it, a request forged from another site could
-     * change which RepGet account publishes to this WordPress install.
-     */
+    /*
+      Advanced: "Save and connect" with a pasted key - the 1.6 flow, kept for
+      sites connected that way, and for a RepGet that still sends the key in
+      the #repget_key fragment.
+
+      Nonce-checked. Without it, a request forged from another site could
+      change which RepGet account publishes to this WordPress install.
+    */
     if (isset($_POST['repget_save']) && check_admin_referer('repget_save_key')) {
-        $key = isset($_POST['repget_key'])
+        $advanced_open = true;
+        $submitted = isset($_POST['repget_key'])
             ? sanitize_text_field(wp_unslash($_POST['repget_key']))
             : '';
-        update_option(REPGET_OPTION_KEY, $key);
 
-        $moved_notice = '';
-        if (isset($_POST['repget_post_type'])) {
-            $wanted = sanitize_key(wp_unslash($_POST['repget_post_type']));
-            $choices = repget_post_type_choices();
-            if (isset($choices[$wanted]) && $wanted !== repget_post_type()) {
-                update_option(REPGET_OPTION_POST_TYPE, $wanted);
-                $moved = repget_move_articles_to($wanted);
-                if (!is_wp_error($moved) && $moved > 0) {
-                    $moved_notice = ' ' . sprintf(
-                        _n('Moved %1$d existing article to %2$s.', 'Moved %1$d existing articles to %2$s.', $moved, 'repget'),
-                        $moved,
-                        $choices[$wanted]
-                    );
-                }
-            }
+        /*
+          An EMPTY field keeps the saved key. 1.6 printed the saved key back
+          into this field; 1.7 never puts a key in a page - a key that came
+          through Connect to RepGet has never been shown to anyone, and must
+          not start being shown here - so an untouched field arrives empty and
+          means "keep it, and check it". Removing the key is Disconnect's job.
+        */
+        if ($submitted !== '' && $submitted !== repget_key()) {
+            update_option(REPGET_OPTION_KEY, $submitted);
+            // What was known about the previous key's account is not true of
+            // this one. The verify below records the new one.
+            delete_option(REPGET_OPTION_CONNECTION);
+            delete_transient(REPGET_VERIFY_CACHE);
         }
 
         $result = repget_verify();
@@ -402,15 +466,39 @@ function repget_settings_page() {
             $notice = $result->get_error_message();
             $notice_type = 'error';
         } else {
-            $name = isset($result['website']['name']) ? $result['website']['name'] : '';
-            $notice = $name !== ''
-                ? sprintf(__('Connected to %s.', 'repget'), esc_html($name))
-                : __('Connected.', 'repget');
-            $notice .= $moved_notice;
+            $notice = repget_connection_label(repget_stored_connection()) . '.';
         }
     }
 
-    if (isset($_POST['repget_sync']) && check_admin_referer('repget_save_key')) {
+    /*
+      "Publish articles as". Its own form since 1.7: it used to ride along with
+      the key field, which is now folded under Advanced.
+    */
+    if (isset($_POST['repget_save_post_type']) && check_admin_referer('repget_post_type')) {
+        $wanted = isset($_POST['repget_post_type'])
+            ? sanitize_key(wp_unslash($_POST['repget_post_type']))
+            : '';
+        $choices = repget_post_type_choices();
+        if (!isset($choices[$wanted])) {
+            $notice = __('That content type is not available on this site.', 'repget');
+            $notice_type = 'error';
+        } elseif ($wanted === repget_post_type()) {
+            $notice = sprintf(__('Articles are published as %s.', 'repget'), $choices[$wanted]);
+        } else {
+            update_option(REPGET_OPTION_POST_TYPE, $wanted);
+            $moved = repget_move_articles_to($wanted);
+            $notice = sprintf(__('Articles will be published as %s.', 'repget'), $choices[$wanted]);
+            if ($moved > 0) {
+                $notice .= ' ' . sprintf(
+                    _n('Moved %1$d existing article to %2$s.', 'Moved %1$d existing articles to %2$s.', $moved, 'repget'),
+                    $moved,
+                    $choices[$wanted]
+                );
+            }
+        }
+    }
+
+    if (isset($_POST['repget_sync']) && check_admin_referer('repget_sync')) {
         // Through the lock, like every other entry point: a button press
         // overlapping a cron run or a remote nudge used to double-create posts.
         $count = repget_sync_locked();
@@ -427,13 +515,39 @@ function repget_settings_page() {
 
     $key = repget_key();
     $status = get_option(REPGET_OPTION_STATUS);
+    $stored = repget_stored_connection();
+
+    /*
+      RepGet's "Connect WordPress" (flow A) adds ?repget_link=<id>. Checked
+      against the id format before it is printed anywhere; anything else is
+      ignored and the page shows its normal state. The link alone connects
+      nothing: it only fills in the button's form, and the button starts the
+      same handshake as Connect to RepGet.
+    */
+    $link = isset($_GET['repget_link']) && is_string($_GET['repget_link'])
+        ? wp_unslash($_GET['repget_link'])
+        : '';
+    if (!repget_valid_link($link)) {
+        $link = '';
+    }
+
+    // Only the connected card needs RepGet's live answer.
+    $view = ($key !== '' && $link === '') ? repget_connection_view() : null;
     ?>
+    <style>
+        .repget-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 1em; }
+        .repget-actions form { margin: 0; }
+        .repget-ok { color: #00a32a; }
+        .repget-bad { color: #d63638; }
+        #repget-advanced { margin-top: 2em; }
+        #repget-advanced summary { cursor: pointer; font-weight: 600; }
+    </style>
     <div class="wrap">
         <h1>RepGet</h1>
 
         <?php /* Revealed by the script at the end of this page. */ ?>
         <div id="repget-prefill-notice" class="notice notice-info" hidden>
-            <p><?php esc_html_e('Your key is filled in below. Press "Save and connect" to finish.', 'repget'); ?></p>
+            <p><?php esc_html_e('Your key is filled in under "Advanced: use an Integration Key". Press "Save and connect" to finish.', 'repget'); ?></p>
         </div>
 
         <?php if ($notice !== '') : ?>
@@ -442,34 +556,66 @@ function repget_settings_page() {
             </div>
         <?php endif; ?>
 
-        <p>
-            <?php esc_html_e(
-                'Paste the Integration Key from your RepGet workspace. Articles will then publish here automatically.',
-                'repget'
-            ); ?>
-        </p>
+        <?php if ($link !== '') : ?>
+            <div class="card" id="repget-connect">
+                <h2><?php esc_html_e('Finish connecting to RepGet', 'repget'); ?></h2>
+                <p><?php esc_html_e('RepGet sent you here to connect this site. Press the button: RepGet confirms it is you and brings you straight back.', 'repget'); ?></p>
+                <?php if ($key !== '' && repget_connection_name($stored) !== '') : ?>
+                    <p><?php echo esc_html(sprintf(
+                        __('This site is connected to %s now. Finishing connects it to the RepGet website that sent you here; RepGet asks first if that is a different account or website.', 'repget'),
+                        repget_connection_name($stored)
+                    )); ?></p>
+                <?php endif; ?>
+                <div class="repget-actions">
+                    <?php repget_connect_form(__('Finish connecting to RepGet', 'repget'), 'button button-primary', $link); ?>
+                </div>
+            </div>
+        <?php elseif ($key === '') : ?>
+            <div class="card" id="repget-connect">
+                <h2><?php esc_html_e('Connect to RepGet', 'repget'); ?></h2>
+                <p><?php esc_html_e('Connect this site to your RepGet account, and the articles you approve there are published here automatically.', 'repget'); ?></p>
+                <div class="repget-actions">
+                    <?php repget_connect_form(__('Connect to RepGet', 'repget')); ?>
+                </div>
+                <p class="description"><?php esc_html_e('In RepGet: Integrations → WordPress plugin → Connect WordPress.', 'repget'); ?></p>
+            </div>
+        <?php else : ?>
+            <div class="card" id="repget-connect">
+                <h2><?php esc_html_e('Connection', 'repget'); ?></h2>
+                <p class="<?php echo esc_attr($view['class']); ?>">
+                    <strong><?php echo $view['class'] === 'repget-ok' ? '&#10003; ' : ''; ?><?php echo esc_html($view['text']); ?></strong>
+                </p>
+                <?php if ($view['note'] !== '') : ?>
+                    <p class="description"><?php echo esc_html($view['note']); ?></p>
+                <?php endif; ?>
+                <div class="repget-actions">
+                    <?php if ($view['usable']) : ?>
+                        <form method="post">
+                            <?php wp_nonce_field('repget_sync'); ?>
+                            <button type="submit" name="repget_sync" class="button button-primary">
+                                <?php esc_html_e('Check for articles now', 'repget'); ?>
+                            </button>
+                        </form>
+                        <?php repget_connect_form(__('Connect to a different RepGet account', 'repget'), 'button'); ?>
+                    <?php else : ?>
+                        <?php repget_connect_form(__('Connect to RepGet', 'repget')); ?>
+                    <?php endif; ?>
+                    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"
+                        onsubmit="return window.confirm('<?php echo esc_js(__('Disconnect this site from RepGet? Articles stop publishing here until you connect again.', 'repget')); ?>');">
+                        <input type="hidden" name="action" value="repget_disconnect" />
+                        <?php wp_nonce_field('repget_disconnect'); ?>
+                        <button type="submit" class="button button-link-delete">
+                            <?php esc_html_e('Disconnect', 'repget'); ?>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        <?php endif; ?>
 
+        <h2><?php esc_html_e('Publishing', 'repget'); ?></h2>
         <form method="post">
-            <?php wp_nonce_field('repget_save_key'); ?>
+            <?php wp_nonce_field('repget_post_type'); ?>
             <table class="form-table" role="presentation">
-                <tr>
-                    <th scope="row">
-                        <label for="repget_key"><?php esc_html_e('Integration Key', 'repget'); ?></label>
-                    </th>
-                    <td>
-                        <input
-                            type="password"
-                            id="repget_key"
-                            name="repget_key"
-                            value="<?php echo esc_attr($key); ?>"
-                            class="regular-text"
-                            autocomplete="off"
-                        />
-                        <p class="description">
-                            <?php esc_html_e('In RepGet: Settings → Integrations → WordPress plugin → New key.', 'repget'); ?>
-                        </p>
-                    </td>
-                </tr>
                 <tr>
                     <th scope="row">
                         <label for="repget_post_type"><?php esc_html_e('Publish articles as', 'repget'); ?></label>
@@ -487,39 +633,79 @@ function repget_settings_page() {
                         </p>
                     </td>
                 </tr>
-                <?php if ($key !== '') : ?>
-                <tr>
-                    <th scope="row"><?php esc_html_e('Status', 'repget'); ?></th>
-                    <td>
-                        <?php if ($status === 'connected') : ?>
-                            <span style="color:#00a32a;">&#10003; <?php esc_html_e('Connected', 'repget'); ?></span>
-                        <?php elseif ($status === 'invalid_key') : ?>
-                            <span style="color:#d63638;"><?php esc_html_e('The key was rejected. Check it was copied in full.', 'repget'); ?></span>
-                        <?php else : ?>
-                            <span><?php esc_html_e('Not checked yet', 'repget'); ?></span>
-                        <?php endif; ?>
-                    </td>
-                </tr>
-                <?php endif; ?>
             </table>
-
             <p class="submit">
-                <button type="submit" name="repget_save" class="button button-primary">
-                    <?php esc_html_e('Save and connect', 'repget'); ?>
+                <button type="submit" name="repget_save_post_type" class="button">
+                    <?php esc_html_e('Save', 'repget'); ?>
                 </button>
-                <?php if ($key !== '') : ?>
-                    <button type="submit" name="repget_sync" class="button">
-                        <?php esc_html_e('Check for articles now', 'repget'); ?>
-                    </button>
-                <?php endif; ?>
             </p>
         </form>
+
+        <details id="repget-advanced"<?php echo $advanced_open ? ' open' : ''; ?>>
+            <summary><?php esc_html_e('Advanced: use an Integration Key', 'repget'); ?></summary>
+            <p>
+                <?php esc_html_e('For a site connected with a key made in RepGet, instead of the button above. Most sites never need this.', 'repget'); ?>
+            </p>
+            <form method="post">
+                <?php wp_nonce_field('repget_save_key'); ?>
+                <table class="form-table" role="presentation">
+                    <tr>
+                        <th scope="row">
+                            <label for="repget_key"><?php esc_html_e('Integration Key', 'repget'); ?></label>
+                        </th>
+                        <td>
+                            <?php
+                            /*
+                              Never pre-filled with the saved key (see the Save
+                              handler above). "new-password" because an empty
+                              password field on a wp-admin page is exactly where
+                              a browser autofills the administrator's own login
+                              password - which Save would then send to RepGet.
+                            */
+                            ?>
+                            <input
+                                type="password"
+                                id="repget_key"
+                                name="repget_key"
+                                value=""
+                                class="regular-text"
+                                autocomplete="new-password"
+                                spellcheck="false"
+                                placeholder="<?php echo esc_attr($key !== '' ? __('A key is saved. Leave empty to keep it.', 'repget') : ''); ?>"
+                            />
+                            <p class="description">
+                                <?php esc_html_e('In RepGet: Integrations → WordPress plugin → Connect WordPress.', 'repget'); ?>
+                            </p>
+                        </td>
+                    </tr>
+                    <?php if ($key !== '') : ?>
+                    <tr>
+                        <th scope="row"><?php esc_html_e('Status', 'repget'); ?></th>
+                        <td>
+                            <?php if ($status === 'connected') : ?>
+                                <span class="repget-ok">&#10003; <?php esc_html_e('Connected', 'repget'); ?></span>
+                            <?php elseif ($status === 'invalid_key') : ?>
+                                <span class="repget-bad"><?php esc_html_e('The key was rejected. Check it was copied in full.', 'repget'); ?></span>
+                            <?php else : ?>
+                                <span><?php esc_html_e('Not checked yet', 'repget'); ?></span>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                    <?php endif; ?>
+                </table>
+                <p class="submit">
+                    <button type="submit" name="repget_save" class="button button-primary">
+                        <?php esc_html_e('Save and connect', 'repget'); ?>
+                    </button>
+                </p>
+            </form>
+        </details>
     </div>
 
     <?php
     /*
-      Fills the key in from the RepGet link - from the URL FRAGMENT, not the
-      query string.
+      The #repget_key fragment from a RepGet link (the 1.6 flow) - read from
+      the URL FRAGMENT, not the query string.
 
       1.3.0 read it from ?repget_key=, which put a live credential in this
       site's web-server access logs, in any analytics or security plugin that
@@ -527,14 +713,16 @@ function repget_settings_page() {
       part after # is never sent to a server by any browser, so none of those
       ever see it.
 
-      It is written into the input's value rather than into markup, so a
-      crafted fragment can only ever be text in a password field. The
-      address bar is cleaned straight after, so the key does not sit in the
-      tab or in screenshots sent to support.
+      With ?repget_link= as well (RepGet builds that know 1.7.0), the key is
+      NOT used: the Finish connecting button connects without it, and that
+      key is left to expire unused in RepGet. The fragment is still cleaned
+      from the address bar, so it does not sit in the tab or in screenshots.
 
-      It still does not SAVE anything: the customer presses Save and connect,
-      a normal nonce-checked POST. See the note on repget_settings_page for
-      why acting on a link alone would be unsafe.
+      Without a link, the key is written into the Advanced field's value
+      rather than into markup, so a crafted fragment can only ever be text in
+      a password field, and the Advanced section is opened to show it. It
+      still does not SAVE anything: the customer presses Save and connect, a
+      normal nonce-checked POST.
     */
     ?>
     <script>
@@ -542,18 +730,23 @@ function repget_settings_page() {
         var match = /(?:^#|&)repget_key=([^&]*)/.exec(window.location.hash);
         if (!match) return;
 
-        var key = '';
-        try {
-            key = decodeURIComponent(match[1]);
-        } catch (e) {
-            // Malformed escape - leave the field as it was.
-        }
+        var hasLink = <?php echo $link !== '' ? 'true' : 'false'; ?>;
+        if (!hasLink) {
+            var key = '';
+            try {
+                key = decodeURIComponent(match[1]);
+            } catch (e) {
+                // Malformed escape - leave the field as it was.
+            }
 
-        var field = document.getElementById('repget_key');
-        if (field && key) {
-            field.value = key;
-            var notice = document.getElementById('repget-prefill-notice');
-            if (notice) notice.hidden = false;
+            var field = document.getElementById('repget_key');
+            if (field && key) {
+                field.value = key;
+                var advanced = document.getElementById('repget-advanced');
+                if (advanced) advanced.open = true;
+                var notice = document.getElementById('repget-prefill-notice');
+                if (notice) notice.hidden = false;
+            }
         }
 
         if (window.history && window.history.replaceState) {
@@ -565,26 +758,695 @@ function repget_settings_page() {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Connect and sync                                                           */
+/* One-click connect (1.7.0)                                                  */
 /* -------------------------------------------------------------------------- */
 
-/** Confirms the key works, and tells RepGet which site this is. */
-function repget_verify() {
-    $result = repget_request('/api/plugin/verify', array(
-        'method' => 'POST',
-        'body'   => wp_json_encode(array(
-            'siteUrl'       => get_site_url(),
-            'wpVersion'     => get_bloginfo('version'),
-            'pluginVersion' => REPGET_VERSION,
-            'syncUrl'       => admin_url('admin-ajax.php'),
-        )),
-    ));
+/*
+  "Connect to RepGet": a handshake in the shape of OAuth with PKCE, so the key
+  never passes through a browser. docs/wordpress-connect.md is the contract;
+  in short:
 
+    1. The button posts to admin-post.php (nonce, manage_options). The plugin
+       makes a state and a verifier, keeps them for THIS WordPress user for 15
+       minutes, and registers the site with RepGet server to server
+       (POST /api/plugin/connect/start) - sending sha256(verifier), never the
+       verifier.
+    2. The browser goes to RepGet, which checks who is signed in and which
+       website this is, and comes back here with a one-time code.
+    3. The plugin exchanges the code AND the verifier for a key, server to
+       server (POST /api/plugin/connect/token), checks that the key works,
+       and only then saves it.
+
+  What the browser carries - a request id, a one-time code and the state - is
+  useless on its own: the code works once, for five minutes, and only
+  together with the verifier, which never leaves this server.
+*/
+
+/** The settings screen, where every connect step lands. */
+function repget_settings_url() {
+    return admin_url('admin.php?page=repget');
+}
+
+/**
+ * Where RepGet sends the browser back. Registered server to server in
+ * `start`, and RepGet redirects ONLY to the address registered there. Its path
+ * must end in /wp-admin/admin.php and its host must be home_url()'s, or
+ * RepGet refuses the start.
+ */
+function repget_connect_return_url() {
+    return admin_url('admin.php?page=repget&repget_connect=callback');
+}
+
+/** base64url without padding: the alphabet of every token in the handshake. */
+function repget_base64url($bytes) {
+    return rtrim(strtr(base64_encode($bytes), '+/', '-_'), '=');
+}
+
+/** A link id from RepGet's "Connect WordPress": url-safe, at most 64 characters. */
+function repget_valid_link($link) {
+    return is_string($link) && preg_match('/^[A-Za-z0-9_-]{1,64}$/', $link) === 1;
+}
+
+/**
+ * One url-safe token from the query string (state, request, code), or ''.
+ * Anything else - an array, a stray character, 200 characters - is not a
+ * token RepGet made, and is treated as absent.
+ */
+function repget_query_token($name) {
+    if (!isset($_GET[$name]) || !is_string($_GET[$name])) {
+        return '';
+    }
+    $value = wp_unslash($_GET[$name]);
+    return preg_match('/^[A-Za-z0-9_-]{1,128}$/', $value) === 1 ? $value : '';
+}
+
+/**
+ * The pending connect of the CURRENT WordPress user.
+ *
+ * Per user, so a callback can only be finished by the administrator who
+ * pressed the button: another admin, or a link sent to one, finds no state.
+ */
+function repget_connect_transient() {
+    return 'repget_connect_' . (int) get_current_user_id();
+}
+
+/** A message for the settings page after a redirect: per user, for one minute, shown once. */
+function repget_flash($message, $type = 'success') {
+    set_transient(
+        'repget_notice_' . (int) get_current_user_id(),
+        array('message' => (string) $message, 'type' => (string) $type),
+        MINUTE_IN_SECONDS
+    );
+}
+
+/** The message left by repget_flash(), removed as it is read; null if none. */
+function repget_take_flash() {
+    $name = 'repget_notice_' . (int) get_current_user_id();
+    $flash = get_transient($name);
+    if ($flash === false) {
+        return null;
+    }
+    delete_transient($name);
+    if (!is_array($flash) || !isset($flash['message']) || !is_string($flash['message'])) {
+        return null;
+    }
+    $type = isset($flash['type']) && in_array($flash['type'], array('success', 'error', 'warning', 'info'), true)
+        ? $flash['type']
+        : 'info';
+    return array('message' => $flash['message'], 'type' => $type);
+}
+
+/**
+ * POSTs to one of RepGet's connect endpoints: start, token, the verify of a
+ * key that is not saved yet, and disconnect.
+ *
+ * NOT repget_request(). That one turns ANY 401 into repget_status =
+ * 'invalid_key', which is right for the key this site publishes with and
+ * wrong for every call here: a key RepGet just issued failing its first
+ * check, or a code that did not exchange, says nothing about the key the site
+ * still holds - and a working site must not start saying "rejected" because
+ * a connect attempt went wrong. This function writes no option at all.
+ *
+ * `$key` goes in X-Integration-Key when given. Returns the decoded reply when
+ * RepGet answered 2xx with ok: true, else a WP_Error carrying RepGet's own
+ * message where it sent one.
+ */
+function repget_connect_request($path, $body, $key = '') {
+    $headers = array(
+        'Content-Type'            => 'application/json',
+        'Accept'                  => 'application/json',
+        'X-RepGet-Plugin-Version' => REPGET_VERSION,
+    );
+    if ($key !== '') {
+        $headers['X-Integration-Key'] = $key;
+    }
+
+    $response = wp_remote_request(repget_endpoint() . $path, array(
+        'method'  => 'POST',
+        'timeout' => 30,
+        'headers' => $headers,
+        'body'    => wp_json_encode($body),
+    ));
+    if (is_wp_error($response)) {
+        return $response;
+    }
+
+    $code = (int) wp_remote_retrieve_response_code($response);
+    $data = json_decode(wp_remote_retrieve_body($response), true);
+    if ($code >= 200 && $code < 300 && is_array($data) && !empty($data['ok'])) {
+        return $data;
+    }
+
+    $message = is_array($data) && isset($data['error']) && is_string($data['error']) && $data['error'] !== ''
+        ? $data['error']
+        : sprintf(__('RepGet answered with HTTP %d.', 'repget'), $code);
+    return new WP_Error($code === 401 ? 'repget_rejected' : 'repget_http', $message);
+}
+
+/**
+ * The Connect to RepGet button: a form posting to admin-post.php, which
+ * starts the handshake. `$link` is RepGet's link id in flow A.
+ */
+function repget_connect_form($label, $class = 'button button-primary', $link = '') {
+    ?>
+    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+        <input type="hidden" name="action" value="repget_connect_start" />
+        <?php wp_nonce_field('repget_connect'); ?>
+        <?php if ($link !== '') : ?>
+            <input type="hidden" name="link" value="<?php echo esc_attr($link); ?>" />
+        <?php endif; ?>
+        <button type="submit" class="<?php echo esc_attr($class); ?>"><?php echo esc_html($label); ?></button>
+    </form>
+    <?php
+}
+
+/** Back to the settings screen, and stop. */
+function repget_redirect_to_settings() {
+    wp_safe_redirect(repget_settings_url());
+    exit;
+}
+
+/**
+ * The button: admin-post.php?action=repget_connect_start.
+ *
+ * An administrator, a valid nonce, then off to RepGet - or back to the
+ * settings screen with RepGet's reason when it refused.
+ */
+add_action('admin_post_repget_connect_start', 'repget_connect_start');
+function repget_connect_start() {
+    if (!current_user_can('manage_options')) {
+        wp_die(esc_html__('Sorry, you are not allowed to connect this site to RepGet.', 'repget'), '', array('response' => 403));
+    }
+    check_admin_referer('repget_connect');
+
+    /*
+      Flow A's link, from the Finish connecting card. One that does not look
+      like RepGet's is dropped rather than sent, and the handshake runs as
+      flow B: RepGet then asks which website instead of approving at once.
+    */
+    $link = isset($_POST['link']) && is_string($_POST['link'])
+        ? sanitize_text_field(wp_unslash($_POST['link']))
+        : '';
+    if (!repget_valid_link($link)) {
+        $link = '';
+    }
+
+    $authorize = repget_connect_begin($link);
+    if (is_wp_error($authorize)) {
+        repget_flash(
+            sprintf(__('Could not start connecting to RepGet: %s Nothing changed.', 'repget'), rtrim($authorize->get_error_message(), '.') . '.'),
+            'error'
+        );
+        repget_redirect_to_settings();
+    }
+
+    // wp_redirect, not wp_safe_redirect: RepGet is another host, and the
+    // address was checked against repget_endpoint() in repget_connect_begin.
+    wp_redirect($authorize);
+    exit;
+}
+
+/**
+ * Registers a connect with RepGet and returns where to send the browser.
+ *
+ * The state and the verifier are 32 random bytes each; RepGet is sent only
+ * the SHA-256 of the verifier (PKCE S256), so the one-time code it later
+ * hands the browser cannot be exchanged by anyone who does not hold the
+ * verifier - which never leaves this server.
+ *
+ * The current key, if any, goes along in X-Integration-Key: RepGet uses it to
+ * warn that the site is about to move away from another account (flow C),
+ * and revokes it only once the NEW key has verified.
+ *
+ * @return string|WP_Error the authorize URL
+ */
+function repget_connect_begin($link = '') {
+    $state = repget_base64url(random_bytes(32));
+    $verifier = repget_base64url(random_bytes(32));
+    $challenge = repget_base64url(hash('sha256', $verifier, true));
+
+    $body = array(
+        'siteUrl'       => home_url(),
+        'returnUrl'     => repget_connect_return_url(),
+        'state'         => $state,
+        'challenge'     => $challenge,
+        'pluginVersion' => REPGET_VERSION,
+    );
+    if ($link !== '') {
+        $body['link'] = $link;
+    }
+
+    $result = repget_connect_request('/api/plugin/connect/start', $body, repget_key());
     if (is_wp_error($result)) {
         return $result;
     }
 
+    /*
+      Only ever RepGet's own confirm page, on the host this plugin already
+      trusts with its key. Anything else - another host, a look-alike host
+      that merely starts with ours, another path - is refused, so a reply
+      from a misconfigured or impersonated endpoint cannot turn this button
+      into an open redirect.
+    */
+    $prefix = repget_endpoint() . '/connect/wordpress?request=';
+    $url = isset($result['authorizeUrl']) && is_string($result['authorizeUrl']) ? $result['authorizeUrl'] : '';
+    $request = strpos($url, $prefix) === 0 ? substr($url, strlen($prefix)) : '';
+    if (preg_match('/^[A-Za-z0-9_-]{1,128}$/', $request) !== 1) {
+        return new WP_Error('repget_connect_url', __('RepGet answered with an unexpected address.', 'repget'));
+    }
+
+    /*
+      Stored only now that RepGet accepted it. The request id is kept too: the
+      callback must come back for THIS request, not merely with this state.
+      One pending connect per user - pressing the button again replaces it.
+    */
+    set_transient(repget_connect_transient(), array(
+        'state'    => $state,
+        'verifier' => $verifier,
+        'request'  => $request,
+    ), REPGET_CONNECT_TTL);
+
+    return $url;
+}
+
+/**
+ * RepGet's redirect back: admin.php?page=repget&repget_connect=callback|cancelled.
+ *
+ * On admin_init, before the page prints anything, so it can redirect to a
+ * clean URL: the code must not stay in the address bar, and a reload must
+ * not replay it.
+ */
+add_action('admin_init', 'repget_connect_callback');
+function repget_connect_callback() {
+    if (!isset($_GET['page'], $_GET['repget_connect']) || $_GET['page'] !== 'repget' || !is_string($_GET['repget_connect'])) {
+        return;
+    }
+    $mode = sanitize_key(wp_unslash($_GET['repget_connect']));
+    if ($mode !== 'callback' && $mode !== 'cancelled') {
+        return;
+    }
+    // Anyone else is turned away by WordPress when the page itself loads.
+    if (!current_user_can('manage_options')) {
+        return;
+    }
+
+    $name = repget_connect_transient();
+    $pending = get_transient($name);
+    $state = repget_query_token('state');
+    $known = is_array($pending)
+        && isset($pending['state'], $pending['verifier'])
+        && is_string($pending['state'])
+        && is_string($pending['verifier'])
+        && $state !== ''
+        && hash_equals($pending['state'], $state);
+
+    if ($mode === 'cancelled') {
+        if ($known) {
+            delete_transient($name);
+        }
+        repget_flash(__('Connection cancelled. Nothing changed.', 'repget'), 'info');
+        repget_redirect_to_settings();
+    }
+
+    $request = repget_query_token('request');
+    $code = repget_query_token('code');
+    if ($known && isset($pending['request']) && is_string($pending['request']) && $pending['request'] !== ''
+        && !hash_equals($pending['request'], $request)) {
+        $known = false;
+    }
+
+    if (!$known) {
+        /*
+          A code this user did not ask for: started by another WordPress user
+          or in another browser, older than 15 minutes, or planted by a link
+          someone sent. It is USED UP - exchanged with an empty verifier,
+          which RepGet answers by burning it - so it cannot be finished
+          anywhere else either, and nothing here changes.
+        */
+        if ($request !== '' && $code !== '') {
+            repget_connect_request('/api/plugin/connect/token', array(
+                'request'  => $request,
+                'code'     => $code,
+                'verifier' => '',
+            ));
+        }
+        repget_flash(
+            __('That connection was not started from this WordPress login, or it is more than 15 minutes old, so it was not used. Nothing changed. Press Connect to RepGet to try again.', 'repget'),
+            'error'
+        );
+        repget_redirect_to_settings();
+    }
+
+    /*
+      The state is single-use from here, whatever happens next: the code is
+      spent by the exchange below even when it fails, so a pending connect
+      that has reached this point can never finish again.
+    */
+    delete_transient($name);
+
+    if ($request === '' || $code === '') {
+        repget_flash(__('RepGet did not send a connection code. Nothing changed. Press Connect to RepGet to try again.', 'repget'), 'error');
+        repget_redirect_to_settings();
+    }
+
+    $connection = repget_connect_finish($request, $code, $pending['verifier']);
+    if (is_wp_error($connection)) {
+        repget_flash($connection->get_error_message(), 'error');
+    } else {
+        repget_flash(repget_connection_label($connection) . '. ' . __('Articles you approve in RepGet now publish here.', 'repget'), 'success');
+    }
+    repget_redirect_to_settings();
+}
+
+/**
+ * Exchanges the code for a key, checks the key, and only then saves it.
+ *
+ * THE OLD KEY STAYS until the new one has verified. A connect that fails at
+ * any step - RepGet refusing the code, the new key failing its first check,
+ * the network dropping in between - leaves the site publishing exactly as
+ * before. RepGet, for its part, revokes the key it replaces only when the new
+ * one verifies (the step below), so both sides switch at the same moment.
+ *
+ * @return array|WP_Error the saved connection
+ */
+function repget_connect_finish($request, $code, $verifier) {
+    $issued = repget_connect_request('/api/plugin/connect/token', array(
+        'request'  => $request,
+        'code'     => $code,
+        'verifier' => $verifier,
+    ));
+    if (is_wp_error($issued)) {
+        return new WP_Error('repget_token', sprintf(
+            // RepGet's own reason already says what to do next.
+            __('RepGet did not complete the connection: %s Nothing changed.', 'repget'),
+            rtrim($issued->get_error_message(), '.') . '.'
+        ));
+    }
+
+    // Printable, no spaces: it goes into an HTTP header on every request.
+    $key = isset($issued['key']) && is_string($issued['key']) ? trim($issued['key']) : '';
+    if (preg_match('/^[\x21-\x7e]{8,512}$/', $key) !== 1) {
+        return new WP_Error('repget_token', __('RepGet did not send a usable key. Nothing changed. Press Connect to RepGet to try again.', 'repget'));
+    }
+
+    /*
+      The NEW key, checked before anything is saved - through
+      repget_connect_request, so a failure cannot mark the key the site still
+      holds as rejected. This is also the call that tells RepGet the new key
+      is live: RepGet revokes the key this site presented at start (if any)
+      now, and not before.
+    */
+    $verified = repget_connect_request('/api/plugin/verify', repget_verify_body(), $key);
+    if (is_wp_error($verified) && $verified->get_error_code() !== 'repget_rejected') {
+        // Once more: the check may have reached RepGet and only its answer got lost.
+        $verified = repget_connect_request('/api/plugin/verify', repget_verify_body(), $key);
+    }
+    /*
+      Only a REJECTION is a verdict on the new key. No answer, a timeout or an
+      error page is not: RepGet issued this key seconds ago for the website
+      just approved - and the check may well have reached RepGet, which then
+      retired the key this site held for ANOTHER website (a move). Keeping the
+      old key then would leave the site holding a revoked key while saying
+      nothing changed. So the new key is saved; the settings page this
+      redirects to checks it live and says so if anything is wrong.
+    */
+    if (is_wp_error($verified) && $verified->get_error_code() !== 'repget_rejected') {
+        $verified = array();
+    }
+    if (is_wp_error($verified)) {
+        return new WP_Error('repget_verify', sprintf(
+            __('RepGet issued a key, but it did not pass its first check: %s This site\'s connection is unchanged. Press Connect to RepGet to try again.', 'repget'),
+            rtrim($verified->get_error_message(), '.') . '.'
+        ));
+    }
+
+    update_option(REPGET_OPTION_KEY, $key);
     update_option(REPGET_OPTION_STATUS, 'connected');
+    $connection = repget_remember_connection($verified, $issued, true);
+    /*
+      Not primed from this answer: the settings page this redirects to checks
+      live once more. When the site moved from another account, RepGet's
+      revocation of the old key nudges this site, and a sync still running on
+      the old key can record "invalid_key" after the save above; the next
+      live verify puts the status right.
+    */
+    delete_transient(REPGET_VERIFY_CACHE);
+    /*
+      What is already due - the website's first article above all - comes now,
+      not at the next hourly check. RepGet nudged this site when the new key
+      verified, but that nudge is signed with the new key and arrives before
+      the save above, so this site turned it away. One run of the hourly
+      check's own hook, which WordPress starts on its next request (the
+      redirect that follows) and which takes the sync lock. WordPress drops
+      it when the hourly run is due within ten minutes anyway.
+    */
+    wp_schedule_single_event(time(), 'repget_sync_event');
+    return $connection;
+}
+
+/**
+ * Disconnect: admin-post.php?action=repget_disconnect.
+ *
+ * Tells RepGet first, which revokes the key, then forgets everything here.
+ * Forgets it EVEN IF RepGet could not be told: the administrator asked this
+ * site to stop, and a site that cannot reach RepGet is exactly the one that
+ * must not be left half-connected. The key is then merely unused in RepGet,
+ * where it can be revoked by hand.
+ */
+add_action('admin_post_repget_disconnect', 'repget_disconnect');
+function repget_disconnect() {
+    if (!current_user_can('manage_options')) {
+        wp_die(esc_html__('Sorry, you are not allowed to disconnect this site from RepGet.', 'repget'), '', array('response' => 403));
+    }
+    check_admin_referer('repget_disconnect');
+
+    $key = repget_key();
+    /*
+      With this install's addresses: RepGet revokes the key only on the word
+      of the install it belongs to, while no other address uses it. A host's
+      staging copy holds the live site's key too, and disconnecting the copy
+      must not stop the live site.
+    */
+    $told = $key === ''
+        ? true
+        : repget_connect_request('/api/plugin/disconnect', repget_verify_body(), $key);
+
+    repget_forget_connection();
+
+    if (is_wp_error($told) && $told->get_error_code() === 'repget_rejected') {
+        // Revoked in RepGet already, or retired by a move: nothing left to tell it.
+        repget_flash(__('Disconnected. RepGet had already stopped accepting this site\'s key.', 'repget'), 'success');
+    } elseif (is_wp_error($told)) {
+        repget_flash(sprintf(
+            __('Disconnected. RepGet could not be told (%s), so the key still appears there until you revoke it in RepGet.', 'repget'),
+            rtrim($told->get_error_message(), '.')
+        ), 'warning');
+    } elseif (is_array($told) && array_key_exists('revoked', $told) && $told['revoked'] === false) {
+        /*
+          RepGet kept the key: another address uses it too (a staging copy of
+          this site, say), or it cannot yet tell this install from a copy.
+          This site has let go of it either way.
+        */
+        repget_flash(__('Disconnected here. RepGet kept the key, because another copy of this site (a staging site, for example) may still use it. To stop it everywhere, revoke it in RepGet under Integrations, Keys (advanced).', 'repget'), 'warning');
+    } else {
+        repget_flash(__('Disconnected. This site no longer publishes articles from RepGet.', 'repget'), 'success');
+    }
+    repget_redirect_to_settings();
+}
+
+/** Forgets the key, its status, its account and the cached check. */
+function repget_forget_connection() {
+    delete_option(REPGET_OPTION_KEY);
+    delete_option(REPGET_OPTION_STATUS);
+    delete_option(REPGET_OPTION_CONNECTION);
+    delete_transient(REPGET_VERIFY_CACHE);
+}
+
+/** The stored connection, every field present and a string (connected_at an int). */
+function repget_stored_connection() {
+    $stored = get_option(REPGET_OPTION_CONNECTION);
+    $stored = is_array($stored) ? $stored : array();
+    $out = array();
+    foreach (array('workspace', 'website', 'domain', 'websiteId') as $field) {
+        $out[$field] = isset($stored[$field]) && is_string($stored[$field]) ? $stored[$field] : '';
+    }
+    $out['connected_at'] = isset($stored['connected_at']) ? (int) $stored['connected_at'] : 0;
+    return $out;
+}
+
+/** The first non-empty `$group.$field` among `$sources`, as plain text. */
+function repget_pick_text($sources, $group, $field) {
+    foreach ($sources as $source) {
+        if (is_array($source) && isset($source[$group][$field]) && is_scalar($source[$group][$field])) {
+            $value = sanitize_text_field((string) $source[$group][$field]);
+            if ($value !== '') {
+                return $value;
+            }
+        }
+    }
+    return '';
+}
+
+/**
+ * Records which account and website a verify answered for.
+ *
+ * The verify reply is the authority - it describes the key as RepGet sees it
+ * now; the token reply fills any gap. `connected_at` is kept across re-checks
+ * of the same website, and restarts for a new connection.
+ */
+function repget_remember_connection($verified, $issued = array(), $new_connection = false) {
+    $previous = repget_stored_connection();
+    $sources = array($verified, $issued);
+    $connection = array(
+        'workspace' => repget_pick_text($sources, 'workspace', 'name'),
+        'website'   => repget_pick_text($sources, 'website', 'name'),
+        'domain'    => repget_pick_text($sources, 'website', 'domain'),
+        'websiteId' => repget_pick_text($sources, 'website', 'id'),
+    );
+    $same = !$new_connection
+        && $previous['connected_at'] > 0
+        && $previous['websiteId'] !== ''
+        && $previous['websiteId'] === $connection['websiteId'];
+    $connection['connected_at'] = $same ? $previous['connected_at'] : time();
+    update_option(REPGET_OPTION_CONNECTION, $connection, false);
+    return $connection;
+}
+
+/** "<workspace> · <domain>", or whichever of the two is known, or ''. */
+function repget_connection_name($connection) {
+    $workspace = isset($connection['workspace']) ? (string) $connection['workspace'] : '';
+    $domain = isset($connection['domain']) && $connection['domain'] !== ''
+        ? (string) $connection['domain']
+        : (isset($connection['website']) ? (string) $connection['website'] : '');
+    if ($workspace !== '' && $domain !== '') {
+        return $workspace . ' · ' . $domain;
+    }
+    return $workspace . $domain;
+}
+
+/** "Connected to <workspace> · <domain>" - or plain "Connected" when RepGet named neither. */
+function repget_connection_label($connection) {
+    $name = repget_connection_name($connection);
+    return $name !== ''
+        ? sprintf(__('Connected to %s', 'repget'), $name)
+        : __('Connected', 'repget');
+}
+
+/** Ties a cached check to the key it checked, without storing the key again. */
+function repget_key_fingerprint() {
+    return hash_hmac('sha256', 'repget-verify-cache', repget_key());
+}
+
+/** Caches a live check's outcome for the current key. Returns it. */
+function repget_cache_status($status, $ttl = 300) {
+    $status['for'] = repget_key_fingerprint();
+    set_transient(REPGET_VERIFY_CACHE, $status, $ttl);
+    return $status;
+}
+
+/**
+ * The connection as RepGet sees it now: 'connected' (with the account),
+ * 'rejected', or 'unreachable' (with the error).
+ *
+ * A LIVE verify, not the stored status alone: the stored status is only what
+ * the last check found, and a key revoked in RepGet - or a site moved to
+ * another account - would keep saying "Connected" here until something
+ * happened to call RepGet. Cached five minutes so the page does not call
+ * RepGet on every view; an unreachable RepGet is retried after a minute, and
+ * the page then falls back to what the site last knew.
+ */
+function repget_connection_status() {
+    $cached = get_transient(REPGET_VERIFY_CACHE);
+    if (is_array($cached) && isset($cached['state'], $cached['for']) && is_string($cached['for'])
+        && hash_equals(repget_key_fingerprint(), $cached['for'])) {
+        return $cached;
+    }
+
+    // Shorter than the usual 30 seconds: a page is waiting on this.
+    $result = repget_verify(10);
+    if (!is_wp_error($result)) {
+        return array('state' => 'connected') + repget_stored_connection();
+    }
+    if ($result->get_error_code() === 'invalid_key') {
+        return array('state' => 'rejected');
+    }
+    return repget_cache_status(
+        array('state' => 'unreachable', 'error' => $result->get_error_message()),
+        MINUTE_IN_SECONDS
+    );
+}
+
+/**
+ * What the connected card says.
+ *
+ * @return array{text: string, note: string, class: string, usable: bool}
+ */
+function repget_connection_view() {
+    $live = repget_connection_status();
+    if ($live['state'] === 'connected') {
+        return array('text' => repget_connection_label($live), 'note' => '', 'class' => 'repget-ok', 'usable' => true);
+    }
+
+    $status = get_option(REPGET_OPTION_STATUS);
+    if ($live['state'] === 'rejected' || $status === 'invalid_key') {
+        return array(
+            'text'   => __('RepGet no longer accepts this site\'s key.', 'repget'),
+            'note'   => __('It was revoked, or this site was connected to another RepGet account. Connect again to resume publishing.', 'repget'),
+            'class'  => 'repget-bad',
+            'usable' => false,
+        );
+    }
+
+    // RepGet could not be reached: say what the site last knew, and that it is that.
+    $note = sprintf(
+        __('RepGet could not be reached just now (%s). This is what this site last knew.', 'repget'),
+        isset($live['error']) ? rtrim((string) $live['error'], '.') : ''
+    );
+    if ($status === 'connected') {
+        return array('text' => repget_connection_label(repget_stored_connection()), 'note' => $note, 'class' => 'repget-ok', 'usable' => true);
+    }
+    return array('text' => __('Not checked yet', 'repget'), 'note' => $note, 'class' => '', 'usable' => true);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Connect and sync                                                           */
+/* -------------------------------------------------------------------------- */
+
+/** What every verify tells RepGet: which site this is, and where to ask it to check now. */
+function repget_verify_body() {
+    return array(
+        'siteUrl'       => get_site_url(),
+        'wpVersion'     => get_bloginfo('version'),
+        'pluginVersion' => REPGET_VERSION,
+        'syncUrl'       => admin_url('admin-ajax.php'),
+    );
+}
+
+/**
+ * Confirms the SAVED key works, and tells RepGet which site this is.
+ *
+ * Records the outcome: the status, which account and website RepGet says
+ * the key belongs to (1.7.0), and the live check the settings page shows.
+ * A key not saved yet is checked with repget_connect_request instead - see
+ * repget_connect_finish.
+ */
+function repget_verify($timeout = 30) {
+    $result = repget_request('/api/plugin/verify', array(
+        'method'  => 'POST',
+        'timeout' => $timeout,
+        'body'    => wp_json_encode(repget_verify_body()),
+    ));
+
+    if (is_wp_error($result)) {
+        if ($result->get_error_code() === 'invalid_key') {
+            repget_cache_status(array('state' => 'rejected'));
+        }
+        return $result;
+    }
+
+    update_option(REPGET_OPTION_STATUS, 'connected');
+    $connection = repget_remember_connection($result);
+    repget_cache_status(array('state' => 'connected') + $connection);
     return $result;
 }
 
@@ -1183,11 +2045,21 @@ function repget_post_type_choices() {
  * Moves the articles RepGet already created to another content type, and
  * tells RepGet their new addresses.
  *
- * Found two ways: posts this plugin tagged (1.5.0+), and the post ids RepGet
- * recorded when older versions created them - those carry no tag. Only those
- * posts are touched; nothing else on the site is.
+ * Found by the tag this plugin puts on every post it creates (1.5.0+). Only
+ * those posts are touched; nothing else on the site is.
  *
- * @return int|WP_Error how many posts moved
+ * 1.5.0 - 1.6.0 ALSO asked RepGet for the post ids it had recorded, to find
+ * posts made before the tag existed - through GET /api/plugin/articles. That
+ * is not a lookup: it is the delivery call. Every article due at that moment
+ * was CLAIMED (recorded as handed to the plugin, in flight for ten minutes)
+ * and the list was then thrown away, so changing this setting held back
+ * everything that was about to publish. RepGet has no call that returns
+ * those ids without claiming, so the lookup is gone; the only posts it
+ * found in addition were created by plugins older than 1.5.0, before the
+ * tag. Reporting the new addresses is unaffected: it goes through
+ * /api/plugin/published, which claims nothing.
+ *
+ * @return int how many posts moved
  */
 function repget_move_articles_to($post_type) {
     $targets = array(); // post id => RepGet article id
@@ -1201,15 +2073,6 @@ function repget_move_articles_to($post_type) {
     ));
     foreach ($tagged as $post_id) {
         $targets[(int) $post_id] = get_post_meta($post_id, REPGET_META_ARTICLE, true);
-    }
-
-    $result = repget_request('/api/plugin/articles', array('method' => 'GET'));
-    if (!is_wp_error($result) && isset($result['sent']) && is_array($result['sent'])) {
-        foreach ($result['sent'] as $row) {
-            if (!empty($row['postId']) && !empty($row['articleId'])) {
-                $targets[(int) $row['postId']] = sanitize_text_field($row['articleId']);
-            }
-        }
     }
 
     $moved = 0;
@@ -1401,4 +2264,300 @@ function repget_cron_sync() {
       and before 1.5.1 it took no lock at all.
     */
     repget_sync_locked();
+}
+
+/* -------------------------------------------------------------------------- */
+/* Updates (1.7.0)                                                            */
+/* -------------------------------------------------------------------------- */
+
+/*
+  WordPress offers new versions of this plugin itself, like any plugin from
+  the directory - so the one manual upload of 1.7.0 is the last one.
+
+  RepGet publishes a manifest next to the zip (written by
+  wordpress-plugin/build.mjs):
+
+    { version, package: "/repget-connector.zip", sha256, requires,
+      requires_php, tested, changelog }
+
+  and three filters use it:
+
+    - pre_set_site_transient_update_plugins offers an update, only for a
+      version STRICTLY newer than this one;
+    - plugins_api answers "View details" for this plugin's slug only;
+    - upgrader_pre_download downloads OUR package itself and refuses it
+      unless its SHA-256 matches the manifest - a zip that was altered, or
+      swapped between the manifest and the download, is deleted, not
+      installed.
+
+  The manifest comes from repget_endpoint(), the host that already receives
+  this site's key: nothing new is trusted.
+*/
+
+/** Where RepGet publishes the manifest. */
+function repget_manifest_url() {
+    return repget_endpoint() . '/repget-connector.json';
+}
+
+/**
+ * The package's full URL: RepGet's own host for a path ("/repget-connector.zip"),
+ * or an absolute http(s) URL as given. '' for anything else - a protocol-
+ * relative "//host" included. Whatever the URL, the download is hash-checked.
+ */
+function repget_package_url($package) {
+    if (!is_string($package) || $package === '') {
+        return '';
+    }
+    if ($package[0] === '/' && strpos($package, '//') !== 0) {
+        return repget_endpoint() . $package;
+    }
+    return preg_match('#^https?://[^\s]+$#i', $package) === 1 ? $package : '';
+}
+
+/** A manifest as fetched, checked field by field; null if it is not usable. */
+function repget_clean_manifest($data) {
+    if (!is_array($data)) {
+        return null;
+    }
+    $version = isset($data['version']) && is_string($data['version']) ? trim($data['version']) : '';
+    $sha256 = isset($data['sha256']) && is_string($data['sha256']) ? strtolower(trim($data['sha256'])) : '';
+    $package = repget_package_url(isset($data['package']) ? $data['package'] : '');
+    if (preg_match('/^\d+(\.\d+){0,3}$/', $version) !== 1 || preg_match('/^[0-9a-f]{64}$/', $sha256) !== 1 || $package === '') {
+        return null;
+    }
+
+    $text = function ($field) use ($data) {
+        return isset($data[$field]) && is_scalar($data[$field]) ? sanitize_text_field((string) $data[$field]) : '';
+    };
+    return array(
+        'version'      => $version,
+        'package'      => $package,
+        'sha256'       => $sha256,
+        'requires'     => $text('requires'),
+        'requires_php' => $text('requires_php'),
+        'tested'       => $text('tested'),
+        // Multi-line; escaped where it is printed (repget_changelog_html).
+        'changelog'    => isset($data['changelog']) && is_string($data['changelog']) ? $data['changelog'] : '',
+    );
+}
+
+/**
+ * RepGet's manifest, cached 12 hours; null when there is none to be had.
+ *
+ * `$fresh` skips the cache - used right before a download, so the hash
+ * checked is the one published NOW, next to the zip being served now. When
+ * RepGet cannot be reached, a fresh read falls back to the cached copy; a
+ * failed read with nothing cached is remembered for an hour, so a site that
+ * cannot reach RepGet does not ask on every update check.
+ */
+function repget_update_manifest($fresh = false) {
+    $cached = get_site_transient(REPGET_UPDATE_MANIFEST);
+    $usable = is_array($cached) && isset($cached['version'], $cached['package'], $cached['sha256']);
+    if (!$fresh && is_array($cached)) {
+        return $usable ? $cached : null;
+    }
+
+    $manifest = null;
+    $response = wp_remote_get(repget_manifest_url(), array(
+        'timeout' => 10,
+        'headers' => array('Accept' => 'application/json'),
+    ));
+    if (!is_wp_error($response) && (int) wp_remote_retrieve_response_code($response) === 200) {
+        $manifest = repget_clean_manifest(json_decode(wp_remote_retrieve_body($response), true));
+    }
+
+    if ($manifest !== null) {
+        set_site_transient(REPGET_UPDATE_MANIFEST, $manifest, 12 * HOUR_IN_SECONDS);
+        return $manifest;
+    }
+    if ($fresh && $usable) {
+        return $cached;
+    }
+    set_site_transient(REPGET_UPDATE_MANIFEST, array(), HOUR_IN_SECONDS);
+    return null;
+}
+
+/** The entry WordPress keeps for this plugin in its update list. */
+function repget_update_entry($manifest) {
+    return (object) array(
+        'id'            => repget_manifest_url(),
+        'slug'          => REPGET_PLUGIN_SLUG,
+        'plugin'        => plugin_basename(__FILE__),
+        'new_version'   => $manifest['version'],
+        'url'           => repget_endpoint(),
+        'package'       => $manifest['package'],
+        'requires'      => $manifest['requires'],
+        'requires_php'  => $manifest['requires_php'],
+        'tested'        => $manifest['tested'],
+        'icons'         => array(),
+        'banners'       => array(),
+        'banners_rtl'   => array(),
+        'compatibility' => new stdClass(),
+    );
+}
+
+/**
+ * Offers the manifest's version when it is STRICTLY newer than this one.
+ *
+ * The same version, or an older one (a rollback on RepGet's side), offers
+ * nothing - and removes any offer for this plugin that did not come from
+ * RepGet - and lists the plugin under no_update, which is what gives it
+ * WordPress's "Enable auto-updates" link. A manifest that cannot be read
+ * leaves WordPress's list as it was.
+ */
+add_filter('pre_set_site_transient_update_plugins', 'repget_offer_update');
+function repget_offer_update($transient) {
+    if (!is_object($transient)) {
+        return $transient;
+    }
+    $manifest = repget_update_manifest();
+    if ($manifest === null) {
+        return $transient;
+    }
+
+    $plugin = plugin_basename(__FILE__);
+    $entry = repget_update_entry($manifest);
+    /*
+      The version on DISK, not REPGET_VERSION. Right after an update this
+      code - still the OLD version, in memory - runs again in the same
+      request, and must not offer the version just installed. WordPress
+      passes what it read from disk in ->checked, except on its first save,
+      which starts from an empty object: then the file itself is read.
+    */
+    $installed = isset($transient->checked) && is_array($transient->checked)
+        && isset($transient->checked[$plugin]) && is_string($transient->checked[$plugin]) && $transient->checked[$plugin] !== ''
+        ? $transient->checked[$plugin]
+        : repget_installed_version();
+    if (version_compare($manifest['version'], $installed, '>')) {
+        if (!isset($transient->response) || !is_array($transient->response)) {
+            $transient->response = array();
+        }
+        $transient->response[$plugin] = $entry;
+        if (isset($transient->no_update) && is_array($transient->no_update)) {
+            unset($transient->no_update[$plugin]);
+        }
+    } else {
+        if (isset($transient->response) && is_array($transient->response)) {
+            unset($transient->response[$plugin]);
+        }
+        if (!isset($transient->no_update) || !is_array($transient->no_update)) {
+            $transient->no_update = array();
+        }
+        $entry->new_version = $installed;
+        $entry->package = '';
+        $transient->no_update[$plugin] = $entry;
+    }
+    return $transient;
+}
+
+/** This plugin's version as the file on disk says - newer than REPGET_VERSION right after an update. */
+function repget_installed_version() {
+    if (function_exists('get_file_data')) {
+        $data = get_file_data(__FILE__, array('Version' => 'Version'));
+        if (is_array($data) && isset($data['Version']) && is_string($data['Version']) && $data['Version'] !== '') {
+            return $data['Version'];
+        }
+    }
+    return REPGET_VERSION;
+}
+
+/** "View details" for this plugin: RepGet's manifest, never the WordPress.org directory. */
+add_filter('plugins_api', 'repget_plugin_details', 10, 3);
+function repget_plugin_details($result, $action, $args) {
+    if ($action !== 'plugin_information' || !is_object($args) || !isset($args->slug) || $args->slug !== REPGET_PLUGIN_SLUG) {
+        return $result;
+    }
+    $manifest = repget_update_manifest();
+    if ($manifest === null) {
+        /*
+          An error, not a pass-through: passing on would let WordPress look the
+          slug up in the public directory and show whatever is listed there
+          under this name.
+        */
+        return new WP_Error('plugins_api_failed', __('RepGet could not be reached for the plugin details. Try again later.', 'repget'));
+    }
+
+    return (object) array(
+        'name'          => 'RepGet Connector',
+        'slug'          => REPGET_PLUGIN_SLUG,
+        'version'       => $manifest['version'],
+        'author'        => 'RepGet',
+        'homepage'      => repget_endpoint(),
+        'requires'      => $manifest['requires'],
+        'requires_php'  => $manifest['requires_php'],
+        'tested'        => $manifest['tested'],
+        'download_link' => $manifest['package'],
+        'sections'      => array(
+            'description' => '<p>' . esc_html__('Publishes articles written by RepGet straight to your WordPress site.', 'repget') . '</p>',
+            'changelog'   => repget_changelog_html($manifest['changelog']),
+        ),
+    );
+}
+
+/** The manifest's plain-text changelog ("* item" lines, wrapped) as an escaped list. */
+function repget_changelog_html($text) {
+    $items = array();
+    foreach (preg_split('/\r?\n/', (string) $text) as $line) {
+        $line = trim($line);
+        if ($line === '') {
+            continue;
+        }
+        if (strpos($line, '* ') === 0 || empty($items)) {
+            $items[] = ltrim($line, '* ');
+        } else {
+            $items[count($items) - 1] .= ' ' . $line;
+        }
+    }
+    if (empty($items)) {
+        return '';
+    }
+    return '<ul><li>' . implode('</li><li>', array_map('esc_html', $items)) . '</li></ul>';
+}
+
+/**
+ * Downloads OUR package itself and installs it only if its SHA-256 is the
+ * manifest's.
+ *
+ * Ours is recognised by URL - RepGet's zip, or the package the cached
+ * manifest named - independently of whether a manifest can be read now, so
+ * RepGet being unreachable at the wrong moment fails CLOSED: no manifest, no
+ * install. Every other download is left to WordPress untouched.
+ */
+add_filter('upgrader_pre_download', 'repget_verified_download', 10, 4);
+function repget_verified_download($reply, $package, $upgrader = null, $hook_extra = array()) {
+    if ($reply !== false || !repget_is_our_package($package)) {
+        return $reply;
+    }
+
+    $manifest = repget_update_manifest(true);
+    if ($manifest === null) {
+        return new WP_Error('repget_package_unverified', __('RepGet\'s update manifest could not be read, so the RepGet Connector update was not installed. Try again later.', 'repget'));
+    }
+
+    if (!function_exists('download_url')) {
+        require_once ABSPATH . 'wp-admin/includes/file.php';
+    }
+    $file = download_url($package);
+    if (is_wp_error($file)) {
+        return $file;
+    }
+
+    $actual = hash_file('sha256', $file);
+    if (!is_string($actual) || !hash_equals($manifest['sha256'], strtolower($actual))) {
+        wp_delete_file($file);
+        return new WP_Error('repget_package_mismatch', __('The downloaded RepGet Connector update did not match the checksum RepGet published, so it was deleted and not installed.', 'repget'));
+    }
+    return $file;
+}
+
+/** True for the package URLs this plugin's updates come from. */
+function repget_is_our_package($package) {
+    if (!is_string($package) || $package === '') {
+        return false;
+    }
+    if ($package === repget_package_url('/' . REPGET_PLUGIN_SLUG . '.zip')) {
+        return true;
+    }
+    $cached = get_site_transient(REPGET_UPDATE_MANIFEST);
+    return is_array($cached) && isset($cached['package']) && $cached['package'] === $package;
 }

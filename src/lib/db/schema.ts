@@ -1892,6 +1892,20 @@ export const integrationKeys = pgTable(
      * admin-ajax.php URL on the website's own domain; see lib/plugin/sync.ts.
      */
     syncUrl: text("sync_url"),
+    /**
+     * WHICH WordPress install the key belongs to, for Disconnect
+     * (app/api/plugin/disconnect): the WordPress that asked a one-click
+     * connect for it, or else the first check-now address reported with it.
+     * Set once and never overwritten - unlike syncUrl, which follows whoever
+     * reported last: a staging copy of the site reports the same key from its
+     * own address, and must never become "the install". Any well-formed
+     * admin-ajax.php address, on any host: it identifies, it is never called.
+     */
+    installUrl: text("install_url"),
+    /** When installUrl was set, on the database clock. */
+    installSince: timestamp("install_since"),
+    /** The last time a DIFFERENT address reported this key: a copy of the site, or a move. */
+    otherInstallAt: timestamp("other_install_at"),
     /** Null until revoked. Revoked keys are kept for the audit trail. */
     revokedAt: timestamp("revoked_at"),
     ...timestamps,
@@ -1911,6 +1925,63 @@ export const integrationKeysRelations = relations(
       references: [websites.id],
     }),
   }),
+);
+
+/**
+ * One-click WordPress connection requests (plugin 1.7.0+): the handshake in
+ * docs/wordpress-connect.md, which hands the plugin a key server to server so
+ * nobody copies one. Short-lived; expired rows are deleted as new ones are
+ * written (lib/plugin/connect.ts).
+ */
+export const pluginConnectRequests = pgTable(
+  "plugin_connect_requests",
+  {
+    /** 32 random bytes, base64url: the only value that appears in RepGet URLs. */
+    id: text("id").primaryKey(),
+    /** "repget" (started from the Integrations card) or "wordpress" (started in the plugin). */
+    origin: text("origin").notNull(),
+    /** Known up front for "repget"; chosen on approval for "wordpress". */
+    websiteId: uuid("website_id").references(() => websites.id, { onDelete: "cascade" }),
+    createdByUserId: text("created_by_user_id"),
+    createdSessionId: text("created_session_id"),
+    /**
+     * "repget" only: the key "Connect WordPress" made in the same press, for
+     * plugin 1.6. Plugin 1.7 never uses it, so it is revoked when the
+     * handshake issues the real key, and never counted against the cap.
+     */
+    linkKeyId: uuid("link_key_id").references(() => integrationKeys.id, { onDelete: "set null" }),
+    /* Registered by the plugin, server to server (connect/start). */
+    siteUrl: text("site_url"),
+    siteHost: text("site_host"),
+    returnUrl: text("return_url"),
+    pluginState: text("plugin_state"),
+    /** PKCE S256 challenge: base64url(sha256(verifier)); the verifier never leaves WordPress. */
+    codeChallenge: text("code_challenge"),
+    pluginVersion: text("plugin_version"),
+    /**
+     * Hash of the address that called start (the WordPress server): open
+     * requests are capped per caller, since start needs no credentials.
+     */
+    callerHash: text("caller_hash"),
+    /** The key the plugin held when it started, if valid: revoked once the new key verifies, if it belongs to another website. */
+    presentedKeyId: uuid("presented_key_id").references(() => integrationKeys.id, { onDelete: "set null" }),
+    /** The first RepGet session that opened the confirmation page. */
+    viewerSessionId: text("viewer_session_id"),
+    approvedByUserId: text("approved_by_user_id"),
+    approvedAt: timestamp("approved_at"),
+    /** SHA-256 of the one-time code; the code itself is never stored. */
+    codeHash: text("code_hash"),
+    codeExpiresAt: timestamp("code_expires_at"),
+    consumedAt: timestamp("consumed_at"),
+    issuedKeyId: uuid("issued_key_id").references(() => integrationKeys.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+  },
+  (table) => [
+    index("plugin_connect_requests_expires_idx").on(table.expiresAt),
+    index("plugin_connect_requests_caller_idx").on(table.callerHash),
+    index("plugin_connect_requests_issued_key_idx").on(table.issuedKeyId),
+  ],
 );
 
 /* ------------------------------------------------------------------------- */

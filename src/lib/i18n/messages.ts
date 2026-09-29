@@ -829,6 +829,7 @@ export type Messages = {
       waiting: string;
     };
     keys: {
+      updatePlugin: string;
       keyCopied: string;
       keyCopyFailed: string;
       keyRevoked: string;
@@ -1551,6 +1552,29 @@ export type Messages = {
       whyThisTopic: string;
       view: string;
       addAWebsite: string;
+    };
+    wpConnect: {
+      title: string;
+      signedInAs: string;
+      goneTitle: string;
+      goneBody: string;
+      otherBrowserTitle: string;
+      otherBrowserBody: string;
+      noneTitle: string;
+      noneBody: string;
+      addWebsite: string;
+      useOtherAccount: string;
+      confirmTitle: string;
+      confirmBody: string;
+      inWorkspace: string;
+      movedWarning: string;
+      movedWarningNamed: string;
+      connect: string;
+      connectAgain: string;
+      move: string;
+      cancel: string;
+      tooManyKeys: string;
+      notAllowed: string;
     };
     auth: {
       redirecting: string;
@@ -2479,7 +2503,7 @@ const en: Messages = {
       draftPublishedAt: "Draft published - open it at {name}",
       pluginRowName: "WordPress plugin",
       pluginAwaiting: "Waiting for WordPress",
-      pluginAwaitingHelp: "Press Save and connect in the WordPress tab RepGet opened, or press Connect WordPress below.",
+      pluginAwaitingHelp: "In the WordPress tab RepGet opened, press Finish connecting to RepGet (Save and connect on older plugins), or press Connect WordPress below.",
       pluginRowFallback: "Connected - waiting for its first report.",
     },
     geo: {
@@ -2614,6 +2638,7 @@ const en: Messages = {
       waiting: "Waiting",
     },
     keys: {
+      updatePlugin: "WordPress has plugin {version}. Version 1.7 connects with one button, shows which RepGet account it publishes for and updates itself: download it, then in WordPress go to Plugins → Add New Plugin → Upload Plugin and choose “Replace current with uploaded”.",
       keyCopied: "Key copied",
       keyCopyFailed: "Could not copy. Select the key and copy it manually.",
       keyRevoked: "Key revoked",
@@ -2630,12 +2655,12 @@ const en: Messages = {
       stepInstall: "1. Install the plugin",
       stepInstallHelp: "Download it, then upload and activate it in WordPress (Plugins → Add New → Upload Plugin). Skip this if it is already installed.",
       stepConnect: "2. Connect",
-      stepConnectHelp: "Opens your WordPress with a new key already filled in. Press Save and connect there - nothing to copy.",
+      stepConnectHelp: "Opens your WordPress ready to connect. Press Finish connecting to RepGet there (Save and connect on plugins before 1.7) - nothing to copy.",
       connectButton: "Connect WordPress",
       reconnectButton: "Connect again",
       waitingTitle: "Waiting for WordPress…",
-      waitingHelp: "In the WordPress tab we opened, press Save and connect. If WordPress asks you to log in first, log in, then press Open WordPress again.",
-      stalledHelp: "Still waiting? If your WordPress already says Connected, it is using a different key - for example from another RepGet account or a test. Pressing Save and connect with the key we filled in switches it to this account.",
+      waitingHelp: "In the WordPress tab we opened, press Finish connecting to RepGet (or Save and connect). If WordPress asks you to log in first, log in, then press Open WordPress again.",
+      stalledHelp: "Still waiting? If your WordPress already says Connected, it is using a different key - for example from another RepGet account or a test. Finishing in the tab we opened switches it to this account.",
       openAgain: "Open WordPress again",
       copyInstead: "Copy key instead",
       popupBlocked: "Your browser blocked the new tab. Use Open WordPress again, or copy the key and paste it in WordPress.",
@@ -2648,7 +2673,7 @@ const en: Messages = {
       advancedHelp: "Each WordPress install holds one key. You only need these to connect another install by hand, or to stop an install publishing (Revoke).",
       keyReplaced: "That key was replaced or revoked before WordPress used it. Press Connect WordPress again.",
       waitingResumed: "Waiting for WordPress to use the key made a moment ago. If you closed that WordPress tab, press Connect WordPress again.",
-      gaveUp: "Stopped waiting. If you pressed Save and connect, reload this page; otherwise press Connect WordPress again.",
+      gaveUp: "Stopped waiting. If you finished in WordPress, reload this page; otherwise press Connect WordPress again.",
       notActiveHelp: "If WordPress says you are not allowed to access that page, the plugin is not active yet: do step 1, then press Open WordPress again.",
       madeByHand: "Added by hand",
       quotedName: "“{name}”",
@@ -3329,6 +3354,29 @@ const en: Messages = {
       whyThisTopic: "Why this topic?",
       view: "View",
       addAWebsite: "Add a website",
+    },
+    wpConnect: {
+      title: "Connect WordPress",
+      signedInAs: "Signed in as {email}",
+      goneTitle: "This connection has ended",
+      goneBody: "It expired, was cancelled or has already been used. Go back to WordPress and press Connect to RepGet again.",
+      otherBrowserTitle: "This connection was opened somewhere else",
+      otherBrowserBody: "For your security, a connection can be finished only in the browser that opened it first. Go back to WordPress and press Connect to RepGet again.",
+      noneTitle: "{domain} isn’t in this RepGet account yet",
+      noneBody: "Add {domain} as a website first, then press Connect to RepGet in WordPress again. If it is in another RepGet account, sign in to that one. If WordPress runs at a different address from your website in RepGet (for example blog.example.com), connect it with a key instead: in RepGet open Integrations → WordPress plugin → Keys (advanced) → New key, and paste it in WordPress under Advanced: use an Integration Key.",
+      addWebsite: "Add a website",
+      useOtherAccount: "Use a different account",
+      confirmTitle: "Connect {domain} to RepGet?",
+      confirmBody: "The WordPress site at {site} will publish the articles RepGet writes for the website below. You can disconnect it at any time in WordPress.",
+      inWorkspace: "Workspace “{workspace}”",
+      movedWarning: "This WordPress site is connected to another RepGet account. If you continue, that account stops publishing here.",
+      movedWarningNamed: "This WordPress site is connected to {domain} in workspace “{workspace}”. If you continue, that website stops publishing here.",
+      connect: "Connect {domain}",
+      connectAgain: "Connect {domain} again",
+      move: "Move {domain} to “{workspace}”",
+      cancel: "Cancel",
+      tooManyKeys: "This website already has 5 keys. Revoke one you no longer use under Integrations → Keys (advanced), then try again.",
+      notAllowed: "You can’t connect WordPress to that website with this account.",
     },
     auth: {
       redirecting: "Redirecting…",
@@ -4265,7 +4313,7 @@ const es: Messages = {
       draftPublishedAt: "Borrador publicado - ábralo en {name}",
       pluginRowName: "Plugin de WordPress",
       pluginAwaiting: "Esperando a WordPress",
-      pluginAwaitingHelp: "Pulse Save and connect en la pestaña de WordPress que abrió RepGet, o pulse Conectar WordPress abajo.",
+      pluginAwaitingHelp: "En la pestaña de WordPress que abrió RepGet, pulse Finish connecting to RepGet (Save and connect en plugins anteriores), o pulse Conectar WordPress abajo.",
       pluginRowFallback: "Conectado - esperando su primer informe.",
     },
     geo: {
@@ -4400,6 +4448,7 @@ const es: Messages = {
       waiting: "En espera",
     },
     keys: {
+      updatePlugin: "WordPress tiene el plugin {version}. La versión 1.7 se conecta con un botón, muestra para qué cuenta de RepGet publica y se actualiza sola: descárguela y, en WordPress, vaya a Plugins → Añadir nuevo → Subir plugin y elija “Reemplazar el actual por el subido”.",
       keyCopied: "Clave copiada",
       keyCopyFailed: "No se pudo copiar. Seleccione la clave y cópiela manualmente.",
       keyRevoked: "Clave revocada",
@@ -4416,12 +4465,12 @@ const es: Messages = {
       stepInstall: "1. Instale el plugin",
       stepInstallHelp: "Descárguelo y luego súbalo y actívelo en WordPress (Plugins → Añadir nuevo → Subir plugin). Omita este paso si ya está instalado.",
       stepConnect: "2. Conecte",
-      stepConnectHelp: "Abre su WordPress con una clave nueva ya introducida. Pulse Save and connect allí: no hay nada que copiar.",
+      stepConnectHelp: "Abre su WordPress listo para conectar. Pulse allí Finish connecting to RepGet (Save and connect en plugins anteriores a 1.7): no hay nada que copiar.",
       connectButton: "Conectar WordPress",
       reconnectButton: "Conectar de nuevo",
       waitingTitle: "Esperando a WordPress…",
-      waitingHelp: "En la pestaña de WordPress que abrimos, pulse Save and connect. Si WordPress le pide iniciar sesión, hágalo y pulse Abrir WordPress de nuevo.",
-      stalledHelp: "¿Sigue esperando? Si su WordPress ya dice Connected, está usando otra clave, por ejemplo de otra cuenta de RepGet o de una prueba. Al pulsar Save and connect con la clave que introdujimos, pasa a esta cuenta.",
+      waitingHelp: "En la pestaña de WordPress que abrimos, pulse Finish connecting to RepGet (o Save and connect). Si WordPress le pide iniciar sesión, hágalo y pulse Abrir WordPress de nuevo.",
+      stalledHelp: "¿Sigue esperando? Si su WordPress ya dice Connected, está usando otra clave, por ejemplo de otra cuenta de RepGet o de una prueba. Al terminar en la pestaña que abrimos, pasa a esta cuenta.",
       openAgain: "Abrir WordPress de nuevo",
       copyInstead: "Copiar la clave",
       popupBlocked: "Su navegador bloqueó la pestaña nueva. Use Abrir WordPress de nuevo, o copie la clave y péguela en WordPress.",
@@ -4434,7 +4483,7 @@ const es: Messages = {
       advancedHelp: "Cada instalación de WordPress guarda una clave. Solo las necesita para conectar otra instalación a mano o para que una instalación deje de publicar (Revocar).",
       keyReplaced: "Esa clave se reemplazó o revocó antes de que WordPress la usara. Pulse Conectar WordPress de nuevo.",
       waitingResumed: "Esperando a que WordPress use la clave creada hace un momento. Si cerró esa pestaña de WordPress, pulse Conectar WordPress de nuevo.",
-      gaveUp: "Se dejó de esperar. Si pulsó Save and connect, recargue esta página; si no, pulse Conectar WordPress de nuevo.",
+      gaveUp: "Se dejó de esperar. Si terminó en WordPress, recargue esta página; si no, pulse Conectar WordPress de nuevo.",
       notActiveHelp: "Si WordPress dice que no tiene permiso para acceder a esa página, el plugin aún no está activo: haga el paso 1 y pulse Abrir WordPress de nuevo.",
       madeByHand: "Añadida a mano",
       quotedName: "“{name}”",
@@ -5116,6 +5165,29 @@ const es: Messages = {
       whyThisTopic: "¿Por qué este tema?",
       view: "Ver",
       addAWebsite: "Añadir un sitio web",
+    },
+    wpConnect: {
+      title: "Conectar WordPress",
+      signedInAs: "Sesión iniciada como {email}",
+      goneTitle: "Esta conexión ha terminado",
+      goneBody: "Caducó, se canceló o ya se usó. Vuelva a WordPress y pulse Connect to RepGet de nuevo.",
+      otherBrowserTitle: "Esta conexión se abrió en otro lugar",
+      otherBrowserBody: "Por su seguridad, una conexión solo puede completarse en el navegador que la abrió primero. Vuelva a WordPress y pulse Connect to RepGet de nuevo.",
+      noneTitle: "{domain} aún no está en esta cuenta de RepGet",
+      noneBody: "Añada primero {domain} como sitio web y luego pulse Connect to RepGet en WordPress de nuevo. Si está en otra cuenta de RepGet, inicie sesión en esa. Si WordPress funciona en una dirección distinta de la de su sitio web en RepGet (por ejemplo blog.example.com), conéctelo con una clave: en RepGet abra Integraciones → Plugin de WordPress → Claves (avanzado) → Nueva clave, y péguela en WordPress en Advanced: use an Integration Key.",
+      addWebsite: "Añadir un sitio web",
+      useOtherAccount: "Usar otra cuenta",
+      confirmTitle: "¿Conectar {domain} a RepGet?",
+      confirmBody: "El sitio WordPress en {site} publicará los artículos que RepGet escribe para el sitio web de abajo. Puede desconectarlo cuando quiera desde WordPress.",
+      inWorkspace: "Espacio de trabajo “{workspace}”",
+      movedWarning: "Este sitio WordPress está conectado a otra cuenta de RepGet. Si continúa, esa cuenta dejará de publicar aquí.",
+      movedWarningNamed: "Este sitio WordPress está conectado a {domain} en el espacio de trabajo “{workspace}”. Si continúa, ese sitio web dejará de publicar aquí.",
+      connect: "Conectar {domain}",
+      connectAgain: "Volver a conectar {domain}",
+      move: "Mover {domain} a “{workspace}”",
+      cancel: "Cancelar",
+      tooManyKeys: "Este sitio web ya tiene 5 claves. Revoque una que ya no use en Integraciones → Claves (avanzado) e inténtelo de nuevo.",
+      notAllowed: "No puede conectar WordPress a ese sitio web con esta cuenta.",
     },
     auth: {
       redirecting: "Redirigiendo…",
@@ -6055,7 +6127,7 @@ const fr: Messages = {
       draftPublishedAt: "Brouillon publié - ouvrez-le sur {name}",
       pluginRowName: "Extension WordPress",
       pluginAwaiting: "En attente de WordPress",
-      pluginAwaitingHelp: "Cliquez sur Save and connect dans l’onglet WordPress ouvert par RepGet, ou sur Connecter WordPress ci-dessous.",
+      pluginAwaitingHelp: "Dans l’onglet WordPress ouvert par RepGet, cliquez sur Finish connecting to RepGet (Save and connect sur les anciennes extensions), ou sur Connecter WordPress ci-dessous.",
       pluginRowFallback: "Connecté - en attente de son premier rapport.",
     },
     geo: {
@@ -6190,6 +6262,7 @@ const fr: Messages = {
       waiting: "En attente",
     },
     keys: {
+      updatePlugin: "WordPress a l’extension {version}. La version 1.7 se connecte en un clic, indique pour quel compte RepGet elle publie et se met à jour seule : téléchargez-la, puis dans WordPress allez dans Extensions → Ajouter → Téléverser une extension et choisissez « Remplacer la version actuelle par la version téléversée ».",
       keyCopied: "Clé copiée",
       keyCopyFailed: "Copie impossible. Sélectionnez la clé et copiez-la manuellement.",
       keyRevoked: "Clé révoquée",
@@ -6206,12 +6279,12 @@ const fr: Messages = {
       stepInstall: "1. Installez l’extension",
       stepInstallHelp: "Téléchargez-la, puis téléversez-la et activez-la dans WordPress (Extensions → Ajouter → Téléverser une extension). Passez cette étape si elle est déjà installée.",
       stepConnect: "2. Connectez",
-      stepConnectHelp: "Ouvre votre WordPress avec une nouvelle clé déjà saisie. Cliquez sur Save and connect : rien à copier.",
+      stepConnectHelp: "Ouvre votre WordPress prêt à se connecter. Cliquez sur Finish connecting to RepGet (Save and connect avant l’extension 1.7) : rien à copier.",
       connectButton: "Connecter WordPress",
       reconnectButton: "Connecter à nouveau",
       waitingTitle: "En attente de WordPress…",
-      waitingHelp: "Dans l’onglet WordPress que nous avons ouvert, cliquez sur Save and connect. Si WordPress vous demande de vous connecter, faites-le, puis cliquez sur Rouvrir WordPress.",
-      stalledHelp: "Toujours en attente ? Si votre WordPress indique déjà Connected, il utilise une autre clé, par exemple d’un autre compte RepGet ou d’un test. Cliquer sur Save and connect avec la clé que nous avons saisie le bascule vers ce compte.",
+      waitingHelp: "Dans l’onglet WordPress que nous avons ouvert, cliquez sur Finish connecting to RepGet (ou Save and connect). Si WordPress vous demande de vous connecter, faites-le, puis cliquez sur Rouvrir WordPress.",
+      stalledHelp: "Toujours en attente ? Si votre WordPress indique déjà Connected, il utilise une autre clé, par exemple d’un autre compte RepGet ou d’un test. Terminer dans l’onglet que nous avons ouvert le bascule vers ce compte.",
       openAgain: "Rouvrir WordPress",
       copyInstead: "Copier la clé",
       popupBlocked: "Votre navigateur a bloqué le nouvel onglet. Utilisez Rouvrir WordPress, ou copiez la clé et collez-la dans WordPress.",
@@ -6224,7 +6297,7 @@ const fr: Messages = {
       advancedHelp: "Chaque installation WordPress conserve une clé. Vous n’en avez besoin que pour connecter une autre installation à la main, ou pour arrêter une installation (Révoquer).",
       keyReplaced: "Cette clé a été remplacée ou révoquée avant que WordPress ne l’utilise. Cliquez à nouveau sur Connecter WordPress.",
       waitingResumed: "En attente que WordPress utilise la clé créée il y a un instant. Si vous avez fermé cet onglet WordPress, cliquez à nouveau sur Connecter WordPress.",
-      gaveUp: "Attente interrompue. Si vous avez cliqué sur Save and connect, rechargez cette page ; sinon, cliquez à nouveau sur Connecter WordPress.",
+      gaveUp: "Attente interrompue. Si vous avez terminé dans WordPress, rechargez cette page ; sinon, cliquez à nouveau sur Connecter WordPress.",
       notActiveHelp: "Si WordPress indique que vous n’avez pas l’autorisation d’accéder à cette page, l’extension n’est pas encore active : faites l’étape 1, puis cliquez sur Rouvrir WordPress.",
       madeByHand: "Ajoutée à la main",
       quotedName: "« {name} »",
@@ -6905,6 +6978,29 @@ const fr: Messages = {
       whyThisTopic: "Pourquoi ce sujet ?",
       view: "Voir",
       addAWebsite: "Ajouter un site",
+    },
+    wpConnect: {
+      title: "Connecter WordPress",
+      signedInAs: "Connecté en tant que {email}",
+      goneTitle: "Cette connexion est terminée",
+      goneBody: "Elle a expiré, a été annulée ou a déjà été utilisée. Retournez dans WordPress et cliquez à nouveau sur Connect to RepGet.",
+      otherBrowserTitle: "Cette connexion a été ouverte ailleurs",
+      otherBrowserBody: "Pour votre sécurité, une connexion ne peut être terminée que dans le navigateur qui l’a ouverte en premier. Retournez dans WordPress et cliquez à nouveau sur Connect to RepGet.",
+      noneTitle: "{domain} n’est pas encore dans ce compte RepGet",
+      noneBody: "Ajoutez d’abord {domain} comme site, puis cliquez à nouveau sur Connect to RepGet dans WordPress. S’il se trouve dans un autre compte RepGet, connectez-vous à celui-ci. Si WordPress fonctionne à une autre adresse que votre site dans RepGet (par exemple blog.example.com), connectez-le avec une clé : dans RepGet, ouvrez Intégrations → Plugin WordPress → Clés (avancé) → Nouvelle clé, puis collez-la dans WordPress sous Advanced: use an Integration Key.",
+      addWebsite: "Ajouter un site",
+      useOtherAccount: "Utiliser un autre compte",
+      confirmTitle: "Connecter {domain} à RepGet ?",
+      confirmBody: "Le site WordPress {site} publiera les articles que RepGet rédige pour le site ci-dessous. Vous pouvez le déconnecter à tout moment dans WordPress.",
+      inWorkspace: "Espace de travail « {workspace} »",
+      movedWarning: "Ce site WordPress est connecté à un autre compte RepGet. Si vous continuez, ce compte cessera d’y publier.",
+      movedWarningNamed: "Ce site WordPress est connecté à {domain} dans l’espace de travail « {workspace} ». Si vous continuez, ce site cessera d’y publier.",
+      connect: "Connecter {domain}",
+      connectAgain: "Reconnecter {domain}",
+      move: "Déplacer {domain} vers « {workspace} »",
+      cancel: "Annuler",
+      tooManyKeys: "Ce site a déjà 5 clés. Révoquez-en une que vous n’utilisez plus dans Intégrations → Clés (avancé), puis réessayez.",
+      notAllowed: "Vous ne pouvez pas connecter WordPress à ce site avec ce compte.",
     },
     auth: {
       redirecting: "Redirection…",
@@ -7837,7 +7933,7 @@ const it: Messages = {
       draftPublishedAt: "Bozza pubblicata - la apra su {name}",
       pluginRowName: "Plugin WordPress",
       pluginAwaiting: "In attesa di WordPress",
-      pluginAwaitingHelp: "Prema Save and connect nella scheda di WordPress aperta da RepGet, oppure Collega WordPress qui sotto.",
+      pluginAwaitingHelp: "Nella scheda di WordPress aperta da RepGet prema Finish connecting to RepGet (Save and connect sui plugin precedenti), oppure Collega WordPress qui sotto.",
       pluginRowFallback: "Collegato - in attesa del primo rapporto.",
     },
     geo: {
@@ -7972,6 +8068,7 @@ const it: Messages = {
       waiting: "In attesa",
     },
     keys: {
+      updatePlugin: "WordPress ha il plugin {version}. La versione 1.7 si collega con un pulsante, mostra per quale account RepGet pubblica e si aggiorna da sola: la scarichi, poi in WordPress vada in Plugin → Aggiungi nuovo → Carica plugin e scelga “Sostituisci quello attuale con quello caricato”.",
       keyCopied: "Chiave copiata",
       keyCopyFailed: "Copia non riuscita. Selezioni la chiave e la copi manualmente.",
       keyRevoked: "Chiave revocata",
@@ -7988,12 +8085,12 @@ const it: Messages = {
       stepInstall: "1. Installi il plugin",
       stepInstallHelp: "Lo scarichi, poi lo carichi e lo attivi in WordPress (Plugin → Aggiungi nuovo → Carica plugin). Salti questo passo se è già installato.",
       stepConnect: "2. Colleghi",
-      stepConnectHelp: "Apre il Suo WordPress con una nuova chiave già inserita. Prema Save and connect: niente da copiare.",
+      stepConnectHelp: "Apre il Suo WordPress pronto per il collegamento. Prema Finish connecting to RepGet (Save and connect prima del plugin 1.7): niente da copiare.",
       connectButton: "Collega WordPress",
       reconnectButton: "Collega di nuovo",
       waitingTitle: "In attesa di WordPress…",
-      waitingHelp: "Nella scheda di WordPress che abbiamo aperto, prema Save and connect. Se WordPress chiede di accedere, acceda e poi prema Riapri WordPress.",
-      stalledHelp: "Ancora in attesa? Se il Suo WordPress dice già Connected, usa un’altra chiave, per esempio di un altro account RepGet o di una prova. Premendo Save and connect con la chiave che abbiamo inserito, passa a questo account.",
+      waitingHelp: "Nella scheda di WordPress che abbiamo aperto, prema Finish connecting to RepGet (o Save and connect). Se WordPress chiede di accedere, acceda e poi prema Riapri WordPress.",
+      stalledHelp: "Ancora in attesa? Se il Suo WordPress dice già Connected, usa un’altra chiave, per esempio di un altro account RepGet o di una prova. Completando nella scheda che abbiamo aperto, passa a questo account.",
       openAgain: "Riapri WordPress",
       copyInstead: "Copia la chiave",
       popupBlocked: "Il browser ha bloccato la nuova scheda. Usi Riapri WordPress, oppure copi la chiave e la incolli in WordPress.",
@@ -8006,7 +8103,7 @@ const it: Messages = {
       advancedHelp: "Ogni installazione di WordPress conserva una chiave. Servono solo per collegare a mano un’altra installazione o per fermarne una (Revoca).",
       keyReplaced: "Quella chiave è stata sostituita o revocata prima che WordPress la usasse. Prema di nuovo Collega WordPress.",
       waitingResumed: "In attesa che WordPress usi la chiave creata poco fa. Se ha chiuso quella scheda di WordPress, prema di nuovo Collega WordPress.",
-      gaveUp: "Attesa interrotta. Se ha premuto Save and connect, ricarichi questa pagina; altrimenti prema di nuovo Collega WordPress.",
+      gaveUp: "Attesa interrotta. Se ha completato in WordPress, ricarichi questa pagina; altrimenti prema di nuovo Collega WordPress.",
       notActiveHelp: "Se WordPress dice che non ha il permesso di accedere a quella pagina, il plugin non è ancora attivo: faccia il passo 1, poi prema Riapri WordPress.",
       madeByHand: "Aggiunta a mano",
       quotedName: "“{name}”",
@@ -8688,6 +8785,29 @@ const it: Messages = {
       whyThisTopic: "Perché questo argomento?",
       view: "Vedi",
       addAWebsite: "Aggiungi un sito",
+    },
+    wpConnect: {
+      title: "Collega WordPress",
+      signedInAs: "Accesso effettuato come {email}",
+      goneTitle: "Questo collegamento è terminato",
+      goneBody: "È scaduto, è stato annullato o è già stato usato. Torni in WordPress e prema di nuovo Connect to RepGet.",
+      otherBrowserTitle: "Questo collegamento è stato aperto altrove",
+      otherBrowserBody: "Per la Sua sicurezza, un collegamento può essere completato solo nel browser che lo ha aperto per primo. Torni in WordPress e prema di nuovo Connect to RepGet.",
+      noneTitle: "{domain} non è ancora in questo account RepGet",
+      noneBody: "Aggiunga prima {domain} come sito, poi prema di nuovo Connect to RepGet in WordPress. Se si trova in un altro account RepGet, acceda a quello. Se WordPress funziona a un indirizzo diverso da quello del Suo sito in RepGet (per esempio blog.example.com), lo colleghi con una chiave: in RepGet apra Integrazioni → Plugin WordPress → Chiavi (avanzate) → Nuova chiave, e la incolli in WordPress sotto Advanced: use an Integration Key.",
+      addWebsite: "Aggiungi un sito",
+      useOtherAccount: "Usa un altro account",
+      confirmTitle: "Collegare {domain} a RepGet?",
+      confirmBody: "Il sito WordPress {site} pubblicherà gli articoli che RepGet scrive per il sito qui sotto. Può scollegarlo in qualsiasi momento da WordPress.",
+      inWorkspace: "Area di lavoro “{workspace}”",
+      movedWarning: "Questo sito WordPress è collegato a un altro account RepGet. Se continua, quell’account smetterà di pubblicare qui.",
+      movedWarningNamed: "Questo sito WordPress è collegato a {domain} nell’area di lavoro “{workspace}”. Se continua, quel sito smetterà di pubblicare qui.",
+      connect: "Collega {domain}",
+      connectAgain: "Ricollega {domain}",
+      move: "Sposta {domain} in “{workspace}”",
+      cancel: "Annulla",
+      tooManyKeys: "Questo sito ha già 5 chiavi. Revochi una che non usa più in Integrazioni → Chiavi (avanzate), poi riprovi.",
+      notAllowed: "Con questo account non può collegare WordPress a quel sito.",
     },
     auth: {
       redirecting: "Reindirizzamento…",
@@ -9628,7 +9748,7 @@ const de: Messages = {
       draftPublishedAt: "Entwurf veröffentlicht - öffnen Sie ihn unter {name}",
       pluginRowName: "WordPress-Plugin",
       pluginAwaiting: "Warte auf WordPress",
-      pluginAwaitingHelp: "Klicken Sie im von RepGet geöffneten WordPress-Tab auf Save and connect, oder unten auf WordPress verbinden.",
+      pluginAwaitingHelp: "Klicken Sie im von RepGet geöffneten WordPress-Tab auf Finish connecting to RepGet (bei älteren Plugins Save and connect), oder unten auf WordPress verbinden.",
       pluginRowFallback: "Verbunden - wartet auf die erste Rückmeldung.",
     },
     geo: {
@@ -9763,6 +9883,7 @@ const de: Messages = {
       waiting: "Wartet",
     },
     keys: {
+      updatePlugin: "WordPress hat das Plugin {version}. Version 1.7 verbindet sich mit einem Klick, zeigt, für welches RepGet-Konto es veröffentlicht, und aktualisiert sich selbst: Laden Sie es herunter, gehen Sie in WordPress zu Plugins → Neues Plugin hinzufügen → Plugin hochladen und wählen Sie „Aktuelle Version durch hochgeladene ersetzen“.",
       keyCopied: "Schlüssel kopiert",
       keyCopyFailed: "Kopieren nicht möglich. Markieren Sie den Schlüssel und kopieren Sie ihn von Hand.",
       keyRevoked: "Schlüssel widerrufen",
@@ -9779,12 +9900,12 @@ const de: Messages = {
       stepInstall: "1. Plugin installieren",
       stepInstallHelp: "Laden Sie es herunter, dann in WordPress hochladen und aktivieren (Plugins → Neues Plugin hinzufügen → Plugin hochladen). Überspringen, wenn es schon installiert ist.",
       stepConnect: "2. Verbinden",
-      stepConnectHelp: "Öffnet Ihr WordPress mit einem neuen, bereits eingetragenen Schlüssel. Klicken Sie dort auf Save and connect – nichts zu kopieren.",
+      stepConnectHelp: "Öffnet Ihr WordPress, bereit zum Verbinden. Klicken Sie dort auf Finish connecting to RepGet (vor Plugin 1.7: Save and connect) – nichts zu kopieren.",
       connectButton: "WordPress verbinden",
       reconnectButton: "Erneut verbinden",
       waitingTitle: "Warten auf WordPress…",
-      waitingHelp: "Klicken Sie im geöffneten WordPress-Tab auf Save and connect. Fragt WordPress zuerst nach der Anmeldung, melden Sie sich an und klicken Sie dann auf WordPress erneut öffnen.",
-      stalledHelp: "Wartet es noch? Zeigt Ihr WordPress bereits Connected an, nutzt es einen anderen Schlüssel – etwa von einem anderen RepGet-Konto oder einem Test. Ein Klick auf Save and connect mit dem eingetragenen Schlüssel stellt es auf dieses Konto um.",
+      waitingHelp: "Klicken Sie im geöffneten WordPress-Tab auf Finish connecting to RepGet (oder Save and connect). Fragt WordPress zuerst nach der Anmeldung, melden Sie sich an und klicken Sie dann auf WordPress erneut öffnen.",
+      stalledHelp: "Wartet es noch? Zeigt Ihr WordPress bereits Connected an, nutzt es einen anderen Schlüssel – etwa von einem anderen RepGet-Konto oder einem Test. Schließen Sie im geöffneten Tab ab, um es auf dieses Konto umzustellen.",
       openAgain: "WordPress erneut öffnen",
       copyInstead: "Schlüssel kopieren",
       popupBlocked: "Ihr Browser hat den neuen Tab blockiert. Nutzen Sie WordPress erneut öffnen, oder kopieren Sie den Schlüssel und fügen ihn in WordPress ein.",
@@ -9797,7 +9918,7 @@ const de: Messages = {
       advancedHelp: "Jede WordPress-Installation speichert einen Schlüssel. Sie brauchen diese nur, um eine weitere Installation von Hand zu verbinden oder eine Installation zu stoppen (Widerrufen).",
       keyReplaced: "Dieser Schlüssel wurde ersetzt oder widerrufen, bevor WordPress ihn benutzt hat. Klicken Sie erneut auf WordPress verbinden.",
       waitingResumed: "Warten darauf, dass WordPress den gerade erstellten Schlüssel benutzt. Haben Sie den WordPress-Tab geschlossen, klicken Sie erneut auf WordPress verbinden.",
-      gaveUp: "Warten beendet. Haben Sie auf Save and connect geklickt, laden Sie diese Seite neu; sonst klicken Sie erneut auf WordPress verbinden.",
+      gaveUp: "Warten beendet. Haben Sie in WordPress abgeschlossen, laden Sie diese Seite neu; sonst klicken Sie erneut auf WordPress verbinden.",
       notActiveHelp: "Meldet WordPress, dass Sie diese Seite nicht aufrufen dürfen, ist das Plugin noch nicht aktiv: Erledigen Sie Schritt 1 und klicken Sie dann auf WordPress erneut öffnen.",
       madeByHand: "Von Hand hinzugefügt",
       quotedName: "„{name}“",
@@ -10478,6 +10599,29 @@ const de: Messages = {
       whyThisTopic: "Warum dieses Thema?",
       view: "Ansehen",
       addAWebsite: "Website hinzufügen",
+    },
+    wpConnect: {
+      title: "WordPress verbinden",
+      signedInAs: "Angemeldet als {email}",
+      goneTitle: "Diese Verbindung ist beendet",
+      goneBody: "Sie ist abgelaufen, wurde abgebrochen oder bereits verwendet. Gehen Sie zurück zu WordPress und klicken Sie erneut auf Connect to RepGet.",
+      otherBrowserTitle: "Diese Verbindung wurde woanders geöffnet",
+      otherBrowserBody: "Zu Ihrer Sicherheit kann eine Verbindung nur in dem Browser abgeschlossen werden, der sie zuerst geöffnet hat. Gehen Sie zurück zu WordPress und klicken Sie erneut auf Connect to RepGet.",
+      noneTitle: "{domain} ist noch nicht in diesem RepGet-Konto",
+      noneBody: "Fügen Sie {domain} zuerst als Website hinzu und klicken Sie dann in WordPress erneut auf Connect to RepGet. Ist sie in einem anderen RepGet-Konto, melden Sie sich dort an. Läuft WordPress unter einer anderen Adresse als Ihre Website in RepGet (zum Beispiel blog.example.com), verbinden Sie es mit einem Schlüssel: Öffnen Sie in RepGet Integrationen → WordPress-Plugin → Schlüssel (erweitert) → Neuer Schlüssel und fügen Sie ihn in WordPress unter Advanced: use an Integration Key ein.",
+      addWebsite: "Website hinzufügen",
+      useOtherAccount: "Anderes Konto verwenden",
+      confirmTitle: "{domain} mit RepGet verbinden?",
+      confirmBody: "Die WordPress-Website unter {site} veröffentlicht die Artikel, die RepGet für die Website unten schreibt. Sie können sie jederzeit in WordPress trennen.",
+      inWorkspace: "Arbeitsbereich „{workspace}“",
+      movedWarning: "Diese WordPress-Website ist mit einem anderen RepGet-Konto verbunden. Wenn Sie fortfahren, veröffentlicht dieses Konto hier nicht mehr.",
+      movedWarningNamed: "Diese WordPress-Website ist mit {domain} im Arbeitsbereich „{workspace}“ verbunden. Wenn Sie fortfahren, veröffentlicht diese Website hier nicht mehr.",
+      connect: "{domain} verbinden",
+      connectAgain: "{domain} erneut verbinden",
+      move: "{domain} nach „{workspace}“ verschieben",
+      cancel: "Abbrechen",
+      tooManyKeys: "Diese Website hat bereits 5 Schlüssel. Widerrufen Sie unter Integrationen → Schlüssel (erweitert) einen, den Sie nicht mehr verwenden, und versuchen Sie es erneut.",
+      notAllowed: "Mit diesem Konto können Sie WordPress nicht mit dieser Website verbinden.",
     },
     auth: {
       redirecting: "Weiterleitung…",

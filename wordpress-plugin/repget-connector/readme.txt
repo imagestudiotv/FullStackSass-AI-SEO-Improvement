@@ -1,16 +1,16 @@
 === RepGet Connector ===
 Requires at least: 5.6
-Tested up to: 6.7
+Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 1.6.0
+Stable tag: 1.7.0
 License: GPLv2 or later
 
 Publishes articles written by RepGet straight to your WordPress site.
 
 == Description ==
 
-Connect your site to RepGet with a single Integration Key. Articles you
-approve in RepGet are published here automatically, with their images.
+Connect your site to RepGet with one button. Articles you approve in RepGet
+are published here automatically, with their images.
 
 This plugin asks your site to fetch articles rather than letting an outside
 service push them in. That means RepGet never holds a password to your
@@ -20,19 +20,25 @@ disabled the WordPress API.
 
 == Installation ==
 
-1. In RepGet, open your website, then Publishing.
-2. Under "WordPress plugin", click New key and copy the key. It is shown once.
-3. Back in RepGet, click "Open my WordPress". It takes you straight to the
-   upload screen. Choose the zip and install it.
-4. Activate it. WordPress brings you to the RepGet screen automatically.
-5. Click "Open WordPress with this key" in RepGet - the key arrives already
-   filled in - then press Save and connect.
+1. In RepGet, open Integrations, then WordPress plugin, and download the
+   plugin. Keep the zip as it is - do not unpack it.
+2. In WordPress, go to Plugins, Add New Plugin, Upload Plugin. Choose the zip,
+   install it and activate it. WordPress brings you to the RepGet screen.
+3. Press "Connect to RepGet". Sign in to RepGet if it asks, check the website
+   it shows and confirm. You come straight back to WordPress, connected.
+
+Or start in RepGet: Integrations → WordPress plugin → Connect WordPress. It
+opens this WordPress screen; press "Finish connecting to RepGet".
 
 RepGet appears in your WordPress menu, below Settings.
 
-You should see "Connected" and the name of the website it linked to. If the
-name is not the site you expected, the key belongs to a different website in
-RepGet — go back and copy the right one.
+You should see "Connected to" your RepGet account and your site's domain. If
+that is not the account you expected, press "Connect to a different RepGet
+account".
+
+There is no key to copy: RepGet and your site exchange it directly, and it is
+never shown. Sites that were connected with a key keep working; the key field
+is still there, under "Advanced: use an Integration Key".
 
 == Frequently Asked Questions ==
 
@@ -50,20 +56,52 @@ host about a real cron job.
 As published posts, with the featured image set. They are ordinary posts, so
 you can edit or unpublish them like anything else.
 
+= How do I stop publishing to this site, or move it to another account? =
+
+Press "Disconnect" on the RepGet screen in WordPress. RepGet is told, and the
+site forgets its connection. To move the site, press "Connect to a different
+RepGet account" instead: the old account keeps publishing until the new
+connection is confirmed.
+
 = What happens if I lose the key? =
 
-Revoke it in RepGet and create a new one. Keys are stored scrambled, so
-nobody — including us — can look yours up after it is created.
+With "Connect to RepGet" there is no key to lose - just press it again. A key
+made by hand can be revoked in RepGet and replaced. Keys are stored scrambled,
+so nobody — including us — can look yours up after it is created.
+
+= How is the plugin updated? =
+
+From 1.7.0, WordPress offers new versions of this plugin on its Updates
+screen, like any other plugin. Each download is checked against the SHA-256
+fingerprint RepGet publishes, and refused if it does not match.
 
 = Does this send my site's data to RepGet? =
 
 It reports your site address, WordPress version and plugin version, so support
 can help when something goes wrong, and the address of your site's admin-ajax.php
 so RepGet can ask the plugin to check for articles when you press Publish.
-Nothing else is sent. The plugin only
-fetches articles and reports whether each one published.
+When you press Connect to RepGet it also sends the address of this RepGet
+screen, so RepGet can bring you back to it. Nothing else is sent. The plugin
+only fetches articles and reports whether each one published.
 
 == Changelog ==
+
+= 1.7.0 =
+* Connect to RepGet: one button connects this site to your RepGet account.
+  There is no key to copy - RepGet and your site exchange it directly, once,
+  and it is never shown or put in a web address.
+* The RepGet screen says which RepGet account and website this site is
+  connected to, checked with RepGet when you open it.
+* New buttons: Connect to a different RepGet account, and Disconnect.
+* Starting from RepGet's "Connect WordPress" now takes one press in WordPress:
+  "Finish connecting to RepGet".
+* Changing "Publish articles as" no longer holds back articles that were about
+  to publish. It used to fetch them and then drop them, leaving them waiting
+  ten minutes.
+* WordPress now offers updates to this plugin itself, and installs one only if
+  it matches the fingerprint RepGet publishes.
+* The Integration Key field moved under "Advanced: use an Integration Key",
+  and no longer shows the saved key.
 
 = 1.6.0 =
 * Each report to RepGet now names the exact delivery it answers. When a

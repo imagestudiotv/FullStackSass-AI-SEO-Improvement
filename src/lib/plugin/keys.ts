@@ -91,6 +91,32 @@ export type ResolvedKey = {
 export async function resolveIntegrationKey(
   key: string | null | undefined,
 ): Promise<ResolvedKey | null> {
+  const row = await lookupIntegrationKey(key);
+  if (!row) return null;
+
+  /**
+   * Not awaited. Recording usage must never delay or fail the request it is
+   * recording — a plugin publishing an article should not error because a
+   * timestamp write was slow.
+   */
+  void db
+    .update(integrationKeys)
+    .set({ lastUsedAt: new Date() })
+    .where(eq(integrationKeys.id, row.keyId))
+    .catch(() => {});
+
+  return row;
+}
+
+/**
+ * resolveIntegrationKey WITHOUT recording use: for a key that is presented
+ * but not used to do anything - the old key a plugin sends when it starts
+ * connecting (lib/plugin/handshake.ts), or one it asks us to revoke. Marking
+ * it used would turn "Connect your site" green for a key being replaced.
+ */
+export async function lookupIntegrationKey(
+  key: string | null | undefined,
+): Promise<ResolvedKey | null> {
   if (!key) return null;
 
   const trimmed = key.trim();
@@ -115,20 +141,163 @@ export async function resolveIntegrationKey(
     )
     .limit(1);
 
-  if (!row) return null;
+  return row ?? null;
+}
 
-  /**
-   * Not awaited. Recording usage must never delay or fail the request it is
-   * recording — a plugin publishing an article should not error because a
-   * timestamp write was slow.
-   */
-  void db
+/**
+ * Keeps the plugin version in a key's site details current from the version
+ * header every plugin call sends (X-RepGet-Plugin-Version). The details are
+ * otherwise written only when WordPress verifies its key, and an upgraded
+ * plugin need not do that for days - so the card kept offering an update
+ * the customer had already installed. One conditional write: nothing when
+ * the version is unchanged, or when no details were recorded yet.
+ */
+export async function recordPluginVersion(keyId: string, version: string | null | undefined): Promise<void> {
+  const clean = version?.trim() ?? "";
+  if (!/^\d{1,4}\.\d{1,4}\.\d{1,4}$/.test(clean)) return;
+  await db
     .update(integrationKeys)
-    .set({ lastUsedAt: new Date() })
-    .where(eq(integrationKeys.id, row.keyId))
-    .catch(() => {});
+    .set({
+      siteInfo: sql`regexp_replace(${integrationKeys.siteInfo}, 'plugin [0-9][0-9.]*', ${`plugin ${clean}`})`,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(integrationKeys.id, keyId),
+        sql`${integrationKeys.siteInfo} ~ 'plugin [0-9]'`,
+        sql`substring(${integrationKeys.siteInfo} from 'plugin ([0-9][0-9.]*)') <> ${clean}`,
+      ),
+    );
+}
 
-  return row;
+/**
+ * The WordPress admin address a plugin of this website reported (from its
+ * check-now address, .../wp-admin/admin-ajax.php), most recently used first.
+ * The website's own address is only a guess at it: a WordPress installed
+ * in a subdirectory (example.com/blog) has its admin under that path.
+ */
+export async function reportedWordPressAdmin(websiteId: string): Promise<string | null> {
+  const [row] = await db
+    .select({ syncUrl: integrationKeys.syncUrl })
+    .from(integrationKeys)
+    .where(and(eq(integrationKeys.websiteId, websiteId), isNull(integrationKeys.revokedAt), sql`${integrationKeys.syncUrl} is not null`))
+    .orderBy(sql`${integrationKeys.lastUsedAt} desc nulls last`)
+    .limit(1);
+  const url = row?.syncUrl;
+  return url && url.endsWith("/wp-admin/admin-ajax.php") ? url.slice(0, -"admin-ajax.php".length) : null;
+}
+
+/* ------------------------------------------------------------------------ */
+/* Which WordPress install a key belongs to                                  */
+/* ------------------------------------------------------------------------ */
+
+/*
+  WHY. A host's one-click staging - in a subfolder of the same domain, or on
+  a subdomain - copies the live site's database, the key included. The copy
+  then calls RepGet with the live site's key from its own address. syncUrl
+  cannot tell the two apart: it follows whoever reported last. So a key
+  also remembers the FIRST install it was used from (installUrl, set once)
+  and when another address last used it (otherInstallAt), and Disconnect
+  revokes a key only on the word of that first install, while no other
+  address is using the key (revokeForDisconnect). When in doubt it does not
+  revoke: a key left live is harmless, a live site cut off is not.
+*/
+
+/**
+ * A check-now address as a plugin reports it, normalised for comparing
+ * installs - on ANY host, unlike acceptableSyncUrl, which decides what RepGet
+ * may call. Only ever compared, never called.
+ */
+export function installAddress(value: unknown): string | null {
+  if (typeof value !== "string" || value.length > 500) return null;
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+  if (url.username || url.password) return null;
+  if (!url.pathname.endsWith("/admin-ajax.php")) return null;
+  url.search = "";
+  url.hash = "";
+  return url.toString();
+}
+
+/**
+ * Notes the address a key was just used from: the first becomes the key's
+ * install, any other marks the key as used elsewhere too. Called on every
+ * verify and article poll; writes only on a key's first report, or when
+ * another address reports it and was not noted in the last hour.
+ */
+export async function recordInstall(keyId: string, reported: unknown): Promise<void> {
+  const address = installAddress(reported);
+  if (!address) return;
+  await db
+    .update(integrationKeys)
+    .set({
+      installUrl: sql`coalesce(${integrationKeys.installUrl}, ${address})`,
+      installSince: sql`coalesce(${integrationKeys.installSince}, localtimestamp)`,
+      otherInstallAt: sql`case
+        when ${integrationKeys.installUrl} is not null and ${integrationKeys.installUrl} <> ${address} then localtimestamp
+        else ${integrationKeys.otherInstallAt}
+      end`,
+    })
+    .where(
+      and(
+        eq(integrationKeys.id, keyId),
+        sql`(
+          ${integrationKeys.installUrl} is null
+          or (
+            ${integrationKeys.installUrl} <> ${address}
+            and (${integrationKeys.otherInstallAt} is null or ${integrationKeys.otherInstallAt} < localtimestamp - interval '1 hour')
+          )
+        )`,
+      ),
+    );
+}
+
+/** How long a report from another address keeps Disconnect from revoking a key. */
+const SHARED_KEY_DAYS = 30;
+
+/**
+ * "Disconnect" in WordPress: revokes the key only when all of these hold,
+ * in one conditional write:
+ *
+ *  - the caller reports the key's install address (installUrl);
+ *  - that address is settled: recorded in the key's first minutes (the
+ *    WordPress that received it - a copy cannot exist yet), or at least two
+ *    hours ago (long enough for any other copy's hourly check to report);
+ *  - no other address has used the key in the last SHARED_KEY_DAYS.
+ *
+ * Otherwise the key stays live and the caller simply forgets it. Returns
+ * whether it was revoked.
+ */
+export async function revokeForDisconnect(websiteId: string, keyId: string, reported: unknown): Promise<boolean> {
+  const caller = installAddress(reported);
+  if (!caller) return false;
+  const now = new Date();
+  const revoked = await db
+    .update(integrationKeys)
+    .set({ revokedAt: now, updatedAt: now })
+    .where(
+      and(
+        eq(integrationKeys.id, keyId),
+        eq(integrationKeys.websiteId, websiteId),
+        isNull(integrationKeys.revokedAt),
+        eq(integrationKeys.installUrl, caller),
+        sql`(
+          ${integrationKeys.installSince} - ${integrationKeys.createdAt} < interval '10 minutes'
+          or ${integrationKeys.installSince} < localtimestamp - interval '2 hours'
+        )`,
+        sql`(
+          ${integrationKeys.otherInstallAt} is null
+          or ${integrationKeys.otherInstallAt} < localtimestamp - make_interval(days => ${SHARED_KEY_DAYS})
+        )`,
+      ),
+    )
+    .returning({ id: integrationKeys.id });
+  return revoked.length > 0;
 }
 
 /** Records what the plugin reported about the site it runs on. */
@@ -443,12 +612,22 @@ async function tidyKeys(
       lastUsedAt: integrationKeys.lastUsedAt,
       pastGrace,
       replaced,
+      // As listIntegrationKeys' pending flag: a newer key has connected since.
+      overtaken: sql<boolean>`exists (
+        select 1 from integration_keys newer
+        where newer.website_id = integration_keys.website_id
+          and newer.revoked_at is null
+          and newer.last_used_at is not null
+          and newer.created_at > integration_keys.created_at
+      )`,
     })
     .from(integrationKeys)
     .where(and(eq(integrationKeys.websiteId, websiteId), isNull(integrationKeys.revokedAt)));
 
   const unusedButtonKeys = rows.filter((key) => key.label === CONNECT_KEY_LABEL && !key.lastUsedAt);
   const expired = unusedButtonKeys.filter((key) => key.pastGrace).map((key) => key.id);
+  // Still waiting for a WordPress tab: not past the grace, and nothing newer has connected.
+  const waiting = unusedButtonKeys.filter((key) => !key.pastGrace && !key.overtaken).length;
   const superseded = rows.filter((key) => key.replaced).map((key) => key.id);
 
   let revoked = 0;
@@ -485,7 +664,7 @@ async function tidyKeys(
     revoked += done.length;
   }
 
-  return { live: rows.length - revoked, pending: unusedButtonKeys.length - expired.length };
+  return { live: rows.length - revoked, pending: waiting };
 }
 
 /**
@@ -523,6 +702,73 @@ export async function createManualKey(
     if (live >= MAX_LIVE_KEYS) return { ok: false as const, reason: "too_many_keys" as const };
     const { key } = await createIntegrationKey(websiteId, keyLabel(note), tx);
     return { ok: true as const, key };
+  });
+}
+
+type KeyTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/**
+ * The key a one-click connect hands to WordPress (lib/plugin/handshake.ts),
+ * made inside the caller's transaction under the same lock, tidy-up and cap
+ * as the button. Labelled CONNECT_KEY_LABEL: the plugin verifies it within
+ * seconds, and one it never verifies is tidied like any unused button key.
+ *
+ * `spareKeyId`: the key "Connect WordPress" made in the same press for
+ * plugin 1.6, put in the address fragment of the WordPress tab. Plugin 1.7
+ * attached the press's link, so that tab never uses it: it is revoked here
+ * while still unused, and a press takes one key slot rather than two.
+ */
+export async function mintHandshakeKey(
+  tx: KeyTransaction,
+  websiteId: string,
+  spareKeyId: string | null,
+): Promise<{ ok: true; key: string; id: string } | { ok: false; reason: "too_many_keys" }> {
+  await lockWebsiteKeys(tx, websiteId);
+  const now = new Date();
+  if (spareKeyId) {
+    await tx
+      .update(integrationKeys)
+      .set({ revokedAt: now, updatedAt: now })
+      .where(
+        and(
+          eq(integrationKeys.id, spareKeyId),
+          eq(integrationKeys.websiteId, websiteId),
+          eq(integrationKeys.label, CONNECT_KEY_LABEL),
+          isNull(integrationKeys.lastUsedAt),
+          isNull(integrationKeys.revokedAt),
+        ),
+      );
+  }
+  const { live } = await tidyKeys(tx, websiteId, now);
+  if (live >= MAX_LIVE_KEYS) return { ok: false as const, reason: "too_many_keys" as const };
+  const { key, id } = await createIntegrationKey(websiteId, CONNECT_KEY_LABEL, tx);
+  return { ok: true as const, key, id };
+}
+
+/**
+ * Whether mintHandshakeKey would find room, asked before a connection is
+ * approved - not counting the press's spare key, which it will revoke.
+ */
+export async function roomForHandshakeKey(websiteId: string, spareKeyId: string | null): Promise<boolean> {
+  return db.transaction(async (tx) => {
+    await lockWebsiteKeys(tx, websiteId);
+    const { live } = await tidyKeys(tx, websiteId, new Date());
+    const [spare] = spareKeyId
+      ? await tx
+          .select({ id: integrationKeys.id })
+          .from(integrationKeys)
+          .where(
+            and(
+              eq(integrationKeys.id, spareKeyId),
+              eq(integrationKeys.websiteId, websiteId),
+              eq(integrationKeys.label, CONNECT_KEY_LABEL),
+              isNull(integrationKeys.lastUsedAt),
+              isNull(integrationKeys.revokedAt),
+            ),
+          )
+          .limit(1)
+      : [];
+    return live - (spare ? 1 : 0) < MAX_LIVE_KEYS;
   });
 }
 

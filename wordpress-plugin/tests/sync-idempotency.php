@@ -532,7 +532,8 @@ reset_all();
 __unused_repget_request('/api/plugin/articles', array('method' => 'GET'));
 $sent_headers = $GLOBALS['http'][0][1]['headers'];
 check('X-RepGet-Plugin-Version is sent', isset($sent_headers['X-RepGet-Plugin-Version']) && $sent_headers['X-RepGet-Plugin-Version'] === REPGET_VERSION);
-check('...and the version is 1.6.0', REPGET_VERSION === '1.6.0');
+// At least 1.6.0: RepGet gives protocol v2 to 1.6.0 and later (lib/plugin/protocol.ts).
+check('...and the version is 1.6.0 or later', version_compare(REPGET_VERSION, '1.6.0', '>='));
 $GLOBALS['queue']['v1'] = article('v1', 'Hello', 'publish', dispatch_uuid(1));
 repget_sync_locked();
 check('the report names the dispatch', isset($GLOBALS['ack_bodies'][0]['dispatchId']) && $GLOBALS['ack_bodies'][0]['dispatchId'] === dispatch_uuid(1));
@@ -580,6 +581,30 @@ reset_all();
 $GLOBALS['queue']['m1'] = article('m1', 'Hello', 'publish', "x'; DROP");
 repget_sync_locked();
 check('reported without a dispatch id', !isset($GLOBALS['ack_bodies'][0]['dispatchId']));
+
+/*
+  The 1.7.0 connect flow and updates have their own stubbed-WordPress harness
+  (connect-flow.php). It runs in a SEPARATE PHP process - both files define
+  the same WordPress stubs and eval the plugin, which one process cannot do
+  twice - and is started from here so `npm run plugin:test` runs both.
+
+  Its output comes back through a pipe and is printed from here. Handing the
+  child this process's STDOUT instead lets it overwrite what was printed
+  above when the output is a file (seen on Windows).
+*/
+echo "\n=== connect-flow.php ===\n";
+$child = proc_open(
+    array(PHP_BINARY, __DIR__ . '/connect-flow.php', $argv[1]),
+    array(1 => array('pipe', 'w'), 2 => array('redirect', 1)),
+    $pipes
+);
+$child_status = 1;
+if (is_resource($child)) {
+    echo stream_get_contents($pipes[1]);
+    fclose($pipes[1]);
+    $child_status = proc_close($child);
+}
+check('connect-flow.php passed', $child_status === 0, '(exit ' . $child_status . ')');
 
 echo "\n" . ($failures === 0 ? "ALL PASSED" : "{$failures} FAILURE(S)") . "\n";
 exit($failures === 0 ? 0 : 1);

@@ -330,6 +330,13 @@
       "when": 1790694478389,
       "tag": "0046_blog_posts",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1790715052664,
+      "tag": "0047_plugin_connect_requests",
+      "breakpoints": true
     }
   ]
 }

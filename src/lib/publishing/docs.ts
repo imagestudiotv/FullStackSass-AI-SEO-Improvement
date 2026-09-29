@@ -61,7 +61,7 @@ export const INTEGRATION_DOCS: IntegrationDoc[] = [
     steps: [
       {
         title: "Download the plugin from RepGet",
-        body: "In RepGet, pick your website in the switcher at the top, then open Settings → Integrations and find the WordPress plugin panel. Press Download the plugin. This saves repget-connector.zip, about 10 KB. LEAVE IT ZIPPED - do not unpack it or open it first. Some browsers (Safari on a Mac, for one) unpack a zip automatically, which is the most common reason the install then fails.",
+        body: "In RepGet, pick your website in the switcher at the top, then open Settings → Integrations and find the WordPress plugin panel. Press Download the plugin. This saves repget-connector.zip, about 35 KB. LEAVE IT ZIPPED - do not unpack it or open it first. Some browsers (Safari on a Mac, for one) unpack a zip automatically, which is the most common reason the install then fails.",
       },
       {
         title: "Install it in WordPress",
@@ -73,15 +73,15 @@ export const INTEGRATION_DOCS: IntegrationDoc[] = [
       },
       {
         title: "Press Connect WordPress in RepGet",
-        body: "Go back to the RepGet tab (Settings → Integrations → WordPress plugin) and press Connect WordPress. RepGet makes a new key at that moment and opens the RepGet screen in your WordPress with the key already filled in. Nothing to copy. The card also says which RepGet workspace you are connecting. If WordPress asks you to log in first, log in, then press Open WordPress again in RepGet.",
+        body: "Go back to the RepGet tab (Settings → Integrations → WordPress plugin) and press Connect WordPress. It opens the RepGet screen in your WordPress, ready to finish. Nothing to copy. The card also says which RepGet workspace you are connecting. If WordPress asks you to log in first, log in, then press Open WordPress again in RepGet. You can also start in WordPress instead: press Connect to RepGet on the plugin's screen, sign in to RepGet if asked, and choose the website.",
       },
       {
-        title: "Press Save and connect in WordPress",
-        body: "The Integration Key field is already filled in, with a note saying so - press Save and connect. The key travels after the # in the address, which browsers never send to a server, and it is removed from the address straight away. If your browser blocked the new tab, RepGet shows the key with Copy key instead: paste it into the Integration Key field yourself.",
+        title: "Press Finish connecting to RepGet in WordPress",
+        body: "With plugin 1.7 or later, press Finish connecting to RepGet. Your browser visits RepGet for a moment and comes straight back: WordPress is given its key directly by RepGet and it never appears on screen. If the site was connected to a different RepGet account or website, RepGet asks first and names what it will replace. With plugin 1.6, the Integration Key field is filled in instead - press Save and connect. If your browser blocked the new tab, RepGet shows the key with Copy key: paste it under Advanced: use an Integration Key (plugin 1.7) or into the Integration Key field (1.6), then press Save and connect.",
       },
       {
         title: "Check it says Connected - and the right account",
-        body: "The Status row shows a green tick and Connected, and the message at the top names the website and the RepGet account the key belongs to. Back in RepGet you do not need to refresh: within a few seconds the card turns green and Connect your site is ticked. If the message names a DIFFERENT account or website, WordPress was connected with another key - press Connect WordPress in the account you want and Save and connect again; the key saved in WordPress decides which account publishes there.",
+        body: "The screen says Connected to, followed by the RepGet workspace and your domain. Back in RepGet you do not need to refresh: within a few seconds the card turns green and Connect your site is ticked. If it names a DIFFERENT account or website, press Connect to a different RepGet account in WordPress (plugin 1.7) - or Connect WordPress in the account you want - and finish again; the connection WordPress holds decides which account publishes there.",
       },
       {
         title: "How articles arrive",
@@ -103,7 +103,7 @@ export const INTEGRATION_DOCS: IntegrationDoc[] = [
       },
       {
         problem: "\"The key was rejected. Check it was copied in full.\"",
-        fix: "One message covers every cause deliberately, so that somebody guessing at keys learns nothing from the reply. Check three things in order: was the key copied IN FULL (a partial copy is by far the most common cause); is it still ACTIVE, or was it revoked in RepGet; and is it the key for THIS website rather than another site in your workspace. The quickest fix: press Connect WordPress in RepGet, then Save and connect in WordPress.",
+        fix: "One message covers every cause deliberately, so that somebody guessing at keys learns nothing from the reply. Check three things in order: was the key copied IN FULL (a partial copy is by far the most common cause); is it still ACTIVE, or was it revoked in RepGet; and is it the key for THIS website rather than another site in your workspace. The quickest fix: press Connect WordPress in RepGet, then finish in the WordPress tab it opens.",
       },
       {
         problem: "Open my WordPress opens the wrong site",
@@ -119,7 +119,7 @@ export const INTEGRATION_DOCS: IntegrationDoc[] = [
       },
       {
         problem: "The article is cut off, or looks like a portfolio or project page",
-        fix: "Your theme shows ordinary WordPress Posts in a different layout from your blog - often a portfolio or project page with a short text panel - so a full article does not fit. On the RepGet screen in WordPress, set Publish articles as to the content type your existing blog articles use (for example Editorial), then press Save and connect. The articles RepGet already created are moved there too, and RepGet is told their new addresses. Needs plugin 1.5 or later.",
+        fix: "Your theme shows ordinary WordPress Posts in a different layout from your blog - often a portfolio or project page with a short text panel - so a full article does not fit. On the RepGet screen in WordPress, set Publish articles as to the content type your existing blog articles use (for example Editorial), then press Save (Save and connect before plugin 1.7). The articles RepGet already created are moved there too, and RepGet is told their new addresses. Needs plugin 1.5 or later.",
       },
       {
         problem: "Articles arrive as drafts instead of live posts",
@@ -127,7 +127,7 @@ export const INTEGRATION_DOCS: IntegrationDoc[] = [
       },
       {
         problem: "Pressing Publish in RepGet says the article is queued",
-        fix: "Your site did not answer when RepGet asked the plugin to check, so the article waits for the plugin's hourly check. Most often the plugin is older than 1.4.0 - download it again from RepGet and upload it the same way (WordPress offers Replace current with uploaded; your key is kept). Otherwise a security plugin or firewall may be blocking requests to wp-admin/admin-ajax.php from outside; allow requests with action=repget_sync.",
+        fix: "Your site did not answer when RepGet asked the plugin to check, so the article waits for the plugin's hourly check. Most often the plugin is older than 1.4.0 - download it again from RepGet and upload it the same way (WordPress offers Replace current with uploaded; your key is kept). From plugin 1.7, WordPress offers new versions itself under Plugins, like any other plugin. Otherwise a security plugin or firewall may be blocking requests to wp-admin/admin-ajax.php from outside; allow requests with action=repget_sync.",
       },
       {
         problem: "Articles arrive later than an hour after they are due",
@@ -135,11 +135,19 @@ export const INTEGRATION_DOCS: IntegrationDoc[] = [
       },
       {
         problem: "WordPress says Connected, but RepGet is still waiting",
-        fix: "WordPress is connected with a different key - often from another RepGet account for the same site, or an earlier test. In the RepGet account you want to use, press Connect WordPress, then press Save and connect in the WordPress tab it opens. The key you save decides which account publishes to the site. You do not need to find or copy any old key.",
+        fix: "WordPress is connected with a different key - often from another RepGet account for the same site, or an earlier test. In the RepGet account you want to use, press Connect WordPress, then finish in the WordPress tab it opens. The connection WordPress holds decides which account publishes to the site. You do not need to find or copy any old key.",
+      },
+      {
+        problem: "RepGet says my site isn't in this account yet",
+        fix: "You are signed in to a RepGet account that has no website with this WordPress address. Press Use a different account and sign in to the account that has it, or add the website first and press Connect to RepGet in WordPress again. The website address in RepGet must be the WordPress address (www. or not does not matter). If WordPress deliberately runs at a different address (for example blog.example.com for example.com), connect it with a key instead: in RepGet open Keys (advanced) and press New key, then in WordPress paste it under Advanced: use an Integration Key and press Save and connect.",
+      },
+      {
+        problem: "\"This connection was opened somewhere else\"",
+        fix: "A connection can be finished only in the browser that first opened it, so a link copied to another browser or person approves nothing. Go back to WordPress and press Connect to RepGet again, in the browser where you are signed in to RepGet.",
       },
       {
         problem: "I lost my key",
-        fix: "You never need an old key again: press Connect WordPress in RepGet and Save and connect in WordPress. Unused keys are tidied up automatically once WordPress connects. To stop a site publishing, open Keys (advanced) and press Revoke - the site is told straight away.",
+        fix: "You never need an old key again: press Connect WordPress in RepGet and finish in WordPress. Unused keys are tidied up automatically once WordPress connects. To stop a site publishing, press Disconnect in WordPress (plugin 1.7), or open Keys (advanced) in RepGet and press Revoke - the site is told straight away.",
       },
     ],
   },

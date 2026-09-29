@@ -54,6 +54,7 @@ export function PublishingPanel({
   pluginContext,
   locale,
   siteUrl,
+  wordpressAdmin,
   t,
   tKeys,
   tCommon,
@@ -71,6 +72,8 @@ export function PublishingPanel({
   locale: Locale;
   /** The customer's own site address, for deep links into their wp-admin. */
   siteUrl: string;
+  /** The wp-admin address a plugin of this website reported, when one has. See PluginKeys. */
+  wordpressAdmin: string | null;
   /** This screen's copy, already in the reader's language. */
   t: Messages["app"]["publishing"];
   /** The key panel's own slice, forwarded to it. */
@@ -467,6 +470,7 @@ export function PublishingPanel({
         <PluginKeys
           websiteId={websiteId}
           siteUrl={siteUrl}
+          wordpressAdmin={wordpressAdmin}
           keys={pluginKeys}
           canEdit={canEdit}
           context={pluginContext}

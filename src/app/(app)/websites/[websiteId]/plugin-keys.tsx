@@ -64,6 +64,7 @@ const prefixOf = (key: string) => key.slice(0, 12);
 export function PluginKeys({
   websiteId,
   siteUrl,
+  wordpressAdmin,
   keys,
   canEdit,
   context,
@@ -78,6 +79,12 @@ export function PluginKeys({
    * offering one that goes nowhere.
    */
   siteUrl: string | null;
+  /**
+   * The wp-admin address a plugin of this website reported
+   * ("https://example.com/blog/wp-admin/"), when one has: the website's
+   * address cannot say whether WordPress lives in a subdirectory.
+   */
+  wordpressAdmin?: string | null;
   keys: IntegrationKeyView[];
   /** False for a viewer: they see the status, and nothing is created for them. */
   canEdit: boolean;
@@ -95,6 +102,8 @@ export function PluginKeys({
   const [label, setLabel] = useState("");
   /** The latest key this tab made, in memory only, until WordPress uses it. */
   const [freshKey, setFreshKey] = useState<string | null>(null);
+  /** The one-click link made with it, for plugin 1.7.0 (lib/plugin/handshake.ts). */
+  const [freshLink, setFreshLink] = useState<string | null>(null);
   /**
    * How that key reached WordPress: opened in a tab ("opened"), a tab the
    * browser blocked or that could not be opened ("blocked"), or a key made
@@ -120,13 +129,23 @@ export function PluginKeys({
   const [copied, setCopied] = useState(false);
 
   /**
-   * Their WordPress admin, at the screen that matters. Built with URL rather
-   * than string concatenation so a trailing slash, a port or a subdirectory
-   * install still produce a usable link; null on anything that will not parse.
+   * Their WordPress admin, at the screen that matters: under the wp-admin
+   * address their plugin reported when it has (a WordPress in a
+   * subdirectory, example.com/blog), else at the root of their website's
+   * address - which is only a guess, since the website's address cannot say
+   * where WordPress lives. Built with URL, so a trailing slash or a port
+   * still produce a usable link; null on anything that will not parse.
    */
   const adminUrls = (() => {
-    if (!siteUrl) return null;
     try {
+      if (wordpressAdmin) {
+        const admin = new URL(wordpressAdmin);
+        return {
+          install: new URL("plugin-install.php?tab=upload", admin).toString(),
+          settings: new URL("admin.php?page=repget", admin).toString(),
+        };
+      }
+      if (!siteUrl) return null;
       const base = new URL(siteUrl);
       return {
         // The upload form, with the file picker already on screen.
@@ -146,12 +165,28 @@ export function PluginKeys({
    * address bar. It does NOT connect by itself - acting on a link would be a
    * CSRF hole - the administrator presses the nonce-checked Save and connect.
    */
-  const wordPressWithKey = (key: string) =>
-    adminUrls ? `${adminUrls.settings}#repget_key=${encodeURIComponent(key)}` : null;
+  /*
+    Plus the one-click link in the query (the settings address already has
+    ?page=repget): plugin 1.7.0 sees it, ignores the key, and finishes with
+    one button and a server-to-server handshake (docs/wordpress-connect.md).
+    1.6.x ignores the link and uses the key.
+  */
+  const wordPressWithKey = (key: string, link: string | null) =>
+    adminUrls
+      ? `${adminUrls.settings}${link ? `&repget_link=${encodeURIComponent(link)}` : ""}#repget_key=${encodeURIComponent(key)}`
+      : null;
 
   const connected = keys
     .filter((key) => key.lastUsedAt)
     .sort((a, b) => new Date(b.lastUsedAt!).getTime() - new Date(a.lastUsedAt!).getTime())[0];
+
+  /** The connected site's plugin, when older than 1.7.0 - which connects in one click and updates itself. */
+  const olderPlugin = (() => {
+    const match = /plugin (\d+)\.(\d+)\.(\d+)/.exec(connected?.siteInfo ?? "");
+    if (!match) return null;
+    const [major, minor] = [Number(match[1]), Number(match[2])];
+    return major < 1 || (major === 1 && minor < 7) ? `${match[1]}.${match[2]}.${match[3]}` : null;
+  })();
 
   /*
     New keys from the server (every refresh): is the wait over, and why?
@@ -165,6 +200,7 @@ export function PluginKeys({
     if (next.outcome) {
       setWaitingSince(null);
       setFreshKey(null);
+      setFreshLink(null);
       if (next.outcome === "connected") {
         setAnnounced((count) => count + 1);
         setNotice(null);
@@ -173,6 +209,7 @@ export function PluginKeys({
       }
     } else if (freshKey && !next.state.watching.includes(prefixOf(freshKey))) {
       setFreshKey(null);
+      setFreshLink(null);
     }
   }
 
@@ -221,8 +258,9 @@ export function PluginKeys({
     };
   }, [waiting, router]);
 
-  function startWaiting(key: string, how: "opened" | "blocked" | "manual") {
+  function startWaiting(key: string, how: "opened" | "blocked" | "manual", link: string | null) {
     setFreshKey(key);
+    setFreshLink(link);
     setMode(how);
     setWatch((current) => watchKey(current, prefixOf(key), keys));
     setWaitingSince(Date.now());
@@ -236,7 +274,7 @@ export function PluginKeys({
       the customer might still save.
     */
     if (freshKey && waiting && mode !== "manual") {
-      const target = wordPressWithKey(freshKey);
+      const target = wordPressWithKey(freshKey, freshLink);
       // Without "noopener": with it, window.open returns null even when the tab opened.
       const tab = target ? window.open(target, "_blank") : null;
       if (tab) {
@@ -271,14 +309,14 @@ export function PluginKeys({
           toast.error(result.error);
           return;
         }
-        const target = wordPressWithKey(result.data.key);
+        const target = wordPressWithKey(result.data.key, result.data.link);
         if (tab && !tab.closed && target) {
           tab.location.replace(target);
-          startWaiting(result.data.key, "opened");
+          startWaiting(result.data.key, "opened", result.data.link);
         } else {
           tab?.close();
           // No tab (blocked, closed meanwhile) or no usable site address: show the key.
-          startWaiting(result.data.key, target ? "blocked" : "manual");
+          startWaiting(result.data.key, target ? "blocked" : "manual", result.data.link);
         }
         router.refresh();
       } catch (error) {
@@ -295,7 +333,7 @@ export function PluginKeys({
         toast.error(result.error);
         return;
       }
-      startWaiting(result.data.key, "manual");
+      startWaiting(result.data.key, "manual", null);
       setLabel("");
       router.refresh();
     });
@@ -328,7 +366,7 @@ export function PluginKeys({
   /** Dates on the UTC calendar: the server and the browser then render the same text. */
   const day = (value: Date | string) => formatDate(value, locale, { timeZone: "UTC" });
 
-  const openAgainHref = freshKey ? wordPressWithKey(freshKey) : null;
+  const openAgainHref = freshKey ? wordPressWithKey(freshKey, freshLink) : null;
   const otherWorkspaces = context
     ? new Intl.ListFormat(intlTag(locale), { type: "conjunction" }).format(
         context.alsoIn.map((name) => format(t.quotedName, { name })),
@@ -370,6 +408,14 @@ export function PluginKeys({
               {connected.siteInfo ? ` · ${connected.siteInfo}` : ""}
             </p>
             <p className="text-xs text-muted-foreground">{format(t.lastCheckIn, { date: day(connected.lastUsedAt!) })}</p>
+            {olderPlugin ? (
+              <p className="mt-1 text-xs text-muted-foreground">
+                {format(t.updatePlugin, { version: olderPlugin })}{" "}
+                <a href="/repget-connector.zip" download className="underline underline-offset-4">
+                  {tCommon.downloadPlugin}
+                </a>
+              </p>
+            ) : null}
           </div>
         </div>
       ) : null}
