@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { getAdminArticle } from "@/lib/admin/actions";
+import { partnerLinkUrls } from "@/lib/backlinks/partner-links";
 import { AdminArticleEditor } from "./admin-article-editor";
 
 export const dynamic = "force-dynamic";
@@ -15,5 +16,5 @@ export default async function AdminArticlePage({
     notFound();
   }
 
-  return <AdminArticleEditor article={article} />;
+  return <AdminArticleEditor article={article} partnerLinks={await partnerLinkUrls(article.id)} />;
 }

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { toast } from "sonner";
 
+import { PARTNER_LINK_SCOPE, PartnerLinkStyles } from "@/components/partner-link-styles";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
 import { RichTextEditor } from "@/components/rich-text-editor";
@@ -36,8 +37,11 @@ import { previewHtml, sameHtml, useDraftField } from "@/lib/articles/use-draft";
  */
 export function AdminArticleEditor({
   article,
+  partnerLinks,
 }: {
   article: AdminArticleDetail;
+  /** Partner Network links in this article (their addresses), highlighted. */
+  partnerLinks: string[];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -45,6 +49,7 @@ export function AdminArticleEditor({
   const [body, setBody] = useDraftField(article.bodyHtml ?? "", sameHtml);
   // Preview shows the working copy; this says when it is not saved yet.
   const unsaved = title.trim() !== article.title || !sameHtml(body, article.bodyHtml ?? "");
+  const partnerInText = partnerLinks.some((url) => body.includes(url) || body.includes(url.replace(/&/g, "&amp;")));
 
   function handleSave() {
     startTransition(async () => {
@@ -85,6 +90,7 @@ export function AdminArticleEditor({
         </p>
       </div>
 
+      <PartnerLinkStyles urls={partnerLinks} label="Partner link" />
       <Tabs defaultValue="preview">
         <TabsList>
           <TabsTrigger value="preview">
@@ -109,13 +115,19 @@ export function AdminArticleEditor({
                   them on the Edit tab.
                 </p>
               ) : null}
+              {partnerInText ? (
+                <p className="mb-6 flex items-center gap-2 text-sm text-muted-foreground">
+                  <span className="inline-block size-3 shrink-0 rounded-sm bg-violet-500/25 ring-1 ring-violet-500/60" aria-hidden="true" />
+                  Highlighted words are Partner Network links.
+                </p>
+              ) : null}
               <h2 className="mb-6 text-2xl font-semibold tracking-tight">
                 {title}
               </h2>
               {body ? (
                 // The working copy, sanitised as a save would (lib/articles/use-draft.ts).
                 <div
-                  className="prose prose-sm max-w-none dark:prose-invert [overflow-wrap:anywhere] [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto [&_pre]:overflow-x-auto [&_iframe]:max-w-full [&_video]:max-w-full [&_h2]:mt-6 [&_h2]:text-lg [&_h2]:font-semibold [&_li]:my-1 [&_p]:my-3 [&_ul]:list-disc [&_ul]:pl-6 [&_img]:my-6 [&_img]:block [&_img]:mx-auto [&_img]:max-w-[min(100%,36rem)] [&_img]:max-h-[30rem] [&_img]:h-auto [&_img]:w-auto [&_img]:rounded-lg [&_img]:border [&_img]:object-contain"
+                  className={`${PARTNER_LINK_SCOPE} prose prose-sm max-w-none dark:prose-invert [overflow-wrap:anywhere] [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2 [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto [&_pre]:overflow-x-auto [&_iframe]:max-w-full [&_video]:max-w-full [&_h2]:mt-6 [&_h2]:text-lg [&_h2]:font-semibold [&_li]:my-1 [&_p]:my-3 [&_ul]:list-disc [&_ul]:pl-6 [&_img]:my-6 [&_img]:block [&_img]:mx-auto [&_img]:max-w-[min(100%,36rem)] [&_img]:max-h-[30rem] [&_img]:h-auto [&_img]:w-auto [&_img]:rounded-lg [&_img]:border [&_img]:object-contain`}
                   dangerouslySetInnerHTML={{ __html: previewHtml(body) }}
                 />
               ) : (
@@ -163,7 +175,9 @@ export function AdminArticleEditor({
                 <div className="space-y-1.5">
                   {/* See the note in the customer editor on the plain label. */}
                   <p className="text-sm font-medium">Body</p>
+                  <div className={PARTNER_LINK_SCOPE}>
                   <RichTextEditor value={body} onChange={setBody} />
+                </div>
                 </div>
               </CardContent>
               <CardFooter>

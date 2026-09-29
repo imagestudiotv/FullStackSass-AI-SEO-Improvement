@@ -574,6 +574,10 @@ export type Messages = {
       editHelp: string;
       /** On Preview while the editor holds changes not saved yet. */
       previewUnsaved: string;
+      /** Hover label on a Partner Network link in the article. */
+      partnerLink: string;
+      /** Above Preview, when the article carries Partner Network links. */
+      partnerLinksNote: string;
       title: string;
       metaDescription: string;
       slugLabel: string;
@@ -2342,6 +2346,8 @@ const en: Messages = {
       editArticle: "Edit article",
       editHelp: "Your previous version is kept each time you save.",
       previewUnsaved: "This preview includes changes you have not saved yet. Save them on the Edit tab.",
+      partnerLink: "Partner link",
+      partnerLinksNote: "Highlighted words are Partner Network links placed by the RepGet team.",
       title: "Title",
       metaDescription: "Meta description",
       slugLabel: "Address on your website",
@@ -4108,6 +4114,8 @@ const es: Messages = {
       editArticle: "Editar artículo",
       editHelp: "Su versión anterior se conserva cada vez que guarda.",
       previewUnsaved: "Esta vista previa incluye cambios que aún no ha guardado. Guárdelos en la pestaña Editar.",
+      partnerLink: "Enlace de socio",
+      partnerLinksNote: "Las palabras resaltadas son enlaces de la red de socios que colocó el equipo de RepGet.",
       title: "Título",
       metaDescription: "Meta descripción",
       slugLabel: "Dirección en su sitio web",
@@ -5878,6 +5886,8 @@ const fr: Messages = {
       editArticle: "Modifier l\u2019article",
       editHelp: "Votre version précédente est conservée à chaque enregistrement.",
       previewUnsaved: "Cet aperçu inclut des modifications que vous n'avez pas encore enregistrées. Enregistrez-les dans l'onglet Modifier.",
+      partnerLink: "Lien partenaire",
+      partnerLinksNote: "Les mots surlignés sont des liens du réseau de partenaires placés par l'équipe RepGet.",
       title: "Titre",
       metaDescription: "Méta description",
       slugLabel: "Adresse sur votre site",
@@ -7640,6 +7650,8 @@ const it: Messages = {
       editArticle: "Modifica articolo",
       editHelp: "La versione precedente viene conservata a ogni salvataggio.",
       previewUnsaved: "Questa anteprima include modifiche non ancora salvate. Salvale nella scheda Modifica.",
+      partnerLink: "Link partner",
+      partnerLinksNote: "Le parole evidenziate sono link della rete di partner inseriti dal team RepGet.",
       title: "Titolo",
       metaDescription: "Meta descrizione",
       slugLabel: "Indirizzo sul suo sito",
@@ -9411,6 +9423,8 @@ const de: Messages = {
       editArticle: "Artikel bearbeiten",
       editHelp: "Ihre vorherige Version bleibt bei jedem Speichern erhalten.",
       previewUnsaved: "Diese Vorschau enthält Änderungen, die Sie noch nicht gespeichert haben. Speichern Sie sie im Tab Bearbeiten.",
+      partnerLink: "Partnerlink",
+      partnerLinksNote: "Hervorgehobene Wörter sind Partnernetzwerk-Links, die das RepGet-Team gesetzt hat.",
       title: "Titel",
       metaDescription: "Meta-Beschreibung",
       slugLabel: "Adresse auf Ihrer Website",

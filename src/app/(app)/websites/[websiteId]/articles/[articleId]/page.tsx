@@ -10,6 +10,7 @@ import { UncertainPublication } from "./uncertain-publication";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import { requirePlan } from "@/lib/billing/require-plan";
 import { getArticle } from "@/lib/articles/actions";
+import { partnerLinkUrls } from "@/lib/backlinks/partner-links";
 import { requireWebsitePage } from "@/lib/tenant";
 import { listIntegrations, listPublishLogs } from "@/lib/publishing/actions";
 import { WebsiteNotFoundError } from "@/lib/tenant";
@@ -58,6 +59,8 @@ export default async function ArticlePage({
   if (!article) {
     notFound();
   }
+  // Partner Network links in this article, highlighted in its preview and editor.
+  const partnerLinks = await partnerLinkUrls(article.id);
 
   const [cmsIntegrations, logs, websiteCtx, uncertain] = await Promise.all([
     listIntegrations(websiteId),
@@ -121,6 +124,7 @@ export default async function ArticlePage({
         null
       }
       websiteDomain={websiteCtx.site.domain}
+      partnerLinks={partnerLinks}
       t={t.app.editor}
       tImage={t.app.image}
       tCommon={t.app.common}

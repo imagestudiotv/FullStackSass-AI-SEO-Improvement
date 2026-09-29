@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 
+import { PARTNER_LINK_SCOPE, PartnerLinkStyles } from "@/components/partner-link-styles";
 import { RichTextEditor } from "@/components/rich-text-editor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -79,6 +80,8 @@ export function ReviewWorkspace({ review }: { review: Review }) {
   const shown = placements.filter((p) => p.status !== "cancelled");
   // ...but the count and the maximum use the statuses the server counts (lib/backlinks/managed.ts).
   const live = placements.filter((p) => ["pending", "drafted", "published", "live"].includes(p.status));
+  // Addresses of the network links in the text, highlighted there (components/partner-link-styles.tsx).
+  const partnerLinks = placements.filter((p) => p.status !== "cancelled" && p.status !== "removed").map((p) => p.targetUrl);
   // The same reasons the list greys a website out, so Place cannot send one the server will refuse.
   const unavailable = (c: Review["candidates"][number]) =>
     c.linkedHere || !c.relevant || c.reciprocal || c.meetsMinimum === false;
@@ -99,6 +102,7 @@ export function ReviewWorkspace({ review }: { review: Review }) {
 
   return (
     <PageShell width="wide">
+      <PartnerLinkStyles urls={partnerLinks} label="Partner link" />
       <PageHeader
         title={article.title}
         description={`${article.domain} · ${article.organizationName} · ${article.language ?? "language unknown"} · planned ${
@@ -139,7 +143,7 @@ export function ReviewWorkspace({ review }: { review: Review }) {
             <CardDescription>
               {editing
                 ? "Network links are the linked words: keep them in the text, or use Withdraw to remove one. A link added here by hand is not a network link - it is not tracked or credited; use Place a link for that."
-                : "What will be delivered. Network links appear as ordinary links in the text."}
+                : "What will be delivered. Network links are highlighted in the text; on the website they are ordinary links."}
             </CardDescription>
             {editable && !editing ? (
               <CardAction>
@@ -182,13 +186,15 @@ export function ReviewWorkspace({ review }: { review: Review }) {
                 <div className="space-y-1.5">
                   {/* A plain label: the editor is a contenteditable div, which htmlFor cannot focus. */}
                   <p className="text-sm font-medium">Text</p>
-                  <RichTextEditor value={draft.bodyHtml} onChange={(bodyHtml) => setDraft((d) => (d ? { ...d, bodyHtml } : d))} />
+                  <div className={PARTNER_LINK_SCOPE}>
+                    <RichTextEditor value={draft.bodyHtml} onChange={(bodyHtml) => setDraft((d) => (d ? { ...d, bodyHtml } : d))} />
+                  </div>
                 </div>
               </div>
             ) : (
               /* Sanitised on every save (lib/articles/sanitize.ts). */
               <div
-                className="prose prose-sm max-w-none dark:prose-invert [overflow-wrap:anywhere] [&_a]:text-primary [&_a]:underline [&_h2]:mt-6 [&_h2]:text-lg [&_h2]:font-semibold [&_h3]:mt-4 [&_h3]:font-semibold [&_li]:my-1 [&_p]:my-3 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-lg"
+                className={`${PARTNER_LINK_SCOPE} prose prose-sm max-w-none dark:prose-invert [overflow-wrap:anywhere] [&_a]:text-primary [&_a]:underline [&_h2]:mt-6 [&_h2]:text-lg [&_h2]:font-semibold [&_h3]:mt-4 [&_h3]:font-semibold [&_li]:my-1 [&_p]:my-3 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-lg`}
                 dangerouslySetInnerHTML={{ __html: article.bodyHtml ?? "" }}
               />
             )}

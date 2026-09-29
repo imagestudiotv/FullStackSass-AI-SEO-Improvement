@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { explainGenerationError } from "@/lib/articles/explain";
 import { explainPublishError } from "@/lib/publishing/explain";
+import { PARTNER_LINK_SCOPE, PartnerLinkStyles } from "@/components/partner-link-styles";
 import { RichTextEditor } from "@/components/rich-text-editor";
 import {
   listReusableImages,
@@ -67,6 +68,7 @@ export function ArticleEditor({
   viaPlugin,
   destinationName,
   websiteDomain,
+  partnerLinks,
   publishLogs,
   t,
   tImage,
@@ -92,6 +94,8 @@ export function ArticleEditor({
   destinationName: string | null;
   /** Decides which links count as internal. */
   websiteDomain: string | null;
+  /** Partner Network links in this article (their addresses), highlighted in Preview and Edit. */
+  partnerLinks: string[];
   publishLogs: PublishLogRow[];
   /** This screen's copy, already in the reader's language. */
   t: Messages["app"]["editor"];
@@ -126,6 +130,7 @@ export function ArticleEditor({
   const [body, setBody] = useDraftField(article.bodyHtml ?? "", sameHtml);
   // What Preview shows differs from what is saved (the save trims the title).
   const unsaved = title.trim() !== article.title || !sameHtml(body, article.bodyHtml ?? "");
+  const partnerInText = partnerLinks.some((url) => body.includes(url) || body.includes(url.replace(/&/g, "&amp;")));
 
   const working =
     article.status === "generating" || article.status === "queued";
@@ -379,6 +384,7 @@ export function ArticleEditor({
         </Card>
       ) : null}
 
+      <PartnerLinkStyles urls={partnerLinks} label={t.partnerLink} />
       {article.bodyHtml ? (
         <Tabs defaultValue="preview">
           {/*
@@ -461,6 +467,13 @@ export function ArticleEditor({
                   </p>
                 ) : null}
 
+                {partnerInText ? (
+                  <p className="mb-6 flex items-center gap-2 text-sm text-muted-foreground">
+                    <span className="inline-block size-3 shrink-0 rounded-sm bg-violet-500/25 ring-1 ring-violet-500/60" aria-hidden="true" />
+                    {t.partnerLinksNote}
+                  </p>
+                ) : null}
+
                 {/* The title as the page will show it, above the picture. */}
                 <h2 className="mb-6 text-2xl font-semibold tracking-tight">
                   {title}
@@ -493,7 +506,7 @@ export function ArticleEditor({
                   removed it (lib/articles/use-draft.ts).
                 */}
                 <div
-                  className="prose prose-sm max-w-none dark:prose-invert [overflow-wrap:anywhere] [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto [&_pre]:overflow-x-auto [&_iframe]:max-w-full [&_video]:max-w-full [&_h2]:mt-6 [&_h2]:text-lg [&_h2]:font-semibold [&_li]:my-1 [&_p]:my-3 [&_ul]:list-disc [&_ul]:pl-6 [&_img]:my-6 [&_img]:block [&_img]:mx-auto [&_img]:max-w-[min(100%,36rem)] [&_img]:max-h-[30rem] [&_img]:h-auto [&_img]:w-auto [&_img]:rounded-lg [&_img]:border [&_img]:object-contain"
+                  className={`${PARTNER_LINK_SCOPE} prose prose-sm max-w-none dark:prose-invert [overflow-wrap:anywhere] [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2 [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto [&_pre]:overflow-x-auto [&_iframe]:max-w-full [&_video]:max-w-full [&_h2]:mt-6 [&_h2]:text-lg [&_h2]:font-semibold [&_li]:my-1 [&_p]:my-3 [&_ul]:list-disc [&_ul]:pl-6 [&_img]:my-6 [&_img]:block [&_img]:mx-auto [&_img]:max-w-[min(100%,36rem)] [&_img]:max-h-[30rem] [&_img]:h-auto [&_img]:w-auto [&_img]:rounded-lg [&_img]:border [&_img]:object-contain`}
                   dangerouslySetInnerHTML={{ __html: previewHtml(body) }}
                 />
               </CardContent>
@@ -566,13 +579,15 @@ export function ArticleEditor({
                     editor carries its own aria-label instead.
                   */}
                     <p className="text-sm font-medium">{t.articleContent}</p>
-                    <RichTextEditor
-                      value={body}
-                      onChange={setBody}
-                      onUploadImage={handleInlineUpload}
-                      onListImages={handleListImages}
-                      t={tEditorUi}
-                    />
+                    <div className={PARTNER_LINK_SCOPE}>
+                      <RichTextEditor
+                        value={body}
+                        onChange={setBody}
+                        onUploadImage={handleInlineUpload}
+                        onListImages={handleListImages}
+                        t={tEditorUi}
+                      />
+                    </div>
                   </div>
                 </CardContent>
                 <CardFooter>
