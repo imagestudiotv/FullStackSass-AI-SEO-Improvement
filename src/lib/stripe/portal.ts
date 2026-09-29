@@ -35,12 +35,12 @@ export type PortalFlow = "manage" | "cancel";
  * Stripe already handles correctly (proration, tax, SCA, dunning), and each
  * emits the webhooks that keep our subscription row in sync.
  *
- * Pausing is deliberately NOT a flow here. Stripe exposes cancellation as a
- * portal deep link but has no equivalent for pause_collection, and setting it
- * through the API instead would skip the portal's confirmation entirely — a
- * single click would silently stop a customer's billing with no way back in
- * the same screen. The pause button opens the portal home, where pausing sits
- * next to resuming.
+ * Pausing is NOT offered. Stripe's portal cannot pause a subscription at all
+ * ("subscribers can't use the portal to pause subscriptions themselves",
+ * docs.stripe.com/billing/subscriptions/pause), trial or not, so the billing
+ * page's "Pause billing" button - which only opened the portal home - was
+ * removed (2026-09-29). Real pausing would need Stripe's pause API and RepGet
+ * stopping work while a subscription is paused.
  *
  * The customer is never created here. A user with no customer id has never
  * checked out, so there is nothing to manage - they are sent to checkout

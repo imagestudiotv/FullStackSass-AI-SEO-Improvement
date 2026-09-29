@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   ChevronRight,
   ExternalLink,
-  PauseCircle,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -412,30 +411,25 @@ export function BillingClient({
       ) : null}
 
       {/*
-        The action row from the design: pause, cancel, manage.
+        The action row: cancel and manage.
 
-        All three open the Stripe portal — pause and manage on its home screen,
-        cancel deep-linked to its cancellation flow. Nothing here changes a
-        subscription directly: the portal owns proration, tax and dunning, and
-        every change there emits the webhook that updates our own row. A local
-        "paused" flag set by a button press would be a second source of truth
-        that Stripe never agreed to.
+        Both open the Stripe portal — cancel deep-linked to its cancellation
+        flow, manage on its home screen. Nothing here changes a subscription
+        directly: the portal owns proration, tax and dunning, and every change
+        there emits the webhook that updates our own row.
+
+        No "Pause billing" (removed 2026-09-29): it only opened the portal home,
+        and Stripe's portal cannot pause a subscription - not in a trial, not
+        after - so the button promised something nothing did. Real pausing
+        would be its own feature (Stripe's pause API, and RepGet stopping work
+        while paused).
 
         Shown only for a Stripe subscription with a customer. PayPal keeps its
         own route out further down the page, and a workspace with no customer
-        has nothing to pause or cancel.
+        has nothing to cancel.
       */}
       {subscription?.hasCustomer ? (
         <div className="flex flex-wrap gap-2">
-          <Button
-            variant="outline"
-            onClick={() => handlePortal("manage")}
-            disabled={portalPending !== null}
-          >
-            <PauseCircle className="size-4" aria-hidden="true" />
-            {portalPending === "manage" ? "Opening…" : "Pause billing"}
-          </Button>
-
           {/*
             Destructive styling without a destructive <Button variant>: this
             opens Stripe's confirmation screen rather than cancelling, so it
@@ -456,7 +450,7 @@ export function BillingClient({
             onClick={() => handlePortal("manage")}
             disabled={portalPending !== null}
           >
-            {tCommon.manageBilling}
+            {portalPending === "manage" ? "Opening…" : tCommon.manageBilling}
             <ExternalLink className="size-4" aria-hidden="true" />
           </Button>
         </div>
