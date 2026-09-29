@@ -3,9 +3,55 @@ import { after, NextResponse, type NextRequest } from "next/server";
 import { eq } from "drizzle-orm";
 
 import { db } from "@/lib/db";
-import { websites } from "@/lib/db/schema";
-import { recordSiteInfo, resolveIntegrationKey } from "@/lib/plugin/keys";
-import { nudgePluginIfDue, recordSyncUrl } from "@/lib/plugin/sync";
+import { organization, websites } from "@/lib/db/schema";
+import { notify } from "@/lib/notifications/create";
+import { retirePresentedKey, type RetiredKey } from "@/lib/plugin/handshake";
+import { recordInstall, recordSiteInfo, resolveIntegrationKey, revokedKeyEndpoint, revokeLeftoverKeys } from "@/lib/plugin/keys";
+import { acceptableSyncUrl, nudgePluginIfDue, recordSyncUrl, signalRevokedKey } from "@/lib/plugin/sync";
+
+/**
+ * Printable, single-line, bounded: this text is shown inside WordPress.
+ * Cut by characters, not UTF-16 units, so an emoji is never split in half.
+ */
+function plain(value: string, max: number): string {
+  const clean = value.replace(/[\u0000-\u001f\u007f-\u009f]+/g, " ").replace(/\s+/g, " ").trim();
+  const chars = Array.from(clean);
+  return chars.length > max ? `${chars.slice(0, max - 1).join("")}…` : clean;
+}
+
+/** Plugins before 1.7.0 print only website.name after connecting. */
+function isLegacyPlugin(version: unknown): boolean {
+  if (typeof version !== "string") return true;
+  const [major, minor] = version.split(".").map((part) => Number.parseInt(part, 10));
+  if (!Number.isFinite(major)) return true;
+  return major < 1 || (major === 1 && (!Number.isFinite(minor) || minor < 7));
+}
+
+/**
+ * A WordPress site moved to another website with one-click connect (flow C
+ * in docs/wordpress-connect.md): its old key was revoked when the new one
+ * first verified. The old key's other installs, if any, hear it at once, and
+ * the workspace it belonged to is told why its site stopped publishing.
+ */
+async function announceMove(retired: RetiredKey, thisSite: string | null): Promise<void> {
+  const endpoint = await revokedKeyEndpoint(retired.websiteId, retired.keyId).catch(() => null);
+  /*
+    Not to the site that just moved: it holds the new key now, and a check
+    still running there on the old key would mark it rejected just after it
+    connected. Only another install of the old key needs telling.
+  */
+  if (endpoint && endpoint.syncUrl !== thisSite) await signalRevokedKey(endpoint).catch(() => undefined);
+  const elsewhere = retired.organizationId !== retired.movedToOrganizationId;
+  await notify({
+    organizationId: retired.organizationId,
+    type: "plugin.moved",
+    title: elsewhere
+      ? `${retired.domain} was connected to another RepGet account`
+      : `${retired.domain} was connected to another website in this workspace`,
+    body: "Its WordPress site no longer publishes articles from this website. If that was a mistake, connect it again under Integrations.",
+    href: `/websites/${retired.websiteId}/integrations`,
+  });
+}
 
 /**
  * Plugin handshake: POST /api/plugin/verify
@@ -57,6 +103,8 @@ export async function POST(request: NextRequest) {
   // Recorded for support: "which WordPress version is this customer on?" is
   // otherwise unanswerable without asking them.
   let siteInfo: string | null = null;
+  let pluginVersion: unknown = null;
+  let syncUrl: string | null = null;
   try {
     const body = (await request.json()) as {
       wpVersion?: unknown;
@@ -64,7 +112,11 @@ export async function POST(request: NextRequest) {
       siteUrl?: unknown;
       syncUrl?: unknown;
     };
+    pluginVersion = body.pluginVersion;
+    syncUrl = acceptableSyncUrl(body.syncUrl, resolved.websiteDomain);
     await recordSyncUrl(resolved.keyId, resolved.websiteDomain, body.syncUrl);
+    // Which install this is: Disconnect on a copy of the site must not revoke the live key.
+    await recordInstall(resolved.keyId, body.syncUrl);
     const parts = [
       typeof body.siteUrl === "string" ? body.siteUrl : null,
       typeof body.wpVersion === "string" ? `WP ${body.wpVersion}` : null,
@@ -86,22 +138,56 @@ export async function POST(request: NextRequest) {
     the nudge calls back into that same site.
   */
   after(() => nudgePluginIfDue(resolved.websiteId).catch(() => undefined));
+  /*
+    Connected: older keys of this website that never connected and that
+    nobody named are leftovers - a key made when the setup screen opened and
+    never seen again, an earlier "Connect WordPress" press. See
+    revokeLeftoverKeys.
+  */
+  after(() => revokeLeftoverKeys(resolved.websiteId, resolved.keyId).catch(() => 0));
+  /*
+    The first check of a key a one-click connect issued: the key that site
+    held before, if it belonged to a different website, is revoked now - and
+    only now, so a connect that failed never disconnected a working site.
+  */
+  after(async () => {
+    const retired = await retirePresentedKey(resolved.keyId).catch(() => null);
+    if (retired) await announceMove(retired, syncUrl);
+  });
 
   const [site] = await db
-    .select({ domain: websites.domain, brandName: websites.brandName })
+    .select({ domain: websites.domain, brandName: websites.brandName, workspace: organization.name })
     .from(websites)
+    .innerJoin(organization, eq(organization.id, websites.organizationId))
     .where(eq(websites.id, resolved.websiteId))
     .limit(1);
+
+  const domain = site?.domain ?? null;
+  // Each part bounded on its own, so the account name - the point of it - is never the part cut off.
+  const brand = plain(site?.brandName ?? site?.domain ?? "", 60) || null;
+  const workspace = site?.workspace ? plain(site.workspace, 60) : null;
 
   return NextResponse.json(
     {
       ok: true,
-      // Echoed back so the plugin can show WHICH site it connected to. A key
-      // pasted into the wrong WordPress install is otherwise invisible.
+      /*
+        Echoed back so the plugin can show WHICH site - and which RepGet
+        account - it connected to. On 2026-09-29 a WordPress site said
+        "Connected" while holding a key from a second RepGet account for the
+        same domain, and nothing on either screen said so.
+
+        Plugins before 1.7.0 print only website.name ("Connected to %s."), so
+        for them the name carries the account too.
+      */
       website: {
-        domain: site?.domain ?? null,
-        name: site?.brandName ?? site?.domain ?? null,
+        id: resolved.websiteId,
+        domain,
+        name:
+          isLegacyPlugin(pluginVersion) && brand
+            ? `${brand}${domain && brand !== domain ? ` (${plain(domain, 60)})` : ""}${workspace ? `, RepGet account \u201c${workspace}\u201d` : ""}`
+            : brand,
       },
+      workspace: workspace ? { name: workspace } : null,
     },
     { headers: CORS },
   );

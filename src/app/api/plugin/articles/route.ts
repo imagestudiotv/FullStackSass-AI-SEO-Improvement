@@ -10,7 +10,7 @@ import { db } from "@/lib/db";
 import { websites } from "@/lib/db/schema";
 import { dueArticlesForPlugin, pluginPostsForWebsite } from "@/lib/plugin/due";
 import { recordSyncUrl } from "@/lib/plugin/sync";
-import { resolveIntegrationKey } from "@/lib/plugin/keys";
+import { recordInstall, recordPluginVersion, resolveIntegrationKey } from "@/lib/plugin/keys";
 import { claimDispatch } from "@/lib/publishing/dispatch";
 import { pluginProtocol } from "@/lib/plugin/protocol";
 
@@ -73,6 +73,8 @@ export async function GET(request: NextRequest) {
   const reportedSyncUrl = request.headers.get("x-repget-sync-url");
   if (reportedSyncUrl) {
     await recordSyncUrl(resolved.keyId, resolved.websiteDomain, reportedSyncUrl);
+    // Which install this is: Disconnect on a copy of the site must not revoke the live key.
+    await recordInstall(resolved.keyId, reportedSyncUrl);
   }
 
   /*
@@ -80,7 +82,10 @@ export async function GET(request: NextRequest) {
     matched exactly; older plugins report by article only and get the
     one-outstanding-revision rule (lib/publishing/dispatch.ts).
   */
-  const protocol = pluginProtocol(request.headers.get("x-repget-plugin-version"));
+  const pluginVersion = request.headers.get("x-repget-plugin-version");
+  const protocol = pluginProtocol(pluginVersion);
+  // So the card stops offering an update this site has installed (see recordPluginVersion).
+  await recordPluginVersion(resolved.keyId, pluginVersion).catch(() => undefined);
 
   const [due, sent] = await Promise.all([
     dueArticlesForPlugin(resolved.websiteId, BATCH_SIZE),

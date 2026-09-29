@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { format } from "@/lib/i18n/format";
+import type { Locale } from "@/lib/i18n/config";
 import type { Messages } from "@/lib/i18n/messages";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -50,8 +51,10 @@ export function PublishingPanel({
   integrations,
   pluginKeys,
   canEdit,
-  everHadKey,
+  pluginContext,
+  locale,
   siteUrl,
+  wordpressAdmin,
   t,
   tKeys,
   tCommon,
@@ -63,10 +66,14 @@ export function PublishingPanel({
   pluginKeys: IntegrationKeyView[];
   /** False for a viewer. See PluginKeys. */
   canEdit: boolean;
-  /** Whether the website has ever had an integration key. See PluginKeys. */
-  everHadKey: boolean;
+  /** Which workspace the WordPress card connects, and where else the person has the domain. */
+  pluginContext: { domain: string; workspaceName: string; alsoIn: string[] } | null;
+  /** The reader's language, for dates and lists in the WordPress card. */
+  locale: Locale;
   /** The customer's own site address, for deep links into their wp-admin. */
   siteUrl: string;
+  /** The wp-admin address a plugin of this website reported, when one has. See PluginKeys. */
+  wordpressAdmin: string | null;
   /** This screen's copy, already in the reader's language. */
   t: Messages["app"]["publishing"];
   /** The key panel's own slice, forwarded to it. */
@@ -463,9 +470,11 @@ export function PublishingPanel({
         <PluginKeys
           websiteId={websiteId}
           siteUrl={siteUrl}
+          wordpressAdmin={wordpressAdmin}
           keys={pluginKeys}
           canEdit={canEdit}
-          everHadKey={everHadKey}
+          context={pluginContext}
+          locale={locale}
           t={tKeys}
           tCommon={tCommon}
         />

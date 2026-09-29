@@ -672,6 +672,12 @@ export type AdminWebsite = {
   articleCount: number;
   /** Null when the workspace has never subscribed. */
   subscriptionStatus: string | null;
+  /**
+   * Other websites with the same domain (www or not), in any workspace. One
+   * WordPress site can publish for only one of them - the imagestudio.com
+   * mix-up of 2026-09-29 - so an operator should see it at a glance.
+   */
+  sameDomainElsewhere: number;
 };
 
 /**
@@ -747,6 +753,7 @@ export async function listWebsites(
       */
       articleCount: raw<number>`(select count(*) from articles a where a.website_id = ${websites.id})::int`,
       subscriptionStatus: subscriptions.status,
+      sameDomainElsewhere: raw<number>`(select count(*) from websites w2 where w2.id <> ${websites.id} and regexp_replace(lower(w2.domain), '^www\\.', '') = regexp_replace(lower(${websites.domain}), '^www\\.', ''))::int`,
     })
     .from(websites)
     .leftJoin(organization, eq(organization.id, websites.organizationId))

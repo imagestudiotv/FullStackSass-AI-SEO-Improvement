@@ -56,6 +56,7 @@ vi.mock("@/lib/plugin/sync", () => ({ nudgePluginIfDue: vi.fn(async () => "none"
 const keys = vi.hoisted(() => ({ websiteId: "" }));
 vi.mock("@/lib/plugin/keys", () => ({
   resolveIntegrationKey: vi.fn(async () => ({ keyId: "key-1", websiteId: keys.websiteId, websiteDomain: "imagestudio.com" })),
+  recordPluginVersion: vi.fn(async () => {}),
 }));
 vi.mock("@/lib/publishing/credentials", () => ({
   resolveIntegration: vi.fn(async () => ({ integrationId: "integration-1", providerId: "wordpress" })),

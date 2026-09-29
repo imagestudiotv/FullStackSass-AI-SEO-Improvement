@@ -120,6 +120,25 @@ export async function triggerPluginSync(websiteId: string): Promise<SyncOutcome>
 }
 
 /**
+ * Tells a WordPress site at once that its key was revoked.
+ *
+ * Plugin 1.6.0 shows "Connected" from the last successful check, and only
+ * learns a key is dead on its next request - up to an hour later, while the
+ * customer looks at "Connected". This sends one check-now signed with the
+ * REVOKED key's hash, which that plugin still holds and accepts; its check
+ * then asks RepGet for articles with the dead key, gets 401 and shows the key
+ * as rejected. A site holding any other key rejects the signature and nothing
+ * happens. Best effort: never throws.
+ */
+export async function signalRevokedKey(endpoint: { keyHash: string; syncUrl: string }): Promise<boolean> {
+  const ts = Math.floor(Date.now() / 1000).toString();
+  const sig = crypto.createHmac("sha256", endpoint.keyHash).update(ts).digest("hex");
+  const result = await postForm(endpoint.syncUrl, new URLSearchParams({ action: "repget_sync", ts, sig }).toString());
+  // Delivered when the site answered at all: its own check then fails with the dead key, which is the point.
+  return result !== null;
+}
+
+/**
  * Asks the plugin to check now - but only when it has something to collect.
  *
  * The plugin's own hourly check is WordPress cron, which only runs when

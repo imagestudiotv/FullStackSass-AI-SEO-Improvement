@@ -7,9 +7,15 @@
  * unpacks it straight into wp-content/plugins, so a zip of loose files
  * installs as garbage.
  *
- * Output goes to public/ so the app can serve it directly.
+ * Output goes to public/ so the app can serve it directly - and, next to the
+ * zip, public/repget-connector.json: the manifest plugin 1.7.0+ reads to offer
+ * updates inside WordPress (see "Updates" at the end of repget-connector.php
+ * and in docs/wordpress-connect.md). The manifest carries the zip's SHA-256,
+ * and the plugin refuses a download that does not match it, so the two files
+ * must always be written together - which is why one script writes both.
  */
-import { createWriteStream, mkdirSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { deflateRawSync } from "node:zlib";
@@ -18,6 +24,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const source = join(here, "repget-connector");
 const outDir = join(here, "..", "public");
 const outFile = join(outDir, "repget-connector.zip");
+const manifestFile = join(outDir, "repget-connector.json");
 
 /**
  * Text files are packaged with LF line endings, exactly as git stores them.
@@ -104,10 +111,68 @@ end.writeUInt16LE(files.length, 10);
 end.writeUInt32LE(centralBuf.length, 12);
 end.writeUInt32LE(offset, 16);
 
+/* ------------------------------------------------------------ manifest --- */
+
+/** A plugin-header field ("Version: 1.7.0"), read the way WordPress reads it: the first match. */
+function headerField(text, name) {
+  const match = new RegExp(`^[ \\t/*#@]*${name}:(.*)$`, "mi").exec(text);
+  return match ? match[1].trim() : "";
+}
+
+/** The changelog entry for `version` in readme.txt: the lines under "= <version> =". */
+function changelogFor(readme, version) {
+  const lines = readme.split("\n");
+  const start = lines.findIndex((line) => line.trim() === `= ${version} =`);
+  if (start < 0) return "";
+  const out = [];
+  for (const line of lines.slice(start + 1)) {
+    if (/^\s*=+ .* =+\s*$/.test(line)) break;
+    out.push(line);
+  }
+  return out.join("\n").trim();
+}
+
+const pluginText = normalize("x.php", readFileSync(join(source, "repget-connector.php"))).toString("utf8");
+const readmeText = normalize("x.txt", readFileSync(join(source, "readme.txt"))).toString("utf8");
+
+const version = headerField(pluginText, "Version");
+const defined = /define\('REPGET_VERSION',\s*'([^']+)'\)/.exec(pluginText)?.[1] ?? "";
+const stable = headerField(readmeText, "Stable tag");
+const changelog = changelogFor(readmeText, version);
+
+/*
+  Refuse to package a plugin that disagrees with itself. The manifest's
+  version is what WordPress compares against the INSTALLED plugin's header:
+  a header bumped without REPGET_VERSION (or the other way round) would
+  either never be offered or be offered again after every update.
+*/
+const problems = [];
+if (!/^\d+(\.\d+){0,3}$/.test(version)) problems.push(`plugin header Version "${version}" is not a plain version number`);
+if (defined !== version) problems.push(`REPGET_VERSION "${defined}" does not match the header Version "${version}"`);
+if (stable !== version) problems.push(`readme Stable tag "${stable}" does not match the header Version "${version}"`);
+if (!changelog) problems.push(`readme.txt has no changelog entry "= ${version} ="`);
+if (problems.length > 0) {
+  for (const problem of problems) console.error(`  ${problem}`);
+  process.exit(1);
+}
+
+const zip = Buffer.concat([...chunks, centralBuf, end]);
+const manifest = {
+  version,
+  // Relative: the plugin resolves it against its own endpoint, so staging
+  // and production each serve their own zip.
+  package: "/repget-connector.zip",
+  sha256: createHash("sha256").update(zip).digest("hex"),
+  requires: headerField(pluginText, "Requires at least"),
+  requires_php: headerField(pluginText, "Requires PHP"),
+  tested: headerField(readmeText, "Tested up to"),
+  changelog,
+};
+
 mkdirSync(outDir, { recursive: true });
-const stream = createWriteStream(outFile);
-stream.write(Buffer.concat([...chunks, centralBuf, end]));
-stream.end();
+writeFileSync(outFile, zip);
+writeFileSync(manifestFile, `${JSON.stringify(manifest, null, 2)}\n`);
 
 console.log(`  ${files.length} file(s) -> public/repget-connector.zip`);
 for (const f of files) console.log(`    ${f.path}`);
+console.log(`  version ${manifest.version}, sha256 ${manifest.sha256} -> public/repget-connector.json`);
