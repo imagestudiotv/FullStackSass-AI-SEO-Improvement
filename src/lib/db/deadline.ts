@@ -18,11 +18,12 @@ import type postgres from "postgres";
  *
  * Applied where drizzle reaches the driver: it runs every statement through
  * sql.unsafe(), and transactions through sql.begin(), whose callback receives
- * its own client - wrapped here too.
+ * its own client - wrapped here too. A transaction's own BEGIN, COMMIT and
+ * ROLLBACK are sent by the driver, not through sql.unsafe(), so sql.begin()
+ * gets its own time limit for those (see guardClient).
  *
- * ONE QUERY PER CONNECTION AT A TIME. The same wrapper also admits queries
- * through a Gate, so the driver is never handed more work than it has
- * connections - see Gate below and lib/db/index.ts.
+ * One query at a time per connection - never pipelined - is the driver's job:
+ * src/vendor/postgres (patched) and lib/db/index.ts.
  */
 
 /** Longer than any legitimate query here; far shorter than Vercel's 300s. */
@@ -43,64 +44,6 @@ function summarise(sqlText: string): string {
   return sqlText.replace(/\s+/g, " ").trim().slice(0, 160);
 }
 
-/**
- * At most `capacity` operations at once; the rest wait, first come first
- * served.
- *
- * WHY. postgres.js PIPELINES: when it has more queries than free
- * connections, it writes the next query down a connection whose previous
- * query has not answered yet. Supabase's transaction pooler loses pipelined
- * queries - they never answer - which is what hung the operations, backlinks
- * and dashboard pages (lib/db/index.ts). The driver's own switch for this,
- * max_pipeline: 0, cannot be used: postgres.js reserves a connection for a
- * transaction in the same step that setting skips, so with it EVERY
- * transaction fails at BEGIN ("UNSAFE_TRANSACTION"), which took down every
- * payment webhook and admin switch on 2026-09-28.
- *
- * So the limit is applied here instead, in front of the driver. The pool
- * gate's capacity is the pool size, and each query holds its place until it
- * has answered - by then postgres.js has put its connection back as free
- * (it resolves a query and frees the connection in one step) - and each
- * transaction holds one place from BEGIN to COMMIT. The driver therefore
- * always has a free connection for what it is given, and never pipelines.
- * Inside a transaction, a gate of one runs its queries one after another on
- * the transaction's connection.
- */
-export class Gate {
-  private active = 0;
-  private readonly waiting: Array<() => void> = [];
-
-  constructor(readonly capacity: number) {
-    if (!Number.isInteger(capacity) || capacity < 1) throw new Error(`Gate capacity must be a positive integer, got ${capacity}`);
-  }
-
-  /** Resolves, in turn, with the function that gives the place back. Call it exactly once. */
-  acquire(): Promise<() => void> {
-    return new Promise((resolve) => {
-      const grant = () => {
-        this.active += 1;
-        let released = false;
-        resolve(() => {
-          if (released) return;
-          released = true;
-          this.active -= 1;
-          this.waiting.shift()?.();
-        });
-      };
-      if (this.active < this.capacity) grant();
-      else this.waiting.push(grant);
-    });
-  }
-
-  /** For tests and logs. */
-  get inUse(): number {
-    return this.active;
-  }
-  get queued(): number {
-    return this.waiting.length;
-  }
-}
-
 type Options = {
   deadlineMs?: number;
   slowMs?: number;
@@ -113,18 +56,14 @@ type Options = {
   onTimeout?: () => void;
   /**
    * Called when postgres.js reports a transaction it could not reserve a
-   * connection for (UNSAFE_TRANSACTION). The server has then begun a
-   * transaction on a connection the driver hands back to the pool: every
-   * later statement on it would run inside that transaction and be thrown
-   * away when the connection closes. lib/db/index.ts discards the pool, which
-   * closes that connection - and rolls the stray transaction back - at once.
+   * connection for (UNSAFE_TRANSACTION - the 2026-09-28 incident, caused by
+   * max_pipeline: 0). The server has then begun a transaction on a connection
+   * the driver hands back to the pool: every later statement on it would run
+   * inside that transaction and be thrown away when the connection closes.
+   * lib/db/index.ts discards the pool, which closes that connection - and
+   * rolls the stray transaction back - at once.
    */
   onBroken?: () => void;
-  /**
-   * Admits queries (and, on the pool, transactions): see Gate. The pool gets
-   * one sized to its connections; each transaction a gate of one.
-   */
-  gate?: Gate;
 };
 
 type Thenable = {
@@ -155,24 +94,16 @@ function withDeadline<Q>(query: Q, sqlText: string, options: Options): Q {
     if (!settled) {
       const startedAt = Date.now();
       settled = new Promise((resolve, reject) => {
-        let timedOut = false;
-        let sent = false;
         const timer = setTimeout(() => {
-          timedOut = true;
           console.error(
             `[db] query timed out after ${deadlineMs}ms: ${summarise(sqlText)}`,
           );
           // Frees it if it never left the queue; a query already on a dead
           // socket cannot be recalled, but the caller is no longer waiting.
-          // Only a query handed to the driver: cancelling one still waiting at
-          // the gate would reject a promise nothing listens to (an unhandled
-          // rejection) - and it will never be sent anyway.
-          if (sent) {
-            try {
-              target.cancel?.();
-            } catch {
-              // Nothing useful to do; the timeout below is what matters.
-            }
+          try {
+            target.cancel?.();
+          } catch {
+            // Nothing useful to do; the timeout below is what matters.
           }
           try {
             options.onTimeout?.();
@@ -182,30 +113,20 @@ function withDeadline<Q>(query: Q, sqlText: string, options: Options): Q {
           reject(new QueryTimeoutError(sqlText, deadlineMs));
         }, deadlineMs);
 
-        // The deadline covers the wait for a place as well as the query.
-        const send = (release: () => void) => {
-          // Timed out while waiting: never sent, and its place goes to the next.
-          if (timedOut) return release();
-          sent = true;
-          run(
-            (value) => {
-              release();
-              clearTimeout(timer);
-              const took = Date.now() - startedAt;
-              if (took >= slowMs) {
-                console.warn(`[db] slow query ${took}ms: ${summarise(sqlText)}`);
-              }
-              resolve(value);
-            },
-            (error) => {
-              release();
-              clearTimeout(timer);
-              reject(error);
-            },
-          );
-        };
-        if (options.gate) options.gate.acquire().then(send);
-        else send(() => {});
+        run(
+          (value) => {
+            clearTimeout(timer);
+            const took = Date.now() - startedAt;
+            if (took >= slowMs) {
+              console.warn(`[db] slow query ${took}ms: ${summarise(sqlText)}`);
+            }
+            resolve(value);
+          },
+          (error) => {
+            clearTimeout(timer);
+            reject(error);
+          },
+        );
       });
     }
     return settled.then(onFulfilled, onRejected);
@@ -221,8 +142,40 @@ function isUnsafeTransaction(error: unknown): boolean {
 }
 
 /**
- * Wraps a postgres.js client so every query it runs has a deadline and goes
- * through the gate, if one is given.
+ * Calls onTimeout when a transaction's own BEGIN (including the wait for a
+ * connection) or its COMMIT/ROLLBACK does not answer in time. The driver
+ * sends those itself, so withDeadline never sees them; without this, a
+ * transaction on a silently dead connection waited out Vercel's 300 seconds.
+ * Discarding the pool (lib/db/index.ts) terminates the connection, which
+ * rejects the transaction.
+ */
+function transactionWatchdog(options: Options) {
+  const deadlineMs = options.deadlineMs ?? DEADLINE_MS;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  return {
+    arm(what: string) {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        console.error(`[db] transaction ${what} did not answer within ${deadlineMs}ms`);
+        try {
+          options.onTimeout?.();
+        } catch (error) {
+          console.error("[db] onTimeout failed", error);
+        }
+      }, deadlineMs);
+    },
+    disarm() {
+      clearTimeout(timer);
+    },
+  };
+}
+
+/** Driver features that would bypass one-query-at-a-time or the pooler. */
+const REFUSED = new Set<PropertyKey>(["reserve", "listen", "subscribe"]);
+
+/**
+ * Wraps a postgres.js client so every query it runs has a deadline, and every
+ * transaction a time limit on its BEGIN and COMMIT/ROLLBACK.
  */
 export function guardClient<T extends postgres.Sql>(
   sql: T,
@@ -240,14 +193,23 @@ export function guardClient<T extends postgres.Sql>(
       }
       if (property === "begin") {
         return async (...args: unknown[]) => {
-          // One place for the whole transaction: its connection is taken from BEGIN to COMMIT.
-          const release = options.gate ? await options.gate.acquire() : () => {};
+          const watchdog = transactionWatchdog(options);
+          // The driver can settle begin() (the connection closed) before the
+          // callback does: never re-arm after that, or a healthy pool would be
+          // discarded DEADLINE_MS later.
+          let beginSettled = false;
+          const last = args.length - 1;
+          const callback = args[last] as (tx: postgres.Sql) => unknown;
+          args[last] = async (tx: postgres.Sql) => {
+            watchdog.disarm(); // BEGIN answered
+            try {
+              return await callback(guardClient(tx, options));
+            } finally {
+              if (!beginSettled) watchdog.arm("COMMIT/ROLLBACK");
+            }
+          };
+          watchdog.arm("BEGIN");
           try {
-            const last = args.length - 1;
-            const callback = args[last] as (tx: postgres.Sql) => unknown;
-            // Its statements share its one connection: one at a time.
-            const inside: Options = { ...options, gate: new Gate(1) };
-            args[last] = (tx: postgres.Sql) => callback(guardClient(tx, inside));
             return await (target.begin as (...a: unknown[]) => Promise<unknown>)(...args);
           } catch (error) {
             if (isUnsafeTransaction(error)) {
@@ -260,12 +222,13 @@ export function guardClient<T extends postgres.Sql>(
             }
             throw error;
           } finally {
-            release();
+            beginSettled = true;
+            watchdog.disarm();
           }
         };
       }
       if (property === "savepoint") {
-        // A nested transaction: same connection, so the same gate and deadlines.
+        // A nested transaction (drizzle's tx.transaction): same deadlines.
         return (...args: unknown[]) => {
           const last = args.length - 1;
           const callback = args[last];
@@ -273,6 +236,13 @@ export function guardClient<T extends postgres.Sql>(
             args[last] = (sp: postgres.Sql) => (callback as (s: postgres.Sql) => unknown)(guardClient(sp, options));
           }
           return (Reflect.get(target, "savepoint") as (...a: unknown[]) => unknown)(...args);
+        };
+      }
+      if (REFUSED.has(property)) {
+        return () => {
+          throw new Error(
+            `sql.${String(property)}() is not supported: it bypasses one-query-at-a-time (src/vendor/postgres) or needs a session the transaction pooler does not keep`,
+          );
         };
       }
       return Reflect.get(target, property, receiver);

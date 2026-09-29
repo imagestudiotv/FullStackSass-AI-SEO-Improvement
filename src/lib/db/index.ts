@@ -1,8 +1,9 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
-import postgres from "postgres";
+// postgres.js 3.4.9 with its routing patched to never pipeline - see src/vendor/postgres/README.md.
+import postgres from "@/vendor/postgres";
 
-import { Gate, guardClient } from "./deadline";
+import { guardClient } from "./deadline";
 import * as schema from "./schema";
 
 /**
@@ -16,10 +17,7 @@ import * as schema from "./schema";
  * fails, with the same clear message.
  */
 
-/**
- * Connections per serverless instance - and the most operations handed to
- * postgres.js at once (see ONE QUERY PER CONNECTION AT A TIME below).
- */
+/** Connections per serverless instance (see `max` below). */
 export const POOL_SIZE = 4;
 
 /** The postgres.js settings. Exported for the real-Postgres test (client.postgres.test.ts). */
@@ -48,8 +46,9 @@ export const CONNECTION_OPTIONS = {
    *
    * Four rather than one: this codebase fans out with Promise.all -
    * billing/page.tsx awaits six queries at once, the operations page seven -
-   * and more connections answer that sooner. (One and two connections used
-   * to HANG on those pages; that was pipelining, below, not the pool size.)
+   * and more connections answer that sooner; the rest wait their turn in the
+   * driver. (One and two connections used to HANG on those pages; that was
+   * pipelining, below, not the pool size.)
    */
   max: POOL_SIZE,
 
@@ -88,26 +87,31 @@ export const CONNECTION_OPTIONS = {
   /*
     ONE QUERY PER CONNECTION AT A TIME - never pipelined.
 
-    postgres.js pipelines by default: when a page runs more queries at once
-    than it has connections, it writes the next query down a connection
-    before the previous one has answered. Supabase's transaction pooler does
-    not survive that - the pipelined queries never answer. Reproduced
-    against production on 2026-09-28 with the admin operations page's seven
-    parallel queries: with 4 connections the second round hung, with 1
-    connection the first did, and every round went through once pipelining
-    was off.
+    postgres.js pipelines by default: with more work than free connections -
+    a Promise.all wider than the pool, or a connection ending, dropped or
+    refused while the others are busy - it writes the next query down a
+    connection before the previous one has answered. Supabase's transaction
+    pooler does not survive that - the pipelined queries never answer.
+    Reproduced against production on 2026-09-28 with the admin operations
+    page's seven parallel queries.
 
-    NOT with max_pipeline: 0. That setting was tried (2026-09-28) and it
-    broke every transaction: postgres.js reserves a connection for a
-    transaction (sql.begin) in the same step max_pipeline: 0 skips, so each
-    BEGIN failed with UNSAFE_TRANSACTION - payment webhooks, the admin
-    switches, link verification - and left the server-side transaction open
-    on a pooled connection, where later writes were silently lost. The
-    driver keeps its default here; instead a Gate (lib/db/deadline.ts) hands
-    it no more operations than it has connections, so it never has a reason
-    to pipeline. client.postgres.test.ts proves both through a proxy that
-    watches the wire.
+    That is fixed in the driver itself: the copy in src/vendor/postgres has
+    its routing patched so a query only ever goes to a free connection, and
+    a transaction's statements run one after another (README.md there).
+
+    max_pipeline is PINNED to the driver's default, because 0 - tried on
+    2026-09-28 - broke every transaction: postgres.js reserves a
+    transaction's connection (sql.begin) in the step max_pipeline: 0 skips,
+    so each BEGIN failed with UNSAFE_TRANSACTION and left a server-side
+    transaction open on a pooled connection, where later writes were
+    silently lost (payment webhooks, admin switches and link verification
+    were down for about 8 hours). Set here, it also wins over
+    ?max_pipeline= in DATABASE_URL and PGMAX_PIPELINE in the environment.
+
+    client.postgres.test.ts proves all of this on real Postgres through a
+    proxy that watches the wire.
   */
+  max_pipeline: 100,
 };
 
 let client: ReturnType<typeof postgres> | null = null;
@@ -138,17 +142,20 @@ function discardPool(stale: ReturnType<typeof postgres>, reason: string): void {
 }
 
 /**
- * A postgres.js pool with CONNECTION_OPTIONS, behind the gate and the
- * deadlines (lib/db/deadline.ts) - exactly what the application uses.
- * `onBroken` is called when the pool should be thrown away. Exported for the
- * real-Postgres test.
+ * The patched driver with CONNECTION_OPTIONS, behind the deadlines
+ * (lib/db/deadline.ts) - exactly what the application uses. `onBroken` is
+ * called when the pool should be thrown away. Exported for the real-Postgres
+ * test, which may override settings (for example a short max_lifetime).
  */
-export function openDatabase(url: string, onBroken: (reason: string) => void = () => {}) {
-  const sql = postgres(url, CONNECTION_OPTIONS);
+export function openDatabase(
+  url: string,
+  onBroken: (reason: string) => void = () => {},
+  overrides: Partial<typeof CONNECTION_OPTIONS> = {},
+) {
+  const sql = postgres(url, { ...CONNECTION_OPTIONS, ...overrides });
   const db = drizzle(
     guardClient(sql, {
-      gate: new Gate(POOL_SIZE),
-      onTimeout: () => onBroken("a query timed out"),
+      onTimeout: () => onBroken("a query or transaction timed out"),
       onBroken: () => onBroken("a transaction could not reserve its connection"),
     }),
     { schema },
