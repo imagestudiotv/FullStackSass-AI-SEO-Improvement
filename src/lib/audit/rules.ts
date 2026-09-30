@@ -285,7 +285,37 @@ export type AuditSummary = {
   topIssues: { type: string; count: number }[];
   /** Absent on audits written before the context was collected. */
   context?: AuditContext;
+  /**
+   * Checks that could NOT run on this crawl, by name.
+   *
+   * WHY A SCORE NEEDS THIS. Every cross-page rule in auditSite() — duplicate
+   * titles, duplicate descriptions, orphan pages — needs at least two pages to
+   * say anything, and the orphan rule is explicitly gated on
+   * `pages.length > 1`. On a one-page crawl they all produce nothing, and
+   * "produced nothing" is arithmetically identical to "passed": the penalty is
+   * zero either way, so a site nobody could assess scores like a clean one.
+   *
+   * RepGet's own homepage scored 96 from a single page this way. The number was
+   * not wrong, it was unqualified — the customer reads "96 of 100" as a verdict
+   * on their site when it is a verdict on one page with several checks skipped.
+   *
+   * Empty when the crawl was wide enough for every rule to apply.
+   */
+  notAssessed: string[];
 };
+
+/**
+ * Cross-page rules, and the pages each needs before it can report anything.
+ *
+ * Declared beside the score rather than inside auditSite() because the score is
+ * what has to disclose them: auditSite simply returns fewer issues, which is
+ * indistinguishable from a clean result by the time scoreAudit sees it.
+ */
+const CROSS_PAGE_CHECKS: { label: string; minPages: number }[] = [
+  { label: "Duplicate page titles", minPages: 2 },
+  { label: "Duplicate descriptions", minPages: 2 },
+  { label: "Internal linking", minPages: 2 },
+];
 
 /**
  * Scores 0-100 from the issues found.
@@ -322,7 +352,15 @@ export function scoreAudit(issues: Issue[], pagesCrawled: number): AuditSummary 
     .sort((a, b) => b.count - a.count)
     .slice(0, 8);
 
-  return { score, pagesCrawled, counts, topIssues };
+  /*
+    Named so the result can say what it did not look at. A score with three
+    checks skipped is a different claim from the same score with none.
+  */
+  const notAssessed = CROSS_PAGE_CHECKS.filter(
+    (check) => pagesCrawled < check.minPages,
+  ).map((check) => check.label);
+
+  return { score, pagesCrawled, counts, topIssues, notAssessed };
 }
 
 /**

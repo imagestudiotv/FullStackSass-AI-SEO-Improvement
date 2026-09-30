@@ -100,6 +100,16 @@ export type PublicAuditResult = {
   counts: { critical: number; warning: number; info: number };
   /** Grouped by type and trimmed to PUBLIC_ISSUE_LIMIT. */
   issues: GroupedIssue[];
+  /**
+   * Checks this crawl was too small to run, by name.
+   *
+   * A free audit reads at most five pages and can legitimately read one — a
+   * site that is genuinely one page, or one whose links all leave the origin.
+   * Every cross-page rule then produces nothing, which scores exactly like a
+   * clean result. Naming them lets the page say "not assessed" instead of
+   * letting the number imply a verdict it did not earn.
+   */
+  notAssessed: string[];
   /** How many findings exist beyond the ones shown. */
   hiddenIssues: number;
   cached: boolean;
@@ -286,6 +296,7 @@ export async function runPublicAudit(
     counts: summary.counts,
     issues: ordered.slice(0, PUBLIC_ISSUE_LIMIT),
     hiddenIssues: Math.max(ordered.length - PUBLIC_ISSUE_LIMIT, 0),
+    notAssessed: summary.notAssessed,
     cached: false,
     siteName: home?.ogSiteName ?? home?.title ?? null,
     language: home?.lang ?? null,

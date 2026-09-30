@@ -244,6 +244,33 @@ export function AuditResult({ result }: { result: PublicAuditResult }) {
               colour — a red "0 critical" reads as a problem.
             */}
             <SeverityBar counts={result.counts} />
+
+            {/*
+              WHAT THE SCORE DID NOT LOOK AT.
+
+              A free audit reads at most five pages, and can legitimately read
+              ONE - a site that really is one page, or one whose links all
+              leave the origin. Every cross-page check then produces nothing,
+              which scores identically to passing: this product's own homepage
+              came out at 96 from a single page with three checks skipped.
+
+              So the gap is named rather than left for the number to imply. It
+              is also the honest lead-in to signing up, which is what removes
+              the cap - better than a high score the customer may later find
+              was measured on one page.
+            */}
+            {result.notAssessed.length > 0 ? (
+              <p className="mt-3 text-xs text-muted-foreground">
+                <span className="font-medium text-foreground">
+                  Not assessed:
+                </span>{" "}
+                {result.notAssessed.join(", ").toLowerCase()} —{" "}
+                {result.pagesChecked === 1
+                  ? "these need more than one page, and only one was read"
+                  : "these need more pages than this check reads"}
+                .
+              </p>
+            ) : null}
           </div>
 
           <ScoreRing score={result.score} />
