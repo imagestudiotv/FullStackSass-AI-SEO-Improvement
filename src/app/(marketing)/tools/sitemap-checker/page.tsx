@@ -231,7 +231,7 @@ export default async function SitemapCheckerPage({
 
       <ToolCta
         headline="A sitemap gets you found. Content gets you chosen."
-        body="SeoVision checks this automatically, then writes the pages that answer what your customers actually search for."
+        body="RepGet checks this automatically, then writes the pages that answer what your customers actually search for."
       />
     </div>
   );

@@ -35,7 +35,7 @@ export default async function ContactPage({
       subject={
         quote
           ? "Quote for fixing my website errors"
-          : "Question about AI SEO Platform"
+          : "Question about RepGet"
       }
       title={quote ? "Ask us to fix it for you" : undefined}
       subtitle={

@@ -206,7 +206,7 @@ export const webhookProvider: CmsProvider = {
       remoteId: null,
       article: {
         title: "Test connection",
-        html: "<p>This is a test from your SEO platform. Nothing was published.</p>",
+        html: "<p>This is a test from RepGet. Nothing was published.</p>",
         slug: null,
         excerpt: null,
         status: "draft",

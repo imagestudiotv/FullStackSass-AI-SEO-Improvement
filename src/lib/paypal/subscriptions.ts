@@ -175,7 +175,7 @@ export async function createSubscription(input: {
          */
         custom_id: `${input.organizationId}:${input.websiteId}:${input.checkoutId}`,
         application_context: {
-          brand_name: "AI SEO Platform",
+          brand_name: "RepGet",
           user_action: "SUBSCRIBE_NOW",
           return_url: input.returnUrl,
           cancel_url: input.cancelUrl,

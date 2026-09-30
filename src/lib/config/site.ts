@@ -18,7 +18,7 @@ export const SUPPORT_EMAIL =
 
 /** Trading name used in legal copy. */
 export const COMPANY_NAME =
-  process.env.NEXT_PUBLIC_COMPANY_NAME ?? "SEOVision";
+  process.env.NEXT_PUBLIC_COMPANY_NAME ?? "RepGet";
 
 /** True while the support address is still the placeholder. */
 export function hasRealSupportEmail(): boolean {

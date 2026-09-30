@@ -95,7 +95,7 @@ export async function ensureOrganization(user: {
  */
 function createAuth() {
   return betterAuth({
-    appName: "AI SEO Platform",
+    appName: "RepGet",
     secret: required("BETTER_AUTH_SECRET"),
     baseURL: required("BETTER_AUTH_URL"),
     database: drizzleAdapter(db, {

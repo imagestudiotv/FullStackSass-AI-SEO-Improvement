@@ -28,7 +28,7 @@ export default async function BlogIndexPage() {
           </p>
 
           <h1 className="mt-4 text-3xl font-semibold tracking-tight text-balance sm:text-5xl">
-            The SEO Platform <span className="text-primary">Blog</span>
+            The RepGet <span className="text-primary">Blog</span>
           </h1>
           <p className="mt-4 max-w-2xl text-pretty text-muted-foreground sm:text-lg">
             Guides, comparisons and playbooks for the new era of search. How to

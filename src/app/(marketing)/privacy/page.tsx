@@ -4,7 +4,7 @@ import { SUPPORT_EMAIL } from "@/lib/config/site";
 export const metadata = {
   title: "Privacy Policy",
   description:
-    "What data AI SEO Platform collects, why, and how it is stored and protected.",
+    "What data RepGet collects, why, and how it is stored and protected.",
 };
 
 /**
@@ -23,14 +23,14 @@ export default function PrivacyPage() {
   return (
     <LegalPage title="Privacy Policy" updated="31 August 2026">
       <p>
-        This policy explains what information AI SEO Platform (&quot;we&quot;,
+        This policy explains what information RepGet (&quot;we&quot;,
         &quot;the service&quot;) collects, why we collect it, and what we do
         with it. It applies to everyone who uses the service.
       </p>
 
       <h2>Who we are</h2>
       <p>
-        AI SEO Platform is a service that analyses a customer&apos;s website,
+        RepGet is a service that analyses a customer&apos;s website,
         researches search terms, writes articles, and publishes them to that
         customer&apos;s own website. If you have a question about this policy or
         about your data, contact us at{" "}

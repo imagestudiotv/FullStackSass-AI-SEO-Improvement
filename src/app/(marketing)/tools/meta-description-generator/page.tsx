@@ -150,7 +150,7 @@ export default async function MetaDescriptionGeneratorPage({
 
       <ToolCta
         headline="Descriptions win clicks. Content wins rankings."
-        body="SeoVision writes the pages that rank, then keeps their titles and descriptions right automatically."
+        body="RepGet writes the pages that rank, then keeps their titles and descriptions right automatically."
       />
     </div>
   );

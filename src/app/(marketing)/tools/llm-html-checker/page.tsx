@@ -220,7 +220,7 @@ export default async function LlmHtmlCheckerPage({
 
       <ToolCta
         headline="Readable is not the same as recommended"
-        body="SeoVision checks whether assistants actually name your business, and writes the content that gets you cited."
+        body="RepGet checks whether assistants actually name your business, and writes the content that gets you cited."
       />
     </div>
   );

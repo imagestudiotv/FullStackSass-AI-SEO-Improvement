@@ -31,7 +31,7 @@ async function fetchRobotsTxt(origin: string): Promise<string | null> {
       // Cut while streaming, not after downloading the whole file.
       maxBytes: 200_000,
       overflow: "truncate",
-      headers: { accept: "text/plain", "user-agent": "SEOVisionBot/1.0" },
+      headers: { accept: "text/plain", "user-agent": "RepGetBot/1.0 (+https://repget.com)" },
     });
     if (!response.ok) return null;
     return await response.text();
@@ -241,7 +241,7 @@ export default async function AiCrawlerCheckerPage({
 
       <ToolCta
         headline="Being readable is the start. Being cited is the goal."
-        body="SeoVision tracks whether AI assistants actually recommend you, then writes the content that gets you named."
+        body="RepGet tracks whether AI assistants actually recommend you, then writes the content that gets you named."
       />
     </div>
   );

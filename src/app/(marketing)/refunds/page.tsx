@@ -4,7 +4,7 @@ import { SUPPORT_EMAIL } from "@/lib/config/site";
 export const metadata = {
   title: "Refund Policy",
   description:
-    "Our 14-day money-back guarantee and how refunds work at AI SEO Platform.",
+    "Our 14-day money-back guarantee and how refunds work at RepGet.",
 };
 
 /**

@@ -48,7 +48,7 @@ export default function MarketingLayout({ children }: LayoutProps<"/">) {
           </div>
 
           <p className="mt-10 border-t pt-6 text-sm text-muted-foreground">
-            &copy; {new Date().getFullYear()} AI SEO Platform
+            &copy; {new Date().getFullYear()} RepGet
           </p>
         </div>
       </footer>

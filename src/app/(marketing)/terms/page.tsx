@@ -4,7 +4,7 @@ import { SUPPORT_EMAIL } from "@/lib/config/site";
 
 export const metadata = {
   title: "Terms of Service",
-  description: "The terms that apply when you use AI SEO Platform.",
+  description: "The terms that apply when you use RepGet.",
 };
 
 /**
@@ -19,7 +19,7 @@ export default function TermsPage() {
   return (
     <LegalPage title="Terms of Service" updated="31 August 2026">
       <p>
-        These terms apply when you use AI SEO Platform (&quot;the
+        These terms apply when you use RepGet (&quot;the
         service&quot;). By creating an account you agree to them.
       </p>
 

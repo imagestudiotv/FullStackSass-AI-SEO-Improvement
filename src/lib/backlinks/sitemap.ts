@@ -74,7 +74,7 @@ async function fetchText(url: string): Promise<string | null> {
       maxBytes: MAX_BYTES,
       overflow: "truncate",
       timeoutMs: TIMEOUT_MS,
-      headers: { accept: "application/xml,text/xml", "user-agent": "SEOVisionBot/1.0" },
+      headers: { accept: "application/xml,text/xml", "user-agent": "RepGetBot/1.0 (+https://repget.com)" },
     });
     if (!response.ok) return null;
 

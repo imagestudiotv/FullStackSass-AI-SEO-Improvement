@@ -182,7 +182,7 @@ export default async function MetaTagCheckerPage({
 
       <ToolCta
         headline="Meta tags are the easy half"
-        body="SeoVision checks these across your whole site automatically, then writes the pages that earn the clicks."
+        body="RepGet checks these across your whole site automatically, then writes the pages that earn the clicks."
       />
     </div>
   );

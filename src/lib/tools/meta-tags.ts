@@ -101,7 +101,7 @@ export async function checkMetaTags(input: string): Promise<MetaTagOutcome> {
       overflow: "truncate",
       timeoutMs: TIMEOUT_MS,
       headers: {
-        "user-agent": "SEOVisionBot/1.0",
+        "user-agent": "RepGetBot/1.0 (+https://repget.com)",
         accept: "text/html,application/xhtml+xml",
       },
     });

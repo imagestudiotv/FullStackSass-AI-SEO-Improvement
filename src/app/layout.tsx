@@ -32,8 +32,8 @@ function siteUrl(): URL {
 export const metadata: Metadata = {
   metadataBase: siteUrl(),
   title: {
-    default: "AI SEO Platform",
-    template: "%s | AI SEO Platform",
+    default: "RepGet",
+    template: "%s | RepGet",
   },
   description:
     "Automated SEO analysis, AI content generation, publishing and backlinks for small businesses.",

@@ -172,7 +172,7 @@ export const INTEGRATION_DOCS: IntegrationDoc[] = [
       },
       {
         title: "Create an application password",
-        body: "Scroll to the bottom of that page, to Application Passwords. Type a name you will recognise later, such as SEO Platform, and press Add New Application Password.",
+        body: "Scroll to the bottom of that page, to Application Passwords. Type a name you will recognise later, such as RepGet, and press Add New Application Password.",
       },
       {
         title: "Copy the password exactly",
@@ -219,7 +219,7 @@ export const INTEGRATION_DOCS: IntegrationDoc[] = [
       },
       {
         title: "Add a custom integration",
-        body: "Choose Add custom integration and name it SEO Platform. Ghost then shows a Content API key and an Admin API key.",
+        body: "Choose Add custom integration and name it RepGet. Ghost then shows a Content API key and an Admin API key.",
       },
       {
         title: "Copy the ADMIN API key",
@@ -262,7 +262,7 @@ export const INTEGRATION_DOCS: IntegrationDoc[] = [
       },
       {
         title: "Create the app",
-        body: "Press Create an app, name it SEO Platform, then open Configuration → Admin API integration.",
+        body: "Press Create an app, name it RepGet, then open Configuration → Admin API integration.",
       },
       {
         title: "Grant blog permissions",

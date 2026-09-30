@@ -132,7 +132,7 @@ export async function checkRobots(input: string): Promise<RobotsOutcome> {
       maxBytes: MAX_BYTES,
       overflow: "truncate",
       timeoutMs: TIMEOUT_MS,
-      headers: { accept: "text/plain", "user-agent": "SEOVisionBot/1.0" },
+      headers: { accept: "text/plain", "user-agent": "RepGetBot/1.0 (+https://repget.com)" },
     });
   } catch {
     return {

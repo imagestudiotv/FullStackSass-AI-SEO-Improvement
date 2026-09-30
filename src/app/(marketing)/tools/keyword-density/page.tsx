@@ -184,7 +184,7 @@ export default async function KeywordDensityPage({
 
       <ToolCta
         headline="Knowing the gap is the easy part"
-        body="SeoVision finds what your customers actually search for, then writes the pages that answer it."
+        body="RepGet finds what your customers actually search for, then writes the pages that answer it."
       />
     </div>
   );

@@ -77,7 +77,7 @@ async function fetchText(
       maxBytes: MAX_BYTES,
       overflow: "truncate",
       timeoutMs: TIMEOUT_MS,
-      headers: { "user-agent": "SEOVisionBot/1.0", accept: "application/xml,text/xml,*/*" },
+      headers: { "user-agent": "RepGetBot/1.0 (+https://repget.com)", accept: "application/xml,text/xml,*/*" },
     });
 
     // Read only as much as we allow, rather than buffering a huge file.

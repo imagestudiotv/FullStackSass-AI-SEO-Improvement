@@ -38,7 +38,7 @@ function getStripe(): Stripe {
     client = new Stripe(key, {
       apiVersion: STRIPE_API_VERSION,
       typescript: true,
-      appInfo: { name: "AI SEO Platform" },
+      appInfo: { name: "RepGet" },
     });
   }
   return client;

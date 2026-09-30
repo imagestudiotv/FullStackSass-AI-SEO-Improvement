@@ -1937,7 +1937,7 @@ const en: Messages = {
   },
   about: {
     metaTitle: "About",
-    metaDescription: "Why AI SEO Platform exists and who it is for.",
+    metaDescription: "Why RepGet exists and who it is for.",
     title: "SEO results without the agency",
     intro: [
       'A dentist, a plumber or a small law firm knows they should "do SEO". What that actually needs is a keyword researcher, a writer, someone who understands technical audits, and outreach for links. An agency bundles all of that for a few thousand a month.',
@@ -2133,7 +2133,7 @@ const en: Messages = {
   },
   faq: {
     metaTitle: "FAQ",
-    metaDescription: "Common questions about how AI SEO Platform works.",
+    metaDescription: "Common questions about how RepGet works.",
     title: "Frequently asked questions",
     subtitle: "Straight answers, including where the limits are.",
     items: [
@@ -2186,7 +2186,7 @@ const en: Messages = {
   },
   contact: {
     metaTitle: "Contact",
-    metaDescription: "How to get in touch with AI SEO Platform.",
+    metaDescription: "How to get in touch with RepGet.",
     title: "Contact us",
     subtitle:
       "Questions about the product, your account, or billing - we read every message and reply within two working days.",
@@ -3745,7 +3745,7 @@ const es: Messages = {
   },
   about: {
     metaTitle: "Quiénes somos",
-    metaDescription: "Por qué existe AI SEO Platform y para quién es.",
+    metaDescription: "Por qué existe RepGet y para quién es.",
     title: "Resultados de SEO sin agencia",
     intro: [
       'Un dentista, un fontanero o un pequeño bufete sabe que debería "hacer SEO". Lo que eso requiere en realidad es alguien que investigue palabras clave, alguien que escriba, alguien que entienda las auditorías técnicas y alguien que consiga enlaces. Una agencia lo agrupa todo por unos miles al mes.',
@@ -3943,7 +3943,7 @@ const es: Messages = {
   faq: {
     metaTitle: "Preguntas frecuentes",
     metaDescription:
-      "Preguntas habituales sobre cómo funciona AI SEO Platform.",
+      "Preguntas habituales sobre cómo funciona RepGet.",
     title: "Preguntas frecuentes",
     subtitle: "Respuestas claras, incluidos los límites.",
     items: [
@@ -3996,7 +3996,7 @@ const es: Messages = {
   },
   contact: {
     metaTitle: "Contacto",
-    metaDescription: "Cómo ponerse en contacto con AI SEO Platform.",
+    metaDescription: "Cómo ponerse en contacto con RepGet.",
     title: "Contacto",
     subtitle:
       "Preguntas sobre el producto, su cuenta o la facturación: leemos todos los mensajes y respondemos en un plazo de dos días laborables.",
@@ -5557,7 +5557,7 @@ const fr: Messages = {
   },
   about: {
     metaTitle: "À propos",
-    metaDescription: "Pourquoi AI SEO Platform existe et à qui il s'adresse.",
+    metaDescription: "Pourquoi RepGet existe et à qui il s'adresse.",
     title: "Des résultats SEO sans agence",
     intro: [
       "Un dentiste, un plombier ou un petit cabinet d'avocats sait qu'il devrait \"faire du SEO\". Ce que cela exige réellement, c'est quelqu'un pour la recherche de mots-clés, quelqu'un pour rédiger, quelqu'un qui comprend les audits techniques et quelqu'un pour obtenir des liens. Une agence regroupe tout cela pour quelques milliers par mois.",
@@ -5756,7 +5756,7 @@ const fr: Messages = {
   faq: {
     metaTitle: "FAQ",
     metaDescription:
-      "Questions fréquentes sur le fonctionnement d'AI SEO Platform.",
+      "Questions fréquentes sur le fonctionnement de RepGet.",
     title: "Questions fréquentes",
     subtitle: "Des réponses franches, y compris sur les limites.",
     items: [
@@ -5810,7 +5810,7 @@ const fr: Messages = {
   },
   contact: {
     metaTitle: "Contact",
-    metaDescription: "Comment joindre AI SEO Platform.",
+    metaDescription: "Comment joindre RepGet.",
     title: "Nous contacter",
     subtitle:
       "Des questions sur le produit, votre compte ou la facturation : nous lisons chaque message et répondons sous deux jours ouvrés.",
@@ -7366,7 +7366,7 @@ const it: Messages = {
   },
   about: {
     metaTitle: "Chi siamo",
-    metaDescription: "Perché AI SEO Platform esiste e a chi si rivolge.",
+    metaDescription: "Perché RepGet esiste e a chi si rivolge.",
     title: "Risultati SEO senza agenzia",
     intro: [
       'Un dentista, un idraulico o un piccolo studio legale sa di dover "fare SEO". Ciò che serve davvero è qualcuno che studi le parole chiave, qualcuno che scriva, qualcuno che capisca gli audit tecnici e qualcuno che ottenga i link. Un\'agenzia mette insieme tutto questo per qualche migliaio al mese.',
@@ -7563,7 +7563,7 @@ const it: Messages = {
   },
   faq: {
     metaTitle: "Domande frequenti",
-    metaDescription: "Domande comuni sul funzionamento di AI SEO Platform.",
+    metaDescription: "Domande comuni sul funzionamento di RepGet.",
     title: "Domande frequenti",
     subtitle: "Risposte chiare, limiti compresi.",
     items: [
@@ -7616,7 +7616,7 @@ const it: Messages = {
   },
   contact: {
     metaTitle: "Contatti",
-    metaDescription: "Come contattare AI SEO Platform.",
+    metaDescription: "Come contattare RepGet.",
     title: "Contattaci",
     subtitle:
       "Domande sul prodotto, sul suo account o sulla fatturazione: leggiamo ogni messaggio e rispondiamo entro due giorni lavorativi.",
@@ -9179,7 +9179,7 @@ const de: Messages = {
   about: {
     metaTitle: "Über uns",
     metaDescription:
-      "Warum es AI SEO Platform gibt und für wen es gedacht ist.",
+      "Warum es RepGet gibt und für wen es gedacht ist.",
     title: "SEO-Ergebnisse ohne Agentur",
     intro: [
       'Eine Zahnarztpraxis, ein Installateur oder eine kleine Kanzlei weiß, dass sie "SEO machen" sollte. Nötig sind dafür in Wirklichkeit jemand für die Keyword-Recherche, jemand zum Schreiben, jemand mit Verständnis für technische Audits und jemand, der Links besorgt. Eine Agentur bündelt all das für einige tausend im Monat.',
@@ -9377,7 +9377,7 @@ const de: Messages = {
   },
   faq: {
     metaTitle: "Häufige Fragen",
-    metaDescription: "Häufige Fragen dazu, wie AI SEO Platform funktioniert.",
+    metaDescription: "Häufige Fragen dazu, wie RepGet funktioniert.",
     title: "Häufige Fragen",
     subtitle: "Klare Antworten, auch zu den Grenzen.",
     items: [
@@ -9430,7 +9430,7 @@ const de: Messages = {
   },
   contact: {
     metaTitle: "Kontakt",
-    metaDescription: "So erreichen Sie AI SEO Platform.",
+    metaDescription: "So erreichen Sie RepGet.",
     title: "Kontakt",
     subtitle:
       "Fragen zum Produkt, zu Ihrem Konto oder zur Abrechnung - wir lesen jede Nachricht und antworten innerhalb von zwei Werktagen.",

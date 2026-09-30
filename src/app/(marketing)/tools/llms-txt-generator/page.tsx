@@ -121,7 +121,7 @@ export default async function LlmsTxtGeneratorPage({
 
       <ToolCta
         headline="A file helps. Content is what gets cited."
-        body="SeoVision tracks whether assistants name your business, and writes the pages that make them."
+        body="RepGet tracks whether assistants name your business, and writes the pages that make them."
       />
     </div>
   );
