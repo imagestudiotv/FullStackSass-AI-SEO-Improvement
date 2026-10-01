@@ -215,12 +215,24 @@ export function AuditSteps({ result }: { result: PublicAuditResult }) {
         <Row
           index={2}
           label="Personalized Growth Plan"
+          /*
+            "of 100 on N pages", not "of 100".
+
+            The zero-issue line below already says "on the pages we read"; the
+            scored line did not, so a 96 measured on a single page read as a
+            verdict on the whole site. Same score, same place, one clause that
+            says what it covers.
+          */
           summary={
             totalIssues === 0
-              ? "Nothing wrong on the pages we read"
+              ? `Nothing wrong on the ${
+                  result.pagesChecked === 1 ? "page" : "pages"
+                } we read`
               : `${totalIssues} ${
                   totalIssues === 1 ? "thing" : "things"
-                } to fix · scored ${result.score} of 100`
+                } to fix · scored ${result.score} of 100 on ${
+                  result.pagesChecked
+                } ${result.pagesChecked === 1 ? "page" : "pages"}`
           }
           open={open === 1}
           onToggle={() => toggle(1)}

@@ -1,0 +1,212 @@
+import { describe, expect, it } from "vitest";
+
+import { detectPlatform } from "./ai-crawlers";
+
+/**
+ * Platform detection must not be fooled by what a site LINKS TO.
+ *
+ * The patterns used to be bare product names — `/webflow/` matched any string
+ * containing those letters. Two of the three callers pass `internalUrls`,
+ * every internal link on the page, so RepGet's own marketing site reported
+ * itself as built on Webflow: its "works with" grid links to
+ * /docs/integrations/webflow.
+ *
+ * A pattern must match something only the platform itself emits.
+ */
+
+/** The signals RepGet's own homepage produces. This is the real bug. */
+const REPGET_HOMEPAGE = [
+  "/_next/static/css/a1b2c3.css",
+  "/_next/static/chunks/main-4f5e6d.js",
+  "/docs/integrations/wordpress",
+  "/docs/integrations/webflow",
+  "/docs/integrations/shopify",
+  "/docs/integrations/ghost",
+  "/docs/integrations/wix",
+  "https://repget.com/blog/how-to-publish-to-webflow",
+];
+
+describe("the reported bug: a site is not the platforms it links to", () => {
+  it("reports RepGet's own site as Next.js, not Webflow", () => {
+    expect(detectPlatform(REPGET_HOMEPAGE)).toBe("Next.js");
+  });
+
+  it.each([
+    ["Webflow", "/docs/integrations/webflow"],
+    ["WordPress", "/docs/integrations/wordpress"],
+    ["Shopify", "/docs/integrations/shopify"],
+    ["Ghost", "/docs/integrations/ghost"],
+    ["Wix", "/docs/integrations/wix"],
+    ["Joomla", "/guides/joomla-seo"],
+    ["WooCommerce", "/compare/woocommerce-vs-shopify"],
+    ["Drupal", "/blog/drupal-migration"],
+  ])("a link mentioning %s does not make the site %s", (_name, href) => {
+    // Only our own asset URLs besides the link: the answer must be Next.js.
+    expect(detectPlatform(["/_next/static/chunks/x.js", href])).toBe("Next.js");
+  });
+
+  it("an agency listing every platform it builds on is not any of them", () => {
+    const agency = [
+      "/_next/static/chunks/app.js",
+      "/services/wordpress-development",
+      "/services/shopify-stores",
+      "/services/webflow-design",
+      "/services/squarespace-setup",
+    ];
+    expect(detectPlatform(agency)).toBe("Next.js");
+  });
+
+  it("a blog post about a platform is not that platform", () => {
+    expect(
+      detectPlatform([
+        "https://example.com/blog/why-we-left-wordpress-for-webflow",
+      ]),
+    ).toBeNull();
+  });
+});
+
+describe("real fingerprints are still detected", () => {
+  it.each([
+    ["WordPress", "https://site.test/wp-content/themes/x/style.css"],
+    ["WordPress", "https://site.test/wp-includes/js/jquery.js"],
+    ["WordPress", "https://site.test/wp-json/wp/v2/posts"],
+    ["Shopify", "https://cdn.shopify.com/s/files/1/0/t/assets/theme.js"],
+    ["Shopify", "https://acme.myshopify.com/cart"],
+    ["Wix", "https://static.wixstatic.com/media/abc.jpg"],
+    ["Wix", "https://static.parastorage.com/services/x/bundle.js"],
+    ["Squarespace", "https://static1.squarespace.com/static/x/t/y.css"],
+    ["Webflow", "https://assets.website-files.com/5f/abc.css"],
+    ["Webflow", "https://cdn.prod.website-files.com/5f/app.js"],
+    ["Webflow", "https://acme.webflow.io/home"],
+    ["Ghost", "https://site.test/ghost/api/content/posts/"],
+    ["Ghost", "https://acme.ghost.io/assets/built/screen.css"],
+    ["Drupal", "https://site.test/sites/default/files/css/x.css"],
+    ["Joomla", "https://site.test/index.php?option=com_content&view=article"],
+    ["BigCommerce", "https://cdn11.bigcommerce.com/s-abc/stencil/x.js"],
+    ["Next.js", "/_next/static/chunks/framework.js"],
+  ])("detects %s from %s", (expected, signal) => {
+    expect(detectPlatform([signal])).toBe(expected);
+  });
+
+  it("prefers the CMS over the framework it is rendered with", () => {
+    // A Shopify store using a Next.js storefront is still "Shopify" to its owner.
+    expect(
+      detectPlatform([
+        "/_next/static/chunks/main.js",
+        "https://cdn.shopify.com/s/files/1/theme.js",
+      ]),
+    ).toBe("Shopify");
+  });
+});
+
+describe("the generator meta tag is trusted first", () => {
+  it("reads a self-declaration even with no asset fingerprints", () => {
+    expect(detectPlatform([], "WordPress 6.7.1")).toBe("WordPress");
+    expect(detectPlatform([], "Webflow")).toBe("Webflow");
+    expect(detectPlatform([], "Drupal 10 (https://www.drupal.org)")).toBe("Drupal");
+  });
+
+  it("reads the generators real platforms emit, punctuation and all", () => {
+    // Joomla 4/5 and Wix, verbatim: the first word carries "!" and ".com".
+    expect(detectPlatform([], "Joomla! - Open Source Content Management")).toBe("Joomla");
+    expect(detectPlatform([], "Wix.com Website Builder")).toBe("Wix");
+    expect(detectPlatform([], "Shopify")).toBe("Shopify");
+    expect(detectPlatform([], "Squarespace")).toBe("Squarespace");
+    expect(detectPlatform([], "Ghost 5.82")).toBe("Ghost");
+  });
+
+  it("beats a conflicting asset fingerprint", () => {
+    /*
+      A WordPress site served behind a Next.js front end still says WordPress
+      about itself, and that self-declaration is better evidence than ours.
+    */
+    expect(detectPlatform(["/_next/static/chunks/main.js"], "WordPress 6.7.1")).toBe("WordPress");
+  });
+
+  it("normalises casing to how the product spells itself", () => {
+    expect(detectPlatform([], "wordpress")).toBe("WordPress");
+    expect(detectPlatform([], "WORDPRESS 6.7")).toBe("WordPress");
+  });
+
+  it("is not reachable from a URL that merely contains the word", () => {
+    expect(detectPlatform([], "/wordpress-hosting-guide")).toBeNull();
+    expect(detectPlatform([], "https://example.com/webflow")).toBeNull();
+  });
+
+  it("is never read from the other signals: an image path or a class is not a self-declaration", () => {
+    // A custom Next.js site showing a Shopify logo, a WordPress screenshot, a ghost-themed body.
+    expect(detectPlatform(["/_next/static/chunks/x.js", "shopify/logo.png"])).toBe("Next.js");
+    expect(detectPlatform(["/_next/static/chunks/x.js", "WordPress logo.png"])).toBe("Next.js");
+    expect(detectPlatform(["/_next/static/chunks/x.js", "ghost dark-mode"])).toBe("Next.js");
+    expect(detectPlatform(["hugo/headshot.jpg"])).toBeNull();
+    // ...and a stray relative path never beats a real fingerprint.
+    expect(detectPlatform(["shopify/logo.png", "https://x.com/wp-content/themes/a/style.css"])).toBe("WordPress");
+  });
+
+  it("a crawled word that names an object property is just an unknown word", () => {
+    for (const word of ["constructor", "__proto__", "toString", "hasOwnProperty", "Constructor 2.0", "__proto__ home"]) {
+      expect(detectPlatform([word], word)).toBeNull();
+    }
+  });
+});
+
+describe("a framework's generator never outranks the CMS behind it", () => {
+  it("a Gatsby front end on WordPress or Shopify is WordPress or Shopify", () => {
+    expect(detectPlatform(["https://cms.example.com/wp-content/uploads/2024/01/a.jpg"], "Gatsby 5.12.0")).toBe("WordPress");
+    expect(detectPlatform(["https://cdn.shopify.com/s/files/1/a.jpg"], "Gatsby 5.12.0")).toBe("Shopify");
+  });
+
+  it("but with no CMS behind it, the framework's own word beats our Next.js guess", () => {
+    expect(detectPlatform([], "Gatsby 5.12.0")).toBe("Gatsby");
+    expect(detectPlatform([], "Hugo 0.125.4")).toBe("Hugo");
+    expect(detectPlatform(["/_next/static/chunks/x.js"], "Jekyll v4.3.3")).toBe("Jekyll");
+  });
+
+  it("a CMS that declares itself still beats every fingerprint", () => {
+    expect(detectPlatform(["https://cdn.shopify.com/s/files/1/a.jpg"], "WordPress 6.7")).toBe("WordPress");
+  });
+});
+
+describe("Joomla 4 and 5, which no longer ship the Joomla 3 assets", () => {
+  it("is recognised by its own asset paths", () => {
+    expect(detectPlatform(["/media/templates/site/cassiopeia/css/template.min.css"])).toBe("Joomla");
+    expect(detectPlatform(["/media/system/js/core.min.js"])).toBe("Joomla");
+    expect(detectPlatform(["/media/vendor/joomla-custom-elements/js/joomla-alert.min.js"])).toBe("Joomla");
+  });
+
+  it("but a link to Joomla's site, or the word, is not", () => {
+    expect(detectPlatform(["https://www.joomla.org/", "/blog/why-we-left-joomla"])).toBeNull();
+  });
+
+  it("is recognised by the body class every Joomla template prints, generator hidden and assets combined", () => {
+    expect(
+      detectPlatform([
+        "/media/com_jchoptimize/cache/css/abc.css",
+        "/templates/shaper_helixultimate/css/template.css",
+        "site helix-ultimate hu com_content view-article itemid-101",
+      ]),
+    ).toBe("Joomla");
+    expect(detectPlatform(["site com_content view-featured no-layout no-task itemid-101"])).toBe("Joomla");
+  });
+
+  it("but com_content inside a URL is not a class word", () => {
+    expect(detectPlatform(["/blog/what-is-com_content", "https://example.com/com_content/guide"])).toBeNull();
+  });
+});
+
+describe("honest nulls", () => {
+  it("returns null for a plain static site rather than guessing", () => {
+    expect(
+      detectPlatform([
+        "/assets/css/main.css",
+        "/assets/js/site.js",
+        "/about",
+        "/contact",
+      ]),
+    ).toBeNull();
+  });
+
+  it("returns null for no signals at all", () => {
+    expect(detectPlatform([])).toBeNull();
+  });
+});

@@ -106,10 +106,10 @@ export async function previewWebsite(rawUrl: string): Promise<PreviewResult> {
          * Squarespace, Webflow and Ghost all came back undetected despite
          * naming themselves throughout the markup.
          */
-        platform: detectPlatform([
-          ...page.platformSignals,
-          ...page.images.map((image) => image.src),
-        ]),
+        platform: detectPlatform(
+          [...page.platformSignals, ...page.images.map((image) => image.src)],
+          page.generator ?? null,
+        ),
         language: page.lang?.slice(0, 2).toLowerCase() || null,
         description: page.metaDescription,
       },

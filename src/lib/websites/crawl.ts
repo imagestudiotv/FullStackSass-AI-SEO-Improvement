@@ -96,6 +96,12 @@ export type PageSnapshot = {
    * snapshot the fingerprints are gone.
    */
   platformSignals: string[];
+  /**
+   * The <meta name="generator"> content, on its own: the one signal detectPlatform
+   * reads as the site's self-declaration (lib/audit/ai-crawlers.ts). Optional
+   * so a snapshot stored before it existed still reads.
+   */
+  generator?: string | null;
 };
 
 /**
@@ -451,6 +457,7 @@ export async function fetchHomepage(
     internalUrls: [...internalAbsolute],
     images,
     platformSignals,
+    generator: generator?.trim().slice(0, 200) || null,
     faviconUrl: faviconUrl(),
     ogImageUrl: absolute(
       $('meta[property="og:image"]').attr("content") ??

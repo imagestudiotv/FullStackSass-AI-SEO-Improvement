@@ -100,6 +100,16 @@ export type PublicAuditResult = {
   counts: { critical: number; warning: number; info: number };
   /** Grouped by type and trimmed to PUBLIC_ISSUE_LIMIT. */
   issues: GroupedIssue[];
+  /**
+   * Checks this crawl was too small to run, by name.
+   *
+   * A free audit reads at most five pages and can legitimately read one — a
+   * site that is genuinely one page, or one whose links all leave the origin.
+   * Every cross-page rule then produces nothing, which scores exactly like a
+   * clean result. Naming them lets the page say "not assessed" instead of
+   * letting the number imply a verdict it did not earn.
+   */
+  notAssessed: string[];
   /** How many findings exist beyond the ones shown. */
   hiddenIssues: number;
   cached: boolean;
@@ -145,7 +155,10 @@ function cacheKeyFor(domain: string): string {
   // changes — v2 added grouped issues and the crawler/platform context, v3
   // the preview image. Without the bump, a v2 entry would deserialise with
   // previewImage undefined and the frame would stay empty for 24 hours.
-  return `public-audit:v3:${domain}`;
+  // v4: notAssessed, and platform detection that no longer mistakes what a
+  // site links to for what it is built on - a v3 entry has no notAssessed
+  // (the result page read its length and crashed) and the old platform guess.
+  return `public-audit:v4:${domain}`;
 }
 
 async function readCached(domain: string): Promise<PublicAuditResult | null> {
@@ -286,16 +299,16 @@ export async function runPublicAudit(
     counts: summary.counts,
     issues: ordered.slice(0, PUBLIC_ISSUE_LIMIT),
     hiddenIssues: Math.max(ordered.length - PUBLIC_ISSUE_LIMIT, 0),
+    notAssessed: summary.notAssessed,
     cached: false,
     siteName: home?.ogSiteName ?? home?.title ?? null,
     language: home?.lang ?? null,
     // Asset and link URLs carry the fingerprints; visible text does not.
     platform: home
-      ? detectPlatform([
-          ...(home.platformSignals ?? []),
-          ...(home.images ?? []).map((i) => i.src),
-          ...(home.internalUrls ?? []),
-        ])
+      ? detectPlatform(
+          [...(home.platformSignals ?? []), ...(home.images ?? []).map((i) => i.src), ...(home.internalUrls ?? [])],
+          home.generator ?? null,
+        )
       : null,
     crawlers: parseCrawlerAccess(robotsTxt),
     linkedHosts: [...hostCounts.entries()]
