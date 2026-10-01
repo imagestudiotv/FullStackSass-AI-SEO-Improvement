@@ -8,7 +8,7 @@ RepGet's own blog at `/blog` is written in the admin panel: **Admin → Blog** (
 - **Fields:**
   - title
   - address (slug), made from the title when left empty
-  - category: Guides, Comparisons or Playbooks
+  - category: one of the blog's categories (see Categories below)
   - author
   - description: shown in search results and on cards; about 160 characters
   - short answer: optional, plain text, shown above the article
@@ -47,3 +47,13 @@ The blog index, post pages, category pages and `sitemap.xml` render per request 
 1. From `platform/`: `npx drizzle-kit migrate` (uses `DIRECT_URL`).
 2. Check: `psql "$DIRECT_URL" -c "select slug, status from blog_posts"` lists the three posts as `published`.
 3. Deploy (push `main`).
+
+## Categories
+
+Managed in **Admin → Blog → Categories** (client request, 2026-10-01). They were three constants in the code until then. Migration 0048 creates the `blog_categories` table with those three (Guides, Comparisons, Playbooks), keeping their names, addresses and descriptions.
+
+- **Add:** a name (up to 40 characters, unique in any letter case) and a one-line description. Its page, `/blog/category/<slug>`, exists at once; the slug is made from the name. A category appears on the blog's index once it has a published post. New categories go last in the order.
+- **Rename / describe:** the address never changes. A post names its category by name (`blog_posts.category`), so renaming one renames it on its posts, drafts included, in the same transaction.
+- **Delete:** only a category no post uses (drafts included). Its page then returns 404.
+- Saving a post checks that its category exists while holding a share lock on that category row, so a category cannot be deleted or renamed under a save.
+- Every change is recorded in the admin audit log (`blog.category_created`, `blog.category_saved`, `blog.category_deleted`).

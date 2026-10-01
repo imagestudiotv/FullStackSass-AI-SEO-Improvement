@@ -23,17 +23,17 @@ import {
   type BlogPostInput,
 } from "@/lib/admin/blog";
 import { previewHtml } from "@/lib/articles/use-draft";
-import { BLOG_CATEGORIES, blogSlug, readingMinutes, type BlogCategory, type BlogPost } from "@/lib/blog/shared";
+import { blogSlug, readingMinutes, type BlogCategoryInfo, type BlogPost } from "@/lib/blog/shared";
 
 const TEXTAREA =
   "flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50";
 
-function fromPost(post: AdminBlogPost | null): BlogPostInput {
+function fromPost(post: AdminBlogPost | null, firstCategory: string): BlogPostInput {
   return {
     title: post?.title ?? "",
     slug: post?.slug ?? "",
     description: post?.description ?? "",
-    category: post?.category ?? "Guides",
+    category: post?.category ?? firstCategory,
     author: post?.author ?? "RepGet team",
     shortAnswer: post?.shortAnswer ?? "",
     bodyHtml: post?.bodyHtml ?? "",
@@ -52,11 +52,19 @@ function fromPost(post: AdminBlogPost | null): BlogPostInput {
  * unpublished. Each save carries the version it started from, so a second
  * administrator's older copy cannot overwrite the first's work.
  */
-export function BlogPostEditor({ post }: { post: AdminBlogPost | null }) {
+export function BlogPostEditor({
+  post,
+  categories,
+}: {
+  post: AdminBlogPost | null;
+  /** The blog's categories (Admin -> Blog), in their order. */
+  categories: BlogCategoryInfo[];
+}) {
   const router = useRouter();
   const [pending, start] = useTransition();
-  const [draft, setDraft] = useState<BlogPostInput>(() => fromPost(post));
-  const [saved, setSaved] = useState<BlogPostInput>(() => fromPost(post));
+  const firstCategory = categories[0]?.name ?? "";
+  const [draft, setDraft] = useState<BlogPostInput>(() => fromPost(post, firstCategory));
+  const [saved, setSaved] = useState<BlogPostInput>(() => fromPost(post, firstCategory));
   const [version, setVersion] = useState(post?.version ?? 0);
   const [status, setStatus] = useState(post?.status ?? "draft");
   // The address is permanent once the post has been published, even if it is unpublished later.
@@ -132,7 +140,8 @@ export function BlogPostEditor({ post }: { post: AdminBlogPost | null }) {
     slug: slug || "untitled",
     title: draft.title.trim() || "Untitled post",
     description: draft.description,
-    category: draft.category as BlogCategory,
+    category: draft.category,
+    categorySlug: categories.find((category) => category.name === draft.category)?.slug ?? blogSlug(draft.category),
     publishedAt: (post?.publishedAt ?? new Date()).toISOString().slice(0, 10),
     author: draft.author.trim() || "RepGet team",
     readingMinutes: 0,
@@ -266,7 +275,7 @@ export function BlogPostEditor({ post }: { post: AdminBlogPost | null }) {
                     value={draft.category}
                     onChange={(e) => set("category", e.target.value)}
                   >
-                    {BLOG_CATEGORIES.map((category) => (
+                    {categories.map((category) => (
                       <option key={category.name} value={category.name}>
                         {category.name}
                       </option>

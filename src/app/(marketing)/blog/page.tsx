@@ -2,7 +2,8 @@ import Link from "next/link";
 
 import { PostCard } from "@/components/post-card";
 import { listPosts } from "@/lib/blog/posts";
-import { BLOG_CATEGORIES, categoryCounts } from "@/lib/blog/shared";
+import { listCategories } from "@/lib/blog/categories";
+import { categoryCounts } from "@/lib/blog/shared";
 
 export const metadata = {
   title: "Blog",
@@ -14,7 +15,7 @@ export const metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function BlogIndexPage() {
-  const posts = await listPosts();
+  const [posts, categories] = await Promise.all([listPosts(), listCategories()]);
   const counts = categoryCounts(posts);
 
   return (
@@ -48,8 +49,8 @@ export default async function BlogIndexPage() {
               makes the whole blog look abandoned; the category page still exists
               for when the first post lands.
             */}
-            {BLOG_CATEGORIES.filter(
-              (category) => counts[category.name] > 0,
+            {categories.filter(
+              (category) => (counts[category.name] ?? 0) > 0,
             ).map((category) => (
               <li key={category.slug}>
                 <Link

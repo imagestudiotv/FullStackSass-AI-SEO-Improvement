@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { adminAuditLog, blogPosts } from "@/lib/db/schema";
+import { adminAuditLog, blogCategories, blogPosts } from "@/lib/db/schema";
 import { createTestDb, type TestDb } from "@/test/db";
 
 const state = vi.hoisted(() => ({ db: null as unknown, session: null as unknown }));
@@ -11,7 +11,18 @@ vi.mock("@/lib/db", () => ({
 vi.mock("@/lib/auth-guard", () => ({ getSession: async () => state.session }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
-import { deleteBlogPost, getBlogPostAdmin, listBlogPostsAdmin, saveBlogPost, type BlogPostInput } from "@/lib/admin/blog";
+import {
+  createBlogCategory,
+  deleteBlogCategory,
+  deleteBlogPost,
+  getBlogPostAdmin,
+  listBlogCategoriesAdmin,
+  listBlogPostsAdmin,
+  saveBlogCategory,
+  saveBlogPost,
+  type BlogPostInput,
+} from "@/lib/admin/blog";
+import { categoryBySlug, listCategories } from "@/lib/blog/categories";
 import { getPost, listPosts } from "@/lib/blog/posts";
 import { jsonLdScript } from "@/lib/blog/shared";
 
@@ -225,5 +236,87 @@ describe("structured data", () => {
     const out = jsonLdScript(value);
     expect(out).not.toContain("</script>");
     expect(JSON.parse(out)).toEqual(value);
+  });
+});
+
+describe("categories (client, 2026-10-01: he adds his own)", () => {
+  /** Leaves only the three the migration created, for each test. */
+  beforeEach(async () => {
+    await test.db.delete(blogPosts).where(eq(blogPosts.category, "Case studies"));
+    await test.db.delete(blogPosts).where(eq(blogPosts.category, "Customer stories"));
+    for (const row of await test.db.select().from(blogCategories)) {
+      if (!["Guides", "Comparisons", "Playbooks"].includes(row.name)) {
+        await test.db.delete(blogCategories).where(eq(blogCategories.id, row.id));
+      }
+    }
+  });
+
+  it("migration 0048 keeps the three the blog had, with their addresses and descriptions", async () => {
+    expect((await listCategories()).map((c) => [c.name, c.slug])).toEqual([
+      ["Guides", "guides"],
+      ["Comparisons", "comparisons"],
+      ["Playbooks", "playbooks"],
+    ]);
+    expect((await categoryBySlug("guides"))?.blurb).toMatch(/Plain-English/);
+    // The posts that were constants point at them.
+    expect((await getPost("what-to-fix-first"))?.categorySlug).toBe("playbooks");
+  });
+
+  it("adding one: its page exists at once, posts can use it, and it is logged", async () => {
+    const added = await createBlogCategory({ name: "  Case   studies ", blurb: "Real results, step by step." });
+    expect(added).toMatchObject({ ok: true, data: { name: "Case studies", slug: "case-studies", posts: 0 } });
+    expect(await categoryBySlug("case-studies")).toEqual({ name: "Case studies", slug: "case-studies", blurb: "Real results, step by step." });
+    // Last in the order.
+    expect((await listCategories()).at(-1)?.name).toBe("Case studies");
+
+    const post = await create("published", { category: "Case studies", title: "How a bakery doubled its bookings" });
+    const live = await getPost(post.slug);
+    expect(live).toMatchObject({ category: "Case studies", categorySlug: "case-studies" });
+    expect((await listBlogCategoriesAdmin()).find((c) => c.slug === "case-studies")?.posts).toBe(1);
+
+    const audit = await test.db.select().from(adminAuditLog).where(eq(adminAuditLog.action, "blog.category_created"));
+    expect(audit.some((a) => a.summary === 'Added the blog category "Case studies"')).toBe(true);
+  });
+
+  it("names are checked: required, short, unique in any letter case", async () => {
+    expect(await createBlogCategory({ name: "  ", blurb: "" })).toMatchObject({ ok: false, error: expect.stringMatching(/name/) });
+    expect(await createBlogCategory({ name: "x".repeat(41), blurb: "" })).toMatchObject({ ok: false });
+    expect(await createBlogCategory({ name: "!!!", blurb: "" })).toMatchObject({ ok: false });
+    expect(await createBlogCategory({ name: "guides", blurb: "" })).toMatchObject({ ok: false, error: expect.stringMatching(/already a category/) });
+  });
+
+  it("a post cannot use a category that does not exist", async () => {
+    const result = await saveBlogPost({ id: null, expectedVersion: 0, status: "draft", post: input({ category: "Nonsense" }) });
+    expect(result).toMatchObject({ ok: false, error: expect.stringMatching(/category/) });
+  });
+
+  it("renaming keeps the address and moves its posts, drafts included", async () => {
+    const added = await createBlogCategory({ name: "Case studies", blurb: "" });
+    if (!added.ok) throw new Error(added.error);
+    const draft = await create("draft", { category: "Case studies" });
+    const live = await create("published", { category: "Case studies" });
+    expect(await saveBlogCategory({ id: added.data.id, name: "Customer stories", blurb: "Told by the owners." })).toEqual({ ok: true, data: null });
+    expect((await row(draft.id)).category).toBe("Customer stories");
+    expect(await getPost(live.slug)).toMatchObject({ category: "Customer stories", categorySlug: "case-studies" });
+    expect(await categoryBySlug("case-studies")).toMatchObject({ name: "Customer stories", blurb: "Told by the owners." });
+    // Not onto another category's name.
+    expect(await saveBlogCategory({ id: added.data.id, name: "Guides", blurb: "" })).toMatchObject({ ok: false });
+  });
+
+  it("only a category no post uses can be deleted, and its page then stops existing", async () => {
+    const added = await createBlogCategory({ name: "Case studies", blurb: "" });
+    if (!added.ok) throw new Error(added.error);
+    const draft = await create("draft", { category: "Case studies" });
+    expect(await deleteBlogCategory({ id: added.data.id })).toMatchObject({ ok: false, error: expect.stringMatching(/1 post/) });
+    await saveBlogPost({ id: draft.id, expectedVersion: draft.version, status: "draft", post: input({ category: "Guides" }) });
+    expect(await deleteBlogCategory({ id: added.data.id })).toEqual({ ok: true, data: null });
+    expect(await categoryBySlug("case-studies")).toBeNull();
+  });
+
+  it("only administrators", async () => {
+    state.session = { user: { id: "u1", email: "customer@example.test", emailVerified: true }, session: { id: "s1", activeOrganizationId: "o1" } };
+    await expect(listBlogCategoriesAdmin()).rejects.toThrow();
+    await expect(createBlogCategory({ name: "Sneaky", blurb: "" })).rejects.toThrow();
+    await expect(deleteBlogCategory({ id: "00000000-0000-0000-0000-000000000000" })).rejects.toThrow();
   });
 });

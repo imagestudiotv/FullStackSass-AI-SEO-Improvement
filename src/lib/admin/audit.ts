@@ -43,6 +43,9 @@ export type AdminAction =
   | "blog.post_published"
   | "blog.post_unpublished"
   | "blog.post_deleted"
+  | "blog.category_created"
+  | "blog.category_saved"
+  | "blog.category_deleted"
   /* Operations (lib/admin/operations.ts). */
   | "platform.control_changed"
   | "publication.dispatch_resolved"

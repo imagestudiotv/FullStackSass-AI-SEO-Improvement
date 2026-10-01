@@ -33,7 +33,7 @@ export function PostCard({ post }: { post: BlogPost }) {
 
       <div className="flex flex-1 flex-col p-5">
         <Link
-          href={`/blog/category/${post.category.toLowerCase()}`}
+          href={`/blog/category/${post.categorySlug}`}
           className="relative z-10 w-fit rounded-full bg-muted px-2.5 py-1 text-xs font-medium transition-colors hover:bg-muted-foreground/15"
         >
           {post.category}
