@@ -32,19 +32,14 @@ export default async function AuditPage({
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-16 sm:py-20">
-      <div className="text-center">
-        <p className="text-xs font-semibold tracking-[0.14em] text-primary uppercase">
-          Free website check
-        </p>
-        <h1 className="mt-3 text-3xl font-semibold tracking-tight text-balance sm:text-5xl">
-          Your free <span className="text-primary">growth plan</span>
-        </h1>
-        <p className="mx-auto mt-4 max-w-xl text-pretty text-muted-foreground sm:text-lg">
-          Enter your website and we will read your pages, score them, and show
-          you what is holding you back on Google - and whether AI assistants can
-          read your site at all.
-        </p>
-      </div>
+      {/*
+        The heading shows before a check and while it runs - and gives way to
+        the results once they are ready, so a finished audit starts at the top
+        of the page instead of below the introduction (client request,
+        2026-10-01: the audit is used often, and the result is what they came
+        for). See AuditOutcome.
+      */}
+      {!domain ? <AuditHeading /> : null}
 
       {/*
         Before a check: the card from the design — the three assets named and
@@ -79,18 +74,21 @@ export default async function AuditPage({
         <Suspense
           key={domain}
           fallback={
-            <AuditProgress
-              domain={domain}
-              /*
-                The frame shows the address while the crawl runs. The picture
-                is NOT fetched here — it used to be, and it raced the audit: a
-                cached result returns in milliseconds while the image still
-                needs a second or two, so the screen unmounted before it
-                arrived and the frame only ever showed this fallback. It comes
-                back with the result now, cached alongside it.
-              */
-              preview={<SitePreviewFallback domain={domain} />}
-            />
+            <>
+              <AuditHeading />
+              <AuditProgress
+                domain={domain}
+                /*
+                  The frame shows the address while the crawl runs. The picture
+                  is NOT fetched here — it used to be, and it raced the audit: a
+                  cached result returns in milliseconds while the image still
+                  needs a second or two, so the screen unmounted before it
+                  arrived and the frame only ever showed this fallback. It comes
+                  back with the result now, cached alongside it.
+                */
+                preview={<SitePreviewFallback domain={domain} />}
+              />
+            </>
           }
         >
           <AuditOutcome domain={domain} />
@@ -100,21 +98,53 @@ export default async function AuditPage({
   );
 }
 
-/** The crawl itself, isolated so only this part suspends. */
+/** The page's introduction: before a check, and while one runs. */
+function AuditHeading() {
+  return (
+    <div className="text-center">
+      <p className="text-xs font-semibold tracking-[0.14em] text-primary uppercase">
+        Free website check
+      </p>
+      <h1 className="mt-3 text-3xl font-semibold tracking-tight text-balance sm:text-5xl">
+        Your free <span className="text-primary">growth plan</span>
+      </h1>
+      <p className="mx-auto mt-4 max-w-xl text-pretty text-muted-foreground sm:text-lg">
+        Enter your website and we will read your pages, score them, and show
+        you what is holding you back on Google - and whether AI assistants can
+        read your site at all.
+      </p>
+    </div>
+  );
+}
+
+/**
+ * The crawl itself, isolated so only this part suspends. A finished audit
+ * replaces the heading and starts the page; a failed one keeps the heading,
+ * with the reason beneath it.
+ */
 async function AuditOutcome({ domain }: { domain: string }) {
   const outcome = await runPublicAudit(domain);
 
   if (!outcome.ok) {
     return (
-      <div
-        className="mx-auto mt-8 max-w-xl rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm"
-        role="alert"
-      >
-        <p className="font-medium">We could not check that website</p>
-        <p className="mt-1 text-muted-foreground">{outcome.error.message}</p>
-      </div>
+      <>
+        <AuditHeading />
+        <div
+          className="mx-auto mt-8 max-w-xl rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm"
+          role="alert"
+        >
+          <p className="font-medium">We could not check that website</p>
+          <p className="mt-1 text-muted-foreground">{outcome.error.message}</p>
+        </div>
+      </>
     );
   }
 
-  return <AuditResult result={outcome.result} />;
+  return (
+    <>
+      {/* Still the page's one heading, for screen readers and search engines, now naming the site. */}
+      <h1 className="sr-only">Your free growth plan for {domain}</h1>
+      <AuditResult result={outcome.result} />
+    </>
+  );
 }
