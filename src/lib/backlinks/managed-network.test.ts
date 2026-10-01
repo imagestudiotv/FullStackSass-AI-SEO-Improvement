@@ -92,7 +92,9 @@ import {
   changePlacementCredits,
   getReviewArticle,
   getReviewQueue,
+  listMissingLinks,
   placeLink,
+  removeMissingLink,
   removePlacement,
   saveReviewEdit,
 } from "@/lib/admin/network";
@@ -620,8 +622,24 @@ describe("settlement: only after the link is seen live, exactly once", () => {
     expect(await balance(s.hostWs.orgId)).toBe(2);
     expect(await reserved(s.benWs.orgId)).toBe(0);
 
-    // Removed after repeated confirmed misses: refunded and reversed, once.
+    // Missing on repeated checks: nothing moves by itself (a host in maintenance comes back).
     for (let i = 0; i < 4; i++) await applyCheck(p.id, "missing", 200);
+    expect(await balance(s.benWs.orgId)).toBe(3);
+    expect(await balance(s.hostWs.orgId)).toBe(2);
+    // Listed for administrators - and only for them.
+    asMember(s.benWs.userId, s.benWs.orgId);
+    await expect(listMissingLinks()).rejects.toThrow();
+    await expect(removeMissingLink({ placementId: p.id, reason: "customer reported it" })).rejects.toThrow();
+    asAdmin();
+    expect((await listMissingLinks()).map((m) => m.id)).toContain(p.id);
+    // An administrator removes it, with a reason: refunded and reversed, once, and logged.
+    expect(await removeMissingLink({ placementId: p.id, reason: "" })).toMatchObject({ ok: false });
+    expect(await removeMissingLink({ placementId: p.id, reason: "customer reported it" })).toEqual({ ok: true, data: { credits: 2 } });
+    expect(await removeMissingLink({ placementId: p.id, reason: "customer reported it" })).toMatchObject({ ok: false });
+    const removalLog = await test.db.select().from(adminAuditLog).where(and(eq(adminAuditLog.targetId, p.id), eq(adminAuditLog.action, "network.placement_removed")));
+    expect(removalLog).toHaveLength(1);
+    expect(removalLog[0]).toMatchObject({ actorEmail: ADMIN, organizationId: s.benWs.orgId });
+    expect((await listMissingLinks()).map((m) => m.id)).not.toContain(p.id);
     expect(await balance(s.benWs.orgId)).toBe(5);
     expect(await balance(s.hostWs.orgId)).toBe(0);
     // ...and the refund is spendable: the managed request is closed, not held

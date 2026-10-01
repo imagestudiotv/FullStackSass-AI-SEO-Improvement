@@ -42,7 +42,7 @@ import {
   resolveWindow,
   workspaceCredits,
 } from "@/lib/reporting/backlinks";
-import { applyCheck, placementsDue, recordArticlePublication } from "@/lib/backlinks/placements";
+import { applyCheck, placementsDue, recordArticlePublication, removeMissingPlacement } from "@/lib/backlinks/placements";
 import { requestRecheck, requestRecoveryChecks } from "@/lib/reporting/recheck";
 
 let test: TestDb;
@@ -110,7 +110,11 @@ async function link(
     return placement.id;
   }
   await applyCheck(placement.id, "alive", 200, new Date(), { rel: "noopener nofollow" });
-  if (to === "removed") for (let i = 0; i < 4; i++) await applyCheck(placement.id, "missing", 200);
+  if (to === "removed") {
+    // Missing by itself moves nothing; an administrator removes it.
+    for (let i = 0; i < 4; i++) await applyCheck(placement.id, "missing", 200);
+    await removeMissingPlacement(placement.id);
+  }
   return placement.id;
 }
 
@@ -225,6 +229,8 @@ describe("dates and history come from recorded events", () => {
     await link(w.partnerB, w.ours, "live");
     await test.db.update(placements).set({ liveAt: new Date(Date.now() - 10 * DAY) }).where(eq(placements.id, a));
     for (let i = 0; i < 4; i++) await applyCheck(a, "missing", 200);
+    // Removed by an administrator (nothing is removed automatically).
+    await removeMissingPlacement(a);
     await test.db.update(placements).set({ removedAt: new Date(Date.now() - 3 * DAY) }).where(eq(placements.id, a));
 
     const { points } = await receivedHistory(w.subject, resolveWindow("30d"));

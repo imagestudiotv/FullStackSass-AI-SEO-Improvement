@@ -1,10 +1,12 @@
 import Link from "next/link";
 
-import { getReviewQueue } from "@/lib/admin/network";
+import { getReviewQueue, listMissingLinks } from "@/lib/admin/network";
+import { FAILURES_BEFORE_REMOVED } from "@/lib/backlinks/placements";
 import { PageHeader, PageShell } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { RemoveMissingLink } from "./missing-links";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +18,7 @@ export const dynamic = "force-dynamic";
  * publishing path delivers it before that (lib/articles/review.ts).
  */
 export default async function AdminNetworkPage() {
-  const queue = await getReviewQueue();
+  const [queue, missing] = await Promise.all([getReviewQueue(), listMissingLinks()]);
   const pending = queue.articles.filter((a) => !a.approvedCurrent);
   const approved = queue.articles.filter((a) => a.approvedCurrent);
   const day = (d: Date | null) => (d ? new Date(d).toISOString().slice(0, 10) : "No date");
@@ -79,6 +81,68 @@ export default async function AdminNetworkPage() {
                     </TableCell>
                     <TableCell>{article.placements}</TableCell>
                     <TableCell className="text-xs">{connection[article.connected]}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      {/*
+        Live links that every recent check found missing. Nothing is refunded
+        automatically (client, 2026-10-01): a host site in maintenance comes
+        back with its links. When a customer reports one gone, an
+        administrator checks it and removes it here, which refunds it.
+      */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Links not found at the last {FAILURES_BEFORE_REMOVED} checks ({missing.length})</CardTitle>
+          <CardDescription>
+            Still listed as live for the customer, and still checked daily: a link that comes back simply stops
+            appearing here. Nothing has been refunded. If it is really gone - usually after the customer reports it -
+            remove it: the customer gets the credits back and the host&apos;s reward is reversed.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="overflow-x-auto">
+          {missing.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Every live link was found at its last check.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Link to</TableHead>
+                  <TableHead>On page</TableHead>
+                  <TableHead>Missing since</TableHead>
+                  <TableHead>Last checked</TableHead>
+                  <TableHead />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {missing.map((link) => (
+                  <TableRow key={link.id}>
+                    <TableCell className="max-w-64 whitespace-normal break-all text-xs">
+                      {link.targetUrl}
+                      <span className="block text-muted-foreground">
+                        {link.beneficiaryDomain}
+                        {link.managed ? " · managed" : ""}
+                      </span>
+                    </TableCell>
+                    <TableCell className="max-w-64 whitespace-normal break-all text-xs">
+                      {link.liveUrl ? (
+                        <a href={link.liveUrl} target="_blank" rel="noopener noreferrer" className="underline underline-offset-4">
+                          {link.liveUrl}
+                        </a>
+                      ) : (
+                        "-"
+                      )}
+                      <span className="block text-muted-foreground">{link.hostDomain ?? "host website deleted"}</span>
+                    </TableCell>
+                    <TableCell className="text-xs">{day(link.missingSince)}</TableCell>
+                    <TableCell className="text-xs">{day(link.lastVerifiedAt)}</TableCell>
+                    <TableCell>
+                      <RemoveMissingLink placementId={link.id} credits={link.credits} />
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

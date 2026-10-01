@@ -36,6 +36,8 @@ import {
   markPlacementDrafted,
   placementsDue,
   recordArticlePublication,
+  missingPlacements,
+  removeMissingPlacement,
 } from "@/lib/backlinks/placements";
 import { runReconciliation } from "@/lib/billing/reconciliation";
 import { verifyBacklinks } from "@/inngest/functions/verify-backlinks";
@@ -202,18 +204,60 @@ describe("verification", () => {
     expect(await balance(s.requesterOrg)).toBe(-5);
   });
 
-  it("refunds a removed link exactly once, and reverses the host's reward", async () => {
+  it("never refunds a link that went missing by itself: it stays live and is listed for an administrator", async () => {
+    // Client, 2026-10-01: a host in maintenance answers without the link, and comes back with it.
     const s = await published();
     await applyCheck(s.placementId, "alive", 200);
-    for (let i = 0; i < FAILURES_BEFORE_REMOVED; i += 1) {
-      await applyCheck(s.placementId, "missing", 404);
+    const transitions = [];
+    for (let i = 0; i < FAILURES_BEFORE_REMOVED + 2; i += 1) {
+      transitions.push(await applyCheck(s.placementId, "missing", 404));
     }
+    // Reported once, on the check that completes the streak.
+    expect(transitions.filter((t) => t === "missing")).toHaveLength(1);
+    expect((await placementRow(s.placementId)).status).toBe("live");
+    expect(await balance(s.requesterOrg)).toBe(-5);
+    expect(await balance(s.hostOrg)).toBe(5);
+    expect(await requestStatus(s.requestId)).toBe("live");
+    const listed = await missingPlacements();
+    expect(listed.map((m) => m.id)).toContain(s.placementId);
+    expect(listed.find((m) => m.id === s.placementId)).toMatchObject({ credits: 5, targetUrl: "https://requester.test/page" });
+
+    // The site is back: the link is seen again, nothing moved, and it leaves the list.
+    expect(await applyCheck(s.placementId, "alive", 200)).toBeNull();
+    expect((await missingPlacements()).map((m) => m.id)).not.toContain(s.placementId);
+    expect(await balance(s.requesterOrg)).toBe(-5);
+    expect(await balance(s.hostOrg)).toBe(5);
+  });
+
+  it("does not list a link missing on fewer checks, or one whose site was unreachable", async () => {
+    const s = await published();
+    await applyCheck(s.placementId, "alive", 200);
+    for (let i = 0; i < FAILURES_BEFORE_REMOVED - 1; i += 1) await applyCheck(s.placementId, "missing", 404);
+    for (let i = 0; i < 4; i += 1) await applyCheck(s.placementId, "error", 503);
+    expect((await missingPlacements()).map((m) => m.id)).not.toContain(s.placementId);
+  });
+
+  it("an administrator's removal refunds once and reverses the host's reward", async () => {
+    const s = await published();
+    await applyCheck(s.placementId, "alive", 200);
+    for (let i = 0; i < FAILURES_BEFORE_REMOVED; i += 1) await applyCheck(s.placementId, "missing", 404);
+    // A double click: credits move once.
+    const results = await Promise.all([removeMissingPlacement(s.placementId), removeMissingPlacement(s.placementId)]);
+    expect(results.filter((r) => r.removed)).toHaveLength(1);
     expect((await placementRow(s.placementId)).status).toBe("removed");
-    // A retried run changes nothing more.
-    await Promise.all(Array.from({ length: 3 }, () => applyCheck(s.placementId, "missing", 404)));
     expect(await balance(s.requesterOrg)).toBe(0);
     expect(await balance(s.hostOrg)).toBe(0);
     expect(await requestStatus(s.requestId)).toBe("pending");
+    expect((await missingPlacements()).map((m) => m.id)).not.toContain(s.placementId);
+    // Further checks of a removed link change nothing.
+    await applyCheck(s.placementId, "missing", 404);
+    expect(await balance(s.requesterOrg)).toBe(0);
+  });
+
+  it("an administrator cannot remove a link that was never charged", async () => {
+    const s = await published();
+    expect((await removeMissingPlacement(s.placementId)).removed).toBe(false);
+    expect(await balance(s.requesterOrg)).toBe(0);
   });
 
   it("classifies what the fetch saw", () => {
