@@ -2336,7 +2336,7 @@ export const blogPosts = pgTable(
     title: text("title").notNull(),
     /** Meta description and card summary. */
     description: text("description").default("").notNull(),
-    /** One of BLOG_CATEGORIES (lib/blog/shared.ts). */
+    /** A blog_categories name. */
     category: text("category").notNull(),
     author: text("author").notNull(),
     /** Plain text, shown above the article. */
@@ -2371,5 +2371,35 @@ export const blogPosts = pgTable(
   (table) => [
     uniqueIndex("blog_posts_slug_uidx").on(table.slug),
     index("blog_posts_status_published_idx").on(table.status, table.publishedAt),
+  ],
+);
+
+/**
+ * The blog's categories, managed in Admin -> Blog (lib/admin/blog.ts).
+ *
+ * They used to be three constants in the code (Guides, Comparisons,
+ * Playbooks); the client asked to add categories himself (2026-10-01).
+ * Migration 0048 creates this table with those three.
+ *
+ * A post names its category by `name` (blog_posts.category), as it always
+ * did; renaming a category renames it on its posts in the same transaction.
+ * The slug is the category page's address (/blog/category/<slug>): set when
+ * the category is created and never changed, like a published post's.
+ */
+export const blogCategories = pgTable(
+  "blog_categories",
+  {
+    id: pk(),
+    name: text("name").notNull(),
+    slug: text("slug").notNull(),
+    /** One line under the category's heading, and its meta description. */
+    blurb: text("blurb").default("").notNull(),
+    /** Order on the blog index and in the editor. */
+    sortOrder: integer("sort_order").default(0).notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("blog_categories_name_uidx").on(table.name),
+    uniqueIndex("blog_categories_slug_uidx").on(table.slug),
   ],
 );

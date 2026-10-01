@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader, PageShell } from "@/components/ui/page-header";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { listBlogPostsAdmin } from "@/lib/admin/blog";
+import { listBlogCategoriesAdmin, listBlogPostsAdmin } from "@/lib/admin/blog";
+import { BlogCategories } from "./blog-categories";
 import { EmptyRows } from "../empty-rows";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +18,7 @@ function when(date: Date): string {
 }
 
 export default async function AdminBlogPage() {
-  const posts = await listBlogPostsAdmin();
+  const [posts, categories] = await Promise.all([listBlogPostsAdmin(), listBlogCategoriesAdmin()]);
   const live = posts.filter((post) => post.status === "published").length;
 
   return (
@@ -105,6 +106,19 @@ export default async function AdminBlogPage() {
               </TableBody>
             </Table>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Categories ({categories.length})</CardTitle>
+          <CardDescription>
+            Sections of the blog, each with its own page. A category shows on the blog&apos;s index once it has a
+            published post. Only a category no post uses can be deleted.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <BlogCategories categories={categories} />
         </CardContent>
       </Card>
     </PageShell>

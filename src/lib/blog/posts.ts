@@ -1,10 +1,10 @@
 import "server-only";
 
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, type SQL } from "drizzle-orm";
 
-import { isBlogCategory, readingMinutes, type BlogCategory, type BlogPost } from "@/lib/blog/shared";
+import { blogSlug, readingMinutes, type BlogCategory, type BlogPost } from "@/lib/blog/shared";
 import { db } from "@/lib/db";
-import { blogPosts } from "@/lib/db/schema";
+import { blogCategories, blogPosts } from "@/lib/db/schema";
 
 /**
  * The public blog's reads: PUBLISHED posts only. Drafts and unpublished posts
@@ -23,13 +23,19 @@ function day(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
-/** A stored post in the shape the pages render. */
-export function toBlogPost(row: Row & { publishedAt: Date }): BlogPost {
+/**
+ * A stored post in the shape the pages render. `categorySlug` is its
+ * category's page address, when the category still exists; a post whose
+ * category was renamed away (cannot happen: renaming renames its posts) would
+ * fall back to the name made into an address.
+ */
+export function toBlogPost(row: Row & { publishedAt: Date }, categorySlug: string | null = null): BlogPost {
   const post: BlogPost = {
     slug: row.slug,
     title: row.title,
     description: row.description,
-    category: (isBlogCategory(row.category) ? row.category : "Guides") as BlogCategory,
+    category: row.category,
+    categorySlug: categorySlug ?? blogSlug(row.category),
     publishedAt: day(row.publishedAt),
     // Only a revision on a later day reads as an update.
     updatedAt: row.revisedAt && day(row.revisedAt) > day(row.publishedAt) ? day(row.revisedAt) : undefined,
@@ -46,20 +52,27 @@ export function toBlogPost(row: Row & { publishedAt: Date }): BlogPost {
 
 const published = eq(blogPosts.status, "published");
 
+/** Published posts with their category's page address. */
+function publishedPosts(only?: SQL) {
+  return db
+    .select({ post: blogPosts, categorySlug: blogCategories.slug })
+    .from(blogPosts)
+    .leftJoin(blogCategories, eq(blogCategories.name, blogPosts.category))
+    .where(only ? and(published, only) : published);
+}
+
 /** Every published post, newest first. */
 export async function listPosts(): Promise<BlogPost[]> {
-  const rows = await db.select().from(blogPosts).where(published).orderBy(desc(blogPosts.publishedAt));
-  return rows.filter((row): row is Row & { publishedAt: Date } => row.publishedAt !== null).map(toBlogPost);
+  const rows = await publishedPosts().orderBy(desc(blogPosts.publishedAt));
+  return rows.flatMap(({ post, categorySlug }) =>
+    post.publishedAt ? [toBlogPost({ ...post, publishedAt: post.publishedAt }, categorySlug)] : [],
+  );
 }
 
 /** One published post by slug, or null. */
 export async function getPost(slug: string): Promise<BlogPost | null> {
-  const [row] = await db
-    .select()
-    .from(blogPosts)
-    .where(and(published, eq(blogPosts.slug, slug)))
-    .limit(1);
-  return row?.publishedAt ? toBlogPost({ ...row, publishedAt: row.publishedAt }) : null;
+  const [row] = await publishedPosts(eq(blogPosts.slug, slug)).limit(1);
+  return row?.post.publishedAt ? toBlogPost({ ...row.post, publishedAt: row.post.publishedAt }, row.categorySlug) : null;
 }
 
 /** Published posts in one category, newest first. */

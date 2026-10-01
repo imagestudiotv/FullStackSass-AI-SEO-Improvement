@@ -114,7 +114,7 @@ export default async function BlogPostPage({
           </Link>
           <span aria-hidden="true">/</span>
           <Link
-            href={`/blog/category/${post.category.toLowerCase()}`}
+            href={`/blog/category/${post.categorySlug}`}
             className="text-primary hover:underline"
           >
             {post.category}

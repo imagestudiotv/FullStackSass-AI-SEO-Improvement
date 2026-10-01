@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 
 import { PostCard } from "@/components/post-card";
 import { postsByCategory } from "@/lib/blog/posts";
-import { categoryBySlug } from "@/lib/blog/shared";
+import { categoryBySlug } from "@/lib/blog/categories";
 
 // Live posts from the database (see lib/blog/posts.ts).
 export const dynamic = "force-dynamic";
@@ -13,7 +13,7 @@ export async function generateMetadata({
   params,
 }: PageProps<"/blog/category/[category]">): Promise<Metadata> {
   const { category: slug } = await params;
-  const category = categoryBySlug(slug);
+  const category = await categoryBySlug(slug);
 
   if (!category) return { title: "Category not found" };
 
@@ -28,7 +28,7 @@ export default async function BlogCategoryPage({
   params,
 }: PageProps<"/blog/category/[category]">) {
   const { category: slug } = await params;
-  const category = categoryBySlug(slug);
+  const category = await categoryBySlug(slug);
 
   // An unknown category is a genuine 404, not an empty grid: a soft 404 keeps
   // a dead URL in the index indefinitely.

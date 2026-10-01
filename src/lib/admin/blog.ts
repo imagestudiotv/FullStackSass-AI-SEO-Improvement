@@ -1,14 +1,14 @@
 "use server";
 
-import { desc, eq } from "drizzle-orm";
+import { asc, desc, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { recordAdminAction, type AdminAction } from "@/lib/admin/audit";
 import { requireAdmin } from "@/lib/admin/guard";
 import { sanitizeHtml } from "@/lib/articles/sanitize";
-import { blogSlug, isBlogCategory, type BlogCategory, type BlogFaq, type BlogSource } from "@/lib/blog/shared";
+import { blogSlug, type BlogCategory, type BlogCategoryInfo, type BlogFaq, type BlogSource } from "@/lib/blog/shared";
 import { db } from "@/lib/db";
-import { blogPosts } from "@/lib/db/schema";
+import { blogCategories, blogPosts } from "@/lib/db/schema";
 import {
   ALLOWED_IMAGE_TYPES,
   isImageStorageConfigured,
@@ -33,6 +33,10 @@ import type { ActionResult } from "@/lib/websites/actions";
  * - The body and FAQ answers are sanitised like article text: the HTML is
  *   published on RepGet's own site.
  * - Only a post that is not published can be deleted.
+ * - Categories are added, renamed and described here too (client,
+ *   2026-10-01). A category's address is set when it is created and never
+ *   changes; renaming one renames it on its posts; only a category no post
+ *   uses can be deleted.
  */
 
 export type AdminBlogRow = {
@@ -108,8 +112,9 @@ function clean(input: BlogPostInput, publishing: boolean): Clean {
   if (!slug) throw new BlogError("Give the post an address (slug) with letters or numbers");
   if (RESERVED_SLUGS.has(slug)) throw new BlogError(`"${slug}" is used by the blog itself - choose another address`);
 
-  const category = String(input.category ?? "");
-  if (!isBlogCategory(category)) throw new BlogError("Choose a category");
+  // That it exists is checked when saving, with the category row locked (saveBlogPost).
+  const category = String(input.category ?? "").trim();
+  if (!category) throw new BlogError("Choose a category");
 
   const description = String(input.description ?? "").trim().slice(0, 300);
   const bodyHtml = sanitizeHtml(String(input.bodyHtml ?? ""), { siteHosts: siteHosts() });
@@ -243,6 +248,14 @@ export async function saveBlogPost(input: {
   try {
     const saved = await db.transaction(async (tx) => {
       const now = new Date();
+      // Held until this save commits, so the category cannot be deleted or renamed under it.
+      const [category] = await tx
+        .select({ id: blogCategories.id })
+        .from(blogCategories)
+        .where(eq(blogCategories.name, fields.category))
+        .for("share")
+        .limit(1);
+      if (!category) throw new BlogError("Choose a category - that one no longer exists");
       const [taken] = await tx.select({ id: blogPosts.id }).from(blogPosts).where(eq(blogPosts.slug, fields.slug)).limit(1);
 
       if (input.id === null) {
@@ -391,4 +404,173 @@ export async function uploadBlogImage(formData: FormData): Promise<ActionResult<
   }
   const url = await storeArticleImage("blog", "posts", Buffer.from(await file.arrayBuffer()), file.type);
   return { ok: true, data: { url } };
+}
+
+/* ------------------------------------------------------------------------ */
+/* Categories                                                                */
+/* ------------------------------------------------------------------------ */
+
+export type AdminBlogCategory = BlogCategoryInfo & {
+  id: string;
+  /** Posts in it, drafts included. */
+  posts: number;
+};
+
+/** Every category with how many posts use it, in the blog's order. */
+export async function listBlogCategoriesAdmin(): Promise<AdminBlogCategory[]> {
+  await requireAdmin();
+  return db
+    .select({
+      id: blogCategories.id,
+      name: blogCategories.name,
+      slug: blogCategories.slug,
+      blurb: blogCategories.blurb,
+      posts: sql<number>`(select count(*)::int from blog_posts p where p.category = ${blogCategories.name})`,
+    })
+    .from(blogCategories)
+    .orderBy(asc(blogCategories.sortOrder), asc(blogCategories.name));
+}
+
+/** Name and description, tidied and checked. */
+function cleanCategory(input: { name: unknown; blurb: unknown }): { name: string; blurb: string } {
+  const name = String(input.name ?? "").replace(/\s+/g, " ").trim();
+  if (!name) throw new BlogError("Give the category a name");
+  if (name.length > 40) throw new BlogError("Keep the name under 40 characters - it is shown as a chip and a heading");
+  if (!blogSlug(name)) throw new BlogError("The name needs letters or numbers");
+  const blurb = String(input.blurb ?? "").replace(/\s+/g, " ").trim().slice(0, 200);
+  return { name, blurb };
+}
+
+/** Another category already called this (in any letter case), or null. */
+async function sameName(tx: Pick<typeof db, "select">, name: string, except: string | null) {
+  const [row] = await tx
+    .select({ id: blogCategories.id })
+    .from(blogCategories)
+    .where(sql`lower(${blogCategories.name}) = lower(${name})${except ? sql` and ${blogCategories.id} <> ${except}` : sql``}`)
+    .limit(1);
+  return row ?? null;
+}
+
+function refreshCategories(slug?: string) {
+  revalidatePath("/admin/blog");
+  revalidatePath("/blog");
+  if (slug) revalidatePath(`/blog/category/${slug}`);
+}
+
+/**
+ * Adds a category, last in the order. Its address (/blog/category/<slug>) is
+ * made from the name now and never changes.
+ */
+export async function createBlogCategory(input: { name: string; blurb: string }): Promise<ActionResult<AdminBlogCategory>> {
+  const admin = await requireAdmin();
+  try {
+    const { name, blurb } = cleanCategory(input);
+    const slug = blogSlug(name);
+    const created = await db.transaction(async (tx) => {
+      if (await sameName(tx, name, null)) throw new BlogError(`There is already a category called "${name}"`);
+      const [taken] = await tx.select({ id: blogCategories.id }).from(blogCategories).where(eq(blogCategories.slug, slug)).limit(1);
+      if (taken) throw new BlogError(`Another category already uses the address /blog/category/${slug} - choose a different name`);
+      const [last] = await tx.select({ order: sql<number>`coalesce(max(${blogCategories.sortOrder}), -1)::int` }).from(blogCategories);
+      const [row] = await tx
+        .insert(blogCategories)
+        .values({ name, slug, blurb, sortOrder: (last?.order ?? -1) + 1 })
+        .returning({ id: blogCategories.id });
+      await recordAdminAction(
+        {
+          actorEmail: admin.email,
+          action: "blog.category_created",
+          targetType: "blog_category",
+          targetId: row.id,
+          summary: `Added the blog category "${name}"`,
+          detail: { slug },
+        },
+        tx,
+      );
+      return { id: row.id, name, slug, blurb, posts: 0 };
+    });
+    refreshCategories(slug);
+    return { ok: true, data: created };
+  } catch (error) {
+    if (error instanceof BlogError) return { ok: false, error: error.message };
+    if (isUniqueViolation(error)) return { ok: false, error: "That category already exists" };
+    throw error;
+  }
+}
+
+/**
+ * Renames a category or changes its description. Its posts follow a new
+ * name in the same transaction; its address stays.
+ */
+export async function saveBlogCategory(input: { id: string; name: string; blurb: string }): Promise<ActionResult<null>> {
+  const admin = await requireAdmin();
+  if (!UUID.test(input.id)) return { ok: false, error: "Category not found" };
+  try {
+    const { name, blurb } = cleanCategory(input);
+    const slug = await db.transaction(async (tx) => {
+      const [current] = await tx.select().from(blogCategories).where(eq(blogCategories.id, input.id)).for("update");
+      if (!current) throw new BlogError("Category not found");
+      if (await sameName(tx, name, current.id)) throw new BlogError(`There is already a category called "${name}"`);
+      await tx.update(blogCategories).set({ name, blurb, updatedAt: new Date() }).where(eq(blogCategories.id, current.id));
+      if (name !== current.name) {
+        await tx.update(blogPosts).set({ category: name }).where(eq(blogPosts.category, current.name));
+      }
+      await recordAdminAction(
+        {
+          actorEmail: admin.email,
+          action: "blog.category_saved",
+          targetType: "blog_category",
+          targetId: current.id,
+          summary: name !== current.name ? `Renamed the blog category "${current.name}" to "${name}"` : `Changed the blog category "${name}"`,
+          detail: { slug: current.slug, previousName: current.name },
+        },
+        tx,
+      );
+      return current.slug;
+    });
+    refreshCategories(slug);
+    return { ok: true, data: null };
+  } catch (error) {
+    if (error instanceof BlogError) return { ok: false, error: error.message };
+    if (isUniqueViolation(error)) return { ok: false, error: "There is already a category with that name" };
+    throw error;
+  }
+}
+
+/** Deletes a category no post uses (drafts included). */
+export async function deleteBlogCategory(input: { id: string }): Promise<ActionResult<null>> {
+  const admin = await requireAdmin();
+  if (!UUID.test(input.id)) return { ok: false, error: "Category not found" };
+  try {
+    const slug = await db.transaction(async (tx) => {
+      const [current] = await tx.select().from(blogCategories).where(eq(blogCategories.id, input.id)).for("update");
+      if (!current) throw new BlogError("Category not found");
+      const [used] = await tx
+        .select({ n: sql<number>`count(*)::int` })
+        .from(blogPosts)
+        .where(eq(blogPosts.category, current.name));
+      if ((used?.n ?? 0) > 0) {
+        throw new BlogError(
+          `"${current.name}" still has ${used.n} post${used.n === 1 ? "" : "s"} (drafts included). Move them to another category first.`,
+        );
+      }
+      await tx.delete(blogCategories).where(eq(blogCategories.id, current.id));
+      await recordAdminAction(
+        {
+          actorEmail: admin.email,
+          action: "blog.category_deleted",
+          targetType: "blog_category",
+          targetId: current.id,
+          summary: `Deleted the blog category "${current.name}"`,
+          detail: { slug: current.slug },
+        },
+        tx,
+      );
+      return current.slug;
+    });
+    refreshCategories(slug);
+    return { ok: true, data: null };
+  } catch (error) {
+    if (error instanceof BlogError) return { ok: false, error: error.message };
+    throw error;
+  }
 }

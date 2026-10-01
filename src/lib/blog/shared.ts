@@ -15,40 +15,23 @@
  */
 
 /**
- * Sections of the blog.
+ * Sections of the blog: blog_categories rows, managed in Admin -> Blog
+ * (lib/admin/blog.ts) and read by lib/blog/categories.ts.
  *
- * Three, matching how the posts actually differ: an explainer, a comparison,
- * and a step-by-step. More categories than there are posts to fill them makes
- * an index look abandoned, so these stay few until the writing justifies more.
+ * They were three constants (Guides, Comparisons, Playbooks) until the client
+ * asked to add his own (2026-10-01); migration 0048 keeps those three. A post
+ * names its category by name, so this is just the name.
  */
-export type BlogCategory = "Guides" | "Comparisons" | "Playbooks";
+export type BlogCategory = string;
 
-export const BLOG_CATEGORIES: {
-  name: BlogCategory;
+/** A category as pages and the editor use it. */
+export type BlogCategoryInfo = {
+  name: string;
+  /** Its page: /blog/category/<slug>. Permanent once created. */
   slug: string;
+  /** One line under its heading, and its meta description. */
   blurb: string;
-}[] = [
-  {
-    name: "Guides",
-    slug: "guides",
-    blurb:
-      "Plain-English explanations of how search and AI assistants actually work.",
-  },
-  {
-    name: "Comparisons",
-    slug: "comparisons",
-    blurb: "How the options differ, and which one fits the job you have.",
-  },
-  {
-    name: "Playbooks",
-    slug: "playbooks",
-    blurb: "Step-by-step work you can do this week, in the order to do it.",
-  },
-];
-
-export function isBlogCategory(value: string): value is BlogCategory {
-  return BLOG_CATEGORIES.some((category) => category.name === value);
-}
+};
 
 /** A question and its answer, rendered as an expandable block. */
 export type BlogFaq = {
@@ -70,6 +53,8 @@ export type BlogPost = {
   /** Meta description and card summary. Kept under ~160 characters. */
   description: string;
   category: BlogCategory;
+  /** Its category's page: /blog/category/<categorySlug>. */
+  categorySlug: string;
   /** ISO date (YYYY-MM-DD), UTC. Drives ordering and the sitemap. */
   publishedAt: string;
   /** ISO date, when revised after publication. Search engines read this. */
@@ -109,17 +94,10 @@ export function blogSlug(text: string): string {
     .replace(/-+$/, "");
 }
 
-/** The category a URL slug names, or null when the slug is unknown. */
-export function categoryBySlug(
-  slug: string,
-): (typeof BLOG_CATEGORIES)[number] | null {
-  return BLOG_CATEGORIES.find((category) => category.slug === slug) ?? null;
-}
-
 /** How many of these posts each category holds, for the index's filter chips. */
 export function categoryCounts(posts: Pick<BlogPost, "category">[]): Record<BlogCategory, number> {
-  const counts: Record<BlogCategory, number> = { Guides: 0, Comparisons: 0, Playbooks: 0 };
-  for (const post of posts) counts[post.category] += 1;
+  const counts: Record<BlogCategory, number> = {};
+  for (const post of posts) counts[post.category] = (counts[post.category] ?? 0) + 1;
   return counts;
 }
 

@@ -88,12 +88,23 @@ function wrapTitle(title: string, perLine = 26, maxLines = 3): string[] {
   return lines;
 }
 
-/** Each category gets its own hue, so the grid reads as grouped. */
-const CATEGORY_HUE: Record<BlogCategory, number> = {
+/**
+ * Each category gets its own hue, so the grid reads as grouped. The first
+ * three keep the hues they always had; a category added in the admin panel
+ * gets a hue from its name, so it is stable across renders.
+ */
+const CATEGORY_HUE: Record<string, number> = {
   Guides: 41.5, // the brand orange
   Comparisons: 210,
   Playbooks: 152,
 };
+
+function categoryHue(category: BlogCategory): number {
+  if (category in CATEGORY_HUE) return CATEGORY_HUE[category];
+  let hash = 0;
+  for (const char of category) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+  return hash % 360;
+}
 
 export function PostCover({
   slug,
@@ -107,7 +118,7 @@ export function PostCover({
   className?: string;
 }) {
   const random = makeRandom(seedFrom(slug));
-  const hue = CATEGORY_HUE[category];
+  const hue = categoryHue(category);
   const lines = wrapTitle(title);
 
   // Scattered marks over a soft ground. Fixed count so every cover has the
