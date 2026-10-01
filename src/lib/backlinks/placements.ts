@@ -26,7 +26,7 @@ import type { Executor } from "@/lib/db/types";
  *
  *   pending ──generated──▶ drafted ──published──▶ published ──seen──▶ live
  *                                       │                           │
- *                                       └──never seen──▶ unverified └──gone──▶ removed
+ *                                       └──never seen──▶ unverified └──an admin removes it──▶ removed
  *
  *  - drafted:    the link is in a generated article. NO credits move.
  *  - published:  the article is live at `liveUrl` (reported by the CMS or
@@ -34,9 +34,10 @@ import type { Executor } from "@/lib/db/types";
  *  - live:       the link was actually SEEN at liveUrl. Only now is the
  *                requester charged and the host paid - in one transaction,
  *                with the placement's state change.
- *  - removed:    a live link missing on FAILURES_BEFORE_REMOVED consecutive
- *                checks. Requester refunded, host's reward reversed, in one
- *                transaction; the request goes back to matching.
+ *  - removed:    an ADMINISTRATOR removed a live link that went missing
+ *                (removeMissingPlacement). Requester refunded, host's reward
+ *                reversed, in one transaction; the request goes back to
+ *                matching. Never automatic - see "MISSING LINKS" below.
  *  - unverified: published but never seen after as many checks. Nothing was
  *                charged, so nothing is refunded; the request is re-matched.
  *
@@ -46,8 +47,17 @@ import type { Executor } from "@/lib/db/types";
  * runs move credits exactly once.
  *
  * A check that could not REACH the page (timeout, 5xx, DNS) is an "error",
- * not a "missing": it neither counts toward removal nor resets the count, so
- * a host's bad afternoon never refunds a link that is still there.
+ * not a "missing": it neither counts toward the missing streak nor resets it.
+ *
+ * MISSING LINKS ARE NOT REFUNDED AUTOMATICALLY (client, 2026-10-01). A live
+ * link missing on FAILURES_BEFORE_REMOVED consecutive checks used to be
+ * removed and refunded by the verifier. But a host site in maintenance mode,
+ * or with a temporary error page, answers without the link - and once it is
+ * back, the link is visible again while the credit has already gone back.
+ * Now such a link stays live and nothing moves: it is listed for
+ * administrators (missingPlacements), and the customer contacts support if
+ * they see it is gone. An administrator then removes it by hand, which
+ * refunds as removal always did.
  */
 
 export const FAILURES_BEFORE_REMOVED = 3;
@@ -201,7 +211,7 @@ async function lastVerdicts(tx: Executor, placementId: string, n: number) {
   return rows.map((row) => row.outcome ?? (row.alive ? "alive" : "missing"));
 }
 
-export type Transition = "went_live" | "removed" | "unverified" | null;
+export type Transition = "went_live" | "missing" | "unverified" | null;
 
 /**
  * Records one check and applies whatever transition it completes, with its
@@ -303,6 +313,20 @@ export async function applyCheck(
     }
 
     /*
+      A LIVE link gone on every recent check: nothing moves (see "MISSING
+      LINKS" above). It stays live, keeps being checked, and is listed for an
+      administrator. "missing" is reported once, on the check that completes
+      the streak, for the job's log.
+    */
+    if (placement.status === "live") {
+      const longer = await lastVerdicts(tx, placementId, FAILURES_BEFORE_REMOVED + 1);
+      const alreadyMissing = longer.length > FAILURES_BEFORE_REMOVED && longer[FAILURES_BEFORE_REMOVED] === "missing";
+      return alreadyMissing ? null : "missing";
+    }
+
+    // Published, never seen, never charged: the request goes back to matching.
+
+    /*
       The request goes back to matching: the customer still wants a link.
 
       Except a MANAGED link that was live and is now gone. Nothing matches
@@ -314,25 +338,131 @@ export async function applyCheck(
       ("unverified", below) keeps its pending request and hold on purpose:
       a later recheck that finds it revives it (lib/reporting/recheck.ts).
     */
-    const releaseManaged = placement.managed && placement.status === "live";
+    await tx
+      .update(backlinkRequests)
+      .set({ status: "pending", updatedAt: now })
+      .where(eq(backlinkRequests.id, placement.requestId));
+    await tx
+      .update(placements)
+      .set({ status: "unverified", updatedAt: now })
+      .where(and(eq(placements.id, placementId), eq(placements.status, "published")));
+    return "unverified";
+  });
+}
+
+export type MissingPlacement = {
+  id: string;
+  credits: number;
+  managed: boolean;
+  liveUrl: string | null;
+  targetUrl: string;
+  hostDomain: string | null;
+  beneficiaryDomain: string;
+  /** The first of the consecutive checks that found it missing. */
+  missingSince: Date;
+  lastVerifiedAt: Date | null;
+};
+
+/**
+ * Live links that every one of their last FAILURES_BEFORE_REMOVED verdicts
+ * found missing (outages are not verdicts), newest first: what an
+ * administrator looks at when a customer reports a link gone.
+ */
+export async function missingPlacements(limit = 100): Promise<MissingPlacement[]> {
+  const rows = await db.execute(sql`
+    select p.id, p.credits, p.managed, p.live_url, p.last_verified_at, r.target_url,
+           hw.domain as host_domain, bw.domain as beneficiary_domain, v.missing_since
+    from placements p
+    join backlink_requests r on r.id = p.request_id
+    join websites bw on bw.id = r.website_id
+    left join websites hw on hw.id = p.host_website_id
+    cross join lateral (
+      select count(*) filter (where last.verdict = 'missing') as missing, count(*) as verdicts, min(last.checked_at) as missing_since
+      from (
+        select coalesce(c.outcome, case when c.alive then 'alive' else 'missing' end) as verdict, c.checked_at
+        from link_checks c
+        where c.placement_id = p.id and (c.outcome is null or c.outcome in ('alive', 'missing'))
+        order by c.checked_at desc
+        limit ${FAILURES_BEFORE_REMOVED}
+      ) last
+    ) v
+    where p.status = 'live' and v.verdicts = ${FAILURES_BEFORE_REMOVED} and v.missing = ${FAILURES_BEFORE_REMOVED}
+    order by v.missing_since desc
+    limit ${limit}
+  `);
+  const list = (Array.isArray(rows) ? rows : (rows as { rows: unknown[] }).rows) as Record<string, unknown>[];
+  return list.map((row) => ({
+    id: row.id as string,
+    credits: Number(row.credits),
+    managed: Boolean(row.managed),
+    liveUrl: (row.live_url as string | null) ?? null,
+    targetUrl: row.target_url as string,
+    hostDomain: (row.host_domain as string | null) ?? null,
+    beneficiaryDomain: row.beneficiary_domain as string,
+    missingSince: new Date(row.missing_since as string),
+    lastVerifiedAt: row.last_verified_at ? new Date(row.last_verified_at as string) : null,
+  }));
+}
+
+/**
+ * An ADMINISTRATOR removes a live link that went missing: what the verifier
+ * used to do by itself. Requester refunded, host's reward reversed, the
+ * request back to matching (a managed one closed, its hold released) - in
+ * one transaction, under a lock, by the same idempotency keys as ever, so a
+ * double click moves credits once. False when the link is not live (already
+ * removed, or never charged).
+ */
+export async function removeMissingPlacement(placementId: string, now: Date = new Date()): Promise<{
+  removed: boolean;
+  credits: number;
+  requesterOrgId: string | null;
+  hostOrgId: string | null;
+}> {
+  return db.transaction(async (tx) => {
+    const [placement] = await tx
+      .select({
+        id: placements.id,
+        status: placements.status,
+        credits: placements.credits,
+        requestId: placements.requestId,
+        hostWebsiteId: placements.hostWebsiteId,
+        managed: placements.managed,
+      })
+      .from(placements)
+      .where(eq(placements.id, placementId))
+      .for("update");
+    if (!placement || placement.status !== "live") {
+      return { removed: false, credits: 0, requesterOrgId: null, hostOrgId: null };
+    }
+    const [request] = await tx
+      .select({ requesterOrgId: websites.organizationId })
+      .from(backlinkRequests)
+      .innerJoin(websites, eq(websites.id, backlinkRequests.websiteId))
+      .where(eq(backlinkRequests.id, placement.requestId))
+      .limit(1);
+    const [host] = placement.hostWebsiteId
+      ? await tx
+          .select({ organizationId: websites.organizationId })
+          .from(websites)
+          .where(eq(websites.id, placement.hostWebsiteId))
+          .limit(1)
+      : [];
+
+    /*
+      The request goes back to matching: the customer still wants a link.
+      Except a MANAGED one: nothing matches managed requests automatically,
+      and a pending request keeps its credits_reserved held (creditsFor in
+      lib/backlinks/managed.ts), which would lock the refund up for good. It
+      is closed and its hold released instead.
+    */
     await tx
       .update(backlinkRequests)
       .set(
-        releaseManaged
+        placement.managed
           ? { status: "cancelled", creditsReserved: 0, updatedAt: now }
           : { status: "pending", updatedAt: now },
       )
       .where(eq(backlinkRequests.id, placement.requestId));
-
-    if (placement.status === "published") {
-      // Never seen, never charged: nothing to refund.
-      await tx
-        .update(placements)
-        .set({ status: "unverified", updatedAt: now })
-        .where(and(eq(placements.id, placementId), eq(placements.status, "published")));
-      return "unverified";
-    }
-
     await tx
       .update(placements)
       .set({ status: "removed", removedAt: now, updatedAt: now })
@@ -367,7 +497,12 @@ export async function applyCheck(
         `[placements] ${placementId} removed: requester refunded, but the host website is gone so nothing was reversed`,
       );
     }
-    return "removed";
+    return {
+      removed: true,
+      credits: placement.credits,
+      requesterOrgId: request?.requesterOrgId ?? null,
+      hostOrgId: host?.organizationId ?? null,
+    };
   });
 }
 

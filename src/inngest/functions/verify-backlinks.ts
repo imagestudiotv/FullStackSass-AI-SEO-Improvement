@@ -14,10 +14,10 @@ import { checkLinks } from "@/lib/backlinks/verify";
  * Checks placements at their published URL, and moves credits only on what
  * it SEES.
  *
- * The client's requirement: if a link is removed we credit it back AND it
- * disappears from the received dashboard. The accounting rules - charge on
- * first sight, refund after repeated definite misses, never on an outage -
- * live in lib/backlinks/placements.ts; this job only schedules the checks.
+ * The accounting rules - charge on first sight, never refund automatically
+ * (a link gone on every recent check is listed for an administrator, who
+ * removes and refunds it by hand; client, 2026-10-01) - live in
+ * lib/backlinks/placements.ts; this job only schedules the checks.
  *
  * It looks at every placement with a URL that is awaiting first sight
  * ("published") or live, which is what the old selection missed: it only
@@ -82,7 +82,7 @@ export const verifyBacklinks = inngest.createFunction(
 
     if (due.length === 0) {
       logger.info({ step: "select-placements", placementCount: 0 }, "Nothing to verify");
-      return { checked: 0, wentLive: 0, removed: 0, unverified: 0 };
+      return { checked: 0, wentLive: 0, missing: 0, unverified: 0 };
     }
 
     /*
@@ -147,7 +147,8 @@ export const verifyBacklinks = inngest.createFunction(
     const summary = {
       checked: due.length,
       wentLive: transitions.filter((t) => t === "went_live").length,
-      removed: transitions.filter((t) => t === "removed").length,
+      // Gone on every recent check: listed for an administrator, nothing refunded.
+      missing: transitions.filter((t) => t === "missing").length,
       unverified: transitions.filter((t) => t === "unverified").length,
     };
     logger.info(

@@ -24,6 +24,8 @@ import {
   setPlacementCredits,
 } from "@/lib/backlinks/managed";
 import { ensureMonthlyCredits } from "@/lib/backlinks/credits";
+import { missingPlacements, removeMissingPlacement, type MissingPlacement } from "@/lib/backlinks/placements";
+import { recordAdminAction } from "@/lib/admin/audit";
 import { isRelevantPair } from "@/lib/backlinks/matching";
 import { readOneAuthority } from "@/lib/authority/metric";
 import { db } from "@/lib/db";
@@ -573,4 +575,39 @@ export async function recentPlacements() {
     .where(eq(placements.managed, true))
     .orderBy(desc(placements.createdAt))
     .limit(50);
+}
+
+/**
+ * Live network links that every recent check found missing. Nothing was
+ * refunded for them (lib/backlinks/placements.ts, "MISSING LINKS"): a site
+ * in maintenance comes back with its links, so an administrator decides.
+ */
+export async function listMissingLinks(): Promise<MissingPlacement[]> {
+  await requireAdmin();
+  return missingPlacements();
+}
+
+/**
+ * Removes a missing link and refunds it - the buyer gets the credits back,
+ * the host's reward is reversed - when an administrator has confirmed it is
+ * really gone (usually after the customer reported it). Logged.
+ */
+export async function removeMissingLink(input: { placementId: string; reason: string }): Promise<ActionResult<{ credits: number }>> {
+  const admin = await requireAdmin();
+  const reason = input.reason.trim();
+  if (reason.length < 3) return { ok: false, error: "Say why this link is being removed." };
+  if (!/^[0-9a-f-]{36}$/i.test(input.placementId)) return { ok: false, error: "Link not found." };
+  const result = await removeMissingPlacement(input.placementId);
+  if (!result.removed) return { ok: false, error: "That link is no longer live, so nothing was changed." };
+  await recordAdminAction({
+    actorEmail: admin.email,
+    action: "network.placement_removed",
+    targetType: "placement",
+    targetId: input.placementId,
+    organizationId: result.requesterOrgId,
+    summary: `Removed a missing link and refunded ${result.credits} credit${result.credits === 1 ? "" : "s"}`,
+    detail: { reason, credits: result.credits, hostOrganizationId: result.hostOrgId },
+  });
+  revalidatePath("/admin/network");
+  return { ok: true, data: { credits: result.credits } };
 }

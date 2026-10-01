@@ -37,7 +37,7 @@ Filters, sort, page and page size live in the URL (`?tab=&type=&q=&from=&to=&iss
 
 **Credits** (the credits column on a row):
 
-- *Received links:* reserved while awaiting, spent when verified, refunded when removed after verification, and no charge when never found or withdrawn.
+- *Received links:* reserved while awaiting, spent when verified, refunded when an administrator removes it after verification (never automatically; see managed-network.md, Missing links), and no charge when never found or withdrawn.
 - *Hosted links:* "+N once verified" while awaiting, earned when verified, reversed when removed.
 - Credits belong to the **workspace**, shared by all its websites. Balances and ledger rows are shown only to workspace members, never to a guest invited to one website.
 

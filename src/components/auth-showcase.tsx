@@ -62,7 +62,7 @@ const GROUPS: { lead: Panel; supporting: [Panel, Panel] }[] = [
       },
       {
         headline: "Refunded if a link disappears",
-        body: "We re-check every day. If one is removed, the credit comes back.",
+        body: "We re-check every day. If one is removed, tell us and the credit comes back.",
       },
     ],
   },

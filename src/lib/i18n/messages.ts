@@ -1884,7 +1884,7 @@ const en: Messages = {
       "Every customer both gives and receives links",
       "Links come from businesses in a related field, never unrelated ones",
       "Placed inside real articles, not a page of links",
-      "Checked daily - if a link is removed, your credit comes back",
+      "Checked daily - if a link is removed, tell us and your credit comes back",
     ],
     networkHowLink: "How the exchange works",
     networkWhyTitle: "Why exchange rather than buy",
@@ -1978,7 +1978,7 @@ const en: Messages = {
       },
       {
         label: "Backlinks earned",
-        body: "Real links inside real articles on other businesses' sites, checked daily. If one is removed, your credit comes back.",
+        body: "Real links inside real articles on other businesses' sites, checked daily. If one is removed, tell us and your credit comes back.",
       },
     ],
     timelineTitle: "What the first three months look like",
@@ -2090,7 +2090,7 @@ const en: Messages = {
   backlinkExchange: {
     metaTitle: "How the backlink exchange works",
     metaDescription:
-      "Earn links to your website by publishing one article for another business. Relevant matches only, verified daily, credits refunded if a link is removed.",
+      "Earn links to your website by publishing one article for another business. Relevant matches only, verified daily, credits refunded when a removed link is confirmed.",
     title: "How the backlink exchange works",
     intro:
       "Links are earned by giving them. You host one article for a business in a related field, and spend what you earn on links back to your own site.",
@@ -2120,7 +2120,7 @@ const en: Messages = {
       },
       {
         title: "Credits refunded if a link goes",
-        body: "If a link is removed, you get the credit back and it disappears from your dashboard. We do not count links that no longer exist.",
+        body: "If a link is removed, tell us: once we confirm it is gone, you get the credit back and it disappears from your dashboard. A site that is only offline for a while, for maintenance say, keeps its links.",
       },
     ],
     notTitle: "What this is not",
@@ -2895,7 +2895,7 @@ const en: Messages = {
       adviceAwaitingVerification: "The article is live. The link is checked automatically, usually within a day; credits move only once it is seen.",
       adviceAwaitingPublicationGiven: "This link is in one of your articles that is not published yet. It goes out with the article, after the RepGet team's review.",
       adviceAwaitingPublicationReceived: "Placed in a partner's article that is not published yet. Its credits are reserved, not spent.",
-      adviceRemoved: "The link was verified, then repeatedly not found, so its credits were refunded.",
+      adviceRemoved: "The link was verified, then confirmed gone and removed, so its credits were refunded.",
       recheck: "Check again",
       recheckRecover: "I restored it - check again",
       recheckQueued: "Check requested. It runs shortly; credits move only if the link is seen live.",
@@ -3691,7 +3691,7 @@ const es: Messages = {
       "Cada cliente da y recibe enlaces",
       "Los enlaces vienen de empresas de sectores afines, nunca ajenos",
       "Colocados dentro de artículos reales, no en una página de enlaces",
-      "Comprobados a diario: si se retira un enlace, recupera su crédito",
+      "Comprobados a diario: si se retira un enlace, avísenos y recupera su crédito",
     ],
     networkHowLink: "Cómo funciona el intercambio",
     networkWhyTitle: "Por qué intercambiar en lugar de comprar",
@@ -3787,7 +3787,7 @@ const es: Messages = {
       },
       {
         label: "Enlaces conseguidos",
-        body: "Enlaces reales dentro de artículos reales en webs de otros negocios, comprobados a diario. Si se elimina uno, recupera su crédito.",
+        body: "Enlaces reales dentro de artículos reales en webs de otros negocios, comprobados a diario. Si se elimina uno, avísenos y recupera su crédito.",
       },
     ],
     timelineTitle: "Cómo son los tres primeros meses",
@@ -3899,7 +3899,7 @@ const es: Messages = {
   backlinkExchange: {
     metaTitle: "Cómo funciona el intercambio de enlaces",
     metaDescription:
-      "Consiga enlaces hacia su web publicando un artículo para otro negocio. Solo emparejamientos relevantes, verificados a diario y créditos devueltos si un enlace desaparece.",
+      "Consiga enlaces hacia su web publicando un artículo para otro negocio. Solo emparejamientos relevantes, verificados a diario y créditos devueltos cuando se confirma que un enlace ha desaparecido.",
     title: "Cómo funciona el intercambio de enlaces",
     intro:
       "Los enlaces se ganan dándolos. Usted aloja un artículo de un negocio de un sector relacionado y gasta lo que gana en enlaces hacia su propia web.",
@@ -3929,7 +3929,7 @@ const es: Messages = {
       },
       {
         title: "Créditos devueltos si un enlace cae",
-        body: "Si se elimina un enlace, recupera el crédito y desaparece de su panel. No contamos enlaces que ya no existen.",
+        body: "Si se elimina un enlace, avísenos: cuando confirmemos que ha desaparecido, recupera el crédito y desaparece de su panel. Una web que solo está sin conexión un tiempo, por mantenimiento por ejemplo, conserva sus enlaces.",
       },
     ],
     notTitle: "Lo que esto no es",
@@ -4705,7 +4705,7 @@ const es: Messages = {
       adviceAwaitingVerification: "El artículo está publicado. El enlace se comprueba automáticamente, normalmente en un día; los créditos solo se mueven cuando se ve.",
       adviceAwaitingPublicationGiven: "Este enlace está en uno de tus artículos aún sin publicar. Saldrá con el artículo, tras la revisión del equipo de RepGet.",
       adviceAwaitingPublicationReceived: "Colocado en un artículo de un socio aún sin publicar. Sus créditos están reservados, no gastados.",
-      adviceRemoved: "El enlace se verificó y después no se encontró varias veces, así que sus créditos se reembolsaron.",
+      adviceRemoved: "El enlace se verificó y después se confirmó que había desaparecido y se retiró, así que sus créditos se reembolsaron.",
       recheck: "Comprobar de nuevo",
       recheckRecover: "Ya lo he restaurado: comprobar de nuevo",
       recheckQueued: "Comprobación solicitada. Se hará en breve; los créditos solo se mueven si el enlace se ve activo.",
@@ -5504,7 +5504,7 @@ const fr: Messages = {
       "Chaque client donne et reçoit des liens",
       "Les liens viennent d'entreprises d'un secteur proche, jamais sans rapport",
       "Placés dans de vrais articles, pas sur une page de liens",
-      "Vérifiés chaque jour : si un lien disparaît, votre crédit revient",
+      "Vérifiés chaque jour : si un lien disparaît, prévenez-nous et votre crédit revient",
     ],
     networkHowLink: "Comment fonctionne l'échange",
     networkWhyTitle: "Pourquoi échanger plutôt qu'acheter",
@@ -5599,7 +5599,7 @@ const fr: Messages = {
       },
       {
         label: "Backlinks obtenus",
-        body: "De vrais liens dans de vrais articles sur les sites d'autres entreprises, vérifiés chaque jour. Si un lien disparaît, votre crédit vous est rendu.",
+        body: "De vrais liens dans de vrais articles sur les sites d'autres entreprises, vérifiés chaque jour. Si un lien disparaît, prévenez-nous et votre crédit vous est rendu.",
       },
     ],
     timelineTitle: "À quoi ressemblent les trois premiers mois",
@@ -5711,7 +5711,7 @@ const fr: Messages = {
   backlinkExchange: {
     metaTitle: "Comment fonctionne l'échange de liens",
     metaDescription:
-      "Gagnez des liens vers votre site en publiant un article pour une autre entreprise. Uniquement des associations pertinentes, vérifiées chaque jour, crédits remboursés si un lien disparaît.",
+      "Gagnez des liens vers votre site en publiant un article pour une autre entreprise. Uniquement des associations pertinentes, vérifiées chaque jour, crédits remboursés quand la disparition d'un lien est confirmée.",
     title: "Comment fonctionne l'échange de liens",
     intro:
       "Les liens se gagnent en en donnant. Vous hébergez un article pour une entreprise d'un secteur proche, et vous dépensez ce que vous gagnez en liens vers votre propre site.",
@@ -5741,7 +5741,7 @@ const fr: Messages = {
       },
       {
         title: "Crédits remboursés si un lien tombe",
-        body: "Si un lien est retiré, le crédit vous est rendu et le lien disparaît de votre tableau de bord. Nous ne comptons pas les liens qui n'existent plus.",
+        body: "Si un lien est retiré, prévenez-nous : une fois sa disparition confirmée, le crédit vous est rendu et le lien disparaît de votre tableau de bord. Un site simplement hors ligne un moment, pour maintenance par exemple, garde ses liens.",
       },
     ],
     notTitle: "Ce que ce n'est pas",
@@ -6519,7 +6519,7 @@ const fr: Messages = {
       adviceAwaitingVerification: "L'article est en ligne. Le lien est vérifié automatiquement, généralement sous un jour ; les crédits ne bougent qu'une fois le lien vu.",
       adviceAwaitingPublicationGiven: "Ce lien se trouve dans un de vos articles non encore publié. Il partira avec l'article, après la revue de l'équipe RepGet.",
       adviceAwaitingPublicationReceived: "Placé dans l'article d'un partenaire pas encore publié. Ses crédits sont réservés, pas dépensés.",
-      adviceRemoved: "Le lien a été vérifié, puis introuvable à plusieurs reprises : ses crédits ont été remboursés.",
+      adviceRemoved: "Le lien a été vérifié, puis sa disparition a été confirmée et il a été retiré : ses crédits ont été remboursés.",
       recheck: "Vérifier à nouveau",
       recheckRecover: "Je l'ai rétabli - vérifier à nouveau",
       recheckQueued: "Vérification demandée. Elle aura lieu sous peu ; les crédits ne bougent que si le lien est vu en ligne.",
@@ -7313,7 +7313,7 @@ const it: Messages = {
       "Ogni cliente dà e riceve link",
       "I link arrivano da aziende di settori affini, mai estranei",
       "Inseriti dentro articoli veri, non in una pagina di link",
-      "Verificati ogni giorno: se un link sparisce, il credito torna indietro",
+      "Verificati ogni giorno: se un link sparisce, ce lo segnali e il credito torna indietro",
     ],
     networkHowLink: "Come funziona lo scambio",
     networkWhyTitle: "Perché scambiare invece di comprare",
@@ -7408,7 +7408,7 @@ const it: Messages = {
       },
       {
         label: "Backlink ottenuti",
-        body: "Link veri dentro articoli veri su siti di altre aziende, controllati ogni giorno. Se un link viene rimosso, il credito le torna.",
+        body: "Link veri dentro articoli veri su siti di altre aziende, controllati ogni giorno. Se un link viene rimosso, ce lo segnali e il credito le torna.",
       },
     ],
     timelineTitle: "Come sono i primi tre mesi",
@@ -7520,7 +7520,7 @@ const it: Messages = {
   backlinkExchange: {
     metaTitle: "Come funziona lo scambio di link",
     metaDescription:
-      "Guadagni link verso il suo sito pubblicando un articolo per un'altra azienda. Solo abbinamenti pertinenti, verificati ogni giorno, crediti rimborsati se un link sparisce.",
+      "Guadagni link verso il suo sito pubblicando un articolo per un'altra azienda. Solo abbinamenti pertinenti, verificati ogni giorno, crediti rimborsati quando si conferma che un link è sparito.",
     title: "Come funziona lo scambio di link",
     intro:
       "I link si guadagnano dandoli. Lei ospita un articolo per un'azienda di un settore affine e spende ciò che guadagna in link verso il suo sito.",
@@ -7550,7 +7550,7 @@ const it: Messages = {
       },
       {
         title: "Crediti rimborsati se un link cade",
-        body: "Se un link viene rimosso, il credito le torna e il link sparisce dalla dashboard. Non contiamo link che non esistono più.",
+        body: "Se un link viene rimosso, ce lo segnali: una volta confermato che è sparito, il credito le torna e il link sparisce dalla dashboard. Un sito offline solo per un po', per manutenzione ad esempio, mantiene i suoi link.",
       },
     ],
     notTitle: "Cosa non è",
@@ -8325,7 +8325,7 @@ const it: Messages = {
       adviceAwaitingVerification: "L'articolo è online. Il link viene controllato automaticamente, di solito entro un giorno; i crediti si muovono solo quando è visto.",
       adviceAwaitingPublicationGiven: "Questo link è in un tuo articolo non ancora pubblicato. Uscirà con l'articolo, dopo la revisione del team RepGet.",
       adviceAwaitingPublicationReceived: "Inserito nell'articolo di un partner non ancora pubblicato. I suoi crediti sono riservati, non spesi.",
-      adviceRemoved: "Il link era verificato, poi non è stato trovato più volte: i crediti sono stati rimborsati.",
+      adviceRemoved: "Il link era verificato, poi è stato confermato che era sparito ed è stato rimosso: i crediti sono stati rimborsati.",
       recheck: "Controlla di nuovo",
       recheckRecover: "L'ho ripristinato - controlla di nuovo",
       recheckQueued: "Controllo richiesto. Verrà eseguito a breve; i crediti si muovono solo se il link risulta online.",
@@ -9124,7 +9124,7 @@ const de: Messages = {
       "Jeder Kunde gibt und erhält Links",
       "Links kommen aus verwandten Branchen, nie aus fremden",
       "Platziert in echten Artikeln, nicht auf einer Linkseite",
-      "Täglich geprüft - wird ein Link entfernt, erhalten Sie Ihr Guthaben zurück",
+      "Täglich geprüft - wird ein Link entfernt, sagen Sie uns Bescheid und Sie erhalten Ihr Guthaben zurück",
     ],
     networkHowLink: "So funktioniert der Tausch",
     networkWhyTitle: "Warum tauschen statt kaufen",
@@ -9221,7 +9221,7 @@ const de: Messages = {
       },
       {
         label: "Gewonnene Backlinks",
-        body: "Echte Links in echten Artikeln auf Websites anderer Unternehmen, täglich geprüft. Wird einer entfernt, bekommen Sie Ihr Guthaben zurück.",
+        body: "Echte Links in echten Artikeln auf Websites anderer Unternehmen, täglich geprüft. Wird einer entfernt, sagen Sie uns Bescheid und Sie bekommen Ihr Guthaben zurück.",
       },
     ],
     timelineTitle: "Wie die ersten drei Monate aussehen",
@@ -9333,7 +9333,7 @@ const de: Messages = {
   backlinkExchange: {
     metaTitle: "So funktioniert der Backlink-Austausch",
     metaDescription:
-      "Verdienen Sie Links auf Ihre Website, indem Sie einen Artikel für ein anderes Unternehmen veröffentlichen. Nur passende Zuordnungen, täglich geprüft, Guthaben zurück, wenn ein Link verschwindet.",
+      "Verdienen Sie Links auf Ihre Website, indem Sie einen Artikel für ein anderes Unternehmen veröffentlichen. Nur passende Zuordnungen, täglich geprüft, Guthaben zurück, wenn bestätigt ist, dass ein Link verschwunden ist.",
     title: "So funktioniert der Backlink-Austausch",
     intro:
       "Links verdient man, indem man welche gibt. Sie veröffentlichen einen Artikel für ein Unternehmen aus einer verwandten Branche und setzen das Verdiente für Links auf Ihre eigene Website ein.",
@@ -9363,7 +9363,7 @@ const de: Messages = {
       },
       {
         title: "Guthaben zurück, wenn ein Link fällt",
-        body: "Wird ein Link entfernt, erhalten Sie das Guthaben zurück und der Link verschwindet aus Ihrem Dashboard. Wir zählen keine Links, die es nicht mehr gibt.",
+        body: "Wird ein Link entfernt, sagen Sie uns Bescheid: Sobald bestätigt ist, dass er weg ist, erhalten Sie das Guthaben zurück und der Link verschwindet aus Ihrem Dashboard. Eine Website, die nur kurz offline ist, etwa wegen Wartung, behält ihre Links.",
       },
     ],
     notTitle: "Was das nicht ist",
@@ -10140,7 +10140,7 @@ const de: Messages = {
       adviceAwaitingVerification: "Der Artikel ist live. Der Link wird automatisch geprüft, meist innerhalb eines Tages; Credits bewegen sich erst, wenn er gesehen wird.",
       adviceAwaitingPublicationGiven: "Dieser Link steht in einem Ihrer noch unveröffentlichten Artikel. Er erscheint mit dem Artikel, nach der Prüfung durch das RepGet-Team.",
       adviceAwaitingPublicationReceived: "In einem noch unveröffentlichten Partnerartikel platziert. Die Credits sind reserviert, nicht verbraucht.",
-      adviceRemoved: "Der Link war bestätigt, wurde dann mehrfach nicht gefunden; die Credits wurden erstattet.",
+      adviceRemoved: "Der Link war bestätigt, dann wurde bestätigt, dass er verschwunden ist, und er wurde entfernt; die Credits wurden erstattet.",
       recheck: "Erneut prüfen",
       recheckRecover: "Wiederhergestellt - erneut prüfen",
       recheckQueued: "Prüfung angefordert. Sie läuft in Kürze; Credits bewegen sich nur, wenn der Link live gesehen wird.",
