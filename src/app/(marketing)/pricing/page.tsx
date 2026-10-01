@@ -56,7 +56,8 @@ export default async function PricingPage() {
         </h1>
         <p className="mx-auto mt-3 max-w-lg text-muted-foreground">
           Everything is included in every plan. The difference is how much we
-          write for you each month.
+          write for you each month - and how many backlinks you get from our
+          partner network.
         </p>
       </div>
 

@@ -1914,7 +1914,7 @@ const en: Messages = {
   pricing: {
     title: "Simple pricing",
     subtitle:
-      "Everything is included in every plan. The difference is how much we write for you each month.",
+      "Everything is included in every plan. The difference is how much we write for you each month - and how many backlinks you get from our partner network.",
     perMonth: " / month",
     getStarted: "Get started",
     mostPopular: "Most popular",
@@ -3721,7 +3721,7 @@ const es: Messages = {
   pricing: {
     title: "Precios sencillos",
     subtitle:
-      "Todo está incluido en cada plan. La diferencia es cuánto escribimos para usted cada mes.",
+      "Todo está incluido en cada plan. La diferencia es cuánto escribimos para usted cada mes y cuántos backlinks recibe de nuestra red de socios.",
     perMonth: " / mes",
     getStarted: "Empezar",
     mostPopular: "Más popular",
@@ -5534,7 +5534,7 @@ const fr: Messages = {
   pricing: {
     title: "Des tarifs simples",
     subtitle:
-      "Tout est inclus dans chaque formule. La différence tient à ce que nous rédigeons pour vous chaque mois.",
+      "Tout est inclus dans chaque formule. La différence tient à ce que nous rédigeons pour vous chaque mois, et au nombre de backlinks que vous recevez de notre réseau de partenaires.",
     perMonth: " / mois",
     getStarted: "Commencer",
     mostPopular: "Le plus choisi",
@@ -7343,7 +7343,7 @@ const it: Messages = {
   pricing: {
     title: "Prezzi semplici",
     subtitle:
-      "Ogni piano include tutto. La differenza è quanto scriviamo per lei ogni mese.",
+      "Ogni piano include tutto. La differenza è quanto scriviamo per lei ogni mese e quanti backlink riceve dalla nostra rete di partner.",
     perMonth: " / mese",
     getStarted: "Inizia",
     mostPopular: "Il più scelto",
@@ -9155,7 +9155,7 @@ const de: Messages = {
   pricing: {
     title: "Einfache Preise",
     subtitle:
-      "In jedem Tarif ist alles enthalten. Der Unterschied liegt darin, wie viel wir jeden Monat für Sie schreiben.",
+      "In jedem Tarif ist alles enthalten. Der Unterschied liegt darin, wie viel wir jeden Monat für Sie schreiben und wie viele Backlinks Sie aus unserem Partnernetzwerk erhalten.",
     perMonth: " / Monat",
     getStarted: "Loslegen",
     mostPopular: "Am beliebtesten",
