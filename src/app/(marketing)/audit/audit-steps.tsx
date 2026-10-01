@@ -107,7 +107,7 @@ export function AuditSteps({ result }: { result: PublicAuditResult }) {
       simply FILLS IN — the frame gets the real picture, the spinners become
       ticks, and each row now opens onto what it found.
     */
-    <div className="mt-12 grid gap-8 lg:grid-cols-2 lg:gap-12">
+    <div className="grid gap-8 lg:grid-cols-2 lg:gap-12">
       {/* The browser frame, now showing the site rather than waiting for it. */}
       <div className="overflow-hidden rounded-2xl border bg-card shadow-[0_24px_60px_-30px_rgba(0,0,0,0.25)]">
         <div className="flex items-center gap-3 border-b bg-muted/40 px-4 py-3">
