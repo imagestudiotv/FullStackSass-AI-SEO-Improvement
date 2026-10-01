@@ -374,58 +374,79 @@ export function MarketingFooterLinks() {
   const t = getMessages(locale);
   const href = (path: string) => localePath(locale, path);
 
+  /*
+    Two inline groups rather than two columns. The Product column listed
+    eleven links one under the other, which made the footer about 500px tall
+    (client, 2026-10-01: "now is too high"). Inline, they take two rows on a
+    desktop and wrap on narrower screens - also when a translation is longer.
+  */
   return (
-    <div className="flex gap-12 text-sm">
-      <div className="space-y-2">
+    <div className="flex min-w-0 flex-1 flex-col gap-6 text-sm sm:flex-row lg:gap-8">
+      <div className="min-w-0 flex-1 lg:border-l lg:pl-8">
         <p className="font-medium text-foreground">{t.footer.product}</p>
-        {[
-          { href: href("/audit"), label: t.footer.freeCheck },
-          { href: href("/tools"), label: t.footer.freeTools },
-          { href: href("/pricing"), label: t.footer.pricing },
-          // Also in the header; listed here so the footer stays a full index.
-          { href: "/success-stories", label: t.nav.successStories },
-          { href: "/blog", label: t.footer.blog },
-          { href: "/faq", label: t.footer.faq },
-          { href: "/about", label: t.footer.about },
-          {
-            href: href("/backlink-exchange"),
-            label: t.footer.backlinkExchange,
-          },
-          { href: "/publishers", label: t.footer.publishers },
-          { href: "/affiliate", label: t.footer.affiliate },
-          { href: "/contact", label: t.footer.contact },
-        ].map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className="block py-1 text-muted-foreground hover:text-foreground"
-          >
-            {item.label}
-          </Link>
-        ))}
+        <FooterLinkRow
+          items={[
+            { href: href("/audit"), label: t.footer.freeCheck },
+            { href: href("/tools"), label: t.footer.freeTools },
+            { href: href("/pricing"), label: t.footer.pricing },
+            // Also in the header; listed here so the footer stays a full index.
+            { href: "/success-stories", label: t.nav.successStories },
+            { href: "/blog", label: t.footer.blog },
+            { href: "/faq", label: t.footer.faq },
+            { href: "/about", label: t.footer.about },
+            {
+              href: href("/backlink-exchange"),
+              label: t.footer.backlinkExchange,
+            },
+            { href: "/publishers", label: t.footer.publishers },
+            { href: "/affiliate", label: t.footer.affiliate },
+            { href: "/contact", label: t.footer.contact },
+          ]}
+        />
       </div>
 
-      <div className="space-y-2">
+      <div className="shrink-0 lg:border-l lg:pl-8">
         <p className="font-medium text-foreground">{t.footer.legal}</p>
         {/*
           Legal pages stay in English: privacy, terms and refunds carry
           commitments with specific legal meanings, and a mistranslated one is
           a liability rather than a typo.
         */}
-        {[
-          { href: "/privacy", label: t.footer.privacy },
-          { href: "/terms", label: t.footer.terms },
-          { href: "/refunds", label: t.footer.refunds },
-        ].map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className="block py-1 text-muted-foreground hover:text-foreground"
-          >
-            {item.label}
-          </Link>
-        ))}
+        <FooterLinkRow
+          items={[
+            { href: "/privacy", label: t.footer.privacy },
+            { href: "/terms", label: t.footer.terms },
+            { href: "/refunds", label: t.footer.refunds },
+          ]}
+        />
       </div>
+    </div>
+  );
+}
+
+/**
+ * Links in a row, separated by "|", wrapping as the width needs.
+ *
+ * Every link carries the separator BEFORE it, and the list is shifted left by
+ * exactly one separator inside a clipping box: the separator that would start
+ * each line falls outside it. So a wrapped line never begins with a stray "|",
+ * however the links happen to wrap.
+ */
+function FooterLinkRow({ items }: { items: { href: string; label: string }[] }) {
+  return (
+    <div className="mt-2 overflow-hidden">
+      <ul className="-ml-5 flex flex-wrap gap-y-1.5">
+        {items.map((item) => (
+          <li key={item.href} className="flex items-center">
+            <span aria-hidden="true" className="inline-block w-5 text-center text-border">
+              |
+            </span>
+            <Link href={item.href} className="whitespace-nowrap text-muted-foreground hover:text-foreground">
+              {item.label}
+            </Link>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

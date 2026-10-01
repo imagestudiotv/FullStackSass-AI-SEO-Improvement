@@ -37,17 +37,22 @@ export default function MarketingLayout({ children }: LayoutProps<"/">) {
 
       <main className="flex-1">{children}</main>
 
+      {/*
+        Compact: brand, then the links as two inline groups, all in one row on
+        a desktop (the client's "Option 2", 2026-10-01 - the old footer was
+        about 500px tall). Stacks on smaller screens.
+      */}
       <footer className="border-t bg-background">
-        <div className="mx-auto max-w-6xl px-4 py-10">
-          <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
-            <div>
+        <div className="mx-auto max-w-6xl px-4 py-8">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
+            <div className="lg:w-60 lg:shrink-0">
               <BrandLogo height={22} />
               <MarketingTagline />
             </div>
             <MarketingFooterLinks />
           </div>
 
-          <p className="mt-10 border-t pt-6 text-sm text-muted-foreground">
+          <p className="mt-6 border-t pt-4 text-sm text-muted-foreground">
             &copy; {new Date().getFullYear()} RepGet
           </p>
         </div>
