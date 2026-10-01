@@ -134,7 +134,7 @@ export function detectPlatform(
    * infer, so it cannot be tripped by what the page happens to link to. Most
    * CMSs set it; those that do not fall through to the fingerprints below.
    */
-  const declared = generatorPlatform(generator);
+  const declared = generatorPlatform(generator, CMS_GENERATORS);
   if (declared) return declared;
 
   /**
@@ -175,10 +175,15 @@ export function detectPlatform(
     [/drupal-settings-json|\/sites\/default\/files\/|drupal\.js/i, "Drupal"],
     /*
       Joomla 3 (/media/jui/), 1.5-2.5 (mootools), non-SEF URLs, and Joomla 4/5:
-      its core scripts, its web components and its site template folder.
+      its core scripts, its web components and its site template folder. And
+      the body class every Joomla template prints ("site com_content
+      view-featured ..."), as a whole space-separated word: a URL never has a
+      space before it, so a link or a post about Joomla cannot match - which
+      keeps a Joomla site with its generator hidden and its assets combined
+      from coming back as "Custom".
     */
     [
-      /\/media\/jui\/|option=com_content|\/media\/system\/js\/mootools|\/media\/system\/js\/core|\/media\/vendor\/joomla-custom-elements\/|\/media\/templates\/site\//i,
+      /\/media\/jui\/|option=com_content|\/media\/system\/js\/mootools|\/media\/system\/js\/core|\/media\/vendor\/joomla-custom-elements\/|\/media\/templates\/site\/|(?:^|\s)com_content(?=\s|$)/i,
       "Joomla",
     ],
     [/bigcommerce\.com\/s-|cdn\d+\.bigcommerce\.com/i, "BigCommerce"],
@@ -188,30 +193,39 @@ export function detectPlatform(
       whose theme loads Woo's scripts from a CDN.
     */
     [/plugins\/woocommerce\/|wc-ajax=|woocommerce\/assets\//i, "WooCommerce"],
-    /*
-      Last: a framework is what the site is BUILT with rather than what it is
-      published with, so anything above is the more useful answer when both
-      match. Kept because "Next.js" is still better than nothing for a custom
-      site with no CMS.
-    */
-    [/\/_next\/static|__NEXT_DATA__/i, "Next.js"],
   ];
 
   for (const [pattern, name] of checks) {
     if (pattern.test(haystack)) return name;
   }
+
+  /*
+    Last: a framework is what the site is BUILT with rather than what it is
+    published with, so any CMS above is the more useful answer when both
+    match - a Gatsby front end on WordPress or Shopify is "WordPress" or
+    "Shopify" to its owner, even though Gatsby names itself in the generator.
+    A framework's own generator still beats our Next.js guess.
+  */
+  const framework = generatorPlatform(generator, FRAMEWORK_GENERATORS);
+  if (framework) return framework;
+  // Kept because "Next.js" is still better than nothing for a custom site with no CMS.
+  if (/\/_next\/static|__NEXT_DATA__/i.test(haystack)) return "Next.js";
   return null;
 }
 
 /**
  * Generator values we recognise, mapped to how the product spells itself.
  *
- * Only ever matched against the first word of the generator meta tag, so this
- * is a whitelist of self-declarations rather than a substring search. A Map,
- * not an object: a crawled word such as "constructor" or "__proto__" must not
+ * Only ever matched against the first word of the generator meta tag, so these
+ * are whitelists of self-declarations rather than a substring search. Maps,
+ * not objects: a crawled word such as "constructor" or "__proto__" must not
  * find an inherited property and come back as a function or an object.
+ *
+ * Two of them: a CMS that declares itself is trusted above everything, while
+ * a FRAMEWORK that does (Gatsby prints its generator by default) is only the
+ * answer when no CMS fingerprint matched - see detectPlatform.
  */
-const KNOWN_GENERATORS = new Map<string, string>([
+const CMS_GENERATORS = new Map<string, string>([
   ["wordpress", "WordPress"],
   ["webflow", "Webflow"],
   ["shopify", "Shopify"],
@@ -220,6 +234,9 @@ const KNOWN_GENERATORS = new Map<string, string>([
   ["joomla", "Joomla"],
   ["ghost", "Ghost"],
   ["wix", "Wix"],
+]);
+
+const FRAMEWORK_GENERATORS = new Map<string, string>([
   ["hugo", "Hugo"],
   ["jekyll", "Jekyll"],
   ["gatsby", "Gatsby"],
@@ -233,7 +250,7 @@ const KNOWN_GENERATORS = new Map<string, string>([
  * Management" -> "joomla", "Wix.com Website Builder" -> "wix",
  * "WordPress 6.7.1" -> "wordpress".
  */
-function generatorPlatform(generator: string | null | undefined): string | null {
+function generatorPlatform(generator: string | null | undefined, known: Map<string, string>): string | null {
   const first = /^[a-z][a-z0-9]*/.exec((generator ?? "").trim().toLowerCase())?.[0];
-  return (first && KNOWN_GENERATORS.get(first)) ?? null;
+  return (first && known.get(first)) ?? null;
 }

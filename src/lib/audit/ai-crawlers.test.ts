@@ -150,6 +150,23 @@ describe("the generator meta tag is trusted first", () => {
   });
 });
 
+describe("a framework's generator never outranks the CMS behind it", () => {
+  it("a Gatsby front end on WordPress or Shopify is WordPress or Shopify", () => {
+    expect(detectPlatform(["https://cms.example.com/wp-content/uploads/2024/01/a.jpg"], "Gatsby 5.12.0")).toBe("WordPress");
+    expect(detectPlatform(["https://cdn.shopify.com/s/files/1/a.jpg"], "Gatsby 5.12.0")).toBe("Shopify");
+  });
+
+  it("but with no CMS behind it, the framework's own word beats our Next.js guess", () => {
+    expect(detectPlatform([], "Gatsby 5.12.0")).toBe("Gatsby");
+    expect(detectPlatform([], "Hugo 0.125.4")).toBe("Hugo");
+    expect(detectPlatform(["/_next/static/chunks/x.js"], "Jekyll v4.3.3")).toBe("Jekyll");
+  });
+
+  it("a CMS that declares itself still beats every fingerprint", () => {
+    expect(detectPlatform(["https://cdn.shopify.com/s/files/1/a.jpg"], "WordPress 6.7")).toBe("WordPress");
+  });
+});
+
 describe("Joomla 4 and 5, which no longer ship the Joomla 3 assets", () => {
   it("is recognised by its own asset paths", () => {
     expect(detectPlatform(["/media/templates/site/cassiopeia/css/template.min.css"])).toBe("Joomla");
@@ -159,6 +176,21 @@ describe("Joomla 4 and 5, which no longer ship the Joomla 3 assets", () => {
 
   it("but a link to Joomla's site, or the word, is not", () => {
     expect(detectPlatform(["https://www.joomla.org/", "/blog/why-we-left-joomla"])).toBeNull();
+  });
+
+  it("is recognised by the body class every Joomla template prints, generator hidden and assets combined", () => {
+    expect(
+      detectPlatform([
+        "/media/com_jchoptimize/cache/css/abc.css",
+        "/templates/shaper_helixultimate/css/template.css",
+        "site helix-ultimate hu com_content view-article itemid-101",
+      ]),
+    ).toBe("Joomla");
+    expect(detectPlatform(["site com_content view-featured no-layout no-task itemid-101"])).toBe("Joomla");
+  });
+
+  it("but com_content inside a URL is not a class word", () => {
+    expect(detectPlatform(["/blog/what-is-com_content", "https://example.com/com_content/guide"])).toBeNull();
   });
 });
 
