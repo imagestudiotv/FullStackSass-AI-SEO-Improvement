@@ -259,12 +259,12 @@ export function AuditResult({ result }: { result: PublicAuditResult }) {
               the cap - better than a high score the customer may later find
               was measured on one page.
             */}
-            {result.notAssessed.length > 0 ? (
+            {(result.notAssessed ?? []).length > 0 ? (
               <p className="mt-3 text-xs text-muted-foreground">
                 <span className="font-medium text-foreground">
                   Not assessed:
                 </span>{" "}
-                {result.notAssessed.join(", ").toLowerCase()} —{" "}
+                {(result.notAssessed ?? []).join(", ").toLowerCase()} —{" "}
                 {result.pagesChecked === 1
                   ? "these need more than one page, and only one was read"
                   : "these need more pages than this check reads"}

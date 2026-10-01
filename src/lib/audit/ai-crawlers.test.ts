@@ -101,9 +101,18 @@ describe("real fingerprints are still detected", () => {
 
 describe("the generator meta tag is trusted first", () => {
   it("reads a self-declaration even with no asset fingerprints", () => {
-    expect(detectPlatform(["WordPress 6.7.1"])).toBe("WordPress");
-    expect(detectPlatform(["Webflow"])).toBe("Webflow");
-    expect(detectPlatform(["Drupal 10 (https://www.drupal.org)"])).toBe("Drupal");
+    expect(detectPlatform([], "WordPress 6.7.1")).toBe("WordPress");
+    expect(detectPlatform([], "Webflow")).toBe("Webflow");
+    expect(detectPlatform([], "Drupal 10 (https://www.drupal.org)")).toBe("Drupal");
+  });
+
+  it("reads the generators real platforms emit, punctuation and all", () => {
+    // Joomla 4/5 and Wix, verbatim: the first word carries "!" and ".com".
+    expect(detectPlatform([], "Joomla! - Open Source Content Management")).toBe("Joomla");
+    expect(detectPlatform([], "Wix.com Website Builder")).toBe("Wix");
+    expect(detectPlatform([], "Shopify")).toBe("Shopify");
+    expect(detectPlatform([], "Squarespace")).toBe("Squarespace");
+    expect(detectPlatform([], "Ghost 5.82")).toBe("Ghost");
   });
 
   it("beats a conflicting asset fingerprint", () => {
@@ -111,20 +120,45 @@ describe("the generator meta tag is trusted first", () => {
       A WordPress site served behind a Next.js front end still says WordPress
       about itself, and that self-declaration is better evidence than ours.
     */
-    expect(
-      detectPlatform(["WordPress 6.7.1", "/_next/static/chunks/main.js"]),
-    ).toBe("WordPress");
+    expect(detectPlatform(["/_next/static/chunks/main.js"], "WordPress 6.7.1")).toBe("WordPress");
   });
 
   it("normalises casing to how the product spells itself", () => {
-    expect(detectPlatform(["wordpress"])).toBe("WordPress");
-    expect(detectPlatform(["WORDPRESS 6.7"])).toBe("WordPress");
+    expect(detectPlatform([], "wordpress")).toBe("WordPress");
+    expect(detectPlatform([], "WORDPRESS 6.7")).toBe("WordPress");
   });
 
   it("is not reachable from a URL that merely contains the word", () => {
-    // The table is matched against the first word; a URL starts with / or http.
-    expect(detectPlatform(["/wordpress-hosting-guide"])).toBeNull();
-    expect(detectPlatform(["https://example.com/webflow"])).toBeNull();
+    expect(detectPlatform([], "/wordpress-hosting-guide")).toBeNull();
+    expect(detectPlatform([], "https://example.com/webflow")).toBeNull();
+  });
+
+  it("is never read from the other signals: an image path or a class is not a self-declaration", () => {
+    // A custom Next.js site showing a Shopify logo, a WordPress screenshot, a ghost-themed body.
+    expect(detectPlatform(["/_next/static/chunks/x.js", "shopify/logo.png"])).toBe("Next.js");
+    expect(detectPlatform(["/_next/static/chunks/x.js", "WordPress logo.png"])).toBe("Next.js");
+    expect(detectPlatform(["/_next/static/chunks/x.js", "ghost dark-mode"])).toBe("Next.js");
+    expect(detectPlatform(["hugo/headshot.jpg"])).toBeNull();
+    // ...and a stray relative path never beats a real fingerprint.
+    expect(detectPlatform(["shopify/logo.png", "https://x.com/wp-content/themes/a/style.css"])).toBe("WordPress");
+  });
+
+  it("a crawled word that names an object property is just an unknown word", () => {
+    for (const word of ["constructor", "__proto__", "toString", "hasOwnProperty", "Constructor 2.0", "__proto__ home"]) {
+      expect(detectPlatform([word], word)).toBeNull();
+    }
+  });
+});
+
+describe("Joomla 4 and 5, which no longer ship the Joomla 3 assets", () => {
+  it("is recognised by its own asset paths", () => {
+    expect(detectPlatform(["/media/templates/site/cassiopeia/css/template.min.css"])).toBe("Joomla");
+    expect(detectPlatform(["/media/system/js/core.min.js"])).toBe("Joomla");
+    expect(detectPlatform(["/media/vendor/joomla-custom-elements/js/joomla-alert.min.js"])).toBe("Joomla");
+  });
+
+  it("but a link to Joomla's site, or the word, is not", () => {
+    expect(detectPlatform(["https://www.joomla.org/", "/blog/why-we-left-joomla"])).toBeNull();
   });
 });
 

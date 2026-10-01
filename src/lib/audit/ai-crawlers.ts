@@ -115,7 +115,16 @@ export function parseCrawlerAccess(robotsTxt: string | null): CrawlerAccess[] {
  * HOST it serves from, or a path prefix its own runtime uses. A word that a
  * site could plausibly write about must never be enough on its own.
  */
-export function detectPlatform(signals: string[]): string | null {
+export function detectPlatform(
+  signals: string[],
+  /**
+   * The page's <meta name="generator"> content, passed ON ITS OWN. Only this
+   * value is read as a self-declaration: the other signals include relative
+   * image paths and class attributes, where a first word such as "shopify"
+   * (an <img src="shopify/logo.png">) says nothing about the site itself.
+   */
+  generator: string | null = null,
+): string | null {
   const haystack = signals.join(" ");
 
   /**
@@ -125,16 +134,8 @@ export function detectPlatform(signals: string[]): string | null {
    * infer, so it cannot be tripped by what the page happens to link to. Most
    * CMSs set it; those that do not fall through to the fingerprints below.
    */
-  for (const signal of signals) {
-    /*
-      The FIRST word only: "WordPress 6.7.1" -> "wordpress". A URL can never
-      reach this table, because a link href starts with "http" or "/", not
-      with a bare product name.
-    */
-    const first = signal.trim().split(/[\s/]/)[0].toLowerCase();
-    const known = KNOWN_GENERATORS[first];
-    if (known) return known;
-  }
+  const declared = generatorPlatform(generator);
+  if (declared) return declared;
 
   /**
    * Ordered most specific first.
@@ -172,7 +173,14 @@ export function detectPlatform(signals: string[]): string | null {
     ],
     [/\/ghost\/api\/|content\/themes\/casper|ghost-sdk|\.ghost\.io/i, "Ghost"],
     [/drupal-settings-json|\/sites\/default\/files\/|drupal\.js/i, "Drupal"],
-    [/\/media\/jui\/|option=com_content|\/media\/system\/js\/mootools/i, "Joomla"],
+    /*
+      Joomla 3 (/media/jui/), 1.5-2.5 (mootools), non-SEF URLs, and Joomla 4/5:
+      its core scripts, its web components and its site template folder.
+    */
+    [
+      /\/media\/jui\/|option=com_content|\/media\/system\/js\/mootools|\/media\/system\/js\/core|\/media\/vendor\/joomla-custom-elements\/|\/media\/templates\/site\//i,
+      "Joomla",
+    ],
     [/bigcommerce\.com\/s-|cdn\d+\.bigcommerce\.com/i, "BigCommerce"],
     /*
       WooCommerce runs ON WordPress, so its assets live under plugins/ — which
@@ -198,19 +206,34 @@ export function detectPlatform(signals: string[]): string | null {
 /**
  * Generator values we recognise, mapped to how the product spells itself.
  *
- * Only ever matched against the first word of a signal, so this is a
- * whitelist of self-declarations rather than a substring search.
+ * Only ever matched against the first word of the generator meta tag, so this
+ * is a whitelist of self-declarations rather than a substring search. A Map,
+ * not an object: a crawled word such as "constructor" or "__proto__" must not
+ * find an inherited property and come back as a function or an object.
  */
-const KNOWN_GENERATORS: Record<string, string> = {
-  wordpress: "WordPress",
-  webflow: "Webflow",
-  shopify: "Shopify",
-  squarespace: "Squarespace",
-  drupal: "Drupal",
-  joomla: "Joomla",
-  ghost: "Ghost",
-  wix: "Wix",
-  hugo: "Hugo",
-  jekyll: "Jekyll",
-  gatsby: "Gatsby",
-};
+const KNOWN_GENERATORS = new Map<string, string>([
+  ["wordpress", "WordPress"],
+  ["webflow", "Webflow"],
+  ["shopify", "Shopify"],
+  ["squarespace", "Squarespace"],
+  ["drupal", "Drupal"],
+  ["joomla", "Joomla"],
+  ["ghost", "Ghost"],
+  ["wix", "Wix"],
+  ["hugo", "Hugo"],
+  ["jekyll", "Jekyll"],
+  ["gatsby", "Gatsby"],
+]);
+
+/**
+ * The platform a generator meta tag declares, or null.
+ *
+ * The leading run of letters and digits only, so the punctuation real
+ * generators carry does not hide the name: "Joomla! - Open Source Content
+ * Management" -> "joomla", "Wix.com Website Builder" -> "wix",
+ * "WordPress 6.7.1" -> "wordpress".
+ */
+function generatorPlatform(generator: string | null | undefined): string | null {
+  const first = /^[a-z][a-z0-9]*/.exec((generator ?? "").trim().toLowerCase())?.[0];
+  return (first && KNOWN_GENERATORS.get(first)) ?? null;
+}

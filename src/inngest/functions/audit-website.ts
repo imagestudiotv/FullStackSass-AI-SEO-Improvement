@@ -313,11 +313,14 @@ export const auditWebsite = inngest.createFunction(
         language: home?.lang ?? null,
         // Asset and link URLs carry the fingerprints; visible text does not.
         platform: home
-          ? detectPlatform([
-              ...(home.platformSignals ?? []),
-              ...(home.images ?? []).map((image) => image.src),
-              ...(home.internalUrls ?? []),
-            ])
+          ? detectPlatform(
+              [
+                ...(home.platformSignals ?? []),
+                ...(home.images ?? []).map((image) => image.src),
+                ...(home.internalUrls ?? []),
+              ],
+              home.generator ?? null,
+            )
           : null,
         crawlers: parseCrawlerAccess(robotsTxt),
         linkedHosts: [...hostCounts.entries()]
