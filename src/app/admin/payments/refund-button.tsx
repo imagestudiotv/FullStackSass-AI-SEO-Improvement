@@ -102,6 +102,12 @@ export function RefundButton({
           result.data.cancelled ? " and cancelled the subscription" : ""
         }`,
       );
+      if (result.data.referralReversalFailed) {
+        // The referrer still holds this customer's referral reward; take it back with a credit adjustment.
+        toast.error(
+          "The referral reward for this customer could not be reversed. Adjust the referrer's credits by hand.",
+        );
+      }
       setOpen(false);
       setReason("");
       router.refresh();

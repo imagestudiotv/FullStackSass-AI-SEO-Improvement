@@ -827,6 +827,11 @@ export type Messages = {
       someoneReferred: string;
       notEligible: string;
       waiting: string;
+      cardDescription: string;
+      joinedWithName: string;
+      joined: string;
+      noWebsiteJoined: string;
+      creditsBadge: string;
     };
     keys: {
       updatePlugin: string;
@@ -1124,6 +1129,7 @@ export type Messages = {
       ledgerRefund: string;
       ledgerPurchase: string;
       ledgerReferral: string;
+      ledgerReferralReversed: string;
       ledgerReversal: string;
       ledgerAdjustment: string;
       sectionUnavailable: string;
@@ -2066,7 +2072,7 @@ const en: Messages = {
   affiliate: {
     metaTitle: "Refer a business",
     metaDescription:
-      "Share your link and earn link credits when someone you refer starts a paid plan.",
+      "Share your link and earn link credits when someone you refer pays for their first month.",
     title: "Refer a business, earn credits",
     intro:
       "Share your link. When someone you refer pays for their first month, credits land in your account.",
@@ -2081,14 +2087,14 @@ const en: Messages = {
       },
       {
         title: "You get your credits",
-        body: "Credits land in your account automatically and can be spent on backlinks straight away.",
+        body: "Credits land in your account automatically and go toward backlinks to your website.",
       },
     ],
     termsTitle: "The terms, plainly",
     terms: [
       "The reward is account credit, not cash. It cannot be withdrawn.",
       "A referral counts once the person you referred pays for their first month.",
-      "Each business can be referred once.",
+      "Only new accounts can be referred, and each one only once.",
       "Credits are spent on link building inside the product.",
     ],
     ctaPrimary: "Get Started",
@@ -2644,6 +2650,11 @@ const en: Messages = {
       someoneReferred: "Someone you referred",
       notEligible: "Not eligible",
       waiting: "Waiting",
+      cardDescription: "Share your link. When someone you refer pays for their first month, you get {credits} link credits.",
+      joinedWithName: "{name} · joined {date}",
+      joined: "Joined {date}",
+      noWebsiteJoined: "No website yet · joined {date}",
+      creditsBadge: "+{count} credits",
     },
     keys: {
       updatePlugin: "WordPress has plugin {version}. Version 1.7 connects with one button, shows which RepGet account it publishes for and updates itself: download it, then in WordPress go to Plugins → Add New Plugin → Upload Plugin and choose “Replace current with uploaded”.",
@@ -2938,6 +2949,7 @@ const en: Messages = {
       ledgerRefund: "Refund",
       ledgerPurchase: "Purchased",
       ledgerReferral: "Referral reward",
+      ledgerReferralReversed: "Referral reward reversed: payment refunded",
       ledgerReversal: "Reversed: hosted link removed",
       ledgerAdjustment: "Adjustment",
       sectionUnavailable: "This section could not be loaded. Please refresh; if it persists, contact support.",
@@ -3187,7 +3199,7 @@ const en: Messages = {
       featuredImageHelp: "The picture at the top of the article, and the one shown when it is shared.",
       factsOnePerLine: "One per line. These are the only specifics we will state outright about your business - everything else stays general.",
       voiceBehindArticles: "The voice behind every article. Merged in from its own panel, so one Save covers the whole screen.",
-      creditsExplainer: "Credits are added to your account and can be spent on link building. They are not cash and cannot be withdrawn. A referral counts once the person you referred pays for their first month, and each person can be referred once.",
+      creditsExplainer: "Credits are added to your account and can be spent on link building. They are not cash and cannot be withdrawn. A referral counts once the person you referred pays for their first month, and only new accounts can be referred, each one once.",
       articleInProgress: "This article can no longer be rescheduled or edited as it is in progress.",
       researchIntro: "We will find the search terms your customers use, group them into topics, and turn those into a plan of articles to publish.",
       noCreditsLeft: "No credits left. Include a link for someone else to earn one, or wait for next month\u2019s allowance.",
@@ -3883,7 +3895,7 @@ const es: Messages = {
   affiliate: {
     metaTitle: "Recomiende un negocio",
     metaDescription:
-      "Comparta su enlace y gane créditos cuando alguien a quien recomiende contrate un plan de pago.",
+      "Comparta su enlace y gane créditos cuando alguien a quien recomiende pague su primer mes.",
     title: "Recomiende un negocio y gane créditos",
     intro:
       "Comparta su enlace. Cuando alguien a quien recomiende pague su primer mes, los créditos llegan a su cuenta.",
@@ -3898,14 +3910,14 @@ const es: Messages = {
       },
       {
         title: "Usted recibe sus créditos",
-        body: "Los créditos llegan automáticamente a su cuenta y puede gastarlos en enlaces de inmediato.",
+        body: "Los créditos llegan automáticamente a su cuenta y se destinan a enlaces hacia su sitio web.",
       },
     ],
     termsTitle: "Las condiciones, sin rodeos",
     terms: [
       "La recompensa es crédito en la cuenta, no dinero. No se puede retirar.",
       "Una recomendación cuenta cuando la persona recomendada paga su primer mes.",
-      "Cada negocio puede ser recomendado una sola vez.",
+      "Solo se pueden recomendar cuentas nuevas, y cada una una sola vez.",
       "Los créditos se gastan en construcción de enlaces dentro del producto.",
     ],
     ctaPrimary: "Empezar",
@@ -4462,6 +4474,11 @@ const es: Messages = {
       someoneReferred: "Alguien a quien recomendó",
       notEligible: "No elegible",
       waiting: "En espera",
+      cardDescription: "Comparta su enlace. Cuando alguien a quien recomiende pague su primer mes, recibirá {credits} créditos de enlaces.",
+      joinedWithName: "{name} · se unió el {date}",
+      joined: "Se unió el {date}",
+      noWebsiteJoined: "Aún sin sitio web · se unió el {date}",
+      creditsBadge: "+{count} créditos",
     },
     keys: {
       updatePlugin: "WordPress tiene el plugin {version}. La versión 1.7 se conecta con un botón, muestra para qué cuenta de RepGet publica y se actualiza sola: descárguela y, en WordPress, vaya a Plugins → Añadir nuevo → Subir plugin y elija “Reemplazar el actual por el subido”.",
@@ -4756,6 +4773,7 @@ const es: Messages = {
       ledgerRefund: "Reembolso",
       ledgerPurchase: "Comprados",
       ledgerReferral: "Recompensa por recomendación",
+      ledgerReferralReversed: "Recompensa por recomendación revertida: pago reembolsado",
       ledgerReversal: "Revertido: enlace alojado retirado",
       ledgerAdjustment: "Ajuste",
       sectionUnavailable: "No se pudo cargar esta sección. Actualiza la página; si continúa, contacta con soporte.",
@@ -5006,7 +5024,7 @@ const es: Messages = {
       featuredImageHelp: "La imagen de la parte superior del artículo, y la que se muestra al compartirlo.",
       factsOnePerLine: "Uno por línea. Son los únicos datos concretos que afirmaremos sobre su negocio; todo lo demás queda general.",
       voiceBehindArticles: "La voz detrás de cada artículo. Integrada desde su propio panel, así que un solo Guardar cubre toda la pantalla.",
-      creditsExplainer: "Los créditos se añaden a su cuenta y pueden gastarse en construcción de enlaces. No son dinero y no se pueden retirar. Una recomendación cuenta cuando la persona recomendada paga su primer mes, y cada persona puede ser recomendada una sola vez.",
+      creditsExplainer: "Los créditos se añaden a su cuenta y pueden gastarse en construcción de enlaces. No son dinero y no se pueden retirar. Una recomendación cuenta cuando la persona recomendada paga su primer mes, y solo se pueden recomendar cuentas nuevas, cada una una sola vez.",
       articleInProgress: "Este artículo ya no se puede reprogramar ni editar porque está en curso.",
       researchIntro: "Encontraremos los términos que usan sus clientes, los agruparemos por temas y los convertiremos en un plan de artículos que publicar.",
       noCreditsLeft: "No le quedan créditos. Incluya un enlace para que alguien gane uno, o espere a la asignación del mes que viene.",
@@ -5703,7 +5721,7 @@ const fr: Messages = {
   affiliate: {
     metaTitle: "Parrainer une entreprise",
     metaDescription:
-      "Partagez votre lien et gagnez des crédits quand une personne que vous parrainez souscrit un forfait payant.",
+      "Partagez votre lien et gagnez des crédits quand une personne que vous parrainez paie son premier mois.",
     title: "Parrainez une entreprise, gagnez des crédits",
     intro:
       "Partagez votre lien. Quand une personne que vous parrainez paie son premier mois, les crédits arrivent sur votre compte.",
@@ -5718,14 +5736,14 @@ const fr: Messages = {
       },
       {
         title: "Vous recevez vos crédits",
-        body: "Les crédits arrivent automatiquement sur votre compte et sont utilisables immédiatement.",
+        body: "Les crédits arrivent automatiquement sur votre compte et servent aux liens vers votre site.",
       },
     ],
     termsTitle: "Les conditions, clairement",
     terms: [
       "La récompense est un crédit sur le compte, pas de l'argent. Elle n'est pas retirable.",
       "Un parrainage compte une fois que la personne parrainée a payé son premier mois.",
-      "Chaque entreprise ne peut être parrainée qu'une fois.",
+      "Seuls les nouveaux comptes peuvent être parrainés, et chacun une seule fois.",
       "Les crédits se dépensent en netlinking dans le produit.",
     ],
     ctaPrimary: "Commencer",
@@ -6284,6 +6302,11 @@ const fr: Messages = {
       someoneReferred: "Une personne que vous avez parrainée",
       notEligible: "Non éligible",
       waiting: "En attente",
+      cardDescription: "Partagez votre lien. Quand une personne que vous parrainez paie son premier mois, vous recevez {credits} crédits de liens.",
+      joinedWithName: "{name} · inscrit le {date}",
+      joined: "Inscrit le {date}",
+      noWebsiteJoined: "Pas encore de site · inscrit le {date}",
+      creditsBadge: "+{count} crédits",
     },
     keys: {
       updatePlugin: "WordPress a l’extension {version}. La version 1.7 se connecte en un clic, indique pour quel compte RepGet elle publie et se met à jour seule : téléchargez-la, puis dans WordPress allez dans Extensions → Ajouter → Téléverser une extension et choisissez « Remplacer la version actuelle par la version téléversée ».",
@@ -6578,6 +6601,7 @@ const fr: Messages = {
       ledgerRefund: "Remboursement",
       ledgerPurchase: "Achat",
       ledgerReferral: "Récompense de parrainage",
+      ledgerReferralReversed: "Récompense de parrainage annulée : paiement remboursé",
       ledgerReversal: "Annulé : lien hébergé retiré",
       ledgerAdjustment: "Ajustement",
       sectionUnavailable: "Cette section n'a pas pu être chargée. Actualisez ; si cela persiste, contactez le support.",
@@ -6827,7 +6851,7 @@ const fr: Messages = {
       featuredImageHelp: "L\u2019image en haut de l\u2019article, et celle affichée lors d\u2019un partage.",
       factsOnePerLine: "Un par ligne. Ce sont les seuls éléments précis que nous affirmerons sur votre entreprise ; tout le reste reste général.",
       voiceBehindArticles: "La voix derrière chaque article. Intégrée depuis son propre panneau, un seul Enregistrer couvre tout l\u2019écran.",
-      creditsExplainer: "Les crédits sont ajoutés à votre compte et peuvent servir à la création de liens. Ce n\u2019est pas de l\u2019argent et ils ne peuvent pas être retirés. Un parrainage compte dès que la personne parrainée paie son premier mois, et chaque personne ne peut être parrainée qu\u2019une fois.",
+      creditsExplainer: "Les crédits sont ajoutés à votre compte et peuvent servir à la création de liens. Ce n\u2019est pas de l\u2019argent et ils ne peuvent pas être retirés. Un parrainage compte dès que la personne parrainée paie son premier mois, et seuls les nouveaux comptes peuvent être parrainés, chacun une seule fois.",
       articleInProgress: "Cet article ne peut plus être replanifié ni modifié car il est en cours.",
       researchIntro: "Nous trouverons les termes que vos clients utilisent, les regrouperons par sujets et en ferons un plan d\u2019articles à publier.",
       noCreditsLeft: "Plus de crédits. Incluez un lien pour que quelqu\u2019un en gagne un, ou attendez l\u2019allocation du mois prochain.",
@@ -7520,7 +7544,7 @@ const it: Messages = {
   affiliate: {
     metaTitle: "Segnali un'azienda",
     metaDescription:
-      "Condivida il suo link e guadagni crediti quando una persona che ha segnalato attiva un piano a pagamento.",
+      "Condivida il suo link e guadagni crediti quando una persona che ha segnalato paga il primo mese.",
     title: "Segnali un'azienda, guadagni crediti",
     intro:
       "Condivida il suo link. Quando una persona che ha segnalato paga il primo mese, i crediti arrivano sul suo account.",
@@ -7535,14 +7559,14 @@ const it: Messages = {
       },
       {
         title: "Lei riceve i crediti",
-        body: "I crediti arrivano automaticamente sul suo account e sono spendibili subito.",
+        body: "I crediti arrivano automaticamente sul suo account e vanno ai link verso il suo sito.",
       },
     ],
     termsTitle: "Le condizioni, senza giri di parole",
     terms: [
       "Il premio è credito sull'account, non denaro. Non è prelevabile.",
       "Una segnalazione conta quando la persona segnalata paga il primo mese.",
-      "Ogni azienda può essere segnalata una sola volta.",
+      "Si possono segnalare solo account nuovi, e ognuno una sola volta.",
       "I crediti si spendono in link building dentro il prodotto.",
     ],
     ctaPrimary: "Inizia",
@@ -8098,6 +8122,11 @@ const it: Messages = {
       someoneReferred: "Una persona che ha invitato",
       notEligible: "Non idoneo",
       waiting: "In attesa",
+      cardDescription: "Condivida il suo link. Quando una persona che ha invitato paga il primo mese, riceve {credits} crediti per i link.",
+      joinedWithName: "{name} · iscritto il {date}",
+      joined: "Iscritto il {date}",
+      noWebsiteJoined: "Nessun sito ancora · iscritto il {date}",
+      creditsBadge: "+{count} crediti",
     },
     keys: {
       updatePlugin: "WordPress ha il plugin {version}. La versione 1.7 si collega con un pulsante, mostra per quale account RepGet pubblica e si aggiorna da sola: la scarichi, poi in WordPress vada in Plugin → Aggiungi nuovo → Carica plugin e scelga “Sostituisci quello attuale con quello caricato”.",
@@ -8392,6 +8421,7 @@ const it: Messages = {
       ledgerRefund: "Rimborso",
       ledgerPurchase: "Acquistati",
       ledgerReferral: "Premio per segnalazione",
+      ledgerReferralReversed: "Premio per segnalazione annullato: pagamento rimborsato",
       ledgerReversal: "Stornato: link ospitato rimosso",
       ledgerAdjustment: "Rettifica",
       sectionUnavailable: "Impossibile caricare questa sezione. Aggiorna la pagina; se persiste, contatta l'assistenza.",
@@ -8642,7 +8672,7 @@ const it: Messages = {
       featuredImageHelp: "L\u2019immagine in cima all\u2019articolo, e quella mostrata quando viene condiviso.",
       factsOnePerLine: "Uno per riga. Sono gli unici dati precisi che affermeremo sulla sua attività; tutto il resto resta generico.",
       voiceBehindArticles: "La voce dietro ogni articolo. Integrata dal suo pannello, così un solo Salva copre tutta la schermata.",
-      creditsExplainer: "I crediti vengono aggiunti al suo account e possono essere spesi per la creazione di link. Non sono denaro e non sono prelevabili. Un invito conta quando la persona invitata paga il primo mese, e ogni persona può essere invitata una sola volta.",
+      creditsExplainer: "I crediti vengono aggiunti al suo account e possono essere spesi per la creazione di link. Non sono denaro e non sono prelevabili. Un invito conta quando la persona invitata paga il primo mese, e si possono invitare solo account nuovi, ognuno una sola volta.",
       articleInProgress: "Questo articolo non può più essere riprogrammato né modificato perché è in lavorazione.",
       researchIntro: "Troveremo i termini che usano i suoi clienti, li raggrupperemo per argomenti e ne faremo un piano di articoli da pubblicare.",
       noCreditsLeft: "Crediti esauriti. Includa un link perché qualcun altro ne guadagni uno, oppure attenda la quota del mese prossimo.",
@@ -9341,7 +9371,7 @@ const de: Messages = {
   affiliate: {
     metaTitle: "Ein Unternehmen empfehlen",
     metaDescription:
-      "Teilen Sie Ihren Link und verdienen Sie Guthaben, wenn jemand, den Sie empfohlen haben, einen bezahlten Tarif startet.",
+      "Teilen Sie Ihren Link und verdienen Sie Guthaben, wenn jemand, den Sie empfohlen haben, den ersten Monat bezahlt.",
     title: "Empfehlen Sie ein Unternehmen, verdienen Sie Guthaben",
     intro:
       "Teilen Sie Ihren Link. Wenn jemand, den Sie empfohlen haben, den ersten Monat bezahlt, landet das Guthaben auf Ihrem Konto.",
@@ -9356,14 +9386,14 @@ const de: Messages = {
       },
       {
         title: "Sie erhalten Ihr Guthaben",
-        body: "Das Guthaben landet automatisch auf Ihrem Konto und ist sofort einsetzbar.",
+        body: "Das Guthaben landet automatisch auf Ihrem Konto und fließt in Backlinks zu Ihrer Website.",
       },
     ],
     termsTitle: "Die Bedingungen, klar gesagt",
     terms: [
       "Die Vergütung ist Kontoguthaben, kein Geld. Es ist nicht auszahlbar.",
       "Eine Empfehlung zählt, sobald die empfohlene Person den ersten Monat bezahlt hat.",
-      "Jedes Unternehmen kann nur einmal empfohlen werden.",
+      "Nur neue Konten können empfohlen werden, und jedes nur einmal.",
       "Guthaben wird im Produkt für Linkaufbau eingesetzt.",
     ],
     ctaPrimary: "Loslegen",
@@ -9921,6 +9951,11 @@ const de: Messages = {
       someoneReferred: "Eine von Ihnen empfohlene Person",
       notEligible: "Nicht berechtigt",
       waiting: "Wartet",
+      cardDescription: "Teilen Sie Ihren Link. Wenn jemand, den Sie empfohlen haben, den ersten Monat bezahlt, erhalten Sie {credits} Link-Credits.",
+      joinedWithName: "{name} · beigetreten am {date}",
+      joined: "Beigetreten am {date}",
+      noWebsiteJoined: "Noch keine Website · beigetreten am {date}",
+      creditsBadge: "+{count} Credits",
     },
     keys: {
       updatePlugin: "WordPress hat das Plugin {version}. Version 1.7 verbindet sich mit einem Klick, zeigt, für welches RepGet-Konto es veröffentlicht, und aktualisiert sich selbst: Laden Sie es herunter, gehen Sie in WordPress zu Plugins → Neues Plugin hinzufügen → Plugin hochladen und wählen Sie „Aktuelle Version durch hochgeladene ersetzen“.",
@@ -10215,6 +10250,7 @@ const de: Messages = {
       ledgerRefund: "Erstattung",
       ledgerPurchase: "Gekauft",
       ledgerReferral: "Empfehlungsprämie",
+      ledgerReferralReversed: "Empfehlungsprämie storniert: Zahlung erstattet",
       ledgerReversal: "Storniert: gehosteter Link entfernt",
       ledgerAdjustment: "Korrektur",
       sectionUnavailable: "Dieser Bereich konnte nicht geladen werden. Bitte neu laden; bei Fortbestehen den Support kontaktieren.",
@@ -10464,7 +10500,7 @@ const de: Messages = {
       featuredImageHelp: "Das Bild oben im Artikel und das Bild, das beim Teilen erscheint.",
       factsOnePerLine: "Eines pro Zeile. Nur diese Angaben nennen wir ausdrücklich über Ihr Unternehmen; alles andere bleibt allgemein.",
       voiceBehindArticles: "Die Stimme hinter jedem Artikel. Aus dem eigenen Bereich übernommen, sodass ein Speichern den ganzen Bildschirm abdeckt.",
-      creditsExplainer: "Credits werden Ihrem Konto gutgeschrieben und können für Linkaufbau eingesetzt werden. Sie sind kein Bargeld und nicht auszahlbar. Eine Empfehlung zählt, sobald die empfohlene Person ihren ersten Monat bezahlt, und jede Person kann nur einmal empfohlen werden.",
+      creditsExplainer: "Credits werden Ihrem Konto gutgeschrieben und können für Linkaufbau eingesetzt werden. Sie sind kein Bargeld und nicht auszahlbar. Eine Empfehlung zählt, sobald die empfohlene Person ihren ersten Monat bezahlt, und nur neue Konten können empfohlen werden, jedes nur einmal.",
       articleInProgress: "Dieser Artikel kann nicht mehr umgeplant oder bearbeitet werden, da er gerade erstellt wird.",
       researchIntro: "Wir finden die Suchbegriffe Ihrer Kunden, gruppieren sie nach Themen und machen daraus einen Plan für Artikel zum Veröffentlichen.",
       noCreditsLeft: "Keine Credits mehr. Nehmen Sie einen Link auf, damit jemand anderes einen verdient, oder warten Sie auf das Kontingent des nächsten Monats.",

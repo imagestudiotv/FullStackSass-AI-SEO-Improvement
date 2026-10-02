@@ -291,13 +291,14 @@ export async function processStripeEvent(event: Stripe.Event): Promise<void> {
       }
 
       /**
-       * A referral converts on a PAID invoice, never on an active
-       * subscription: a trial charges nothing. convertReferral commits the
-       * reward and its credit together and is idempotent; a failure is
-       * thrown so this event is retried rather than the reward being lost.
+       * A referral converts on a PAID invoice for MONEY, never on an active
+       * subscription. A trial start is a paid invoice for zero, and so is a
+       * 100%-off period: convertReferral ignores both. It commits the reward
+       * and its credit together and is idempotent; a failure is thrown so
+       * this event is retried rather than the reward being lost.
        */
       if (event.type === "invoice.paid") {
-        await convertReferral(orgId);
+        await convertReferral(orgId, invoice.amount_paid ?? 0);
       }
       return;
     }

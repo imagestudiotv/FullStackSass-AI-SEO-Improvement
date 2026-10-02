@@ -46,7 +46,7 @@ vi.mock("next/headers", () => ({
   headers: async () => new Headers({ "stripe-signature": "t=1,v1=test" }),
 }));
 vi.mock("@/lib/addons/fulfil", () => ({ fulfilAddonPurchase: vi.fn() }));
-vi.mock("@/lib/referrals/core", () => ({ convertReferral: vi.fn() }));
+vi.mock("@/lib/referrals/core", () => ({ convertReferral: vi.fn(), reverseReferralReward: vi.fn() }));
 vi.mock("@/lib/stripe/client", () => ({
   isStripeConfigured: () => true,
   stripe: {
@@ -75,6 +75,7 @@ import { claimWebhookEvent, completeWebhookEvent } from "@/lib/billing/webhook-e
 import { recoverWebhookEvents } from "@/lib/billing/webhook-recovery";
 import { cancellationOps } from "@/lib/billing/checkout-providers";
 import { POST as stripeWebhook } from "@/app/api/stripe/webhook/route";
+import { convertReferral, reverseReferralReward } from "@/lib/referrals/core";
 
 let test: TestDb;
 let eventCounter = 0;
@@ -539,6 +540,8 @@ describe("PayPal: late events", () => {
       externalId: "SALE-1",
       amountCents: 4900,
     });
+    // PayPal money converts a referral as Stripe's does, with the amount paid.
+    expect(vi.mocked(convertReferral)).toHaveBeenCalledWith("org_a", 4900);
   });
 
   it("answers 200 for a payment whose workspace was deleted, and cancels", async () => {
@@ -589,6 +592,61 @@ describe("PayPal: late events", () => {
 /* ------------------------------------------------------------------------ */
 /* Issue 9: stale events for the SAME subscription                           */
 /* ------------------------------------------------------------------------ */
+
+describe("PayPal: money returned outside RepGet", () => {
+  async function paidSale(id = "SALE-R1") {
+    const site = await addSite();
+    const live = { id: "I-REF", status: "ACTIVE", custom_id: `org_a:${site.id}` };
+    await sendPayPal(
+      "PAYMENT.SALE.COMPLETED",
+      { id, billing_agreement_id: "I-REF", amount: { total: "49.00", currency: "EUR" } },
+      live,
+    );
+    vi.mocked(reverseReferralReward).mockClear();
+    return live;
+  }
+  async function statusOf(id: string) {
+    const [row] = await test.db.select({ status: payments.status }).from(payments).where(eq(payments.externalId, id));
+    return row?.status;
+  }
+
+  it("a full refund marks the sale refunded and reverses a referral resting on it", async () => {
+    const live = await paidSale();
+    const status = await sendPayPal(
+      "PAYMENT.SALE.REFUNDED",
+      { id: "REFUND-1", sale_id: "SALE-R1", amount: { total: "49.00", currency: "EUR" } },
+      live,
+    );
+    expect(status).toBe(200);
+    expect(await statusOf("SALE-R1")).toBe("refunded");
+    expect(vi.mocked(reverseReferralReward)).toHaveBeenCalledWith("org_a");
+  });
+
+  it("a partial refund leaves the sale paid and the referral alone", async () => {
+    const live = await paidSale();
+    await sendPayPal(
+      "PAYMENT.SALE.REFUNDED",
+      { id: "REFUND-2", sale_id: "SALE-R1", amount: { total: "10.00", currency: "EUR" } },
+      live,
+    );
+    expect(await statusOf("SALE-R1")).toBe("paid");
+    expect(vi.mocked(reverseReferralReward)).not.toHaveBeenCalled();
+  });
+
+  it("a reversal (chargeback) counts as all of it returned", async () => {
+    const live = await paidSale();
+    await sendPayPal("PAYMENT.SALE.REVERSED", { id: "REV-1", sale_id: "SALE-R1", amount: { total: "-49.00", currency: "EUR" } }, live);
+    expect(await statusOf("SALE-R1")).toBe("refunded");
+    expect(vi.mocked(reverseReferralReward)).toHaveBeenCalledWith("org_a");
+  });
+
+  it("ignores a refund for a sale it never recorded", async () => {
+    const live = await paidSale();
+    expect(await sendPayPal("PAYMENT.SALE.REFUNDED", { id: "REFUND-3", sale_id: "SALE-OTHER", amount: { total: "49.00" } }, live)).toBe(200);
+    expect(await statusOf("SALE-R1")).toBe("paid");
+    expect(vi.mocked(reverseReferralReward)).not.toHaveBeenCalled();
+  });
+});
 
 describe("stale snapshots of the same subscription", () => {
   it("Stripe: a cancellation followed by an older active snapshot stays cancelled", async () => {
@@ -666,6 +724,8 @@ describe("stale snapshots of the same subscription", () => {
       providerSubscriptionId: "sub_paid",
       subscriptionId: subscription.id,
     });
+    // The referral is converted with what was actually paid (zero earns nothing).
+    expect(vi.mocked(convertReferral)).toHaveBeenCalledWith("org_a", 4900);
   });
 });
 

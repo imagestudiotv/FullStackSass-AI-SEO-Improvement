@@ -3,6 +3,8 @@
 import { Check, Copy, Gift } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import type { Locale } from "@/lib/i18n/config";
+import { format, formatDate } from "@/lib/i18n/format";
 import type { Messages } from "@/lib/i18n/messages";
 
 import { Badge } from "@/components/ui/badge";
@@ -31,12 +33,15 @@ export function ReferralCard({
   summary,
   rewardCredits,
   appUrl,
+  locale,
   t,
   tCommon,
 }: {
   summary: ReferralSummary;
   rewardCredits: number;
   appUrl: string;
+  /** For dates in the reader's convention. */
+  locale: Locale;
   /** This screen's copy, already in the reader's language. */
   t: Messages["app"]["referral"];
   /** Shared words: the credits explainer. */
@@ -44,6 +49,13 @@ export function ReferralCard({
 }) {
   const [copied, setCopied] = useState(false);
   const link = `${appUrl}/r/${summary.code}`;
+  /*
+    UTC and the account's language, not the browser's: toLocaleDateString()
+    with no arguments followed the browser, and could render one day on the
+    server and another in the browser near midnight.
+  */
+  const joined = (at: Date) =>
+    formatDate(at, locale, { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 
   async function handleCopy() {
     try {
@@ -66,8 +78,7 @@ export function ReferralCard({
           {t.referSomeone}
         </CardTitle>
         <CardDescription>
-          Share your link. When someone you refer starts a paid plan, you get{" "}
-          {rewardCredits} link credits.
+          {format(t.cardDescription, { credits: rewardCredits })}
         </CardDescription>
       </CardHeader>
 
@@ -128,14 +139,14 @@ export function ReferralCard({
                     </p>
                     <p className="truncate text-xs text-muted-foreground">
                       {row.referredDomain && row.referredName
-                        ? `${row.referredName} · joined ${new Date(row.createdAt).toLocaleDateString()}`
+                        ? format(t.joinedWithName, { name: row.referredName, date: joined(row.createdAt) })
                         : row.referredDomain
-                          ? `Joined ${new Date(row.createdAt).toLocaleDateString()}`
-                          : `No website yet · joined ${new Date(row.createdAt).toLocaleDateString()}`}
+                          ? format(t.joined, { date: joined(row.createdAt) })
+                          : format(t.noWebsiteJoined, { date: joined(row.createdAt) })}
                     </p>
                   </div>
                   {row.status === "rewarded" ? (
-                    <Badge>+{row.rewardCredits} credits</Badge>
+                    <Badge>{format(t.creditsBadge, { count: row.rewardCredits ?? 0 })}</Badge>
                   ) : row.status === "rejected" ? (
                     <Badge variant="outline">{t.notEligible}</Badge>
                   ) : (

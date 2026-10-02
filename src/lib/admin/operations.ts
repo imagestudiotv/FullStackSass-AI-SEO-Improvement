@@ -18,6 +18,7 @@ import {
   user,
   websites,
 } from "@/lib/db/schema";
+import { reverseReferralReward } from "@/lib/referrals/core";
 import { isStripeConfigured, stripe } from "@/lib/stripe/client";
 import type { ActionResult } from "@/lib/websites/actions";
 import {
@@ -232,7 +233,7 @@ export async function refundPayment(
     /** Also end the subscription, for a customer who is leaving. */
     cancelSubscription?: boolean;
   } = {},
-): Promise<ActionResult<{ refunded: number; cancelled: boolean }>> {
+): Promise<ActionResult<{ refunded: number; cancelled: boolean; referralReversalFailed: boolean }>> {
   const admin = await requireAdmin();
 
   const note = reason.trim();
@@ -405,6 +406,25 @@ export async function refundPayment(
     .set({ status: "refunded", updatedAt: new Date() })
     .where(eq(payments.id, row.id));
 
+  /*
+    A FULL refund can leave a referred workspace having paid nothing, and
+    then the referral that this payment converted no longer stands: its
+    reward is taken back (lib/referrals/core.ts decides, and does nothing
+    while real money remains). A partial refund leaves it. The money is
+    already back, so a failure here does not fail the refund - it is
+    reported instead (referralReversalFailed), because a second press is
+    refused as "already refunded" and nothing else would retry it.
+  */
+  let referralReversalFailed = false;
+  if (!partial) {
+    try {
+      await reverseReferralReward(row.organizationId);
+    } catch (error) {
+      referralReversalFailed = true;
+      console.error("[admin] refund succeeded but reversing the referral reward failed", error);
+    }
+  }
+
   let cancelled = false;
   if (target?.stripeSubscriptionId) {
     /**
@@ -441,7 +461,7 @@ export async function refundPayment(
 
   revalidatePath("/admin/payments");
   revalidatePath("/admin/organizations");
-  return { ok: true, data: { refunded: amountCents, cancelled } };
+  return { ok: true, data: { refunded: amountCents, cancelled, referralReversalFailed } };
 }
 
 /* ------------------------------------------------------------------------- */

@@ -155,6 +155,7 @@ export default async function SettingsPage() {
           summary={referrals}
           rewardCredits={REFERRAL_REWARD_CREDITS}
           appUrl={appUrl}
+          locale={locale}
           t={t.app.referral}
           tCommon={t.app.common}
         />

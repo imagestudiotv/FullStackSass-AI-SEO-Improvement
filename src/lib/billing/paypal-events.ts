@@ -1,4 +1,4 @@
-import { eq, ne } from "drizzle-orm";
+import { and, eq, inArray, ne } from "drizzle-orm";
 
 import { cancellationOps } from "@/lib/billing/checkout-providers";
 import {
@@ -10,6 +10,7 @@ import { db } from "@/lib/db";
 import type { Executor } from "@/lib/db/types";
 import { organization, payments, plans } from "@/lib/db/schema";
 import { PayPalError } from "@/lib/paypal/client";
+import { convertReferral, reverseReferralReward } from "@/lib/referrals/core";
 import {
   getSubscription,
   mapStatus,
@@ -35,6 +36,8 @@ export type PayPalEvent = {
     custom_id?: string;
     billing_agreement_id?: string;
     amount?: { total?: string; currency?: string };
+    /** On a refund or reversal: the sale it returns money from. */
+    sale_id?: string;
   };
 };
 
@@ -185,7 +188,52 @@ export async function processPayPalEvent(event: PayPalEvent): Promise<void> {
             // A refunded payment is never flipped back to paid by a replay.
             setWhere: ne(payments.status, "refunded"),
           });
+
+        /*
+          The referral converts on PayPal money as on Stripe's. It used to be
+          Stripe-only, so a referred customer paying by PayPal stayed
+          "waiting" forever. Idempotent, and thrown on failure so the event
+          is retried; nothing for a zero sale.
+        */
+        if (status === "paid") {
+          await convertReferral(synced.organizationId, Number.isFinite(total) ? Math.round(total * 100) : 0);
+        }
       }
+      return;
+    }
+
+    /*
+      Money returned outside RepGet: a refund made in PayPal's dashboard, or a
+      reversal (chargeback). There is no PayPal refund in the admin, so these
+      are the only way RepGet learns of it. The sale is marked refunded only
+      when ALL of it went back - a partial refund leaves money paid - and a
+      referral resting on it is then reversed (lib/referrals/core.ts decides,
+      and does nothing while real money remains). Thrown on failure, so the
+      event is retried. Needs these events enabled on the PayPal webhook.
+    */
+    case "PAYMENT.SALE.REFUNDED":
+    case "PAYMENT.SALE.REVERSED": {
+      const saleIds = [resource.sale_id, resource.id].filter((id): id is string => Boolean(id));
+      if (saleIds.length === 0) return;
+      const [sale] = await db
+        .select({ id: payments.id, organizationId: payments.organizationId, amountCents: payments.amountCents })
+        .from(payments)
+        .where(and(eq(payments.provider, "paypal"), inArray(payments.externalId, saleIds)))
+        .limit(1);
+      if (!sale) {
+        console.error(`[paypal-webhook] ${event.event_type} for an unknown sale - nothing recorded`);
+        return;
+      }
+      const returned = Number.parseFloat(resource.amount?.total ?? "");
+      const returnedCents = Number.isFinite(returned) ? Math.round(Math.abs(returned) * 100) : null;
+      const full = event.event_type === "PAYMENT.SALE.REVERSED" || (returnedCents !== null && returnedCents >= sale.amountCents);
+      if (!full) return;
+
+      await db
+        .update(payments)
+        .set({ status: "refunded", updatedAt: new Date() })
+        .where(eq(payments.id, sale.id));
+      if (sale.organizationId) await reverseReferralReward(sale.organizationId);
       return;
     }
 

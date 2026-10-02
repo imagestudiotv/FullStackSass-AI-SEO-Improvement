@@ -43,13 +43,14 @@ export default async function CreditActivityPage({
     creditActivity(ctx.ownerOrgId, { page: Number.isFinite(requestedPage) ? requestedPage : 1, pageSize: 25 }),
   ]);
   const base = `/websites/${ctx.site.id}/backlinks/credits`;
-  const typeLabel = (type: string, note: string | null) =>
+  const typeLabel = (type: string, note: string | null, amount: number) =>
     type === "plan_grant" ? r.ledgerPlanGrant
     : type === "link_given" ? r.ledgerLinkGiven
     : type === "link_received" ? r.ledgerLinkReceived
     : type === "refund" ? r.ledgerRefund
     : type === "purchase" ? r.ledgerPurchase
-    : type === "referral" ? r.ledgerReferral
+    // A negative referral entry takes a reward back after a refund (lib/referrals/core.ts).
+    : type === "referral" ? (amount < 0 ? r.ledgerReferralReversed : r.ledgerReferral)
     : note?.includes("no longer live") ? r.ledgerReversal
     : r.ledgerAdjustment;
 
@@ -111,7 +112,7 @@ export default async function CreditActivityPage({
                   {formatDate(row.at, locale, { day: "numeric", month: "short", year: "numeric" })}
                 </td>
                 <td className="px-3 py-2.5">
-                  <div className="font-medium">{typeLabel(row.type, row.note)}</div>
+                  <div className="font-medium">{typeLabel(row.type, row.note, row.amount)}</div>
                   {row.note ? <div className="text-xs text-muted-foreground">{row.note}</div> : null}
                 </td>
                 <td className="px-3 py-2.5 text-muted-foreground">{row.websiteDomain ?? r.workspaceWide}</td>

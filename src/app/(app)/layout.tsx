@@ -15,8 +15,8 @@ import { requireSession } from "@/lib/auth-guard";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import { db } from "@/lib/db";
 import { addons, notifications, organization, websites } from "@/lib/db/schema";
-import { clearReferralCode, readReferralCode } from "@/lib/referrals/cookie";
-import { attachReferral } from "@/lib/referrals/core";
+import { ReferralClaim } from "@/components/referral-claim";
+import { readReferralCookie } from "@/lib/referrals/cookie";
 import { getLaunchState } from "@/lib/onboarding/launch";
 import { SetupTracker } from "@/components/setup-tracker";
 import { getSubscription } from "@/lib/billing";
@@ -97,22 +97,12 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   });
 
   /**
-   * Attach a referral code left by a /?ref=CODE visit.
-   *
-   * Done here rather than in the auth hook because that hook runs inside
-   * Better Auth's config and cannot read request cookies. Every authenticated
-   * page passes through this layout, so the first one after signup catches it.
-   *
-   * Cheap in the normal case: no cookie means no work at all. The cookie is
-   * cleared either way, so a code that cannot attach — self-referral, an
-   * unknown code, an already-referred workspace — is not retried on every
-   * subsequent page load.
+   * A referral left by a /r/CODE visit is attached by <ReferralClaim>, a
+   * Server Action, because clearing the cookie is a write and a render cannot
+   * do it (lib/referrals/actions.ts). Reading it here is free; with no cookie
+   * nothing is rendered and nothing runs.
    */
-  const referralCode = await readReferralCode();
-  if (referralCode) {
-    await attachReferral(orgId, referralCode);
-    await clearReferralCode();
-  }
+  const referralPending = Boolean(await readReferralCookie());
 
   /**
    * Queried here rather than inside the bell so the badge is right on first
@@ -275,6 +265,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           Left on the MAIN element rather than the cards, so every page gains
           it at once and nothing has to remember to opt in.
         */}
+        {referralPending ? <ReferralClaim /> : null}
         <main className="min-w-0 flex-1 bg-muted/40 px-4 py-6 md:px-8 md:py-8">
           {children}
         </main>

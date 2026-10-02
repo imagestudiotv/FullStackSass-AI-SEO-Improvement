@@ -13,6 +13,7 @@ import {
   spendReservations,
   subscriptions,
   websites,
+  payments,
 } from "@/lib/db/schema";
 import { createTestDb, type TestDb } from "@/test/db";
 
@@ -390,6 +391,8 @@ describe("referral rewards", () => {
       .insert(referrals)
       .values({ referrerOrgId: referrer, referredOrgId: referred, status: "pending" })
       .returning({ id: referrals.id });
+    // The payment the webhook records before converting: a referral converts only on one that stands.
+    await test.db.insert(payments).values({ organizationId: referred, provider: "stripe", externalId: `in_${randomUUID()}`, amountCents: 2900, currency: "eur", status: "paid" });
     return { referrer, referred, id: row.id };
   }
   async function statusOf(id: string) {
@@ -401,13 +404,13 @@ describe("referral rewards", () => {
     const { referrer, referred, id } = await seedReferral();
     await failLedgerInserts();
     try {
-      await expect(convertReferral(referred)).rejects.toThrow();
+      await expect(convertReferral(referred, 2900)).rejects.toThrow();
     } finally {
       await healLedger();
     }
     expect(await statusOf(id)).toBe("pending");
 
-    expect(await convertReferral(referred)).toBe(true);
+    expect(await convertReferral(referred, 2900)).toBe(true);
     expect(await statusOf(id)).toBe("rewarded");
     expect(await getBalance(referrer)).toBe(REFERRAL_REWARD_CREDITS);
   });
@@ -415,9 +418,9 @@ describe("referral rewards", () => {
   it("rewards once under concurrent and repeated conversion, whatever the notifier does", async () => {
     const { referrer, referred } = await seedReferral();
     notifyMock.mockRejectedValue(new Error("mail down"));
-    const results = await Promise.all(Array.from({ length: 5 }, () => convertReferral(referred)));
+    const results = await Promise.all(Array.from({ length: 5 }, () => convertReferral(referred, 2900)));
     expect(results.filter(Boolean)).toHaveLength(1);
-    expect(await convertReferral(referred)).toBe(false);
+    expect(await convertReferral(referred, 2900)).toBe(false);
     expect(await getBalance(referrer)).toBe(REFERRAL_REWARD_CREDITS);
   });
 

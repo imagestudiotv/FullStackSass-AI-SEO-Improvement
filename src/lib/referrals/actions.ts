@@ -1,12 +1,38 @@
 "use server";
 
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
-import { member, referrals, user, websites } from "@/lib/db/schema";
-import { ensureReferralCode } from "@/lib/referrals/core";
+import { creditLedger, member, referrals, user, websites } from "@/lib/db/schema";
+import { clearReferralCookie, readReferralCookie } from "@/lib/referrals/cookie";
+import { attachReferral, ensureReferralCode } from "@/lib/referrals/core";
 import type { ReferralSummary } from "@/lib/referrals/shared";
 import { requireOrg } from "@/lib/tenant";
+
+/**
+ * Attaches the referral left by a /r/CODE visit to the signed-in workspace,
+ * then clears the cookie - whatever the outcome.
+ *
+ * A Server Action because clearing the cookie is a write, which Next refuses
+ * during a render. It used to run in the app layout, where the delete threw,
+ * was swallowed, and the cookie lived its full thirty days, attaching to any
+ * new account opened in that browser. Called once by <ReferralClaim>, which
+ * both the app and onboarding layouts render while a cookie is present, so
+ * the referral exists before the first checkout.
+ *
+ * Takes no arguments: the workspace is the caller's own (requireOrg) and the
+ * code is the caller's own cookie, so a call cannot attach anyone else.
+ */
+export async function claimReferral(): Promise<void> {
+  const stored = await readReferralCookie();
+  if (!stored) return;
+  const { orgId } = await requireOrg();
+  const outcome = await attachReferral(orgId, stored.code, { clickedAt: stored.clickedAt });
+  if (!outcome.ok && outcome.reason !== "already_referred") {
+    console.info("[referrals] referral not attached", { reason: outcome.reason });
+  }
+  await clearReferralCookie();
+}
 
 /**
  * Referral data for the settings page.
@@ -92,12 +118,27 @@ export async function getReferralSummary(): Promise<ReferralSummary> {
     }
   }
 
-  const earned = rows.reduce((sum, row) => sum + (row.rewardCredits ?? 0), 0);
+  /*
+    Totals over ALL of this workspace's referrals, not the 50 rows listed:
+    they were summed from the page, so a referrer past 50 saw too few. Earned
+    is what the LEDGER holds for referrals - net of any reversal, and kept
+    when a referred workspace is later deleted (which removes its row).
+  */
+  const [[earnedRow], [pendingRow]] = await Promise.all([
+    db
+      .select({ total: sql<number>`coalesce(sum(${creditLedger.amount}), 0)::int` })
+      .from(creditLedger)
+      .where(and(eq(creditLedger.organizationId, orgId), eq(creditLedger.type, "referral"))),
+    db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(referrals)
+      .where(and(eq(referrals.referrerOrgId, orgId), eq(referrals.status, "pending"))),
+  ]);
 
   return {
     code,
-    earned,
-    pending: rows.filter((r) => r.status === "pending").length,
+    earned: Math.max(0, Number(earnedRow?.total ?? 0)),
+    pending: Number(pendingRow?.n ?? 0),
     referrals: rows.map((row) => {
       const person = personFor.get(row.referredOrgId);
       return {

@@ -142,7 +142,7 @@ describe("refund with cancellation", () => {
 
     const result = await refundPayment(paid, "customer asked", { cancelSubscription: true });
 
-    expect(result).toEqual({ ok: true, data: { refunded: 4000, cancelled: true } });
+    expect(result).toEqual({ ok: true, data: { refunded: 4000, cancelled: true, referralReversalFailed: false } });
     expect(stripeMock.subscriptionsCancel).toHaveBeenCalledTimes(1);
     expect(stripeMock.subscriptionsCancel).toHaveBeenCalledWith("sub_older", {}, {
       idempotencyKey: `refund-cancel:${paid}`,
@@ -194,7 +194,7 @@ describe("refund with cancellation", () => {
 
     const result = await refundPayment(paid, "customer asked", { cancelSubscription: true });
 
-    expect(result).toEqual({ ok: true, data: { refunded: 4000, cancelled: false } });
+    expect(result).toEqual({ ok: true, data: { refunded: 4000, cancelled: false, referralReversalFailed: false } });
     expect(await statusOf(target)).toBe("active");
   });
 

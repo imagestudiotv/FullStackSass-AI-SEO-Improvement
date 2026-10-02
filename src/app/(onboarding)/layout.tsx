@@ -5,6 +5,8 @@ import { UserMenu } from "@/components/user-menu";
 import { isAdmin } from "@/lib/admin/guard";
 import { requireSession } from "@/lib/auth-guard";
 import { getAppMessages } from "@/lib/i18n/app-locale";
+import { ReferralClaim } from "@/components/referral-claim";
+import { readReferralCookie } from "@/lib/referrals/cookie";
 import { requireOrg } from "@/lib/tenant";
 
 /**
@@ -52,6 +54,13 @@ export default async function OnboardingLayout({ children }: LayoutProps<"/">) {
 
   // Creates the workspace for an account that has none. See requireOrg.
   await requireOrg();
+
+  /*
+    New sign-ups land here before the dashboard, and checkout starts here, so
+    the referral is attached here too - otherwise a first payment could
+    arrive before any app page had attached it, and pay nobody.
+  */
+  const referralPending = Boolean(await readReferralCookie());
 
   return (
     <div className="flex min-h-svh flex-col bg-background">
@@ -108,6 +117,7 @@ export default async function OnboardingLayout({ children }: LayoutProps<"/">) {
         </div>
       </header>
 
+      {referralPending ? <ReferralClaim /> : null}
       <main className="flex-1">{children}</main>
     </div>
   );

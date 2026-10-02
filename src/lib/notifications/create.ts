@@ -29,6 +29,8 @@ export type NotificationType =
   | "keywords.failed"
   | "geo.ready"
   | "referral.rewarded"
+  /** A referral reward taken back after the referred payment was refunded in full. */
+  | "referral.reversed"
   | "addon.purchased"
   /** A WordPress site this workspace published to was connected to another RepGet website. */
   | "plugin.moved"
