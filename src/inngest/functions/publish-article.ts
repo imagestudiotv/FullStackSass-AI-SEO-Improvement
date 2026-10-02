@@ -22,7 +22,7 @@ import { withOwnershipMarker } from "@/lib/publishing/ownership";
 import { nextLookupDelayMs, reconcileDirectUncertain } from "@/lib/publishing/reconcile";
 import { notify } from "@/lib/notifications/create";
 import { markFirstArticleSentAndContinue } from "@/lib/publishing/policy";
-import { recordArticlePublication } from "@/lib/backlinks/placements";
+import { placementUrlsForArticle, recordArticlePublication } from "@/lib/backlinks/placements";
 import { describeArticleScene } from "@/lib/images/scene";
 import { safeFetch } from "@/lib/net/safe-fetch";
 import {
@@ -216,6 +216,7 @@ export const publishArticleJob = inngest.createFunction(
       contentHtml = prepareForDelivery(current.bodyHtml, {
         poweredBy: site?.poweredByLink ?? false,
         siteHosts: site ? siteScope(site).hosts : undefined,
+        followUrls: await placementUrlsForArticle(articleId),
       });
 
       /**
@@ -643,6 +644,7 @@ export const publishArticleJob = inngest.createFunction(
           prepareForDelivery(claim.article.bodyHtml, {
             poweredBy: site?.poweredByLink ?? false,
             siteHosts: site ? siteScope(site).hosts : undefined,
+            followUrls: await placementUrlsForArticle(articleId),
           }),
           { articleId, websiteId, dispatchId: claim.dispatchId },
         ),

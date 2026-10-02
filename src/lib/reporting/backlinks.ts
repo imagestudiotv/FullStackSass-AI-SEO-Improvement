@@ -47,6 +47,11 @@ const utc = (date: Date) => date.toISOString();
  *   removed        = placements.removed_at, else the refund ledger entry.
  * All dates are UTC; report days are UTC calendar days.
  *
+ * NOFOLLOW means a verified link whose latest live check found it marked
+ * nofollow, sponsored or ugc (lib/backlinks/follow.ts): on the page, but
+ * passing little SEO value. It is an issue for the host to fix, not a
+ * lifecycle state - it changes nothing about credits.
+ *
  * REFUNDED means a refund ledger entry exists for the placement - not a
  * withdrawn draft, whose reservation was released and nothing was charged.
  *
@@ -116,7 +121,7 @@ const iso = (column: string) => `to_char(${column}, 'YYYY-MM-DD"T"HH24:MI:SS.US"
 const OUT = sql.raw(`
   f.id, f.status, f.managed, f.credits, f.live_url, f.anchor, f.article_id, f.target_url, f.request_status,
   f.host_domain, f.beneficiary_domain, f.counterpart_domain, f.article_title, f.lifecycle,
-  f.first_verified_source, f.authority_value, f.ai_citations,
+  f.first_verified_source, f.authority_value, f.ai_citations, f.nofollow,
   ${iso("f.created_at")} as created_at,
   ${iso("f.last_verified_at")} as last_verified_at,
   ${iso("f.recheck_requested_at")} as recheck_requested_at,
@@ -189,6 +194,10 @@ function facts(direction: Direction, websiteId: string, orgId: string): SQL {
       earned.at as earned_at,
       refund.at as refunded_at,
       reversal.at as reversed_at,
+      (p.status = 'live' and coalesce(
+        string_to_array(lower(last_alive.rel), ' ') && array['nofollow', 'sponsored', 'ugc'],
+        false
+      )) as nofollow,
       dm.value as authority_value,
       dm.observed_at as authority_observed_at,
       ai.citations as ai_citations
@@ -201,6 +210,12 @@ function facts(direction: Direction, websiteId: string, orgId: string): SQL {
       select min(lc.checked_at) as at from link_checks lc
       where lc.placement_id = p.id and (lc.outcome = 'alive' or (lc.outcome is null and lc.alive))
     ) first_alive on true
+    left join lateral (
+      -- The rel the link had on the page the last time it was seen there.
+      select lc.rel from link_checks lc
+      where lc.placement_id = p.id and lc.outcome = 'alive'
+      order by lc.checked_at desc limit 1
+    ) last_alive on true
     left join lateral (
       select min(cl.created_at) as at from credit_ledger cl
       where cl.reference_id = p.id::text and cl.type = 'link_received'
@@ -268,7 +283,7 @@ export const TYPES = ["all", "managed", "exchange"] as const;
 export type LinkType = (typeof TYPES)[number];
 export const SORTS = ["date", "source", "authority", "value", "credits", "status"] as const;
 export type SortKey = (typeof SORTS)[number];
-export const ISSUES = ["not_found"] as const;
+export const ISSUES = ["not_found", "nofollow"] as const;
 export type Issue = (typeof ISSUES)[number];
 
 export const PAGE_SIZES = [10, 25, 50] as const;
@@ -328,6 +343,7 @@ function filters(direction: Direction, query: Omit<ListQuery, "tab" | "sort" | "
   if (query.type === "managed") parts.push(sql`f.managed`);
   if (query.type === "exchange") parts.push(sql`not f.managed`);
   if (query.issue === "not_found") parts.push(sql`f.lifecycle = 'not_found'`);
+  if (query.issue === "nofollow") parts.push(sql`f.nofollow`);
   if (query.from) parts.push(sql`${EVENT_AT} >= ${utc(query.from)}`);
   if (query.to) parts.push(sql`${EVENT_AT} < ${utc(new Date(query.to.getTime() + 86_400_000))}`);
   if (query.q) {
@@ -387,6 +403,8 @@ export type LinkRow = {
    * from authority or verification.
    */
   aiCitations: number | null;
+  /** Verified, but marked nofollow/sponsored/ugc on the live page. */
+  nofollow: boolean;
 };
 
 export type LinkPage = {
@@ -524,6 +542,7 @@ export async function listLinks(
           ? backlinkValue(policy, reading?.status === "ok" ? reading.value : null)
           : null,
       aiCitations: measured && published ? Number(row.ai_citations ?? 0) : null,
+      nofollow: Boolean(row.nofollow),
     };
   });
 
@@ -617,6 +636,7 @@ export async function linkDetail(
         ? backlinkValue(policy, authority?.status === "ok" ? authority.value : null)
         : null,
     aiCitations: measured && published ? Number(row.ai_citations ?? 0) : null,
+    nofollow: Boolean(row.nofollow),
     publishedAt: ts(row.published_at),
     firstVerifiedAt: ts(row.first_verified_at),
     firstVerifiedSource: (row.first_verified_source as LinkDetail["firstVerifiedSource"]) ?? null,
@@ -901,6 +921,10 @@ export type Issues = {
   hostedArticlesMissingLink: number;
   /** Received links never found on the partner's published article - never charged. */
   receivedNotFound: number;
+  /** Partner links on THIS website's articles that the live page marks nofollow - for this website to fix. */
+  hostedNofollow: number;
+  /** Links to this website that the partner's page marks nofollow. */
+  receivedNofollow: number;
   /**
    * Changes whenever the set of issues changes, so a dismissed banner comes
    * back for new issues. Contains no ids.
@@ -912,20 +936,34 @@ export async function backlinkIssues(subject: { websiteId: string; orgId: string
   const [given, received] = await Promise.all([
     db.execute(sql`
       with f as (${facts("given", subject.websiteId, subject.orgId)})
-      select count(distinct article_id)::int as n, extract(epoch from max(published_at))::bigint as latest, count(*)::int as links
-      from f where lifecycle = 'not_found'
+      select
+        count(distinct article_id) filter (where lifecycle = 'not_found')::int as n,
+        extract(epoch from max(published_at) filter (where lifecycle = 'not_found'))::bigint as latest,
+        count(*) filter (where lifecycle = 'not_found')::int as links,
+        count(*) filter (where nofollow)::int as nofollow
+      from f
     `),
     db.execute(sql`
       with f as (${facts("received", subject.websiteId, subject.orgId)})
-      select count(*)::int as n, extract(epoch from max(published_at))::bigint as latest from f where lifecycle = 'not_found'
+      select
+        count(*) filter (where lifecycle = 'not_found')::int as n,
+        extract(epoch from max(published_at) filter (where lifecycle = 'not_found'))::bigint as latest,
+        count(*) filter (where nofollow)::int as nofollow
+      from f
     `),
   ]);
   const g = rowsOf(given)[0] ?? {};
   const r = rowsOf(received)[0] ?? {};
-  const fingerprint = [g.links ?? 0, g.latest ?? 0, r.n ?? 0, r.latest ?? 0].join(".");
+  const parts = [g.links ?? 0, g.latest ?? 0, r.n ?? 0, r.latest ?? 0];
+  // Appended only when present, so banners dismissed before nofollow was
+  // counted keep their fingerprint and stay dismissed.
+  if (Number(g.nofollow ?? 0) > 0 || Number(r.nofollow ?? 0) > 0) parts.push(g.nofollow ?? 0, r.nofollow ?? 0);
+  const fingerprint = parts.join(".");
   return {
     hostedArticlesMissingLink: Number(g.n ?? 0),
     receivedNotFound: Number(r.n ?? 0),
+    hostedNofollow: Number(g.nofollow ?? 0),
+    receivedNofollow: Number(r.nofollow ?? 0),
     fingerprint,
   };
 }

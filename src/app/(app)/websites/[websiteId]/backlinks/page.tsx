@@ -5,6 +5,7 @@ import { AuthorityBadge, RankPill } from "@/components/reports/authority-badge";
 import { IssueBanner } from "@/components/reports/issue-banner";
 import { formatValue } from "@/lib/reporting/format";
 import { LifecycleBadge } from "@/components/reports/links-view";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
 import { getPartnerNetwork } from "@/lib/backlinks/network-settings";
 import { requirePlan } from "@/lib/billing/require-plan";
@@ -63,13 +64,26 @@ export default async function BacklinksOverviewPage({
           help: r.issueHostedHelp,
           href: `${base}/hosted?issue=not_found`,
         }
-      : issues.receivedNotFound > 0
+      : issues.hostedNofollow > 0
         ? {
-            title: plural(r.issueReceived, issues.receivedNotFound, { count: issues.receivedNotFound }),
-            help: r.issueReceivedHelp,
-            href: `${base}/links?issue=not_found`,
+            // The host's to fix, so it comes before what partners owe this site.
+            title: plural(r.issueNofollowHosted, issues.hostedNofollow, { count: issues.hostedNofollow }),
+            help: r.issueNofollowHostedHelp,
+            href: `${base}/hosted?issue=nofollow`,
           }
-        : null;
+        : issues.receivedNotFound > 0
+          ? {
+              title: plural(r.issueReceived, issues.receivedNotFound, { count: issues.receivedNotFound }),
+              help: r.issueReceivedHelp,
+              href: `${base}/links?issue=not_found`,
+            }
+          : issues.receivedNofollow > 0
+            ? {
+                title: plural(r.issueNofollowReceived, issues.receivedNofollow, { count: issues.receivedNofollow }),
+                help: r.issueNofollowReceivedHelp,
+                href: `${base}/links?issue=nofollow`,
+              }
+            : null;
 
   return (
     <div className="space-y-6">
@@ -311,7 +325,10 @@ function RecentLinks({
                   {row.eventAt ? formatDate(row.eventAt, locale, { day: "numeric", month: "short", year: "numeric" }) : t.dateUnknown}
                 </p>
               </div>
-              <LifecycleBadge lifecycle={row.lifecycle} t={t} direction={direction} />
+              <div className="flex shrink-0 flex-wrap justify-end gap-1">
+                <LifecycleBadge lifecycle={row.lifecycle} t={t} direction={direction} />
+                {row.nofollow ? <StatusBadge status="missing" tone="warning" label={t.nofollowBadge} animate={false} /> : null}
+              </div>
             </li>
           ))}
         </ul>

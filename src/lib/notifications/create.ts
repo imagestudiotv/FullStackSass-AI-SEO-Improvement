@@ -31,7 +31,9 @@ export type NotificationType =
   | "referral.rewarded"
   | "addon.purchased"
   /** A WordPress site this workspace published to was connected to another RepGet website. */
-  | "plugin.moved";
+  | "plugin.moved"
+  /** A network backlink was found marked nofollow/sponsored/ugc on its live page. */
+  | "backlink.nofollow";
 
 export type NewNotification = {
   organizationId: string;

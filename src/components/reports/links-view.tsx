@@ -312,9 +312,11 @@ export function LinksView(props: LinksViewProps) {
         <p className="basis-full text-xs text-muted-foreground">{t.dateMeaning}</p>
       </form>
 
-      {query.issue === "not_found" ? (
+      {query.issue === "not_found" || query.issue === "nofollow" ? (
         <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
-          {direction === "given" ? t.issueFilterGiven : t.issueFilterReceived}
+          {query.issue === "nofollow"
+            ? direction === "given" ? t.issueFilterNofollowGiven : t.issueFilterNofollowReceived
+            : direction === "given" ? t.issueFilterGiven : t.issueFilterReceived}
         </p>
       ) : null}
       {notice ? (
@@ -406,7 +408,11 @@ export function LinksView(props: LinksViewProps) {
                       </td>
                     ) : null}
                     <td className="px-3 py-2.5 align-top">
-                      <LifecycleBadge lifecycle={row.lifecycle} t={t} direction={direction} />
+                      <div className="flex flex-wrap gap-1">
+                        <LifecycleBadge lifecycle={row.lifecycle} t={t} direction={direction} />
+                        {/* Live, but not counted by search engines - the nofollow issue. */}
+                        {row.nofollow ? <StatusBadge status="missing" tone="warning" label={t.nofollowBadge} animate={false} /> : null}
+                      </div>
                     </td>
                     <td className="px-2 py-2 align-top">
                       <Button
@@ -502,7 +508,11 @@ function DetailPanel({
   const date = (d: Date | string | null) => (d ? formatDate(d, locale, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "UTC" }) + " UTC" : t.notYet);
   const source = safeHref(detail.sourceUrl);
   const destination = safeHref(detail.destinationUrl);
-  const rel = detail.rel === null ? t.relUnknown : detail.rel === "" ? t.relFollowed : detail.rel;
+  const rel =
+    detail.rel === null ? t.relUnknown
+    : detail.rel === "" ? t.relFollowed
+    : detail.nofollow ? format(t.relUnfollowed, { rel: detail.rel })
+    : detail.rel;
   const lastCheck = detail.lastCheck
     ? `${date(detail.lastCheck.at)} - ${
         detail.lastCheck.outcome === "alive" ? t.checkAlive : detail.lastCheck.outcome === "missing" ? t.checkMissing : t.checkError
@@ -511,7 +521,9 @@ function DetailPanel({
   const firstVerifiedNote =
     detail.firstVerifiedSource === "first_check" ? t.fvFromCheck : detail.firstVerifiedSource === "ledger" ? t.fvFromLedger : null;
   const advice =
-    detail.lifecycle === "not_found"
+    detail.nofollow
+      ? direction === "given" ? t.issueNofollowHostedHelp : t.issueNofollowReceivedHelp
+      : detail.lifecycle === "not_found"
       ? direction === "given" ? t.adviceNotFoundGiven : t.adviceNotFoundReceived
       : detail.lifecycle === "awaiting_verification" ? t.adviceAwaitingVerification
       : detail.lifecycle === "awaiting_publication" ? (direction === "given" ? t.adviceAwaitingPublicationGiven : t.adviceAwaitingPublicationReceived)

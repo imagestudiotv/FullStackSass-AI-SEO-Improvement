@@ -150,6 +150,26 @@ export async function discoverPublishedPlacements(): Promise<number> {
   return found.length;
 }
 
+/**
+ * Target URLs of the network links an article carries, for delivery to send
+ * them followed (lib/articles/delivery.ts). Every placement that is or may be
+ * in the text: a withdrawn one was unwrapped from it, and a removed one was
+ * refunded, so neither is ours to vouch for any more.
+ */
+export async function placementUrlsForArticle(articleId: string): Promise<string[]> {
+  const rows = await db
+    .select({ url: backlinkRequests.targetUrl })
+    .from(placements)
+    .innerJoin(backlinkRequests, eq(backlinkRequests.id, placements.requestId))
+    .where(
+      and(
+        eq(placements.articleId, articleId),
+        inArray(placements.status, ["pending", "drafted", "published", "live", "unverified"]),
+      ),
+    );
+  return rows.map((row) => row.url);
+}
+
 export type DuePlacement = {
   id: string;
   liveUrl: string;

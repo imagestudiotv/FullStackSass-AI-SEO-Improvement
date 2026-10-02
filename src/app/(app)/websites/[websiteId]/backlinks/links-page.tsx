@@ -39,6 +39,7 @@ export async function LinksPage({
   const base = `/websites/${ctx.site.id}/backlinks`;
   const received = direction === "received";
   const issueCount = received ? issues.receivedNotFound : issues.hostedArticlesMissingLink;
+  const nofollowCount = received ? issues.receivedNofollow : issues.hostedNofollow;
 
   return (
     <div className="space-y-5">
@@ -56,6 +57,17 @@ export async function LinksPage({
           title={received ? plural(r.issueReceived, issueCount, { count: issueCount }) : plural(r.issueHosted, issueCount, { count: issueCount })}
           help={received ? r.issueReceivedHelp : r.issueHostedHelp}
           href={`${base}/${received ? "links" : "hosted"}?issue=not_found`}
+          actionLabel={r.reviewResolve}
+          dismissLabel={r.dismiss}
+        />
+      ) : null}
+
+      {nofollowCount > 0 && query.issue !== "nofollow" ? (
+        <IssueBanner
+          storageKey={`${ctx.site.id}:${direction}:nofollow:${issues.fingerprint}`}
+          title={plural(received ? r.issueNofollowReceived : r.issueNofollowHosted, nofollowCount, { count: nofollowCount })}
+          help={received ? r.issueNofollowReceivedHelp : r.issueNofollowHostedHelp}
+          href={`${base}/${received ? "links" : "hosted"}?issue=nofollow`}
           actionLabel={r.reviewResolve}
           dismissLabel={r.dismiss}
         />

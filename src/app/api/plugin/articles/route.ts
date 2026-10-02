@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 import { prepareForDelivery } from "@/lib/articles/delivery";
 import { prepareStoredArticle } from "@/lib/articles/internal-links";
 import { siteScope } from "@/lib/articles/link-guard";
+import { placementUrlsForArticle } from "@/lib/backlinks/placements";
 import { db } from "@/lib/db";
 import { websites } from "@/lib/db/schema";
 import { dueArticlesForPlugin, pluginPostsForWebsite } from "@/lib/plugin/due";
@@ -154,6 +155,7 @@ export async function GET(request: NextRequest) {
       bodyHtml: prepareForDelivery(claim.article.bodyHtml, {
         poweredBy: site?.poweredByLink ?? false,
         siteHosts: site ? siteScope(site).hosts : undefined,
+        followUrls: await placementUrlsForArticle(row.id),
       }),
     });
   }

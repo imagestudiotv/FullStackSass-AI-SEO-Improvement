@@ -945,6 +945,13 @@ export type Messages = {
       dismiss: string;
       issueFilterGiven: string;
       issueFilterReceived: string;
+      issueNofollowHosted: string;
+      issueNofollowHostedHelp: string;
+      issueNofollowReceived: string;
+      issueNofollowReceivedHelp: string;
+      issueFilterNofollowGiven: string;
+      issueFilterNofollowReceived: string;
+      nofollowBadge: string;
       overviewTitle: string;
       overviewIntro: string;
       portfolioTitle: string;
@@ -1076,6 +1083,7 @@ export type Messages = {
       anchorHidden: string;
       relUnknown: string;
       relFollowed: string;
+      relUnfollowed: string;
       notYet: string;
       checkAlive: string;
       checkMissing: string;
@@ -2751,6 +2759,13 @@ const en: Messages = {
       dismiss: "Dismiss",
       issueFilterGiven: "Showing links not found on your published articles. Restore each link, then use \"Check again\".",
       issueFilterReceived: "Showing links not found on the partner's page. Nothing was charged for them.",
+      issueNofollowHosted: "{count} partner link on your articles is marked nofollow - it passes no SEO value|{count} partner links on your articles are marked nofollow - they pass no SEO value",
+      issueNofollowHostedHelp: "Search engines ignore links marked nofollow or sponsored. Edit the post, remove nofollow / sponsored from the partner's link, then ask for a new check.",
+      issueNofollowReceived: "{count} link to your site is marked nofollow on the partner's page|{count} links to your site are marked nofollow on the partners' pages",
+      issueNofollowReceivedHelp: "These links are live but pass little SEO value. The site owner has been asked to make them followed.",
+      issueFilterNofollowGiven: "Showing partner links marked nofollow on your published articles. Remove nofollow / sponsored from each link, then use \"Check again\".",
+      issueFilterNofollowReceived: "Showing links to your site that the partner's page marks nofollow. The site owner has been asked to fix them.",
+      nofollowBadge: "Nofollow",
       overviewTitle: "Backlinks Overview",
       overviewIntro: "Your link portfolio, credit balance and the settings the RepGet team follows when placing links for you.",
       portfolioTitle: "Backlink portfolio",
@@ -2882,6 +2897,7 @@ const en: Messages = {
       anchorHidden: "Shown once the partner's article is published",
       relUnknown: "Unknown (not seen live yet)",
       relFollowed: "None (a followed link)",
+      relUnfollowed: "{rel} - not followed: passes little SEO value",
       notYet: "Not yet",
       checkAlive: "link found",
       checkMissing: "link not found",
@@ -4561,6 +4577,13 @@ const es: Messages = {
       dismiss: "Descartar",
       issueFilterGiven: "Se muestran los enlaces no encontrados en tus artículos publicados. Restaura cada enlace y usa «Comprobar de nuevo».",
       issueFilterReceived: "Se muestran los enlaces no encontrados en la página del socio. No se cobró nada por ellos.",
+      issueNofollowHosted: "{count} enlace de un socio en tus artículos está marcado nofollow: no aporta valor SEO|{count} enlaces de socios en tus artículos están marcados nofollow: no aportan valor SEO",
+      issueNofollowHostedHelp: "Los buscadores ignoran los enlaces nofollow o sponsored. Edita la entrada, quita nofollow / sponsored del enlace del socio y pide una nueva comprobación.",
+      issueNofollowReceived: "{count} enlace a tu sitio está marcado nofollow en la página del socio|{count} enlaces a tu sitio están marcados nofollow en las páginas de los socios",
+      issueNofollowReceivedHelp: "Estos enlaces están activos pero aportan poco valor SEO. Se ha pedido al propietario del sitio que los haga seguidos.",
+      issueFilterNofollowGiven: "Se muestran los enlaces de socios marcados nofollow en tus artículos publicados. Quita nofollow / sponsored de cada enlace y usa «Comprobar de nuevo».",
+      issueFilterNofollowReceived: "Se muestran los enlaces a tu sitio que la página del socio marca nofollow. Se ha pedido al propietario del sitio que los corrija.",
+      nofollowBadge: "Nofollow",
       overviewTitle: "Resumen de backlinks",
       overviewIntro: "Tu cartera de enlaces, tu saldo de créditos y los ajustes que sigue el equipo de RepGet al colocar enlaces para ti.",
       portfolioTitle: "Cartera de backlinks",
@@ -4692,6 +4715,7 @@ const es: Messages = {
       anchorHidden: "Se muestra cuando se publique el artículo del socio",
       relUnknown: "Desconocido (aún no visto activo)",
       relFollowed: "Ninguno (enlace seguido)",
+      relUnfollowed: "{rel} - no seguido: aporta poco valor SEO",
       notYet: "Todavía no",
       checkAlive: "enlace encontrado",
       checkMissing: "enlace no encontrado",
@@ -6375,6 +6399,13 @@ const fr: Messages = {
       dismiss: "Masquer",
       issueFilterGiven: "Liens introuvables sur vos articles publiés. Rétablissez chaque lien, puis utilisez « Vérifier à nouveau ».",
       issueFilterReceived: "Liens introuvables sur la page du partenaire. Rien n'a été facturé.",
+      issueNofollowHosted: "{count} lien partenaire dans vos articles est en nofollow : il n'apporte aucune valeur SEO|{count} liens partenaires dans vos articles sont en nofollow : ils n'apportent aucune valeur SEO",
+      issueNofollowHostedHelp: "Les moteurs de recherche ignorent les liens nofollow ou sponsored. Modifiez l'article, retirez nofollow / sponsored du lien partenaire, puis demandez une nouvelle vérification.",
+      issueNofollowReceived: "{count} lien vers votre site est en nofollow sur la page du partenaire|{count} liens vers votre site sont en nofollow sur les pages des partenaires",
+      issueNofollowReceivedHelp: "Ces liens sont en ligne mais apportent peu de valeur SEO. Le propriétaire du site a été invité à les rendre suivis.",
+      issueFilterNofollowGiven: "Liens partenaires en nofollow dans vos articles publiés. Retirez nofollow / sponsored de chaque lien, puis utilisez « Vérifier à nouveau ».",
+      issueFilterNofollowReceived: "Liens vers votre site que la page du partenaire marque en nofollow. Le propriétaire du site a été invité à les corriger.",
+      nofollowBadge: "Nofollow",
       overviewTitle: "Vue d'ensemble des backlinks",
       overviewIntro: "Votre portefeuille de liens, votre solde de crédits et les réglages que l'équipe RepGet suit pour placer des liens pour vous.",
       portfolioTitle: "Portefeuille de backlinks",
@@ -6506,6 +6537,7 @@ const fr: Messages = {
       anchorHidden: "Affiché une fois l'article du partenaire publié",
       relUnknown: "Inconnu (pas encore vu en ligne)",
       relFollowed: "Aucun (lien suivi)",
+      relUnfollowed: "{rel} - non suivi : apporte peu de valeur SEO",
       notYet: "Pas encore",
       checkAlive: "lien trouvé",
       checkMissing: "lien introuvable",
@@ -8181,6 +8213,13 @@ const it: Messages = {
       dismiss: "Chiudi",
       issueFilterGiven: "Link non trovati nei tuoi articoli pubblicati. Ripristina ogni link, poi usa «Controlla di nuovo».",
       issueFilterReceived: "Link non trovati nella pagina del partner. Non è stato addebitato nulla.",
+      issueNofollowHosted: "{count} link di un partner nei suoi articoli è nofollow: non porta valore SEO|{count} link di partner nei suoi articoli sono nofollow: non portano valore SEO",
+      issueNofollowHostedHelp: "I motori di ricerca ignorano i link nofollow o sponsored. Modifichi l'articolo, tolga nofollow / sponsored dal link del partner, poi chieda un nuovo controllo.",
+      issueNofollowReceived: "{count} link al suo sito è nofollow nella pagina del partner|{count} link al suo sito sono nofollow nelle pagine dei partner",
+      issueNofollowReceivedHelp: "Questi link sono attivi ma portano poco valore SEO. È stato chiesto al proprietario del sito di renderli follow.",
+      issueFilterNofollowGiven: "Link di partner nofollow nei suoi articoli pubblicati. Tolga nofollow / sponsored da ogni link, poi usi \"Controlla di nuovo\".",
+      issueFilterNofollowReceived: "Link al suo sito che la pagina del partner marca nofollow. È stato chiesto al proprietario del sito di correggerli.",
+      nofollowBadge: "Nofollow",
       overviewTitle: "Panoramica backlink",
       overviewIntro: "Il tuo portafoglio di link, il saldo crediti e le impostazioni che il team RepGet segue quando inserisce link per te.",
       portfolioTitle: "Portafoglio backlink",
@@ -8312,6 +8351,7 @@ const it: Messages = {
       anchorHidden: "Visibile quando l'articolo del partner sarà pubblicato",
       relUnknown: "Sconosciuto (non ancora visto online)",
       relFollowed: "Nessuno (link seguito)",
+      relUnfollowed: "{rel} - non seguito: porta poco valore SEO",
       notYet: "Non ancora",
       checkAlive: "link trovato",
       checkMissing: "link non trovato",
@@ -9996,6 +10036,13 @@ const de: Messages = {
       dismiss: "Ausblenden",
       issueFilterGiven: "Angezeigt werden Links, die in Ihren veröffentlichten Artikeln fehlen. Stellen Sie jeden Link wieder her und nutzen Sie „Erneut prüfen“.",
       issueFilterReceived: "Angezeigt werden Links, die auf der Partnerseite fehlen. Dafür wurde nichts berechnet.",
+      issueNofollowHosted: "{count} Partnerlink in Ihren Artikeln ist nofollow - er bringt keinen SEO-Wert|{count} Partnerlinks in Ihren Artikeln sind nofollow - sie bringen keinen SEO-Wert",
+      issueNofollowHostedHelp: "Suchmaschinen ignorieren Links mit nofollow oder sponsored. Bearbeiten Sie den Beitrag, entfernen Sie nofollow / sponsored vom Partnerlink und fordern Sie eine neue Prüfung an.",
+      issueNofollowReceived: "{count} Link auf Ihre Website ist auf der Partnerseite nofollow|{count} Links auf Ihre Website sind auf den Partnerseiten nofollow",
+      issueNofollowReceivedHelp: "Diese Links sind live, bringen aber wenig SEO-Wert. Der Websitebetreiber wurde gebeten, sie auf follow umzustellen.",
+      issueFilterNofollowGiven: "Angezeigt werden Partnerlinks mit nofollow in Ihren veröffentlichten Artikeln. Entfernen Sie nofollow / sponsored von jedem Link und nutzen Sie dann „Erneut prüfen“.",
+      issueFilterNofollowReceived: "Angezeigt werden Links auf Ihre Website, die die Partnerseite als nofollow markiert. Der Websitebetreiber wurde gebeten, sie zu korrigieren.",
+      nofollowBadge: "Nofollow",
       overviewTitle: "Backlink-Übersicht",
       overviewIntro: "Ihr Link-Portfolio, Ihr Credit-Guthaben und die Einstellungen, denen das RepGet-Team beim Platzieren von Links folgt.",
       portfolioTitle: "Backlink-Portfolio",
@@ -10127,6 +10174,7 @@ const de: Messages = {
       anchorHidden: "Sichtbar, sobald der Partnerartikel veröffentlicht ist",
       relUnknown: "Unbekannt (noch nicht live gesehen)",
       relFollowed: "Keine (gefolgter Link)",
+      relUnfollowed: "{rel} - nicht gefolgt: bringt wenig SEO-Wert",
       notYet: "Noch nicht",
       checkAlive: "Link gefunden",
       checkMissing: "Link nicht gefunden",

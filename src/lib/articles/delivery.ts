@@ -1,6 +1,7 @@
 import * as cheerio from "cheerio";
 
 import { repairSectionLinks } from "@/lib/articles/toc";
+import { comparableLinkUrl, followedRel } from "@/lib/backlinks/follow";
 import { siteUrl } from "@/lib/site-url";
 
 /**
@@ -25,6 +26,13 @@ import { siteUrl } from "@/lib/site-url";
  *    is re-pointed (lib/articles/toc.ts).
  *  - Images: sized to the article column on any theme, with an inline
  *    max-width on each image - nothing is added to the customer's theme.
+ *  - Network backlinks: sent FOLLOWED. The editor marks every link to
+ *    another site nofollow (lib/articles/sanitize.ts), which is right for
+ *    citations and wrong for a placement - a nofollow backlink passes no SEO
+ *    value, which is what the beneficiary is paying credits for (client,
+ *    2026-10-01). Only the article's recorded placements lose it; every
+ *    other external link keeps nofollow. Done here and not in storage so an
+ *    editor save, which re-sanitises, cannot put it back before sending.
  */
 
 /**
@@ -48,6 +56,11 @@ export type DeliveryOptions = {
   poweredBy: boolean;
   /** The website's own hosts, so its links stay followed. See sanitize.ts. */
   siteHosts?: ReadonlySet<string>;
+  /**
+   * Target URLs of the network placements this article carries
+   * (placementUrlsForArticle). Links to them go out without nofollow.
+   */
+  followUrls?: readonly string[];
 };
 
 export function prepareForDelivery(html: string, options: DeliveryOptions): string {
@@ -61,6 +74,16 @@ export function prepareForDelivery(html: string, options: DeliveryOptions): stri
   for (const image of $("img").toArray()) {
     $(image).attr("style", "max-width:100%;height:auto");
     if (!$(image).attr("loading")) $(image).attr("loading", "lazy");
+  }
+
+  const follow = new Set((options.followUrls ?? []).map(comparableLinkUrl));
+  if (follow.size > 0) {
+    for (const link of $("a[href]").toArray()) {
+      if (!follow.has(comparableLinkUrl($(link).attr("href") ?? ""))) continue;
+      const rel = followedRel($(link).attr("rel") ?? "");
+      if (rel) $(link).attr("rel", rel);
+      else $(link).removeAttr("rel");
+    }
   }
 
   let out = $.html().trim();

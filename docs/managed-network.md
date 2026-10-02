@@ -155,7 +155,9 @@ Every action is recorded in the admin audit log with the actor, the change, the 
 
 Placements are structured rows (`placements.managed`, `created_by`, `reason`), linked to a `backlink_requests` row that holds the reservation. Internal-link validation preserves a placement's URL because it is a recorded placement. External links in general are not whitelisted.
 
-Network links go out with `rel="noopener nofollow"`, like every external link and like the existing exchange. Changing that is a separate SEO-policy decision and was not made here.
+Network links are **sent followed** (client decision, 2026-10-01: a nofollow backlink passes no SEO value). The editor still stores every external link as `rel="noopener nofollow"`; at delivery (`lib/articles/delivery.ts`) the links to the article's recorded placements, exchange and managed alike, lose `nofollow`/`sponsored`/`ugc` and keep `noopener`. Citations and every other external link stay nofollow. Doing it at delivery keeps the stored revision, and so the approval hash, unchanged.
+
+**The nofollow rule.** Each live check records the link's `rel` as the page has it. A verified link marked `nofollow`, `sponsored` or `ugc` is listed under the `nofollow` issue on both dashboards (Hosted links for the host to fix, Earned backlinks for the beneficiary), and the check where a link *becomes* unfollowed (first sighting, or the first after a followed one) notifies both workspaces once (`lib/backlinks/nofollow.ts`). It is a warning only: credits are unaffected. Articles published before this change still carry nofollow links until they are delivered again.
 
 ### Review and release gate
 

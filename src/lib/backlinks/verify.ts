@@ -1,4 +1,5 @@
 import { isPublicWebsiteUrl } from "@/lib/websites/url";
+import { comparableLinkUrl as comparable } from "@/lib/backlinks/follow";
 import { safeFetch } from "@/lib/net/safe-fetch";
 
 /**
@@ -26,25 +27,6 @@ export type LinkCheckResult = {
   /** Set when the page could not be fetched at all. */
   error: string | null;
 };
-
-/**
- * Normalises a URL for comparison.
- *
- * A host may render the link with or without a trailing slash, with http
- * instead of https, or with "www." — all of which still point at the customer's
- * page. Comparing raw strings would report a live link as removed and refund a
- * credit that was legitimately earned.
- */
-function comparable(url: string): string {
-  try {
-    const parsed = new URL(url);
-    const host = parsed.hostname.toLowerCase().replace(/^www\./, "");
-    const path = parsed.pathname.replace(/\/+$/, "");
-    return `${host}${path}`.toLowerCase();
-  } catch {
-    return url.toLowerCase();
-  }
-}
 
 /**
  * Extracts href values without a full HTML parse.

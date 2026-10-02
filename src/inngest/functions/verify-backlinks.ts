@@ -8,6 +8,8 @@ import {
   type DuePlacement,
   type Transition,
 } from "@/lib/backlinks/placements";
+import { isUnfollowed } from "@/lib/backlinks/follow";
+import { alertIfNewlyUnfollowed } from "@/lib/backlinks/nofollow";
 import { checkLinks } from "@/lib/backlinks/verify";
 
 /**
@@ -133,6 +135,13 @@ export const verifyBacklinks = inngest.createFunction(
             logger.info(
               { step: "check", placementId: placement.id },
               "Backlink seen live - requester charged, host credited",
+            );
+          }
+          // Live but not counted by search engines: tell both sides, once.
+          if (outcome === "alive" && isUnfollowed(result.rel) && (await alertIfNewlyUnfollowed(placement.id))) {
+            logger.warn(
+              { step: "check", placementId: placement.id, rel: result.rel },
+              "Backlink is marked nofollow on the live page - host and beneficiary alerted",
             );
           }
           out.push(transition);
