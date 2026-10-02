@@ -98,6 +98,7 @@ export default async function WebsitePublishingPage({
           youtubeVideo: site.youtubeVideo,
           authorPerspective: site.authorPerspective,
           mentionSimilarProducts: site.mentionSimilarProducts,
+          comparisonTable: site.comparisonTable,
           poweredByLink: site.poweredByLink,
 
           authorName: site.authorName ?? "",

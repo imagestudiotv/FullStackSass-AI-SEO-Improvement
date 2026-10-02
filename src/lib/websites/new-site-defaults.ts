@@ -16,6 +16,8 @@ export const NEW_SITE_DEFAULTS = {
   publishAs: "live",
   tableOfContents: true,
   mentionSimilarProducts: true,
+  /** Also the column default (existing websites got it too); listed so the set is in one place. */
+  comparisonTable: true,
   /** Already the column default; listed so the whole set is in one place. */
   poweredByLink: true,
 } as const;

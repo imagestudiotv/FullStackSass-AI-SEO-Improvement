@@ -7,6 +7,7 @@ import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { PARTNER_LINK_SCOPE, PartnerLinkStyles } from "@/components/partner-link-styles";
+import { ARTICLE_TABLE_CLASSES } from "@/lib/articles/table-styles";
 import { RichTextEditor } from "@/components/rich-text-editor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -194,7 +195,7 @@ export function ReviewWorkspace({ review }: { review: Review }) {
             ) : (
               /* Sanitised on every save (lib/articles/sanitize.ts). */
               <div
-                className={`${PARTNER_LINK_SCOPE} prose prose-sm max-w-none dark:prose-invert [overflow-wrap:anywhere] [&_a]:text-primary [&_a]:underline [&_h2]:mt-6 [&_h2]:text-lg [&_h2]:font-semibold [&_h3]:mt-4 [&_h3]:font-semibold [&_li]:my-1 [&_p]:my-3 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-lg`}
+                className={`${PARTNER_LINK_SCOPE} ${ARTICLE_TABLE_CLASSES} prose prose-sm max-w-none dark:prose-invert [overflow-wrap:anywhere] [&_a]:text-primary [&_a]:underline [&_h2]:mt-6 [&_h2]:text-lg [&_h2]:font-semibold [&_h3]:mt-4 [&_h3]:font-semibold [&_li]:my-1 [&_p]:my-3 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-lg`}
                 dangerouslySetInnerHTML={{ __html: article.bodyHtml ?? "" }}
               />
             )}

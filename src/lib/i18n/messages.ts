@@ -522,6 +522,7 @@ export type Messages = {
       imageInstructions: string;
       imageInstructionsPlaceholder: string;
       tableOfContents: string;
+      comparisonTable: string;
       youtubeVideo: string;
       authorPerspective: string;
       mentionSimilar: string;
@@ -2356,6 +2357,7 @@ const en: Messages = {
       imageInstructions: "Extra image instructions",
       imageInstructionsPlaceholder: "e.g. Never show faces.",
       tableOfContents: "Table of contents",
+      comparisonTable: "Comparison table",
       youtubeVideo: "YouTube video",
       authorPerspective: "Author perspective",
       mentionSimilar: "Mention similar products and tools",
@@ -4188,6 +4190,7 @@ const es: Messages = {
       imageInstructions: "Instrucciones adicionales para las imágenes",
       imageInstructionsPlaceholder: "p. ej. Nunca mostrar caras.",
       tableOfContents: "Índice",
+      comparisonTable: "Tabla comparativa",
       youtubeVideo: "Vídeo de YouTube",
       authorPerspective: "Perspectiva del autor",
       mentionSimilar: "Mencionar productos y herramientas similares",
@@ -6024,6 +6027,7 @@ const fr: Messages = {
       imageInstructions: "Consignes supplémentaires pour les images",
       imageInstructionsPlaceholder: "ex. Ne jamais montrer de visages.",
       tableOfContents: "Sommaire",
+      comparisonTable: "Tableau comparatif",
       youtubeVideo: "Vidéo YouTube",
       authorPerspective: "Point de vue de l\u2019auteur",
       mentionSimilar: "Mentionner des produits et outils similaires",
@@ -7852,6 +7856,7 @@ const it: Messages = {
       imageInstructions: "Istruzioni aggiuntive per le immagini",
       imageInstructionsPlaceholder: "es. Non mostrare mai volti.",
       tableOfContents: "Indice",
+      comparisonTable: "Tabella di confronto",
       youtubeVideo: "Video YouTube",
       authorPerspective: "Punto di vista dell\u2019autore",
       mentionSimilar: "Citare prodotti e strumenti simili",
@@ -9689,6 +9694,7 @@ const de: Messages = {
       imageInstructions: "Zusätzliche Bildanweisungen",
       imageInstructionsPlaceholder: "z. B. Nie Gesichter zeigen.",
       tableOfContents: "Inhaltsverzeichnis",
+      comparisonTable: "Vergleichstabelle",
       youtubeVideo: "YouTube-Video",
       authorPerspective: "Perspektive der Autorin oder des Autors",
       mentionSimilar: "Ähnliche Produkte und Tools erwähnen",

@@ -1,6 +1,8 @@
 "use client";
 
 import Image from "@tiptap/extension-image";
+import { TableKit } from "@tiptap/extension-table";
+import { ARTICLE_TABLE_CLASSES } from "@/lib/articles/table-styles";
 import Link from "@tiptap/extension-link";
 import { EditorContent, useEditor, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -434,6 +436,12 @@ export function RichTextEditor({
         HTMLAttributes: { rel: "noopener nofollow", target: "_blank" },
       }),
       Image.configure({ inline: false }),
+      /*
+        Tables, so a comparison table survives editing. Without these the
+        editor parsed an article with a table, dropped the nodes it did not
+        know, and the next keystroke saved the article without it.
+      */
+      TableKit.configure({ table: { resizable: false } }),
       HeadingIds,
     ],
     content: value,
@@ -489,7 +497,7 @@ export function RichTextEditor({
          * preview tab styles the same HTML, so the two views agree.
          */
         class:
-          "min-h-[28rem] px-3 py-2 text-sm focus:outline-none [&_h2]:mt-6 [&_h2]:text-lg [&_h2]:font-semibold [&_h3]:mt-5 [&_h3]:text-base [&_h3]:font-semibold [&_p]:my-3 [&_ul]:my-3 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:my-3 [&_ol]:list-decimal [&_ol]:pl-6 [&_li]:my-1 [&_a]:text-primary [&_a]:underline [&_blockquote]:my-3 [&_blockquote]:border-l-2 [&_blockquote]:pl-4 [&_blockquote]:text-muted-foreground [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-xs [&_img]:my-6 [&_img]:block [&_img]:mx-auto [&_img]:max-w-[min(100%,36rem)] [&_img]:max-h-[30rem] [&_img]:h-auto [&_img]:w-auto [&_img]:rounded-lg [&_img]:border [&_img]:object-contain",
+          `${ARTICLE_TABLE_CLASSES} min-h-[28rem] px-3 py-2 text-sm focus:outline-none [&_h2]:mt-6 [&_h2]:text-lg [&_h2]:font-semibold [&_h3]:mt-5 [&_h3]:text-base [&_h3]:font-semibold [&_p]:my-3 [&_ul]:my-3 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:my-3 [&_ol]:list-decimal [&_ol]:pl-6 [&_li]:my-1 [&_a]:text-primary [&_a]:underline [&_blockquote]:my-3 [&_blockquote]:border-l-2 [&_blockquote]:pl-4 [&_blockquote]:text-muted-foreground [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-xs [&_img]:my-6 [&_img]:block [&_img]:mx-auto [&_img]:max-w-[min(100%,36rem)] [&_img]:max-h-[30rem] [&_img]:h-auto [&_img]:w-auto [&_img]:rounded-lg [&_img]:border [&_img]:object-contain`,
       },
     },
     onUpdate: ({ editor: instance }) => onChange(instance.getHTML()),

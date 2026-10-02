@@ -1,6 +1,7 @@
 import { ArrowRight, CalendarDays, Clock } from "lucide-react";
 
 import { PostCover } from "@/components/post-cover";
+import { ARTICLE_TABLE_CLASSES } from "@/lib/articles/table-styles";
 import { tableOfContents, withHeadingIds, type BlogPost } from "@/lib/blog/shared";
 
 function formatDate(iso: string): string {
@@ -109,7 +110,7 @@ export function BlogArticle({ post }: { post: BlogPost }) {
         nav, which would otherwise cover the thing you just jumped to.
       */}
       <div
-        className="mt-10 [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-4 [&_em]:italic [&_h2]:mt-10 [&_h2]:scroll-mt-24 [&_h2]:text-2xl [&_h2]:font-semibold [&_h2]:tracking-tight [&_h3]:mt-8 [&_h3]:text-xl [&_h3]:font-semibold [&_li]:my-1.5 [&_p]:my-4 [&_p]:leading-7 [&_strong]:font-semibold [&_ul]:my-4 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:my-4 [&_ol]:list-decimal [&_ol]:pl-6 [&_blockquote]:my-4 [&_blockquote]:border-l-2 [&_blockquote]:pl-4 [&_blockquote]:text-muted-foreground [&_img]:my-6 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-lg"
+        className={`${ARTICLE_TABLE_CLASSES} mt-10 [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-4 [&_em]:italic [&_h2]:mt-10 [&_h2]:scroll-mt-24 [&_h2]:text-2xl [&_h2]:font-semibold [&_h2]:tracking-tight [&_h3]:mt-8 [&_h3]:text-xl [&_h3]:font-semibold [&_li]:my-1.5 [&_p]:my-4 [&_p]:leading-7 [&_strong]:font-semibold [&_ul]:my-4 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:my-4 [&_ol]:list-decimal [&_ol]:pl-6 [&_blockquote]:my-4 [&_blockquote]:border-l-2 [&_blockquote]:pl-4 [&_blockquote]:text-muted-foreground [&_img]:my-6 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-lg`}
         dangerouslySetInnerHTML={{ __html: body }}
       />
 

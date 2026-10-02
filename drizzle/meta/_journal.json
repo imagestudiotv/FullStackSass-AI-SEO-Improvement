@@ -344,6 +344,13 @@
       "when": 1790854356441,
       "tag": "0048_blog_categories",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1790912554336,
+      "tag": "0049_comparison_table",
+      "breakpoints": true
     }
   ]
 }

@@ -46,6 +46,7 @@ export type ArticleSettingsInput = {
   youtubeVideo?: boolean;
   authorPerspective?: boolean;
   mentionSimilarProducts?: boolean;
+  comparisonTable?: boolean;
   poweredByLink?: boolean;
 
   authorName?: string | null;
@@ -198,6 +199,7 @@ export async function saveArticleSettings(
       youtubeVideo: input.youtubeVideo,
       authorPerspective: input.authorPerspective,
       mentionSimilarProducts: input.mentionSimilarProducts,
+      comparisonTable: input.comparisonTable,
       poweredByLink: input.poweredByLink,
       authorName: text(input.authorName),
       authorBio: text(input.authorBio),

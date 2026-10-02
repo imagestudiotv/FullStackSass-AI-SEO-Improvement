@@ -325,6 +325,7 @@ export const generateArticle = inngest.createFunction(
           tableOfContents: site.tableOfContents,
           authorPerspective: site.authorPerspective,
           mentionSimilarProducts: site.mentionSimilarProducts,
+          comparisonTable: site.comparisonTable,
           imageStyle: site.imageStyle,
           imageBrief: site.imageBrief,
           imageInstructions: site.imageInstructions,

@@ -527,6 +527,14 @@ export const websites = pgTable("websites", {
     .default(false)
     .notNull(),
   /**
+   * Writes one comparison table into each article - "Videography vs
+   * Cinematography at a Glance" (client, 2026-10-02: important for reach).
+   * Defaults ON in the database as well, so websites that existed before it
+   * get it too; a build that predates it never writes tables, so the default
+   * cannot change what an older build does.
+   */
+  comparisonTable: boolean("comparison_table").default(true).notNull(),
+  /**
    * The "Powered by RepGet" credit line.
    *
    * Defaults ON, and the client said so explicitly. Turning it off applies

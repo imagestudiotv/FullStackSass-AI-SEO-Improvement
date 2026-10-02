@@ -85,6 +85,8 @@ export type ArticleBrief = {
   authorPerspective: boolean;
   /** References comparable products and tools where relevant. */
   mentionSimilarProducts: boolean;
+  /** One comparison table of the options the article is about. */
+  comparisonTable: boolean;
 
   /**
    * Image settings, carried on the brief so the image call has them.
@@ -142,7 +144,7 @@ const OUTLINE_SCHEMA = {
   additionalProperties: false,
 } as const;
 
-function briefContext(brief: ArticleBrief): string {
+export function briefContext(brief: ArticleBrief): string {
   return [
     /**
      * Language leads, as an instruction rather than a fact.
@@ -203,6 +205,13 @@ function briefContext(brief: ArticleBrief): string {
     brief.mentionSimilarProducts
       ? `Where it genuinely helps the reader, mention well-known similar products, tools or alternatives by name, in general terms. Do not state features, prices, ratings or claims about them that are not common knowledge, do not invent products, and skip this entirely when nothing relevant exists.`
       : null,
+    /*
+      Stated both ways, like the perspective above: left unsaid, a model
+      writes a table on some topics and not others.
+    */
+    brief.comparisonTable
+      ? `Include exactly ONE comparison table, the way a good guide does ("Videography vs Cinematography at a Glance"). Compare the two or three options, approaches or types this topic is really about - what the reader is choosing between. Give it its own <h2> or <h3> heading in the form "<Option A> vs <Option B> at a Glance" and place it where that comparison is discussed, not at the very start or the very end. Structure: <table><thead><tr><th>Attribute</th><th>Option A</th><th>Option B</th></tr></thead><tbody>...</tbody></table>, with 5-8 rows, one per attribute (for example purpose, cost factors, time needed, best fit, main risk). Every cell is a short plain-text phrase: no links, lists or headings inside cells. Compare only what is common knowledge or follows from the article; no prices, statistics or claims you cannot support. If the topic has no natural "A vs B", compare the alternatives the reader is weighing (for example doing it themselves vs hiring a professional).`
+      : `Do not use tables.`,
     brief.tone ? `Brand tone: ${brief.tone}` : null,
     brief.avoid ? `Avoid: ${brief.avoid}` : null,
     brief.vocabulary ? `Preferred wording: ${brief.vocabulary}` : null,
@@ -260,6 +269,8 @@ const BODY_SYSTEM = `You write the final SEO article body as HTML.
 
 Output rules:
 - HTML fragment only: <h2>, <h3>, <p>, <ul>, <ol>, <li>, <strong>, <em>, <a>.
+- <table>, <thead>, <tbody>, <tr>, <th>, <td> only for a comparison table the
+  brief asks for.
 - NO <html>, <head>, <body>, <h1>, style attributes, classes or scripts. The
   title is rendered separately, so a second H1 would compete with it.
 - 900-1,400 words unless instructed otherwise.

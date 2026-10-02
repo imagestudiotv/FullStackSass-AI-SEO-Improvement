@@ -54,6 +54,7 @@ export type ArticleSettingsValues = {
   youtubeVideo: boolean;
   authorPerspective: boolean;
   mentionSimilarProducts: boolean;
+  comparisonTable: boolean;
   poweredByLink: boolean;
 
   authorName: string;
@@ -398,6 +399,12 @@ export function ArticleSettingsForm({
             hint="References and compares alternatives, for richer coverage."
             checked={values.mentionSimilarProducts}
             onChange={(v) => set("mentionSimilarProducts", v)}
+          />
+          <Toggle
+            label={t.comparisonTable}
+            hint={'Adds a side-by-side table comparing the options the article is about, such as "Videography vs Cinematography at a Glance".'}
+            checked={values.comparisonTable}
+            onChange={(v) => set("comparisonTable", v)}
           />
           {/*
             The client was specific about this one: on by default, and
