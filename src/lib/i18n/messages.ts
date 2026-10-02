@@ -638,6 +638,10 @@ export type Messages = {
       researchFailed: string;
       planReady: string;
       planNotRebuilt: string;
+      keywordsAdded: string;
+      keywordsAddedSkipped: string;
+      replanning: string;
+      planBusy: string;
       plannedArticles: string;
       plannedHelp: string;
       articles: string;
@@ -2475,6 +2479,10 @@ const en: Messages = {
       researchFailed: "Research could not finish, so no content plan was built. Press the button to try again - if it fails twice, contact support.",
       planReady: "Your content plan is ready.",
       planNotRebuilt: "Your content plan could not be rebuilt, so your previous plan is unchanged. Press the button to try again - if it fails twice, contact support.",
+      keywordsAdded: "Added {added}.",
+      keywordsAddedSkipped: "Added {added}. Skipped {skipped} already tracked or over your plan.",
+      replanning: "Rebuilding your content plan…",
+      planBusy: "Your plan is being built right now - press {button} once it is ready to include them.",
       plannedArticles: "Planned articles",
       plannedHelp: "Your content plan, by the day each article is due. Hover a planned topic to write it now, change it, or take it off the plan.",
       articles: "Articles",
@@ -4309,6 +4317,10 @@ const es: Messages = {
       researchFailed: "La investigación no pudo terminar, así que no se creó ningún plan de contenido. Pulse el botón para intentarlo de nuevo; si falla dos veces, contacte con soporte.",
       planReady: "Su plan de contenido está listo.",
       planNotRebuilt: "No se pudo reconstruir su plan de contenido, así que el plan anterior no ha cambiado. Pulse el botón para intentarlo de nuevo; si falla dos veces, contacte con soporte.",
+      keywordsAdded: "Añadidas: {added}.",
+      keywordsAddedSkipped: "Añadidas: {added}. Omitidas: {skipped}, ya incluidas o por encima de su plan.",
+      replanning: "Reconstruyendo su plan de contenido…",
+      planBusy: "Su plan se está creando ahora mismo: pulse {button} cuando esté listo para incluirlas.",
       plannedArticles: "Artículos planificados",
       plannedHelp: "Su plan de contenidos, por el día en que vence cada artículo. Pase el cursor sobre un tema planificado para escribirlo ahora, cambiarlo o quitarlo del plan.",
       articles: "Artículos",
@@ -6147,6 +6159,10 @@ const fr: Messages = {
       researchFailed: "La recherche n’a pas pu aboutir, aucun plan de contenu n’a donc été créé. Appuyez sur le bouton pour réessayer ; en cas de second échec, contactez le support.",
       planReady: "Votre plan de contenu est prêt.",
       planNotRebuilt: "Votre plan de contenu n’a pas pu être reconstruit, le plan précédent reste donc inchangé. Appuyez sur le bouton pour réessayer ; en cas de second échec, contactez le support.",
+      keywordsAdded: "Ajoutés : {added}.",
+      keywordsAddedSkipped: "Ajoutés : {added}. Ignorés : {skipped}, déjà suivis ou au-delà de votre forfait.",
+      replanning: "Reconstruction de votre plan de contenu…",
+      planBusy: "Votre plan est en cours de création : appuyez sur {button} une fois qu’il est prêt pour les inclure.",
       plannedArticles: "Articles planifiés",
       plannedHelp: "Votre plan de contenu, par date de publication prévue. Survolez un sujet planifié pour le rédiger maintenant, le modifier ou le retirer du plan.",
       articles: "Articles",
@@ -7977,6 +7993,10 @@ const it: Messages = {
       researchFailed: "La ricerca non è riuscita a terminare, quindi non è stato creato alcun piano dei contenuti. Prema il pulsante per riprovare; se non riesce di nuovo, contatti l’assistenza.",
       planReady: "Il suo piano dei contenuti è pronto.",
       planNotRebuilt: "Non è stato possibile ricostruire il suo piano dei contenuti, quindi il piano precedente non è cambiato. Prema il pulsante per riprovare; se non riesce di nuovo, contatti l’assistenza.",
+      keywordsAdded: "Aggiunte: {added}.",
+      keywordsAddedSkipped: "Aggiunte: {added}. Saltate: {skipped}, già monitorate o oltre il suo piano.",
+      replanning: "Ricostruzione del suo piano dei contenuti…",
+      planBusy: "Il suo piano è in costruzione proprio ora: prema {button} quando è pronto per includerle.",
       plannedArticles: "Articoli pianificati",
       plannedHelp: "Il suo piano dei contenuti, per giorno di pubblicazione previsto. Passi il cursore su un argomento pianificato per scriverlo subito, modificarlo o toglierlo dal piano.",
       articles: "Articoli",
@@ -9816,6 +9836,10 @@ const de: Messages = {
       researchFailed: "Die Recherche konnte nicht abgeschlossen werden, daher wurde kein Inhaltsplan erstellt. Klicken Sie auf die Schaltfläche, um es erneut zu versuchen - schlägt es zweimal fehl, wenden Sie sich an den Support.",
       planReady: "Ihr Inhaltsplan ist fertig.",
       planNotRebuilt: "Ihr Inhaltsplan konnte nicht neu erstellt werden, der bisherige Plan bleibt daher unverändert. Klicken Sie auf die Schaltfläche, um es erneut zu versuchen - schlägt es zweimal fehl, wenden Sie sich an den Support.",
+      keywordsAdded: "Hinzugefügt: {added}.",
+      keywordsAddedSkipped: "Hinzugefügt: {added}. Übersprungen: {skipped}, bereits erfasst oder über Ihrem Tarif.",
+      replanning: "Ihr Inhaltsplan wird neu erstellt…",
+      planBusy: "Ihr Plan wird gerade erstellt - klicken Sie auf {button}, sobald er fertig ist, um sie aufzunehmen.",
       plannedArticles: "Geplante Artikel",
       plannedHelp: "Ihr Contentplan, nach dem Tag, an dem jeder Artikel fällig ist. Fahren Sie über ein geplantes Thema, um es jetzt zu schreiben, zu ändern oder aus dem Plan zu nehmen.",
       articles: "Artikel",

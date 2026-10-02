@@ -12,6 +12,7 @@ import {
 import Link from "next/link";
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import { format } from "@/lib/i18n/format";
 import type { Messages } from "@/lib/i18n/messages";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -202,17 +203,18 @@ export function ResearchTabs({
         the kind of surprise that makes people press the button again.
       */
       const { added, skipped, replanned, planBusy } = result.data;
+      // In the reader's language, naming the button by its own label.
       const counted =
         skipped > 0
-          ? `Added ${added}. Skipped ${skipped} already tracked or over your plan.`
-          : `Added ${added}.`;
+          ? format(t.keywordsAddedSkipped, { added, skipped })
+          : format(t.keywordsAdded, { added });
 
       if (replanned) beforeRun.current = plannedIds;
       toast.success(
         replanned
-          ? `${counted} Rebuilding your content plan…`
+          ? `${counted} ${t.replanning}`
           : planBusy
-            ? `${counted} Your plan is being built right now - press Refresh once it is ready to include them.`
+            ? `${counted} ${format(t.planBusy, { button: t.refresh })}`
             : counted,
       );
       router.refresh();
