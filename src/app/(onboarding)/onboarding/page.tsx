@@ -8,6 +8,7 @@ import { requireSession } from "@/lib/auth-guard";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import { getOnboardingState } from "@/lib/onboarding/steps";
 import { requireOrg } from "@/lib/tenant";
+import { hasOnlySharedWork } from "@/lib/websites/accessible";
 
 export const metadata = { title: "Get started" };
 
@@ -49,6 +50,30 @@ export default async function OnboardingPage({
   const siteParam = typeof params.site === "string" ? params.site : undefined;
 
   const state = await getOnboardingState(orgId, siteParam);
+
+  /**
+   * INVITED, NOT SETTING UP. Somebody who owns no website but can open one
+   * that was shared with them (website_members), or has an invitation waiting
+   * for their proven address, came to work on somebody else's site. Every
+   * step of this flow is about a site of their own - add it, then pay for it -
+   * so they go to the dashboard, which shows the shared site or the
+   * invitation. This is the loop the first invitee was stuck in: the
+   * dashboard sent them here, and here sent them to "add your website".
+   *
+   * Checked before the forward to the next step, which for anyone without a
+   * website is always /onboarding/website. Someone who also wants a site of
+   * their own still reaches the form through "Add website", which asks for
+   * /onboarding/website?next=1.
+   *
+   * Only asked when the state found no website, so an owner pays for no
+   * extra query and their setup is untouched. "Owns nothing" is read from the
+   * list (hasOnlySharedWork) rather than taken from that empty websiteId:
+   * ?site= naming a site outside this workspace also leaves websiteId empty,
+   * and an owner who followed such a link keeps the flow they had.
+   */
+  if (!state.websiteId && (await hasOnlySharedWork())) {
+    redirect("/dashboard");
+  }
 
   const next = state.steps.find(
     (step) => step.id === state.currentId && step.href,

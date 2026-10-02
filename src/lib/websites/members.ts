@@ -194,15 +194,17 @@ export async function listWebsiteInvitations(
  *
  * TWO PATHS, because the recipient is in one of two situations:
  *
- *  - They ALREADY have an account. The website_members row is written
- *    immediately, exactly as it was before email existed, and they are told
- *    by email that it happened. Making an existing user click a token to
- *    accept something already granted would be ceremony for its own sake.
+ *  - They ALREADY have an account whose address is PROVEN (emailVerified).
+ *    The website_members row is written immediately, exactly as it was
+ *    before email existed, and they are told by email that it happened.
+ *    Making an existing user click a token to accept something already
+ *    granted would be ceremony for its own sake.
  *
- *  - They do NOT. A pending invitation is written with a hashed token and a
- *    seven-day expiry, and the link is emailed. Nothing is granted until they
- *    accept - see accept-invitation.ts, which is the only thing that turns
- *    one of these into a website_members row.
+ *  - They do NOT - no account, or one whose address nobody has proven. A
+ *    pending invitation is written with a hashed token and a seven-day
+ *    expiry, and the link is emailed. Nothing is granted until they accept -
+ *    see accept-invitation.ts, which is the only thing that turns one of
+ *    these into a website_members row.
  *
  * This is website-scoped in both cases. Accepting gives access to ONE site,
  * never to the workspace: a freelancer brought in for one client must not
@@ -238,7 +240,7 @@ export async function addWebsiteMember(
   const inviterName = actor?.name?.trim() || actor?.email || "A RepGet user";
 
   const [person] = await db
-    .select({ id: user.id })
+    .select({ id: user.id, emailVerified: user.emailVerified })
     .from(user)
     .where(eq(user.email, cleaned))
     .limit(1);
@@ -252,9 +254,20 @@ export async function addWebsiteMember(
   }
 
   /* ---------------------------------------------------------------- */
-  /* They have an account: grant now, notify after.                    */
+  /* They have a proven account: grant now, notify after.              */
   /* ---------------------------------------------------------------- */
-  if (person) {
+  /*
+    ONLY FOR A PROVEN ADDRESS. Email/password signup does not verify the
+    address, so anyone can register "editor@client.com" with a password
+    before the owner gets round to inviting it. Granting on the address alone
+    handed that account the site, and the website list (accessible.ts) puts
+    every granted site in the switcher and on the dashboard - so the squatter
+    would find it without ever seeing the email. An unproven account gets the
+    emailed link instead, below: accepting it proves the mailbox, the same
+    rule the dashboard's token-less accept enforces (pending-invitations.ts).
+    Anything other than the boolean `true` is unproven.
+  */
+  if (person && person.emailVerified === true) {
     /**
      * A second invitation changes the role rather than adding a row - the
      * unique index on (website_id, user_id) makes that the only sane outcome,
@@ -289,7 +302,7 @@ export async function addWebsiteMember(
   }
 
   /* ---------------------------------------------------------------- */
-  /* No account: a pending invitation, which grants nothing yet.       */
+  /* No proven account: a pending invitation, granting nothing yet.   */
   /* ---------------------------------------------------------------- */
   const { token, hash } = createInvitationToken();
 

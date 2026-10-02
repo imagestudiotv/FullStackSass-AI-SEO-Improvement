@@ -43,9 +43,20 @@ export function SidebarNav({
   onboardingComplete = false,
   selectedWebsiteId = null,
   addons = [],
+  hideAddons = false,
   setupProgress = null,
   t,
 }: {
+  /**
+   * Hides the Add-ons item whatever the catalogue holds.
+   *
+   * Set by the layout for someone who owns no website, and while the selected
+   * website is one shared with them. Add-ons are bought by - and credited to
+   * - the buyer's own workspace, so offering them beside somebody else's site
+   * sells credits that can never be spent there. The /billing route behind
+   * the item is unchanged; this only stops the sidebar advertising it.
+   */
+  hideAddons?: boolean;
   /** "2/7" beside the Set up item. Null when there is nothing to report. */
   setupProgress?: { done: number; total: number } | null;
   onNavigate?: () => void;
@@ -124,6 +135,8 @@ export function SidebarNav({
      * add-ons would otherwise carry a menu item that expands into nothing.
      */
     if (item.expands === "addons" && addons.length === 0) return false;
+    // Not this person's to buy for the site they are on; see hideAddons.
+    if (item.expands === "addons" && hideAddons) return false;
     return true;
   });
 

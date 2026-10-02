@@ -25,7 +25,7 @@ export default async function WebsiteLayout({
 
   // Another tenant's id is a 404, not a 403: confirming the id exists would
   // tell a stranger which websites we host.
-  const { site, userId } = await requireWebsitePage(websiteId);
+  const { site, userId, access } = await requireWebsitePage(websiteId);
 
   const { t } = await getAppMessages(userId);
 
@@ -47,7 +47,12 @@ export default async function WebsiteLayout({
         onboarding; a badge that is invisible in the normal case is not worth
         a row that is always there.
       */}
-      <SettingsNav websiteId={site.id} t={t.app.nav} />
+      {/*
+        access from the guard, not from any list: an editor or viewer invited
+        to this one site does not get the Billing tab, whose page is about
+        their own workspace's plan rather than this site's.
+      */}
+      <SettingsNav websiteId={site.id} access={access} t={t.app.nav} />
 
       <div className="space-y-6">{children}</div>
     </PageShell>

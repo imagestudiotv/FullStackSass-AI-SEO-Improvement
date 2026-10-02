@@ -4,6 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import type { Messages } from "@/lib/i18n/messages";
+// Type-only: erased at compile time, so the server-only module never reaches
+// the client bundle.
+import type { WebsiteAccess } from "@/lib/websites/accessible";
 
 /**
  * The horizontal settings navigation, as the client designed it.
@@ -41,6 +44,16 @@ type Section = {
    */
   /** Marks this tab active for any path beginning with these. */
   match: (pathname: string, websiteId: string) => boolean;
+  /**
+   * Shown only to the website's owner.
+   *
+   * Billing is the one tab like this. The tab sits beside a website's other
+   * tabs, so it reads as "this website's plan" - and for a site shared with
+   * the reader that plan is the owner's, which they cannot see or change.
+   * What /billing would actually show them is their OWN workspace's plan,
+   * with checkout buttons for it, beside somebody else's site.
+   */
+  ownerOnly?: boolean;
 };
 
 const SECTIONS: Section[] = [
@@ -75,18 +88,32 @@ const SECTIONS: Section[] = [
     label: "billing",
     href: () => "/billing",
     match: (p) => p.startsWith("/billing"),
+    ownerOnly: true,
   },
 ];
 
 export function SettingsNav({
   websiteId,
+  access = "owner",
   t,
 }: {
   websiteId: string;
+  /**
+   * The reader's access to `websiteId`, as requireWebsite answered it.
+   *
+   * Defaults to "owner" so a caller that has not been taught about shared
+   * websites - Billing, which only resolves owned sites - renders the strip
+   * exactly as before. Hiding a tab is presentation only: the routes behind
+   * the tabs keep their own checks.
+   */
+  access?: WebsiteAccess;
   /** The tab labels, already in the reader's language. */
   t: Messages["app"]["nav"];
 }) {
   const pathname = usePathname() ?? "";
+  const sections = SECTIONS.filter(
+    (section) => !section.ownerOnly || access === "owner",
+  );
 
   return (
     /*
@@ -110,7 +137,7 @@ export function SettingsNav({
       className="overflow-x-auto rounded-xl border bg-muted/60 p-1"
     >
       <ul className="flex min-w-max gap-1">
-        {SECTIONS.map((section) => {
+        {sections.map((section) => {
           const active = section.match(pathname, websiteId);
           return (
             <li key={section.label}>

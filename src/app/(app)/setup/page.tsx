@@ -10,6 +10,7 @@ import { getAppMessages } from "@/lib/i18n/app-locale";
 import { getLaunchState } from "@/lib/onboarding/launch";
 import { getOnboardingState } from "@/lib/onboarding/steps";
 import { requireOrg } from "@/lib/tenant";
+import { hasOnlySharedWork } from "@/lib/websites/accessible";
 import { readSelectedWebsite, resolveWebsiteId } from "@/lib/websites/selected";
 import { db } from "@/lib/db";
 import { websites } from "@/lib/db/schema";
@@ -53,8 +54,20 @@ export default async function SetupPage({ searchParams }: PageProps<"/setup">) {
   /**
    * No website at all means signup never finished, so this page has nothing
    * to describe. The wizard is where that is fixed.
+   *
+   * UNLESS THEY CAME FOR SOMEBODY ELSE'S SITE. Someone who owns nothing but
+   * was given a website, or has an invitation waiting for their proven
+   * address (hasOnlySharedWork), has no signup to finish: this checklist is
+   * the OWNER's - connecting WordPress, Google, publishing - and the wizard
+   * would ask them to add a website they do not have. The dashboard shows
+   * the shared site, or the invitation to accept. Checked only here, where
+   * the workspace is already known to own nothing, so an owner's path is the
+   * same as before.
    */
-  if (owned.length === 0) redirect("/onboarding/website");
+  if (owned.length === 0) {
+    if (await hasOnlySharedWork()) redirect("/dashboard");
+    redirect("/onboarding/website");
+  }
 
   const remembered = await readSelectedWebsite();
   const websiteId =

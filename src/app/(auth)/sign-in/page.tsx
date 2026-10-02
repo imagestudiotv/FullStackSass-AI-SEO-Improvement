@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { AuthForm } from "@/components/auth-form";
+import { safeNext } from "@/lib/auth/next";
 import { getSession } from "@/lib/auth-guard";
 import { getPublicMessages } from "@/lib/i18n/app-locale";
 
@@ -13,21 +14,18 @@ export const metadata = { title: "Sign in" };
  * link, was bounced here, and then bounced on to the dashboard with the
  * invitation forgotten. ?next= is honoured so they land where they were going.
  *
- * Validated the same way the form validates it - a path on this origin only,
- * never an absolute URL. See safeNext in components/auth-form.tsx.
+ * Validated by the same function the form uses - a path on this origin only,
+ * never an absolute URL. See safeNext in lib/auth/next.ts. This used to be a
+ * copy of those checks written out here, and the copy fell behind: it let
+ * "/<TAB>/evil.com" through, which a browser turns into "//evil.com" once it
+ * strips the tab - an open redirect from our own sign-in page. One function
+ * is one rule.
  */
 export default async function SignInPage({
   searchParams,
 }: PageProps<"/sign-in">) {
   const { next, email } = await searchParams;
-  const target = typeof next === "string" ? next : null;
-  const safe =
-    target &&
-    target.startsWith("/") &&
-    !target.startsWith("//") &&
-    !target.startsWith("/\\")
-      ? target
-      : "/dashboard";
+  const safe = safeNext(typeof next === "string" ? next : null);
 
   if (await getSession()) {
     redirect(safe);

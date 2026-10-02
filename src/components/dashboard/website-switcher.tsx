@@ -1,16 +1,36 @@
 "use client";
 
-import { Check, ChevronsUpDown, Globe, Plus } from "lucide-react";
+import { Check, ChevronsUpDown, Globe, Plus, Users } from "lucide-react";
 import { getMessages, type Messages } from "@/lib/i18n/messages";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useId, useRef, useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
+import { format } from "@/lib/i18n/format";
 import { selectWebsite } from "@/lib/websites/actions";
 import { cn } from "@/lib/utils";
+// Type-only: erased at compile time, so the server-only module never reaches
+// the client bundle.
+import type { WebsiteAccess } from "@/lib/websites/accessible";
+
+/**
+ * One entry in the menu.
+ *
+ * `access` is how the reader holds the site: "owner" for their workspace's
+ * own, or the role it was shared with them under. Display only - every page
+ * the menu leads to asks requireWebsite again - and deliberately nothing
+ * about WHO owns a shared site: no workspace id or name ever reaches this
+ * client component.
+ */
+type SwitcherWebsite = {
+  id: string;
+  domain: string;
+  brandName: string | null;
+  access: WebsiteAccess;
+};
 
 /**
  * Picks which website the dashboard is showing.
@@ -19,6 +39,13 @@ import { cn } from "@/lib/utils";
  * wrap onto a second row and push the panels down the page. It also carries
  * "Add website", which the brief asks for in the same place — the moment
  * someone opens this list is the moment they notice one is missing.
+ *
+ * TWO GROUPS. The workspace's own sites first, then - under "Shared with you"
+ * - the ones other people invited this person to, each with its role. The
+ * heading and the chips are there so nobody mistakes an invited site for one
+ * they own: the role is what decides whether they can delete it, buy for it
+ * or invite others to it, and a single undifferentiated list hid that until
+ * a button was refused.
  */
 export function WebsiteSwitcher({
   websites,
@@ -26,13 +53,15 @@ export function WebsiteSwitcher({
   compact = false,
   t = getMessages("en").app.dash,
 }: {
-  websites: { id: string; domain: string; brandName: string | null }[];
-  current: { id: string; domain: string; brandName: string | null };
+  /** In display order: owned oldest first, then shared in order granted. */
+  websites: SwitcherWebsite[];
+  current: SwitcherWebsite;
   /** Smaller, for the header, where it sits beside the workspace picker. */
   compact?: boolean;
   /** The switcher's wording, defaulting to English. */
   t?: Messages["app"]["dash"];
 }) {
+  const sharedHeadingId = useId();
   const router = useRouter();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -115,12 +144,77 @@ export function WebsiteSwitcher({
         router.push(`/websites/${id}${section[1] ?? ""}`);
       } else {
         // A query parameter, not a route: the dashboard is one page showing
-        // one site at a time.
+        // one site at a time. websites[0] is the dashboard's own default (the
+        // oldest owned site, else the first shared one - pickDashboardSite),
+        // so the bare /dashboard shows the same site.
         router.push(id === websites[0]?.id ? "/dashboard" : `/dashboard?site=${id}`);
       }
       router.refresh();
     });
   }
+
+  /*
+    Split once, keeping the order each half arrived in. The server already
+    sorts owned before shared; filtering rather than trusting that keeps a
+    shared site out of the owned group even if a caller passes them mixed.
+  */
+  const owned = websites.filter((site) => site.access === "owner");
+  const shared = websites.filter((site) => site.access !== "owner");
+
+  /** "Editor" / "Viewer", for the chips. Never called for an owned site. */
+  function roleLabel(access: WebsiteAccess): string {
+    return access === "viewer" ? t.roleViewer : t.roleEditor;
+  }
+
+  function renderOption(site: SwitcherWebsite) {
+    const selected = site.id === active.id;
+    return (
+      <button
+        key={site.id}
+        type="button"
+        role="option"
+        aria-selected={selected}
+        onClick={() => choose(site.id)}
+        className={cn(
+          "flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm transition-colors",
+          selected ? "bg-accent text-accent-foreground" : "hover:bg-accent/60",
+        )}
+      >
+        <Globe
+          className="size-4 shrink-0 text-muted-foreground"
+          aria-hidden="true"
+        />
+        <span className="min-w-0 flex-1 truncate">
+          {site.brandName || site.domain}
+        </span>
+        {site.access !== "owner" ? (
+          <span className="shrink-0 rounded-full border px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+            {roleLabel(site.access)}
+          </span>
+        ) : null}
+        {selected ? (
+          <Check className="size-4 shrink-0" aria-hidden="true" />
+        ) : null}
+      </button>
+    );
+  }
+
+  /*
+    On the trigger: the role, when the site on screen is shared.
+
+    The header is the one place visible on every page, and the role is what
+    explains why a delete button or the Billing tab is missing. The visible
+    word is the role ("Editor") rather than "Shared": it is the answer to the
+    question an invitee actually has - what may I do here - and it is short
+    enough for the compact header. The full "Shared with you · Editor" is the
+    chip's accessible name and tooltip - its own singular string, not the
+    group heading with the role glued on: the heading is plural in French,
+    Spanish and Italian, and this names one site.
+  */
+  const activeShared = active.access !== "owner";
+  const activeSharedLabel = activeShared
+    ? format(t.sharedSiteLabel, { role: roleLabel(active.access) })
+    : null;
 
   return (
     <div className="relative" ref={rootRef}>
@@ -141,6 +235,16 @@ export function WebsiteSwitcher({
         <span className={cn("truncate", compact ? "max-w-40" : "max-w-[16rem]")}>
           {active.brandName || active.domain}
         </span>
+        {activeSharedLabel ? (
+          <span
+            title={activeSharedLabel}
+            className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary"
+          >
+            <Users className="size-3" aria-hidden="true" />
+            <span aria-hidden="true">{roleLabel(active.access)}</span>
+            <span className="sr-only">{activeSharedLabel}</span>
+          </span>
+        ) : null}
         <ChevronsUpDown
           className="size-4 text-muted-foreground"
           aria-hidden="true"
@@ -150,34 +254,31 @@ export function WebsiteSwitcher({
       {open ? (
         <div
             role="listbox"
-            className="absolute left-0 z-50 mt-2 w-72 overflow-hidden rounded-lg border bg-popover p-1 shadow-md"
+            className="absolute left-0 z-50 mt-2 max-h-[70vh] w-72 overflow-y-auto rounded-lg border bg-popover p-1 shadow-md"
           >
-            {websites.map((site) => (
-              <button
-                key={site.id}
-                type="button"
-                role="option"
-                aria-selected={site.id === active.id}
-                onClick={() => choose(site.id)}
-                className={cn(
-                  "flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm transition-colors",
-                  site.id === active.id
-                    ? "bg-accent text-accent-foreground"
-                    : "hover:bg-accent/60",
-                )}
-              >
-                <Globe
-                  className="size-4 shrink-0 text-muted-foreground"
-                  aria-hidden="true"
-                />
-                <span className="min-w-0 flex-1 truncate">
-                  {site.brandName || site.domain}
-                </span>
-                {site.id === active.id ? (
-                  <Check className="size-4 shrink-0" aria-hidden="true" />
+            {owned.map(renderOption)}
+
+            {/*
+              The shared group, under its own heading. role="group" with the
+              heading as its name, so a screen reader announces "Shared with
+              you" on entering the group rather than reading the heading as an
+              option nobody can pick. The divider only appears when there are
+              owned sites above it to divide from.
+            */}
+            {shared.length > 0 ? (
+              <div role="group" aria-labelledby={sharedHeadingId}>
+                {owned.length > 0 ? (
+                  <div className="my-1 h-px bg-border" role="presentation" />
                 ) : null}
-              </button>
-            ))}
+                <div
+                  id={sharedHeadingId}
+                  className="px-2.5 pb-1 pt-2 text-xs font-medium text-muted-foreground"
+                >
+                  {t.sharedWithYou}
+                </div>
+                {shared.map(renderOption)}
+              </div>
+            ) : null}
 
             <div className="my-1 h-px bg-border" />
 

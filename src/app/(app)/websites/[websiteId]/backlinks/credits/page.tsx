@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
-import { requirePlan } from "@/lib/billing/require-plan";
+import { requireWebsitePlan } from "@/lib/billing/require-plan";
 import { format, formatDate } from "@/lib/i18n/format";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import { creditActivity, workspaceCredits } from "@/lib/reporting/backlinks";
@@ -23,7 +23,9 @@ export default async function CreditActivityPage({
 }: PageProps<"/websites/[websiteId]/backlinks/credits">) {
   const { websiteId } = await params;
   const ctx = await requireWebsitePage(websiteId);
-  await requirePlan(ctx.ownerOrgId);
+  // Paywall: the owner's plan for an owner, this site's plan for a guest.
+  // See lib/billing/require-plan.ts.
+  await requireWebsitePlan(ctx);
   const { t, locale } = await getAppMessages(ctx.userId);
   const r = t.app.reports;
 

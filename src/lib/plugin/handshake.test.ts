@@ -58,7 +58,7 @@ vi.mock("@/lib/i18n/app-locale", async () => {
   const { getMessages } = await import("@/lib/i18n/messages");
   return { getAppMessages: async () => ({ locale: "en", t: getMessages("en") }) };
 });
-vi.mock("@/app/connect/wordpress/switch-account", () => ({ SwitchAccount: () => null }));
+vi.mock("@/components/switch-account", () => ({ SwitchAccount: () => null }));
 
 import ConnectWordPressPage from "@/app/connect/wordpress/page";
 import { approveConnection, cancelConnection } from "@/app/connect/wordpress/actions";

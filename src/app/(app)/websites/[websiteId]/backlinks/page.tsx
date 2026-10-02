@@ -8,7 +8,7 @@ import { LifecycleBadge } from "@/components/reports/links-view";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
 import { getPartnerNetwork } from "@/lib/backlinks/network-settings";
-import { requirePlan } from "@/lib/billing/require-plan";
+import { requireWebsitePlan } from "@/lib/billing/require-plan";
 import { format, formatDate, plural } from "@/lib/i18n/format";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import {
@@ -38,8 +38,9 @@ export default async function BacklinksOverviewPage({
 }: PageProps<"/websites/[websiteId]/backlinks">) {
   const { websiteId } = await params;
   const ctx = await requireWebsitePage(websiteId);
-  // Paywall on the OWNER's plan: see lib/billing/require-plan.ts.
-  await requirePlan(ctx.ownerOrgId);
+  // Paywall: the owner's plan for an owner, this site's plan for a guest.
+  // See lib/billing/require-plan.ts.
+  await requireWebsitePlan(ctx);
   const subject = { websiteId: ctx.site.id, orgId: ctx.ownerOrgId };
   const window = resolveWindow("30d");
   const owner = ctx.access === "owner";

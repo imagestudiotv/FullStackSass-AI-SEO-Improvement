@@ -51,15 +51,22 @@ export async function writeSelectedWebsite(websiteId: string): Promise<void> {
  *
  * The URL wins when it names one: someone on /websites/abc/publishing is
  * looking at abc, whatever they last chose in the switcher. The cookie is the
- * fallback, and the first website is the fallback to that — the same default
+ * fallback, and the first candidate is the fallback to that — the same default
  * the dashboard uses, so the two never disagree about which site is "current".
+ *
+ * THE CALLER DECIDES WHICH IDS ARE ELIGIBLE. `candidates` used to be called
+ * `owned`, and every caller passed the workspace's own sites. Now some pass
+ * the sites shared with the caller as well (lib/websites/accessible.ts), and
+ * some - Billing, which only an owner can act on - deliberately do not. This
+ * function only chooses among what it is given, in the order given: an id
+ * that is not a candidate is ignored, never trusted.
  */
 export function resolveWebsiteId(
   fromPath: string | null,
   remembered: string | null,
-  owned: string[],
+  candidates: string[],
 ): string | null {
-  if (fromPath && owned.includes(fromPath)) return fromPath;
-  if (remembered && owned.includes(remembered)) return remembered;
-  return owned[0] ?? null;
+  if (fromPath && candidates.includes(fromPath)) return fromPath;
+  if (remembered && candidates.includes(remembered)) return remembered;
+  return candidates[0] ?? null;
 }

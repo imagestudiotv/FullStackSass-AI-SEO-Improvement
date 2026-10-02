@@ -453,6 +453,9 @@ export type Messages = {
       urlPlaceholder: string;
       cancel: string;
       adding: string;
+      /** The group of websites other people shared with the reader. */
+      sharedTitle: string;
+      sharedHelp: string;
     };
     billing: {
       title: string;
@@ -790,6 +793,34 @@ export type Messages = {
       openWebsite: string;
       /** "How example.com is performing in search." */
       performing: string;
+      /**
+       * The badge on a website someone else shared with the reader:
+       * "Shared with you · Editor". {role} is app.dash.roleEditor or
+       * app.dash.roleViewer.
+       */
+      sharedBadge: string;
+      /**
+       * A shared website whose owner's plan is not active. Neutral on
+       * purpose: the reader cannot pay for it, so this names who can fix it
+       * rather than offering a checkout. Help takes {domain}.
+       */
+      ownerPlanInactive: string;
+      ownerPlanInactiveHelp: string;
+      /** Pending invitations to the reader's verified address. */
+      invitesTitle: string;
+      /**
+       * "{name} invited you to work on {domain} as {role}." {role} is
+       * roleAnEditor / roleAViewer, written to fit this sentence in each
+       * language (French carries "en tant que" inside it, for the elision).
+       * NoName is for an invitation whose sender's account was deleted.
+       */
+      inviteBody: string;
+      inviteBodyNoName: string;
+      roleAnEditor: string;
+      roleAViewer: string;
+      acceptInvite: string;
+      /** Toast after accepting: "You now have access to {domain}". */
+      inviteAccepted: string;
     };
     calendar: {
       changeTopic: string;
@@ -1580,6 +1611,18 @@ export type Messages = {
       whyThisTopic: string;
       view: string;
       addAWebsite: string;
+      /** Heading of the switcher's group of websites shared with the reader. */
+      sharedWithYou: string;
+      /**
+       * ONE shared website, with the reader's role: the switcher trigger's
+       * tooltip and accessible name. Singular where sharedWithYou, a group
+       * heading, is plural ("Partagé avec vous" vs "Partagés avec vous").
+       * {role} is roleEditor or roleViewer.
+       */
+      sharedSiteLabel: string;
+      /** Role chips beside a shared website, and {role} in sharedBadge. */
+      roleEditor: string;
+      roleViewer: string;
     };
     wpConnect: {
       title: string;
@@ -2301,6 +2344,8 @@ const en: Messages = {
       urlPlaceholder: "example.com",
       cancel: "Cancel",
       adding: "Adding…",
+      sharedTitle: "Shared with you",
+      sharedHelp: "Websites other people have invited you to work on.",
     },
     billing: {
       title: "Billing",
@@ -2627,6 +2672,17 @@ const en: Messages = {
       overview: "SEO overview",
       openWebsite: "Open website",
       performing: "How {domain} is performing in search.",
+      sharedBadge: "Shared with you · {role}",
+      ownerPlanInactive: "This website is paused",
+      ownerPlanInactiveHelp:
+        "The plan for {domain} is not active, so nothing new can be created. Ask the website's owner to renew it.",
+      invitesTitle: "You have been invited",
+      inviteBody: "{name} invited you to work on {domain} as {role}.",
+      inviteBodyNoName: "You have been invited to work on {domain} as {role}.",
+      roleAnEditor: "an editor",
+      roleAViewer: "a viewer",
+      acceptInvite: "Accept invitation",
+      inviteAccepted: "You now have access to {domain}",
     },
     calendar: {
       changeTopic: "Change topic",
@@ -3410,6 +3466,10 @@ const en: Messages = {
       whyThisTopic: "Why this topic?",
       view: "View",
       addAWebsite: "Add a website",
+      sharedWithYou: "Shared with you",
+      sharedSiteLabel: "Shared with you · {role}",
+      roleEditor: "Editor",
+      roleViewer: "Viewer",
     },
     wpConnect: {
       title: "Connect WordPress",
@@ -4139,6 +4199,8 @@ const es: Messages = {
       urlPlaceholder: "ejemplo.com",
       cancel: "Cancelar",
       adding: "Añadiendo…",
+      sharedTitle: "Compartidos con usted",
+      sharedHelp: "Sitios web a los que otras personas le han dado acceso.",
     },
     billing: {
       title: "Facturación",
@@ -4465,6 +4527,17 @@ const es: Messages = {
       overview: "Resumen SEO",
       openWebsite: "Abrir sitio web",
       performing: "Cómo está funcionando {domain} en las búsquedas.",
+      sharedBadge: "Compartido con usted · {role}",
+      ownerPlanInactive: "Este sitio web está en pausa",
+      ownerPlanInactiveHelp:
+        "El plan de {domain} no está activo, así que no se puede crear nada nuevo. Pida al propietario del sitio web que lo renueve.",
+      invitesTitle: "Le han invitado",
+      inviteBody: "{name} le invita a trabajar en {domain} como {role}.",
+      inviteBodyNoName: "Tiene una invitación para trabajar en {domain} como {role}.",
+      roleAnEditor: "editor",
+      roleAViewer: "lector",
+      acceptInvite: "Aceptar invitación",
+      inviteAccepted: "Ahora tiene acceso a {domain}",
     },
     calendar: {
       changeTopic: "Cambiar tema",
@@ -5249,6 +5322,10 @@ const es: Messages = {
       whyThisTopic: "¿Por qué este tema?",
       view: "Ver",
       addAWebsite: "Añadir un sitio web",
+      sharedWithYou: "Compartidos con usted",
+      sharedSiteLabel: "Compartido con usted · {role}",
+      roleEditor: "Editor",
+      roleViewer: "Lector",
     },
     wpConnect: {
       title: "Conectar WordPress",
@@ -5981,6 +6058,8 @@ const fr: Messages = {
       urlPlaceholder: "exemple.com",
       cancel: "Annuler",
       adding: "Ajout…",
+      sharedTitle: "Partagés avec vous",
+      sharedHelp: "Les sites web auxquels d\u2019autres personnes vous ont donné accès.",
     },
     billing: {
       title: "Facturation",
@@ -6307,6 +6386,17 @@ const fr: Messages = {
       overview: "Vue d\u2019ensemble SEO",
       openWebsite: "Ouvrir le site",
       performing: "Les performances de {domain} dans la recherche.",
+      sharedBadge: "Partagé avec vous · {role}",
+      ownerPlanInactive: "Ce site est en pause",
+      ownerPlanInactiveHelp:
+        "Le forfait de {domain} n\u2019est pas actif, rien de nouveau ne peut donc être créé. Demandez au propriétaire du site de le renouveler.",
+      invitesTitle: "Invitations en attente",
+      inviteBody: "{name} vous invite à travailler sur {domain} {role}.",
+      inviteBodyNoName: "Vous avez reçu une invitation à travailler sur {domain} {role}.",
+      roleAnEditor: "en tant qu\u2019éditeur",
+      roleAViewer: "en tant que lecteur",
+      acceptInvite: "Accepter l\u2019invitation",
+      inviteAccepted: "Vous avez maintenant accès à {domain}",
     },
     calendar: {
       changeTopic: "Changer de sujet",
@@ -7090,6 +7180,10 @@ const fr: Messages = {
       whyThisTopic: "Pourquoi ce sujet ?",
       view: "Voir",
       addAWebsite: "Ajouter un site",
+      sharedWithYou: "Partagés avec vous",
+      sharedSiteLabel: "Partagé avec vous · {role}",
+      roleEditor: "Éditeur",
+      roleViewer: "Lecteur",
     },
     wpConnect: {
       title: "Connecter WordPress",
@@ -7815,6 +7909,8 @@ const it: Messages = {
       urlPlaceholder: "esempio.com",
       cancel: "Annulla",
       adding: "Aggiunta…",
+      sharedTitle: "Condivisi con lei",
+      sharedHelp: "Siti web a cui altre persone le hanno dato accesso.",
     },
     billing: {
       title: "Fatturazione",
@@ -8141,6 +8237,17 @@ const it: Messages = {
       overview: "Panoramica SEO",
       openWebsite: "Apri sito",
       performing: "Come sta andando {domain} nella ricerca.",
+      sharedBadge: "Condiviso con lei · {role}",
+      ownerPlanInactive: "Questo sito è in pausa",
+      ownerPlanInactiveHelp:
+        "Il piano di {domain} non è attivo, quindi non è possibile creare nulla di nuovo. Chieda al proprietario del sito di rinnovarlo.",
+      invitesTitle: "Inviti ricevuti",
+      inviteBody: "{name} la invita a lavorare su {domain} come {role}.",
+      inviteBodyNoName: "Ha ricevuto un invito a lavorare su {domain} come {role}.",
+      roleAnEditor: "editor",
+      roleAViewer: "lettore",
+      acceptInvite: "Accetta invito",
+      inviteAccepted: "Ora ha accesso a {domain}",
     },
     calendar: {
       changeTopic: "Cambia argomento",
@@ -8925,6 +9032,10 @@ const it: Messages = {
       whyThisTopic: "Perché questo argomento?",
       view: "Vedi",
       addAWebsite: "Aggiungi un sito",
+      sharedWithYou: "Condivisi con lei",
+      sharedSiteLabel: "Condiviso con lei · {role}",
+      roleEditor: "Editor",
+      roleViewer: "Lettore",
     },
     wpConnect: {
       title: "Collega WordPress",
@@ -9657,6 +9768,8 @@ const de: Messages = {
       urlPlaceholder: "beispiel.de",
       cancel: "Abbrechen",
       adding: "Wird hinzugefügt…",
+      sharedTitle: "Mit Ihnen geteilt",
+      sharedHelp: "Websites, an denen Sie auf Einladung anderer mitarbeiten.",
     },
     billing: {
       title: "Abrechnung",
@@ -9984,6 +10097,17 @@ const de: Messages = {
       overview: "SEO-Überblick",
       openWebsite: "Website öffnen",
       performing: "Wie {domain} in der Suche abschneidet.",
+      sharedBadge: "Mit Ihnen geteilt · {role}",
+      ownerPlanInactive: "Diese Website ist pausiert",
+      ownerPlanInactiveHelp:
+        "Der Tarif für {domain} ist nicht aktiv, daher kann nichts Neues erstellt werden. Bitten Sie den Inhaber der Website, ihn zu verlängern.",
+      invitesTitle: "Sie wurden eingeladen",
+      inviteBody: "{name} hat Sie eingeladen, als {role} an {domain} mitzuarbeiten.",
+      inviteBodyNoName: "Sie wurden eingeladen, als {role} an {domain} mitzuarbeiten.",
+      roleAnEditor: "Redakteur",
+      roleAViewer: "Leser",
+      acceptInvite: "Einladung annehmen",
+      inviteAccepted: "Sie haben jetzt Zugriff auf {domain}",
     },
     calendar: {
       changeTopic: "Thema ändern",
@@ -10767,6 +10891,10 @@ const de: Messages = {
       whyThisTopic: "Warum dieses Thema?",
       view: "Ansehen",
       addAWebsite: "Website hinzufügen",
+      sharedWithYou: "Mit Ihnen geteilt",
+      sharedSiteLabel: "Mit Ihnen geteilt · {role}",
+      roleEditor: "Redakteur",
+      roleViewer: "Leser",
     },
     wpConnect: {
       title: "WordPress verbinden",

@@ -4,6 +4,7 @@ import { requireSession } from "@/lib/auth-guard";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import { getOnboardingState } from "@/lib/onboarding/steps";
 import { requireOrg } from "@/lib/tenant";
+import { hasOnlySharedWork } from "@/lib/websites/accessible";
 import { WebsiteStep } from "./website-step";
 
 export const metadata = { title: "Add your website" };
@@ -59,6 +60,27 @@ export default async function OnboardingWebsitePage({
    */
   if (state.websiteId && !addingAnother) {
     redirect("/onboarding/plan");
+  }
+
+  /**
+   * Owns no website, but was invited to one: the dashboard, not this form.
+   *
+   * Every later step sends a caller without a website back HERE, so this is
+   * the one place that has to know about invitees - without it an invited
+   * editor was asked to "add your website" for a site they do not have, while
+   * the one they were invited to sat unreachable. "Shared" means a
+   * website_members row or an invitation waiting for their proven address,
+   * which the dashboard lists with an Accept button (hasOnlySharedWork).
+   *
+   * NOT when ?next=1. That is "Add website" from the switcher or the
+   * dashboard: an invitee who wants a site of their own gets the form, and
+   * from there the same onboarding and plan as any other customer - only the
+   * SHARED site skips setup. An empty websiteId already means this workspace
+   * owns nothing (the state above is not narrowed by ?site=), so owners never
+   * reach the extra queries.
+   */
+  if (!state.websiteId && !addingAnother && (await hasOnlySharedWork())) {
+    redirect("/dashboard");
   }
 
   return (
