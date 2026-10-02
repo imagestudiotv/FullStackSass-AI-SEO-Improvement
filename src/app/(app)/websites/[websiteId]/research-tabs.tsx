@@ -17,6 +17,8 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { ContentCalendar } from "./content-calendar";
+import { useRefreshWhile } from "@/components/refresh-while";
+import { runOutcome } from "@/lib/keywords/research-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -129,29 +131,43 @@ export function ResearchTabs({
     every few seconds while it runs lets the screen change the moment the job
     does, and stops as soon as it has.
   */
-  React.useEffect(() => {
-    if (!researching) return;
-    const timer = window.setInterval(() => router.refresh(), 5000);
-    return () => window.clearInterval(timer);
-  }, [researching, router]);
+  // Every 3s, one timer shared with the layout's ResearchWatcher (components/refresh-while.ts).
+  useRefreshWhile(researching);
 
   /*
-    A run that ends with no content plan did not succeed: on success the job
-    saves the plan before it clears "researching". Said here rather than left
-    to the notification bell, where the only trace used to be a raw SDK error.
+    How the run ended, said here rather than left to the notification bell.
+
+    By whether the PLAN CHANGED, not by whether one exists: a successful run
+    replaces every still-planned item (save-calendar deletes and re-inserts
+    them), so new planned ids mean a new plan. A failed re-run leaves the old
+    plan in place - counting rows said "Your content plan is ready" while the
+    bell said research had failed.
   */
+  const plannedIds = React.useMemo(
+    () => new Set(calendar.filter((item) => item.status === "planned").map((item) => item.id)),
+    [calendar],
+  );
+  /** The planned ids when this run started: at the press, or when the page first saw it running. */
+  const beforeRun = React.useRef<Set<string> | null>(researching ? plannedIds : null);
   const wasResearching = React.useRef(researching);
   React.useEffect(() => {
-    if (wasResearching.current && !researching && calendar.length === 0) {
-      toast.error(t.researchFailed, { duration: 15000 });
+    if (researching && !wasResearching.current && !beforeRun.current) beforeRun.current = plannedIds;
+    if (wasResearching.current && !researching) {
+      const outcome = runOutcome(beforeRun.current ?? new Set<string>(), plannedIds, calendar.length);
+      if (outcome === "ready") toast.success(t.planReady);
+      else toast.error(outcome === "failed" ? t.researchFailed : t.planNotRebuilt, { duration: 15000 });
+      beforeRun.current = null;
     }
     wasResearching.current = researching;
-  }, [researching, calendar.length, t.researchFailed]);
+  }, [researching, plannedIds, calendar.length, t.researchFailed, t.planReady, t.planNotRebuilt]);
 
   function handleResearch() {
+    // The plan as it stands now, so the end of this run can tell a new plan from the old one.
+    beforeRun.current = plannedIds;
     startTransition(async () => {
       const result = await startResearch(websiteId);
       if (!result.ok) {
+        beforeRun.current = null;
         toast.error(result.error);
         return;
       }
@@ -185,14 +201,19 @@ export function ResearchTabs({
         accounted for, and a content plan that silently starts rebuilding is
         the kind of surprise that makes people press the button again.
       */
-      const { added, skipped, replanned } = result.data;
+      const { added, skipped, replanned, planBusy } = result.data;
       const counted =
         skipped > 0
           ? `Added ${added}. Skipped ${skipped} already tracked or over your plan.`
           : `Added ${added}.`;
 
+      if (replanned) beforeRun.current = plannedIds;
       toast.success(
-        replanned ? `${counted} Rebuilding your content plan…` : counted,
+        replanned
+          ? `${counted} Rebuilding your content plan…`
+          : planBusy
+            ? `${counted} Your plan is being built right now - press Refresh once it is ready to include them.`
+            : counted,
       );
       router.refresh();
     });
@@ -242,8 +263,9 @@ export function ResearchTabs({
             {tCommon.noOpportunities}
           </CardTitle>
           <CardDescription>
-            {tCommon.researchIntro}
-            </CardDescription>
+            {/* While it runs, say so - not "find opportunities" beside a spinning button. */}
+            {researching ? t.researching : tCommon.researchIntro}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Button onClick={handleResearch} disabled={pending || researching}>
@@ -332,9 +354,11 @@ export function ResearchTabs({
                 {tCommon.noPlanYet}
               </CardTitle>
               <CardDescription>
-                {keywords.length > 0
-                  ? tCommon.noPlanYetHaveKeywords
-                  : tCommon.researchIntro}
+                {researching
+                  ? t.researching
+                  : keywords.length > 0
+                    ? tCommon.noPlanYetHaveKeywords
+                    : tCommon.researchIntro}
               </CardDescription>
             </CardHeader>
             <CardContent>

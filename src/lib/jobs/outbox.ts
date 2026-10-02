@@ -325,6 +325,19 @@ async function giveUpOn(tx: Executor, row: typeof jobOutbox.$inferSelect): Promi
         ),
       );
   }
+  // Research marks the website "researching" when queued (lib/keywords/actions.ts): a run that will never start ends it.
+  if (row.name === "website/research.requested" && typeof data.websiteId === "string") {
+    await tx
+      .update(websites)
+      .set({ status: "ready", updatedAt: now })
+      .where(
+        and(
+          eq(websites.id, data.websiteId),
+          eq(websites.status, "researching"),
+          newerJobFor("websiteId", data.websiteId),
+        ),
+      );
+  }
   if (row.name === "website/analyze.requested" && typeof data.websiteId === "string") {
     await tx
       .update(websites)

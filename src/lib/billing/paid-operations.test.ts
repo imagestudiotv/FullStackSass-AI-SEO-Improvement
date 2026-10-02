@@ -57,7 +57,7 @@ const crawler = vi.hoisted(() => ({ crawlSite: vi.fn() }));
 vi.mock("@/lib/audit/crawler", () => crawler);
 
 import { startAudit } from "@/lib/audit/actions";
-import { startResearch } from "@/lib/keywords/actions";
+import { addKeywords, startResearch } from "@/lib/keywords/actions";
 import { regenerateArticleImage } from "@/lib/articles/image-actions";
 import { auditWebsite } from "@/inngest/functions/audit-website";
 import { deliverJobs, MAX_DELIVERY_ATTEMPTS } from "@/lib/jobs/outbox";
@@ -138,11 +138,74 @@ describe("audits", () => {
 });
 
 describe("keyword research", () => {
-  it("admits the hourly ceiling under simultaneous presses", async () => {
+  const siteRow = async (websiteId: string) =>
+    (await test.client.query<{ status: string; updated_at: Date }>("select status, updated_at from websites where id = $1", [websiteId]))
+      .rows[0];
+  /** What the job does when it finishes: the run is over. */
+  const finish = (websiteId: string) => test.client.query("update websites set status = 'ready' where id = $1", [websiteId]);
+
+  it("marks the website researching as soon as the run is queued, so the page follows it at once", async () => {
+    const { websiteId } = await seedWebsite(test);
+    expect((await siteRow(websiteId)).status).toBe("ready");
+    expect((await startResearch(websiteId)).ok).toBe(true);
+    // Before the job has run a single step - this is what the button's own refresh now sees.
+    expect((await siteRow(websiteId)).status).toBe("researching");
+  });
+
+  it("runs once however many times it is pressed while running (a double click, a second tab)", async () => {
     const { websiteId } = await seedWebsite(test);
     const outcomes = await Promise.all(Array.from({ length: 10 }, () => startResearch(websiteId)));
-    expect(outcomes.filter((o) => o.ok)).toHaveLength(3);
+    expect(outcomes.every((o) => o.ok)).toBe(true);
+    expect(inngestMock.send).toHaveBeenCalledTimes(1);
+    const held = await test.client.query("select 1 from spend_reservations where website_id = $1", [websiteId]);
+    // Two quota rules, one run: nothing reserved for the presses that changed nothing.
+    expect(held.rows).toHaveLength(2);
+  });
+
+  it("admits the hourly ceiling across runs", async () => {
+    const { websiteId } = await seedWebsite(test);
+    const outcomes = [];
+    for (let i = 0; i < 4; i++) {
+      outcomes.push(await startResearch(websiteId));
+      await finish(websiteId);
+    }
+    expect(outcomes.map((o) => o.ok)).toEqual([true, true, true, false]);
     expect(inngestMock.send).toHaveBeenCalledTimes(3);
+  });
+
+  it("a press during the hour's last run follows that run instead of reporting the limit", async () => {
+    const { websiteId } = await seedWebsite(test);
+    expect((await startResearch(websiteId)).ok).toBe(true);
+    await finish(websiteId);
+    expect((await startResearch(websiteId)).ok).toBe(true);
+    await finish(websiteId);
+    expect((await startResearch(websiteId)).ok).toBe(true);
+    // Third run still going, allowance used up: the press is the same request, not an error.
+    expect(await startResearch(websiteId)).toEqual({ ok: true, data: null });
+    expect(inngestMock.send).toHaveBeenCalledTimes(3);
+  });
+
+  it("adding keywords while a plan is being built stores them and queues no second run", async () => {
+    const { websiteId } = await seedWebsite(test);
+    expect((await startResearch(websiteId)).ok).toBe(true);
+    const added = await addKeywords(websiteId, "wedding photographer rome, elopement photographer");
+    expect(added).toMatchObject({ ok: true, data: { added: 2, replanned: false, planBusy: true } });
+    expect(inngestMock.send).toHaveBeenCalledTimes(1);
+
+    // Once it has finished, adding keywords rebuilds the plan as before.
+    await finish(websiteId);
+    expect(await addKeywords(websiteId, "destination wedding")).toMatchObject({ ok: true, data: { replanned: true, planBusy: false } });
+    expect(inngestMock.send).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not let a run that never ended lock the button: after 30 minutes a press starts a new one", async () => {
+    const { websiteId } = await seedWebsite(test);
+    await test.client.query(
+      "update websites set status = 'researching', updated_at = $2 where id = $1",
+      [websiteId, new Date(Date.now() - 31 * 60 * 1000).toISOString()],
+    );
+    expect((await startResearch(websiteId)).ok).toBe(true);
+    expect(inngestMock.send).toHaveBeenCalledTimes(1);
   });
 
   it("accepts research while the queue is down, and returns the slot only when delivery is given up", async () => {
@@ -162,6 +225,9 @@ describe("keyword research", () => {
 
     await giveUpDelivery();
     expect(await states()).toEqual(["released", "released"]);
+    // A run that will never start does not leave the page saying "Looking...".
+    const [site] = (await test.client.query<{ status: string }>("select status from websites where id = $1", [websiteId])).rows;
+    expect(site.status).toBe("ready");
   });
 });
 

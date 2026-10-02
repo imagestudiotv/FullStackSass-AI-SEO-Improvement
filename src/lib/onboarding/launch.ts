@@ -2,6 +2,7 @@ import { and, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { cache } from "react";
 
 import { db } from "@/lib/db";
+import { researchInFlight } from "@/lib/keywords/research-state";
 import {
   audits,
   brandVoice,
@@ -105,6 +106,8 @@ export type LaunchState = {
   requiredRemaining: number;
   /** True when nothing required is left. */
   live: boolean;
+  /** Keyword research under way, so the layout follows it (ResearchWatcher). */
+  researching: boolean;
 };
 
 /** CMS integrations that count as "your site is connected". */
@@ -146,6 +149,8 @@ export const getLaunchState = cache(async function getLaunchState(
           language: websites.language,
           // Read here so the "preferences" step below can tick on a review.
           articleSettingsReviewedAt: websites.articleSettingsReviewedAt,
+          status: websites.status,
+          updatedAt: websites.updatedAt,
         })
         .from(websites)
         .where(eq(websites.id, websiteId))
@@ -409,5 +414,6 @@ export const getLaunchState = cache(async function getLaunchState(
     doneCount: steps.filter((step) => step.done).length,
     requiredRemaining,
     live,
+    researching: site[0] ? researchInFlight(site[0]) : false,
   };
 });

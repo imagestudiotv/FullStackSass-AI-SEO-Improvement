@@ -16,6 +16,7 @@ import { getAppMessages } from "@/lib/i18n/app-locale";
 import { db } from "@/lib/db";
 import { addons, notifications, organization, websites } from "@/lib/db/schema";
 import { ReferralClaim } from "@/components/referral-claim";
+import { ResearchWatcher } from "@/components/research-watcher";
 import { readReferralCookie } from "@/lib/referrals/cookie";
 import { getLaunchState } from "@/lib/onboarding/launch";
 import { SetupTracker } from "@/components/setup-tracker";
@@ -287,6 +288,8 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       {launch && fallbackWebsiteId ? (
         <SetupTracker steps={launch.steps} t={t.app.common} />
       ) : null}
+      {/* Every screen follows a content plan being built, not only Planned Articles. */}
+      {launch?.researching ? <ResearchWatcher /> : null}
 
       <LiveChat
         user={{

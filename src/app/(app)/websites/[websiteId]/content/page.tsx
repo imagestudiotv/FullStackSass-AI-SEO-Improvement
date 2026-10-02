@@ -2,6 +2,7 @@ import { requireWebsitePage } from "@/lib/tenant";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import { listArticles } from "@/lib/articles/actions";
 import { listCalendar, listKeywords } from "@/lib/keywords/actions";
+import { researchInFlight } from "@/lib/keywords/research-state";
 import { ResearchTabs } from "../research-tabs";
 import { requirePlan } from "@/lib/billing/require-plan";
 
@@ -33,7 +34,7 @@ export default async function WebsiteContentPage({
       keywords={keywords}
       calendar={calendar}
       articles={articles}
-      researching={site.status === "researching"}
+      researching={researchInFlight(site)}
       t={t.app.research}
       tCalendar={t.app.calendar}
       tCommon={t.app.common}

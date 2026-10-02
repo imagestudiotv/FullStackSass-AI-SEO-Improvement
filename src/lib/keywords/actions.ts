@@ -4,10 +4,11 @@ import { and, asc, desc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/lib/db";
-import { calendarItems, clusters, keywords } from "@/lib/db/schema";
+import { calendarItems, clusters, keywords, websites } from "@/lib/db/schema";
 import { requireWebsite } from "@/lib/tenant";
 import { requireEditor } from "@/lib/websites/require-editor";
 import { reserveAndQueue } from "@/lib/jobs/outbox";
+import { researchInFlight } from "@/lib/keywords/research-state";
 import { checkLimit } from "@/lib/usage";
 import { UNLIMITED } from "@/lib/usage-shared";
 import type { ActionResult } from "@/lib/websites/actions";
@@ -115,10 +116,40 @@ const RESEARCH_PER_WORKSPACE_PER_HOUR = 6;
 
 /**
  * Reserves a research run and records its job in one transaction (lib/jobs/
- * outbox.ts). False only when the hourly allowance is used up: a queue
- * outage delays the run, it does not refuse it.
+ * outbox.ts), and marks the website "researching" in that same transaction.
+ *
+ * "queued", or "limited" when the hourly allowance is used up (a queue outage
+ * delays the run, it does not refuse it), or - with refuseIfRunning - "running"
+ * when a run is already under way, in which case nothing is reserved.
+ *
+ * WHY THE STATUS IS WRITTEN HERE. The job sets it too, but only once its
+ * first step runs, seconds after the button's own refresh. The page rendered
+ * "ready" in that gap, so it never followed the run: the plan appeared only on
+ * a manual reload, and pressing again was the natural thing to do (client,
+ * 2026-10-02). Written before the job is sent, so even a run that finishes
+ * at once cannot be overtaken by it. A website still being analysed keeps
+ * that status.
  */
-async function startResearchJob(websiteId: string, ownerOrgId: string): Promise<boolean> {
+async function startResearchJob(
+  websiteId: string,
+  ownerOrgId: string,
+  options: { refuseIfRunning?: boolean } = {},
+): Promise<"queued" | "running" | "limited"> {
+  /*
+    A run in flight answers first, before the hourly allowance: with the
+    allowance used up, a press during the third run of the hour was told "too
+    many times" and its page never followed the run. Checked again under the
+    lock below, for presses that race.
+  */
+  if (options.refuseIfRunning) {
+    const [site] = await db
+      .select({ status: websites.status, updatedAt: websites.updatedAt })
+      .from(websites)
+      .where(eq(websites.id, websiteId))
+      .limit(1);
+    if (site && researchInFlight(site)) return "running";
+  }
+
   const slot = await reserveAndQueue(
     [
       { key: `research:site:${websiteId}`, limit: RESEARCH_PER_WEBSITE_PER_HOUR, window: { seconds: 3600 } },
@@ -130,8 +161,26 @@ async function startResearchJob(websiteId: string, ownerOrgId: string): Promise<
       name: "website/research.requested",
       data: { websiteId, organizationId: ownerOrgId, reservations },
     }),
+    async (tx) => {
+      // Locked, so two presses at once see each other: the second finds the first running.
+      const [site] = await tx
+        .select({ status: websites.status, updatedAt: websites.updatedAt })
+        .from(websites)
+        .where(eq(websites.id, websiteId))
+        .for("update");
+      if (!site) return false;
+      if (options.refuseIfRunning && researchInFlight(site)) return false;
+      if (site.status !== "pending" && site.status !== "crawling") {
+        await tx
+          .update(websites)
+          .set({ status: "researching", updatedAt: new Date() })
+          .where(eq(websites.id, websiteId));
+      }
+      return true;
+    },
   );
-  return slot.ok;
+  if (slot.ok) return "queued";
+  return "refused" in slot && slot.refused ? "running" : "limited";
 }
 
 /** Starts (or re-runs) keyword research for a website. */
@@ -178,7 +227,13 @@ export async function startResearch(
     on the same site minutes apart produces the same clusters. Counted on
     seo_api, which research-keywords records once per billable provider call.
   */
-  if (!(await startResearchJob(site.id, ownerOrgId))) {
+  /*
+    A press while a run is under way - a double click, a second tab - is the
+    same request again: nothing more is queued or billed, and the page goes on
+    following the run already going.
+  */
+  const queued = await startResearchJob(site.id, ownerOrgId, { refuseIfRunning: true });
+  if (queued === "limited") {
     return {
       ok: false,
       error: "You have run this many times in the last hour. Please try again shortly.",
@@ -282,7 +337,7 @@ export async function addKeywords(
   /** One per line, or comma-separated — people paste both. */
   input: string,
 ): Promise<
-  ActionResult<{ added: number; skipped: number; replanned: boolean }>
+  ActionResult<{ added: number; skipped: number; replanned: boolean; planBusy: boolean }>
 > {
   const guard = await requireEditor(websiteId);
   if (!guard.ok) return { ok: false, error: guard.error };
@@ -388,8 +443,17 @@ export async function addKeywords(
    * themselves; throwing would tell them nothing happened when something did.
    */
   let replanned = false;
+  /*
+    While a plan is being built, a second run is not queued behind it: the
+    first one's end would mark the site ready while the second still waited,
+    and the page would stop following it. The keywords are stored either way;
+    the customer presses Refresh once the current plan is in.
+  */
+  let planBusy = false;
   if (inserted.length > 0) {
-    replanned = await startResearchJob(site.id, site.organizationId);
+    const outcome = await startResearchJob(site.id, site.organizationId, { refuseIfRunning: true });
+    replanned = outcome === "queued";
+    planBusy = outcome === "running";
   }
 
   revalidatePath(`/websites/${site.id}/content`);
@@ -405,6 +469,8 @@ export async function addKeywords(
        * still get their terms stored, and the UI says what to do next.
        */
       replanned,
+      /** A plan was already being built, so none was queued; Refresh after it lands. */
+      planBusy,
     },
   };
 }
