@@ -10,7 +10,7 @@ import {
   UserPlus,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -54,6 +54,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { Messages } from "@/lib/i18n/messages";
+import type { Locale } from "@/lib/i18n/config";
+import { format, formatDate } from "@/lib/i18n/format";
 import {
   addWebsiteMember,
   listWebsiteInvitations,
@@ -86,6 +88,7 @@ export function WebsiteMembers({
   initialWebsiteId,
   initialMembers,
   initialInvitations,
+  locale,
   t,
 }: {
   /** Every website this person owns. Access is granted per site. */
@@ -94,6 +97,8 @@ export function WebsiteMembers({
   initialMembers: WebsiteMember[];
   /** Invitations sent but not yet accepted. Owner-only; empty for an editor. */
   initialInvitations: WebsiteInvitation[];
+  /** For dates in the reader's convention. */
+  locale: Locale;
   /** This screen's copy, already in the reader's language. */
   t: Messages["app"]["settings"];
 }) {
@@ -167,6 +172,40 @@ export function WebsiteMembers({
     setInvitations([]);
     void loadMembers(id);
   }
+
+  /*
+    Keeps the list current without a reload. It was read once, when Settings
+    opened, so an invitation accepted meanwhile still showed "Invited" until
+    the owner reloaded (client, 2026-10-03). Re-read quietly - no spinner, no
+    error toast - when the tab comes back into view, and every 20 seconds
+    while an invitation is still waiting, which is exactly when someone may be
+    accepting it. Guarded like loadMembers: a reply for a site no longer
+    picked is dropped.
+  */
+  const waiting = invitations.some((invitation) => !invitation.expired);
+  useEffect(() => {
+    async function quietly() {
+      if (document.visibilityState === "hidden") return;
+      const id = wantedSite.current;
+      try {
+        const [rows, open] = await Promise.all([listWebsiteMembers(id), listWebsiteInvitations(id)]);
+        if (wantedSite.current !== id) return;
+        setMembers(rows);
+        setInvitations(open);
+      } catch {
+        // A background check that fails changes nothing on screen.
+      }
+    }
+    const onReturn = () => void quietly();
+    window.addEventListener("focus", onReturn);
+    document.addEventListener("visibilitychange", onReturn);
+    const timer = waiting ? window.setInterval(onReturn, 20_000) : null;
+    return () => {
+      window.removeEventListener("focus", onReturn);
+      document.removeEventListener("visibilitychange", onReturn);
+      if (timer !== null) window.clearInterval(timer);
+    };
+  }, [waiting, websiteId]);
 
   /** Re-reads the current site's list after a change, without a navigation. */
   async function refreshMembers() {
@@ -538,9 +577,22 @@ export function WebsiteMembers({
                           {invitation.email}
                         </p>
                         <p className="truncate text-xs text-muted-foreground">
+                          {/*
+                            The date is when the invitation EXPIRES, and says
+                            so: shown bare after "Invited", in the browser's
+                            US order (10/9/2026), it read as "invited on
+                            10 September".
+                          */}
                           {invitation.expired
                             ? t.statusExpired
-                            : `${t.statusPending} · ${invitation.expiresAt.toLocaleDateString()}`}
+                            : `${t.statusPending} · ${format(t.invitationExpiresOn, {
+                                date: formatDate(invitation.expiresAt, locale, {
+                                  day: "numeric",
+                                  month: "short",
+                                  year: "numeric",
+                                  timeZone: "UTC",
+                                }),
+                              })}`}
                         </p>
                       </div>
                     </div>

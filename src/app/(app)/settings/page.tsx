@@ -172,6 +172,7 @@ export default async function SettingsPage() {
           initialWebsiteId={selectedSite.id}
           initialMembers={await listWebsiteMembers(selectedSite.id)}
           initialInvitations={await listWebsiteInvitations(selectedSite.id)}
+          locale={locale}
           t={t.app.settings}
         />
       ) : null}

@@ -400,6 +400,7 @@ export type Messages = {
       statusColumn: string;
       /** The pending-invitation row: its status pills and its two controls. */
       statusPending: string;
+      invitationExpiresOn: string;
       statusExpired: string;
       resendInvite: string;
       cancelInvite: string;
@@ -2307,6 +2308,7 @@ const en: Messages = {
       roleColumn: "Role",
       statusColumn: "Status",
       statusPending: "Invited",
+      invitationExpiresOn: "expires {date}",
       statusExpired: "Expired",
       resendInvite: "Resend invitation",
       cancelInvite: "Cancel invitation",
@@ -4162,6 +4164,7 @@ const es: Messages = {
       roleColumn: "Función",
       statusColumn: "Estado",
       statusPending: "Invitado",
+      invitationExpiresOn: "caduca el {date}",
       statusExpired: "Caducada",
       resendInvite: "Reenviar invitación",
       cancelInvite: "Cancelar invitación",
@@ -6021,6 +6024,7 @@ const fr: Messages = {
       roleColumn: "Rôle",
       statusColumn: "Statut",
       statusPending: "Invité",
+      invitationExpiresOn: "expire le {date}",
       statusExpired: "Expirée",
       resendInvite: "Renvoyer l’invitation",
       cancelInvite: "Annuler l’invitation",
@@ -7872,6 +7876,7 @@ const it: Messages = {
       roleColumn: "Ruolo",
       statusColumn: "Stato",
       statusPending: "Invitato",
+      invitationExpiresOn: "scade il {date}",
       statusExpired: "Scaduto",
       resendInvite: "Invia di nuovo l’invito",
       cancelInvite: "Annulla invito",
@@ -9731,6 +9736,7 @@ const de: Messages = {
       roleColumn: "Rolle",
       statusColumn: "Status",
       statusPending: "Eingeladen",
+      invitationExpiresOn: "läuft am {date} ab",
       statusExpired: "Abgelaufen",
       resendInvite: "Einladung erneut senden",
       cancelInvite: "Einladung zurücknehmen",
