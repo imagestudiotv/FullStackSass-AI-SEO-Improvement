@@ -1523,6 +1523,12 @@ export type Messages = {
       noImageSelected: string;
       pickOneBelow: string;
       closeImagePicker: string;
+      imageAlt: string;
+      imageAltPlaceholder: string;
+      replaceImage: string;
+      saveImage: string;
+      noMatches: string;
+      noPicturesYet: string;
     };
     dash: {
       bestArticles: string;
@@ -3339,6 +3345,12 @@ const en: Messages = {
       noImageSelected: "No image selected",
       pickOneBelow: "Pick one below, or upload your own.",
       closeImagePicker: "Close image picker",
+      imageAlt: "Image description (alt text)",
+      imageAltPlaceholder: "What the picture shows",
+      replaceImage: "Replace image",
+      saveImage: "Save",
+      noMatches: "Nothing matches that.",
+      noPicturesYet: "No pictures yet - upload one to start.",
     },
     dash: {
       bestArticles: "Best articles",
@@ -5164,6 +5176,12 @@ const es: Messages = {
       noImageSelected: "Ninguna imagen seleccionada",
       pickOneBelow: "Elija una de abajo o suba la suya.",
       closeImagePicker: "Cerrar el selector de imágenes",
+      imageAlt: "Descripción de la imagen (texto alternativo)",
+      imageAltPlaceholder: "Qué muestra la imagen",
+      replaceImage: "Reemplazar imagen",
+      saveImage: "Guardar",
+      noMatches: "No hay coincidencias.",
+      noPicturesYet: "Aún no hay imágenes: suba una para empezar.",
     },
     dash: {
       bestArticles: "Mejores artículos",
@@ -6991,6 +7009,12 @@ const fr: Messages = {
       noImageSelected: "Aucune image sélectionnée",
       pickOneBelow: "Choisissez ci-dessous, ou importez la vôtre.",
       closeImagePicker: "Fermer le sélecteur d\u2019images",
+      imageAlt: "Description de l\u2019image (texte alternatif)",
+      imageAltPlaceholder: "Ce que montre l\u2019image",
+      replaceImage: "Remplacer l\u2019image",
+      saveImage: "Enregistrer",
+      noMatches: "Aucun résultat.",
+      noPicturesYet: "Pas encore d\u2019images : importez-en une pour commencer.",
     },
     dash: {
       bestArticles: "Meilleurs articles",
@@ -8812,6 +8836,12 @@ const it: Messages = {
       noImageSelected: "Nessuna immagine selezionata",
       pickOneBelow: "Ne scelga una qui sotto o carichi la sua.",
       closeImagePicker: "Chiudi il selettore di immagini",
+      imageAlt: "Descrizione dell\u2019immagine (testo alternativo)",
+      imageAltPlaceholder: "Che cosa mostra l\u2019immagine",
+      replaceImage: "Sostituisci immagine",
+      saveImage: "Salva",
+      noMatches: "Nessun risultato.",
+      noPicturesYet: "Ancora nessuna immagine: ne carichi una per iniziare.",
     },
     dash: {
       bestArticles: "Articoli migliori",
@@ -10640,6 +10670,12 @@ const de: Messages = {
       noImageSelected: "Kein Bild ausgewählt",
       pickOneBelow: "Wählen Sie unten eines aus oder laden Sie ein eigenes hoch.",
       closeImagePicker: "Bildauswahl schließen",
+      imageAlt: "Bildbeschreibung (Alt-Text)",
+      imageAltPlaceholder: "Was das Bild zeigt",
+      replaceImage: "Bild ersetzen",
+      saveImage: "Speichern",
+      noMatches: "Keine Treffer.",
+      noPicturesYet: "Noch keine Bilder - laden Sie eines hoch, um zu beginnen.",
     },
     dash: {
       bestArticles: "Beste Artikel",

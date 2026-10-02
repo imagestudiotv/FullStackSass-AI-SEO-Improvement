@@ -5,6 +5,8 @@ import { getMessages, type Messages } from "@/lib/i18n/messages";
 import { useEffect, useRef, useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
 /**
@@ -23,7 +25,16 @@ import { cn } from "@/lib/utils";
  * dentist the same surgery — and it costs nothing. A stock provider would be a
  * better search and is a separate decision; this panel would not change shape
  * to accommodate one.
+ *
+ * ALT TEXT. The description is written here, under the preview, because this
+ * is where an image is chosen and where clicking one in the text lands
+ * (client, 2026-10-01: "I don't find an option" to add alt text on blog
+ * images). Search engines read it and screen readers say it aloud. Changing
+ * only the description of an image already in place is a Save on its own.
  */
+
+/** Longest description kept - the featured image's limit (lib/articles/image-actions.ts). */
+const ALT_MAX = 300;
 
 export type PickerImage = { url: string; name: string };
 
@@ -31,6 +42,7 @@ export function ImagePicker({
   images,
   loading,
   selected: initial = null,
+  alt: initialAlt = null,
   onSearch,
   onUpload,
   onInsert,
@@ -50,15 +62,19 @@ export function ImagePicker({
    * It starts selected so the preview shows what is being replaced.
    */
   selected?: string | null;
+  /** The description of the image already in place, when there is one. */
+  alt?: string | null;
   onSearch: (term: string) => void;
   /** Stores a file and returns its URL, or null when it failed. */
   onUpload: (file: File) => Promise<string | null>;
-  onInsert: (url: string) => void;
+  /** Puts the chosen picture in place, with its description ("" for none). */
+  onInsert: (url: string, alt: string) => void;
   /** Deletes the image being edited. Absent when inserting a new one. */
   onRemove?: () => void;
   onClose: () => void;
 }) {
   const [selected, setSelected] = useState<string | null>(initial);
+  const [altText, setAltText] = useState(initialAlt ?? "");
   const [term, setTerm] = useState("");
   const [uploading, startUpload] = useTransition();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -81,6 +97,17 @@ export function ImagePicker({
     const timer = setTimeout(() => searchRef.current(term), 300);
     return () => clearTimeout(timer);
   }, [term]);
+
+  /*
+    Confirmable when there is a picture and something changed: a different
+    picture, or a new description for the same one. It used to require a
+    different picture, so a description alone could not be saved.
+  */
+  const altChanged = altText.trim() !== (initialAlt ?? "").trim();
+  const canConfirm = Boolean(selected) && (selected !== initial || altChanged);
+  function confirm() {
+    if (selected && canConfirm) onInsert(selected, altText.trim());
+  }
 
   function choose(file: File) {
     startUpload(async () => {
@@ -114,7 +141,7 @@ export function ImagePicker({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={selected}
-            alt=""
+            alt={altText}
             className="max-h-80 rounded-md border object-contain"
           />
         </div>
@@ -132,6 +159,27 @@ export function ImagePicker({
           </p>
         </div>
       )}
+
+      {selected ? (
+        <div className="mt-4 space-y-1.5">
+          <Label htmlFor="image-picker-alt">{t.imageAlt}</Label>
+          <Input
+            id="image-picker-alt"
+            value={altText}
+            maxLength={ALT_MAX}
+            onChange={(event) => setAltText(event.target.value)}
+            onKeyDown={(event) => {
+              // Enter saves, as in any one-line form; it must not reach the article behind.
+              if (event.key === "Enter") {
+                event.preventDefault();
+                confirm();
+              }
+            }}
+            placeholder={t.imageAltPlaceholder}
+          />
+          <p className="text-xs text-muted-foreground">{tCommon.altHelp}</p>
+        </div>
+      ) : null}
 
       <div className="relative mt-4">
         <Search
@@ -197,9 +245,7 @@ export function ImagePicker({
 
         {!loading && images.length === 0 ? (
           <p className="self-center text-sm text-muted-foreground">
-            {term
-              ? "Nothing matches that."
-              : "No pictures yet - upload one to start."}
+            {term ? t.noMatches : t.noPicturesYet}
           </p>
         ) : null}
       </div>
@@ -234,13 +280,8 @@ export function ImagePicker({
         <Button type="button" variant="ghost" size="sm" onClick={onClose}>
           {tCommon.cancel}
         </Button>
-        <Button
-          type="button"
-          size="sm"
-          disabled={!selected || selected === initial}
-          onClick={() => selected && onInsert(selected)}
-        >
-          {initial ? "Replace image" : "Insert image"}
+        <Button type="button" size="sm" disabled={!canConfirm} onClick={confirm}>
+          {!initial ? t.insertImage : selected === initial ? t.saveImage : t.replaceImage}
         </Button>
       </div>
     </div>

@@ -333,6 +333,8 @@ export function RichTextEditor({
    * Null means insert at the caret instead.
    */
   const [editingImage, setEditingImage] = useState<string | null>(null);
+  /** That image's description (alt text), shown in the panel to edit. */
+  const [editingAlt, setEditingAlt] = useState<string | null>(null);
   /**
    * Document position of the image being edited.
    *
@@ -378,7 +380,7 @@ export function RichTextEditor({
    * there closes over the first render's openPicker. Reading through a ref
    * keeps clicking an image working after any re-render.
    */
-  const openPickerRef = useRef<((replacing?: string) => void) | null>(null);
+  const openPickerRef = useRef<((replacing?: string, alt?: string | null) => void) | null>(null);
 
   const insertUploaded = useCallback(
     async (file: File) => {
@@ -404,8 +406,9 @@ export function RichTextEditor({
    * because the panel is absolutely positioned inside it — a viewport
    * coordinate would drift as soon as the page scrolled.
    */
-  const openPicker = useCallback((replacing?: string) => {
+  const openPicker = useCallback((replacing?: string, alt?: string | null) => {
     setEditingImage(replacing ?? null);
+    setEditingAlt(replacing ? (alt ?? null) : null);
     setPickerOpen(true);
   }, []);
 
@@ -455,7 +458,7 @@ export function RichTextEditor({
         if (node.type.name !== "image" || !onUploadImage) return false;
 
         editingPosRef.current = nodePos;
-        openPickerRef.current?.((node.attrs.src as string) ?? undefined);
+        openPickerRef.current?.((node.attrs.src as string) ?? undefined, (node.attrs.alt as string | null) ?? null);
         return true;
       },
       handlePaste(view, event) {
@@ -561,10 +564,18 @@ export function RichTextEditor({
             images={pickerImages}
             loading={pickerLoading}
             selected={editingImage}
+            alt={editingAlt}
             onSearch={loadImages}
             onUpload={onUploadImage}
-            onInsert={(url) => {
+            onInsert={(url, altText) => {
               const at = editingPosRef.current;
+              /*
+                The description is always written, so a replaced picture never
+                keeps the previous one's. null drops the attribute rather than
+                saving alt="", which would tell search engines the image is
+                decoration.
+              */
+              const alt = altText || null;
 
               /**
                * Replacing targets the clicked node by position rather than
@@ -577,10 +588,10 @@ export function RichTextEditor({
                   .chain()
                   .focus()
                   .setNodeSelection(at)
-                  .updateAttributes("image", { src: url })
+                  .updateAttributes("image", { src: url, alt })
                   .run();
               } else {
-                editor.chain().focus().setImage({ src: url }).run();
+                editor.chain().focus().setImage({ src: url, alt: alt ?? undefined }).run();
               }
 
               editingPosRef.current = null;

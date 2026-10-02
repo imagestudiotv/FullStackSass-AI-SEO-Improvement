@@ -180,6 +180,14 @@ describe("writing and publishing a post", () => {
     expect(stored.faqs[0].answer).toContain("Yes.");
   });
 
+  it("keeps an image's alt text through the save - what the editor's image panel writes", async () => {
+    const post = await create("published", {
+      bodyHtml: '<p>Intro</p><img src="https://cdn.test/blog/rome.jpg" alt="Bride &amp; groom in &quot;St Peter&#39;s&quot; Square">',
+    });
+    const stored = await row(post.id);
+    expect(stored.bodyHtml).toContain('<img src="https://cdn.test/blog/rome.jpg" alt="Bride &amp; groom in &quot;St Peter\'s&quot; Square" />');
+  });
+
   it("FAQs need both halves (empty rows are dropped); sources need a real web address", async () => {
     expect(
       await saveBlogPost({ id: null, expectedVersion: 0, status: "draft", post: input({ faqs: [{ question: "Only a question", answer: "" }] }) }),
