@@ -28,6 +28,7 @@ import { missingPlacements, removeMissingPlacement, type MissingPlacement } from
 import { recordAdminAction } from "@/lib/admin/audit";
 import { isRelevantPair } from "@/lib/backlinks/matching";
 import { readOneAuthority } from "@/lib/authority/metric";
+import { effectiveMinSourceRank, minRankCaps, STANDARD_MIN_RANK_CAP } from "@/lib/backlinks/authority-cap";
 import { db } from "@/lib/db";
 import {
   articles,
@@ -380,6 +381,8 @@ export async function getReviewArticle(articleId: string) {
   // The host's authority, on the metric the beneficiaries' minimums use.
   const hostAuthority = await readOneAuthority(article.domain);
   const hostRank = hostAuthority?.status === "ok" ? hostAuthority.value : null;
+  // Each website's minimum held to its plan's cap (lib/backlinks/authority-cap.ts), as placement enforces it.
+  const caps = await minRankCaps(others.map((other) => other.websiteId));
   const creditCache = new Map<string, Awaited<ReturnType<typeof creditsFor>>>();
   const candidates: Candidate[] = [];
   for (const other of others) {
@@ -400,8 +403,12 @@ export async function getReviewArticle(articleId: string) {
       available: credits.available,
       reserved: credits.reserved,
       targets: targetRows.filter((t) => t.websiteId === other.websiteId).map(({ url, note, priority }) => ({ url, note, priority })),
-      minSourceRank: other.minSourceRank,
-      meetsMinimum: other.minSourceRank === null ? null : hostRank !== null && hostRank >= other.minSourceRank,
+      // Held to the website's plan cap, as placement enforces it.
+      minSourceRank: effectiveMinSourceRank(other.minSourceRank, caps.get(other.websiteId) ?? STANDARD_MIN_RANK_CAP),
+      meetsMinimum: (() => {
+        const minimum = effectiveMinSourceRank(other.minSourceRank, caps.get(other.websiteId) ?? STANDARD_MIN_RANK_CAP);
+        return minimum === null ? null : hostRank !== null && hostRank >= minimum;
+      })(),
       linkedHere: linkedHere.has(other.websiteId),
     });
   }

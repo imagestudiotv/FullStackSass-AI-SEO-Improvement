@@ -8,6 +8,7 @@ import { linkPhrase, linksTo, linkTextFor, siteScope, unlinkUrl } from "@/lib/ar
 import { reviewHash } from "@/lib/articles/review";
 import { sanitizeHtml } from "@/lib/articles/sanitize";
 import { readOneAuthority } from "@/lib/authority/metric";
+import { effectiveMinSourceRank, minRankCapFor } from "@/lib/backlinks/authority-cap";
 import { ArticleInFlightError, lockForEdit } from "@/lib/publishing/dispatch";
 import { ensureMonthlyCredits } from "@/lib/backlinks/credits";
 import { isRelevantPair } from "@/lib/backlinks/matching";
@@ -255,19 +256,21 @@ export async function placeManagedLink(input: PlaceInput): Promise<{ placementId
 
     /*
       The beneficiary's minimum authority, on the metric everyone sees
-      (DataForSEO Rank, lib/authority/metric.ts). A host whose rank is not
-      known cannot be shown to meet a minimum, so it is refused too.
+      (DataForSEO Rank, lib/authority/metric.ts), held to its plan's cap
+      (60, or 100 on Scale - lib/backlinks/authority-cap.ts). A host whose
+      rank is not known cannot be shown to meet a minimum, so it is refused too.
     */
-    if (beneficiary.minSourceRank !== null) {
+    const minimum = effectiveMinSourceRank(beneficiary.minSourceRank, await minRankCapFor(beneficiary.id, tx));
+    if (minimum !== null) {
       const hostRank = await readOneAuthority(host.domain);
       if (hostRank?.status !== "ok" || hostRank.value === null) {
         throw new PlacementError(
-          `${beneficiary.domain} accepts links only from sites with Domain Authority ${beneficiary.minSourceRank} or above, and ${host.domain} has no Domain Authority yet`,
+          `${beneficiary.domain} accepts links only from sites with Domain Authority ${minimum} or above, and ${host.domain} has no Domain Authority yet`,
         );
       }
-      if (hostRank.value < beneficiary.minSourceRank) {
+      if (hostRank.value < minimum) {
         throw new PlacementError(
-          `${beneficiary.domain} accepts links only from sites with Domain Authority ${beneficiary.minSourceRank} or above; ${host.domain} is at ${hostRank.value}`,
+          `${beneficiary.domain} accepts links only from sites with Domain Authority ${minimum} or above; ${host.domain} is at ${hostRank.value}`,
         );
       }
     }

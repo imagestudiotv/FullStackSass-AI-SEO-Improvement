@@ -9,6 +9,7 @@ import { DEFAULT_MONTHLY_CAP } from "@/lib/backlinks/network-defaults";
 import { db } from "@/lib/db";
 import { articles, backlinkRequests, backlinkTargets, domainMetrics, networkSites, placements } from "@/lib/db/schema";
 import { AUTHORITY_METRIC } from "@/lib/authority/metric";
+import { effectiveMinSourceRank, minRankCapFor } from "@/lib/backlinks/authority-cap";
 import { isDataForSeoConfigured } from "@/lib/providers/dataforseo";
 import { requireWebsite } from "@/lib/tenant";
 import type { ActionResult } from "@/lib/websites/actions";
@@ -45,6 +46,11 @@ export type PartnerNetwork = {
    */
   minSourceRank: number | null;
   /**
+   * The highest minimum this website's plan allows: 60, or 100 on Scale
+   * (lib/backlinks/authority-cap.ts). minSourceRank is already held to it.
+   */
+  maxMinSourceRank: number;
+  /**
    * Whether the authority metric can be measured on this deployment
    * (DataForSEO configured and the account has the Backlinks API). When not,
    * the minimum cannot be set - an unmeasurable minimum would be a fake control.
@@ -80,13 +86,15 @@ export async function getPartnerNetwork(websiteId: string): Promise<PartnerNetwo
         sql`(${placements.hostWebsiteId} = ${site.id} or ${backlinkRequests.websiteId} = ${site.id})`,
       ),
     );
+  const maxMinSourceRank = await minRankCapFor(site.id);
   return {
     participating: Boolean(row?.acceptingLinks),
     monthlyCap: row?.monthlyCap ?? DEFAULT_MONTHLY_CAP,
     targets,
     inReview: review?.n ?? 0,
     commitments: committed?.n ?? 0,
-    minSourceRank: row?.minSourceRank ?? null,
+    minSourceRank: effectiveMinSourceRank(row?.minSourceRank ?? null, maxMinSourceRank),
+    maxMinSourceRank,
     authority: await authorityAvailability(),
   };
 }
@@ -128,6 +136,11 @@ export async function setMinSourceRank(
     return { ok: false, error: "Authority is not measured yet, so a minimum cannot be enforced" };
   }
   const { site } = guard.context;
+  // The plan's ceiling, checked here too: the slider stops there, a direct call must as well.
+  const cap = await minRankCapFor(site.id);
+  if (value !== null && value > cap) {
+    return { ok: false, error: `Your plan allows a minimum of up to ${cap}. Domain Authority above ${cap} comes with the Scale plan.` };
+  }
   await db
     .insert(networkSites)
     .values({ websiteId: site.id, acceptingLinks: true, monthlyCap: DEFAULT_MONTHLY_CAP, minSourceRank: value })

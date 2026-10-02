@@ -919,6 +919,7 @@ export type Messages = {
       ratingNoneHelp: string;
       ratingSliderLabel: string;
       ratingCurrent: string;
+      ratingScaleOnly: string;
       ratingSave: string;
       ratingSaved: string;
       ratingNoAccess: string;
@@ -2748,6 +2749,7 @@ const en: Messages = {
       ratingNoneHelp: "Any relevant partner may link to you; the RepGet team checks each site by hand.",
       ratingSliderLabel: "Minimum Domain Authority",
       ratingCurrent: "Links only from sites with Domain Authority {n} or above",
+      ratingScaleOnly: "Your plan goes up to {cap}. Domain Authority above {cap} comes with the Scale plan.",
       ratingSave: "Save minimum",
       ratingSaved: "Minimum saved",
       ratingNoAccess: "Not available yet: Domain Authority cannot be measured at the moment. The RepGet team checks every linking site by hand.",
@@ -4581,6 +4583,7 @@ const es: Messages = {
       ratingNoneHelp: "Cualquier socio relevante puede enlazarte; el equipo de RepGet revisa cada sitio a mano.",
       ratingSliderLabel: "Autoridad de dominio mínima",
       ratingCurrent: "Solo enlaces de sitios con Autoridad de dominio {n} o superior",
+      ratingScaleOnly: "Su plan llega hasta {cap}. Una Autoridad de dominio superior a {cap} se incluye en el plan Scale.",
       ratingSave: "Guardar mínimo",
       ratingSaved: "Mínimo guardado",
       ratingNoAccess: "Aún no disponible: por ahora no se puede medir la Autoridad de dominio. El equipo de RepGet revisa a mano cada sitio que enlaza.",
@@ -6418,6 +6421,7 @@ const fr: Messages = {
       ratingNoneHelp: "Tout partenaire pertinent peut pointer vers vous ; l'équipe RepGet vérifie chaque site à la main.",
       ratingSliderLabel: "Autorité de domaine minimale",
       ratingCurrent: "Uniquement des liens de sites avec une Autorité de domaine de {n} ou plus",
+      ratingScaleOnly: "Votre forfait va jusqu’à {cap}. Une Autorité de domaine supérieure à {cap} est incluse dans le forfait Scale.",
       ratingSave: "Enregistrer le minimum",
       ratingSaved: "Minimum enregistré",
       ratingNoAccess: "Pas encore disponible : l'Autorité de domaine ne peut pas être mesurée pour le moment. L'équipe RepGet vérifie chaque site à la main.",
@@ -8247,6 +8251,7 @@ const it: Messages = {
       ratingNoneHelp: "Qualsiasi partner pertinente può linkarti; il team RepGet controlla ogni sito a mano.",
       ratingSliderLabel: "Autorità di dominio minima",
       ratingCurrent: "Solo link da siti con Autorità di dominio {n} o superiore",
+      ratingScaleOnly: "Il suo piano arriva fino a {cap}. Un’Autorità di dominio superiore a {cap} è inclusa nel piano Scale.",
       ratingSave: "Salva minimo",
       ratingSaved: "Minimo salvato",
       ratingNoAccess: "Non ancora disponibile: al momento l'Autorità di dominio non può essere misurata. Il team RepGet controlla a mano ogni sito che linka.",
@@ -10085,6 +10090,7 @@ const de: Messages = {
       ratingNoneHelp: "Jeder passende Partner darf auf Sie verlinken; das RepGet-Team prüft jede Website von Hand.",
       ratingSliderLabel: "Mindest-Domain-Autorität",
       ratingCurrent: "Nur Links von Websites mit Domain-Autorität {n} oder höher",
+      ratingScaleOnly: "Ihr Tarif reicht bis {cap}. Eine Domain-Autorität über {cap} gibt es mit dem Scale-Tarif.",
       ratingSave: "Minimum speichern",
       ratingSaved: "Minimum gespeichert",
       ratingNoAccess: "Noch nicht verfügbar: Die Domain-Autorität kann derzeit nicht gemessen werden. Das RepGet-Team prüft jede verlinkende Website von Hand.",

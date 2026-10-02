@@ -155,6 +155,7 @@ export function PartnerNetworkCard({
             {network.authority === "available" ? (
               <MinimumAuthority
                 value={network.minSourceRank}
+                max={network.maxMinSourceRank}
                 canEdit={canEdit}
                 pending={pending}
                 t={t}
@@ -307,12 +308,15 @@ export function PartnerNetworkCard({
 /** Minimum DataForSEO Rank: a slider (keyboard: arrows, Home/End) and Save. */
 function MinimumAuthority({
   value,
+  max,
   canEdit,
   pending,
   t,
   onSave,
 }: {
   value: number | null;
+  /** The plan's ceiling: 60, or 100 on Scale (lib/backlinks/authority-cap.ts). */
+  max: number;
   canEdit: boolean;
   pending: boolean;
   t: Messages["app"]["partnerNetwork"];
@@ -332,7 +336,7 @@ function MinimumAuthority({
         <input
           type="range"
           min={0}
-          max={100}
+          max={max}
           step={5}
           value={draft}
           disabled={!canEdit || pending || none}
@@ -344,6 +348,13 @@ function MinimumAuthority({
         <span className="w-10 rounded-md bg-violet-100 px-1.5 py-0.5 text-center text-sm font-semibold tabular-nums text-violet-800 dark:bg-violet-950/60 dark:text-violet-200">{none ? "-" : draft}</span>
       </div>
       <p className="text-xs text-muted-foreground">{none ? t.ratingNoneHelp : format(t.ratingCurrent, { n: draft })}</p>
+      {/* Higher minimums are the Scale plan's (client, 2026-10-02); said where the slider stops. */}
+      {max < 100 ? (
+        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Lock className="size-3.5 shrink-0" aria-hidden="true" />
+          {format(t.ratingScaleOnly, { cap: max })}
+        </p>
+      ) : null}
       {canEdit ? (
         <Button type="button" size="sm" variant="secondary" disabled={pending || !changed} onClick={() => onSave(none ? null : draft)}>
           {pending ? <Loader2 className="size-3.5 animate-spin" /> : null}
