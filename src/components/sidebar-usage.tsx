@@ -56,8 +56,12 @@ export async function SidebarUsage({
 
   return (
     <div className="mt-4 space-y-1 border-t px-3 pt-3">
+      {/*
+        To the referral card on Settings, where the link to copy is. It
+        pointed at Billing, which has no referral link (client, 2026-10-01).
+      */}
       <Link
-        href="/billing"
+        href="/settings#referral"
         className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent/60"
       >
         <Gift className="size-4 shrink-0 text-primary" aria-hidden="true" />

@@ -146,13 +146,19 @@ export default async function SettingsPage() {
         />
       ) : null}
 
-      <ReferralCard
-        summary={referrals}
-        rewardCredits={REFERRAL_REWARD_CREDITS}
-        appUrl={appUrl}
-        t={t.app.referral}
-        tCommon={t.app.common}
-      />
+      {/*
+        The target for the sidebar's "Referral program" link. scroll-mt clears
+        the sticky header, as on Billing's #addons.
+      */}
+      <div id="referral" className="scroll-mt-20">
+        <ReferralCard
+          summary={referrals}
+          rewardCredits={REFERRAL_REWARD_CREDITS}
+          appUrl={appUrl}
+          t={t.app.referral}
+          tCommon={t.app.common}
+        />
+      </div>
     </PageShell>
   );
 }
