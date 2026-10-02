@@ -20,13 +20,21 @@
 /**
  * The fallback, used only when NEXT_PUBLIC_APP_URL is unset or local.
  *
- * Deliberately the live Vercel deployment rather than the eventual brand
- * domain: repget.com does not resolve yet, and a fallback that does not
- * answer is worse than an ugly one that does. Change this the day that DNS
- * points at Vercel — and change NEXT_PUBLIC_APP_URL, which is what actually
- * gets used in production.
+ * The brand domain now that it answers (repget.com redirects to www). It was
+ * the Vercel deployment's own address until DNS pointed here; that address
+ * still serves the app - see LEGACY_HOSTS.
  */
-const FALLBACK = "https://full-stack-sass-ai-seo-improvement.vercel.app";
+const FALLBACK = "https://www.repget.com";
+
+/**
+ * The production address from before repget.com: the deployment still
+ * answers on it, and WordPress plugin 1.7.0 calls it (its built-in default),
+ * as do the payment providers' webhooks. API calls there are fine; a PERSON
+ * sent there is not - their RepGet sign-in lives on the brand domain, so they
+ * were asked to sign in again on an address they did not recognise (client,
+ * 2026-10-01). Pages a browser is sent to redirect away (legacyRedirect).
+ */
+const LEGACY_HOSTS = new Set(["full-stack-sass-ai-seo-improvement.vercel.app"]);
 
 /**
  * No trailing slash, so callers can concatenate a path without doubling it.
@@ -38,4 +46,19 @@ const FALLBACK = "https://full-stack-sass-ai-seo-improvement.vercel.app";
 export function siteUrl(): string {
   const configured = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "");
   return configured && !configured.includes("localhost") ? configured : FALLBACK;
+}
+
+/**
+ * Where to send a browser that asked for `path` on `host`: the same path on
+ * the canonical address when `host` is the pre-repget.com one, else null.
+ * Only that exact host - a preview deployment or a staging domain is left
+ * alone, so it keeps working against its own database.
+ */
+export function legacyRedirect(host: string | null | undefined, path: string): string | null {
+  const name = host?.trim().toLowerCase().replace(/:\d+$/, "");
+  if (!name || !LEGACY_HOSTS.has(name)) return null;
+  const target = siteUrl();
+  // Never a redirect to itself, whatever NEXT_PUBLIC_APP_URL says.
+  if (new URL(target).hostname === name) return null;
+  return `${target}${path.startsWith("/") ? path : `/${path}`}`;
 }

@@ -129,9 +129,13 @@ Opening a request (the claim below) protects nothing here: any signed-in account
 - **200:** `{ ok: true, authorizeUrl: "<origin>/connect/wordpress?request=<id>" }`, where `<origin>` is the address the plugin called. That is the plugin's `repget_endpoint()`, the only prefix it accepts, so a custom `NEXT_PUBLIC_APP_URL` or a staging plugin pointed at staging still works.
 - **400:** `{ ok: false, error }`.
 
+**RepGet's address.** The plugin's default `repget_endpoint()` is `https://www.repget.com` since 1.7.1 (a stored pre-1.7.1 Vercel address reads as the default). 1.7.0 defaulted to `https://full-stack-sass-ai-seo-improvement.vercel.app`, the deployment's own address from before repget.com was live. It still answers, so 1.7.0 installs keep working and receive the 1.7.1 update from it, and the payment webhooks are registered there.
+
 ### `GET /connect/wordpress?request=<id>`
 
 A page outside `(app)`, like `src/app/invite/[token]`, sent with `Referrer-Policy: no-referrer`.
+
+Opened on the old Vercel address (1.7.0's default), it first redirects the browser to the same page on the canonical address (`legacyRedirect` in `src/lib/site-url.ts`), before reading the session: the customer's sign-in lives on repget.com, and on the old host they were asked to sign in again. The plugin checks only the `authorizeUrl` string, not where the browser ends up, so nothing else changes. Only that exact host is redirected; previews and staging are not.
 
 - **Signed out:** redirect to `/sign-in?next=…`.
 - **Unknown, expired or consumed request:** a plain message telling the admin to go back to WordPress and press Connect to RepGet again.
@@ -253,7 +257,7 @@ The plugin version in the key's site details is refreshed from the `X-RepGet-Plu
 { "version": "1.7.0", "package": "/repget-connector.zip", "sha256": "…", "requires": "5.6", "requires_php": "7.4", "tested": "6.8", "changelog": "…" }
 ```
 
-Plugin 1.7.0 declares an `Update URI` header, so WordPress never offers a same-named plugin from wordpress.org as an update to it. It reads that manifest from `repget_endpoint() . '/repget-connector.json'` and caches it for 12 hours, using three filters:
+Plugin 1.7.0+ declares an `Update URI` header (1.7.1: `https://www.repget.com/repget-connector.json`; it only opts out of wordpress.org, the filters below do not depend on it), so WordPress never offers a same-named plugin from wordpress.org as an update to it. It reads that manifest from `repget_endpoint() . '/repget-connector.json'` and caches it for 12 hours, using three filters:
 
 - `pre_set_site_transient_update_plugins` offers an update when `version` is newer than the version ON DISK. That is what WordPress read (`$transient->checked`), or else the plugin file's own header (`get_file_data`); `REPGET_VERSION` is used only if both fail. Right after an update, the OLD code still in memory runs again, and must not offer the version just installed. WordPress's first save of the transient starts from an empty object, with no `checked`.
 - `plugins_api` shows the details.

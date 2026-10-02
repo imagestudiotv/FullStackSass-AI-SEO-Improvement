@@ -24,7 +24,10 @@ const state = vi.hoisted(() => ({
   session: null as unknown,
   after: [] as Array<() => unknown>,
   signalled: [] as Array<{ keyHash: string; syncUrl: string }>,
+  /** The host the connect page is requested on. */
+  host: "www.repget.com",
 }));
+vi.mock("next/headers", () => ({ headers: async () => new Headers({ host: state.host }) }));
 vi.mock("@/lib/db", () => ({
   db: new Proxy({}, { get: (_t, p) => Reflect.get(state.db as object, p) }),
 }));
@@ -113,6 +116,7 @@ beforeAll(async () => {
 beforeEach(async () => {
   state.after = [];
   state.signalled = [];
+  state.host = "www.repget.com";
   await test.client.exec(`
     delete from plugin_connect_requests; delete from notifications; delete from integration_keys;
     delete from website_members; delete from websites; delete from "session";
@@ -922,6 +926,17 @@ describe("the page", () => {
   it("sends a signed-out visitor to sign in and back", async () => {
     state.session = null;
     await expect(open("abc")).rejects.toThrow(`redirect:/sign-in?next=${encodeURIComponent("/connect/wordpress?request=abc")}`);
+  });
+
+  it("on the old Vercel address (plugin 1.7.0's default), moves to repget.com before asking anyone to sign in", async () => {
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://www.repget.com");
+    try {
+      state.host = "full-stack-sass-ai-seo-improvement.vercel.app";
+      state.session = null;
+      await expect(open("abc")).rejects.toThrow("redirect:https://www.repget.com/connect/wordpress?request=abc");
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it("goes straight back to WordPress for the session that pressed Connect WordPress", async () => {

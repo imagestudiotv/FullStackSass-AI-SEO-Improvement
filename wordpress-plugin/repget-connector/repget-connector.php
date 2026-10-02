@@ -2,11 +2,11 @@
 /**
  * Plugin Name: RepGet Connector
  * Description: Publishes articles written by RepGet straight to this site. Press Connect to RepGet to connect.
- * Version: 1.7.0
+ * Version: 1.7.1
  * Requires at least: 5.6
  * Requires PHP: 7.4
  * License: GPLv2 or later
- * Update URI: https://full-stack-sass-ai-seo-improvement.vercel.app/repget-connector.json
+ * Update URI: https://www.repget.com/repget-connector.json
  */
 
 /*
@@ -42,7 +42,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('REPGET_VERSION', '1.7.0');
+define('REPGET_VERSION', '1.7.1');
 define('REPGET_OPTION_KEY', 'repget_integration_key');
 define('REPGET_OPTION_STATUS', 'repget_status');
 define('REPGET_OPTION_ENDPOINT', 'repget_endpoint');
@@ -109,10 +109,26 @@ define('REPGET_UPDATE_MANIFEST', 'repget_update_manifest');
  */
 function repget_endpoint() {
     $stored = get_option(REPGET_OPTION_ENDPOINT);
-    if (is_string($stored) && $stored !== '') {
+    if (is_string($stored) && $stored !== '' && !repget_is_legacy_endpoint($stored)) {
         return untrailingslashit($stored);
     }
-    return 'https://full-stack-sass-ai-seo-improvement.vercel.app';
+    return REPGET_DEFAULT_ENDPOINT;
+}
+
+/*
+  RepGet's own address. Until 1.7.1 it was the Vercel deployment's address
+  (full-stack-sass-ai-seo-improvement.vercel.app), from before repget.com was
+  live. That host still answers, but "Connect to RepGet" then opened RepGet
+  there, where the customer was not signed in, under an address they did not
+  recognise. "www" because repget.com redirects to it, and a redirect is one
+  more hop for every API call.
+*/
+define('REPGET_DEFAULT_ENDPOINT', 'https://www.repget.com');
+
+/** The pre-repget.com address, if an install stored it: read as the default instead. */
+function repget_is_legacy_endpoint($url) {
+    $host = parse_url(trim($url), PHP_URL_HOST);
+    return is_string($host) && strtolower($host) === 'full-stack-sass-ai-seo-improvement.vercel.app';
 }
 
 function repget_key() {

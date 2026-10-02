@@ -2,7 +2,7 @@
 Requires at least: 5.6
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 1.7.0
+Stable tag: 1.7.1
 License: GPLv2 or later
 
 Publishes articles written by RepGet straight to your WordPress site.
@@ -85,6 +85,11 @@ screen, so RepGet can bring you back to it. Nothing else is sent. The plugin
 only fetches articles and reports whether each one published.
 
 == Changelog ==
+
+= 1.7.1 =
+* The plugin now talks to RepGet at www.repget.com, RepGet's own address,
+  instead of the older technical address it used before. "Connect to RepGet"
+  opens RepGet where you are already signed in.
 
 = 1.7.0 =
 * Connect to RepGet: one button connects this site to your RepGet account.

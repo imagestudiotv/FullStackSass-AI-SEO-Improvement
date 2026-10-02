@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -8,6 +9,7 @@ import { getSession } from "@/lib/auth-guard";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import { format } from "@/lib/i18n/format";
 import { approveHandshake, loadForViewer, type Candidate, type PresentedKey } from "@/lib/plugin/handshake";
+import { legacyRedirect } from "@/lib/site-url";
 import { approveConnection, cancelConnection } from "./actions";
 import { SwitchAccount } from "./switch-account";
 
@@ -35,6 +37,17 @@ export default async function ConnectWordPressPage({ searchParams }: PageProps<"
   const { request, error } = await searchParams;
   const id = typeof request === "string" ? request : "";
   const here = `/connect/wordpress?request=${encodeURIComponent(id)}`;
+
+  /*
+    Plugin 1.7.0 starts the connection on the old Vercel address (its built-in
+    default), so the button lands here on that host - where the customer is
+    not signed in. Moved to the same page on repget.com, where they are,
+    BEFORE anything reads the session: the request id is all the page needs,
+    and the plugin only checks the link RepGet gave it, not where the browser
+    ends up.
+  */
+  const canonical = legacyRedirect((await headers()).get("host"), here);
+  if (canonical) redirect(canonical);
 
   const session = await getSession();
   if (!session) redirect(`/sign-in?next=${encodeURIComponent(here)}`);

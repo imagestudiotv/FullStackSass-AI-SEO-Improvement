@@ -295,12 +295,12 @@ function come_back($params) {
 function flash() { $f = get_transient('repget_notice_' . $GLOBALS['user_id']); return is_array($f) ? $f : array('message' => '', 'type' => ''); }
 function pending() { return get_transient('repget_connect_' . $GLOBALS['user_id']); }
 
-echo "\nVERSION 1.7.0 everywhere, and updates only from RepGet\n";
-check('REPGET_VERSION is 1.7.0', REPGET_VERSION === '1.7.0');
-check('the header says 1.7.0', preg_match('/^\s*\*\s*Version:\s*1\.7\.0\s*$/m', $header) === 1);
+echo "\nVERSION 1.7.1 everywhere, and updates only from RepGet\n";
+check('REPGET_VERSION is 1.7.1', REPGET_VERSION === '1.7.1');
+check('the header says 1.7.1', preg_match('/^\s*\*\s*Version:\s*1\.7\.1\s*$/m', $header) === 1);
 $readme = @file_get_contents(dirname($plugin_path) . '/readme.txt');
-check('the readme Stable tag is 1.7.0', is_string($readme) && preg_match('/^Stable tag:\s*1\.7\.0\s*$/m', $readme) === 1);
-check('the readme has a 1.7.0 changelog entry', is_string($readme) && strpos($readme, "= 1.7.0 =") !== false);
+check('the readme Stable tag is 1.7.1', is_string($readme) && preg_match('/^Stable tag:\s*1\.7\.1\s*$/m', $readme) === 1);
+check('the readme has a 1.7.1 changelog entry', is_string($readme) && strpos($readme, "= 1.7.1 =") !== false);
 check('an Update URI keeps WordPress.org from offering updates for this slug',
     preg_match('/^\s*\*\s*Update URI:\s*(\S+)/m', $header, $m) === 1 && stripos($m[1], 'wordpress.org') === false && stripos($m[1], 'w.org') === false);
 
@@ -317,7 +317,7 @@ check('siteUrl is home_url()', $sent['siteUrl'] === 'https://site.test');
 check('returnUrl is the callback on admin.php', $sent['returnUrl'] === 'https://site.test/wp-admin/admin.php?page=repget&repget_connect=callback');
 check('state is 43 url-safe characters (32 random bytes)', preg_match('/^[A-Za-z0-9_-]{43}$/', $sent['state']) === 1);
 check('challenge is 43 url-safe characters', preg_match('/^[A-Za-z0-9_-]{43}$/', $sent['challenge']) === 1);
-check('pluginVersion is sent', $sent['pluginVersion'] === '1.7.0');
+check('pluginVersion is sent', $sent['pluginVersion'] === '1.7.1');
 check('no link without one', !array_key_exists('link', $sent));
 check('no key header when the site has no key', !isset($start[0]['headers']['X-Integration-Key']));
 check('the verifier is NOT sent', is_array($p) && strpos(json_encode($sent), $p['verifier']) === false);
@@ -468,7 +468,7 @@ check('token got request, code and the stored verifier', count($token) === 1 && 
     && b64url(hash('sha256', $token[0]['body']['verifier'], true)) === $GLOBALS['rq'][$id]['challenge']);
 check('verify was called with the NEW key', count($verify) === 1 && $verify[0]['headers']['X-Integration-Key'] === $new_key);
 check('...while the site still held the OLD key', count($verify) === 1 && $verify[0]['held_key'] === 'old-key');
-check('...and sent the site details', $verify[0]['body']['pluginVersion'] === '1.7.0' && $verify[0]['body']['syncUrl'] === 'https://site.test/wp-admin/admin-ajax.php');
+check('...and sent the site details', $verify[0]['body']['pluginVersion'] === '1.7.1' && $verify[0]['body']['syncUrl'] === 'https://site.test/wp-admin/admin-ajax.php');
 check('the new key is saved', get_option(REPGET_OPTION_KEY) === $new_key);
 check('status is connected', get_option(REPGET_OPTION_STATUS) === 'connected');
 $c = get_option(REPGET_OPTION_CONNECTION);
@@ -713,7 +713,7 @@ $make_manifest = function ($version, $sha = null) {
         'requires' => '5.6', 'requires_php' => '7.4', 'tested' => '6.8', 'changelog' => "* One.\n* Two,\n  wrapped.");
 };
 $plugin = 'repget-connector/repget-connector.php';
-foreach (array('1.7.1' => true, '1.10.0' => true, '2.0' => true, '1.7.0' => false, '1.6.9' => false, '1.7.0-beta' => false) as $version => $offered) {
+foreach (array('1.7.2' => true, '1.10.0' => true, '2.0' => true, '1.7.1' => false, '1.7.0' => false, '1.6.9' => false, '1.7.1-beta' => false) as $version => $offered) {
     reset_all();
     $GLOBALS['manifest'] = $make_manifest($version);
     $t = repget_offer_update((object) array('response' => array(), 'no_update' => array(), 'checked' => array($plugin => REPGET_VERSION)));
@@ -724,25 +724,25 @@ foreach (array('1.7.1' => true, '1.10.0' => true, '2.0' => true, '1.7.0' => fals
     }
 }
 reset_all();
-$GLOBALS['manifest'] = $make_manifest('1.7.0');
+$GLOBALS['manifest'] = $make_manifest('1.7.1');
 $t = repget_offer_update((object) array('response' => array($plugin => (object) array('new_version' => '9.9.9', 'package' => 'https://elsewhere.test/x.zip')), 'no_update' => array()));
 check('an offer for this plugin from anywhere else is removed', !isset($t->response[$plugin]) && isset($t->no_update[$plugin]));
 reset_all();
-$GLOBALS['manifest'] = $make_manifest('1.7.1');
-// Right after updating to 1.7.1, the 1.7.0 code still in memory runs this once more.
-$t = repget_offer_update((object) array('response' => array(), 'no_update' => array(), 'checked' => array($plugin => '1.7.1')));
-check('the version just installed is not offered again by the old code in memory', !isset($t->response[$plugin]) && $t->no_update[$plugin]->new_version === '1.7.1');
+$GLOBALS['manifest'] = $make_manifest('1.7.2');
+// Right after updating to 1.7.2, the 1.7.1 code still in memory runs this once more.
+$t = repget_offer_update((object) array('response' => array(), 'no_update' => array(), 'checked' => array($plugin => '1.7.2')));
+check('the version just installed is not offered again by the old code in memory', !isset($t->response[$plugin]) && $t->no_update[$plugin]->new_version === '1.7.2');
 reset_all();
-$GLOBALS['manifest'] = $make_manifest('1.7.1');
-$GLOBALS['disk_version'] = '1.7.1';
+$GLOBALS['manifest'] = $make_manifest('1.7.2');
+$GLOBALS['disk_version'] = '1.7.2';
 // WordPress's first save after an update starts from an empty object: no ->checked at all.
 $t = repget_offer_update(new stdClass());
-check('...nor on WordPress\'s first save, which carries no ->checked: the file on disk decides', !isset($t->response[$plugin]) && $t->no_update[$plugin]->new_version === '1.7.1');
+check('...nor on WordPress\'s first save, which carries no ->checked: the file on disk decides', !isset($t->response[$plugin]) && $t->no_update[$plugin]->new_version === '1.7.2');
 unset($GLOBALS['disk_version']);
 $t = repget_offer_update(new stdClass());
-check('...while the file on disk is still the old version, the update is offered', isset($t->response[$plugin]) && $t->response[$plugin]->new_version === '1.7.1');
+check('...while the file on disk is still the old version, the update is offered', isset($t->response[$plugin]) && $t->response[$plugin]->new_version === '1.7.2');
 reset_all();
-$GLOBALS['manifest'] = $make_manifest('1.7.1');
+$GLOBALS['manifest'] = $make_manifest('1.7.2');
 repget_offer_update(new stdClass());
 repget_offer_update(new stdClass());
 check('the manifest is cached (one request for two checks)', count(calls_to('/repget-connector.json')) === 1);
@@ -764,9 +764,9 @@ foreach (array('bad sha' => array('version' => '9.0', 'package' => '/repget-conn
 
 echo "\nUPDATES: plugin details for this slug only\n";
 reset_all();
-$GLOBALS['manifest'] = $make_manifest('1.7.1');
+$GLOBALS['manifest'] = $make_manifest('1.7.2');
 $info = repget_plugin_details(false, 'plugin_information', (object) array('slug' => 'repget-connector'));
-check('details for repget-connector', is_object($info) && $info->version === '1.7.1' && $info->download_link === 'https://app.test/repget-connector.zip');
+check('details for repget-connector', is_object($info) && $info->version === '1.7.2' && $info->download_link === 'https://app.test/repget-connector.zip');
 check('...changelog escaped into a list', is_object($info) && $info->sections['changelog'] === '<ul><li>One.</li><li>Two, wrapped.</li></ul>', is_object($info) ? $info->sections['changelog'] : '');
 check('another slug passes through untouched', repget_plugin_details(false, 'plugin_information', (object) array('slug' => 'akismet')) === false);
 check('another action passes through untouched', repget_plugin_details(false, 'query_plugins', (object) array('slug' => 'repget-connector')) === false);
@@ -775,13 +775,13 @@ check('no manifest: an error, never a WordPress.org lookup', is_wp_error(repget_
 
 echo "\nUPDATES: the download is refused unless its SHA-256 matches\n";
 reset_all();
-$GLOBALS['manifest'] = $make_manifest('1.7.1');
+$GLOBALS['manifest'] = $make_manifest('1.7.2');
 $file = repget_verified_download(false, 'https://app.test/repget-connector.zip', null, array());
 check('matching hash: the downloaded file is handed to WordPress', is_string($file) && file_exists($file) && file_get_contents($file) === 'zip-bytes');
 if (is_string($file)) @unlink($file);
 check('...checked against a FRESH manifest', count(calls_to('/repget-connector.json')) === 1);
 reset_all();
-$GLOBALS['manifest'] = $make_manifest('1.7.1', hash('sha256', 'something else'));
+$GLOBALS['manifest'] = $make_manifest('1.7.2', hash('sha256', 'something else'));
 $GLOBALS['package_bytes'] = 'tampered zip';
 $result = repget_verified_download(false, 'https://app.test/repget-connector.zip', null, array());
 check('mismatch: refused with a WP_Error', is_wp_error($result) && $result->get_error_code() === 'repget_package_mismatch');
@@ -793,12 +793,26 @@ reset_all();
 $result = repget_verified_download(false, 'https://app.test/repget-connector.zip', null, array());
 check('no manifest to check against: refused, not installed unchecked', is_wp_error($result) && count($GLOBALS['downloads']) === 0);
 reset_all();
-$GLOBALS['manifest'] = $make_manifest('1.7.1');
+$GLOBALS['manifest'] = $make_manifest('1.7.2');
 repget_update_manifest();                       // cached copy
 $GLOBALS['manifest'] = null;                    // RepGet unreachable at download time
 $file = repget_verified_download(false, 'https://app.test/repget-connector.zip');
 check('RepGet unreachable at download: the cached manifest\'s hash is used', is_string($file) && file_exists($file));
 if (is_string($file)) @unlink($file);
+
+echo "\nRepGet's ADDRESS: repget.com, not the pre-1.7.1 Vercel address\n";
+reset_all();
+unset($GLOBALS['options'][REPGET_OPTION_ENDPOINT]);
+check('default: https://www.repget.com', repget_endpoint() === 'https://www.repget.com');
+$GLOBALS['options'][REPGET_OPTION_ENDPOINT] = 'https://full-stack-sass-ai-seo-improvement.vercel.app/';
+check('a stored old Vercel address reads as the default', repget_endpoint() === 'https://www.repget.com');
+$GLOBALS['options'][REPGET_OPTION_ENDPOINT] = 'HTTPS://Full-Stack-Sass-AI-SEO-Improvement.vercel.app';
+check('...in any case', repget_endpoint() === 'https://www.repget.com');
+$GLOBALS['options'][REPGET_OPTION_ENDPOINT] = 'https://staging.example.test/';
+check('any other stored address is kept (staging, development)', repget_endpoint() === 'https://staging.example.test');
+$GLOBALS['options'][REPGET_OPTION_ENDPOINT] = 'https://full-stack-sass-ai-seo-improvement.vercel.app.evil.test';
+check('a look-alike host is not the old address', repget_endpoint() === 'https://full-stack-sass-ai-seo-improvement.vercel.app.evil.test');
+reset_all();
 
 echo "\nTHE PUBLISHED MANIFEST describes the published zip\n";
 $public = dirname(dirname(dirname(realpath($plugin_path)))) . '/public';
