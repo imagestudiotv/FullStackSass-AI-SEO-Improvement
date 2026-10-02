@@ -186,7 +186,14 @@ function SeverityBar({
   );
 }
 
-export function AuditResult({ result }: { result: PublicAuditResult }) {
+export function AuditResult({
+  result,
+  offer,
+}: {
+  result: PublicAuditResult;
+  /** The live starting price and free trial (lib/billing.ts startingOffer). */
+  offer: { price: string | null; trialDays: number };
+}) {
   const blockedCrawlers = result.crawlers.filter((c) => !c.allowed);
 
   return (
@@ -647,8 +654,14 @@ export function AuditResult({ result }: { result: PublicAuditResult }) {
             </Button>
           </div>
 
+          {/*
+            From the plans table and the checkout's trial length, so it cannot
+            outlive an offer: it said "EUR 1 for the first month" after that
+            price was gone.
+          */}
           <p className="mt-4 text-center text-xs text-muted-foreground">
-            Plans start at EUR 1 for the first month.
+            {offer.price ? `Plans start at ${offer.price} a month. ` : ""}
+            New accounts can try it free for {offer.trialDays} days.
           </p>
         </CardContent>
       </Card>

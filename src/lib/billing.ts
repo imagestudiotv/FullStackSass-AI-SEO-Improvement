@@ -9,7 +9,8 @@ import {
   subscriptions,
   websites,
 } from "@/lib/db/schema";
-import type { CurrentSubscription, PlanRow, WebsiteSubscription} from "@/lib/billing-shared";
+import { formatPrice, type CurrentSubscription, type PlanRow, type WebsiteSubscription } from "@/lib/billing-shared";
+import { TRIAL_DAYS } from "@/lib/plans/features";
 
 /**
  * Server-side billing queries.
@@ -19,6 +20,22 @@ import type { CurrentSubscription, PlanRow, WebsiteSubscription} from "@/lib/bil
  */
 
 export * from "@/lib/billing-shared";
+
+/**
+ * What a new customer starts at, for marketing copy: the cheapest active
+ * MONTHLY plan, formatted as the pricing page shows it, and the free trial
+ * checkout gives a new card customer (TRIAL_DAYS). Null price when no monthly
+ * plan is on sale.
+ *
+ * Read from the plans table rather than written into the copy: the audit
+ * page said "Plans start at EUR 1 for the first month" long after that offer
+ * ended (client, 2026-10-01).
+ */
+export async function startingOffer(): Promise<{ price: string | null; trialDays: number }> {
+  const monthly = (await listPlans()).filter((plan) => plan.interval === "month" && plan.priceCents > 0);
+  const cheapest = monthly.reduce<PlanRow | null>((low, plan) => (!low || plan.priceCents < low.priceCents ? plan : low), null);
+  return { price: cheapest ? formatPrice(cheapest.priceCents, cheapest.currency) : null, trialDays: TRIAL_DAYS };
+}
 
 /** Active plans, cheapest first. */
 export async function listPlans(): Promise<PlanRow[]> {

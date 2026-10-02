@@ -10,6 +10,8 @@ import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { format } from "@/lib/i18n/format";
+import { TRIAL_DAYS } from "@/lib/plans/features";
 import type { Messages } from "@/lib/i18n/messages";
 
 /**
@@ -111,7 +113,8 @@ export function SuccessStoriesContent({ t }: { t: Messages }) {
           <h2 className="text-2xl font-semibold tracking-tight text-balance">
             {copy.ctaTitle}
           </h2>
-          <p className="mt-3 max-w-2xl text-muted-foreground">{copy.ctaBody}</p>
+          {/* The trial length checkout uses; a price written here outlived its offer (it said EUR 1). */}
+          <p className="mt-3 max-w-2xl text-muted-foreground">{format(copy.ctaBody, { days: TRIAL_DAYS })}</p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Button asChild>
               <Link href="/audit">

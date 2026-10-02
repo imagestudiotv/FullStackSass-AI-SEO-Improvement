@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 
 import { runPublicAudit } from "@/lib/audit/public-audit";
+import { startingOffer } from "@/lib/billing";
 import { getMessages } from "@/lib/i18n/messages";
 import { AuditBand } from "../home-sections";
 import { AuditProgress } from "./audit-progress";
@@ -123,7 +124,7 @@ function AuditHeading() {
  * with the reason beneath it.
  */
 async function AuditOutcome({ domain }: { domain: string }) {
-  const outcome = await runPublicAudit(domain);
+  const [outcome, offer] = await Promise.all([runPublicAudit(domain), startingOffer()]);
 
   if (!outcome.ok) {
     return (
@@ -144,7 +145,7 @@ async function AuditOutcome({ domain }: { domain: string }) {
     <>
       {/* Still the page's one heading, for screen readers and search engines, now naming the site. */}
       <h1 className="sr-only">Your free growth plan for {domain}</h1>
-      <AuditResult result={outcome.result} />
+      <AuditResult result={outcome.result} offer={offer} />
     </>
   );
 }

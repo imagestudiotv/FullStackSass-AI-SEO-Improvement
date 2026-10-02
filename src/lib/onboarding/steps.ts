@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { articles, geoPrompts, websites } from "@/lib/db/schema";
 import { getSubscription } from "@/lib/billing";
 import { isAgencyWorkspace } from "@/lib/agency/core";
+import { TRIAL_DAYS } from "@/lib/plans/features";
 
 /**
  * Where a new customer is in setting up.
@@ -162,7 +163,7 @@ export const getOnboardingState = cache(async function getOnboardingState(
       title: "Choose a plan",
       description: agency
         ? "This workspace is set up by us - no plan needed."
-        : "Each website has its own plan. Start from EUR 1 a month.",
+        : `Each website has its own plan. New accounts can try it free for ${TRIAL_DAYS} days.`,
       done: hasPlan,
       /*
         The onboarding plan screen, not /billing. /billing carries the

@@ -2020,7 +2020,7 @@ const en: Messages = {
     ],
     ctaTitle: "Be the first story on this page.",
     ctaBody:
-      "Start with a free check of your site - it takes a minute and costs nothing. If what we find is worth acting on, plans start at €1 for the first month.",
+      "Start with a free check of your site - it takes a minute and costs nothing. If what we find is worth acting on, new accounts can try RepGet free for {days} days.",
     ctaPrimary: "Check my website",
     ctaSecondary: "See pricing",
   },
@@ -3849,7 +3849,7 @@ const es: Messages = {
     ],
     ctaTitle: "Sea el primer caso de esta página.",
     ctaBody:
-      "Empiece con un análisis gratuito de su web: tarda un minuto y no cuesta nada. Si lo que encontramos merece la pena, los planes empiezan en 1€ el primer mes.",
+      "Empiece con un análisis gratuito de su web: tarda un minuto y no cuesta nada. Si lo que encontramos merece la pena, las cuentas nuevas pueden probar RepGet gratis durante {days} días.",
     ctaPrimary: "Analizar mi web",
     ctaSecondary: "Ver precios",
   },
@@ -5681,7 +5681,7 @@ const fr: Messages = {
     ],
     ctaTitle: "Soyez le premier témoignage de cette page.",
     ctaBody:
-      "Commencez par une analyse gratuite de votre site : une minute, sans frais. Si ce que nous trouvons mérite d'agir, les forfaits démarrent à 1€ le premier mois.",
+      "Commencez par une analyse gratuite de votre site : une minute, sans frais. Si ce que nous trouvons mérite d'agir, les nouveaux comptes peuvent essayer RepGet gratuitement pendant {days} jours.",
     ctaPrimary: "Analyser mon site",
     ctaSecondary: "Voir les tarifs",
   },
@@ -7510,7 +7510,7 @@ const it: Messages = {
     ],
     ctaTitle: "Sia il primo caso di questa pagina.",
     ctaBody:
-      "Inizi con un controllo gratuito del sito: un minuto e nessun costo. Se ciò che troviamo merita, i piani partono da 1€ il primo mese.",
+      "Inizi con un controllo gratuito del sito: un minuto e nessun costo. Se ciò che troviamo merita, i nuovi account possono provare RepGet gratis per {days} giorni.",
     ctaPrimary: "Controlla il mio sito",
     ctaSecondary: "Vedi i prezzi",
   },
@@ -9343,7 +9343,7 @@ const de: Messages = {
     ],
     ctaTitle: "Werden Sie die erste Geschichte auf dieser Seite.",
     ctaBody:
-      "Starten Sie mit einer kostenlosen Prüfung Ihrer Website - eine Minute, kostenlos. Wenn sich das Ergebnis lohnt, beginnen die Tarife bei 1€ im ersten Monat.",
+      "Starten Sie mit einer kostenlosen Prüfung Ihrer Website - eine Minute, kostenlos. Wenn sich das Ergebnis lohnt, können neue Konten RepGet {days} Tage kostenlos testen.",
     ctaPrimary: "Website prüfen",
     ctaSecondary: "Preise ansehen",
   },
