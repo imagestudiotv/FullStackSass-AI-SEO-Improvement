@@ -2,7 +2,7 @@ import { AuthorityBadge } from "@/components/reports/authority-badge";
 import { IssueBanner } from "@/components/reports/issue-banner";
 import { LinksView } from "@/components/reports/links-view";
 import { readOneAuthority } from "@/lib/authority/metric";
-import { requirePlan } from "@/lib/billing/require-plan";
+import { requireWebsitePlan } from "@/lib/billing/require-plan";
 import { format, plural } from "@/lib/i18n/format";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import { backlinkIssues, listLinks, parseListQuery, type Direction } from "@/lib/reporting/backlinks";
@@ -25,8 +25,9 @@ export async function LinksPage({
   searchParams: Record<string, string | string[] | undefined>;
 }) {
   const ctx = await requireWebsitePage(websiteId);
-  // Paywall on the OWNER's plan: see lib/billing/require-plan.ts.
-  await requirePlan(ctx.ownerOrgId);
+  // Paywall: the owner's plan for an owner, this site's plan for a guest.
+  // See lib/billing/require-plan.ts.
+  await requireWebsitePlan(ctx);
   const query = parseListQuery(searchParams);
   const subject = { websiteId: ctx.site.id, orgId: ctx.ownerOrgId };
   const [page, issues, own, { t, locale }] = await Promise.all([

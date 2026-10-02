@@ -19,36 +19,11 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth-client";
+import { authSwitchHref, CALLBACK_URL, safeNext } from "@/lib/auth/next";
 import { Button } from "@/components/ui/button";
 import { GoogleMark } from "@/components/google-mark";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
-const CALLBACK_URL = "/dashboard";
-
-/**
- * Where to go after signing in, from ?next=.
- *
- * AN OPEN-REDIRECT GUARD, not a convenience. Whatever lands here is put
- * straight into a navigation the moment a session exists, so an unchecked
- * value turns our own sign-in page into a redirector to anywhere - the
- * classic phishing setup, where the victim really did sign in to RepGet and
- * really was then handed to somebody else's site.
- *
- * Only a path on this origin is allowed:
- *  - must start with a single "/"
- *  - "//evil.com" is rejected: browsers read it as a protocol-relative URL
- *  - a backslash is rejected too, since some clients normalise "/\" to "//"
- *
- * Anything else falls back to the dashboard rather than erroring. A bad
- * `next` is not the customer's problem to solve; they came here to sign in.
- */
-function safeNext(value: string | null): string {
-  if (!value) return CALLBACK_URL;
-  if (!value.startsWith("/")) return CALLBACK_URL;
-  if (value.startsWith("//") || value.startsWith("/\\")) return CALLBACK_URL;
-  return value;
-}
 
 /**
  * What Better Auth's OAuth error codes mean to a customer.
@@ -158,7 +133,8 @@ export function AuthForm({
   const searchParams = useSearchParams();
 
   /**
-   * Where to land afterwards. Validated - see safeNext.
+   * Where to land afterwards. Validated - see safeNext in lib/auth/next.ts,
+   * shared with the switch link below so both apply the same rule.
    *
    * Carried through the whole flow so an invitation link that bounced an
    * unknown visitor to sign-up returns them to the invitation once they
@@ -203,8 +179,20 @@ export function AuthForm({
        *
        * The `error` returned here does NOT cover that case: it only catches
        * failures before the browser leaves for Google.
+       *
+       * ?next= is kept when it says anything. A bare "/sign-in" here was one
+       * of the ways an invitation got lost: cancelling Google on an
+       * invitation's sign-up page came back to a sign-in page that no longer
+       * knew about the invitation, and the next sign-in went to the
+       * dashboard. Better Auth appends ?error= with the right separator, and
+       * `next` has already been through safeNext, so this is a path on this
+       * origin with its own query safely encoded. The default is left out
+       * because the page falls back to it anyway.
        */
-      errorCallbackURL: "/sign-in",
+      errorCallbackURL:
+        next === CALLBACK_URL
+          ? "/sign-in"
+          : `/sign-in?next=${encodeURIComponent(next)}`,
     });
     if (error) {
       setGooglePending(false);
@@ -617,10 +605,23 @@ export function AuthForm({
         .
       </p>
 
+      {/*
+        The switch keeps ?next= and the address. It was a bare link, so an
+        invitee sent to sign-up who already had an account and pressed
+        "Sign in" - or sent to sign-in by "Sign in as someone else" with no
+        account yet and pressed "Sign up" - arrived on a form that had
+        forgotten both, finished there, and never saw the invitation again.
+        `email` is whatever is in the field now, which starts as the invited
+        address. See authSwitchHref.
+      */}
       <p className="mt-6 text-sm text-muted-foreground">
         {isSignUp ? "Already have an account? " : "Don't have an account? "}
         <Link
-          href={isSignUp ? "/sign-in" : "/sign-up"}
+          href={authSwitchHref(
+            isSignUp ? "/sign-in" : "/sign-up",
+            searchParams.get("next"),
+            email,
+          )}
           className="font-medium text-primary hover:underline"
         >
           {isSignUp ? "Sign in" : "Sign up"}

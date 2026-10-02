@@ -1,11 +1,11 @@
 "use server";
 
-import { and, desc, eq, lt, notInArray, or } from "drizzle-orm";
+import { and, desc, eq, lt, ne, notInArray, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { isEntitledToSpend } from "@/lib/billing/entitled";
 import { db } from "@/lib/db";
-import { competitors, networkSites, websites } from "@/lib/db/schema";
+import { competitors, networkSites, websiteMembers, websites } from "@/lib/db/schema";
 import { NEW_SITE_DEFAULTS, NEW_SITE_NETWORK } from "@/lib/websites/new-site-defaults";
 import { settingsForMode, type FinishedMode } from "@/lib/publishing/policy";
 import {
@@ -20,6 +20,7 @@ import { writeSelectedWebsite } from "@/lib/websites/selected";
 import { InvalidUrlError, normalizeWebsiteUrl } from "@/lib/websites/url";
 import { verifyDomain } from "@/lib/websites/verify-domain";
 import { normalizeLanguage } from "@/lib/websites/languages";
+import { pendingInvitationsFor } from "@/lib/websites/pending-invitations";
 
 /**
  * Website CRUD.
@@ -67,7 +68,7 @@ export async function listWebsites(): Promise<WebsiteSummary[]> {
 export async function addWebsite(
   rawUrl: string,
 ): Promise<ActionResult<{ id: string }>> {
-  const { orgId } = await requireOrg();
+  const { orgId, userId } = await requireOrg();
 
   let normalized;
   try {
@@ -94,6 +95,84 @@ export async function addWebsite(
 
   if (existing) {
     return { ok: false, error: "That website is already in this workspace" };
+  }
+
+  /**
+   * A website somebody SHARED with the caller from another workspace.
+   *
+   * WHY. An invited editor who cannot find the site they were invited to -
+   * routing used to send a guest into onboarding, whose first step is "add
+   * your website" - types its address and makes a second copy in their own
+   * empty workspace. That copy starts unpaid, walks its creator through the
+   * paywall for a site somebody else already pays for, spends a free analysis,
+   * and if it is ever paid for it writes a second content plan for the same
+   * WordPress. The shared site is already theirs to work on; the answer is to
+   * send them to it.
+   *
+   * ONLY THE CALLER'S OWN GRANTS. Joined on website_members by this user id,
+   * so the refusal can only ever describe a site the caller can already open
+   * from the switcher. A domain merely present in some stranger's workspace is
+   * not refused here - saying so would tell anyone which domains other
+   * customers have added.
+   *
+   * ANOTHER WORKSPACE ONLY (ne organizationId): a site the caller's own
+   * workspace owns is the duplicate above, with its own message.
+   *
+   * WWW-INSENSITIVE ON THE STORED SIDE. normalized.domain is already lowercase
+   * with "www." removed, but rows written before that normalisation can carry
+   * either spelling; the same expression lib/plugin/connection.ts matches on.
+   *
+   * The message never names the other workspace: the person who shared it
+   * named themselves in the invitation, and the workspace's name is the
+   * owner's business.
+   */
+  const [shared] = await db
+    .select({ id: websites.id })
+    .from(websiteMembers)
+    .innerJoin(websites, eq(websites.id, websiteMembers.websiteId))
+    .where(
+      and(
+        eq(websiteMembers.userId, userId),
+        ne(websites.organizationId, orgId),
+        sql`regexp_replace(lower(${websites.domain}), '^www\\.', '') = ${normalized.domain}`,
+      ),
+    )
+    .limit(1);
+
+  if (shared) {
+    /*
+      Points at the Websites page rather than the switcher: this is usually
+      read on the add-website form, where there is no switcher, and the
+      header hides it on phones. Websites lists it under "Shared with you".
+    */
+    return {
+      ok: false,
+      error: "That website is already shared with you. Find it under Websites, in Shared with you.",
+    };
+  }
+
+  /**
+   * The same, for an invitation still WAITING for the caller. Adding the
+   * invited domain to their own workspace instead of accepting it made the
+   * same unpaid copy, and put its paywall in front of the dashboard where
+   * the invitation card is. The dashboard lists the invitation with an
+   * Accept button, so that is where this sends them.
+   *
+   * pendingInvitationsFor answers only for a PROVEN address, so this tells an
+   * unverified account nothing it could not already see, and it never
+   * describes an invitation addressed to somebody else. Compared the same
+   * www-insensitive way as the check above.
+   */
+  const waiting = (await pendingInvitationsFor(userId)).some(
+    (invitation) =>
+      invitation.domain.toLowerCase().replace(/^www\./, "") ===
+      normalized.domain,
+  );
+  if (waiting) {
+    return {
+      ok: false,
+      error: "You have an invitation waiting for that website. Accept it on your dashboard.",
+    };
   }
 
   /**
@@ -299,16 +378,18 @@ export async function setFinishedMode(
 /**
  * Remembers which website the customer is working on.
  *
- * Ownership is checked before storing: the cookie drives which sections the
+ * Access is checked before storing: the cookie drives which sections the
  * sidebar shows, and a value pointing at somebody else's website would render
- * eight links that all 404. requireWebsite throws for an id this workspace
- * does not own.
+ * eight links that all 404. requireWebsite throws for an id the caller can
+ * neither reach through their own workspace nor through a website_members
+ * row - so a site shared with them can be selected, and nothing else can.
  */
 export async function selectWebsite(
   websiteId: string,
 ): Promise<ActionResult<null>> {
   /**
-   * A website this workspace does not own is REFUSED, not thrown.
+   * A website the caller cannot open (neither owned nor shared with them) is
+   * REFUSED, not thrown.
    *
    * requireWebsite throws WebsiteNotFoundError, which is right for a page —
    * it becomes a 404. It is wrong here, because sidebar-nav calls this from
@@ -323,7 +404,7 @@ export async function selectWebsite(
    * the one you have".
    *
    * Returning an error instead lets the caller carry on. The cookie keeps
-   * whatever it had, which is a website they DO own, and the shell renders.
+   * whatever it had, which is a website they can open, and the shell renders.
    */
   let site;
   try {

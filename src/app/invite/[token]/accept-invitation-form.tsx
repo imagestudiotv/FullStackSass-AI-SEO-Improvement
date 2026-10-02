@@ -45,7 +45,19 @@ export function AcceptInvitation({
       }
 
       toast.success(`You now have access to ${domain}`);
-      router.push(`/websites/${result.websiteId}`);
+      /*
+        The dashboard for the site they joined, not /websites/<id>. The
+        dashboard is where every later sign-in lands, it shows the role they
+        were given, and it explains a paused site (the owner's plan lapsed)
+        instead of sending them through the owner's checkout. The action has
+        already made this the selected website, so the switcher agrees.
+
+        refresh() after push, as the sign-in form does after its own change:
+        what this account can open has just changed on the server, and
+        nothing the router cached before that should be reused.
+      */
+      router.push(`/dashboard?site=${result.websiteId}`);
+      router.refresh();
     });
   }
 

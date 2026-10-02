@@ -8,7 +8,7 @@ import { requireSession } from "@/lib/auth-guard";
 import { latestUncertain } from "@/lib/publishing/dispatch";
 import { UncertainPublication } from "./uncertain-publication";
 import { getAppMessages } from "@/lib/i18n/app-locale";
-import { requirePlan } from "@/lib/billing/require-plan";
+import { requireWebsitePlan } from "@/lib/billing/require-plan";
 import { getArticle } from "@/lib/articles/actions";
 import { partnerLinkUrls } from "@/lib/backlinks/partner-links";
 import { requireWebsitePage } from "@/lib/tenant";
@@ -29,12 +29,14 @@ export default async function ArticlePage({
 
   /**
    * The website is resolved BEFORE the paywall, so the paywall can ask about
-   * the workspace that pays for this site.
+   * this site and the access the caller actually holds on it.
    *
    * It used to call requirePlan(orgId) from requireOrg() - the CALLER's own
    * workspace. For a guest invited to one website that is the wrong workspace
    * entirely: a guest whose own workspace has no plan was redirected to a
-   * plan screen for a site somebody else is already paying for.
+   * plan screen for a site somebody else is already paying for. The owner's
+   * workspace is not right for a guest either - it opens the owner's checkout
+   * - so requireWebsitePlan judges a guest on this one site.
    *
    * requireWebsitePage 404s a site that is not the caller's, so this is also
    * the access check; it is request-cached, so the later call in the
@@ -42,7 +44,7 @@ export default async function ArticlePage({
    */
   const gate = await requireWebsitePage(websiteId);
   // Paywall. See lib/billing/require-plan.ts.
-  await requirePlan(gate.ownerOrgId);
+  await requireWebsitePlan(gate);
 
   // try/catch wraps only the fetch: JSX returned inside it is rendered later
   // and would not be covered by the handler.

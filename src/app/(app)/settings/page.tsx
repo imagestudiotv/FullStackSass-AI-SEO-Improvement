@@ -7,8 +7,8 @@ import { getAppMessages } from "@/lib/i18n/app-locale";
 import { getReferralSummary } from "@/lib/referrals/actions";
 import { REFERRAL_REWARD_CREDITS } from "@/lib/referrals/core";
 import { db } from "@/lib/db";
-import { account, websites } from "@/lib/db/schema";
-import { requireOrg } from "@/lib/tenant";
+import { account } from "@/lib/db/schema";
+import { listAccessibleWebsites } from "@/lib/websites/accessible";
 import {
   readSelectedWebsite,
   resolveWebsiteId,
@@ -36,23 +36,44 @@ export default async function SettingsPage() {
 
   /**
    * The website the per-site settings links point at. Resolved the same way
-   * the sidebar does it — the remembered choice, then the first website — so
-   * both agree about which site "Publishing" means.
+   * the sidebar does it — the remembered choice, then the first website, over
+   * every site this person can open — so both agree about which site
+   * "Publishing" means.
+   *
+   * Shared sites count here, unlike in the members panel below. Someone who
+   * opened Account from a site shared with them should still see that site's
+   * tab strip; resolving over owned sites only dropped the strip entirely for
+   * an invitee (they own none), stranding them on this page.
    */
-  const { orgId } = await requireOrg();
-  const owned = await db
-    .select({ id: websites.id, domain: websites.domain })
-    .from(websites)
-    .where(eq(websites.organizationId, orgId))
-    .orderBy(websites.createdAt);
+  const accessible = await listAccessibleWebsites();
   const remembered = await readSelectedWebsite();
   const websiteId = resolveWebsiteId(
     null,
     remembered,
+    accessible.map((site) => site.id),
+  );
+  const stripSite = accessible.find((site) => site.id === websiteId) ?? null;
+
+  /**
+   * The members panel's sites: OWNED ONLY, chosen exactly as before.
+   *
+   * Inviting, removing and re-inviting people is the owner's decision, and
+   * the server refuses those actions to anyone else; a panel for a shared
+   * site would be a form of buttons that all fail. Resolved separately from
+   * the strip so an owner sees the same panel they always did, and a
+   * dual-role user who last looked at a shared site gets their own site here
+   * (the remembered one if it is theirs, else their oldest) rather than none.
+   */
+  const owned = accessible
+    .filter((site) => site.access === "owner")
+    .map((site) => ({ id: site.id, domain: site.domain }));
+  const membersSiteId = resolveWebsiteId(
+    null,
+    remembered,
     owned.map((site) => site.id),
   );
-
-  const selectedSite = owned.find((site) => site.id === websiteId) ?? null;
+  const selectedSite =
+    owned.find((site) => site.id === membersSiteId) ?? null;
 
   /**
    * Falls back to the production domain rather than emitting a localhost link
@@ -92,8 +113,17 @@ export default async function SettingsPage() {
         may be null when the workspace has no site yet; the strip then still
         renders and its per-website tabs simply have nowhere to point, which
         is honest — there is no website to configure.
+
+        access is the selected site's, so on a site shared with this person
+        the strip drops Billing, as it does on that site's own pages.
       */}
-      {websiteId ? <SettingsNav websiteId={websiteId} t={t.app.nav} /> : null}
+      {stripSite ? (
+        <SettingsNav
+          websiteId={stripSite.id}
+          access={stripSite.access}
+          t={t.app.nav}
+        />
+      ) : null}
 
       {/*
         Editable now, rather than a read-only definition list. The name was

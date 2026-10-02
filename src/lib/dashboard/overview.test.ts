@@ -173,3 +173,27 @@ describe("today's article and search", () => {
     expect(await overview(b.orgId, a.site.id)).toBeNull();
   });
 });
+
+/*
+  The dashboard passes showCredits only for the website's owner. A guest
+  (website_members) gets the same site figures under the OWNER's workspace,
+  but never the workspace's credits, and ownerView false so the cards offer
+  nothing to buy.
+*/
+describe("who is looking", () => {
+  it("an owner's view carries ownerView true", async () => {
+    const { orgId, site } = await workspace();
+    const o = await getDashboardOverview({ websiteId: site.id, ownerOrgId: orgId, showCredits: true, range: "30d" });
+    expect(o?.ownerView).toBe(true);
+  });
+
+  it("a guest's view has no credits and ownerView false, but the site's own figures", async () => {
+    const { orgId, site } = await workspace();
+    await test.db.insert(articles).values({ websiteId: site.id, title: "Shared draft", status: "draft", bodyHtml: "<p>x</p>" });
+    const o = await getDashboardOverview({ websiteId: site.id, ownerOrgId: orgId, showCredits: false, range: "30d" });
+    expect(o).not.toBeNull();
+    expect(o?.credits).toBeNull();
+    expect(o?.ownerView).toBe(false);
+    expect(o?.todaysArticle.ok && o.todaysArticle.data).toMatchObject({ title: "Shared draft" });
+  });
+});

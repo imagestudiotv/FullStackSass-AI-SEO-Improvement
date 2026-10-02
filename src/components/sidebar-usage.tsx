@@ -20,9 +20,24 @@ import type { Messages } from "@/lib/i18n/messages";
 export async function SidebarUsage({
   organizationId,
   websiteId,
+  showCredits = true,
   t,
 }: {
   organizationId: string;
+  /**
+   * False while the selected website is one shared with this person.
+   *
+   * `organizationId` is the reader's OWN workspace, and the credit figure is
+   * its balance. Beside an owned site that is the right number. Beside a site
+   * someone else owns it is not: link credits there are spent from the
+   * owner's ledger, so showing the reader's own balance - with a link to the
+   * owner's exchange - says they have credits to use on a site where they
+   * have none. Skipping it also skips ensureMonthlyCredits: it settles the
+   * reader's own monthly grant, which is pointless work on a render that
+   * does not show the balance (the next page that does will grant it - the
+   * grant is lazy and keyed, see its comment).
+   */
+  showCredits?: boolean;
   /**
    * Passed in rather than resolved here: this takes an organisation id, and
    * the language preference belongs to the person, not the workspace.
@@ -39,12 +54,20 @@ export async function SidebarUsage({
   websiteId: string | null;
 }) {
   // This month's plan credits first, so the count includes them.
-  await ensureMonthlyCredits(organizationId);
+  if (showCredits) await ensureMonthlyCredits(organizationId);
   const [articles, credits] = await Promise.all([
+    /*
+      Per website, and resolved from the website's own subscription
+      (checkLimit -> resolvePlan), so on a shared site this is the owner's
+      allowance for that one site - the figure an editor writes against -
+      and nothing about the owner's other sites.
+    */
     websiteId
       ? checkLimit(websiteId, "articles").catch(() => null)
       : Promise.resolve(null),
-    getAvailable(organizationId).catch(() => null),
+    showCredits
+      ? getAvailable(organizationId).catch(() => null)
+      : Promise.resolve(null),
   ]);
 
   const articleLabel =

@@ -219,6 +219,22 @@ export type DashboardOverview = {
   domain: string;
   brandName: string | null;
   window: ReportWindow;
+  /**
+   * True when the reader is the website's OWNER, false for someone it was
+   * shared with (website_members: an editor or a viewer).
+   *
+   * WHY A FLAG AND NOT `credits !== null`. The cards used the credits field
+   * to decide what to offer, but credits are also null when the owner's
+   * balance simply failed to load - and that owner should still be offered
+   * "Get credits", while a guest never should. A guest is not in the paying
+   * workspace: anything they bought would land in their OWN empty workspace
+   * and could never be spent on this site. So purchase links (credits,
+   * add-ons, billing) render only when this is true.
+   *
+   * Display only. The pages behind those links refuse a guest on the server
+   * regardless; this keeps the dashboard from offering what it cannot honour.
+   */
+  ownerView: boolean;
   /** Credits belong to the workspace; hidden (null) for an invited guest. */
   credits: WorkspaceCredits | null;
   backlinks: Loaded<BacklinkMetrics>;
@@ -252,7 +268,12 @@ export async function getDashboardOverview(
     load("achievements", () => loadAchievements(subject, window)),
     load("search", () => loadSearch(site.id, window)),
   ]);
-  return { websiteId: site.id, domain: site.domain, brandName: site.brandName, window, credits, backlinks, history, todaysArticle, wins, bestArticles, achievements, search };
+  /*
+    ownerView follows showCredits: the caller passes showCredits only for the
+    owner (ctx.access === "owner"), and the two answer the same question -
+    may this reader see and spend the workspace's money.
+  */
+  return { websiteId: site.id, domain: site.domain, brandName: site.brandName, window, ownerView: input.showCredits, credits, backlinks, history, todaysArticle, wins, bestArticles, achievements, search };
 }
 
 /* ------------------------------------------------------------------------ */

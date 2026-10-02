@@ -5,6 +5,7 @@ import {
   acceptInvitation,
   type AcceptResult,
 } from "@/lib/websites/accept-invitation";
+import { writeSelectedWebsite } from "@/lib/websites/selected";
 
 /**
  * Accepts the invitation for whoever is signed in.
@@ -17,5 +18,18 @@ export async function acceptInvitationAction(
   token: string,
 ): Promise<AcceptResult> {
   const session = await requireSession();
-  return acceptInvitation(token, session.user.id);
+  const result = await acceptInvitation(token, session.user.id);
+
+  /*
+    The site they just joined becomes the current one. The accept button
+    goes on to the dashboard, and without this the switcher and sidebar
+    would open on whatever was selected before - for someone who also has a
+    website of their own, that is their site rather than the one they were
+    invited to.
+  */
+  if (result.ok) {
+    await writeSelectedWebsite(result.websiteId);
+  }
+
+  return result;
 }

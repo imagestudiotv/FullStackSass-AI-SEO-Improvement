@@ -46,10 +46,15 @@ export type NetworkStatus = {
   country: string | null;
   monthlyCap: number;
   linksGivenThisMonth: number;
-  balance: number;
-  reserved: number;
-  available: number;
-  earnedThisMonth: number;
+  /*
+    The WORKSPACE's credits, shared by every site it owns - so null for a
+    guest invited to one website, who does not see the owner's money. Same
+    rule as the Backlinks Overview and Credit activity pages.
+  */
+  balance: number | null;
+  reserved: number | null;
+  available: number | null;
+  earnedThisMonth: number | null;
   network: { totalSites: number; acceptingSites: number; withCapacity: number };
 };
 
@@ -62,11 +67,21 @@ export async function getNetworkStatus(
    * a different one - so this page used to grant and spend the guest's credits
    * on somebody else's site.
    */
-  const { site, ownerOrgId } = await requireWebsite(websiteId);
+  const { site, ownerOrgId, access } = await requireWebsite(websiteId);
+
+  /*
+    OWNER ONLY for anything about credits. The balance is the workspace's,
+    drawn on by all of its websites, and a guest invited to one site must not
+    read it - nor the earnings that reveal how its other sites are doing. A
+    server action is a public endpoint, so this is enforced here rather than
+    by whichever page happens to call it (none does today).
+  */
+  const owner = access === "owner";
 
   // Granted on read rather than by a scheduler: idempotent by month, so a
   // customer never has to wait for a cron to see the credits they paid for.
-  await grantMonthlyCredits(ownerOrgId);
+  // Only where the balance is shown, which for a guest it is not.
+  if (owner) await grantMonthlyCredits(ownerOrgId);
 
   const [row] = await db
     .select()
@@ -90,8 +105,8 @@ export async function getNetworkStatus(
     );
 
   const [credits, earned, network] = await Promise.all([
-    getAvailable(ownerOrgId),
-    earnedThisMonth(ownerOrgId),
+    owner ? getAvailable(ownerOrgId) : Promise.resolve(null),
+    owner ? earnedThisMonth(ownerOrgId) : Promise.resolve(null),
     describeNetwork(),
   ]);
 
@@ -103,9 +118,9 @@ export async function getNetworkStatus(
     country: row?.country ?? site.country,
     monthlyCap: row?.monthlyCap ?? DEFAULT_MONTHLY_CAP,
     linksGivenThisMonth: given?.n ?? 0,
-    balance: credits.balance,
-    reserved: credits.reserved,
-    available: credits.available,
+    balance: credits?.balance ?? null,
+    reserved: credits?.reserved ?? null,
+    available: credits?.available ?? null,
     earnedThisMonth: earned,
     network,
   };
@@ -516,11 +531,19 @@ export async function cancelRequest(
 
 export async function getLedger(websiteId: string): Promise<LedgerRow[]> {
   /*
-    The ledger of the workspace that pays for this site. A guest viewing it sees
-    the owner's credit history for the site they were invited to, not their own
-    workspace's - which is both the useful answer and the correct tenant.
+    The ledger of the workspace that pays for this site - ownerOrgId, never the
+    caller's own workspace.
+
+    OWNER ONLY. This used to answer a guest too, on the reasoning that they
+    saw "the owner's credit history for the site they were invited to". It is
+    not that: listLedger is the WHOLE workspace's ledger, every purchase, plan
+    grant and link across all of the owner's websites, with notes. A guest
+    invited to one site is refused it like the Credit activity page refuses
+    them (backlinks/credits/page.tsx), and like listWebsiteInvitations, with
+    an empty answer rather than an error so a shared screen still renders.
   */
-  const { ownerOrgId } = await requireWebsite(websiteId);
+  const { ownerOrgId, access } = await requireWebsite(websiteId);
+  if (access !== "owner") return [];
   return listLedger(ownerOrgId);
 }
 

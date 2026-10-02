@@ -20,9 +20,16 @@ export function MobileNav({
   setupProgress = null,
   selectedWebsiteId = null,
   addons = [],
+  hideAddons = false,
   t,
 }: {
   onboardingComplete?: boolean;
+  /**
+   * Forwarded to SidebarNav, so a phone hides Add-ons in the same cases the
+   * desktop sidebar does - otherwise an invitee could buy from the phone menu
+   * what the desktop never offered them.
+   */
+  hideAddons?: boolean;
   /** Forwarded to SidebarNav: the phone menu shows the same labels. */
   t: Messages["app"]["nav"];
   /** Forwarded to SidebarNav, so the phone menu shows the same progress. */
@@ -62,6 +69,7 @@ export function MobileNav({
           setupProgress={setupProgress}
           selectedWebsiteId={selectedWebsiteId}
           addons={addons}
+          hideAddons={hideAddons}
           t={t}
         />
       </SheetContent>

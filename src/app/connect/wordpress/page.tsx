@@ -4,6 +4,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { BrandLogo } from "@/components/brand-logo";
+import { SwitchAccount } from "@/components/switch-account";
 import { Button } from "@/components/ui/button";
 import { getSession } from "@/lib/auth-guard";
 import { getAppMessages } from "@/lib/i18n/app-locale";
@@ -11,7 +12,6 @@ import { format } from "@/lib/i18n/format";
 import { approveHandshake, loadForViewer, type Candidate, type PresentedKey } from "@/lib/plugin/handshake";
 import { legacyRedirect } from "@/lib/site-url";
 import { approveConnection, cancelConnection } from "./actions";
-import { SwitchAccount } from "./switch-account";
 
 /**
  * Where "Connect to RepGet" in WordPress (plugin 1.7.0) sends the admin's

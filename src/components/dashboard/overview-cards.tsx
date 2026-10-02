@@ -47,9 +47,16 @@ export function AuthorityCard({ overview, t, locale }: { overview: DashboardOver
             <p className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
               <Link2 className="size-3.5" aria-hidden="true" /> {t.partnerNetworkLabel}
             </p>
-            <Link href="/billing#addons" className="rounded-full border px-2.5 py-0.5 text-xs font-medium text-violet-700 hover:bg-violet-50 dark:text-violet-300 dark:hover:bg-violet-950/40">
-              {t.getCredits}
-            </Link>
+            {/*
+              Owner only. Credits are bought by, and spent from, the workspace
+              that owns this website; a guest buying here would fill their
+              OWN workspace with credits this site can never use.
+            */}
+            {overview.ownerView ? (
+              <Link href="/billing#addons" className="rounded-full border px-2.5 py-0.5 text-xs font-medium text-violet-700 hover:bg-violet-50 dark:text-violet-300 dark:hover:bg-violet-950/40">
+                {t.getCredits}
+              </Link>
+            ) : null}
           </div>
           <dl className="mt-3 grid grid-cols-2 gap-4">
             <div>
@@ -63,8 +70,17 @@ export function AuthorityCard({ overview, t, locale }: { overview: DashboardOver
             <div>
               <dt className="text-xs text-muted-foreground">{t.availableCredits}</dt>
               <dd className="text-3xl font-semibold tabular-nums">
+                {/*
+                  Null credits mean two different things. For a guest they
+                  were never read (the workspace's balance is not theirs to
+                  see), which is what "Owner only" says; for the owner they
+                  failed to load, and "Owner only" would tell the owner they
+                  are not one.
+                */}
                 {overview.credits ? (
                   <Link href={`${base}/credits`} className="hover:underline">{formatNumber(overview.credits.available, locale)}</Link>
+                ) : overview.ownerView ? (
+                  <span className="text-base font-normal text-muted-foreground">-</span>
                 ) : (
                   <span className="text-base font-normal text-muted-foreground">{t.ownerOnlyShort}</span>
                 )}

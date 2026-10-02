@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 
+import { isEntitledToSpend } from "@/lib/billing/entitled";
 import { getOnboardingState } from "@/lib/onboarding/steps";
+import type { WebsiteContext } from "@/lib/tenant";
 
 /**
  * THE PAYWALL. Call at the top of every page that a plan pays for.
@@ -44,4 +46,43 @@ export async function requirePlan(orgId: string) {
   }
 
   return onboarding;
+}
+
+/**
+ * THE PAYWALL FOR A WEBSITE PAGE, for whoever is looking at it.
+ *
+ * OWNERS GET requirePlan, UNCHANGED. Their unpaid site sends them to the plan
+ * screen exactly as before; nothing about an owner's paywall or onboarding
+ * moves.
+ *
+ * GUESTS DO NOT. Somebody invited to one website (website_members) is not in
+ * the workspace that pays for it, and requirePlan(ownerOrgId) was wrong for
+ * them twice over. It sent them into /onboarding/plan - a checkout for a
+ * website they do not own, in a flow built for setting up your own - and it
+ * named the OWNER's oldest site in the URL (?site=), which may be a site the
+ * guest was never invited to. The owner's plan is the owner's business; the
+ * guest can only ask them to renew.
+ *
+ * So a guest is judged on THIS website alone, by the same question the
+ * server actions ask before spending: isEntitledToSpend, which reads the
+ * site's own subscription and treats an agency workspace as paid. When it
+ * says no, they go to the dashboard for this site, which explains that it is
+ * paused and who can fix it, and names no other site.
+ *
+ * Takes the WebsiteContext from requireWebsitePage rather than an org id, so
+ * the decision rests on the access the tenant guard actually granted and
+ * cannot be asked about a site the caller has not been checked against.
+ */
+export async function requireWebsitePlan(
+  ctx: Pick<WebsiteContext, "access" | "ownerOrgId" | "site">,
+): Promise<void> {
+  if (ctx.access === "owner") {
+    await requirePlan(ctx.ownerOrgId);
+    return;
+  }
+
+  const entitled = await isEntitledToSpend(ctx.site.id);
+  if (!entitled.ok) {
+    redirect(`/dashboard?site=${ctx.site.id}`);
+  }
 }

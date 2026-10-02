@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, gte, isNull } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { user, websiteInvitations, websiteMembers, websites } from "@/lib/db/schema";
@@ -150,20 +150,170 @@ export async function acceptInvitation(
     };
   }
 
+  const granted = await grantInvitation(found.id, userId);
+  if (!granted) {
+    // Accepted in another tab, or revoked, since the lookup above.
+    return { ok: false, error: "This invitation is no longer valid." };
+  }
+
+  return { ok: true, websiteId: granted.websiteId };
+}
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Accepts an invitation by its ID, from the dashboard, without the emailed
+ * link.
+ *
+ * WHY A SECOND WAY IN. The link did not survive signing up: switching between
+ * sign-in and sign-up, or a failed Google attempt, dropped it, and in
+ * production an invitee signed up with Google minutes after being invited and
+ * never saw the invitation again. The dashboard now lists what is waiting for
+ * their address (lib/websites/pending-invitations.ts), and this is the button
+ * behind each card.
+ *
+ * THE TOKEN WAS THE PROOF OF THE MAILBOX; HERE THE ACCOUNT MUST BE. Without
+ * the link, nothing shows that the person pressing Accept reads the address
+ * the invitation went to - except an account whose address Better Auth has
+ * VERIFIED, which happens only through a Google sign-in or a one-time code
+ * sent to it. Email/password signup does not verify, so a password-only
+ * account could otherwise be registered under somebody else's address and
+ * collect their invitations. emailVerified is read from the user row and must
+ * be exactly `true`, the rule lib/admin/guard.ts applies to admin access.
+ * Unverified accounts are not refused for ever; they accept with the link.
+ *
+ * NOTHING ABOUT ANOTHER PERSON'S INVITATION IS DISCLOSED. Unlike the token
+ * path, the caller here proved nothing about this particular invitation, so
+ * an id that is unknown, addressed to someone else, already accepted or
+ * revoked all get the same "no longer valid" - the address it was sent to is
+ * never named. Expiry is reported only once the address has matched, where
+ * "ask for another" is something the reader can act on.
+ *
+ * Not a server action itself: the dashboard's action reads the session and
+ * passes its user id, so a caller can never accept on somebody else's behalf.
+ */
+export async function acceptPendingInvitation(
+  invitationId: string,
+  userId: string,
+): Promise<AcceptResult> {
+  // A malformed id must answer "not valid", not raise a Postgres cast error.
+  if (!UUID_RE.test(invitationId)) {
+    return { ok: false, error: "This invitation is no longer valid." };
+  }
+
+  const [account] = await db
+    .select({ email: user.email, emailVerified: user.emailVerified })
+    .from(user)
+    .where(eq(user.id, userId))
+    .limit(1);
+
+  if (!account) {
+    return { ok: false, error: "Sign in again and reopen the invitation." };
+  }
+
+  if (account.emailVerified !== true) {
+    return {
+      ok: false,
+      error:
+        "Open the link in your invitation email to accept it. Your email address has not been confirmed yet.",
+    };
+  }
+
+  const [invitation] = await db
+    .select({
+      email: websiteInvitations.email,
+      acceptedAt: websiteInvitations.acceptedAt,
+      expiresAt: websiteInvitations.expiresAt,
+    })
+    .from(websiteInvitations)
+    .where(eq(websiteInvitations.id, invitationId))
+    .limit(1);
+
+  if (
+    !invitation ||
+    invitation.email !== account.email.trim().toLowerCase() ||
+    invitation.acceptedAt
+  ) {
+    return { ok: false, error: "This invitation is no longer valid." };
+  }
+
+  // The same comparison lookupInvitation makes, so both paths agree.
+  if (invitation.expiresAt.getTime() < Date.now()) {
+    return { ok: false, error: "This invitation has expired." };
+  }
+
+  const granted = await grantInvitation(invitationId, userId);
+  if (!granted) {
+    return { ok: false, error: "This invitation is no longer valid." };
+  }
+
+  return { ok: true, websiteId: granted.websiteId };
+}
+
+/**
+ * The grant itself: marks the invitation accepted and gives `userId` access
+ * to its website. Shared by both ways of accepting, so there is exactly one
+ * place that turns an invitation into a website_members row.
+ *
+ * Callers have already checked WHO may accept (the address, and for the
+ * token-less path the verified account). This only re-checks, atomically,
+ * that the invitation is still there to be accepted.
+ *
+ * Returns null when it is not - accepted in another tab, revoked, or expired -
+ * in which case nothing was written.
+ */
+async function grantInvitation(
+  invitationId: string,
+  userId: string,
+): Promise<{ websiteId: string } | null> {
   /*
     Both writes in one transaction. A membership without the invitation
     marked accepted would leave a live token that could be replayed after the
     owner removed the person again; the reverse would consume the invitation
     and grant nothing, with no way to recover it - the token is hashed.
   */
-  await db.transaction(async (tx) => {
+  return db.transaction(async (tx) => {
+    /*
+      CLAIMED FIRST, AND ONLY IF STILL PENDING. The caller's checks ran a
+      moment ago, outside this transaction; an owner revoking the invitation
+      in that moment must not be overtaken by a grant. The conditional update
+      is the check that cannot race: if it touches no row, nothing is granted.
+
+      The site, role and inviter are taken from the row as claimed, not from
+      the earlier read, so access is exactly what the invitation said when it
+      was accepted.
+    */
+    const [claimed] = await tx
+      .update(websiteInvitations)
+      .set({ acceptedAt: new Date(), updatedAt: new Date() })
+      .where(
+        and(
+          eq(websiteInvitations.id, invitationId),
+          isNull(websiteInvitations.acceptedAt),
+          gte(websiteInvitations.expiresAt, new Date()),
+        ),
+      )
+      .returning({
+        websiteId: websiteInvitations.websiteId,
+        role: websiteInvitations.role,
+        invitedBy: websiteInvitations.invitedBy,
+      });
+
+    if (!claimed) return null;
+
     await tx
       .insert(websiteMembers)
       .values({
-        websiteId: found.websiteId,
+        websiteId: claimed.websiteId,
         userId,
-        role: found.role,
-        invitedBy: null,
+        role: claimed.role,
+        /*
+          Who let them in, as the direct-grant path in members.ts records.
+          It was written as null, leaving the membership with no trace of
+          its sender once the invitation row is gone.
+        */
+        invitedBy: claimed.invitedBy,
       })
       /*
         Already a member - they were invited twice, or granted access
@@ -173,14 +323,13 @@ export async function acceptInvitation(
       */
       .onConflictDoUpdate({
         target: [websiteMembers.websiteId, websiteMembers.userId],
-        set: { role: found.role, updatedAt: new Date() },
+        set: {
+          role: claimed.role,
+          invitedBy: claimed.invitedBy,
+          updatedAt: new Date(),
+        },
       });
 
-    await tx
-      .update(websiteInvitations)
-      .set({ acceptedAt: new Date(), updatedAt: new Date() })
-      .where(eq(websiteInvitations.id, found.id));
+    return { websiteId: claimed.websiteId };
   });
-
-  return { ok: true, websiteId: found.websiteId };
 }
