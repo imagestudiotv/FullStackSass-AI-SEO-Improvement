@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import type { Locale } from "@/lib/i18n/config";
 import { formatNumber as intlNumber } from "@/lib/i18n/format";
 import type { Messages } from "@/lib/i18n/messages";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -71,6 +71,10 @@ const CALLBACK_MESSAGE: Record<
   error: { key: "statusError", ok: false },
 };
 
+/** How often, and how many times, to refresh while a first import runs. */
+const IMPORT_POLL_MS = 4000;
+const IMPORT_POLL_TICKS = 15;
+
 /**
  * Thousands separators in the reader's language.
  *
@@ -133,6 +137,50 @@ export function AnalyticsPanel({
     });
   }
 
+  /*
+    The import runs as a background job, so the refresh right after queueing it
+    usually lands before any rows exist. Keep refreshing for a while, stopping
+    once figures appear. Without this, users only saw data after clicking a
+    second button that happened to refresh again.
+  */
+  const [awaitingImport, setAwaitingImport] = useState(0);
+  const hasData = useRef(performance.hasData);
+  useEffect(() => {
+    hasData.current = performance.hasData;
+  }, [performance.hasData]);
+  useEffect(() => {
+    if (!awaitingImport) return;
+    // A first import is done once figures show up, so stop early. A re-import
+    // of a site that already has figures runs the full window.
+    const startedEmpty = !hasData.current;
+    let ticks = 0;
+    const timer = setInterval(() => {
+      if (startedEmpty && hasData.current) {
+        clearInterval(timer);
+        return;
+      }
+      ticks += 1;
+      router.refresh();
+      if (ticks >= IMPORT_POLL_TICKS) clearInterval(timer);
+    }, IMPORT_POLL_MS);
+    return () => clearInterval(timer);
+  }, [awaitingImport, router]);
+
+  async function queueImport(): Promise<void> {
+    const result = await startImport(websiteId);
+    if (!result.ok) {
+      toast.error(result.error);
+      return;
+    }
+    toast.success(t.importing);
+    router.refresh();
+    setAwaitingImport(Date.now());
+  }
+
+  /*
+    Saving also imports: people pick their properties, press the primary
+    button, and expect their numbers - nobody reads "then import".
+  */
   function handleSave() {
     startTransition(async () => {
       const result = await selectProperties(websiteId, {
@@ -143,20 +191,18 @@ export function AnalyticsPanel({
         toast.error(result.error);
         return;
       }
-      toast.success("Saved");
-      router.refresh();
+      if (!scSite && !gaProperty) {
+        toast.success("Saved");
+        router.refresh();
+        return;
+      }
+      await queueImport();
     });
   }
 
   function handleImport() {
     startTransition(async () => {
-      const result = await startImport(websiteId);
-      if (!result.ok) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success(t.importing);
-      router.refresh();
+      await queueImport();
     });
   }
 
