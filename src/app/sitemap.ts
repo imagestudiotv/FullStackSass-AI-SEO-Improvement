@@ -42,6 +42,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
     { url: `${base}/publishers`, lastModified: now, priority: 0.7 },
     { url: `${base}/affiliate`, lastModified: now, priority: 0.6 },
+    { url: `${base}/success-stories`, lastModified: now, priority: 0.6 },
     { url: `${base}/faq`, lastModified: now, priority: 0.6 },
     { url: `${base}/about`, lastModified: now, priority: 0.5 },
     { url: `${base}/contact`, lastModified: now, priority: 0.4 },
@@ -71,7 +72,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.5,
   }));
 
-  const posts: MetadataRoute.Sitemap = (await listPosts()).map((post) => ({
+  const published = await listPosts();
+
+  const posts: MetadataRoute.Sitemap = published.map((post) => ({
     url: `${base}/blog/${post.slug}`,
     // The post's own date, not the build's: a build date on every URL tells a
     // crawler everything changed, which is both false and unhelpful.
@@ -80,12 +83,41 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   /**
+   * Blog categories that HAVE posts, read from the posts already loaded rather
+   * than from the category list: an empty category page is thin content, and
+   * advertising one to search engines invites them to judge the blog by it.
+   * Dated by its newest post, for the same reason posts carry their own date.
+   */
+  const newestBySlug = new Map<string, string>();
+  for (const post of published) {
+    const date = post.updatedAt ?? post.publishedAt;
+    const seen = newestBySlug.get(post.categorySlug);
+    if (!seen || date > seen) newestBySlug.set(post.categorySlug, date);
+  }
+  const categories: MetadataRoute.Sitemap = [...newestBySlug].map(([slug, date]) => ({
+    url: `${base}/blog/category/${slug}`,
+    lastModified: new Date(`${date}T00:00:00Z`),
+    priority: 0.5,
+  }));
+
+  /**
    * Translated pages. Listed so search engines find them without having to
    * discover the prefix by following a switcher link, which they may not.
-   * Only the paths that actually exist in every locale.
+   * Every page with an app/(marketing)/[locale] route - the same nine that
+   * declare hreflang alternates (lib/i18n/config.ts languageAlternates).
    */
   const translated: MetadataRoute.Sitemap = PREFIXED_LOCALES.flatMap((locale) =>
-    ["/", "/pricing", "/about", "/faq", "/contact"].map((path) => ({
+    [
+      "/",
+      "/pricing",
+      "/about",
+      "/faq",
+      "/contact",
+      "/affiliate",
+      "/publishers",
+      "/success-stories",
+      "/backlink-exchange",
+    ].map((path) => ({
       url: `${base}${localePath(locale, path)}`,
       lastModified: now,
       // The homepage first, then pricing; the rest are supporting pages.
@@ -93,5 +125,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     })),
   );
 
-  return [...pages, ...tools, ...docs, ...posts, ...translated];
+  return [...pages, ...tools, ...docs, ...posts, ...categories, ...translated];
 }
