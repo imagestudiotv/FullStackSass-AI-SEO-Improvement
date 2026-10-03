@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 
 import { BrandLogo } from "@/components/brand-logo";
@@ -15,6 +16,16 @@ import { AuthShowcase } from "@/components/auth-showcase";
  * secrets at build time.
  */
 export const dynamic = "force-dynamic";
+
+/**
+ * Sign-in and sign-up are not search results.
+ *
+ * /sign-up was showing in Google (client's launch review, 2026-10-03). noindex
+ * keeps both pages out while `follow` still lets crawlers pass through their
+ * links. Deliberately NOT disallowed in robots.ts: a crawler blocked from the
+ * page never reads the noindex, and the URL can stay listed from links alone.
+ */
+export const metadata: Metadata = { robots: { index: false, follow: true } };
 
 export default function AuthLayout({ children }: LayoutProps<"/">) {
   return (

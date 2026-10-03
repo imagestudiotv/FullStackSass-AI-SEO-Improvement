@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 
 import { BrandLogo } from "@/components/brand-logo";
 import { HeaderTrailing } from "@/components/onboarding/header-trailing";
@@ -32,6 +33,9 @@ import { requireOrg } from "@/lib/tenant";
  * session — and they are the ones that create websites and start checkouts.
  */
 export const dynamic = "force-dynamic";
+
+/** Setup steps for a signed-in customer: never a search result. See (auth)/layout.tsx. */
+export const metadata: Metadata = { robots: { index: false, follow: true } };
 
 export default async function OnboardingLayout({ children }: LayoutProps<"/">) {
   const session = await requireSession();

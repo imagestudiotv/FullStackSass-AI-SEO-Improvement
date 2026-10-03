@@ -18,7 +18,11 @@ import { getSession } from "@/lib/auth-guard";
 // Reads the caller's session, so it can never be prerendered.
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: { default: "Admin", template: "%s · RepGet Admin" } };
+export const metadata = {
+  title: { default: "Admin", template: "%s · RepGet Admin" },
+  // Never a search result, however a crawler arrives here.
+  robots: { index: false, follow: true },
+};
 
 export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
   let admin;

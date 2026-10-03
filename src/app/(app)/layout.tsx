@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { and, asc, eq, isNull, sql as raw } from "drizzle-orm";
 import Link from "next/link";
 
@@ -35,6 +36,13 @@ import { readSelectedWebsite, resolveWebsiteId } from "@/lib/websites/selected";
  * deploy on any host where they are set as runtime-only variables.
  */
 export const dynamic = "force-dynamic";
+
+/**
+ * The signed-in app is never a search result. robots.ts already disallows its
+ * main paths and a signed-out visitor is redirected to /sign-in, so this is the
+ * page-level statement of the same rule, for any path the disallow list misses.
+ */
+export const metadata: Metadata = { robots: { index: false, follow: true } };
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const session = await requireSession();

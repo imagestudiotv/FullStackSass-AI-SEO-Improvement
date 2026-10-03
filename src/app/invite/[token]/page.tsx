@@ -38,7 +38,11 @@ import { AcceptInvitation } from "./accept-invitation-form";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "Invitation" };
+export const metadata = {
+  title: "Invitation",
+  // A personal invitation link, never a search result.
+  robots: { index: false, follow: true },
+};
 
 export default async function InvitePage({
   params,
