@@ -13,6 +13,7 @@ export const metadata = {
   title: "Meta Tag Checker",
   description:
     "Check every meta tag Google and the social networks read on your page - titles, descriptions, Open Graph and Twitter cards. Free, no signup.",
+  alternates: { canonical: "/tools/meta-tag-checker" },
 };
 
 export const dynamic = "force-dynamic";

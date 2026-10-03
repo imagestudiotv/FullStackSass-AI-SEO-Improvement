@@ -13,6 +13,7 @@ export const metadata = {
   title: "Keyword Density Checker",
   description:
     "See what your page actually talks about - the words and phrases it uses most, and how often. Free, no signup.",
+  alternates: { canonical: "/tools/keyword-density" },
 };
 
 export const dynamic = "force-dynamic";

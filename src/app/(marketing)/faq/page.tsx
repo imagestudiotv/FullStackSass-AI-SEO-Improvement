@@ -6,6 +6,7 @@ const t = getMessages("en");
 export const metadata = {
   title: t.faq.metaTitle,
   description: t.faq.metaDescription,
+  alternates: { canonical: "/faq" },
 };
 
 /**

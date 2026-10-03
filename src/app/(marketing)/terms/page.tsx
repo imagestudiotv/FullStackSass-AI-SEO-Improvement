@@ -5,6 +5,7 @@ import { SUPPORT_EMAIL } from "@/lib/config/site";
 export const metadata = {
   title: "Terms of Service",
   description: "The terms that apply when you use RepGet.",
+  alternates: { canonical: "/terms" },
 };
 
 /**

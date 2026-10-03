@@ -13,6 +13,7 @@ export const metadata = {
   title: "Sitemap Checker & Finder",
   description:
     "Find your XML sitemap the way a search engine does, and check it actually works. Free, no signup.",
+  alternates: { canonical: "/tools/sitemap-checker" },
 };
 
 // Fetches a live website per request, so it can never be prerendered.

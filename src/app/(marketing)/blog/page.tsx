@@ -9,6 +9,7 @@ export const metadata = {
   title: "Blog",
   description:
     "Guides, comparisons and playbooks for getting found on Google and cited by AI assistants - written for people who run a business, not a marketing team.",
+  alternates: { canonical: "/blog" },
 };
 
 // Live posts from the database (see lib/blog/posts.ts).

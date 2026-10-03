@@ -19,6 +19,7 @@ export const metadata = {
   title: "Meta Description Generator",
   description:
     "Five meta descriptions written from your actual page content, each with a reason to click. Free, no signup.",
+  alternates: { canonical: "/tools/meta-description-generator" },
 };
 
 export const dynamic = "force-dynamic";

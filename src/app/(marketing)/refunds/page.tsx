@@ -5,6 +5,7 @@ export const metadata = {
   title: "Refund Policy",
   description:
     "Our 14-day money-back guarantee and how refunds work at RepGet.",
+  alternates: { canonical: "/refunds" },
 };
 
 /**

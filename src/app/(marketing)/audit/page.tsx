@@ -12,6 +12,7 @@ export const metadata = {
   title: "Free website check",
   description:
     "See what is holding your website back on Google and whether AI assistants can read your site. No account needed.",
+  alternates: { canonical: "/audit" },
 };
 
 // Crawls a live website per request, so it can never be prerendered.

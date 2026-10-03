@@ -7,6 +7,7 @@ const t = getMessages("en");
 export const metadata = {
   title: t.contact.metaTitle,
   description: t.contact.metaDescription,
+  alternates: { canonical: "/contact" },
 };
 
 /**

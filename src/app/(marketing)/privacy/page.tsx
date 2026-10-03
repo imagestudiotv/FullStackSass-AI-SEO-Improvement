@@ -5,6 +5,7 @@ export const metadata = {
   title: "Privacy Policy",
   description:
     "What data RepGet collects, why, and how it is stored and protected.",
+  alternates: { canonical: "/privacy" },
 };
 
 /**

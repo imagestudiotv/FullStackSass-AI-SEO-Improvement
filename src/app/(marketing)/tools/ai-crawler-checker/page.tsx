@@ -15,6 +15,7 @@ export const metadata = {
   title: "AI Crawler Checker",
   description:
     "Check whether GPTBot, ClaudeBot, PerplexityBot and Google-Extended are allowed to read your site. Free, no signup.",
+  alternates: { canonical: "/tools/ai-crawler-checker" },
 };
 
 export const dynamic = "force-dynamic";

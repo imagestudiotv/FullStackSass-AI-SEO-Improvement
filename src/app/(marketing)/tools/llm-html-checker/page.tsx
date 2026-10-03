@@ -13,6 +13,7 @@ export const metadata = {
   title: "LLM HTML Visibility Checker",
   description:
     "See how much of your page an AI assistant can actually read - the text that survives without JavaScript. Free, no signup.",
+  alternates: { canonical: "/tools/llm-html-checker" },
 };
 
 export const dynamic = "force-dynamic";
