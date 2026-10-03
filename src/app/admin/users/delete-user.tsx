@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -13,11 +13,18 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { deleteUser } from "@/lib/admin/operations";
+
+import {
+  CONFIRM_WORD,
+  ConfirmField,
+  DialogError,
+  DialogNotes,
+  ReasonField,
+  reasonOk,
+  Spinner,
+} from "../organizations/dialog-fields";
 
 /**
  * Deleting one person's account.
@@ -30,24 +37,40 @@ import { deleteUser } from "@/lib/admin/operations";
  * Typed confirmation rather than a second click. This sits in a table of
  * similar rows and cannot be undone, so the cost of being wrong is higher
  * than the cost of typing six letters.
+ *
+ * Opened from the person's row menu (user-actions.tsx).
  */
-export function DeleteUserButton({
+export function DeleteUserDialog({
   userId,
   email,
+  open,
+  onClose,
 }: {
   userId: string;
   email: string;
+  open: boolean;
+  onClose: () => void;
 }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
+  /** Every way out resets what was typed: reopening never shows DELETE already filled in. */
+  function close() {
+    setReason("");
+    setConfirm("");
+    setError(null);
+    onClose();
+  }
+
   function submit() {
+    setError(null);
     startTransition(async () => {
       const result = await deleteUser(userId, reason, confirm);
       if (!result.ok) {
+        setError(result.error);
         toast.error(result.error);
         return;
       }
@@ -59,88 +82,53 @@ export function DeleteUserButton({
        */
       const orphans = result.data.orphanedOrganizations;
       toast.success(
-        orphans.length > 0
-          ? `${email} deleted. ${orphans.join(", ")} now has no members.`
-          : `${email} deleted`,
+        orphans.length > 0 ? `${email} deleted. ${orphans.join(", ")} now has no members.` : `${email} deleted`,
       );
-      setOpen(false);
-      setReason("");
-      setConfirm("");
+      close();
       router.refresh();
     });
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label={`Delete ${email}`}
-          className="text-muted-foreground hover:text-destructive"
-        >
-          <Trash2 className="size-4" />
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
+    <Dialog open={open} onOpenChange={(next) => (next || pending ? null : close())}>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Delete {email} permanently?</DialogTitle>
+          <DialogTitle className="wrap-anywhere">Delete {email} permanently?</DialogTitle>
           <DialogDescription>
-            This removes the person&apos;s account, their sessions and their
-            sign-in methods. It cannot be undone.
+            This removes the person&apos;s account, their sessions and their sign-in methods. It cannot be undone.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
-          <ul className="space-y-1 rounded-xl border bg-muted/40 p-3 text-xs text-muted-foreground">
+          <DialogNotes>
             <li>
-              Their workspaces are NOT deleted - colleagues may still be using
-              them. Delete a workspace separately from the Organizations page.
+              Their workspaces are NOT deleted - colleagues may still be using them. Delete a workspace separately
+              from this row&apos;s menu or the Organizations page.
             </li>
             <li>This deletion is recorded in the admin log.</li>
-          </ul>
+          </DialogNotes>
 
-          <div className="space-y-2">
-            <Label htmlFor="delete-user-reason">Why?</Label>
-            <Input
-              id="delete-user-reason"
-              value={reason}
-              onChange={(event) => setReason(event.target.value)}
-              placeholder="Customer requested erasure under GDPR"
-              autoComplete="off"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="delete-user-confirm">Type DELETE to confirm</Label>
-            <Input
-              id="delete-user-confirm"
-              value={confirm}
-              onChange={(event) => setConfirm(event.target.value)}
-              placeholder="DELETE"
-              autoComplete="off"
-            />
-          </div>
+          <ReasonField
+            id="delete-user-reason"
+            value={reason}
+            onChange={setReason}
+            placeholder="Customer requested erasure under GDPR"
+            disabled={pending}
+          />
+          <ConfirmField id="delete-user-confirm" value={confirm} onChange={setConfirm} disabled={pending} />
+          <DialogError message={error} />
         </div>
 
         <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => setOpen(false)}
-            disabled={pending}
-          >
+          <Button variant="outline" onClick={close} disabled={pending}>
             Cancel
           </Button>
           <Button
             variant="destructive"
             onClick={submit}
-            disabled={
-              pending || reason.trim().length < 3 || confirm !== "DELETE"
-            }
+            disabled={pending || !reasonOk(reason) || confirm !== CONFIRM_WORD}
           >
-            {pending ? (
-              <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-            ) : null}
+            {pending ? <Spinner /> : <Trash2 className="size-4" aria-hidden="true" />}
             Delete permanently
           </Button>
         </DialogFooter>

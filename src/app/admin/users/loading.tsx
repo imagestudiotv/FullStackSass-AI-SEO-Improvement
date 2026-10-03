@@ -1,6 +1,6 @@
-import { PageSkeleton } from "@/components/ui/page-skeleton";
+import { AdminListSkeleton } from "../_ui/states";
 
-/** Operator tables: rows matter more than metrics. */
+/** Shaped like the Users list: header, toolbar, table. */
 export default function Loading() {
-  return <PageSkeleton rows={8} width="wide" />;
+  return <AdminListSkeleton rows={10} columns={5} />;
 }

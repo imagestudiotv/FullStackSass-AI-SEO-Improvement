@@ -43,6 +43,19 @@ export function pageFrom(value: unknown): number {
 }
 
 /**
+ * An ILIKE pattern matching `term` anywhere, taken literally.
+ *
+ * `%` and `_` are wildcards to LIKE, so searching "a_b" also found "axb" and
+ * "100%" found everything starting "100". That matters more now the admin
+ * links between lists by name (a workspace's websites are
+ * /admin/websites?q=<name>): a name containing either character widened the
+ * list it landed on. Backslash is Postgres's default LIKE escape.
+ */
+export function containsPattern(term: string): string {
+  return `%${term.replace(/[\\%_]/g, (char) => `\\${char}`)}%`;
+}
+
+/**
  * Date-range filter values, shared by the pages and the queries.
  *
  * One list so a control cannot offer a range the query does not understand —

@@ -14,7 +14,7 @@ import {
 import { revalidatePath } from "next/cache";
 
 import { requireAdmin } from "@/lib/admin/guard";
-import { ADMIN_PAGE_SIZE, sinceFrom, type Page } from "@/lib/admin/shared";
+import { ADMIN_PAGE_SIZE, containsPattern, sinceFrom, type Page } from "@/lib/admin/shared";
 import { db } from "@/lib/db";
 import {
   articles,
@@ -126,7 +126,7 @@ export async function listOrganizations(
   await requireAdmin();
 
   const conditions = [];
-  if (search) conditions.push(ilike(organization.name, `%${search}%`));
+  if (search) conditions.push(ilike(organization.name, containsPattern(search)));
 
   /**
    * Subscription status.
@@ -281,9 +281,9 @@ export async function listAllArticles(options: {
      */
     conditions.push(
       or(
-        ilike(articles.title, `%${options.search}%`),
-        ilike(websites.domain, `%${options.search}%`),
-        ilike(organization.name, `%${options.search}%`),
+        ilike(articles.title, containsPattern(options.search)),
+        ilike(websites.domain, containsPattern(options.search)),
+        ilike(organization.name, containsPattern(options.search)),
       ),
     );
   }
@@ -494,7 +494,7 @@ export async function listUsers(
   const conditions = [];
   if (search) {
     conditions.push(
-      or(ilike(user.email, `%${search}%`), ilike(user.name, `%${search}%`)),
+      or(ilike(user.email, containsPattern(search)), ilike(user.name, containsPattern(search))),
     );
   }
 
@@ -532,35 +532,68 @@ export async function listUsers(
     .from(user)
     .where(where);
 
-  const rows = await db
-    .select({
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      createdAt: user.createdAt,
-      organizationId: organization.id,
-      organizationName: organization.name,
-      organizationStatus: subscriptions.status,
-      planName: plans.name,
-      planInterval: plans.interval,
-    })
+  /**
+   * The page is chosen in PEOPLE, then their memberships are fetched.
+   *
+   * It used to limit the joined rows: a row per membership AND per
+   * subscription, because the subscription was joined by workspace and billing
+   * is per website. Someone in a workspace paying for three sites took three of
+   * the twenty-five slots and showed that workspace three times, and since the
+   * total above counts people, later pages skipped or repeated them.
+   */
+  const pageOfPeople = await db
+    .select({ id: user.id })
     .from(user)
-    .leftJoin(member, eq(member.userId, user.id))
-    .leftJoin(organization, eq(member.organizationId, organization.id))
-    .leftJoin(
-      subscriptions,
-      eq(subscriptions.organizationId, organization.id),
-    )
-    /*
-      The plan NAME, not just the status. "Growth" is what an operator needs
-      when a customer writes in; "active" says a subscription exists without
-      saying what it bought.
-    */
-    .leftJoin(plans, eq(plans.id, subscriptions.planId))
     .where(where)
-    .orderBy(desc(user.createdAt))
+    .orderBy(desc(user.createdAt), desc(user.id))
     .limit(ADMIN_PAGE_SIZE)
     .offset((page - 1) * ADMIN_PAGE_SIZE);
+  const ids = pageOfPeople.map((row) => row.id);
+
+  const rows =
+    ids.length === 0
+      ? []
+      : await db
+          .select({
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            createdAt: user.createdAt,
+            organizationId: organization.id,
+            organizationName: organization.name,
+            /*
+              One subscription per workspace, chosen the way the organizations
+              list chooses it: active first, then newest. The plan NAME, not
+              just the status - "Growth" is what an operator needs when a
+              customer writes in; "active" says a subscription exists without
+              saying what it bought.
+            */
+            organizationStatus: raw<string | null>`(
+              select s.status from subscriptions s
+              where s.organization_id = ${organization.id}
+              order by (s.status = 'active') desc, s.created_at desc, s.id
+              limit 1
+            )`,
+            planName: raw<string | null>`(
+              select p.name from subscriptions s
+              join plans p on p.id = s.plan_id
+              where s.organization_id = ${organization.id}
+              order by (s.status = 'active') desc, s.created_at desc, s.id
+              limit 1
+            )`,
+            planInterval: raw<string | null>`(
+              select p.interval from subscriptions s
+              join plans p on p.id = s.plan_id
+              where s.organization_id = ${organization.id}
+              order by (s.status = 'active') desc, s.created_at desc, s.id
+              limit 1
+            )`,
+          })
+          .from(user)
+          .leftJoin(member, eq(member.userId, user.id))
+          .leftJoin(organization, eq(member.organizationId, organization.id))
+          .where(inArray(user.id, ids))
+          .orderBy(desc(user.createdAt), desc(user.id), organization.name);
 
   /**
    * The websites each person can reach, for the whole page at once.
@@ -580,8 +613,6 @@ export async function listUsers(
    *
    * Someone can have both, so the workspace route wins in the stitch.
    */
-  const ids = rows.map((row) => row.id);
-
   const [viaWorkspace, viaInvitation] = await Promise.all([
     ids.length === 0
       ? []
@@ -709,9 +740,9 @@ export async function listWebsites(
     */
     conditions.push(
       or(
-        ilike(websites.domain, `%${search}%`),
-        ilike(websites.url, `%${search}%`),
-        ilike(organization.name, `%${search}%`),
+        ilike(websites.domain, containsPattern(search)),
+        ilike(websites.url, containsPattern(search)),
+        ilike(organization.name, containsPattern(search)),
       ),
     );
   }
@@ -752,17 +783,24 @@ export async function listWebsites(
         size.
       */
       articleCount: raw<number>`(select count(*) from articles a where a.website_id = ${websites.id})::int`,
-      subscriptionStatus: subscriptions.status,
+      /*
+        The workspace's subscription, chosen rather than joined: billing is per
+        website, so a join by workspace repeated each site once per
+        subscription its workspace holds. Active first, then newest - the rule
+        the organizations list uses.
+      */
+      subscriptionStatus: raw<string | null>`(
+        select s.status from subscriptions s
+        where s.organization_id = ${websites.organizationId}
+        order by (s.status = 'active') desc, s.created_at desc, s.id
+        limit 1
+      )`,
       sameDomainElsewhere: raw<number>`(select count(*) from websites w2 where w2.id <> ${websites.id} and regexp_replace(lower(w2.domain), '^www\\.', '') = regexp_replace(lower(${websites.domain}), '^www\\.', ''))::int`,
     })
     .from(websites)
     .leftJoin(organization, eq(organization.id, websites.organizationId))
-    .leftJoin(
-      subscriptions,
-      eq(subscriptions.organizationId, websites.organizationId),
-    )
     .where(where)
-    .orderBy(desc(websites.createdAt))
+    .orderBy(desc(websites.createdAt), desc(websites.id))
     .limit(ADMIN_PAGE_SIZE)
     .offset((page - 1) * ADMIN_PAGE_SIZE);
 
@@ -808,8 +846,8 @@ export async function listPayments(options: {
      */
     conditions.push(
       or(
-        ilike(organization.name, `%${options.search}%`),
-        ilike(payments.description, `%${options.search}%`),
+        ilike(organization.name, containsPattern(options.search)),
+        ilike(payments.description, containsPattern(options.search)),
       ),
     );
   }

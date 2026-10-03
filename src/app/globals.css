@@ -58,6 +58,31 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  /*
+    ADMIN AREA ONLY. New names that no customer-facing page reads, so the
+    admin redesign cannot restyle the product: the admin shell paints its
+    canvas and sidebar with these, and everything else keeps the shared
+    tokens above (so dialogs and menus, which portal outside the admin
+    wrapper, still look right). Warm neutral canvas, charcoal sidebar.
+  */
+  --admin-canvas: oklch(0.985 0.003 75);
+  --admin-sidebar: oklch(0.205 0.006 56);
+  --admin-sidebar-foreground: oklch(0.86 0.005 75);
+  --admin-sidebar-muted: oklch(0.66 0.008 70);
+  --admin-sidebar-accent: oklch(0.275 0.008 56);
+  --admin-sidebar-border: oklch(1 0 0 / 8%);
+  /*
+    Semantic state colours, for status badges and attention items. Always
+    shown with an icon and a word, never as colour alone.
+  */
+  --success: oklch(0.47 0.12 152);
+  --success-soft: oklch(0.96 0.03 152);
+  --warning: oklch(0.48 0.11 65);
+  --warning-soft: oklch(0.965 0.04 85);
+  --info: oklch(0.48 0.13 255);
+  --info-soft: oklch(0.96 0.025 250);
+  --danger: oklch(0.52 0.21 27.3);
+  --danger-soft: oklch(0.965 0.025 27);
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
 }
@@ -102,6 +127,20 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+  --admin-canvas: oklch(0.17 0.004 56);
+  --admin-sidebar: oklch(0.13 0.004 56);
+  --admin-sidebar-foreground: oklch(0.86 0.005 75);
+  --admin-sidebar-muted: oklch(0.62 0.008 70);
+  --admin-sidebar-accent: oklch(0.24 0.006 56);
+  --admin-sidebar-border: oklch(1 0 0 / 8%);
+  --success: oklch(0.72 0.14 152);
+  --success-soft: oklch(0.3 0.05 152);
+  --warning: oklch(0.78 0.13 80);
+  --warning-soft: oklch(0.32 0.05 80);
+  --info: oklch(0.72 0.12 250);
+  --info-soft: oklch(0.3 0.05 250);
+  --danger: oklch(0.72 0.17 25);
+  --danger-soft: oklch(0.3 0.06 27);
 }
 
 @theme inline {
@@ -148,6 +187,20 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-admin-canvas: var(--admin-canvas);
+  --color-admin-sidebar: var(--admin-sidebar);
+  --color-admin-sidebar-foreground: var(--admin-sidebar-foreground);
+  --color-admin-sidebar-muted: var(--admin-sidebar-muted);
+  --color-admin-sidebar-accent: var(--admin-sidebar-accent);
+  --color-admin-sidebar-border: var(--admin-sidebar-border);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);

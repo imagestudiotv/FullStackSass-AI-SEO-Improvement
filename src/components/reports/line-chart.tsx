@@ -45,6 +45,7 @@ export function LineChart({
   valueLabel,
   instructions,
   size = "regular",
+  tone = "violet",
 }: {
   points: ChartPoint[];
   /** What the series is, e.g. "Article clicks from Google". Also the table caption. */
@@ -58,6 +59,8 @@ export function LineChart({
   valueLabel: string;
   instructions: string;
   size?: keyof typeof SIZES;
+  /** Line colour. "brand" is the theme's --chart-line (the admin area); violet stays the default. */
+  tone?: "violet" | "brand";
 }) {
   const { width: WIDTH, height: HEIGHT, pad: PAD } = SIZES[size];
   const id = useId();
@@ -148,13 +151,13 @@ export function LineChart({
           </text>
         ))}
         {geometry.segments.map((d, i) => (
-          <path key={i} d={d} fill="none" className="stroke-violet-600 dark:stroke-violet-400" strokeWidth={2.25} strokeLinejoin="round" strokeLinecap="round" />
+          <path key={i} d={d} fill="none" className={tone === "brand" ? "stroke-[var(--chart-line)]" : "stroke-violet-600 dark:stroke-violet-400"} strokeWidth={2.25} strokeLinejoin="round" strokeLinecap="round" />
         ))}
         {activePoint ? (
           <g>
             <line x1={geometry.x(active!)} x2={geometry.x(active!)} y1={PAD.top} y2={PAD.top + geometry.innerH} className="stroke-muted-foreground" strokeDasharray="2 3" />
             {activePoint.value !== null ? (
-              <circle cx={geometry.x(active!)} cy={geometry.y(activePoint.value)} r={4.5} className="fill-violet-600 stroke-background dark:fill-violet-400" strokeWidth={2} />
+              <circle cx={geometry.x(active!)} cy={geometry.y(activePoint.value)} r={4.5} className={tone === "brand" ? "fill-[var(--chart-line)] stroke-background" : "fill-violet-600 stroke-background dark:fill-violet-400"} strokeWidth={2} />
             ) : null}
           </g>
         ) : null}

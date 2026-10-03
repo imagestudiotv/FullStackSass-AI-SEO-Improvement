@@ -2,7 +2,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { formatNumber } from "@/lib/i18n/format";
 
 /**
  * Moving between pages of an admin list.
@@ -19,6 +19,18 @@ import { cn } from "@/lib/utils";
  * Existing query parameters are carried through, so paging inside a search or
  * a customer filter does not silently widen the list back to everything.
  */
+
+/** The href for one page, carrying the list's parameters. Page 1 stays out of the URL. */
+export function pageHref(basePath: string, params: Record<string, string | undefined>, target: number): string {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value && key !== "page") query.set(key, value);
+  }
+  if (target > 1) query.set("page", String(target));
+  const suffix = query.toString();
+  return suffix ? `${basePath}?${suffix}` : basePath;
+}
+
 export function Pagination({
   page,
   pageSize,
@@ -34,87 +46,80 @@ export function Pagination({
   basePath: string;
 }) {
   const lastPage = Math.max(1, Math.ceil(total / pageSize));
-
-  /**
-   * Nothing to move between. Rendering a disabled control on a single page of
-   * results is noise that implies there is more to see.
-   */
-  if (total === 0 || lastPage === 1) return null;
-
-  const first = (page - 1) * pageSize + 1;
+  const first = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const last = Math.min(page * pageSize, total);
+  const n = (value: number) => formatNumber(value, "en");
 
-  function href(target: number): string {
-    const query = new URLSearchParams();
-    for (const [key, value] of Object.entries(params)) {
-      if (value) query.set(key, value);
-    }
-    // Page 1 is the default, so it stays out of the URL and the first page
-    // has one canonical address rather than two.
-    if (target > 1) query.set("page", String(target));
-    const suffix = query.toString();
-    return suffix ? `${basePath}?${suffix}` : basePath;
+  /*
+    A page past the end - an old link, a hand-typed ?page=, or rows deleted
+    since. It used to print an impossible range ("Showing 76–75 of 60"); say
+    what happened and offer the last real page instead.
+  */
+  if (total > 0 && page > lastPage) {
+    return (
+      <nav aria-label="Pagination" className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-muted-foreground">
+          Page {n(page)} is past the end - there {total === 1 ? "is" : "are"} {n(total)} {total === 1 ? "result" : "results"}.
+        </p>
+        <Button variant="outline" size="sm" asChild className="h-8 bg-background">
+          <Link href={pageHref(basePath, params, lastPage)}>
+            <ChevronLeft className="size-4" aria-hidden="true" />
+            Go to page {n(lastPage)}
+          </Link>
+        </Button>
+      </nav>
+    );
   }
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3">
+    <nav aria-label="Pagination" className="flex flex-wrap items-center justify-between gap-3">
       {/*
         The range and the total together. "1-25 of 400" is what tells an
         operator to search rather than page; "page 1 of 16" does not.
       */}
-      <p className="text-sm text-muted-foreground tabular-nums">
-        {first}-{last} of {total}
+      <p className="text-sm tabular-nums text-muted-foreground">
+        {total === 0 ? "No results" : `Showing ${n(first)}–${n(last)} of ${n(total)}`}
       </p>
 
-      <div className="flex items-center gap-1">
-        {/*
-          Two separate elements rather than one Button with asChild toggled.
-          asChild={false} wrapped the icon and the label in a plain <span>
-          inside the button: the button's flex row then contained one span,
-          and the icon and text inside it had no layout of their own, so
-          "Previous" wrapped underneath the chevron and burst the h-7 row.
-        */}
-        {page > 1 ? (
-          <Button variant="outline" size="sm" asChild aria-label="Previous page">
-            <Link href={href(page - 1)}>
+      {lastPage > 1 ? (
+        <div className="flex items-center gap-1">
+          {/*
+            A real disabled button at the ends, not a disabled anchor: an anchor
+            with the disabled attribute is still focusable and still followed.
+          */}
+          {page > 1 ? (
+            <Button variant="outline" size="sm" asChild className="h-8 bg-background">
+              <Link href={pageHref(basePath, params, page - 1)} aria-label="Previous page">
+                <ChevronLeft className="size-4" aria-hidden="true" />
+                <span className="hidden sm:inline">Previous</span>
+              </Link>
+            </Button>
+          ) : (
+            <Button variant="outline" size="sm" disabled className="h-8" aria-label="Previous page">
               <ChevronLeft className="size-4" aria-hidden="true" />
-              Previous
-            </Link>
-          </Button>
-        ) : (
-          /*
-            A real disabled button, not a disabled anchor: an anchor with the
-            disabled attribute is still focusable and still followed.
-          */
-          <Button variant="outline" size="sm" disabled aria-label="Previous page">
-            <ChevronLeft className="size-4" aria-hidden="true" />
-            Previous
-          </Button>
-        )}
-
-        <span
-          className={cn(
-            "px-2 text-sm text-muted-foreground tabular-nums",
-            "whitespace-nowrap",
+              <span className="hidden sm:inline">Previous</span>
+            </Button>
           )}
-        >
-          Page {page} of {lastPage}
-        </span>
 
-        {page < lastPage ? (
-          <Button variant="outline" size="sm" asChild aria-label="Next page">
-            <Link href={href(page + 1)}>
-              Next
+          <span className="whitespace-nowrap px-2 text-sm tabular-nums text-muted-foreground">
+            Page {n(page)} of {n(lastPage)}
+          </span>
+
+          {page < lastPage ? (
+            <Button variant="outline" size="sm" asChild className="h-8 bg-background">
+              <Link href={pageHref(basePath, params, page + 1)} aria-label="Next page">
+                <span className="hidden sm:inline">Next</span>
+                <ChevronRight className="size-4" aria-hidden="true" />
+              </Link>
+            </Button>
+          ) : (
+            <Button variant="outline" size="sm" disabled className="h-8" aria-label="Next page">
+              <span className="hidden sm:inline">Next</span>
               <ChevronRight className="size-4" aria-hidden="true" />
-            </Link>
-          </Button>
-        ) : (
-          <Button variant="outline" size="sm" disabled aria-label="Next page">
-            Next
-            <ChevronRight className="size-4" aria-hidden="true" />
-          </Button>
-        )}
-      </div>
-    </div>
+            </Button>
+          )}
+        </div>
+      ) : null}
+    </nav>
   );
 }
