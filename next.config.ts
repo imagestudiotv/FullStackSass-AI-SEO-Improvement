@@ -1,8 +1,19 @@
 import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
 
+import { legacyHostRedirects } from "./src/lib/site-url";
+
 const nextConfig: NextConfig = {
   reactCompiler: true,
+
+  /**
+   * Pages on the pre-repget.com address go to the same path on the canonical
+   * one; /api stays where it is for webhooks and older plugins. The rule and
+   * its reasons live beside the address in src/lib/site-url.ts.
+   */
+  async redirects() {
+    return legacyHostRedirects();
+  },
 };
 
 const sentryAuthToken = process.env.SENTRY_AUTH_TOKEN;

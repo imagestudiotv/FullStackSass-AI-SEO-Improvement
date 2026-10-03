@@ -54,6 +54,47 @@ export function siteUrl(): string {
  * Only that exact host - a preview deployment or a staging domain is left
  * alone, so it keeps working against its own database.
  */
+export type HostRedirect = {
+  source: string;
+  has: { type: "host"; value: string }[];
+  destination: string;
+  permanent: boolean;
+};
+
+/**
+ * next.config redirects that move every PAGE on the pre-repget.com address to
+ * the same path on the canonical one (client's launch review, 2026-10-03:
+ * "every host/protocol redirects to https://www.repget.com/").
+ *
+ * The old address still served the whole site, so search engines could index
+ * it as a second copy, and a customer could sign in there under a domain they
+ * did not recognise. legacyRedirect (below) only covered /connect/wordpress.
+ *
+ * /api IS LEFT ALONE. Machines still call the old address and must keep
+ * reaching it: Stripe and PayPal webhooks, Inngest, Google's OAuth callback,
+ * Better Auth, and WordPress plugins before 1.7.1 for every /api/plugin/*
+ * call. Pages a browser opens - including the plugin's /connect/wordpress
+ * and its /repget-connector.json update check, which WordPress follows across
+ * a redirect - are redirected. Query strings are carried over by Next.
+ *
+ * Permanent (308), which also keeps the request method. Never a redirect to
+ * the host itself, whatever NEXT_PUBLIC_APP_URL says.
+ */
+export function legacyHostRedirects(): HostRedirect[] {
+  const target = siteUrl();
+  const targetHost = new URL(target).hostname;
+  return [...LEGACY_HOSTS]
+    .filter((host) => host !== targetHost)
+    .map((host) => ({
+      // Everything except /api and /api/...: the lookahead keeps both out.
+      source: "/:path((?!api(?:/|$)).*)",
+      // A has-value is a regular expression; the dots must be literal.
+      has: [{ type: "host", value: host.replace(/\./g, "\\.") }],
+      destination: `${target}/:path`,
+      permanent: true,
+    }));
+}
+
 export function legacyRedirect(host: string | null | undefined, path: string): string | null {
   const name = host?.trim().toLowerCase().replace(/:\d+$/, "");
   if (!name || !LEGACY_HOSTS.has(name)) return null;
