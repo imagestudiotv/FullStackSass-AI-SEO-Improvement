@@ -26,6 +26,14 @@ import { siteUrl } from "@/lib/site-url";
  *    is re-pointed (lib/articles/toc.ts).
  *  - Images: sized to the article column on any theme, with an inline
  *    max-width on each image - nothing is added to the customer's theme.
+ *    Each decodes off the main thread (decoding="async") and loads only as
+ *    the reader nears it (loading="lazy") - except the first, which loads at
+ *    once: it is the one most likely to be on screen when the page opens,
+ *    and lazy-loading that picture delays the page's main paint, which
+ *    PageSpeed reports (client's launch review, 2026-10-03). WordPress makes
+ *    the same exception for a post's first image. The width and height the
+ *    editor recorded travel with each image, so its space is held while it
+ *    loads.
  *  - Network backlinks: sent FOLLOWED. The editor marks every link to
  *    another site nofollow (lib/articles/sanitize.ts), which is right for
  *    citations and wrong for a placement - a nofollow backlink passes no SEO
@@ -76,10 +84,12 @@ export function prepareForDelivery(html: string, options: DeliveryOptions): stri
     if (CREDIT_TEXT.test($(block).text())) $(block).remove();
   }
 
-  for (const image of $("img").toArray()) {
+  $("img").each((index, image) => {
     $(image).attr("style", "max-width:100%;height:auto");
-    if (!$(image).attr("loading")) $(image).attr("loading", "lazy");
-  }
+    if (index === 0) $(image).attr("loading", "eager");
+    else if (!$(image).attr("loading")) $(image).attr("loading", "lazy");
+    if (!$(image).attr("decoding")) $(image).attr("decoding", "async");
+  });
 
   for (const cell of $("td, th").toArray()) {
     const only = $(cell).children();

@@ -134,6 +134,7 @@ describe("the RepGet credit line", () => {
   it("makes images fit the article column without touching the theme", () => {
     const out = prepareForDelivery(body, { poweredBy: false });
     expect(out).toContain('style="max-width:100%;height:auto"');
-    expect(out).toContain('loading="lazy"');
+    // The article's first image loads at once; the rest lazily (image-attributes.test.ts).
+    expect(out).toContain('loading="eager"');
   });
 });

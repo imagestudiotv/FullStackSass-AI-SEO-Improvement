@@ -13,8 +13,9 @@
  * site's markup with it. Naming what may stay is the only version that survives
  * inputs multiplying.
  *
- * Attributes are dropped except href/src/alt/title, so class and style cannot
- * carry an editor's private CSS onto a site that has no stylesheet for it.
+ * Attributes are dropped except href/src/alt/title, heading ids and an
+ * image's size and loading hints, so class and style cannot carry an editor's
+ * private CSS onto a site that has no stylesheet for it.
  *
  * Its own module rather than living beside the generator: the editor's save
  * path needs it, and importing it from a file that constructs an Anthropic
@@ -56,7 +57,12 @@ const ALLOWED_TAGS = new Set([
 /** Attributes worth keeping, per tag. Everything else goes. */
 const ALLOWED_ATTRS: Record<string, Set<string>> = {
   a: new Set(["href", "title"]),
-  img: new Set(["src", "alt", "title"]),
+  /*
+    width/height so a browser can hold an image's space while it loads, and
+    loading/decoding so it can load it without holding up the page (client's
+    launch review, 2026-10-03). Only in the fixed forms FIXED_FORM_ATTRS allows.
+  */
+  img: new Set(["src", "alt", "title", "width", "height", "loading", "decoding"]),
   /*
     Heading ids, so a contents list's "#section" links have something to
     point at. They were dropped with every other attribute, which left each
@@ -75,6 +81,29 @@ const ALLOWED_ATTRS: Record<string, Set<string>> = {
  * that could mean something to a browser or a stylesheet.
  */
 const SAFE_ID = /^[A-Za-z][A-Za-z0-9_-]{0,80}$/;
+
+/**
+ * Attributes kept only in one exact form, or not at all: the normalised value,
+ * or null to drop it.
+ *
+ * An image size is a whole number of pixels, 1 to 10000 - what the HTML
+ * attribute means. "100%", "800px", "0" and anything stranger are dropped
+ * rather than repaired: a size that is wrong is worse than none, because the
+ * browser would hold the wrong space. Loading hints are the few words browsers
+ * know, in lower case.
+ */
+const IMAGE_SIZE = /^(?:[1-9]\d{0,3}|10000)$/;
+const FIXED_FORM_ATTRS: Record<string, (value: string) => string | null> = {
+  width: (value) => (IMAGE_SIZE.test(value.trim()) ? value.trim() : null),
+  height: (value) => (IMAGE_SIZE.test(value.trim()) ? value.trim() : null),
+  loading: (value) => oneOf(value, ["lazy", "eager"]),
+  decoding: (value) => oneOf(value, ["async", "sync", "auto"]),
+};
+
+function oneOf(value: string, allowed: readonly string[]): string | null {
+  const word = value.trim().toLowerCase();
+  return allowed.includes(word) ? word : null;
+}
 
 /** Tags whose content goes with them, rather than being unwrapped. */
 const DROP_WITH_CONTENT =
@@ -199,9 +228,15 @@ function cleanAttrs(tag: string, raw: string, options: SanitizeOptions = {}): st
     const name = match[1].toLowerCase();
     if (!allowed.has(name)) continue;
 
-    const value = decodeEntities(match[2].replace(/^["']|["']$/g, ""));
+    let value = decodeEntities(match[2].replace(/^["']|["']$/g, ""));
     if ((name === "href" || name === "src") && !safeUrl(value)) continue;
     if (name === "id" && !SAFE_ID.test(value)) continue;
+    const fixedForm = FIXED_FORM_ATTRS[name];
+    if (fixedForm) {
+      const normalised = fixedForm(value);
+      if (normalised === null) continue;
+      value = normalised;
+    }
 
     out.push(`${name}="${escapeAttr(value)}"`);
   }

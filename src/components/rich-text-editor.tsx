@@ -302,6 +302,74 @@ function Toolbar({
 }
 
 /**
+ * An image's real width and height, read by loading it, or null when it
+ * cannot be read in time.
+ */
+function measureImage(
+  src: string,
+  timeoutMs = 15000,
+): Promise<{ width: number; height: number } | null> {
+  return new Promise((resolve) => {
+    const probe = new window.Image();
+    const finish = (size: { width: number; height: number } | null) => {
+      window.clearTimeout(timer);
+      probe.onload = null;
+      probe.onerror = null;
+      resolve(size);
+    };
+    const timer = window.setTimeout(() => finish(null), timeoutMs);
+    probe.onload = () =>
+      finish(
+        probe.naturalWidth > 0 && probe.naturalHeight > 0
+          ? { width: probe.naturalWidth, height: probe.naturalHeight }
+          : null,
+      );
+    probe.onerror = () => finish(null);
+    probe.src = src;
+  });
+}
+
+/**
+ * Gives every unsized copy of a picture its real width and height, so the
+ * saved <img> carries width="..." height="..." (client's launch review,
+ * 2026-10-03). Without them a browser cannot hold the picture's space while
+ * it loads, and the text below jumps when it arrives - layout shift, which
+ * PageSpeed penalises. The numbers set the shape only; CSS (max-width:100%;
+ * height:auto) still fits the picture to the column.
+ *
+ * Called just after the picture is put in, not before: inserting stays
+ * instant, a second press cannot insert it twice while a measurement is
+ * pending, and no stored position can go stale. The picture is found by its
+ * address instead, and only where it has no size yet, so nothing deliberate
+ * is overwritten. Kept out of undo history: undoing the insert removes the
+ * picture, and there is no separate "size" step to undo.
+ *
+ * A picture that cannot be read keeps no size, exactly as before.
+ */
+function recordImageSize(editor: Editor | null, src: string) {
+  void measureImage(src).then((size) => {
+    if (!size || !editor || editor.isDestroyed) return;
+    const { tr } = editor.state;
+    editor.state.doc.descendants((node, pos) => {
+      if (node.type.name === "image" && node.attrs.src === src && node.attrs.width == null && node.attrs.height == null) {
+        tr.setNodeMarkup(pos, undefined, { ...node.attrs, ...size });
+      }
+    });
+    if (tr.docChanged) editor.view.dispatch(tr.setMeta("addToHistory", false));
+  });
+}
+
+/**
+ * The size attributes a replaced picture keeps. A different picture drops the
+ * old one's size - its shape is unknown until recordImageSize reads it, and a
+ * wrong shape is worse than none. The same picture (only its description
+ * changed) keeps its size.
+ */
+function replacedSize(previousSrc: string, src: string): { width?: null; height?: null } {
+  return previousSrc === src ? {} : { width: null, height: null };
+}
+
+/**
  * What a typed link address becomes: the href to set, "" to remove the link,
  * or null when it cannot be a link. Mirrors the sanitiser's rule (http,
  * https, mailto and tel, or a relative address) so a link that would vanish
@@ -735,6 +803,7 @@ export function RichTextEditor({
         const url = await onUploadImage(file);
         if (url) {
           editorRef.current?.chain().focus().setImage({ src: url }).run();
+          recordImageSize(editorRef.current, url);
         }
       } finally {
         setUploading(false);
@@ -964,10 +1033,15 @@ export function RichTextEditor({
     // null drops the attribute rather than saving alt="" (see the classic picker below).
     const alt = altText || null;
     if (editingImage && at !== null) {
-      editor.chain().setNodeSelection(at).updateAttributes("image", { src: url, alt }).run();
+      editor
+        .chain()
+        .setNodeSelection(at)
+        .updateAttributes("image", { src: url, alt, ...replacedSize(editingImage, url) })
+        .run();
     } else {
       editor.chain().setImage({ src: url, alt: alt ?? undefined }).run();
     }
+    recordImageSize(editor, url);
     editingPosRef.current = null;
     focusEditorOnCloseRef.current = true;
     setPickerOpen(false);
@@ -1098,11 +1172,12 @@ export function RichTextEditor({
                   .chain()
                   .focus()
                   .setNodeSelection(at)
-                  .updateAttributes("image", { src: url, alt })
+                  .updateAttributes("image", { src: url, alt, ...replacedSize(editingImage, url) })
                   .run();
               } else {
                 editor.chain().focus().setImage({ src: url, alt: alt ?? undefined }).run();
               }
+              recordImageSize(editor, url);
 
               editingPosRef.current = null;
               setPickerOpen(false);
