@@ -1,6 +1,7 @@
 import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
 
+import { securityHeaders } from "./src/lib/security-headers";
 import { legacyHostRedirects } from "./src/lib/site-url";
 
 const nextConfig: NextConfig = {
@@ -13,6 +14,24 @@ const nextConfig: NextConfig = {
    */
   async redirects() {
     return legacyHostRedirects();
+  },
+
+  /**
+   * Security headers on every response: HSTS, nosniff, referrer policy,
+   * permissions policy, frame protection, and a REPORT-ONLY content security
+   * policy. What each does, what is deliberately left out, and why the CSP
+   * does not enforce yet, is in src/lib/security-headers.ts.
+   */
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: securityHeaders({
+          production: process.env.NODE_ENV === "production",
+          sentryDsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+        }),
+      },
+    ];
   },
 };
 
