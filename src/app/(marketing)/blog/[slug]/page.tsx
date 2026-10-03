@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { BlogArticle } from "@/components/blog-article";
 import { getPost, relatedPosts } from "@/lib/blog/posts";
 import { jsonLdScript } from "@/lib/blog/shared";
+import { SHARE_IMAGE } from "@/lib/share-image";
 
 /**
  * Rendered per request, from the database: a post published or corrected in
@@ -32,11 +33,18 @@ export async function generateMetadata({
       publishedTime: post.publishedAt,
       modifiedTime: post.updatedAt ?? post.publishedAt,
       authors: [post.author],
+      /*
+        Named explicitly: setting openGraph here replaces the root layout's,
+        which drops the site picture Next would otherwise attach. Posts have
+        no picture of their own. See lib/share-image.ts.
+      */
+      images: [SHARE_IMAGE],
     },
     twitter: {
       card: "summary_large_image",
       title: post.title,
       description: post.description,
+      images: [SHARE_IMAGE],
     },
   };
 }

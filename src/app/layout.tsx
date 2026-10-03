@@ -39,6 +39,22 @@ export const metadata: Metadata = {
     "Automated SEO analysis, AI content generation, publishing and backlinks for small businesses.",
 
   /**
+   * Sharing defaults for every page. The picture itself is app/opengraph-
+   * image.tsx; these say whose site it is and ask X for the large card.
+   *
+   * A page that sets its own `openGraph` replaces this object (Next merges
+   * metadata one key deep), which is right for blog posts: they describe
+   * themselves as articles.
+   */
+  openGraph: {
+    siteName: "RepGet",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+  },
+
+  /**
    * Icons are declared against their literal paths in public/ rather than
    * left to the app/ file convention, which serves them from hashed URLs
    * (/icon?abc123). Those change whenever the file does, and Google asks
