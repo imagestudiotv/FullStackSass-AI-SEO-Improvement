@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+
 import { listPlans } from "@/lib/billing";
 import { getMessages } from "@/lib/i18n/messages";
 import {
@@ -29,6 +31,24 @@ import { siteUrl as canonicalSiteUrl } from "@/lib/site-url";
 
 // Reads live plan prices, so it cannot be statically cached.
 export const dynamic = "force-dynamic";
+
+/**
+ * The homepage's own title, description and canonical.
+ *
+ * It had none, so it inherited the root layout's: the title was the bare
+ * word "RepGet" and the description an old one-liner - which is what Google
+ * showed for the site's most important page. Wording from the client's launch
+ * review (2026-10-03).
+ *
+ * `absolute` because the root layout's template appends "| RepGet" to every
+ * title, and this one already ends with it.
+ */
+export const metadata: Metadata = {
+  title: { absolute: "AI SEO Platform for Content & Backlinks | RepGet" },
+  description:
+    "Automate SEO with RepGet. Research keywords, publish optimized content, build quality backlinks, track rankings and improve visibility in Google and AI search.",
+  alternates: { canonical: "/" },
+};
 
 export default async function HomePage() {
   const plans = await listPlans();
