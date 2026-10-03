@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
+import { isPreviewDeployment } from "@/lib/deployment";
 import { siteUrl as canonicalSiteUrl } from "@/lib/site-url";
 
 const geistSans = Geist({
@@ -53,6 +54,14 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
   },
+
+  /**
+   * A preview deployment is never a search result: noindex on every page, for
+   * crawlers that read the page rather than the X-Robots-Tag header that
+   * next.config also sends. Production sets nothing here, so each page's own
+   * robots setting (or none) applies as before. See lib/deployment.ts.
+   */
+  ...(isPreviewDeployment() ? { robots: { index: false, follow: false } } : {}),
 
   /**
    * Icons are declared against their literal paths in public/ rather than

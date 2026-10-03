@@ -1,6 +1,7 @@
 import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
 
+import { isPreviewDeployment, PREVIEW_ROBOTS_HEADER } from "./src/lib/deployment";
 import { securityHeaders } from "./src/lib/security-headers";
 import { legacyHostRedirects } from "./src/lib/site-url";
 
@@ -26,10 +27,18 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/:path*",
-        headers: securityHeaders({
-          production: process.env.NODE_ENV === "production",
-          sentryDsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
-        }),
+        headers: [
+          ...securityHeaders({
+            production: process.env.NODE_ENV === "production",
+            sentryDsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+          }),
+          /*
+            Preview deployments only - never production, even with VERCEL_ENV
+            missing - tell search engines to stay out, on every response
+            including files and images. See src/lib/deployment.ts.
+          */
+          ...(isPreviewDeployment() ? [PREVIEW_ROBOTS_HEADER] : []),
+        ],
       },
     ];
   },
