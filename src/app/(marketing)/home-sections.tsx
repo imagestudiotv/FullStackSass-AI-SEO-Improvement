@@ -1161,7 +1161,7 @@ export function BacklinkNetwork({ t, href }: SectionProps) {
           <span className="text-muted-foreground">{t.networkTitleRest}</span>
         </h2>
 
-        <div className="mt-8 grid gap-8 md:grid-cols-2">
+        <div className="mt-8 max-w-2xl">
           <div>
             <p className="font-medium">{t.networkHeading}</p>
             <ul className="mt-4 space-y-2.5">
@@ -1185,15 +1185,6 @@ export function BacklinkNetwork({ t, href }: SectionProps) {
             </Button>
           </div>
 
-          <div className="rounded-xl border bg-muted/30 p-6">
-            <p className="flex items-center gap-2 font-medium">
-              <Sparkles className="size-4 text-primary" aria-hidden="true" />
-              {t.networkWhyTitle}
-            </p>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {t.networkWhyBody}
-            </p>
-          </div>
         </div>
       </div>
     </section>

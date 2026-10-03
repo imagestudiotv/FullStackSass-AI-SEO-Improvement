@@ -180,8 +180,6 @@ export type Messages = {
     networkHeading: string;
     networkPoints: string[];
     networkHowLink: string;
-    networkWhyTitle: string;
-    networkWhyBody: string;
     /** Pricing preview. */
     pricingEyebrow: string;
     pricingTitle: string;
@@ -3036,9 +3034,6 @@ const en: Messages = {
       "Checked daily - if a link is removed, tell us and your credit comes back",
     ],
     networkHowLink: "How the exchange works",
-    networkWhyTitle: "Why exchange rather than buy",
-    networkWhyBody:
-      "Buying links is against Google's guidelines and can be penalised. Every link here sits in a real article on a real business's site, published because that business wanted the article - which is why the network works by exchange.",
     pricingEyebrow: "Pricing",
     pricingTitle: "Start small.",
     pricingTitleAccent: "Grow when you are ready.",
@@ -3274,7 +3269,7 @@ const en: Messages = {
     ],
     notTitle: "What this is not",
     notBody:
-      "This is not a private blog network, and we do not sell links. Every link sits inside a real article on a real business's website, published because that business wanted an article. Buying links is against Google's guidelines and can be penalised - which is exactly why the network works by exchange rather than by sale.",
+      "This is not a private blog network. Every link sits inside a real article on a real business's website, published because that business wanted an article.",
     ctaTitle: "Every plan includes credits",
     ctaBody: "You can request your first links before hosting anything.",
     ctaPrimary: "Get Started",
@@ -5860,9 +5855,6 @@ const es: Messages = {
       "Comprobados a diario: si se retira un enlace, avísenos y recupera su crédito",
     ],
     networkHowLink: "Cómo funciona el intercambio",
-    networkWhyTitle: "Por qué intercambiar en lugar de comprar",
-    networkWhyBody:
-      "Comprar enlaces va contra las directrices de Google y puede penalizarse. Aquí cada enlace está dentro de un artículo real, en la web de una empresa real que quería ese artículo. Por eso la red funciona por intercambio.",
     pricingEyebrow: "Precios",
     pricingTitle: "Empiece pequeño.",
     pricingTitleAccent: "Crezca cuando esté listo.",
@@ -6100,7 +6092,7 @@ const es: Messages = {
     ],
     notTitle: "Lo que esto no es",
     notBody:
-      "Esto no es una red privada de blogs y no vendemos enlaces. Cada enlace está dentro de un artículo real en la web de un negocio real, publicado porque ese negocio quería un artículo. Comprar enlaces va contra las directrices de Google y puede ser penalizado, y por eso precisamente la red funciona por intercambio y no por venta.",
+      "Esto no es una red privada de blogs. Cada enlace está dentro de un artículo real en la web de un negocio real, publicado porque ese negocio quería un artículo.",
     ctaTitle: "Todos los planes incluyen créditos",
     ctaBody: "Puede pedir sus primeros enlaces antes de alojar nada.",
     ctaPrimary: "Empezar",
@@ -8690,9 +8682,6 @@ const fr: Messages = {
       "Vérifiés chaque jour : si un lien disparaît, prévenez-nous et votre crédit revient",
     ],
     networkHowLink: "Comment fonctionne l'échange",
-    networkWhyTitle: "Pourquoi échanger plutôt qu'acheter",
-    networkWhyBody:
-      "Acheter des liens va à l'encontre des consignes de Google et peut être pénalisé. Ici chaque lien se trouve dans un vrai article, sur le site d'une entreprise réelle qui voulait cet article. C'est pourquoi le réseau fonctionne par échange.",
     pricingEyebrow: "Tarifs",
     pricingTitle: "Commencez petit.",
     pricingTitleAccent: "Grandissez quand vous êtes prêt.",
@@ -8929,7 +8918,7 @@ const fr: Messages = {
     ],
     notTitle: "Ce que ce n'est pas",
     notBody:
-      "Ce n'est pas un réseau de blogs privés et nous ne vendons pas de liens. Chaque lien se trouve dans un vrai article sur le site d'une vraie entreprise, publié parce que cette entreprise voulait un article. Acheter des liens est contraire aux consignes de Google et peut être pénalisé - c'est exactement pour cela que le réseau fonctionne par échange et non par vente.",
+      "Ce n'est pas un réseau de blogs privés. Chaque lien se trouve dans un vrai article sur le site d'une vraie entreprise, publié parce que cette entreprise voulait un article.",
     ctaTitle: "Tous les forfaits incluent des crédits",
     ctaBody:
       "Vous pouvez demander vos premiers liens avant d'avoir hébergé quoi que ce soit.",
@@ -11516,9 +11505,6 @@ const it: Messages = {
       "Verificati ogni giorno: se un link sparisce, ce lo segnali e il credito torna indietro",
     ],
     networkHowLink: "Come funziona lo scambio",
-    networkWhyTitle: "Perché scambiare invece di comprare",
-    networkWhyBody:
-      "Comprare link va contro le linee guida di Google e può essere penalizzato. Qui ogni link sta dentro un articolo vero, sul sito di un'azienda vera che voleva quell'articolo. È per questo che la rete funziona per scambio.",
     pricingEyebrow: "Prezzi",
     pricingTitle: "Inizi in piccolo.",
     pricingTitleAccent: "Cresca quando è pronto.",
@@ -11755,7 +11741,7 @@ const it: Messages = {
     ],
     notTitle: "Cosa non è",
     notBody:
-      "Non è una rete privata di blog e non vendiamo link. Ogni link si trova dentro un articolo vero sul sito di un'azienda vera, pubblicato perché quell'azienda voleva un articolo. Comprare link è contro le linee guida di Google e può essere penalizzato: proprio per questo la rete funziona per scambio e non per vendita.",
+      "Non è una rete privata di blog. Ogni link si trova dentro un articolo vero sul sito di un'azienda vera, pubblicato perché quell'azienda voleva un articolo.",
     ctaTitle: "Ogni piano include crediti",
     ctaBody: "Può richiedere i primi link prima di aver ospitato qualcosa.",
     ctaPrimary: "Inizia",
@@ -14344,9 +14330,6 @@ const de: Messages = {
       "Täglich geprüft - wird ein Link entfernt, sagen Sie uns Bescheid und Sie erhalten Ihr Guthaben zurück",
     ],
     networkHowLink: "So funktioniert der Tausch",
-    networkWhyTitle: "Warum tauschen statt kaufen",
-    networkWhyBody:
-      "Links zu kaufen verstößt gegen die Richtlinien von Google und kann abgestraft werden. Hier steht jeder Link in einem echten Artikel auf der Website eines echten Unternehmens, das diesen Artikel wollte. Genau deshalb funktioniert das Netzwerk über Tausch.",
     pricingEyebrow: "Preise",
     pricingTitle: "Klein anfangen.",
     pricingTitleAccent: "Wachsen, wenn Sie so weit sind.",
@@ -14585,7 +14568,7 @@ const de: Messages = {
     ],
     notTitle: "Was das nicht ist",
     notBody:
-      "Das ist kein privates Blog-Netzwerk, und wir verkaufen keine Links. Jeder Link steht in einem echten Artikel auf der Website eines echten Unternehmens, veröffentlicht, weil dieses Unternehmen einen Artikel wollte. Linkkauf verstößt gegen die Google-Richtlinien und kann abgestraft werden - genau darum funktioniert das Netzwerk über Austausch statt über Verkauf.",
+      "Das ist kein privates Blog-Netzwerk. Jeder Link steht in einem echten Artikel auf der Website eines echten Unternehmens, veröffentlicht, weil dieses Unternehmen einen Artikel wollte.",
     ctaTitle: "Jeder Tarif enthält Guthaben",
     ctaBody:
       "Sie können Ihre ersten Links anfordern, bevor Sie etwas veröffentlicht haben.",
