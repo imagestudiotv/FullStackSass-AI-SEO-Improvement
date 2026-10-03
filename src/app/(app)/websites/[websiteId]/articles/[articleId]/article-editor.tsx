@@ -1,227 +1,381 @@
 "use client";
 
 import {
-  ArrowLeft,
+  BarChart3,
+  ChevronRight,
   ExternalLink,
   Eye,
+  FileText,
   Loader2,
   Pencil,
   RefreshCw,
-  Upload,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useTransition } from "react";
+import { useCallback, useDeferredValue, useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
-import { StatusBadge } from "@/components/ui/status-badge";
-import { explainGenerationError } from "@/lib/articles/explain";
-import { explainPublishError } from "@/lib/publishing/explain";
 import { PARTNER_LINK_SCOPE, PartnerLinkStyles } from "@/components/partner-link-styles";
-import { ARTICLE_TABLE_CLASSES } from "@/lib/articles/table-styles";
+import { useRefreshWhile } from "@/components/refresh-while";
 import { RichTextEditor } from "@/components/rich-text-editor";
-import {
-  listReusableImages,
-  uploadInlineImage,
-} from "@/lib/articles/image-actions";
-import { FeaturedImage } from "./featured-image";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { PageShell } from "@/components/ui/page-header";
-import { Stat } from "@/components/ui/states";
-import { articleStats } from "@/lib/articles/stats";
-import { previewHtml, sameHtml, useDraftField } from "@/lib/articles/use-draft";
-import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { EmptyState, Stat } from "@/components/ui/states";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  regenerateArticle,
-  updateArticle,
-  type ArticleDetail,
-} from "@/lib/articles/actions";
-import { publishArticle, type PublishLogRow } from "@/lib/publishing/actions";
+import { Notice } from "@/components/workspace/notice";
+import { SaveBar, SaveBarSpacer, type SaveBarState } from "@/components/workspace/save-bar";
+import { WorkspaceSection } from "@/components/workspace/section";
+import { useUnsavedChanges } from "@/components/workspace/use-unsaved-changes";
+import { regenerateArticle, updateArticle, type ArticleDetail } from "@/lib/articles/actions";
+import { listReusableImages, uploadInlineImage } from "@/lib/articles/image-actions";
+import { articleStats } from "@/lib/articles/stats";
+import type { Locale } from "@/lib/i18n/config";
+import { format, formatNumber, intlTag, plural } from "@/lib/i18n/format";
 import type { Messages } from "@/lib/i18n/messages";
+import { publishArticle } from "@/lib/publishing/actions";
 
-/**
- * The generation step, in the reader's language.
- *
- * A function taking the dictionary rather than a module-level map: the map
- * is built once at import time, before any locale is known, so it could only
- * ever hold English.
- */
-function stepLabel(step: string, t: Messages["app"]["editor"]): string {
+import type { HistoryRow } from "./article-data";
+import { ArticleFields } from "./article-fields";
+import { ArticlePreview, PartnerLegend } from "./article-preview";
+import { ArticlePublishing } from "./article-publishing";
+import { ConfirmDialog } from "./confirm-dialog";
+import { savedForm, type FieldKey } from "./draft-state";
+import {
+  actionErrorText,
+  generationFailureText,
+  imageSizeErrorText,
+  type GenerationFailureKind,
+} from "./failure-copy";
+import { ACCEPTED_IMAGE_TYPES, FeaturedImage } from "./featured-image";
+import { PublishHistory } from "./publish-history";
+import { SearchAppearance } from "./search-appearance";
+import {
+  awaitingResult,
+  planPublishing,
+  PRESS_WATCH_MS,
+  refreshNeed,
+  type PendingPress,
+  type PublishFacts,
+} from "./publish-state";
+import { UncertainPublication } from "./uncertain-publication";
+import { useArticleDraft } from "./use-article-draft";
+import { useSlowRefresh } from "./use-slow-refresh";
+
+/** The generation step, in the reader's language. */
+function stepLabel(step: string | null, t: Messages["app"]["editor"]): string {
   if (step === "outline") return t.planningOutline;
   if (step === "body") return t.writingBody;
-  return "";
+  return t.starting;
 }
 
+/** Only an absolute address is a link to the customer's site (a provider can report a bare path). */
+function siteUrl(url: string | null): string | null {
+  return url && /^https?:\/\//i.test(url) ? url : null;
+}
+
+export type ArticleEditorProps = {
+  websiteId: string;
+  /** The article, with its stored error removed (failureKind says what it means). */
+  article: ArticleDetail;
+  /** Owner or editor. A viewer reads the article, its status and history, and changes nothing. */
+  canEdit: boolean;
+  locale: Locale;
+  /** Decides which links count as internal. */
+  websiteDomain: string | null;
+  /** The customer's site (https://example.com): Preview sends links written as a path ("/services") there. */
+  siteOrigin: string | null;
+  /** Partner Network links in this article (their addresses), highlighted in Preview and Edit. */
+  partnerLinks: string[];
+  facts: PublishFacts;
+  history: HistoryRow[];
+  historyLimit: number;
+  /** Why writing failed, when the article's status is failed. */
+  failureKind: GenerationFailureKind | null;
+  /** The latest direct send got no answer: the notice with its confirmation. */
+  uncertain: boolean;
+  /** article.updatedAt, formatted on the server. */
+  lastSaved: string;
+  rewriteLimit: number;
+  imageMaxAttempts: number;
+  imageMaxBytes: number;
+  plannedArticlesLabel: string;
+  uncertainText: { title: string; help: string; confirm: string; confirmed: string };
+  t: Messages["app"]["editor"];
+  tImage: Messages["app"]["image"];
+  tCommon: Messages["app"]["common"];
+  tStatus: Messages["app"]["status"];
+  tEditorUi: Messages["app"]["editorUi"];
+  tWorkspace: Messages["app"]["workspace"];
+};
+
+/**
+ * The article workspace: a title and status at the top; the article itself
+ * (Preview and Edit) in a readable main column; beside it the publishing
+ * panel, the metadata as a search result shows it, the featured image,
+ * statistics, the publishing history and Rewrite. On narrower screens the
+ * same parts stack - publishing first, then the article, then the rest.
+ *
+ * Save (the bar at the bottom), Publish/Send as draft (the publishing panel)
+ * and Rewrite (its own section, behind a confirmation) are three separate
+ * places, so none is mistaken for another.
+ */
 export function ArticleEditor({
   websiteId,
   article,
-  canPublish,
-  viaPlugin,
-  destinationName,
+  canEdit,
+  locale,
   websiteDomain,
+  siteOrigin,
   partnerLinks,
-  publishLogs,
+  facts,
+  history,
+  historyLimit,
+  failureKind,
+  uncertain,
+  lastSaved,
+  rewriteLimit,
+  imageMaxAttempts,
+  imageMaxBytes,
+  plannedArticlesLabel,
+  uncertainText,
   t,
   tImage,
   tCommon,
   tStatus,
   tEditorUi,
-}: {
-  websiteId: string;
-  article: ArticleDetail;
-  canPublish: boolean;
-  /**
-   * Connected only through the WordPress plugin, which PULLS articles: a
-   * Publish press is queued for its next check rather than sent now, and an
-   * article it has already created cannot be updated from here.
-   */
-  viaPlugin: boolean;
-  /**
-   * Where this article publishes, e.g. "Ghost". Null when nothing is
-   * connected. Named rather than assumed: the product now publishes to four
-   * different systems, and telling someone their article went to WordPress
-   * when it went to Shopify is worse than saying nothing.
-   */
-  destinationName: string | null;
-  /** Decides which links count as internal. */
-  websiteDomain: string | null;
-  /** Partner Network links in this article (their addresses), highlighted in Preview and Edit. */
-  partnerLinks: string[];
-  publishLogs: PublishLogRow[];
-  /** This screen's copy, already in the reader's language. */
-  t: Messages["app"]["editor"];
-  /** The picture panel's own slice, forwarded to it. */
-  tImage: Messages["app"]["image"];
-  /** Shared words used on several screens. */
-  tCommon: Messages["app"]["common"];
-  /** The status vocabulary, for the badges. */
-  tStatus: Messages["app"]["status"];
-  /** The rich text toolbar's wording. */
-  tEditorUi: Messages["app"]["editorUi"];
-}) {
+  tWorkspace,
+}: ArticleEditorProps) {
   const router = useRouter();
-  const bodyStats = articleStats(article.bodyHtml, {
-    domain: websiteDomain,
-    targetKeyword: article.targetKeyword,
+  const working = article.status === "generating" || article.status === "queued";
+  const hasBody = Boolean(article.bodyHtml);
+  const delivering = facts.delivering;
+  /** Edits wait while a rewrite would replace them or a delivery holds the row. */
+  const editable = canEdit && !working && !delivering;
+  const errorText = (error: string) => actionErrorText(error, { t, tWorkspace, tImage });
+
+  /* ------------------------------------------------------------ the draft */
+  const draft = useArticleDraft({
+    title: article.title,
+    metaDescription: article.metaDescription ?? "",
+    slug: article.slug ?? "",
+    bodyHtml: article.bodyHtml ?? "",
   });
+  const { values } = draft;
+  const unsavedCount = draft.dirty.length;
+  const dirty = unsavedCount > 0;
+  const [saving, startSave] = useTransition();
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [lastSaveOk, setLastSaveOk] = useState(false);
+  /** A featured-image description typed and not saved yet (it saves when its field is left). */
+  const [altUnsaved, setAltUnsaved] = useState(false);
+  // One guard for the page: the article's fields and that description.
+  useUnsavedChanges(dirty || saving || altUnsaved, tWorkspace.leaveConfirm);
 
-  /**
-   * The featured image counts too. articleStats reads the body HTML, where the
-   * illustration does not appear — it is a separate column, attached to the
-   * post on publish — so an article with a picture still reported "Images 0".
-   */
-  const stats = {
-    ...bodyStats,
-    images: bodyStats.images + (article.imageUrl ? 1 : 0),
-  };
-  const [pending, startTransition] = useTransition();
-  const [title, setTitle] = useDraftField(article.title);
-  const [meta, setMeta] = useDraftField(article.metaDescription ?? "");
-  const [slug, setSlug] = useDraftField(article.slug ?? "");
-  const [body, setBody] = useDraftField(article.bodyHtml ?? "", sameHtml);
-  // What Preview shows differs from what is saved (the save trims the title).
-  const unsaved = title.trim() !== article.title || !sameHtml(body, article.bodyHtml ?? "");
-  const partnerInText = partnerLinks.some((url) => body.includes(url) || body.includes(url.replace(/&/g, "&amp;")));
-
-  const working =
-    article.status === "generating" || article.status === "queued";
-
-  /**
-   * Generation takes about a minute and writes to the database from a
-   * background job, so the page has no way to know it finished. Polling while
-   * work is in flight is the simplest correct answer; it stops as soon as the
-   * status settles.
-   */
-  useEffect(() => {
-    if (!working) return;
-    const timer = setInterval(() => router.refresh(), 4000);
-    return () => clearInterval(timer);
-  }, [working, router]);
+  const titleMissing = savedForm("title", values.title) === "";
+  const saveHeldNote = titleMissing
+    ? t.saveNoteTitle
+    : working
+      ? t.saveNoteWorking
+      : delivering
+        ? t.saveNoteDelivering
+        : null;
 
   function handleSave() {
-    startTransition(async () => {
-      const result = await updateArticle(websiteId, article.id, {
-        title,
-        metaDescription: meta,
-        slug,
-        bodyHtml: body,
-      });
+    if (saveHeldNote || saving) return;
+    const payload = draft.startSave();
+    if (!payload) return;
+    setSaveError(null);
+    setLastSaveOk(false);
+    startSave(async () => {
+      const result = await updateArticle(websiteId, article.id, payload);
       if (!result.ok) {
-        toast.error(result.error);
+        draft.saveFailed();
+        setSaveError(errorText(result.error));
         return;
       }
-      toast.success(t.saved);
+      draft.saveSucceeded();
+      setLastSaveOk(true);
       router.refresh();
     });
   }
 
+  function handleDiscard() {
+    draft.discard();
+    setSaveError(null);
+    setLastSaveOk(false);
+  }
+
+  const saveBarState: SaveBarState = draft.saving
+    ? { kind: "saving", count: Math.max(unsavedCount, 1) }
+    : saveError && dirty
+      ? { kind: "failed", error: saveError, count: unsavedCount }
+      : dirty
+        ? { kind: "dirty", count: unsavedCount }
+        : lastSaveOk
+          ? { kind: "saved" }
+          : { kind: "clean" };
+  const saveNote =
+    saveHeldNote ??
+    (lastSaveOk && dirty ? tWorkspace.editsKept : facts.review === "approved" && dirty ? t.saveNoteReview : undefined);
+
+  /* ---------------------------------------------------------------- tabs */
+  const [tab, setTab] = useState<"preview" | "edit">("preview");
+  /** The editor mounts the first time Edit is opened and then stays, so undo history and HTML mode survive Preview. */
+  const [editMounted, setEditMounted] = useState(false);
+  function changeTab(next: string) {
+    const value = next === "edit" ? "edit" : "preview";
+    if (value === "edit") setEditMounted(true);
+    setTab(value);
+  }
+
+  /* ---------------------------------------------------------- publishing */
+  const [publishing, startPublish] = useTransition();
+  const [pressing, setPressing] = useState<"publish" | "draft" | null>(null);
+  const [press, setPress] = useState<PendingPress | null>(null);
+  const [pressExpired, setPressExpired] = useState(false);
+  const [pressError, setPressError] = useState<string | null>(null);
+  const [pluginNotice, setPluginNotice] = useState<{ tone: "success" | "warning"; text: string; href?: string } | null>(null);
+  const [checking, startCheck] = useTransition();
+
+  const awaiting = awaitingResult(press, facts);
+  if (press && !awaiting) {
+    // A newer dispatch or log arrived: the panel shows the real state from here.
+    setPress(null);
+    setPressExpired(false);
+  }
+
+  useEffect(() => {
+    if (!press) return;
+    const timer = window.setTimeout(() => setPressExpired(true), Math.max(0, press.at + PRESS_WATCH_MS - Date.now()));
+    return () => window.clearTimeout(timer);
+  }, [press]);
+
+  const pluginWaiting =
+    facts.destination.kind === "plugin" && (article.publishRequested === "publish" || article.publishRequested === "draft");
+  const need = refreshNeed({ working, delivering, watchingPress: awaiting && !pressExpired, pluginWaiting });
+  useRefreshWhile(need === "fast");
+  useSlowRefresh(need === "slow");
+
+  const plan = planPublishing({
+    canEdit,
+    hasBody,
+    working,
+    /*
+      A save in flight changes the saved version: publishing waits for it too.
+      (A typed featured-image description needs no wait: pressing Publish
+      leaves its field first, which saves it, and the client dispatches server
+      actions one at a time, so that save reaches the server before the press.)
+    */
+    dirty: dirty || draft.saving,
+    awaiting,
+    // After PRESS_WATCH_MS the press no longer holds Publish and Send as draft (the job may have held it without a trace).
+    pressExpired,
+    publishRequested: article.publishRequested,
+    publishedUrl: article.publishedUrl,
+    facts,
+  });
+
   function handlePublish(status: "publish" | "draft") {
-    startTransition(async () => {
+    if (publishing) return;
+    // What was newest before this press, to recognise its result when it is recorded.
+    const baseline = { dispatchId: facts.latestDispatchId, logId: facts.latestLogId };
+    setPressError(null);
+    setPluginNotice(null);
+    setPressing(status);
+    startPublish(async () => {
       const result = await publishArticle(websiteId, article.id, status);
+      setPressing(null);
       if (!result.ok) {
-        toast.error(result.error);
+        setPressError(errorText(result.error));
         return;
       }
       const { publishedUrl, queued } = result.data;
       if (publishedUrl) {
-        // Created on the site before this returned: say so, with the link.
-        toast.success(
-          status === "publish" ? t.publishedToSite : t.sentAsDraftToSite,
-          {
-            action: {
-              label: t.viewOnSite,
-              onClick: () => window.open(publishedUrl, "_blank", "noopener"),
-            },
-          },
-        );
-      } else if (viaPlugin && queued) {
-        // The site did not answer; it waits for the plugin's hourly check.
-        toast.warning(t.publishViaPlugin, { duration: 15000 });
+        // The plugin created it before answering.
+        setPluginNotice({
+          tone: "success",
+          text: status === "publish" ? t.publishedToSite : t.sentAsDraftToSite,
+          href: siteUrl(publishedUrl) ?? undefined,
+        });
+      } else if (facts.destination.kind === "plugin" && queued) {
+        setPluginNotice({ tone: "warning", text: t.publishViaPlugin });
       } else {
-        toast.success(
-          status === "publish"
-            ? `Publishing to ${destinationName ?? "your site"}…`
-            : t.sendingDraft,
-        );
+        // Queued for the publishing job: watch for its result, never assume it.
+        setPress({ status, at: Date.now(), ...baseline });
+        setPressExpired(false);
       }
       router.refresh();
     });
   }
 
-  /**
-   * Stores a pasted, dropped or chosen image and hands back its URL.
-   *
-   * Returns null on failure so the editor inserts nothing rather than a
-   * broken image, and the toast explains why.
-   */
+  // Formatted only in the browser, after a press (no server render to disagree with), in UTC like every other time on this page.
+  const pressTime = press
+    ? `${new Intl.DateTimeFormat(intlTag(locale), { hour: "2-digit", minute: "2-digit", timeZone: "UTC" }).format(press.at)} UTC`
+    : null;
+
+  /* ------------------------------------------------------------- rewrite */
+  const [rewriting, startRewrite] = useTransition();
+  const [rewriteError, setRewriteError] = useState<string | null>(null);
+  const [rewriteStarted, setRewriteStarted] = useState(false);
+  if (rewriteStarted && working) setRewriteStarted(false);
+  const rewriteReason = !article.calendarItemId
+    ? t.rewriteNoPlan
+    : working || delivering
+      ? t.rewriteBlocked
+      : null;
+
+  function handleRewrite() {
+    setRewriteError(null);
+    startRewrite(async () => {
+      const result = await regenerateArticle(websiteId, article.id);
+      if (!result.ok) {
+        setRewriteError(errorText(result.error));
+        return;
+      }
+      // The new version replaces every field; nothing local is worth keeping.
+      draft.discard();
+      setSaveError(null);
+      setLastSaveOk(false);
+      setRewriteStarted(true);
+      router.refresh();
+    });
+  }
+
+  function rewriteConfirmBody() {
+    return (
+      <>
+        <p>{t.rewriteConfirmBody}</p>
+        {article.publishedUrl ? <p>{t.rewriteConfirmPublished}</p> : null}
+        {facts.review !== "none" ? <p>{t.rewriteConfirmReview}</p> : null}
+        {dirty ? <p>{t.rewriteConfirmUnsaved}</p> : null}
+      </>
+    );
+  }
+
+  /* -------------------------------------------------------------- images */
   async function handleInlineUpload(file: File): Promise<string | null> {
+    if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
+      toast.error(t.imageTypeError);
+      return null;
+    }
+    if (file.size > imageMaxBytes) {
+      toast.error(imageSizeErrorText(file.size, imageMaxBytes, locale, t));
+      return null;
+    }
     const body = new FormData();
     body.set("file", file);
-
     const result = await uploadInlineImage(websiteId, article.id, body);
     if (!result.ok) {
-      toast.error(result.error);
+      toast.error(errorText(result.error));
       return null;
     }
     return result.data.url;
   }
 
   /**
-   * Pictures this website has used before, for the insert panel.
-   *
-   * useCallback because the picker debounces on this function's identity: a
-   * new one each render reset the timer on every render, so the first fetch
-   * never fired and the panel stayed empty.
+   * Pictures this website has used before, for the picker. A stable
+   * function: the picker debounces its search on the term and reads this
+   * through a ref (components/image-picker.tsx).
    */
   const handleListImages = useCallback(
     async (term: string) => {
@@ -231,386 +385,411 @@ export function ArticleEditor({
     [websiteId],
   );
 
-  function handleRegenerate() {
-    startTransition(async () => {
-      const result = await regenerateArticle(websiteId, article.id);
-      if (!result.ok) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success(t.rewriting);
-      router.refresh();
-    });
-  }
+  /* --------------------------------------------------------------- stats */
+  // Counted from the text on screen; deferred so typing never waits on the counting.
+  const statsBody = useDeferredValue(values.bodyHtml);
+  const bodyStats = articleStats(statsBody || null, { domain: websiteDomain, targetKeyword: article.targetKeyword });
+  // The featured image is not in the body HTML; it is attached to the post on publish.
+  const stats = { ...bodyStats, images: bodyStats.images + (article.imageUrl ? 1 : 0) };
+  const number = (value: number) => formatNumber(value, locale);
+
+  const partnerInText = partnerLinks.some(
+    (url) => values.bodyHtml.includes(url) || values.bodyHtml.includes(url.replace(/&/g, "&amp;")),
+  );
+  const fieldNames: Record<FieldKey, string> = {
+    title: t.title,
+    metaDescription: t.metaDescription,
+    slug: t.slugLabel,
+    bodyHtml: t.articleContent,
+  };
+  const liveUrl = siteUrl(article.publishedUrl);
+  const wordPressPost =
+    facts.destination.kind === "direct" && facts.destination.provider === "wordpress" && Boolean(article.publishedUrl);
+
+  /* ------------------------------------------------------------- render */
+  const preview = (
+    <ArticlePreview
+      title={canEdit ? savedForm("title", values.title) || values.title : article.title}
+      bodyHtml={values.bodyHtml}
+      imageUrl={article.imageUrl}
+      imageAlt={article.imageAlt}
+      unsaved={canEdit && dirty}
+      partnerInText={partnerInText}
+      siteOrigin={siteOrigin}
+      t={t}
+    />
+  );
+
+  /** Try again after a failure. With text on screen it replaces that text, so it asks first (via the dialog's trigger). */
+  const tryAgain = (onClick?: () => void) => (
+    <Button type="button" size="sm" variant="outline" disabled={rewriteReason !== null || rewriting} onClick={onClick}>
+      {rewriting ? (
+        <Loader2 className="animate-spin motion-reduce:animate-none" aria-hidden="true" />
+      ) : (
+        <RefreshCw aria-hidden="true" />
+      )}
+      {t.tryAgain}
+    </Button>
+  );
 
   return (
-    <PageShell>
-      <div>
-        <Button variant="ghost" size="sm" asChild className="-ml-2 mb-2">
-          <Link href={`/websites/${websiteId}`}>
-            <ArrowLeft className="size-4" />
-            {t.backToWebsite}
-          </Link>
-        </Button>
-        <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {article.title}
-          </h1>
-          {/*
-            Large and filled: this is the answer to "is it on my site yet?".
-            A draft reads amber - not live - rather than the grey it has in
-            lists, where grey is right.
-          */}
-          <StatusBadge
-            status={article.status}
-            t={tStatus}
-            size="lg"
-            tone={article.status === "draft" ? "warning" : undefined}
-          />
+    <div className="space-y-6">
+      <PartnerLinkStyles urls={partnerLinks} label={t.partnerLink} />
+
+      {/* Where this page sits, and the way back to the articles list it is opened from. */}
+      <div className="space-y-3">
+        <nav aria-label={t.breadcrumbLabel}>
+          <ol className="flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground">
+            <li className="shrink-0">
+              <Link
+                href={`/websites/${websiteId}/content`}
+                className="rounded-sm font-medium outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+              >
+                {plannedArticlesLabel}
+              </Link>
+            </li>
+            <li aria-hidden="true" className="shrink-0">
+              <ChevronRight className="size-3.5" />
+            </li>
+            <li aria-current="page" className="min-w-0 truncate text-foreground">
+              {article.title}
+            </li>
+          </ol>
+        </nav>
+
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0 space-y-2">
+            <h1 className="text-xl font-semibold tracking-tight text-foreground wrap-anywhere sm:text-2xl">
+              {article.title}
+            </h1>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground">
+              {/* Large and filled: the answer to "is it on my site yet?". A draft reads amber - not live. */}
+              <StatusBadge
+                status={article.status}
+                t={tStatus}
+                size="lg"
+                tone={article.status === "draft" ? "warning" : undefined}
+              />
+              {article.targetKeyword ? (
+                <span className="inline-flex min-w-0 flex-wrap items-center gap-1.5">
+                  <span className="text-xs">{t.targetKeywordLabel}</span>
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-foreground wrap-anywhere">
+                    {article.targetKeyword}
+                  </span>
+                </span>
+              ) : null}
+              <span className="text-xs">{format(t.lastSaved, { date: lastSaved })}</span>
+            </div>
+          </div>
+          {liveUrl ? (
+            <Button variant="outline" asChild className="shrink-0 self-start">
+              <a href={liveUrl} target="_blank" rel="noopener noreferrer">
+                <ExternalLink aria-hidden="true" />
+                {t.viewOnSite}
+              </a>
+            </Button>
+          ) : null}
         </div>
-        <p className="text-sm text-muted-foreground">
-          {article.targetKeyword ? `Target: ${article.targetKeyword}` : null}
-        </p>
-        {/*
-          Where it is on the real site, once it is there - the question the
-          client asked after publishing ("where do I find it?").
-        */}
-        {article.publishedUrl ? (
-          <Button variant="outline" size="sm" asChild className="mt-2">
-            <a href={article.publishedUrl} target="_blank" rel="noopener noreferrer">
-              <ExternalLink className="size-4" />
-              {t.viewOnSite}
-            </a>
-          </Button>
+      </div>
+
+      {/* What needs attention, before the article. */}
+      <div className="space-y-3 empty:hidden">
+        {!canEdit ? <Notice tone="info">{tWorkspace.viewOnly}</Notice> : null}
+
+        {uncertain ? (
+          <UncertainPublication
+            websiteId={websiteId}
+            articleId={article.id}
+            canEdit={canEdit}
+            text={uncertainText}
+            errorText={errorText}
+          />
+        ) : null}
+
+        {working ? (
+          <div role="status" className="flex items-start gap-3 rounded-lg border bg-muted/40 px-4 py-3 text-sm">
+            <Loader2 className="mt-0.5 size-4 shrink-0 animate-spin text-primary motion-reduce:animate-none" aria-hidden="true" />
+            <div className="min-w-0 space-y-1">
+              <p className="font-medium">{stepLabel(article.generationStep, t)}</p>
+              <p className="text-foreground/80">
+                {t.takesAMinute}
+                {hasBody && canEdit ? ` ${t.workingPaused}` : ""}
+              </p>
+            </div>
+          </div>
+        ) : null}
+
+        {article.status === "failed" ? (
+          <Notice tone="danger" title={t.couldNotWrite}>
+            <p>{generationFailureText(failureKind ?? "generic", t)}</p>
+            {canEdit ? (
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                {hasBody ? (
+                  <ConfirmDialog
+                    trigger={tryAgain()}
+                    disabled={rewriteReason !== null || rewriting}
+                    title={t.rewriteConfirmTitle}
+                    confirmLabel={t.rewriteConfirmAction}
+                    cancelLabel={tCommon.cancel}
+                    onConfirm={handleRewrite}
+                  >
+                    {rewriteConfirmBody()}
+                  </ConfirmDialog>
+                ) : (
+                  tryAgain(handleRewrite)
+                )}
+                {rewriteReason && !working ? <span className="text-xs text-muted-foreground">{rewriteReason}</span> : null}
+              </div>
+            ) : null}
+            {rewriteError ? (
+              <p role="alert" className="mt-2 text-destructive">
+                {rewriteError}
+              </p>
+            ) : null}
+          </Notice>
+        ) : null}
+
+        {draft.conflicts.length > 0 ? (
+          <Notice tone="warning" role="status" title={t.conflictTitle}>
+            <p>{format(t.conflictBody, { fields: draft.conflicts.map((key) => fieldNames[key]).join(", ") })}</p>
+            {/* Wrapping labels: the longer translations ("Gespeicherte Version verwenden") outgrow a phone's notice. */}
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-auto min-h-7 whitespace-normal text-left"
+                onClick={() => draft.discard(draft.conflicts)}
+              >
+                {t.conflictLoad}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="h-auto min-h-7 whitespace-normal text-left"
+                onClick={() => draft.keepMine()}
+              >
+                {t.conflictKeep}
+              </Button>
+            </div>
+          </Notice>
         ) : null}
       </div>
 
-      {/*
-        Article details, counted from the body rather than stored. The customer
-        can edit at any time, and a stored count would immediately be wrong.
-        Hidden until there is a body: zeros on an article still being written
-        read as failure rather than as progress.
-      */}
-      {article.bodyHtml ? (
-        <Card>
-          <CardContent className="grid grid-cols-2 gap-4 py-5 sm:grid-cols-4 lg:grid-cols-7">
-            <Stat label={t.words} value={stats.words} />
-            <Stat label={t.headings} value={stats.headings} />
-            <Stat
-              label={t.keywordUses}
-              value={stats.keywordUses}
-              hint={article.targetKeyword ?? undefined}
-            />
-            <Stat label={t.internalLinks} value={stats.internalLinks} />
-            <Stat label={t.externalLinks} value={stats.externalLinks} />
-            <Stat label={tCommon.images} value={stats.images} />
-            <Stat label={t.socialMentions} value={stats.socialMentions} />
-          </CardContent>
-        </Card>
-      ) : null}
+      {!hasBody ? (
+        article.status === "failed" ? null : (
+          <EmptyState icon={FileText} title={t.notWrittenYet} className="bg-card" />
+        )
+      ) : (
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_20rem] xl:grid-rows-[auto_1fr] xl:items-start">
+          <ArticlePublishing
+            className="xl:col-start-2 xl:row-start-1"
+            websiteId={websiteId}
+            plan={plan}
+            facts={facts}
+            working={working}
+            canEdit={canEdit}
+            pressing={pressing}
+            awaiting={awaiting}
+            pressExpired={pressExpired}
+            pressTime={pressTime}
+            pressError={pressError}
+            pluginNotice={pluginNotice}
+            checking={checking}
+            onPublish={handlePublish}
+            onCheckAgain={() => startCheck(() => router.refresh())}
+            t={t}
+            tCommon={tCommon}
+          />
 
-      {working ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Loader2 className="size-4 animate-spin" />
-              {article.generationStep
-                ? stepLabel(article.generationStep, t)
-                : t.starting}
-            </CardTitle>
-            <CardDescription>
-              {t.takesAMinute}
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      ) : null}
-
-      {article.status === "failed" ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">
-              {t.couldNotWrite}
-            </CardTitle>
-            <CardDescription>
-              {explainGenerationError(article.error).summary}{" "}
-              {explainGenerationError(article.error).action}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={handleRegenerate} disabled={pending}>
-              <RefreshCw className="size-4" />
-              {t.tryAgain}
-            </Button>
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {publishLogs.length > 0 ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">{t.publishingHistory}</CardTitle>
-            <CardDescription>{t.historyHelp}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-2 text-sm">
-              {publishLogs.map((log) => (
-                <li key={log.id} className="flex flex-wrap items-center gap-2">
-                  <StatusBadge
-                    status={log.status}
-                    label={log.status === "failed" ? t.failed : undefined}
-                  />
-                  <span className="text-muted-foreground">
-                    {new Date(log.createdAt).toLocaleString()}
-                  </span>
-                  {log.remoteUrl ? (
-                    <a
-                      href={log.remoteUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 hover:underline"
-                    >
-                      {t.viewPost}
-                      <ExternalLink className="size-3" />
-                    </a>
+          <div className="min-w-0 xl:col-start-1 xl:row-span-2 xl:row-start-1">
+            {canEdit ? (
+              <Tabs value={tab} onValueChange={changeTab} className="gap-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <TabsList aria-label={t.viewModeLabel}>
+                    <TabsTrigger value="preview" className="px-3">
+                      <Eye aria-hidden="true" />
+                      {tCommon.preview}
+                    </TabsTrigger>
+                    <TabsTrigger value="edit" className="px-3">
+                      <Pencil aria-hidden="true" />
+                      {tCommon.edit}
+                      {dirty ? (
+                        <>
+                          <span className="size-1.5 rounded-full bg-primary" aria-hidden="true" />
+                          <span className="sr-only">({t.unsavedMark})</span>
+                        </>
+                      ) : null}
+                    </TabsTrigger>
+                  </TabsList>
+                  {dirty ? (
+                    <p className="text-xs font-medium text-foreground">{plural(tWorkspace.unsaved, unsavedCount)}</p>
                   ) : null}
-                  {log.error ? (
-                    <span className="text-destructive">
-                      {explainPublishError(log.error).summary}
-                    </span>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      ) : null}
+                </div>
 
-      <PartnerLinkStyles urls={partnerLinks} label={t.partnerLink} />
-      {article.bodyHtml ? (
-        <Tabs defaultValue="preview">
-          {/*
-            Wraps on a narrow screen. Two tabs plus Rewrite, Send as draft and
-            Publish on one unwrapping row do not fit a phone — and the part
-            pushed off the edge was the publish button, which is the whole
-            point of the screen.
-          */}
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <TabsList>
-              <TabsTrigger value="preview">
-                <Eye className="size-4" />
-                {tCommon.preview}
-              </TabsTrigger>
-              <TabsTrigger value="edit">
-                <Pencil className="size-4" />
-                {tCommon.edit}
-              </TabsTrigger>
-            </TabsList>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleRegenerate}
-                disabled={pending || working}
-              >
-                <RefreshCw className="size-4" />
-                {tCommon.rewrite}
-              </Button>
-              {/*
-                Always something here. It used to render nothing unless a
-                direct CMS connection existed, so a plugin-only site - and any
-                site not connected yet - had no way to publish a draft at all.
-              */}
-              {!canPublish ? (
-                <Button size="sm" asChild>
-                  <Link href={`/websites/${websiteId}/integrations`}>
-                    <Upload className="size-4" />
-                    {t.connectToPublish}
-                  </Link>
-                </Button>
-              ) : viaPlugin && article.publishRequested ? (
-                // Queued; the plugin collects it on its next check.
-                <Button size="sm" disabled>
-                  <Loader2 className="size-4 animate-spin" />
-                  {t.waitingForPlugin}
-                </Button>
-              ) : viaPlugin && article.publishedUrl ? null : (
-                <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handlePublish("draft")}
-                    disabled={pending || working}
-                  >
-                    {t.sendAsDraft}
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={() => handlePublish("publish")}
-                    disabled={pending || working}
-                  >
-                    <Upload className="size-4" />
-                    {article.status === "published" ? t.updatePost : t.publish}
-                  </Button>
-                </>
-              )}
-            </div>
-          </div>
+                <TabsContent value="preview">{preview}</TabsContent>
 
-          <TabsContent value="preview" className="mt-4">
-            <Card>
-              <CardContent className="pt-6">
-                {unsaved ? (
-                  <p
-                    role="status"
-                    className="mb-6 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm"
-                  >
-                    {t.previewUnsaved}
-                  </p>
-                ) : null}
-
-                {partnerInText ? (
-                  <p className="mb-6 flex items-center gap-2 text-sm text-muted-foreground">
-                    <span className="inline-block size-3 shrink-0 rounded-sm bg-violet-500/25 ring-1 ring-violet-500/60" aria-hidden="true" />
-                    {t.partnerLinksNote}
-                  </p>
-                ) : null}
-
-                {/* The title as the page will show it, above the picture. */}
-                <h2 className="mb-6 text-2xl font-semibold tracking-tight">
-                  {title}
-                </h2>
-
-                {/*
-                  The illustration, above the body, where it sits on the
-                  published page. It was generated with the article and
-                  uploaded to the customer's site on publish, but never shown
-                  here — so the one part they could not check before it went
-                  live was the picture.
-
-                  A plain <img>: the file lives on the customer's own CMS, so
-                  next/image would need every customer domain in
-                  remotePatterns, and a domain added after deploy would break.
-                */}
-                {article.imageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={article.imageUrl}
-                    alt={article.imageAlt ?? article.title}
-                    className="mb-6 w-full rounded-lg border object-cover"
-                  />
-                ) : null}
-
-                {/*
-                  The editor's working copy, unsaved changes included, run
-                  through the same sanitiser as a save - so nothing typed or
-                  pasted into "Edit HTML" runs here before a save would have
-                  removed it (lib/articles/use-draft.ts).
-                */}
-                <div
-                  className={`${PARTNER_LINK_SCOPE} prose prose-sm max-w-none dark:prose-invert [overflow-wrap:anywhere] [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2 ${ARTICLE_TABLE_CLASSES} [&_pre]:overflow-x-auto [&_iframe]:max-w-full [&_video]:max-w-full [&_h2]:mt-6 [&_h2]:text-lg [&_h2]:font-semibold [&_li]:my-1 [&_p]:my-3 [&_ul]:list-disc [&_ul]:pl-6 [&_img]:my-6 [&_img]:block [&_img]:mx-auto [&_img]:max-w-[min(100%,36rem)] [&_img]:max-h-[30rem] [&_img]:h-auto [&_img]:w-auto [&_img]:rounded-lg [&_img]:border [&_img]:object-contain`}
-                  dangerouslySetInnerHTML={{ __html: previewHtml(body) }}
-                />
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="edit" className="mt-4">
-            {/*
-              The picture beside the words, not buried under them. It is the
-              part a customer is most likely to want changed, and on a wide
-              screen it costs nothing to show both at once.
-            */}
-            <div className="grid items-start gap-4 lg:grid-cols-[1fr_20rem]">
-              {/*
-              overflow-visible overrides Card's own overflow-hidden, which
-              clips position:sticky — without it the editor's toolbar scrolls
-              away with the text instead of staying put.
-            */}
-              <Card className="overflow-visible">
-                <CardHeader>
-                  <CardTitle className="text-base">{t.editArticle}</CardTitle>
-                  <CardDescription>{t.editHelp}</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="title">{t.title}</Label>
-                    <Input
-                      id="title"
-                      value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label htmlFor="meta">
-                      {t.metaDescription}{" "}
-                      <span className="text-muted-foreground">
-                        ({meta.length}/158)
-                      </span>
-                    </Label>
-                    <Input
-                      id="meta"
-                      value={meta}
-                      onChange={(e) => setMeta(e.target.value)}
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label htmlFor="slug">{t.slugLabel}</Label>
-                    <Input
-                      id="slug"
-                      value={slug}
-                      onChange={(e) => setSlug(e.target.value)}
-                      placeholder={t.slugPlaceholder}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      {/*
-                      Tidied on save rather than validated as you type:
-                      someone typing a real title means the slug version of
-                      it, and correcting them mid-keystroke is hostile.
-                    */}
-                      {t.slugHelp}
-                    </p>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    {/*
-                    A plain label, not <Label htmlFor>: the editor is a
-                    contenteditable div, which htmlFor cannot focus. The
-                    editor carries its own aria-label instead.
-                  */}
-                    <p className="text-sm font-medium">{t.articleContent}</p>
-                    <div className={PARTNER_LINK_SCOPE}>
-                      <RichTextEditor
-                        value={body}
-                        onChange={setBody}
-                        onUploadImage={handleInlineUpload}
-                        onListImages={handleListImages}
-                        t={tEditorUi}
+                <TabsContent
+                  value="edit"
+                  forceMount={editMounted ? true : undefined}
+                  className="data-[state=inactive]:hidden"
+                >
+                  {/* No overflow clipping here: the editor's toolbar is sticky. */}
+                  <div className="min-w-0 rounded-xl border bg-card">
+                    <div className="mx-auto max-w-3xl space-y-5 px-5 py-6 sm:px-8">
+                      <p className="text-xs leading-5 text-muted-foreground">{t.editSaveNote}</p>
+                      {/* Why the fields are off right now (a rewrite has its own notice at the top). */}
+                      {delivering && !working ? (
+                        <Notice tone="info" role="status">
+                          {t.imageLockedDelivering}
+                        </Notice>
+                      ) : null}
+                      <ArticleFields
+                        values={values}
+                        onChange={draft.setField}
+                        disabled={!editable}
+                        wordPressLive={wordPressPost}
+                        t={t}
+                        tWorkspace={tWorkspace}
                       />
+                      <div className="space-y-1.5">
+                        <p className="text-sm font-medium text-foreground">{t.articleContent}</p>
+                        {partnerInText ? <PartnerLegend text={t.partnerLinksNote} /> : null}
+                        <div className={PARTNER_LINK_SCOPE}>
+                          <RichTextEditor
+                            variant="workspace"
+                            value={values.bodyHtml}
+                            onChange={(html) => draft.setField("bodyHtml", html)}
+                            ariaLabel={t.articleContent}
+                            onUploadImage={handleInlineUpload}
+                            onListImages={handleListImages}
+                            editable={editable}
+                            t={tEditorUi}
+                            tCommon={tCommon}
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </CardContent>
-                <CardFooter>
-                  <Button onClick={handleSave} disabled={pending}>
-                    {pending ? t.saving : t.saveChanges}
-                  </Button>
-                </CardFooter>
-              </Card>
+                </TabsContent>
+              </Tabs>
+            ) : (
+              preview
+            )}
+          </div>
 
-              <FeaturedImage
-                websiteId={websiteId}
-                articleId={article.id}
-                imageUrl={article.imageUrl}
-                imageAlt={article.imageAlt}
-                attempts={article.imageAttempts}
-                t={tImage}
-                tCommon={tCommon}
-              />
-            </div>
-          </TabsContent>
-        </Tabs>
+          <div className="grid min-w-0 items-start gap-4 lg:max-xl:grid-cols-2 xl:col-start-2 xl:row-start-2">
+            <SearchAppearance
+              title={values.title}
+              slug={values.slug}
+              metaDescription={values.metaDescription}
+              websiteDomain={websiteDomain}
+              // Only these three fields show here; an unsaved body alone does not change it.
+              unsaved={canEdit && draft.dirty.some((key) => key !== "bodyHtml")}
+              t={t}
+            />
+
+            <FeaturedImage
+              websiteId={websiteId}
+              articleId={article.id}
+              imageUrl={article.imageUrl}
+              imageAlt={article.imageAlt}
+              attempts={article.imageAttempts}
+              maxAttempts={imageMaxAttempts}
+              maxBytes={imageMaxBytes}
+              canEdit={canEdit}
+              lockedReason={working ? t.imageLockedWorking : delivering ? t.imageLockedDelivering : null}
+              reviewApproved={facts.review === "approved"}
+              locale={locale}
+              onAltUnsavedChange={setAltUnsaved}
+              t={t}
+              tImage={tImage}
+              tCommon={tCommon}
+              tWorkspace={tWorkspace}
+            />
+
+            <WorkspaceSection
+              id="article-stats"
+              icon={BarChart3}
+              title={t.statsTitle}
+              description={canEdit && dirty ? t.statsUnsaved : t.statsHelp}
+            >
+              <div className="grid grid-cols-2 gap-x-4 gap-y-5">
+                <Stat label={t.words} value={number(stats.words)} />
+                <Stat label={t.headings} value={number(stats.headings)} />
+                <Stat
+                  label={t.keywordUses}
+                  value={number(stats.keywordUses)}
+                  hint={article.targetKeyword ?? undefined}
+                />
+                <Stat label={t.internalLinks} value={number(stats.internalLinks)} />
+                <Stat label={t.externalLinks} value={number(stats.externalLinks)} />
+                <Stat label={tCommon.images} value={number(stats.images)} />
+                <Stat label={t.socialMentions} value={number(stats.socialMentions)} />
+              </div>
+            </WorkspaceSection>
+
+            <PublishHistory rows={history} limit={historyLimit} t={t} />
+
+            {canEdit ? (
+              <WorkspaceSection
+                id="article-rewrite"
+                icon={RefreshCw}
+                title={t.rewriteTitle}
+                description={format(t.rewriteHelp, { count: rewriteLimit })}
+                bodyClassName="space-y-3"
+              >
+                <ConfirmDialog
+                  trigger={
+                    <Button type="button" variant="outline" disabled={rewriteReason !== null || rewriting}>
+                      {rewriting ? (
+                        <Loader2 className="animate-spin motion-reduce:animate-none" aria-hidden="true" />
+                      ) : (
+                        <RefreshCw aria-hidden="true" />
+                      )}
+                      {tCommon.rewrite}
+                    </Button>
+                  }
+                  disabled={rewriteReason !== null || rewriting}
+                  title={t.rewriteConfirmTitle}
+                  confirmLabel={t.rewriteConfirmAction}
+                  cancelLabel={tCommon.cancel}
+                  onConfirm={handleRewrite}
+                >
+                  {rewriteConfirmBody()}
+                </ConfirmDialog>
+                {rewriteReason ? <p className="text-xs leading-5 text-muted-foreground">{rewriteReason}</p> : null}
+                {rewriteStarted ? (
+                  <p role="status" className="text-xs text-foreground">
+                    {t.rewriting}
+                  </p>
+                ) : null}
+                {rewriteError && article.status !== "failed" ? (
+                  <Notice tone="danger" role="alert">
+                    {rewriteError}
+                  </Notice>
+                ) : null}
+              </WorkspaceSection>
+            ) : null}
+          </div>
+        </div>
+      )}
+
+      {canEdit && hasBody ? (
+        <>
+          <SaveBarSpacer />
+          <SaveBar
+            state={saveBarState}
+            onSave={handleSave}
+            onDiscard={handleDiscard}
+            saveLabel={t.saveArticle}
+            note={saveNote}
+            disabled={saveHeldNote !== null}
+            t={tWorkspace}
+          />
+        </>
       ) : null}
-    </PageShell>
+    </div>
   );
 }

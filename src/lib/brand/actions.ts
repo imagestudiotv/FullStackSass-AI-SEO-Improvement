@@ -69,6 +69,10 @@ export async function getBrandVoice(
   };
 }
 
+/**
+ * A partial update: a field that is undefined is left as stored, null or ""
+ * clears it. See updateBrandVoice.
+ */
 export type BrandVoiceInput = {
   tone?: string | null;
   vocabulary?: string | null;
@@ -156,11 +160,31 @@ export async function updateBrandVoice(
     updatedAt: new Date(),
   };
 
+  /**
+   * ONLY WHAT THE CALLER SENT is overwritten on an existing row. A field left
+   * out (undefined) keeps its stored value; null or "" clears it.
+   *
+   * This used to write every column, so a caller that does not carry a field
+   * wiped it: the Article Settings save sends no social links or example
+   * article URLs (there is no control for them on that screen), and every
+   * Save - "Keep the defaults" included - emptied both. Social links are read
+   * by the writer, so articles silently lost them.
+   */
+  const changes: Partial<typeof values> & { updatedAt: Date } = { updatedAt: values.updatedAt };
+  if (input.tone !== undefined) changes.tone = values.tone;
+  if (input.vocabulary !== undefined) changes.vocabulary = values.vocabulary;
+  if (input.avoid !== undefined) changes.avoid = values.avoid;
+  if (input.usps !== undefined) changes.usps = values.usps;
+  if (input.facts !== undefined) changes.facts = values.facts;
+  if (input.socialLinks !== undefined) changes.socialLinks = values.socialLinks;
+  if (input.articleInstructions !== undefined) changes.articleInstructions = values.articleInstructions;
+  if (input.exampleArticleUrls !== undefined) changes.exampleArticleUrls = values.exampleArticleUrls;
+
   await db
     .insert(brandVoice)
     .values({ websiteId: site.id, ...values })
     // One row per website, enforced by the table's unique constraint.
-    .onConflictDoUpdate({ target: brandVoice.websiteId, set: values });
+    .onConflictDoUpdate({ target: brandVoice.websiteId, set: changes });
 
   revalidatePath(`/websites/${site.id}/publishing`);
   return { ok: true, data: null };

@@ -1,314 +1,441 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
+import { ArrowRight, KeyRound, Languages, Loader2, UserRound } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition, type FormEvent } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { Field } from "@/components/workspace/field";
+import { Notice } from "@/components/workspace/notice";
+import { WorkspaceSection } from "@/components/workspace/section";
+import { useUnsavedChanges } from "@/components/workspace/use-unsaved-changes";
 import { authClient } from "@/lib/auth-client";
 import { LOCALE_NAMES, LOCALES, type Locale } from "@/lib/i18n/config";
+import { format } from "@/lib/i18n/format";
 import type { Messages } from "@/lib/i18n/messages";
+
 import { setFirstPassword } from "./password-actions";
+import { changePasswordError, checkNewPassword, setPasswordError, type PasswordError } from "./password-rules";
 
 /**
- * Personal details: name, email, password, and the dashboard language.
- *
- * The name was read-only before — shown in a definition list with no way to
- * correct it. Someone who signed up with a typo, or whose Google account
- * carries a different name than they use at work, had no way to change it.
+ * The person's own account: name and email, how they sign in, and the
+ * dashboard language - three sections of the Account page.
  *
  * EMAIL IS DELIBERATELY NOT EDITABLE. It is the login identifier and the
  * address every receipt goes to, so changing it needs the new address
- * verified before the old one stops working — otherwise a typo locks someone
- * out of their own account. That is a flow with emails in it, and this
- * product has no email provider configured. Shown as text rather than a
- * disabled input, because a greyed-out field invites people to try.
+ * verified before the old one stops working, and Better Auth's changeEmail
+ * is disabled. Shown as text with a sentence saying so, rather than as a
+ * disabled input that invites people to try.
  */
 
 /**
- * The languages the dashboard is offered in.
- *
- * Read from the shared config rather than listed here, so this control and
- * the marketing site's switcher cannot drift apart — adding a locale in one
- * place used to leave the other showing a language nobody could pick.
+ * The languages the dashboard is offered in, from the shared config so this
+ * control and the marketing site's switcher cannot drift apart.
  */
 const LANGUAGES = LOCALES.map((id) => ({ id, label: LOCALE_NAMES[id] }));
+
+/**
+ * Saves the person's own name or language through Better Auth.
+ *
+ * True only when the server confirmed it. The client returns an error for a
+ * refusal but THROWS when the request never completes (offline, a dropped
+ * connection); inside a transition that throw would replace the whole
+ * Account page with the error screen, so it reads as a failed save instead.
+ */
+export async function updatedAccount(fields: Parameters<typeof authClient.updateUser>[0]): Promise<boolean> {
+  try {
+    const { error } = await authClient.updateUser(fields);
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+/** A native select drawn exactly like Input (h-8, rounded-lg, the same focus ring). */
+const SELECT_CLASS =
+  "h-8 w-full max-w-xs min-w-0 rounded-lg border border-input bg-transparent px-2.5 text-base outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none md:text-sm";
 
 export function PersonalDetails({
   initialName,
   email,
-  /**
-   * False when the account signs in with Google and has never set a
-   * password. Both cases offer the button; this picks the form behind it.
-   */
   hasPassword,
+  googleLinked,
   initialLocale,
+  articleLanguageSite,
   t,
+  tWorkspace,
 }: {
   initialName: string;
   email: string;
+  /**
+   * Whether the account has a password, which decides WHICH password form
+   * opens (set a first one, or change it) - never whether one is offered.
+   */
   hasPassword: boolean;
+  /** A Google account is linked, so "you sign in with Google" is true. */
+  googleLinked: boolean;
   /** The language the dashboard is currently rendered in. */
   initialLocale: Locale;
+  /**
+   * The website in the settings strip, whose Business tab holds its article
+   * language. Named in the link: with several websites, "the Business tab"
+   * alone does not say whose.
+   */
+  articleLanguageSite: { href: string; domain: string } | null;
   /** This screen's copy, already in the reader's language. */
   t: Messages["app"]["settings"];
+  /** Shared field and form words. */
+  tWorkspace: Messages["app"]["workspace"];
 }) {
   const router = useRouter();
+
+  /* ---------------------------------------------------------------- */
+  /* Name                                                               */
+  /* ---------------------------------------------------------------- */
   const [name, setName] = useState(initialName);
   const [savedName, setSavedName] = useState(initialName);
-  const [pending, startTransition] = useTransition();
-  const [changing, setChanging] = useState(false);
-  const [locale, setLocale] = useState<Locale>(initialLocale);
-  const [savingLocale, setSavingLocale] = useState(false);
+  const [savingName, startNameSave] = useTransition();
+  const trimmedName = name.trim();
+  const nameDirty = trimmedName !== savedName.trim();
+  const nameInvalid = trimmedName.length === 0;
+  const nameField = useRef<HTMLInputElement>(null);
+  useUnsavedChanges(nameDirty, tWorkspace.leaveConfirm);
 
-  const dirty = name.trim() !== savedName.trim() && name.trim().length > 0;
-
-  function handleSaveName() {
-    startTransition(async () => {
-      const trimmed = name.trim();
-      const { error } = await authClient.updateUser({ name: trimmed });
-      if (error) {
-        toast.error(error.message ?? t.nameError);
+  function saveName(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!nameDirty || nameInvalid) return;
+    startNameSave(async () => {
+      if (!(await updatedAccount({ name: trimmedName }))) {
+        // The translation, not Better Auth's English message.
+        toast.error(t.nameError);
         return;
       }
-      setSavedName(trimmed);
+      setSavedName(trimmedName);
+      setName(trimmedName);
+      // The Save button goes away with the change; keep focus on the field.
+      nameField.current?.focus();
       toast.success(t.nameSaved);
       // The sidebar and the account menu render it too.
       router.refresh();
     });
   }
 
+  /* ---------------------------------------------------------------- */
+  /* Password                                                           */
+  /* ---------------------------------------------------------------- */
+  const [changing, setChanging] = useState(false);
+  const passwordToggle = useRef<HTMLButtonElement>(null);
+
+  function closePasswordForm() {
+    setChanging(false);
+    // Back to the button that opened it, rather than lost on the page.
+    window.requestAnimationFrame(() => passwordToggle.current?.focus());
+  }
+
+  /* ---------------------------------------------------------------- */
+  /* Dashboard language                                                 */
+  /* ---------------------------------------------------------------- */
+  const [locale, setLocale] = useState<Locale>(initialLocale);
+  const [savingLocale, startLocaleSave] = useTransition();
+  const [localeSaved, setLocaleSaved] = useState(false);
+
   /**
-   * Saves the dashboard language and re-renders the app in it.
-   *
-   * Saved on change rather than behind a button: it is a single choice with
-   * an immediately visible result, and the whole page re-renders in the new
-   * language, which is its own confirmation.
-   *
-   * The optimistic setLocale is reverted on failure — leaving the dropdown
-   * showing a language the account is not actually set to would make the next
-   * page load look like it forgot.
+   * Saved on change: one choice whose result - the whole app re-rendering in
+   * the new language - is its own confirmation. Reverted on failure, so the
+   * control never shows a language the account is not set to.
    */
-  function handleLocaleChange(next: Locale) {
+  function changeLocale(next: Locale) {
     const previous = locale;
     setLocale(next);
-    setSavingLocale(true);
-    startTransition(async () => {
-      const { error } = await authClient.updateUser({ locale: next });
-      setSavingLocale(false);
-      if (error) {
+    setLocaleSaved(false);
+    startLocaleSave(async () => {
+      if (!(await updatedAccount({ locale: next }))) {
         setLocale(previous);
-        toast.error(error.message ?? t.languageError);
+        toast.error(t.languageError);
         return;
       }
+      setLocaleSaved(true);
       // Every server component re-reads the preference on the next render.
       router.refresh();
     });
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">{t.personalTitle}</CardTitle>
-        <CardDescription>{t.personalSubtitle}</CardDescription>
-      </CardHeader>
+    <>
+      <WorkspaceSection id="profile" icon={UserRound} title={t.personalTitle} description={t.personalSubtitle}>
+        <div className="grid gap-x-4 gap-y-5 md:grid-cols-2">
+          {/* A real form, so Enter saves. */}
+          <form onSubmit={saveName} className="min-w-0 space-y-3">
+            <Field
+              id="account-name"
+              label={t.nameLabel}
+              error={nameDirty && nameInvalid ? t.nameRequired : null}
+              t={tWorkspace}
+            >
+              {(props) => (
+                <Input
+                  {...props}
+                  ref={nameField}
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  placeholder={t.namePlaceholder}
+                  autoComplete="name"
+                  // Read-only, not disabled, while saving: focus stays put.
+                  readOnly={savingName}
+                />
+              )}
+            </Field>
+            {/*
+              Save appears only once the name has changed: a button always
+              sitting under a single field reads as something you must press.
+            */}
+            {nameDirty ? (
+              <div className="flex flex-wrap gap-2">
+                <Button type="submit" size="sm" disabled={savingName || nameInvalid}>
+                  {savingName ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+                      {t.saving}
+                    </>
+                  ) : (
+                    t.saveName
+                  )}
+                </Button>
+                <Button type="button" size="sm" variant="ghost" onClick={() => setName(savedName)} disabled={savingName}>
+                  {t.cancel}
+                </Button>
+              </div>
+            ) : null}
+          </form>
 
-      <CardContent className="space-y-5">
-        <div className="space-y-1.5">
-          <Label htmlFor="account-name">{t.nameLabel}</Label>
-          <Input
-            id="account-name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder={t.namePlaceholder}
-          />
-          {/*
-            The save appears only once the name has actually changed, rather
-            than sitting under the field permanently. A button that is always
-            there on a single-field form reads as something you must press.
-          */}
-          {dirty ? (
-            <div className="flex gap-2 pt-1">
-              <Button size="sm" onClick={handleSaveName} disabled={pending}>
-                {pending ? (
-                  <>
-                    <Loader2 className="size-4 animate-spin" />
-                    {t.saving}
-                  </>
+          <dl className="min-w-0 space-y-1.5">
+            <dt className="text-sm font-medium text-foreground">{t.emailLabel}</dt>
+            <dd className="flex min-h-8 items-center text-sm wrap-anywhere text-foreground">{email}</dd>
+            <dd className="text-xs leading-5 text-muted-foreground">{t.emailHelp}</dd>
+          </dl>
+        </div>
+      </WorkspaceSection>
+
+      {/*
+        How this person signs in. The password row is offered whether or not
+        a password exists - the client asked for Google accounts to be able
+        to add one - and the FORM differs: with a password it asks for the
+        current one first, without one it asks only for the new one.
+      */}
+      <WorkspaceSection id="security" icon={KeyRound} title={t.securityTitle} description={t.securitySubtitle}>
+        <div className="space-y-4">
+          <ul className="divide-y rounded-lg border">
+            <li className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+              <div className="min-w-0 space-y-0.5">
+                <p className="text-sm font-medium text-foreground">{t.methodPassword}</p>
+                <p className="text-xs leading-5 text-muted-foreground">
+                  {hasPassword ? t.passwordSetSummary : t.passwordNotSetSummary}
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {hasPassword ? (
+                  <StatusBadge status="active" label={t.methodSet} />
                 ) : (
-                  t.saveName
+                  <StatusBadge status="pending" label={t.methodNotSet} />
                 )}
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => setName(savedName)}
-                disabled={pending}
-              >
-                {t.cancel}
-              </Button>
-            </div>
+                <Button
+                  ref={passwordToggle}
+                  variant="outline"
+                  size="sm"
+                  aria-expanded={changing}
+                  aria-controls={changing ? "password-form" : undefined}
+                  onClick={() => (changing ? closePasswordForm() : setChanging(true))}
+                >
+                  {hasPassword ? t.changePassword : t.setPassword}
+                </Button>
+              </div>
+            </li>
+            {googleLinked ? (
+              <li className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+                <div className="min-w-0 space-y-0.5">
+                  <p className="text-sm font-medium text-foreground">{t.methodGoogle}</p>
+                  <p className="text-xs leading-5 text-muted-foreground">{t.googleLinkedSummary}</p>
+                </div>
+                <StatusBadge status="connected" label={t.methodLinked} />
+              </li>
+            ) : null}
+          </ul>
+
+          {changing ? (
+            <PasswordForm
+              hasPassword={hasPassword}
+              googleLinked={googleLinked}
+              onDone={closePasswordForm}
+              t={t}
+              tWorkspace={tWorkspace}
+            />
           ) : null}
         </div>
+      </WorkspaceSection>
 
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div className="min-w-0 space-y-1">
-            <p className="text-sm font-medium">{t.emailLabel}</p>
-            <p className="truncate text-sm text-muted-foreground">{email}</p>
-          </div>
-
-          {/*
-            Offered whether or not a password exists.
-
-            It used to be hidden for Google accounts, replaced by a note
-            reading "You sign in with Google" — accurate, and a dead end. The
-            client asked for the opposite: "We'd like to permit change
-            password also for google registered accounts. In this way it will
-            ask for a new password directly. I think it will be useful, many
-            are comfortable to still having login email and password."
-
-            So the button is unconditional and the FORM differs: with a
-            password it asks for the current one first, without a password it
-            asks for the new one only. Adding a password does not take Google
-            away — the account keeps both ways in, which is the point.
-          */}
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => setChanging((open) => !open)}
-          >
-            {hasPassword ? t.changePassword : t.setPassword}
-          </Button>
-        </div>
-
-        {changing ? (
-          <ChangePassword
-            hasPassword={hasPassword}
-            onDone={() => setChanging(false)}
-            t={t}
-          />
-        ) : null}
-
-        <div className="space-y-1.5">
-          <Label htmlFor="dashboard-language">{t.languageLabel}</Label>
-          <select
+      {/*
+        Two languages that are easy to confuse: the dashboard's (this
+        person's, saved here) and the articles' (each website's, set on its
+        Business tab). Side by side, each saying what it changes.
+      */}
+      <WorkspaceSection id="language" icon={Languages} title={t.languageTitle} description={t.languageSubtitle}>
+        <div className="grid gap-x-4 gap-y-5 md:grid-cols-2">
+          <Field
             id="dashboard-language"
-            value={locale}
-            onChange={(event) =>
-              handleLocaleChange(event.target.value as Locale)
-            }
-            disabled={savingLocale}
-            className="flex h-9 w-full max-w-xs rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-60"
+            label={t.languageLabel}
+            hint={t.languageHelp}
+            labelAction={<span className="text-xs text-muted-foreground">{tWorkspace.savesImmediately}</span>}
+            t={tWorkspace}
           >
-            {LANGUAGES.map((language) => (
-              <option key={language.id} value={language.id}>
-                {language.label}
-              </option>
-            ))}
-          </select>
-          <p className="text-xs text-muted-foreground">{t.languageHelp}</p>
+            {(props) => (
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  {...props}
+                  value={locale}
+                  onChange={(event) => changeLocale(event.target.value as Locale)}
+                  disabled={savingLocale}
+                  className={SELECT_CLASS}
+                >
+                  {LANGUAGES.map((language) => (
+                    <option key={language.id} value={language.id} lang={language.id}>
+                      {language.label}
+                    </option>
+                  ))}
+                </select>
+                {savingLocale ? (
+                  <Loader2
+                    className="size-4 animate-spin text-muted-foreground motion-reduce:animate-none"
+                    aria-hidden="true"
+                  />
+                ) : null}
+              </div>
+            )}
+          </Field>
+
+          <div className="min-w-0 space-y-1.5 rounded-lg border bg-muted/20 p-4">
+            <p className="text-sm font-medium text-foreground">{t.articleLanguageLabel}</p>
+            <p className="text-xs leading-5 text-muted-foreground">{t.articleLanguageHelp}</p>
+            {articleLanguageSite ? (
+              <Link
+                href={articleLanguageSite.href}
+                className="inline-flex max-w-full items-center gap-1 rounded-md text-sm font-medium text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
+              >
+                <span className="min-w-0 wrap-anywhere">
+                  {format(t.articleLanguageLink, { domain: articleLanguageSite.domain })}
+                </span>
+                <ArrowRight className="size-4 shrink-0" aria-hidden="true" />
+              </Link>
+            ) : null}
+          </div>
         </div>
-      </CardContent>
-    </Card>
+        {/* Confirmation for screen readers; the re-rendered page is everyone else's. */}
+        <p className="sr-only" role="status" aria-live="polite">
+          {localeSaved && !savingLocale ? t.languageSaved : ""}
+        </p>
+      </WorkspaceSection>
+    </>
   );
 }
 
 /**
  * The password form, in either of its two shapes.
  *
- * WITH an existing password it asks for the current one as well as the new
- * one — Better Auth requires it, and so it should: a session left open on a
- * shared machine should not be enough to lock the owner out of their own
- * account. revokeOtherSessions is ON for that path. Somebody changing their
- * password is usually doing it because they think someone else has it;
- * leaving other sessions signed in would defeat the point of the exercise.
+ * WITH an existing password it asks for the current one as well: a session
+ * left open on a shared machine should not be enough to lock the owner out.
+ * revokeOtherSessions is ON for that path - someone changing a password
+ * usually thinks somebody else has it.
  *
- * WITHOUT one — a Google account adding email-and-password sign-in — there is
- * no current password to ask for, so the form asks for the new one directly
- * and other sessions are left signed in. Nothing was compromised; an account
- * is only gaining a second way in, and signing someone out of their phone for
- * it would read as a bug.
- *
- * The two paths also differ in HOW they reach Better Auth. changePassword is
- * a normal client call. setPassword is serverOnly and has no client method,
- * for good reason — it needs no current password — so it goes through a
- * server action. See password-actions.ts.
+ * WITHOUT one - an account adding email-and-password sign-in - there is no
+ * current password to ask for, and other sessions are left signed in: nothing
+ * was compromised. That path goes through the setFirstPassword server action,
+ * because Better Auth's setPassword is serverOnly.
  */
-function ChangePassword({
+function PasswordForm({
   hasPassword,
+  googleLinked,
   onDone,
   t,
+  tWorkspace,
 }: {
-  /** False for a Google account that has never set one. */
   hasPassword: boolean;
+  googleLinked: boolean;
   onDone: () => void;
   t: Messages["app"]["settings"];
+  tWorkspace: Messages["app"]["workspace"];
 }) {
+  const router = useRouter();
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
+  const [error, setError] = useState<PasswordError | null>(null);
   const [pending, startTransition] = useTransition();
-  const router = useRouter();
+  const currentField = useRef<HTMLInputElement>(null);
+  const nextField = useRef<HTMLInputElement>(null);
 
-  function handleSubmit(event: React.FormEvent) {
+  // Opened on request, so the first field takes focus.
+  useEffect(() => {
+    (currentField.current ?? nextField.current)?.focus();
+  }, []);
+
+  /** Shows an error and puts focus where it can be fixed, so it is heard with its field. */
+  function fail(failure: PasswordError) {
+    setError(failure);
+    if (failure.target === "current") currentField.current?.focus();
+    if (failure.target === "next") nextField.current?.focus();
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
-    // Matches the sign-up rule, so the two screens cannot disagree.
-    if (next.length < 8) {
-      toast.error(t.passwordTooShort);
+    const invalid = checkNewPassword(next, t);
+    if (invalid) {
+      fail(invalid);
       return;
     }
+    setError(null);
 
     startTransition(async () => {
       if (!hasPassword) {
-        const result = await setFirstPassword(next);
-
-        if (!result.ok) {
-          toast.error(
-            result.error === "TOO_SHORT" ? t.passwordTooShort : t.passwordError,
-          );
-          /*
-            ALREADY_SET means this screen was rendered from stale data — a
-            password was added in another tab since. Re-reading the page
-            swaps this form for the change-password one, so the retry asks
-            for the current password as it should.
-          */
-          if (result.error === "ALREADY_SET") router.refresh();
+        let result: Awaited<ReturnType<typeof setFirstPassword>>;
+        try {
+          result = await setFirstPassword(next);
+        } catch {
+          fail({ target: "form", message: t.passwordError });
           return;
         }
-
+        if (!result.ok) {
+          const failure = setPasswordError(result.error, t);
+          fail(failure);
+          // Stale page: re-reading it swaps in the change-password form.
+          if (failure.refresh) router.refresh();
+          return;
+        }
         setNext("");
         toast.success(t.passwordCreated);
-        /*
-          The page decides which form to show from whether a password
-          exists, and one now does. Without this the panel would keep
-          offering to set a first password until the next full load.
-        */
+        // The page decides which form to offer from whether a password exists.
         router.refresh();
         onDone();
         return;
       }
 
-      const { error } = await authClient.changePassword({
-        currentPassword: current,
-        newPassword: next,
-        revokeOtherSessions: true,
-      });
-
-      if (error) {
-        toast.error(error.message ?? t.passwordError);
+      let failure: Parameters<typeof changePasswordError>[0];
+      try {
+        const result = await authClient.changePassword({
+          currentPassword: current,
+          newPassword: next,
+          revokeOtherSessions: true,
+        });
+        failure = result.error;
+      } catch {
+        // A dropped connection throws instead of returning an error: the generic sentence, not a crashed page.
+        failure = {};
+      }
+      if (failure) {
+        fail(changePasswordError(failure, t));
         return;
       }
-
       setCurrent("");
       setNext("");
       toast.success(t.passwordSaved);
@@ -318,63 +445,83 @@ function ChangePassword({
 
   return (
     <form
+      id="password-form"
       onSubmit={handleSubmit}
-      className="space-y-3 rounded-xl border bg-muted/30 p-4"
+      noValidate
+      className="space-y-4 rounded-lg border bg-muted/20 p-4"
     >
       {/*
-        Explains why this form is here at all for a Google account, where
-        "set a password" is an offer rather than the expected chore. Not
-        shown on the change path, where the button already said it.
+        Why the form is here at all when there is no password yet - an offer,
+        not a chore. "You sign in with Google" only where that is true.
       */}
       {!hasPassword ? (
-        <p className="text-xs text-muted-foreground">{t.setPasswordIntro}</p>
-      ) : null}
-
-      {/*
-        Only where there is a current password to give. Rendering it disabled
-        or empty for a Google account would ask for something that does not
-        exist — the dead end this whole change removes.
-      */}
-      {hasPassword ? (
-        <div className="space-y-1.5">
-          <Label htmlFor="current-password">{t.currentPassword}</Label>
-          <Input
-            id="current-password"
-            type="password"
-            autoComplete="current-password"
-            value={current}
-            onChange={(e) => setCurrent(e.target.value)}
-            required
-          />
-        </div>
-      ) : null}
-
-      <div className="space-y-1.5">
-        <Label htmlFor="new-password">{t.newPassword}</Label>
-        <Input
-          id="new-password"
-          type="password"
-          autoComplete="new-password"
-          value={next}
-          onChange={(e) => setNext(e.target.value)}
-          required
-        />
-        <p className="text-xs text-muted-foreground">
-          {/*
-            The change path warns that other devices get signed out. The set
-            path must not carry that line: it does not revoke anything, and
-            promising a sign-out that never happens is worse than saying
-            nothing.
-          */}
-          {hasPassword ? t.passwordHelp : t.setPasswordHelp}
+        <p className="text-sm text-muted-foreground">
+          {googleLinked ? t.setPasswordIntro : t.setPasswordIntroGeneric}
         </p>
+      ) : null}
+
+      <div className="grid gap-x-4 gap-y-5 sm:grid-cols-2">
+        {/*
+          Only where there is a current password to give: asking a Google-only
+          account for one would be a dead end.
+        */}
+        {hasPassword ? (
+          <Field
+            id="current-password"
+            label={t.currentPassword}
+            error={error?.target === "current" ? error.message : null}
+            required
+            t={tWorkspace}
+          >
+            {(props) => (
+              <Input
+                {...props}
+                ref={currentField}
+                type="password"
+                autoComplete="current-password"
+                value={current}
+                onChange={(event) => setCurrent(event.target.value)}
+                readOnly={pending}
+              />
+            )}
+          </Field>
+        ) : null}
+
+        <Field
+          id="new-password"
+          label={t.newPassword}
+          // The change path warns that other devices get signed out; the set
+          // path does not revoke anything, so it must not say it does.
+          hint={hasPassword ? t.passwordHelp : t.setPasswordHelp}
+          error={error?.target === "next" ? error.message : null}
+          required
+          t={tWorkspace}
+        >
+          {(props) => (
+            <Input
+              {...props}
+              ref={nextField}
+              type="password"
+              autoComplete="new-password"
+              value={next}
+              onChange={(event) => setNext(event.target.value)}
+              readOnly={pending}
+            />
+          )}
+        </Field>
       </div>
 
-      <div className="flex gap-2">
+      {error?.target === "form" ? (
+        <Notice tone="danger" role="alert">
+          {error.message}
+        </Notice>
+      ) : null}
+
+      <div className="flex flex-wrap gap-2">
         <Button type="submit" size="sm" disabled={pending}>
           {pending ? (
             <>
-              <Loader2 className="size-4 animate-spin" />
+              <Loader2 className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
               {hasPassword ? t.changing : t.settingPassword}
             </>
           ) : hasPassword ? (
@@ -383,7 +530,7 @@ function ChangePassword({
             t.setPassword
           )}
         </Button>
-        <Button type="button" size="sm" variant="ghost" onClick={onDone}>
+        <Button type="button" size="sm" variant="ghost" onClick={onDone} disabled={pending}>
           {t.cancel}
         </Button>
       </div>

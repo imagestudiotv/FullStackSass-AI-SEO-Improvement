@@ -1,26 +1,11 @@
 "use client";
 
-import {
-  Crown,
-  Loader2,
-  MailX,
-  MoreVertical,
-  Send,
-  Trash2,
-  UserPlus,
-} from "lucide-react";
+import { Crown, Loader2, MailX, MoreVertical, Send, Trash2, UserPlus, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition, type FormEvent } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -37,25 +22,17 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import type { Messages } from "@/lib/i18n/messages";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Field } from "@/components/workspace/field";
+import { Notice } from "@/components/workspace/notice";
+import { WorkspaceSection } from "@/components/workspace/section";
 import type { Locale } from "@/lib/i18n/config";
 import { format, formatDate } from "@/lib/i18n/format";
+import type { Messages } from "@/lib/i18n/messages";
+import { cn } from "@/lib/utils";
+import type { ActionResult } from "@/lib/websites/actions";
 import {
   addWebsiteMember,
   listWebsiteInvitations,
@@ -67,475 +44,552 @@ import {
   type WebsiteMember,
 } from "@/lib/websites/members";
 
+import { syncMembers, type MemberLists } from "./members-sync";
+
 /**
- * Who can work on this website — "Members & roles" in the design.
+ * Who can work on a website - "Members & roles".
  *
- * Scoped to one site on purpose: an editor invited to a client's site should
- * not gain anything on the others, which is the case workspace membership
- * cannot express. The workspace's own people are listed too, as the Admin
- * rows; they hold access through the account rather than through an invite.
+ * Scoped to one site on purpose: an editor invited to a client's site gains
+ * nothing on the others, which workspace membership cannot express. The
+ * workspace's own people are listed too, as the Admin rows; they hold access
+ * through the account rather than through an invite, so they have no menu.
  *
- * Two kinds of row, because there are two ways in. Someone who already has an
- * account is granted access on the spot and appears as Active. Someone who
- * does not is emailed an invitation, and appears as Invited until they accept
- * it — which is what finally makes the Status column worth reading, rather
- * than a word that said "Active" on every row.
+ * Only ever rendered for websites this person OWNS (the page decides), and
+ * every action re-checks ownership on the server.
  */
 export type OwnedSite = { id: string; domain: string };
+
+/** The server's shape check (lib/websites/members.ts), asked first so the error is in the reader's language. */
+const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/**
+ * Both lists for one site, in parallel: they render in one table, and
+ * arriving separately would show the members and then reflow as the pending
+ * rows appeared underneath.
+ */
+async function fetchLists(websiteId: string): Promise<MemberLists> {
+  const [members, invitations] = await Promise.all([
+    listWebsiteMembers(websiteId),
+    listWebsiteInvitations(websiteId),
+  ]);
+  return { members, invitations };
+}
+
+type Confirming = { kind: "remove" | "revoke"; id: string; email: string };
+type InviteError = { target: "email" | "form"; message: string };
 
 export function WebsiteMembers({
   sites,
   initialWebsiteId,
   initialMembers,
   initialInvitations,
+  initialError = false,
+  ownEmail = "",
+  viewingSharedDomain = null,
   locale,
   t,
+  tWorkspace,
 }: {
   /** Every website this person owns. Access is granted per site. */
   sites: OwnedSite[];
   initialWebsiteId: string;
   initialMembers: WebsiteMember[];
-  /** Invitations sent but not yet accepted. Owner-only; empty for an editor. */
+  /** Invitations sent but not yet accepted. */
   initialInvitations: WebsiteInvitation[];
+  /** The server could not read the lists for the first render. */
+  initialError?: boolean;
+  /** The signed-in person's address: inviting yourself is refused before a round trip. */
+  ownEmail?: string;
+  /**
+   * The website the rest of Settings is on, when it is one SHARED with this
+   * person. This panel manages their OWN sites, so it says so rather than
+   * leave them to think they are managing the site on screen.
+   */
+  viewingSharedDomain?: string | null;
   /** For dates in the reader's convention. */
   locale: Locale;
   /** This screen's copy, already in the reader's language. */
   t: Messages["app"]["settings"];
+  /** Shared field and dialog words. */
+  tWorkspace: Messages["app"]["workspace"];
 }) {
   const router = useRouter();
   const [websiteId, setWebsiteId] = useState(initialWebsiteId);
+  /*
+    Copied from props ONCE. A router.refresh() or revalidatePath hands back
+    new initial* props, and syncing from them would let a late server render
+    overwrite the list for the site actually picked; every later read goes
+    through syncMembers instead.
+  */
   const [members, setMembers] = useState(initialMembers);
   const [invitations, setInvitations] = useState(initialInvitations);
+  const [loadState, setLoadState] = useState<"idle" | "loading" | "error">(initialError ? "error" : "idle");
+  /** The site whose replies we still want; anything else is dropped. */
+  const wantedSite = useRef(initialWebsiteId);
+  const [pending, startTransition] = useTransition();
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<"editor" | "viewer">("editor");
-  const [pending, startTransition] = useTransition();
-  const [loadingMembers, setLoadingMembers] = useState(false);
-  /** The site whose reply we still want, so a slow earlier one is ignored. */
-  const wantedSite = useRef(initialWebsiteId);
-  const [busyId, setBusyId] = useState<string | null>(null);
+  const [inviteError, setInviteError] = useState<InviteError | null>(null);
+  const emailField = useRef<HTMLInputElement>(null);
+
+  const [confirming, setConfirming] = useState<Confirming | null>(null);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
+  /** The row whose menu opened the confirmation, to return focus to it. */
+  const confirmRow = useRef<string | null>(null);
   /**
-   * The invite form lives in a dialog now, as the design's "Add member"
-   * button implies. It used to sit open above the list, which put three
-   * fields and a button in front of someone who had come to read the list.
+   * Set while a menu item hands over to the confirmation dialog, so the
+   * closing menu does not pull focus back to its button as the dialog opens.
    */
-  const [inviteOpen, setInviteOpen] = useState(false);
+  const handingToDialog = useRef(false);
+  const menuCloseFocus = (event: Event) => {
+    if (!handingToDialog.current) return;
+    handingToDialog.current = false;
+    event.preventDefault();
+  };
+  const addButton = useRef<HTMLButtonElement>(null);
 
-  const domain =
-    sites.find((site) => site.id === websiteId)?.domain ?? "this website";
+  const domain = sites.find((site) => site.id === websiteId)?.domain ?? t.thisWebsite;
+
+  const isCurrent = (id: string) => wantedSite.current === id;
+  const applyLists = (lists: MemberLists) => {
+    setMembers(lists.members);
+    setInvitations(lists.invitations);
+    setLoadState("idle");
+  };
 
   /**
-   * Loads the people on a site.
-   *
-   * Driven by the change event rather than an effect on websiteId. An effect
-   * would also have to re-sync whenever the server re-rendered this panel, and
-   * a router.refresh() hands back a new initialMembers array each time — so a
-   * late server prop could overwrite the list for the site actually picked.
-   * Fetching where the choice is made has no such race.
-   *
-   * Fetched rather than navigated because the choice is local to this panel;
-   * putting it in the URL would make the rest of Settings, which follows the
-   * sidebar's website, disagree with it. The server action re-checks access,
-   * so a forged id throws rather than returning someone else's collaborators.
+   * Loads the people on a site, driven by the choice itself rather than an
+   * effect on websiteId (an effect would also re-run on every server
+   * re-render). The server action re-checks access, so a forged id throws
+   * rather than returning someone else's collaborators.
    */
   async function loadMembers(id: string) {
-    setLoadingMembers(true);
-    try {
-      /*
-        Both lists in parallel: they render in one table, so arriving
-        separately would show the members and then reflow as the pending
-        rows appeared underneath them.
-      */
-      const [rows, pending] = await Promise.all([
-        listWebsiteMembers(id),
-        listWebsiteInvitations(id),
-      ]);
-      // Ignore a slow reply for a site that is no longer the chosen one.
-      if (wantedSite.current !== id) return;
-      setMembers(rows);
-      setInvitations(pending);
-    } catch {
-      if (wantedSite.current !== id) return;
+    setLoadState("loading");
+    const outcome = await syncMembers(id, isCurrent, fetchLists, applyLists);
+    if (outcome === "failed") {
       setMembers([]);
       setInvitations([]);
-      toast.error("Could not load who works on this website.");
-    } finally {
-      if (wantedSite.current === id) setLoadingMembers(false);
+      setLoadState("error");
     }
   }
 
   function pickWebsite(id: string) {
     wantedSite.current = id;
     setWebsiteId(id);
-    // Clear first: showing the previous site's people under a new domain, even
-    // briefly, reads as though those people have access to it.
+    // Clear first: the previous site's people under a new domain, even
+    // briefly, would read as though they have access to it.
     setMembers([]);
     setInvitations([]);
     void loadMembers(id);
   }
 
   /*
-    Keeps the list current without a reload. It was read once, when Settings
-    opened, so an invitation accepted meanwhile still showed "Invited" until
-    the owner reloaded (client, 2026-10-03). Re-read quietly - no spinner, no
-    error toast - when the tab comes back into view, and every 20 seconds
-    while an invitation is still waiting, which is exactly when someone may be
-    accepting it. Guarded like loadMembers: a reply for a site no longer
-    picked is dropped.
+    Keeps the list current without a reload: quietly (no spinner, no error)
+    when the tab comes back into view, and every 20 seconds while an
+    invitation is still waiting - exactly when someone may be accepting it.
   */
   const waiting = invitations.some((invitation) => !invitation.expired);
   useEffect(() => {
-    async function quietly() {
+    function quietly() {
       if (document.visibilityState === "hidden") return;
-      const id = wantedSite.current;
-      try {
-        const [rows, open] = await Promise.all([listWebsiteMembers(id), listWebsiteInvitations(id)]);
-        if (wantedSite.current !== id) return;
-        setMembers(rows);
-        setInvitations(open);
-      } catch {
-        // A background check that fails changes nothing on screen.
-      }
+      // A background check that fails changes nothing on screen.
+      void syncMembers(
+        wantedSite.current,
+        (id) => wantedSite.current === id,
+        fetchLists,
+        (lists) => {
+          setMembers(lists.members);
+          setInvitations(lists.invitations);
+          setLoadState("idle");
+        },
+      );
     }
-    const onReturn = () => void quietly();
-    window.addEventListener("focus", onReturn);
-    document.addEventListener("visibilitychange", onReturn);
-    const timer = waiting ? window.setInterval(onReturn, 20_000) : null;
+    window.addEventListener("focus", quietly);
+    document.addEventListener("visibilitychange", quietly);
+    const timer = waiting ? window.setInterval(quietly, 20_000) : null;
     return () => {
-      window.removeEventListener("focus", onReturn);
-      document.removeEventListener("visibilitychange", onReturn);
+      window.removeEventListener("focus", quietly);
+      document.removeEventListener("visibilitychange", quietly);
       if (timer !== null) window.clearInterval(timer);
     };
   }, [waiting, websiteId]);
 
-  /** Re-reads the current site's list after a change, without a navigation. */
-  async function refreshMembers() {
-    try {
-      const [rows, pending] = await Promise.all([
-        listWebsiteMembers(websiteId),
-        listWebsiteInvitations(websiteId),
-      ]);
-      setMembers(rows);
-      setInvitations(pending);
-    } catch {
-      router.refresh();
-    }
+  /**
+   * Re-reads the site an action was taken on, after it, and applies the
+   * answer only if that site is still the one on screen.
+   */
+  async function refreshAfterAction(id: string) {
+    const outcome = await syncMembers(id, isCurrent, fetchLists, applyLists);
+    if (outcome === "failed") router.refresh();
   }
 
-  function invite(event: React.FormEvent<HTMLFormElement>) {
+  function openInvite(open: boolean) {
+    setInviteOpen(open);
+    if (!open) setInviteError(null);
+  }
+
+  function invite(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const cleaned = email.trim().toLowerCase();
+    if (!EMAIL_SHAPE.test(cleaned)) {
+      setInviteError({ target: "email", message: t.invalidEmail });
+      emailField.current?.focus();
+      return;
+    }
+    if (ownEmail && cleaned === ownEmail.trim().toLowerCase()) {
+      setInviteError({ target: "email", message: t.inviteSelf });
+      emailField.current?.focus();
+      return;
+    }
+    setInviteError(null);
+    const id = websiteId;
+    const siteDomain = domain;
+
     startTransition(async () => {
-      const result = await addWebsiteMember(websiteId, email, role);
+      let result: Awaited<ReturnType<typeof addWebsiteMember>>;
+      try {
+        result = await addWebsiteMember(id, email, role);
+      } catch {
+        setInviteError({ target: "form", message: t.inviteFailed });
+        return;
+      }
       if (!result.ok) {
-        toast.error(result.error);
+        setInviteError({ target: "form", message: result.error });
         return;
       }
 
       /*
-        The two paths produce different truths, so they say different things.
-        "Can now work on" is false for someone who has only been emailed a
-        link — they cannot do anything until they accept it, and telling the
-        owner otherwise is how a pending invitation gets forgotten.
+        The two paths produce different truths, so they say different things:
+        someone only emailed a link cannot do anything until they accept it.
       */
       if (result.data.invited) {
-        toast.success(`${t.inviteSent} - ${email}`);
+        toast.success(`${t.inviteSent} - ${cleaned}`);
       } else if (result.data.emailSent) {
-        toast.success(`${email} can now work on ${domain}`);
+        toast.success(format(t.accessGranted, { email: cleaned, domain: siteDomain }));
       } else {
-        /*
-          Access was granted but the notification did not send. Reported
-          rather than swallowed: the owner is the only person who can tell
-          them, and they will assume we did.
-        */
-        toast.success(
-          `${email} can now work on ${domain}, but we could not email them.`,
-        );
+        // Granted, but the notification did not send: the owner must tell them.
+        toast.success(format(t.accessGrantedNoEmail, { email: cleaned, domain: siteDomain }));
       }
-
       setEmail("");
+      setRole("editor");
       setInviteOpen(false);
-      await refreshMembers();
+      await refreshAfterAction(id);
     });
   }
 
-  function remove(memberId: string, memberEmail: string) {
-    setBusyId(memberId);
-    startTransition(async () => {
-      const result = await removeWebsiteMember(websiteId, memberId);
-      setBusyId(null);
-      if (!result.ok) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success(`${memberEmail} no longer has access`);
-      await refreshMembers();
-    });
-  }
-
-  /** Sends a fresh link. The old one stops working — see the action. */
+  /** Sends a fresh link; the old one stops working. Not destructive, so no confirmation. */
   function resend(invitationId: string, inviteEmail: string) {
+    const id = websiteId;
     setBusyId(invitationId);
     startTransition(async () => {
-      const result = await resendWebsiteInvitation(websiteId, invitationId);
+      let result: ActionResult<null>;
+      try {
+        result = await resendWebsiteInvitation(id, invitationId);
+      } catch {
+        setBusyId(null);
+        toast.error(t.actionFailed);
+        return;
+      }
       setBusyId(null);
       if (!result.ok) {
         toast.error(result.error);
         return;
       }
       toast.success(`${t.inviteResent} - ${inviteEmail}`);
-      await refreshMembers();
+      await refreshAfterAction(id);
     });
   }
 
-  /** Withdraws it, which is what makes the emailed link stop working. */
-  function revoke(invitationId: string, inviteEmail: string) {
-    setBusyId(invitationId);
+  function askToConfirm(next: Confirming) {
+    confirmRow.current = next.id;
+    handingToDialog.current = true;
+    setConfirmError(null);
+    setConfirming(next);
+  }
+
+  /** Removing access or withdrawing an invitation, once confirmed in the dialog. */
+  function runConfirmed() {
+    if (!confirming) return;
+    const { kind, id: rowId, email: rowEmail } = confirming;
+    const id = websiteId;
+    setConfirmError(null);
+    setBusyId(rowId);
     startTransition(async () => {
-      const result = await revokeWebsiteInvitation(websiteId, invitationId);
-      setBusyId(null);
-      if (!result.ok) {
-        toast.error(result.error);
+      let result: ActionResult<null>;
+      try {
+        result = kind === "remove" ? await removeWebsiteMember(id, rowId) : await revokeWebsiteInvitation(id, rowId);
+      } catch {
+        setBusyId(null);
+        setConfirmError(t.actionFailed);
         return;
       }
-      toast.success(`${t.inviteCancelled} - ${inviteEmail}`);
-      await refreshMembers();
+      setBusyId(null);
+      if (!result.ok) {
+        setConfirmError(result.error);
+        return;
+      }
+      setConfirming(null);
+      toast.success(
+        kind === "remove" ? format(t.accessRemoved, { email: rowEmail }) : `${t.inviteCancelled} - ${rowEmail}`,
+      );
+      await refreshAfterAction(id);
     });
   }
 
-  /* The table is empty only when BOTH lists are. */
-  const nothingToShow = members.length === 0 && invitations.length === 0;
+  const roleLabel = (value: string) =>
+    value === "admin" ? t.roleAdmin : value === "viewer" ? t.roleViewer : value === "editor" ? t.roleEditor : value;
+  const expiry = (value: Date) =>
+    formatDate(value, locale, { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+
+  const guests = members.filter((person) => !person.isWorkspace);
+  const onlyWorkspace = loadState === "idle" && guests.length === 0 && invitations.length === 0;
 
   return (
-    <Card>
-      {/*
-        Title on the left, "Add member" on the right, as the design has it.
-        The site picker sits under the title rather than in the dialog: it
-        decides what the whole table means, not just what an invite applies to.
-      */}
-      <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
-        <div className="space-y-1.5">
-          <CardTitle className="text-base">{t.membersTitle}</CardTitle>
-          <CardDescription>{t.membersSubtitle}</CardDescription>
-        </div>
-
-        <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+    <WorkspaceSection
+      id="members"
+      icon={Users}
+      title={t.membersTitle}
+      description={t.membersSubtitle}
+      actions={
+        <Dialog open={inviteOpen} onOpenChange={openInvite}>
           <DialogTrigger asChild>
-            <Button size="sm">
+            <Button ref={addButton} size="sm">
               <UserPlus className="size-4" aria-hidden="true" />
               {t.addMember}
             </Button>
           </DialogTrigger>
-
-          <DialogContent closeLabel={t.cancel}>
+          {/* No zoom for people who asked for reduced motion (the shared dialog's own animation has no such variant). */}
+          <DialogContent closeLabel={tWorkspace.close} className="sm:max-w-md motion-reduce:animate-none!">
             <DialogHeader>
               <DialogTitle>{t.addMember}</DialogTitle>
-              <DialogDescription>{t.addMemberHelp}</DialogDescription>
+              <DialogDescription>
+                {t.addMemberHelp} {format(t.inviteTo, { domain })}
+              </DialogDescription>
             </DialogHeader>
 
-            <form onSubmit={invite} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="member-email">{t.emailLabel}</Label>
-                <Input
-                  id="member-email"
-                  type="email"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  placeholder={t.emailPlaceholder}
-                  autoComplete="off"
-                />
-              </div>
+            <form onSubmit={invite} noValidate className="space-y-5">
+              <Field
+                id="member-email"
+                label={t.emailLabel}
+                error={inviteError?.target === "email" ? inviteError.message : null}
+                required
+                t={tWorkspace}
+              >
+                {(props) => (
+                  <Input
+                    {...props}
+                    ref={emailField}
+                    type="email"
+                    inputMode="email"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    placeholder={t.emailPlaceholder}
+                    autoComplete="off"
+                    readOnly={pending}
+                  />
+                )}
+              </Field>
 
-              <div className="space-y-2">
-                <Label htmlFor="member-role">{t.roleColumn}</Label>
-                <Select
-                  value={role}
-                  onValueChange={(next) => setRole(next as "editor" | "viewer")}
-                >
-                  <SelectTrigger id="member-role" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="editor">{t.roleEditor}</SelectItem>
-                    <SelectItem value="viewer">{t.roleViewer}</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">{t.roleHelp}</p>
-              </div>
+              {/* Two roles as a real radio group, each saying what it allows. */}
+              <fieldset className="min-w-0 space-y-2">
+                <legend className="text-sm font-medium text-foreground">{t.roleColumn}</legend>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {(["editor", "viewer"] as const).map((option) => (
+                    <label
+                      key={option}
+                      className={cn(
+                        "flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors motion-reduce:transition-none",
+                        "has-focus-visible:ring-3 has-focus-visible:ring-ring/50",
+                        role === option ? "border-primary/40 bg-primary/5" : "hover:bg-muted/40",
+                      )}
+                    >
+                      <input
+                        type="radio"
+                        name="member-role"
+                        value={option}
+                        checked={role === option}
+                        onChange={() => setRole(option)}
+                        disabled={pending}
+                        className="mt-0.5 size-4 shrink-0 accent-primary outline-none"
+                      />
+                      <span className="min-w-0">
+                        <span className="block text-sm font-medium text-foreground">
+                          {option === "editor" ? t.roleEditor : t.roleViewer}
+                        </span>
+                        <span className="block text-xs leading-5 text-muted-foreground">
+                          {option === "editor" ? t.roleEditorHelp : t.roleViewerHelp}
+                        </span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+                <p className="text-xs leading-5 text-muted-foreground">{t.reinviteHelp}</p>
+              </fieldset>
+
+              {inviteError?.target === "form" ? (
+                <Notice tone="danger" role="alert">
+                  {inviteError.message}
+                </Notice>
+              ) : null}
 
               <DialogFooter>
-                <Button type="submit" disabled={pending || !email.trim()}>
+                <Button type="button" variant="outline" onClick={() => openInvite(false)} disabled={pending}>
+                  {t.cancel}
+                </Button>
+                <Button type="submit" disabled={pending}>
                   {pending ? (
-                    <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                    <Loader2 className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
                   ) : (
                     <UserPlus className="size-4" aria-hidden="true" />
                   )}
-                  {t.invite}
+                  {pending ? t.inviting : t.invite}
                 </Button>
               </DialogFooter>
             </form>
           </DialogContent>
         </Dialog>
-      </CardHeader>
-
-      <CardContent className="space-y-4">
-        {/*
-          Which site, when there is a choice to make. With one website this
-          would be a control with a single option, and the table's own empty
-          state already names the site.
-        */}
-        {sites.length > 1 ? (
-          <div className="max-w-xs space-y-2">
-            <Label htmlFor="member-website">{t.websiteLabel}</Label>
-            <Select value={websiteId} onValueChange={pickWebsite}>
-              <SelectTrigger id="member-website" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {sites.map((site) => (
-                  <SelectItem key={site.id} value={site.id}>
-                    {site.domain}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+      }
+    >
+      <div className="space-y-4">
+        {viewingSharedDomain ? (
+          <Notice tone="info">{format(t.viewingSharedNote, { domain: viewingSharedDomain })}</Notice>
         ) : null}
 
-        {loadingMembers ? (
-          <div className="flex items-center justify-center gap-2 rounded-xl border border-dashed p-8 text-sm text-muted-foreground">
-            <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+        {/*
+          Which website this list is about, always. With several, a picker
+          (held still while an action is in flight); with one, its name -
+          the table used to give no hint which site it described.
+        */}
+        {sites.length > 1 ? (
+          <Field id="member-website" label={t.websiteLabel} t={tWorkspace} className="max-w-xs">
+            {(props) => (
+              <Select value={websiteId} onValueChange={pickWebsite} disabled={pending}>
+                <SelectTrigger id={props.id} aria-describedby={props["aria-describedby"]} className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {sites.map((site) => (
+                    <SelectItem key={site.id} value={site.id}>
+                      {site.domain}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </Field>
+        ) : (
+          <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+            <span className="text-xs text-muted-foreground">{t.websiteLabel}</span>
+            <span className="text-sm font-medium wrap-anywhere text-foreground">{domain}</span>
+          </p>
+        )}
+
+        {loadState === "loading" ? (
+          <div
+            role="status"
+            className="flex items-center justify-center gap-2 rounded-lg border border-dashed p-8 text-sm text-muted-foreground"
+          >
+            <Loader2 className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
             {t.loadingPeople}
           </div>
+        ) : loadState === "error" ? (
+          <Notice
+            tone="danger"
+            role="alert"
+            action={
+              <Button size="sm" variant="outline" onClick={() => void loadMembers(websiteId)}>
+                {t.retry}
+              </Button>
+            }
+          >
+            {t.loadPeopleFailed}
+          </Notice>
         ) : (
-          /*
-            A real table with Member / Role / Status headings, as drawn. The
-            list was an unlabelled stack of rows before, which left the role
-            pill and the trash icon to explain themselves.
-          */
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t.memberColumn}</TableHead>
-                <TableHead>{t.roleColumn}</TableHead>
-                <TableHead>{t.statusColumn}</TableHead>
-                {/* The ⋮ column. Headed for screen readers, blank on screen. */}
-                <TableHead className="w-12">
-                  <span className="sr-only">{t.actionsColumn}</span>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-
-            <TableBody>
-              {nothingToShow ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={4}
-                    className="py-10 text-center text-sm text-muted-foreground"
-                  >
-                    {t.nobodyElse}
-                  </TableCell>
+          <div className="overflow-hidden rounded-lg border">
+            <Table minWidth="34rem">
+              <caption className="sr-only">{format(t.membersCaption, { domain })}</caption>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="px-4 text-xs text-muted-foreground">{t.memberColumn}</TableHead>
+                  <TableHead className="text-xs text-muted-foreground">{t.roleColumn}</TableHead>
+                  <TableHead className="text-xs text-muted-foreground">{t.statusColumn}</TableHead>
+                  {/* The ⋮ column: headed for screen readers, blank on screen. */}
+                  <TableHead className="w-12 pr-4">
+                    <span className="sr-only">{t.actionsColumn}</span>
+                  </TableHead>
                 </TableRow>
-              ) : (
-                members.map((member) => (
-                  <TableRow key={member.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        {/*
-                          Initials in a coloured disc, as the design has it.
+              </TableHeader>
 
-                          Derived from the name rather than stored: an avatar
-                          upload is a file-handling feature, and initials
-                          identify somebody in a short list perfectly well. The
-                          colour comes from the email so a given person is the
-                          same colour every time — a random one would reshuffle
-                          on every render and stop being a recognition aid.
+              <TableBody>
+                {members.map((person) => (
+                  <TableRow key={person.id}>
+                    <TableCell className="px-4">
+                      <div className="flex min-w-0 items-center gap-3">
+                        {/*
+                          Initials in a disc, coloured from the email so a
+                          person keeps their colour; derived, not uploaded.
                         */}
                         <span
-                          className={`flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white ${avatarColour(
-                            member.email,
-                          )}`}
+                          className={cn(
+                            "flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white",
+                            avatarColour(person.email),
+                          )}
                           aria-hidden="true"
                         >
-                          {initials(member.name || member.email)}
+                          {initials(person.name || person.email)}
                         </span>
-
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-medium">
-                            {member.name || member.email}
-                          </p>
-                          <p className="truncate text-sm text-muted-foreground">
-                            {member.email}
-                          </p>
+                          <p className="truncate text-sm font-medium text-foreground">{person.name || person.email}</p>
+                          <p className="truncate text-sm text-muted-foreground">{person.email}</p>
                         </div>
                       </div>
                     </TableCell>
-
                     <TableCell>
-                      <span className="flex items-center gap-1.5">
-                        {/* The crown the design puts beside Admin. */}
-                        {member.isWorkspace ? (
-                          <Crown
-                            className="size-4 shrink-0 text-amber-500"
-                            aria-hidden="true"
-                          />
+                      <span className="inline-flex items-center gap-1.5">
+                        {person.isWorkspace ? (
+                          <Crown className="size-4 shrink-0 text-amber-500" aria-hidden="true" />
                         ) : null}
-                        <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium capitalize">
-                          {member.role}
+                        <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-foreground">
+                          {roleLabel(person.role)}
                         </span>
                       </span>
                     </TableCell>
-
-                    {/*
-                      Everyone listed has working access: the workspace rows
-                      hold it through the account, and a website_members row
-                      exists only once someone has an account to match. So the
-                      column the design draws reads Active for every row —
-                      which is true, rather than a placeholder. It becomes
-                      worth reading the day pending invitations are listed
-                      here too.
-                    */}
+                    {/* Everyone listed has working access, so every member row reads Active. */}
                     <TableCell>
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-600">
-                        <span
-                          className="size-1.5 rounded-full bg-emerald-500"
-                          aria-hidden="true"
-                        />
-                        {t.active}
-                      </span>
+                      <StatusBadge status="active" label={t.active} />
                     </TableCell>
-
-                    <TableCell>
+                    <TableCell className="pr-4">
                       {/*
-                        No menu for the workspace people. Their access comes
-                        from the account, so there is no website_members row to
-                        delete — a "Remove" that silently did nothing would be
-                        worse than no control at all. Removing them is a
-                        workspace change, not a per-site one.
+                        No menu for the workspace's own people: their access
+                        is the account, so there is no per-site row to delete.
                       */}
-                      {member.isWorkspace ? (
-                        <span className="sr-only">
-                          {member.email} has access through the workspace
-                        </span>
+                      {person.isWorkspace ? (
+                        <span className="sr-only">{format(t.workspaceAccess, { email: person.email })}</span>
                       ) : (
-                        <DropdownMenu>
+                        <DropdownMenu modal={false}>
                           <DropdownMenuTrigger asChild>
                             <Button
                               variant="ghost"
                               size="icon"
                               disabled={pending}
-                              aria-label={`Manage ${member.email}`}
+                              data-row-menu={person.id}
+                              aria-label={format(t.manageMember, { email: person.email })}
                               className="text-muted-foreground"
                             >
-                              {busyId === member.id ? (
-                                <Loader2 className="size-4 animate-spin" />
+                              {busyId === person.id ? (
+                                <Loader2 className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
                               ) : (
-                                <MoreVertical className="size-4" />
+                                <MoreVertical className="size-4" aria-hidden="true" />
                               )}
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
+                          <DropdownMenuContent align="end" onCloseAutoFocus={menuCloseFocus}>
                             <DropdownMenuItem
                               variant="destructive"
-                              onClick={() => remove(member.id, member.email)}
+                              onSelect={() => askToConfirm({ kind: "remove", id: person.id, email: person.email })}
                             >
                               <Trash2 className="size-4" aria-hidden="true" />
                               {t.removeAccess}
@@ -545,135 +599,153 @@ export function WebsiteMembers({
                       )}
                     </TableCell>
                   </TableRow>
-                ))
-              )}
+                ))}
 
-              {/*
-                Pending invitations, under the people who actually have
-                access.
-
-                BELOW rather than interleaved by date: these are not members
-                yet, and mixing them into the list would mean the owner has to
-                read the Status column to know who can currently do anything.
-                Ordered after, they read as what they are — an outbox.
-
-                Dimmed, and with no avatar disc. The disc is a recognition aid
-                built from a name, and an invited person has no account and so
-                no name; an initial derived from their email address would
-                invent an identity for somebody who has not yet accepted.
-              */}
-              {invitations.map((invitation) => (
-                <TableRow key={invitation.id} className="bg-muted/20">
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <span
-                        className="flex size-9 shrink-0 items-center justify-center rounded-full border border-dashed text-muted-foreground"
-                        aria-hidden="true"
-                      >
-                        <UserPlus className="size-4" />
-                      </span>
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium text-muted-foreground">
-                          {invitation.email}
-                        </p>
-                        <p className="truncate text-xs text-muted-foreground">
-                          {/*
-                            The date is when the invitation EXPIRES, and says
-                            so: shown bare after "Invited", in the browser's
-                            US order (10/9/2026), it read as "invited on
-                            10 September".
-                          */}
-                          {invitation.expired
-                            ? t.statusExpired
-                            : `${t.statusPending} · ${format(t.invitationExpiresOn, {
-                                date: formatDate(invitation.expiresAt, locale, {
-                                  day: "numeric",
-                                  month: "short",
-                                  year: "numeric",
-                                  timeZone: "UTC",
-                                }),
-                              })}`}
-                        </p>
+                {/*
+                  Pending invitations under the people who have access - an
+                  outbox, not members yet. Dashed disc, no initials: an invited
+                  person has no account and so no name to draw from.
+                */}
+                {invitations.map((invitation) => (
+                  <TableRow key={invitation.id} className="bg-muted/20">
+                    <TableCell className="px-4">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span
+                          className="flex size-9 shrink-0 items-center justify-center rounded-full border border-dashed text-muted-foreground"
+                          aria-hidden="true"
+                        >
+                          <UserPlus className="size-4" />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-foreground">{invitation.email}</p>
+                          <p className="truncate text-xs text-muted-foreground">
+                            {/* When the invitation EXPIRES, and saying so. */}
+                            {invitation.expired
+                              ? t.statusExpired
+                              : `${t.statusPending} · ${format(t.invitationExpiresOn, { date: expiry(invitation.expiresAt) })}`}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  </TableCell>
-
-                  <TableCell>
-                    <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium capitalize text-muted-foreground">
-                      {invitation.role}
-                    </span>
-                  </TableCell>
-
-                  <TableCell>
-                    {/*
-                      Amber for waiting, grey for expired — never the green
-                      the member rows use. The whole point of this column is
-                      that these two states are not the same as Active.
-                    */}
-                    {invitation.expired ? (
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
-                        <span
-                          className="size-1.5 rounded-full bg-muted-foreground/60"
-                          aria-hidden="true"
-                        />
-                        {t.statusExpired}
+                    </TableCell>
+                    <TableCell>
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                        {roleLabel(invitation.role)}
                       </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-600">
-                        <span
-                          className="size-1.5 rounded-full bg-amber-500"
-                          aria-hidden="true"
-                        />
-                        {t.statusPending}
-                      </span>
-                    )}
-                  </TableCell>
-
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          disabled={pending}
-                          aria-label={`Manage the invitation for ${invitation.email}`}
-                          className="text-muted-foreground"
-                        >
-                          {busyId === invitation.id ? (
-                            <Loader2 className="size-4 animate-spin" />
-                          ) : (
-                            <MoreVertical className="size-4" />
-                          )}
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() =>
-                            resend(invitation.id, invitation.email)
-                          }
-                        >
-                          <Send className="size-4" aria-hidden="true" />
-                          {t.resendInvite}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          variant="destructive"
-                          onClick={() =>
-                            revoke(invitation.id, invitation.email)
-                          }
-                        >
-                          <MailX className="size-4" aria-hidden="true" />
-                          {t.cancelInvite}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                    </TableCell>
+                    <TableCell>
+                      {/* Amber for waiting, grey for expired - never the Active green. */}
+                      {invitation.expired ? (
+                        <StatusBadge status="expired" label={t.statusExpired} tone="neutral" />
+                      ) : (
+                        <StatusBadge status="pending" label={t.statusPending} tone="warning" />
+                      )}
+                    </TableCell>
+                    <TableCell className="pr-4">
+                      <DropdownMenu modal={false}>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            disabled={pending}
+                            data-row-menu={invitation.id}
+                            aria-label={format(t.manageInvitation, { email: invitation.email })}
+                            className="text-muted-foreground"
+                          >
+                            {busyId === invitation.id ? (
+                              <Loader2 className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+                            ) : (
+                              <MoreVertical className="size-4" aria-hidden="true" />
+                            )}
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" onCloseAutoFocus={menuCloseFocus}>
+                          <DropdownMenuItem onSelect={() => resend(invitation.id, invitation.email)}>
+                            <Send className="size-4" aria-hidden="true" />
+                            {t.resendInvite}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onSelect={() => askToConfirm({ kind: "revoke", id: invitation.id, email: invitation.email })}
+                          >
+                            <MailX className="size-4" aria-hidden="true" />
+                            {t.cancelInvite}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         )}
-      </CardContent>
-    </Card>
+
+        {onlyWorkspace ? <p className="text-sm text-muted-foreground">{t.nobodyElse}</p> : null}
+      </div>
+
+      {/*
+        The confirmation for the two destructive actions. Focus returns to the
+        row's menu button afterwards, or to "Add member" when the row is gone.
+      */}
+      <Dialog
+        open={confirming !== null}
+        onOpenChange={(open) => {
+          if (!open && !pending) setConfirming(null);
+        }}
+      >
+        <DialogContent
+          closeLabel={tWorkspace.close}
+          className="motion-reduce:animate-none!"
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            const row = confirmRow.current;
+            const trigger = row
+              ? document.querySelector<HTMLButtonElement>(`[data-row-menu="${CSS.escape(row)}"]`)
+              : null;
+            (trigger && !trigger.disabled ? trigger : addButton.current)?.focus();
+          }}
+        >
+          {confirming ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>
+                  {format(confirming.kind === "remove" ? t.removeConfirmTitle : t.cancelInviteConfirmTitle, {
+                    email: confirming.email,
+                  })}
+                </DialogTitle>
+                <DialogDescription>
+                  {confirming.kind === "remove"
+                    ? format(t.removeConfirmBody, { domain })
+                    : t.cancelInviteConfirmBody}
+                </DialogDescription>
+              </DialogHeader>
+              {confirmError ? (
+                <Notice tone="danger" role="alert">
+                  {confirmError}
+                </Notice>
+              ) : null}
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setConfirming(null)} disabled={pending}>
+                  {confirming.kind === "remove" ? t.keepAccess : t.keepInvitation}
+                </Button>
+                <Button variant="destructive" onClick={runConfirmed} disabled={pending}>
+                  {pending ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+                      {confirming.kind === "remove" ? t.removing : t.cancellingInvite}
+                    </>
+                  ) : confirming.kind === "remove" ? (
+                    t.removeAccess
+                  ) : (
+                    t.cancelInvite
+                  )}
+                </Button>
+              </DialogFooter>
+            </>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+    </WorkspaceSection>
   );
 }
 
@@ -686,20 +758,11 @@ function initials(value: string): string {
 }
 
 /**
- * A stable colour per person, picked from the email.
- *
- * A fixed palette rather than a generated hue: these are Tailwind classes, so
- * an arbitrary colour would need inline styles, and six well-chosen ones all
- * carry white text legibly. A generated hue does not guarantee that.
+ * A stable colour per person, picked from the email: a fixed palette that
+ * all carries white text legibly, so a given person is the same colour every
+ * time.
  */
-const AVATAR_COLOURS = [
-  "bg-violet-500",
-  "bg-sky-500",
-  "bg-emerald-500",
-  "bg-amber-500",
-  "bg-rose-500",
-  "bg-indigo-500",
-];
+const AVATAR_COLOURS = ["bg-violet-500", "bg-sky-500", "bg-emerald-500", "bg-amber-500", "bg-rose-500", "bg-indigo-500"];
 
 function avatarColour(email: string): string {
   let hash = 0;

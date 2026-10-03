@@ -354,6 +354,288 @@ export type Messages = {
    * to satisfy, and a missing key in any language is a compile error.
    */
   app: {
+    /**
+     * Shared pieces of the redesigned workspace pages: the save bar, the
+     * section navigation, field hints and the view-only notice.
+     */
+    workspace: {
+      /** The save bar's button. */
+      save: string;
+      /** While a save is in flight. */
+      saving: string;
+      /** After the server confirmed a save. */
+      saved: string;
+      /** Puts every field back to its saved value. */
+      discard: string;
+      /** Pending edits, one|many with {count}. */
+      unsaved: string;
+      /** Nothing waiting to be saved. */
+      noChanges: string;
+      /** A refused or failed save; {error} is the server's message. */
+      saveFailed: string;
+      /** Asked before following a link with unsaved edits. */
+      leaveConfirm: string;
+      /** Heading of the section navigation. */
+      onThisPage: string;
+      /** Label of the section navigation on phones. */
+      jumpTo: string;
+      /** Marks an optional field. */
+      optional: string;
+      /** Marks a required field. */
+      required: string;
+      /** Under a limited field, one|many with {count}. */
+      charactersLeft: string;
+      /** Over a limit, one|many with {count}. */
+      overLimit: string;
+      /** Shown to a viewer instead of editable controls. */
+      viewOnly: string;
+      /** Marks a control that saves the moment it changes. */
+      savesImmediately: string;
+      /** Marks a group saved by the Save button. */
+      savedWithButton: string;
+      /** After a save while more edits were made. */
+      editsKept: string;
+      /** Opens a larger preview. */
+      preview: string;
+      /** Closes a dialog. */
+      close: string;
+      /** Marks the chosen option. */
+      selected: string;
+    };
+    /**
+     * Website health (/websites/[id]): the technical check of a site's pages.
+     * Placeholders: {domain}, {date}, {count} (with "one|many" plural pairs),
+     * {max}, {score}, {found}, {read}, {shown}, {total}, {checks}, {critical}.
+     */
+    health: {
+      title: string;
+      description: string;
+      checkNow: string;
+      checkAgain: string;
+      checking: string;
+      starting: string;
+      refreshStatus: string;
+      dismiss: string;
+      unavailableTitle: string;
+      siteNotReady: string;
+      errNoPlan: string;
+      errPlanInactive: string;
+      errQuota: string;
+      errUnexpected: string;
+      queuedTitle: string;
+      queuedBody: string;
+      queuedStale: string;
+      requestedAt: string;
+      runningTitle: string;
+      runningBody: string;
+      runningStale: string;
+      /** Shown under a stale queued/running notice to owners and editors only. */
+      staleRetry: string;
+      startedAt: string;
+      progressChecked: string;
+      progressFound: string;
+      progressLimit: string;
+      previousNotice: string;
+      failedTitle: string;
+      failedPrevious: string;
+      finishedTitle: string;
+      finishedBody: string;
+      /** Why a whole check failed, by the kind the stored error matches. */
+      failure: {
+        timeout: string;
+        notHtml: string;
+        tooLarge: string;
+        invalidUrl: string;
+        refused: string;
+        unreachable: string;
+        notEntitled: string;
+        generic: string;
+      };
+      /**
+       * The failures whose message tells the reader to try again, worded for
+       * a viewer, who cannot start a check.
+       */
+      failureViewer: {
+        timeout: string;
+        generic: string;
+      };
+      emptyTitle: string;
+      emptyBody: string;
+      emptyViewer: string;
+      firstRunTitle: string;
+      firstRunBody: string;
+      scoreTitle: string;
+      scoreDescription: string;
+      previousResult: string;
+      latestResult: string;
+      outOf: string;
+      scoreAria: string;
+      bandGood: string;
+      bandFair: string;
+      bandPoor: string;
+      noScore: string;
+      noScoreBody: string;
+      notScored: string;
+      zeroPagesTitle: string;
+      zeroPagesBody: string;
+      notAuthority: string;
+      lastChecked: string;
+      pagesRead: string;
+      pagesFailed: string;
+      addressesFound: string;
+      notRecorded: string;
+      severityTitle: string;
+      critical: string;
+      warnings: string;
+      suggestions: string;
+      inFindings: string;
+      severityAria: string;
+      /** The severity of ONE finding, in the singular. */
+      badge: { critical: string; warning: string; info: string };
+      coverageTitle: string;
+      coverageLimit: string;
+      coverageSameSite: string;
+      coverageQuery: string;
+      coverageSkipped: string;
+      coverageRefused: string;
+      coverageBeyond: string;
+      notAssessedTitle: string;
+      notAssessedBody: string;
+      /** The cross-page checks a one-page crawl cannot run (lib/audit/rules.ts). */
+      crossChecks: {
+        duplicateTitles: string;
+        duplicateDescriptions: string;
+        internalLinking: string;
+      };
+      findingsTitle: string;
+      findingsDescription: string;
+      findingsCount: string;
+      filterLabel: string;
+      filterAll: string;
+      searchLabel: string;
+      searchPlaceholder: string;
+      showingFiltered: string;
+      clearFilters: string;
+      noMatchTitle: string;
+      noMatchBody: string;
+      noFindingsTitle: string;
+      noFindingsBody: string;
+      pagesCount: string;
+      howToFix: string;
+      effortMinutes: string;
+      effortHour: string;
+      effortLonger: string;
+      needsDeveloper: string;
+      affectedPages: string;
+      homepage: string;
+      opensInNewTab: string;
+      showAllPages: string;
+      showFewerPages: string;
+      matchingPages: string;
+      notLoaded: string;
+      groupNote: string;
+      firstPageNote: string;
+      noUrl: string;
+      rowsCapped: string;
+      /** One affected page's own detail, rebuilt from the stored English sentence. */
+      detail: {
+        titleLong: string;
+        titleShort: string;
+        descriptionLong: string;
+        descriptionShort: string;
+        multipleH1: string;
+        thinContent: string;
+        imagesAlt: string;
+        largePage: string;
+        httpStatus: string;
+        duplicateTitle: string;
+        duplicateDescription: string;
+        noInternalLinks: string;
+        unreachTimeout: string;
+        unreachBlocked: string;
+        unreachPassword: string;
+        unreachStatus: string;
+        unreachNotHtml: string;
+        unreachRedirects: string;
+        unreachRedirectAway: string;
+        unreachConnect: string;
+        unreachUnknown: string;
+      };
+      /** Per issue type (the audit's own type names): name, what it means, how to fix it. */
+      issues: Record<
+        | "noindex"
+        | "broken_page"
+        | "unreachable_page"
+        | "missing_title"
+        | "title_too_long"
+        | "title_too_short"
+        | "missing_meta_description"
+        | "meta_description_too_long"
+        | "meta_description_too_short"
+        | "missing_h1"
+        | "multiple_h1"
+        | "thin_content"
+        | "images_missing_alt"
+        | "missing_canonical"
+        | "missing_lang"
+        | "large_page"
+        | "duplicate_title"
+        | "duplicate_meta_description"
+        | "no_internal_links",
+        { label: string; about: string; fix: string }
+      >;
+      siteTitle: string;
+      siteDescription: string;
+      siteLegacy: string;
+      siteUnavailable: string;
+      siteName: string;
+      siteNameMissing: string;
+      language: string;
+      languageMissing: string;
+      languageNote: string;
+      languageMissingNote: string;
+      platform: string;
+      platformUnknown: string;
+      platformNote: string;
+      platformUnknownNote: string;
+      previewImage: string;
+      previewMissing: string;
+      previewNote: string;
+      previewMissingNote: string;
+      previewBroken: string;
+      linkedTitle: string;
+      linkedHelp: string;
+      linkedEmpty: string;
+      aiTitle: string;
+      aiDescription: string;
+      aiLegacy: string;
+      /** A check that read no page: robots.txt was most likely unreadable too. */
+      aiUnreadable: string;
+      aiNoneBlocked: string;
+      aiSomeBlocked: string;
+      aiAllowed: string;
+      aiBlocked: string;
+      aiNamed: string;
+      aiCaveat: string;
+      aiNoGuarantee: string;
+      aiBlockedHelp: string;
+      aiVisibilityLink: string;
+      fixTitle: string;
+      fixSelf: string;
+      fixDeveloper: string;
+      fixHow: string;
+      fixUnavailable: string;
+      requestQuote: string;
+      mailSubject: string;
+      mailGreeting: string;
+      mailAsk: string;
+      mailCheckedOn: string;
+      mailCounts: string;
+      mailListTitle: string;
+      /** One finding in the email: {label} and {pages} (already "N pages"). */
+      mailLine: string;
+      mailThanks: string;
+    };
     settings: {
       /** Personal details card. */
       personalTitle: string;
@@ -418,6 +700,74 @@ export type Messages = {
       loadingPeople: string;
       roleEditor: string;
       roleViewer: string;
+      /** Account page header. */
+      pageTitle: string;
+      pageDescription: string;
+      /** Under the read-only email address. */
+      emailHelp: string;
+      nameRequired: string;
+      /** Sign-in and security section: the sign-in methods and their states. */
+      securityTitle: string;
+      securitySubtitle: string;
+      methodPassword: string;
+      methodGoogle: string;
+      methodSet: string;
+      methodNotSet: string;
+      methodLinked: string;
+      passwordSetSummary: string;
+      passwordNotSetSummary: string;
+      googleLinkedSummary: string;
+      /** The set-a-password intro when no Google account is linked. */
+      setPasswordIntroGeneric: string;
+      currentPasswordWrong: string;
+      passwordTooLong: string;
+      tooManyAttempts: string;
+      passwordAlreadySet: string;
+      /** Language section: the dashboard's language beside the articles'. */
+      languageTitle: string;
+      languageSubtitle: string;
+      languageSaved: string;
+      articleLanguageLabel: string;
+      articleLanguageHelp: string;
+      articleLanguageLink: string;
+      /** Members panel: roles, the invite dialog, results and confirmations. */
+      roleAdmin: string;
+      roleEditorHelp: string;
+      roleViewerHelp: string;
+      /** {domain}. */
+      inviteTo: string;
+      reinviteHelp: string;
+      invalidEmail: string;
+      inviteSelf: string;
+      inviteFailed: string;
+      actionFailed: string;
+      /** {email}, {domain}. */
+      accessGranted: string;
+      accessGrantedNoEmail: string;
+      /** {email}. */
+      accessRemoved: string;
+      loadPeopleFailed: string;
+      retry: string;
+      thisWebsite: string;
+      /** Screen-reader text and labels, with {email}. */
+      workspaceAccess: string;
+      manageMember: string;
+      manageInvitation: string;
+      /** The table's caption, {domain}. */
+      membersCaption: string;
+      removeConfirmTitle: string;
+      removeConfirmBody: string;
+      keepAccess: string;
+      cancelInviteConfirmTitle: string;
+      cancelInviteConfirmBody: string;
+      keepInvitation: string;
+      removing: string;
+      cancellingInvite: string;
+      inviting: string;
+      /** The panel manages the reader's own sites while a shared one ({domain}) is on screen. */
+      viewingSharedNote: string;
+      /** For someone who owns no site: {domain} shared with them as {role}. */
+      guestTeamNote: string;
     };
     websites: {
       title: string;
@@ -498,6 +848,76 @@ export type Messages = {
       purchaseCancelled: string;
       addWebsiteFirst: string;
       checkoutFailed: string;
+      /** Section titles; {domain} is the website the page describes. */
+      planFor: string;
+      choosePlan: string;
+      choosePlanFor: string;
+      choosePlanHelp: string;
+      /** Accessible name of the Monthly / Annual tabs. */
+      billingPeriod: string;
+      /** After a price. */
+      perMonth: string;
+      perYear: string;
+      /** {n} percent. */
+      saveBadge: string;
+      /** Plan and portal buttons. */
+      switchPlan: string;
+      payByCard: string;
+      redirecting: string;
+      opening: string;
+      cancelSubscription: string;
+      paypalCheckoutFailed: string;
+      portalFailed: string;
+      /** {email} becomes a mailto link. */
+      managedForYou: string;
+      /** Screen-reader note on links that open a new tab. */
+      newTab: string;
+      /** Upgrade strip: {plan}, and {articles}/{terms}/{credits} are plan feature lines. */
+      upgradeLead: string;
+      upgradeBody: string;
+      upgradeLink: string;
+      /** Subscription statuses, Stripe's vocabulary (PayPal mapped onto it). */
+      statusActive: string;
+      statusTrialing: string;
+      statusPastDue: string;
+      statusUnpaid: string;
+      statusIncomplete: string;
+      statusIncompleteExpired: string;
+      statusCanceled: string;
+      statusPaused: string;
+      statusInactive: string;
+      /** Notices under the plan summary. */
+      pastDueNotice: string;
+      unsettledNotice: string;
+      endedNotice: string;
+      /** Why one processor's buttons are missing. */
+      billedByPayPal: string;
+      billedByCard: string;
+      /** billedByCard once the card subscription is set to end: {date} is its period end. */
+      billedByCardEnding: string;
+      noPlanChange: string;
+      /** Return from PayPal (?paypal=success|cancelled). */
+      paypalApproved: string;
+      paypalCancelled: string;
+      /** {shared}: the shared website on screen, billed by its owner. */
+      viewingSharedNote: string;
+      /** For someone who owns no website and works on shared ones. */
+      guestTitle: string;
+      guestBody: string;
+      addWebsite: string;
+      /** Websites list: open another site's plan, or mark the one shown. */
+      viewPlan: string;
+      shownBelow: string;
+      /** Billing history table. */
+      paidByCard: string;
+      invoiceInPortal: string;
+      dateColumn: string;
+      descriptionColumn: string;
+      methodColumn: string;
+      amountColumn: string;
+      receiptColumn: string;
+      /** {count}. */
+      historyCapped: string;
     };
     article: {
       contentSeo: string;
@@ -556,6 +976,86 @@ export type Messages = {
       factsHelp: string;
       authorHelp: string;
       noBylineHelp: string;
+      /* --- Article Settings page, redesigned (sections A-G) --- */
+      pageTitle: string;
+      pageDescription: string;
+      sectionWriting: string;
+      sectionWritingHelp: string;
+      sectionSources: string;
+      sectionSourcesHelp: string;
+      sectionImages: string;
+      sectionImagesHelp: string;
+      sectionEnhancements: string;
+      sectionEnhancementsHelp: string;
+      sectionVoice: string;
+      sectionVoiceHelp: string;
+      sectionAuthor: string;
+      sectionAuthorHelp: string;
+      /** A stored id that is no longer offered, kept as it is; {value}. */
+      unknownOption: string;
+      linksError: string;
+      wordsError: string;
+      sitemapHint: string;
+      blogHint: string;
+      exampleHint: string;
+      urlError: string;
+      brandColourHint: string;
+      brandColourError: string;
+      noColour: string;
+      invalidColour: string;
+      /** aria-label of the native colour picker. */
+      pickColour: string;
+      clearColour: string;
+      imageStyleLabel: string;
+      imageStyleHint: string;
+      coverStyleLabel: string;
+      coverStyleHint: string;
+      samplesNote: string;
+      /** Under "Match article images"; {style} is the image style it follows. */
+      matchFollows: string;
+      matchFollowsUnknown: string;
+      /** aria-label of a card's preview button; {style}. */
+      previewStyle: string;
+      /** Preview dialog title; {style}. */
+      previewTitle: string;
+      /** Preview dialog title for "Match article images"; {style}. */
+      previewMatchTitle: string;
+      previewHelp: string;
+      /** Alt text of the enlarged example; {style}. */
+      sampleAlt: string;
+      /** A stored image style not among the cards; {value}. */
+      unknownImageStyle: string;
+      imageBriefHint: string;
+      tocHint: string;
+      youtubeHint: string;
+      perspectiveHint: string;
+      similarHint: string;
+      comparisonHint: string;
+      poweredByHint: string;
+      factsPlaceholder: string;
+      uspsPlaceholder: string;
+      /** one|many with {count} lines over and {max}. */
+      tooManyLines: string;
+      /** {line} number and {max} characters. */
+      lineTooLong: string;
+      fixFields: string;
+      saveError: string;
+      /** Under the save bar: what the Save button covers. */
+      saveBarNote: string;
+      autoOnHelp: string;
+      autoOffHelp: string;
+      anyDay: string;
+      pickedDays: string;
+      daysUtc: string;
+      firstArticleOnly: string;
+      networkReview: string;
+      openIntegrations: string;
+      weekdaysShort: { sun: string; mon: string; tue: string; wed: string; thu: string; fri: string; sat: string };
+      weekdaysLong: { sun: string; mon: string; tue: string; wed: string; thu: string; fri: string; sat: string };
+      /** Image style cards, by stored id (article-options IMAGE_STYLE_IDS). */
+      bodyImageStyles: Record<string, { label: string; hint: string }>;
+      /** Cover style cards, by stored id (article-options FEATURED_IMAGE_STYLE_IDS). */
+      coverImageStyles: Record<string, { label: string; hint: string }>;
       /** Editorial register options, by id. */
       styles: Record<string, { label: string; hint: string }>;
     };
@@ -605,6 +1105,144 @@ export type Messages = {
       sendingDraft: string;
       planningOutline: string;
       writingBody: string;
+      /* The article workspace (redesign 2026-10). {placeholders} are filled with format(). */
+      breadcrumbLabel: string;
+      targetKeywordLabel: string;
+      /** {date} */
+      lastSaved: string;
+      /** Accessible name of the Preview/Edit tab list. */
+      viewModeLabel: string;
+      /** Read out on the Edit tab when it holds unsaved changes. */
+      unsavedMark: string;
+      previewLabel: string;
+      previewUnsavedNow: string;
+      notWrittenYet: string;
+      workingPaused: string;
+      conflictTitle: string;
+      /** {fields}: the changed fields' names. */
+      conflictBody: string;
+      conflictLoad: string;
+      conflictKeep: string;
+      /** Why writing failed, by kind (lib/articles/explain.ts patterns). */
+      genUnavailable: string;
+      genBusy: string;
+      genTimeout: string;
+      genUnusable: string;
+      genQuota: string;
+      genGeneric: string;
+      /** Why a publish attempt failed, by provider error kind; provider-neutral. */
+      pubErrAuth: string;
+      pubErrPermission: string;
+      pubErrNotFound: string;
+      pubErrUnreachable: string;
+      pubErrApiDisabled: string;
+      pubErrUnsupported: string;
+      pubErrUnknown: string;
+      editSaveNote: string;
+      titleRequired: string;
+      /** {count}: characters a search result usually shows. */
+      metaHint: string;
+      /** {slug} */
+      slugSavedAs: string;
+      slugEmptyNote: string;
+      slugDropped: string;
+      slugWordPressNote: string;
+      searchPreviewTitle: string;
+      searchPreviewHelp: string;
+      saveArticle: string;
+      saveNoteWorking: string;
+      saveNoteDelivering: string;
+      saveNoteReview: string;
+      saveNoteTitle: string;
+      statsTitle: string;
+      statsHelp: string;
+      statsUnsaved: string;
+      publishingTitle: string;
+      publishingHelp: string;
+      destinationLabel: string;
+      destinationNone: string;
+      destinationPlugin: string;
+      manageConnection: string;
+      plannedLabel: string;
+      plannedNone: string;
+      autoLabel: string;
+      autoOnLive: string;
+      autoOnDraft: string;
+      autoOff: string;
+      beforePlanned: string;
+      stateNotSent: string;
+      /** {date} on each of the next six. */
+      stateLive: string;
+      stateDraft: string;
+      stateScheduled: string;
+      stateDelivered: string;
+      stateFailed: string;
+      statePluginUnconfirmed: string;
+      stateWriting: string;
+      stateFrozen: string;
+      stateReviewPending: string;
+      stateReviewChanged: string;
+      stateDelivering: string;
+      /** {time} */
+      stateQueued: string;
+      stateQueuedLong: string;
+      checkAgain: string;
+      /** {mode}: modeLive or modeDraft. */
+      statePluginWaiting: string;
+      modeLive: string;
+      modeDraft: string;
+      statePluginPublished: string;
+      stateUncertain: string;
+      uncertainPublishNote: string;
+      connectHelp: string;
+      blockedUnsaved: string;
+      alreadySentLive: string;
+      alreadySentDraft: string;
+      confirmDraftTitle: string;
+      confirmDraftBody: string;
+      /** {count} */
+      historyLatest: string;
+      historyEmpty: string;
+      logLive: string;
+      logDraft: string;
+      logScheduled: string;
+      logDelivered: string;
+      rewriteTitle: string;
+      /** {count}: rewrites per website per day. */
+      rewriteHelp: string;
+      rewriteConfirmTitle: string;
+      rewriteConfirmBody: string;
+      rewriteConfirmPublished: string;
+      rewriteConfirmReview: string;
+      rewriteConfirmUnsaved: string;
+      rewriteConfirmAction: string;
+      rewriteNoPlan: string;
+      rewriteBlocked: string;
+      /** {remaining} of {max} */
+      imagePromptHint: string;
+      imageGenerate: string;
+      imageReplace: string;
+      imageAltHint: string;
+      imageCheckAlt: string;
+      imageLockedWorking: string;
+      imageLockedDelivering: string;
+      imageTypeError: string;
+      /** {size} and {max}, in MB. */
+      imageSizeError: string;
+      imageNoAlt: string;
+      imageAltSaved: string;
+      errInFlight: string;
+      errNotWritten: string;
+      errConnectFirst: string;
+      errNotFound: string;
+      errRewriteCap: string;
+      errAlreadyWriting: string;
+      errNoActivePlan: string;
+      errImageStorage: string;
+      errImageGeneration: string;
+      metaNone: string;
+      searchPreviewUnsaved: string;
+      imageReviewNote: string;
     };
     analytics: {
       googleResults: string;
@@ -632,6 +1270,150 @@ export type Messages = {
       statusForbidden: string;
       statusInvalid: string;
       statusError: string;
+      /* The redesigned Google Search & Analytics page. */
+      pageTitle: string;
+      pageDescription: string;
+      /** Accessible name of the period links. */
+      rangeLabel: string;
+      /** A period link, {days}. */
+      rangeDays: string;
+      /** The period's first and last day, {start} and {end}. */
+      periodDates: string;
+      connectTitle: string;
+      searchConsoleName: string;
+      analyticsName: string;
+      searchConsolePurpose: string;
+      analyticsPurpose: string;
+      setupTitle: string;
+      setupStep1: string;
+      setupStep2: string;
+      setupStep3: string;
+      readOnlyAccess: string;
+      expiredTitle: string;
+      reconnectGoogle: string;
+      viewerCannotConnect: string;
+      connectionTitle: string;
+      connectionHelp: string;
+      notChosen: string;
+      /** Newest day a source reported, {date}. */
+      dataThrough: string;
+      noFiguresYet: string;
+      /** A GA property whose name is not known, {id}. */
+      analyticsPropertyId: string;
+      importNow: string;
+      manageConnection: string;
+      viewerSetupPending: string;
+      importRequestedTitle: string;
+      importRequestedBody: string;
+      importStillRunning: string;
+      setupNeededTitle: string;
+      setupNeededBody: string;
+      propertiesTitle: string;
+      propertiesHelp: string;
+      loadingProperties: string;
+      propertiesFailed: string;
+      tryAgain: string;
+      searchConsoleHint: string;
+      analyticsHint: string;
+      noSearchConsoleFound: string;
+      noAnalyticsFound: string;
+      noSearchConsoleProperty: string;
+      noAnalyticsProperty: string;
+      /** A saved property the account no longer lists, {name}. */
+      propertyUnavailable: string;
+      saveAndImport: string;
+      saveSelection: string;
+      selectionUnsaved: string;
+      noSelectionChange: string;
+      propertiesSaved: string;
+      accountTitle: string;
+      accountHelp: string;
+      disconnect: string;
+      disconnecting: string;
+      disconnectTitle: string;
+      disconnectBody: string;
+      disconnectKeeps: string;
+      disconnectAccess: string;
+      cancel: string;
+      disconnectFailed: string;
+      importFailed: string;
+      googleUnreachable: string;
+      errorNotConfigured: string;
+      errorSignIn: string;
+      errorReconnect: string;
+      errorConnectFirst: string;
+      errorChooseFirst: string;
+      searchTitle: string;
+      searchDescription: string;
+      analyticsTitle: string;
+      analyticsDescription: string;
+      clicks: string;
+      clicksHint: string;
+      impressions: string;
+      impressionsHint: string;
+      ctr: string;
+      ctrShort: string;
+      ctrHint: string;
+      averagePosition: string;
+      positionShort: string;
+      positionHint: string;
+      sessions: string;
+      sessionsHint: string;
+      /** {days} */
+      comparedWith: string;
+      /** {days} */
+      noComparison: string;
+      noChange: string;
+      /** Spoken after a change that is good news. */
+      better: string;
+      /** Spoken after a change that is bad news. */
+      worse: string;
+      /** A change in percentage points, {value} already signed. */
+      pointsChange: string;
+      notAvailable: string;
+      /** {reported} of {days} days. */
+      daysReported: string;
+      zeroSearch: string;
+      zeroSessions: string;
+      /** {source} is "Google Search Console" or "Google Analytics". */
+      staleSource: string;
+      /** {source} */
+      notSelectedTitle: string;
+      notSelectedEditor: string;
+      notSelectedViewer: string;
+      /** {source} */
+      awaitingTitle: string;
+      awaitingBody: string;
+      /** {source} */
+      noneInPeriodTitle: string;
+      /** {date} */
+      latestFrom: string;
+      latestOnly: string;
+      dailyTitle: string;
+      dailyDescription: string;
+      chartMetric: string;
+      chartClicks: string;
+      chartImpressions: string;
+      chartSessions: string;
+      unitClicks: string;
+      unitImpressions: string;
+      unitSessions: string;
+      notReported: string;
+      day: string;
+      chartInstructions: string;
+      chartEmpty: string;
+      topTitle: string;
+      topSearches: string;
+      topPages: string;
+      searchTerm: string;
+      page: string;
+      topSearchesNote: string;
+      topPagesNote: string;
+      topSearchesCaption: string;
+      topPagesCaption: string;
+      noSearches: string;
+      noPages: string;
+      opensInNewTab: string;
     };
     research: {
       contentPlan: string;
@@ -731,6 +1513,171 @@ export type Messages = {
       questionAdded: string;
       checkQueued: string;
       alreadyTracking: string;
+      /* The redesigned page (ai-visibility/). Refusals mapped from the server's English. */
+      checksUnavailableTitle: string;
+      errAiUnavailable: string;
+      errNoPlan: string;
+      errPlanInactive: string;
+      errCheckQuota: string;
+      errSuggestQuota: string;
+      errSuggestFailed: string;
+      errTooShort: string;
+      /** {count} is the plan's allowance. */
+      errAllowance: string;
+      errDuplicate: string;
+      errAddFirst: string;
+      errUnexpected: string;
+      /* A check in progress or just ended. */
+      statusQueuedTitle: string;
+      statusQueuedBody: string;
+      statusRunningTitle: string;
+      statusRunningBody: string;
+      /** {answered} of {total}. */
+      statusProgress: string;
+      /** {date} with time. */
+      statusRequestedAt: string;
+      statusCompletedTitle: string;
+      statusCompletedBody: string;
+      statusPartialTitle: string;
+      /** {answered} of {total}. */
+      statusPartialBody: string;
+      statusTimedOutTitle: string;
+      statusTimedOutBody: string;
+      /** statusTimedOutBody for a viewer, who cannot run a check. */
+      statusTimedOutBodyViewer: string;
+      statusFailedTitle: string;
+      /** {date} with time. */
+      statusFailedBody: string;
+      /** statusFailedBody for a viewer, who cannot run a check. {date} with time. */
+      statusFailedBodyViewer: string;
+      statusRefusedTitle: string;
+      dismiss: string;
+      progressLabel: string;
+      /* Performance section. */
+      performanceTitle: string;
+      performanceHelp: string;
+      howMeasured: string;
+      scoreOutOf: string;
+      scoreGood: string;
+      scoreFair: string;
+      scoreLow: string;
+      /** {change} is a positive number of points. */
+      scoreUp: string;
+      scoreDown: string;
+      scoreSame: string;
+      previousCheckOn: string;
+      firstCheck: string;
+      /** {mentions} of {total}. */
+      namedOfChecked: string;
+      namedOfCheckedHelp: string;
+      /** {position}, e.g. #2. */
+      positionValue: string;
+      /** {count} of {total}. */
+      answeredInLatestCheck: string;
+      /** {checked} of {tracked}. */
+      basisNote: string;
+      /** one|many with {count}. */
+      earlierAnswersNote: string;
+      notCheckedYetTitle: string;
+      notCheckedYetBody: string;
+      competitorsHelp: string;
+      /** {count} of {total}. */
+      competitorCount: string;
+      noCompetitors: string;
+      /* The next available action. */
+      nextStep: string;
+      nextAddQuestions: string;
+      nextAddQuestionsAction: string;
+      nextFirstCheck: string;
+      /** one|many with {count}. */
+      nextUnchecked: string;
+      /** one|many with {count}. */
+      nextStale: string;
+      /** one|many with {count}. */
+      nextNotNamed: string;
+      nextNotNamedAction: string;
+      nextUpToDate: string;
+      nextWaiting: string;
+      nextViewer: string;
+      /* Tracked questions. */
+      questionsTitle: string;
+      questionsHelp: string;
+      /** {count} of {max}. */
+      allowanceCount: string;
+      addQuestionLabel: string;
+      /** {max} is the plan's allowance. */
+      atAllowance: string;
+      suggestionsTitle: string;
+      suggestionsHelp: string;
+      /** {count} selected. */
+      addSelected: string;
+      /** one|many with {count}. */
+      suggestionsRoom: string;
+      /** one|many with {count}. */
+      questionsAdded: string;
+      questionRemoved: string;
+      filterLabel: string;
+      filterAll: string;
+      filterEmpty: string;
+      showAll: string;
+      noQuestionsViewer: string;
+      named: string;
+      /** {position}. */
+      namedAt: string;
+      /** {date}. */
+      checkedOn: string;
+      /** {date}. */
+      fromEarlierCheck: string;
+      checkingNow: string;
+      noAnswerInCheck: string;
+      answeredInCheck: string;
+      siteMentioned: string;
+      showEvidence: string;
+      hideEvidence: string;
+      /** {question}. */
+      removeQuestionLabel: string;
+      /* Evidence for one answer. */
+      evidenceExcerpt: string;
+      evidenceExcerptNote: string;
+      evidencePosition: string;
+      /** {position}. */
+      evidencePositionValue: string;
+      evidenceNotRecommended: string;
+      evidenceWebsite: string;
+      evidenceWebsiteYes: string;
+      evidenceWebsiteNo: string;
+      evidenceOthers: string;
+      evidenceNoOthers: string;
+      evidenceAssistant: string;
+      evidenceChecked: string;
+      evidenceHistory: string;
+      evidenceNoHistory: string;
+      /** {date} of the latest check. */
+      evidenceStale: string;
+      evidenceMissed: string;
+      /* Removing a question. */
+      removeTitle: string;
+      removeBody: string;
+      removeConfirm: string;
+      removing: string;
+      /* What is measured. */
+      methodTitle: string;
+      methodHelp: string;
+      methodAskTitle: string;
+      methodAskBody: string;
+      methodRecordTitle: string;
+      methodRecordBody: string;
+      methodScoreTitle: string;
+      /** {second}, {third}, {fourth}: points for those positions. */
+      methodScoreBody: string;
+      methodCompareTitle: string;
+      methodCompareBody: string;
+      methodScheduleTitle: string;
+      /** {action} is the Check now button's label. */
+      methodScheduleBody: string;
+      methodAssistantsTitle: string;
+      /** {names}. */
+      methodAssistantsBody: string;
     };
     backlinks: {
       title: string;
@@ -851,6 +1798,15 @@ export type Messages = {
       inProgress: string;
       requestQuote: string;
       quoteHelp: string;
+      /** The add-ons section on Billing. */
+      title: string;
+      subtitle: string;
+      /** {price}. */
+      perCredit: string;
+      quoteFrom: string;
+      servicesTitle: string;
+      /** {count}. */
+      showingRecent: string;
     };
     referral: {
       referSomeone: string;
@@ -871,6 +1827,15 @@ export type Messages = {
       joined: string;
       noWebsiteJoined: string;
       creditsBadge: string;
+      linkHelp: string;
+      peopleReferredStat: string;
+      noReferralsYet: string;
+      /** {count}. */
+      showingRecent: string;
+      /** {date}, after "joined …" on a rewarded referral. */
+      rewardedOn: string;
+      /** The summary could not be read. */
+      unavailable: string;
     };
     keys: {
       updatePlugin: string;
@@ -1345,6 +2310,100 @@ export type Messages = {
       saveDetails: string;
       saving: string;
       detailsSaved: string;
+      /*
+        Business settings page (redesign). The keys above stay for
+        website-detail-client.tsx; the page itself reads the ones below.
+      */
+      /** Browser tab and page heading. */
+      pageTitle: string;
+      /** Under the heading; {domain} is the website. */
+      pageDescription: string;
+      identityTitle: string;
+      identityHelp: string;
+      marketTitle: string;
+      marketHelp: string;
+      descriptionTitle: string;
+      descriptionHelp: string;
+      competitorsTitle: string;
+      /** Must not promise uses the product does not make of the list. */
+      competitorsHelp: string;
+      brandNameHint: string;
+      industryHint: string;
+      /** An ENGLISH country name in every locale: keyword research matches English names only. */
+      marketPlaceholder: string;
+      countryHint: string;
+      /** Warning under the market field when it holds a non-English country name. */
+      marketNotEnglish: string;
+      /** Button that replaces it; {country} is the English name. */
+      marketUseEnglish: string;
+      articleLanguage: string;
+      articleLanguageHint: string;
+      /** {language} is the dashboard language, named in that language. */
+      dashboardLanguageNote: string;
+      dashboardLanguageLink: string;
+      /** Shown while no article language is stored. */
+      chooseLanguage: string;
+      /** A stored language outside the list; {language} is the stored value. */
+      unknownLanguage: string;
+      audienceHint: string;
+      descriptionHint: string;
+      /** A viewer's read-only value when nothing is stored. */
+      notSet: string;
+      /** Section-navigation badge for a section with unsaved edits. */
+      unsavedBadge: string;
+      /** The Save bar's button. */
+      saveBusinessDetails: string;
+      /** Under the Save bar: what it saves and what saves on its own. */
+      saveScope: string;
+      /** A save that failed without an answer from the server. */
+      saveError: string;
+      checklistNeedsBoth: string;
+      checklistNeedsDescription: string;
+      checklistNeedsLanguage: string;
+      analysingTitle: string;
+      analysingBody: string;
+      analysingBodyReadOnly: string;
+      refresh: string;
+      analysisFailedTitle: string;
+      analysisFailedBody: string;
+      analysisFailedBodyReadOnly: string;
+      /** Owners only: retry lives on the Websites list. */
+      analysisFailedRetry: string;
+      goToWebsites: string;
+      /** one|many with {count}. */
+      competitorCount: string;
+      manualGroup: string;
+      suggestedGroup: string;
+      suggestedGroupHelp: string;
+      suggestedGroupHelpReadOnly: string;
+      competitorsEmpty: string;
+      competitorsEmptyAnalysed: string;
+      competitorsEmptyAnalysing: string;
+      /** {count} is how many are shown. */
+      competitorsTruncated: string;
+      addCompetitor: string;
+      addCompetitorHint: string;
+      competitorPlaceholder: string;
+      addCompetitorButton: string;
+      checkingShort: string;
+      /** {domain} in each of the next six. */
+      checkingCompetitor: string;
+      competitorAdded: string;
+      removingCompetitor: string;
+      competitorRemoved: string;
+      visitCompetitor: string;
+      removeCompetitor: string;
+      competitorRequired: string;
+      competitorInvalid: string;
+      competitorOwnSite: string;
+      /** {domain} */
+      competitorDuplicate: string;
+      competitorNotPublic: string;
+      /** The server's refusal of social networks and large platforms. */
+      competitorBlocked: string;
+      /** {domain} */
+      competitorUnreachable: string;
+      actionFailed: string;
     };
     setup: {
       launchChecklist: string;
@@ -1569,6 +2628,24 @@ export type Messages = {
       saveImage: string;
       noMatches: string;
       noPicturesYet: string;
+      /* The workspace toolbar (RichTextEditor variant="workspace"). */
+      toolbarLabel: string;
+      groupText: string;
+      groupHeadings: string;
+      groupBlocks: string;
+      groupLinks: string;
+      groupMedia: string;
+      groupHistory: string;
+      linkDialogTitle: string;
+      linkDialogHelp: string;
+      linkUrlLabel: string;
+      linkApply: string;
+      linkInvalid: string;
+      htmlHint: string;
+      richHint: string;
+      editHtml: string;
+      backToEditor: string;
+      htmlToolbarOff: string;
     };
     dash: {
       bestArticles: string;
@@ -2269,9 +3346,324 @@ const en: Messages = {
   legalNotice: "This page is available in English only. Translations of our legal terms are prepared by a professional translator before publication.",
 
   app: {
+    workspace: {
+      save: "Save",
+      saving: "Saving…",
+      saved: "Saved",
+      discard: "Discard changes",
+      unsaved: "1 unsaved change|{count} unsaved changes",
+      noChanges: "All changes saved",
+      saveFailed: "Not saved. {error}",
+      leaveConfirm: "You have unsaved changes. Leave this page and lose them?",
+      onThisPage: "On this page",
+      jumpTo: "Jump to a section",
+      optional: "Optional",
+      required: "Required",
+      charactersLeft: "1 character left|{count} characters left",
+      overLimit: "1 character over the limit|{count} characters over the limit",
+      viewOnly: "You have view-only access to this website. Only an owner or an editor can make changes.",
+      savesImmediately: "Saves as soon as you change it",
+      savedWithButton: "Saved with the Save button",
+      editsKept: "Your newer edits are kept and still need saving.",
+      preview: "Preview",
+      close: "Close",
+      selected: "Selected",
+    },
+    health: {
+      title: "Website health",
+      description: "A technical check of the pages we can read on {domain}: what may hold them back in search results, and how to fix it.",
+      checkNow: "Check my website",
+      checkAgain: "Check again",
+      checking: "Checking…",
+      starting: "Starting…",
+      refreshStatus: "Refresh status",
+      dismiss: "Dismiss",
+      unavailableTitle: "New checks are unavailable",
+      siteNotReady: "We are still analysing this website. You can run a check once that has finished.",
+      errNoPlan: "Choose a plan for this website first.",
+      errPlanInactive: "This website's subscription is not active. Update billing to run a check.",
+      errQuota: "You have run this check several times in the last hour. Please try again shortly.",
+      errUnexpected: "The check could not be started. Please try again.",
+      queuedTitle: "Check requested",
+      queuedBody: "Your check is waiting to start. This page updates by itself.",
+      queuedStale: "This check has not started yet, which is taking longer than usual. The report appears here once it has run.",
+      requestedAt: "Requested {date}",
+      runningTitle: "Checking your website",
+      runningBody: "We are reading your pages one by one. This page updates by itself.",
+      runningStale: "This check has been running for longer than expected and may have stopped.",
+      staleRetry: "Refresh the status to see whether it has moved on, or start the check again.",
+      startedAt: "Started {date}",
+      progressChecked: "1 page checked so far|{count} pages checked so far",
+      progressFound: "1 address found on your site|{count} addresses found on your site",
+      progressLimit: "A check reads up to {max} pages.",
+      previousNotice: "The report below is your previous result, from {date}. It is replaced when the new check finishes.",
+      failedTitle: "The latest check could not be completed",
+      failedPrevious: "The report below is still your previous result, from {date}.",
+      finishedTitle: "Your new report is ready",
+      finishedBody: "The report below is from the check of {date}.",
+      failure: {
+        timeout: "Your website took too long to respond. Try again: this is often temporary on a busy server.",
+        notHtml: "The website address did not return a web page. Check that it points to your site's home page.",
+        tooLarge: "Your home page is too large for us to analyse.",
+        invalidUrl: "The website address could not be read. Check the address, including http:// or https://.",
+        refused: "Your website refused our request. A firewall or security plugin may be blocking automated visitors.",
+        unreachable: "We could not reach your website. Check that it is online and that the address is correct.",
+        notEntitled: "The check stopped because this website's subscription is not active. Nothing further was charged.",
+        generic: "We could not finish checking your website. Try again, and contact support if it keeps happening.",
+      },
+      failureViewer: {
+        timeout: "Your website took too long to respond. This is often temporary on a busy server. An owner or an editor can run the check again.",
+        generic: "We could not finish checking your website. An owner or an editor can run the check again.",
+      },
+      emptyTitle: "No report yet",
+      emptyBody: "A check reads up to {max} pages of your site and lists what may hold it back in search, page by page, with how to fix each problem.",
+      emptyViewer: "No check has been run yet. An owner or an editor can start one.",
+      firstRunTitle: "Your first report is on its way",
+      firstRunBody: "It appears here as soon as the check finishes.",
+      scoreTitle: "Health score",
+      scoreDescription: "Counts the technical problems on the pages we read, weighted by how serious they are and averaged per page.",
+      previousResult: "Previous result",
+      latestResult: "Latest result",
+      outOf: "of 100",
+      scoreAria: "Health score {score} out of 100",
+      bandGood: "Good",
+      bandFair: "Needs work",
+      bandPoor: "Poor",
+      noScore: "No score",
+      noScoreBody: "No score was recorded for this check.",
+      notScored: "Not scored",
+      zeroPagesTitle: "No page could be read",
+      zeroPagesBody: "We could not open any page on this check, so its score does not describe your site. The findings below say why.",
+      notAuthority: "This is not Domain Authority: it measures technical problems on your own pages, not how much other sites trust yours.",
+      lastChecked: "Last checked",
+      pagesRead: "Pages read",
+      pagesFailed: "Could not be opened",
+      addressesFound: "Addresses found",
+      notRecorded: "Not recorded",
+      severityTitle: "Problems by seriousness",
+      critical: "Critical",
+      warnings: "Warnings",
+      suggestions: "Suggestions",
+      inFindings: "in 1 finding|in {count} findings",
+      severityAria: "Critical: {critical}, warnings: {warning}, suggestions: {info}",
+      badge: { critical: "Critical", warning: "Warning", info: "Suggestion" },
+      coverageTitle: "What this check covered",
+      coverageLimit: "It reads up to {max} pages, starting from your home page and following links.",
+      coverageSameSite: "It only follows links within {domain}. Links to other sites are not checked.",
+      coverageQuery: "Addresses that differ only after a “?” or “#” count as one page.",
+      coverageSkipped: "It skips admin, login, cart and checkout pages, feeds, and files such as images and PDFs.",
+      coverageRefused: "A page that does not respond within 15 seconds, or refuses automated visitors, is listed as “could not be opened”.",
+      coverageBeyond: "This check found {found} addresses on your site and read {read} pages. The rest were not checked.",
+      notAssessedTitle: "Some checks could not run",
+      notAssessedBody: "These checks compare pages with each other and need at least two readable pages: {checks}. They are not part of this score.",
+      crossChecks: {
+        duplicateTitles: "duplicate page titles",
+        duplicateDescriptions: "duplicate descriptions",
+        internalLinking: "internal linking",
+      },
+      findingsTitle: "Findings",
+      findingsDescription: "Most serious first. Open a finding to see every affected page and how to fix it.",
+      findingsCount: "1 finding|{count} findings",
+      filterLabel: "Filter by seriousness",
+      filterAll: "All",
+      searchLabel: "Search findings",
+      searchPlaceholder: "Search by problem or page address",
+      showingFiltered: "Showing {shown} of {total} findings.",
+      clearFilters: "Clear filters",
+      noMatchTitle: "No findings match",
+      noMatchBody: "Try another search, or show all findings.",
+      noFindingsTitle: "No problems found",
+      noFindingsBody: "We found nothing to fix on the page we read.|We found nothing to fix on the {count} pages we read.",
+      pagesCount: "1 page|{count} pages",
+      howToFix: "How to fix it",
+      effortMinutes: "Usually a few minutes",
+      effortHour: "Usually about an hour",
+      effortLonger: "Can take longer",
+      needsDeveloper: "May need your web developer",
+      affectedPages: "Affected pages ({count})",
+      homepage: "home page",
+      opensInNewTab: "(opens in a new tab)",
+      showAllPages: "Show all {count} pages",
+      showFewerPages: "Show fewer pages",
+      matchingPages: "Pages matching your search: {shown} of {total}.",
+      notLoaded: "{shown} of {total} are listed. The rest were not loaded, to keep this page fast.",
+      groupNote: "Each entry is one group of pages; the first page of each group is listed.",
+      firstPageNote: "The first page found is listed; the detail gives the total.",
+      noUrl: "No page address was recorded",
+      rowsCapped: "This check recorded {total} problems. The first {shown} are listed below; the counts above include all of them.",
+      detail: {
+        titleLong: "The title is {chars} characters; search results cut it off after about {max}.",
+        titleShort: "The title is only {chars} characters.",
+        descriptionLong: "The description is {chars} characters; search results cut it off after about {max}.",
+        descriptionShort: "The description is only {chars} characters.",
+        multipleH1: "{count} main headings (H1) on this page.",
+        thinContent: "Only {words} words on this page.",
+        imagesAlt: "{missing} of {total} images have no description (alt text).",
+        largePage: "The page's HTML alone is {kb} KB.",
+        httpStatus: "The page answered with error {status}.",
+        duplicateTitle: "{count} pages share the title “{title}”.",
+        duplicateDescription: "{count} pages share the same description.",
+        noInternalLinks: "1 page links to no other page on your site.|{count} pages link to no other page on your site.",
+        unreachTimeout: "It did not respond in time.",
+        unreachBlocked: "It refuses automated visitors (a security setting on the site).",
+        unreachPassword: "It asks for a password.",
+        unreachStatus: "It answered with error {status}.",
+        unreachNotHtml: "It is not a web page.",
+        unreachRedirects: "It redirects too many times.",
+        unreachRedirectAway: "It redirects to an address we do not check.",
+        unreachConnect: "We could not connect to it.",
+        unreachUnknown: "An unexpected error stopped us opening it.",
+      },
+      issues: {
+        noindex: {
+          label: "Hidden from search engines",
+          about: "The page asks search engines not to include it in their results, so it cannot be found in search.",
+          fix: "Unless you hide this page on purpose, remove its “noindex” setting. In WordPress this is usually an option in your SEO plugin, or the “Discourage search engines” box under Settings › Reading.",
+        },
+        broken_page: {
+          label: "Page shows an error",
+          about: "The page answers with an error instead of loading.",
+          fix: "Fix the page, or if it should no longer exist, redirect it to the closest page that does, so visitors and links are not lost.",
+        },
+        unreachable_page: {
+          label: "Page could not be opened",
+          about: "We tried to load this page and could not. Search engines may have the same problem.",
+          fix: "Open the page in your own browser. If it no longer exists, update the links that point to it or redirect it. If it opens for you, your host or a security setting may be refusing automated visitors, which can keep search engines out too.",
+        },
+        missing_title: {
+          label: "Page has no title",
+          about: "The page has no title tag, the headline shown for it in search results.",
+          fix: "Give the page a title that says what it is about. People see it as the headline in search results, so write it for them rather than packing in keywords.",
+        },
+        title_too_long: {
+          label: "Title is too long",
+          about: "Search results cut off titles longer than about 60 characters.",
+          fix: "Shorten the title so the important part is not cut off. Put what matters first: the end is what gets trimmed.",
+        },
+        title_too_short: {
+          label: "Title is very short",
+          about: "Titles shorter than 30 characters often do not say enough about the page.",
+          fix: "Add detail to the title, so someone can tell from the search results that this page is what they are looking for.",
+        },
+        missing_meta_description: {
+          label: "No description for search results",
+          about: "The page has no description, so search engines choose their own text to show under your link.",
+          fix: "Write a one- or two-sentence description of the page. Without one, search engines pick text from the page, and it is often not the best part.",
+        },
+        meta_description_too_long: {
+          label: "Search description is too long",
+          about: "Search results cut off descriptions longer than about 158 characters.",
+          fix: "Shorten the description, and say early why someone should click.",
+        },
+        meta_description_too_short: {
+          label: "Search description is very short",
+          about: "Descriptions shorter than 70 characters leave space unused in search results.",
+          fix: "Expand the description to a sentence or two that gives people a reason to choose your result.",
+        },
+        missing_h1: {
+          label: "No main heading",
+          about: "The page has no main heading (H1), so its topic is less clear to readers and search engines.",
+          fix: "Add one main heading near the top of the page that says what the page is about.",
+        },
+        multiple_h1: {
+          label: "More than one main heading",
+          about: "The page has several main headings (H1), so it is unclear which one describes it.",
+          fix: "Keep one main heading and turn the others into sub-headings.",
+        },
+        thin_content: {
+          label: "Not much text",
+          about: "The page has fewer than 300 words, counting menus and footers. Pages this short rarely rank for competitive searches.",
+          fix: "Expand the page so it fully answers what visitors came for, or merge it into a fuller page and redirect this one.",
+        },
+        images_missing_alt: {
+          label: "Images without a description",
+          about: "Some images have no alt text, which screen readers read out and image search relies on.",
+          fix: "Add a short description to each image saying what it shows. Purely decorative images can have an empty description.",
+        },
+        missing_canonical: {
+          label: "No preferred address set",
+          about: "The page does not name its preferred address (canonical link). If it can be reached at several addresses, search engines have to guess which one to show.",
+          fix: "Add a canonical link to the page. Most SEO plugins add one automatically once switched on; otherwise ask your web developer.",
+        },
+        missing_lang: {
+          label: "Page language not set",
+          about: "The page does not declare which language it is written in.",
+          fix: "Set the page language (the “lang” attribute of the html tag). It helps search engines show your pages to the right people and screen readers pronounce them correctly.",
+        },
+        large_page: {
+          label: "Page code is very large",
+          about: "The page's HTML alone is over 1.5 MB, which slows loading. Images are not counted in this.",
+          fix: "Large HTML usually comes from code, data or images built into the page itself. Ask your web developer to move them into separate files or trim them.",
+        },
+        duplicate_title: {
+          label: "Pages share a title",
+          about: "Several pages use the same title, so search engines find it hard to tell them apart.",
+          fix: "Give each page a title that describes what only that page covers.",
+        },
+        duplicate_meta_description: {
+          label: "Pages share a description",
+          about: "Several pages use the same description in search results.",
+          fix: "Write a separate description for each page that says what that page offers.",
+        },
+        no_internal_links: {
+          label: "Pages that link nowhere",
+          about: "Some pages have no links to other pages on your site, so visitors and search engines cannot move on from them.",
+          fix: "Add links from these pages to related pages on your site, such as a relevant service, an article or your home page.",
+        },
+      },
+      siteTitle: "Your site as we read it",
+      siteDescription: "Read from your home page during this check.",
+      siteLegacy: "This check was recorded before we started collecting site details. They appear after the next check.",
+      siteUnavailable: "No page could be read on this check, so these details are not available.",
+      siteName: "Site name",
+      siteNameMissing: "Not found",
+      language: "Language",
+      languageMissing: "Not declared",
+      languageNote: "As declared by your home page.",
+      languageMissingNote: "Your home page does not say which language it is in, so search engines have to guess.",
+      platform: "Platform",
+      platformUnknown: "Not recognised",
+      platformNote: "Detected from your page's code.",
+      platformUnknownNote: "We could not match a common platform. That is not a problem in itself.",
+      previewImage: "Link preview image",
+      previewMissing: "None set",
+      previewNote: "Shown when your home page is shared.",
+      previewMissingNote: "No preview image (og:image) was found, so shared links may appear without a picture.",
+      previewBroken: "The preview image could not be loaded.",
+      linkedTitle: "Sites you link to most",
+      linkedHelp: "Up to six, counted across the pages we read. Useful for spotting links you did not mean to give.",
+      linkedEmpty: "We found no links to other sites on the pages we read.",
+      aiTitle: "AI assistant access",
+      aiDescription: "Whether your robots.txt file blocks the crawlers that AI assistants use to read websites.",
+      aiLegacy: "This check was recorded before we started reading robots.txt. It appears after the next check.",
+      aiUnreadable: "No page could be read on this check, so robots.txt was most likely unreadable too. Here, “Not blocked” may only mean we could not read it.",
+      aiNoneBlocked: "None of these {total} crawlers is blocked from your whole site.",
+      aiSomeBlocked: "1 of {total} crawlers is blocked from your whole site.|{count} of {total} crawlers are blocked from your whole site.",
+      aiAllowed: "Not blocked",
+      aiBlocked: "Blocked",
+      aiNamed: "Named in robots.txt",
+      aiCaveat: "We only check whether robots.txt blocks the whole site. If there is no robots.txt, or we could not read it, a crawler counts as not blocked. Firewalls and rules for single pages are not checked.",
+      aiNoGuarantee: "Being readable does not mean an AI assistant will mention or cite your site.",
+      aiBlockedHelp: "To let a crawler in, remove the “Disallow: /” rule that applies to it from robots.txt, or ask whoever manages your site to do so.",
+      aiVisibilityLink: "See whether AI assistants mention you",
+      fixTitle: "Want us to fix these for you?",
+      fixSelf: "Most of these are text changes you can make yourself with the guidance above. If you would rather not, send us the list and we will quote.",
+      fixDeveloper: "1 of these findings usually needs whoever built your site. Send us the list and we will review everything and quote for fixing it.|{count} of these findings usually need whoever built your site. Send us the list and we will review everything and quote for fixing it.",
+      fixHow: "Opens your email app with the list filled in. Nothing is sent until you send it, and nothing is charged.",
+      fixUnavailable: "Quote requests by email are not available at the moment.",
+      requestQuote: "Request a quote",
+      mailSubject: "Fix request for {domain}",
+      mailGreeting: "Hello,",
+      mailAsk: "Please quote for fixing the problems found on {domain}.",
+      mailCheckedOn: "Check of {date}.",
+      mailCounts: "1 problem found, {critical} critical.|{count} problems found, {critical} critical.",
+      mailListTitle: "Findings:",
+      mailLine: "- {label}: {pages}",
+      mailThanks: "Thank you.",
+    },
     settings: {
       personalTitle: "Personal details",
-      personalSubtitle: "Your personal account details",
+      personalSubtitle: "Your name and the email address you sign in with.",
       nameLabel: "Name",
       namePlaceholder: "Your name",
       save: "Save",
@@ -2289,7 +3681,7 @@ const en: Messages = {
       passwordCreated:
         "Password set. You can now sign in with your email and password.",
       languageLabel: "Dashboard language",
-      languageHelp: "The language of this dashboard. Your articles are written in the language set on the Business tab.",
+      languageHelp: "Menus, buttons and messages in this dashboard. Changing it does not change your articles.",
       languageError: "Could not save your language",
       currentPassword: "Current password",
       newPassword: "New password",
@@ -2326,6 +3718,61 @@ const en: Messages = {
       loadingPeople: "Loading people",
       roleEditor: "Editor",
       roleViewer: "Viewer",
+      pageTitle: "Account",
+      pageDescription: "Your personal details, how you sign in, your language, who works on your websites and your referral link.",
+      emailHelp: "You sign in with this address, and receipts are sent to it. It cannot be changed here.",
+      nameRequired: "Enter your name.",
+      securityTitle: "Sign-in and security",
+      securitySubtitle: "The ways you can sign in to your account.",
+      methodPassword: "Email and password",
+      methodGoogle: "Google",
+      methodSet: "Set",
+      methodNotSet: "Not set",
+      methodLinked: "Linked",
+      passwordSetSummary: "You can sign in with your email address and password.",
+      passwordNotSetSummary: "This account has no password yet.",
+      googleLinkedSummary: "You can sign in with the Google account for this address.",
+      setPasswordIntroGeneric: "Set a password to sign in with your email address and a password.",
+      currentPasswordWrong: "Your current password is not correct.",
+      passwordTooLong: "Use at most 128 characters",
+      tooManyAttempts: "Too many attempts. Wait a minute and try again.",
+      passwordAlreadySet: "This account already has a password. Enter your current password to change it.",
+      languageTitle: "Language",
+      languageSubtitle: "The dashboard and your articles each have their own language.",
+      languageSaved: "Dashboard language saved.",
+      articleLanguageLabel: "Article language",
+      articleLanguageHelp: "Each website's articles are written in the language set on its Business tab.",
+      articleLanguageLink: "Open the Business tab for {domain}",
+      roleAdmin: "Admin",
+      roleEditorHelp: "Writes, edits and publishes articles.",
+      roleViewerHelp: "Can read everything but change nothing.",
+      inviteTo: "They will get access to {domain} only.",
+      reinviteHelp: "Inviting someone who already has access changes their role.",
+      invalidEmail: "Enter a valid email address.",
+      inviteSelf: "You already have access to this website.",
+      inviteFailed: "Could not send the invitation. Please try again.",
+      actionFailed: "That did not work. Please try again.",
+      accessGranted: "{email} can now work on {domain}",
+      accessGrantedNoEmail: "{email} can now work on {domain}, but we could not email them.",
+      accessRemoved: "{email} no longer has access",
+      loadPeopleFailed: "Could not load who works on this website.",
+      retry: "Try again",
+      thisWebsite: "this website",
+      workspaceAccess: "{email} has access through your workspace",
+      manageMember: "Manage {email}",
+      manageInvitation: "Manage the invitation for {email}",
+      membersCaption: "People who can work on {domain}",
+      removeConfirmTitle: "Remove access for {email}?",
+      removeConfirmBody: "They will no longer be able to open {domain}. You can invite them again later.",
+      keepAccess: "Keep access",
+      cancelInviteConfirmTitle: "Cancel the invitation for {email}?",
+      cancelInviteConfirmBody: "The link we emailed will stop working. You can invite them again later.",
+      keepInvitation: "Keep invitation",
+      removing: "Removing…",
+      cancellingInvite: "Cancelling…",
+      inviting: "Sending…",
+      viewingSharedNote: "You are looking at {domain}, which is shared with you. Only its owner can change who works on it. The list below is for your own websites.",
+      guestTeamNote: "{domain} is shared with you as {role}. Only its owner can invite or remove people.",
     },
     websites: {
       title: "Websites",
@@ -2381,6 +3828,58 @@ const en: Messages = {
       purchaseCancelled: "Purchase cancelled.",
       addWebsiteFirst: "Add a website first - each plan pays for one site.",
       checkoutFailed: "Could not start checkout. Please try again.",
+      planFor: "Plan for {domain}",
+      choosePlan: "Choose a plan",
+      choosePlanFor: "Choose a plan for {domain}",
+      choosePlanHelp: "A plan pays for one website.",
+      billingPeriod: "Billing period",
+      perMonth: "/ month",
+      perYear: "/ year",
+      saveBadge: "Save {n}%",
+      switchPlan: "Switch to this plan",
+      payByCard: "Pay by card",
+      redirecting: "Redirecting…",
+      opening: "Opening…",
+      cancelSubscription: "Cancel subscription",
+      paypalCheckoutFailed: "Could not start PayPal checkout. Please try again.",
+      portalFailed: "Could not open the billing portal.",
+      managedForYou: "This subscription is managed for you. Contact {email} for receipts or to make a change.",
+      newTab: "(opens in a new tab)",
+      upgradeLead: "Ready to scale?",
+      upgradeBody: "The {plan} plan includes {articles}, {terms} and {credits}.",
+      upgradeLink: "See what {plan} offers",
+      statusActive: "Active",
+      statusTrialing: "Free trial",
+      statusPastDue: "Payment overdue",
+      statusUnpaid: "Unpaid",
+      statusIncomplete: "Payment incomplete",
+      statusIncompleteExpired: "Payment expired",
+      statusCanceled: "Cancelled",
+      statusPaused: "Paused",
+      statusInactive: "Inactive",
+      pastDueNotice: "The last payment for this website did not go through. Update the payment method to keep access.",
+      unsettledNotice: "This website's subscription has to be settled or cancelled before its plan can change.",
+      endedNotice: "This subscription has ended. Choose a plan below to start again.",
+      billedByPayPal: "This website is billed through PayPal, so plan changes go through PayPal too.",
+      billedByCard: "This website is billed by card, so plan changes go through card checkout. To pay with PayPal instead, cancel the card subscription first.",
+      billedByCardEnding: "This website's card subscription ends on {date}. You can choose PayPal once it has ended.",
+      noPlanChange: "Plan changes are not available for this website right now.",
+      paypalApproved: "PayPal approval received - confirming your subscription…",
+      paypalCancelled: "PayPal checkout cancelled.",
+      viewingSharedNote: "{shared} is shared with you, and its owner pays for it. This page shows billing for your own websites.",
+      guestTitle: "Nothing to pay here",
+      guestBody: "Websites shared with you are paid for by their owners. You do not need a plan to work on them.",
+      addWebsite: "Add a website",
+      viewPlan: "View plan",
+      shownBelow: "Shown below",
+      paidByCard: "Card",
+      invoiceInPortal: "Invoice in Manage billing",
+      dateColumn: "Date",
+      descriptionColumn: "Description",
+      methodColumn: "Paid with",
+      amountColumn: "Amount",
+      receiptColumn: "Receipt",
+      historyCapped: "Showing the {count} most recent payments.",
     },
     article: {
       contentSeo: "Content & SEO",
@@ -2439,6 +3938,83 @@ const en: Messages = {
       factsHelp: "One per line. These are the only specifics we will state outright.",
       authorHelp: "The byline shown on each article, here and on your live site.",
       noBylineHelp: "Left empty, articles publish without a byline.",
+      pageTitle: "Article settings",
+      pageDescription: "How articles for this website are written, illustrated and published.",
+      sectionWriting: "Writing and SEO",
+      sectionWritingHelp: "The style and length of every article, and how many links it carries to your other pages.",
+      sectionSources: "Content sources",
+      sectionSourcesHelp: "Where your content lives on your website.",
+      sectionImages: "Images and branding",
+      sectionImagesHelp: "The image created for each article, and your brand's look.",
+      sectionEnhancements: "Article enhancements",
+      sectionEnhancementsHelp: "Extras added to articles alongside the words.",
+      sectionVoice: "Brand voice",
+      sectionVoiceHelp: "How your articles sound, and what they may say about your business.",
+      sectionAuthor: "Author",
+      sectionAuthorHelp: "The person or brand your articles are written by. It is saved with your settings; articles do not show it as a byline at the moment.",
+      unknownOption: "{value} (no longer offered)",
+      linksError: "Enter a whole number from 0 to 20.",
+      wordsError: "Enter a whole number from 300 to 5,000.",
+      sitemapHint: "Lets us find pages on your site worth linking to from new articles.",
+      blogHint: "The main page of your blog.",
+      exampleHint: "An article of yours that you are happy with.",
+      urlError: "Enter a full address that starts with http:// or https://.",
+      brandColourHint: "Your main brand colour as a hex code. It is saved with your settings; generated images do not use it at the moment.",
+      brandColourError: "Use # followed by six digits or letters a–f, for example #003388.",
+      noColour: "No colour set",
+      invalidColour: "Not a valid colour",
+      pickColour: "Pick a brand colour",
+      clearColour: "Remove colour",
+      imageStyleLabel: "Image style",
+      imageStyleHint: "The style of the image created for each article.",
+      coverStyleLabel: "Cover image style",
+      coverStyleHint: "Your preferred style for article covers. At the moment each article gets one image, made in the image style above, and that image is also its cover.",
+      samplesNote: "The examples illustrate each style. The images for your articles are created for each article and will look different.",
+      matchFollows: "Currently follows: {style}",
+      matchFollowsUnknown: "Follows the image style above",
+      previewStyle: "Preview the {style} example",
+      previewTitle: "{style} example",
+      previewMatchTitle: "Match article images, currently {style}",
+      previewHelp: "An example of this style. Previewing does not change your choice.",
+      sampleAlt: "Example image in the {style} style",
+      unknownImageStyle: "Your saved choice ({value}) is not one of these styles. It stays as it is until you pick one.",
+      imageBriefHint: "Included in the instructions for every article image.",
+      tocHint: "Adds a contents list built from the article headings.",
+      youtubeHint: "Your choice is saved. Videos are not added to articles at the moment.",
+      perspectiveHint: "Writes with a point of view rather than impersonally.",
+      similarHint: "References and compares alternatives, for richer coverage.",
+      comparisonHint: "Adds a side-by-side table comparing the options the article is about, such as \"Videography vs Cinematography at a Glance\".",
+      poweredByHint: "A small credit at the end of each article. Turning it off applies to articles not yet published.",
+      factsPlaceholder: "Open since 2004\nFive dentists on the team\nFree parking on site",
+      uspsPlaceholder: "Same-day emergency appointments\nWe see nervous patients",
+      tooManyLines: "Up to {max} lines. Remove 1 line.|Up to {max} lines. Remove {count} lines.",
+      lineTooLong: "Line {line} is longer than {max} characters.",
+      fixFields: "Some fields need attention. They are marked on the page.",
+      saveError: "Something went wrong. Please try again.",
+      saveBarNote: "Covers every section except Writing and publishing, which saves as soon as you change it.",
+      autoOnHelp: "We work through your content plan on our own. You can still write any article yourself at any time.",
+      autoOffHelp: "Nothing is written until you ask. Open a planned article and press Write.",
+      anyDay: "Any day.",
+      pickedDays: "Only on the days you pick.",
+      daysUtc: "Days follow UTC (Coordinated Universal Time).",
+      firstArticleOnly: "Your first article goes out as soon as it is ready, whichever you choose, so you can see how articles look on your site.",
+      networkReview: "While your website is in the Partner Network, every article - the first one too - is checked by the RepGet team first, and none goes out before its planned day.",
+      openIntegrations: "Open Integrations",
+      weekdaysShort: { sun: "Sun", mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat" },
+      weekdaysLong: { sun: "Sunday", mon: "Monday", tue: "Tuesday", wed: "Wednesday", thu: "Thursday", fri: "Friday", sat: "Saturday" },
+      bodyImageStyles: {
+        sketch: { label: "Sketch", hint: "Hand-drawn line work over soft colour." },
+        watercolour: { label: "Watercolour", hint: "Soft painted washes." },
+        realistic: { label: "Realistic", hint: "Photographic." },
+        illustration: { label: "Illustration", hint: "Flat vector shapes." },
+        "brand-text": { label: "Brand & Text", hint: "A photo with a bold colour panel along one edge." },
+      },
+      coverImageStyles: {
+        sketch: { label: "Sketch", hint: "Hand-drawn line work over soft colour." },
+        watercolour: { label: "Watercolour", hint: "Soft painted washes." },
+        illustration: { label: "Illustration", hint: "Flat vector shapes." },
+        match: { label: "Match article images", hint: "Follows the image style above." },
+      },
       styles: {
         expert: { label: "Expert", hint: "Precise editorial tone with balanced caveats and terminology." },
         conversational: { label: "Conversational", hint: "Plain, direct sentences. Explains terms the first time they appear." },
@@ -2489,6 +4065,128 @@ const en: Messages = {
       sendingDraft: "Sending as a draft…",
       planningOutline: "Planning what to cover",
       writingBody: "Writing the article",
+      breadcrumbLabel: "Breadcrumb",
+      targetKeywordLabel: "Target keyword",
+      lastSaved: "Last updated {date}",
+      viewModeLabel: "Preview or edit",
+      unsavedMark: "Unsaved changes",
+      previewLabel: "Article preview",
+      previewUnsavedNow: "You are previewing changes that are not saved yet. Your website gets them only after you save and publish.",
+      notWrittenYet: "The article appears here as soon as it is written.",
+      workingPaused: "Editing and publishing wait until it finishes, because the new version replaces the text.",
+      conflictTitle: "This article changed while you were editing",
+      conflictBody: "The saved {fields} changed in the meantime, for example because a rewrite finished or someone else saved. Saving now replaces that version with yours.",
+      conflictLoad: "Use the saved version",
+      conflictKeep: "Keep my version",
+      genUnavailable: "Writing is temporarily unavailable. This is on our side and we are looking into it.",
+      genBusy: "The writing service was busy. Try again in a few minutes.",
+      genTimeout: "Writing took too long and stopped. Try again: this is usually temporary.",
+      genUnusable: "We could not build a usable article from this topic. Try again, or make the topic and target keyword more specific.",
+      genQuota: "This workspace has used all of its articles for the month. Upgrade the plan to write more.",
+      genGeneric: "Writing this article did not finish. Try again. If it keeps happening, contact support.",
+      pubErrAuth: "Your website refused the saved login. Reconnect it on the Integrations page.",
+      pubErrPermission: "The connected account is not allowed to publish posts. Connect an account that can publish.",
+      pubErrNotFound: "Your website's address could not be found. Check it on the Integrations page.",
+      pubErrUnreachable: "Your website did not respond. This is usually temporary: try again, or check that the site is online.",
+      pubErrApiDisabled: "Your website is online, but its publishing interface is switched off, often by a security plugin. Turn it back on, then test the connection.",
+      pubErrUnsupported: "Your website does something we cannot publish to yet.",
+      pubErrUnknown: "Publishing did not finish. Try again. If it keeps happening, contact support.",
+      editSaveNote: "The title, meta description, address and text are saved together with the Save button. The featured image is saved as soon as you change it.",
+      titleRequired: "Enter a title.",
+      metaHint: "Shown under the title in search results, which usually show about the first {count} characters.",
+      slugSavedAs: "Saved as: {slug}",
+      slugEmptyNote: "Left empty, your website chooses the address from the title.",
+      slugDropped: "Accented letters and other special characters are left out of the address.",
+      slugWordPressNote: "WordPress keeps the address the post was first published at. Changing it here does not move the live post.",
+      searchPreviewTitle: "Search result preview",
+      searchPreviewHelp: "An approximation. Search engines decide what they show.",
+      saveArticle: "Save article",
+      saveNoteWorking: "Saving waits while the article is being written.",
+      saveNoteDelivering: "Saving waits while the article is being delivered to your website.",
+      saveNoteReview: "Saving changes sends this article back to the RepGet team for review.",
+      saveNoteTitle: "Enter a title to save.",
+      statsTitle: "Article statistics",
+      statsHelp: "Counted from the article text.",
+      statsUnsaved: "Counted from the text on screen, including changes not saved yet.",
+      publishingTitle: "Publishing",
+      publishingHelp: "Publishing sends the last saved version to your website.",
+      destinationLabel: "Destination",
+      destinationNone: "Not connected",
+      destinationPlugin: "WordPress plugin",
+      manageConnection: "Manage connection",
+      plannedLabel: "Planned date",
+      plannedNone: "No planned date",
+      autoLabel: "Automatic publishing",
+      autoOnLive: "On, as live posts",
+      autoOnDraft: "On, as drafts",
+      autoOff: "Off",
+      beforePlanned: "Publishing now sends it straight away, before its planned date.",
+      stateNotSent: "Not sent to your website yet.",
+      stateLive: "Live on your website. Last sent {date}.",
+      stateDraft: "On your website as a draft. Last sent {date}.",
+      stateScheduled: "Scheduled on your website. Last sent {date}.",
+      stateDelivered: "Delivered to your website {date}.",
+      stateFailed: "The last attempt, {date}, did not finish.",
+      statePluginUnconfirmed: "The WordPress plugin did not confirm the last hand-over ({date}).",
+      stateWriting: "Publishing is available once the article is written.",
+      stateFrozen: "Publishing is paused by the RepGet team. Nothing is sent to websites until it resumes.",
+      stateReviewPending: "The RepGet team is preparing this article for the Partner Network. It goes out as soon as they approve it.",
+      stateReviewChanged: "This article changed after the RepGet team approved it, so it is back in their review.",
+      stateDelivering: "Being delivered to your website now…",
+      stateQueued: "Queued at {time}. The result appears here when your website answers.",
+      stateQueuedLong: "Still no result. Delivery can be held back, for example while an earlier attempt is unresolved. Check again in a few minutes.",
+      checkAgain: "Check again",
+      statePluginWaiting: "Waiting for the WordPress plugin to collect it as {mode}. The plugin checks in at least once an hour.",
+      modeLive: "a live post",
+      modeDraft: "a draft",
+      statePluginPublished: "The WordPress plugin created this post and cannot change it afterwards, so edits saved here do not reach your website. Make further changes in WordPress.",
+      stateUncertain: "The last attempt got no answer from your website. See the notice at the top of the page.",
+      uncertainPublishNote: "Publishing again does not create a second post while this is unresolved: we look for the earlier one first.",
+      connectHelp: "Connect your website to publish this article to it.",
+      blockedUnsaved: "Save your changes first. Publishing sends the saved version, not what is on screen.",
+      alreadySentLive: "This exact version is already live on your website.",
+      alreadySentDraft: "This exact version is already on your website as a draft.",
+      confirmDraftTitle: "Send the live post back to draft?",
+      confirmDraftBody: "This article is live on your website. Sending it as a draft can take the live post offline (WordPress does). To change the live post, use Update post instead.",
+      historyLatest: "The latest {count} attempts, newest first.",
+      historyEmpty: "Nothing has been sent to your website yet.",
+      logLive: "Live",
+      logDraft: "Sent as draft",
+      logScheduled: "Scheduled",
+      logDelivered: "Delivered",
+      rewriteTitle: "Rewrite article",
+      rewriteHelp: "Writes the whole article again from its plan. Each website can rewrite {count} articles a day.",
+      rewriteConfirmTitle: "Rewrite this article?",
+      rewriteConfirmBody: "The text, meta description, address and featured image are replaced with a new version. The current version is not kept.",
+      rewriteConfirmPublished: "The post on your website stays as it is until you publish the new version.",
+      rewriteConfirmReview: "The new version goes to the RepGet team for review before it can be published.",
+      rewriteConfirmUnsaved: "Your unsaved changes are discarded.",
+      rewriteConfirmAction: "Rewrite",
+      rewriteNoPlan: "This article has no plan entry, so it cannot be written again.",
+      rewriteBlocked: "Available again once the current writing or delivery finishes.",
+      imagePromptHint: "Leave empty and we choose. {remaining} of {max} new pictures left for this article.",
+      imageGenerate: "Generate",
+      imageReplace: "Replace",
+      imageAltHint: "Saved when you leave the field.",
+      imageCheckAlt: "Check that the description still matches the new picture.",
+      imageLockedWorking: "Wait until the article is written: a rewrite replaces the picture.",
+      imageLockedDelivering: "Wait until the delivery to your website finishes.",
+      imageTypeError: "Use a PNG, JPEG or WebP image.",
+      imageSizeError: "That image is {size} MB. The limit is {max} MB.",
+      imageNoAlt: "No description yet.",
+      imageAltSaved: "Description saved.",
+      errInFlight: "This article is being delivered to your website right now. Try again in a minute.",
+      errNotWritten: "This article has not been written yet.",
+      errConnectFirst: "Connect your website before publishing.",
+      errNotFound: "This article no longer exists.",
+      errRewriteCap: "This website has used all of its rewrites for the last 24 hours. Try again later.",
+      errAlreadyWriting: "This article is already being written.",
+      errNoActivePlan: "This workspace has no active plan. Choose one to keep writing.",
+      errImageStorage: "Image storage is not available right now. Try again later.",
+      errImageGeneration: "Image generation is not available right now. Try again later.",
+      metaNone: "No meta description yet. Search engines then show a passage from the article.",
+      searchPreviewUnsaved: "The preview includes changes that are not saved yet.",
+      imageReviewNote: "Changing the picture or its description sends this article back to the RepGet team for review.",
     },
     analytics: {
       googleResults: "Google results",
@@ -2516,6 +4214,132 @@ const en: Messages = {
       statusForbidden: "You cannot connect that website",
       statusInvalid: "That link was not valid - try again",
       statusError: "Google could not be connected",
+      pageTitle: "Google Search & Analytics",
+      pageDescription: "How people find your website in Google Search, and how many visits it gets. The figures come from your own Search Console and Google Analytics accounts.",
+      rangeLabel: "Period",
+      rangeDays: "{days} days",
+      periodDates: "{start} – {end}",
+      connectTitle: "Connect your Google accounts",
+      searchConsoleName: "Google Search Console",
+      analyticsName: "Google Analytics",
+      searchConsolePurpose: "Shows how your website does in Google Search: how often it is shown (impressions), how often people click through (clicks), its average position, and which searches and pages bring people in.",
+      analyticsPurpose: "Shows how many visits (sessions) your whole website receives from every source: Google, other search engines, social media, links and people typing your address.",
+      setupTitle: "How connecting works",
+      setupStep1: "Sign in with the Google account that can see this website in Search Console and, if you use it, in Google Analytics. One sign-in covers both.",
+      setupStep2: "Google asks you to allow read-only access. RepGet can read your figures but cannot change anything in your Google accounts.",
+      setupStep3: "Back here, choose the Search Console property and the Analytics property for this website. RepGet imports about the last two months, then new figures every day.",
+      readOnlyAccess: "Read-only access. You can disconnect at any time.",
+      expiredTitle: "Google needs to be reconnected",
+      reconnectGoogle: "Reconnect Google",
+      viewerCannotConnect: "Only an owner or an editor of this website can connect Google.",
+      connectionTitle: "Google connection",
+      connectionHelp: "RepGet imports new figures every day. Google reports with a delay of about three days.",
+      notChosen: "Not chosen",
+      dataThrough: "Figures up to {date}",
+      noFiguresYet: "No figures from Google yet",
+      analyticsPropertyId: "Property {id}",
+      importNow: "Import now",
+      manageConnection: "Manage connection",
+      viewerSetupPending: "Google is connected, but no property has been chosen yet. An owner or an editor can choose one.",
+      importRequestedTitle: "Import requested",
+      importRequestedBody: "RepGet is importing your figures from Google. This page checks for them for about a minute.",
+      importStillRunning: "The import can take a few minutes. New figures appear here when it has finished: reload the page later to see them.",
+      setupNeededTitle: "Choose what to import",
+      setupNeededBody: "Choose the Search Console property and the Analytics property for this website, then save. One of the two is enough.",
+      propertiesTitle: "Properties",
+      propertiesHelp: "Which of your Google properties belong to this website.",
+      loadingProperties: "Loading the properties your Google account can see…",
+      propertiesFailed: "Your properties could not be loaded from Google. Try again, or reconnect Google if this keeps happening.",
+      tryAgain: "Try again",
+      searchConsoleHint: "The Search Console property for this website, for example a domain property.",
+      analyticsHint: "The Google Analytics 4 property for this website.",
+      noSearchConsoleFound: "No Search Console properties were found for this Google account. Check that it has access, or reconnect with another account.",
+      noAnalyticsFound: "No Google Analytics 4 properties were found for this Google account. Check that it has access, or reconnect with another account.",
+      noSearchConsoleProperty: "None (do not import from Search Console)",
+      noAnalyticsProperty: "None (do not import from Analytics)",
+      propertyUnavailable: "{name} (not available to this Google account)",
+      saveAndImport: "Save and import",
+      saveSelection: "Save",
+      selectionUnsaved: "Your new choice is not saved yet.",
+      noSelectionChange: "No changes to save.",
+      propertiesSaved: "Properties saved",
+      accountTitle: "Google account",
+      accountHelp: "Reconnect to renew access or to switch to another Google account. Your chosen properties are kept.",
+      disconnect: "Disconnect",
+      disconnecting: "Disconnecting…",
+      disconnectTitle: "Disconnect Google?",
+      disconnectBody: "RepGet stops importing from Search Console and Analytics for this website and forgets the chosen properties.",
+      disconnectKeeps: "Figures already imported are kept.",
+      disconnectAccess: "To remove RepGet’s access from your Google account as well, use your Google account’s security settings.",
+      cancel: "Cancel",
+      disconnectFailed: "Google could not be disconnected. Try again.",
+      importFailed: "The import could not be requested. Try again.",
+      googleUnreachable: "Google could not be reached with the saved connection. Reconnect Google and try again.",
+      errorNotConfigured: "Connecting Google is not available yet. Please contact support.",
+      errorSignIn: "Sign in again to connect Google.",
+      errorReconnect: "Reconnect your Google account to continue.",
+      errorConnectFirst: "Connect Google first.",
+      errorChooseFirst: "Choose a property to import from first.",
+      searchTitle: "Google Search",
+      searchDescription: "Site-wide figures from Search Console: every page of your website in Google Search, not only the articles RepGet writes.",
+      analyticsTitle: "Website visits",
+      analyticsDescription: "Sessions on your whole website from every source, from Google Analytics. Not only visits that came from Google Search.",
+      clicks: "Clicks",
+      clicksHint: "Times someone clicked through to your website from Google Search.",
+      impressions: "Impressions",
+      impressionsHint: "Times your website was shown in Google Search results.",
+      ctr: "Click-through rate (CTR)",
+      ctrShort: "CTR",
+      ctrHint: "Clicks divided by impressions.",
+      averagePosition: "Average position",
+      positionShort: "Avg. position",
+      positionHint: "Your average place in Google’s results, weighted by impressions. Lower is better.",
+      sessions: "Sessions",
+      sessionsHint: "Visits to your website from any source. One person can make several sessions.",
+      comparedWith: "Changes compare with the previous {days} days.",
+      noComparison: "No comparison: not every one of the previous {days} days has figures from Google.",
+      noChange: "No change",
+      better: "better",
+      worse: "worse",
+      pointsChange: "{value} pts",
+      notAvailable: "Not available",
+      daysReported: "Reported on {reported} of {days} days",
+      zeroSearch: "Search Console reported no impressions in this period.",
+      zeroSessions: "Google Analytics reported no sessions in this period.",
+      staleSource: "No {source} property is chosen, so these figures are no longer updated.",
+      notSelectedTitle: "No {source} property chosen",
+      notSelectedEditor: "Choose one under Google connection to see these figures here.",
+      notSelectedViewer: "An owner or an editor can choose one under Google connection.",
+      awaitingTitle: "No {source} figures yet",
+      awaitingBody: "Google has not reported any figures for this property yet. New or low-traffic websites may have none for a while. RepGet checks for new figures every day.",
+      noneInPeriodTitle: "No {source} figures in this period",
+      latestFrom: "The latest figures are from {date}. Choose a longer period to include them.",
+      latestOnly: "The latest figures are from {date}.",
+      dailyTitle: "Day by day",
+      dailyDescription: "Days Google has not reported are left as gaps, not drawn as zero.",
+      chartMetric: "Figure shown in the chart",
+      chartClicks: "Clicks from Google Search per day",
+      chartImpressions: "Impressions in Google Search per day",
+      chartSessions: "Sessions per day",
+      unitClicks: "clicks",
+      unitImpressions: "impressions",
+      unitSessions: "sessions",
+      notReported: "not reported",
+      day: "Day",
+      chartInstructions: "Use the left and right arrow keys to move between days.",
+      chartEmpty: "No daily figures in this period.",
+      topTitle: "Top searches and pages",
+      topSearches: "Searches",
+      topPages: "Pages",
+      searchTerm: "Search term",
+      page: "Page",
+      topSearchesNote: "The 10 searches with the most clicks. Google leaves out rare searches to protect people’s privacy, so these add up to less than the totals above.",
+      topPagesNote: "The 10 pages with the most clicks from Google Search.",
+      topSearchesCaption: "Top searches in this period",
+      topPagesCaption: "Top pages in this period",
+      noSearches: "No searches were reported in this period.",
+      noPages: "No pages were reported in this period.",
+      opensInNewTab: "(opens in a new tab)",
     },
     research: {
       contentPlan: "Content plan",
@@ -2614,6 +4438,132 @@ const en: Messages = {
       questionAdded: "Question added",
       checkQueued: "Checking - results appear here in a few minutes",
       alreadyTracking: "You are already tracking the questions we would suggest",
+      checksUnavailableTitle: "Checks and suggestions are paused for this website",
+      errAiUnavailable: "AI checks are not available at the moment. Please try again later.",
+      errNoPlan: "Choose a plan for this website to run checks and get suggestions.",
+      errPlanInactive: "This website's subscription is not active. Update billing to run checks and get suggestions.",
+      errCheckQuota: "AI visibility has been checked several times in the last hour. Please try again later.",
+      errSuggestQuota: "Suggestions have been requested many times this hour. Please try again later.",
+      errSuggestFailed: "Could not suggest questions. Please try again.",
+      errTooShort: "Write a question of at least a few words.",
+      errAllowance: "Your plan tracks up to {count} questions. Remove one to add another.",
+      errDuplicate: "You are already tracking that question.",
+      errAddFirst: "Add a question first.",
+      errUnexpected: "Something went wrong. Please try again.",
+      statusQueuedTitle: "Check queued",
+      statusQueuedBody: "Waiting for the check to start. Answers appear here one question at a time, and you can leave this page in the meantime.",
+      statusRunningTitle: "Checking your questions",
+      statusRunningBody: "Answers appear here one question at a time. You can leave this page in the meantime.",
+      statusProgress: "{answered} of {total} questions answered",
+      statusRequestedAt: "Requested {date}",
+      statusCompletedTitle: "Check complete",
+      statusCompletedBody: "Every question in this check has a new answer.",
+      statusPartialTitle: "Check finished with gaps",
+      statusPartialBody: "{answered} of {total} questions got a new answer. The others did not get one within 10 minutes; they keep their earlier result and are marked below.",
+      statusTimedOutTitle: "No answers yet",
+      statusTimedOutBody: "No answers arrived within 10 minutes. The check may still be waiting to run, or it may have failed. Look again later, or run another check.",
+      statusTimedOutBodyViewer: "No answers arrived within 10 minutes. The check may still be waiting to run, or it may have failed. Look again later.",
+      statusFailedTitle: "The check did not run",
+      statusFailedBody: "No answers were recorded for the check requested {date}. You can run another check.",
+      statusFailedBodyViewer: "No answers were recorded for the check requested {date}.",
+      statusRefusedTitle: "The check was not started",
+      dismiss: "Dismiss",
+      progressLabel: "Check progress",
+      performanceTitle: "How your website is doing",
+      performanceHelp: "Measured from the latest answer to each checked question.",
+      howMeasured: "How this is measured",
+      scoreOutOf: "out of 100",
+      scoreGood: "Good",
+      scoreFair: "Fair",
+      scoreLow: "Low",
+      scoreUp: "Up {change} since the previous check",
+      scoreDown: "Down {change} since the previous check",
+      scoreSame: "No change since the previous check",
+      previousCheckOn: "Previous check: {date}",
+      firstCheck: "First check, so nothing to compare with yet",
+      namedOfChecked: "{mentions} of {total}",
+      namedOfCheckedHelp: "Checked questions where your business was recommended",
+      positionValue: "#{position}",
+      answeredInLatestCheck: "{count} of {total} questions answered in this check",
+      basisNote: "Based on the latest answer to {checked} of {tracked} tracked questions.",
+      earlierAnswersNote: "1 of these answers is from an earlier check.|{count} of these answers are from earlier checks.",
+      notCheckedYetTitle: "Not checked yet",
+      notCheckedYetBody: "No question has been checked, so there is no score yet. A score only appears once an assistant has actually been asked.",
+      competitorsHelp: "Other businesses recommended in the latest answers, by how many answers named them.",
+      competitorCount: "Named in {count} of {total} answers",
+      noCompetitors: "No other businesses were named in the latest answers.",
+      nextStep: "Next step",
+      nextAddQuestions: "Add the questions your customers would ask, or ask for suggestions.",
+      nextAddQuestionsAction: "Add questions",
+      nextFirstCheck: "Run the first check to see whether assistants name your business.",
+      nextUnchecked: "1 question has not been checked yet. Run a check to include it.|{count} questions have not been checked yet. Run a check to include them.",
+      nextStale: "1 answer is from an earlier check. Run a check to refresh it.|{count} answers are from earlier checks. Run a check to refresh them.",
+      nextNotNamed: "Assistants did not name you for 1 question. See who they named instead.|Assistants did not name you for {count} questions. See who they named instead.",
+      nextNotNamedAction: "Show these questions",
+      nextUpToDate: "Your results are up to date. Checks also run automatically once a week.",
+      nextWaiting: "A check is in progress. Results appear as each question is answered.",
+      nextViewer: "Only an owner or an editor can run checks or change the questions.",
+      questionsTitle: "Tracked questions",
+      questionsHelp: "The questions you track, each with its latest result and the evidence behind it.",
+      allowanceCount: "{count} of {max} questions",
+      addQuestionLabel: "Add a question",
+      atAllowance: "You are tracking as many questions as your plan allows ({max}). Remove one to add another.",
+      suggestionsTitle: "Suggested questions",
+      suggestionsHelp: "Choose the ones to track. Nothing is added until you press Add selected.",
+      addSelected: "Add selected ({count})",
+      suggestionsRoom: "You can add 1 more question on your plan.|You can add {count} more questions on your plan.",
+      questionsAdded: "1 question added|{count} questions added",
+      questionRemoved: "Question removed",
+      filterLabel: "Show questions",
+      filterAll: "All",
+      filterEmpty: "No questions match this filter.",
+      showAll: "Show all questions",
+      noQuestionsViewer: "No questions are tracked yet. An owner or an editor can add them.",
+      named: "Named",
+      namedAt: "Named #{position}",
+      checkedOn: "Checked {date}",
+      fromEarlierCheck: "From an earlier check ({date})",
+      checkingNow: "Checking now…",
+      noAnswerInCheck: "No answer in the last check",
+      answeredInCheck: "Answered in this check",
+      siteMentioned: "Your website was mentioned",
+      showEvidence: "Show evidence",
+      hideEvidence: "Hide evidence",
+      removeQuestionLabel: "Stop tracking: {question}",
+      evidenceExcerpt: "What the answer said",
+      evidenceExcerptNote: "Only the sentence that names your business is stored, not the full answer.",
+      evidencePosition: "Your position",
+      evidencePositionValue: "#{position} among the businesses the answer recommended",
+      evidenceNotRecommended: "Not among the businesses the answer recommended",
+      evidenceWebsite: "Your website address",
+      evidenceWebsiteYes: "Mentioned in the answer",
+      evidenceWebsiteNo: "Not mentioned in the answer",
+      evidenceOthers: "Other businesses named, in order",
+      evidenceNoOthers: "No other businesses were named.",
+      evidenceAssistant: "Assistant asked",
+      evidenceChecked: "Checked",
+      evidenceHistory: "Earlier results",
+      evidenceNoHistory: "This is the first stored result for this question.",
+      evidenceStale: "This answer is from an earlier check. The latest check, on {date}, did not return a new answer for this question.",
+      evidenceMissed: "The last check did not return a new answer for this question, so this is its earlier result.",
+      removeTitle: "Stop tracking this question?",
+      removeBody: "Its stored answers and history are deleted as well, and the score is worked out again without it. This cannot be undone.",
+      removeConfirm: "Stop tracking",
+      removing: "Removing…",
+      methodTitle: "What is measured",
+      methodHelp: "How a check works and what each number means.",
+      methodAskTitle: "How a check works",
+      methodAskBody: "Each tracked question is put to an AI assistant as a new conversation, without naming your business. The answer is then read to list the businesses it recommends, in order.",
+      methodRecordTitle: "What is recorded",
+      methodRecordBody: "Whether your business is among them and at what position, the sentence that names it, the other businesses named, and whether your website address appears. The full answer is not stored.",
+      methodScoreTitle: "How the score is worked out",
+      methodScoreBody: "A checked question scores 100 when you are named first, less further down the list (about {second} for second, {third} for third and {fourth} for fourth) and 0 when you are not named. The visibility score is the average over the latest answer to each checked question. Questions never checked are left out.",
+      methodCompareTitle: "Comparisons",
+      methodCompareBody: "The change is measured against the previous check, scored from that check's own answers. Answers more than an hour apart belong to different checks. If the two checks covered different questions, part of the change comes from that.",
+      methodScheduleTitle: "When checks run",
+      methodScheduleBody: "When an owner or an editor presses {action}, a limited number of times per hour, and automatically once a week. Answers arrive one question at a time over a few minutes.",
+      methodAssistantsTitle: "Assistants asked",
+      methodAssistantsBody: "The stored answers so far come from: {names}.",
     },
     backlinks: {
       title: "Links from other websites",
@@ -2714,6 +4664,12 @@ const en: Messages = {
       inProgress: "In progress",
       requestQuote: "Request a quote",
       quoteHelp: "We quote for the work after reviewing your audit.",
+      title: "Add-ons",
+      subtitle: "One-off purchases on top of your plan.",
+      perCredit: "{price} per credit",
+      quoteFrom: "From {price}. We quote for the work after reviewing your audit.",
+      servicesTitle: "Services",
+      showingRecent: "Showing your {count} most recent purchases.",
     },
     referral: {
       referSomeone: "Refer someone",
@@ -2734,6 +4690,12 @@ const en: Messages = {
       joined: "Joined {date}",
       noWebsiteJoined: "No website yet · joined {date}",
       creditsBadge: "+{count} credits",
+      linkHelp: "People who sign up through this link count as your referrals.",
+      peopleReferredStat: "People referred",
+      noReferralsYet: "Nobody has signed up with your link yet.",
+      showingRecent: "Showing your {count} most recent referrals.",
+      rewardedOn: "credits added {date}",
+      unavailable: "Your referral details could not be loaded. Reload the page to try again.",
     },
     keys: {
       updatePlugin: "WordPress has plugin {version}. Version 1.7 connects with one button, shows which RepGet account it publishes for and updates itself: download it, then in WordPress go to Plugins → Add New Plugin → Upload Plugin and choose “Replace current with uploaded”.",
@@ -3205,6 +5167,75 @@ const en: Messages = {
       saveDetails: "Save details",
       saving: "Saving…",
       detailsSaved: "Details saved",
+      pageTitle: "Business settings",
+      pageDescription: "The details of the business behind {domain}. Keyword research and every article we write are based on them.",
+      identityTitle: "Business identity",
+      identityHelp: "Who you are and what you do.",
+      marketTitle: "Market and audience",
+      marketHelp: "Where you sell, who you want to reach, and the language your articles are written in.",
+      descriptionTitle: "Business description",
+      descriptionHelp: "What the business does and what sets it apart, in your own words.",
+      competitorsTitle: "Competitors",
+      competitorsHelp: "Businesses that compete with you for the same customers. Suggestions come from the analysis of your website, so check them: remove any that are not real competitors and add the ones we missed.",
+      brandNameHint: "The name your customers know you by.",
+      industryHint: "What you do, in a few words.",
+      marketPlaceholder: "Ireland",
+      countryHint: "The country you mainly sell in, written in English (for example Spain), so keyword research looks at the right country.",
+      marketNotEnglish: "Keyword research only recognises country names written in English.",
+      marketUseEnglish: "Use {country}",
+      articleLanguage: "Article language",
+      articleLanguageHint: "Articles for this website are written in this language. It does not change your dashboard.",
+      dashboardLanguageNote: "Your dashboard is shown in {language}, a personal setting in your account.",
+      dashboardLanguageLink: "Change dashboard language",
+      chooseLanguage: "Choose a language",
+      unknownLanguage: "{language} (current value)",
+      audienceHint: "Who you want to reach: for example their age, situation or what they need.",
+      descriptionHint: "A few sentences is enough: your main products or services, where you work and what makes you different.",
+      notSet: "Not set",
+      unsavedBadge: "Unsaved",
+      saveBusinessDetails: "Save details",
+      saveScope: "Covers every section except Competitors, which save as soon as you add or remove one.",
+      saveError: "Something went wrong. Your changes are still here, so you can try again.",
+      checklistNeedsBoth: "Add a description and choose an article language to complete this step of your launch checklist.",
+      checklistNeedsDescription: "Add a description to complete this step of your launch checklist.",
+      checklistNeedsLanguage: "Choose an article language to complete this step of your launch checklist.",
+      analysingTitle: "Your website is being analysed",
+      analysingBody: "When the analysis finishes, it fills in the brand name, industry, market, audience and description, replacing what these fields hold now. The article language you choose is kept.",
+      analysingBodyReadOnly: "When the analysis finishes, it fills in these details.",
+      refresh: "Refresh",
+      analysisFailedTitle: "We could not analyse your website",
+      analysisFailedBody: "These details were not filled in automatically. You can enter them yourself.",
+      analysisFailedBodyReadOnly: "These details were not filled in automatically.",
+      analysisFailedRetry: "You can retry the analysis from the Websites page.",
+      goToWebsites: "Go to Websites",
+      competitorCount: "1 competitor|{count} competitors",
+      manualGroup: "Added by you",
+      suggestedGroup: "Suggested by analysis",
+      suggestedGroupHelp: "Found when we analysed your website, not chosen by you. Remove any that are not real competitors.",
+      suggestedGroupHelpReadOnly: "Found when the website was analysed.",
+      competitorsEmpty: "No competitors yet.",
+      competitorsEmptyAnalysed: "The analysis of your website did not suggest any competitors.",
+      competitorsEmptyAnalysing: "Suggestions appear here when the analysis of your website finishes.",
+      competitorsTruncated: "Showing the first {count} competitors.",
+      addCompetitor: "Add a competitor",
+      addCompetitorHint: "Their website address, for example rival.com. We check that the site exists before adding it, which can take a few seconds.",
+      competitorPlaceholder: "rival.com",
+      addCompetitorButton: "Add",
+      checkingShort: "Checking…",
+      checkingCompetitor: "Checking {domain}…",
+      competitorAdded: "{domain} added.",
+      removingCompetitor: "Removing {domain}…",
+      competitorRemoved: "{domain} removed.",
+      visitCompetitor: "Open {domain} in a new tab",
+      removeCompetitor: "Remove {domain}",
+      competitorRequired: "Enter a website address.",
+      competitorInvalid: "Enter a website address such as rival.com.",
+      competitorOwnSite: "That is your own website.",
+      competitorDuplicate: "{domain} is already in your list.",
+      competitorNotPublic: "That address is not a public website.",
+      competitorBlocked: "Social networks and large platforms such as Google, Amazon or Wikipedia cannot be added as competitors.",
+      competitorUnreachable: "We could not reach {domain}. Check the spelling and try again.",
+      actionFailed: "Something went wrong. Try again.",
     },
     setup: {
       launchChecklist: "Launch checklist",
@@ -3425,6 +5456,23 @@ const en: Messages = {
       saveImage: "Save",
       noMatches: "Nothing matches that.",
       noPicturesYet: "No pictures yet - upload one to start.",
+      toolbarLabel: "Text formatting",
+      groupText: "Text style",
+      groupHeadings: "Headings",
+      groupBlocks: "Lists and blocks",
+      groupLinks: "Links",
+      groupMedia: "Images",
+      groupHistory: "Undo and redo",
+      linkDialogTitle: "Add or change a link",
+      linkDialogHelp: "Paste the full address, for example https://example.com/page.",
+      linkUrlLabel: "Link address",
+      linkApply: "Apply",
+      linkInvalid: "Enter an address that starts with https://, http://, mailto:, tel:, / or #.",
+      htmlHint: "Editing the HTML directly. Anything unsafe is removed when you save.",
+      richHint: "Formatting is kept simple so it matches your site's own styling.",
+      editHtml: "Edit HTML",
+      backToEditor: "Back to editor",
+      htmlToolbarOff: "The formatting buttons are off while you edit the HTML.",
     },
     dash: {
       bestArticles: "Best articles",
@@ -4125,9 +6173,324 @@ const es: Messages = {
   legalNotice: "Esta página solo está disponible en inglés. Las traducciones de nuestros términos legales las prepara un traductor profesional antes de su publicación.",
 
   app: {
+    workspace: {
+      save: "Guardar",
+      saving: "Guardando…",
+      saved: "Guardado",
+      discard: "Descartar cambios",
+      unsaved: "1 cambio sin guardar|{count} cambios sin guardar",
+      noChanges: "Todos los cambios están guardados",
+      saveFailed: "No se ha guardado. {error}",
+      leaveConfirm: "Tiene cambios sin guardar. ¿Salir de esta página y perderlos?",
+      onThisPage: "En esta página",
+      jumpTo: "Ir a una sección",
+      optional: "Opcional",
+      required: "Obligatorio",
+      charactersLeft: "Queda 1 carácter|Quedan {count} caracteres",
+      overLimit: "1 carácter por encima del límite|{count} caracteres por encima del límite",
+      viewOnly: "Tiene acceso de solo lectura a este sitio web. Solo un propietario o un editor puede hacer cambios.",
+      savesImmediately: "Se guarda en cuanto lo cambia",
+      savedWithButton: "Se guarda con el botón Guardar",
+      editsKept: "Sus cambios más recientes se conservan y aún deben guardarse.",
+      preview: "Vista previa",
+      close: "Cerrar",
+      selected: "Seleccionado",
+    },
+    health: {
+      title: "Salud del sitio",
+      description: "Una revisión técnica de las páginas que podemos leer en {domain}: qué puede frenarlas en los resultados de búsqueda y cómo solucionarlo.",
+      checkNow: "Revisar mi sitio web",
+      checkAgain: "Volver a revisar",
+      checking: "Revisando…",
+      starting: "Iniciando…",
+      refreshStatus: "Actualizar estado",
+      dismiss: "Cerrar",
+      unavailableTitle: "No se pueden iniciar revisiones nuevas",
+      siteNotReady: "Todavía estamos analizando este sitio web. Podrá iniciar una revisión cuando termine.",
+      errNoPlan: "Primero elija un plan para este sitio web.",
+      errPlanInactive: "La suscripción de este sitio web no está activa. Actualice la facturación para iniciar una revisión.",
+      errQuota: "Ha iniciado esta revisión varias veces en la última hora. Inténtelo de nuevo en unos minutos.",
+      errUnexpected: "No se ha podido iniciar la revisión. Inténtelo de nuevo.",
+      queuedTitle: "Revisión solicitada",
+      queuedBody: "Su revisión está a la espera de empezar. Esta página se actualiza sola.",
+      queuedStale: "Esta revisión aún no ha empezado y está tardando más de lo habitual. El informe aparecerá aquí cuando se haya realizado.",
+      requestedAt: "Solicitada: {date}",
+      runningTitle: "Revisando su sitio web",
+      runningBody: "Estamos leyendo sus páginas una a una. Esta página se actualiza sola.",
+      runningStale: "Esta revisión lleva más tiempo del previsto y puede haberse detenido.",
+      staleRetry: "Actualice el estado para ver si ha avanzado, o vuelva a iniciar la revisión.",
+      startedAt: "Iniciada: {date}",
+      progressChecked: "1 página revisada hasta ahora|{count} páginas revisadas hasta ahora",
+      progressFound: "1 dirección encontrada en su sitio|{count} direcciones encontradas en su sitio",
+      progressLimit: "Cada revisión lee hasta {max} páginas.",
+      previousNotice: "El informe de abajo es su resultado anterior, del {date}. Se sustituirá cuando termine la nueva revisión.",
+      failedTitle: "No se ha podido completar la última revisión",
+      failedPrevious: "El informe de abajo sigue siendo su resultado anterior, del {date}.",
+      finishedTitle: "Su nuevo informe está listo",
+      finishedBody: "El informe de abajo corresponde a la revisión del {date}.",
+      failure: {
+        timeout: "Su sitio web ha tardado demasiado en responder. Inténtelo de nuevo: suele ser algo temporal en un servidor con mucha carga.",
+        notHtml: "La dirección del sitio web no ha devuelto una página web. Compruebe que apunta a la página de inicio de su sitio.",
+        tooLarge: "Su página de inicio es demasiado grande para que podamos analizarla.",
+        invalidUrl: "No se ha podido leer la dirección del sitio web. Compruebe la dirección, incluido http:// o https://.",
+        refused: "Su sitio web ha rechazado nuestra solicitud. Puede que un cortafuegos o un plugin de seguridad bloquee a los visitantes automáticos.",
+        unreachable: "No hemos podido acceder a su sitio web. Compruebe que está en línea y que la dirección es correcta.",
+        notEntitled: "La revisión se ha detenido porque la suscripción de este sitio web no está activa. No se ha cobrado nada más.",
+        generic: "No hemos podido terminar de revisar su sitio web. Inténtelo de nuevo y, si vuelve a ocurrir, contacte con soporte.",
+      },
+      failureViewer: {
+        timeout: "Su sitio web ha tardado demasiado en responder. Suele ser algo temporal en un servidor con mucha carga. Un propietario o un editor puede volver a iniciar la revisión.",
+        generic: "No hemos podido terminar de revisar su sitio web. Un propietario o un editor puede volver a iniciar la revisión.",
+      },
+      emptyTitle: "Todavía no hay ningún informe",
+      emptyBody: "Una revisión lee hasta {max} páginas de su sitio y enumera, página por página, qué puede frenarlo en las búsquedas y cómo solucionar cada problema.",
+      emptyViewer: "Todavía no se ha hecho ninguna revisión. Un propietario o un editor puede iniciarla.",
+      firstRunTitle: "Su primer informe está en camino",
+      firstRunBody: "Aparecerá aquí en cuanto termine la revisión.",
+      scoreTitle: "Puntuación de salud",
+      scoreDescription: "Cuenta los problemas técnicos de las páginas que leímos, ponderados según su gravedad y promediados por página.",
+      previousResult: "Resultado anterior",
+      latestResult: "Último resultado",
+      outOf: "de 100",
+      scoreAria: "Puntuación de salud: {score} de 100",
+      bandGood: "Buena",
+      bandFair: "Mejorable",
+      bandPoor: "Baja",
+      noScore: "Sin puntuación",
+      noScoreBody: "No se registró ninguna puntuación para esta revisión.",
+      notScored: "Sin puntuar",
+      zeroPagesTitle: "No se ha podido leer ninguna página",
+      zeroPagesBody: "En esta revisión no pudimos abrir ninguna página, así que su puntuación no describe su sitio. Los hallazgos de abajo explican por qué.",
+      notAuthority: "Esto no es la Autoridad de dominio: mide problemas técnicos de sus propias páginas, no cuánto confían otros sitios en el suyo.",
+      lastChecked: "Última revisión",
+      pagesRead: "Páginas leídas",
+      pagesFailed: "No se pudieron abrir",
+      addressesFound: "Direcciones encontradas",
+      notRecorded: "No registrado",
+      severityTitle: "Problemas según su gravedad",
+      critical: "Críticos",
+      warnings: "Advertencias",
+      suggestions: "Sugerencias",
+      inFindings: "en 1 hallazgo|en {count} hallazgos",
+      severityAria: "Críticos: {critical}, advertencias: {warning}, sugerencias: {info}",
+      badge: { critical: "Crítico", warning: "Advertencia", info: "Sugerencia" },
+      coverageTitle: "Qué ha cubierto esta revisión",
+      coverageLimit: "Lee hasta {max} páginas, empezando por su página de inicio y siguiendo enlaces.",
+      coverageSameSite: "Solo sigue enlaces dentro de {domain}. Los enlaces a otros sitios no se revisan.",
+      coverageQuery: "Las direcciones que solo se diferencian después de «?» o «#» cuentan como una sola página.",
+      coverageSkipped: "Omite las páginas de administración, inicio de sesión, carrito y pago, los feeds y los archivos como imágenes y PDF.",
+      coverageRefused: "Una página que no responde en 15 segundos, o que rechaza a los visitantes automáticos, aparece como «no se pudo abrir».",
+      coverageBeyond: "Esta revisión encontró {found} direcciones en su sitio y leyó {read} páginas. El resto no se revisó.",
+      notAssessedTitle: "Algunas comprobaciones no se pudieron hacer",
+      notAssessedBody: "Estas comprobaciones comparan páginas entre sí y necesitan al menos dos páginas legibles: {checks}. No forman parte de esta puntuación.",
+      crossChecks: {
+        duplicateTitles: "títulos de página duplicados",
+        duplicateDescriptions: "descripciones duplicadas",
+        internalLinking: "enlaces internos",
+      },
+      findingsTitle: "Hallazgos",
+      findingsDescription: "Primero los más graves. Abra un hallazgo para ver todas las páginas afectadas y cómo solucionarlo.",
+      findingsCount: "1 hallazgo|{count} hallazgos",
+      filterLabel: "Filtrar por gravedad",
+      filterAll: "Todos",
+      searchLabel: "Buscar hallazgos",
+      searchPlaceholder: "Buscar por problema o dirección de página",
+      showingFiltered: "Hallazgos mostrados: {shown} de {total}.",
+      clearFilters: "Quitar filtros",
+      noMatchTitle: "Ningún hallazgo coincide",
+      noMatchBody: "Pruebe otra búsqueda o muestre todos los hallazgos.",
+      noFindingsTitle: "No se han encontrado problemas",
+      noFindingsBody: "No encontramos nada que corregir en la página que leímos.|No encontramos nada que corregir en las {count} páginas que leímos.",
+      pagesCount: "1 página|{count} páginas",
+      howToFix: "Cómo solucionarlo",
+      effortMinutes: "Suele llevar unos minutos",
+      effortHour: "Suele llevar alrededor de una hora",
+      effortLonger: "Puede llevar más tiempo",
+      needsDeveloper: "Puede necesitar a su desarrollador web",
+      affectedPages: "Páginas afectadas ({count})",
+      homepage: "página de inicio",
+      opensInNewTab: "(se abre en una pestaña nueva)",
+      showAllPages: "Mostrar las {count} páginas",
+      showFewerPages: "Mostrar menos páginas",
+      matchingPages: "Páginas que coinciden con su búsqueda: {shown} de {total}.",
+      notLoaded: "Se muestran {shown} de {total}. El resto no se ha cargado para que esta página sea rápida.",
+      groupNote: "Cada entrada es un grupo de páginas; se muestra la primera página de cada grupo.",
+      firstPageNote: "Se muestra la primera página encontrada; el detalle indica el total.",
+      noUrl: "No se registró la dirección de la página",
+      rowsCapped: "Esta revisión registró {total} problemas. Abajo se muestran los primeros {shown}; los recuentos de arriba los incluyen todos.",
+      detail: {
+        titleLong: "El título tiene {chars} caracteres; los resultados de búsqueda lo cortan a partir de unos {max}.",
+        titleShort: "El título solo tiene {chars} caracteres.",
+        descriptionLong: "La descripción tiene {chars} caracteres; los resultados de búsqueda la cortan a partir de unos {max}.",
+        descriptionShort: "La descripción solo tiene {chars} caracteres.",
+        multipleH1: "{count} encabezados principales (H1) en esta página.",
+        thinContent: "Solo {words} palabras en esta página.",
+        imagesAlt: "{missing} de {total} imágenes no tienen descripción (texto alternativo).",
+        largePage: "Solo el HTML de la página ocupa {kb} KB.",
+        httpStatus: "La página respondió con el error {status}.",
+        duplicateTitle: "{count} páginas comparten el título «{title}».",
+        duplicateDescription: "{count} páginas comparten la misma descripción.",
+        noInternalLinks: "1 página no enlaza a ninguna otra página de su sitio.|{count} páginas no enlazan a ninguna otra página de su sitio.",
+        unreachTimeout: "No respondió a tiempo.",
+        unreachBlocked: "Rechaza a los visitantes automáticos (un ajuste de seguridad del sitio).",
+        unreachPassword: "Pide una contraseña.",
+        unreachStatus: "Respondió con el error {status}.",
+        unreachNotHtml: "No es una página web.",
+        unreachRedirects: "Redirige demasiadas veces.",
+        unreachRedirectAway: "Redirige a una dirección que no revisamos.",
+        unreachConnect: "No pudimos conectar con ella.",
+        unreachUnknown: "Un error inesperado nos impidió abrirla.",
+      },
+      issues: {
+        noindex: {
+          label: "Oculta para los buscadores",
+          about: "La página pide a los buscadores que no la incluyan en sus resultados, así que no se puede encontrar en las búsquedas.",
+          fix: "Salvo que la oculte a propósito, quite su ajuste «noindex». En WordPress suele ser una opción de su plugin de SEO o la casilla «Disuadir a los motores de búsqueda» en Ajustes › Lectura.",
+        },
+        broken_page: {
+          label: "La página muestra un error",
+          about: "La página responde con un error en lugar de cargarse.",
+          fix: "Corrija la página o, si ya no debe existir, rediríjala a la página más parecida que exista, para no perder visitantes ni enlaces.",
+        },
+        unreachable_page: {
+          label: "No se pudo abrir la página",
+          about: "Intentamos cargar esta página y no pudimos. Puede que los buscadores tengan el mismo problema.",
+          fix: "Abra la página en su propio navegador. Si ya no existe, actualice los enlaces que apuntan a ella o rediríjala. Si a usted se le abre, puede que su alojamiento o un ajuste de seguridad rechace a los visitantes automáticos, lo que también puede dejar fuera a los buscadores.",
+        },
+        missing_title: {
+          label: "La página no tiene título",
+          about: "La página no tiene etiqueta de título, el titular que se muestra en los resultados de búsqueda.",
+          fix: "Dé a la página un título que diga de qué trata. Es el titular que la gente ve en los resultados de búsqueda, así que escríbalo para las personas en lugar de llenarlo de palabras clave.",
+        },
+        title_too_long: {
+          label: "El título es demasiado largo",
+          about: "Los resultados de búsqueda cortan los títulos de más de unos 60 caracteres.",
+          fix: "Acorte el título para que no se corte la parte importante. Ponga primero lo que importa: lo que se recorta es el final.",
+        },
+        title_too_short: {
+          label: "El título es muy corto",
+          about: "Los títulos de menos de 30 caracteres a menudo no dicen lo suficiente sobre la página.",
+          fix: "Añada detalle al título para que, desde los resultados de búsqueda, se vea que esta página es lo que buscan.",
+        },
+        missing_meta_description: {
+          label: "Sin descripción para los resultados de búsqueda",
+          about: "La página no tiene descripción, así que los buscadores eligen su propio texto para mostrar bajo su enlace.",
+          fix: "Escriba una descripción de la página de una o dos frases. Sin ella, los buscadores toman un texto de la página, y a menudo no es el mejor.",
+        },
+        meta_description_too_long: {
+          label: "La descripción es demasiado larga",
+          about: "Los resultados de búsqueda cortan las descripciones de más de unos 158 caracteres.",
+          fix: "Acorte la descripción y diga pronto por qué merece la pena hacer clic.",
+        },
+        meta_description_too_short: {
+          label: "La descripción es muy corta",
+          about: "Las descripciones de menos de 70 caracteres desaprovechan espacio en los resultados de búsqueda.",
+          fix: "Amplíe la descripción a una o dos frases que den a la gente un motivo para elegir su resultado.",
+        },
+        missing_h1: {
+          label: "Sin encabezado principal",
+          about: "La página no tiene encabezado principal (H1), así que su tema queda menos claro para lectores y buscadores.",
+          fix: "Añada un encabezado principal cerca del inicio de la página que diga de qué trata.",
+        },
+        multiple_h1: {
+          label: "Más de un encabezado principal",
+          about: "La página tiene varios encabezados principales (H1), así que no queda claro cuál la describe.",
+          fix: "Deje un solo encabezado principal y convierta los demás en subtítulos.",
+        },
+        thin_content: {
+          label: "Poco texto",
+          about: "La página tiene menos de 300 palabras, contando menús y pies de página. Las páginas tan cortas rara vez se posicionan en búsquedas competidas.",
+          fix: "Amplíe la página para que responda por completo a lo que buscan los visitantes, o intégrela en una página más completa y redirija esta.",
+        },
+        images_missing_alt: {
+          label: "Imágenes sin descripción",
+          about: "Algunas imágenes no tienen texto alternativo, que leen los lectores de pantalla y que usa la búsqueda de imágenes.",
+          fix: "Añada a cada imagen una breve descripción de lo que muestra. Las imágenes puramente decorativas pueden tener una descripción vacía.",
+        },
+        missing_canonical: {
+          label: "Sin dirección preferida",
+          about: "La página no indica su dirección preferida (enlace canónico). Si se puede acceder a ella desde varias direcciones, los buscadores tienen que adivinar cuál mostrar.",
+          fix: "Añada un enlace canónico a la página. La mayoría de los plugins de SEO lo añaden automáticamente al activarlos; si no, consulte a su desarrollador web.",
+        },
+        missing_lang: {
+          label: "Idioma de la página sin indicar",
+          about: "La página no indica en qué idioma está escrita.",
+          fix: "Indique el idioma de la página (el atributo «lang» de la etiqueta html). Ayuda a los buscadores a mostrar sus páginas a las personas adecuadas y a los lectores de pantalla a pronunciarlas bien.",
+        },
+        large_page: {
+          label: "El código de la página es muy grande",
+          about: "Solo el HTML de la página supera 1,5 MB, lo que ralentiza la carga. Las imágenes no se cuentan aquí.",
+          fix: "Un HTML grande suele deberse a código, datos o imágenes incrustados en la propia página. Pida a su desarrollador web que los pase a archivos separados o los reduzca.",
+        },
+        duplicate_title: {
+          label: "Páginas con el mismo título",
+          about: "Varias páginas usan el mismo título, así que a los buscadores les cuesta distinguirlas.",
+          fix: "Dé a cada página un título que describa lo que solo esa página trata.",
+        },
+        duplicate_meta_description: {
+          label: "Páginas con la misma descripción",
+          about: "Varias páginas usan la misma descripción en los resultados de búsqueda.",
+          fix: "Escriba una descripción distinta para cada página que diga lo que ofrece esa página.",
+        },
+        no_internal_links: {
+          label: "Páginas que no enlazan a ninguna otra",
+          about: "Algunas páginas no tienen enlaces a otras páginas de su sitio, así que visitantes y buscadores no pueden seguir desde ellas.",
+          fix: "Añada enlaces desde estas páginas a otras relacionadas de su sitio, como un servicio, un artículo o su página de inicio.",
+        },
+      },
+      siteTitle: "Su sitio tal como lo leímos",
+      siteDescription: "Leído de su página de inicio durante esta revisión.",
+      siteLegacy: "Esta revisión se registró antes de que empezáramos a recoger los datos del sitio. Aparecerán tras la próxima revisión.",
+      siteUnavailable: "En esta revisión no se pudo leer ninguna página, así que estos datos no están disponibles.",
+      siteName: "Nombre del sitio",
+      siteNameMissing: "No encontrado",
+      language: "Idioma",
+      languageMissing: "No indicado",
+      languageNote: "Según indica su página de inicio.",
+      languageMissingNote: "Su página de inicio no indica en qué idioma está, así que los buscadores tienen que adivinarlo.",
+      platform: "Plataforma",
+      platformUnknown: "No reconocida",
+      platformNote: "Detectada a partir del código de su página.",
+      platformUnknownNote: "No reconocimos ninguna plataforma común. Eso no es un problema en sí.",
+      previewImage: "Imagen de vista previa del enlace",
+      previewMissing: "Ninguna",
+      previewNote: "Se muestra cuando se comparte su página de inicio.",
+      previewMissingNote: "No se encontró ninguna imagen de vista previa (og:image), así que los enlaces compartidos pueden aparecer sin imagen.",
+      previewBroken: "No se pudo cargar la imagen de vista previa.",
+      linkedTitle: "Sitios a los que más enlaza",
+      linkedHelp: "Hasta seis, contados en las páginas que leímos. Sirve para detectar enlaces que no quería dar.",
+      linkedEmpty: "No encontramos enlaces a otros sitios en las páginas que leímos.",
+      aiTitle: "Acceso de los asistentes de IA",
+      aiDescription: "Si su archivo robots.txt bloquea los rastreadores que usan los asistentes de IA para leer sitios web.",
+      aiLegacy: "Esta revisión se registró antes de que empezáramos a leer robots.txt. Aparecerá tras la próxima revisión.",
+      aiUnreadable: "En esta revisión no se pudo leer ninguna página, así que lo más probable es que tampoco se pudiera leer robots.txt. Aquí, «No bloqueado» puede significar solo que no pudimos leerlo.",
+      aiNoneBlocked: "Ninguno de estos {total} rastreadores está bloqueado en todo su sitio.",
+      aiSomeBlocked: "1 de {total} rastreadores está bloqueado en todo su sitio.|{count} de {total} rastreadores están bloqueados en todo su sitio.",
+      aiAllowed: "No bloqueado",
+      aiBlocked: "Bloqueado",
+      aiNamed: "Mencionado en robots.txt",
+      aiCaveat: "Solo comprobamos si robots.txt bloquea todo el sitio. Si no hay robots.txt, o no pudimos leerlo, el rastreador cuenta como no bloqueado. No se comprueban cortafuegos ni reglas para páginas concretas.",
+      aiNoGuarantee: "Que su sitio se pueda leer no significa que un asistente de IA vaya a mencionarlo o citarlo.",
+      aiBlockedHelp: "Para dejar pasar a un rastreador, quite de robots.txt la regla «Disallow: /» que se le aplica, o pida a quien gestiona su sitio que lo haga.",
+      aiVisibilityLink: "Vea si los asistentes de IA le mencionan",
+      fixTitle: "¿Quiere que se lo arreglemos?",
+      fixSelf: "La mayoría son cambios de texto que puede hacer usted mismo con las indicaciones de arriba. Si lo prefiere, envíenos la lista y le daremos un presupuesto.",
+      fixDeveloper: "1 de estos hallazgos suele necesitar a quien creó su sitio. Envíenos la lista: lo revisaremos todo y le daremos un presupuesto para solucionarlo.|{count} de estos hallazgos suelen necesitar a quien creó su sitio. Envíenos la lista: lo revisaremos todo y le daremos un presupuesto para solucionarlo.",
+      fixHow: "Abre su aplicación de correo con la lista ya escrita. No se envía nada hasta que usted lo envíe, y no se cobra nada.",
+      fixUnavailable: "Ahora mismo no se pueden solicitar presupuestos por correo.",
+      requestQuote: "Solicitar presupuesto",
+      mailSubject: "Solicitud de corrección para {domain}",
+      mailGreeting: "Hola:",
+      mailAsk: "Les pido un presupuesto para corregir los problemas encontrados en {domain}.",
+      mailCheckedOn: "Revisión del {date}.",
+      mailCounts: "1 problema encontrado; críticos: {critical}.|{count} problemas encontrados; críticos: {critical}.",
+      mailListTitle: "Hallazgos:",
+      mailLine: "- {label}: {pages}",
+      mailThanks: "Gracias.",
+    },
     settings: {
       personalTitle: "Datos personales",
-      personalSubtitle: "Los datos de su cuenta",
+      personalSubtitle: "Su nombre y la dirección de correo electrónico con la que inicia sesión.",
       nameLabel: "Nombre",
       namePlaceholder: "Su nombre",
       save: "Guardar",
@@ -4145,7 +6508,7 @@ const es: Messages = {
       passwordCreated:
         "Contraseña establecida. Ya puede iniciar sesión con su correo y su contraseña.",
       languageLabel: "Idioma del panel",
-      languageHelp: "El idioma de este panel. Sus artículos se escriben en el idioma configurado en la pestaña Negocio.",
+      languageHelp: "Menús, botones y mensajes de este panel. Cambiarlo no cambia sus artículos.",
       languageError: "No se pudo guardar su idioma",
       currentPassword: "Contraseña actual",
       newPassword: "Nueva contraseña",
@@ -4182,6 +6545,61 @@ const es: Messages = {
       loadingPeople: "Cargando personas",
       roleEditor: "Editor",
       roleViewer: "Lector",
+      pageTitle: "Cuenta",
+      pageDescription: "Sus datos personales, cómo inicia sesión, su idioma, quién trabaja en sus sitios web y su enlace de recomendación.",
+      emailHelp: "Inicia sesión con esta dirección y los recibos se envían a ella. No se puede cambiar aquí.",
+      nameRequired: "Introduzca su nombre.",
+      securityTitle: "Inicio de sesión y seguridad",
+      securitySubtitle: "Las formas en que puede iniciar sesión en su cuenta.",
+      methodPassword: "Correo electrónico y contraseña",
+      methodGoogle: "Google",
+      methodSet: "Configurada",
+      methodNotSet: "Sin configurar",
+      methodLinked: "Vinculada",
+      passwordSetSummary: "Puede iniciar sesión con su dirección de correo y su contraseña.",
+      passwordNotSetSummary: "Esta cuenta aún no tiene contraseña.",
+      googleLinkedSummary: "Puede iniciar sesión con la cuenta de Google de esta dirección.",
+      setPasswordIntroGeneric: "Establezca una contraseña para iniciar sesión con su dirección de correo y una contraseña.",
+      currentPasswordWrong: "Su contraseña actual no es correcta.",
+      passwordTooLong: "Use como máximo 128 caracteres",
+      tooManyAttempts: "Demasiados intentos. Espere un minuto y vuelva a intentarlo.",
+      passwordAlreadySet: "Esta cuenta ya tiene contraseña. Introduzca su contraseña actual para cambiarla.",
+      languageTitle: "Idioma",
+      languageSubtitle: "El panel y sus artículos tienen cada uno su propio idioma.",
+      languageSaved: "Idioma del panel guardado.",
+      articleLanguageLabel: "Idioma de los artículos",
+      articleLanguageHelp: "Los artículos de cada sitio web se escriben en el idioma configurado en su pestaña Negocio.",
+      articleLanguageLink: "Abrir la pestaña Negocio de {domain}",
+      roleAdmin: "Administrador",
+      roleEditorHelp: "Escribe, edita y publica artículos.",
+      roleViewerHelp: "Puede consultarlo todo, pero no cambiar nada.",
+      inviteTo: "Tendrá acceso solo a {domain}.",
+      reinviteHelp: "Invitar a alguien que ya tiene acceso cambia su función.",
+      invalidEmail: "Introduzca una dirección de correo electrónico válida.",
+      inviteSelf: "Ya tiene acceso a este sitio web.",
+      inviteFailed: "No se pudo enviar la invitación. Inténtelo de nuevo.",
+      actionFailed: "No ha funcionado. Inténtelo de nuevo.",
+      accessGranted: "{email} ya puede trabajar en {domain}",
+      accessGrantedNoEmail: "{email} ya puede trabajar en {domain}, pero no hemos podido enviarle un correo.",
+      accessRemoved: "{email} ya no tiene acceso",
+      loadPeopleFailed: "No se pudo cargar quién trabaja en este sitio web.",
+      retry: "Reintentar",
+      thisWebsite: "este sitio web",
+      workspaceAccess: "{email} tiene acceso a través de su espacio de trabajo",
+      manageMember: "Gestionar a {email}",
+      manageInvitation: "Gestionar la invitación de {email}",
+      membersCaption: "Personas que pueden trabajar en {domain}",
+      removeConfirmTitle: "¿Retirar el acceso de {email}?",
+      removeConfirmBody: "Ya no podrá abrir {domain}. Puede volver a invitarle más adelante.",
+      keepAccess: "Mantener el acceso",
+      cancelInviteConfirmTitle: "¿Cancelar la invitación de {email}?",
+      cancelInviteConfirmBody: "El enlace que enviamos por correo dejará de funcionar. Puede volver a invitarle más adelante.",
+      keepInvitation: "Mantener la invitación",
+      removing: "Retirando…",
+      cancellingInvite: "Cancelando…",
+      inviting: "Enviando…",
+      viewingSharedNote: "Está viendo {domain}, que se ha compartido con usted. Solo su propietario puede cambiar quién trabaja en él. La lista siguiente es para sus propios sitios web.",
+      guestTeamNote: "{domain} se ha compartido con usted como {role}. Solo su propietario puede invitar o retirar personas.",
     },
     websites: {
       title: "Sitios web",
@@ -4237,6 +6655,58 @@ const es: Messages = {
       purchaseCancelled: "Compra cancelada.",
       addWebsiteFirst: "Añada primero un sitio web - cada plan paga un solo sitio.",
       checkoutFailed: "No se pudo iniciar el pago. Inténtelo de nuevo.",
+      planFor: "Plan de {domain}",
+      choosePlan: "Elija un plan",
+      choosePlanFor: "Elija un plan para {domain}",
+      choosePlanHelp: "Un plan paga un solo sitio web.",
+      billingPeriod: "Periodo de facturación",
+      perMonth: "/ mes",
+      perYear: "/ año",
+      saveBadge: "Ahorre un {n} %",
+      switchPlan: "Cambiar a este plan",
+      payByCard: "Pagar con tarjeta",
+      redirecting: "Redirigiendo…",
+      opening: "Abriendo…",
+      cancelSubscription: "Cancelar suscripción",
+      paypalCheckoutFailed: "No se pudo iniciar el pago con PayPal. Inténtelo de nuevo.",
+      portalFailed: "No se pudo abrir el portal de facturación.",
+      managedForYou: "Nosotros gestionamos esta suscripción. Escriba a {email} para obtener recibos o hacer un cambio.",
+      newTab: "(se abre en una pestaña nueva)",
+      upgradeLead: "¿Listo para crecer?",
+      upgradeBody: "El plan {plan} incluye {articles}, {terms} y {credits}.",
+      upgradeLink: "Vea lo que ofrece {plan}",
+      statusActive: "Activa",
+      statusTrialing: "Prueba gratuita",
+      statusPastDue: "Pago vencido",
+      statusUnpaid: "Impagada",
+      statusIncomplete: "Pago incompleto",
+      statusIncompleteExpired: "Pago caducado",
+      statusCanceled: "Cancelada",
+      statusPaused: "En pausa",
+      statusInactive: "Inactiva",
+      pastDueNotice: "El último pago de este sitio web no se ha completado. Actualice el método de pago para mantener el acceso.",
+      unsettledNotice: "La suscripción de este sitio web debe regularizarse o cancelarse antes de poder cambiar de plan.",
+      endedNotice: "Esta suscripción ha finalizado. Elija un plan a continuación para volver a empezar.",
+      billedByPayPal: "Este sitio web se factura a través de PayPal, así que los cambios de plan también se hacen con PayPal.",
+      billedByCard: "Este sitio web se factura con tarjeta, así que los cambios de plan se hacen con tarjeta. Para pagar con PayPal, cancele primero la suscripción con tarjeta.",
+      billedByCardEnding: "La suscripción con tarjeta de este sitio web finaliza el {date}. Podrá elegir PayPal cuando haya finalizado.",
+      noPlanChange: "Ahora mismo no se puede cambiar el plan de este sitio web.",
+      paypalApproved: "Aprobación de PayPal recibida - confirmando su suscripción…",
+      paypalCancelled: "Pago con PayPal cancelado.",
+      viewingSharedNote: "{shared} se ha compartido con usted y lo paga su propietario. Esta página muestra la facturación de sus propios sitios web.",
+      guestTitle: "Aquí no hay nada que pagar",
+      guestBody: "Los sitios web compartidos con usted los pagan sus propietarios. No necesita un plan para trabajar en ellos.",
+      addWebsite: "Añadir un sitio web",
+      viewPlan: "Ver plan",
+      shownBelow: "Se muestra abajo",
+      paidByCard: "Tarjeta",
+      invoiceInPortal: "Factura en Gestionar facturación",
+      dateColumn: "Fecha",
+      descriptionColumn: "Descripción",
+      methodColumn: "Pagado con",
+      amountColumn: "Importe",
+      receiptColumn: "Recibo",
+      historyCapped: "Se muestran los {count} pagos más recientes.",
     },
     article: {
       contentSeo: "Contenido y SEO",
@@ -4295,6 +6765,83 @@ const es: Messages = {
       factsHelp: "Uno por línea. Son los únicos datos concretos que afirmaremos.",
       authorHelp: "La firma que aparece en cada artículo, aquí y en su sitio.",
       noBylineHelp: "Si lo deja vacío, los artículos se publican sin firma.",
+      pageTitle: "Ajustes de artículos",
+      pageDescription: "Cómo se escriben, ilustran y publican los artículos de este sitio web.",
+      sectionWriting: "Redacción y SEO",
+      sectionWritingHelp: "El estilo y la extensión de cada artículo, y cuántos enlaces lleva a sus otras páginas.",
+      sectionSources: "Fuentes de contenido",
+      sectionSourcesHelp: "Dónde está su contenido en su sitio web.",
+      sectionImages: "Imágenes y marca",
+      sectionImagesHelp: "La imagen que se crea para cada artículo y el aspecto de su marca.",
+      sectionEnhancements: "Mejoras del artículo",
+      sectionEnhancementsHelp: "Extras que se añaden a los artículos junto al texto.",
+      sectionVoice: "Voz de marca",
+      sectionVoiceHelp: "Cómo suenan sus artículos y qué pueden decir sobre su negocio.",
+      sectionAuthor: "Autor",
+      sectionAuthorHelp: "La persona o marca que firma sus artículos. Se guarda con sus ajustes; por ahora los artículos no la muestran como firma.",
+      unknownOption: "{value} (ya no disponible)",
+      linksError: "Introduzca un número entero de 0 a 20.",
+      wordsError: "Introduzca un número entero de 300 a 5000.",
+      sitemapHint: "Nos permite encontrar páginas de su sitio a las que enlazar desde los nuevos artículos.",
+      blogHint: "La página principal de su blog.",
+      exampleHint: "Un artículo suyo con el que esté satisfecho.",
+      urlError: "Introduzca una dirección completa que empiece por http:// o https://.",
+      brandColourHint: "El color principal de su marca en código hexadecimal. Se guarda con sus ajustes; por ahora las imágenes generadas no lo usan.",
+      brandColourError: "Use # seguido de seis dígitos o letras de la a a la f, por ejemplo #003388.",
+      noColour: "Sin color",
+      invalidColour: "Color no válido",
+      pickColour: "Elegir un color de marca",
+      clearColour: "Quitar color",
+      imageStyleLabel: "Estilo de imagen",
+      imageStyleHint: "El estilo de la imagen que se crea para cada artículo.",
+      coverStyleLabel: "Estilo de la imagen de portada",
+      coverStyleHint: "Su estilo preferido para las portadas. Por ahora cada artículo recibe una sola imagen, en el estilo de imagen de arriba, y esa imagen es también su portada.",
+      samplesNote: "Los ejemplos ilustran cada estilo. Las imágenes de sus artículos se crean para cada artículo y serán distintas.",
+      matchFollows: "Ahora sigue: {style}",
+      matchFollowsUnknown: "Sigue el estilo de imagen de arriba",
+      previewStyle: "Ver el ejemplo de {style}",
+      previewTitle: "Ejemplo: {style}",
+      previewMatchTitle: "Igual que las imágenes del artículo, ahora {style}",
+      previewHelp: "Un ejemplo de este estilo. Verlo no cambia su elección.",
+      sampleAlt: "Imagen de ejemplo en el estilo {style}",
+      unknownImageStyle: "Su elección guardada ({value}) no es uno de estos estilos. Se mantiene hasta que elija uno.",
+      imageBriefHint: "Se incluye en las instrucciones de cada imagen de artículo.",
+      tocHint: "Añade un índice creado a partir de los encabezados del artículo.",
+      youtubeHint: "Su elección se guarda. Por ahora no se añaden vídeos a los artículos.",
+      perspectiveHint: "Escribe con un punto de vista propio en lugar de forma impersonal.",
+      similarHint: "Menciona y compara alternativas para una cobertura más completa.",
+      comparisonHint: "Añade una tabla que compara lado a lado las opciones de las que trata el artículo, como «Videografía frente a cinematografía de un vistazo».",
+      poweredByHint: "Un pequeño crédito al final de cada artículo. Desactivarlo se aplica a los artículos aún no publicados.",
+      factsPlaceholder: "Abierto desde 2004\nCinco dentistas en el equipo\nAparcamiento gratuito",
+      uspsPlaceholder: "Citas de urgencia el mismo día\nAtendemos a pacientes nerviosos",
+      tooManyLines: "Hasta {max} líneas. Quite 1 línea.|Hasta {max} líneas. Quite {count} líneas.",
+      lineTooLong: "La línea {line} tiene más de {max} caracteres.",
+      fixFields: "Algunos campos necesitan atención. Están marcados en la página.",
+      saveError: "Algo ha fallado. Inténtelo de nuevo.",
+      saveBarNote: "Incluye todas las secciones salvo Redacción y publicación, que se guarda en cuanto la cambia.",
+      autoOnHelp: "Trabajamos su plan de contenidos por nuestra cuenta. Puede escribir cualquier artículo usted mismo cuando quiera.",
+      autoOffHelp: "No se escribe nada hasta que lo pida. Abra un artículo planificado y pulse Escribir.",
+      anyDay: "Cualquier día.",
+      pickedDays: "Solo los días que elija.",
+      daysUtc: "Los días siguen la hora UTC (tiempo universal coordinado).",
+      firstArticleOnly: "Su primer artículo se envía en cuanto está listo, elija lo que elija, para que vea cómo quedan los artículos en su sitio.",
+      networkReview: "Mientras su web esté en la Red de socios, el equipo de RepGet revisa antes cada artículo - también el primero - y ninguno se envía antes de su día previsto.",
+      openIntegrations: "Abrir Integraciones",
+      weekdaysShort: { sun: "Dom", mon: "Lun", tue: "Mar", wed: "Mié", thu: "Jue", fri: "Vie", sat: "Sáb" },
+      weekdaysLong: { sun: "Domingo", mon: "Lunes", tue: "Martes", wed: "Miércoles", thu: "Jueves", fri: "Viernes", sat: "Sábado" },
+      bodyImageStyles: {
+        sketch: { label: "Boceto", hint: "Trazos a mano sobre color suave." },
+        watercolour: { label: "Acuarela", hint: "Aguadas pintadas suaves." },
+        realistic: { label: "Realista", hint: "Fotográfico." },
+        illustration: { label: "Ilustración", hint: "Formas vectoriales planas." },
+        "brand-text": { label: "Marca y texto", hint: "Una foto con un panel de color intenso a lo largo de un borde." },
+      },
+      coverImageStyles: {
+        sketch: { label: "Boceto", hint: "Trazos a mano sobre color suave." },
+        watercolour: { label: "Acuarela", hint: "Aguadas pintadas suaves." },
+        illustration: { label: "Ilustración", hint: "Formas vectoriales planas." },
+        match: { label: "Igual que las imágenes del artículo", hint: "Sigue el estilo de imagen de arriba." },
+      },
       styles: {
         expert: { label: "Experto", hint: "Tono editorial preciso, con matices y terminología equilibrados." },
         conversational: { label: "Conversacional", hint: "Frases claras y directas. Explica los términos la primera vez que aparecen." },
@@ -4345,6 +6892,128 @@ const es: Messages = {
       sendingDraft: "Enviando como borrador…",
       planningOutline: "Planificando qué cubrir",
       writingBody: "Escribiendo el artículo",
+      breadcrumbLabel: "Ruta de navegación",
+      targetKeywordLabel: "Palabra clave objetivo",
+      lastSaved: "Actualizado por última vez el {date}",
+      viewModeLabel: "Vista previa o edición",
+      unsavedMark: "Cambios sin guardar",
+      previewLabel: "Vista previa del artículo",
+      previewUnsavedNow: "Está viendo cambios que aún no se han guardado. Su sitio web solo los recibe después de guardar y publicar.",
+      notWrittenYet: "El artículo aparecerá aquí en cuanto esté escrito.",
+      workingPaused: "La edición y la publicación esperan a que termine, porque la nueva versión sustituye el texto.",
+      conflictTitle: "Este artículo cambió mientras lo editaba",
+      conflictBody: "Mientras tanto cambió lo guardado en: {fields}, por ejemplo porque terminó una reescritura o porque otra persona guardó. Si guarda ahora, su versión sustituirá a esa.",
+      conflictLoad: "Usar la versión guardada",
+      conflictKeep: "Conservar mi versión",
+      genUnavailable: "La redacción no está disponible por el momento. El problema es nuestro y ya lo estamos revisando.",
+      genBusy: "El servicio de redacción estaba saturado. Vuelva a intentarlo en unos minutos.",
+      genTimeout: "La redacción tardó demasiado y se detuvo. Vuelva a intentarlo: suele ser algo pasajero.",
+      genUnusable: "No pudimos crear un artículo útil con este tema. Vuelva a intentarlo o concrete más el tema y la palabra clave objetivo.",
+      genQuota: "Este espacio de trabajo ha usado todos sus artículos del mes. Mejore el plan para escribir más.",
+      genGeneric: "La redacción de este artículo no terminó. Vuelva a intentarlo. Si sigue ocurriendo, contacte con soporte.",
+      pubErrAuth: "Su sitio web rechazó el acceso guardado. Vuelva a conectarlo en la página Integraciones.",
+      pubErrPermission: "La cuenta conectada no tiene permiso para publicar entradas. Conecte una cuenta que pueda publicar.",
+      pubErrNotFound: "No se encontró la dirección de su sitio web. Compruébela en la página Integraciones.",
+      pubErrUnreachable: "Su sitio web no respondió. Suele ser algo pasajero: vuelva a intentarlo o compruebe que el sitio está en línea.",
+      pubErrApiDisabled: "Su sitio web está en línea, pero su interfaz de publicación está desactivada, a menudo por un plugin de seguridad. Vuelva a activarla y pruebe la conexión.",
+      pubErrUnsupported: "Su sitio web hace algo en lo que todavía no podemos publicar.",
+      pubErrUnknown: "La publicación no terminó. Vuelva a intentarlo. Si sigue ocurriendo, contacte con soporte.",
+      editSaveNote: "El título, la meta descripción, la dirección y el texto se guardan juntos con el botón Guardar. La imagen destacada se guarda en cuanto la cambia.",
+      titleRequired: "Escriba un título.",
+      metaHint: "Aparece bajo el título en los resultados de búsqueda, que suelen mostrar unos {count} caracteres.",
+      slugSavedAs: "Se guardará como: {slug}",
+      slugEmptyNote: "Si lo deja vacío, su sitio web elige la dirección a partir del título.",
+      slugDropped: "Las letras con acentos y otros caracteres especiales se omiten en la dirección.",
+      slugWordPressNote: "WordPress mantiene la dirección con la que se publicó la entrada por primera vez. Cambiarla aquí no mueve la entrada publicada.",
+      searchPreviewTitle: "Vista previa en los resultados de búsqueda",
+      searchPreviewHelp: "Es una aproximación. Los buscadores deciden qué muestran.",
+      saveArticle: "Guardar artículo",
+      saveNoteWorking: "El guardado espera mientras se escribe el artículo.",
+      saveNoteDelivering: "El guardado espera mientras el artículo se entrega a su sitio web.",
+      saveNoteReview: "Al guardar cambios, este artículo vuelve a revisión del equipo de RepGet.",
+      saveNoteTitle: "Escriba un título para guardar.",
+      statsTitle: "Estadísticas del artículo",
+      statsHelp: "Calculadas a partir del texto del artículo.",
+      statsUnsaved: "Calculadas a partir del texto en pantalla, incluidos los cambios sin guardar.",
+      publishingTitle: "Publicación",
+      publishingHelp: "Al publicar se envía a su sitio web la última versión guardada.",
+      destinationLabel: "Destino",
+      destinationNone: "Sin conectar",
+      destinationPlugin: "Plugin de WordPress",
+      manageConnection: "Gestionar la conexión",
+      plannedLabel: "Fecha prevista",
+      plannedNone: "Sin fecha prevista",
+      autoLabel: "Publicación automática",
+      autoOnLive: "Activada, como entradas publicadas",
+      autoOnDraft: "Activada, como borradores",
+      autoOff: "Desactivada",
+      beforePlanned: "Si publica ahora, se envía de inmediato, antes de su fecha prevista.",
+      stateNotSent: "Aún no se ha enviado a su sitio web.",
+      stateLive: "Publicado en su sitio web. Último envío: {date}.",
+      stateDraft: "En su sitio web como borrador. Último envío: {date}.",
+      stateScheduled: "Programado en su sitio web. Último envío: {date}.",
+      stateDelivered: "Entregado a su sitio web el {date}.",
+      stateFailed: "El último intento ({date}) no terminó.",
+      statePluginUnconfirmed: "El plugin de WordPress no confirmó la última entrega ({date}).",
+      stateWriting: "La publicación estará disponible cuando el artículo esté escrito.",
+      stateFrozen: "El equipo de RepGet ha pausado la publicación. No se envía nada a los sitios web hasta que se reanude.",
+      stateReviewPending: "El equipo de RepGet está preparando este artículo para la red de socios. Se publicará en cuanto lo aprueben.",
+      stateReviewChanged: "Este artículo cambió después de que el equipo de RepGet lo aprobara, así que ha vuelto a su revisión.",
+      stateDelivering: "Entregándose a su sitio web ahora…",
+      stateQueued: "En cola desde las {time}. El resultado aparecerá aquí cuando responda su sitio web.",
+      stateQueuedLong: "Aún no hay resultado. La entrega puede quedar retenida, por ejemplo mientras un intento anterior está sin resolver. Vuelva a comprobarlo en unos minutos.",
+      checkAgain: "Comprobar de nuevo",
+      statePluginWaiting: "Esperando a que el plugin de WordPress lo recoja como {mode}. El plugin comprueba al menos una vez por hora.",
+      modeLive: "entrada publicada",
+      modeDraft: "borrador",
+      statePluginPublished: "El plugin de WordPress creó esta entrada y no puede modificarla después, así que los cambios guardados aquí no llegan a su sitio web. Haga los demás cambios en WordPress.",
+      stateUncertain: "El último intento no obtuvo respuesta de su sitio web. Consulte el aviso al principio de la página.",
+      uncertainPublishNote: "Mientras esto esté sin resolver, volver a publicar no crea una segunda entrada: primero buscamos la anterior.",
+      connectHelp: "Conecte su sitio web para publicar en él este artículo.",
+      blockedUnsaved: "Guarde primero sus cambios. Al publicar se envía la versión guardada, no lo que ve en pantalla.",
+      alreadySentLive: "Esta misma versión ya está publicada en su sitio web.",
+      alreadySentDraft: "Esta misma versión ya está en su sitio web como borrador.",
+      confirmDraftTitle: "¿Devolver la entrada publicada a borrador?",
+      confirmDraftBody: "Este artículo está publicado en su sitio web. Enviarlo como borrador puede retirar la entrada publicada (WordPress lo hace). Para cambiar la entrada publicada, use Actualizar publicación.",
+      historyLatest: "Los últimos {count} intentos, del más reciente al más antiguo.",
+      historyEmpty: "Todavía no se ha enviado nada a su sitio web.",
+      logLive: "Publicado",
+      logDraft: "Enviado como borrador",
+      logScheduled: "Programado",
+      logDelivered: "Entregado",
+      rewriteTitle: "Reescribir el artículo",
+      rewriteHelp: "Vuelve a escribir todo el artículo a partir de su plan. Cada sitio web puede reescribir {count} artículos al día.",
+      rewriteConfirmTitle: "¿Reescribir este artículo?",
+      rewriteConfirmBody: "El texto, la meta descripción, la dirección y la imagen destacada se sustituyen por una versión nueva. La versión actual no se conserva.",
+      rewriteConfirmPublished: "La entrada de su sitio web no cambia hasta que publique la versión nueva.",
+      rewriteConfirmReview: "La versión nueva pasa a revisión del equipo de RepGet antes de poder publicarse.",
+      rewriteConfirmUnsaved: "Sus cambios sin guardar se descartan.",
+      rewriteConfirmAction: "Reescribir",
+      rewriteNoPlan: "Este artículo no tiene una entrada en el plan, así que no se puede volver a escribir.",
+      rewriteBlocked: "Disponible de nuevo cuando termine la redacción o la entrega en curso.",
+      imagePromptHint: "Déjelo vacío y elegimos nosotros. Quedan {remaining} de {max} imágenes nuevas para este artículo.",
+      imageGenerate: "Generar",
+      imageReplace: "Sustituir",
+      imageAltHint: "Se guarda al salir del campo.",
+      imageCheckAlt: "Compruebe que la descripción sigue correspondiendo a la nueva imagen.",
+      imageLockedWorking: "Espere a que el artículo esté escrito: una reescritura sustituye la imagen.",
+      imageLockedDelivering: "Espere a que termine la entrega a su sitio web.",
+      imageTypeError: "Use una imagen PNG, JPEG o WebP.",
+      imageSizeError: "Esa imagen ocupa {size} MB. El límite es {max} MB.",
+      imageNoAlt: "Aún sin descripción.",
+      imageAltSaved: "Descripción guardada.",
+      errInFlight: "Este artículo se está entregando ahora a su sitio web. Vuelva a intentarlo en un minuto.",
+      errNotWritten: "Este artículo aún no se ha escrito.",
+      errConnectFirst: "Conecte su sitio web antes de publicar.",
+      errNotFound: "Este artículo ya no existe.",
+      errRewriteCap: "Este sitio web ha usado todas sus reescrituras de las últimas 24 horas. Vuelva a intentarlo más tarde.",
+      errAlreadyWriting: "Este artículo ya se está escribiendo.",
+      errNoActivePlan: "Este espacio de trabajo no tiene un plan activo. Elija uno para seguir escribiendo.",
+      errImageStorage: "El almacenamiento de imágenes no está disponible ahora. Vuelva a intentarlo más tarde.",
+      errImageGeneration: "La generación de imágenes no está disponible ahora. Vuelva a intentarlo más tarde.",
+      metaNone: "Todavía no hay meta descripción. Los buscadores muestran entonces un fragmento del artículo.",
+      searchPreviewUnsaved: "La vista previa incluye cambios que aún no se han guardado.",
+      imageReviewNote: "Si cambia la imagen o su descripción, este artículo vuelve a revisión del equipo de RepGet.",
     },
     analytics: {
       googleResults: "Resultados de Google",
@@ -4372,6 +7041,132 @@ const es: Messages = {
       statusForbidden: "No puede conectar ese sitio web",
       statusInvalid: "Ese enlace no era válido - inténtelo de nuevo",
       statusError: "No se pudo conectar Google",
+      pageTitle: "Google Search y Analytics",
+      pageDescription: "Cómo le encuentra la gente en la Búsqueda de Google y cuántas visitas recibe su sitio web. Las cifras proceden de sus propias cuentas de Search Console y Google Analytics.",
+      rangeLabel: "Periodo",
+      rangeDays: "{days} días",
+      periodDates: "{start} – {end}",
+      connectTitle: "Conecte sus cuentas de Google",
+      searchConsoleName: "Google Search Console",
+      analyticsName: "Google Analytics",
+      searchConsolePurpose: "Muestra cómo le va a su sitio web en la Búsqueda de Google: cuántas veces aparece (impresiones), cuántas veces hacen clic (clics), su posición media y qué búsquedas y páginas atraen a la gente.",
+      analyticsPurpose: "Muestra cuántas visitas (sesiones) recibe todo su sitio web desde cualquier origen: Google, otros buscadores, redes sociales, enlaces y personas que escriben su dirección.",
+      setupTitle: "Cómo funciona la conexión",
+      setupStep1: "Inicie sesión con la cuenta de Google que ve este sitio web en Search Console y, si lo usa, en Google Analytics. Un solo inicio de sesión sirve para ambos.",
+      setupStep2: "Google le pide que permita el acceso de solo lectura. RepGet puede leer sus cifras, pero no puede cambiar nada en sus cuentas de Google.",
+      setupStep3: "De vuelta aquí, elija la propiedad de Search Console y la de Analytics de este sitio web. RepGet importa aproximadamente los dos últimos meses y después las cifras nuevas cada día.",
+      readOnlyAccess: "Acceso de solo lectura. Puede desconectarlo en cualquier momento.",
+      expiredTitle: "Hay que volver a conectar Google",
+      reconnectGoogle: "Volver a conectar Google",
+      viewerCannotConnect: "Solo un propietario o un editor de este sitio web puede conectar Google.",
+      connectionTitle: "Conexión con Google",
+      connectionHelp: "RepGet importa cifras nuevas cada día. Google informa con unos tres días de retraso.",
+      notChosen: "Sin elegir",
+      dataThrough: "Cifras hasta el {date}",
+      noFiguresYet: "Aún no hay cifras de Google",
+      analyticsPropertyId: "Propiedad {id}",
+      importNow: "Importar ahora",
+      manageConnection: "Gestionar la conexión",
+      viewerSetupPending: "Google está conectado, pero aún no se ha elegido ninguna propiedad. Un propietario o un editor puede elegirla.",
+      importRequestedTitle: "Importación solicitada",
+      importRequestedBody: "RepGet está importando sus cifras de Google. Esta página las busca durante aproximadamente un minuto.",
+      importStillRunning: "La importación puede tardar unos minutos. Las cifras nuevas aparecerán aquí cuando termine: vuelva a cargar la página más tarde para verlas.",
+      setupNeededTitle: "Elija qué importar",
+      setupNeededBody: "Elija la propiedad de Search Console y la de Analytics de este sitio web y guarde. Basta con una de las dos.",
+      propertiesTitle: "Propiedades",
+      propertiesHelp: "Qué propiedades de Google pertenecen a este sitio web.",
+      loadingProperties: "Cargando las propiedades que ve su cuenta de Google…",
+      propertiesFailed: "No se pudieron cargar sus propiedades desde Google. Inténtelo de nuevo o vuelva a conectar Google si sigue ocurriendo.",
+      tryAgain: "Reintentar",
+      searchConsoleHint: "La propiedad de Search Console de este sitio web, por ejemplo una propiedad de dominio.",
+      analyticsHint: "La propiedad de Google Analytics 4 de este sitio web.",
+      noSearchConsoleFound: "No se encontraron propiedades de Search Console para esta cuenta de Google. Compruebe que tiene acceso o vuelva a conectar con otra cuenta.",
+      noAnalyticsFound: "No se encontraron propiedades de Google Analytics 4 para esta cuenta de Google. Compruebe que tiene acceso o vuelva a conectar con otra cuenta.",
+      noSearchConsoleProperty: "Ninguna (no importar de Search Console)",
+      noAnalyticsProperty: "Ninguna (no importar de Analytics)",
+      propertyUnavailable: "{name} (no disponible para esta cuenta de Google)",
+      saveAndImport: "Guardar e importar",
+      saveSelection: "Guardar",
+      selectionUnsaved: "Su nueva elección aún no está guardada.",
+      noSelectionChange: "No hay cambios que guardar.",
+      propertiesSaved: "Propiedades guardadas",
+      accountTitle: "Cuenta de Google",
+      accountHelp: "Vuelva a conectar para renovar el acceso o cambiar a otra cuenta de Google. Las propiedades elegidas se conservan.",
+      disconnect: "Desconectar",
+      disconnecting: "Desconectando…",
+      disconnectTitle: "¿Desconectar Google?",
+      disconnectBody: "RepGet deja de importar de Search Console y Analytics para este sitio web y olvida las propiedades elegidas.",
+      disconnectKeeps: "Las cifras ya importadas se conservan.",
+      disconnectAccess: "Para retirar también el acceso de RepGet en su cuenta de Google, use la configuración de seguridad de su cuenta de Google.",
+      cancel: "Cancelar",
+      disconnectFailed: "No se pudo desconectar Google. Inténtelo de nuevo.",
+      importFailed: "No se pudo solicitar la importación. Inténtelo de nuevo.",
+      googleUnreachable: "No se pudo acceder a Google con la conexión guardada. Vuelva a conectar Google e inténtelo de nuevo.",
+      errorNotConfigured: "La conexión con Google aún no está disponible. Póngase en contacto con soporte.",
+      errorSignIn: "Vuelva a iniciar sesión para conectar Google.",
+      errorReconnect: "Vuelva a conectar su cuenta de Google para continuar.",
+      errorConnectFirst: "Conecte Google primero.",
+      errorChooseFirst: "Elija primero una propiedad de la que importar.",
+      searchTitle: "Búsqueda de Google",
+      searchDescription: "Cifras de todo el sitio desde Search Console: todas las páginas de su sitio web en la Búsqueda de Google, no solo los artículos que escribe RepGet.",
+      analyticsTitle: "Visitas al sitio web",
+      analyticsDescription: "Sesiones en todo su sitio web desde cualquier origen, según Google Analytics. No solo las visitas que llegaron desde la Búsqueda de Google.",
+      clicks: "Clics",
+      clicksHint: "Veces que alguien hizo clic para entrar en su sitio web desde la Búsqueda de Google.",
+      impressions: "Impresiones",
+      impressionsHint: "Veces que su sitio web apareció en los resultados de la Búsqueda de Google.",
+      ctr: "Porcentaje de clics (CTR)",
+      ctrShort: "CTR",
+      ctrHint: "Clics divididos entre impresiones.",
+      averagePosition: "Posición media",
+      positionShort: "Posición media",
+      positionHint: "Su lugar medio en los resultados de Google, ponderado por impresiones. Cuanto más bajo, mejor.",
+      sessions: "Sesiones",
+      sessionsHint: "Visitas a su sitio web desde cualquier origen. Una persona puede hacer varias sesiones.",
+      comparedWith: "Los cambios se comparan con los {days} días anteriores.",
+      noComparison: "Sin comparación: no todos los {days} días anteriores tienen cifras de Google.",
+      noChange: "Sin cambios",
+      better: "mejor",
+      worse: "peor",
+      pointsChange: "{value} p. p.",
+      notAvailable: "No disponible",
+      daysReported: "Datos de {reported} de {days} días",
+      zeroSearch: "Search Console no registró impresiones en este periodo.",
+      zeroSessions: "Google Analytics no registró sesiones en este periodo.",
+      staleSource: "No hay ninguna propiedad de {source} elegida, así que estas cifras ya no se actualizan.",
+      notSelectedTitle: "Ninguna propiedad de {source} elegida",
+      notSelectedEditor: "Elija una en Conexión con Google para ver aquí estas cifras.",
+      notSelectedViewer: "Un propietario o un editor puede elegirla en Conexión con Google.",
+      awaitingTitle: "Aún no hay cifras de {source}",
+      awaitingBody: "Google aún no ha informado de ninguna cifra para esta propiedad. Los sitios web nuevos o con poco tráfico pueden no tener ninguna durante un tiempo. RepGet busca cifras nuevas cada día.",
+      noneInPeriodTitle: "No hay cifras de {source} en este periodo",
+      latestFrom: "Las cifras más recientes son del {date}. Elija un periodo más largo para incluirlas.",
+      latestOnly: "Las cifras más recientes son del {date}.",
+      dailyTitle: "Día a día",
+      dailyDescription: "Los días de los que Google no ha informado quedan como huecos, no se dibujan como cero.",
+      chartMetric: "Cifra que muestra el gráfico",
+      chartClicks: "Clics desde la Búsqueda de Google por día",
+      chartImpressions: "Impresiones en la Búsqueda de Google por día",
+      chartSessions: "Sesiones por día",
+      unitClicks: "clics",
+      unitImpressions: "impresiones",
+      unitSessions: "sesiones",
+      notReported: "sin datos",
+      day: "Día",
+      chartInstructions: "Use las flechas izquierda y derecha para moverse entre los días.",
+      chartEmpty: "No hay cifras diarias en este periodo.",
+      topTitle: "Principales búsquedas y páginas",
+      topSearches: "Búsquedas",
+      topPages: "Páginas",
+      searchTerm: "Búsqueda",
+      page: "Página",
+      topSearchesNote: "Las 10 búsquedas con más clics. Google omite las búsquedas poco frecuentes para proteger la privacidad, así que suman menos que los totales de arriba.",
+      topPagesNote: "Las 10 páginas con más clics desde la Búsqueda de Google.",
+      topSearchesCaption: "Principales búsquedas de este periodo",
+      topPagesCaption: "Principales páginas de este periodo",
+      noSearches: "No se registraron búsquedas en este periodo.",
+      noPages: "No se registraron páginas en este periodo.",
+      opensInNewTab: "(se abre en una pestaña nueva)",
     },
     research: {
       contentPlan: "Plan de contenidos",
@@ -4470,6 +7265,132 @@ const es: Messages = {
       questionAdded: "Pregunta añadida",
       checkQueued: "Comprobando - los resultados aparecerán aquí en unos minutos",
       alreadyTracking: "Ya está siguiendo las preguntas que le sugeriríamos",
+      checksUnavailableTitle: "Las comprobaciones y sugerencias están en pausa para este sitio web",
+      errAiUnavailable: "Las comprobaciones con IA no están disponibles en este momento. Inténtelo de nuevo más tarde.",
+      errNoPlan: "Elija un plan para este sitio web para hacer comprobaciones y recibir sugerencias.",
+      errPlanInactive: "La suscripción de este sitio web no está activa. Actualice la facturación para hacer comprobaciones y recibir sugerencias.",
+      errCheckQuota: "La visibilidad en IA se ha comprobado varias veces en la última hora. Inténtelo de nuevo más tarde.",
+      errSuggestQuota: "Se han pedido sugerencias muchas veces en esta hora. Inténtelo de nuevo más tarde.",
+      errSuggestFailed: "No se pudieron sugerir preguntas. Inténtelo de nuevo.",
+      errTooShort: "Escriba una pregunta de al menos unas pocas palabras.",
+      errAllowance: "Su plan sigue hasta {count} preguntas. Elimine una para añadir otra.",
+      errDuplicate: "Ya está siguiendo esa pregunta.",
+      errAddFirst: "Añada primero una pregunta.",
+      errUnexpected: "Algo ha fallado. Inténtelo de nuevo.",
+      statusQueuedTitle: "Comprobación en cola",
+      statusQueuedBody: "Esperando a que empiece la comprobación. Las respuestas aparecen aquí pregunta a pregunta, y mientras tanto puede salir de esta página.",
+      statusRunningTitle: "Comprobando sus preguntas",
+      statusRunningBody: "Las respuestas aparecen aquí pregunta a pregunta. Mientras tanto puede salir de esta página.",
+      statusProgress: "{answered} de {total} preguntas respondidas",
+      statusRequestedAt: "Solicitada el {date}",
+      statusCompletedTitle: "Comprobación completada",
+      statusCompletedBody: "Todas las preguntas de esta comprobación tienen una respuesta nueva.",
+      statusPartialTitle: "Comprobación terminada con huecos",
+      statusPartialBody: "{answered} de {total} preguntas recibieron una respuesta nueva. Las demás no la recibieron en 10 minutos; conservan su resultado anterior y se marcan abajo.",
+      statusTimedOutTitle: "Aún no hay respuestas",
+      statusTimedOutBody: "No llegó ninguna respuesta en 10 minutos. Puede que la comprobación siga esperando para empezar o que haya fallado. Vuelva a mirar más tarde o haga otra comprobación.",
+      statusTimedOutBodyViewer: "No llegó ninguna respuesta en 10 minutos. Puede que la comprobación siga esperando para empezar o que haya fallado. Vuelva a mirar más tarde.",
+      statusFailedTitle:"La comprobación no se realizó",
+      statusFailedBody: "No se registró ninguna respuesta para la comprobación solicitada el {date}. Puede hacer otra comprobación.",
+      statusFailedBodyViewer: "No se registró ninguna respuesta para la comprobación solicitada el {date}.",
+      statusRefusedTitle: "La comprobación no se inició",
+      dismiss: "Descartar",
+      progressLabel: "Progreso de la comprobación",
+      performanceTitle: "Cómo va su sitio web",
+      performanceHelp: "Medido a partir de la última respuesta a cada pregunta comprobada.",
+      howMeasured: "Cómo se mide",
+      scoreOutOf: "de 100",
+      scoreGood: "Buena",
+      scoreFair: "Media",
+      scoreLow: "Baja",
+      scoreUp: "{change} puntos más que en la comprobación anterior",
+      scoreDown: "{change} puntos menos que en la comprobación anterior",
+      scoreSame: "Sin cambios desde la comprobación anterior",
+      previousCheckOn: "Comprobación anterior: {date}",
+      firstCheck: "Primera comprobación, todavía no hay nada con qué comparar",
+      namedOfChecked: "{mentions} de {total}",
+      namedOfCheckedHelp: "Preguntas comprobadas en las que se recomendó su negocio",
+      positionValue: "n.º {position}",
+      answeredInLatestCheck: "{count} de {total} preguntas respondidas en esta comprobación",
+      basisNote: "Basado en la última respuesta a {checked} de {tracked} preguntas seguidas.",
+      earlierAnswersNote: "1 de estas respuestas es de una comprobación anterior.|{count} de estas respuestas son de comprobaciones anteriores.",
+      notCheckedYetTitle: "Aún sin comprobar",
+      notCheckedYetBody: "No se ha comprobado ninguna pregunta, así que todavía no hay puntuación. La puntuación solo aparece cuando se ha preguntado de verdad a un asistente.",
+      competitorsHelp: "Otros negocios recomendados en las últimas respuestas, según cuántas respuestas los nombraron.",
+      competitorCount: "Mencionado en {count} de {total} respuestas",
+      noCompetitors: "No se nombró a ningún otro negocio en las últimas respuestas.",
+      nextStep: "Siguiente paso",
+      nextAddQuestions: "Añada las preguntas que harían sus clientes o pida sugerencias.",
+      nextAddQuestionsAction: "Añadir preguntas",
+      nextFirstCheck: "Haga la primera comprobación para ver si los asistentes nombran su negocio.",
+      nextUnchecked: "1 pregunta aún no se ha comprobado. Haga una comprobación para incluirla.|{count} preguntas aún no se han comprobado. Haga una comprobación para incluirlas.",
+      nextStale: "1 respuesta es de una comprobación anterior. Haga una comprobación para actualizarla.|{count} respuestas son de comprobaciones anteriores. Haga una comprobación para actualizarlas.",
+      nextNotNamed: "Los asistentes no le nombraron en 1 pregunta. Vea a quién nombraron en su lugar.|Los asistentes no le nombraron en {count} preguntas. Vea a quién nombraron en su lugar.",
+      nextNotNamedAction: "Mostrar estas preguntas",
+      nextUpToDate: "Sus resultados están al día. Las comprobaciones también se hacen automáticamente una vez por semana.",
+      nextWaiting: "Hay una comprobación en curso. Los resultados aparecen a medida que se responde cada pregunta.",
+      nextViewer: "Solo un propietario o un editor puede hacer comprobaciones o cambiar las preguntas.",
+      questionsTitle: "Preguntas seguidas",
+      questionsHelp: "Las preguntas que sigue, cada una con su último resultado y la evidencia que lo respalda.",
+      allowanceCount: "{count} de {max} preguntas",
+      addQuestionLabel: "Añadir una pregunta",
+      atAllowance: "Sigue tantas preguntas como permite su plan ({max}). Elimine una para añadir otra.",
+      suggestionsTitle: "Preguntas sugeridas",
+      suggestionsHelp: "Elija las que quiere seguir. No se añade nada hasta que pulse Añadir seleccionadas.",
+      addSelected: "Añadir seleccionadas ({count})",
+      suggestionsRoom: "Puede añadir 1 pregunta más con su plan.|Puede añadir {count} preguntas más con su plan.",
+      questionsAdded: "1 pregunta añadida|{count} preguntas añadidas",
+      questionRemoved: "Pregunta eliminada",
+      filterLabel: "Mostrar preguntas",
+      filterAll: "Todas",
+      filterEmpty: "Ninguna pregunta coincide con este filtro.",
+      showAll: "Mostrar todas las preguntas",
+      noQuestionsViewer: "Aún no se sigue ninguna pregunta. Un propietario o un editor puede añadirlas.",
+      named: "Con mención",
+      namedAt: "Mención n.º {position}",
+      checkedOn: "Comprobada el {date}",
+      fromEarlierCheck: "De una comprobación anterior ({date})",
+      checkingNow: "Comprobando…",
+      noAnswerInCheck: "Sin respuesta en la última comprobación",
+      answeredInCheck: "Respondida en esta comprobación",
+      siteMentioned: "Se mencionó su sitio web",
+      showEvidence: "Ver evidencia",
+      hideEvidence: "Ocultar evidencia",
+      removeQuestionLabel: "Dejar de seguir: {question}",
+      evidenceExcerpt: "Lo que dijo la respuesta",
+      evidenceExcerptNote: "Solo se guarda la frase que nombra su negocio, no la respuesta completa.",
+      evidencePosition: "Su posición",
+      evidencePositionValue: "N.º {position} entre los negocios que recomendó la respuesta",
+      evidenceNotRecommended: "No está entre los negocios que recomendó la respuesta",
+      evidenceWebsite: "La dirección de su sitio web",
+      evidenceWebsiteYes: "Mencionada en la respuesta",
+      evidenceWebsiteNo: "No mencionada en la respuesta",
+      evidenceOthers: "Otros negocios nombrados, en orden",
+      evidenceNoOthers: "No se nombró a ningún otro negocio.",
+      evidenceAssistant: "Asistente consultado",
+      evidenceChecked: "Comprobada",
+      evidenceHistory: "Resultados anteriores",
+      evidenceNoHistory: "Es el primer resultado guardado para esta pregunta.",
+      evidenceStale: "Esta respuesta es de una comprobación anterior. La última comprobación, el {date}, no devolvió una respuesta nueva para esta pregunta.",
+      evidenceMissed: "La última comprobación no devolvió una respuesta nueva para esta pregunta, así que este es su resultado anterior.",
+      removeTitle: "¿Dejar de seguir esta pregunta?",
+      removeBody: "También se eliminan sus respuestas guardadas y su historial, y la puntuación se vuelve a calcular sin ella. No se puede deshacer.",
+      removeConfirm: "Dejar de seguir",
+      removing: "Eliminando…",
+      methodTitle: "Qué se mide",
+      methodHelp: "Cómo funciona una comprobación y qué significa cada cifra.",
+      methodAskTitle: "Cómo funciona una comprobación",
+      methodAskBody: "Cada pregunta seguida se plantea a un asistente de IA en una conversación nueva, sin nombrar su negocio. Después se lee la respuesta para listar, en orden, los negocios que recomienda.",
+      methodRecordTitle: "Qué se guarda",
+      methodRecordBody: "Si su negocio está entre ellos y en qué posición, la frase que lo nombra, los demás negocios nombrados y si aparece la dirección de su sitio web. La respuesta completa no se guarda.",
+      methodScoreTitle: "Cómo se calcula la puntuación",
+      methodScoreBody: "Una pregunta comprobada vale 100 cuando le nombran en primer lugar, menos cuanto más abajo en la lista (unos {second} en segundo lugar, {third} en tercero y {fourth} en cuarto) y 0 cuando no le nombran. La puntuación de visibilidad es la media de la última respuesta a cada pregunta comprobada. Las preguntas nunca comprobadas no cuentan.",
+      methodCompareTitle: "Comparaciones",
+      methodCompareBody: "El cambio se mide frente a la comprobación anterior, puntuada con sus propias respuestas. Las respuestas separadas por más de una hora pertenecen a comprobaciones distintas. Si las dos comprobaciones cubrieron preguntas diferentes, parte del cambio se debe a eso.",
+      methodScheduleTitle: "Cuándo se hacen las comprobaciones",
+      methodScheduleBody: "Cuando un propietario o un editor pulsa {action}, un número limitado de veces por hora, y automáticamente una vez por semana. Las respuestas llegan pregunta a pregunta en unos minutos.",
+      methodAssistantsTitle: "Asistentes consultados",
+      methodAssistantsBody: "Las respuestas guardadas hasta ahora proceden de: {names}.",
     },
     backlinks: {
       title: "Enlaces desde otros sitios web",
@@ -4570,6 +7491,12 @@ const es: Messages = {
       inProgress: "En curso",
       requestQuote: "Solicitar presupuesto",
       quoteHelp: "Le damos un presupuesto tras revisar su auditoría.",
+      title: "Complementos",
+      subtitle: "Compras puntuales además de su plan.",
+      perCredit: "{price} por crédito",
+      quoteFrom: "Desde {price}. Le damos un presupuesto tras revisar su auditoría.",
+      servicesTitle: "Servicios",
+      showingRecent: "Se muestran sus {count} compras más recientes.",
     },
     referral: {
       referSomeone: "Recomiende a alguien",
@@ -4590,6 +7517,12 @@ const es: Messages = {
       joined: "Se unió el {date}",
       noWebsiteJoined: "Aún sin sitio web · se unió el {date}",
       creditsBadge: "+{count} créditos",
+      linkHelp: "Las personas que se registren con este enlace cuentan como recomendaciones suyas.",
+      peopleReferredStat: "Personas recomendadas",
+      noReferralsYet: "Todavía nadie se ha registrado con su enlace.",
+      showingRecent: "Se muestran sus {count} recomendaciones más recientes.",
+      rewardedOn: "créditos añadidos el {date}",
+      unavailable: "No se han podido cargar los datos de sus recomendaciones. Recargue la página para volver a intentarlo.",
     },
     keys: {
       updatePlugin: "WordPress tiene el plugin {version}. La versión 1.7 se conecta con un botón, muestra para qué cuenta de RepGet publica y se actualiza sola: descárguela y, en WordPress, vaya a Plugins → Añadir nuevo → Subir plugin y elija “Reemplazar el actual por el subido”.",
@@ -5061,6 +7994,75 @@ const es: Messages = {
       saveDetails: "Guardar datos",
       saving: "Guardando…",
       detailsSaved: "Datos guardados",
+      pageTitle: "Ajustes del negocio",
+      pageDescription: "Los datos del negocio detrás de {domain}. La investigación de palabras clave y cada artículo que escribimos se basan en ellos.",
+      identityTitle: "Identidad del negocio",
+      identityHelp: "Quién es usted y a qué se dedica.",
+      marketTitle: "Mercado y público",
+      marketHelp: "Dónde vende, a quién quiere llegar y el idioma en el que se escriben sus artículos.",
+      descriptionTitle: "Descripción del negocio",
+      descriptionHelp: "Qué hace el negocio y qué lo distingue, con sus propias palabras.",
+      competitorsTitle: "Competidores",
+      competitorsHelp: "Negocios que compiten con usted por los mismos clientes. Las sugerencias proceden del análisis de su sitio web, así que revíselas: elimine las que no sean competidores reales y añada los que falten.",
+      brandNameHint: "El nombre por el que le conocen sus clientes.",
+      industryHint: "A qué se dedica, en pocas palabras.",
+      marketPlaceholder: "Spain",
+      countryHint: "El país en el que vende principalmente, escrito en inglés (por ejemplo, Spain), para que la investigación de palabras clave analice el país correcto.",
+      marketNotEnglish: "La investigación de palabras clave solo reconoce nombres de países escritos en inglés.",
+      marketUseEnglish: "Usar {country}",
+      articleLanguage: "Idioma de los artículos",
+      articleLanguageHint: "Los artículos de este sitio web se escriben en este idioma. No cambia su panel.",
+      dashboardLanguageNote: "Su panel se muestra en {language}, un ajuste personal de su cuenta.",
+      dashboardLanguageLink: "Cambiar el idioma del panel",
+      chooseLanguage: "Elija un idioma",
+      unknownLanguage: "{language} (valor actual)",
+      audienceHint: "A quién quiere llegar: por ejemplo, su edad, su situación o lo que necesitan.",
+      descriptionHint: "Bastan unas frases: sus principales productos o servicios, dónde trabaja y qué le diferencia.",
+      notSet: "Sin definir",
+      unsavedBadge: "Sin guardar",
+      saveBusinessDetails: "Guardar datos",
+      saveScope: "Incluye todas las secciones salvo Competidores, que se guardan en cuanto añade o elimina uno.",
+      saveError: "Algo ha fallado. Sus cambios siguen aquí, así que puede intentarlo de nuevo.",
+      checklistNeedsBoth: "Añada una descripción y elija un idioma de los artículos para completar este paso de su lista de lanzamiento.",
+      checklistNeedsDescription: "Añada una descripción para completar este paso de su lista de lanzamiento.",
+      checklistNeedsLanguage: "Elija un idioma de los artículos para completar este paso de su lista de lanzamiento.",
+      analysingTitle: "Estamos analizando su sitio web",
+      analysingBody: "Cuando termine el análisis, rellenará el nombre de la marca, el sector, el mercado, el público y la descripción, y sustituirá lo que contengan ahora estos campos. Se conserva el idioma de los artículos que elija.",
+      analysingBodyReadOnly: "Cuando termine el análisis, rellenará estos datos.",
+      refresh: "Actualizar",
+      analysisFailedTitle: "No hemos podido analizar su sitio web",
+      analysisFailedBody: "Estos datos no se han rellenado automáticamente. Puede introducirlos usted.",
+      analysisFailedBodyReadOnly: "Estos datos no se han rellenado automáticamente.",
+      analysisFailedRetry: "Puede reintentar el análisis desde la página Sitios web.",
+      goToWebsites: "Ir a Sitios web",
+      competitorCount: "1 competidor|{count} competidores",
+      manualGroup: "Añadidos por usted",
+      suggestedGroup: "Sugeridos por el análisis",
+      suggestedGroupHelp: "Encontrados al analizar su sitio web, no elegidos por usted. Elimine los que no sean competidores reales.",
+      suggestedGroupHelpReadOnly: "Encontrados al analizar el sitio web.",
+      competitorsEmpty: "Todavía no hay competidores.",
+      competitorsEmptyAnalysed: "El análisis de su sitio web no sugirió ningún competidor.",
+      competitorsEmptyAnalysing: "Las sugerencias aparecerán aquí cuando termine el análisis de su sitio web.",
+      competitorsTruncated: "Se muestran los primeros {count} competidores.",
+      addCompetitor: "Añadir un competidor",
+      addCompetitorHint: "La dirección de su sitio web, por ejemplo rival.com. Comprobamos que el sitio existe antes de añadirlo, lo que puede tardar unos segundos.",
+      competitorPlaceholder: "rival.com",
+      addCompetitorButton: "Añadir",
+      checkingShort: "Comprobando…",
+      checkingCompetitor: "Comprobando {domain}…",
+      competitorAdded: "{domain} añadido.",
+      removingCompetitor: "Eliminando {domain}…",
+      competitorRemoved: "{domain} eliminado.",
+      visitCompetitor: "Abrir {domain} en una pestaña nueva",
+      removeCompetitor: "Eliminar {domain}",
+      competitorRequired: "Introduzca una dirección web.",
+      competitorInvalid: "Introduzca una dirección web como rival.com.",
+      competitorOwnSite: "Ese es su propio sitio web.",
+      competitorDuplicate: "{domain} ya está en su lista.",
+      competitorNotPublic: "Esa dirección no es un sitio web público.",
+      competitorBlocked: "No se pueden añadir como competidores redes sociales ni grandes plataformas como Google, Amazon o Wikipedia.",
+      competitorUnreachable: "No hemos podido acceder a {domain}. Compruebe la ortografía e inténtelo de nuevo.",
+      actionFailed: "Algo ha fallado. Inténtelo de nuevo.",
     },
     setup: {
       launchChecklist: "Lista de lanzamiento",
@@ -5282,6 +8284,23 @@ const es: Messages = {
       saveImage: "Guardar",
       noMatches: "No hay coincidencias.",
       noPicturesYet: "Aún no hay imágenes: suba una para empezar.",
+      toolbarLabel: "Formato del texto",
+      groupText: "Estilo del texto",
+      groupHeadings: "Encabezados",
+      groupBlocks: "Listas y bloques",
+      groupLinks: "Enlaces",
+      groupMedia: "Imágenes",
+      groupHistory: "Deshacer y rehacer",
+      linkDialogTitle: "Añadir o cambiar un enlace",
+      linkDialogHelp: "Pegue la dirección completa, por ejemplo https://example.com/pagina.",
+      linkUrlLabel: "Dirección del enlace",
+      linkApply: "Aplicar",
+      linkInvalid: "Escriba una dirección que empiece por https://, http://, mailto:, tel:, / o #.",
+      htmlHint: "Está editando el HTML directamente. Todo lo que no sea seguro se elimina al guardar.",
+      richHint: "El formato es sencillo para que encaje con el estilo de su sitio.",
+      editHtml: "Editar HTML",
+      backToEditor: "Volver al editor",
+      htmlToolbarOff: "Los botones de formato están desactivados mientras edita el HTML.",
     },
     dash: {
       bestArticles: "Mejores artículos",
@@ -5985,9 +9004,324 @@ const fr: Messages = {
   legalNotice: "Cette page n'est disponible qu'en anglais. Les traductions de nos conditions légales sont réalisées par un traducteur professionnel avant publication.",
 
   app: {
+    workspace: {
+      save: "Enregistrer",
+      saving: "Enregistrement…",
+      saved: "Enregistré",
+      discard: "Annuler les modifications",
+      unsaved: "1 modification non enregistrée|{count} modifications non enregistrées",
+      noChanges: "Toutes les modifications sont enregistrées",
+      saveFailed: "Non enregistré. {error}",
+      leaveConfirm: "Vous avez des modifications non enregistrées. Quitter cette page et les perdre ?",
+      onThisPage: "Sur cette page",
+      jumpTo: "Aller à une section",
+      optional: "Facultatif",
+      required: "Obligatoire",
+      charactersLeft: "1 caractère restant|{count} caractères restants",
+      overLimit: "1 caractère de trop|{count} caractères de trop",
+      viewOnly: "Vous avez un accès en lecture seule à ce site. Seul un propriétaire ou un éditeur peut apporter des modifications.",
+      savesImmediately: "Enregistré dès que vous le modifiez",
+      savedWithButton: "Enregistré avec le bouton Enregistrer",
+      editsKept: "Vos modifications plus récentes sont conservées et doivent encore être enregistrées.",
+      preview: "Aperçu",
+      close: "Fermer",
+      selected: "Sélectionné",
+    },
+    health: {
+      title: "Santé du site",
+      description: "Un contrôle technique des pages que nous pouvons lire sur {domain} : ce qui peut les freiner dans les résultats de recherche, et comment le corriger.",
+      checkNow: "Vérifier mon site",
+      checkAgain: "Vérifier à nouveau",
+      checking: "Vérification…",
+      starting: "Lancement…",
+      refreshStatus: "Actualiser l’état",
+      dismiss: "Fermer",
+      unavailableTitle: "Nouvelles vérifications indisponibles",
+      siteNotReady: "Nous analysons encore ce site. Vous pourrez lancer une vérification une fois l’analyse terminée.",
+      errNoPlan: "Choisissez d’abord un forfait pour ce site.",
+      errPlanInactive: "L’abonnement de ce site n’est pas actif. Mettez à jour la facturation pour lancer une vérification.",
+      errQuota: "Vous avez lancé cette vérification plusieurs fois au cours de la dernière heure. Réessayez dans quelques instants.",
+      errUnexpected: "La vérification n’a pas pu être lancée. Veuillez réessayer.",
+      queuedTitle: "Vérification demandée",
+      queuedBody: "Votre vérification attend de démarrer. Cette page se met à jour toute seule.",
+      queuedStale: "Cette vérification n’a pas encore démarré, ce qui prend plus de temps que d’habitude. Le rapport apparaîtra ici une fois qu’elle aura été effectuée.",
+      requestedAt: "Demandée : {date}",
+      runningTitle: "Vérification de votre site",
+      runningBody: "Nous lisons vos pages une par une. Cette page se met à jour toute seule.",
+      runningStale: "Cette vérification dure plus longtemps que prévu et s’est peut-être arrêtée.",
+      staleRetry: "Actualisez l’état pour voir si elle a avancé, ou relancez la vérification.",
+      startedAt: "Démarrée : {date}",
+      progressChecked: "1 page vérifiée jusqu’ici|{count} pages vérifiées jusqu’ici",
+      progressFound: "1 adresse trouvée sur votre site|{count} adresses trouvées sur votre site",
+      progressLimit: "Une vérification lit jusqu’à {max} pages.",
+      previousNotice: "Le rapport ci-dessous est votre résultat précédent, du {date}. Il sera remplacé à la fin de la nouvelle vérification.",
+      failedTitle: "La dernière vérification n’a pas pu aboutir",
+      failedPrevious: "Le rapport ci-dessous reste votre résultat précédent, du {date}.",
+      finishedTitle: "Votre nouveau rapport est prêt",
+      finishedBody: "Le rapport ci-dessous provient de la vérification du {date}.",
+      failure: {
+        timeout: "Votre site a mis trop de temps à répondre. Réessayez : c’est souvent passager sur un serveur chargé.",
+        notHtml: "L’adresse du site n’a pas renvoyé de page web. Vérifiez qu’elle pointe vers la page d’accueil de votre site.",
+        tooLarge: "Votre page d’accueil est trop volumineuse pour être analysée.",
+        invalidUrl: "L’adresse du site n’a pas pu être lue. Vérifiez l’adresse, y compris http:// ou https://.",
+        refused: "Votre site a refusé notre requête. Un pare-feu ou une extension de sécurité bloque peut-être les visiteurs automatisés.",
+        unreachable: "Nous n’avons pas pu joindre votre site. Vérifiez qu’il est en ligne et que l’adresse est correcte.",
+        notEntitled: "La vérification s’est arrêtée car l’abonnement de ce site n’est pas actif. Rien de plus n’a été facturé.",
+        generic: "Nous n’avons pas pu terminer la vérification de votre site. Réessayez, et contactez le support si cela se reproduit.",
+      },
+      failureViewer: {
+        timeout: "Votre site a mis trop de temps à répondre. C’est souvent passager sur un serveur chargé. Un propriétaire ou un éditeur peut relancer la vérification.",
+        generic: "Nous n’avons pas pu terminer la vérification de votre site. Un propriétaire ou un éditeur peut relancer la vérification.",
+      },
+      emptyTitle: "Aucun rapport pour l’instant",
+      emptyBody: "Une vérification lit jusqu’à {max} pages de votre site et liste, page par page, ce qui peut le freiner dans la recherche, avec la façon de corriger chaque problème.",
+      emptyViewer: "Aucune vérification n’a encore été lancée. Un propriétaire ou un éditeur peut en lancer une.",
+      firstRunTitle: "Votre premier rapport est en préparation",
+      firstRunBody: "Il apparaîtra ici dès la fin de la vérification.",
+      scoreTitle: "Score de santé",
+      scoreDescription: "Compte les problèmes techniques des pages lues, pondérés selon leur gravité et ramenés à une moyenne par page.",
+      previousResult: "Résultat précédent",
+      latestResult: "Dernier résultat",
+      outOf: "sur 100",
+      scoreAria: "Score de santé : {score} sur 100",
+      bandGood: "Bon",
+      bandFair: "À améliorer",
+      bandPoor: "Faible",
+      noScore: "Aucun score",
+      noScoreBody: "Aucun score n’a été enregistré pour cette vérification.",
+      notScored: "Non noté",
+      zeroPagesTitle: "Aucune page n’a pu être lue",
+      zeroPagesBody: "Nous n’avons pu ouvrir aucune page lors de cette vérification : son score ne décrit donc pas votre site. Les constats ci-dessous expliquent pourquoi.",
+      notAuthority: "Ce n’est pas l’Autorité de domaine : ce score mesure les problèmes techniques de vos propres pages, pas la confiance que d’autres sites accordent au vôtre.",
+      lastChecked: "Dernière vérification",
+      pagesRead: "Pages lues",
+      pagesFailed: "Impossibles à ouvrir",
+      addressesFound: "Adresses trouvées",
+      notRecorded: "Non enregistré",
+      severityTitle: "Problèmes par gravité",
+      critical: "Critiques",
+      warnings: "Avertissements",
+      suggestions: "Suggestions",
+      inFindings: "dans 1 constat|dans {count} constats",
+      severityAria: "Critiques : {critical}, avertissements : {warning}, suggestions : {info}",
+      badge: { critical: "Critique", warning: "Avertissement", info: "Suggestion" },
+      coverageTitle: "Ce que cette vérification a couvert",
+      coverageLimit: "Elle lit jusqu’à {max} pages, en partant de votre page d’accueil et en suivant les liens.",
+      coverageSameSite: "Elle ne suit que les liens internes à {domain}. Les liens vers d’autres sites ne sont pas vérifiés.",
+      coverageQuery: "Les adresses qui ne diffèrent qu’après un « ? » ou un « # » comptent comme une seule page.",
+      coverageSkipped: "Elle ignore les pages d’administration, de connexion, de panier et de paiement, les flux, ainsi que les fichiers comme les images et les PDF.",
+      coverageRefused: "Une page qui ne répond pas en 15 secondes, ou qui refuse les visiteurs automatisés, est indiquée comme « impossible à ouvrir ».",
+      coverageBeyond: "Cette vérification a trouvé {found} adresses sur votre site et lu {read} pages. Les autres n’ont pas été vérifiées.",
+      notAssessedTitle: "Certains contrôles n’ont pas pu être effectués",
+      notAssessedBody: "Ces contrôles comparent les pages entre elles et demandent au moins deux pages lisibles : {checks}. Ils ne comptent pas dans ce score.",
+      crossChecks: {
+        duplicateTitles: "titres de page en double",
+        duplicateDescriptions: "descriptions en double",
+        internalLinking: "maillage interne",
+      },
+      findingsTitle: "Constats",
+      findingsDescription: "Les plus graves d’abord. Ouvrez un constat pour voir toutes les pages concernées et comment le corriger.",
+      findingsCount: "1 constat|{count} constats",
+      filterLabel: "Filtrer par gravité",
+      filterAll: "Tous",
+      searchLabel: "Rechercher dans les constats",
+      searchPlaceholder: "Rechercher un problème ou une adresse de page",
+      showingFiltered: "Constats affichés : {shown} sur {total}.",
+      clearFilters: "Effacer les filtres",
+      noMatchTitle: "Aucun constat ne correspond",
+      noMatchBody: "Essayez une autre recherche, ou affichez tous les constats.",
+      noFindingsTitle: "Aucun problème trouvé",
+      noFindingsBody: "Nous n’avons rien trouvé à corriger sur la page lue.|Nous n’avons rien trouvé à corriger sur les {count} pages lues.",
+      pagesCount: "1 page|{count} pages",
+      howToFix: "Comment corriger",
+      effortMinutes: "En général quelques minutes",
+      effortHour: "En général environ une heure",
+      effortLonger: "Peut prendre plus de temps",
+      needsDeveloper: "Peut nécessiter votre développeur web",
+      affectedPages: "Pages concernées ({count})",
+      homepage: "page d’accueil",
+      opensInNewTab: "(s’ouvre dans un nouvel onglet)",
+      showAllPages: "Afficher les {count} pages",
+      showFewerPages: "Afficher moins de pages",
+      matchingPages: "Pages correspondant à votre recherche : {shown} sur {total}.",
+      notLoaded: "{shown} sur {total} sont listées. Les autres n’ont pas été chargées, pour que cette page reste rapide.",
+      groupNote: "Chaque entrée est un groupe de pages ; la première page de chaque groupe est listée.",
+      firstPageNote: "La première page trouvée est listée ; le détail donne le total.",
+      noUrl: "Aucune adresse de page n’a été enregistrée",
+      rowsCapped: "Cette vérification a enregistré {total} problèmes. Les {shown} premiers sont listés ci-dessous ; les totaux ci-dessus les incluent tous.",
+      detail: {
+        titleLong: "Le titre fait {chars} caractères ; les résultats de recherche le coupent après environ {max}.",
+        titleShort: "Le titre ne fait que {chars} caractères.",
+        descriptionLong: "La description fait {chars} caractères ; les résultats de recherche la coupent après environ {max}.",
+        descriptionShort: "La description ne fait que {chars} caractères.",
+        multipleH1: "{count} titres principaux (H1) sur cette page.",
+        thinContent: "Seulement {words} mots sur cette page.",
+        imagesAlt: "{missing} images sur {total} n’ont pas de description (texte alternatif).",
+        largePage: "Le HTML seul de la page pèse {kb} Ko.",
+        httpStatus: "La page a répondu par l’erreur {status}.",
+        duplicateTitle: "{count} pages partagent le titre « {title} ».",
+        duplicateDescription: "{count} pages partagent la même description.",
+        noInternalLinks: "1 page ne renvoie vers aucune autre page de votre site.|{count} pages ne renvoient vers aucune autre page de votre site.",
+        unreachTimeout: "Elle n’a pas répondu à temps.",
+        unreachBlocked: "Elle refuse les visiteurs automatisés (un réglage de sécurité du site).",
+        unreachPassword: "Elle demande un mot de passe.",
+        unreachStatus: "Elle a répondu par l’erreur {status}.",
+        unreachNotHtml: "Ce n’est pas une page web.",
+        unreachRedirects: "Elle redirige trop de fois.",
+        unreachRedirectAway: "Elle redirige vers une adresse que nous ne vérifions pas.",
+        unreachConnect: "Nous n’avons pas pu nous y connecter.",
+        unreachUnknown: "Une erreur inattendue nous a empêchés de l’ouvrir.",
+      },
+      issues: {
+        noindex: {
+          label: "Masquée aux moteurs de recherche",
+          about: "La page demande aux moteurs de recherche de ne pas l’inclure dans leurs résultats : elle ne peut donc pas être trouvée.",
+          fix: "Sauf si vous masquez cette page volontairement, retirez son réglage « noindex ». Sous WordPress, c’est en général une option de votre extension SEO, ou la case « Demander aux moteurs de recherche de ne pas indexer ce site » dans Réglages › Lecture.",
+        },
+        broken_page: {
+          label: "La page affiche une erreur",
+          about: "La page répond par une erreur au lieu de s’afficher.",
+          fix: "Corrigez la page ou, si elle ne doit plus exister, redirigez-la vers la page existante la plus proche, pour ne perdre ni visiteurs ni liens.",
+        },
+        unreachable_page: {
+          label: "Page impossible à ouvrir",
+          about: "Nous avons essayé de charger cette page sans y parvenir. Les moteurs de recherche ont peut-être le même problème.",
+          fix: "Ouvrez la page dans votre propre navigateur. Si elle n’existe plus, mettez à jour les liens qui y mènent ou redirigez-la. Si elle s’ouvre chez vous, votre hébergeur ou un réglage de sécurité refuse peut-être les visiteurs automatisés, ce qui peut aussi bloquer les moteurs de recherche.",
+        },
+        missing_title: {
+          label: "La page n’a pas de titre",
+          about: "La page n’a pas de balise de titre, le titre affiché dans les résultats de recherche.",
+          fix: "Donnez à la page un titre qui dit de quoi elle parle. C’est le titre que les gens voient dans les résultats de recherche : écrivez-le pour eux plutôt que d’y entasser des mots-clés.",
+        },
+        title_too_long: {
+          label: "Le titre est trop long",
+          about: "Les résultats de recherche coupent les titres de plus de 60 caractères environ.",
+          fix: "Raccourcissez le titre pour que la partie importante ne soit pas coupée. Placez l’essentiel en premier : c’est la fin qui est tronquée.",
+        },
+        title_too_short: {
+          label: "Le titre est très court",
+          about: "Les titres de moins de 30 caractères en disent souvent trop peu sur la page.",
+          fix: "Ajoutez des précisions au titre, pour qu’on voie dès les résultats de recherche que cette page est celle qu’on cherche.",
+        },
+        missing_meta_description: {
+          label: "Pas de description pour les résultats de recherche",
+          about: "La page n’a pas de description : les moteurs de recherche choisissent eux-mêmes le texte affiché sous votre lien.",
+          fix: "Rédigez une description d’une ou deux phrases. Sans elle, les moteurs de recherche reprennent un passage de la page, souvent pas le meilleur.",
+        },
+        meta_description_too_long: {
+          label: "La description est trop longue",
+          about: "Les résultats de recherche coupent les descriptions de plus de 158 caractères environ.",
+          fix: "Raccourcissez la description et dites tôt pourquoi cliquer.",
+        },
+        meta_description_too_short: {
+          label: "La description est très courte",
+          about: "Les descriptions de moins de 70 caractères laissent de la place inutilisée dans les résultats de recherche.",
+          fix: "Développez la description en une ou deux phrases qui donnent envie de choisir votre résultat.",
+        },
+        missing_h1: {
+          label: "Pas de titre principal",
+          about: "La page n’a pas de titre principal (H1) : son sujet est moins clair pour les lecteurs et les moteurs de recherche.",
+          fix: "Ajoutez en haut de la page un titre principal qui dit de quoi elle parle.",
+        },
+        multiple_h1: {
+          label: "Plusieurs titres principaux",
+          about: "La page a plusieurs titres principaux (H1) : on ne sait pas lequel la décrit.",
+          fix: "Gardez un seul titre principal et transformez les autres en sous-titres.",
+        },
+        thin_content: {
+          label: "Peu de texte",
+          about: "La page compte moins de 300 mots, menus et pied de page compris. Les pages aussi courtes se positionnent rarement sur des recherches concurrentielles.",
+          fix: "Développez la page pour qu’elle réponde pleinement à ce que cherchent les visiteurs, ou fusionnez-la avec une page plus complète et redirigez celle-ci.",
+        },
+        images_missing_alt: {
+          label: "Images sans description",
+          about: "Certaines images n’ont pas de texte alternatif, que lisent les lecteurs d’écran et qu’utilise la recherche d’images.",
+          fix: "Ajoutez à chaque image une courte description de ce qu’elle montre. Les images purement décoratives peuvent avoir une description vide.",
+        },
+        missing_canonical: {
+          label: "Aucune adresse préférée définie",
+          about: "La page n’indique pas son adresse préférée (lien canonique). Si elle est accessible à plusieurs adresses, les moteurs de recherche doivent deviner laquelle afficher.",
+          fix: "Ajoutez un lien canonique à la page. La plupart des extensions SEO l’ajoutent automatiquement une fois activées ; sinon, demandez à votre développeur web.",
+        },
+        missing_lang: {
+          label: "Langue de la page non définie",
+          about: "La page n’indique pas dans quelle langue elle est rédigée.",
+          fix: "Définissez la langue de la page (l’attribut « lang » de la balise html). Cela aide les moteurs de recherche à montrer vos pages aux bonnes personnes et les lecteurs d’écran à les prononcer correctement.",
+        },
+        large_page: {
+          label: "Code de la page très volumineux",
+          about: "Le HTML seul de la page dépasse 1,5 Mo, ce qui ralentit le chargement. Les images ne sont pas comptées ici.",
+          fix: "Un HTML volumineux vient en général de code, de données ou d’images intégrés à la page elle-même. Demandez à votre développeur web de les déplacer dans des fichiers séparés ou de les alléger.",
+        },
+        duplicate_title: {
+          label: "Des pages partagent un titre",
+          about: "Plusieurs pages utilisent le même titre : les moteurs de recherche ont du mal à les distinguer.",
+          fix: "Donnez à chaque page un titre qui décrit ce qu’elle seule traite.",
+        },
+        duplicate_meta_description: {
+          label: "Des pages partagent une description",
+          about: "Plusieurs pages utilisent la même description dans les résultats de recherche.",
+          fix: "Rédigez pour chaque page une description distincte qui dit ce que cette page propose.",
+        },
+        no_internal_links: {
+          label: "Pages sans liens vers le reste du site",
+          about: "Certaines pages ne contiennent aucun lien vers d’autres pages de votre site : visiteurs et moteurs de recherche ne peuvent pas aller plus loin.",
+          fix: "Ajoutez depuis ces pages des liens vers des pages proches de votre site, par exemple un service, un article ou votre page d’accueil.",
+        },
+      },
+      siteTitle: "Votre site tel que nous l’avons lu",
+      siteDescription: "Lu sur votre page d’accueil pendant cette vérification.",
+      siteLegacy: "Cette vérification date d’avant la collecte des informations du site. Elles apparaîtront après la prochaine vérification.",
+      siteUnavailable: "Aucune page n’a pu être lue lors de cette vérification : ces informations ne sont donc pas disponibles.",
+      siteName: "Nom du site",
+      siteNameMissing: "Introuvable",
+      language: "Langue",
+      languageMissing: "Non déclarée",
+      languageNote: "Telle que déclarée par votre page d’accueil.",
+      languageMissingNote: "Votre page d’accueil n’indique pas sa langue : les moteurs de recherche doivent la deviner.",
+      platform: "Plateforme",
+      platformUnknown: "Non reconnue",
+      platformNote: "Détectée à partir du code de votre page.",
+      platformUnknownNote: "Nous n’avons reconnu aucune plateforme courante. Ce n’est pas un problème en soi.",
+      previewImage: "Image d’aperçu des liens",
+      previewMissing: "Aucune",
+      previewNote: "Affichée quand votre page d’accueil est partagée.",
+      previewMissingNote: "Aucune image d’aperçu (og:image) n’a été trouvée : les liens partagés peuvent s’afficher sans image.",
+      previewBroken: "L’image d’aperçu n’a pas pu être chargée.",
+      linkedTitle: "Sites vers lesquels vous faites le plus de liens",
+      linkedHelp: "Jusqu’à six, comptés sur les pages lues. Utile pour repérer des liens que vous ne vouliez pas donner.",
+      linkedEmpty: "Nous n’avons trouvé aucun lien vers d’autres sites sur les pages lues.",
+      aiTitle: "Accès des assistants IA",
+      aiDescription: "Si votre fichier robots.txt bloque les robots que les assistants IA utilisent pour lire les sites web.",
+      aiLegacy: "Cette vérification date d’avant la lecture du fichier robots.txt. Cette information apparaîtra après la prochaine vérification.",
+      aiUnreadable: "Aucune page n’a pu être lue lors de cette vérification : le fichier robots.txt n’a donc probablement pas pu l’être non plus. Ici, « Non bloqué » peut seulement signifier que nous n’avons pas pu le lire.",
+      aiNoneBlocked: "Aucun de ces {total} robots n’est bloqué sur l’ensemble de votre site.",
+      aiSomeBlocked: "1 robot sur {total} est bloqué sur l’ensemble de votre site.|{count} robots sur {total} sont bloqués sur l’ensemble de votre site.",
+      aiAllowed: "Non bloqué",
+      aiBlocked: "Bloqué",
+      aiNamed: "Cité dans robots.txt",
+      aiCaveat: "Nous vérifions seulement si robots.txt bloque l’ensemble du site. S’il n’y a pas de robots.txt, ou si nous n’avons pas pu le lire, le robot est considéré comme non bloqué. Les pare-feu et les règles visant des pages précises ne sont pas vérifiés.",
+      aiNoGuarantee: "Être lisible ne signifie pas qu’un assistant IA mentionnera ou citera votre site.",
+      aiBlockedHelp: "Pour laisser passer un robot, retirez de robots.txt la règle « Disallow: / » qui s’applique à lui, ou demandez-le à la personne qui gère votre site.",
+      aiVisibilityLink: "Voir si les assistants IA vous mentionnent",
+      fixTitle: "Vous voulez que nous corrigions cela ?",
+      fixSelf: "La plupart sont des modifications de texte que vous pouvez faire vous-même grâce aux conseils ci-dessus. Si vous préférez, envoyez-nous la liste et nous vous ferons un devis.",
+      fixDeveloper: "1 de ces constats nécessite en général la personne qui a créé votre site. Envoyez-nous la liste : nous examinerons tout et vous ferons un devis pour la correction.|{count} de ces constats nécessitent en général la personne qui a créé votre site. Envoyez-nous la liste : nous examinerons tout et vous ferons un devis pour la correction.",
+      fixHow: "Ouvre votre messagerie avec la liste déjà remplie. Rien n’est envoyé tant que vous ne l’envoyez pas, et rien n’est facturé.",
+      fixUnavailable: "Les demandes de devis par e-mail ne sont pas disponibles pour le moment.",
+      requestQuote: "Demander un devis",
+      mailSubject: "Demande de correction pour {domain}",
+      mailGreeting: "Bonjour,",
+      mailAsk: "Pourriez-vous me faire un devis pour corriger les problèmes trouvés sur {domain} ?",
+      mailCheckedOn: "Vérification du {date}.",
+      mailCounts: "1 problème trouvé (critiques : {critical}).|{count} problèmes trouvés (critiques : {critical}).",
+      mailListTitle: "Constats :",
+      mailLine: "- {label} : {pages}",
+      mailThanks: "Merci.",
+    },
     settings: {
       personalTitle: "Informations personnelles",
-      personalSubtitle: "Les informations de votre compte",
+      personalSubtitle: "Votre nom et l’adresse e-mail avec laquelle vous vous connectez.",
       nameLabel: "Nom",
       namePlaceholder: "Votre nom",
       save: "Enregistrer",
@@ -6005,7 +9339,7 @@ const fr: Messages = {
       passwordCreated:
         "Mot de passe défini. Vous pouvez désormais vous connecter avec votre e-mail et votre mot de passe.",
       languageLabel: "Langue du tableau de bord",
-      languageHelp: "La langue de ce tableau de bord. Vos articles sont rédigés dans la langue définie dans l\u2019onglet Entreprise.",
+      languageHelp: "Menus, boutons et messages de ce tableau de bord. La modifier ne change pas vos articles.",
       languageError: "Impossible d\u2019enregistrer votre langue",
       currentPassword: "Mot de passe actuel",
       newPassword: "Nouveau mot de passe",
@@ -6042,6 +9376,61 @@ const fr: Messages = {
       loadingPeople: "Chargement des personnes",
       roleEditor: "Éditeur",
       roleViewer: "Lecteur",
+      pageTitle: "Compte",
+      pageDescription: "Vos informations personnelles, vos moyens de connexion, votre langue, les personnes qui travaillent sur vos sites et votre lien de parrainage.",
+      emailHelp: "Vous vous connectez avec cette adresse et les reçus y sont envoyés. Elle ne peut pas être modifiée ici.",
+      nameRequired: "Saisissez votre nom.",
+      securityTitle: "Connexion et sécurité",
+      securitySubtitle: "Les moyens de vous connecter à votre compte.",
+      methodPassword: "E-mail et mot de passe",
+      methodGoogle: "Google",
+      methodSet: "Défini",
+      methodNotSet: "Non défini",
+      methodLinked: "Associé",
+      passwordSetSummary: "Vous pouvez vous connecter avec votre adresse e-mail et votre mot de passe.",
+      passwordNotSetSummary: "Ce compte n’a pas encore de mot de passe.",
+      googleLinkedSummary: "Vous pouvez vous connecter avec le compte Google de cette adresse.",
+      setPasswordIntroGeneric: "Définissez un mot de passe pour vous connecter avec votre adresse e-mail et un mot de passe.",
+      currentPasswordWrong: "Votre mot de passe actuel est incorrect.",
+      passwordTooLong: "Utilisez 128 caractères au maximum",
+      tooManyAttempts: "Trop de tentatives. Patientez une minute et réessayez.",
+      passwordAlreadySet: "Ce compte a déjà un mot de passe. Saisissez votre mot de passe actuel pour le modifier.",
+      languageTitle: "Langue",
+      languageSubtitle: "Le tableau de bord et vos articles ont chacun leur propre langue.",
+      languageSaved: "Langue du tableau de bord enregistrée.",
+      articleLanguageLabel: "Langue des articles",
+      articleLanguageHelp: "Les articles de chaque site sont rédigés dans la langue définie dans son onglet Entreprise.",
+      articleLanguageLink: "Ouvrir l’onglet Entreprise de {domain}",
+      roleAdmin: "Administrateur",
+      roleEditorHelp: "Rédige, modifie et publie des articles.",
+      roleViewerHelp: "Peut tout consulter, sans rien modifier.",
+      inviteTo: "Cette personne aura accès à {domain} uniquement.",
+      reinviteHelp: "Inviter une personne qui a déjà accès modifie son rôle.",
+      invalidEmail: "Saisissez une adresse e-mail valide.",
+      inviteSelf: "Vous avez déjà accès à ce site.",
+      inviteFailed: "Impossible d’envoyer l’invitation. Réessayez.",
+      actionFailed: "L’opération a échoué. Réessayez.",
+      accessGranted: "{email} peut maintenant travailler sur {domain}",
+      accessGrantedNoEmail: "{email} peut maintenant travailler sur {domain}, mais nous n’avons pas pu lui envoyer d’e-mail.",
+      accessRemoved: "{email} n’a plus accès",
+      loadPeopleFailed: "Impossible de charger les personnes qui travaillent sur ce site.",
+      retry: "Réessayer",
+      thisWebsite: "ce site",
+      workspaceAccess: "{email} a accès via votre espace de travail",
+      manageMember: "Gérer {email}",
+      manageInvitation: "Gérer l’invitation de {email}",
+      membersCaption: "Personnes pouvant travailler sur {domain}",
+      removeConfirmTitle: "Retirer l’accès de {email} ?",
+      removeConfirmBody: "Cette personne ne pourra plus ouvrir {domain}. Vous pourrez l’inviter de nouveau plus tard.",
+      keepAccess: "Conserver l’accès",
+      cancelInviteConfirmTitle: "Annuler l’invitation de {email} ?",
+      cancelInviteConfirmBody: "Le lien envoyé par e-mail ne fonctionnera plus. Vous pourrez l’inviter de nouveau plus tard.",
+      keepInvitation: "Conserver l’invitation",
+      removing: "Retrait…",
+      cancellingInvite: "Annulation…",
+      inviting: "Envoi…",
+      viewingSharedNote: "Vous consultez {domain}, qui est partagé avec vous. Seul son propriétaire peut modifier qui y travaille. La liste ci-dessous concerne vos propres sites.",
+      guestTeamNote: "{domain} est partagé avec vous en tant que {role}. Seul son propriétaire peut inviter ou retirer des personnes.",
     },
     websites: {
       title: "Sites web",
@@ -6097,6 +9486,58 @@ const fr: Messages = {
       purchaseCancelled: "Achat annulé.",
       addWebsiteFirst: "Ajoutez d\u2019abord un site - chaque forfait paie un seul site.",
       checkoutFailed: "Impossible de lancer le paiement. Réessayez.",
+      planFor: "Forfait de {domain}",
+      choosePlan: "Choisissez un forfait",
+      choosePlanFor: "Choisissez un forfait pour {domain}",
+      choosePlanHelp: "Un forfait couvre un seul site.",
+      billingPeriod: "Période de facturation",
+      perMonth: "/ mois",
+      perYear: "/ an",
+      saveBadge: "Économisez {n} %",
+      switchPlan: "Passer à ce forfait",
+      payByCard: "Payer par carte",
+      redirecting: "Redirection…",
+      opening: "Ouverture…",
+      cancelSubscription: "Résilier l’abonnement",
+      paypalCheckoutFailed: "Impossible de lancer le paiement PayPal. Réessayez.",
+      portalFailed: "Impossible d’ouvrir le portail de facturation.",
+      managedForYou: "Nous gérons cet abonnement pour vous. Écrivez à {email} pour obtenir vos reçus ou faire une modification.",
+      newTab: "(s’ouvre dans un nouvel onglet)",
+      upgradeLead: "Prêt à passer à la vitesse supérieure ?",
+      upgradeBody: "Le forfait {plan} comprend {articles}, {terms} et {credits}.",
+      upgradeLink: "Découvrir {plan}",
+      statusActive: "Actif",
+      statusTrialing: "Essai gratuit",
+      statusPastDue: "Paiement en retard",
+      statusUnpaid: "Impayé",
+      statusIncomplete: "Paiement incomplet",
+      statusIncompleteExpired: "Paiement expiré",
+      statusCanceled: "Résilié",
+      statusPaused: "En pause",
+      statusInactive: "Inactif",
+      pastDueNotice: "Le dernier paiement de ce site n’a pas abouti. Mettez à jour le moyen de paiement pour conserver l’accès.",
+      unsettledNotice: "L’abonnement de ce site doit être régularisé ou résilié avant de pouvoir changer de forfait.",
+      endedNotice: "Cet abonnement est terminé. Choisissez un forfait ci-dessous pour reprendre.",
+      billedByPayPal: "Ce site est facturé via PayPal : les changements de forfait passent donc aussi par PayPal.",
+      billedByCard: "Ce site est facturé par carte : les changements de forfait passent donc par le paiement par carte. Pour payer avec PayPal, résiliez d’abord l’abonnement par carte.",
+      billedByCardEnding: "L’abonnement par carte de ce site prend fin le {date}. Vous pourrez choisir PayPal une fois qu’il aura pris fin.",
+      noPlanChange: "Le changement de forfait n’est pas disponible pour ce site pour le moment.",
+      paypalApproved: "Autorisation PayPal reçue - confirmation de votre abonnement…",
+      paypalCancelled: "Paiement PayPal annulé.",
+      viewingSharedNote: "{shared} est partagé avec vous et c’est son propriétaire qui le paie. Cette page présente la facturation de vos propres sites.",
+      guestTitle: "Rien à payer ici",
+      guestBody: "Les sites partagés avec vous sont payés par leurs propriétaires. Vous n’avez pas besoin de forfait pour y travailler.",
+      addWebsite: "Ajouter un site",
+      viewPlan: "Voir le forfait",
+      shownBelow: "Affiché ci-dessous",
+      paidByCard: "Carte",
+      invoiceInPortal: "Facture dans Gérer la facturation",
+      dateColumn: "Date",
+      descriptionColumn: "Description",
+      methodColumn: "Payé avec",
+      amountColumn: "Montant",
+      receiptColumn: "Reçu",
+      historyCapped: "Affichage des {count} paiements les plus récents.",
     },
     article: {
       contentSeo: "Contenu et SEO",
@@ -6155,6 +9596,83 @@ const fr: Messages = {
       factsHelp: "Un par ligne. Ce sont les seuls éléments précis que nous affirmerons.",
       authorHelp: "La signature affichée sur chaque article, ici et sur votre site.",
       noBylineHelp: "Laissé vide, les articles paraissent sans signature.",
+      pageTitle: "Paramètres des articles",
+      pageDescription: "Comment les articles de ce site sont rédigés, illustrés et publiés.",
+      sectionWriting: "Rédaction et SEO",
+      sectionWritingHelp: "Le style et la longueur de chaque article, et le nombre de liens vers vos autres pages.",
+      sectionSources: "Sources de contenu",
+      sectionSourcesHelp: "Où se trouve votre contenu sur votre site.",
+      sectionImages: "Images et identité de marque",
+      sectionImagesHelp: "L’image créée pour chaque article, et l’allure de votre marque.",
+      sectionEnhancements: "Enrichissements des articles",
+      sectionEnhancementsHelp: "Les éléments ajoutés aux articles en plus du texte.",
+      sectionVoice: "Ton de la marque",
+      sectionVoiceHelp: "Le ton de vos articles, et ce qu’ils peuvent dire de votre entreprise.",
+      sectionAuthor: "Auteur",
+      sectionAuthorHelp: "La personne ou la marque qui signe vos articles. Elle est enregistrée avec vos paramètres ; pour l’instant, les articles ne l’affichent pas comme signature.",
+      unknownOption: "{value} (plus proposé)",
+      linksError: "Saisissez un nombre entier de 0 à 20.",
+      wordsError: "Saisissez un nombre entier de 300 à 5 000.",
+      sitemapHint: "Nous permet de trouver les pages de votre site à lier depuis les nouveaux articles.",
+      blogHint: "La page principale de votre blog.",
+      exampleHint: "Un de vos articles dont vous êtes satisfait.",
+      urlError: "Saisissez une adresse complète commençant par http:// ou https://.",
+      brandColourHint: "La couleur principale de votre marque, en code hexadécimal. Elle est enregistrée avec vos paramètres ; pour l’instant, les images générées ne l’utilisent pas.",
+      brandColourError: "Utilisez # suivi de six chiffres ou lettres de a à f, par exemple #003388.",
+      noColour: "Aucune couleur",
+      invalidColour: "Couleur non valide",
+      pickColour: "Choisir une couleur de marque",
+      clearColour: "Retirer la couleur",
+      imageStyleLabel: "Style d’image",
+      imageStyleHint: "Le style de l’image créée pour chaque article.",
+      coverStyleLabel: "Style de l’image de couverture",
+      coverStyleHint: "Votre style préféré pour les couvertures. Pour l’instant, chaque article reçoit une seule image, dans le style d’image ci-dessus, et cette image sert aussi de couverture.",
+      samplesNote: "Les exemples illustrent chaque style. Les images de vos articles sont créées pour chaque article et seront différentes.",
+      matchFollows: "Suit actuellement : {style}",
+      matchFollowsUnknown: "Suit le style d’image ci-dessus",
+      previewStyle: "Voir l’exemple {style}",
+      previewTitle: "Exemple : {style}",
+      previewMatchTitle: "Comme les images de l’article, actuellement {style}",
+      previewHelp: "Un exemple de ce style. L’aperçu ne change pas votre choix.",
+      sampleAlt: "Image d’exemple dans le style {style}",
+      unknownImageStyle: "Votre choix enregistré ({value}) ne fait pas partie de ces styles. Il reste tel quel jusqu’à ce que vous en choisissiez un.",
+      imageBriefHint: "Inclus dans les instructions de chaque image d’article.",
+      tocHint: "Ajoute une table des matières construite à partir des intertitres.",
+      youtubeHint: "Votre choix est enregistré. Pour l’instant, aucune vidéo n’est ajoutée aux articles.",
+      perspectiveHint: "Écrit avec un point de vue plutôt que de façon impersonnelle.",
+      similarHint: "Cite et compare des alternatives, pour un sujet mieux couvert.",
+      comparisonHint: "Ajoute un tableau comparant côte à côte les options dont parle l’article, comme « Vidéographie ou cinématographie en un coup d’œil ».",
+      poweredByHint: "Une petite mention à la fin de chaque article. La désactiver s’applique aux articles pas encore publiés.",
+      factsPlaceholder: "Ouvert depuis 2004\nCinq dentistes dans l’équipe\nParking gratuit sur place",
+      uspsPlaceholder: "Rendez-vous d’urgence le jour même\nNous recevons les patients anxieux",
+      tooManyLines: "Jusqu’à {max} lignes. Retirez 1 ligne.|Jusqu’à {max} lignes. Retirez {count} lignes.",
+      lineTooLong: "La ligne {line} dépasse {max} caractères.",
+      fixFields: "Certains champs sont à corriger. Ils sont signalés sur la page.",
+      saveError: "Une erreur s’est produite. Veuillez réessayer.",
+      saveBarNote: "Couvre toutes les sections sauf Rédaction et publication, enregistrée dès que vous la modifiez.",
+      autoOnHelp: "Nous avançons dans votre plan de contenu de nous-mêmes. Vous pouvez toujours rédiger n’importe quel article vous-même.",
+      autoOffHelp: "Rien n’est rédigé tant que vous ne le demandez pas. Ouvrez un article planifié et cliquez sur Rédiger.",
+      anyDay: "N’importe quel jour.",
+      pickedDays: "Uniquement les jours choisis.",
+      daysUtc: "Les jours suivent l’heure UTC (temps universel coordonné).",
+      firstArticleOnly: "Votre premier article est envoyé dès qu’il est prêt, quel que soit votre choix, pour que vous voyiez le rendu sur votre site.",
+      networkReview: "Tant que votre site fait partie du Réseau partenaire, l’équipe RepGet vérifie chaque article - le premier aussi - et aucun ne part avant son jour prévu.",
+      openIntegrations: "Ouvrir Intégrations",
+      weekdaysShort: { sun: "Dim", mon: "Lun", tue: "Mar", wed: "Mer", thu: "Jeu", fri: "Ven", sat: "Sam" },
+      weekdaysLong: { sun: "Dimanche", mon: "Lundi", tue: "Mardi", wed: "Mercredi", thu: "Jeudi", fri: "Vendredi", sat: "Samedi" },
+      bodyImageStyles: {
+        sketch: { label: "Croquis", hint: "Trait dessiné à la main sur une couleur douce." },
+        watercolour: { label: "Aquarelle", hint: "Lavis peints tout en douceur." },
+        realistic: { label: "Réaliste", hint: "Photographique." },
+        illustration: { label: "Illustration", hint: "Formes vectorielles en aplat." },
+        "brand-text": { label: "Marque et texte", hint: "Une photo avec un bandeau de couleur vive le long d’un bord." },
+      },
+      coverImageStyles: {
+        sketch: { label: "Croquis", hint: "Trait dessiné à la main sur une couleur douce." },
+        watercolour: { label: "Aquarelle", hint: "Lavis peints tout en douceur." },
+        illustration: { label: "Illustration", hint: "Formes vectorielles en aplat." },
+        match: { label: "Comme les images de l’article", hint: "Suit le style d’image ci-dessus." },
+      },
       styles: {
         expert: { label: "Expert", hint: "Ton éditorial précis, nuances et terminologie équilibrées." },
         conversational: { label: "Conversationnel", hint: "Des phrases simples et directes. Explique les termes dès leur première apparition." },
@@ -6203,6 +9721,128 @@ const fr: Messages = {
       updatePost: "Mettre à jour",
       publish: "Publier",
       sendingDraft: "Envoi en brouillon…",
+      breadcrumbLabel: "Fil d’Ariane",
+      targetKeywordLabel: "Mot-clé cible",
+      lastSaved: "Dernière mise à jour : {date}",
+      viewModeLabel: "Aperçu ou modification",
+      unsavedMark: "Modifications non enregistrées",
+      previewLabel: "Aperçu de l’article",
+      previewUnsavedNow: "Vous prévisualisez des modifications qui ne sont pas encore enregistrées. Votre site ne les reçoit qu’après enregistrement et publication.",
+      notWrittenYet: "L’article apparaîtra ici dès qu’il sera rédigé.",
+      workingPaused: "La modification et la publication attendent la fin, car la nouvelle version remplace le texte.",
+      conflictTitle: "Cet article a changé pendant que vous le modifiiez",
+      conflictBody: "Entre-temps, la version enregistrée a changé pour : {fields}, par exemple parce qu’une réécriture s’est terminée ou que quelqu’un d’autre a enregistré. Si vous enregistrez maintenant, votre version remplace celle-ci.",
+      conflictLoad: "Utiliser la version enregistrée",
+      conflictKeep: "Garder ma version",
+      genUnavailable: "La rédaction est momentanément indisponible. Le problème vient de chez nous et nous y travaillons.",
+      genBusy: "Le service de rédaction était saturé. Réessayez dans quelques minutes.",
+      genTimeout: "La rédaction a pris trop de temps et s’est arrêtée. Réessayez : c’est généralement passager.",
+      genUnusable: "Nous n’avons pas pu tirer un article exploitable de ce sujet. Réessayez, ou précisez le sujet et le mot-clé cible.",
+      genQuota: "Cet espace de travail a utilisé tous ses articles du mois. Passez à une offre supérieure pour en rédiger davantage.",
+      genGeneric: "La rédaction de cet article n’a pas abouti. Réessayez. Si cela se reproduit, contactez le support.",
+      pubErrAuth: "Votre site a refusé l’identifiant enregistré. Reconnectez-le sur la page Intégrations.",
+      pubErrPermission: "Le compte connecté n’a pas le droit de publier des articles. Connectez un compte qui peut publier.",
+      pubErrNotFound: "L’adresse de votre site est introuvable. Vérifiez-la sur la page Intégrations.",
+      pubErrUnreachable: "Votre site n’a pas répondu. C’est généralement passager : réessayez, ou vérifiez que le site est en ligne.",
+      pubErrApiDisabled: "Votre site est en ligne, mais son interface de publication est désactivée, souvent par une extension de sécurité. Réactivez-la, puis testez la connexion.",
+      pubErrUnsupported: "Votre site fonctionne d’une façon sur laquelle nous ne pouvons pas encore publier.",
+      pubErrUnknown: "La publication n’a pas abouti. Réessayez. Si cela se reproduit, contactez le support.",
+      editSaveNote: "Le titre, la méta description, l’adresse et le texte s’enregistrent ensemble avec le bouton Enregistrer. L’image mise en avant s’enregistre dès que vous la modifiez.",
+      titleRequired: "Saisissez un titre.",
+      metaHint: "Affichée sous le titre dans les résultats de recherche, qui en montrent généralement les {count} premiers caractères environ.",
+      slugSavedAs: "Enregistrée sous : {slug}",
+      slugEmptyNote: "Si vous la laissez vide, votre site choisit l’adresse à partir du titre.",
+      slugDropped: "Les lettres accentuées et autres caractères spéciaux sont omis de l’adresse.",
+      slugWordPressNote: "WordPress conserve l’adresse sous laquelle l’article a été publié la première fois. La modifier ici ne déplace pas l’article en ligne.",
+      searchPreviewTitle: "Aperçu dans les résultats de recherche",
+      searchPreviewHelp: "Il s’agit d’une approximation. Les moteurs de recherche décident de ce qu’ils affichent.",
+      saveArticle: "Enregistrer l’article",
+      saveNoteWorking: "L’enregistrement attend pendant la rédaction de l’article.",
+      saveNoteDelivering: "L’enregistrement attend pendant l’envoi de l’article à votre site.",
+      saveNoteReview: "Enregistrer des modifications renvoie cet article en relecture auprès de l’équipe RepGet.",
+      saveNoteTitle: "Saisissez un titre pour enregistrer.",
+      statsTitle: "Statistiques de l’article",
+      statsHelp: "Calculées à partir du texte de l’article.",
+      statsUnsaved: "Calculées à partir du texte affiché, y compris les modifications non enregistrées.",
+      publishingTitle: "Publication",
+      publishingHelp: "Publier envoie à votre site la dernière version enregistrée.",
+      destinationLabel: "Destination",
+      destinationNone: "Non connecté",
+      destinationPlugin: "Plugin WordPress",
+      manageConnection: "Gérer la connexion",
+      plannedLabel: "Date prévue",
+      plannedNone: "Aucune date prévue",
+      autoLabel: "Publication automatique",
+      autoOnLive: "Activée, en articles publiés",
+      autoOnDraft: "Activée, en brouillons",
+      autoOff: "Désactivée",
+      beforePlanned: "Publier maintenant l’envoie immédiatement, avant sa date prévue.",
+      stateNotSent: "Pas encore envoyé à votre site.",
+      stateLive: "En ligne sur votre site. Dernier envoi : {date}.",
+      stateDraft: "Sur votre site en brouillon. Dernier envoi : {date}.",
+      stateScheduled: "Programmé sur votre site. Dernier envoi : {date}.",
+      stateDelivered: "Livré à votre site le {date}.",
+      stateFailed: "La dernière tentative ({date}) n’a pas abouti.",
+      statePluginUnconfirmed: "Le plugin WordPress n’a pas confirmé la dernière remise ({date}).",
+      stateWriting: "La publication sera possible une fois l’article rédigé.",
+      stateFrozen: "La publication est suspendue par l’équipe RepGet. Rien n’est envoyé aux sites tant qu’elle n’a pas repris.",
+      stateReviewPending: "L’équipe RepGet prépare cet article pour le réseau de partenaires. Il sera publié dès qu’elle l’aura approuvé.",
+      stateReviewChanged: "Cet article a changé après l’approbation de l’équipe RepGet ; il est donc de nouveau en relecture.",
+      stateDelivering: "Envoi à votre site en cours…",
+      stateQueued: "En file d’attente depuis {time}. Le résultat s’affichera ici quand votre site répondra.",
+      stateQueuedLong: "Toujours aucun résultat. L’envoi peut être retenu, par exemple tant qu’une tentative précédente n’est pas résolue. Vérifiez de nouveau dans quelques minutes.",
+      checkAgain: "Vérifier de nouveau",
+      statePluginWaiting: "En attente du plugin WordPress, qui doit le récupérer en tant que {mode}. Le plugin se manifeste au moins une fois par heure.",
+      modeLive: "article publié",
+      modeDraft: "brouillon",
+      statePluginPublished: "Le plugin WordPress a créé cet article et ne peut plus le modifier ensuite : les changements enregistrés ici n’atteignent donc pas votre site. Faites les modifications suivantes dans WordPress.",
+      stateUncertain: "La dernière tentative n’a reçu aucune réponse de votre site. Consultez l’avis en haut de la page.",
+      uncertainPublishNote: "Tant que ce point n’est pas résolu, publier de nouveau ne crée pas de second article : nous cherchons d’abord le précédent.",
+      connectHelp: "Connectez votre site pour y publier cet article.",
+      blockedUnsaved: "Enregistrez d’abord vos modifications. Publier envoie la version enregistrée, pas ce qui est à l’écran.",
+      alreadySentLive: "Cette version exacte est déjà en ligne sur votre site.",
+      alreadySentDraft: "Cette version exacte est déjà sur votre site en brouillon.",
+      confirmDraftTitle: "Repasser l’article en ligne en brouillon ?",
+      confirmDraftBody: "Cet article est en ligne sur votre site. L’envoyer en brouillon peut mettre l’article hors ligne (c’est le cas avec WordPress). Pour modifier l’article en ligne, utilisez plutôt Mettre à jour.",
+      historyLatest: "Les {count} dernières tentatives, de la plus récente à la plus ancienne.",
+      historyEmpty: "Rien n’a encore été envoyé à votre site.",
+      logLive: "En ligne",
+      logDraft: "Envoyé en brouillon",
+      logScheduled: "Programmé",
+      logDelivered: "Livré",
+      rewriteTitle: "Réécrire l’article",
+      rewriteHelp: "Rédige de nouveau tout l’article à partir de son plan. Chaque site peut réécrire {count} articles par jour.",
+      rewriteConfirmTitle: "Réécrire cet article ?",
+      rewriteConfirmBody: "Le texte, la méta description, l’adresse et l’image mise en avant sont remplacés par une nouvelle version. La version actuelle n’est pas conservée.",
+      rewriteConfirmPublished: "L’article sur votre site reste inchangé jusqu’à ce que vous publiiez la nouvelle version.",
+      rewriteConfirmReview: "La nouvelle version passe en relecture auprès de l’équipe RepGet avant de pouvoir être publiée.",
+      rewriteConfirmUnsaved: "Vos modifications non enregistrées sont abandonnées.",
+      rewriteConfirmAction: "Réécrire",
+      rewriteNoPlan: "Cet article n’a pas d’entrée dans le plan, il ne peut donc pas être rédigé de nouveau.",
+      rewriteBlocked: "De nouveau disponible quand la rédaction ou l’envoi en cours sera terminé.",
+      imagePromptHint: "Laissez vide et nous choisissons. Il reste {remaining} nouvelles images sur {max} pour cet article.",
+      imageGenerate: "Générer",
+      imageReplace: "Remplacer",
+      imageAltHint: "Enregistrée quand vous quittez le champ.",
+      imageCheckAlt: "Vérifiez que la description correspond toujours à la nouvelle image.",
+      imageLockedWorking: "Attendez que l’article soit rédigé : une réécriture remplace l’image.",
+      imageLockedDelivering: "Attendez la fin de l’envoi à votre site.",
+      imageTypeError: "Utilisez une image PNG, JPEG ou WebP.",
+      imageSizeError: "Cette image pèse {size} Mo. La limite est de {max} Mo.",
+      imageNoAlt: "Pas encore de description.",
+      imageAltSaved: "Description enregistrée.",
+      errInFlight: "Cet article est en cours d’envoi vers votre site. Réessayez dans une minute.",
+      errNotWritten: "Cet article n’a pas encore été rédigé.",
+      errConnectFirst: "Connectez votre site avant de publier.",
+      errNotFound: "Cet article n’existe plus.",
+      errRewriteCap: "Ce site a utilisé toutes ses réécritures des dernières 24 heures. Réessayez plus tard.",
+      errAlreadyWriting: "Cet article est déjà en cours de rédaction.",
+      errNoActivePlan: "Cet espace de travail n’a pas d’offre active. Choisissez-en une pour continuer à rédiger.",
+      errImageStorage: "Le stockage des images est indisponible pour le moment. Réessayez plus tard.",
+      errImageGeneration: "La génération d’images est indisponible pour le moment. Réessayez plus tard.",
+      metaNone: "Pas encore de méta description. Les moteurs de recherche affichent alors un extrait de l’article.",
+      searchPreviewUnsaved: "L’aperçu inclut des modifications pas encore enregistrées.",
+      imageReviewNote: "Modifier l’image ou sa description renvoie cet article en relecture auprès de l’équipe RepGet.",
       planningOutline: "Préparation du plan",
       writingBody: "Rédaction de l\u2019article",
     },
@@ -6232,6 +9872,132 @@ const fr: Messages = {
       statusForbidden: "Vous ne pouvez pas connecter ce site",
       statusInvalid: "Ce lien n\u2019était pas valide - réessayez",
       statusError: "Google n\u2019a pas pu être connecté",
+      pageTitle: "Google Search et Analytics",
+      pageDescription: "Comment les internautes trouvent votre site dans la recherche Google, et combien de visites il reçoit. Les chiffres proviennent de vos propres comptes Search Console et Google Analytics.",
+      rangeLabel: "Période",
+      rangeDays: "{days} jours",
+      periodDates: "{start} – {end}",
+      connectTitle: "Connectez vos comptes Google",
+      searchConsoleName: "Google Search Console",
+      analyticsName: "Google Analytics",
+      searchConsolePurpose: "Montre les performances de votre site dans la recherche Google : combien de fois il est affiché (impressions), combien de fois on clique dessus (clics), sa position moyenne, et quelles recherches et pages amènent des visiteurs.",
+      analyticsPurpose: "Montre combien de visites (sessions) reçoit l’ensemble de votre site, quelle qu’en soit l’origine : Google, autres moteurs de recherche, réseaux sociaux, liens et saisie directe de votre adresse.",
+      setupTitle: "Comment fonctionne la connexion",
+      setupStep1: "Connectez-vous avec le compte Google qui voit ce site dans Search Console et, si vous l’utilisez, dans Google Analytics. Une seule connexion couvre les deux.",
+      setupStep2: "Google vous demande d’autoriser un accès en lecture seule. RepGet peut lire vos chiffres mais ne peut rien modifier dans vos comptes Google.",
+      setupStep3: "De retour ici, choisissez la propriété Search Console et la propriété Analytics de ce site. RepGet importe environ les deux derniers mois, puis les nouveaux chiffres chaque jour.",
+      readOnlyAccess: "Accès en lecture seule. Vous pouvez vous déconnecter à tout moment.",
+      expiredTitle: "Google doit être reconnecté",
+      reconnectGoogle: "Reconnecter Google",
+      viewerCannotConnect: "Seul un propriétaire ou un éditeur de ce site peut connecter Google.",
+      connectionTitle: "Connexion Google",
+      connectionHelp: "RepGet importe de nouveaux chiffres chaque jour. Google les publie avec environ trois jours de retard.",
+      notChosen: "Non choisie",
+      dataThrough: "Chiffres jusqu’au {date}",
+      noFiguresYet: "Aucun chiffre de Google pour l’instant",
+      analyticsPropertyId: "Propriété {id}",
+      importNow: "Importer maintenant",
+      manageConnection: "Gérer la connexion",
+      viewerSetupPending: "Google est connecté, mais aucune propriété n’a encore été choisie. Un propriétaire ou un éditeur peut en choisir une.",
+      importRequestedTitle: "Import demandé",
+      importRequestedBody: "RepGet importe vos chiffres depuis Google. Cette page les recherche pendant environ une minute.",
+      importStillRunning: "L’import peut prendre quelques minutes. Les nouveaux chiffres apparaîtront ici une fois terminé : rechargez la page plus tard pour les voir.",
+      setupNeededTitle: "Choisissez quoi importer",
+      setupNeededBody: "Choisissez la propriété Search Console et la propriété Analytics de ce site, puis enregistrez. Une seule des deux suffit.",
+      propertiesTitle: "Propriétés",
+      propertiesHelp: "Les propriétés Google qui correspondent à ce site.",
+      loadingProperties: "Chargement des propriétés visibles par votre compte Google…",
+      propertiesFailed: "Vos propriétés n’ont pas pu être chargées depuis Google. Réessayez, ou reconnectez Google si le problème persiste.",
+      tryAgain: "Réessayer",
+      searchConsoleHint: "La propriété Search Console de ce site, par exemple une propriété de domaine.",
+      analyticsHint: "La propriété Google Analytics 4 de ce site.",
+      noSearchConsoleFound: "Aucune propriété Search Console n’a été trouvée pour ce compte Google. Vérifiez qu’il y a accès, ou reconnectez-vous avec un autre compte.",
+      noAnalyticsFound: "Aucune propriété Google Analytics 4 n’a été trouvée pour ce compte Google. Vérifiez qu’il y a accès, ou reconnectez-vous avec un autre compte.",
+      noSearchConsoleProperty: "Aucune (ne pas importer depuis Search Console)",
+      noAnalyticsProperty: "Aucune (ne pas importer depuis Analytics)",
+      propertyUnavailable: "{name} (non disponible pour ce compte Google)",
+      saveAndImport: "Enregistrer et importer",
+      saveSelection: "Enregistrer",
+      selectionUnsaved: "Votre nouveau choix n’est pas encore enregistré.",
+      noSelectionChange: "Aucune modification à enregistrer.",
+      propertiesSaved: "Propriétés enregistrées",
+      accountTitle: "Compte Google",
+      accountHelp: "Reconnectez-vous pour renouveler l’accès ou passer à un autre compte Google. Les propriétés choisies sont conservées.",
+      disconnect: "Déconnecter",
+      disconnecting: "Déconnexion…",
+      disconnectTitle: "Déconnecter Google ?",
+      disconnectBody: "RepGet cesse d’importer depuis Search Console et Analytics pour ce site et oublie les propriétés choisies.",
+      disconnectKeeps: "Les chiffres déjà importés sont conservés.",
+      disconnectAccess: "Pour retirer aussi l’accès de RepGet à votre compte Google, utilisez les paramètres de sécurité de votre compte Google.",
+      cancel: "Annuler",
+      disconnectFailed: "Google n’a pas pu être déconnecté. Réessayez.",
+      importFailed: "L’import n’a pas pu être demandé. Réessayez.",
+      googleUnreachable: "Google n’a pas pu être joint avec la connexion enregistrée. Reconnectez Google et réessayez.",
+      errorNotConfigured: "La connexion à Google n’est pas encore disponible. Veuillez contacter le support.",
+      errorSignIn: "Reconnectez-vous à votre compte pour connecter Google.",
+      errorReconnect: "Reconnectez votre compte Google pour continuer.",
+      errorConnectFirst: "Connectez d’abord Google.",
+      errorChooseFirst: "Choisissez d’abord une propriété à importer.",
+      searchTitle: "Recherche Google",
+      searchDescription: "Chiffres de tout le site, issus de Search Console : toutes les pages de votre site dans la recherche Google, pas seulement les articles rédigés par RepGet.",
+      analyticsTitle: "Visites du site",
+      analyticsDescription: "Sessions sur l’ensemble de votre site, toutes origines confondues, d’après Google Analytics. Pas seulement les visites venues de la recherche Google.",
+      clicks: "Clics",
+      clicksHint: "Nombre de fois où quelqu’un a cliqué vers votre site depuis la recherche Google.",
+      impressions: "Impressions",
+      impressionsHint: "Nombre de fois où votre site est apparu dans les résultats de recherche Google.",
+      ctr: "Taux de clics (CTR)",
+      ctrShort: "CTR",
+      ctrHint: "Clics divisés par impressions.",
+      averagePosition: "Position moyenne",
+      positionShort: "Position moy.",
+      positionHint: "Votre place moyenne dans les résultats Google, pondérée par les impressions. Plus elle est basse, mieux c’est.",
+      sessions: "Sessions",
+      sessionsHint: "Visites de votre site, toutes origines confondues. Une même personne peut faire plusieurs sessions.",
+      comparedWith: "Les évolutions sont comparées aux {days} jours précédents.",
+      noComparison: "Pas de comparaison : les {days} jours précédents n’ont pas tous des chiffres de Google.",
+      noChange: "Aucun changement",
+      better: "mieux",
+      worse: "moins bien",
+      pointsChange: "{value} pts",
+      notAvailable: "Non disponible",
+      daysReported: "Données sur {reported} des {days} jours",
+      zeroSearch: "Search Console n’a enregistré aucune impression sur cette période.",
+      zeroSessions: "Google Analytics n’a enregistré aucune session sur cette période.",
+      staleSource: "Aucune propriété {source} n’est choisie : ces chiffres ne sont plus mis à jour.",
+      notSelectedTitle: "Aucune propriété {source} choisie",
+      notSelectedEditor: "Choisissez-en une dans Connexion Google pour voir ces chiffres ici.",
+      notSelectedViewer: "Un propriétaire ou un éditeur peut en choisir une dans Connexion Google.",
+      awaitingTitle: "Pas encore de chiffres {source}",
+      awaitingBody: "Google n’a encore communiqué aucun chiffre pour cette propriété. Les sites nouveaux ou peu fréquentés peuvent n’en avoir aucun pendant un certain temps. RepGet vérifie chaque jour s’il y a de nouveaux chiffres.",
+      noneInPeriodTitle: "Aucun chiffre {source} sur cette période",
+      latestFrom: "Les chiffres les plus récents datent du {date}. Choisissez une période plus longue pour les inclure.",
+      latestOnly: "Les chiffres les plus récents datent du {date}.",
+      dailyTitle: "Jour par jour",
+      dailyDescription: "Les jours que Google n’a pas communiqués restent vides au lieu d’être affichés à zéro.",
+      chartMetric: "Chiffre affiché dans le graphique",
+      chartClicks: "Clics depuis la recherche Google par jour",
+      chartImpressions: "Impressions dans la recherche Google par jour",
+      chartSessions: "Sessions par jour",
+      unitClicks: "clics",
+      unitImpressions: "impressions",
+      unitSessions: "sessions",
+      notReported: "non communiqué",
+      day: "Jour",
+      chartInstructions: "Utilisez les flèches gauche et droite pour passer d’un jour à l’autre.",
+      chartEmpty: "Aucun chiffre quotidien sur cette période.",
+      topTitle: "Principales recherches et pages",
+      topSearches: "Recherches",
+      topPages: "Pages",
+      searchTerm: "Recherche",
+      page: "Page",
+      topSearchesNote: "Les 10 recherches qui génèrent le plus de clics. Google omet les recherches rares pour protéger la vie privée, leur somme est donc inférieure aux totaux ci-dessus.",
+      topPagesNote: "Les 10 pages qui reçoivent le plus de clics depuis la recherche Google.",
+      topSearchesCaption: "Principales recherches sur cette période",
+      topPagesCaption: "Principales pages sur cette période",
+      noSearches: "Aucune recherche enregistrée sur cette période.",
+      noPages: "Aucune page enregistrée sur cette période.",
+      opensInNewTab: "(s’ouvre dans un nouvel onglet)",
     },
     research: {
       contentPlan: "Plan de contenu",
@@ -6330,6 +10096,132 @@ const fr: Messages = {
       questionAdded: "Question ajoutée",
       checkQueued: "Vérification - les résultats apparaîtront ici dans quelques minutes",
       alreadyTracking: "Vous suivez déjà les questions que nous suggérerions",
+      checksUnavailableTitle: "Les vérifications et suggestions sont suspendues pour ce site",
+      errAiUnavailable: "Les vérifications par IA ne sont pas disponibles pour le moment. Veuillez réessayer plus tard.",
+      errNoPlan: "Choisissez une offre pour ce site afin de lancer des vérifications et d’obtenir des suggestions.",
+      errPlanInactive: "L’abonnement de ce site n’est pas actif. Mettez à jour la facturation pour lancer des vérifications et obtenir des suggestions.",
+      errCheckQuota: "La visibilité dans l’IA a été vérifiée plusieurs fois au cours de la dernière heure. Veuillez réessayer plus tard.",
+      errSuggestQuota: "Des suggestions ont été demandées de nombreuses fois cette heure-ci. Veuillez réessayer plus tard.",
+      errSuggestFailed: "Impossible de suggérer des questions. Veuillez réessayer.",
+      errTooShort: "Écrivez une question d’au moins quelques mots.",
+      errAllowance: "Votre offre suit jusqu’à {count} questions. Retirez-en une pour en ajouter une autre.",
+      errDuplicate: "Vous suivez déjà cette question.",
+      errAddFirst: "Ajoutez d’abord une question.",
+      errUnexpected: "Un problème est survenu. Veuillez réessayer.",
+      statusQueuedTitle: "Vérification en file d’attente",
+      statusQueuedBody: "En attente du démarrage de la vérification. Les réponses apparaissent ici question par question, et vous pouvez quitter cette page en attendant.",
+      statusRunningTitle: "Vérification de vos questions",
+      statusRunningBody: "Les réponses apparaissent ici question par question. Vous pouvez quitter cette page en attendant.",
+      statusProgress: "Réponses reçues : {answered} sur {total} questions",
+      statusRequestedAt: "Demandée le {date}",
+      statusCompletedTitle: "Vérification terminée",
+      statusCompletedBody: "Chaque question de cette vérification a reçu une nouvelle réponse.",
+      statusPartialTitle: "Vérification terminée avec des manques",
+      statusPartialBody: "Nouvelles réponses : {answered} sur {total} questions. Les autres n’en ont pas reçu en 10 minutes ; elles gardent leur résultat précédent et sont signalées ci-dessous.",
+      statusTimedOutTitle: "Pas encore de réponse",
+      statusTimedOutBody: "Aucune réponse n’est arrivée en 10 minutes. La vérification attend peut-être encore de démarrer, ou elle a échoué. Revenez plus tard ou lancez une autre vérification.",
+      statusTimedOutBodyViewer: "Aucune réponse n’est arrivée en 10 minutes. La vérification attend peut-être encore de démarrer, ou elle a échoué. Revenez plus tard.",
+      statusFailedTitle:"La vérification n’a pas eu lieu",
+      statusFailedBody: "Aucune réponse n’a été enregistrée pour la vérification demandée le {date}. Vous pouvez lancer une autre vérification.",
+      statusFailedBodyViewer: "Aucune réponse n’a été enregistrée pour la vérification demandée le {date}.",
+      statusRefusedTitle: "La vérification n’a pas été lancée",
+      dismiss: "Masquer",
+      progressLabel: "Avancement de la vérification",
+      performanceTitle: "Où en est votre site",
+      performanceHelp: "Mesuré à partir de la dernière réponse à chaque question vérifiée.",
+      howMeasured: "Comment c’est mesuré",
+      scoreOutOf: "sur 100",
+      scoreGood: "Bon",
+      scoreFair: "Moyen",
+      scoreLow: "Faible",
+      scoreUp: "{change} points de plus qu’à la vérification précédente",
+      scoreDown: "{change} points de moins qu’à la vérification précédente",
+      scoreSame: "Aucun changement depuis la vérification précédente",
+      previousCheckOn: "Vérification précédente : {date}",
+      firstCheck: "Première vérification, rien à comparer pour l’instant",
+      namedOfChecked: "{mentions} sur {total}",
+      namedOfCheckedHelp: "Questions vérifiées où votre entreprise a été recommandée",
+      positionValue: "n° {position}",
+      answeredInLatestCheck: "Réponses lors de cette vérification : {count} sur {total} questions",
+      basisNote: "Basé sur la dernière réponse à {checked} des {tracked} questions suivies.",
+      earlierAnswersNote: "1 de ces réponses provient d’une vérification antérieure.|{count} de ces réponses proviennent de vérifications antérieures.",
+      notCheckedYetTitle: "Pas encore vérifié",
+      notCheckedYetBody: "Aucune question n’a été vérifiée, il n’y a donc pas encore de score. Un score n’apparaît qu’une fois qu’un assistant a réellement été interrogé.",
+      competitorsHelp: "Autres entreprises recommandées dans les dernières réponses, selon le nombre de réponses qui les citent.",
+      competitorCount: "Réponses qui la citent : {count} sur {total}",
+      noCompetitors: "Aucune autre entreprise n’a été citée dans les dernières réponses.",
+      nextStep: "Prochaine étape",
+      nextAddQuestions: "Ajoutez les questions que vos clients poseraient, ou demandez des suggestions.",
+      nextAddQuestionsAction: "Ajouter des questions",
+      nextFirstCheck: "Lancez la première vérification pour voir si les assistants citent votre entreprise.",
+      nextUnchecked: "1 question n’a pas encore été vérifiée. Lancez une vérification pour l’inclure.|{count} questions n’ont pas encore été vérifiées. Lancez une vérification pour les inclure.",
+      nextStale: "1 réponse provient d’une vérification antérieure. Lancez une vérification pour l’actualiser.|{count} réponses proviennent de vérifications antérieures. Lancez une vérification pour les actualiser.",
+      nextNotNamed: "Les assistants ne vous ont pas cité pour 1 question. Voyez qui ils ont cité à votre place.|Les assistants ne vous ont pas cité pour {count} questions. Voyez qui ils ont cité à votre place.",
+      nextNotNamedAction: "Afficher ces questions",
+      nextUpToDate: "Vos résultats sont à jour. Une vérification a aussi lieu automatiquement une fois par semaine.",
+      nextWaiting: "Une vérification est en cours. Les résultats apparaissent au fur et à mesure des réponses.",
+      nextViewer: "Seul un propriétaire ou un éditeur peut lancer des vérifications ou modifier les questions.",
+      questionsTitle: "Questions suivies",
+      questionsHelp: "Les questions que vous suivez, chacune avec son dernier résultat et les preuves qui l’appuient.",
+      allowanceCount: "{count} sur {max} questions",
+      addQuestionLabel: "Ajouter une question",
+      atAllowance: "Vous suivez autant de questions que votre offre le permet ({max}). Retirez-en une pour en ajouter une autre.",
+      suggestionsTitle: "Questions suggérées",
+      suggestionsHelp: "Choisissez celles à suivre. Rien n’est ajouté tant que vous n’appuyez pas sur Ajouter la sélection.",
+      addSelected: "Ajouter la sélection ({count})",
+      suggestionsRoom: "Vous pouvez ajouter encore 1 question avec votre offre.|Vous pouvez ajouter encore {count} questions avec votre offre.",
+      questionsAdded: "1 question ajoutée|{count} questions ajoutées",
+      questionRemoved: "Question retirée",
+      filterLabel: "Afficher les questions",
+      filterAll: "Toutes",
+      filterEmpty: "Aucune question ne correspond à ce filtre.",
+      showAll: "Afficher toutes les questions",
+      noQuestionsViewer: "Aucune question n’est encore suivie. Un propriétaire ou un éditeur peut en ajouter.",
+      named: "Cité",
+      namedAt: "Cité n° {position}",
+      checkedOn: "Vérifiée le {date}",
+      fromEarlierCheck: "D’une vérification antérieure ({date})",
+      checkingNow: "Vérification en cours…",
+      noAnswerInCheck: "Pas de réponse à la dernière vérification",
+      answeredInCheck: "Réponse reçue lors de cette vérification",
+      siteMentioned: "Votre site a été mentionné",
+      showEvidence: "Voir les preuves",
+      hideEvidence: "Masquer les preuves",
+      removeQuestionLabel: "Ne plus suivre : {question}",
+      evidenceExcerpt: "Ce que disait la réponse",
+      evidenceExcerptNote: "Seule la phrase qui cite votre entreprise est conservée, pas la réponse complète.",
+      evidencePosition: "Votre position",
+      evidencePositionValue: "N° {position} parmi les entreprises recommandées par la réponse",
+      evidenceNotRecommended: "Absente des entreprises recommandées par la réponse",
+      evidenceWebsite: "L’adresse de votre site",
+      evidenceWebsiteYes: "Mentionnée dans la réponse",
+      evidenceWebsiteNo: "Non mentionnée dans la réponse",
+      evidenceOthers: "Autres entreprises citées, dans l’ordre",
+      evidenceNoOthers: "Aucune autre entreprise n’a été citée.",
+      evidenceAssistant: "Assistant interrogé",
+      evidenceChecked: "Vérifiée",
+      evidenceHistory: "Résultats précédents",
+      evidenceNoHistory: "C’est le premier résultat enregistré pour cette question.",
+      evidenceStale: "Cette réponse provient d’une vérification antérieure. La dernière vérification, le {date}, n’a pas donné de nouvelle réponse pour cette question.",
+      evidenceMissed: "La dernière vérification n’a pas donné de nouvelle réponse pour cette question ; voici donc son résultat précédent.",
+      removeTitle: "Ne plus suivre cette question ?",
+      removeBody: "Ses réponses enregistrées et son historique sont aussi supprimés, et le score est recalculé sans elle. Cette action est définitive.",
+      removeConfirm: "Ne plus suivre",
+      removing: "Suppression…",
+      methodTitle: "Ce qui est mesuré",
+      methodHelp: "Comment fonctionne une vérification et ce que signifie chaque chiffre.",
+      methodAskTitle: "Comment fonctionne une vérification",
+      methodAskBody: "Chaque question suivie est posée à un assistant IA dans une nouvelle conversation, sans nommer votre entreprise. La réponse est ensuite lue pour lister, dans l’ordre, les entreprises qu’elle recommande.",
+      methodRecordTitle: "Ce qui est enregistré",
+      methodRecordBody: "Si votre entreprise en fait partie et à quelle position, la phrase qui la cite, les autres entreprises citées et si l’adresse de votre site apparaît. La réponse complète n’est pas conservée.",
+      methodScoreTitle: "Comment le score est calculé",
+      methodScoreBody: "Une question vérifiée vaut 100 quand vous êtes cité en premier, moins plus bas dans la liste (environ {second} en deuxième, {third} en troisième et {fourth} en quatrième position) et 0 quand vous n’êtes pas cité. Le score de visibilité est la moyenne de la dernière réponse à chaque question vérifiée. Les questions jamais vérifiées ne comptent pas.",
+      methodCompareTitle: "Comparaisons",
+      methodCompareBody: "L’évolution est mesurée par rapport à la vérification précédente, notée sur ses propres réponses. Des réponses espacées de plus d’une heure appartiennent à des vérifications différentes. Si les deux vérifications portaient sur des questions différentes, une partie de l’évolution vient de là.",
+      methodScheduleTitle: "Quand les vérifications ont lieu",
+      methodScheduleBody: "Quand un propriétaire ou un éditeur clique sur {action}, un nombre limité de fois par heure, et automatiquement une fois par semaine. Les réponses arrivent question par question en quelques minutes.",
+      methodAssistantsTitle: "Assistants interrogés",
+      methodAssistantsBody: "Les réponses enregistrées jusqu’ici proviennent de : {names}.",
     },
     backlinks: {
       title: "Liens depuis d\u2019autres sites",
@@ -6430,6 +10322,12 @@ const fr: Messages = {
       inProgress: "En cours",
       requestQuote: "Demander un devis",
       quoteHelp: "Nous établissons un devis après avoir examiné votre audit.",
+      title: "Modules",
+      subtitle: "Achats ponctuels en plus de votre forfait.",
+      perCredit: "{price} par crédit",
+      quoteFrom: "À partir de {price}. Nous établissons un devis après avoir examiné votre audit.",
+      servicesTitle: "Services",
+      showingRecent: "Affichage de vos {count} achats les plus récents.",
     },
     referral: {
       referSomeone: "Parrainer quelqu\u2019un",
@@ -6450,6 +10348,12 @@ const fr: Messages = {
       joined: "Inscrit le {date}",
       noWebsiteJoined: "Pas encore de site · inscrit le {date}",
       creditsBadge: "+{count} crédits",
+      linkHelp: "Les personnes qui s’inscrivent via ce lien comptent comme vos parrainages.",
+      peopleReferredStat: "Personnes parrainées",
+      noReferralsYet: "Personne ne s’est encore inscrit avec votre lien.",
+      showingRecent: "Affichage de vos {count} parrainages les plus récents.",
+      rewardedOn: "crédits ajoutés le {date}",
+      unavailable: "Impossible de charger vos données de parrainage. Rechargez la page pour réessayer.",
     },
     keys: {
       updatePlugin: "WordPress a l’extension {version}. La version 1.7 se connecte en un clic, indique pour quel compte RepGet elle publie et se met à jour seule : téléchargez-la, puis dans WordPress allez dans Extensions → Ajouter → Téléverser une extension et choisissez « Remplacer la version actuelle par la version téléversée ».",
@@ -6921,6 +10825,75 @@ const fr: Messages = {
       saveDetails: "Enregistrer",
       saving: "Enregistrement…",
       detailsSaved: "Informations enregistrées",
+      pageTitle: "Paramètres de l’entreprise",
+      pageDescription: "Les informations sur l’entreprise derrière {domain}. La recherche de mots-clés et chaque article que nous rédigeons s’appuient sur elles.",
+      identityTitle: "Identité de l’entreprise",
+      identityHelp: "Qui vous êtes et ce que vous faites.",
+      marketTitle: "Marché et public",
+      marketHelp: "Où vous vendez, qui vous voulez toucher et la langue dans laquelle vos articles sont rédigés.",
+      descriptionTitle: "Description de l’entreprise",
+      descriptionHelp: "Ce que fait l’entreprise et ce qui la distingue, avec vos propres mots.",
+      competitorsTitle: "Concurrents",
+      competitorsHelp: "Les entreprises qui vous disputent les mêmes clients. Les suggestions viennent de l’analyse de votre site, vérifiez-les donc : supprimez celles qui ne sont pas de vrais concurrents et ajoutez ceux qui manquent.",
+      brandNameHint: "Le nom sous lequel vos clients vous connaissent.",
+      industryHint: "Ce que vous faites, en quelques mots.",
+      marketPlaceholder: "France",
+      countryHint: "Le pays où vous vendez principalement, écrit en anglais (par exemple Spain), pour que la recherche de mots-clés cible le bon pays.",
+      marketNotEnglish: "La recherche de mots-clés ne reconnaît que les noms de pays écrits en anglais.",
+      marketUseEnglish: "Utiliser {country}",
+      articleLanguage: "Langue des articles",
+      articleLanguageHint: "Les articles de ce site sont rédigés dans cette langue. Cela ne change pas votre tableau de bord.",
+      dashboardLanguageNote: "Votre tableau de bord s’affiche en {language}, un réglage personnel de votre compte.",
+      dashboardLanguageLink: "Changer la langue du tableau de bord",
+      chooseLanguage: "Choisissez une langue",
+      unknownLanguage: "{language} (valeur actuelle)",
+      audienceHint: "Qui vous voulez toucher : par exemple leur âge, leur situation ou leurs besoins.",
+      descriptionHint: "Quelques phrases suffisent : vos principaux produits ou services, où vous intervenez et ce qui vous distingue.",
+      notSet: "Non renseigné",
+      unsavedBadge: "Non enregistré",
+      saveBusinessDetails: "Enregistrer",
+      saveScope: "Couvre toutes les sections sauf Concurrents, enregistrés dès que vous en ajoutez ou en supprimez un.",
+      saveError: "Une erreur s’est produite. Vos modifications sont toujours là, vous pouvez donc réessayer.",
+      checklistNeedsBoth: "Ajoutez une description et choisissez une langue des articles pour terminer cette étape de votre liste de lancement.",
+      checklistNeedsDescription: "Ajoutez une description pour terminer cette étape de votre liste de lancement.",
+      checklistNeedsLanguage: "Choisissez une langue des articles pour terminer cette étape de votre liste de lancement.",
+      analysingTitle: "Votre site est en cours d’analyse",
+      analysingBody: "À la fin de l’analyse, le nom de la marque, le secteur, le marché, le public et la description seront remplis automatiquement et remplaceront le contenu actuel de ces champs. La langue des articles que vous choisissez est conservée.",
+      analysingBodyReadOnly: "À la fin de l’analyse, ces informations seront remplies automatiquement.",
+      refresh: "Actualiser",
+      analysisFailedTitle: "Nous n’avons pas pu analyser votre site",
+      analysisFailedBody: "Ces informations n’ont pas été remplies automatiquement. Vous pouvez les saisir vous-même.",
+      analysisFailedBodyReadOnly: "Ces informations n’ont pas été remplies automatiquement.",
+      analysisFailedRetry: "Vous pouvez relancer l’analyse depuis la page Sites web.",
+      goToWebsites: "Aller aux sites web",
+      competitorCount: "1 concurrent|{count} concurrents",
+      manualGroup: "Ajoutés par vous",
+      suggestedGroup: "Suggérés par l’analyse",
+      suggestedGroupHelp: "Trouvés lors de l’analyse de votre site, pas choisis par vous. Supprimez ceux qui ne sont pas de vrais concurrents.",
+      suggestedGroupHelpReadOnly: "Trouvés lors de l’analyse du site.",
+      competitorsEmpty: "Aucun concurrent pour l’instant.",
+      competitorsEmptyAnalysed: "L’analyse de votre site n’a suggéré aucun concurrent.",
+      competitorsEmptyAnalysing: "Les suggestions apparaîtront ici à la fin de l’analyse de votre site.",
+      competitorsTruncated: "Affichage des {count} premiers concurrents.",
+      addCompetitor: "Ajouter un concurrent",
+      addCompetitorHint: "L’adresse de son site, par exemple rival.com. Nous vérifions que le site existe avant de l’ajouter, ce qui peut prendre quelques secondes.",
+      competitorPlaceholder: "rival.com",
+      addCompetitorButton: "Ajouter",
+      checkingShort: "Vérification…",
+      checkingCompetitor: "Vérification de {domain}…",
+      competitorAdded: "{domain} ajouté.",
+      removingCompetitor: "Suppression de {domain}…",
+      competitorRemoved: "{domain} supprimé.",
+      visitCompetitor: "Ouvrir {domain} dans un nouvel onglet",
+      removeCompetitor: "Supprimer {domain}",
+      competitorRequired: "Saisissez une adresse web.",
+      competitorInvalid: "Saisissez une adresse web comme rival.com.",
+      competitorOwnSite: "C’est votre propre site.",
+      competitorDuplicate: "{domain} figure déjà dans votre liste.",
+      competitorNotPublic: "Cette adresse n’est pas un site web public.",
+      competitorBlocked: "Les réseaux sociaux et les grandes plateformes comme Google, Amazon ou Wikipédia ne peuvent pas être ajoutés comme concurrents.",
+      competitorUnreachable: "Nous n’avons pas pu joindre {domain}. Vérifiez l’orthographe et réessayez.",
+      actionFailed: "Une erreur s’est produite. Réessayez.",
     },
     setup: {
       launchChecklist: "Liste de lancement",
@@ -7139,6 +11112,23 @@ const fr: Messages = {
       imageAltPlaceholder: "Ce que montre l\u2019image",
       replaceImage: "Remplacer l\u2019image",
       saveImage: "Enregistrer",
+      toolbarLabel: "Mise en forme du texte",
+      groupText: "Style du texte",
+      groupHeadings: "Titres",
+      groupBlocks: "Listes et blocs",
+      groupLinks: "Liens",
+      groupMedia: "Images",
+      groupHistory: "Annuler et rétablir",
+      linkDialogTitle: "Ajouter ou modifier un lien",
+      linkDialogHelp: "Collez l’adresse complète, par exemple https://example.com/page.",
+      linkUrlLabel: "Adresse du lien",
+      linkApply: "Appliquer",
+      linkInvalid: "Saisissez une adresse qui commence par https://, http://, mailto:, tel:, / ou #.",
+      htmlHint: "Vous modifiez directement le HTML. Tout ce qui n’est pas sûr est supprimé à l’enregistrement.",
+      richHint: "La mise en forme reste simple pour s’accorder au style de votre site.",
+      editHtml: "Modifier le HTML",
+      backToEditor: "Revenir à l’éditeur",
+      htmlToolbarOff: "Les boutons de mise en forme sont désactivés pendant que vous modifiez le HTML.",
       noMatches: "Aucun résultat.",
       noPicturesYet: "Pas encore d\u2019images : importez-en une pour commencer.",
     },
@@ -7837,9 +11827,324 @@ const it: Messages = {
   legalNotice: "Questa pagina è disponibile solo in inglese. Le traduzioni dei nostri termini legali sono curate da un traduttore professionista prima della pubblicazione.",
 
   app: {
+    workspace: {
+      save: "Salva",
+      saving: "Salvataggio…",
+      saved: "Salvato",
+      discard: "Annulla le modifiche",
+      unsaved: "1 modifica non salvata|{count} modifiche non salvate",
+      noChanges: "Tutte le modifiche sono salvate",
+      saveFailed: "Non salvato. {error}",
+      leaveConfirm: "Ci sono modifiche non salvate. Uscire da questa pagina e perderle?",
+      onThisPage: "In questa pagina",
+      jumpTo: "Vai a una sezione",
+      optional: "Facoltativo",
+      required: "Obbligatorio",
+      charactersLeft: "1 carattere rimanente|{count} caratteri rimanenti",
+      overLimit: "1 carattere oltre il limite|{count} caratteri oltre il limite",
+      viewOnly: "Ha accesso in sola lettura a questo sito web. Solo un proprietario o un editor può apportare modifiche.",
+      savesImmediately: "Si salva appena lo modifica",
+      savedWithButton: "Si salva con il pulsante Salva",
+      editsKept: "Le modifiche più recenti sono state mantenute e devono ancora essere salvate.",
+      preview: "Anteprima",
+      close: "Chiudi",
+      selected: "Selezionato",
+    },
+    health: {
+      title: "Salute del sito",
+      description: "Un controllo tecnico delle pagine che riusciamo a leggere su {domain}: che cosa può frenarle nei risultati di ricerca e come correggerlo.",
+      checkNow: "Controlla il mio sito",
+      checkAgain: "Controlla di nuovo",
+      checking: "Controllo in corso…",
+      starting: "Avvio…",
+      refreshStatus: "Aggiorna lo stato",
+      dismiss: "Chiudi",
+      unavailableTitle: "Nuovi controlli non disponibili",
+      siteNotReady: "Stiamo ancora analizzando questo sito. Potrà avviare un controllo al termine dell’analisi.",
+      errNoPlan: "Scelga prima un piano per questo sito.",
+      errPlanInactive: "L’abbonamento di questo sito non è attivo. Aggiorni la fatturazione per avviare un controllo.",
+      errQuota: "Ha avviato questo controllo diverse volte nell’ultima ora. Riprovi tra poco.",
+      errUnexpected: "Non è stato possibile avviare il controllo. Riprovi.",
+      queuedTitle: "Controllo richiesto",
+      queuedBody: "Il suo controllo è in attesa di partire. Questa pagina si aggiorna da sola.",
+      queuedStale: "Questo controllo non è ancora partito e sta richiedendo più tempo del solito. Il report comparirà qui una volta eseguito.",
+      requestedAt: "Richiesto: {date}",
+      runningTitle: "Controllo del suo sito",
+      runningBody: "Stiamo leggendo le sue pagine una alla volta. Questa pagina si aggiorna da sola.",
+      runningStale: "Questo controllo dura più del previsto e potrebbe essersi fermato.",
+      staleRetry: "Aggiorni lo stato per vedere se è andato avanti, oppure avvii di nuovo il controllo.",
+      startedAt: "Avviato: {date}",
+      progressChecked: "1 pagina controllata finora|{count} pagine controllate finora",
+      progressFound: "1 indirizzo trovato sul suo sito|{count} indirizzi trovati sul suo sito",
+      progressLimit: "Ogni controllo legge fino a {max} pagine.",
+      previousNotice: "Il report qui sotto è il suo risultato precedente, del {date}. Verrà sostituito al termine del nuovo controllo.",
+      failedTitle: "Non è stato possibile completare l’ultimo controllo",
+      failedPrevious: "Il report qui sotto è ancora il suo risultato precedente, del {date}.",
+      finishedTitle: "Il suo nuovo report è pronto",
+      finishedBody: "Il report qui sotto si riferisce al controllo del {date}.",
+      failure: {
+        timeout: "Il suo sito ha impiegato troppo a rispondere. Riprovi: spesso è un problema temporaneo di un server sovraccarico.",
+        notHtml: "L’indirizzo del sito non ha restituito una pagina web. Verifichi che punti alla home page del suo sito.",
+        tooLarge: "La sua home page è troppo grande per essere analizzata.",
+        invalidUrl: "Non è stato possibile leggere l’indirizzo del sito. Controlli l’indirizzo, compreso http:// o https://.",
+        refused: "Il suo sito ha rifiutato la nostra richiesta. Un firewall o un plugin di sicurezza potrebbe bloccare i visitatori automatici.",
+        unreachable: "Non siamo riusciti a raggiungere il suo sito. Verifichi che sia online e che l’indirizzo sia corretto.",
+        notEntitled: "Il controllo si è interrotto perché l’abbonamento di questo sito non è attivo. Non è stato addebitato altro.",
+        generic: "Non siamo riusciti a completare il controllo del suo sito. Riprovi e contatti l’assistenza se il problema si ripete.",
+      },
+      failureViewer: {
+        timeout: "Il suo sito ha impiegato troppo a rispondere. Spesso è un problema temporaneo di un server sovraccarico. Un proprietario o un editor può avviare di nuovo il controllo.",
+        generic: "Non siamo riusciti a completare il controllo del suo sito. Un proprietario o un editor può avviare di nuovo il controllo.",
+      },
+      emptyTitle: "Ancora nessun report",
+      emptyBody: "Un controllo legge fino a {max} pagine del suo sito ed elenca, pagina per pagina, che cosa può frenarlo nella ricerca e come correggere ogni problema.",
+      emptyViewer: "Non è ancora stato eseguito alcun controllo. Un proprietario o un editor può avviarlo.",
+      firstRunTitle: "Il suo primo report è in arrivo",
+      firstRunBody: "Comparirà qui non appena il controllo sarà terminato.",
+      scoreTitle: "Punteggio di salute",
+      scoreDescription: "Conta i problemi tecnici delle pagine lette, pesati in base alla gravità e mediati per pagina.",
+      previousResult: "Risultato precedente",
+      latestResult: "Ultimo risultato",
+      outOf: "su 100",
+      scoreAria: "Punteggio di salute: {score} su 100",
+      bandGood: "Buono",
+      bandFair: "Da migliorare",
+      bandPoor: "Scarso",
+      noScore: "Nessun punteggio",
+      noScoreBody: "Per questo controllo non è stato registrato alcun punteggio.",
+      notScored: "Non valutato",
+      zeroPagesTitle: "Non è stato possibile leggere alcuna pagina",
+      zeroPagesBody: "In questo controllo non siamo riusciti ad aprire alcuna pagina, quindi il punteggio non descrive il suo sito. Le segnalazioni qui sotto spiegano perché.",
+      notAuthority: "Non si tratta dell’Autorità di dominio: misura i problemi tecnici delle sue pagine, non quanto altri siti si fidano del suo.",
+      lastChecked: "Ultimo controllo",
+      pagesRead: "Pagine lette",
+      pagesFailed: "Non aperte",
+      addressesFound: "Indirizzi trovati",
+      notRecorded: "Non registrato",
+      severityTitle: "Problemi per gravità",
+      critical: "Critici",
+      warnings: "Avvisi",
+      suggestions: "Suggerimenti",
+      inFindings: "in 1 segnalazione|in {count} segnalazioni",
+      severityAria: "Critici: {critical}, avvisi: {warning}, suggerimenti: {info}",
+      badge: { critical: "Critico", warning: "Avviso", info: "Suggerimento" },
+      coverageTitle: "Che cosa ha coperto questo controllo",
+      coverageLimit: "Legge fino a {max} pagine, partendo dalla home page e seguendo i link.",
+      coverageSameSite: "Segue solo i link all’interno di {domain}. I link ad altri siti non vengono controllati.",
+      coverageQuery: "Gli indirizzi che differiscono solo dopo un «?» o un «#» contano come una sola pagina.",
+      coverageSkipped: "Salta le pagine di amministrazione, accesso, carrello e pagamento, i feed e i file come immagini e PDF.",
+      coverageRefused: "Una pagina che non risponde entro 15 secondi, o che rifiuta i visitatori automatici, viene indicata come «non aperta».",
+      coverageBeyond: "Questo controllo ha trovato {found} indirizzi sul suo sito e letto {read} pagine. Le altre non sono state controllate.",
+      notAssessedTitle: "Alcune verifiche non sono state eseguite",
+      notAssessedBody: "Queste verifiche confrontano le pagine tra loro e richiedono almeno due pagine leggibili: {checks}. Non rientrano in questo punteggio.",
+      crossChecks: {
+        duplicateTitles: "titoli di pagina duplicati",
+        duplicateDescriptions: "descrizioni duplicate",
+        internalLinking: "link interni",
+      },
+      findingsTitle: "Segnalazioni",
+      findingsDescription: "Prima le più gravi. Apra una segnalazione per vedere tutte le pagine coinvolte e come correggerla.",
+      findingsCount: "1 segnalazione|{count} segnalazioni",
+      filterLabel: "Filtra per gravità",
+      filterAll: "Tutte",
+      searchLabel: "Cerca nelle segnalazioni",
+      searchPlaceholder: "Cerchi per problema o indirizzo di pagina",
+      showingFiltered: "Segnalazioni mostrate: {shown} su {total}.",
+      clearFilters: "Rimuovi i filtri",
+      noMatchTitle: "Nessuna segnalazione corrisponde",
+      noMatchBody: "Provi un’altra ricerca o mostri tutte le segnalazioni.",
+      noFindingsTitle: "Nessun problema trovato",
+      noFindingsBody: "Non abbiamo trovato nulla da correggere nella pagina letta.|Non abbiamo trovato nulla da correggere nelle {count} pagine lette.",
+      pagesCount: "1 pagina|{count} pagine",
+      howToFix: "Come correggere",
+      effortMinutes: "Di solito pochi minuti",
+      effortHour: "Di solito circa un’ora",
+      effortLonger: "Può richiedere più tempo",
+      needsDeveloper: "Potrebbe servire il suo sviluppatore web",
+      affectedPages: "Pagine coinvolte ({count})",
+      homepage: "home page",
+      opensInNewTab: "(si apre in una nuova scheda)",
+      showAllPages: "Mostra tutte le {count} pagine",
+      showFewerPages: "Mostra meno pagine",
+      matchingPages: "Pagine corrispondenti alla ricerca: {shown} su {total}.",
+      notLoaded: "Ne sono elencate {shown} su {total}. Le altre non sono state caricate, per mantenere veloce questa pagina.",
+      groupNote: "Ogni voce è un gruppo di pagine; per ogni gruppo è elencata la prima pagina.",
+      firstPageNote: "È elencata la prima pagina trovata; il dettaglio indica il totale.",
+      noUrl: "Nessun indirizzo di pagina registrato",
+      rowsCapped: "Questo controllo ha registrato {total} problemi. Qui sotto sono elencati i primi {shown}; i totali qui sopra li includono tutti.",
+      detail: {
+        titleLong: "Il titolo è di {chars} caratteri; i risultati di ricerca lo tagliano dopo circa {max}.",
+        titleShort: "Il titolo è di soli {chars} caratteri.",
+        descriptionLong: "La descrizione è di {chars} caratteri; i risultati di ricerca la tagliano dopo circa {max}.",
+        descriptionShort: "La descrizione è di soli {chars} caratteri.",
+        multipleH1: "{count} titoli principali (H1) in questa pagina.",
+        thinContent: "Solo {words} parole in questa pagina.",
+        imagesAlt: "{missing} immagini su {total} non hanno una descrizione (testo alternativo).",
+        largePage: "Il solo HTML della pagina pesa {kb} KB.",
+        httpStatus: "La pagina ha risposto con l’errore {status}.",
+        duplicateTitle: "{count} pagine condividono il titolo «{title}».",
+        duplicateDescription: "{count} pagine condividono la stessa descrizione.",
+        noInternalLinks: "1 pagina non rimanda a nessun’altra pagina del suo sito.|{count} pagine non rimandano a nessun’altra pagina del suo sito.",
+        unreachTimeout: "Non ha risposto in tempo.",
+        unreachBlocked: "Rifiuta i visitatori automatici (un’impostazione di sicurezza del sito).",
+        unreachPassword: "Richiede una password.",
+        unreachStatus: "Ha risposto con l’errore {status}.",
+        unreachNotHtml: "Non è una pagina web.",
+        unreachRedirects: "Reindirizza troppe volte.",
+        unreachRedirectAway: "Reindirizza a un indirizzo che non controlliamo.",
+        unreachConnect: "Non siamo riusciti a collegarci.",
+        unreachUnknown: "Un errore imprevisto ci ha impedito di aprirla.",
+      },
+      issues: {
+        noindex: {
+          label: "Nascosta ai motori di ricerca",
+          about: "La pagina chiede ai motori di ricerca di non includerla nei risultati, quindi non può essere trovata nelle ricerche.",
+          fix: "Se non la nasconde di proposito, rimuova l’impostazione «noindex» della pagina. In WordPress di solito è un’opzione del plugin SEO, oppure la casella «Scoraggia i motori di ricerca» in Impostazioni › Lettura.",
+        },
+        broken_page: {
+          label: "La pagina mostra un errore",
+          about: "La pagina risponde con un errore invece di caricarsi.",
+          fix: "Corregga la pagina oppure, se non deve più esistere, la reindirizzi alla pagina esistente più simile, per non perdere visitatori e link.",
+        },
+        unreachable_page: {
+          label: "Impossibile aprire la pagina",
+          about: "Abbiamo provato a caricare questa pagina senza riuscirci. I motori di ricerca potrebbero avere lo stesso problema.",
+          fix: "Apra la pagina nel suo browser. Se non esiste più, aggiorni i link che vi puntano o la reindirizzi. Se a lei si apre, il suo hosting o un’impostazione di sicurezza potrebbe rifiutare i visitatori automatici, il che può tenere fuori anche i motori di ricerca.",
+        },
+        missing_title: {
+          label: "La pagina non ha un titolo",
+          about: "La pagina non ha un tag title, il titolo mostrato nei risultati di ricerca.",
+          fix: "Dia alla pagina un titolo che dica di che cosa parla. È il titolo che le persone vedono nei risultati di ricerca: lo scriva per loro invece di riempirlo di parole chiave.",
+        },
+        title_too_long: {
+          label: "Il titolo è troppo lungo",
+          about: "I risultati di ricerca tagliano i titoli più lunghi di circa 60 caratteri.",
+          fix: "Accorci il titolo perché la parte importante non venga tagliata. Metta per prima la cosa più importante: è la fine a essere tagliata.",
+        },
+        title_too_short: {
+          label: "Il titolo è molto breve",
+          about: "I titoli sotto i 30 caratteri spesso dicono troppo poco della pagina.",
+          fix: "Aggiunga dettagli al titolo, così dai risultati di ricerca si capisce che questa pagina è quella che si cerca.",
+        },
+        missing_meta_description: {
+          label: "Nessuna descrizione per i risultati di ricerca",
+          about: "La pagina non ha una descrizione, quindi i motori di ricerca scelgono da soli il testo da mostrare sotto il suo link.",
+          fix: "Scriva una descrizione della pagina di una o due frasi. Senza, i motori di ricerca prendono un testo dalla pagina, spesso non il migliore.",
+        },
+        meta_description_too_long: {
+          label: "La descrizione è troppo lunga",
+          about: "I risultati di ricerca tagliano le descrizioni più lunghe di circa 158 caratteri.",
+          fix: "Accorci la descrizione e dica subito perché vale la pena cliccare.",
+        },
+        meta_description_too_short: {
+          label: "La descrizione è molto breve",
+          about: "Le descrizioni sotto i 70 caratteri lasciano spazio inutilizzato nei risultati di ricerca.",
+          fix: "Ampli la descrizione con una o due frasi che diano un motivo per scegliere il suo risultato.",
+        },
+        missing_h1: {
+          label: "Nessun titolo principale",
+          about: "La pagina non ha un titolo principale (H1), quindi il suo argomento è meno chiaro per lettori e motori di ricerca.",
+          fix: "Aggiunga in alto nella pagina un titolo principale che dica di che cosa parla.",
+        },
+        multiple_h1: {
+          label: "Più di un titolo principale",
+          about: "La pagina ha diversi titoli principali (H1), quindi non è chiaro quale la descriva.",
+          fix: "Mantenga un solo titolo principale e trasformi gli altri in sottotitoli.",
+        },
+        thin_content: {
+          label: "Poco testo",
+          about: "La pagina ha meno di 300 parole, contando menu e piè di pagina. Pagine così brevi raramente si posizionano per ricerche competitive.",
+          fix: "Ampli la pagina perché risponda pienamente a ciò che cercano i visitatori, oppure la unisca a una pagina più completa e reindirizzi questa.",
+        },
+        images_missing_alt: {
+          label: "Immagini senza descrizione",
+          about: "Alcune immagini non hanno un testo alternativo, che gli screen reader leggono e la ricerca per immagini utilizza.",
+          fix: "Aggiunga a ogni immagine una breve descrizione di ciò che mostra. Le immagini puramente decorative possono avere una descrizione vuota.",
+        },
+        missing_canonical: {
+          label: "Nessun indirizzo preferito",
+          about: "La pagina non indica il suo indirizzo preferito (link canonico). Se è raggiungibile da più indirizzi, i motori di ricerca devono indovinare quale mostrare.",
+          fix: "Aggiunga un link canonico alla pagina. La maggior parte dei plugin SEO lo aggiunge automaticamente una volta attivata; altrimenti si rivolga al suo sviluppatore web.",
+        },
+        missing_lang: {
+          label: "Lingua della pagina non impostata",
+          about: "La pagina non dichiara in quale lingua è scritta.",
+          fix: "Imposti la lingua della pagina (l’attributo «lang» del tag html). Aiuta i motori di ricerca a mostrare le sue pagine alle persone giuste e gli screen reader a pronunciarle correttamente.",
+        },
+        large_page: {
+          label: "Il codice della pagina è molto grande",
+          about: "Il solo HTML della pagina supera 1,5 MB e rallenta il caricamento. Le immagini non sono incluse in questo calcolo.",
+          fix: "Un HTML grande di solito dipende da codice, dati o immagini inseriti nella pagina stessa. Chieda al suo sviluppatore web di spostarli in file separati o di ridurli.",
+        },
+        duplicate_title: {
+          label: "Pagine con lo stesso titolo",
+          about: "Più pagine usano lo stesso titolo, quindi per i motori di ricerca è difficile distinguerle.",
+          fix: "Dia a ogni pagina un titolo che descriva ciò di cui tratta solo quella pagina.",
+        },
+        duplicate_meta_description: {
+          label: "Pagine con la stessa descrizione",
+          about: "Più pagine usano la stessa descrizione nei risultati di ricerca.",
+          fix: "Scriva per ogni pagina una descrizione diversa che dica che cosa offre quella pagina.",
+        },
+        no_internal_links: {
+          label: "Pagine senza link al resto del sito",
+          about: "Alcune pagine non hanno link ad altre pagine del suo sito, quindi visitatori e motori di ricerca non possono proseguire.",
+          fix: "Aggiunga da queste pagine link a pagine correlate del suo sito, ad esempio un servizio, un articolo o la home page.",
+        },
+      },
+      siteTitle: "Il suo sito come lo abbiamo letto",
+      siteDescription: "Letto dalla sua home page durante questo controllo.",
+      siteLegacy: "Questo controllo risale a prima che iniziassimo a raccogliere i dati del sito. Compariranno dopo il prossimo controllo.",
+      siteUnavailable: "In questo controllo non è stato possibile leggere alcuna pagina, quindi questi dati non sono disponibili.",
+      siteName: "Nome del sito",
+      siteNameMissing: "Non trovato",
+      language: "Lingua",
+      languageMissing: "Non dichiarata",
+      languageNote: "Come dichiarata dalla sua home page.",
+      languageMissingNote: "La sua home page non indica in quale lingua è scritta, quindi i motori di ricerca devono indovinarla.",
+      platform: "Piattaforma",
+      platformUnknown: "Non riconosciuta",
+      platformNote: "Rilevata dal codice della sua pagina.",
+      platformUnknownNote: "Non abbiamo riconosciuto una piattaforma comune. Di per sé non è un problema.",
+      previewImage: "Immagine di anteprima dei link",
+      previewMissing: "Nessuna",
+      previewNote: "Mostrata quando la sua home page viene condivisa.",
+      previewMissingNote: "Non è stata trovata un’immagine di anteprima (og:image), quindi i link condivisi potrebbero apparire senza immagine.",
+      previewBroken: "Non è stato possibile caricare l’immagine di anteprima.",
+      linkedTitle: "Siti a cui rimanda di più",
+      linkedHelp: "Fino a sei, contati sulle pagine lette. Utile per individuare link che non intendeva dare.",
+      linkedEmpty: "Non abbiamo trovato link ad altri siti nelle pagine lette.",
+      aiTitle: "Accesso degli assistenti IA",
+      aiDescription: "Se il suo file robots.txt blocca i crawler che gli assistenti IA usano per leggere i siti web.",
+      aiLegacy: "Questo controllo risale a prima che iniziassimo a leggere robots.txt. Questa informazione comparirà dopo il prossimo controllo.",
+      aiUnreadable: "In questo controllo non è stato possibile leggere alcuna pagina, quindi molto probabilmente nemmeno robots.txt era leggibile. Qui «Non bloccato» può significare solo che non siamo riusciti a leggerlo.",
+      aiNoneBlocked: "Nessuno di questi {total} crawler è bloccato sull’intero sito.",
+      aiSomeBlocked: "1 crawler su {total} è bloccato sull’intero sito.|{count} crawler su {total} sono bloccati sull’intero sito.",
+      aiAllowed: "Non bloccato",
+      aiBlocked: "Bloccato",
+      aiNamed: "Indicato in robots.txt",
+      aiCaveat: "Controlliamo solo se robots.txt blocca l’intero sito. Se robots.txt non c’è, o non siamo riusciti a leggerlo, il crawler risulta non bloccato. Firewall e regole per singole pagine non vengono controllati.",
+      aiNoGuarantee: "Essere leggibile non significa che un assistente IA menzionerà o citerà il suo sito.",
+      aiBlockedHelp: "Per far entrare un crawler, rimuova da robots.txt la regola «Disallow: /» che lo riguarda, oppure chieda a chi gestisce il suo sito di farlo.",
+      aiVisibilityLink: "Scopra se gli assistenti IA la menzionano",
+      fixTitle: "Vuole che li sistemiamo noi?",
+      fixSelf: "Quasi tutte sono modifiche al testo che può fare da sé seguendo le indicazioni qui sopra. Se preferisce, ci invii l’elenco e le faremo un preventivo.",
+      fixDeveloper: "1 di queste segnalazioni di solito richiede chi ha realizzato il suo sito. Ci invii l’elenco: esamineremo tutto e le faremo un preventivo per la correzione.|{count} di queste segnalazioni di solito richiedono chi ha realizzato il suo sito. Ci invii l’elenco: esamineremo tutto e le faremo un preventivo per la correzione.",
+      fixHow: "Apre la sua app di posta con l’elenco già compilato. Non viene inviato nulla finché non lo invia lei, e non viene addebitato nulla.",
+      fixUnavailable: "Al momento non è possibile richiedere preventivi via email.",
+      requestQuote: "Richiedi un preventivo",
+      mailSubject: "Richiesta di correzione per {domain}",
+      mailGreeting: "Buongiorno,",
+      mailAsk: "vorrei un preventivo per correggere i problemi trovati su {domain}.",
+      mailCheckedOn: "Controllo del {date}.",
+      mailCounts: "1 problema trovato (critici: {critical}).|{count} problemi trovati (critici: {critical}).",
+      mailListTitle: "Segnalazioni:",
+      mailLine: "- {label}: {pages}",
+      mailThanks: "Grazie.",
+    },
     settings: {
       personalTitle: "Dati personali",
-      personalSubtitle: "I dati del suo account",
+      personalSubtitle: "Il suo nome e l’indirizzo email con cui accede.",
       nameLabel: "Nome",
       namePlaceholder: "Il suo nome",
       save: "Salva",
@@ -7857,7 +12162,7 @@ const it: Messages = {
       passwordCreated:
         "Password impostata. Ora può accedere con la sua email e la sua password.",
       languageLabel: "Lingua del pannello",
-      languageHelp: "La lingua di questo pannello. I suoi articoli vengono scritti nella lingua impostata nella scheda Attività.",
+      languageHelp: "Menu, pulsanti e messaggi di questo pannello. Modificarla non cambia i suoi articoli.",
       languageError: "Impossibile salvare la lingua",
       currentPassword: "Password attuale",
       newPassword: "Nuova password",
@@ -7894,6 +12199,61 @@ const it: Messages = {
       loadingPeople: "Caricamento persone",
       roleEditor: "Editor",
       roleViewer: "Lettore",
+      pageTitle: "Account",
+      pageDescription: "I suoi dati personali, come accede, la sua lingua, chi lavora sui suoi siti web e il suo link di invito.",
+      emailHelp: "Accede con questo indirizzo e le ricevute vengono inviate qui. Non può essere modificato da questa pagina.",
+      nameRequired: "Inserisca il suo nome.",
+      securityTitle: "Accesso e sicurezza",
+      securitySubtitle: "I modi in cui può accedere al suo account.",
+      methodPassword: "Email e password",
+      methodGoogle: "Google",
+      methodSet: "Impostata",
+      methodNotSet: "Non impostata",
+      methodLinked: "Collegato",
+      passwordSetSummary: "Può accedere con il suo indirizzo email e la sua password.",
+      passwordNotSetSummary: "Questo account non ha ancora una password.",
+      googleLinkedSummary: "Può accedere con l’account Google di questo indirizzo.",
+      setPasswordIntroGeneric: "Imposti una password per accedere con il suo indirizzo email e una password.",
+      currentPasswordWrong: "La password attuale non è corretta.",
+      passwordTooLong: "Usi al massimo 128 caratteri",
+      tooManyAttempts: "Troppi tentativi. Attenda un minuto e riprovi.",
+      passwordAlreadySet: "Questo account ha già una password. Inserisca la password attuale per modificarla.",
+      languageTitle: "Lingua",
+      languageSubtitle: "Il pannello e i suoi articoli hanno ciascuno la propria lingua.",
+      languageSaved: "Lingua del pannello salvata.",
+      articleLanguageLabel: "Lingua degli articoli",
+      articleLanguageHelp: "Gli articoli di ogni sito web vengono scritti nella lingua impostata nella sua scheda Attività.",
+      articleLanguageLink: "Apri la scheda Attività di {domain}",
+      roleAdmin: "Amministratore",
+      roleEditorHelp: "Scrive, modifica e pubblica articoli.",
+      roleViewerHelp: "Può leggere tutto, ma non modificare nulla.",
+      inviteTo: "Avrà accesso solo a {domain}.",
+      reinviteHelp: "Invitare qualcuno che ha già accesso ne cambia il ruolo.",
+      invalidEmail: "Inserisca un indirizzo email valido.",
+      inviteSelf: "Ha già accesso a questo sito web.",
+      inviteFailed: "Non è stato possibile inviare l’invito. Riprovi.",
+      actionFailed: "L’operazione non è riuscita. Riprovi.",
+      accessGranted: "{email} può ora lavorare su {domain}",
+      accessGrantedNoEmail: "{email} può ora lavorare su {domain}, ma non siamo riusciti a inviargli un’email.",
+      accessRemoved: "{email} non ha più accesso",
+      loadPeopleFailed: "Impossibile caricare chi lavora su questo sito web.",
+      retry: "Riprova",
+      thisWebsite: "questo sito web",
+      workspaceAccess: "{email} ha accesso tramite il suo spazio di lavoro",
+      manageMember: "Gestisci {email}",
+      manageInvitation: "Gestisci l’invito per {email}",
+      membersCaption: "Persone che possono lavorare su {domain}",
+      removeConfirmTitle: "Rimuovere l’accesso di {email}?",
+      removeConfirmBody: "Non potrà più aprire {domain}. Potrà invitarlo di nuovo in seguito.",
+      keepAccess: "Mantieni l’accesso",
+      cancelInviteConfirmTitle: "Annullare l’invito per {email}?",
+      cancelInviteConfirmBody: "Il link inviato via email smetterà di funzionare. Potrà invitarlo di nuovo in seguito.",
+      keepInvitation: "Mantieni l’invito",
+      removing: "Rimozione…",
+      cancellingInvite: "Annullamento…",
+      inviting: "Invio…",
+      viewingSharedNote: "Sta visualizzando {domain}, condiviso con lei. Solo il proprietario può cambiare chi ci lavora. L’elenco qui sotto riguarda i suoi siti web.",
+      guestTeamNote: "{domain} è condiviso con lei come {role}. Solo il proprietario può invitare o rimuovere persone.",
     },
     websites: {
       title: "Siti web",
@@ -7949,6 +12309,58 @@ const it: Messages = {
       purchaseCancelled: "Acquisto annullato.",
       addWebsiteFirst: "Aggiunga prima un sito web - ogni piano paga un solo sito.",
       checkoutFailed: "Non è stato possibile avviare il pagamento. Riprovi.",
+      planFor: "Piano di {domain}",
+      choosePlan: "Scelga un piano",
+      choosePlanFor: "Scelga un piano per {domain}",
+      choosePlanHelp: "Un piano copre un solo sito web.",
+      billingPeriod: "Periodo di fatturazione",
+      perMonth: "/ mese",
+      perYear: "/ anno",
+      saveBadge: "Risparmi il {n}%",
+      switchPlan: "Passa a questo piano",
+      payByCard: "Paga con carta",
+      redirecting: "Reindirizzamento…",
+      opening: "Apertura…",
+      cancelSubscription: "Disdici l’abbonamento",
+      paypalCheckoutFailed: "Non è stato possibile avviare il pagamento con PayPal. Riprovi.",
+      portalFailed: "Non è stato possibile aprire il portale di fatturazione.",
+      managedForYou: "Gestiamo noi questo abbonamento. Scriva a {email} per le ricevute o per una modifica.",
+      newTab: "(si apre in una nuova scheda)",
+      upgradeLead: "Pronto a crescere?",
+      upgradeBody: "Il piano {plan} include {articles}, {terms} e {credits}.",
+      upgradeLink: "Scopra cosa offre {plan}",
+      statusActive: "Attivo",
+      statusTrialing: "Prova gratuita",
+      statusPastDue: "Pagamento in ritardo",
+      statusUnpaid: "Non pagato",
+      statusIncomplete: "Pagamento incompleto",
+      statusIncompleteExpired: "Pagamento non completato",
+      statusCanceled: "Disdetto",
+      statusPaused: "In pausa",
+      statusInactive: "Inattivo",
+      pastDueNotice: "L’ultimo pagamento per questo sito web non è andato a buon fine. Aggiorni il metodo di pagamento per mantenere l’accesso.",
+      unsettledNotice: "L’abbonamento di questo sito web deve essere regolarizzato o disdetto prima di poter cambiare piano.",
+      endedNotice: "Questo abbonamento è terminato. Scelga un piano qui sotto per ricominciare.",
+      billedByPayPal: "Questo sito web viene fatturato tramite PayPal, quindi anche i cambi di piano passano da PayPal.",
+      billedByCard: "Questo sito web viene fatturato con carta, quindi i cambi di piano passano dal pagamento con carta. Per pagare con PayPal, disdica prima l’abbonamento con carta.",
+      billedByCardEnding: "L’abbonamento con carta di questo sito web termina il {date}. Potrà scegliere PayPal quando sarà terminato.",
+      noPlanChange: "Al momento non è possibile cambiare il piano di questo sito web.",
+      paypalApproved: "Approvazione PayPal ricevuta - stiamo confermando il suo abbonamento…",
+      paypalCancelled: "Pagamento PayPal annullato.",
+      viewingSharedNote: "{shared} è condiviso con lei e lo paga il proprietario. Questa pagina mostra la fatturazione dei suoi siti web.",
+      guestTitle: "Qui non c’è nulla da pagare",
+      guestBody: "I siti web condivisi con lei sono pagati dai rispettivi proprietari. Non le serve un piano per lavorarci.",
+      addWebsite: "Aggiungi un sito web",
+      viewPlan: "Vedi il piano",
+      shownBelow: "Mostrato sotto",
+      paidByCard: "Carta",
+      invoiceInPortal: "Fattura in Gestisci fatturazione",
+      dateColumn: "Data",
+      descriptionColumn: "Descrizione",
+      methodColumn: "Pagato con",
+      amountColumn: "Importo",
+      receiptColumn: "Ricevuta",
+      historyCapped: "Sono mostrati i {count} pagamenti più recenti.",
     },
     article: {
       contentSeo: "Contenuti e SEO",
@@ -8007,6 +12419,83 @@ const it: Messages = {
       factsHelp: "Uno per riga. Sono gli unici dati precisi che affermeremo.",
       authorHelp: "La firma mostrata su ogni articolo, qui e sul suo sito.",
       noBylineHelp: "Se lo lascia vuoto, gli articoli escono senza firma.",
+      pageTitle: "Impostazioni articoli",
+      pageDescription: "Come vengono scritti, illustrati e pubblicati gli articoli di questo sito.",
+      sectionWriting: "Scrittura e SEO",
+      sectionWritingHelp: "Lo stile e la lunghezza di ogni articolo, e quanti link porta alle sue altre pagine.",
+      sectionSources: "Fonti dei contenuti",
+      sectionSourcesHelp: "Dove si trovano i suoi contenuti sul sito.",
+      sectionImages: "Immagini e brand",
+      sectionImagesHelp: "L’immagine creata per ogni articolo e l’aspetto del suo brand.",
+      sectionEnhancements: "Elementi aggiuntivi",
+      sectionEnhancementsHelp: "Extra aggiunti agli articoli oltre al testo.",
+      sectionVoice: "Voce del brand",
+      sectionVoiceHelp: "Come suonano i suoi articoli e che cosa possono dire della sua attività.",
+      sectionAuthor: "Autore",
+      sectionAuthorHelp: "La persona o il brand che firma i suoi articoli. Viene salvato con le impostazioni; per ora gli articoli non lo mostrano come firma.",
+      unknownOption: "{value} (non più disponibile)",
+      linksError: "Inserisca un numero intero da 0 a 20.",
+      wordsError: "Inserisca un numero intero da 300 a 5.000.",
+      sitemapHint: "Ci permette di trovare le pagine del sito da collegare nei nuovi articoli.",
+      blogHint: "La pagina principale del suo blog.",
+      exampleHint: "Un suo articolo di cui è soddisfatto.",
+      urlError: "Inserisca un indirizzo completo che inizi con http:// o https://.",
+      brandColourHint: "Il colore principale del suo brand in codice esadecimale. Viene salvato con le impostazioni; per ora le immagini generate non lo usano.",
+      brandColourError: "Usi # seguito da sei cifre o lettere dalla a alla f, per esempio #003388.",
+      noColour: "Nessun colore",
+      invalidColour: "Colore non valido",
+      pickColour: "Scegli un colore del brand",
+      clearColour: "Rimuovi colore",
+      imageStyleLabel: "Stile delle immagini",
+      imageStyleHint: "Lo stile dell’immagine creata per ogni articolo.",
+      coverStyleLabel: "Stile dell’immagine di copertina",
+      coverStyleHint: "Il suo stile preferito per le copertine. Per ora ogni articolo riceve una sola immagine, nello stile indicato sopra, e quell’immagine è anche la copertina.",
+      samplesNote: "Gli esempi illustrano ogni stile. Le immagini dei suoi articoli vengono create per ciascun articolo e saranno diverse.",
+      matchFollows: "Ora segue: {style}",
+      matchFollowsUnknown: "Segue lo stile delle immagini sopra",
+      previewStyle: "Vedi l’esempio {style}",
+      previewTitle: "Esempio: {style}",
+      previewMatchTitle: "Come le immagini dell’articolo, ora {style}",
+      previewHelp: "Un esempio di questo stile. L’anteprima non cambia la sua scelta.",
+      sampleAlt: "Immagine di esempio in stile {style}",
+      unknownImageStyle: "La scelta salvata ({value}) non è uno di questi stili. Resta così finché non ne sceglie uno.",
+      imageBriefHint: "Incluso nelle istruzioni di ogni immagine degli articoli.",
+      tocHint: "Aggiunge un indice costruito dai titoli dell’articolo.",
+      youtubeHint: "La sua scelta viene salvata. Per ora non vengono aggiunti video agli articoli.",
+      perspectiveHint: "Scrive con un punto di vista invece che in modo impersonale.",
+      similarHint: "Cita e confronta alternative, per una trattazione più ricca.",
+      comparisonHint: "Aggiunge una tabella che confronta fianco a fianco le opzioni di cui parla l’articolo, come «Videografia e cinematografia a confronto».",
+      poweredByHint: "Una piccola menzione alla fine di ogni articolo. Disattivarla vale per gli articoli non ancora pubblicati.",
+      factsPlaceholder: "Aperti dal 2004\nCinque dentisti nel team\nParcheggio gratuito",
+      uspsPlaceholder: "Appuntamenti urgenti in giornata\nAccogliamo pazienti ansiosi",
+      tooManyLines: "Fino a {max} righe. Tolga 1 riga.|Fino a {max} righe. Tolga {count} righe.",
+      lineTooLong: "La riga {line} supera i {max} caratteri.",
+      fixFields: "Alcuni campi vanno corretti. Sono segnalati nella pagina.",
+      saveError: "Qualcosa è andato storto. Riprovi.",
+      saveBarNote: "Vale per tutte le sezioni tranne Scrittura e pubblicazione, che si salva appena la modifica.",
+      autoOnHelp: "Procediamo da soli con il suo piano dei contenuti. Può comunque scrivere qualsiasi articolo in qualsiasi momento.",
+      autoOffHelp: "Non viene scritto nulla finché non lo chiede. Apra un articolo pianificato e prema Scrivi.",
+      anyDay: "Qualsiasi giorno.",
+      pickedDays: "Solo nei giorni scelti.",
+      daysUtc: "I giorni seguono l’ora UTC (tempo coordinato universale).",
+      firstArticleOnly: "Il suo primo articolo viene inviato appena è pronto, qualunque sia la scelta, così vede come appaiono gli articoli sul suo sito.",
+      networkReview: "Finché il sito fa parte della Rete partner, il team RepGet controlla prima ogni articolo - anche il primo - e nessuno esce prima del giorno previsto.",
+      openIntegrations: "Apri Integrazioni",
+      weekdaysShort: { sun: "Dom", mon: "Lun", tue: "Mar", wed: "Mer", thu: "Gio", fri: "Ven", sat: "Sab" },
+      weekdaysLong: { sun: "Domenica", mon: "Lunedì", tue: "Martedì", wed: "Mercoledì", thu: "Giovedì", fri: "Venerdì", sat: "Sabato" },
+      bodyImageStyles: {
+        sketch: { label: "Schizzo", hint: "Tratto a mano su colore tenue." },
+        watercolour: { label: "Acquerello", hint: "Velature dipinte delicate." },
+        realistic: { label: "Realistico", hint: "Fotografico." },
+        illustration: { label: "Illustrazione", hint: "Forme vettoriali piatte." },
+        "brand-text": { label: "Brand e testo", hint: "Una foto con una fascia di colore deciso lungo un bordo." },
+      },
+      coverImageStyles: {
+        sketch: { label: "Schizzo", hint: "Tratto a mano su colore tenue." },
+        watercolour: { label: "Acquerello", hint: "Velature dipinte delicate." },
+        illustration: { label: "Illustrazione", hint: "Forme vettoriali piatte." },
+        match: { label: "Come le immagini dell’articolo", hint: "Segue lo stile delle immagini sopra." },
+      },
       styles: {
         expert: { label: "Esperto", hint: "Tono editoriale preciso, con sfumature e terminologia equilibrate." },
         conversational: { label: "Colloquiale", hint: "Frasi semplici e dirette. Spiega i termini alla prima comparsa." },
@@ -8055,6 +12544,128 @@ const it: Messages = {
       updatePost: "Aggiorna articolo",
       publish: "Pubblica",
       sendingDraft: "Invio come bozza…",
+      breadcrumbLabel: "Percorso di navigazione",
+      targetKeywordLabel: "Parola chiave obiettivo",
+      lastSaved: "Ultimo aggiornamento: {date}",
+      viewModeLabel: "Anteprima o modifica",
+      unsavedMark: "Modifiche non salvate",
+      previewLabel: "Anteprima dell’articolo",
+      previewUnsavedNow: "Sta visualizzando modifiche non ancora salvate. Il suo sito le riceve solo dopo il salvataggio e la pubblicazione.",
+      notWrittenYet: "L’articolo comparirà qui non appena sarà scritto.",
+      workingPaused: "Modifica e pubblicazione attendono la fine, perché la nuova versione sostituisce il testo.",
+      conflictTitle: "Questo articolo è cambiato mentre lo modificava",
+      conflictBody: "Nel frattempo è cambiata la versione salvata di: {fields}, per esempio perché è terminata una riscrittura o qualcun altro ha salvato. Salvando ora, la sua versione sostituisce quella.",
+      conflictLoad: "Usa la versione salvata",
+      conflictKeep: "Mantieni la mia versione",
+      genUnavailable: "La scrittura non è disponibile al momento. Il problema è nostro e ce ne stiamo occupando.",
+      genBusy: "Il servizio di scrittura era sovraccarico. Riprovi tra qualche minuto.",
+      genTimeout: "La scrittura ha richiesto troppo tempo e si è interrotta. Riprovi: di solito è temporaneo.",
+      genUnusable: "Non siamo riusciti a ricavare un articolo utilizzabile da questo argomento. Riprovi, oppure renda più specifici l’argomento e la parola chiave obiettivo.",
+      genQuota: "Questo spazio di lavoro ha usato tutti gli articoli del mese. Passi a un piano superiore per scriverne altri.",
+      genGeneric: "La scrittura di questo articolo non è terminata. Riprovi. Se continua a succedere, contatti l’assistenza.",
+      pubErrAuth: "Il suo sito ha rifiutato l’accesso salvato. Lo ricolleghi nella pagina Integrazioni.",
+      pubErrPermission: "L’account collegato non può pubblicare articoli. Colleghi un account con i permessi di pubblicazione.",
+      pubErrNotFound: "Non è stato possibile trovare l’indirizzo del suo sito. Lo controlli nella pagina Integrazioni.",
+      pubErrUnreachable: "Il suo sito non ha risposto. Di solito è temporaneo: riprovi o verifichi che il sito sia online.",
+      pubErrApiDisabled: "Il suo sito è online, ma la sua interfaccia di pubblicazione è disattivata, spesso da un plugin di sicurezza. La riattivi, poi verifichi la connessione.",
+      pubErrUnsupported: "Il suo sito funziona in un modo su cui non possiamo ancora pubblicare.",
+      pubErrUnknown: "La pubblicazione non è terminata. Riprovi. Se continua a succedere, contatti l’assistenza.",
+      editSaveNote: "Titolo, meta descrizione, indirizzo e testo si salvano insieme con il pulsante Salva. L’immagine in evidenza si salva non appena la modifica.",
+      titleRequired: "Inserisca un titolo.",
+      metaHint: "Compare sotto il titolo nei risultati di ricerca, che di solito ne mostrano i primi {count} caratteri circa.",
+      slugSavedAs: "Verrà salvato come: {slug}",
+      slugEmptyNote: "Se lo lascia vuoto, il suo sito sceglie l’indirizzo a partire dal titolo.",
+      slugDropped: "Le lettere accentate e gli altri caratteri speciali vengono omessi dall’indirizzo.",
+      slugWordPressNote: "WordPress mantiene l’indirizzo con cui l’articolo è stato pubblicato la prima volta. Cambiarlo qui non sposta l’articolo online.",
+      searchPreviewTitle: "Anteprima nei risultati di ricerca",
+      searchPreviewHelp: "È un’approssimazione. Sono i motori di ricerca a decidere cosa mostrare.",
+      saveArticle: "Salva articolo",
+      saveNoteWorking: "Il salvataggio attende mentre l’articolo viene scritto.",
+      saveNoteDelivering: "Il salvataggio attende mentre l’articolo viene consegnato al suo sito.",
+      saveNoteReview: "Salvando le modifiche, questo articolo torna in revisione presso il team RepGet.",
+      saveNoteTitle: "Inserisca un titolo per salvare.",
+      statsTitle: "Statistiche dell’articolo",
+      statsHelp: "Calcolate dal testo dell’articolo.",
+      statsUnsaved: "Calcolate dal testo sullo schermo, comprese le modifiche non salvate.",
+      publishingTitle: "Pubblicazione",
+      publishingHelp: "Pubblicando si invia al suo sito l’ultima versione salvata.",
+      destinationLabel: "Destinazione",
+      destinationNone: "Non collegato",
+      destinationPlugin: "Plugin WordPress",
+      manageConnection: "Gestisci il collegamento",
+      plannedLabel: "Data prevista",
+      plannedNone: "Nessuna data prevista",
+      autoLabel: "Pubblicazione automatica",
+      autoOnLive: "Attiva, come articoli pubblicati",
+      autoOnDraft: "Attiva, come bozze",
+      autoOff: "Disattivata",
+      beforePlanned: "Pubblicando ora, l’articolo viene inviato subito, prima della data prevista.",
+      stateNotSent: "Non ancora inviato al suo sito.",
+      stateLive: "Online sul suo sito. Ultimo invio: {date}.",
+      stateDraft: "Sul suo sito come bozza. Ultimo invio: {date}.",
+      stateScheduled: "Programmato sul suo sito. Ultimo invio: {date}.",
+      stateDelivered: "Consegnato al suo sito il {date}.",
+      stateFailed: "L’ultimo tentativo ({date}) non è andato a buon fine.",
+      statePluginUnconfirmed: "Il plugin WordPress non ha confermato l’ultima consegna ({date}).",
+      stateWriting: "La pubblicazione sarà disponibile quando l’articolo sarà scritto.",
+      stateFrozen: "La pubblicazione è sospesa dal team RepGet. Non viene inviato nulla ai siti finché non riprende.",
+      stateReviewPending: "Il team RepGet sta preparando questo articolo per la rete di partner. Verrà pubblicato non appena lo approverà.",
+      stateReviewChanged: "Questo articolo è cambiato dopo l’approvazione del team RepGet, quindi è tornato in revisione.",
+      stateDelivering: "Consegna al suo sito in corso…",
+      stateQueued: "In coda dalle {time}. Il risultato comparirà qui quando il suo sito risponderà.",
+      stateQueuedLong: "Ancora nessun risultato. La consegna può essere trattenuta, per esempio finché un tentativo precedente non è risolto. Ricontrolli tra qualche minuto.",
+      checkAgain: "Controlla di nuovo",
+      statePluginWaiting: "In attesa che il plugin WordPress lo prelevi come {mode}. Il plugin si collega almeno una volta all’ora.",
+      modeLive: "articolo pubblicato",
+      modeDraft: "bozza",
+      statePluginPublished: "Il plugin WordPress ha creato questo articolo e non può modificarlo in seguito, quindi le modifiche salvate qui non arrivano al suo sito. Apporti le altre modifiche in WordPress.",
+      stateUncertain: "L’ultimo tentativo non ha ricevuto risposta dal suo sito. Veda l’avviso in cima alla pagina.",
+      uncertainPublishNote: "Finché la questione non è risolta, pubblicare di nuovo non crea un secondo articolo: prima cerchiamo quello precedente.",
+      connectHelp: "Colleghi il suo sito per pubblicarvi questo articolo.",
+      blockedUnsaved: "Salvi prima le modifiche. La pubblicazione invia la versione salvata, non ciò che vede sullo schermo.",
+      alreadySentLive: "Questa stessa versione è già online sul suo sito.",
+      alreadySentDraft: "Questa stessa versione è già sul suo sito come bozza.",
+      confirmDraftTitle: "Riportare l’articolo pubblicato a bozza?",
+      confirmDraftBody: "Questo articolo è online sul suo sito. Inviarlo come bozza può togliere l’articolo dal sito (WordPress lo fa). Per modificare l’articolo online, usi invece Aggiorna articolo.",
+      historyLatest: "Gli ultimi {count} tentativi, dal più recente.",
+      historyEmpty: "Non è ancora stato inviato nulla al suo sito.",
+      logLive: "Online",
+      logDraft: "Inviato come bozza",
+      logScheduled: "Programmato",
+      logDelivered: "Consegnato",
+      rewriteTitle: "Riscrivi l’articolo",
+      rewriteHelp: "Riscrive l’intero articolo a partire dal suo piano. Ogni sito può riscrivere {count} articoli al giorno.",
+      rewriteConfirmTitle: "Riscrivere questo articolo?",
+      rewriteConfirmBody: "Testo, meta descrizione, indirizzo e immagine in evidenza vengono sostituiti da una nuova versione. La versione attuale non viene conservata.",
+      rewriteConfirmPublished: "L’articolo sul suo sito resta com’è finché non pubblica la nuova versione.",
+      rewriteConfirmReview: "La nuova versione passa in revisione presso il team RepGet prima di poter essere pubblicata.",
+      rewriteConfirmUnsaved: "Le modifiche non salvate vengono scartate.",
+      rewriteConfirmAction: "Riscrivi",
+      rewriteNoPlan: "Questo articolo non ha una voce nel piano, quindi non può essere riscritto.",
+      rewriteBlocked: "Di nuovo disponibile al termine della scrittura o della consegna in corso.",
+      imagePromptHint: "Lo lasci vuoto e scegliamo noi. Restano {remaining} nuove immagini su {max} per questo articolo.",
+      imageGenerate: "Genera",
+      imageReplace: "Sostituisci",
+      imageAltHint: "Si salva quando esce dal campo.",
+      imageCheckAlt: "Verifichi che la descrizione corrisponda ancora alla nuova immagine.",
+      imageLockedWorking: "Attenda che l’articolo sia scritto: una riscrittura sostituisce l’immagine.",
+      imageLockedDelivering: "Attenda la fine della consegna al suo sito.",
+      imageTypeError: "Usi un’immagine PNG, JPEG o WebP.",
+      imageSizeError: "L’immagine pesa {size} MB. Il limite è {max} MB.",
+      imageNoAlt: "Ancora nessuna descrizione.",
+      imageAltSaved: "Descrizione salvata.",
+      errInFlight: "Questo articolo è in consegna al suo sito proprio ora. Riprovi tra un minuto.",
+      errNotWritten: "Questo articolo non è ancora stato scritto.",
+      errConnectFirst: "Colleghi il suo sito prima di pubblicare.",
+      errNotFound: "Questo articolo non esiste più.",
+      errRewriteCap: "Questo sito ha usato tutte le riscritture delle ultime 24 ore. Riprovi più tardi.",
+      errAlreadyWriting: "Questo articolo è già in fase di scrittura.",
+      errNoActivePlan: "Questo spazio di lavoro non ha un piano attivo. Ne scelga uno per continuare a scrivere.",
+      errImageStorage: "L’archiviazione delle immagini non è disponibile al momento. Riprovi più tardi.",
+      errImageGeneration: "La generazione di immagini non è disponibile al momento. Riprovi più tardi.",
+      metaNone: "Ancora nessuna meta descrizione. I motori di ricerca mostrano allora un estratto dell’articolo.",
+      searchPreviewUnsaved: "L’anteprima include modifiche non ancora salvate.",
+      imageReviewNote: "Se cambia l’immagine o la sua descrizione, questo articolo torna in revisione presso il team RepGet.",
       planningOutline: "Pianificazione degli argomenti",
       writingBody: "Scrittura dell\u2019articolo",
     },
@@ -8084,6 +12695,132 @@ const it: Messages = {
       statusForbidden: "Non può collegare quel sito web",
       statusInvalid: "Quel link non era valido - riprovi",
       statusError: "Non è stato possibile collegare Google",
+      pageTitle: "Google Search e Analytics",
+      pageDescription: "Come le persone trovano il suo sito nella Ricerca Google e quante visite riceve. I dati provengono dai suoi account Search Console e Google Analytics.",
+      rangeLabel: "Periodo",
+      rangeDays: "{days} giorni",
+      periodDates: "{start} – {end}",
+      connectTitle: "Colleghi i suoi account Google",
+      searchConsoleName: "Google Search Console",
+      analyticsName: "Google Analytics",
+      searchConsolePurpose: "Mostra come va il suo sito nella Ricerca Google: quante volte viene mostrato (impressioni), quante volte le persone fanno clic (clic), la posizione media e quali ricerche e pagine portano visitatori.",
+      analyticsPurpose: "Mostra quante visite (sessioni) riceve l’intero sito da qualsiasi fonte: Google, altri motori di ricerca, social media, link e persone che digitano il suo indirizzo.",
+      setupTitle: "Come funziona il collegamento",
+      setupStep1: "Acceda con l’account Google che vede questo sito in Search Console e, se lo usa, in Google Analytics. Un solo accesso vale per entrambi.",
+      setupStep2: "Google le chiede di consentire l’accesso in sola lettura. RepGet può leggere i suoi dati ma non può modificare nulla nei suoi account Google.",
+      setupStep3: "Di ritorno qui, scelga la proprietà Search Console e la proprietà Analytics di questo sito. RepGet importa circa gli ultimi due mesi, poi i nuovi dati ogni giorno.",
+      readOnlyAccess: "Accesso in sola lettura. Può scollegarlo in qualsiasi momento.",
+      expiredTitle: "Google deve essere ricollegato",
+      reconnectGoogle: "Ricollega Google",
+      viewerCannotConnect: "Solo un proprietario o un editor di questo sito può collegare Google.",
+      connectionTitle: "Collegamento Google",
+      connectionHelp: "RepGet importa nuovi dati ogni giorno. Google li fornisce con circa tre giorni di ritardo.",
+      notChosen: "Non scelta",
+      dataThrough: "Dati fino al {date}",
+      noFiguresYet: "Ancora nessun dato da Google",
+      analyticsPropertyId: "Proprietà {id}",
+      importNow: "Importa ora",
+      manageConnection: "Gestisci collegamento",
+      viewerSetupPending: "Google è collegato, ma non è ancora stata scelta alcuna proprietà. Un proprietario o un editor può sceglierne una.",
+      importRequestedTitle: "Importazione richiesta",
+      importRequestedBody: "RepGet sta importando i suoi dati da Google. Questa pagina li cerca per circa un minuto.",
+      importStillRunning: "L’importazione può richiedere qualche minuto. I nuovi dati compariranno qui al termine: ricarichi la pagina più tardi per vederli.",
+      setupNeededTitle: "Scelga cosa importare",
+      setupNeededBody: "Scelga la proprietà Search Console e la proprietà Analytics di questo sito, poi salvi. Ne basta una delle due.",
+      propertiesTitle: "Proprietà",
+      propertiesHelp: "Quali proprietà Google appartengono a questo sito.",
+      loadingProperties: "Caricamento delle proprietà visibili al suo account Google…",
+      propertiesFailed: "Non è stato possibile caricare le sue proprietà da Google. Riprovi, oppure ricolleghi Google se il problema persiste.",
+      tryAgain: "Riprova",
+      searchConsoleHint: "La proprietà Search Console di questo sito, ad esempio una proprietà di dominio.",
+      analyticsHint: "La proprietà Google Analytics 4 di questo sito.",
+      noSearchConsoleFound: "Nessuna proprietà Search Console trovata per questo account Google. Verifichi che abbia accesso, oppure ricolleghi un altro account.",
+      noAnalyticsFound: "Nessuna proprietà Google Analytics 4 trovata per questo account Google. Verifichi che abbia accesso, oppure ricolleghi un altro account.",
+      noSearchConsoleProperty: "Nessuna (non importare da Search Console)",
+      noAnalyticsProperty: "Nessuna (non importare da Analytics)",
+      propertyUnavailable: "{name} (non disponibile per questo account Google)",
+      saveAndImport: "Salva e importa",
+      saveSelection: "Salva",
+      selectionUnsaved: "La nuova scelta non è ancora salvata.",
+      noSelectionChange: "Nessuna modifica da salvare.",
+      propertiesSaved: "Proprietà salvate",
+      accountTitle: "Account Google",
+      accountHelp: "Ricolleghi per rinnovare l’accesso o passare a un altro account Google. Le proprietà scelte vengono mantenute.",
+      disconnect: "Scollega",
+      disconnecting: "Scollegamento…",
+      disconnectTitle: "Scollegare Google?",
+      disconnectBody: "RepGet smette di importare da Search Console e Analytics per questo sito e dimentica le proprietà scelte.",
+      disconnectKeeps: "I dati già importati vengono mantenuti.",
+      disconnectAccess: "Per revocare anche l’accesso di RepGet al suo account Google, usi le impostazioni di sicurezza del suo account Google.",
+      cancel: "Annulla",
+      disconnectFailed: "Non è stato possibile scollegare Google. Riprovi.",
+      importFailed: "Non è stato possibile richiedere l’importazione. Riprovi.",
+      googleUnreachable: "Non è stato possibile raggiungere Google con il collegamento salvato. Ricolleghi Google e riprovi.",
+      errorNotConfigured: "Il collegamento a Google non è ancora disponibile. Contatti l’assistenza.",
+      errorSignIn: "Acceda di nuovo per collegare Google.",
+      errorReconnect: "Ricolleghi il suo account Google per continuare.",
+      errorConnectFirst: "Colleghi prima Google.",
+      errorChooseFirst: "Scelga prima una proprietà da cui importare.",
+      searchTitle: "Ricerca Google",
+      searchDescription: "Dati dell’intero sito da Search Console: tutte le pagine del suo sito nella Ricerca Google, non solo gli articoli scritti da RepGet.",
+      analyticsTitle: "Visite al sito",
+      analyticsDescription: "Sessioni sull’intero sito da qualsiasi fonte, secondo Google Analytics. Non solo le visite arrivate dalla Ricerca Google.",
+      clicks: "Clic",
+      clicksHint: "Volte in cui qualcuno ha fatto clic per arrivare al suo sito dalla Ricerca Google.",
+      impressions: "Impressioni",
+      impressionsHint: "Volte in cui il suo sito è comparso nei risultati della Ricerca Google.",
+      ctr: "Percentuale di clic (CTR)",
+      ctrShort: "CTR",
+      ctrHint: "Clic divisi per impressioni.",
+      averagePosition: "Posizione media",
+      positionShort: "Posizione media",
+      positionHint: "La sua posizione media nei risultati di Google, ponderata per impressioni. Più è bassa, meglio è.",
+      sessions: "Sessioni",
+      sessionsHint: "Visite al suo sito da qualsiasi fonte. Una persona può fare più sessioni.",
+      comparedWith: "Le variazioni sono confrontate con i {days} giorni precedenti.",
+      noComparison: "Nessun confronto: non tutti i {days} giorni precedenti hanno dati di Google.",
+      noChange: "Nessuna variazione",
+      better: "meglio",
+      worse: "peggio",
+      pointsChange: "{value} p.p.",
+      notAvailable: "Non disponibile",
+      daysReported: "Dati per {reported} giorni su {days}",
+      zeroSearch: "Search Console non ha registrato impressioni in questo periodo.",
+      zeroSessions: "Google Analytics non ha registrato sessioni in questo periodo.",
+      staleSource: "Non è scelta alcuna proprietà {source}, quindi questi dati non vengono più aggiornati.",
+      notSelectedTitle: "Nessuna proprietà {source} scelta",
+      notSelectedEditor: "Ne scelga una in Collegamento Google per vedere qui questi dati.",
+      notSelectedViewer: "Un proprietario o un editor può sceglierne una in Collegamento Google.",
+      awaitingTitle: "Ancora nessun dato da {source}",
+      awaitingBody: "Google non ha ancora comunicato alcun dato per questa proprietà. I siti nuovi o con poco traffico possono non averne per un po’ di tempo. RepGet controlla ogni giorno se ci sono nuovi dati.",
+      noneInPeriodTitle: "Nessun dato da {source} in questo periodo",
+      latestFrom: "I dati più recenti sono del {date}. Scelga un periodo più lungo per includerli.",
+      latestOnly: "I dati più recenti sono del {date}.",
+      dailyTitle: "Giorno per giorno",
+      dailyDescription: "I giorni non comunicati da Google restano vuoti, non vengono disegnati come zero.",
+      chartMetric: "Dato mostrato nel grafico",
+      chartClicks: "Clic dalla Ricerca Google al giorno",
+      chartImpressions: "Impressioni nella Ricerca Google al giorno",
+      chartSessions: "Sessioni al giorno",
+      unitClicks: "clic",
+      unitImpressions: "impressioni",
+      unitSessions: "sessioni",
+      notReported: "non comunicato",
+      day: "Giorno",
+      chartInstructions: "Usi le frecce sinistra e destra per spostarsi tra i giorni.",
+      chartEmpty: "Nessun dato giornaliero in questo periodo.",
+      topTitle: "Ricerche e pagine principali",
+      topSearches: "Ricerche",
+      topPages: "Pagine",
+      searchTerm: "Ricerca",
+      page: "Pagina",
+      topSearchesNote: "Le 10 ricerche con più clic. Google omette le ricerche rare per proteggere la privacy, quindi la loro somma è inferiore ai totali qui sopra.",
+      topPagesNote: "Le 10 pagine con più clic dalla Ricerca Google.",
+      topSearchesCaption: "Ricerche principali in questo periodo",
+      topPagesCaption: "Pagine principali in questo periodo",
+      noSearches: "Nessuna ricerca registrata in questo periodo.",
+      noPages: "Nessuna pagina registrata in questo periodo.",
+      opensInNewTab: "(si apre in una nuova scheda)",
     },
     research: {
       contentPlan: "Piano dei contenuti",
@@ -8182,6 +12919,132 @@ const it: Messages = {
       questionAdded: "Domanda aggiunta",
       checkQueued: "Controllo in corso - i risultati compariranno qui tra pochi minuti",
       alreadyTracking: "Sta già seguendo le domande che suggeriremmo",
+      checksUnavailableTitle: "Controlli e suggerimenti sono sospesi per questo sito",
+      errAiUnavailable: "I controlli con l’IA non sono disponibili al momento. Riprovi più tardi.",
+      errNoPlan: "Scelga un piano per questo sito per avviare controlli e ricevere suggerimenti.",
+      errPlanInactive: "L’abbonamento di questo sito non è attivo. Aggiorni la fatturazione per avviare controlli e ricevere suggerimenti.",
+      errCheckQuota: "La visibilità nell’IA è stata controllata più volte nell’ultima ora. Riprovi più tardi.",
+      errSuggestQuota: "Sono stati chiesti suggerimenti molte volte in quest’ora. Riprovi più tardi.",
+      errSuggestFailed: "Impossibile suggerire domande. Riprovi.",
+      errTooShort: "Scriva una domanda di almeno qualche parola.",
+      errAllowance: "Il suo piano segue fino a {count} domande. Ne rimuova una per aggiungerne un’altra.",
+      errDuplicate: "Sta già seguendo questa domanda.",
+      errAddFirst: "Aggiunga prima una domanda.",
+      errUnexpected: "Qualcosa è andato storto. Riprovi.",
+      statusQueuedTitle: "Controllo in coda",
+      statusQueuedBody: "In attesa che il controllo inizi. Le risposte compaiono qui una domanda alla volta, e nel frattempo può lasciare questa pagina.",
+      statusRunningTitle: "Controllo delle sue domande",
+      statusRunningBody: "Le risposte compaiono qui una domanda alla volta. Nel frattempo può lasciare questa pagina.",
+      statusProgress: "Risposte ricevute: {answered} su {total} domande",
+      statusRequestedAt: "Richiesto il {date}",
+      statusCompletedTitle: "Controllo completato",
+      statusCompletedBody: "Ogni domanda di questo controllo ha una nuova risposta.",
+      statusPartialTitle: "Controllo terminato con lacune",
+      statusPartialBody: "Nuove risposte: {answered} su {total} domande. Le altre non l’hanno ricevuta entro 10 minuti; mantengono il risultato precedente e sono segnalate qui sotto.",
+      statusTimedOutTitle: "Ancora nessuna risposta",
+      statusTimedOutBody: "Nessuna risposta è arrivata entro 10 minuti. Il controllo potrebbe essere ancora in attesa di partire, oppure non è riuscito. Ricontrolli più tardi o avvii un altro controllo.",
+      statusTimedOutBodyViewer: "Nessuna risposta è arrivata entro 10 minuti. Il controllo potrebbe essere ancora in attesa di partire, oppure non è riuscito. Ricontrolli più tardi.",
+      statusFailedTitle:"Il controllo non è stato eseguito",
+      statusFailedBody: "Nessuna risposta è stata registrata per il controllo richiesto il {date}. Può avviare un altro controllo.",
+      statusFailedBodyViewer: "Nessuna risposta è stata registrata per il controllo richiesto il {date}.",
+      statusRefusedTitle: "Il controllo non è stato avviato",
+      dismiss: "Chiudi",
+      progressLabel: "Avanzamento del controllo",
+      performanceTitle: "Come sta andando il suo sito",
+      performanceHelp: "Misurato sull’ultima risposta a ogni domanda controllata.",
+      howMeasured: "Come viene misurato",
+      scoreOutOf: "su 100",
+      scoreGood: "Buona",
+      scoreFair: "Discreta",
+      scoreLow: "Bassa",
+      scoreUp: "{change} punti in più rispetto al controllo precedente",
+      scoreDown: "{change} punti in meno rispetto al controllo precedente",
+      scoreSame: "Nessuna variazione rispetto al controllo precedente",
+      previousCheckOn: "Controllo precedente: {date}",
+      firstCheck: "Primo controllo, ancora nulla con cui confrontarlo",
+      namedOfChecked: "{mentions} su {total}",
+      namedOfCheckedHelp: "Domande controllate in cui la sua attività è stata consigliata",
+      positionValue: "n. {position}",
+      answeredInLatestCheck: "Risposte in questo controllo: {count} su {total} domande",
+      basisNote: "Basato sull’ultima risposta a {checked} delle {tracked} domande seguite.",
+      earlierAnswersNote: "1 di queste risposte viene da un controllo precedente.|{count} di queste risposte vengono da controlli precedenti.",
+      notCheckedYetTitle: "Non ancora controllato",
+      notCheckedYetBody: "Nessuna domanda è stata controllata, quindi non c’è ancora un punteggio. Il punteggio compare solo dopo che un assistente è stato davvero interpellato.",
+      competitorsHelp: "Altre attività consigliate nelle ultime risposte, in base a quante risposte le citano.",
+      competitorCount: "Risposte che la citano: {count} su {total}",
+      noCompetitors: "Nessun’altra attività è stata citata nelle ultime risposte.",
+      nextStep: "Prossimo passo",
+      nextAddQuestions: "Aggiunga le domande che farebbero i suoi clienti, oppure chieda dei suggerimenti.",
+      nextAddQuestionsAction: "Aggiungi domande",
+      nextFirstCheck: "Avvii il primo controllo per vedere se gli assistenti citano la sua attività.",
+      nextUnchecked: "1 domanda non è ancora stata controllata. Avvii un controllo per includerla.|{count} domande non sono ancora state controllate. Avvii un controllo per includerle.",
+      nextStale: "1 risposta viene da un controllo precedente. Avvii un controllo per aggiornarla.|{count} risposte vengono da controlli precedenti. Avvii un controllo per aggiornarle.",
+      nextNotNamed: "Gli assistenti non l’hanno citata per 1 domanda. Veda chi hanno citato al suo posto.|Gli assistenti non l’hanno citata per {count} domande. Veda chi hanno citato al suo posto.",
+      nextNotNamedAction: "Mostra queste domande",
+      nextUpToDate: "I suoi risultati sono aggiornati. I controlli avvengono anche automaticamente una volta alla settimana.",
+      nextWaiting: "È in corso un controllo. I risultati compaiono man mano che ogni domanda riceve risposta.",
+      nextViewer: "Solo un proprietario o un editor può avviare controlli o modificare le domande.",
+      questionsTitle: "Domande seguite",
+      questionsHelp: "Le domande che segue, ciascuna con il suo ultimo risultato e le prove che lo sostengono.",
+      allowanceCount: "{count} su {max} domande",
+      addQuestionLabel: "Aggiungi una domanda",
+      atAllowance: "Sta seguendo tutte le domande consentite dal suo piano ({max}). Ne rimuova una per aggiungerne un’altra.",
+      suggestionsTitle: "Domande suggerite",
+      suggestionsHelp: "Scelga quelle da seguire. Non viene aggiunto nulla finché non preme Aggiungi selezionate.",
+      addSelected: "Aggiungi selezionate ({count})",
+      suggestionsRoom: "Con il suo piano può aggiungere ancora 1 domanda.|Con il suo piano può aggiungere ancora {count} domande.",
+      questionsAdded: "1 domanda aggiunta|{count} domande aggiunte",
+      questionRemoved: "Domanda rimossa",
+      filterLabel: "Mostra domande",
+      filterAll: "Tutte",
+      filterEmpty: "Nessuna domanda corrisponde a questo filtro.",
+      showAll: "Mostra tutte le domande",
+      noQuestionsViewer: "Non è ancora seguita nessuna domanda. Un proprietario o un editor può aggiungerle.",
+      named: "Citata",
+      namedAt: "Citata n. {position}",
+      checkedOn: "Controllata il {date}",
+      fromEarlierCheck: "Da un controllo precedente ({date})",
+      checkingNow: "Controllo in corso…",
+      noAnswerInCheck: "Nessuna risposta nell’ultimo controllo",
+      answeredInCheck: "Risposta ricevuta in questo controllo",
+      siteMentioned: "Il suo sito è stato menzionato",
+      showEvidence: "Mostra prove",
+      hideEvidence: "Nascondi prove",
+      removeQuestionLabel: "Smetti di seguire: {question}",
+      evidenceExcerpt: "Cosa diceva la risposta",
+      evidenceExcerptNote: "Viene conservata solo la frase che cita la sua attività, non la risposta completa.",
+      evidencePosition: "La sua posizione",
+      evidencePositionValue: "N. {position} tra le attività consigliate dalla risposta",
+      evidenceNotRecommended: "Non tra le attività consigliate dalla risposta",
+      evidenceWebsite: "L’indirizzo del suo sito",
+      evidenceWebsiteYes: "Menzionato nella risposta",
+      evidenceWebsiteNo: "Non menzionato nella risposta",
+      evidenceOthers: "Altre attività citate, in ordine",
+      evidenceNoOthers: "Nessun’altra attività è stata citata.",
+      evidenceAssistant: "Assistente interpellato",
+      evidenceChecked: "Controllata",
+      evidenceHistory: "Risultati precedenti",
+      evidenceNoHistory: "È il primo risultato registrato per questa domanda.",
+      evidenceStale: "Questa risposta viene da un controllo precedente. L’ultimo controllo, il {date}, non ha dato una nuova risposta per questa domanda.",
+      evidenceMissed: "L’ultimo controllo non ha dato una nuova risposta per questa domanda, quindi questo è il suo risultato precedente.",
+      removeTitle: "Smettere di seguire questa domanda?",
+      removeBody: "Vengono eliminate anche le risposte registrate e la cronologia, e il punteggio viene ricalcolato senza di essa. L’operazione non si può annullare.",
+      removeConfirm: "Smetti di seguire",
+      removing: "Rimozione…",
+      methodTitle: "Cosa viene misurato",
+      methodHelp: "Come funziona un controllo e cosa significa ogni numero.",
+      methodAskTitle: "Come funziona un controllo",
+      methodAskBody: "Ogni domanda seguita viene posta a un assistente IA in una nuova conversazione, senza nominare la sua attività. La risposta viene poi letta per elencare, in ordine, le attività che consiglia.",
+      methodRecordTitle: "Cosa viene registrato",
+      methodRecordBody: "Se la sua attività è tra queste e in quale posizione, la frase che la cita, le altre attività citate e se compare l’indirizzo del suo sito. La risposta completa non viene conservata.",
+      methodScoreTitle: "Come si calcola il punteggio",
+      methodScoreBody: "Una domanda controllata vale 100 quando lei è citata per prima, meno più in basso nella lista (circa {second} in seconda, {third} in terza e {fourth} in quarta posizione) e 0 quando non è citata. Il punteggio di visibilità è la media dell’ultima risposta a ogni domanda controllata. Le domande mai controllate non vengono contate.",
+      methodCompareTitle: "Confronti",
+      methodCompareBody: "La variazione è misurata rispetto al controllo precedente, valutato sulle sue stesse risposte. Le risposte a più di un’ora di distanza appartengono a controlli diversi. Se i due controlli riguardavano domande diverse, parte della variazione dipende da questo.",
+      methodScheduleTitle: "Quando avvengono i controlli",
+      methodScheduleBody: "Quando un proprietario o un editor preme {action}, un numero limitato di volte all’ora, e automaticamente una volta alla settimana. Le risposte arrivano una domanda alla volta nel giro di pochi minuti.",
+      methodAssistantsTitle: "Assistenti interpellati",
+      methodAssistantsBody: "Le risposte registrate finora provengono da: {names}.",
     },
     backlinks: {
       title: "Link da altri siti web",
@@ -8282,6 +13145,12 @@ const it: Messages = {
       inProgress: "In corso",
       requestQuote: "Richiedi un preventivo",
       quoteHelp: "Le forniamo un preventivo dopo aver esaminato il suo audit.",
+      title: "Componenti aggiuntivi",
+      subtitle: "Acquisti singoli in aggiunta al suo piano.",
+      perCredit: "{price} per credito",
+      quoteFrom: "Da {price}. Le forniamo un preventivo dopo aver esaminato il suo audit.",
+      servicesTitle: "Servizi",
+      showingRecent: "Sono mostrati i suoi {count} acquisti più recenti.",
     },
     referral: {
       referSomeone: "Inviti qualcuno",
@@ -8302,6 +13171,12 @@ const it: Messages = {
       joined: "Iscritto il {date}",
       noWebsiteJoined: "Nessun sito ancora · iscritto il {date}",
       creditsBadge: "+{count} crediti",
+      linkHelp: "Le persone che si registrano tramite questo link contano come suoi inviti.",
+      peopleReferredStat: "Persone invitate",
+      noReferralsYet: "Nessuno si è ancora registrato con il suo link.",
+      showingRecent: "Sono mostrati i suoi {count} inviti più recenti.",
+      rewardedOn: "crediti aggiunti il {date}",
+      unavailable: "Impossibile caricare i dati dei suoi inviti. Ricarichi la pagina per riprovare.",
     },
     keys: {
       updatePlugin: "WordPress ha il plugin {version}. La versione 1.7 si collega con un pulsante, mostra per quale account RepGet pubblica e si aggiorna da sola: la scarichi, poi in WordPress vada in Plugin → Aggiungi nuovo → Carica plugin e scelga “Sostituisci quello attuale con quello caricato”.",
@@ -8773,6 +13648,75 @@ const it: Messages = {
       saveDetails: "Salva dati",
       saving: "Salvataggio…",
       detailsSaved: "Dati salvati",
+      pageTitle: "Impostazioni dell’attività",
+      pageDescription: "I dati dell’attività dietro {domain}. La ricerca delle parole chiave e ogni articolo che scriviamo si basano su di essi.",
+      identityTitle: "Identità dell’attività",
+      identityHelp: "Chi è e di cosa si occupa.",
+      marketTitle: "Mercato e pubblico",
+      marketHelp: "Dove vende, chi vuole raggiungere e la lingua in cui vengono scritti i suoi articoli.",
+      descriptionTitle: "Descrizione dell’attività",
+      descriptionHelp: "Cosa fa l’attività e cosa la distingue, con parole sue.",
+      competitorsTitle: "Concorrenti",
+      competitorsHelp: "Le attività che competono con lei per gli stessi clienti. I suggerimenti provengono dall’analisi del suo sito, quindi li controlli: rimuova quelli che non sono veri concorrenti e aggiunga quelli che mancano.",
+      brandNameHint: "Il nome con cui la conoscono i suoi clienti.",
+      industryHint: "Di cosa si occupa, in poche parole.",
+      marketPlaceholder: "Italy",
+      countryHint: "Il paese in cui vende principalmente, scritto in inglese (per esempio Spain), così la ricerca delle parole chiave considera il paese giusto.",
+      marketNotEnglish: "La ricerca delle parole chiave riconosce solo i nomi dei paesi scritti in inglese.",
+      marketUseEnglish: "Usa {country}",
+      articleLanguage: "Lingua degli articoli",
+      articleLanguageHint: "Gli articoli di questo sito vengono scritti in questa lingua. Non cambia la sua dashboard.",
+      dashboardLanguageNote: "La sua dashboard è in {language}, un’impostazione personale del suo account.",
+      dashboardLanguageLink: "Cambia la lingua della dashboard",
+      chooseLanguage: "Scelga una lingua",
+      unknownLanguage: "{language} (valore attuale)",
+      audienceHint: "Chi vuole raggiungere: per esempio età, situazione o esigenze.",
+      descriptionHint: "Bastano poche frasi: i suoi principali prodotti o servizi, dove lavora e cosa la distingue.",
+      notSet: "Non impostato",
+      unsavedBadge: "Non salvato",
+      saveBusinessDetails: "Salva dati",
+      saveScope: "Vale per tutte le sezioni tranne Concorrenti, che si salvano appena ne aggiunge o ne rimuove uno.",
+      saveError: "Qualcosa è andato storto. Le sue modifiche sono ancora qui, quindi può riprovare.",
+      checklistNeedsBoth: "Aggiunga una descrizione e scelga una lingua degli articoli per completare questo passaggio della sua lista di lancio.",
+      checklistNeedsDescription: "Aggiunga una descrizione per completare questo passaggio della sua lista di lancio.",
+      checklistNeedsLanguage: "Scelga una lingua degli articoli per completare questo passaggio della sua lista di lancio.",
+      analysingTitle: "Stiamo analizzando il suo sito",
+      analysingBody: "Al termine dell’analisi verranno compilati nome del marchio, settore, mercato, pubblico e descrizione, sostituendo il contenuto attuale di questi campi. La lingua degli articoli che sceglie viene mantenuta.",
+      analysingBodyReadOnly: "Al termine dell’analisi questi dati verranno compilati.",
+      refresh: "Aggiorna",
+      analysisFailedTitle: "Non siamo riusciti ad analizzare il suo sito",
+      analysisFailedBody: "Questi dati non sono stati compilati automaticamente. Può inserirli lei.",
+      analysisFailedBodyReadOnly: "Questi dati non sono stati compilati automaticamente.",
+      analysisFailedRetry: "Può riprovare l’analisi dalla pagina Siti web.",
+      goToWebsites: "Vai a Siti web",
+      competitorCount: "1 concorrente|{count} concorrenti",
+      manualGroup: "Aggiunti da lei",
+      suggestedGroup: "Suggeriti dall’analisi",
+      suggestedGroupHelp: "Trovati analizzando il suo sito, non scelti da lei. Rimuova quelli che non sono veri concorrenti.",
+      suggestedGroupHelpReadOnly: "Trovati analizzando il sito.",
+      competitorsEmpty: "Ancora nessun concorrente.",
+      competitorsEmptyAnalysed: "L’analisi del suo sito non ha suggerito concorrenti.",
+      competitorsEmptyAnalysing: "I suggerimenti compariranno qui al termine dell’analisi del suo sito.",
+      competitorsTruncated: "Sono mostrati i primi {count} concorrenti.",
+      addCompetitor: "Aggiungi un concorrente",
+      addCompetitorHint: "L’indirizzo del suo sito, per esempio rival.com. Verifichiamo che il sito esista prima di aggiungerlo, e può richiedere qualche secondo.",
+      competitorPlaceholder: "rival.com",
+      addCompetitorButton: "Aggiungi",
+      checkingShort: "Verifica…",
+      checkingCompetitor: "Verifica di {domain}…",
+      competitorAdded: "{domain} aggiunto.",
+      removingCompetitor: "Rimozione di {domain}…",
+      competitorRemoved: "{domain} rimosso.",
+      visitCompetitor: "Apri {domain} in una nuova scheda",
+      removeCompetitor: "Rimuovi {domain}",
+      competitorRequired: "Inserisca un indirizzo web.",
+      competitorInvalid: "Inserisca un indirizzo web come rival.com.",
+      competitorOwnSite: "Questo è il suo sito.",
+      competitorDuplicate: "{domain} è già nella sua lista.",
+      competitorNotPublic: "Questo indirizzo non è un sito web pubblico.",
+      competitorBlocked: "Social network e grandi piattaforme come Google, Amazon o Wikipedia non possono essere aggiunti come concorrenti.",
+      competitorUnreachable: "Non siamo riusciti a raggiungere {domain}. Controlli l’ortografia e riprovi.",
+      actionFailed: "Qualcosa è andato storto. Riprovi.",
     },
     setup: {
       launchChecklist: "Lista di lancio",
@@ -8992,6 +13936,23 @@ const it: Messages = {
       imageAltPlaceholder: "Che cosa mostra l\u2019immagine",
       replaceImage: "Sostituisci immagine",
       saveImage: "Salva",
+      toolbarLabel: "Formattazione del testo",
+      groupText: "Stile del testo",
+      groupHeadings: "Titoli",
+      groupBlocks: "Elenchi e blocchi",
+      groupLinks: "Link",
+      groupMedia: "Immagini",
+      groupHistory: "Annulla e ripeti",
+      linkDialogTitle: "Aggiungi o modifica un link",
+      linkDialogHelp: "Incolli l’indirizzo completo, per esempio https://example.com/pagina.",
+      linkUrlLabel: "Indirizzo del link",
+      linkApply: "Applica",
+      linkInvalid: "Inserisca un indirizzo che inizi con https://, http://, mailto:, tel:, / o #.",
+      htmlHint: "Sta modificando direttamente l’HTML. Tutto ciò che non è sicuro viene rimosso al salvataggio.",
+      richHint: "La formattazione resta semplice per adattarsi allo stile del suo sito.",
+      editHtml: "Modifica HTML",
+      backToEditor: "Torna all’editor",
+      htmlToolbarOff: "I pulsanti di formattazione sono disattivati mentre modifica l’HTML.",
       noMatches: "Nessun risultato.",
       noPicturesYet: "Ancora nessuna immagine: ne carichi una per iniziare.",
     },
@@ -9697,9 +14658,324 @@ const de: Messages = {
   legalNotice: "Diese Seite ist nur auf Englisch verfügbar. Übersetzungen unserer rechtlichen Bedingungen werden vor der Veröffentlichung von einem professionellen Übersetzer erstellt.",
 
   app: {
+    workspace: {
+      save: "Speichern",
+      saving: "Wird gespeichert…",
+      saved: "Gespeichert",
+      discard: "Änderungen verwerfen",
+      unsaved: "1 ungespeicherte Änderung|{count} ungespeicherte Änderungen",
+      noChanges: "Alle Änderungen sind gespeichert",
+      saveFailed: "Nicht gespeichert. {error}",
+      leaveConfirm: "Sie haben ungespeicherte Änderungen. Diese Seite verlassen und die Änderungen verwerfen?",
+      onThisPage: "Auf dieser Seite",
+      jumpTo: "Zu einem Abschnitt springen",
+      optional: "Optional",
+      required: "Pflichtfeld",
+      charactersLeft: "Noch 1 Zeichen|Noch {count} Zeichen",
+      overLimit: "1 Zeichen zu viel|{count} Zeichen zu viel",
+      viewOnly: "Sie haben für diese Website nur Lesezugriff. Änderungen können nur Inhaber oder Bearbeiter vornehmen.",
+      savesImmediately: "Wird sofort gespeichert, wenn Sie es ändern",
+      savedWithButton: "Wird mit der Schaltfläche Speichern gespeichert",
+      editsKept: "Ihre neueren Änderungen bleiben erhalten und müssen noch gespeichert werden.",
+      preview: "Vorschau",
+      close: "Schließen",
+      selected: "Ausgewählt",
+    },
+    health: {
+      title: "Website-Zustand",
+      description: "Eine technische Prüfung der Seiten, die wir auf {domain} lesen können: was sie in den Suchergebnissen bremsen kann und wie Sie es beheben.",
+      checkNow: "Meine Website prüfen",
+      checkAgain: "Erneut prüfen",
+      checking: "Wird geprüft…",
+      starting: "Wird gestartet…",
+      refreshStatus: "Status aktualisieren",
+      dismiss: "Schließen",
+      unavailableTitle: "Neue Prüfungen nicht verfügbar",
+      siteNotReady: "Wir analysieren diese Website noch. Sie können eine Prüfung starten, sobald die Analyse abgeschlossen ist.",
+      errNoPlan: "Wählen Sie zuerst einen Tarif für diese Website.",
+      errPlanInactive: "Das Abonnement dieser Website ist nicht aktiv. Aktualisieren Sie die Zahlungsdaten, um eine Prüfung zu starten.",
+      errQuota: "Sie haben diese Prüfung in der letzten Stunde mehrmals gestartet. Bitte versuchen Sie es in Kürze erneut.",
+      errUnexpected: "Die Prüfung konnte nicht gestartet werden. Bitte versuchen Sie es erneut.",
+      queuedTitle: "Prüfung angefordert",
+      queuedBody: "Ihre Prüfung wartet auf den Start. Diese Seite aktualisiert sich von selbst.",
+      queuedStale: "Diese Prüfung hat noch nicht begonnen und braucht länger als üblich. Der Bericht erscheint hier, sobald sie gelaufen ist.",
+      requestedAt: "Angefordert: {date}",
+      runningTitle: "Ihre Website wird geprüft",
+      runningBody: "Wir lesen Ihre Seiten eine nach der anderen. Diese Seite aktualisiert sich von selbst.",
+      runningStale: "Diese Prüfung läuft länger als erwartet und wurde möglicherweise unterbrochen.",
+      staleRetry: "Aktualisieren Sie den Status, um zu sehen, ob sie weitergekommen ist, oder starten Sie die Prüfung erneut.",
+      startedAt: "Gestartet: {date}",
+      progressChecked: "Bisher 1 Seite geprüft|Bisher {count} Seiten geprüft",
+      progressFound: "1 Adresse auf Ihrer Website gefunden|{count} Adressen auf Ihrer Website gefunden",
+      progressLimit: "Eine Prüfung liest bis zu {max} Seiten.",
+      previousNotice: "Der Bericht unten ist Ihr vorheriges Ergebnis vom {date}. Er wird ersetzt, sobald die neue Prüfung fertig ist.",
+      failedTitle: "Die letzte Prüfung konnte nicht abgeschlossen werden",
+      failedPrevious: "Der Bericht unten ist weiterhin Ihr vorheriges Ergebnis vom {date}.",
+      finishedTitle: "Ihr neuer Bericht ist fertig",
+      finishedBody: "Der Bericht unten stammt aus der Prüfung vom {date}.",
+      failure: {
+        timeout: "Ihre Website hat zu lange gebraucht, um zu antworten. Versuchen Sie es erneut: Bei einem ausgelasteten Server ist das oft nur vorübergehend.",
+        notHtml: "Die Website-Adresse hat keine Webseite geliefert. Prüfen Sie, ob sie auf die Startseite Ihrer Website zeigt.",
+        tooLarge: "Ihre Startseite ist zu groß, als dass wir sie analysieren könnten.",
+        invalidUrl: "Die Website-Adresse konnte nicht gelesen werden. Prüfen Sie die Adresse, einschließlich http:// oder https://.",
+        refused: "Ihre Website hat unsere Anfrage abgelehnt. Möglicherweise blockiert eine Firewall oder ein Sicherheits-Plugin automatische Besucher.",
+        unreachable: "Wir konnten Ihre Website nicht erreichen. Prüfen Sie, ob sie online ist und die Adresse stimmt.",
+        notEntitled: "Die Prüfung wurde beendet, weil das Abonnement dieser Website nicht aktiv ist. Es wurde nichts weiter berechnet.",
+        generic: "Wir konnten die Prüfung Ihrer Website nicht abschließen. Versuchen Sie es erneut, und wenden Sie sich an den Support, wenn es wieder passiert.",
+      },
+      failureViewer: {
+        timeout: "Ihre Website hat zu lange gebraucht, um zu antworten. Bei einem ausgelasteten Server ist das oft nur vorübergehend. Ein Inhaber oder Bearbeiter kann die Prüfung erneut starten.",
+        generic: "Wir konnten die Prüfung Ihrer Website nicht abschließen. Ein Inhaber oder Bearbeiter kann die Prüfung erneut starten.",
+      },
+      emptyTitle: "Noch kein Bericht",
+      emptyBody: "Eine Prüfung liest bis zu {max} Seiten Ihrer Website und listet Seite für Seite auf, was sie in der Suche bremsen kann und wie Sie jedes Problem beheben.",
+      emptyViewer: "Es wurde noch keine Prüfung durchgeführt. Ein Inhaber oder Bearbeiter kann eine starten.",
+      firstRunTitle: "Ihr erster Bericht ist unterwegs",
+      firstRunBody: "Er erscheint hier, sobald die Prüfung abgeschlossen ist.",
+      scoreTitle: "Zustandswert",
+      scoreDescription: "Zählt die technischen Probleme auf den gelesenen Seiten, gewichtet nach Schwere und gemittelt pro Seite.",
+      previousResult: "Vorheriges Ergebnis",
+      latestResult: "Neuestes Ergebnis",
+      outOf: "von 100",
+      scoreAria: "Zustandswert: {score} von 100",
+      bandGood: "Gut",
+      bandFair: "Verbesserungswürdig",
+      bandPoor: "Schwach",
+      noScore: "Kein Wert",
+      noScoreBody: "Für diese Prüfung wurde kein Wert gespeichert.",
+      notScored: "Nicht bewertet",
+      zeroPagesTitle: "Keine Seite konnte gelesen werden",
+      zeroPagesBody: "Bei dieser Prüfung konnten wir keine Seite öffnen, daher beschreibt ihr Wert Ihre Website nicht. Die Befunde unten nennen den Grund.",
+      notAuthority: "Das ist nicht die Domain-Autorität: Der Wert misst technische Probleme auf Ihren eigenen Seiten, nicht, wie sehr andere Websites Ihrer vertrauen.",
+      lastChecked: "Zuletzt geprüft",
+      pagesRead: "Gelesene Seiten",
+      pagesFailed: "Nicht geöffnet",
+      addressesFound: "Gefundene Adressen",
+      notRecorded: "Nicht erfasst",
+      severityTitle: "Probleme nach Schwere",
+      critical: "Kritisch",
+      warnings: "Warnungen",
+      suggestions: "Vorschläge",
+      inFindings: "in 1 Befund|in {count} Befunden",
+      severityAria: "Kritisch: {critical}, Warnungen: {warning}, Vorschläge: {info}",
+      badge: { critical: "Kritisch", warning: "Warnung", info: "Vorschlag" },
+      coverageTitle: "Was diese Prüfung abgedeckt hat",
+      coverageLimit: "Sie liest bis zu {max} Seiten, beginnend mit Ihrer Startseite und den Links folgend.",
+      coverageSameSite: "Sie folgt nur Links innerhalb von {domain}. Links zu anderen Websites werden nicht geprüft.",
+      coverageQuery: "Adressen, die sich nur nach einem „?“ oder „#“ unterscheiden, zählen als eine Seite.",
+      coverageSkipped: "Sie überspringt Admin-, Login-, Warenkorb- und Kassenseiten, Feeds sowie Dateien wie Bilder und PDFs.",
+      coverageRefused: "Eine Seite, die nicht innerhalb von 15 Sekunden antwortet oder automatische Besucher ablehnt, wird als „nicht geöffnet“ aufgeführt.",
+      coverageBeyond: "Diese Prüfung hat {found} Adressen auf Ihrer Website gefunden und {read} Seiten gelesen. Die übrigen wurden nicht geprüft.",
+      notAssessedTitle: "Einige Prüfungen konnten nicht laufen",
+      notAssessedBody: "Diese Prüfungen vergleichen Seiten miteinander und brauchen mindestens zwei lesbare Seiten: {checks}. Sie fließen nicht in diesen Wert ein.",
+      crossChecks: {
+        duplicateTitles: "doppelte Seitentitel",
+        duplicateDescriptions: "doppelte Beschreibungen",
+        internalLinking: "interne Verlinkung",
+      },
+      findingsTitle: "Befunde",
+      findingsDescription: "Die schwersten zuerst. Öffnen Sie einen Befund, um alle betroffenen Seiten und die Lösung zu sehen.",
+      findingsCount: "1 Befund|{count} Befunde",
+      filterLabel: "Nach Schwere filtern",
+      filterAll: "Alle",
+      searchLabel: "Befunde durchsuchen",
+      searchPlaceholder: "Nach Problem oder Seitenadresse suchen",
+      showingFiltered: "Angezeigte Befunde: {shown} von {total}.",
+      clearFilters: "Filter zurücksetzen",
+      noMatchTitle: "Keine passenden Befunde",
+      noMatchBody: "Versuchen Sie eine andere Suche oder zeigen Sie alle Befunde an.",
+      noFindingsTitle: "Keine Probleme gefunden",
+      noFindingsBody: "Auf der gelesenen Seite haben wir nichts zu beheben gefunden.|Auf den {count} gelesenen Seiten haben wir nichts zu beheben gefunden.",
+      pagesCount: "1 Seite|{count} Seiten",
+      howToFix: "So beheben Sie es",
+      effortMinutes: "Meist ein paar Minuten",
+      effortHour: "Meist etwa eine Stunde",
+      effortLonger: "Kann länger dauern",
+      needsDeveloper: "Eventuell braucht es Ihren Webentwickler",
+      affectedPages: "Betroffene Seiten ({count})",
+      homepage: "Startseite",
+      opensInNewTab: "(öffnet in einem neuen Tab)",
+      showAllPages: "Alle {count} Seiten anzeigen",
+      showFewerPages: "Weniger Seiten anzeigen",
+      matchingPages: "Zu Ihrer Suche passende Seiten: {shown} von {total}.",
+      notLoaded: "{shown} von {total} sind aufgeführt. Die übrigen wurden nicht geladen, damit diese Seite schnell bleibt.",
+      groupNote: "Jeder Eintrag ist eine Gruppe von Seiten; aufgeführt ist jeweils die erste Seite der Gruppe.",
+      firstPageNote: "Aufgeführt ist die erste gefundene Seite; die Gesamtzahl steht im Detail.",
+      noUrl: "Keine Seitenadresse erfasst",
+      rowsCapped: "Diese Prüfung hat {total} Probleme erfasst. Unten sind die ersten {shown} aufgeführt; die Zahlen oben enthalten alle.",
+      detail: {
+        titleLong: "Der Titel hat {chars} Zeichen; Suchergebnisse schneiden ihn nach etwa {max} ab.",
+        titleShort: "Der Titel hat nur {chars} Zeichen.",
+        descriptionLong: "Die Beschreibung hat {chars} Zeichen; Suchergebnisse schneiden sie nach etwa {max} ab.",
+        descriptionShort: "Die Beschreibung hat nur {chars} Zeichen.",
+        multipleH1: "{count} Hauptüberschriften (H1) auf dieser Seite.",
+        thinContent: "Nur {words} Wörter auf dieser Seite.",
+        imagesAlt: "{missing} von {total} Bildern haben keine Beschreibung (Alt-Text).",
+        largePage: "Allein das HTML der Seite ist {kb} KB groß.",
+        httpStatus: "Die Seite hat mit Fehler {status} geantwortet.",
+        duplicateTitle: "{count} Seiten teilen sich den Titel „{title}“.",
+        duplicateDescription: "{count} Seiten teilen sich dieselbe Beschreibung.",
+        noInternalLinks: "1 Seite verlinkt auf keine andere Seite Ihrer Website.|{count} Seiten verlinken auf keine andere Seite Ihrer Website.",
+        unreachTimeout: "Sie hat nicht rechtzeitig geantwortet.",
+        unreachBlocked: "Sie lehnt automatische Besucher ab (eine Sicherheitseinstellung der Website).",
+        unreachPassword: "Sie verlangt ein Passwort.",
+        unreachStatus: "Sie hat mit Fehler {status} geantwortet.",
+        unreachNotHtml: "Sie ist keine Webseite.",
+        unreachRedirects: "Sie leitet zu oft weiter.",
+        unreachRedirectAway: "Sie leitet auf eine Adresse weiter, die wir nicht prüfen.",
+        unreachConnect: "Wir konnten keine Verbindung herstellen.",
+        unreachUnknown: "Ein unerwarteter Fehler hat das Öffnen verhindert.",
+      },
+      issues: {
+        noindex: {
+          label: "Für Suchmaschinen verborgen",
+          about: "Die Seite bittet Suchmaschinen, sie nicht in die Ergebnisse aufzunehmen, daher ist sie in der Suche nicht zu finden.",
+          fix: "Sofern Sie die Seite nicht absichtlich verbergen, entfernen Sie ihre „noindex“-Einstellung. In WordPress ist das meist eine Option Ihres SEO-Plugins oder das Kästchen „Suchmaschinen davon abhalten, diese Website zu indexieren“ unter Einstellungen › Lesen.",
+        },
+        broken_page: {
+          label: "Seite zeigt einen Fehler",
+          about: "Die Seite antwortet mit einem Fehler, statt zu laden.",
+          fix: "Beheben Sie den Fehler, oder leiten Sie die Seite, wenn es sie nicht mehr geben soll, auf die passendste vorhandene Seite um, damit keine Besucher und Links verloren gehen.",
+        },
+        unreachable_page: {
+          label: "Seite konnte nicht geöffnet werden",
+          about: "Wir haben versucht, diese Seite zu laden, und es ist nicht gelungen. Suchmaschinen haben womöglich dasselbe Problem.",
+          fix: "Öffnen Sie die Seite in Ihrem eigenen Browser. Gibt es sie nicht mehr, aktualisieren Sie die Links darauf oder leiten Sie sie um. Öffnet sie sich bei Ihnen, lehnt Ihr Hoster oder eine Sicherheitseinstellung womöglich automatische Besucher ab, was auch Suchmaschinen aussperren kann.",
+        },
+        missing_title: {
+          label: "Seite hat keinen Titel",
+          about: "Die Seite hat kein Title-Tag, also keine Überschrift für die Suchergebnisse.",
+          fix: "Geben Sie der Seite einen Titel, der sagt, worum es geht. Er erscheint als Überschrift in den Suchergebnissen; schreiben Sie ihn also für Menschen, statt ihn mit Suchbegriffen zu füllen.",
+        },
+        title_too_long: {
+          label: "Titel ist zu lang",
+          about: "Suchergebnisse schneiden Titel ab, die länger als etwa 60 Zeichen sind.",
+          fix: "Kürzen Sie den Titel, damit der wichtige Teil nicht abgeschnitten wird. Stellen Sie das Wichtigste an den Anfang: Gekürzt wird am Ende.",
+        },
+        title_too_short: {
+          label: "Titel ist sehr kurz",
+          about: "Titel unter 30 Zeichen sagen oft zu wenig über die Seite aus.",
+          fix: "Ergänzen Sie den Titel, damit man schon in den Suchergebnissen erkennt, dass diese Seite die gesuchte ist.",
+        },
+        missing_meta_description: {
+          label: "Keine Beschreibung für Suchergebnisse",
+          about: "Die Seite hat keine Beschreibung, daher wählen Suchmaschinen selbst den Text unter Ihrem Link.",
+          fix: "Schreiben Sie eine Beschreibung der Seite in ein bis zwei Sätzen. Ohne sie übernehmen Suchmaschinen einen Text von der Seite, oft nicht den besten.",
+        },
+        meta_description_too_long: {
+          label: "Beschreibung ist zu lang",
+          about: "Suchergebnisse schneiden Beschreibungen ab, die länger als etwa 158 Zeichen sind.",
+          fix: "Kürzen Sie die Beschreibung und sagen Sie früh, warum sich ein Klick lohnt.",
+        },
+        meta_description_too_short: {
+          label: "Beschreibung ist sehr kurz",
+          about: "Beschreibungen unter 70 Zeichen lassen in den Suchergebnissen Platz ungenutzt.",
+          fix: "Erweitern Sie die Beschreibung auf ein bis zwei Sätze, die einen Grund geben, Ihr Ergebnis zu wählen.",
+        },
+        missing_h1: {
+          label: "Keine Hauptüberschrift",
+          about: "Die Seite hat keine Hauptüberschrift (H1), daher ist ihr Thema für Leser und Suchmaschinen weniger klar.",
+          fix: "Fügen Sie oben auf der Seite eine Hauptüberschrift ein, die sagt, worum es geht.",
+        },
+        multiple_h1: {
+          label: "Mehr als eine Hauptüberschrift",
+          about: "Die Seite hat mehrere Hauptüberschriften (H1), daher ist unklar, welche sie beschreibt.",
+          fix: "Behalten Sie eine Hauptüberschrift und machen Sie die anderen zu Zwischenüberschriften.",
+        },
+        thin_content: {
+          label: "Wenig Text",
+          about: "Die Seite hat weniger als 300 Wörter, Menüs und Fußzeilen eingerechnet. So kurze Seiten ranken selten bei umkämpften Suchanfragen.",
+          fix: "Erweitern Sie die Seite, damit sie vollständig beantwortet, weswegen Besucher kommen, oder führen Sie sie mit einer ausführlicheren Seite zusammen und leiten Sie diese hier um.",
+        },
+        images_missing_alt: {
+          label: "Bilder ohne Beschreibung",
+          about: "Einige Bilder haben keinen Alt-Text, den Screenreader vorlesen und die Bildersuche nutzt.",
+          fix: "Geben Sie jedem Bild eine kurze Beschreibung dessen, was es zeigt. Rein dekorative Bilder dürfen eine leere Beschreibung haben.",
+        },
+        missing_canonical: {
+          label: "Keine bevorzugte Adresse festgelegt",
+          about: "Die Seite nennt ihre bevorzugte Adresse nicht (Canonical-Link). Ist sie unter mehreren Adressen erreichbar, müssen Suchmaschinen raten, welche sie zeigen.",
+          fix: "Fügen Sie der Seite einen Canonical-Link hinzu. Die meisten SEO-Plugins tun das automatisch, sobald sie aktiviert sind; andernfalls fragen Sie Ihren Webentwickler.",
+        },
+        missing_lang: {
+          label: "Seitensprache nicht festgelegt",
+          about: "Die Seite gibt nicht an, in welcher Sprache sie geschrieben ist.",
+          fix: "Legen Sie die Sprache der Seite fest (das Attribut „lang“ des html-Tags). Das hilft Suchmaschinen, Ihre Seiten den richtigen Menschen zu zeigen, und Screenreadern, sie richtig auszusprechen.",
+        },
+        large_page: {
+          label: "Seitencode ist sehr groß",
+          about: "Allein das HTML der Seite ist größer als 1,5 MB, was das Laden verlangsamt. Bilder sind hier nicht mitgezählt.",
+          fix: "Großes HTML entsteht meist durch Code, Daten oder Bilder, die direkt in die Seite eingebettet sind. Bitten Sie Ihren Webentwickler, sie in eigene Dateien auszulagern oder zu verkleinern.",
+        },
+        duplicate_title: {
+          label: "Seiten mit demselben Titel",
+          about: "Mehrere Seiten verwenden denselben Titel, daher können Suchmaschinen sie schwer unterscheiden.",
+          fix: "Geben Sie jeder Seite einen Titel, der beschreibt, was nur diese Seite behandelt.",
+        },
+        duplicate_meta_description: {
+          label: "Seiten mit derselben Beschreibung",
+          about: "Mehrere Seiten verwenden dieselbe Beschreibung in den Suchergebnissen.",
+          fix: "Schreiben Sie für jede Seite eine eigene Beschreibung, die sagt, was diese Seite bietet.",
+        },
+        no_internal_links: {
+          label: "Seiten ohne Links zum Rest der Website",
+          about: "Einige Seiten enthalten keine Links zu anderen Seiten Ihrer Website, daher kommen Besucher und Suchmaschinen von dort nicht weiter.",
+          fix: "Fügen Sie auf diesen Seiten Links zu passenden Seiten Ihrer Website hinzu, etwa zu einer Leistung, einem Artikel oder Ihrer Startseite.",
+        },
+      },
+      siteTitle: "Ihre Website, wie wir sie gelesen haben",
+      siteDescription: "Bei dieser Prüfung von Ihrer Startseite gelesen.",
+      siteLegacy: "Diese Prüfung stammt aus der Zeit, bevor wir Website-Angaben erfasst haben. Sie erscheinen nach der nächsten Prüfung.",
+      siteUnavailable: "Bei dieser Prüfung konnte keine Seite gelesen werden, daher sind diese Angaben nicht verfügbar.",
+      siteName: "Name der Website",
+      siteNameMissing: "Nicht gefunden",
+      language: "Sprache",
+      languageMissing: "Nicht angegeben",
+      languageNote: "So wie von Ihrer Startseite angegeben.",
+      languageMissingNote: "Ihre Startseite gibt ihre Sprache nicht an, daher müssen Suchmaschinen raten.",
+      platform: "Plattform",
+      platformUnknown: "Nicht erkannt",
+      platformNote: "Aus dem Code Ihrer Seite erkannt.",
+      platformUnknownNote: "Wir konnten keine gängige Plattform erkennen. Das ist an sich kein Problem.",
+      previewImage: "Vorschaubild für Links",
+      previewMissing: "Keines",
+      previewNote: "Wird angezeigt, wenn Ihre Startseite geteilt wird.",
+      previewMissingNote: "Es wurde kein Vorschaubild (og:image) gefunden, daher erscheinen geteilte Links womöglich ohne Bild.",
+      previewBroken: "Das Vorschaubild konnte nicht geladen werden.",
+      linkedTitle: "Websites, auf die Sie am häufigsten verlinken",
+      linkedHelp: "Bis zu sechs, gezählt auf den gelesenen Seiten. Hilfreich, um Links zu entdecken, die Sie nicht setzen wollten.",
+      linkedEmpty: "Auf den gelesenen Seiten haben wir keine Links zu anderen Websites gefunden.",
+      aiTitle: "Zugang für KI-Assistenten",
+      aiDescription: "Ob Ihre robots.txt-Datei die Crawler blockiert, mit denen KI-Assistenten Websites lesen.",
+      aiLegacy: "Diese Prüfung stammt aus der Zeit, bevor wir robots.txt gelesen haben. Diese Angabe erscheint nach der nächsten Prüfung.",
+      aiUnreadable: "Bei dieser Prüfung konnte keine Seite gelesen werden, daher war sehr wahrscheinlich auch die robots.txt nicht lesbar. „Nicht blockiert“ kann hier nur bedeuten, dass wir sie nicht lesen konnten.",
+      aiNoneBlocked: "Keiner dieser {total} Crawler ist für Ihre gesamte Website blockiert.",
+      aiSomeBlocked: "1 von {total} Crawlern ist für Ihre gesamte Website blockiert.|{count} von {total} Crawlern sind für Ihre gesamte Website blockiert.",
+      aiAllowed: "Nicht blockiert",
+      aiBlocked: "Blockiert",
+      aiNamed: "In robots.txt genannt",
+      aiCaveat: "Wir prüfen nur, ob robots.txt die gesamte Website blockiert. Gibt es keine robots.txt oder konnten wir sie nicht lesen, gilt ein Crawler als nicht blockiert. Firewalls und Regeln für einzelne Seiten werden nicht geprüft.",
+      aiNoGuarantee: "Lesbar zu sein heißt nicht, dass ein KI-Assistent Ihre Website erwähnt oder zitiert.",
+      aiBlockedHelp: "Um einen Crawler zuzulassen, entfernen Sie die für ihn geltende Regel „Disallow: /“ aus robots.txt, oder bitten Sie die Person, die Ihre Website betreut, darum.",
+      aiVisibilityLink: "Sehen Sie, ob KI-Assistenten Sie erwähnen",
+      fixTitle: "Sollen wir das für Sie beheben?",
+      fixSelf: "Die meisten davon sind Textänderungen, die Sie mit den Hinweisen oben selbst vornehmen können. Wenn Sie das lieber nicht möchten, senden Sie uns die Liste, und wir machen Ihnen ein Angebot.",
+      fixDeveloper: "1 dieser Befunde braucht meist die Person, die Ihre Website gebaut hat. Senden Sie uns die Liste: Wir prüfen alles und machen Ihnen ein Angebot für die Behebung.|{count} dieser Befunde brauchen meist die Person, die Ihre Website gebaut hat. Senden Sie uns die Liste: Wir prüfen alles und machen Ihnen ein Angebot für die Behebung.",
+      fixHow: "Öffnet Ihr E-Mail-Programm mit bereits ausgefüllter Liste. Es wird nichts gesendet, bevor Sie selbst senden, und nichts berechnet.",
+      fixUnavailable: "Angebotsanfragen per E-Mail sind derzeit nicht verfügbar.",
+      requestQuote: "Angebot anfordern",
+      mailSubject: "Anfrage zur Behebung für {domain}",
+      mailGreeting: "Guten Tag,",
+      mailAsk: "bitte erstellen Sie mir ein Angebot für die Behebung der auf {domain} gefundenen Probleme.",
+      mailCheckedOn: "Prüfung vom {date}.",
+      mailCounts: "1 Problem gefunden (davon kritisch: {critical}).|{count} Probleme gefunden (davon kritisch: {critical}).",
+      mailListTitle: "Befunde:",
+      mailLine: "- {label}: {pages}",
+      mailThanks: "Vielen Dank.",
+    },
     settings: {
       personalTitle: "Persönliche Daten",
-      personalSubtitle: "Die Daten Ihres Kontos",
+      personalSubtitle: "Ihr Name und die E-Mail-Adresse, mit der Sie sich anmelden.",
       nameLabel: "Name",
       namePlaceholder: "Ihr Name",
       save: "Speichern",
@@ -9717,7 +14993,7 @@ const de: Messages = {
       passwordCreated:
         "Passwort festgelegt. Sie können sich jetzt mit Ihrer E-Mail-Adresse und Ihrem Passwort anmelden.",
       languageLabel: "Sprache des Dashboards",
-      languageHelp: "Die Sprache dieses Dashboards. Ihre Artikel werden in der Sprache verfasst, die im Tab Unternehmen eingestellt ist.",
+      languageHelp: "Menüs, Schaltflächen und Meldungen dieses Dashboards. Eine Änderung wirkt sich nicht auf Ihre Artikel aus.",
       languageError: "Ihre Sprache konnte nicht gespeichert werden",
       currentPassword: "Aktuelles Passwort",
       newPassword: "Neues Passwort",
@@ -9754,6 +15030,61 @@ const de: Messages = {
       loadingPeople: "Personen werden geladen",
       roleEditor: "Redakteur",
       roleViewer: "Leser",
+      pageTitle: "Konto",
+      pageDescription: "Ihre persönlichen Daten, Ihre Anmeldung, Ihre Sprache, wer an Ihren Websites arbeitet und Ihr Empfehlungslink.",
+      emailHelp: "Sie melden sich mit dieser Adresse an, und Belege werden an sie gesendet. Sie kann hier nicht geändert werden.",
+      nameRequired: "Geben Sie Ihren Namen ein.",
+      securityTitle: "Anmeldung und Sicherheit",
+      securitySubtitle: "Die Möglichkeiten, sich bei Ihrem Konto anzumelden.",
+      methodPassword: "E-Mail und Passwort",
+      methodGoogle: "Google",
+      methodSet: "Festgelegt",
+      methodNotSet: "Nicht festgelegt",
+      methodLinked: "Verknüpft",
+      passwordSetSummary: "Sie können sich mit Ihrer E-Mail-Adresse und Ihrem Passwort anmelden.",
+      passwordNotSetSummary: "Dieses Konto hat noch kein Passwort.",
+      googleLinkedSummary: "Sie können sich mit dem Google-Konto dieser Adresse anmelden.",
+      setPasswordIntroGeneric: "Legen Sie ein Passwort fest, um sich mit Ihrer E-Mail-Adresse und einem Passwort anzumelden.",
+      currentPasswordWrong: "Ihr aktuelles Passwort ist nicht korrekt.",
+      passwordTooLong: "Verwenden Sie höchstens 128 Zeichen",
+      tooManyAttempts: "Zu viele Versuche. Warten Sie eine Minute und versuchen Sie es erneut.",
+      passwordAlreadySet: "Dieses Konto hat bereits ein Passwort. Geben Sie Ihr aktuelles Passwort ein, um es zu ändern.",
+      languageTitle: "Sprache",
+      languageSubtitle: "Das Dashboard und Ihre Artikel haben jeweils eine eigene Sprache.",
+      languageSaved: "Dashboard-Sprache gespeichert.",
+      articleLanguageLabel: "Artikelsprache",
+      articleLanguageHelp: "Die Artikel jeder Website werden in der Sprache verfasst, die im Tab Unternehmen der Website eingestellt ist.",
+      articleLanguageLink: "Tab Unternehmen von {domain} öffnen",
+      roleAdmin: "Administrator",
+      roleEditorHelp: "Schreibt, bearbeitet und veröffentlicht Artikel.",
+      roleViewerHelp: "Kann alles lesen, aber nichts ändern.",
+      inviteTo: "Die Person erhält nur Zugriff auf {domain}.",
+      reinviteHelp: "Wenn Sie jemanden einladen, der bereits Zugriff hat, ändert sich seine Rolle.",
+      invalidEmail: "Geben Sie eine gültige E-Mail-Adresse ein.",
+      inviteSelf: "Sie haben bereits Zugriff auf diese Website.",
+      inviteFailed: "Die Einladung konnte nicht gesendet werden. Bitte erneut versuchen.",
+      actionFailed: "Das hat nicht funktioniert. Bitte erneut versuchen.",
+      accessGranted: "{email} kann jetzt an {domain} arbeiten",
+      accessGrantedNoEmail: "{email} kann jetzt an {domain} arbeiten, aber wir konnten keine E-Mail senden.",
+      accessRemoved: "{email} hat keinen Zugriff mehr",
+      loadPeopleFailed: "Wer an dieser Website arbeitet, konnte nicht geladen werden.",
+      retry: "Erneut versuchen",
+      thisWebsite: "diese Website",
+      workspaceAccess: "{email} hat über Ihren Arbeitsbereich Zugriff",
+      manageMember: "{email} verwalten",
+      manageInvitation: "Einladung für {email} verwalten",
+      membersCaption: "Personen, die an {domain} arbeiten können",
+      removeConfirmTitle: "Zugriff für {email} entfernen?",
+      removeConfirmBody: "Die Person kann {domain} dann nicht mehr öffnen. Sie können sie später erneut einladen.",
+      keepAccess: "Zugriff behalten",
+      cancelInviteConfirmTitle: "Einladung für {email} zurückziehen?",
+      cancelInviteConfirmBody: "Der per E-Mail gesendete Link funktioniert dann nicht mehr. Sie können die Person später erneut einladen.",
+      keepInvitation: "Einladung behalten",
+      removing: "Wird entfernt…",
+      cancellingInvite: "Wird zurückgezogen…",
+      inviting: "Wird gesendet…",
+      viewingSharedNote: "Sie sehen gerade {domain}, das mit Ihnen geteilt wurde. Nur der Inhaber kann ändern, wer daran arbeitet. Die Liste unten gilt für Ihre eigenen Websites.",
+      guestTeamNote: "{domain} wurde mit Ihnen als {role} geteilt. Nur der Inhaber kann Personen einladen oder entfernen.",
     },
     websites: {
       title: "Websites",
@@ -9810,6 +15141,58 @@ const de: Messages = {
       purchaseCancelled: "Kauf abgebrochen.",
       addWebsiteFirst: "Fügen Sie zuerst eine Website hinzu - jeder Tarif bezahlt eine Website.",
       checkoutFailed: "Der Bezahlvorgang konnte nicht gestartet werden. Bitte erneut versuchen.",
+      planFor: "Tarif für {domain}",
+      choosePlan: "Tarif wählen",
+      choosePlanFor: "Tarif für {domain} wählen",
+      choosePlanHelp: "Ein Tarif gilt für eine Website.",
+      billingPeriod: "Abrechnungszeitraum",
+      perMonth: "/ Monat",
+      perYear: "/ Jahr",
+      saveBadge: "{n} % sparen",
+      switchPlan: "Zu diesem Tarif wechseln",
+      payByCard: "Mit Karte bezahlen",
+      redirecting: "Weiterleitung…",
+      opening: "Wird geöffnet…",
+      cancelSubscription: "Abonnement kündigen",
+      paypalCheckoutFailed: "Der PayPal-Bezahlvorgang konnte nicht gestartet werden. Bitte erneut versuchen.",
+      portalFailed: "Das Abrechnungsportal konnte nicht geöffnet werden.",
+      managedForYou: "Dieses Abonnement verwalten wir für Sie. Schreiben Sie an {email}, um Belege zu erhalten oder etwas zu ändern.",
+      newTab: "(öffnet in einem neuen Tab)",
+      upgradeLead: "Bereit zu wachsen?",
+      upgradeBody: "Der Tarif {plan} umfasst {articles}, {terms} und {credits}.",
+      upgradeLink: "Mehr zu {plan}",
+      statusActive: "Aktiv",
+      statusTrialing: "Kostenloser Test",
+      statusPastDue: "Zahlung überfällig",
+      statusUnpaid: "Unbezahlt",
+      statusIncomplete: "Zahlung unvollständig",
+      statusIncompleteExpired: "Zahlung abgelaufen",
+      statusCanceled: "Gekündigt",
+      statusPaused: "Pausiert",
+      statusInactive: "Inaktiv",
+      pastDueNotice: "Die letzte Zahlung für diese Website ist fehlgeschlagen. Aktualisieren Sie die Zahlungsmethode, um den Zugriff zu behalten.",
+      unsettledNotice: "Das Abonnement dieser Website muss beglichen oder gekündigt werden, bevor der Tarif geändert werden kann.",
+      endedNotice: "Dieses Abonnement ist beendet. Wählen Sie unten einen Tarif, um neu zu starten.",
+      billedByPayPal: "Diese Website wird über PayPal abgerechnet, daher laufen auch Tarifwechsel über PayPal.",
+      billedByCard: "Diese Website wird per Karte abgerechnet, daher laufen Tarifwechsel über die Kartenzahlung. Um stattdessen mit PayPal zu zahlen, kündigen Sie zuerst das Kartenabonnement.",
+      billedByCardEnding: "Das Kartenabonnement dieser Website endet am {date}. Sobald es beendet ist, können Sie PayPal wählen.",
+      noPlanChange: "Ein Tarifwechsel ist für diese Website derzeit nicht möglich.",
+      paypalApproved: "PayPal-Freigabe erhalten - Ihr Abonnement wird bestätigt…",
+      paypalCancelled: "PayPal-Bezahlvorgang abgebrochen.",
+      viewingSharedNote: "{shared} wurde mit Ihnen geteilt und wird von seinem Inhaber bezahlt. Diese Seite zeigt die Abrechnung Ihrer eigenen Websites.",
+      guestTitle: "Hier gibt es nichts zu bezahlen",
+      guestBody: "Mit Ihnen geteilte Websites werden von ihren Inhabern bezahlt. Sie brauchen keinen Tarif, um daran zu arbeiten.",
+      addWebsite: "Website hinzufügen",
+      viewPlan: "Tarif ansehen",
+      shownBelow: "Unten angezeigt",
+      paidByCard: "Karte",
+      invoiceInPortal: "Rechnung unter Abrechnung verwalten",
+      dateColumn: "Datum",
+      descriptionColumn: "Beschreibung",
+      methodColumn: "Bezahlt mit",
+      amountColumn: "Betrag",
+      receiptColumn: "Beleg",
+      historyCapped: "Angezeigt werden die {count} neuesten Zahlungen.",
     },
     article: {
       contentSeo: "Inhalte und SEO",
@@ -9868,6 +15251,83 @@ const de: Messages = {
       factsHelp: "Eines pro Zeile. Nur diese Angaben nennen wir ausdrücklich.",
       authorHelp: "Die Autorenzeile auf jedem Artikel, hier und auf Ihrer Website.",
       noBylineHelp: "Bleibt das Feld leer, erscheinen Artikel ohne Autorenzeile.",
+      pageTitle: "Artikeleinstellungen",
+      pageDescription: "Wie die Artikel für diese Website geschrieben, bebildert und veröffentlicht werden.",
+      sectionWriting: "Schreiben und SEO",
+      sectionWritingHelp: "Stil und Länge jedes Artikels und wie viele Links er auf Ihre anderen Seiten enthält.",
+      sectionSources: "Inhaltsquellen",
+      sectionSourcesHelp: "Wo Ihre Inhalte auf Ihrer Website liegen.",
+      sectionImages: "Bilder und Marke",
+      sectionImagesHelp: "Das Bild, das für jeden Artikel erstellt wird, und der Look Ihrer Marke.",
+      sectionEnhancements: "Artikel-Extras",
+      sectionEnhancementsHelp: "Was Artikeln zusätzlich zum Text hinzugefügt wird.",
+      sectionVoice: "Markenstimme",
+      sectionVoiceHelp: "Wie Ihre Artikel klingen und was sie über Ihr Unternehmen sagen dürfen.",
+      sectionAuthor: "Autor",
+      sectionAuthorHelp: "Die Person oder Marke, von der Ihre Artikel stammen. Sie wird mit Ihren Einstellungen gespeichert; Artikel zeigen sie derzeit nicht als Autorenzeile an.",
+      unknownOption: "{value} (nicht mehr angeboten)",
+      linksError: "Geben Sie eine ganze Zahl von 0 bis 20 ein.",
+      wordsError: "Geben Sie eine ganze Zahl von 300 bis 5.000 ein.",
+      sitemapHint: "Damit finden wir Seiten Ihrer Website, auf die neue Artikel verlinken können.",
+      blogHint: "Die Hauptseite Ihres Blogs.",
+      exampleHint: "Ein Artikel von Ihnen, mit dem Sie zufrieden sind.",
+      urlError: "Geben Sie eine vollständige Adresse ein, die mit http:// oder https:// beginnt.",
+      brandColourHint: "Ihre Hauptmarkenfarbe als Hex-Code. Sie wird mit Ihren Einstellungen gespeichert; generierte Bilder verwenden sie derzeit nicht.",
+      brandColourError: "Verwenden Sie # gefolgt von sechs Ziffern oder Buchstaben a–f, zum Beispiel #003388.",
+      noColour: "Keine Farbe festgelegt",
+      invalidColour: "Keine gültige Farbe",
+      pickColour: "Markenfarbe auswählen",
+      clearColour: "Farbe entfernen",
+      imageStyleLabel: "Bildstil",
+      imageStyleHint: "Der Stil des Bildes, das für jeden Artikel erstellt wird.",
+      coverStyleLabel: "Stil des Titelbilds",
+      coverStyleHint: "Ihr bevorzugter Stil für Titelbilder. Derzeit erhält jeder Artikel ein einziges Bild im obigen Bildstil, und dieses Bild ist auch sein Titelbild.",
+      samplesNote: "Die Beispiele veranschaulichen jeden Stil. Die Bilder Ihrer Artikel werden für jeden Artikel neu erstellt und sehen anders aus.",
+      matchFollows: "Folgt derzeit: {style}",
+      matchFollowsUnknown: "Folgt dem obigen Bildstil",
+      previewStyle: "Beispiel für {style} ansehen",
+      previewTitle: "Beispiel: {style}",
+      previewMatchTitle: "Wie die Artikelbilder, derzeit {style}",
+      previewHelp: "Ein Beispiel für diesen Stil. Die Vorschau ändert Ihre Auswahl nicht.",
+      sampleAlt: "Beispielbild im Stil {style}",
+      unknownImageStyle: "Ihre gespeicherte Auswahl ({value}) gehört nicht zu diesen Stilen. Sie bleibt bestehen, bis Sie einen auswählen.",
+      imageBriefHint: "Wird in die Anweisungen für jedes Artikelbild aufgenommen.",
+      tocHint: "Fügt ein Inhaltsverzeichnis aus den Zwischenüberschriften hinzu.",
+      youtubeHint: "Ihre Auswahl wird gespeichert. Derzeit werden Artikeln keine Videos hinzugefügt.",
+      perspectiveHint: "Schreibt mit eigener Perspektive statt unpersönlich.",
+      similarHint: "Nennt und vergleicht Alternativen für eine umfassendere Darstellung.",
+      comparisonHint: "Fügt eine Tabelle hinzu, die die Optionen des Artikels nebeneinander vergleicht, etwa „Videografie vs. Kinematografie auf einen Blick“.",
+      poweredByHint: "Ein kleiner Hinweis am Ende jedes Artikels. Das Ausschalten gilt für noch nicht veröffentlichte Artikel.",
+      factsPlaceholder: "Seit 2004 geöffnet\nFünf Zahnärzte im Team\nKostenlose Parkplätze vor Ort",
+      uspsPlaceholder: "Notfalltermine am selben Tag\nWir behandeln ängstliche Patienten",
+      tooManyLines: "Bis zu {max} Zeilen. Entfernen Sie 1 Zeile.|Bis zu {max} Zeilen. Entfernen Sie {count} Zeilen.",
+      lineTooLong: "Zeile {line} ist länger als {max} Zeichen.",
+      fixFields: "Einige Felder müssen korrigiert werden. Sie sind auf der Seite markiert.",
+      saveError: "Etwas ist schiefgegangen. Bitte versuchen Sie es erneut.",
+      saveBarNote: "Gilt für alle Abschnitte außer Schreiben und Veröffentlichen, der sofort beim Ändern gespeichert wird.",
+      autoOnHelp: "Wir arbeiten Ihren Inhaltsplan selbstständig ab. Sie können jederzeit selbst jeden Artikel schreiben lassen.",
+      autoOffHelp: "Es wird nichts geschrieben, bis Sie es anfordern. Öffnen Sie einen geplanten Artikel und klicken Sie auf Schreiben.",
+      anyDay: "An jedem Tag.",
+      pickedDays: "Nur an den ausgewählten Tagen.",
+      daysUtc: "Die Tage richten sich nach UTC (koordinierte Weltzeit).",
+      firstArticleOnly: "Ihr erster Artikel wird gesendet, sobald er fertig ist, egal was Sie wählen, damit Sie sehen, wie Artikel auf Ihrer Website aussehen.",
+      networkReview: "Solange Ihre Website im Partnernetzwerk ist, prüft das RepGet-Team jeden Artikel vorher - auch den ersten - und keiner geht vor seinem geplanten Tag raus.",
+      openIntegrations: "Integrationen öffnen",
+      weekdaysShort: { sun: "So", mon: "Mo", tue: "Di", wed: "Mi", thu: "Do", fri: "Fr", sat: "Sa" },
+      weekdaysLong: { sun: "Sonntag", mon: "Montag", tue: "Dienstag", wed: "Mittwoch", thu: "Donnerstag", fri: "Freitag", sat: "Samstag" },
+      bodyImageStyles: {
+        sketch: { label: "Skizze", hint: "Handgezeichnete Linien über sanfter Farbe." },
+        watercolour: { label: "Aquarell", hint: "Weiche, gemalte Lasuren." },
+        realistic: { label: "Realistisch", hint: "Fotografisch." },
+        illustration: { label: "Illustration", hint: "Flache Vektorformen." },
+        "brand-text": { label: "Marke & Text", hint: "Ein Foto mit einer kräftigen Farbfläche entlang eines Randes." },
+      },
+      coverImageStyles: {
+        sketch: { label: "Skizze", hint: "Handgezeichnete Linien über sanfter Farbe." },
+        watercolour: { label: "Aquarell", hint: "Weiche, gemalte Lasuren." },
+        illustration: { label: "Illustration", hint: "Flache Vektorformen." },
+        match: { label: "Wie die Artikelbilder", hint: "Folgt dem obigen Bildstil." },
+      },
       styles: {
         expert: { label: "Fachlich", hint: "Präziser redaktioneller Ton mit ausgewogenen Einschränkungen und Fachbegriffen." },
         conversational: { label: "Gesprächsnah", hint: "Klare, direkte Sätze. Erklärt Begriffe beim ersten Auftreten." },
@@ -9916,6 +15376,128 @@ const de: Messages = {
       updatePost: "Beitrag aktualisieren",
       publish: "Veröffentlichen",
       sendingDraft: "Wird als Entwurf gesendet…",
+      breadcrumbLabel: "Brotkrümelnavigation",
+      targetKeywordLabel: "Ziel-Suchbegriff",
+      lastSaved: "Zuletzt aktualisiert: {date}",
+      viewModeLabel: "Vorschau oder Bearbeiten",
+      unsavedMark: "Ungespeicherte Änderungen",
+      previewLabel: "Artikelvorschau",
+      previewUnsavedNow: "Sie sehen Änderungen, die noch nicht gespeichert sind. Ihre Website erhält sie erst, wenn Sie speichern und veröffentlichen.",
+      notWrittenYet: "Der Artikel erscheint hier, sobald er geschrieben ist.",
+      workingPaused: "Bearbeiten und Veröffentlichen warten, bis das fertig ist, denn die neue Version ersetzt den Text.",
+      conflictTitle: "Dieser Artikel hat sich geändert, während Sie ihn bearbeitet haben",
+      conflictBody: "Inzwischen hat sich die gespeicherte Version geändert bei: {fields}, zum Beispiel weil eine Neufassung fertig wurde oder jemand anderes gespeichert hat. Wenn Sie jetzt speichern, ersetzt Ihre Version diese.",
+      conflictLoad: "Gespeicherte Version verwenden",
+      conflictKeep: "Meine Version behalten",
+      genUnavailable: "Das Schreiben ist vorübergehend nicht verfügbar. Das Problem liegt bei uns, und wir kümmern uns darum.",
+      genBusy: "Der Schreibdienst war ausgelastet. Versuchen Sie es in ein paar Minuten erneut.",
+      genTimeout: "Das Schreiben hat zu lange gedauert und wurde abgebrochen. Versuchen Sie es erneut - das ist meist vorübergehend.",
+      genUnusable: "Aus diesem Thema konnten wir keinen brauchbaren Artikel erstellen. Versuchen Sie es erneut oder formulieren Sie Thema und Ziel-Suchbegriff genauer.",
+      genQuota: "Dieser Arbeitsbereich hat alle Artikel des Monats verbraucht. Wählen Sie einen größeren Tarif, um mehr zu schreiben.",
+      genGeneric: "Das Schreiben dieses Artikels wurde nicht abgeschlossen. Versuchen Sie es erneut. Wenn es weiter passiert, wenden Sie sich an den Support.",
+      pubErrAuth: "Ihre Website hat die gespeicherte Anmeldung abgelehnt. Verbinden Sie sie auf der Seite Integrationen neu.",
+      pubErrPermission: "Das verbundene Konto darf keine Beiträge veröffentlichen. Verbinden Sie ein Konto mit Veröffentlichungsrechten.",
+      pubErrNotFound: "Die Adresse Ihrer Website wurde nicht gefunden. Prüfen Sie sie auf der Seite Integrationen.",
+      pubErrUnreachable: "Ihre Website hat nicht geantwortet. Das ist meist vorübergehend: Versuchen Sie es erneut oder prüfen Sie, ob die Website online ist.",
+      pubErrApiDisabled: "Ihre Website ist online, aber ihre Veröffentlichungsschnittstelle ist abgeschaltet, oft durch ein Sicherheits-Plugin. Schalten Sie sie wieder ein und testen Sie dann die Verbindung.",
+      pubErrUnsupported: "Ihre Website arbeitet auf eine Weise, in die wir noch nicht veröffentlichen können.",
+      pubErrUnknown: "Die Veröffentlichung wurde nicht abgeschlossen. Versuchen Sie es erneut. Wenn es weiter passiert, wenden Sie sich an den Support.",
+      editSaveNote: "Titel, Meta-Beschreibung, Adresse und Text werden zusammen mit der Schaltfläche Speichern gespeichert. Das Beitragsbild wird gespeichert, sobald Sie es ändern.",
+      titleRequired: "Geben Sie einen Titel ein.",
+      metaHint: "Erscheint in Suchergebnissen unter dem Titel; meist werden etwa die ersten {count} Zeichen angezeigt.",
+      slugSavedAs: "Wird gespeichert als: {slug}",
+      slugEmptyNote: "Bleibt das Feld leer, wählt Ihre Website die Adresse anhand des Titels.",
+      slugDropped: "Buchstaben mit Akzenten oder Umlauten und andere Sonderzeichen werden in der Adresse weggelassen.",
+      slugWordPressNote: "WordPress behält die Adresse, unter der der Beitrag zuerst veröffentlicht wurde. Eine Änderung hier verschiebt den Live-Beitrag nicht.",
+      searchPreviewTitle: "Vorschau im Suchergebnis",
+      searchPreviewHelp: "Eine Annäherung. Was angezeigt wird, entscheiden die Suchmaschinen.",
+      saveArticle: "Artikel speichern",
+      saveNoteWorking: "Speichern wartet, während der Artikel geschrieben wird.",
+      saveNoteDelivering: "Speichern wartet, während der Artikel an Ihre Website übermittelt wird.",
+      saveNoteReview: "Wenn Sie Änderungen speichern, geht dieser Artikel zurück in die Prüfung durch das RepGet-Team.",
+      saveNoteTitle: "Geben Sie einen Titel ein, um zu speichern.",
+      statsTitle: "Artikelstatistik",
+      statsHelp: "Aus dem Artikeltext gezählt.",
+      statsUnsaved: "Aus dem Text auf dem Bildschirm gezählt, einschließlich ungespeicherter Änderungen.",
+      publishingTitle: "Veröffentlichung",
+      publishingHelp: "Beim Veröffentlichen wird die zuletzt gespeicherte Version an Ihre Website gesendet.",
+      destinationLabel: "Ziel",
+      destinationNone: "Nicht verbunden",
+      destinationPlugin: "WordPress-Plugin",
+      manageConnection: "Verbindung verwalten",
+      plannedLabel: "Geplantes Datum",
+      plannedNone: "Kein geplantes Datum",
+      autoLabel: "Automatisches Veröffentlichen",
+      autoOnLive: "An, als Live-Beiträge",
+      autoOnDraft: "An, als Entwürfe",
+      autoOff: "Aus",
+      beforePlanned: "Wenn Sie jetzt veröffentlichen, wird der Artikel sofort gesendet, vor seinem geplanten Datum.",
+      stateNotSent: "Noch nicht an Ihre Website gesendet.",
+      stateLive: "Live auf Ihrer Website. Zuletzt gesendet: {date}.",
+      stateDraft: "Als Entwurf auf Ihrer Website. Zuletzt gesendet: {date}.",
+      stateScheduled: "Auf Ihrer Website geplant. Zuletzt gesendet: {date}.",
+      stateDelivered: "An Ihre Website übermittelt am {date}.",
+      stateFailed: "Der letzte Versuch ({date}) wurde nicht abgeschlossen.",
+      statePluginUnconfirmed: "Das WordPress-Plugin hat die letzte Übergabe nicht bestätigt ({date}).",
+      stateWriting: "Veröffentlichen ist möglich, sobald der Artikel geschrieben ist.",
+      stateFrozen: "Das RepGet-Team hat das Veröffentlichen pausiert. Bis es weitergeht, wird nichts an Websites gesendet.",
+      stateReviewPending: "Das RepGet-Team bereitet diesen Artikel für das Partnernetzwerk vor. Er geht hinaus, sobald das Team ihn freigibt.",
+      stateReviewChanged: "Dieser Artikel wurde nach der Freigabe durch das RepGet-Team geändert und ist deshalb wieder in der Prüfung.",
+      stateDelivering: "Wird gerade an Ihre Website übermittelt…",
+      stateQueued: "Seit {time} in der Warteschlange. Das Ergebnis erscheint hier, sobald Ihre Website antwortet.",
+      stateQueuedLong: "Noch kein Ergebnis. Die Übermittlung kann zurückgehalten werden, zum Beispiel solange ein früherer Versuch ungeklärt ist. Prüfen Sie es in ein paar Minuten erneut.",
+      checkAgain: "Erneut prüfen",
+      statePluginWaiting: "Warte darauf, dass das WordPress-Plugin ihn als {mode} abholt. Das Plugin meldet sich mindestens einmal pro Stunde.",
+      modeLive: "Live-Beitrag",
+      modeDraft: "Entwurf",
+      statePluginPublished: "Das WordPress-Plugin hat diesen Beitrag erstellt und kann ihn danach nicht mehr ändern. Hier gespeicherte Änderungen erreichen Ihre Website daher nicht. Nehmen Sie weitere Änderungen in WordPress vor.",
+      stateUncertain: "Der letzte Versuch hat keine Antwort von Ihrer Website erhalten. Siehe den Hinweis oben auf der Seite.",
+      uncertainPublishNote: "Solange das ungeklärt ist, entsteht beim erneuten Veröffentlichen kein zweiter Beitrag: Wir suchen zuerst den früheren.",
+      connectHelp: "Verbinden Sie Ihre Website, um diesen Artikel dort zu veröffentlichen.",
+      blockedUnsaved: "Speichern Sie zuerst Ihre Änderungen. Veröffentlicht wird die gespeicherte Version, nicht das, was auf dem Bildschirm steht.",
+      alreadySentLive: "Genau diese Version ist bereits live auf Ihrer Website.",
+      alreadySentDraft: "Genau diese Version ist bereits als Entwurf auf Ihrer Website.",
+      confirmDraftTitle: "Live-Beitrag zurück zum Entwurf machen?",
+      confirmDraftBody: "Dieser Artikel ist live auf Ihrer Website. Wenn Sie ihn als Entwurf senden, kann der Live-Beitrag offline gehen (bei WordPress ist das so). Um den Live-Beitrag zu ändern, verwenden Sie stattdessen Beitrag aktualisieren.",
+      historyLatest: "Die letzten {count} Versuche, neueste zuerst.",
+      historyEmpty: "Bisher wurde nichts an Ihre Website gesendet.",
+      logLive: "Live",
+      logDraft: "Als Entwurf gesendet",
+      logScheduled: "Geplant",
+      logDelivered: "Übermittelt",
+      rewriteTitle: "Artikel neu schreiben",
+      rewriteHelp: "Schreibt den ganzen Artikel anhand seines Plans neu. Jede Website kann {count} Artikel pro Tag neu schreiben lassen.",
+      rewriteConfirmTitle: "Diesen Artikel neu schreiben?",
+      rewriteConfirmBody: "Text, Meta-Beschreibung, Adresse und Beitragsbild werden durch eine neue Version ersetzt. Die aktuelle Version bleibt nicht erhalten.",
+      rewriteConfirmPublished: "Der Beitrag auf Ihrer Website bleibt unverändert, bis Sie die neue Version veröffentlichen.",
+      rewriteConfirmReview: "Die neue Version geht zur Prüfung an das RepGet-Team, bevor sie veröffentlicht werden kann.",
+      rewriteConfirmUnsaved: "Ihre ungespeicherten Änderungen werden verworfen.",
+      rewriteConfirmAction: "Neu schreiben",
+      rewriteNoPlan: "Dieser Artikel hat keinen Eintrag im Plan und kann daher nicht neu geschrieben werden.",
+      rewriteBlocked: "Wieder verfügbar, sobald das laufende Schreiben oder Übermitteln abgeschlossen ist.",
+      imagePromptHint: "Lassen Sie das Feld leer, dann wählen wir. Noch {remaining} von {max} neuen Bildern für diesen Artikel.",
+      imageGenerate: "Erstellen",
+      imageReplace: "Ersetzen",
+      imageAltHint: "Wird gespeichert, wenn Sie das Feld verlassen.",
+      imageCheckAlt: "Prüfen Sie, ob die Beschreibung noch zum neuen Bild passt.",
+      imageLockedWorking: "Warten Sie, bis der Artikel geschrieben ist: Eine Neufassung ersetzt das Bild.",
+      imageLockedDelivering: "Warten Sie, bis die Übermittlung an Ihre Website abgeschlossen ist.",
+      imageTypeError: "Verwenden Sie ein PNG-, JPEG- oder WebP-Bild.",
+      imageSizeError: "Dieses Bild ist {size} MB groß. Das Limit liegt bei {max} MB.",
+      imageNoAlt: "Noch keine Beschreibung.",
+      imageAltSaved: "Beschreibung gespeichert.",
+      errInFlight: "Dieser Artikel wird gerade an Ihre Website übermittelt. Versuchen Sie es in einer Minute erneut.",
+      errNotWritten: "Dieser Artikel wurde noch nicht geschrieben.",
+      errConnectFirst: "Verbinden Sie Ihre Website, bevor Sie veröffentlichen.",
+      errNotFound: "Diesen Artikel gibt es nicht mehr.",
+      errRewriteCap: "Diese Website hat alle Neufassungen der letzten 24 Stunden verbraucht. Versuchen Sie es später erneut.",
+      errAlreadyWriting: "Dieser Artikel wird bereits geschrieben.",
+      errNoActivePlan: "Dieser Arbeitsbereich hat keinen aktiven Tarif. Wählen Sie einen, um weiter zu schreiben.",
+      errImageStorage: "Der Bildspeicher ist gerade nicht verfügbar. Versuchen Sie es später erneut.",
+      errImageGeneration: "Die Bilderstellung ist gerade nicht verfügbar. Versuchen Sie es später erneut.",
+      metaNone: "Noch keine Meta-Beschreibung. Suchmaschinen zeigen dann einen Auszug aus dem Artikel.",
+      searchPreviewUnsaved: "Die Vorschau enthält Änderungen, die noch nicht gespeichert sind.",
+      imageReviewNote: "Wenn Sie das Bild oder seine Beschreibung ändern, geht dieser Artikel zurück in die Prüfung durch das RepGet-Team.",
       planningOutline: "Themen werden geplant",
       writingBody: "Artikel wird geschrieben",
     },
@@ -9945,6 +15527,132 @@ const de: Messages = {
       statusForbidden: "Sie können diese Website nicht verbinden",
       statusInvalid: "Dieser Link war ungültig - versuchen Sie es erneut",
       statusError: "Google konnte nicht verbunden werden",
+      pageTitle: "Google Search & Analytics",
+      pageDescription: "Wie Menschen Ihre Website in der Google-Suche finden und wie viele Besuche sie erhält. Die Zahlen stammen aus Ihren eigenen Search-Console- und Google-Analytics-Konten.",
+      rangeLabel: "Zeitraum",
+      rangeDays: "{days} Tage",
+      periodDates: "{start} – {end}",
+      connectTitle: "Verbinden Sie Ihre Google-Konten",
+      searchConsoleName: "Google Search Console",
+      analyticsName: "Google Analytics",
+      searchConsolePurpose: "Zeigt, wie Ihre Website in der Google-Suche abschneidet: wie oft sie angezeigt wird (Impressionen), wie oft darauf geklickt wird (Klicks), ihre durchschnittliche Position und welche Suchanfragen und Seiten Besucher bringen.",
+      analyticsPurpose: "Zeigt, wie viele Besuche (Sitzungen) Ihre gesamte Website aus allen Quellen erhält: Google, andere Suchmaschinen, soziale Medien, Links und direkte Eingabe Ihrer Adresse.",
+      setupTitle: "So funktioniert die Verbindung",
+      setupStep1: "Melden Sie sich mit dem Google-Konto an, das diese Website in der Search Console und, falls Sie es nutzen, in Google Analytics sieht. Eine Anmeldung gilt für beides.",
+      setupStep2: "Google bittet Sie, Lesezugriff zu erlauben. RepGet kann Ihre Zahlen lesen, aber nichts in Ihren Google-Konten ändern.",
+      setupStep3: "Wählen Sie danach hier die Search-Console-Property und die Analytics-Property dieser Website. RepGet importiert etwa die letzten zwei Monate und danach täglich die neuen Zahlen.",
+      readOnlyAccess: "Nur Lesezugriff. Sie können die Verbindung jederzeit trennen.",
+      expiredTitle: "Google muss neu verbunden werden",
+      reconnectGoogle: "Google neu verbinden",
+      viewerCannotConnect: "Nur Inhaber oder Bearbeiter dieser Website können Google verbinden.",
+      connectionTitle: "Google-Verbindung",
+      connectionHelp: "RepGet importiert täglich neue Zahlen. Google meldet sie mit etwa drei Tagen Verzögerung.",
+      notChosen: "Nicht gewählt",
+      dataThrough: "Zahlen bis {date}",
+      noFiguresYet: "Noch keine Zahlen von Google",
+      analyticsPropertyId: "Property {id}",
+      importNow: "Jetzt importieren",
+      manageConnection: "Verbindung verwalten",
+      viewerSetupPending: "Google ist verbunden, aber es wurde noch keine Property gewählt. Inhaber oder Bearbeiter können eine wählen.",
+      importRequestedTitle: "Import angefordert",
+      importRequestedBody: "RepGet importiert Ihre Zahlen von Google. Diese Seite sieht etwa eine Minute lang nach ihnen.",
+      importStillRunning: "Der Import kann einige Minuten dauern. Neue Zahlen erscheinen hier, sobald er fertig ist: Laden Sie die Seite später neu, um sie zu sehen.",
+      setupNeededTitle: "Wählen Sie, was importiert wird",
+      setupNeededBody: "Wählen Sie die Search-Console-Property und die Analytics-Property dieser Website und speichern Sie. Eine der beiden genügt.",
+      propertiesTitle: "Properties",
+      propertiesHelp: "Welche Ihrer Google-Properties zu dieser Website gehören.",
+      loadingProperties: "Die Properties Ihres Google-Kontos werden geladen…",
+      propertiesFailed: "Ihre Properties konnten nicht von Google geladen werden. Versuchen Sie es erneut oder verbinden Sie Google neu, wenn das Problem bleibt.",
+      tryAgain: "Erneut versuchen",
+      searchConsoleHint: "Die Search-Console-Property dieser Website, zum Beispiel eine Domain-Property.",
+      analyticsHint: "Die Google-Analytics-4-Property dieser Website.",
+      noSearchConsoleFound: "Für dieses Google-Konto wurden keine Search-Console-Properties gefunden. Prüfen Sie, ob es Zugriff hat, oder verbinden Sie ein anderes Konto.",
+      noAnalyticsFound: "Für dieses Google-Konto wurden keine Google-Analytics-4-Properties gefunden. Prüfen Sie, ob es Zugriff hat, oder verbinden Sie ein anderes Konto.",
+      noSearchConsoleProperty: "Keine (nicht aus der Search Console importieren)",
+      noAnalyticsProperty: "Keine (nicht aus Analytics importieren)",
+      propertyUnavailable: "{name} (für dieses Google-Konto nicht verfügbar)",
+      saveAndImport: "Speichern und importieren",
+      saveSelection: "Speichern",
+      selectionUnsaved: "Ihre neue Auswahl ist noch nicht gespeichert.",
+      noSelectionChange: "Keine Änderungen zu speichern.",
+      propertiesSaved: "Properties gespeichert",
+      accountTitle: "Google-Konto",
+      accountHelp: "Verbinden Sie neu, um den Zugriff zu erneuern oder zu einem anderen Google-Konto zu wechseln. Die gewählten Properties bleiben erhalten.",
+      disconnect: "Trennen",
+      disconnecting: "Wird getrennt…",
+      disconnectTitle: "Google trennen?",
+      disconnectBody: "RepGet importiert für diese Website nicht mehr aus der Search Console und aus Analytics und vergisst die gewählten Properties.",
+      disconnectKeeps: "Bereits importierte Zahlen bleiben erhalten.",
+      disconnectAccess: "Um den Zugriff von RepGet auch in Ihrem Google-Konto zu entfernen, nutzen Sie die Sicherheitseinstellungen Ihres Google-Kontos.",
+      cancel: "Abbrechen",
+      disconnectFailed: "Google konnte nicht getrennt werden. Versuchen Sie es erneut.",
+      importFailed: "Der Import konnte nicht angefordert werden. Versuchen Sie es erneut.",
+      googleUnreachable: "Google war mit der gespeicherten Verbindung nicht erreichbar. Verbinden Sie Google neu und versuchen Sie es erneut.",
+      errorNotConfigured: "Die Verbindung mit Google ist noch nicht verfügbar. Bitte wenden Sie sich an den Support.",
+      errorSignIn: "Melden Sie sich erneut an, um Google zu verbinden.",
+      errorReconnect: "Verbinden Sie Ihr Google-Konto neu, um fortzufahren.",
+      errorConnectFirst: "Verbinden Sie zuerst Google.",
+      errorChooseFirst: "Wählen Sie zuerst eine Property, aus der importiert werden soll.",
+      searchTitle: "Google-Suche",
+      searchDescription: "Zahlen für die gesamte Website aus der Search Console: alle Seiten Ihrer Website in der Google-Suche, nicht nur die Artikel, die RepGet schreibt.",
+      analyticsTitle: "Website-Besuche",
+      analyticsDescription: "Sitzungen auf Ihrer gesamten Website aus allen Quellen, laut Google Analytics. Nicht nur Besuche aus der Google-Suche.",
+      clicks: "Klicks",
+      clicksHint: "Wie oft jemand aus der Google-Suche auf Ihre Website geklickt hat.",
+      impressions: "Impressionen",
+      impressionsHint: "Wie oft Ihre Website in den Ergebnissen der Google-Suche angezeigt wurde.",
+      ctr: "Klickrate (CTR)",
+      ctrShort: "CTR",
+      ctrHint: "Klicks geteilt durch Impressionen.",
+      averagePosition: "Durchschnittliche Position",
+      positionShort: "Ø Position",
+      positionHint: "Ihr durchschnittlicher Platz in den Google-Ergebnissen, gewichtet nach Impressionen. Niedriger ist besser.",
+      sessions: "Sitzungen",
+      sessionsHint: "Besuche Ihrer Website aus allen Quellen. Eine Person kann mehrere Sitzungen haben.",
+      comparedWith: "Veränderungen im Vergleich zu den vorherigen {days} Tagen.",
+      noComparison: "Kein Vergleich: Nicht für alle der vorherigen {days} Tage liegen Zahlen von Google vor.",
+      noChange: "Keine Veränderung",
+      better: "besser",
+      worse: "schlechter",
+      pointsChange: "{value} Pp.",
+      notAvailable: "Nicht verfügbar",
+      daysReported: "Daten für {reported} von {days} Tagen",
+      zeroSearch: "Die Search Console hat in diesem Zeitraum keine Impressionen gemeldet.",
+      zeroSessions: "Google Analytics hat in diesem Zeitraum keine Sitzungen gemeldet.",
+      staleSource: "Es ist keine Property für {source} gewählt, daher werden diese Zahlen nicht mehr aktualisiert.",
+      notSelectedTitle: "Keine Property für {source} gewählt",
+      notSelectedEditor: "Wählen Sie unter Google-Verbindung eine aus, um diese Zahlen hier zu sehen.",
+      notSelectedViewer: "Inhaber oder Bearbeiter können unter Google-Verbindung eine auswählen.",
+      awaitingTitle: "Noch keine Zahlen aus {source}",
+      awaitingBody: "Google hat für diese Property noch keine Zahlen gemeldet. Neue Websites oder Websites mit wenig Traffic haben möglicherweise eine Zeit lang keine. RepGet prüft jeden Tag, ob es neue Zahlen gibt.",
+      noneInPeriodTitle: "Keine Zahlen aus {source} in diesem Zeitraum",
+      latestFrom: "Die neuesten Zahlen sind vom {date}. Wählen Sie einen längeren Zeitraum, um sie einzuschließen.",
+      latestOnly: "Die neuesten Zahlen sind vom {date}.",
+      dailyTitle: "Tag für Tag",
+      dailyDescription: "Tage, die Google nicht gemeldet hat, bleiben als Lücke stehen und werden nicht als null gezeichnet.",
+      chartMetric: "Im Diagramm gezeigte Zahl",
+      chartClicks: "Klicks aus der Google-Suche pro Tag",
+      chartImpressions: "Impressionen in der Google-Suche pro Tag",
+      chartSessions: "Sitzungen pro Tag",
+      unitClicks: "Klicks",
+      unitImpressions: "Impressionen",
+      unitSessions: "Sitzungen",
+      notReported: "nicht gemeldet",
+      day: "Tag",
+      chartInstructions: "Mit den Pfeiltasten links und rechts wechseln Sie zwischen den Tagen.",
+      chartEmpty: "Keine Tageswerte in diesem Zeitraum.",
+      topTitle: "Top-Suchanfragen und -Seiten",
+      topSearches: "Suchanfragen",
+      topPages: "Seiten",
+      searchTerm: "Suchanfrage",
+      page: "Seite",
+      topSearchesNote: "Die 10 Suchanfragen mit den meisten Klicks. Google lässt seltene Suchanfragen zum Schutz der Privatsphäre weg, daher ergeben sie zusammen weniger als die Summen oben.",
+      topPagesNote: "Die 10 Seiten mit den meisten Klicks aus der Google-Suche.",
+      topSearchesCaption: "Top-Suchanfragen in diesem Zeitraum",
+      topPagesCaption: "Top-Seiten in diesem Zeitraum",
+      noSearches: "In diesem Zeitraum wurden keine Suchanfragen gemeldet.",
+      noPages: "In diesem Zeitraum wurden keine Seiten gemeldet.",
+      opensInNewTab: "(öffnet in einem neuen Tab)",
     },
     research: {
       contentPlan: "Contentplan",
@@ -10043,6 +15751,132 @@ const de: Messages = {
       questionAdded: "Frage hinzugefügt",
       checkQueued: "Wird geprüft - Ergebnisse erscheinen hier in wenigen Minuten",
       alreadyTracking: "Sie verfolgen bereits die Fragen, die wir vorschlagen würden",
+      checksUnavailableTitle: "Prüfungen und Vorschläge sind für diese Website pausiert",
+      errAiUnavailable: "KI-Prüfungen sind im Moment nicht verfügbar. Bitte versuchen Sie es später erneut.",
+      errNoPlan: "Wählen Sie einen Tarif für diese Website, um Prüfungen zu starten und Vorschläge zu erhalten.",
+      errPlanInactive: "Das Abonnement dieser Website ist nicht aktiv. Aktualisieren Sie die Abrechnung, um Prüfungen zu starten und Vorschläge zu erhalten.",
+      errCheckQuota: "Die KI-Sichtbarkeit wurde in der letzten Stunde schon mehrmals geprüft. Bitte versuchen Sie es später erneut.",
+      errSuggestQuota: "In dieser Stunde wurden schon viele Vorschläge angefordert. Bitte versuchen Sie es später erneut.",
+      errSuggestFailed: "Es konnten keine Fragen vorgeschlagen werden. Bitte versuchen Sie es erneut.",
+      errTooShort: "Schreiben Sie eine Frage aus mindestens ein paar Wörtern.",
+      errAllowance: "Ihr Tarif verfolgt bis zu {count} Fragen. Entfernen Sie eine, um eine andere hinzuzufügen.",
+      errDuplicate: "Sie verfolgen diese Frage bereits.",
+      errAddFirst: "Fügen Sie zuerst eine Frage hinzu.",
+      errUnexpected: "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
+      statusQueuedTitle: "Prüfung in der Warteschlange",
+      statusQueuedBody: "Warten auf den Start der Prüfung. Die Antworten erscheinen hier Frage für Frage, und Sie können diese Seite in der Zwischenzeit verlassen.",
+      statusRunningTitle: "Ihre Fragen werden geprüft",
+      statusRunningBody: "Die Antworten erscheinen hier Frage für Frage. Sie können diese Seite in der Zwischenzeit verlassen.",
+      statusProgress: "{answered} von {total} Fragen beantwortet",
+      statusRequestedAt: "Angefordert am {date}",
+      statusCompletedTitle: "Prüfung abgeschlossen",
+      statusCompletedBody: "Jede Frage dieser Prüfung hat eine neue Antwort.",
+      statusPartialTitle: "Prüfung mit Lücken beendet",
+      statusPartialBody: "{answered} von {total} Fragen haben eine neue Antwort erhalten. Die übrigen haben innerhalb von 10 Minuten keine erhalten; sie behalten ihr früheres Ergebnis und sind unten markiert.",
+      statusTimedOutTitle: "Noch keine Antworten",
+      statusTimedOutBody: "Innerhalb von 10 Minuten ist keine Antwort eingegangen. Die Prüfung wartet vielleicht noch auf ihren Start, oder sie ist fehlgeschlagen. Sehen Sie später noch einmal nach oder starten Sie eine neue Prüfung.",
+      statusTimedOutBodyViewer: "Innerhalb von 10 Minuten ist keine Antwort eingegangen. Die Prüfung wartet vielleicht noch auf ihren Start, oder sie ist fehlgeschlagen. Sehen Sie später noch einmal nach.",
+      statusFailedTitle:"Die Prüfung wurde nicht durchgeführt",
+      statusFailedBody: "Für die am {date} angeforderte Prüfung wurde keine Antwort gespeichert. Sie können eine neue Prüfung starten.",
+      statusFailedBodyViewer: "Für die am {date} angeforderte Prüfung wurde keine Antwort gespeichert.",
+      statusRefusedTitle: "Die Prüfung wurde nicht gestartet",
+      dismiss: "Ausblenden",
+      progressLabel: "Fortschritt der Prüfung",
+      performanceTitle: "So steht Ihre Website da",
+      performanceHelp: "Gemessen an der neuesten Antwort auf jede geprüfte Frage.",
+      howMeasured: "So wird gemessen",
+      scoreOutOf: "von 100",
+      scoreGood: "Gut",
+      scoreFair: "Mittel",
+      scoreLow: "Niedrig",
+      scoreUp: "{change} Punkte mehr als bei der vorigen Prüfung",
+      scoreDown: "{change} Punkte weniger als bei der vorigen Prüfung",
+      scoreSame: "Keine Veränderung seit der vorigen Prüfung",
+      previousCheckOn: "Vorige Prüfung: {date}",
+      firstCheck: "Erste Prüfung, daher noch kein Vergleich",
+      namedOfChecked: "{mentions} von {total}",
+      namedOfCheckedHelp: "Geprüfte Fragen, bei denen Ihr Unternehmen empfohlen wurde",
+      positionValue: "Nr. {position}",
+      answeredInLatestCheck: "{count} von {total} Fragen in dieser Prüfung beantwortet",
+      basisNote: "Basiert auf der neuesten Antwort auf {checked} von {tracked} verfolgten Fragen.",
+      earlierAnswersNote: "1 dieser Antworten stammt aus einer früheren Prüfung.|{count} dieser Antworten stammen aus früheren Prüfungen.",
+      notCheckedYetTitle: "Noch nicht geprüft",
+      notCheckedYetBody: "Es wurde noch keine Frage geprüft, daher gibt es noch keinen Wert. Ein Wert erscheint erst, wenn ein Assistent tatsächlich gefragt wurde.",
+      competitorsHelp: "Andere Unternehmen, die in den neuesten Antworten empfohlen wurden, nach Anzahl der Antworten, die sie nennen.",
+      competitorCount: "In {count} von {total} Antworten genannt",
+      noCompetitors: "In den neuesten Antworten wurden keine anderen Unternehmen genannt.",
+      nextStep: "Nächster Schritt",
+      nextAddQuestions: "Fügen Sie die Fragen hinzu, die Ihre Kunden stellen würden, oder lassen Sie sich Vorschläge machen.",
+      nextAddQuestionsAction: "Fragen hinzufügen",
+      nextFirstCheck: "Starten Sie die erste Prüfung, um zu sehen, ob Assistenten Ihr Unternehmen nennen.",
+      nextUnchecked: "1 Frage wurde noch nicht geprüft. Starten Sie eine Prüfung, um sie einzubeziehen.|{count} Fragen wurden noch nicht geprüft. Starten Sie eine Prüfung, um sie einzubeziehen.",
+      nextStale: "1 Antwort stammt aus einer früheren Prüfung. Starten Sie eine Prüfung, um sie zu aktualisieren.|{count} Antworten stammen aus früheren Prüfungen. Starten Sie eine Prüfung, um sie zu aktualisieren.",
+      nextNotNamed: "Bei 1 Frage haben die Assistenten Sie nicht genannt. Sehen Sie, wen sie stattdessen genannt haben.|Bei {count} Fragen haben die Assistenten Sie nicht genannt. Sehen Sie, wen sie stattdessen genannt haben.",
+      nextNotNamedAction: "Diese Fragen anzeigen",
+      nextUpToDate: "Ihre Ergebnisse sind aktuell. Prüfungen laufen außerdem automatisch einmal pro Woche.",
+      nextWaiting: "Eine Prüfung läuft. Die Ergebnisse erscheinen, sobald jede Frage beantwortet ist.",
+      nextViewer: "Nur ein Inhaber oder ein Bearbeiter kann Prüfungen starten oder die Fragen ändern.",
+      questionsTitle: "Verfolgte Fragen",
+      questionsHelp: "Die Fragen, die Sie verfolgen, jeweils mit dem neuesten Ergebnis und den Belegen dafür.",
+      allowanceCount: "{count} von {max} Fragen",
+      addQuestionLabel: "Frage hinzufügen",
+      atAllowance: "Sie verfolgen so viele Fragen, wie Ihr Tarif erlaubt ({max}). Entfernen Sie eine, um eine andere hinzuzufügen.",
+      suggestionsTitle: "Vorgeschlagene Fragen",
+      suggestionsHelp: "Wählen Sie die Fragen aus, die Sie verfolgen möchten. Erst mit Auswahl hinzufügen wird etwas hinzugefügt.",
+      addSelected: "Auswahl hinzufügen ({count})",
+      suggestionsRoom: "Mit Ihrem Tarif können Sie noch 1 Frage hinzufügen.|Mit Ihrem Tarif können Sie noch {count} Fragen hinzufügen.",
+      questionsAdded: "1 Frage hinzugefügt|{count} Fragen hinzugefügt",
+      questionRemoved: "Frage entfernt",
+      filterLabel: "Fragen anzeigen",
+      filterAll: "Alle",
+      filterEmpty: "Keine Frage passt zu diesem Filter.",
+      showAll: "Alle Fragen anzeigen",
+      noQuestionsViewer: "Es werden noch keine Fragen verfolgt. Ein Inhaber oder ein Bearbeiter kann sie hinzufügen.",
+      named: "Genannt",
+      namedAt: "Genannt auf Nr. {position}",
+      checkedOn: "Geprüft am {date}",
+      fromEarlierCheck: "Aus einer früheren Prüfung ({date})",
+      checkingNow: "Wird geprüft…",
+      noAnswerInCheck: "Keine Antwort in der letzten Prüfung",
+      answeredInCheck: "In dieser Prüfung beantwortet",
+      siteMentioned: "Ihre Website wurde erwähnt",
+      showEvidence: "Belege anzeigen",
+      hideEvidence: "Belege ausblenden",
+      removeQuestionLabel: "Nicht mehr verfolgen: {question}",
+      evidenceExcerpt: "Was die Antwort sagte",
+      evidenceExcerptNote: "Gespeichert wird nur der Satz, der Ihr Unternehmen nennt, nicht die vollständige Antwort.",
+      evidencePosition: "Ihre Position",
+      evidencePositionValue: "Nr. {position} unter den Unternehmen, die die Antwort empfohlen hat",
+      evidenceNotRecommended: "Nicht unter den Unternehmen, die die Antwort empfohlen hat",
+      evidenceWebsite: "Ihre Website-Adresse",
+      evidenceWebsiteYes: "In der Antwort erwähnt",
+      evidenceWebsiteNo: "In der Antwort nicht erwähnt",
+      evidenceOthers: "Andere genannte Unternehmen, in Reihenfolge",
+      evidenceNoOthers: "Es wurden keine anderen Unternehmen genannt.",
+      evidenceAssistant: "Gefragter Assistent",
+      evidenceChecked: "Geprüft",
+      evidenceHistory: "Frühere Ergebnisse",
+      evidenceNoHistory: "Das ist das erste gespeicherte Ergebnis für diese Frage.",
+      evidenceStale: "Diese Antwort stammt aus einer früheren Prüfung. Die letzte Prüfung am {date} hat für diese Frage keine neue Antwort geliefert.",
+      evidenceMissed: "Die letzte Prüfung hat für diese Frage keine neue Antwort geliefert, daher ist dies ihr früheres Ergebnis.",
+      removeTitle: "Diese Frage nicht mehr verfolgen?",
+      removeBody: "Ihre gespeicherten Antworten und ihr Verlauf werden ebenfalls gelöscht, und der Wert wird ohne sie neu berechnet. Das lässt sich nicht rückgängig machen.",
+      removeConfirm: "Nicht mehr verfolgen",
+      removing: "Wird entfernt…",
+      methodTitle: "Was gemessen wird",
+      methodHelp: "Wie eine Prüfung abläuft und was jede Zahl bedeutet.",
+      methodAskTitle: "So läuft eine Prüfung ab",
+      methodAskBody: "Jede verfolgte Frage wird einem KI-Assistenten in einem neuen Gespräch gestellt, ohne Ihr Unternehmen zu nennen. Danach wird die Antwort ausgewertet und die empfohlenen Unternehmen werden der Reihe nach erfasst.",
+      methodRecordTitle: "Was gespeichert wird",
+      methodRecordBody: "Ob Ihr Unternehmen darunter ist und an welcher Position, der Satz, der es nennt, die anderen genannten Unternehmen und ob Ihre Website-Adresse vorkommt. Die vollständige Antwort wird nicht gespeichert.",
+      methodScoreTitle: "So wird der Wert berechnet",
+      methodScoreBody: "Eine geprüfte Frage zählt 100, wenn Sie als Erstes genannt werden, weiter unten in der Liste weniger (etwa {second} auf Platz zwei, {third} auf Platz drei und {fourth} auf Platz vier) und 0, wenn Sie nicht genannt werden. Der Sichtbarkeitswert ist der Durchschnitt über die neueste Antwort auf jede geprüfte Frage. Nie geprüfte Fragen zählen nicht mit.",
+      methodCompareTitle: "Vergleiche",
+      methodCompareBody: "Die Veränderung wird gegenüber der vorigen Prüfung gemessen, bewertet anhand ihrer eigenen Antworten. Antworten, die mehr als eine Stunde auseinanderliegen, gehören zu verschiedenen Prüfungen. Haben die beiden Prüfungen unterschiedliche Fragen abgedeckt, geht ein Teil der Veränderung darauf zurück.",
+      methodScheduleTitle: "Wann geprüft wird",
+      methodScheduleBody: "Wenn ein Inhaber oder ein Bearbeiter auf {action} klickt (nur begrenzt oft pro Stunde), und automatisch einmal pro Woche. Die Antworten treffen Frage für Frage innerhalb weniger Minuten ein.",
+      methodAssistantsTitle: "Gefragte Assistenten",
+      methodAssistantsBody: "Die bisher gespeicherten Antworten stammen von: {names}.",
     },
     backlinks: {
       title: "Links von anderen Websites",
@@ -10143,6 +15977,12 @@ const de: Messages = {
       inProgress: "In Bearbeitung",
       requestQuote: "Angebot anfordern",
       quoteHelp: "Wir erstellen ein Angebot, nachdem wir Ihr Audit geprüft haben.",
+      title: "Add-ons",
+      subtitle: "Einmalige Käufe zusätzlich zu Ihrem Tarif.",
+      perCredit: "{price} pro Credit",
+      quoteFrom: "Ab {price}. Wir erstellen ein Angebot, nachdem wir Ihr Audit geprüft haben.",
+      servicesTitle: "Leistungen",
+      showingRecent: "Angezeigt werden Ihre {count} neuesten Käufe.",
     },
     referral: {
       referSomeone: "Jemanden empfehlen",
@@ -10163,6 +16003,12 @@ const de: Messages = {
       joined: "Beigetreten am {date}",
       noWebsiteJoined: "Noch keine Website · beigetreten am {date}",
       creditsBadge: "+{count} Credits",
+      linkHelp: "Wer sich über diesen Link registriert, zählt als Ihre Empfehlung.",
+      peopleReferredStat: "Empfohlene Personen",
+      noReferralsYet: "Über Ihren Link hat sich noch niemand registriert.",
+      showingRecent: "Angezeigt werden Ihre {count} neuesten Empfehlungen.",
+      rewardedOn: "Credits gutgeschrieben am {date}",
+      unavailable: "Ihre Empfehlungsdaten konnten nicht geladen werden. Laden Sie die Seite neu, um es erneut zu versuchen.",
     },
     keys: {
       updatePlugin: "WordPress hat das Plugin {version}. Version 1.7 verbindet sich mit einem Klick, zeigt, für welches RepGet-Konto es veröffentlicht, und aktualisiert sich selbst: Laden Sie es herunter, gehen Sie in WordPress zu Plugins → Neues Plugin hinzufügen → Plugin hochladen und wählen Sie „Aktuelle Version durch hochgeladene ersetzen“.",
@@ -10634,6 +16480,75 @@ const de: Messages = {
       saveDetails: "Daten speichern",
       saving: "Wird gespeichert…",
       detailsSaved: "Daten gespeichert",
+      pageTitle: "Unternehmenseinstellungen",
+      pageDescription: "Die Angaben zum Unternehmen hinter {domain}. Die Keyword-Recherche und jeder Artikel, den wir schreiben, beruhen darauf.",
+      identityTitle: "Unternehmens­identität",
+      identityHelp: "Wer Sie sind und was Sie tun.",
+      marketTitle: "Markt und Zielgruppe",
+      marketHelp: "Wo Sie verkaufen, wen Sie erreichen möchten und in welcher Sprache Ihre Artikel geschrieben werden.",
+      descriptionTitle: "Unternehmens­beschreibung",
+      descriptionHelp: "Was das Unternehmen tut und was es auszeichnet, in Ihren eigenen Worten.",
+      competitorsTitle: "Wettbewerber",
+      competitorsHelp: "Unternehmen, die mit Ihnen um dieselben Kunden konkurrieren. Die Vorschläge stammen aus der Analyse Ihrer Website, prüfen Sie sie also: Entfernen Sie alle, die keine echten Wettbewerber sind, und ergänzen Sie fehlende.",
+      brandNameHint: "Der Name, unter dem Ihre Kunden Sie kennen.",
+      industryHint: "Was Sie tun, in wenigen Worten.",
+      marketPlaceholder: "Germany",
+      countryHint: "Das Land, in dem Sie hauptsächlich verkaufen, auf Englisch geschrieben (zum Beispiel Spain), damit die Keyword-Recherche das richtige Land betrachtet.",
+      marketNotEnglish: "Die Keyword-Recherche erkennt nur Ländernamen, die auf Englisch geschrieben sind.",
+      marketUseEnglish: "{country} verwenden",
+      articleLanguage: "Artikelsprache",
+      articleLanguageHint: "Die Artikel für diese Website werden in dieser Sprache geschrieben. Ihr Dashboard ändert sich dadurch nicht.",
+      dashboardLanguageNote: "Ihr Dashboard wird auf {language} angezeigt, eine persönliche Einstellung in Ihrem Konto.",
+      dashboardLanguageLink: "Dashboard-Sprache ändern",
+      chooseLanguage: "Sprache wählen",
+      unknownLanguage: "{language} (aktueller Wert)",
+      audienceHint: "Wen Sie erreichen möchten: zum Beispiel Alter, Lebenssituation oder Bedarf.",
+      descriptionHint: "Ein paar Sätze genügen: Ihre wichtigsten Produkte oder Leistungen, wo Sie tätig sind und was Sie unterscheidet.",
+      notSet: "Nicht festgelegt",
+      unsavedBadge: "Nicht gespeichert",
+      saveBusinessDetails: "Speichern",
+      saveScope: "Gilt für alle Abschnitte außer Wettbewerber, die sofort beim Hinzufügen oder Entfernen gespeichert werden.",
+      saveError: "Etwas ist schiefgelaufen. Ihre Änderungen sind noch da, Sie können es also erneut versuchen.",
+      checklistNeedsBoth: "Fügen Sie eine Beschreibung hinzu und wählen Sie eine Artikelsprache, um diesen Schritt Ihrer Startcheckliste abzuschließen.",
+      checklistNeedsDescription: "Fügen Sie eine Beschreibung hinzu, um diesen Schritt Ihrer Startcheckliste abzuschließen.",
+      checklistNeedsLanguage: "Wählen Sie eine Artikelsprache, um diesen Schritt Ihrer Startcheckliste abzuschließen.",
+      analysingTitle: "Ihre Website wird analysiert",
+      analysingBody: "Wenn die Analyse abgeschlossen ist, füllt sie Markenname, Branche, Markt, Zielgruppe und Beschreibung aus und ersetzt dabei den aktuellen Inhalt dieser Felder. Die von Ihnen gewählte Artikelsprache bleibt erhalten.",
+      analysingBodyReadOnly: "Wenn die Analyse abgeschlossen ist, werden diese Angaben ausgefüllt.",
+      refresh: "Aktualisieren",
+      analysisFailedTitle: "Wir konnten Ihre Website nicht analysieren",
+      analysisFailedBody: "Diese Angaben wurden nicht automatisch ausgefüllt. Sie können sie selbst eintragen.",
+      analysisFailedBodyReadOnly: "Diese Angaben wurden nicht automatisch ausgefüllt.",
+      analysisFailedRetry: "Sie können die Analyse auf der Seite Websites erneut starten.",
+      goToWebsites: "Zu den Websites",
+      competitorCount: "1 Wettbewerber|{count} Wettbewerber",
+      manualGroup: "Von Ihnen hinzugefügt",
+      suggestedGroup: "Von der Analyse vorgeschlagen",
+      suggestedGroupHelp: "Bei der Analyse Ihrer Website gefunden, nicht von Ihnen gewählt. Entfernen Sie alle, die keine echten Wettbewerber sind.",
+      suggestedGroupHelpReadOnly: "Bei der Analyse der Website gefunden.",
+      competitorsEmpty: "Noch keine Wettbewerber.",
+      competitorsEmptyAnalysed: "Die Analyse Ihrer Website hat keine Wettbewerber vorgeschlagen.",
+      competitorsEmptyAnalysing: "Vorschläge erscheinen hier, sobald die Analyse Ihrer Website abgeschlossen ist.",
+      competitorsTruncated: "Die ersten {count} Wettbewerber werden angezeigt.",
+      addCompetitor: "Wettbewerber hinzufügen",
+      addCompetitorHint: "Die Adresse seiner Website, zum Beispiel rival.com. Wir prüfen vor dem Hinzufügen, ob die Website existiert; das kann einige Sekunden dauern.",
+      competitorPlaceholder: "rival.com",
+      addCompetitorButton: "Hinzufügen",
+      checkingShort: "Wird geprüft…",
+      checkingCompetitor: "{domain} wird geprüft…",
+      competitorAdded: "{domain} hinzugefügt.",
+      removingCompetitor: "{domain} wird entfernt…",
+      competitorRemoved: "{domain} entfernt.",
+      visitCompetitor: "{domain} in einem neuen Tab öffnen",
+      removeCompetitor: "{domain} entfernen",
+      competitorRequired: "Geben Sie eine Webadresse ein.",
+      competitorInvalid: "Geben Sie eine Webadresse wie rival.com ein.",
+      competitorOwnSite: "Das ist Ihre eigene Website.",
+      competitorDuplicate: "{domain} ist bereits in Ihrer Liste.",
+      competitorNotPublic: "Diese Adresse ist keine öffentliche Website.",
+      competitorBlocked: "Soziale Netzwerke und große Plattformen wie Google, Amazon oder Wikipedia können nicht als Wettbewerber hinzugefügt werden.",
+      competitorUnreachable: "Wir konnten {domain} nicht erreichen. Prüfen Sie die Schreibweise und versuchen Sie es erneut.",
+      actionFailed: "Etwas ist schiefgelaufen. Versuchen Sie es erneut.",
     },
     setup: {
       launchChecklist: "Startcheckliste",
@@ -10852,6 +16767,23 @@ const de: Messages = {
       imageAltPlaceholder: "Was das Bild zeigt",
       replaceImage: "Bild ersetzen",
       saveImage: "Speichern",
+      toolbarLabel: "Textformatierung",
+      groupText: "Textstil",
+      groupHeadings: "Überschriften",
+      groupBlocks: "Listen und Blöcke",
+      groupLinks: "Links",
+      groupMedia: "Bilder",
+      groupHistory: "Rückgängig und wiederholen",
+      linkDialogTitle: "Link hinzufügen oder ändern",
+      linkDialogHelp: "Fügen Sie die vollständige Adresse ein, zum Beispiel https://example.com/seite.",
+      linkUrlLabel: "Linkadresse",
+      linkApply: "Übernehmen",
+      linkInvalid: "Geben Sie eine Adresse ein, die mit https://, http://, mailto:, tel:, / oder # beginnt.",
+      htmlHint: "Sie bearbeiten das HTML direkt. Alles Unsichere wird beim Speichern entfernt.",
+      richHint: "Die Formatierung bleibt schlicht, damit sie zum Stil Ihrer Website passt.",
+      editHtml: "HTML bearbeiten",
+      backToEditor: "Zurück zum Editor",
+      htmlToolbarOff: "Die Formatierungsschaltflächen sind aus, während Sie das HTML bearbeiten.",
       noMatches: "Keine Treffer.",
       noPicturesYet: "Noch keine Bilder - laden Sie eines hoch, um zu beginnen.",
     },

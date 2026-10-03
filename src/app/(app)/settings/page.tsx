@@ -1,49 +1,65 @@
-import { PersonalDetails } from "./personal-details";
-import { SettingsNav } from "@/components/settings-nav";
-import { PageShell } from "@/components/ui/page-header";
 import { and, eq } from "drizzle-orm";
+import { Users } from "lucide-react";
+import type { Metadata } from "next";
+import { cache } from "react";
+
+import { SettingsNav } from "@/components/settings-nav";
+import { PageHeader, PageShell } from "@/components/ui/page-header";
+import { WorkspaceSection } from "@/components/workspace/section";
 import { requireSession } from "@/lib/auth-guard";
-import { getAppMessages } from "@/lib/i18n/app-locale";
-import { getReferralSummary } from "@/lib/referrals/actions";
-import { REFERRAL_REWARD_CREDITS } from "@/lib/referrals/core";
 import { db } from "@/lib/db";
 import { account } from "@/lib/db/schema";
+import { getAppMessages } from "@/lib/i18n/app-locale";
+import { format } from "@/lib/i18n/format";
+import { getReferralSummary } from "@/lib/referrals/actions";
+import { REFERRAL_REWARD_CREDITS } from "@/lib/referrals/core";
+import type { ReferralSummary } from "@/lib/referrals/shared";
+import { siteUrl as canonicalSiteUrl } from "@/lib/site-url";
 import { listAccessibleWebsites } from "@/lib/websites/accessible";
-import {
-  readSelectedWebsite,
-  resolveWebsiteId,
-} from "@/lib/websites/selected";
-import { ReferralCard } from "./referral-card";
 import {
   listWebsiteInvitations,
   listWebsiteMembers,
+  type WebsiteInvitation,
+  type WebsiteMember,
 } from "@/lib/websites/members";
+import { readSelectedWebsite, resolveWebsiteId } from "@/lib/websites/selected";
 
-
+import { AccountSectionNav, type AccountSectionId } from "./account-section-nav";
+import { PersonalDetails } from "./personal-details";
+import { ReferralCard } from "./referral-card";
 import { WebsiteMembers } from "./website-members";
-import { siteUrl as canonicalSiteUrl } from "@/lib/site-url";
 
-export const metadata = { title: "Settings" };
+/** One read of the reader's language per request, shared by the title and the page. */
+const messagesFor = cache((userId: string) => getAppMessages(userId));
+
+export async function generateMetadata(): Promise<Metadata> {
+  const session = await requireSession();
+  const { t } = await messagesFor(session.user.id);
+  return { title: t.app.settings.pageTitle };
+}
 
 export default async function SettingsPage() {
   const session = await requireSession();
+  const { locale, t } = await messagesFor(session.user.id);
+  const copy = t.app.settings;
+
   /*
-    Resolved once for the page rather than per component. Each call is a
-    query, and several panels on this screen need the same answer.
+    The referral summary also creates the code on a first visit (a write), so
+    it stays in this per-request render. A failure there no longer takes the
+    whole Account page down with it: the referral section says so instead.
   */
-  const { locale, t } = await getAppMessages(session.user.id);
-  const referrals = await getReferralSummary();
+  let referrals: ReferralSummary | null = null;
+  try {
+    referrals = await getReferralSummary();
+  } catch (error) {
+    console.error("[settings] could not load the referral summary", error);
+  }
 
   /**
-   * The website the per-site settings links point at. Resolved the same way
-   * the sidebar does it — the remembered choice, then the first website, over
-   * every site this person can open — so both agree about which site
-   * "Publishing" means.
-   *
-   * Shared sites count here, unlike in the members panel below. Someone who
-   * opened Account from a site shared with them should still see that site's
-   * tab strip; resolving over owned sites only dropped the strip entirely for
-   * an invitee (they own none), stranding them on this page.
+   * The website the settings strip points at, resolved as the sidebar does -
+   * the remembered choice, then the first website - over every site this
+   * person can open. Shared sites count, so someone who opened Account from
+   * a site shared with them keeps that site's strip (without Billing).
    */
   const accessible = await listAccessibleWebsites();
   const remembered = await readSelectedWebsite();
@@ -55,14 +71,12 @@ export default async function SettingsPage() {
   const stripSite = accessible.find((site) => site.id === websiteId) ?? null;
 
   /**
-   * The members panel's sites: OWNED ONLY, chosen exactly as before.
-   *
-   * Inviting, removing and re-inviting people is the owner's decision, and
-   * the server refuses those actions to anyone else; a panel for a shared
-   * site would be a form of buttons that all fail. Resolved separately from
-   * the strip so an owner sees the same panel they always did, and a
-   * dual-role user who last looked at a shared site gets their own site here
-   * (the remembered one if it is theirs, else their oldest) rather than none.
+   * The members panel's sites: OWNED ONLY. Inviting and removing people is
+   * the owner's decision and the server refuses it to anyone else; a panel
+   * for a shared site would be a form of buttons that all fail. A dual-role
+   * user who last looked at a shared site gets their own site here (the
+   * remembered one if it is theirs, else their oldest), and the panel says
+   * that it is not the site on screen.
    */
   const owned = accessible
     .filter((site) => site.access === "owner")
@@ -72,8 +86,47 @@ export default async function SettingsPage() {
     remembered,
     owned.map((site) => site.id),
   );
-  const selectedSite =
-    owned.find((site) => site.id === membersSiteId) ?? null;
+  const selectedSite = owned.find((site) => site.id === membersSiteId) ?? null;
+  const viewingShared = stripSite && stripSite.access !== "owner" ? stripSite : null;
+
+  let initialMembers: WebsiteMember[] = [];
+  let initialInvitations: WebsiteInvitation[] = [];
+  let membersError = false;
+  if (selectedSite) {
+    try {
+      [initialMembers, initialInvitations] = await Promise.all([
+        listWebsiteMembers(selectedSite.id),
+        listWebsiteInvitations(selectedSite.id),
+      ]);
+    } catch (error) {
+      // The panel offers a retry rather than the whole page failing.
+      console.error("[settings] could not load website members", error);
+      membersError = true;
+    }
+  }
+
+  /*
+    How this person can sign in. A credential row WITH a hash means a
+    password exists: Better Auth's setPassword treats a credential row whose
+    password is null as "no password yet", so the bare row is not proof - it
+    would show a current-password field for a password they do not have.
+    The provider list (bounded; a handful of rows per person) says whether
+    "you sign in with Google" is true before the set-password form says it.
+  */
+  const [[credential], providers] = await Promise.all([
+    db
+      .select({ password: account.password })
+      .from(account)
+      .where(and(eq(account.userId, session.user.id), eq(account.providerId, "credential")))
+      .limit(1),
+    db
+      .select({ providerId: account.providerId })
+      .from(account)
+      .where(eq(account.userId, session.user.id))
+      .limit(10),
+  ]);
+  const hasPassword = Boolean(credential?.password);
+  const googleLinked = providers.some((row) => row.providerId === "google");
 
   /**
    * Falls back to the production domain rather than emitting a localhost link
@@ -81,115 +134,97 @@ export default async function SettingsPage() {
    */
   const appUrl = canonicalSiteUrl();
 
-  /*
-    A credential row with a hash in it means a password exists. Better Auth
-    stores one account row per sign-in method, so a Google-only user has no
-    "credential" row at all.
-
-    The password column is checked as well as the row, not just the row.
-    Better Auth's own setPassword handles a credential row whose password is
-    null as "no password yet" and fills it in, so treating the bare row as
-    proof of a password would show someone a current-password field for a
-    password they do not have — the exact dead end this screen is trying to
-    remove.
-  */
-  const [credential] = await db
-    .select({ password: account.password })
-    .from(account)
-    .where(
-      and(
-        eq(account.userId, session.user.id),
-        eq(account.providerId, "credential"),
-      ),
-    )
-    .limit(1);
-  const hasPassword = Boolean(credential?.password);
+  const guestTeamNote = !selectedSite && viewingShared;
+  const sections: { id: AccountSectionId; label: string }[] = [
+    { id: "profile", label: copy.personalTitle },
+    { id: "security", label: copy.securityTitle },
+    { id: "language", label: copy.languageTitle },
+    ...(selectedSite || guestTeamNote ? [{ id: "members" as const, label: copy.membersTitle }] : []),
+    { id: "referral", label: t.app.nav.referralProgram },
+  ];
 
   return (
-    <PageShell>
+    /*
+      Wide, like the website pages around it, so the settings strip keeps one
+      width from tab to tab.
+    */
+    <PageShell width="wide">
       {/*
         The same five-section strip as the website pages, so Account is one
-        tab of a set rather than a separate place you arrive at. websiteId
-        may be null when the workspace has no site yet; the strip then still
-        renders and its per-website tabs simply have nowhere to point, which
-        is honest — there is no website to configure.
-
-        access is the selected site's, so on a site shared with this person
-        the strip drops Billing, as it does on that site's own pages.
+        tab of a set. access is the selected site's, so on a shared site the
+        strip drops Billing, as it does on that site's own pages.
       */}
-      {stripSite ? (
-        <SettingsNav
-          websiteId={stripSite.id}
-          access={stripSite.access}
-          t={t.app.nav}
-        />
-      ) : null}
+      {stripSite ? <SettingsNav websiteId={stripSite.id} access={stripSite.access} t={t.app.nav} /> : null}
 
-      {/*
-        Editable now, rather than a read-only definition list. The name was
-        displayed with no way to correct it — someone who signed up with a
-        typo, or whose Google account carries a different name than they use
-        at work, was stuck with it.
-      */}
-      <PersonalDetails
-        initialName={session.user.name ?? ""}
-        email={session.user.email}
-        /*
-          Whether there is an existing password, which decides WHICH form the
-          button opens rather than whether the button appears. An account
-          created through Google has a "google" provider row and no
-          credential one: it gets a form that asks for a new password only,
-          because there is no current password to ask for. Both roads end at
-          a customer who can sign in with an email and a password.
-        */
-        hasPassword={hasPassword}
-        initialLocale={locale}
-        t={t.app.settings}
-      />
+      <PageHeader title={copy.pageTitle} description={copy.pageDescription} />
 
-      {/*
-        NO LINK CARDS HERE.
+      <div className="lg:grid lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-8">
+        <aside className="hidden lg:block">
+          <AccountSectionNav sections={sections} label={t.app.workspace.onThisPage} variant="rail" />
+        </aside>
 
-        This rendered four cards - Billing, Website profile, Publishing,
-        Google - each linking to a page the strip at the top of this screen
-        already has a tab for. The client marked the whole block: it was a
-        second navigation stacked under the first, pointing at the same five
-        places, and the "Publishing" card now pointed somewhere that panel no
-        longer lives.
+        <div className="min-w-0 space-y-6">
+          <AccountSectionNav
+            sections={sections}
+            label={t.app.workspace.jumpTo}
+            variant="bar"
+            className="lg:hidden"
+          />
 
-        The strip replaced it. Two navigations for one set of destinations is
-        one too many, and the one that duplicates is the one that goes stale.
-      */}
+          <PersonalDetails
+            initialName={session.user.name ?? ""}
+            email={session.user.email}
+            hasPassword={hasPassword}
+            googleLinked={googleLinked}
+            initialLocale={locale}
+            articleLanguageSite={
+              stripSite ? { href: `/websites/${stripSite.id}/profile`, domain: stripSite.domain } : null
+            }
+            t={copy}
+            tWorkspace={t.app.workspace}
+          />
 
-      {/*
-        Collaborators are per website, so the panel takes every site owned
-        here and picks between them itself. With no website there is nobody to
-        invite to anything yet.
-      */}
-      {selectedSite ? (
-        <WebsiteMembers
-          sites={owned}
-          initialWebsiteId={selectedSite.id}
-          initialMembers={await listWebsiteMembers(selectedSite.id)}
-          initialInvitations={await listWebsiteInvitations(selectedSite.id)}
-          locale={locale}
-          t={t.app.settings}
-        />
-      ) : null}
+          {/*
+            Collaborators are per website: the panel takes every site owned
+            here and picks between them itself. Someone who owns none but
+            works on a shared site is told who manages access instead of
+            being shown controls the server would refuse.
+          */}
+          {selectedSite ? (
+            <WebsiteMembers
+              sites={owned}
+              initialWebsiteId={selectedSite.id}
+              initialMembers={initialMembers}
+              initialInvitations={initialInvitations}
+              initialError={membersError}
+              ownEmail={session.user.email}
+              viewingSharedDomain={viewingShared?.domain ?? null}
+              locale={locale}
+              t={copy}
+              tWorkspace={t.app.workspace}
+            />
+          ) : guestTeamNote ? (
+            <WorkspaceSection id="members" icon={Users} title={copy.membersTitle}>
+              <p className="text-sm text-muted-foreground">
+                {format(copy.guestTeamNote, {
+                  domain: guestTeamNote.domain,
+                  role: guestTeamNote.access === "viewer" ? copy.roleViewer : copy.roleEditor,
+                })}
+              </p>
+            </WorkspaceSection>
+          ) : null}
 
-      {/*
-        The target for the sidebar's "Referral program" link. scroll-mt clears
-        the sticky header, as on Billing's #addons.
-      */}
-      <div id="referral" className="scroll-mt-20">
-        <ReferralCard
-          summary={referrals}
-          rewardCredits={REFERRAL_REWARD_CREDITS}
-          appUrl={appUrl}
-          locale={locale}
-          t={t.app.referral}
-          tCommon={t.app.common}
-        />
+          {/* Carries id="referral", the target of the sidebar's "Referral program" link. */}
+          <ReferralCard
+            summary={referrals}
+            rewardCredits={REFERRAL_REWARD_CREDITS}
+            appUrl={appUrl}
+            locale={locale}
+            t={t.app.referral}
+            tCommon={t.app.common}
+            tWorkspace={t.app.workspace}
+          />
+        </div>
       </div>
     </PageShell>
   );

@@ -4,7 +4,7 @@ import Image from "@tiptap/extension-image";
 import { TableKit } from "@tiptap/extension-table";
 import { ARTICLE_TABLE_CLASSES } from "@/lib/articles/table-styles";
 import Link from "@tiptap/extension-link";
-import { EditorContent, useEditor, type Editor } from "@tiptap/react";
+import { EditorContent, useEditor, useEditorState, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Extension } from "@tiptap/core";
 import {
@@ -23,10 +23,21 @@ import {
   Redo2,
   Strikethrough,
   Undo2,
+  type LucideIcon,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useId, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { ImagePicker, type PickerImage } from "@/components/image-picker";
 import { cn } from "@/lib/utils";
 import { getMessages, type Messages } from "@/lib/i18n/messages";
@@ -290,6 +301,314 @@ function Toolbar({
   );
 }
 
+/**
+ * What a typed link address becomes: the href to set, "" to remove the link,
+ * or null when it cannot be a link. Mirrors the sanitiser's rule (http,
+ * https, mailto and tel, or a relative address) so a link that would vanish
+ * on save is refused here, with a reason, instead. A bare domain such as
+ * "example.com/page" gets https:// - what someone typing it means.
+ */
+export function linkHref(input: string): string | null {
+  const value = input.trim();
+  if (value === "") return "";
+  if (/\s/.test(value)) return null;
+  if (/^https?:\/\/[^/?#]+/i.test(value)) return value;
+  if (/^(mailto|tel):.+/i.test(value)) return value;
+  if (value.startsWith("/") || value.startsWith("#") || value.startsWith("?")) return value;
+  // Any other scheme (javascript:, data:, ftp:) is not a link an article may carry.
+  if (/^[a-z][a-z0-9+.-]*:/i.test(value)) return null;
+  if (/^[^/?#]+\.[a-z]{2,}(?:[/?#].*)?$/i.test(value)) return `https://${value}`;
+  return null;
+}
+
+type ToolItem = {
+  key: string;
+  label: string;
+  icon: LucideIcon;
+  onClick: () => void;
+  /** A toggle's state (aria-pressed). Absent for plain actions. */
+  pressed?: boolean;
+  /** Shown as current without being a toggle (the caret is on a link). */
+  current?: boolean;
+  disabled?: boolean;
+  busy?: boolean;
+};
+
+/**
+ * The toolbar of the workspace variant: the same commands as the classic
+ * one, in labelled groups, as one ARIA toolbar (a single Tab stop; arrow
+ * keys, Home and End move along it), with its active states read live from
+ * the editor so Bold or a link shows as such wherever the caret moves.
+ *
+ * The sticky offset and stacking are the classic toolbar's (top-14 under
+ * the customer header, z-30 under it).
+ */
+function WorkspaceToolbar({
+  editor,
+  onInsertImage,
+  onEditLink,
+  uploading,
+  disabled,
+  t,
+}: {
+  editor: Editor;
+  onInsertImage?: () => void;
+  onEditLink: () => void;
+  uploading: boolean;
+  /** Everything off: HTML mode, or editing paused. */
+  disabled: boolean;
+  t: Messages["app"]["editorUi"];
+}) {
+  const state = useEditorState({
+    editor,
+    selector: ({ editor: current }) => ({
+      bold: current.isActive("bold"),
+      italic: current.isActive("italic"),
+      strike: current.isActive("strike"),
+      h2: current.isActive("heading", { level: 2 }),
+      h3: current.isActive("heading", { level: 3 }),
+      bullet: current.isActive("bulletList"),
+      ordered: current.isActive("orderedList"),
+      quote: current.isActive("blockquote"),
+      code: current.isActive("code"),
+      link: current.isActive("link"),
+      canUndo: current.can().undo(),
+      canRedo: current.can().redo(),
+    }),
+  });
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const [focusKey, setFocusKey] = useState("bold");
+
+  const chain = () => editor.chain().focus();
+  const groups: { label: string; items: ToolItem[] }[] = [
+    {
+      label: t.groupText,
+      items: [
+        { key: "bold", label: t.bold, icon: Bold, pressed: state.bold, onClick: () => chain().toggleBold().run() },
+        { key: "italic", label: t.italic, icon: Italic, pressed: state.italic, onClick: () => chain().toggleItalic().run() },
+        { key: "strike", label: t.strikethrough, icon: Strikethrough, pressed: state.strike, onClick: () => chain().toggleStrike().run() },
+      ],
+    },
+    {
+      label: t.groupHeadings,
+      items: [
+        { key: "h2", label: t.heading, icon: Heading2, pressed: state.h2, onClick: () => chain().toggleHeading({ level: 2 }).run() },
+        { key: "h3", label: t.subheading, icon: Heading3, pressed: state.h3, onClick: () => chain().toggleHeading({ level: 3 }).run() },
+      ],
+    },
+    {
+      label: t.groupBlocks,
+      items: [
+        { key: "bullet", label: t.bulletedList, icon: List, pressed: state.bullet, onClick: () => chain().toggleBulletList().run() },
+        { key: "ordered", label: t.numberedList, icon: ListOrdered, pressed: state.ordered, onClick: () => chain().toggleOrderedList().run() },
+        { key: "quote", label: t.quote, icon: Quote, pressed: state.quote, onClick: () => chain().toggleBlockquote().run() },
+        { key: "code", label: t.code, icon: Code, pressed: state.code, onClick: () => chain().toggleCode().run() },
+      ],
+    },
+    {
+      label: t.groupLinks,
+      items: [
+        { key: "link", label: t.addLink, icon: Link2, current: state.link, onClick: onEditLink },
+        {
+          key: "unlink",
+          label: t.removeLink,
+          icon: Link2Off,
+          disabled: !state.link,
+          onClick: () => chain().extendMarkRange("link").unsetLink().run(),
+        },
+      ],
+    },
+    ...(onInsertImage
+      ? [
+          {
+            label: t.groupMedia,
+            items: [
+              {
+                key: "image",
+                label: t.insertImage,
+                icon: uploading ? Loader2 : ImagePlus,
+                busy: uploading,
+                disabled: uploading,
+                onClick: onInsertImage,
+              },
+            ],
+          },
+        ]
+      : []),
+    {
+      label: t.groupHistory,
+      items: [
+        { key: "undo", label: t.undo, icon: Undo2, disabled: !state.canUndo, onClick: () => chain().undo().run() },
+        { key: "redo", label: t.redo, icon: Redo2, disabled: !state.canRedo, onClick: () => chain().redo().run() },
+      ],
+    },
+  ];
+
+  // One Tab stop: the last focused button, or the first that can be used.
+  const usable = groups.flatMap((group) => group.items).filter((item) => !disabled && !item.disabled).map((item) => item.key);
+  const tabKey = usable.includes(focusKey) ? focusKey : usable[0];
+
+  function onKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    if (!["ArrowRight", "ArrowLeft", "Home", "End"].includes(event.key) || !toolbarRef.current) return;
+    const buttons = Array.from(toolbarRef.current.querySelectorAll<HTMLButtonElement>("button[data-tool]:not(:disabled)"));
+    const index = buttons.findIndex((button) => button === document.activeElement);
+    if (index === -1) return;
+    event.preventDefault();
+    const next =
+      event.key === "Home"
+        ? 0
+        : event.key === "End"
+          ? buttons.length - 1
+          : (index + (event.key === "ArrowRight" ? 1 : -1) + buttons.length) % buttons.length;
+    buttons[next]?.focus();
+  }
+
+  return (
+    <div
+      ref={toolbarRef}
+      role="toolbar"
+      aria-label={t.toolbarLabel}
+      onKeyDown={onKeyDown}
+      className="sticky top-14 z-30 flex flex-wrap items-center gap-0.5 rounded-t-md border border-b-0 border-input bg-muted p-1"
+    >
+      {groups.map((group, index) => (
+        <Fragment key={group.label}>
+          {index > 0 ? <div className="mx-1 h-5 w-px bg-border" aria-hidden="true" /> : null}
+          <div role="group" aria-label={group.label} className="flex flex-wrap items-center gap-0.5">
+            {group.items.map((item) => {
+              const Icon = item.icon;
+              const highlighted = item.pressed || item.current;
+              return (
+                <Button
+                  key={item.key}
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  data-tool={item.key}
+                  tabIndex={item.key === tabKey ? 0 : -1}
+                  onFocus={() => setFocusKey(item.key)}
+                  onClick={item.onClick}
+                  disabled={disabled || item.disabled}
+                  aria-label={item.label}
+                  aria-pressed={item.pressed}
+                  title={item.label}
+                  className={cn(
+                    "size-8 p-0",
+                    // Visible on the muted bar (the classic accent is the same grey as the bar).
+                    highlighted && "bg-background text-foreground shadow-xs ring-1 ring-border hover:bg-background",
+                  )}
+                >
+                  <Icon className={cn("size-4", item.busy && "animate-spin motion-reduce:animate-none")} aria-hidden="true" />
+                </Button>
+              );
+            })}
+          </div>
+        </Fragment>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Adding or changing a link, in a dialog rather than the browser's own
+ * prompt (which is English, unstyled and cannot explain a refusal).
+ */
+function LinkDialog({
+  open,
+  initial,
+  hasLink,
+  onApply,
+  onRemove,
+  onClose,
+  onCloseAutoFocus,
+  t,
+  tCommon,
+}: {
+  open: boolean;
+  initial: string;
+  hasLink: boolean;
+  onApply: (href: string) => void;
+  onRemove: () => void;
+  onClose: () => void;
+  onCloseAutoFocus: (event: Event) => void;
+  t: Messages["app"]["editorUi"];
+  tCommon: Messages["app"]["common"];
+}) {
+  const [value, setValue] = useState(initial);
+  const [error, setError] = useState<string | null>(null);
+  const id = useId();
+  const inputId = `${id}-href`;
+  const errorId = `${id}-error`;
+
+  function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const href = linkHref(value);
+    if (href === "") {
+      if (hasLink) onRemove();
+      else onClose();
+      return;
+    }
+    if (href === null) {
+      setError(t.linkInvalid);
+      return;
+    }
+    onApply(href);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(next) => (next ? undefined : onClose())}>
+      <DialogContent
+        showCloseButton={false}
+        onCloseAutoFocus={onCloseAutoFocus}
+        className="sm:max-w-md motion-reduce:data-closed:animate-none motion-reduce:data-open:animate-none"
+      >
+        <form onSubmit={submit} className="grid gap-4">
+          <DialogHeader>
+            <DialogTitle>{t.linkDialogTitle}</DialogTitle>
+            <DialogDescription>{t.linkDialogHelp}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1.5">
+            <Label htmlFor={inputId}>{t.linkUrlLabel}</Label>
+            <Input
+              id={inputId}
+              value={value}
+              onChange={(event) => {
+                setValue(event.target.value);
+                setError(null);
+              }}
+              inputMode="url"
+              autoComplete="url"
+              spellCheck={false}
+              placeholder="https://"
+              aria-invalid={error ? true : undefined}
+              aria-describedby={error ? errorId : undefined}
+            />
+            {error ? (
+              <p id={errorId} role="alert" className="text-xs text-destructive">
+                {error}
+              </p>
+            ) : null}
+          </div>
+          <DialogFooter>
+            {hasLink ? (
+              <Button type="button" variant="ghost" onClick={onRemove} className="sm:mr-auto">
+                {t.removeLink}
+              </Button>
+            ) : null}
+            <Button type="button" variant="outline" onClick={onClose}>
+              {tCommon.cancel}
+            </Button>
+            <Button type="submit">{t.linkApply}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** The editable area's classes, shared by both variants. */
+const CONTENT_CLASSES = `${ARTICLE_TABLE_CLASSES} min-h-[28rem] px-3 py-2 text-sm focus:outline-none [&_h2]:mt-6 [&_h2]:text-lg [&_h2]:font-semibold [&_h3]:mt-5 [&_h3]:text-base [&_h3]:font-semibold [&_p]:my-3 [&_ul]:my-3 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:my-3 [&_ol]:list-decimal [&_ol]:pl-6 [&_li]:my-1 [&_a]:text-primary [&_a]:underline [&_blockquote]:my-3 [&_blockquote]:border-l-2 [&_blockquote]:pl-4 [&_blockquote]:text-muted-foreground [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-xs [&_img]:my-6 [&_img]:block [&_img]:mx-auto [&_img]:max-w-[min(100%,36rem)] [&_img]:max-h-[30rem] [&_img]:h-auto [&_img]:w-auto [&_img]:rounded-lg [&_img]:border [&_img]:object-contain`;
+
 export function RichTextEditor({
   value,
   onChange,
@@ -297,10 +616,33 @@ export function RichTextEditor({
   onUploadImage,
   onListImages,
   t = getMessages("en").app.editorUi,
+  variant = "classic",
+  tCommon,
+  editable = true,
+  contentClassName,
+  describedBy,
 }: {
   value: string;
   onChange: (html: string) => void;
   ariaLabel?: string;
+  /**
+   * "classic" (the default) is the editor exactly as the admin article,
+   * network review and blog editors use it - their sticky offsets target its
+   * toolbar classes. "workspace" is opt-in for the customer article page: a
+   * grouped, keyboard-navigable toolbar with live states, a link dialog in
+   * place of the browser prompt, the image picker in an accessible dialog
+   * (focus trap, Escape, focus return), translated picker and HTML-mode
+   * text, and no duplicate link extension.
+   */
+  variant?: "classic" | "workspace";
+  /** Shared words for the picker (Cancel, Remove, Upload, search). Workspace variant. */
+  tCommon?: Messages["app"]["common"];
+  /** False pauses editing (contenteditable off, toolbar off). Defaults to true. */
+  editable?: boolean;
+  /** Extra classes on the editable area, e.g. a reading width. Workspace variant. */
+  contentClassName?: string;
+  /** Id of a hint describing the editor. Workspace variant. */
+  describedBy?: string;
   /**
    * The toolbar's wording, defaulting to English.
    *
@@ -401,6 +743,14 @@ export function RichTextEditor({
     [onUploadImage],
   );
 
+  const workspace = variant === "workspace";
+  /** Workspace variant: the element to focus when a dialog closes, and whether the editor should get it instead. */
+  const pickerReturnRef = useRef<HTMLElement | null>(null);
+  const focusEditorOnCloseRef = useRef(false);
+  const linkReturnRef = useRef<HTMLElement | null>(null);
+  const [link, setLink] = useState({ open: false, initial: "", hasLink: false, key: 0 });
+  const sourceHintId = useId();
+
   /**
    * Opens the panel beside whatever the customer is pointing at.
    *
@@ -409,6 +759,9 @@ export function RichTextEditor({
    * coordinate would drift as soon as the page scrolled.
    */
   const openPicker = useCallback((replacing?: string, alt?: string | null) => {
+    // Where focus goes back to when the workspace dialog closes without a change.
+    pickerReturnRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    focusEditorOnCloseRef.current = false;
     setEditingImage(replacing ?? null);
     setEditingAlt(replacing ? (alt ?? null) : null);
     setPickerOpen(true);
@@ -423,11 +776,16 @@ export function RichTextEditor({
 
   const editor = useEditor({
     extensions: [
-      StarterKit.configure({
-        // The title is the H1; a second one competes with it, and the
-        // sanitiser rewrites it to H2 anyway.
-        heading: { levels: [2, 3, 4] },
-      }),
+      StarterKit.configure(
+        workspace
+          ? // StarterKit 3 bundles Link too; the one configured below is the only one wanted.
+            { heading: { levels: [2, 3, 4] }, link: false }
+          : {
+              // The title is the H1; a second one competes with it, and the
+              // sanitiser rewrites it to H2 anyway.
+              heading: { levels: [2, 3, 4] },
+            },
+      ),
       Link.configure({
         openOnClick: false,
         autolink: true,
@@ -461,9 +819,12 @@ export function RichTextEditor({
        * Clicking an image opens the panel for it, so it can be changed or
        * removed. Without this an image was final once inserted: the only way
        * to replace one was to delete it by hand and start again.
+       *
+       * Not while editing is paused (editable={false}); the classic editor is
+       * always editable, so this changes nothing there.
        */
       handleClickOn(view, pos, node, nodePos) {
-        if (node.type.name !== "image" || !onUploadImage) return false;
+        if (node.type.name !== "image" || !onUploadImage || !view.editable) return false;
 
         editingPosRef.current = nodePos;
         openPickerRef.current?.((node.attrs.src as string) ?? undefined, (node.attrs.alt as string | null) ?? null);
@@ -472,7 +833,7 @@ export function RichTextEditor({
       handlePaste(view, event) {
         const files = Array.from(event.clipboardData?.files ?? []);
         const image = files.find((file) => file.type.startsWith("image/"));
-        if (!image || !onUploadImage) return false;
+        if (!image || !onUploadImage || !view.editable) return false;
 
         event.preventDefault();
         void insertUploaded(image);
@@ -482,23 +843,29 @@ export function RichTextEditor({
         const dropped = event as DragEvent;
         const files = Array.from(dropped.dataTransfer?.files ?? []);
         const image = files.find((file) => file.type.startsWith("image/"));
-        if (!image || !onUploadImage) return false;
+        if (!image || !onUploadImage || !view.editable) return false;
 
         dropped.preventDefault();
         void insertUploaded(image);
         return true;
       },
-      attributes: {
-        "aria-label": ariaLabel,
-        /**
-         * Explicit child selectors rather than `prose`:
-         * @tailwindcss/typography is not installed, so the prose class is inert
-         * here and headings would render at body size. This mirrors how the
-         * preview tab styles the same HTML, so the two views agree.
-         */
-        class:
-          `${ARTICLE_TABLE_CLASSES} min-h-[28rem] px-3 py-2 text-sm focus:outline-none [&_h2]:mt-6 [&_h2]:text-lg [&_h2]:font-semibold [&_h3]:mt-5 [&_h3]:text-base [&_h3]:font-semibold [&_p]:my-3 [&_ul]:my-3 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:my-3 [&_ol]:list-decimal [&_ol]:pl-6 [&_li]:my-1 [&_a]:text-primary [&_a]:underline [&_blockquote]:my-3 [&_blockquote]:border-l-2 [&_blockquote]:pl-4 [&_blockquote]:text-muted-foreground [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-xs [&_img]:my-6 [&_img]:block [&_img]:mx-auto [&_img]:max-w-[min(100%,36rem)] [&_img]:max-h-[30rem] [&_img]:h-auto [&_img]:w-auto [&_img]:rounded-lg [&_img]:border [&_img]:object-contain`,
-      },
+      /**
+       * Explicit child selectors rather than `prose`:
+       * @tailwindcss/typography is not installed, so the prose class is inert
+       * here and headings would render at body size (CONTENT_CLASSES).
+       */
+      attributes: workspace
+        ? {
+            "aria-label": ariaLabel,
+            role: "textbox",
+            "aria-multiline": "true",
+            ...(describedBy ? { "aria-describedby": describedBy } : {}),
+            class: contentClassName ? `${CONTENT_CLASSES} ${contentClassName}` : CONTENT_CLASSES,
+          }
+        : {
+            "aria-label": ariaLabel,
+            class: CONTENT_CLASSES,
+          },
     },
     onUpdate: ({ editor: instance }) => onChange(instance.getHTML()),
   });
@@ -525,6 +892,17 @@ export function RichTextEditor({
     }
   }, [editor, value]);
 
+  /*
+    Paused editing. Only ever called when the prop is false or changes back:
+    the default (true) matches a new editor, so the classic editor is never
+    touched. No update event, so pausing is not an edit.
+  */
+  useEffect(() => {
+    if (editor && !editor.isDestroyed && editor.isEditable !== editable) {
+      editor.setEditable(editable, false);
+    }
+  }, [editor, editable]);
+
   if (!editor) {
     // Matches the editor's height so the card does not jump on mount.
     return (
@@ -532,18 +910,142 @@ export function RichTextEditor({
     );
   }
 
+  /* Workspace variant: the link dialog and the picker dialog. */
+  function openLinkDialog() {
+    if (!editor) return;
+    linkReturnRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    focusEditorOnCloseRef.current = false;
+    const href = (editor.getAttributes("link").href as string | undefined) ?? "";
+    setLink((previous) => ({ open: true, initial: href, hasLink: editor.isActive("link"), key: previous.key + 1 }));
+  }
+
+  function closeLink() {
+    setLink((previous) => ({ ...previous, open: false }));
+  }
+
+  /*
+    The edits run without .focus() while the dialog still holds focus (its
+    focus trap would fight the editor); the editor takes focus as the dialog
+    closes, with the selection the command left.
+  */
+  function applyLink(href: string) {
+    if (!editor) return;
+    const { empty } = editor.state.selection;
+    if (empty && !editor.isActive("link")) {
+      // Nothing selected: the address itself becomes the linked text.
+      editor.chain().insertContent({ type: "text", text: href, marks: [{ type: "link", attrs: { href } }] }).run();
+    } else {
+      editor.chain().extendMarkRange("link").setLink({ href }).run();
+    }
+    focusEditorOnCloseRef.current = true;
+    closeLink();
+  }
+
+  function removeLink() {
+    if (!editor) return;
+    editor.chain().extendMarkRange("link").unsetLink().run();
+    focusEditorOnCloseRef.current = true;
+    closeLink();
+  }
+
+  function returnFocus(event: Event, fallback: HTMLElement | null) {
+    event.preventDefault();
+    if (focusEditorOnCloseRef.current || !fallback || !fallback.isConnected) {
+      editor?.commands.focus();
+    } else {
+      fallback.focus();
+    }
+    focusEditorOnCloseRef.current = false;
+  }
+
+  function insertFromPicker(url: string, altText: string) {
+    if (!editor) return;
+    const at = editingPosRef.current;
+    // null drops the attribute rather than saving alt="" (see the classic picker below).
+    const alt = altText || null;
+    if (editingImage && at !== null) {
+      editor.chain().setNodeSelection(at).updateAttributes("image", { src: url, alt }).run();
+    } else {
+      editor.chain().setImage({ src: url, alt: alt ?? undefined }).run();
+    }
+    editingPosRef.current = null;
+    focusEditorOnCloseRef.current = true;
+    setPickerOpen(false);
+  }
+
+  function removeFromPicker() {
+    if (!editor) return;
+    const at = editingPosRef.current;
+    if (at !== null) editor.chain().setNodeSelection(at).deleteSelection().run();
+    editingPosRef.current = null;
+    focusEditorOnCloseRef.current = true;
+    setPickerOpen(false);
+  }
+
   return (
     <div>
-      <Toolbar
-        editor={editor}
-        uploading={uploading}
-        onInsertImage={
-          onUploadImage ? openPickerAtCaret : undefined
-        }
-        t={t}
-      />
+      {workspace ? (
+        <WorkspaceToolbar
+          editor={editor}
+          uploading={uploading}
+          onInsertImage={onUploadImage ? openPickerAtCaret : undefined}
+          onEditLink={openLinkDialog}
+          disabled={!editable || showSource}
+          t={t}
+        />
+      ) : (
+        <Toolbar
+          editor={editor}
+          uploading={uploading}
+          onInsertImage={
+            onUploadImage ? openPickerAtCaret : undefined
+          }
+          t={t}
+        />
+      )}
 
-      {pickerOpen && onUploadImage ? (
+      {workspace ? (
+        <>
+          <Dialog open={pickerOpen && Boolean(onUploadImage)} onOpenChange={(open) => (open ? undefined : setPickerOpen(false))}>
+            <DialogContent
+              showCloseButton={false}
+              aria-describedby={undefined}
+              onCloseAutoFocus={(event) => returnFocus(event, pickerReturnRef.current)}
+              className="top-4 max-h-[calc(100svh-2rem)] translate-y-0 overflow-y-auto bg-transparent p-0 ring-0 sm:top-16 sm:max-h-[calc(100svh-5rem)] sm:max-w-2xl motion-reduce:data-closed:animate-none motion-reduce:data-open:animate-none"
+            >
+              <DialogTitle className="sr-only">{t.chooseImage}</DialogTitle>
+              {pickerOpen && onUploadImage ? (
+                <ImagePicker
+                  className="my-0"
+                  images={pickerImages}
+                  loading={pickerLoading}
+                  selected={editingImage}
+                  alt={editingAlt}
+                  onSearch={loadImages}
+                  onUpload={onUploadImage}
+                  onInsert={insertFromPicker}
+                  onRemove={editingImage ? removeFromPicker : undefined}
+                  onClose={() => setPickerOpen(false)}
+                  t={t}
+                  tCommon={tCommon ?? getMessages("en").app.common}
+                />
+              ) : null}
+            </DialogContent>
+          </Dialog>
+          <LinkDialog
+            key={link.key}
+            open={link.open}
+            initial={link.initial}
+            hasLink={link.hasLink}
+            onApply={applyLink}
+            onRemove={removeLink}
+            onClose={closeLink}
+            onCloseAutoFocus={(event) => returnFocus(event, linkReturnRef.current)}
+            t={t}
+            tCommon={tCommon ?? getMessages("en").app.common}
+          />
+        </>
+      ) : pickerOpen && onUploadImage ? (
         /*
           Fixed to the viewport rather than absolutely placed over the text.
           Overlaying covered whatever it opened next to — clicking an image
@@ -635,6 +1137,8 @@ export function RichTextEditor({
           onChange={(event) => onChange(event.target.value)}
           rows={20}
           aria-label={t.articleHtml}
+          aria-describedby={workspace ? sourceHintId : undefined}
+          readOnly={workspace && !editable ? true : undefined}
           className="flex w-full rounded-b-md border border-input bg-transparent px-3 py-2 font-mono text-xs shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
         />
       ) : (
@@ -644,22 +1148,41 @@ export function RichTextEditor({
         />
       )}
 
-      <div className="mt-1.5 flex items-center justify-between">
-        <p className="text-xs text-muted-foreground">
-          {showSource
-            ? "Editing the HTML directly. Anything unsafe is removed when you save."
-            : "Formatting is kept simple so it matches your site's own styling."}
-        </p>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={() => setShowSource((previous) => !previous)}
-          className="h-7 text-xs"
-        >
-          {showSource ? "Back to editor" : "Edit HTML"}
-        </Button>
-      </div>
+      {workspace ? (
+        <div className="mt-1.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+          <p id={sourceHintId} className="min-w-0 text-xs text-muted-foreground">
+            {showSource ? `${t.htmlHint} ${t.htmlToolbarOff}` : t.richHint}
+          </p>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            aria-pressed={showSource}
+            disabled={!editable}
+            onClick={() => setShowSource((previous) => !previous)}
+            className="h-7 text-xs"
+          >
+            {showSource ? t.backToEditor : t.editHtml}
+          </Button>
+        </div>
+      ) : (
+        <div className="mt-1.5 flex items-center justify-between">
+          <p className="text-xs text-muted-foreground">
+            {showSource
+              ? "Editing the HTML directly. Anything unsafe is removed when you save."
+              : "Formatting is kept simple so it matches your site's own styling."}
+          </p>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowSource((previous) => !previous)}
+            className="h-7 text-xs"
+          >
+            {showSource ? "Back to editor" : "Edit HTML"}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

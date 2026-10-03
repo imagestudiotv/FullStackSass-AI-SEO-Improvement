@@ -1,11 +1,11 @@
 "use client";
 
-import { AlertTriangle, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useTransition } from "react";
-import { toast } from "sonner";
+import { useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Notice } from "@/components/workspace/notice";
 import { confirmNotPublished } from "@/lib/publishing/actions";
 
 /**
@@ -13,46 +13,56 @@ import { confirmNotPublished } from "@/lib/publishing/actions";
  * cannot be searched for the post (lib/publishing/dispatch.ts). Rather than
  * risk a duplicate post, publishing waits until someone looks. Confirming
  * records who checked; the next Publish press creates the post.
+ *
+ * Viewers see the notice without the button (the server refuses them too).
  */
 export function UncertainPublication({
   websiteId,
   articleId,
   canEdit,
   text,
+  errorText,
 }: {
   websiteId: string;
   articleId: string;
   canEdit: boolean;
   text: { title: string; help: string; confirm: string; confirmed: string };
+  /** Translates a refusal from the server. */
+  errorText: (error: string) => string;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
+  const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
+
+  function confirm() {
+    setResult(null);
+    start(async () => {
+      const response = await confirmNotPublished(websiteId, articleId);
+      if (!response.ok) {
+        setResult({ ok: false, message: errorText(response.error) });
+        return;
+      }
+      setResult({ ok: true, message: text.confirmed });
+      router.refresh();
+    });
+  }
+
   return (
-    <div role="status" className="flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900 sm:flex-row sm:items-center dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
-      <AlertTriangle className="size-5 shrink-0" aria-hidden="true" />
-      <div className="flex-1">
-        <p className="text-sm font-semibold">{text.title}</p>
-        <p className="text-xs">{text.help}</p>
-      </div>
+    <Notice tone="warning" role="status" title={text.title}>
+      <p>{text.help}</p>
       {canEdit ? (
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          disabled={pending}
-          onClick={() =>
-            start(async () => {
-              const result = await confirmNotPublished(websiteId, articleId);
-              if (!result.ok) return void toast.error(result.error);
-              toast.success(text.confirmed);
-              router.refresh();
-            })
-          }
-        >
-          {pending ? <Loader2 className="size-4 animate-spin" /> : null}
-          {text.confirm}
-        </Button>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <Button type="button" size="sm" variant="outline" disabled={pending} onClick={confirm} className="h-auto min-h-7 max-w-full shrink whitespace-normal text-left">
+            {pending ? <Loader2 className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> : null}
+            {text.confirm}
+          </Button>
+          {result ? (
+            <p role={result.ok ? "status" : "alert"} className={result.ok ? "text-emerald-800" : "text-destructive"}>
+              {result.message}
+            </p>
+          ) : null}
+        </div>
       ) : null}
-    </div>
+    </Notice>
   );
 }

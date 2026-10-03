@@ -44,35 +44,38 @@ export const ARTICLE_STYLES: Option[] = [
 ];
 
 /**
- * Image styles for pictures INSIDE the article body.
+ * The image styles offered, by stored id.
  *
- * Kept separate from the cover: the design has both, and they are genuinely
- * different jobs — a sketch reads well as a header and poorly as the third
- * illustration in a row.
+ * ONE IMAGE PER ARTICLE. `image_style` (these ids) decides the style of the
+ * single image generated for each article - the header image, which the CMS
+ * also uses as the featured image. No images are generated inside the body.
+ *
+ * Labels and hints live in the dictionary (messages.ts, app.article
+ * .bodyImageStyles / coverImageStyles) so every language gets them. The ids
+ * are stored values and name the example files in public/style-samples, so
+ * they never change.
  */
-export const IMAGE_STYLES: Option[] = [
-  { id: "sketch", label: "Sketch", hint: "Hand-drawn line work." },
-  { id: "watercolour", label: "Watercolour", hint: "Soft painted washes." },
-  { id: "realistic", label: "Realistic", hint: "Photographic." },
-  { id: "illustration", label: "Illustration", hint: "Flat vector shapes." },
-  {
-    id: "brand-text",
-    label: "Brand & Text",
-    hint: "Your colours, with the headline set into the image.",
-  },
-];
+export const IMAGE_STYLE_IDS = [
+  "sketch",
+  "watercolour",
+  "realistic",
+  "illustration",
+  "brand-text",
+] as const;
 
-/** Cover image styles. The last one follows whatever the body uses. */
-export const FEATURED_IMAGE_STYLES: Option[] = [
-  { id: "sketch", label: "Sketch", hint: "Title cover." },
-  { id: "watercolour", label: "Watercolour", hint: "Title cover." },
-  { id: "illustration", label: "Illustration", hint: "Title cover." },
-  {
-    id: "match",
-    label: "Match article images",
-    hint: "Uses the body style above.",
-  },
-];
+/**
+ * The cover ("featured image") style ids. "match" follows the image style.
+ *
+ * STORED, NOT YET USED BY GENERATION: featured_image_style is saved, but the
+ * generator reads only image_style, so the one image an article gets (which is
+ * also its cover) is always in the image style. The screen says so.
+ */
+export const FEATURED_IMAGE_STYLE_IDS = [
+  "sketch",
+  "watercolour",
+  "illustration",
+  "match",
+] as const;
 
 /** Default when a customer has not chosen, mirroring the column defaults. */
 export const DEFAULT_ARTICLE_STYLE = "expert";
@@ -116,10 +119,11 @@ export const IMAGE_STYLE_PROMPTS: Record<string, string> = {
     shows. The previous wording — "bold graphic composition, poster-like" —
     produced a monochrome illustration, losing the photo half entirely.
 
-    The no-text rule still applies to the image itself: the headline is set
-    in HTML over the picture, because image models render words as
-    convincing gibberish and a misspelled headline on a customer's live site
-    is worse than no image.
+    The no-text rule still applies to the image itself (image models render
+    words as convincing gibberish). NOTHING sets a headline into or over the
+    picture, and the stored brand colour is not passed to the model, so the
+    panel colour is the model's choice. The screen describes this style as
+    exactly that: a photo with a bold colour panel along one edge.
   */
   "brand-text":
     "Clean professional photograph with a bold flat colour panel overlaid along one edge in the brand colours, leaving clear empty space in that panel.",

@@ -50,6 +50,7 @@ export function ImagePicker({
   onClose,
   t = getMessages("en").app.editorUi,
   tCommon = getMessages("en").app.common,
+  className,
 }: {
   /** The picker's wording, defaulting to English. */
   t?: Messages["app"]["editorUi"];
@@ -72,6 +73,12 @@ export function ImagePicker({
   /** Deletes the image being edited. Absent when inserting a new one. */
   onRemove?: () => void;
   onClose: () => void;
+  /**
+   * Extra classes on the panel. Opt-in: the editor's workspace variant puts
+   * the panel in a dialog and drops its outer margin ("my-0"); without it the
+   * panel is exactly as before.
+   */
+  className?: string;
 }) {
   const [selected, setSelected] = useState<string | null>(initial);
   const [altText, setAltText] = useState(initialAlt ?? "");
@@ -119,7 +126,7 @@ export function ImagePicker({
   }
 
   return (
-    <div className="relative my-4 rounded-lg border bg-card p-4">
+    <div className={cn("relative my-4 rounded-lg border bg-card p-4", className)}>
       <Button
         type="button"
         variant="ghost"
