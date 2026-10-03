@@ -4,6 +4,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { INTEGRATION_DOCS, getIntegrationDoc } from "@/lib/publishing/docs";
+import { jsonLdScript } from "@/lib/blog/shared";
+import { siteUrl } from "@/lib/site-url";
+import { breadcrumbList } from "@/lib/structured-data";
 
 /** Every guide is known at build time, so all of them are prerendered. */
 export function generateStaticParams() {
@@ -34,8 +37,19 @@ export default async function IntegrationDocPage({
   // An unknown slug is a real 404: a soft one keeps a dead URL indexed.
   if (!doc) notFound();
 
+  // The visible trail below, as structured data: same names, same order.
+  const trail = breadcrumbList(siteUrl(), [
+    { name: "Home", path: "/" },
+    { name: "Integration guides", path: "/docs/integrations" },
+    { name: doc.name, path: `/docs/integrations/${doc.slug}` },
+  ]);
+
   return (
     <div>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: jsonLdScript(trail) }}
+      />
       <div className="bg-primary/[0.04]">
         <div className="mx-auto max-w-3xl px-4 py-12">
           <nav

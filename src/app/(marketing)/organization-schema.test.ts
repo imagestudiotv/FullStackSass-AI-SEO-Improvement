@@ -19,9 +19,13 @@ async function build(siteUrl = "https://www.repget.com") {
 }
 
 describe("siteSchema", () => {
-  it("has exactly one WebSite and one Organization", async () => {
+  it("has exactly one WebSite, one Organization and one SoftwareApplication", async () => {
     const graph = (await build())["@graph"];
-    expect(graph.map((node) => node["@type"])).toEqual(["WebSite", "Organization"]);
+    expect(graph.map((node) => node["@type"])).toEqual([
+      "WebSite",
+      "Organization",
+      "SoftwareApplication",
+    ]);
   });
 
   it("matches the client's WebSite entity", async () => {

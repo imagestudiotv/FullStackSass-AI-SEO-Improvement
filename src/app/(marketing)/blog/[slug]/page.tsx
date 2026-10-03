@@ -6,6 +6,8 @@ import { BlogArticle } from "@/components/blog-article";
 import { getPost, relatedPosts } from "@/lib/blog/posts";
 import { jsonLdScript } from "@/lib/blog/shared";
 import { SHARE_IMAGE } from "@/lib/share-image";
+import { siteUrl } from "@/lib/site-url";
+import { breadcrumbList, entityIds } from "@/lib/structured-data";
 
 /**
  * Rendered per request, from the database: a post published or corrected in
@@ -66,17 +68,32 @@ export default async function BlogPostPage({
    * rather than a plain blue link, and omitting it on an SEO product's own
    * blog would be hard to defend.
    */
+  const site = siteUrl();
+  const address = `${site}/blog/${post.slug}`;
   const jsonLd: Record<string, unknown>[] = [
     {
       "@context": "https://schema.org",
       "@type": "BlogPosting",
       headline: post.title,
       description: post.description,
+      url: address,
+      mainEntityOfPage: address,
+      // Posts have no picture of their own; this is the one shared links show.
+      image: `${site}${SHARE_IMAGE.url}`,
       datePublished: post.publishedAt,
       dateModified: post.updatedAt ?? post.publishedAt,
       articleSection: post.category,
       author: { "@type": "Organization", name: post.author },
+      // The Organization the homepage defines, by reference rather than again.
+      publisher: { "@id": entityIds(site).organization },
     },
+    // The same trail as the visible breadcrumb below, in the same order.
+    breadcrumbList(site, [
+      { name: "Home", path: "/" },
+      { name: "Blog", path: "/blog" },
+      { name: post.category, path: `/blog/category/${post.categorySlug}` },
+      { name: post.title, path: `/blog/${post.slug}` },
+    ]),
   ];
 
   /**

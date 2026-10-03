@@ -66,7 +66,7 @@ export default async function HomePage() {
 
   return (
     <>
-      <OrganizationSchema siteUrl={siteUrl} />
+      <OrganizationSchema siteUrl={siteUrl} plans={plans} />
       <Hero t={t} href={href} />
       <ProductPreview t={t} href={href} />
       <Pillars t={t} href={href} />

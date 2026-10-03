@@ -5,6 +5,9 @@ import { notFound } from "next/navigation";
 import { PostCard } from "@/components/post-card";
 import { postsByCategory } from "@/lib/blog/posts";
 import { categoryBySlug } from "@/lib/blog/categories";
+import { jsonLdScript } from "@/lib/blog/shared";
+import { siteUrl } from "@/lib/site-url";
+import { breadcrumbList } from "@/lib/structured-data";
 
 // Live posts from the database (see lib/blog/posts.ts).
 export const dynamic = "force-dynamic";
@@ -36,8 +39,20 @@ export default async function BlogCategoryPage({
 
   const posts = await postsByCategory(category.name);
 
+  // The visible trail below, as structured data: same names, same order.
+  const trail = breadcrumbList(siteUrl(), [
+    { name: "Home", path: "/" },
+    { name: "Blog", path: "/blog" },
+    { name: category.name, path: `/blog/category/${category.slug}` },
+  ]);
+
   return (
     <div>
+      <script
+        type="application/ld+json"
+        // Category names are typed in the admin panel: escaped, not trusted.
+        dangerouslySetInnerHTML={{ __html: jsonLdScript(trail) }}
+      />
       <div className="bg-primary/[0.04]">
         <div className="mx-auto max-w-5xl px-4 py-12 sm:py-14">
           <nav
