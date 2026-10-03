@@ -1,7 +1,7 @@
 import { cache } from "react";
 import { asc, desc, eq } from "drizzle-orm";
 
-import { db } from "@/lib/db";
+import { db, isDatabaseConfigured } from "@/lib/db";
 import {
   billingCustomers,
   payments,
@@ -44,6 +44,27 @@ export async function listPlans(): Promise<PlanRow[]> {
     .from(plans)
     .where(eq(plans.isActive, true))
     .orderBy(asc(plans.sortOrder), asc(plans.priceCents));
+}
+
+/**
+ * listPlans() for a page BUILT AHEAD of time and refreshed in the background
+ * - the homepages (client's launch review, 2026-10-03: mobile PageSpeed).
+ *
+ * Such a page reads its prices while the site is being built, and that build
+ * does not always have a database, so the two cases are kept apart:
+ *
+ *  - NO DATABASE CONFIGURED (CI, a fresh clone): there is nothing to read,
+ *    and failing would break builds that are never deployed. The page is
+ *    built without prices instead.
+ *  - A DATABASE THAT FAILS: the error is thrown, never swallowed. During a
+ *    real deploy that fails the build loudly, and Vercel keeps the previous
+ *    deployment live. During a background refresh Next keeps serving the last
+ *    good page and retries on a later request. Either way a homepage with its
+ *    prices missing is never published because of a database blip.
+ */
+export async function listPlansForPrebuiltPage(): Promise<PlanRow[]> {
+  if (!isDatabaseConfigured()) return [];
+  return listPlans();
 }
 
 /**

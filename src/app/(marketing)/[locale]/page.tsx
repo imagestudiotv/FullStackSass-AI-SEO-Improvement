@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { listPlans } from "@/lib/billing";
+import { listPlansForPrebuiltPage } from "@/lib/billing";
 import { isLocale, languageAlternates, localePath } from "@/lib/i18n/config";
 import { getMessages } from "@/lib/i18n/messages";
 import {
@@ -33,8 +33,15 @@ import { PricingPreview } from "../pricing-preview";
  * languages rather than duplicates competing with each other.
  */
 
-// Reads live plan prices, so it cannot be statically cached.
-export const dynamic = "force-dynamic";
+/**
+ * Built ahead and refreshed in the background at most hourly, instead of on
+ * every visit (client's launch review, 2026-10-03: mobile PageSpeed). Plan
+ * prices are the only data here and change rarely; serving a ready-made page
+ * from Vercel's edge cuts the server response time PageSpeed weighs heavily.
+ * See listPlansForPrebuiltPage for how a build without a database, and a
+ * database that fails, are each handled.
+ */
+export const revalidate = 3600;
 
 export async function generateMetadata({ params }: PageProps<"/[locale]">) {
   const { locale } = await params;
@@ -59,7 +66,7 @@ export default async function LocalisedHomePage({
   if (!isLocale(locale) || locale === "en") notFound();
 
   const t = getMessages(locale).home;
-  const plans = await listPlans();
+  const plans = await listPlansForPrebuiltPage();
   // Keeps every in-page link inside the reader's language.
   const href = (path: string) => localePath(locale, path);
 
