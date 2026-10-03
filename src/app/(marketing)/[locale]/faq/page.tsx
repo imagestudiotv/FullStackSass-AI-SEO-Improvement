@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { isLocale, localePath, LOCALES } from "@/lib/i18n/config";
+import { isLocale, languageAlternates, localePath, LOCALES } from "@/lib/i18n/config";
 import { getMessages } from "@/lib/i18n/messages";
 import { FaqContent } from "../../static-pages";
 
@@ -21,9 +21,7 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/faq">) {
     description: t.faq.metaDescription,
     alternates: {
       canonical: localePath(locale, "/faq"),
-      languages: Object.fromEntries(
-        LOCALES.map((l) => [l, localePath(l, "/faq")]),
-      ),
+      languages: languageAlternates("/faq"),
     },
   };
 }

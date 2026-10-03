@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { isLocale, localePath, LOCALES } from "@/lib/i18n/config";
+import { isLocale, languageAlternates, localePath, LOCALES } from "@/lib/i18n/config";
 import { getMessages } from "@/lib/i18n/messages";
 import { SuccessStoriesContent } from "../../success-stories-content";
 
@@ -29,9 +29,7 @@ export async function generateMetadata({
     description: t.successStories.metaDescription,
     alternates: {
       canonical: localePath(locale, "/success-stories"),
-      languages: Object.fromEntries(
-        LOCALES.map((l) => [l, localePath(l, "/success-stories")]),
-      ),
+      languages: languageAlternates("/success-stories"),
     },
   };
 }

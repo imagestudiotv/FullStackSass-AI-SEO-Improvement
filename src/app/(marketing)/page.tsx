@@ -20,6 +20,7 @@ import {
 import { PricingPreview } from "./pricing-preview";
 import { OrganizationSchema } from "./organization-schema";
 import { siteUrl as canonicalSiteUrl } from "@/lib/site-url";
+import { languageAlternates } from "@/lib/i18n/config";
 
 /**
  * Marketing homepage, following the supplied landing design.
@@ -47,7 +48,7 @@ export const metadata: Metadata = {
   title: { absolute: "AI SEO Platform for Content & Backlinks | RepGet" },
   description:
     "Automate SEO with RepGet. Research keywords, publish optimized content, build quality backlinks, track rankings and improve visibility in Google and AI search.",
-  alternates: { canonical: "/" },
+  alternates: { canonical: "/", languages: languageAlternates("/") },
 };
 
 export default async function HomePage() {

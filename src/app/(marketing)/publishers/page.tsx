@@ -1,12 +1,13 @@
 import { getMessages } from "@/lib/i18n/messages";
 import { PublishersContent } from "../publishers-content";
+import { languageAlternates } from "@/lib/i18n/config";
 
 const t = getMessages("en");
 
 export const metadata = {
   title: t.publishers.metaTitle,
   description: t.publishers.metaDescription,
-  alternates: { canonical: "/publishers" },
+  alternates: { canonical: "/publishers", languages: languageAlternates("/publishers") },
 };
 
 /**

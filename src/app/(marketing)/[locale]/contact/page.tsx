@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { SUPPORT_EMAIL } from "@/lib/config/site";
-import { isLocale, localePath, LOCALES } from "@/lib/i18n/config";
+import { isLocale, languageAlternates, localePath, LOCALES } from "@/lib/i18n/config";
 import { getMessages } from "@/lib/i18n/messages";
 import { ContactContent } from "../../static-pages";
 
@@ -24,9 +24,7 @@ export async function generateMetadata({
     description: t.contact.metaDescription,
     alternates: {
       canonical: localePath(locale, "/contact"),
-      languages: Object.fromEntries(
-        LOCALES.map((l) => [l, localePath(l, "/contact")]),
-      ),
+      languages: languageAlternates("/contact"),
     },
   };
 }

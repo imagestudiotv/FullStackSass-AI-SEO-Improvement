@@ -1,12 +1,13 @@
 import { AboutContent } from "../static-pages";
 import { getMessages } from "@/lib/i18n/messages";
+import { languageAlternates } from "@/lib/i18n/config";
 
 const t = getMessages("en");
 
 export const metadata = {
   title: t.about.metaTitle,
   description: t.about.metaDescription,
-  alternates: { canonical: "/about" },
+  alternates: { canonical: "/about", languages: languageAlternates("/about") },
 };
 
 /**

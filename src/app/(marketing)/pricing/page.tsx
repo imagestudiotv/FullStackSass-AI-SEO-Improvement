@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/card";
 import { formatPrice, listPlans } from "@/lib/billing";
 import { planFeatures, planTagline, STARTER_TIER } from "@/lib/plans/features";
+import { languageAlternates } from "@/lib/i18n/config";
 
 export const metadata = {
   title: "Pricing",
@@ -24,13 +25,7 @@ export const metadata = {
    */
   alternates: {
     canonical: "/pricing",
-    languages: {
-      en: "/pricing",
-      es: "/es/pricing",
-      fr: "/fr/pricing",
-      it: "/it/pricing",
-      de: "/de/pricing",
-    },
+    languages: languageAlternates("/pricing"),
   },
 };
 

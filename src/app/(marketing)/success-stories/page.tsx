@@ -1,12 +1,13 @@
 import { getMessages } from "@/lib/i18n/messages";
 import { SuccessStoriesContent } from "../success-stories-content";
+import { languageAlternates } from "@/lib/i18n/config";
 
 const t = getMessages("en");
 
 export const metadata = {
   title: t.successStories.metaTitle,
   description: t.successStories.metaDescription,
-  alternates: { canonical: "/success-stories" },
+  alternates: { canonical: "/success-stories", languages: languageAlternates("/success-stories") },
 };
 
 /**

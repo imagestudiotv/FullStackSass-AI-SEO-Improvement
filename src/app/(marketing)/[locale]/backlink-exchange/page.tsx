@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { isLocale, localePath, LOCALES } from "@/lib/i18n/config";
+import { isLocale, languageAlternates, localePath, LOCALES } from "@/lib/i18n/config";
 import { getMessages } from "@/lib/i18n/messages";
 import { BacklinkExchangeContent } from "../../backlink-exchange-content";
 
@@ -26,9 +26,7 @@ export async function generateMetadata({
     description: t.backlinkExchange.metaDescription,
     alternates: {
       canonical: localePath(locale, "/backlink-exchange"),
-      languages: Object.fromEntries(
-        LOCALES.map((l) => [l, localePath(l, "/backlink-exchange")]),
-      ),
+      languages: languageAlternates("/backlink-exchange"),
     },
   };
 }

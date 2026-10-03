@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/card";
 import { formatPrice, listPlans } from "@/lib/billing";
 import { format, plural } from "@/lib/i18n/format";
-import { isLocale, localePath, LOCALES } from "@/lib/i18n/config";
+import { isLocale, languageAlternates, localePath } from "@/lib/i18n/config";
 import { getMessages } from "@/lib/i18n/messages";
 
 /**
@@ -44,9 +44,7 @@ export async function generateMetadata({
     description: t.pricing.subtitle,
     alternates: {
       canonical: localePath(locale, "/pricing"),
-      languages: Object.fromEntries(
-        LOCALES.map((l) => [l, localePath(l, "/pricing")]),
-      ),
+      languages: languageAlternates("/pricing"),
     },
   };
 }

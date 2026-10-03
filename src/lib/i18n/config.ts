@@ -68,3 +68,26 @@ export function localePath(locale: Locale, path: string): string {
   if (locale === DEFAULT_LOCALE) return clean;
   return `/${locale}${clean === "/" ? "" : clean}`;
 }
+
+/**
+ * The hreflang alternates for one page: its address in every locale, plus
+ * x-default for searchers whose language we do not serve.
+ *
+ * ONE DEFINITION FOR BOTH SIDES. hreflang only counts when it is reciprocal:
+ * Google ignores a translation that points at the original unless the
+ * original points back. The localised pages declared their alternates and the
+ * English ones did not, so the whole set was discarded (client's launch
+ * review, 2026-10-03). Every page - English and translated - now reads this,
+ * so the two sides cannot drift apart again.
+ *
+ * x-default is the English, unprefixed page: the one served to anybody whose
+ * language is not in LOCALES.
+ */
+export function languageAlternates(
+  path: string,
+): Record<Locale | "x-default", string> {
+  const byLocale = Object.fromEntries(
+    LOCALES.map((locale) => [locale, localePath(locale, path)]),
+  ) as Record<Locale, string>;
+  return { ...byLocale, "x-default": localePath(DEFAULT_LOCALE, path) };
+}

@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { listPlans } from "@/lib/billing";
-import { isLocale, localePath, LOCALES } from "@/lib/i18n/config";
+import { isLocale, languageAlternates, localePath } from "@/lib/i18n/config";
 import { getMessages } from "@/lib/i18n/messages";
 import {
   AuditBand,
@@ -47,9 +47,7 @@ export async function generateMetadata({ params }: PageProps<"/[locale]">) {
     description: t.home.subtitle,
     alternates: {
       canonical: localePath(locale, "/"),
-      languages: Object.fromEntries(
-        LOCALES.map((l) => [l, localePath(l, "/")]),
-      ),
+      languages: languageAlternates("/"),
     },
   };
 }

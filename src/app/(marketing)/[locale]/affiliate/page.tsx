@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { isLocale, localePath, LOCALES } from "@/lib/i18n/config";
+import { isLocale, languageAlternates, localePath, LOCALES } from "@/lib/i18n/config";
 import { getMessages } from "@/lib/i18n/messages";
 import { AffiliateContent } from "../../affiliate-content";
 
@@ -26,9 +26,7 @@ export async function generateMetadata({
     description: t.affiliate.metaDescription,
     alternates: {
       canonical: localePath(locale, "/affiliate"),
-      languages: Object.fromEntries(
-        LOCALES.map((l) => [l, localePath(l, "/affiliate")]),
-      ),
+      languages: languageAlternates("/affiliate"),
     },
   };
 }
