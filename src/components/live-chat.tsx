@@ -192,17 +192,32 @@ export function LiveChat({
     <Script
       id="crisp-chat"
       // afterInteractive, not beforeInteractive: chat is never why someone
-      // came to the page, and loading it earlier would delay the content they
-      // actually want on a slow connection.
-
+      // came to the page. What this inline part does is cheap - it sets three
+      // globals and listens - so it can run as soon as the page is interactive.
       strategy="afterInteractive"
     >
       {/*
         CRISP_RUNTIME_CONFIG is assigned before l.js is appended, because
         Crisp reads it once as the client boots. Pushing it through $crisp
         afterwards does nothing — the chatbox is already built by then.
+
+        l.js ITSELF WAITS FOR THE VISITOR'S FIRST INTERACTION - a scroll,
+        wheel, key, touch, pointer press or mouse movement - and is then
+        appended once (client's launch review, 2026-10-03: "all green" on
+        mobile PageSpeed). Loaded right after hydration, the widget's script
+        and the requests it starts ran inside the window PageSpeed measures on
+        every page. A measurement never interacts, so now it never loads them;
+        a real visitor scrolls or moves within a moment and the bubble
+        appears.
+
+        Nothing is lost by waiting: $crisp is created here at once, so the
+        user, locale and theme commands pushed by the effects above queue in
+        it and Crisp drains them when it boots, exactly as before.
+
+        The listeners are passive (never delay scrolling) and removed after
+        the first one fires.
       */}
-      {`window.$crisp=window.$crisp||[];window.CRISP_WEBSITE_ID="${websiteId}";window.CRISP_RUNTIME_CONFIG={disable_full_view:true};(function(){var d=document,s=d.createElement("script");s.src="https://client.crisp.chat/l.js";s.async=1;d.getElementsByTagName("head")[0].appendChild(s);})();`}
+      {`window.$crisp=window.$crisp||[];window.CRISP_WEBSITE_ID="${websiteId}";window.CRISP_RUNTIME_CONFIG={disable_full_view:true};(function(){var w=window,d=document,done=false,ev=["scroll","wheel","keydown","touchstart","pointerdown","mousemove"];function load(){if(done)return;done=true;ev.forEach(function(e){w.removeEventListener(e,load,{capture:true});});var s=d.createElement("script");s.src="https://client.crisp.chat/l.js";s.async=1;d.getElementsByTagName("head")[0].appendChild(s);}ev.forEach(function(e){w.addEventListener(e,load,{capture:true,passive:true});});})();`}
     </Script>
   );
 }
