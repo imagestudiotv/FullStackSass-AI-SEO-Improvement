@@ -2743,6 +2743,10 @@ export type Messages = {
       emailPlaceholder: string;
       password: string;
       passwordHint: string;
+      /** Shown when Better Auth answers 429 (lib/auth/rate-limit.ts). */
+      tooManyAttempts: string;
+      /** A new password over MAX_PASSWORD_LENGTH (lib/auth/password-policy.ts). */
+      passwordTooLong: string;
       emailMeACode: string;
       usePasswordInstead: string;
       sendCode: string;
@@ -5566,7 +5570,9 @@ const en: Messages = {
       email: "Email",
       emailPlaceholder: "you@example.com",
       password: "Password",
-      passwordHint: "At least 8 characters, including a number and a letter.",
+      passwordHint: "At least 8 characters.",
+      tooManyAttempts: "Too many attempts. Wait a few minutes and try again.",
+      passwordTooLong: "Use at most 128 characters.",
       emailMeACode: "Email me a sign-in code",
       usePasswordInstead: "Use a password instead",
       sendCode: "Send me a code",
@@ -8399,7 +8405,9 @@ const es: Messages = {
       email: "Correo electrónico",
       emailPlaceholder: "usted@ejemplo.com",
       password: "Contraseña",
-      passwordHint: "Al menos 8 caracteres, incluyendo un número y una letra.",
+      passwordHint: "Al menos 8 caracteres.",
+      tooManyAttempts: "Demasiados intentos. Espere unos minutos y vuelva a intentarlo.",
+      passwordTooLong: "Use como máximo 128 caracteres.",
       emailMeACode: "Envíenme un código por correo",
       usePasswordInstead: "Usar una contraseña",
       sendCode: "Enviarme un código",
@@ -11234,7 +11242,9 @@ const fr: Messages = {
       email: "E-mail",
       emailPlaceholder: "vous@exemple.com",
       password: "Mot de passe",
-      passwordHint: "Au moins 8 caractères, dont un chiffre et une lettre.",
+      passwordHint: "Au moins 8 caractères.",
+      tooManyAttempts: "Trop de tentatives. Patientez quelques minutes et réessayez.",
+      passwordTooLong: "Utilisez 128 caractères au maximum.",
       emailMeACode: "Envoyez-moi un code par e-mail",
       usePasswordInstead: "Utiliser un mot de passe",
       sendCode: "M\u2019envoyer un code",
@@ -14063,7 +14073,9 @@ const it: Messages = {
       email: "E-mail",
       emailPlaceholder: "lei@esempio.com",
       password: "Password",
-      passwordHint: "Almeno 8 caratteri, con un numero e una lettera.",
+      passwordHint: "Almeno 8 caratteri.",
+      tooManyAttempts: "Troppi tentativi. Attenda qualche minuto e riprovi.",
+      passwordTooLong: "Usi al massimo 128 caratteri.",
       emailMeACode: "Inviatemi un codice via e-mail",
       usePasswordInstead: "Usa una password",
       sendCode: "Inviami un codice",
@@ -16899,7 +16911,9 @@ const de: Messages = {
       email: "E-Mail",
       emailPlaceholder: "sie@beispiel.de",
       password: "Passwort",
-      passwordHint: "Mindestens 8 Zeichen, davon eine Ziffer und ein Buchstabe.",
+      passwordHint: "Mindestens 8 Zeichen.",
+      tooManyAttempts: "Zu viele Versuche. Warten Sie einige Minuten und versuchen Sie es erneut.",
+      passwordTooLong: "Verwenden Sie höchstens 128 Zeichen.",
       emailMeACode: "Code per E-Mail senden",
       usePasswordInstead: "Stattdessen Passwort verwenden",
       sendCode: "Code senden",

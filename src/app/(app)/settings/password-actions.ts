@@ -6,6 +6,7 @@ import { and, eq } from "drizzle-orm";
 
 import { requireSession } from "@/lib/auth-guard";
 import { auth } from "@/lib/auth";
+import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from "@/lib/auth/password-policy";
 import { db } from "@/lib/db";
 import { account } from "@/lib/db/schema";
 
@@ -31,9 +32,6 @@ import { account } from "@/lib/db/schema";
  * because there is no password yet to prove anything with.
  */
 
-/** Minimum length, matching the sign-up rule so the two cannot disagree. */
-const MIN_PASSWORD_LENGTH = 8;
-
 export type SetPasswordResult = { ok: true } | { ok: false; error: string };
 
 /**
@@ -53,8 +51,13 @@ export async function setFirstPassword(
   */
   const session = await requireSession();
 
+  // The sign-up rule (lib/auth/password-policy.ts), so the two cannot disagree.
   if (newPassword.length < MIN_PASSWORD_LENGTH) {
     return { ok: false, error: "TOO_SHORT" };
+  }
+  // Better Auth refuses it too, but as a generic failure; this says why.
+  if (newPassword.length > MAX_PASSWORD_LENGTH) {
+    return { ok: false, error: "TOO_LONG" };
   }
 
   /*

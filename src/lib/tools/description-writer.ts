@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import type Anthropic from "@anthropic-ai/sdk";
 
 import { anthropic, isAiConfigured, MODELS } from "@/lib/ai/client";
+import { dataBlock, dataRule } from "@/lib/ai/untrusted";
 import {
   acquireLease,
   paidCall,
@@ -230,16 +231,17 @@ async function writeFromPage(
     };
   }
 
+  /*
+    The page is anyone's, chosen by an anonymous visitor, so it goes in as
+    material (lib/ai/untrusted.ts) and the rules say so.
+  */
   const prompt = [
     "Write meta descriptions for this web page.",
     "",
-    `Page title: ${page.title ?? "(none)"}`,
-    `Page URL: ${page.finalUrl}`,
-    "",
-    "Page content:",
-    pageText,
+    dataBlock("website_page", [`Page title: ${page.title ?? "(none)"}`, `Page URL: ${page.finalUrl}`, "", "Page content:", pageText].join("\n")),
     "",
     "Rules:",
+    `- ${dataRule("website_page")}`,
     `- Between ${SNIPPET_LIMITS.metaMin} and ${SNIPPET_LIMITS.metaMax} characters. This is a hard limit.`,
     "- Describe what is actually on this page. Invent nothing.",
     "- Give the reader a reason to click, in their words, not marketing language.",

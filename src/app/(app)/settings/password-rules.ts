@@ -1,16 +1,15 @@
+import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from "@/lib/auth/password-policy";
 import type { Messages } from "@/lib/i18n/messages";
 
 /**
  * The password form's checks and its error wording, kept apart from the
  * component so they can be tested.
  *
- * The limits mirror the server's rather than add to them: 8 is the sign-up
- * rule and setFirstPassword's MIN_PASSWORD_LENGTH; 128 is Better Auth's
- * default maximum, which its endpoints enforce. Checking them here only says
- * so before a round trip; the server still decides.
+ * The limits are the server's own (lib/auth/password-policy.ts, which
+ * lib/auth.ts configures Better Auth with). Checking them here only says so
+ * before a round trip; the server still decides.
  */
-export const MIN_PASSWORD_LENGTH = 8;
-export const MAX_PASSWORD_LENGTH = 128;
+export { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH };
 
 type SettingsCopy = Messages["app"]["settings"];
 
@@ -57,6 +56,7 @@ export function changePasswordError(
  */
 export function setPasswordError(code: string, t: SettingsCopy): PasswordError & { refresh: boolean } {
   if (code === "TOO_SHORT") return { target: "next", message: t.passwordTooShort, refresh: false };
+  if (code === "TOO_LONG") return { target: "next", message: t.passwordTooLong, refresh: false };
   if (code === "ALREADY_SET") return { target: "form", message: t.passwordAlreadySet, refresh: true };
   return { target: "form", message: t.passwordError, refresh: false };
 }

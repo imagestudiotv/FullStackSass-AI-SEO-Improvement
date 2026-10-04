@@ -3,6 +3,8 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { emailOTP, organization } from "better-auth/plugins";
 import { sql } from "drizzle-orm";
 
+import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from "@/lib/auth/password-policy";
+import { AUTH_IP_HEADERS, authRateLimit, OTP_RATE_LIMIT } from "@/lib/auth/rate-limit";
 import { db } from "@/lib/db";
 import { sendOtpEmail } from "@/lib/email/otp";
 import * as schema from "@/lib/db/schema";
@@ -104,6 +106,15 @@ function createAuth() {
     }),
     emailAndPassword: {
       enabled: true,
+      // For new passwords only; one constant shared with every form (lib/auth/password-policy.ts).
+      minPasswordLength: MIN_PASSWORD_LENGTH,
+      maxPasswordLength: MAX_PASSWORD_LENGTH,
+    },
+
+    // Attempts per visitor on each sign-in door - see lib/auth/rate-limit.ts.
+    rateLimit: authRateLimit(),
+    advanced: {
+      ipAddress: { ipAddressHeaders: AUTH_IP_HEADERS },
     },
 
     /**
@@ -135,6 +146,14 @@ function createAuth() {
       "/verify-email",
       "/request-password-reset",
       "/reset-password",
+      /*
+        "Is this the password?" for anyone holding a session - unused here,
+        and a way round the attempt limit on /change-password: a stolen
+        session could guess the password ~600 times a minute on this path,
+        then change it once (found in review, 2026-10-04). Server code can
+        still call auth.api.verifyPassword; only the HTTP route is closed.
+      */
+      "/verify-password",
     ],
     socialProviders: {
       google: {
@@ -256,6 +275,9 @@ function createAuth() {
           through them.
         */
         allowedAttempts: 3,
+
+        // And 3 requests a minute per visitor on each code path (lib/auth/rate-limit.ts).
+        rateLimit: OTP_RATE_LIMIT,
 
         /**
          * Sending never throws, and that is deliberate.

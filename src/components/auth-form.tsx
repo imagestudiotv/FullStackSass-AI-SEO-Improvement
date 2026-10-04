@@ -20,6 +20,7 @@ import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth-client";
 import { authSwitchHref, CALLBACK_URL, safeNext } from "@/lib/auth/next";
+import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from "@/lib/auth/password-policy";
 import { Button } from "@/components/ui/button";
 import { GoogleMark } from "@/components/google-mark";
 import { Input } from "@/components/ui/input";
@@ -163,6 +164,16 @@ export function AuthForm({
     );
   }, [searchParams]);
 
+  /**
+   * What to say when Better Auth refuses. Its messages are English; a 429
+   * (too many attempts, lib/auth/rate-limit.ts) is the one this page can
+   * predict, so it is said in the reader's language. Anything else keeps
+   * Better Auth's wording, or the page's own fallback.
+   */
+  function failure(error: { status?: number; message?: string }, fallback: string): string {
+    return error.status === 429 ? t.tooManyAttempts : (error.message ?? fallback);
+  }
+
   async function handleGoogle() {
     setGooglePending(true);
     const { error } = await authClient.signIn.social({
@@ -196,7 +207,7 @@ export function AuthForm({
     });
     if (error) {
       setGooglePending(false);
-      toast.error(error.message ?? "Google sign-in failed");
+      toast.error(failure(error, "Google sign-in failed"));
     }
   }
 
@@ -223,7 +234,7 @@ export function AuthForm({
     setPending(false);
 
     if (error) {
-      toast.error(error.message ?? t.codeNotSent);
+      toast.error(failure(error, t.codeNotSent));
       return;
     }
 
@@ -249,7 +260,7 @@ export function AuthForm({
         obvious thing and the wrong one: the usual cause is one mistyped
         digit, and retyping all six to fix one is worse than correcting it.
       */
-      toast.error(error.message ?? t.codeInvalid);
+      toast.error(failure(error, t.codeInvalid));
       return;
     }
 
@@ -269,6 +280,12 @@ export function AuthForm({
      */
     const cleanEmail = email.trim();
 
+    if (isSignUp && password.length > MAX_PASSWORD_LENGTH) {
+      setPending(false);
+      toast.error(t.passwordTooLong);
+      return;
+    }
+
     const { error } = isSignUp
       ? await authClient.signUp.email({
           name: name.trim(),
@@ -279,7 +296,7 @@ export function AuthForm({
 
     if (error) {
       setPending(false);
-      toast.error(error.message ?? "Something went wrong");
+      toast.error(failure(error, "Something went wrong"));
       return;
     }
 
@@ -506,7 +523,13 @@ export function AuthForm({
               onChange={(e) => setPassword(e.target.value)}
               placeholder={isSignUp ? "Create a password" : undefined}
               autoComplete={isSignUp ? "new-password" : "current-password"}
-              minLength={8}
+              /*
+                New passwords only (lib/auth/password-policy.ts): signing in
+                never checks length. No maxLength: the browser would silently
+                cut a long pasted password, and the full one would then never
+                sign in. handleSubmit says it is too long instead.
+              */
+              minLength={isSignUp ? MIN_PASSWORD_LENGTH : undefined}
               className="h-12 pr-11 pl-10"
               required
             />

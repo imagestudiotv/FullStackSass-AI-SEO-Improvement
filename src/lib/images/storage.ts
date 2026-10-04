@@ -1,3 +1,12 @@
+/*
+  Server only: this module holds the service role key, which bypasses
+  row-level security (see below). Imported into browser code it would not leak
+  the key - Next inlines only NEXT_PUBLIC_ variables - it would quietly find no
+  storage instead. This makes that mistake a build error (client's launch
+  review, 2026-10-03).
+*/
+import "server-only";
+
 import { createClient } from "@supabase/supabase-js";
 
 /**

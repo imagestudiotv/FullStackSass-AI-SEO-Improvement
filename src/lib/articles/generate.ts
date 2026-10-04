@@ -1,6 +1,8 @@
 import { anthropic, isAiConfigured, MODELS } from "@/lib/ai/client";
+import { dataBlock, dataRule } from "@/lib/ai/untrusted";
 import { sanitizeHtml } from "@/lib/articles/sanitize";
 import { styleHint } from "@/lib/websites/article-options";
+import { isSupportedLanguage } from "@/lib/websites/languages";
 
 /**
  * Article generation.
@@ -144,6 +146,32 @@ const OUTLINE_SCHEMA = {
   additionalProperties: false,
 } as const;
 
+/**
+ * True for a language we support, or a value shaped like a language name:
+ * letters only (with spaces, hyphens, apostrophes or brackets), up to three
+ * words and 30 characters - "Swedish", "Brazilian Portuguese", "Norwegian
+ * Bokmål". A sentence, a link or a list of demands is not.
+ */
+export function isLanguageName(value: string | null): value is string {
+  if (!value) return false;
+  if (isSupportedLanguage(value)) return true;
+  return /^\p{L}[\p{L}' ()-]{0,29}$/u.test(value) && value.trim().split(/\s+/).length <= 3;
+}
+
+/** The business profile lines, as one data block - or nothing when the profile is empty. */
+function profileBlock(brief: ArticleBrief): string | null {
+  const lines = [
+    brief.brandName ? `Published by: ${brief.brandName}` : null,
+    brief.industry ? `Industry: ${brief.industry}` : null,
+    brief.description ? `About the business: ${brief.description}` : null,
+    brief.services.length ? `Services offered: ${brief.services.join(", ")}` : null,
+    brief.targetAudience ? `Audience: ${brief.targetAudience}` : null,
+    brief.country ? `Market: ${brief.country}` : null,
+    brief.language && !isLanguageName(brief.language) ? `Language: ${brief.language}` : null,
+  ].filter(Boolean);
+  return lines.length ? dataBlock("business_profile", lines.join("\n")) : null;
+}
+
 export function briefContext(brief: ArticleBrief): string {
   return [
     /**
@@ -155,7 +183,13 @@ export function briefContext(brief: ArticleBrief): string {
      * one property a customer would notice instantly and could not fix
      * themselves. Stating it first, as a directive, removes the guess.
      */
-    brief.language
+    /*
+      A directive only for something shaped like a language name. The value
+      can come straight from the crawled homepage, so anything else - which
+      could be a sentence of instructions - goes in the profile block
+      instead (profileBlock), as material.
+    */
+    isLanguageName(brief.language)
       ? `Write everything in ${brief.language}. The headings, the body, and the meta description must all be in ${brief.language}, not translated from English but written natively.`
       : null,
     `Title: ${brief.title}`,
@@ -164,12 +198,14 @@ export function briefContext(brief: ArticleBrief): string {
     brief.relatedKeywords.length
       ? `Related terms to cover: ${brief.relatedKeywords.join(", ")}`
       : null,
-    brief.brandName ? `Published by: ${brief.brandName}` : null,
-    brief.industry ? `Industry: ${brief.industry}` : null,
-    brief.description ? `About the business: ${brief.description}` : null,
-    brief.services.length ? `Services offered: ${brief.services.join(", ")}` : null,
-    brief.targetAudience ? `Audience: ${brief.targetAudience}` : null,
-    brief.country ? `Market: ${brief.country}` : null,
+    /*
+      Who the business is, as material rather than instructions (lib/ai/
+      untrusted.ts): these were first filled from its crawled homepage, so a
+      page that said "ignore your rules" could have left that in the
+      description. The customer's own instructions stay outside, below -
+      those ARE instructions.
+    */
+    profileBlock(brief),
     /*
       The chosen register, expanded into the instruction it stands for. The
       dropdown stores "expert"; the model needs to be told what that means,
@@ -263,7 +299,8 @@ Rules:
   a specific figure the business has not supplied, phrase it so the writer
   describes the factors instead of stating a number. Verified facts given in
   the brief are the exception and may be used.
-- The meta description must read as a sentence, not a list of keywords.`;
+- The meta description must read as a sentence, not a list of keywords.
+- ${dataRule("business_profile")}`;
 
 const BODY_SYSTEM = `You write the final SEO article body as HTML.
 
@@ -296,7 +333,8 @@ Writing rules:
   not listed there is still off limits.
 - No filler openings ("In today's fast-paced world"), no restating the title,
   no concluding summary that repeats the article back.
-- Do not claim the business offers something not listed in its services.`;
+- Do not claim the business offers something not listed in its services.
+- ${dataRule("business_profile")}`;
 
 export async function generateOutline(
   brief: ArticleBrief,

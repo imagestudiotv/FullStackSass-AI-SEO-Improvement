@@ -1,4 +1,5 @@
 import { anthropic, isAiConfigured, MODELS } from "@/lib/ai/client";
+import { dataBlock, dataRule } from "@/lib/ai/untrusted";
 import type { PageSnapshot } from "@/lib/websites/crawl";
 import { normalizeLanguage } from "@/lib/websites/languages";
 
@@ -93,10 +94,17 @@ Rules:
 - "industry" should be specific enough to guide keyword research.
 - "competitors" should name established companies in the same niche and market - ones with a recognisable brand and a real website. Prefer a well-known name over a precise guess: the domain is verified against DNS before it is stored, so something that does not resolve is discarded automatically. Returning nothing helps nobody; returning three real rivals is the useful answer.
 - Do not list general platforms, marketplaces or tools (Vimeo, YouTube, Wix, directories) as competitors. A competitor sells what this business sells, to the same customers.
-- Ignore navigation, cookie banners, and boilerplate.`;
+- Ignore navigation, cookie banners, and boilerplate.
+- ${dataRule("website_page")}`;
 
-function buildPrompt(snapshot: PageSnapshot): string {
-  return [
+/**
+ * The homepage, as material. Every line comes from the site - even the URL,
+ * which is wherever its redirects ended - so all of it is inside the block
+ * (lib/ai/untrusted.ts): a page that says "ignore your rules" is describing
+ * itself, not instructing the model.
+ */
+export function buildPrompt(snapshot: PageSnapshot): string {
+  const page = [
     `URL: ${snapshot.finalUrl}`,
     snapshot.title ? `Title: ${snapshot.title}` : null,
     snapshot.metaDescription
@@ -117,6 +125,7 @@ function buildPrompt(snapshot: PageSnapshot): string {
   ]
     .filter((line) => line !== null)
     .join("\n");
+  return `Profile the business from its homepage:\n\n${dataBlock("website_page", page)}`;
 }
 
 /** Trims, drops empties, de-duplicates and caps a model-supplied list. */

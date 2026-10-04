@@ -1,4 +1,5 @@
 import { anthropic, isAiConfigured, MODELS } from "@/lib/ai/client";
+import { dataBlock, dataRule } from "@/lib/ai/untrusted";
 
 /**
  * Turns a website profile into seed keywords.
@@ -64,21 +65,32 @@ Rules:
   * navigational: a specific brand by name
 - Do NOT include the business's own brand name; it already ranks for that.
 - No duplicates, and no near-duplicates that differ only by word order.
-- Return 25-40 keywords in the site's own language.`;
+- Return 25-40 keywords in the site's own language.
+- ${dataRule("business_profile")}`;
 
 export type SeedKeyword = {
   term: string;
   intent: "transactional" | "commercial" | "informational" | "navigational";
 };
 
-function buildPrompt(profile: SeedInput): string {
-  return [
+/**
+ * The profile as material (lib/ai/untrusted.ts): it was first filled from the
+ * crawled homepage. The brand to leave out is an instruction, so it stays
+ * outside the block.
+ */
+export function buildPrompt(profile: SeedInput): string {
+  const facts = [
     profile.industry ? `Industry: ${profile.industry}` : null,
     profile.description ? `Business: ${profile.description}` : null,
     profile.services.length ? `Services: ${profile.services.join(", ")}` : null,
     profile.country ? `Primary market: ${profile.country}` : null,
     profile.language ? `Language: ${profile.language}` : null,
     profile.targetAudience ? `Target audience: ${profile.targetAudience}` : null,
+  ]
+    .filter(Boolean)
+    .join("\n");
+  return [
+    facts ? dataBlock("business_profile", facts) : null,
     profile.brandName ? `Brand to exclude: ${profile.brandName}` : null,
   ]
     .filter(Boolean)

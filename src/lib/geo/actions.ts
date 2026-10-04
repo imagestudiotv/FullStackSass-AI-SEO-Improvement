@@ -4,6 +4,7 @@ import { and, desc, eq, inArray, sql as raw } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { anthropic, isAiConfigured, MODELS } from "@/lib/ai/client";
+import { dataBlock, dataRule } from "@/lib/ai/untrusted";
 import { db } from "@/lib/db";
 import { geoPrompts, geoResults } from "@/lib/db/schema";
 import { summarise } from "@/lib/geo/score";
@@ -419,13 +420,15 @@ export async function suggestGeoPrompts(
     };
   }
 
-  const description = [
+  // As material (lib/ai/untrusted.ts): the profile was first filled from the crawled homepage.
+  const facts = [
     site.industry && `Industry: ${site.industry}`,
     site.country && `Country: ${site.country}`,
     site.description && `About: ${site.description}`,
   ]
     .filter(Boolean)
     .join("\n");
+  const description = facts ? dataBlock("business_profile", facts) : "";
 
   /**
    * Questions already tracked, listed so the model does not return them
@@ -458,6 +461,7 @@ Rules:
 - Ask the way a real person types, not like a search query.
 - Be specific to the industry and, where it matters, the location.
 - Vary the intent: some comparing options, some asking about price, some about a specific service or place.
+- ${dataRule("business_profile")}
 ${avoid}
 
 Reply with JSON only: {"prompts": ["...", "..."]}`,
