@@ -6,7 +6,7 @@ import { ARTICLE_TABLE_CLASSES } from "@/lib/articles/table-styles";
 import Link from "@tiptap/extension-link";
 import { EditorContent, useEditor, useEditorState, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import { Extension } from "@tiptap/core";
+import { Extension, type Extensions } from "@tiptap/core";
 import {
   Bold,
   Code,
@@ -126,6 +126,26 @@ function ToolbarButton({
   );
 }
 
+/** Adds, changes or removes the link at the caret, through the browser's prompt (the classic and compact toolbars). */
+function promptForLink(editor: Editor) {
+  const previous = editor.getAttributes("link").href as string | undefined;
+  const url = window.prompt("Link URL", previous ?? "https://");
+
+  // Cancel leaves the document alone; clearing the box removes the link.
+  if (url === null) return;
+  if (url === "") {
+    editor.chain().focus().extendMarkRange("link").unsetLink().run();
+    return;
+  }
+
+  editor
+    .chain()
+    .focus()
+    .extendMarkRange("link")
+    .setLink({ href: url })
+    .run();
+}
+
 function Toolbar({
   editor,
   onInsertImage,
@@ -139,24 +159,7 @@ function Toolbar({
   /** The toolbar's wording. */
   t: Messages["app"]["editorUi"];
 }) {
-  const setLink = useCallback(() => {
-    const previous = editor.getAttributes("link").href as string | undefined;
-    const url = window.prompt("Link URL", previous ?? "https://");
-
-    // Cancel leaves the document alone; clearing the box removes the link.
-    if (url === null) return;
-    if (url === "") {
-      editor.chain().focus().extendMarkRange("link").unsetLink().run();
-      return;
-    }
-
-    editor
-      .chain()
-      .focus()
-      .extendMarkRange("link")
-      .setLink({ href: url })
-      .run();
-  }, [editor]);
+  const setLink = useCallback(() => promptForLink(editor), [editor]);
 
   return (
     /*
@@ -294,6 +297,127 @@ function Toolbar({
         label={t.redo}
         onClick={() => editor.chain().focus().redo().run()}
         disabled={!editor.can().redo()}
+      >
+        <Redo2 className="size-4" />
+      </ToolbarButton>
+    </div>
+  );
+}
+
+/**
+ * The compact toolbar: the classic buttons a short answer needs, in the
+ * classic order, and nothing COMPACT_EXTENSIONS could not hold.
+ *
+ * Not sticky. A page stacks several of these (one per FAQ answer), and
+ * sticky bars would pile up under the top bar as it scrolls; an answer is
+ * short enough that its toolbar never scrolls out of reach. States are read
+ * live, as the workspace toolbar reads them, so Bold shows as such wherever
+ * the caret moves.
+ */
+function CompactToolbar({
+  editor,
+  disabled,
+  t,
+  label,
+}: {
+  editor: Editor;
+  disabled: boolean;
+  t: Messages["app"]["editorUi"];
+  /** The editor's name ("Answer 2"), so each answer's buttons are told apart. */
+  label: string;
+}) {
+  const state = useEditorState({
+    editor,
+    selector: ({ editor: current }) => ({
+      bold: current.isActive("bold"),
+      italic: current.isActive("italic"),
+      bullet: current.isActive("bulletList"),
+      ordered: current.isActive("orderedList"),
+      link: current.isActive("link"),
+      canUndo: current.can().undo(),
+      canRedo: current.can().redo(),
+    }),
+  });
+
+  return (
+    /*
+      A named group: a page holds one of these per answer, and a screen
+      reader's list of buttons would otherwise be many identical "Bold"s with
+      nothing tying one to its answer. A group, not a toolbar - role=toolbar
+      promises arrow-key movement between buttons, which this does not have.
+    */
+    <div
+      role="group"
+      aria-label={`${label}: ${t.toolbarLabel}`}
+      className="flex flex-wrap items-center gap-0.5 rounded-t-md border border-b-0 border-input bg-muted p-1"
+    >
+      <ToolbarButton
+        label={t.bold}
+        onClick={() => editor.chain().focus().toggleBold().run()}
+        active={state.bold}
+        disabled={disabled}
+      >
+        <Bold className="size-4" />
+      </ToolbarButton>
+      <ToolbarButton
+        label={t.italic}
+        onClick={() => editor.chain().focus().toggleItalic().run()}
+        active={state.italic}
+        disabled={disabled}
+      >
+        <Italic className="size-4" />
+      </ToolbarButton>
+
+      <div className="mx-1 h-5 w-px bg-border" aria-hidden="true" />
+
+      <ToolbarButton
+        label={t.bulletedList}
+        onClick={() => editor.chain().focus().toggleBulletList().run()}
+        active={state.bullet}
+        disabled={disabled}
+      >
+        <List className="size-4" />
+      </ToolbarButton>
+      <ToolbarButton
+        label={t.numberedList}
+        onClick={() => editor.chain().focus().toggleOrderedList().run()}
+        active={state.ordered}
+        disabled={disabled}
+      >
+        <ListOrdered className="size-4" />
+      </ToolbarButton>
+
+      <div className="mx-1 h-5 w-px bg-border" aria-hidden="true" />
+
+      <ToolbarButton
+        label={t.addLink}
+        onClick={() => promptForLink(editor)}
+        active={state.link}
+        disabled={disabled}
+      >
+        <Link2 className="size-4" />
+      </ToolbarButton>
+      <ToolbarButton
+        label={t.removeLink}
+        onClick={() => editor.chain().focus().unsetLink().run()}
+        disabled={disabled || !state.link}
+      >
+        <Link2Off className="size-4" />
+      </ToolbarButton>
+
+      <div className="mx-1 h-5 w-px bg-border" aria-hidden="true" />
+
+      <ToolbarButton
+        label={t.undo}
+        onClick={() => editor.chain().focus().undo().run()}
+        disabled={disabled || !state.canUndo}
+      >
+        <Undo2 className="size-4" />
+      </ToolbarButton>
+      <ToolbarButton
+        label={t.redo}
+        onClick={() => editor.chain().focus().redo().run()}
+        disabled={disabled || !state.canRedo}
       >
         <Redo2 className="size-4" />
       </ToolbarButton>
@@ -677,14 +801,66 @@ function LinkDialog({
 /** The editable area's classes, shared by both variants. */
 const CONTENT_CLASSES = `${ARTICLE_TABLE_CLASSES} min-h-[28rem] px-3 py-2 text-sm focus:outline-none [&_h2]:mt-6 [&_h2]:text-lg [&_h2]:font-semibold [&_h3]:mt-5 [&_h3]:text-base [&_h3]:font-semibold [&_p]:my-3 [&_ul]:my-3 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:my-3 [&_ol]:list-decimal [&_ol]:pl-6 [&_li]:my-1 [&_a]:text-primary [&_a]:underline [&_blockquote]:my-3 [&_blockquote]:border-l-2 [&_blockquote]:pl-4 [&_blockquote]:text-muted-foreground [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-xs [&_img]:my-6 [&_img]:block [&_img]:mx-auto [&_img]:max-w-[min(100%,36rem)] [&_img]:max-h-[30rem] [&_img]:h-auto [&_img]:w-auto [&_img]:rounded-lg [&_img]:border [&_img]:object-contain`;
 
+/**
+ * The compact editable area: a few lines high rather than a page, and styled
+ * for the little it can hold. Paragraphs inside list items stay tight.
+ */
+const COMPACT_CONTENT_CLASSES =
+  "min-h-24 px-3 py-2 text-sm focus:outline-none [&_p]:my-2 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-6 [&_li]:my-1 [&_li_p]:my-0 [&_a]:text-primary [&_a]:underline";
+
+/**
+ * What the compact editor can hold: paragraphs, bold, italic, links and
+ * lists - exactly what its toolbar makes.
+ *
+ * The schema is cut down, not just the toolbar, because a paste brings
+ * whatever the copied page had: ProseMirror keeps only what the schema has a
+ * place for, so a pasted heading, quote or table keeps its words as plain
+ * paragraphs and a picture is left out. Hiding the buttons alone would have
+ * let a pasted <h2> into a FAQ answer with no button to turn it back into
+ * text. Line breaks (Shift+Enter) stay: they are typing, not formatting.
+ *
+ * Created once, here: an extension instance holds configuration only (each
+ * editor gets its own storage), so every compact editor on a page shares it.
+ * Exported for the schema test.
+ */
+export const COMPACT_EXTENSIONS: Extensions = [
+  StarterKit.configure({
+    heading: false,
+    blockquote: false,
+    codeBlock: false,
+    code: false,
+    horizontalRule: false,
+    strike: false,
+    underline: false,
+    // The Link below is the only one wanted, as in the workspace variant.
+    link: false,
+    /*
+      No empty paragraph kept after a closing list. The sanitiser strips that
+      paragraph on save, so a saved answer ending in a list came back without
+      it, and the first transaction after loading - the one a click or Tab
+      into the answer makes - put it back: an edit nobody made, which marked
+      the post "Unsaved changes" and asked before leaving. Enter on an empty
+      last list item still leaves the list, for text after it.
+    */
+    trailingNode: false,
+  }),
+  Link.configure({
+    openOnClick: false,
+    autolink: true,
+    // As the full editor's: the sanitiser sets rel and target on save.
+    HTMLAttributes: { rel: "noopener nofollow", target: "_blank" },
+  }),
+];
+
 export function RichTextEditor({
   value,
   onChange,
   ariaLabel = "Article content",
-  onUploadImage,
+  onUploadImage: uploadImageProp,
   onListImages,
   t = getMessages("en").app.editorUi,
   variant = "classic",
+  toolbar = "full",
   tCommon,
   editable = true,
   contentClassName,
@@ -703,6 +879,14 @@ export function RichTextEditor({
    * text, and no duplicate link extension.
    */
   variant?: "classic" | "workspace";
+  /**
+   * "full" (the default) is the article editor. "compact" is opt-in, for a
+   * short piece of text inside a form (a FAQ answer): bold, italic, lists and
+   * links only - in the toolbar and in what the editor can hold
+   * (COMPACT_EXTENSIONS) - a few lines high, a toolbar that does not stick,
+   * no HTML view and no pictures. Classic variant only.
+   */
+  toolbar?: "full" | "compact";
   /** Shared words for the picker (Cancel, Remove, Upload, search). Workspace variant. */
   tCommon?: Messages["app"]["common"];
   /** False pauses editing (contenteditable off, toolbar off). Defaults to true. */
@@ -731,6 +915,14 @@ export function RichTextEditor({
   /** Pictures this website has used before, optionally filtered. */
   onListImages?: (term: string) => Promise<PickerImage[]>;
 }) {
+  const compact = toolbar === "compact" && variant === "classic";
+  /*
+    The compact editor has no image node, so an upload would have nowhere to
+    land (and setImage no command to run): pasted and dropped pictures fall
+    through to the editor, which leaves them out, whatever a caller passes.
+  */
+  const onUploadImage = compact ? undefined : uploadImageProp;
+
   /**
    * The raw HTML stays reachable behind a toggle. Someone occasionally needs
    * to paste an embed or fix markup by hand, and taking that away to add the
@@ -844,7 +1036,7 @@ export function RichTextEditor({
   const openPickerAtCaret = useCallback(() => openPicker(), [openPicker]);
 
   const editor = useEditor({
-    extensions: [
+    extensions: compact ? COMPACT_EXTENSIONS : [
       StarterKit.configure(
         workspace
           ? // StarterKit 3 bundles Link too; the one configured below is the only one wanted.
@@ -931,10 +1123,18 @@ export function RichTextEditor({
             ...(describedBy ? { "aria-describedby": describedBy } : {}),
             class: contentClassName ? `${CONTENT_CLASSES} ${contentClassName}` : CONTENT_CLASSES,
           }
-        : {
-            "aria-label": ariaLabel,
-            class: CONTENT_CLASSES,
-          },
+        : compact
+          ? {
+              // A textbox among form fields, where a textarea used to be: named and announced as one.
+              "aria-label": ariaLabel,
+              role: "textbox",
+              "aria-multiline": "true",
+              class: COMPACT_CONTENT_CLASSES,
+            }
+          : {
+              "aria-label": ariaLabel,
+              class: CONTENT_CLASSES,
+            },
     },
     onUpdate: ({ editor: instance }) => onChange(instance.getHTML()),
   });
@@ -957,9 +1157,19 @@ export function RichTextEditor({
 
   useEffect(() => {
     if (editor && !editor.isDestroyed && value !== editor.getHTML()) {
-      editor.commands.setContent(value, { emitUpdate: false });
+      /*
+        The compact editor's value changes underneath it only when the page
+        loads, and a saved answer often differs from the editor's own HTML
+        (the sanitiser writes a link's attributes in another order, and <br>
+        as <br />), so loading it is a setContent. Kept out of undo history,
+        or Undo was lit on an untouched answer and its first click "undid"
+        the load into the same text. The full editor's sync stays undoable:
+        there it can be a rewrite worth taking back.
+      */
+      if (compact) editor.chain().setMeta("addToHistory", false).setContent(value, { emitUpdate: false }).run();
+      else editor.commands.setContent(value, { emitUpdate: false });
     }
-  }, [editor, value]);
+  }, [editor, value, compact]);
 
   /*
     Paused editing. Only ever called when the prop is false or changes back:
@@ -975,7 +1185,7 @@ export function RichTextEditor({
   if (!editor) {
     // Matches the editor's height so the card does not jump on mount.
     return (
-      <div className="min-h-[30rem] rounded-md border border-input bg-muted/20" />
+      <div className={cn(compact ? "min-h-35" : "min-h-[30rem]", "rounded-md border border-input bg-muted/20")} />
     );
   }
 
@@ -1067,6 +1277,8 @@ export function RichTextEditor({
           disabled={!editable || showSource}
           t={t}
         />
+      ) : compact ? (
+        <CompactToolbar editor={editor} disabled={!editable} t={t} label={ariaLabel} />
       ) : (
         <Toolbar
           editor={editor}
@@ -1240,7 +1452,7 @@ export function RichTextEditor({
             {showSource ? t.backToEditor : t.editHtml}
           </Button>
         </div>
-      ) : (
+      ) : compact ? null : (
         <div className="mt-1.5 flex items-center justify-between">
           <p className="text-xs text-muted-foreground">
             {showSource

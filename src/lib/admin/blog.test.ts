@@ -26,7 +26,7 @@ import {
 } from "@/lib/admin/blog";
 import { categoryBySlug, listCategories } from "@/lib/blog/categories";
 import { getPost, listPosts } from "@/lib/blog/posts";
-import { jsonLdScript } from "@/lib/blog/shared";
+import { FAQ_ANSWER_LIMIT, jsonLdScript, plainText } from "@/lib/blog/shared";
 
 let test: TestDb;
 const ADMIN = "admin@repget.test";
@@ -212,6 +212,95 @@ describe("writing and publishing a post", () => {
     expect(stored.sources).toEqual([{ label: "developers.google.com", url: "https://developers.google.com/search" }]);
   });
 
+  /*
+    FAQ answers are written in the text editor's compact form (2026-10-04):
+    HTML, where an emptied answer still holds "<p></p>".
+  */
+  it("FAQ answers from the editor: markup without words is no answer; bold, links and lists are kept", async () => {
+    for (const blank of ["<p></p>", "<p> </p>", "<p><br></p>", "<ul><li></li></ul>", "<p>&nbsp;</p>"]) {
+      expect(
+        await saveBlogPost({ id: null, expectedVersion: 0, status: "draft", post: input({ faqs: [{ question: "How long?", answer: blank }] }) }),
+        blank,
+      ).toMatchObject({ ok: false, error: expect.stringMatching(/both a question and an answer/) });
+    }
+
+    const post = await create("draft", {
+      faqs: [
+        // A row added and left empty, its answer typed and deleted again.
+        { question: " ", answer: "<p></p>" },
+        {
+          question: "How long?",
+          answer:
+            '<p><strong>About a week</strong>, <em>sometimes</em> see <a target="_blank" rel="noopener nofollow" href="https://example.com/guide">the guide</a>:</p>' +
+            "<ol><li><p>filming: a day</p></li><li><p>editing: the rest</p></li></ol><p></p>",
+        },
+      ],
+    });
+    expect((await row(post.id)).faqs).toEqual([
+      {
+        question: "How long?",
+        answer:
+          '<p><strong>About a week</strong>, <em>sometimes</em> see <a href="https://example.com/guide" target="_blank" rel="noopener nofollow">the guide</a>:</p>' +
+          "<ol><li><p>filming: a day</p></li><li><p>editing: the rest</p></li></ol>",
+      },
+    ]);
+  });
+
+  it("a FAQ answer over the limit is refused, not cut: a cut could leave half a tag on the page", async () => {
+    const tail = ' <a href="https://example.com/a-page">link</a></p>';
+    // What the sanitiser adds to a link off the site, counted with the rest: the limit is on the answer as stored.
+    const outside = ' target="_blank" rel="noopener nofollow"';
+    const atLimit = `<p>${"a".repeat(FAQ_ANSWER_LIMIT - 3 - tail.length - outside.length)}${tail}`;
+    // The link starting just before the limit: the old cut ended inside its tag.
+    const over = `<p>${"a".repeat(FAQ_ANSWER_LIMIT - 15)}${tail}`;
+    expect(over.slice(0, FAQ_ANSWER_LIMIT)).toMatch(/<a href="[^>]*$/);
+
+    const refused = await saveBlogPost({
+      id: null,
+      expectedVersion: 0,
+      status: "draft",
+      post: input({ faqs: [{ question: "Short?", answer: "<p>Yes.</p>" }, { question: "Long?", answer: over }] }),
+    });
+    expect(refused).toMatchObject({
+      ok: false,
+      error: expect.stringContaining(
+        `question 2 is too long: ${over.length + outside.length} characters with its formatting, and the limit is ${FAQ_ANSWER_LIMIT}`,
+      ),
+    });
+
+    const post = await create("draft", { faqs: [{ question: "Long?", answer: atLimit }] });
+    const [stored] = (await row(post.id)).faqs;
+    expect(stored.answer).toMatch(/^<p>a+ <a href="https:\/\/example\.com\/a-page" target="_blank" rel="noopener nofollow">link<\/a><\/p>$/);
+    expect(stored.answer).toHaveLength(FAQ_ANSWER_LIMIT);
+  });
+
+  /*
+    The editor writes a line break (Shift+Enter) as <br>, which is stored as
+    <br />. Counted as written, an answer let through just under the limit was
+    stored over it, and every later save of that post was refused - even one
+    that left the answer alone.
+  */
+  it("a FAQ answer is measured as stored: one that would grow past the limit is refused, a stored one saves again", async () => {
+    // Under the limit as written; each <br> gains two characters on save.
+    const growing = `<p>${"a".repeat(FAQ_ANSWER_LIMIT - 20)}<br>b<br>c</p>`;
+    expect(growing).toHaveLength(FAQ_ANSWER_LIMIT - 3);
+    expect(
+      await saveBlogPost({ id: null, expectedVersion: 0, status: "draft", post: input({ faqs: [{ question: "Long?", answer: growing }] }) }),
+    ).toMatchObject({
+      ok: false,
+      error: expect.stringContaining(`question 1 is too long: ${FAQ_ANSWER_LIMIT + 1} characters`),
+    });
+
+    const post = await create("draft", { faqs: [{ question: "Long?", answer: `<p>${"a".repeat(FAQ_ANSWER_LIMIT - 21)}<br>b<br>c</p>` }] });
+    const { faqs } = await row(post.id);
+    expect(faqs[0].answer).toHaveLength(FAQ_ANSWER_LIMIT);
+    expect(faqs[0].answer).toContain("<br />b<br />c");
+    // Saved again as the editor loads it after a reload: the stored answer, untouched.
+    expect(
+      await saveBlogPost({ id: post.id, expectedVersion: post.version, status: "draft", post: input({ slug: post.slug, faqs }) }),
+    ).toMatchObject({ ok: true });
+  });
+
   it("changing a live post on a later day shows it as updated; a save that changes nothing does not", async () => {
     const post = await create("published");
     await test.db.update(blogPosts).set({ publishedAt: new Date("2026-06-01T00:00:00Z") }).where(eq(blogPosts.id, post.id));
@@ -375,6 +464,20 @@ describe("structured data", () => {
     const out = jsonLdScript(value);
     expect(out).not.toContain("</script>");
     expect(JSON.parse(out)).toEqual(value);
+  });
+
+  it("a saved FAQ answer as the FAQPage text: list items apart, references decoded, no markup", async () => {
+    const post = await create("published", {
+      faqs: [
+        {
+          question: "What does it cost?",
+          answer: "<p>Rome &amp; Florence&#39;s rates:</p><ul><li><p>half day</p></li><li><p>full&nbsp;day</p></li></ul>",
+        },
+      ],
+    });
+    const [faq] = (await getPost(post.slug))!.faqs!;
+    // As the post page builds acceptedAnswer.text (app/(marketing)/blog/[slug]/page.tsx).
+    expect(plainText(faq.answer)).toBe("Rome & Florence's rates:\nhalf day\nfull day");
   });
 });
 

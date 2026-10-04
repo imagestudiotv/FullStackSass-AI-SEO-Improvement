@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 
 import { BlogArticle } from "@/components/blog-article";
 import { getPost, relatedPosts } from "@/lib/blog/posts";
-import { jsonLdScript } from "@/lib/blog/shared";
+import { jsonLdScript, plainText } from "@/lib/blog/shared";
 import { SHARE_IMAGE } from "@/lib/share-image";
 import { siteUrl } from "@/lib/site-url";
 import { breadcrumbList, entityIds } from "@/lib/structured-data";
@@ -110,8 +110,8 @@ export default async function BlogPostPage({
         name: faq.question,
         acceptedAnswer: {
           "@type": "Answer",
-          // Structured data wants text, not markup.
-          text: faq.answer.replace(/<[^>]+>/g, ""),
+          // Structured data wants text, not markup: a line per paragraph or list item.
+          text: plainText(faq.answer),
         },
       })),
     });

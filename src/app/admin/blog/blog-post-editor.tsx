@@ -35,7 +35,14 @@ import {
   type BlogPostInput,
 } from "@/lib/admin/blog";
 import { previewHtml } from "@/lib/articles/use-draft";
-import { blogSlug, readingMinutes, type BlogCategoryInfo, type BlogPost } from "@/lib/blog/shared";
+import {
+  blogSlug,
+  FAQ_ANSWER_LIMIT,
+  hasText,
+  readingMinutes,
+  type BlogCategoryInfo,
+  type BlogPost,
+} from "@/lib/blog/shared";
 import { formatDate, formatNumber } from "@/lib/i18n/format";
 import { cn } from "@/lib/utils";
 
@@ -50,9 +57,11 @@ const TEXTAREA =
 
 /**
  * The server's limits (lib/admin/blog.ts, clean()). Mirrored as maxLength so
- * nothing is cut off silently on save; the server still enforces them.
+ * nothing is cut off silently on save; the server still enforces them. A FAQ
+ * answer's (FAQ_ANSWER_LIMIT) is HTML, which no maxLength can hold to: FaqRows
+ * warns past it instead.
  */
-const LIMITS = { title: 200, description: 300, author: 100, shortAnswer: 1000, question: 300, answer: 5000, sourceLabel: 200, rows: 30 };
+const LIMITS = { title: 200, description: 300, author: 100, shortAnswer: 1000, question: 300, sourceLabel: 200, rows: 30 };
 /** What search results show of a description; longer is saved but cut off there. */
 const DESCRIPTION_TARGET = 160;
 
@@ -263,7 +272,7 @@ export function BlogPostEditor({
     readingMinutes: 0,
     shortAnswer: draft.shortAnswer.trim() || undefined,
     faqs: draft.faqs
-      .filter((faq) => faq.question.trim() && faq.answer.trim())
+      .filter((faq) => faq.question.trim() && hasText(faq.answer))
       .map((faq) => ({ question: faq.question.trim(), answer: previewHtml(faq.answer) })),
     sources: draft.sources.filter((source) => /^https?:\/\//i.test(source.url.trim())).map((source) => ({
       label: source.label.trim() || source.url.trim(),
@@ -826,9 +835,32 @@ function RowCount({ count, noun }: { count: number; noun: string }) {
   );
 }
 
-/** FAQ rows. The array index is the key, as before: rows have no id of their own. */
+/**
+ * FAQ rows: a question, and an answer in the text editor's compact form.
+ *
+ * Each row has a key of its own, kept here beside the rows rather than in
+ * them, so it never reaches the saved post. The array index was the key while
+ * answers were textareas; an answer is an editor now, with its own undo
+ * history, and with index keys removing question 2 handed its editor to
+ * question 3's answer - Undo there brought the removed answer back, under the
+ * wrong question.
+ */
 function FaqRows({ faqs, onChange }: { faqs: BlogPostInput["faqs"]; onChange: (faqs: BlogPostInput["faqs"]) => void }) {
+  const [rows, setRows] = useState(() => ({ keys: faqs.map((_, index) => index), next: faqs.length }));
   const full = faqs.length >= LIMITS.rows;
+  // Rows come and go only through the buttons below; were anything else to change their number, the index is the fallback.
+  const keyOf = (index: number) => (rows.keys.length === faqs.length ? `row-${rows.keys[index]}` : `index-${index}`);
+
+  function add() {
+    onChange([...faqs, { question: "", answer: "" }]);
+    setRows(({ keys, next }) => ({ keys: [...keys, next], next: next + 1 }));
+  }
+
+  function remove(index: number) {
+    onChange(faqs.filter((_, i) => i !== index));
+    setRows(({ keys, next }) => ({ keys: keys.filter((_, i) => i !== index), next }));
+  }
+
   return (
     <div className="space-y-4">
       {faqs.length === 0 ? (
@@ -836,9 +868,20 @@ function FaqRows({ faqs, onChange }: { faqs: BlogPostInput["faqs"]; onChange: (f
       ) : (
         <ol className="divide-y">
           {faqs.map((faq, index) => {
-            const half = Boolean(faq.question.trim()) !== Boolean(faq.answer.trim());
+            // An emptied editor still holds "<p></p>": what counts is whether the answer has words.
+            const half = Boolean(faq.question.trim()) !== hasText(faq.answer);
+            /*
+              Counted as the server counts it: the answer as it would be
+              stored. The editor writes <br> where the sanitiser keeps
+              <br />, so the editor's own string was short of what was stored,
+              and an answer let through at the limit came back over it. Without
+              the site's hosts, previewHtml marks a link to the site's own page
+              as external (longer), so this can only warn early, never late.
+            */
+            const answerLength = previewHtml(faq.answer).length;
+            const tooLong = answerLength > FAQ_ANSWER_LIMIT;
             return (
-              <li key={index} className="space-y-2 py-4 first:pt-0">
+              <li key={keyOf(index)} className="space-y-2 py-4 first:pt-0">
                 <div className="flex items-center justify-between gap-2">
                   <Label htmlFor={`faq-question-${index}`} className="text-muted-foreground">
                     Question {index + 1}
@@ -848,7 +891,7 @@ function FaqRows({ faqs, onChange }: { faqs: BlogPostInput["faqs"]; onChange: (f
                     variant="ghost"
                     size="icon-sm"
                     aria-label={`Remove question ${index + 1}`}
-                    onClick={() => onChange(faqs.filter((_, i) => i !== index))}
+                    onClick={() => remove(index)}
                     className="text-muted-foreground hover:text-danger"
                   >
                     <Trash2 aria-hidden="true" />
@@ -861,23 +904,39 @@ function FaqRows({ faqs, onChange }: { faqs: BlogPostInput["faqs"]; onChange: (f
                   maxLength={LIMITS.question}
                   onChange={(e) => onChange(faqs.map((f, i) => (i === index ? { ...f, question: e.target.value } : f)))}
                 />
-                <textarea
-                  aria-label={`Answer ${index + 1}`}
-                  placeholder="Answer (plain text; a link can be written as <a href=&quot;https://…&quot;>words</a>)"
-                  rows={3}
-                  maxLength={LIMITS.answer}
-                  className={TEXTAREA}
+                {/*
+                  Seen, not read out: the editor already carries the name
+                  "Answer N", and a label element cannot point at a
+                  contenteditable the way it points at the question's input.
+                */}
+                <p className="pt-2 text-sm leading-none font-medium text-muted-foreground" aria-hidden="true">
+                  Answer {index + 1}
+                </p>
+                <RichTextEditor
+                  toolbar="compact"
+                  ariaLabel={`Answer ${index + 1}`}
                   value={faq.answer}
-                  onChange={(e) => onChange(faqs.map((f, i) => (i === index ? { ...f, answer: e.target.value } : f)))}
+                  onChange={(answer) => onChange(faqs.map((f, i) => (i === index ? { ...f, answer } : f)))}
                 />
                 {half ? <p className="text-xs text-warning">Needs both a question and an answer - or remove it.</p> : null}
+                {/*
+                  The answer is HTML, so there is no maxLength to stop typing
+                  at the limit: this says so before the server refuses the
+                  save (lib/admin/blog.ts), rather than the end being cut off.
+                */}
+                {tooLong ? (
+                  <p className="text-xs text-warning">
+                    Too long to save: {formatNumber(answerLength, "en")} of {formatNumber(FAQ_ANSWER_LIMIT, "en")} characters,
+                    formatting included. Shorten it or split it into two questions.
+                  </p>
+                ) : null}
               </li>
             );
           })}
         </ol>
       )}
       <div className="flex flex-wrap items-center gap-3">
-        <Button type="button" variant="outline" disabled={full} onClick={() => onChange([...faqs, { question: "", answer: "" }])}>
+        <Button type="button" variant="outline" disabled={full} onClick={add}>
           <Plus aria-hidden="true" />
           Add question
         </Button>

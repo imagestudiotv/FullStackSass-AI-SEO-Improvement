@@ -40,6 +40,13 @@ export type BlogFaq = {
   answer: string;
 };
 
+/**
+ * The most a FAQ answer's HTML may run to as stored (sanitised), formatting
+ * included. The editor warns past it and the server refuses it
+ * (lib/admin/blog.ts).
+ */
+export const FAQ_ANSWER_LIMIT = 5000;
+
 /** An external reference backing a claim in the post. */
 export type BlogSource = {
   label: string;
@@ -99,6 +106,90 @@ export function categoryCounts(posts: Pick<BlogPost, "category">[]): Record<Blog
   const counts: Record<BlogCategory, number> = {};
   for (const post of posts) counts[post.category] = (counts[post.category] ?? 0) + 1;
   return counts;
+}
+
+/**
+ * Tags that end a line of text. Any other tag (strong, em, a) sits inside a
+ * word as often as between two, so it goes without leaving a space. The
+ * attribute part matches quoted values whole, as the sanitiser's does, so a
+ * ">" inside one does not end the tag early.
+ */
+const BLOCK_TAG =
+  /<\/?(?:p|div|br|hr|li|ul|ol|h[1-6]|blockquote|pre|table|thead|tbody|tfoot|tr|td|th|caption|figure|figcaption|dl|dt|dd)\b(?:"[^"]*"|'[^']*'|[^>"'])*>/gi;
+const ANY_TAG = /<\/?[a-z][a-z0-9:-]*(?:"[^"]*"|'[^']*'|[^>"'])*>/gi;
+
+/**
+ * The named references worth decoding. The editor writes only &amp;, &lt;,
+ * &gt; and &nbsp;; older posts and pasted text bring the typographic ones.
+ * Any other stays as written rather than being guessed at.
+ */
+const NAMED_REFERENCES: Record<string, string> = {
+  amp: "&",
+  lt: "<",
+  gt: ">",
+  quot: '"',
+  apos: "'",
+  nbsp: "\u00a0",
+  hellip: "…",
+  mdash: "—",
+  ndash: "–",
+  lsquo: "‘",
+  rsquo: "’",
+  ldquo: "“",
+  rdquo: "”",
+  laquo: "«",
+  raquo: "»",
+  copy: "©",
+  reg: "®",
+  trade: "™",
+  euro: "€",
+  pound: "£",
+};
+
+function decodeReference(whole: string, ref: string): string {
+  if (ref[0] !== "#") return NAMED_REFERENCES[ref.toLowerCase()] ?? whole;
+  const code = ref[1] === "x" || ref[1] === "X" ? parseInt(ref.slice(2), 16) : Number(ref.slice(1));
+  // An out-of-range reference reads as nothing rather than throwing on one bad paste.
+  return Number.isFinite(code) && code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : "";
+}
+
+/**
+ * The words of a piece of post HTML (a FAQ answer, the body) as plain text:
+ * one line per paragraph, list item or other block, character references
+ * decoded, runs of spaces collapsed.
+ *
+ * For structured data, which wants text, and for telling an answer with words
+ * in it from the markup an emptied editor leaves behind ("<p></p>"). Stripping
+ * the tags alone glued list items together ("<li>a</li><li>b</li>" read "ab")
+ * and left "&amp;" and "&nbsp;" in the text.
+ *
+ * Regex rather than a parser, as with the helpers below: it runs in the
+ * editor as well as on the server, on HTML the sanitiser has reduced to a few
+ * plain tags (or the editor wrote).
+ */
+export function plainText(html: string): string {
+  return (
+    html
+      // A line break in the source is only a space to a browser.
+      .replace(/\s+/g, " ")
+      .replace(BLOCK_TAG, "\n")
+      .replace(ANY_TAG, "")
+      // After the tags are gone, so a decoded "&lt;p&gt;" stays text.
+      .replace(/&(#x[0-9a-f]+|#\d+|[a-z][a-z0-9]*);/gi, decodeReference)
+      .split("\n")
+      .map((line) => line.replace(/\s+/g, " ").trim())
+      .filter(Boolean)
+      .join("\n")
+  );
+}
+
+/**
+ * True when the HTML has a word in it. "<p></p>", "<p>&nbsp;</p>" and
+ * "<ul><li></li></ul>" do not: they are what an editor holds once its text is
+ * deleted, and count as an empty answer, not a written one.
+ */
+export function hasText(html: string): boolean {
+  return plainText(html) !== "";
 }
 
 /** Words a reader reads: the short answer, the body and the FAQ answers. */

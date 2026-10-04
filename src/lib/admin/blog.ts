@@ -6,7 +6,16 @@ import { revalidatePath } from "next/cache";
 import { recordAdminAction, type AdminAction } from "@/lib/admin/audit";
 import { requireAdmin } from "@/lib/admin/guard";
 import { sanitizeHtml } from "@/lib/articles/sanitize";
-import { blogSlug, readingMinutes, type BlogCategory, type BlogCategoryInfo, type BlogFaq, type BlogSource } from "@/lib/blog/shared";
+import {
+  blogSlug,
+  FAQ_ANSWER_LIMIT,
+  hasText,
+  readingMinutes,
+  type BlogCategory,
+  type BlogCategoryInfo,
+  type BlogFaq,
+  type BlogSource,
+} from "@/lib/blog/shared";
 import { db } from "@/lib/db";
 import { blogCategories, blogPosts } from "@/lib/db/schema";
 import { notifyIndexNow } from "@/lib/indexnow";
@@ -93,10 +102,6 @@ function siteHosts(): Set<string> {
   return new Set([host, host.startsWith("www.") ? host.slice(4) : `www.${host}`]);
 }
 
-function hasText(html: string): boolean {
-  return html.replace(/<[^>]+>/g, " ").replace(/&[a-z#0-9]+;/gi, " ").trim().length > 0;
-}
-
 type Clean = {
   title: string;
   slug: string;
@@ -127,11 +132,32 @@ function clean(input: BlogPostInput, publishing: boolean): Clean {
 
   const faqRows = Array.isArray(input.faqs) ? input.faqs.slice(0, 30) : [];
   const faqs: BlogFaq[] = [];
-  for (const faq of faqRows) {
+  for (const [index, faq] of faqRows.entries()) {
     const question = String(faq?.question ?? "").trim().slice(0, 300);
-    const answer = sanitizeHtml(String(faq?.answer ?? "").trim().slice(0, 5000), { siteHosts: siteHosts() });
+    const answer = sanitizeHtml(String(faq?.answer ?? "").trim(), { siteHosts: siteHosts() });
+    // An answer without a word in it ("<p></p>" from an emptied editor) is no answer.
     if (!question && !hasText(answer)) continue;
     if (!question || !hasText(answer)) throw new BlogError("Each FAQ needs both a question and an answer");
+    /*
+      Refused rather than cut. Cutting at the limit never happened while
+      answers came from a textarea with a maxLength; they are the editor's
+      HTML now, and the sanitiser neither closes tags nor removes half of
+      one: a cut through '<a href="…' would keep the fragment, which on the
+      page runs on into the FAQs after it, and a cut before a closing
+      </strong> would make the rest of the page bold.
+
+      Measured as stored, not as written. The sanitiser can lengthen what the
+      editor writes (each <br> becomes <br />), so an answer written just
+      under the limit was stored over it, and from then on every save of the
+      post - even one that left the answer alone - was refused. Sanitising
+      what is stored changes nothing, so a stored answer always passes again.
+      The editor counts the same form (previewHtml) and warns first.
+    */
+    if (answer.length > FAQ_ANSWER_LIMIT) {
+      throw new BlogError(
+        `The answer to question ${index + 1} is too long: ${answer.length} characters with its formatting, and the limit is ${FAQ_ANSWER_LIMIT}. Shorten it or split it into two questions.`,
+      );
+    }
     faqs.push({ question, answer });
   }
 

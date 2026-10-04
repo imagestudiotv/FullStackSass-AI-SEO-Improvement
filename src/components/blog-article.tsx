@@ -135,8 +135,16 @@ export function BlogArticle({ post }: { post: BlogPost }) {
                       />
                     </span>
                   </summary>
+                  {/*
+                    The answer's formatting, from the admin editor's compact
+                    toolbar: paragraphs, bold, italic, links and lists, styled
+                    as the body styles them (no typography plugin: without
+                    these, lists showed no bullets or numbers and paragraphs
+                    ran together). space-y spaces the answer's own blocks
+                    only, so paragraphs inside list items stay tight.
+                  */}
                   <div
-                    className="mt-3 leading-7 text-muted-foreground [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-4"
+                    className="mt-3 space-y-3 leading-7 text-muted-foreground [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-4 [&_em]:italic [&_li]:my-1 [&_ol]:list-decimal [&_ol]:pl-6 [&_strong]:font-semibold [&_ul]:list-disc [&_ul]:pl-6"
                     dangerouslySetInnerHTML={{ __html: faq.answer }}
                   />
                 </details>
