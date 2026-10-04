@@ -340,6 +340,16 @@ export type Messages = {
     emailLabel: string;
     accountNote: string;
   };
+  /** The public site's "page not found" (components/not-found-panel.tsx). */
+  notFound: {
+    /** The browser tab's title, "<this> | RepGet". */
+    metaTitle: string;
+    eyebrow: string;
+    title: string;
+    body: string;
+    home: string;
+    elsewhere: string;
+  };
   legalNotice: string;
 
   /**
@@ -3338,6 +3348,14 @@ const en: Messages = {
     accountNote:
       "If you are writing about your account, please send it from the address you signed up with.",
   },
+  notFound: {
+    metaTitle: "Page not found",
+    eyebrow: "Error 404",
+    title: "We couldn’t find that page",
+    body: "The address may be mistyped, or the page has moved or no longer exists.",
+    home: "Go to the home page",
+    elsewhere: "Or try one of these:",
+  },
   legalNotice: "This page is available in English only. Translations of our legal terms are prepared by a professional translator before publication.",
 
   app: {
@@ -6161,6 +6179,14 @@ const es: Messages = {
     emailLabel: "Correo electrónico",
     accountNote:
       "Si escribe sobre su cuenta, hágalo desde la dirección con la que se registró.",
+  },
+  notFound: {
+    metaTitle: "Página no encontrada",
+    eyebrow: "Error 404",
+    title: "No encontramos esa página",
+    body: "Puede que la dirección esté mal escrita, o que la página se haya movido o ya no exista.",
+    home: "Ir a la página de inicio",
+    elsewhere: "O pruebe una de estas:",
   },
   legalNotice: "Esta página solo está disponible en inglés. Las traducciones de nuestros términos legales las prepara un traductor profesional antes de su publicación.",
 
@@ -8990,6 +9016,14 @@ const fr: Messages = {
     accountNote:
       "Si votre message concerne votre compte, envoyez-le depuis l'adresse utilisée lors de l'inscription.",
   },
+  notFound: {
+    metaTitle: "Page introuvable",
+    eyebrow: "Erreur 404",
+    title: "Nous n’avons pas trouvé cette page",
+    body: "L’adresse est peut-être mal saisie, ou la page a été déplacée ou n’existe plus.",
+    home: "Aller à la page d’accueil",
+    elsewhere: "Ou essayez l’une de ces pages :",
+  },
   legalNotice: "Cette page n'est disponible qu'en anglais. Les traductions de nos conditions légales sont réalisées par un traducteur professionnel avant publication.",
 
   app: {
@@ -11809,6 +11843,14 @@ const it: Messages = {
     emailLabel: "E-mail",
     accountNote:
       "Se scrive riguardo al suo account, lo faccia dall'indirizzo con cui si è registrato.",
+  },
+  notFound: {
+    metaTitle: "Pagina non trovata",
+    eyebrow: "Errore 404",
+    title: "Non abbiamo trovato questa pagina",
+    body: "L’indirizzo potrebbe essere errato, oppure la pagina è stata spostata o non esiste più.",
+    home: "Vai alla pagina iniziale",
+    elsewhere: "Oppure provi una di queste:",
   },
   legalNotice: "Questa pagina è disponibile solo in inglese. Le traduzioni dei nostri termini legali sono curate da un traduttore professionista prima della pubblicazione.",
 
@@ -14637,6 +14679,14 @@ const de: Messages = {
     emailLabel: "E-Mail",
     accountNote:
       "Wenn es um Ihr Konto geht, schreiben Sie bitte von der Adresse, mit der Sie sich registriert haben.",
+  },
+  notFound: {
+    metaTitle: "Seite nicht gefunden",
+    eyebrow: "Fehler 404",
+    title: "Diese Seite haben wir nicht gefunden",
+    body: "Die Adresse ist vielleicht falsch geschrieben, oder die Seite wurde verschoben oder existiert nicht mehr.",
+    home: "Zur Startseite",
+    elsewhere: "Oder versuchen Sie eine dieser Seiten:",
   },
   legalNotice: "Diese Seite ist nur auf Englisch verfügbar. Übersetzungen unserer rechtlichen Bedingungen werden vor der Veröffentlichung von einem professionellen Übersetzer erstellt.",
 

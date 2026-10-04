@@ -62,11 +62,39 @@ export function splitLocale(pathname: string): {
   return { locale: DEFAULT_LOCALE, path: pathname };
 }
 
-/** Builds a path for a locale. English stays unprefixed. */
+/**
+ * The pages that exist in every language: the home page and the folders
+ * under app/(marketing)/[locale] (config.test.ts keeps the two in step).
+ * Everything else - the free check, the tools, the docs, the blog - is
+ * English-only and has no /es/... address.
+ */
+export const TRANSLATED_PATHS: ReadonlySet<string> = new Set([
+  "/",
+  "/pricing",
+  "/about",
+  "/faq",
+  "/contact",
+  "/success-stories",
+  "/publishers",
+  "/affiliate",
+  "/backlink-exchange",
+]);
+
+/**
+ * Builds a path for a locale. English stays unprefixed, and so does any page
+ * that is English-only: a Spanish page links to /audit, not to an /es/audit
+ * that does not exist. Every translated page's "free check" button and its
+ * tools and docs links used to be exactly that - 404s (found by the 404
+ * logging review, 2026-10-04). A ?query or #fragment is kept.
+ */
 export function localePath(locale: Locale, path: string): string {
   const clean = path.startsWith("/") ? path : `/${path}`;
   if (locale === DEFAULT_LOCALE) return clean;
-  return `/${locale}${clean === "/" ? "" : clean}`;
+  const cut = clean.search(/[?#]/);
+  const pathname = cut === -1 ? clean : clean.slice(0, cut);
+  const suffix = cut === -1 ? "" : clean.slice(cut);
+  if (!TRANSLATED_PATHS.has(pathname)) return clean;
+  return `/${locale}${pathname === "/" ? "" : pathname}${suffix}`;
 }
 
 /**

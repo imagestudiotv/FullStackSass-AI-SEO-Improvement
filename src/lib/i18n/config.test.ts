@@ -1,6 +1,9 @@
+import { readdirSync } from "node:fs";
+import path from "node:path";
+
 import { describe, expect, it } from "vitest";
 
-import { languageAlternates, LOCALES, localePath } from "@/lib/i18n/config";
+import { languageAlternates, LOCALES, localePath, TRANSLATED_PATHS } from "@/lib/i18n/config";
 
 /**
  * hreflang only counts when it is reciprocal: every version of a page must
@@ -39,5 +42,44 @@ describe("languageAlternates", () => {
   it("covers every locale the site serves, so a new language cannot be left out", () => {
     const keys = Object.keys(languageAlternates("/faq"));
     expect(keys).toEqual([...LOCALES, "x-default"]);
+  });
+});
+
+/**
+ * A translated page links only to addresses that exist. Its "free check"
+ * button, tools and docs links used to point at /es/audit, /es/tools and
+ * /es/docs/... - pages that exist only in English, so every one was a 404.
+ */
+describe("localePath", () => {
+  it("prefixes the pages that exist in that language", () => {
+    expect(localePath("es", "/")).toBe("/es");
+    expect(localePath("es", "/pricing")).toBe("/es/pricing");
+    expect(localePath("de", "/backlink-exchange")).toBe("/de/backlink-exchange");
+  });
+
+  it("links English-only pages as they are", () => {
+    for (const page of ["/audit", "/tools", "/tools/robots-checker", "/docs/integrations/wordpress", "/blog", "/sign-up"]) {
+      expect(localePath("es", page)).toBe(page);
+    }
+  });
+
+  it("keeps a fragment or query, on the right page", () => {
+    expect(localePath("fr", "/#how-it-works")).toBe("/fr#how-it-works");
+    expect(localePath("fr", "/pricing?plan=growth")).toBe("/fr/pricing?plan=growth");
+    expect(localePath("fr", "/audit?domain=example.com")).toBe("/audit?domain=example.com");
+  });
+
+  it("leaves English unprefixed", () => {
+    expect(localePath("en", "/pricing")).toBe("/pricing");
+    expect(localePath("en", "audit")).toBe("/audit");
+  });
+
+  /** The list and the folders must agree, or a link 404s or a translation is never linked. */
+  it("knows exactly the pages app/(marketing)/[locale] has", () => {
+    const dir = path.resolve(__dirname, "../../app/(marketing)/[locale]");
+    const folders = readdirSync(dir, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory() && !entry.name.startsWith("[") && !entry.name.startsWith("("))
+      .map((entry) => `/${entry.name}`);
+    expect([...TRANSLATED_PATHS].sort()).toEqual(["/", ...folders].sort());
   });
 });

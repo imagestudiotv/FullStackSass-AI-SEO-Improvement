@@ -13,12 +13,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  LOCALE_NAMES,
-  LOCALES,
-  localePath,
-  splitLocale,
-} from "@/lib/i18n/config";
+import { LOCALE_NAMES, localePath, LOCALES, splitLocale, TRANSLATED_PATHS } from "@/lib/i18n/config";
 
 /**
  * Language switcher.
@@ -27,28 +22,11 @@ import {
  * the translated homepage — someone reading about pricing in English wants
  * pricing in Spanish, not the front page.
  *
- * Only the pages that exist in every language are switchable. A page with no
- * translation would 404 in the other language, which is worse than not
- * offering the switch, so the list is explicit.
+ * Only the pages that exist in every language (TRANSLATED_PATHS in
+ * lib/i18n/config.ts) are switchable. A page with no translation would 404
+ * in the other language, which is worse than not offering the switch, so the
+ * list is explicit.
  */
-
-/**
- * Paths that exist in every locale.
- *
- * Add a path here only once its localised route exists, or the switcher offers
- * a link that 404s in the other language.
- */
-const TRANSLATED_PATHS = new Set([
-  "/",
-  "/pricing",
-  "/about",
-  "/faq",
-  "/contact",
-  "/success-stories",
-  "/publishers",
-  "/affiliate",
-  "/backlink-exchange",
-]);
 
 export function LanguageSwitcher() {
   const pathname = usePathname();
