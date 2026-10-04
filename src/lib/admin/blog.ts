@@ -1,14 +1,15 @@
 "use server";
 
-import { asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { recordAdminAction, type AdminAction } from "@/lib/admin/audit";
 import { requireAdmin } from "@/lib/admin/guard";
 import { sanitizeHtml } from "@/lib/articles/sanitize";
-import { blogSlug, type BlogCategory, type BlogCategoryInfo, type BlogFaq, type BlogSource } from "@/lib/blog/shared";
+import { blogSlug, readingMinutes, type BlogCategory, type BlogCategoryInfo, type BlogFaq, type BlogSource } from "@/lib/blog/shared";
 import { db } from "@/lib/db";
 import { blogCategories, blogPosts } from "@/lib/db/schema";
+import { notifyIndexNow } from "@/lib/indexnow";
 import {
   ALLOWED_IMAGE_TYPES,
   isImageStorageConfigured,
@@ -37,6 +38,11 @@ import type { ActionResult } from "@/lib/websites/actions";
  *   2026-10-01). A category's address is set when it is created and never
  *   changes; renaming one renames it on its posts; only a category no post
  *   uses can be deleted.
+ * - A change readers can see - publishing, editing a live post, unpublishing,
+ *   changing a category with live posts, deleting a category - is reported
+ *   to Bing and the other IndexNow engines once saved, naming only the pages
+ *   that changed (lib/indexnow.ts; production only, never in the way of the
+ *   save). A draft's changes are not: nobody can see them.
  */
 
 export type AdminBlogRow = {
@@ -173,6 +179,41 @@ function isUniqueViolation(error: unknown): boolean {
 
 const TAKEN = (slug: string) => `Another post already uses the address /blog/${slug} - choose another`;
 
+/**
+ * The public pages a live post is shown on: its own, the blog's front page and
+ * its category's page - what a publish reports (see notifyIndexNow).
+ */
+function postPages(slug: string, categorySlug: string): string[] {
+  return [`/blog/${slug}`, "/blog", `/blog/category/${categorySlug}`];
+}
+
+/**
+ * Stored FAQs and sources in the order clean() builds them. Postgres keeps a
+ * jsonb object's keys in its own order (shorter first), so a stored
+ * {answer, question} never equalled a cleaned {question, answer} and every
+ * save of a post with FAQs or sources counted as a change - marking it
+ * "Updated" with nothing changed.
+ */
+function sameFaqs(a: BlogFaq[], b: BlogFaq[]): boolean {
+  const key = (faqs: BlogFaq[]) => JSON.stringify(faqs.map((faq) => [faq.question, faq.answer]));
+  return key(a) === key(b);
+}
+function sameSources(a: BlogSource[], b: BlogSource[]): boolean {
+  const key = (sources: BlogSource[]) => JSON.stringify(sources.map((source) => [source.label, source.url]));
+  return key(a) === key(b);
+}
+
+/** Minutes to read, as the post's card on the listing pages shows it. */
+function cardMinutes(post: { bodyHtml: string; shortAnswer: string | null; faqs: BlogFaq[] }): number {
+  return readingMinutes({ body: post.bodyHtml, shortAnswer: post.shortAnswer ?? undefined, faqs: post.faqs });
+}
+
+/** A category's address, by its name; the same fallback the public pages use (lib/blog/posts.ts). */
+async function categorySlugByName(tx: Pick<typeof db, "select">, name: string): Promise<string> {
+  const [found] = await tx.select({ slug: blogCategories.slug }).from(blogCategories).where(eq(blogCategories.name, name)).limit(1);
+  return found?.slug ?? blogSlug(name);
+}
+
 function refresh(id?: string) {
   revalidatePath("/admin/blog");
   if (id) revalidatePath(`/admin/blog/${id}`);
@@ -250,7 +291,7 @@ export async function saveBlogPost(input: {
       const now = new Date();
       // Held until this save commits, so the category cannot be deleted or renamed under it.
       const [category] = await tx
-        .select({ id: blogCategories.id })
+        .select({ id: blogCategories.id, slug: blogCategories.slug })
         .from(blogCategories)
         .where(eq(blogCategories.name, fields.category))
         .for("share")
@@ -283,7 +324,7 @@ export async function saveBlogPost(input: {
           },
           tx,
         );
-        return created;
+        return { saved: created, changedPages: input.status === "published" ? postPages(fields.slug, category.slug) : [] };
       }
 
       const [current] = await tx.select().from(blogPosts).where(eq(blogPosts.id, input.id)).for("update");
@@ -303,8 +344,8 @@ export async function saveBlogPost(input: {
         fields.description !== current.description ||
         fields.shortAnswer !== current.shortAnswer ||
         fields.bodyHtml !== current.bodyHtml ||
-        JSON.stringify(fields.faqs) !== JSON.stringify(current.faqs) ||
-        JSON.stringify(fields.sources) !== JSON.stringify(current.sources);
+        !sameFaqs(fields.faqs, current.faqs) ||
+        !sameSources(fields.sources, current.sources);
       const wasLive = current.status === "published";
       const [updated] = await tx
         .update(blogPosts)
@@ -341,10 +382,45 @@ export async function saveBlogPost(input: {
         },
         tx,
       );
-      return updated;
+
+      /*
+        Only pages whose content changed are reported (IndexNow asks for no
+        more), and a draft never is: nobody can see it.
+
+        The post's own page: when it went live or came down, or a live post's
+        text, author or category changed.
+
+        The listings - the blog's front page and the category pages: when the
+        post joined or left them, or its card changed (title, description,
+        category, minutes to read). A typo or a new author leaves them as they
+        were. The category it is now in is reported only if it is live there;
+        the one it was in, only if it has left it.
+      */
+      const nowLive = input.status === "published";
+      const movedCategory = fields.category !== current.category;
+      const pageChanged =
+        wasLive !== nowLive || (nowLive && (contentChanged || fields.author !== current.author || movedCategory));
+      const cardChanged =
+        wasLive !== nowLive ||
+        (nowLive &&
+          (fields.title !== current.title ||
+            fields.description !== current.description ||
+            movedCategory ||
+            cardMinutes(fields) !== cardMinutes(current)));
+      const changedPages: string[] = [];
+      if (pageChanged) changedPages.push(`/blog/${fields.slug}`);
+      if (cardChanged) {
+        changedPages.push("/blog");
+        if (nowLive) changedPages.push(`/blog/category/${category.slug}`);
+        if (wasLive && (!nowLive || movedCategory)) {
+          changedPages.push(`/blog/category/${movedCategory ? await categorySlugByName(tx, current.category) : category.slug}`);
+        }
+      }
+      return { saved: updated, changedPages };
     });
-    refresh(saved.id);
-    return { ok: true, data: saved };
+    refresh(saved.saved.id);
+    notifyIndexNow(saved.changedPages);
+    return { ok: true, data: saved.saved };
   } catch (error) {
     if (error instanceof BlogError) return { ok: false, error: error.message };
     if (isUniqueViolation(error)) return { ok: false, error: TAKEN(fields.slug) };
@@ -363,6 +439,10 @@ export async function deleteBlogPost(input: { id: string; expectedVersion: numbe
       if (current.version !== input.expectedVersion) {
         throw new BlogError("This post was changed after you opened it. Reload it and try again.");
       }
+      /*
+        Only a post that is not live can go, so deleting changes no public
+        page: a post that was once live was reported when it was unpublished.
+      */
       if (current.status === "published") throw new BlogError("Unpublish the post before deleting it");
       await tx.delete(blogPosts).where(eq(blogPosts.id, current.id));
       await recordAdminAction(
@@ -506,6 +586,7 @@ export async function saveBlogCategory(input: { id: string; name: string; blurb:
   if (!UUID.test(input.id)) return { ok: false, error: "Category not found" };
   try {
     const { name, blurb } = cleanCategory(input);
+    const changedPages: string[] = [];
     const slug = await db.transaction(async (tx) => {
       const [current] = await tx.select().from(blogCategories).where(eq(blogCategories.id, input.id)).for("update");
       if (!current) throw new BlogError("Category not found");
@@ -513,6 +594,21 @@ export async function saveBlogCategory(input: { id: string; name: string; blurb:
       await tx.update(blogCategories).set({ name, blurb, updatedAt: new Date() }).where(eq(blogCategories.id, current.id));
       if (name !== current.name) {
         await tx.update(blogPosts).set({ category: name }).where(eq(blogPosts.category, current.name));
+      }
+
+      /*
+        Reported only while the category has live posts - without them its
+        page is not in the sitemap. Its page shows the name and description; a
+        new name also shows on the blog's front page and on each live post.
+      */
+      const live = await tx
+        .select({ slug: blogPosts.slug })
+        .from(blogPosts)
+        .where(and(eq(blogPosts.category, name), eq(blogPosts.status, "published")));
+      const renamed = name !== current.name;
+      if (live.length > 0 && (renamed || blurb !== current.blurb)) {
+        changedPages.push(`/blog/category/${current.slug}`);
+        if (renamed) changedPages.push("/blog", ...live.map((post) => `/blog/${post.slug}`));
       }
       await recordAdminAction(
         {
@@ -528,6 +624,7 @@ export async function saveBlogCategory(input: { id: string; name: string; blurb:
       return current.slug;
     });
     refreshCategories(slug);
+    notifyIndexNow(changedPages);
     return { ok: true, data: null };
   } catch (error) {
     if (error instanceof BlogError) return { ok: false, error: error.message };
@@ -536,7 +633,11 @@ export async function saveBlogCategory(input: { id: string; name: string; blurb:
   }
 }
 
-/** Deletes a category no post uses (drafts included). */
+/**
+ * Deletes a category no post uses (drafts included). Its page stops existing,
+ * which is reported (IndexNow takes gone pages too): it may have been listed
+ * while it had live posts.
+ */
 export async function deleteBlogCategory(input: { id: string }): Promise<ActionResult<null>> {
   const admin = await requireAdmin();
   if (!UUID.test(input.id)) return { ok: false, error: "Category not found" };
@@ -568,6 +669,7 @@ export async function deleteBlogCategory(input: { id: string }): Promise<ActionR
       return current.slug;
     });
     refreshCategories(slug);
+    notifyIndexNow([`/blog/category/${slug}`]);
     return { ok: true, data: null };
   } catch (error) {
     if (error instanceof BlogError) return { ok: false, error: error.message };

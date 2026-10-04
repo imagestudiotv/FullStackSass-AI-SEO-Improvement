@@ -17,6 +17,19 @@ export function isPreviewDeployment(
 }
 
 /**
+ * True only on the real site: a positive VERCEL_ENV "production". For things
+ * that speak for repget.com to the outside world, such as telling search
+ * engines a page changed (lib/indexnow.ts). The opposite default to
+ * isPreviewDeployment, for the same reason: a preview, a laptop or a test run
+ * must never announce pages as repget.com's, so absence means "no".
+ */
+export function isProductionDeployment(
+  vercelEnv: string | undefined = process.env.VERCEL_ENV,
+): boolean {
+  return vercelEnv === "production";
+}
+
+/**
  * The header that keeps a preview out of search results.
  *
  * A header rather than robots.txt: a crawler blocked by robots.txt never

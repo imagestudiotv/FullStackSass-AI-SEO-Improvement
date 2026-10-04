@@ -10,6 +10,8 @@ vi.mock("@/lib/db", () => ({
 }));
 vi.mock("@/lib/auth-guard", () => ({ getSession: async () => state.session }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+const indexNow = vi.hoisted(() => ({ notify: vi.fn() }));
+vi.mock("@/lib/indexnow", () => ({ notifyIndexNow: indexNow.notify }));
 
 import {
   createBlogCategory,
@@ -63,6 +65,11 @@ async function create(status: "draft" | "published", overrides: Partial<BlogPost
   const result = await saveBlogPost({ id: null, expectedVersion: 0, status, post: input(overrides) });
   if (!result.ok) throw new Error(result.error);
   return result.data;
+}
+
+/** Every page reported to IndexNow since the last clear, in order. */
+function reported(): string[] {
+  return indexNow.notify.mock.calls.flatMap(([paths]) => paths as string[]);
 }
 
 async function row(id: string) {
@@ -238,6 +245,130 @@ describe("writing and publishing a post", () => {
   });
 });
 
+/**
+ * Pages readers can see changed are reported to Bing and the other IndexNow
+ * engines (lib/indexnow.ts, client's launch review 2026-10-03); a draft's
+ * changes never are.
+ */
+describe("IndexNow: what a post's save reports", () => {
+  beforeEach(() => indexNow.notify.mockClear());
+
+  /** The same post, saved again with only `changes` different - nothing else, not even the title. */
+  async function resave(id: string, version: number, status: "draft" | "published", changes: Partial<BlogPostInput> = {}) {
+    const stored = await row(id);
+    const result = await saveBlogPost({
+      id,
+      expectedVersion: version,
+      status,
+      post: {
+        title: stored.title,
+        slug: stored.slug,
+        description: stored.description,
+        category: stored.category,
+        author: stored.author,
+        shortAnswer: stored.shortAnswer ?? "",
+        bodyHtml: stored.bodyHtml,
+        faqs: stored.faqs,
+        sources: stored.sources,
+        ...changes,
+      },
+    });
+    if (!result.ok) throw new Error(result.error);
+    return result.data;
+  }
+
+  it("a draft is never reported; publishing reports the post, the blog and its category", async () => {
+    const draft = await create("draft");
+    await resave(draft.id, 0, "draft", { title: "Still a draft" });
+    expect(reported()).toEqual([]);
+
+    await resave(draft.id, 1, "published");
+    expect(reported()).toEqual([`/blog/${draft.slug}`, "/blog", "/blog/category/guides"]);
+
+    indexNow.notify.mockClear();
+    const direct = await create("published", { category: "Comparisons" });
+    expect(reported()).toEqual([`/blog/${direct.slug}`, "/blog", "/blog/category/comparisons"]);
+  });
+
+  it("a live post: only the pages that changed - its own for any edit, the listings when its card changes", async () => {
+    const post = await create("published");
+    indexNow.notify.mockClear();
+    await resave(post.id, 0, "published");
+    expect(reported()).toEqual([]);
+
+    // Shown on its own page only.
+    await resave(post.id, 1, "published", { author: "Jane Doe" });
+    await resave(post.id, 2, "published", { bodyHtml: "<h2>Start here</h2><p>Ask to see a full film, not just a trailer.</p>" });
+    await resave(post.id, 3, "published", { sources: [{ label: "Google", url: "https://developers.google.com/search" }] });
+    expect(reported()).toEqual([`/blog/${post.slug}`, `/blog/${post.slug}`, `/blog/${post.slug}`]);
+
+    // On its card too: the title, the description, the minutes to read.
+    for (const [version, changes] of [
+      [4, { title: "A new title" }],
+      [5, { description: "A new description." }],
+      [6, { bodyHtml: `<p>${"word ".repeat(600)}</p>` }],
+    ] as const) {
+      indexNow.notify.mockClear();
+      await resave(post.id, version, "published", changes);
+      expect(reported()).toEqual([`/blog/${post.slug}`, "/blog", "/blog/category/guides"]);
+    }
+  });
+
+  /** Postgres hands jsonb keys back in its own order; that alone must not count as a change. */
+  it("a live post with FAQs and sources, saved unchanged: nothing reported, and not marked as updated", async () => {
+    const post = await create("published", {
+      faqs: [{ question: "How long is a film?", answer: "<p>About ten minutes.</p>" }],
+      sources: [{ label: "Google Search Central", url: "https://developers.google.com/search" }],
+    });
+    indexNow.notify.mockClear();
+    const stored = await row(post.id);
+    // As the editor sends it after "Add question" on a row left empty: clean() drops the row.
+    await resave(post.id, 0, "published", { faqs: [...stored.faqs, { question: "", answer: "" }] });
+    expect(reported()).toEqual([]);
+    expect((await row(post.id)).revisedAt).toBeNull();
+  });
+
+  it("unpublishing reports the address that is now gone; deleting the post afterwards reports nothing", async () => {
+    const post = await create("published");
+    indexNow.notify.mockClear();
+    await resave(post.id, 0, "draft");
+    expect(reported()).toEqual([`/blog/${post.slug}`, "/blog", "/blog/category/guides"]);
+
+    indexNow.notify.mockClear();
+    expect(await deleteBlogPost({ id: post.id, expectedVersion: 1 })).toMatchObject({ ok: true });
+    expect(reported()).toEqual([]);
+  });
+
+  it("moving a live post to another category reports both categories' pages; moving a draft reports nothing", async () => {
+    const post = await create("published");
+    indexNow.notify.mockClear();
+    await resave(post.id, 0, "published", { category: "Playbooks" });
+    expect(reported()).toEqual([`/blog/${post.slug}`, "/blog", "/blog/category/playbooks", "/blog/category/guides"]);
+
+    const draft = await create("draft");
+    indexNow.notify.mockClear();
+    await resave(draft.id, 0, "draft", { category: "Playbooks" });
+    expect(reported()).toEqual([]);
+  });
+
+  it("unpublished and moved in one save: the category it left, not the one it never appeared in", async () => {
+    const post = await create("published");
+    indexNow.notify.mockClear();
+    await resave(post.id, 0, "draft", { category: "Playbooks" });
+    expect(reported()).toEqual([`/blog/${post.slug}`, "/blog", "/blog/category/guides"]);
+  });
+
+  it("a refused save reports nothing", async () => {
+    const post = await create("published");
+    indexNow.notify.mockClear();
+    // An older copy: refused, nothing changed.
+    expect(await saveBlogPost({ id: post.id, expectedVersion: 7, status: "published", post: input({ slug: post.slug }) })).toMatchObject({ ok: false });
+    // A live post's address cannot change.
+    expect(await saveBlogPost({ id: post.id, expectedVersion: 0, status: "published", post: input({ slug: "somewhere-else" }) })).toMatchObject({ ok: false });
+    expect(indexNow.notify).not.toHaveBeenCalled();
+  });
+});
+
 describe("structured data", () => {
   it("a typed </script> cannot end the JSON-LD block, and the JSON still reads back the same", () => {
     const value = { headline: 'Tips </script><script>alert(1)</script>' };
@@ -319,6 +450,58 @@ describe("categories (client, 2026-10-01: he adds his own)", () => {
     await saveBlogPost({ id: draft.id, expectedVersion: draft.version, status: "draft", post: input({ category: "Guides" }) });
     expect(await deleteBlogCategory({ id: added.data.id })).toEqual({ ok: true, data: null });
     expect(await categoryBySlug("case-studies")).toBeNull();
+  });
+
+  it("IndexNow: renaming a category with live posts reports its page, the blog and each live post", async () => {
+    const added = await createBlogCategory({ name: "Case studies", blurb: "" });
+    if (!added.ok) throw new Error(added.error);
+    await create("draft", { category: "Case studies" });
+    indexNow.notify.mockClear();
+    // Only drafts: its page is not public, so nothing to report.
+    expect(await saveBlogCategory({ id: added.data.id, name: "Case studies", blurb: "Real results." })).toEqual({ ok: true, data: null });
+    expect(reported()).toEqual([]);
+
+    const live = await create("published", { category: "Case studies" });
+    indexNow.notify.mockClear();
+    // A new description shows on its own page only.
+    expect(await saveBlogCategory({ id: added.data.id, name: "Case studies", blurb: "Real results, step by step." })).toEqual({ ok: true, data: null });
+    expect(reported()).toEqual(["/blog/category/case-studies"]);
+
+    indexNow.notify.mockClear();
+    // A new name also shows on the blog's front page and on each live post.
+    expect(await saveBlogCategory({ id: added.data.id, name: "Customer stories", blurb: "Real results, step by step." })).toEqual({ ok: true, data: null });
+    expect(reported()).toEqual(["/blog/category/case-studies", "/blog", `/blog/${live.slug}`]);
+
+    indexNow.notify.mockClear();
+    // Saved unchanged: nothing.
+    expect(await saveBlogCategory({ id: added.data.id, name: "Customer stories", blurb: "Real results, step by step." })).toEqual({ ok: true, data: null });
+    expect(reported()).toEqual([]);
+  });
+
+  /** Its address stays /blog/category/case-studies after the rename - not one made from the new name. */
+  it("IndexNow: a post in a renamed category reports the category's real address", async () => {
+    const added = await createBlogCategory({ name: "Case studies", blurb: "" });
+    if (!added.ok) throw new Error(added.error);
+    const post = await create("published", { category: "Case studies" });
+    expect(await saveBlogCategory({ id: added.data.id, name: "Customer stories", blurb: "" })).toEqual({ ok: true, data: null });
+    const stored = await row(post.id);
+    const same = { slug: post.slug, title: stored.title, description: stored.description, category: "Customer stories" };
+
+    indexNow.notify.mockClear();
+    expect(await saveBlogPost({ id: post.id, expectedVersion: 0, status: "published", post: input({ ...same, title: "Retitled" }) })).toMatchObject({ ok: true });
+    expect(reported()).toEqual([`/blog/${post.slug}`, "/blog", "/blog/category/case-studies"]);
+
+    indexNow.notify.mockClear();
+    expect(await saveBlogPost({ id: post.id, expectedVersion: 1, status: "published", post: input({ ...same, title: "Retitled", category: "Guides" }) })).toMatchObject({ ok: true });
+    expect(reported()).toEqual([`/blog/${post.slug}`, "/blog", "/blog/category/guides", "/blog/category/case-studies"]);
+  });
+
+  it("IndexNow: deleting a category reports its page, which is gone", async () => {
+    const added = await createBlogCategory({ name: "Case studies", blurb: "" });
+    if (!added.ok) throw new Error(added.error);
+    indexNow.notify.mockClear();
+    expect(await deleteBlogCategory({ id: added.data.id })).toEqual({ ok: true, data: null });
+    expect(reported()).toEqual(["/blog/category/case-studies"]);
   });
 
   it("only administrators", async () => {
