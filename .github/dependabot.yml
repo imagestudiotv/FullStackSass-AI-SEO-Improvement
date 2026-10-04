@@ -1,0 +1,42 @@
+# Keeps dependencies up to date (client's launch review, 2026-10-03:
+# "dependency scans"). CI's audit job (ci.yml) fails on any high or critical
+# advisory in what the app ships; this proposes the updates that remove them.
+#
+# Weekly, grouped: all minor and patch npm updates arrive as ONE pull request,
+# so the list stays readable. Each major version arrives on its own, because it
+# can break things and deserves its own look. Every pull request runs CI
+# (type-check, lint, tests, build) before anyone merges it.
+#
+# Security fixes do not wait for this schedule: with "Dependabot security
+# updates" switched on in the repository's settings (Settings > Code security),
+# GitHub opens those as soon as an advisory is published.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "07:00"
+      timezone: Etc/UTC
+    open-pull-requests-limit: 5
+    groups:
+      npm-minor-and-patch:
+        update-types: [minor, patch]
+    ignore:
+      # The app runs a patched copy of this driver (src/vendor/postgres, see its
+      # README); the installed package only supplies its types and must match
+      # that copy's version - stuck-pool.test.ts fails otherwise. Updating it
+      # means re-copying and re-patching the driver by hand, never a bump.
+      - dependency-name: postgres
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "07:00"
+      timezone: Etc/UTC
+    groups:
+      github-actions:
+        patterns: ["*"]

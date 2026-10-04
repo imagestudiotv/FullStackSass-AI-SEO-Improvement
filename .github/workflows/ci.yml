@@ -51,6 +51,7 @@ jobs:
       - name: Install
         run: npm ci --no-audit --no-fund
 
+
       # tsconfig includes .next/types, which only exist after typegen.
       - name: Generate route types
         run: npx next typegen
@@ -74,6 +75,33 @@ jobs:
       # No secrets, on purpose: proves a fresh clone or deploy can build.
       - name: Build
         run: npm run build
+
+  # Known vulnerabilities in what the app ships (client's launch review,
+  # 2026-10-03). devDependencies are left out: they run at build time, never
+  # on the server. Fails on a HIGH or CRITICAL advisory - such as the next/og
+  # remote-code-execution one fixed in 16.3.6 - and prints every finding for
+  # whoever reads the log. What remains today is moderate, in drizzle-kit's
+  # esbuild (its dev server, which nothing here runs).
+  #
+  # Its own job, beside the others: a new advisory, or npm's audit service
+  # being down, fails the run without hiding the type-check, test and build
+  # results. Dependabot (dependabot.yml) proposes the updates that fix them.
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci --no-audit --no-fund
+
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
 
   wordpress-plugin:
     runs-on: ubuntu-latest
