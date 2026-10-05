@@ -239,6 +239,50 @@ describe("grantMonthlyCredits", () => {
     expect(await getBalance(orgId)).toBe(25);
   });
 
+  /*
+    The imagestudio case (2026-10-05): a 3-day trial was granted a month's
+    25 credits, and converting granted another 25. A trial now earns none;
+    the first paid period is granted in full.
+  */
+  it("grants nothing during a trial, and the full allowance once it converts to paid", async () => {
+    const orgId = await seedOrg();
+    const { subscriptionId } = await seedPaidSite(orgId, {
+      interval: "month",
+      credits: 25,
+      status: "trialing",
+      periodStart: d("2026-10-01T18:50:18Z"),
+      periodEnd: d("2026-10-04T18:50:18Z"),
+    });
+
+    expect(await grantMonthlyCredits(orgId, d("2026-10-02T09:00:00Z"))).toBe(0);
+    expect(await getBalance(orgId)).toBe(0);
+
+    // Converted: the provider moves the period to start at the trial's end.
+    await test.db
+      .update(subscriptions)
+      .set({ status: "active", currentPeriodStart: d("2026-10-04T18:50:18Z"), currentPeriodEnd: d("2026-11-04T18:50:18Z") })
+      .where(eq(subscriptions.id, subscriptionId));
+    expect(await grantMonthlyCredits(orgId, d("2026-10-04T22:01:31Z"))).toBe(25);
+    expect(await grantMonthlyCredits(orgId, d("2026-10-20T00:00:00Z"))).toBe(0);
+    expect(await getBalance(orgId)).toBe(25);
+  });
+
+  it("past due: nothing if the first charge after the trial failed; the allowance if it was paid before", async () => {
+    const neverPaid = await seedOrg();
+    await seedPaidSite(neverPaid, { interval: "month", credits: 25, status: "past_due", periodStart: d("2026-10-04T18:50:18Z") });
+    expect(await grantMonthlyCredits(neverPaid, d("2026-10-05T00:00:00Z"))).toBe(0);
+
+    const paidBefore = await seedOrg();
+    const { subscriptionId } = await seedPaidSite(paidBefore, { interval: "month", credits: 25, periodStart: d("2026-09-04T18:50:18Z") });
+    expect(await grantMonthlyCredits(paidBefore, d("2026-09-10T00:00:00Z"))).toBe(25);
+    await test.db
+      .update(subscriptions)
+      .set({ status: "past_due", currentPeriodStart: d("2026-10-04T18:50:18Z") })
+      .where(eq(subscriptions.id, subscriptionId));
+    expect(await grantMonthlyCredits(paidBefore, d("2026-10-05T00:00:00Z"))).toBe(25);
+    expect(await getBalance(paidBefore)).toBe(50);
+  });
+
   it("is idempotent per subscription and period, including under concurrency", async () => {
     const orgId = await seedOrg();
     await seedPaidSite(orgId, { interval: "month", credits: 5, periodStart: d("2026-09-05T00:00:00Z") });

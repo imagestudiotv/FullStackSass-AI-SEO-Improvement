@@ -11,6 +11,7 @@ import {
   and,
   asc,
   eq,
+  gt,
   gte,
   inArray,
   isNotNull,
@@ -202,7 +203,45 @@ export async function grantMonthlyCredits(
     )
     .orderBy(asc(subscriptions.createdAt), asc(subscriptions.id));
 
-  const eligible = subs.filter((sub) => sub.monthlyCredits > 0);
+  /*
+    NO CREDITS UNTIL THE FIRST PAYMENT (owner's decision, 2026-10-05).
+
+    A trial is its own billing period (lib/billing/entitlement-period.ts), so
+    a 3-day trial was granted a whole month's credits, and converting granted
+    the first paid month's again: 50 Grow credits in three days, of which a
+    customer who cancelled during the trial kept 25. A trial now earns none;
+    the conversion moves the anchor to the trial's end, and that first paid
+    period is granted in full.
+
+    past_due is the same question asked later: the first charge after a trial
+    can fail, leaving a subscription past_due that has never paid. It keeps
+    its allowance only when this subscription has been granted one before -
+    i.e. it was paid for at least once, and a later renewal is what failed.
+  */
+  const paid = subs.filter((sub) => sub.status === "active" || sub.status === "past_due");
+  const pastDue = paid.filter((sub) => sub.status === "past_due").map((sub) => sub.id);
+  const paidBefore = new Set(
+    pastDue.length === 0
+      ? []
+      : (
+          await db
+            .select({ referenceId: creditLedger.referenceId })
+            .from(creditLedger)
+            .where(
+              and(
+                eq(creditLedger.organizationId, organizationId),
+                eq(creditLedger.type, "plan_grant"),
+                gt(creditLedger.amount, 0),
+              ),
+            )
+        )
+          .map((row) => /^plan_grant:([0-9a-f-]{36}):/.exec(row.referenceId ?? "")?.[1])
+          .filter((id): id is string => Boolean(id)),
+  );
+
+  const eligible = paid.filter(
+    (sub) => sub.monthlyCredits > 0 && (sub.status === "active" || paidBefore.has(sub.id)),
+  );
   if (eligible.length === 0) return 0;
 
   const legacy = (

@@ -18,7 +18,9 @@
  *    not drift to the 28th for good.
  *  - Leap years: an anchor on 29 February gives 28 February in other years.
  *  - A trial is its own billing period; conversion moves the anchor to the
- *    trial end, and the first paid month starts a fresh allowance.
+ *    trial end, and the first paid month starts a fresh allowance. The trial
+ *    itself earns no backlink credits - they start with the first payment
+ *    (grantMonthlyCredits in lib/backlinks/credits.ts).
  *  - Upgrading within the same interval keeps the anchor (Stripe prorates
  *    in place): the new plan's limit applies to the current period's usage.
  *    Changing interval moves the billing anchor, and a new period starts.
