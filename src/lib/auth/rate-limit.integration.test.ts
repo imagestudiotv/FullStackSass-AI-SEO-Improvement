@@ -11,7 +11,7 @@ import { createTestDb } from "@/test/db";
  * in for the database; one-time codes are captured instead of emailed.
  *
  * Every test uses its own visitor addresses: the limiter's counts live in
- * memory for the whole file.
+ * the shared PostgreSQL table for the whole file.
  */
 
 const state = vi.hoisted(() => ({ db: null as unknown }));
@@ -59,6 +59,14 @@ const wrongPassword = (ip: Record<string, string>) =>
   post("/sign-in/email", { email: "nobody@example.test", password: "not-the-password" }, ip);
 
 describe("rate limits on the real auth handler", { timeout: 120_000 }, () => {
+  it("records the real handler's requests in the shared database", async () => {
+    await wrongPassword({ "x-real-ip": "203.0.113.9" });
+    const database = state.db as Awaited<ReturnType<typeof createTestDb>>["db"];
+    const records = await database.query.authRateLimits.findMany();
+    expect(records.length).toBeGreaterThan(0);
+    expect(records.every((row) => /^[a-f0-9]{64}$/.test(row.key))).toBe(true);
+  });
+
   it("password sign-in: 10 tries in a row per visitor, then 429 with a retry time", async () => {
     const visitor = { "x-real-ip": "203.0.113.10" };
     const statuses = [];

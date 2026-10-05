@@ -64,12 +64,12 @@ describe("delivery", () => {
     expect(out).toContain('rel="noopener">wedding films</a>');
   });
 
-  it("drops rel entirely when nothing but nofollow tokens was on it", () => {
+  it("removes nofollow from a stored placement while adding opener protection", () => {
     const out = prepareForDelivery('<p><a href="https://partner.test/x" rel="nofollow sponsored">x</a></p>', {
       poweredBy: false,
       followUrls: ["https://partner.test/x"],
     });
-    expect(out).toBe('<p><a href="https://partner.test/x">x</a></p>');
+    expect(out).toBe('<p><a href="https://partner.test/x" target="_blank" rel="noopener">x</a></p>');
   });
 
   it("without placements, nothing changes", () => {

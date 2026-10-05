@@ -19,9 +19,9 @@ const nextConfig: NextConfig = {
 
   /**
    * Security headers on every response: HSTS, nosniff, referrer policy,
-   * permissions policy, frame protection, and a REPORT-ONLY content security
-   * policy. What each does, what is deliberately left out, and why the CSP
-   * does not enforce yet, is in src/lib/security-headers.ts.
+   * permissions policy, frame protection, and a configurable CSP. Defaults
+   * to report-only; CSP_MODE=enforce is the staging/production rollout switch.
+   * Dynamic routes receive the stricter nonce policy in src/proxy.ts.
    */
   async headers() {
     return [
@@ -31,6 +31,7 @@ const nextConfig: NextConfig = {
           ...securityHeaders({
             production: process.env.NODE_ENV === "production",
             sentryDsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+            cspMode: process.env.CSP_MODE,
           }),
           /*
             Preview deployments only - never production, even with VERCEL_ENV

@@ -14,10 +14,10 @@
  *    not have it yet.
  *  - Cross-Origin-Opener/Embedder-Policy: can break OAuth and payment pop-ups.
  *
- * THE CONTENT-SECURITY-POLICY IS REPORT-ONLY. Browsers report what it WOULD
- * block and block nothing, so a missed origin costs a report, not a broken
- * page. Enforce it (rename the header) only after it has run clean against
- * real traffic - the reports go to Sentry when a DSN is configured.
+ * CSP_MODE=enforce enables blocking for a verified staging/production build.
+ * Default report-only preserves the staged rollout. src/proxy.ts replaces
+ * the baseline with a per-request nonce policy on dynamic private/auth pages;
+ * cached public pages retain the baseline without becoming dynamic.
  */
 
 export type Header = { key: string; value: string };
@@ -64,20 +64,22 @@ function sentryOrigin(dsn: string | undefined): string | null {
  *  - Nothing else: payments (Stripe, PayPal) and Google sign-in are full-page
  *    redirects, and fonts are self-hosted by next/font.
  *
- * 'unsafe-inline' for scripts is the one compromise. Next.js writes inline
- * bootstrap scripts into every page; the strict alternative is a per-request
- * nonce, which makes every page dynamic and would undo the homepage caching
- * (app/(marketing)/page.tsx, revalidate). Styles need it for React style
- * attributes and Crisp's injected CSS.
+ * Cached public pages retain inline bootstrap scripts. Already-dynamic app
+ * and auth pages use a fresh nonce through proxy.ts and disallow arbitrary
+ * inline scripts. Styles still need unsafe-inline for React and Crisp CSS.
  */
-export function contentSecurityPolicy(sentryDsn: string | undefined): string {
+export function contentSecurityPolicy(sentryDsn: string | undefined, nonce?: string): string {
+  if (nonce !== undefined && !/^[A-Za-z0-9+/=_-]{22,128}$/.test(nonce)) {
+    throw new Error("Invalid CSP nonce");
+  }
   const crisp = "https://*.crisp.chat";
   const sentry = sentryOrigin(sentryDsn);
   const report = cspReportUri(sentryDsn);
 
   const directives: [string, string[]][] = [
     ["default-src", ["'self'"]],
-    ["script-src", ["'self'", "'unsafe-inline'", crisp]],
+    ["script-src", nonce ? ["'self'", `'nonce-${nonce}'`, "'strict-dynamic'", crisp] : ["'self'", "'unsafe-inline'", crisp]],
+    ["script-src-attr", ["'none'"]],
     ["style-src", ["'self'", "'unsafe-inline'", crisp]],
     ["img-src", ["'self'", "data:", "blob:", "https:"]],
     ["font-src", ["'self'", "data:", crisp]],
@@ -89,7 +91,7 @@ export function contentSecurityPolicy(sentryDsn: string | undefined): string {
     // says the same to browsers that predate CSP.
     ["frame-ancestors", ["'self'"]],
     ["form-action", ["'self'"]],
-    ["base-uri", ["'self'"]],
+    ["base-uri", ["'none'"]],
     ["object-src", ["'none'"]],
     ...(report ? ([["report-uri", [report]]] as [string, string[]][]) : []),
   ];
@@ -97,10 +99,18 @@ export function contentSecurityPolicy(sentryDsn: string | undefined): string {
   return directives.map(([name, values]) => `${name} ${values.join(" ")}`).join("; ");
 }
 
+/** Invalid deployment configuration must not silently disable enforcement. */
+export function cspHeaderName(mode: string | undefined): string {
+  if (!mode || mode === "report-only") return "Content-Security-Policy-Report-Only";
+  if (mode === "enforce") return "Content-Security-Policy";
+  throw new Error("CSP_MODE must be report-only or enforce");
+}
+
 export function securityHeaders(options: {
   /** The CSP only in production: the dev server needs eval, which would flood the reports. */
   production: boolean;
   sentryDsn?: string;
+  cspMode?: string;
 }): Header[] {
   const headers: Header[] = [
     // Two years of HTTPS-only. See the note above on includeSubDomains/preload.
@@ -121,7 +131,7 @@ export function securityHeaders(options: {
 
   if (options.production) {
     headers.push({
-      key: "Content-Security-Policy-Report-Only",
+      key: cspHeaderName(options.cspMode),
       value: contentSecurityPolicy(options.sentryDsn),
     });
   }

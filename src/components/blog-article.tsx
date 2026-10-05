@@ -2,6 +2,7 @@ import { ArrowRight, CalendarDays, Clock } from "lucide-react";
 
 import { PostCover } from "@/components/post-cover";
 import { ARTICLE_TABLE_CLASSES } from "@/lib/articles/table-styles";
+import { sanitizeHtml } from "@/lib/articles/sanitize";
 import { tableOfContents, withHeadingIds, type BlogPost } from "@/lib/blog/shared";
 
 function formatDate(iso: string): string {
@@ -23,8 +24,9 @@ function formatDate(iso: string): string {
  * are plain text, which React escapes.
  */
 export function BlogArticle({ post }: { post: BlogPost }) {
-  const toc = tableOfContents(post.body);
-  const body = withHeadingIds(post.body);
+  const cleanBody = sanitizeHtml(post.body);
+  const toc = tableOfContents(cleanBody);
+  const body = withHeadingIds(cleanBody);
 
   return (
     <article>
@@ -145,7 +147,7 @@ export function BlogArticle({ post }: { post: BlogPost }) {
                   */}
                   <div
                     className="mt-3 space-y-3 leading-7 text-muted-foreground [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-4 [&_em]:italic [&_li]:my-1 [&_ol]:list-decimal [&_ol]:pl-6 [&_strong]:font-semibold [&_ul]:list-disc [&_ul]:pl-6"
-                    dangerouslySetInnerHTML={{ __html: faq.answer }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(faq.answer) }}
                   />
                 </details>
               </li>

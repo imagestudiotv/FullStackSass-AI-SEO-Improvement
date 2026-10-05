@@ -351,6 +351,13 @@
       "when": 1790912554336,
       "tag": "0049_comparison_table",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1791158400000,
+      "tag": "0050_auth_rate_limits",
+      "breakpoints": true
     }
   ]
 }

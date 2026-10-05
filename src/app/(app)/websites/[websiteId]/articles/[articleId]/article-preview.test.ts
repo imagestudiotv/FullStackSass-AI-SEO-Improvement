@@ -1,3 +1,4 @@
+import * as cheerio from "cheerio";
 import { describe, expect, it } from "vitest";
 
 import { previewHtml } from "@/lib/articles/use-draft";
@@ -23,7 +24,7 @@ describe("links in Preview", () => {
   it("keeps a link's other attributes, whatever their order", () => {
     const html = preview('<p><a title="Prices > all" href="/pricing?x=1&amp;y=2">Prices</a></p>');
     expect(html).toContain('href="https://example.com/pricing?x=1&amp;y=2"');
-    expect(html).toContain('title="Prices > all"');
+    expect(cheerio.load(html)("a").attr("title")).toBe("Prices > all");
     expect(html).toContain(">Prices</a>");
   });
 

@@ -5,6 +5,7 @@ import { sql } from "drizzle-orm";
 
 import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from "@/lib/auth/password-policy";
 import { AUTH_IP_HEADERS, authRateLimit, OTP_RATE_LIMIT } from "@/lib/auth/rate-limit";
+import { createAuthRateLimitStorage } from "@/lib/auth/rate-limit-store";
 import { db } from "@/lib/db";
 import { sendOtpEmail } from "@/lib/email/otp";
 import * as schema from "@/lib/db/schema";
@@ -112,7 +113,7 @@ function createAuth() {
     },
 
     // Attempts per visitor on each sign-in door - see lib/auth/rate-limit.ts.
-    rateLimit: authRateLimit(),
+    rateLimit: { ...authRateLimit(), customStorage: createAuthRateLimitStorage() },
     advanced: {
       ipAddress: { ipAddressHeaders: AUTH_IP_HEADERS },
     },

@@ -44,6 +44,7 @@ import {
 } from "@/lib/admin/network";
 import type { getReviewArticle } from "@/lib/admin/network";
 import { ARTICLE_TABLE_CLASSES } from "@/lib/articles/table-styles";
+import { sanitizeHtml } from "@/lib/articles/sanitize";
 import { formatDate, formatNumber } from "@/lib/i18n/format";
 import { cn } from "@/lib/utils";
 
@@ -414,7 +415,7 @@ export function ReviewWorkspace({ review }: { review: Review }) {
                 {/* Sanitised on every save (lib/articles/sanitize.ts). */}
                 <div
                   className={`${PARTNER_LINK_SCOPE} ${ARTICLE_TABLE_CLASSES} prose prose-sm max-w-[72ch] dark:prose-invert wrap-anywhere [&_a]:text-primary [&_a]:underline [&_h2]:mt-6 [&_h2]:text-lg [&_h2]:font-semibold [&_h3]:mt-4 [&_h3]:font-semibold [&_li]:my-1 [&_p]:my-3 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-lg`}
-                  dangerouslySetInnerHTML={{ __html: article.bodyHtml ?? "" }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(article.bodyHtml ?? "") }}
                 />
               </div>
             </div>

@@ -21,10 +21,9 @@ import type { BetterAuthOptions } from "better-auth";
  * Over the limit, Better Auth answers 429 with X-Retry-After; the sign-in
  * and settings forms say "too many attempts" in the reader's language.
  *
- * Kept in memory: no table, no migration. On Vercel that is per server
- * instance and resets when one starts, so it slows a single attacker rather
- * than setting a hard global ceiling. A shared store (Better Auth's
- * "database" storage) would need a rate_limit table and a migration.
+ * lib/auth.ts supplies the atomic PostgreSQL store in rate-limit-store.ts.
+ * Buckets survive restarts and are shared across server instances. Apply
+ * migration 0050 before deploying; a missing store fails closed.
  */
 export function authRateLimit(nodeEnv: string | undefined = process.env.NODE_ENV): NonNullable<BetterAuthOptions["rateLimit"]> {
   return {
@@ -34,7 +33,7 @@ export function authRateLimit(nodeEnv: string | undefined = process.env.NODE_ENV
       `next dev` and tests, where every request comes from one address.
     */
     enabled: nodeEnv === "production",
-    storage: "memory",
+    // customStorage is wired by lib/auth.ts; no per-process fallback.
     // Everything not named below: Better Auth's default, generous for real use.
     window: 10,
     max: 100,

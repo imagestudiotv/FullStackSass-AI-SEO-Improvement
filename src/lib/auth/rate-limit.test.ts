@@ -14,7 +14,6 @@ describe("authRateLimit", () => {
   it("names the limit on each sign-in door, tighter than Better Auth's defaults", () => {
     expect(authRateLimit("production")).toEqual({
       enabled: true,
-      storage: "memory",
       window: 10,
       max: 100,
       customRules: {

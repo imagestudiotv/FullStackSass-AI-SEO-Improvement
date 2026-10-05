@@ -76,12 +76,9 @@ jobs:
       - name: Build
         run: npm run build
 
-  # Known vulnerabilities in what the app ships (client's launch review,
-  # 2026-10-03). devDependencies are left out: they run at build time, never
-  # on the server. Fails on a HIGH or CRITICAL advisory - such as the next/og
-  # remote-code-execution one fixed in 16.3.6 - and prints every finding for
-  # whoever reads the log. What remains today is moderate, in drizzle-kit's
-  # esbuild (its dev server, which nothing here runs).
+  # Check runtime and build dependencies separately. Both gates fail on HIGH
+  # or CRITICAL findings; known upstream issues remain visible, never waived
+  # implicitly. See docs/security-day-1.md for the current residual advisory.
   #
   # Its own job, beside the others: a new advisory, or npm's audit service
   # being down, fails the run without hiding the type-check, test and build
@@ -102,6 +99,12 @@ jobs:
 
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
+
+      # Build tools also process untrusted pull requests. Keep the full report
+      # visible, and block on high/critical findings rather than omitting dev.
+      - name: Audit all dependencies
+        if: always()
+        run: npm audit --audit-level=high
 
   wordpress-plugin:
     runs-on: ubuntu-latest

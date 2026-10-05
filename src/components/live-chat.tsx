@@ -1,6 +1,5 @@
 "use client";
 
-import Script from "next/script";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 
@@ -33,8 +32,8 @@ import { splitLocale } from "@/lib/i18n/config";
  *  - FULL VIEW ON MOBILE. disable_full_view below keeps the chatbox windowed
  *    on a phone instead of taking over the screen. It must be set BEFORE the
  *    script loads — Crisp reads CRISP_RUNTIME_CONFIG once at startup and
- *    ignores later changes — which is why it is written in the same inline
- *    script rather than pushed through the command queue like everything else.
+ *    ignores later changes — which is why the initializer sets it before
+ *    loading the SDK, rather than pushing it through the command queue.
  *
  * That flag has a side effect Crisp does not document: their stylesheet
  * carries one rule keyed on it,
@@ -50,11 +49,8 @@ import { splitLocale } from "@/lib/i18n/config";
  * file before changing either.
  */
 /**
- * Crisp website ids are UUIDs. Validated because the value is interpolated
- * into an inline script: an id is set by whoever configures the deployment
- * rather than by a user, but a malformed one would break the page silently and
- * a crafted one would be script injection. A regex costs nothing and removes
- * the question entirely.
+ * Crisp website ids are UUIDs. Ignore malformed deployment configuration
+ * instead of loading a widget that cannot connect to its account.
  */
 const WEBSITE_ID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -186,38 +182,29 @@ export function LiveChat({
   }, [enabled]);
 
 
-  if (!enabled) return null;
+  // Initialize from the trusted application bundle, not an inline script.
+  // This works under nonce CSP on both full loads and client navigation.
+  useEffect(() => {
+    if (!enabled || !websiteId) return;
+    window.$crisp ??= [];
+    window.CRISP_WEBSITE_ID = websiteId;
+    window.CRISP_RUNTIME_CONFIG = { disable_full_view: true };
+    const events = ["scroll", "wheel", "keydown", "touchstart", "pointerdown", "mousemove"];
+    const cleanup = () => events.forEach((event) => window.removeEventListener(event, load, true));
+    function load() {
+      cleanup();
+      if (document.getElementById("crisp-sdk")) return;
+      const script = document.createElement("script");
+      script.id = "crisp-sdk";
+      script.src = "https://client.crisp.chat/l.js";
+      script.async = true;
+      document.head.appendChild(script);
+    }
+    if (!document.getElementById("crisp-sdk")) {
+      events.forEach((event) => window.addEventListener(event, load, { capture: true, passive: true }));
+    }
+    return cleanup;
+  }, [enabled, websiteId]);
 
-  return (
-    <Script
-      id="crisp-chat"
-      // afterInteractive, not beforeInteractive: chat is never why someone
-      // came to the page. What this inline part does is cheap - it sets three
-      // globals and listens - so it can run as soon as the page is interactive.
-      strategy="afterInteractive"
-    >
-      {/*
-        CRISP_RUNTIME_CONFIG is assigned before l.js is appended, because
-        Crisp reads it once as the client boots. Pushing it through $crisp
-        afterwards does nothing — the chatbox is already built by then.
-
-        l.js ITSELF WAITS FOR THE VISITOR'S FIRST INTERACTION - a scroll,
-        wheel, key, touch, pointer press or mouse movement - and is then
-        appended once (client's launch review, 2026-10-03: "all green" on
-        mobile PageSpeed). Loaded right after hydration, the widget's script
-        and the requests it starts ran inside the window PageSpeed measures on
-        every page. A measurement never interacts, so now it never loads them;
-        a real visitor scrolls or moves within a moment and the bubble
-        appears.
-
-        Nothing is lost by waiting: $crisp is created here at once, so the
-        user, locale and theme commands pushed by the effects above queue in
-        it and Crisp drains them when it boots, exactly as before.
-
-        The listeners are passive (never delay scrolling) and removed after
-        the first one fires.
-      */}
-      {`window.$crisp=window.$crisp||[];window.CRISP_WEBSITE_ID="${websiteId}";window.CRISP_RUNTIME_CONFIG={disable_full_view:true};(function(){var w=window,d=document,done=false,ev=["scroll","wheel","keydown","touchstart","pointerdown","mousemove"];function load(){if(done)return;done=true;ev.forEach(function(e){w.removeEventListener(e,load,{capture:true});});var s=d.createElement("script");s.src="https://client.crisp.chat/l.js";s.async=1;d.getElementsByTagName("head")[0].appendChild(s);}ev.forEach(function(e){w.addEventListener(e,load,{capture:true,passive:true});});})();`}
-    </Script>
-  );
+  return null;
 }

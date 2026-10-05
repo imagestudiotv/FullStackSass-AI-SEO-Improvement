@@ -1,6 +1,7 @@
 import * as cheerio from "cheerio";
 
 import { repairSectionLinks } from "@/lib/articles/toc";
+import { sanitizeHtml } from "@/lib/articles/sanitize";
 import { comparableLinkUrl, followedRel } from "@/lib/backlinks/follow";
 import { siteUrl } from "@/lib/site-url";
 
@@ -77,7 +78,9 @@ export type DeliveryOptions = {
 };
 
 export function prepareForDelivery(html: string, options: DeliveryOptions): string {
-  const $ = cheerio.load(repairSectionLinks(html, options.siteHosts), null, false);
+  // Older stored revisions may predate the sanitizer. Clean the exact payload
+  // leaving the app before adding our own trusted delivery markup.
+  const $ = cheerio.load(repairSectionLinks(sanitizeHtml(html, options), options.siteHosts), null, false);
 
   // Every existing credit line, wherever it is: exactly one is added back below.
   for (const block of $("p").toArray()) {
@@ -85,10 +88,11 @@ export function prepareForDelivery(html: string, options: DeliveryOptions): stri
   }
 
   $("img").each((index, image) => {
-    $(image).attr("style", "max-width:100%;height:auto");
     if (index === 0) $(image).attr("loading", "eager");
     else if (!$(image).attr("loading")) $(image).attr("loading", "lazy");
     if (!$(image).attr("decoding")) $(image).attr("decoding", "async");
+    // Last, so repeated delivery has stable attribute ordering too.
+    $(image).attr("style", "max-width:100%;height:auto");
   });
 
   for (const cell of $("td, th").toArray()) {

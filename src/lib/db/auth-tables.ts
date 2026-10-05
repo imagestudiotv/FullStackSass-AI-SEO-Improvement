@@ -8,7 +8,7 @@
  * key pointing at them must also be text.
  */
 
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
   pgTable,
   text,
@@ -16,7 +16,20 @@ import {
   boolean,
   index,
   uniqueIndex,
+  bigint,
+  integer,
+  check,
 } from "drizzle-orm/pg-core";
+
+/** Server-only shared authentication limits; the custom store owns updates. */
+export const authRateLimits = pgTable("auth_rate_limits", {
+  key: text("key").primaryKey(),
+  count: integer("count").notNull(),
+  lastRequest: bigint("last_request", { mode: "number" }).notNull(),
+}, (table) => [
+  index("auth_rate_limits_expiry_idx").on(table.lastRequest),
+  check("auth_rate_limits_count_check", sql`${table.count} > 0`),
+]);
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),

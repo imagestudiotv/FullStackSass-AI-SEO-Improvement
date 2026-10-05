@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { contentSecurityPolicy, cspReportUri, securityHeaders } from "./security-headers";
+import { contentSecurityPolicy, cspHeaderName, cspReportUri, securityHeaders } from "./security-headers";
 
 /**
  * Security headers (client's launch review, 2026-10-03). The site sent none.
@@ -37,9 +37,16 @@ describe("securityHeaders", () => {
     expect(header(prod, "Strict-Transport-Security")).toBe("max-age=63072000");
   });
 
-  it("ships the CSP as REPORT-ONLY, never enforcing", () => {
+  it("defaults to report-only until the deployment opts in", () => {
     expect(header(prod, "Content-Security-Policy-Report-Only")).toBeTruthy();
     expect(header(prod, "Content-Security-Policy")).toBeUndefined();
+  });
+
+  it("enforces when explicitly configured and rejects a typo", () => {
+    const enforced = securityHeaders({ production: true, cspMode: "enforce" });
+    expect(header(enforced, "Content-Security-Policy")).toBeTruthy();
+    expect(header(enforced, "Content-Security-Policy-Report-Only")).toBeUndefined();
+    expect(() => cspHeaderName("enfore")).toThrow();
   });
 
   it("leaves the CSP out in development, where the dev server needs eval", () => {
@@ -81,7 +88,16 @@ describe("contentSecurityPolicy", () => {
     expect(csp["frame-ancestors"]).toEqual(["'self'"]);
     expect(csp["object-src"]).toEqual(["'none'"]);
     expect(csp["form-action"]).toEqual(["'self'"]);
-    expect(csp["base-uri"]).toEqual(["'self'"]);
+    expect(csp["base-uri"]).toEqual(["'none'"]);
+  });
+
+  it("uses nonces without unsafe inline scripts on dynamic routes", () => {
+    const strict = directives(contentSecurityPolicy(DSN, "a".repeat(32)));
+    expect(strict["script-src"]).toContain(`'nonce-${"a".repeat(32)}'`);
+    expect(strict["script-src"]).toContain("'strict-dynamic'");
+    expect(strict["script-src"]).not.toContain("'unsafe-inline'");
+    expect(strict["script-src-attr"]).toEqual(["'none'"]);
+    expect(() => contentSecurityPolicy(DSN, "bad'; script-src *")).toThrow();
   });
 
   it("reports violations to the Sentry project in the DSN", () => {
