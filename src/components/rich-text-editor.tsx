@@ -326,7 +326,26 @@ function CompactToolbar({
   /** The editor's name ("Answer 2"), so each answer's buttons are told apart. */
   label: string;
 }) {
-  const state = useEditorState({
+  /**
+   * Whether the admin has been in this answer yet.
+   *
+   * A freshly loaded editor's caret sits at the end of its text, which for an
+   * answer ending in a link is inside the link - so "Remove link" lit up on a
+   * page nobody had touched, and pressing it would have removed a link nobody
+   * chose. Until the answer has had focus, no mark or list reads as active.
+   * Never reset on blur: pressing a toolbar button blurs the editor first, and
+   * the button must still act on where the caret was.
+   */
+  const [entered, setEntered] = useState(() => editor.isFocused);
+  useEffect(() => {
+    const enter = () => setEntered(true);
+    editor.on("focus", enter);
+    return () => {
+      editor.off("focus", enter);
+    };
+  }, [editor]);
+
+  const live = useEditorState({
     editor,
     selector: ({ editor: current }) => ({
       bold: current.isActive("bold"),
@@ -338,6 +357,14 @@ function CompactToolbar({
       canRedo: current.can().redo(),
     }),
   });
+  const state = {
+    ...live,
+    bold: entered && live.bold,
+    italic: entered && live.italic,
+    bullet: entered && live.bullet,
+    ordered: entered && live.ordered,
+    link: entered && live.link,
+  };
 
   return (
     /*
@@ -823,6 +850,25 @@ const COMPACT_CONTENT_CLASSES =
  * editor gets its own storage), so every compact editor on a page shares it.
  * Exported for the schema test.
  */
+/**
+ * Link, writing its attributes in the order the sanitiser stores them:
+ * href, target, rel.
+ *
+ * Tiptap puts its configured attributes first (target, rel) and the href
+ * last. The blog editor decides "unsaved" by comparing the answer's text with
+ * the saved one, so typing a letter and deleting it again in an answer with a
+ * link left "Unsaved changes" showing - the same link, in a different order.
+ * Only the order changes; the parent's href check (unsafe addresses blanked)
+ * still runs.
+ */
+const CompactLink = Link.extend({
+  renderHTML(props) {
+    const [tag, attributes, hole] = this.parent?.(props) as [string, Record<string, unknown>, 0];
+    const { href, target, rel, ...rest } = attributes;
+    return [tag, { href, target, rel, ...rest }, hole];
+  },
+});
+
 export const COMPACT_EXTENSIONS: Extensions = [
   StarterKit.configure({
     heading: false,
@@ -844,7 +890,7 @@ export const COMPACT_EXTENSIONS: Extensions = [
     */
     trailingNode: false,
   }),
-  Link.configure({
+  CompactLink.configure({
     openOnClick: false,
     autolink: true,
     // As the full editor's: the sanitiser sets rel and target on save.

@@ -2,6 +2,7 @@ import { Editor, getSchema, type JSONContent } from "@tiptap/core";
 import { describe, expect, it } from "vitest";
 
 import { COMPACT_EXTENSIONS, linkHref } from "@/components/rich-text-editor";
+import { sanitizeHtml } from "@/lib/articles/sanitize";
 
 /**
  * The compact editor (FAQ answers) can hold only what its toolbar makes. The
@@ -80,6 +81,28 @@ describe("the compact editor, loaded with a saved answer", () => {
       editor.destroy();
     });
   }
+
+  /*
+    The blog editor compares an answer's HTML with the saved one to decide
+    "unsaved". The saved one went through the sanitiser, which writes
+    href, target, rel; the editor wrote target, rel, href, so typing a letter
+    and deleting it in an answer with a link left "Unsaved changes" showing.
+  */
+  it("writes a link's attributes in the order the sanitiser stores them", () => {
+    const schema = getSchema(COMPACT_EXTENSIONS);
+    const link = schema.marks.link.create({ href: "https://example.com/checklist" });
+    const [, attributes] = schema.marks.link.spec.toDOM!(link, true) as [string, Record<string, unknown>, 0];
+    const written = Object.entries(attributes).filter(([, value]) => value != null);
+    expect(written).toEqual([
+      ["href", "https://example.com/checklist"],
+      ["target", "_blank"],
+      ["rel", "noopener nofollow"],
+    ]);
+
+    const stored = sanitizeHtml('<p>See <a href="https://example.com/checklist">the list</a></p>');
+    const editorHtml = `<p>See <a ${written.map(([name, value]) => `${name}="${String(value)}"`).join(" ")}>the list</a></p>`;
+    expect(editorHtml).toBe(stored);
+  });
 
   it("has no trailing-node extension to add one", () => {
     const starterKit = COMPACT_EXTENSIONS.find((extension) => extension.name === "starterKit");
