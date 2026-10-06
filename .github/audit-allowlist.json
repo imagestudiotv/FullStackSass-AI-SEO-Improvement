@@ -1,0 +1,14 @@
+{
+  "$comment": "Owner-accepted exceptions to CI's full-tree npm audit, read by scripts/audit-check.mjs. Each entry waives ONE advisory in ONE package, at no more than its accepted 'severity' ('high' or 'critical'), for development dependencies only, until its 'expires' date (inclusive, UTC; at most 90 days after 'acceptedOn'). The check still fails if a listed advisory reaches production dependencies or is re-rated above its accepted severity. Policy, renewal and removal: docs/security-day-1.md.",
+  "advisories": [
+    {
+      "id": "GHSA-vfj7-8cjw-p6xm",
+      "package": "braces",
+      "severity": "high",
+      "reason": "Stack-exhaustion denial of service in braces, which reaches us only through development tooling (shadcn, eslint-config-next / @next/eslint-plugin-next, ts-morph / @ts-morph/common, fast-glob, micromatch). No patched braces release exists; it is absent from the production audit.",
+      "acceptedBy": "owner",
+      "acceptedOn": "2026-10-06",
+      "expires": "2026-11-06"
+    }
+  ]
+}

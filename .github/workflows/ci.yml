@@ -77,12 +77,14 @@ jobs:
         run: npm run build
 
   # Check runtime and build dependencies separately. Both gates fail on HIGH
-  # or CRITICAL findings; known upstream issues remain visible, never waived
-  # implicitly. See docs/security-day-1.md for the current residual advisory.
+  # or CRITICAL findings, except owner-accepted, expiring exceptions in
+  # .github/audit-allowlist.json (full-tree gate, dev dependencies only).
+  # Known upstream issues stay visible in the log. See docs/security-day-1.md.
   #
   # Its own job, beside the others: a new advisory, or npm's audit service
   # being down, fails the run without hiding the type-check, test and build
   # results. Dependabot (dependabot.yml) proposes the updates that fix them.
+  # audit-weekly.yml repeats these steps every Monday; keep the two in step.
   audit:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -102,9 +104,18 @@ jobs:
 
       # Build tools also process untrusted pull requests. Keep the full report
       # visible, and block on high/critical findings rather than omitting dev.
+      # npm audit has no ignore list, so this runs it through a check that
+      # honours ONE kind of exception: an advisory the owner accepted, at a
+      # stated severity and with a review date, in .github/audit-allowlist.json
+      # (currently only GHSA-vfj7-8cjw-p6xm in braces, high: dev tooling, no
+      # patched release). It still fails on any other high/critical advisory,
+      # once a review date passes, if an accepted advisory reaches production
+      # dependencies or is re-rated above its accepted severity, and when npm
+      # errors or prints a report it cannot read. Waivers and warnings appear
+      # as annotations on the run, green or not. See docs/security-day-1.md.
       - name: Audit all dependencies
         if: always()
-        run: npm audit --audit-level=high
+        run: node scripts/audit-check.mjs
 
   wordpress-plugin:
     runs-on: ubuntu-latest

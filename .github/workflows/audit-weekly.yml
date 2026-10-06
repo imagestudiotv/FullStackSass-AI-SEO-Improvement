@@ -1,0 +1,52 @@
+# The dependency audit, on a timer as well as on every push.
+#
+# CI's audit job (ci.yml) only runs when something is pushed. An advisory
+# published in a quiet week, or an accepted exception reaching its review date
+# (.github/audit-allowlist.json), would go unnoticed until the next commit.
+# This runs the same steps every Monday, so either one turns a run red, or
+# raises its warning annotation, without anyone pushing.
+#
+# Its own workflow rather than a schedule on ci.yml: that would also rerun the
+# app job (full test suite, Postgres service, build) and the WordPress plugin
+# job (a WordPress download, MySQL) every week - CI minutes spent re-proving
+# code nobody changed, and a flaky test or a wordpress.org hiccup would turn
+# the weekly run red for reasons that have nothing to do with dependencies.
+# Keep these steps the same as ci.yml's audit job.
+#
+# Scheduled runs use the default branch. GitHub sends a failed scheduled run
+# to whoever last changed the cron line below. workflow_dispatch runs it by
+# hand, e.g. right after renewing or removing an exception.
+name: Weekly dependency audit
+
+on:
+  schedule:
+    # Mondays, 06:00 UTC: a weekday morning, before Dependabot's 07:00 run
+    # proposes the week's updates.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci --no-audit --no-fund
+
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+      # The allowlist-aware full-tree check; see ci.yml and scripts/audit-check.mjs.
+      - name: Audit all dependencies
+        if: always()
+        run: node scripts/audit-check.mjs

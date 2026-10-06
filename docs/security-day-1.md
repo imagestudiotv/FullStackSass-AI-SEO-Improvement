@@ -77,25 +77,104 @@ counts. It contains no article bodies or connection credentials. There is no
 write mode. It has only been exercised against disposable local fixtures;
 production content has **not** been scanned or repaired.
 
-## Dependency finding still open
+## Dependency findings
 
 Full lockfile audit: **9 high findings, 0 moderate, 0 critical**. All nine are
 the dependency graph for one upstream issue,
 [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm), in
 `braces` through ESLint/shadcn/globbing tools. The advisory lists no patched
 release as of this review. These packages are build/development tooling;
-that does not make processing untrusted input in CI harmless.
+that does not make processing untrusted input in CI harmless. The production
+audit (`npm audit --omit=dev`) has **0 findings**. Rechecked 2026-10-06 with
+the same result.
 
-The complete-dependency CI audit intentionally remains red until a compatible
-fix is available or an owner explicitly accepts a narrowly scoped exception.
-No advisory is silently suppressed. Keep untrusted builds isolated from
-secrets; do not downgrade Next's lint configuration or Drizzle Kit merely to
-make `npm audit` green. Dependabot remains configured for updates.
+### Accepted exception: braces, review by 2026-11-06
 
-The esbuild development-server issue
-[GHSA-67mh-4wv8-2f99](https://github.com/advisories/GHSA-67mh-4wv8-2f99) is removed
-from the updated lockfile by the scoped override. Do not start exposed legacy
-development servers from older installs.
+On **2026-10-06** the owner accepted a narrowly scoped, expiring exception for
+this one advisory. Until then the complete-dependency CI audit was
+intentionally red. Its exact scope:
+
+- **One advisory in one package.** GHSA-vfj7-8cjw-p6xm in `braces`, matched on
+  both. The same id in another package, or any other advisory, is not covered.
+- **At high severity.** The entry records the rating the owner accepted
+  (`"severity": "high"`). If the advisory is re-rated critical, the step fails
+  until the owner decides again.
+- **Development dependencies only.** It reaches us only through dev tooling:
+  shadcn, eslint-config-next / @next/eslint-plugin-next, ts-morph /
+  @ts-morph/common, fast-glob and micromatch. The check also runs the
+  production audit and **fails if this advisory ever appears there**, whatever
+  the allowlist says.
+- **Review date 2026-11-06.** That is the last day it applies (UTC). From
+  2026-11-07 the step fails until the owner renews or removes it. During the
+  final week the run carries a warning annotation, shown on the run's summary
+  page even when it is green; every run also carries a notice naming the
+  waiver, and a job summary. CI runs on pushes, pull requests or a manual run,
+  and `.github/workflows/audit-weekly.yml` repeats both audit steps every
+  Monday at 06:00 UTC on the default branch (also runnable by hand), so an
+  expiry or a new advisory shows within a week without a push. GitHub sends a
+  failed scheduled run to whoever last changed its cron line, and in a public
+  repository it pauses scheduled workflows after 60 days without activity.
+
+It is recorded in `.github/audit-allowlist.json` (id, package, severity,
+reason, accepted by, accepted on, expires) and enforced by
+`scripts/audit-check.mjs` (logic in `scripts/audit-gate.mjs`), which replaces
+`npm audit --audit-level=high` in CI's "Audit all dependencies" step. The
+"Audit production dependencies" step is unchanged:
+`npm audit --omit=dev --audit-level=high`, blocking, with no exceptions.
+
+**Every other high or critical advisory still blocks**, in the full tree or in
+production dependencies. So does an allowlist that is missing, malformed or
+past its review date. The step also fails when npm cannot start, times out or
+exits with anything but 0 or 1; when it prints an error object (the audit
+service unreachable, no lockfile); when its output is not JSON or not a
+version 2 report; and when the report's summary counts disagree with the
+packages it lists. What it cannot catch is an audit service that answers with
+an empty but well-formed report: that reads as a clean tree, to npm and to
+this check alike, and passes. The signal is the allowlist: an entry that
+matches no finding raises a warning annotation, whether the report came back
+empty or a fix landed upstream.
+Moderate and low advisories are listed in the log without failing, as with
+`--audit-level=high`. The full audit pins `--include=dev`, because
+`NODE_ENV=production` or an npmrc `omit` setting would otherwise drop dev
+dependencies from `npm audit` without a word (checked: with
+`NODE_ENV=production`, plain `npm audit` reports 0 findings).
+
+The exception changes what CI blocks, not the risk. Keep untrusted builds
+isolated from secrets. Do not downgrade Next's lint configuration, shadcn or
+Drizzle Kit merely to make `npm audit` green: npm's suggested "fix" is a
+semver-major downgrade to eslint-config-next 14 and shadcn 1. Dependabot
+remains configured for updates.
+
+**To renew** (by the review date): the owner confirms that the advisory still
+has no usable fix, that its severity is still the one accepted, and that
+`npm audit --omit=dev` still has no findings. The entry's `acceptedOn` then
+becomes the date of that decision and `expires` the next review date, normally
+30 days later. The check refuses windows longer than 90 days and acceptance
+dates more than one day in the future (one day of slack for an owner ahead of
+UTC), so a longer exception takes a deliberate code change, not a date edit.
+The commit should name the decision.
+
+**To remove**: once a fixed `braces`, or an update that drops it, lands,
+`node scripts/audit-check.mjs` warns that the entry matches no finding. Confirm
+the fix first (`npm ls braces` shows a patched version, or no braces), since
+the same warning follows an empty audit report. Then delete the entry and
+leave `"advisories": []`. An entry left behind fails CI at its review date
+anyway. To withdraw the mechanism entirely, put `npm audit --audit-level=high`
+back in the step, in both `ci.yml` and `audit-weekly.yml`.
+
+### Resolved
+
+- **proxy-addr, critical** ([GHSA-jqcg-44mw-7w3h](https://github.com/advisories/GHSA-jqcg-44mw-7w3h),
+  IP spoofing via IPv4-mapped IPv6 trust subnets): new on 2026-10-06, it made
+  the production audit fail. It reached production dependencies only through
+  inngest → express, which the app does not serve requests with. Commit
+  `5115d51` moves the lockfile to proxy-addr 2.0.8, inside express's own range,
+  together with the moderate postcss-selector-parser fix (7.1.5 → 7.1.6, via
+  shadcn). Production audit afterwards: 0 findings.
+- **esbuild development server**
+  ([GHSA-67mh-4wv8-2f99](https://github.com/advisories/GHSA-67mh-4wv8-2f99)):
+  removed from the updated lockfile by the scoped override. Do not start
+  exposed legacy development servers from older installs.
 
 ## Credential evidence
 
@@ -162,4 +241,5 @@ as a contributor but does not establish the sole cause. A subsequent isolated
 run of `stored-html-scan.postgres.test.ts` passed **both tests in 11.35 seconds**.
 There were no assertion failures in the final full run, but it is **not a clean
 full-suite pass**. Rerun the full suite in CI or a stable local environment before
-release; the separate dependency-audit gate also remains unresolved as above.
+release. The separate dependency-audit gate was also unresolved at the time; since
+2026-10-06 it passes under the accepted, expiring exception above.
