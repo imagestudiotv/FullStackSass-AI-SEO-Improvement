@@ -80,6 +80,24 @@ describe("contentSecurityPolicy", () => {
     ]);
   });
 
+  /*
+    Vercel Web Analytics loads /_vercel/insights/script.js and posts to
+    /_vercel/insights/*, both on our own origin. 'self' must stay in both
+    lists for that, and on the nonce pages the script is inserted by the
+    nonced bundle, which only 'strict-dynamic' allows. Its development host
+    must never reach the production policy.
+  */
+  it("covers Vercel Web Analytics with 'self' alone, on both policies", () => {
+    const strict = directives(contentSecurityPolicy(DSN, "a".repeat(32)));
+    for (const policy of [csp, strict]) {
+      expect(policy["script-src"]).toContain("'self'");
+      expect(policy["connect-src"]).toContain("'self'");
+    }
+    expect(strict["script-src"]).toContain("'strict-dynamic'");
+    expect(contentSecurityPolicy(DSN)).not.toContain("vercel");
+    expect(contentSecurityPolicy(DSN, "a".repeat(32))).not.toContain("vercel");
+  });
+
   it("allows images from any HTTPS site, as audits and articles need", () => {
     expect(csp["img-src"]).toEqual(["'self'", "data:", "blob:", "https:"]);
   });

@@ -59,6 +59,15 @@ function sentryOrigin(dsn: string | undefined): string | null {
  *    fonts, images, sounds and frames come from *.crisp.chat, and it talks
  *    over wss://*.relay.crisp.chat.
  *  - Sentry's browser SDK posts errors to the DSN's host.
+ *  - Vercel Web Analytics (components/site-analytics.tsx) needs NO entry,
+ *    deliberately. On Vercel its script is /_vercel/insights/script.js and
+ *    it posts to /_vercel/insights/{view,event,session}: same origin, so
+ *    script-src and connect-src 'self' already cover both. On the nonce
+ *    pages, where 'strict-dynamic' sets 'self' aside, the script still runs
+ *    because the (nonced) app bundle inserts it - exactly the case
+ *    strict-dynamic exists for. Its other host, va.vercel-scripts.com, is
+ *    used only by `next dev`, which gets no CSP; allowing it here would only
+ *    widen the production policy.
  *  - Images come from anywhere on HTTPS: audits show customers' own logos and
  *    preview images, and articles show stored and generated images.
  *  - Nothing else: payments (Stripe, PayPal) and Google sign-in are full-page

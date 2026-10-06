@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { SiteAnalytics } from "@/components/site-analytics";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 import { isPreviewDeployment } from "@/lib/deployment";
 import { siteUrl as canonicalSiteUrl } from "@/lib/site-url";
-
 import { SITE_OPEN_GRAPH } from "@/lib/seo/page-metadata";
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -96,6 +97,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col">
         {children}
         <Toaster />
+        <SiteAnalytics />
       </body>
     </html>
   );

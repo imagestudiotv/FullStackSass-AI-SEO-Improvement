@@ -23,7 +23,7 @@ export const metadata = {
  */
 export default function PrivacyPage() {
   return (
-    <LegalPage title="Privacy Policy" updated="31 August 2026">
+    <LegalPage title="Privacy Policy" updated="5 October 2026">
       <p>
         This policy explains what information RepGet (&quot;we&quot;,
         &quot;the service&quot;) collects, why we collect it, and what we do
@@ -71,6 +71,16 @@ export default function PrivacyPage() {
         <strong>Usage records.</strong> We record which operations ran for your
         account - pages crawled, articles written, external API calls - so we
         can enforce plan limits and understand our own costs.
+      </p>
+      <p>
+        <strong>Visit statistics.</strong> We count visits with Vercel Web
+        Analytics, which gives us aggregate figures: which pages are viewed,
+        which website sent the visitor, and the visitor&apos;s country,
+        browser, operating system and type of device. It uses no cookies, does
+        not follow you across other websites, and builds no profile of you.
+        Before a page address is sent we strip everything after the path and
+        any invitation code or record ID in it; pages in our admin area are
+        not counted at all.
       </p>
 
       <h2>Google user data</h2>
@@ -160,7 +170,7 @@ export default function PrivacyPage() {
           <strong>Supabase</strong> - database hosting
         </li>
         <li>
-          <strong>Vercel</strong> - application hosting
+          <strong>Vercel</strong> - application hosting and visit statistics
         </li>
         <li>
           <strong>Stripe</strong> - payment processing
