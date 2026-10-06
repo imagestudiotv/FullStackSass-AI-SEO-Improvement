@@ -5,9 +5,8 @@ import { UNLIMITED, type LimitCheck } from "@/lib/usage-shared";
 import { agencyLimits } from "@/lib/agency/core";
 import type { QuotaRule } from "@/lib/billing/spend-quota";
 import {
-  billingAnchor,
+  allowanceWindowStart,
   calendarMonth,
-  entitlementPeriod,
 } from "@/lib/billing/entitlement-period";
 import {
   articles,
@@ -137,13 +136,17 @@ export type { LimitCheck } from "@/lib/usage-shared";
 const ENTITLED_STATUSES = new Set(["active", "trialing", "past_due"]);
 
 /**
- * Start of the MONTHLY allowance period for a subscription.
+ * Start of the MONTHLY allowance window for a subscription.
  *
  * Not the billing period: an annual plan's billing period is a year, and
  * using it as the usage window let an annual customer spend one month's
  * allowance and then wait eleven months. Periods are months anchored on the
- * billing anchor - see lib/billing/entitlement-period.ts for the full policy
- * (month ends, leap years, trials, upgrades, UTC).
+ * billing anchor, and the first paid period after a trial also counts the
+ * trial's usage (the trial is part of the first month) - see
+ * allowanceWindowStart and the full policy in lib/billing/entitlement-period.ts
+ * (month ends, leap years, trials, upgrades, UTC). This is the ONLY place the
+ * article window is resolved: display, enforcement and the reservation's
+ * stored window all take it from resolvePlan.
  */
 function periodStart(
   sub: {
@@ -154,8 +157,7 @@ function periodStart(
   },
   now: Date = new Date(),
 ): Date {
-  const anchor = billingAnchor(sub);
-  return anchor ? entitlementPeriod(anchor, now).start : calendarMonth(now).start;
+  return allowanceWindowStart(sub, now) ?? calendarMonth(now).start;
 }
 
 /**

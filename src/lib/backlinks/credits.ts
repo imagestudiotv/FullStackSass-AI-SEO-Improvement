@@ -16,11 +16,17 @@ import {
   inArray,
   isNotNull,
   isNull,
+  like,
   ne,
   sql as raw,
 } from "drizzle-orm";
 
-import { billingAnchor, entitlementPeriod } from "@/lib/billing/entitlement-period";
+import {
+  billingAnchor,
+  entitlementPeriod,
+  firstPeriodAfterTrial,
+  lessThanAMonthApart,
+} from "@/lib/billing/entitlement-period";
 import { db } from "@/lib/db";
 import { backlinkRequests, creditLedger, plans, subscriptions } from "@/lib/db/schema";
 
@@ -145,7 +151,15 @@ export async function getAvailable(organizationId: string): Promise<{
   return { balance, reserved, available: Math.max(balance - reserved, 0) };
 }
 
-const ENTITLED_STATUSES = ["active", "trialing", "past_due"];
+/*
+  Statuses that EARN a monthly grant. past_due is entitled to use the product
+  (usage.ts) but earns no new grant while a payment is failing: the customer
+  keeps the balance they have, and once the payment succeeds and the status
+  is active again, the next page load grants the current period as usual -
+  same key, so once. A trial earns its grant: it is the first month's
+  allowance, which the paid period after it does not repeat (below).
+*/
+const GRANTING_STATUSES = ["active", "trialing"];
 
 /** Plan grants from before per-subscription keys: "plan_grant:YYYY-MM". */
 const LEGACY_GRANT = /^plan_grant:\d{4}-\d{2}$/;
@@ -155,20 +169,59 @@ export function planGrantKey(subscriptionId: string, periodStart: Date): string 
   return `plan_grant:${subscriptionId}:${periodStart.toISOString()}`;
 }
 
+/** The period start a planGrantKey names, or null for any other reference. */
+function grantPeriodStart(subscriptionId: string, key: string | null): Date | null {
+  const prefix = `plan_grant:${subscriptionId}:`;
+  if (!key?.startsWith(prefix)) return null;
+  const start = new Date(key.slice(prefix.length));
+  return Number.isNaN(start.getTime()) ? null : start;
+}
+
 /**
  * Grants each paid website's monthly credit allowance, once per
- * subscription per monthly entitlement period.
+ * subscription per allowance month.
  *
  * WHAT WAS WRONG. One arbitrary subscription row was read for the whole
  * workspace, so a workspace paying for three sites was granted one site's
  * credits; and the key was the calendar month of the BILLING period start,
  * which for an annual plan is one month a year.
  *
- * NOW. Every entitled subscription attached to a website contributes its own
- * plan's credits, keyed `plan_grant:<subscription>:<period start>` where the
- * period is the MONTHLY entitlement period (lib/billing/entitlement-period.ts)
- * - so monthly and annual customers get the advertised monthly amount, and
- * the key is idempotent under any number of concurrent page loads.
+ * NOW. Every granting subscription (active or trialing) attached to a
+ * website contributes its own plan's credits, keyed
+ * `plan_grant:<subscription>:<period start>` where the period is the MONTHLY
+ * entitlement period (lib/billing/entitlement-period.ts) - so monthly and
+ * annual customers get the advertised monthly amount, and the key is
+ * idempotent under any number of concurrent page loads.
+ *
+ * THE TRIAL IS PART OF THE FIRST MONTH (the client's rule, approved by the
+ * owner on 2026-10-05; it replaces "no credits until the first payment",
+ * which lasted a day). A trial is its own billing period at the provider,
+ * and converting moves the anchor to the trial's end, so the paid period
+ * after a 3-day trial used to be granted a second month's credits: a Grow
+ * customer had 50 three days in. Now the trial is granted the month's
+ * credits when it starts, and THE PERIOD AFTER IT IS STILL THE FIRST MONTH
+ * (firstPeriodAfterTrial - the same predicate the article window uses, so
+ * credits and articles always agree on which month it is). That period is
+ * granted only what the current plan gives beyond what the first month was
+ * already granted: nothing on the same plan, the difference after an
+ * upgrade during the trial (the customer pays the new price from the
+ * conversion). The next full grant comes with the second paid period - a
+ * month after the conversion. A trial that is never converted keeps its
+ * credits and earns no more: a cancelled subscription does not grant.
+ *
+ * ONLY THE FIRST MONTH. The broader rule - settle at zero ANY period
+ * starting less than a month after another grant - reaches across
+ * renewals: a PayPal renewal paid five days late (its period starts at the
+ * payment) would zero the on-schedule renewal after it, a paid month with no
+ * credits, depending on when the customer happened to load a page. Later
+ * re-anchors (an interval change, a late PayPal payment) are granted as new
+ * periods, as they always were - and as their articles are. The one known
+ * cost: a PayPal renewal paid late AFTER a page load had already granted the
+ * on-schedule period is granted again at the payment; preventing that needs
+ * the provider's period end stored with each grant.
+ *
+ * past_due earns no new grant while the payment is failing (the balance
+ * already granted is kept); see GRANTING_STATUSES.
  *
  * Only the CURRENT period is ever granted. Nothing is back-filled for months
  * that passed without a page load, and nothing already granted is removed.
@@ -185,7 +238,6 @@ export async function grantMonthlyCredits(
   const subs = await db
     .select({
       id: subscriptions.id,
-      status: subscriptions.status,
       monthlyCredits: plans.monthlyCredits,
       interval: plans.interval,
       currentPeriodStart: subscriptions.currentPeriodStart,
@@ -198,50 +250,12 @@ export async function grantMonthlyCredits(
       and(
         eq(subscriptions.organizationId, organizationId),
         isNotNull(subscriptions.websiteId),
-        inArray(subscriptions.status, ENTITLED_STATUSES),
+        inArray(subscriptions.status, GRANTING_STATUSES),
       ),
     )
     .orderBy(asc(subscriptions.createdAt), asc(subscriptions.id));
 
-  /*
-    NO CREDITS UNTIL THE FIRST PAYMENT (owner's decision, 2026-10-05).
-
-    A trial is its own billing period (lib/billing/entitlement-period.ts), so
-    a 3-day trial was granted a whole month's credits, and converting granted
-    the first paid month's again: 50 Grow credits in three days, of which a
-    customer who cancelled during the trial kept 25. A trial now earns none;
-    the conversion moves the anchor to the trial's end, and that first paid
-    period is granted in full.
-
-    past_due is the same question asked later: the first charge after a trial
-    can fail, leaving a subscription past_due that has never paid. It keeps
-    its allowance only when this subscription has been granted one before -
-    i.e. it was paid for at least once, and a later renewal is what failed.
-  */
-  const paid = subs.filter((sub) => sub.status === "active" || sub.status === "past_due");
-  const pastDue = paid.filter((sub) => sub.status === "past_due").map((sub) => sub.id);
-  const paidBefore = new Set(
-    pastDue.length === 0
-      ? []
-      : (
-          await db
-            .select({ referenceId: creditLedger.referenceId })
-            .from(creditLedger)
-            .where(
-              and(
-                eq(creditLedger.organizationId, organizationId),
-                eq(creditLedger.type, "plan_grant"),
-                gt(creditLedger.amount, 0),
-              ),
-            )
-        )
-          .map((row) => /^plan_grant:([0-9a-f-]{36}):/.exec(row.referenceId ?? "")?.[1])
-          .filter((id): id is string => Boolean(id)),
-  );
-
-  const eligible = paid.filter(
-    (sub) => sub.monthlyCredits > 0 && (sub.status === "active" || paidBefore.has(sub.id)),
-  );
+  const eligible = subs.filter((sub) => sub.monthlyCredits > 0);
   if (eligible.length === 0) return 0;
 
   const legacy = (
@@ -277,30 +291,86 @@ export async function grantMonthlyCredits(
         already += grant.amount;
       }
     }
-    const amount = Math.max(sub.monthlyCredits - already, 0);
     const key = planGrantKey(sub.id, period.start);
 
     /*
-      Written even when the old grant already covered it (amount 0): the row
-      is the record that this period is settled. One statement, keyed, so
-      simultaneous page loads grant once.
+      Decided and written under a per-subscription lock. The key alone makes
+      ONE period idempotent, but "the first month was already granted" is a
+      question about OTHER keys: two page loads either side of the
+      conversion webhook - one still reading the trial's period, one the paid
+      period - could each see no grant and write their own. Serialised, the
+      second sees the first. Both directions are checked, so whichever writes
+      first is granted and the other only tops up to its plan (zero on the
+      same plan).
     */
-    const granted = await db
-      .insert(creditLedger)
-      .values({
-        organizationId,
-        type: "plan_grant",
-        amount,
-        referenceId: key,
-        idempotencyKey: key,
-        note:
-          already > 0
-            ? `Monthly plan allowance (${already} already granted this month)`
-            : "Monthly plan allowance",
-      })
-      .onConflictDoNothing()
-      .returning({ id: creditLedger.id });
-    if (granted.length > 0) total += amount;
+    total += await db.transaction(async (tx) => {
+      await tx.execute(
+        raw`select pg_advisory_xact_lock(hashtextextended(${`plan_grant:${sub.id}`}, 0))`,
+      );
+      const granted = await tx
+        .select({ key: creditLedger.idempotencyKey, amount: creditLedger.amount })
+        .from(creditLedger)
+        .where(
+          and(
+            eq(creditLedger.organizationId, organizationId),
+            eq(creditLedger.type, "plan_grant"),
+            gt(creditLedger.amount, 0),
+            like(creditLedger.idempotencyKey, `plan_grant:${sub.id}:%`),
+          ),
+        );
+      /*
+        The grants of the same first month: another period of this
+        subscription, less than a month from this one, where the LATER of the
+        two is still the first month (firstPeriodAfterTrial: the period after
+        a trial, or another re-anchor inside the first month). Only then - a
+        renewal is a month of its own however close the provider put its
+        start.
+      */
+      const covering = granted.flatMap((row) => {
+        const start = grantPeriodStart(sub.id, row.key);
+        if (!start || start.getTime() === period.start.getTime()) return [];
+        const later = start > period.start ? start : period.start;
+        return firstPeriodAfterTrial(sub.createdAt, later) && lessThanAMonthApart(start, period.start)
+          ? [{ start, amount: row.amount }]
+          : [];
+      });
+      const coveredAmount = covering.reduce((sum, grant) => sum + grant.amount, 0);
+      const coveredFrom = covering.reduce<Date | null>(
+        (earliest, grant) => (earliest && earliest <= grant.start ? earliest : grant.start),
+        null,
+      );
+      const amount = Math.max(sub.monthlyCredits - already - coveredAmount, 0);
+
+      /*
+        Written even when the period earns nothing (amount 0): the row is the
+        record that this period is settled, and why. One statement, keyed, so
+        simultaneous page loads grant once.
+      */
+      const written = await tx
+        .insert(creditLedger)
+        .values({
+          organizationId,
+          type: "plan_grant",
+          amount,
+          referenceId: key,
+          idempotencyKey: key,
+          /*
+            Zero rows are hidden from the customer (listLedger), so that note
+            is for support; a top-up is shown on the Credits page, like the
+            others.
+          */
+          note: coveredFrom
+            ? amount > 0
+              ? `Monthly plan allowance, topped up to the current plan (${coveredAmount + already} already granted this month)`
+              : `Covered by the allowance granted for the period from ${coveredFrom.toISOString()}, the same first month (a trial is part of the first month)`
+            : already > 0
+              ? `Monthly plan allowance (${already} already granted this month)`
+              : "Monthly plan allowance",
+        })
+        .onConflictDoNothing()
+        .returning({ id: creditLedger.id });
+      return written.length > 0 ? amount : 0;
+    });
   }
   return total;
 }
