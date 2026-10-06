@@ -3,7 +3,7 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { languageAlternates, LOCALES, localePath, TRANSLATED_PATHS } from "@/lib/i18n/config";
+import { languageAlternates, LOCALES, localePath, splitLocale, TRANSLATED_PATHS } from "@/lib/i18n/config";
 
 /**
  * hreflang only counts when it is reciprocal: every version of a page must
@@ -50,6 +50,32 @@ describe("languageAlternates", () => {
  * button, tools and docs links used to point at /es/audit, /es/tools and
  * /es/docs/... - pages that exist only in English, so every one was a 404.
  */
+/*
+  The deployed home page, when regenerated, renders with usePathname() =
+  "/index" while the browser says "/". splitLocale must give both the same
+  answer, or the language switcher renders differently on the server and in
+  the browser (React hydration error #418 on https://www.repget.com/).
+*/
+describe("splitLocale", () => {
+  it("reads locale and path", () => {
+    expect(splitLocale("/")).toEqual({ locale: "en", path: "/" });
+    expect(splitLocale("/pricing")).toEqual({ locale: "en", path: "/pricing" });
+    expect(splitLocale("/es/pricing")).toEqual({ locale: "es", path: "/pricing" });
+    expect(splitLocale("/fr")).toEqual({ locale: "fr", path: "/" });
+  });
+
+  it("treats the internal /index route as the home page, in every locale", () => {
+    expect(splitLocale("/index")).toEqual(splitLocale("/"));
+    expect(splitLocale("/es/index")).toEqual(splitLocale("/es"));
+    expect(TRANSLATED_PATHS.has(splitLocale("/index").path)).toBe(true);
+  });
+
+  it("ignores a trailing slash, so it cannot change what is translatable", () => {
+    expect(splitLocale("/pricing/")).toEqual({ locale: "en", path: "/pricing" });
+    expect(splitLocale("/it/pricing/")).toEqual({ locale: "it", path: "/pricing" });
+  });
+});
+
 describe("localePath", () => {
   it("prefixes the pages that exist in that language", () => {
     expect(localePath("es", "/")).toBe("/es");

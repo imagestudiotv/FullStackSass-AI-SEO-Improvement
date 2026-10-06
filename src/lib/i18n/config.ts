@@ -52,14 +52,26 @@ export function splitLocale(pathname: string): {
   locale: Locale;
   path: string;
 } {
+  /*
+    "/index" IS THE HOME PAGE. When the deployed site regenerates the cached
+    home page (it revalidates), Next renders it under its internal route name,
+    so usePathname() returns "/index" on the server while the browser has "/".
+    The language switcher hides itself on paths it cannot translate, so the
+    served HTML had no switcher, the browser rendered one, and React threw
+    hydration error #418 on every visit to https://www.repget.com/ - then
+    re-rendered the whole page in the browser, which is what Lighthouse
+    counted as blocking time. Nothing in the app is called "index", so a
+    trailing "index" segment always means the page itself.
+  */
   const segments = pathname.split("/").filter(Boolean);
+  if (segments.at(-1) === "index") segments.pop();
   const first = segments[0];
 
   if (first && isLocale(first) && first !== DEFAULT_LOCALE) {
     return { locale: first, path: `/${segments.slice(1).join("/")}` };
   }
 
-  return { locale: DEFAULT_LOCALE, path: pathname };
+  return { locale: DEFAULT_LOCALE, path: `/${segments.join("/")}` };
 }
 
 /**

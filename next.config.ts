@@ -8,6 +8,18 @@ import { legacyHostRedirects } from "./src/lib/site-url";
 const nextConfig: NextConfig = {
   reactCompiler: true,
 
+  compiler: {
+    /*
+      Strips the Sentry SDK's debug logging from every bundle. Sentry's own
+      bundleSizeOptimizations option sets this flag only for webpack builds,
+      and this project builds with Turbopack, so it is set here instead.
+      Safe because every Sentry.init in the app has debug: false.
+    */
+    define: {
+      __SENTRY_DEBUG__: "false",
+    },
+  },
+
   /**
    * Pages on the pre-repget.com address go to the same path on the canonical
    * one; /api stays where it is for webhooks and older plugins. The rule and
