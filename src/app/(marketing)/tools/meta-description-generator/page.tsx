@@ -103,7 +103,7 @@ export default async function MetaDescriptionGeneratorPage({
                         className={`text-xs tabular-nums ${
                           description.fits
                             ? "text-muted-foreground"
-                            : "text-amber-600 dark:text-amber-400"
+                            : "text-amber-700 dark:text-amber-400"
                         }`}
                       >
                         {description.length} characters

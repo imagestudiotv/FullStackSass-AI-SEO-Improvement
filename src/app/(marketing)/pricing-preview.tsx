@@ -14,7 +14,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { formatPrice, type PlanRow } from "@/lib/billing-shared";
-import type { SectionProps } from "./home-sections";
+import { OFFSCREEN, type SectionProps } from "./home-sections";
 
 /**
  * Pricing preview on the homepage.
@@ -33,7 +33,7 @@ export function PricingPreview({
   const monthly = plans.filter((plan) => plan.interval === "month");
 
   return (
-    <section id="pricing" className="scroll-mt-20 border-t px-4 py-20">
+    <section id="pricing" className={`${OFFSCREEN} scroll-mt-20 border-t px-4 py-20`}>
       <div className="mx-auto max-w-6xl">
         <div>
           <p className="text-xs font-semibold tracking-[0.14em] text-primary uppercase">

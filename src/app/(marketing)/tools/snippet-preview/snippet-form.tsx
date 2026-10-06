@@ -23,8 +23,8 @@ import {
  */
 
 const TONE: Record<LengthVerdict, string> = {
-  short: "text-amber-600 dark:text-amber-400",
-  good: "text-emerald-600 dark:text-emerald-400",
+  short: "text-amber-700 dark:text-amber-400",
+  good: "text-emerald-700 dark:text-emerald-400",
   long: "text-red-600 dark:text-red-400",
 };
 

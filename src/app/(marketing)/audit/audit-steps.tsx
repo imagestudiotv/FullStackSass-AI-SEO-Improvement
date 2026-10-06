@@ -55,7 +55,7 @@ function Row({
         aria-expanded={open}
         className="flex w-full items-center gap-3 p-4 text-left transition-colors hover:bg-muted/40"
       >
-        <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600">
+        <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-700">
           <Check className="size-3.5" aria-hidden="true" />
         </span>
         <span className="min-w-0 flex-1">

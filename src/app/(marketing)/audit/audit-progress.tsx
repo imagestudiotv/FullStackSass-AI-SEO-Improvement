@@ -168,7 +168,7 @@ export function AuditProgress({
                   <span
                     className={`flex size-6 shrink-0 items-center justify-center rounded-full ${
                       done
-                        ? "bg-emerald-500/10 text-emerald-600"
+                        ? "bg-emerald-500/10 text-emerald-700"
                         : active
                           ? "bg-primary/10 text-primary"
                           : "bg-muted text-muted-foreground/50"

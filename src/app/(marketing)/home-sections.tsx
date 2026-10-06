@@ -36,6 +36,8 @@ import {
   WordPressMark,
 } from "@/components/integration-marks";
 import { Card, CardContent } from "@/components/ui/card";
+import { RenderAllIfOpenedOnSection } from "@/components/render-all-on-jump";
+import { WideScreenOnly } from "@/components/wide-screen-only";
 import type { Messages } from "@/lib/i18n/messages";
 
 /**
@@ -99,9 +101,28 @@ const HERO_CARD_STYLE: { icon: LucideIcon; className: string }[] = [
 /** The shared lg size is h-9 — right for a form, too small for a hero. */
 const CTA = "h-12 rounded-full px-7 text-base";
 
+/**
+ * For every section below the first screen: the browser skips their style,
+ * layout and paint until they come near the viewport.
+ *
+ * On PageSpeed's slow phone, laying out the whole 10,000px page at load was
+ * about a second of main-thread work, though only the hero is on screen. The
+ * text stays in the HTML (search engines and AI crawlers read it as before);
+ * only the rendering waits. The size reserves a typical section height until
+ * the real one is known (about 720px on a phone, 480px side by side on a
+ * wide screen), and the browser remembers it afterwards, so the scrollbar
+ * barely moves. A jump straight to a section switches all of this off first
+ * (components/render-all-on-jump.tsx), so it lands exactly. Exported for the
+ * pricing block, which lives in its own file.
+ */
+export const OFFSCREEN =
+  "[content-visibility:auto] [contain-intrinsic-size:auto_720px] lg:[contain-intrinsic-size:auto_480px] [[data-render-all]_&]:[content-visibility:visible]";
+
 export function Hero({ t, href }: SectionProps) {
   return (
     <section className="relative overflow-hidden bg-gradient-to-b from-primary/[0.055] via-background to-background px-4 pt-14 pb-12 sm:pt-20">
+      {/* Ahead of every OFFSCREEN section in the HTML; see the component. */}
+      <RenderAllIfOpenedOnSection />
       {/*
         The soft warm wash the design puts behind the cards. A radial tint
         rather than an image: it costs no request and scales to any width.
@@ -189,6 +210,13 @@ export function Hero({ t, href }: SectionProps) {
         Floating cards, hidden below xl. At narrower widths they would either
         overlap the headline or stack into a meaningless list.
       */}
+      {/*
+        Wide screens only, in the DOM too (see WideScreenOnly): a phone never
+        builds or hydrates these cards. They appear just after hydration on a
+        wide screen, so they fade in rather than pop. The xl:block below still
+        decides what shows if a window is resized across the breakpoint.
+      */}
+      <WideScreenOnly>
       <div
         /*
           Inset from the top rather than pinned to it.
@@ -199,7 +227,7 @@ export function Hero({ t, href }: SectionProps) {
           layer below the header means no card can reach it however these
           offsets are tuned later.
         */
-        className="pointer-events-none absolute inset-x-0 top-6 mx-auto hidden h-full max-w-7xl xl:block"
+        className="pointer-events-none absolute inset-x-0 top-6 mx-auto hidden h-full max-w-7xl motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-500 xl:block"
         aria-hidden="true"
       >
         {/*
@@ -264,6 +292,7 @@ export function Hero({ t, href }: SectionProps) {
           );
         })}
       </div>
+      </WideScreenOnly>
     </section>
   );
 }
@@ -318,7 +347,7 @@ const PREVIEW_NAV: { label: string; icon: LucideIcon }[] = [
  */
 const PREVIEW_CALENDAR = [
   { month: "SEP", day: "14", title: "How to choose a supplier", status: "Draft", tone: "bg-muted text-muted-foreground" },
-  { month: "SEP", day: "16", title: "What our prices include", status: "Generating", tone: "bg-primary/10 text-primary" },
+  { month: "SEP", day: "16", title: "What our prices include", status: "Generating", tone: "bg-primary/10 text-primary-strong" },
   { month: "SEP", day: "18", title: "Five questions to ask first", status: "Planned", tone: "bg-blue-500/10 text-blue-600" },
   { month: "SEP", day: "20", title: "A guide for first-time buyers", status: "Planned", tone: "bg-blue-500/10 text-blue-600" },
 ];
@@ -406,7 +435,7 @@ export function ProductPreview({ t }: SectionProps) {
                         key={item.label}
                         className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs ${
                           index === 0
-                            ? "bg-primary/10 font-medium text-primary"
+                            ? "bg-primary/10 font-medium text-primary-strong"
                             : "text-muted-foreground"
                         }`}
                       >
@@ -451,7 +480,7 @@ export function ProductPreview({ t }: SectionProps) {
                         <p className="mt-0.5 text-xs text-muted-foreground">
                           {stat.label}
                         </p>
-                        <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-emerald-600">
+                        <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-emerald-700">
                           <TrendingUp className="size-3" aria-hidden="true" />
                           {stat.delta}
                         </p>
@@ -504,7 +533,7 @@ export function ProductPreview({ t }: SectionProps) {
                     <div className="rounded-xl border p-3">
                       <div className="flex items-center justify-between gap-2">
                         <p className="text-xs font-semibold">Latest article</p>
-                        <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[0.65rem] font-medium text-emerald-600">
+                        <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[0.65rem] font-medium text-emerald-700">
                           Published
                         </span>
                       </div>
@@ -543,7 +572,7 @@ export function ProductPreview({ t }: SectionProps) {
                             className="flex items-center gap-1.5 text-[0.65rem] text-muted-foreground"
                           >
                             <CircleCheck
-                              className="size-3 shrink-0 text-emerald-600"
+                              className="size-3 shrink-0 text-emerald-700"
                               aria-hidden="true"
                             />
                             {check}
@@ -575,7 +604,7 @@ const PILLAR_ICONS: LucideIcon[] = [FileText, Link2, BarChart3, Sparkles];
 
 export function Pillars({ t }: SectionProps) {
   return (
-    <section className="px-4 pb-8">
+    <section className={`${OFFSCREEN} px-4 pb-8`}>
       <div className="mx-auto grid max-w-6xl gap-8 sm:grid-cols-2 lg:grid-cols-4 lg:gap-0">
         {t.pillars.map((pillar, index) => {
           const Icon = PILLAR_ICONS[index] ?? FileText;
@@ -626,7 +655,7 @@ export function DemoVideo({ t, href }: SectionProps) {
   return (
     <section
       id="how-it-works-video"
-      className="scroll-mt-20 border-t px-4 py-20"
+      className={`${OFFSCREEN} scroll-mt-20 border-t px-4 py-20`}
     >
       <div className="mx-auto max-w-4xl text-center">
         <h2 className="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
@@ -750,7 +779,7 @@ const WORKS_WITH: {
 
 export function WorksWith({ t, href }: SectionProps) {
   return (
-    <section className="border-t px-4 py-14">
+    <section className={`${OFFSCREEN} border-t px-4 py-14`}>
       <div className="mx-auto max-w-5xl">
         <p className="text-center text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
           {t.worksWithTitle}
@@ -815,7 +844,7 @@ const AUDIT_ICONS: LucideIcon[] = [Search, BarChart3, Link2];
 
 export function AuditBand({ t, href }: SectionProps) {
   return (
-    <section className="px-4 pb-20">
+    <section className={`${OFFSCREEN} px-4 pb-20`}>
       {/*
         The glow the design puts behind this card. It is the page's primary
         conversion point, and the surrounding sections are plain, so a tinted
@@ -882,7 +911,7 @@ export function AuditBand({ t, href }: SectionProps) {
             <span key={item} className="flex items-center gap-1.5">
               <span className="flex size-4 items-center justify-center rounded bg-emerald-500/15">
                 <Check
-                  className="size-3 text-emerald-600"
+                  className="size-3 text-emerald-700"
                   aria-hidden="true"
                 />
               </span>
@@ -901,7 +930,7 @@ export function AuditBand({ t, href }: SectionProps) {
 
 export function HowItWorks({ t }: SectionProps) {
   return (
-    <section id="how-it-works" className="scroll-mt-20 border-t px-4 py-20">
+    <section id="how-it-works" className={`${OFFSCREEN} scroll-mt-20 border-t px-4 py-20`}>
       <div className="mx-auto max-w-6xl">
         <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
           {t.howItWorks}
@@ -957,7 +986,7 @@ export function ProblemSolution({ t }: SectionProps) {
     */
     <section
       id="traffic-recovery"
-      className="scroll-mt-20 border-t px-4 py-20"
+      className={`${OFFSCREEN} scroll-mt-20 border-t px-4 py-20`}
     >
       <div className="mx-auto max-w-6xl">
         <p className="text-xs font-semibold tracking-[0.14em] text-primary uppercase">
@@ -987,7 +1016,7 @@ export function ProblemSolution({ t }: SectionProps) {
                     className="mt-0.5 size-4 shrink-0"
                     aria-hidden="true"
                   />
-                  <span className="text-sm text-primary-foreground/95">
+                  <span className="text-sm text-primary-foreground">
                     {item}
                   </span>
                 </li>
@@ -1012,7 +1041,7 @@ export function ProblemSolution({ t }: SectionProps) {
  */
 export function OneSubscription({ t, href }: SectionProps) {
   return (
-    <section className="border-t px-4 py-20">
+    <section className={`${OFFSCREEN} border-t px-4 py-20`}>
       <div className="mx-auto grid max-w-6xl gap-10 md:grid-cols-2 md:gap-16">
         <div>
           <p className="text-xs font-semibold tracking-[0.14em] text-primary uppercase">
@@ -1061,7 +1090,7 @@ export function Publishing({ t }: SectionProps) {
     // #content-engine: the Platform menu's "Content Engine" lands here.
     <section
       id="content-engine"
-      className="scroll-mt-20 border-t px-4 py-20"
+      className={`${OFFSCREEN} scroll-mt-20 border-t px-4 py-20`}
     >
       <div className="mx-auto grid max-w-6xl gap-10 md:grid-cols-2 md:gap-16">
         <div>
@@ -1113,7 +1142,7 @@ export function WhatYouSee({ t }: SectionProps) {
       name you, so one target is honest rather than a compromise — splitting
       it would mean two anchors on the same list of cards.
     */
-    <section id="tracking" className="scroll-mt-20 border-t px-4 py-20">
+    <section id="tracking" className={`${OFFSCREEN} scroll-mt-20 border-t px-4 py-20`}>
       <div className="mx-auto max-w-6xl">
         <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
           {t.trackedTitle}
@@ -1150,7 +1179,7 @@ export function BacklinkNetwork({ t, href }: SectionProps) {
     // #authority-network: the Platform menu's "Authority Network".
     <section
       id="authority-network"
-      className="scroll-mt-20 border-t px-4 py-20"
+      className={`${OFFSCREEN} scroll-mt-20 border-t px-4 py-20`}
     >
       <div className="mx-auto max-w-6xl">
         <p className="text-xs font-semibold tracking-[0.14em] text-primary uppercase">
@@ -1197,12 +1226,12 @@ export function BacklinkNetwork({ t, href }: SectionProps) {
 
 export function ClosingCta({ t, href }: SectionProps) {
   return (
-    <section className="border-t px-4 py-20">
+    <section className={`${OFFSCREEN} border-t px-4 py-20`}>
       <div className="mx-auto max-w-6xl rounded-2xl bg-primary px-6 py-14 text-center text-primary-foreground sm:px-10">
         <h2 className="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
           {t.closingTitle}
         </h2>
-        <p className="mx-auto mt-3 max-w-md text-primary-foreground/90">
+        <p className="mx-auto mt-3 max-w-md text-primary-foreground">
           {t.closingSub}
         </p>
 
@@ -1215,7 +1244,7 @@ export function ClosingCta({ t, href }: SectionProps) {
           </Button>
         </div>
 
-        <p className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm text-primary-foreground/90">
+        <p className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm text-primary-foreground">
           <span className="flex items-center gap-1.5">
             <Check className="size-4" aria-hidden="true" />
             {t.cancelAnytime}

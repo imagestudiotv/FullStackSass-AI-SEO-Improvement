@@ -7,6 +7,7 @@ import { BrandHomeLink } from "@/components/brand-home-link";
 import { BrandLogo } from "@/components/brand-logo";
 import { LiveChat } from "@/components/live-chat";
 import { PreviousPageTracker } from "@/components/previous-page";
+import { RenderAllOnJump } from "@/components/render-all-on-jump";
 
 /**
  * The public site's frame: sticky header with the nav, the page, the compact
@@ -44,6 +45,7 @@ export function MarketingShell({ children }: { children: React.ReactNode }) {
       <main className="flex-1">{children}</main>
       {/* After the page, so a 404 reports the page the visitor came from (components/previous-page.tsx). */}
       <PreviousPageTracker />
+      <RenderAllOnJump />
 
       {/*
         Compact: brand, then the links as two inline groups, all in one row on

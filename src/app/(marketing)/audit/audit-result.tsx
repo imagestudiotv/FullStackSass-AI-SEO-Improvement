@@ -68,7 +68,7 @@ function pathOf(url: string): string {
 }
 
 function scoreTone(score: number): string {
-  if (score >= 80) return "text-emerald-600 dark:text-emerald-400";
+  if (score >= 80) return "text-emerald-700 dark:text-emerald-400";
   if (score >= 50) return "text-amber-600 dark:text-amber-400";
   return "text-red-600 dark:text-red-400";
 }
@@ -140,7 +140,7 @@ function SeverityBar({
   return (
     <div className="mt-4">
       {total === 0 ? (
-        <p className="text-sm text-emerald-600 dark:text-emerald-400">
+        <p className="text-sm text-emerald-700 dark:text-emerald-400">
           Nothing wrong on the pages we read.
         </p>
       ) : (
@@ -405,7 +405,7 @@ export function AuditResult({
               >
                 {crawler.allowed ? (
                   <Check
-                    className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400"
+                    className="size-4 shrink-0 text-emerald-700 dark:text-emerald-400"
                     aria-hidden="true"
                   />
                 ) : (

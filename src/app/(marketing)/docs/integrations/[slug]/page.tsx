@@ -89,7 +89,7 @@ export default async function IntegrationDocPage({
             {doc.requirements.map((item) => (
               <li key={item} className="flex items-start gap-2.5 text-sm">
                 <Check
-                  className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400"
+                  className="mt-0.5 size-4 shrink-0 text-emerald-700 dark:text-emerald-400"
                   aria-hidden="true"
                 />
                 <span className="text-muted-foreground">{item}</span>

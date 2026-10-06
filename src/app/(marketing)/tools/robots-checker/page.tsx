@@ -97,7 +97,7 @@ export default async function RobotsCheckerPage({
             ) : (
               <div className="flex gap-3 rounded-xl border bg-card p-5">
                 <Check
-                  className="mt-0.5 size-5 shrink-0 text-emerald-600 dark:text-emerald-400"
+                  className="mt-0.5 size-5 shrink-0 text-emerald-700 dark:text-emerald-400"
                   aria-hidden="true"
                 />
                 <div>

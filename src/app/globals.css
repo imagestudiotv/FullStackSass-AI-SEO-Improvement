@@ -24,8 +24,17 @@
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
   /* Orange from the landing design. Every component reads this token, so
-     buttons, badges and focus rings all follow. */
-  --primary: oklch(0.646 0.196 41.5);
+     buttons, links and badges all follow.
+     Darker than the design's oklch(0.646 0.196 41.5) (#eb5702), at the
+     client's request (2026-10-06), for PageSpeed accessibility: white on
+     #eb5702 and #eb5702 on white were 3.56:1 against the 4.5:1 normal text
+     needs. This is #c54801: 4.88:1 both ways, and 4.63:1 on the 4% orange
+     tint behind the tool, blog and docs page headers. Same hue, chroma
+     scaled. */
+  --primary: oklch(0.566 0.172 41.5);
+  /* Orange text on an orange tint of 10% or more (small badges, the active
+     item in a list): --primary is 4.25:1 there. This is #b44101, 4.90:1. */
+  --primary-strong: oklch(0.53 0.161 41.5);
   /**
    * Chart line. The brand hue at a step validated against this surface —
    * inside the 0.43-0.77 lightness band a light background requires, above the
@@ -33,12 +42,12 @@
    */
   --chart-line: oklch(0.646 0.196 41.5);
   --primary-foreground: oklch(1 0 0);
-  /* Tinted ring so focus states match the brand rather than staying grey. */
-  --ring: oklch(0.646 0.196 41.5 / 40%);
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
+  /* #6f6f6f: 4.61:1 on --muted and 5.02:1 on white. It was #737373, 4.34:1
+     on --muted - small labels on grey failed PageSpeed's contrast check. */
+  --muted-foreground: oklch(0.541 0 0);
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
@@ -97,6 +106,7 @@
   /* Slightly lighter orange in dark mode: the light-theme value does not
      carry enough contrast against a dark ground. */
   --primary: oklch(0.70 0.185 41.5);
+  --primary-strong: var(--primary);
   /**
    * Deliberately NOT --primary. Dark mode wants L 0.48-0.67 and the primary
    * token sits at 0.70, which fails the band; this steps it to 0.655 in the
@@ -164,6 +174,7 @@
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-strong: var(--primary-strong);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);

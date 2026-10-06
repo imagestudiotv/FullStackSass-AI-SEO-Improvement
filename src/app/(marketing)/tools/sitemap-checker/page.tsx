@@ -130,7 +130,7 @@ export default async function SitemapCheckerPage({
                     <div className="flex flex-wrap items-center gap-2">
                       {finding.ok ? (
                         <Check
-                          className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400"
+                          className="size-4 shrink-0 text-emerald-700 dark:text-emerald-400"
                           aria-hidden="true"
                         />
                       ) : (
@@ -151,7 +151,7 @@ export default async function SitemapCheckerPage({
                         {finding.source}
                       </span>
                       {finding.isIndex ? (
-                        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
+                        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary-strong">
                           index
                         </span>
                       ) : null}
