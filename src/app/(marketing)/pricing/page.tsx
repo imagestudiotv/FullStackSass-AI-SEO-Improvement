@@ -13,20 +13,12 @@ import {
 } from "@/components/ui/card";
 import { formatPrice, listPlans } from "@/lib/billing";
 import { planFeatures, planTagline, STARTER_TIER } from "@/lib/plans/features";
-import { languageAlternates } from "@/lib/i18n/config";
+import { publicPageMetadata } from "@/lib/seo/page-metadata";
 
 export const metadata = {
   title: "Pricing",
   description: "Simple monthly pricing. Cancel any time.",
-  /**
-   * Declared from the English side too. hreflang has to be reciprocal — a
-   * translation that points at the original while the original ignores it is
-   * treated as a duplicate rather than an alternate.
-   */
-  alternates: {
-    canonical: "/pricing",
-    languages: languageAlternates("/pricing"),
-  },
+  ...publicPageMetadata("/pricing"),
 };
 
 /**

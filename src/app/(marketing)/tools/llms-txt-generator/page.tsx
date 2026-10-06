@@ -9,12 +9,13 @@ import {
   ToolHero,
 } from "@/components/tool-page";
 import { generateLlmsTxt } from "@/lib/tools/llms-txt";
+import { publicPageMetadata } from "@/lib/seo/page-metadata";
 
 export const metadata = {
   title: "llms.txt Generator",
   description:
     "Generate a valid llms.txt from your live site - built from a real crawl of your pages, not a template. Free, no signup.",
-  alternates: { canonical: "/tools/llms-txt-generator" },
+  ...publicPageMetadata("/tools/llms-txt-generator"),
 };
 
 export const dynamic = "force-dynamic";

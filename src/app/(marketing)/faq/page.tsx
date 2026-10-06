@@ -1,13 +1,13 @@
 import { FaqContent } from "../static-pages";
 import { getMessages } from "@/lib/i18n/messages";
-import { languageAlternates } from "@/lib/i18n/config";
+import { publicPageMetadata } from "@/lib/seo/page-metadata";
 
 const t = getMessages("en");
 
 export const metadata = {
   title: t.faq.metaTitle,
   description: t.faq.metaDescription,
-  alternates: { canonical: "/faq", languages: languageAlternates("/faq") },
+  ...publicPageMetadata("/faq"),
 };
 
 /**

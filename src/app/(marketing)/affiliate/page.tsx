@@ -1,13 +1,13 @@
 import { getMessages } from "@/lib/i18n/messages";
 import { AffiliateContent } from "../affiliate-content";
-import { languageAlternates } from "@/lib/i18n/config";
+import { publicPageMetadata } from "@/lib/seo/page-metadata";
 
 const t = getMessages("en");
 
 export const metadata = {
   title: t.affiliate.metaTitle,
   description: t.affiliate.metaDescription,
-  alternates: { canonical: "/affiliate", languages: languageAlternates("/affiliate") },
+  ...publicPageMetadata("/affiliate"),
 };
 
 /**

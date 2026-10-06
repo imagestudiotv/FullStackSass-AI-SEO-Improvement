@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 
 import { INTEGRATION_DOCS, getIntegrationDoc } from "@/lib/publishing/docs";
 import { jsonLdScript } from "@/lib/blog/shared";
+import { publicPageMetadata } from "@/lib/seo/page-metadata";
 import { siteUrl } from "@/lib/site-url";
 import { breadcrumbList } from "@/lib/structured-data";
 
@@ -24,7 +25,7 @@ export async function generateMetadata({
   return {
     title: `Connect ${doc.name}`,
     description: doc.summary,
-    alternates: { canonical: `/docs/integrations/${doc.slug}` },
+    ...publicPageMetadata(`/docs/integrations/${doc.slug}`),
   };
 }
 

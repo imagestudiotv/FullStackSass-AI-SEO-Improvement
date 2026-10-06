@@ -15,8 +15,9 @@ import {
 } from "@/components/ui/card";
 import { formatPrice, listPlans } from "@/lib/billing";
 import { format, plural } from "@/lib/i18n/format";
-import { isLocale, languageAlternates, localePath } from "@/lib/i18n/config";
+import { isLocale } from "@/lib/i18n/config";
 import { getMessages } from "@/lib/i18n/messages";
+import { publicPageMetadata } from "@/lib/seo/page-metadata";
 
 /**
  * Localised pricing.
@@ -42,10 +43,7 @@ export async function generateMetadata({
   return {
     title: t.pricing.title,
     description: t.pricing.subtitle,
-    alternates: {
-      canonical: localePath(locale, "/pricing"),
-      languages: languageAlternates("/pricing"),
-    },
+    ...publicPageMetadata("/pricing", { locale }),
   };
 }
 

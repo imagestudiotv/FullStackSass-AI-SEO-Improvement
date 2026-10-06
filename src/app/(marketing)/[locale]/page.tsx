@@ -1,8 +1,9 @@
 import { notFound } from "next/navigation";
 
 import { listPlansForPrebuiltPage } from "@/lib/billing";
-import { isLocale, languageAlternates, localePath } from "@/lib/i18n/config";
+import { isLocale, localePath } from "@/lib/i18n/config";
 import { getMessages } from "@/lib/i18n/messages";
+import { publicPageMetadata } from "@/lib/seo/page-metadata";
 import {
   AuditBand,
   BacklinkNetwork,
@@ -52,10 +53,7 @@ export async function generateMetadata({ params }: PageProps<"/[locale]">) {
   return {
     title: t.home.title,
     description: t.home.subtitle,
-    alternates: {
-      canonical: localePath(locale, "/"),
-      languages: languageAlternates("/"),
-    },
+    ...publicPageMetadata("/", { locale }),
   };
 }
 

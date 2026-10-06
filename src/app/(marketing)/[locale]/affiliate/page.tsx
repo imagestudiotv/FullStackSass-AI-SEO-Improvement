@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 
-import { isLocale, languageAlternates, localePath, LOCALES } from "@/lib/i18n/config";
+import { isLocale, LOCALES } from "@/lib/i18n/config";
 import { getMessages } from "@/lib/i18n/messages";
+import { publicPageMetadata } from "@/lib/seo/page-metadata";
 import { AffiliateContent } from "../../affiliate-content";
 
 /**
@@ -24,10 +25,7 @@ export async function generateMetadata({
   return {
     title: t.affiliate.metaTitle,
     description: t.affiliate.metaDescription,
-    alternates: {
-      canonical: localePath(locale, "/affiliate"),
-      languages: languageAlternates("/affiliate"),
-    },
+    ...publicPageMetadata("/affiliate", { locale }),
   };
 }
 

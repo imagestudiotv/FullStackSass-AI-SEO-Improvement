@@ -8,12 +8,13 @@ import {
   ToolHero,
 } from "@/components/tool-page";
 import { checkRobots } from "@/lib/tools/robots";
+import { publicPageMetadata } from "@/lib/seo/page-metadata";
 
 export const metadata = {
   title: "Robots.txt Checker",
   description:
     "Check whether your robots.txt is accidentally blocking search engines from your website. Free, no account needed.",
-  alternates: { canonical: "/tools/robots-checker" },
+  ...publicPageMetadata("/tools/robots-checker"),
 };
 
 // Fetches a live website per request, so it can never be prerendered.

@@ -1,8 +1,9 @@
 import { notFound } from "next/navigation";
 
 import { SUPPORT_EMAIL } from "@/lib/config/site";
-import { isLocale, languageAlternates, localePath, LOCALES } from "@/lib/i18n/config";
+import { isLocale, LOCALES } from "@/lib/i18n/config";
 import { getMessages } from "@/lib/i18n/messages";
+import { publicPageMetadata } from "@/lib/seo/page-metadata";
 import { ContactContent } from "../../static-pages";
 
 /** Localised contact page: /es/contact and the rest. */
@@ -22,10 +23,7 @@ export async function generateMetadata({
   return {
     title: t.contact.metaTitle,
     description: t.contact.metaDescription,
-    alternates: {
-      canonical: localePath(locale, "/contact"),
-      languages: languageAlternates("/contact"),
-    },
+    ...publicPageMetadata("/contact", { locale }),
   };
 }
 

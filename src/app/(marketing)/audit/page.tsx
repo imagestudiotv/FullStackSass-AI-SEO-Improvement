@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { runPublicAudit } from "@/lib/audit/public-audit";
 import { startingOffer } from "@/lib/billing";
 import { getMessages } from "@/lib/i18n/messages";
+import { publicPageMetadata } from "@/lib/seo/page-metadata";
 import { AuditBand } from "../home-sections";
 import { AuditProgress } from "./audit-progress";
 import { SitePreviewFallback } from "./site-preview";
@@ -12,7 +13,7 @@ export const metadata = {
   title: "Free website check",
   description:
     "See what is holding your website back on Google and whether AI assistants can read your site. No account needed.",
-  alternates: { canonical: "/audit" },
+  ...publicPageMetadata("/audit"),
 };
 
 // Crawls a live website per request, so it can never be prerendered.

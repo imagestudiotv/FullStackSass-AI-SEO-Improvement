@@ -1,11 +1,12 @@
 import { LegalPage } from "../legal-page";
 import { SUPPORT_EMAIL } from "@/lib/config/site";
+import { publicPageMetadata } from "@/lib/seo/page-metadata";
 
 export const metadata = {
   title: "Refund Policy",
   description:
     "Our 14-day money-back guarantee and how refunds work at RepGet.",
-  alternates: { canonical: "/refunds" },
+  ...publicPageMetadata("/refunds"),
 };
 
 /**

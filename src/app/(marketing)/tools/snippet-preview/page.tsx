@@ -4,13 +4,14 @@ import {
   ToolExplainer,
   ToolHero,
 } from "@/components/tool-page";
+import { publicPageMetadata } from "@/lib/seo/page-metadata";
 import { SnippetForm } from "./snippet-form";
 
 export const metadata = {
   title: "SEO Title Checker",
   description:
     "See how your page title and description will look on Google, and whether they are long enough to be cut short. Free, no account needed.",
-  alternates: { canonical: "/tools/snippet-preview" },
+  ...publicPageMetadata("/tools/snippet-preview"),
 };
 
 const HREF = "/tools/snippet-preview";

@@ -8,12 +8,13 @@ import {
   ToolHero,
 } from "@/components/tool-page";
 import { checkMetaTags, type TagStatus } from "@/lib/tools/meta-tags";
+import { publicPageMetadata } from "@/lib/seo/page-metadata";
 
 export const metadata = {
   title: "Meta Tag Checker",
   description:
     "Check every meta tag Google and the social networks read on your page - titles, descriptions, Open Graph and Twitter cards. Free, no signup.",
-  alternates: { canonical: "/tools/meta-tag-checker" },
+  ...publicPageMetadata("/tools/meta-tag-checker"),
 };
 
 export const dynamic = "force-dynamic";

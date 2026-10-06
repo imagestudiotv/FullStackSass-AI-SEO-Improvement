@@ -2,12 +2,13 @@ import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 
 import { INTEGRATION_DOCS } from "@/lib/publishing/docs";
+import { publicPageMetadata } from "@/lib/seo/page-metadata";
 
 export const metadata = {
   title: "Integration guides",
   description:
     "How to connect WordPress, Ghost, Shopify or your own endpoint so articles publish automatically.",
-  alternates: { canonical: "/docs/integrations" },
+  ...publicPageMetadata("/docs/integrations"),
 };
 
 /**

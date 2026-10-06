@@ -4,12 +4,13 @@ import { PostCard } from "@/components/post-card";
 import { listPosts } from "@/lib/blog/posts";
 import { listCategories } from "@/lib/blog/categories";
 import { categoryCounts } from "@/lib/blog/shared";
+import { publicPageMetadata } from "@/lib/seo/page-metadata";
 
 export const metadata = {
   title: "Blog",
   description:
     "Guides, comparisons and playbooks for getting found on Google and cited by AI assistants - written for people who run a business, not a marketing team.",
-  alternates: { canonical: "/blog" },
+  ...publicPageMetadata("/blog"),
 };
 
 // Live posts from the database (see lib/blog/posts.ts).

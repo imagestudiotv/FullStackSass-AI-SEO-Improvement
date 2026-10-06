@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 
-import { isLocale, languageAlternates, localePath, LOCALES } from "@/lib/i18n/config";
+import { isLocale, LOCALES } from "@/lib/i18n/config";
 import { getMessages } from "@/lib/i18n/messages";
+import { publicPageMetadata } from "@/lib/seo/page-metadata";
 import { AboutContent } from "../../static-pages";
 
 /**
@@ -27,10 +28,7 @@ export async function generateMetadata({
   return {
     title: t.about.metaTitle,
     description: t.about.metaDescription,
-    alternates: {
-      canonical: localePath(locale, "/about"),
-      languages: languageAlternates("/about"),
-    },
+    ...publicPageMetadata("/about", { locale }),
   };
 }
 

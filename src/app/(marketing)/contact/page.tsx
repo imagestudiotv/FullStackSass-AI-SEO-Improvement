@@ -1,14 +1,14 @@
 import { SUPPORT_EMAIL } from "@/lib/config/site";
 import { getMessages } from "@/lib/i18n/messages";
 import { ContactContent } from "../static-pages";
-import { languageAlternates } from "@/lib/i18n/config";
+import { publicPageMetadata } from "@/lib/seo/page-metadata";
 
 const t = getMessages("en");
 
 export const metadata = {
   title: t.contact.metaTitle,
   description: t.contact.metaDescription,
-  alternates: { canonical: "/contact", languages: languageAlternates("/contact") },
+  ...publicPageMetadata("/contact"),
 };
 
 /**

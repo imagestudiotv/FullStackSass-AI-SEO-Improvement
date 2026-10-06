@@ -6,6 +6,7 @@ import { PostCard } from "@/components/post-card";
 import { postsByCategory } from "@/lib/blog/posts";
 import { categoryBySlug } from "@/lib/blog/categories";
 import { jsonLdScript } from "@/lib/blog/shared";
+import { publicPageMetadata } from "@/lib/seo/page-metadata";
 import { siteUrl } from "@/lib/site-url";
 import { breadcrumbList } from "@/lib/structured-data";
 
@@ -23,7 +24,7 @@ export async function generateMetadata({
   return {
     title: category.name,
     description: category.blurb,
-    alternates: { canonical: `/blog/category/${category.slug}` },
+    ...publicPageMetadata(`/blog/category/${category.slug}`),
   };
 }
 

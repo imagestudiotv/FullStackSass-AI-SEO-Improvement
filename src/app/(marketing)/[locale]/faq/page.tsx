@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 
-import { isLocale, languageAlternates, localePath, LOCALES } from "@/lib/i18n/config";
+import { isLocale, LOCALES } from "@/lib/i18n/config";
 import { getMessages } from "@/lib/i18n/messages";
+import { publicPageMetadata } from "@/lib/seo/page-metadata";
 import { FaqContent } from "../../static-pages";
 
 /** Localised FAQ: /es/faq, /fr/faq, /it/faq, /de/faq. */
@@ -19,10 +20,7 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/faq">) {
   return {
     title: t.faq.metaTitle,
     description: t.faq.metaDescription,
-    alternates: {
-      canonical: localePath(locale, "/faq"),
-      languages: languageAlternates("/faq"),
-    },
+    ...publicPageMetadata("/faq", { locale }),
   };
 }
 

@@ -2,12 +2,13 @@ import { Check } from "lucide-react";
 import Link from "next/link";
 
 import { TOOL_CATEGORIES, toolsByCategory } from "@/lib/tools/registry";
+import { publicPageMetadata } from "@/lib/seo/page-metadata";
 
 export const metadata = {
   title: "Free SEO & AI visibility tools",
   description:
     "Free tools to check your site: SEO score, robots.txt, sitemaps, AI crawler access, llms.txt, keyword density and more. No signup, real results.",
-  alternates: { canonical: "/tools" },
+  ...publicPageMetadata("/tools"),
 };
 
 /**

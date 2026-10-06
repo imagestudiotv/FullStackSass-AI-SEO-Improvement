@@ -5,6 +5,7 @@ import "./globals.css";
 import { isPreviewDeployment } from "@/lib/deployment";
 import { siteUrl as canonicalSiteUrl } from "@/lib/site-url";
 
+import { SITE_OPEN_GRAPH } from "@/lib/seo/page-metadata";
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -16,7 +17,7 @@ const geistMono = Geist_Mono({
 });
 
 /**
- * Absolute base for canonical and hreflang URLs.
+ * Absolute base for canonical, hreflang and og:url addresses.
  *
  * Without this Next emits them relative ("/es/pricing"), and search engines
  * ignore a relative hreflang entirely — the translations would be treated as
@@ -44,13 +45,13 @@ export const metadata: Metadata = {
    * image.tsx; these say whose site it is and ask X for the large card.
    *
    * A page that sets its own `openGraph` replaces this object (Next merges
-   * metadata one key deep), which is right for blog posts: they describe
-   * themselves as articles.
+   * metadata one key deep). Every public page does, through
+   * publicPageMetadata (lib/seo/page-metadata.ts), because og:url is
+   * different on each page and cannot be set here; it starts from the same
+   * SITE_OPEN_GRAPH. The pages that keep this object (signed-in, sign-in
+   * and 404 pages, all noindex) have no canonical for an og:url to repeat.
    */
-  openGraph: {
-    siteName: "RepGet",
-    type: "website",
-  },
+  openGraph: SITE_OPEN_GRAPH,
   twitter: {
     card: "summary_large_image",
   },

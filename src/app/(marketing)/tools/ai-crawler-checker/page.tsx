@@ -10,12 +10,13 @@ import {
 import { AI_CRAWLERS, parseCrawlerAccess } from "@/lib/audit/ai-crawlers";
 import { InvalidUrlError, normalizeWebsiteUrl } from "@/lib/websites/url";
 import { safeFetch } from "@/lib/net/safe-fetch";
+import { publicPageMetadata } from "@/lib/seo/page-metadata";
 
 export const metadata = {
   title: "AI Crawler Checker",
   description:
     "Check whether GPTBot, ClaudeBot, PerplexityBot and Google-Extended are allowed to read your site. Free, no signup.",
-  alternates: { canonical: "/tools/ai-crawler-checker" },
+  ...publicPageMetadata("/tools/ai-crawler-checker"),
 };
 
 export const dynamic = "force-dynamic";

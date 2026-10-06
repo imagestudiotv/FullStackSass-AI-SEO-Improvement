@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { BlogArticle } from "@/components/blog-article";
 import { getPost, relatedPosts } from "@/lib/blog/posts";
 import { jsonLdScript, plainText } from "@/lib/blog/shared";
+import { publicPageMetadata } from "@/lib/seo/page-metadata";
 import { SHARE_IMAGE } from "@/lib/share-image";
 import { siteUrl } from "@/lib/site-url";
 import { breadcrumbList, entityIds } from "@/lib/structured-data";
@@ -27,21 +28,21 @@ export async function generateMetadata({
   return {
     title: post.title,
     description: post.description,
-    alternates: { canonical: `/blog/${post.slug}` },
-    openGraph: {
-      type: "article",
-      title: post.title,
-      description: post.description,
-      publishedTime: post.publishedAt,
-      modifiedTime: post.updatedAt ?? post.publishedAt,
-      authors: [post.author],
-      /*
-        Named explicitly: setting openGraph here replaces the root layout's,
-        which drops the site picture Next would otherwise attach. Posts have
-        no picture of their own. See lib/share-image.ts.
-      */
-      images: [SHARE_IMAGE],
-    },
+    /*
+      An article rather than a website, titled without the "| RepGet" suffix.
+      The helper keeps the site picture (posts have none of their own) and
+      sets og:url to the canonical.
+    */
+    ...publicPageMetadata(`/blog/${post.slug}`, {
+      openGraph: {
+        type: "article",
+        title: post.title,
+        description: post.description,
+        publishedTime: post.publishedAt,
+        modifiedTime: post.updatedAt ?? post.publishedAt,
+        authors: [post.author],
+      },
+    }),
     twitter: {
       card: "summary_large_image",
       title: post.title,

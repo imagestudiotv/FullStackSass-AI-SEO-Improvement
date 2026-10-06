@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 
-import { isLocale, languageAlternates, localePath, LOCALES } from "@/lib/i18n/config";
+import { isLocale, localePath, LOCALES } from "@/lib/i18n/config";
 import { getMessages } from "@/lib/i18n/messages";
+import { publicPageMetadata } from "@/lib/seo/page-metadata";
 import { BacklinkExchangeContent } from "../../backlink-exchange-content";
 
 /**
@@ -24,10 +25,7 @@ export async function generateMetadata({
   return {
     title: t.backlinkExchange.metaTitle,
     description: t.backlinkExchange.metaDescription,
-    alternates: {
-      canonical: localePath(locale, "/backlink-exchange"),
-      languages: languageAlternates("/backlink-exchange"),
-    },
+    ...publicPageMetadata("/backlink-exchange", { locale }),
   };
 }
 

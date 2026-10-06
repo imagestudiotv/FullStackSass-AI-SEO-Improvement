@@ -20,7 +20,7 @@ import {
 import { PricingPreview } from "./pricing-preview";
 import { OrganizationSchema } from "./organization-schema";
 import { siteUrl as canonicalSiteUrl } from "@/lib/site-url";
-import { languageAlternates } from "@/lib/i18n/config";
+import { publicPageMetadata } from "@/lib/seo/page-metadata";
 
 /**
  * Marketing homepage, following the supplied landing design.
@@ -41,7 +41,7 @@ import { languageAlternates } from "@/lib/i18n/config";
 export const revalidate = 3600;
 
 /**
- * The homepage's own title, description and canonical.
+ * The homepage's own title, description, canonical and og:url.
  *
  * It had none, so it inherited the root layout's: the title was the bare
  * word "RepGet" and the description an old one-liner - which is what Google
@@ -55,7 +55,7 @@ export const metadata: Metadata = {
   title: { absolute: "AI SEO Platform for Content & Backlinks | RepGet" },
   description:
     "Automate SEO with RepGet. Research keywords, publish optimized content, build quality backlinks, track rankings and improve visibility in Google and AI search.",
-  alternates: { canonical: "/", languages: languageAlternates("/") },
+  ...publicPageMetadata("/"),
 };
 
 export default async function HomePage() {

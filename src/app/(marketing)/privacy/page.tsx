@@ -1,11 +1,12 @@
 import { LegalPage } from "../legal-page";
 import { SUPPORT_EMAIL } from "@/lib/config/site";
+import { publicPageMetadata } from "@/lib/seo/page-metadata";
 
 export const metadata = {
   title: "Privacy Policy",
   description:
     "What data RepGet collects, why, and how it is stored and protected.",
-  alternates: { canonical: "/privacy" },
+  ...publicPageMetadata("/privacy"),
 };
 
 /**

@@ -8,12 +8,13 @@ import {
   ToolHero,
 } from "@/components/tool-page";
 import { checkSitemap } from "@/lib/tools/sitemap";
+import { publicPageMetadata } from "@/lib/seo/page-metadata";
 
 export const metadata = {
   title: "Sitemap Checker & Finder",
   description:
     "Find your XML sitemap the way a search engine does, and check it actually works. Free, no signup.",
-  alternates: { canonical: "/tools/sitemap-checker" },
+  ...publicPageMetadata("/tools/sitemap-checker"),
 };
 
 // Fetches a live website per request, so it can never be prerendered.
