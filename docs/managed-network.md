@@ -318,7 +318,7 @@ A build older than 0045 ignores all of it; it treats an `expired` row as settled
 5. Ask plugin customers to update to 1.6.0.
 6. Optional: publish a valuation policy, and configure authority collection (see [backlink-reporting.md](backlink-reporting.md)).
 
-`sharp` is a direct dependency (0.35.4, already in the lockfile). `NEXT_PUBLIC_APP_URL` must be the canonical app URL, because it is the footer link. `AUTHORITY_DAILY_REQUESTS`: unset or blank = 4 per day; `0` = collection disabled; a whole number = that limit; anything else (negative, fractional, `1e3`, text) = **invalid, collection disabled**, and the operations page says so.
+`sharp` is a direct dependency (0.35.5, already in the lockfile). `NEXT_PUBLIC_APP_URL` must be the canonical app URL, because it is the footer link. `AUTHORITY_DAILY_REQUESTS`: unset or blank = 4 per day; `0` = collection disabled; a whole number = that limit; anything else (negative, fractional, `1e3`, text) = **invalid, collection disabled**, and the operations page says so.
 
 **Rollback: never redeploy the previous build unpatched.** It ignores `review_status`, the freeze and unknown outcomes. Use a publication freeze plus the rollback-compatible build:
 

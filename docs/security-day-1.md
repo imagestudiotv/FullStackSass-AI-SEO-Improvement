@@ -171,6 +171,20 @@ back in the step, in both `ci.yml` and `audit-weekly.yml`.
   `5115d51` moves the lockfile to proxy-addr 2.0.8, inside express's own range,
   together with the moderate postcss-selector-parser fix (7.1.5 → 7.1.6, via
   shadcn). Production audit afterwards: 0 findings.
+- **sharp, high** ([GHSA-wq5f-xc86-pv6w](https://github.com/advisories/GHSA-wq5f-xc86-pv6w),
+  librsvg in the bundled libvips): new on 2026-10-06, it made the production
+  audit fail. sharp is a direct dependency, used by `src/lib/images/process.ts`
+  on images from the image providers. sharp 0.35.4 → 0.35.5 (libvips 8.18.7,
+  librsvg 2.63.2); every `@img/sharp-*` package moves to 0.35.5 and the libvips
+  packages to 1.3.4. package.json now asks for `^0.35.5`, so the vulnerable
+  version cannot come back. Production audit afterwards: 0 findings.
+- **@modelcontextprotocol/sdk, high**
+  ([GHSA-6qxp-vccf-f47h](https://github.com/advisories/GHSA-6qxp-vccf-f47h),
+  OAuth client could send credentials to a server-chosen authorization server):
+  development only, through the shadcn CLI, which uses only the SDK's server
+  and stdio parts (not affected, per the advisory). 1.30.0 → 1.32.1, inside
+  shadcn's `^1.26.0`. The full audit is back to the 9 braces findings under
+  the exception above.
 - **esbuild development server**
   ([GHSA-67mh-4wv8-2f99](https://github.com/advisories/GHSA-67mh-4wv8-2f99)):
   removed from the updated lockfile by the scoped override. Do not start
