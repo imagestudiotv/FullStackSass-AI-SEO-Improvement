@@ -18,6 +18,7 @@ import { generateArticle } from "./generate-article";
 import { importAnalytics, importAnalyticsDaily } from "./import-analytics";
 import { billingMaintenance, deliverOutbox } from "./maintenance";
 import { publishArticleJob } from "./publish-article";
+import { renewalReplan } from "./renewal-replan";
 import { researchKeywords } from "./research-keywords";
 import { scheduledArticles } from "./scheduled-articles";
 import { verifyBacklinks } from "./verify-backlinks";
@@ -27,6 +28,7 @@ export const functions = [
   analyzeWebsite,
   auditWebsite,
   researchKeywords,
+  renewalReplan,
   generateArticle,
   verifyBacklinks,
   checkGeo,

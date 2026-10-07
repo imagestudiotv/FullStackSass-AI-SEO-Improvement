@@ -198,6 +198,16 @@ describe("keyword research", () => {
     expect(inngestMock.send).toHaveBeenCalledTimes(2);
   });
 
+  it("adding keywords once the month's articles are all used stores them and queues no re-plan", async () => {
+    const { websiteId } = await seedWebsite(test, { articleLimit: 2 });
+    await test.db.insert(articles).values([1, 2].map((n) => ({ websiteId, title: `Written ${n}`, status: "published" })));
+
+    const added = await addKeywords(websiteId, "wedding photographer rome");
+    // A re-plan could add nothing: no run, no spend, and the page says why.
+    expect(added).toMatchObject({ ok: true, data: { added: 1, replanned: false, planBusy: false, monthUsedUp: true } });
+    expect(inngestMock.send).not.toHaveBeenCalled();
+  });
+
   it("does not let a run that never ended lock the button: after 30 minutes a press starts a new one", async () => {
     const { websiteId } = await seedWebsite(test);
     await test.client.query(

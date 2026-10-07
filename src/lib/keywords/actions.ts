@@ -4,11 +4,11 @@ import { and, asc, desc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/lib/db";
-import { calendarItems, clusters, keywords, websites } from "@/lib/db/schema";
+import { calendarItems, clusters, keywords } from "@/lib/db/schema";
 import { requireWebsite } from "@/lib/tenant";
 import { requireEditor } from "@/lib/websites/require-editor";
-import { reserveAndQueue } from "@/lib/jobs/outbox";
-import { researchInFlight } from "@/lib/keywords/research-state";
+import { articlesToPlan } from "@/lib/keywords/replan";
+import { startResearchJob } from "@/lib/keywords/research-job";
 import { checkLimit } from "@/lib/usage";
 import { UNLIMITED } from "@/lib/usage-shared";
 import type { ActionResult } from "@/lib/websites/actions";
@@ -103,84 +103,6 @@ export async function listCalendar(websiteId: string): Promise<CalendarRow[]> {
       .where(eq(calendarItems.websiteId, site.id))
       .orderBy(asc(calendarItems.scheduledFor))
   );
-}
-
-/**
- * Research runs a user may start, over sliding hours. Each is three model
- * calls plus provider lookups billed per row, and re-running minutes apart
- * produces the same clusters. Reserved atomically before queueing and billed
- * to the website's owner.
- */
-const RESEARCH_PER_WEBSITE_PER_HOUR = 3;
-const RESEARCH_PER_WORKSPACE_PER_HOUR = 6;
-
-/**
- * Reserves a research run and records its job in one transaction (lib/jobs/
- * outbox.ts), and marks the website "researching" in that same transaction.
- *
- * "queued", or "limited" when the hourly allowance is used up (a queue outage
- * delays the run, it does not refuse it), or - with refuseIfRunning - "running"
- * when a run is already under way, in which case nothing is reserved.
- *
- * WHY THE STATUS IS WRITTEN HERE. The job sets it too, but only once its
- * first step runs, seconds after the button's own refresh. The page rendered
- * "ready" in that gap, so it never followed the run: the plan appeared only on
- * a manual reload, and pressing again was the natural thing to do (client,
- * 2026-10-02). Written before the job is sent, so even a run that finishes
- * at once cannot be overtaken by it. A website still being analysed keeps
- * that status.
- */
-async function startResearchJob(
-  websiteId: string,
-  ownerOrgId: string,
-  options: { refuseIfRunning?: boolean } = {},
-): Promise<"queued" | "running" | "limited"> {
-  /*
-    A run in flight answers first, before the hourly allowance: with the
-    allowance used up, a press during the third run of the hour was told "too
-    many times" and its page never followed the run. Checked again under the
-    lock below, for presses that race.
-  */
-  if (options.refuseIfRunning) {
-    const [site] = await db
-      .select({ status: websites.status, updatedAt: websites.updatedAt })
-      .from(websites)
-      .where(eq(websites.id, websiteId))
-      .limit(1);
-    if (site && researchInFlight(site)) return "running";
-  }
-
-  const slot = await reserveAndQueue(
-    [
-      { key: `research:site:${websiteId}`, limit: RESEARCH_PER_WEBSITE_PER_HOUR, window: { seconds: 3600 } },
-      { key: `research:org:${ownerOrgId}`, limit: RESEARCH_PER_WORKSPACE_PER_HOUR, window: { seconds: 3600 } },
-    ],
-    { operation: "keywords.research", organizationId: ownerOrgId, websiteId },
-    (reservations) => ({
-      id: `website-research:${reservations[0].id}`,
-      name: "website/research.requested",
-      data: { websiteId, organizationId: ownerOrgId, reservations },
-    }),
-    async (tx) => {
-      // Locked, so two presses at once see each other: the second finds the first running.
-      const [site] = await tx
-        .select({ status: websites.status, updatedAt: websites.updatedAt })
-        .from(websites)
-        .where(eq(websites.id, websiteId))
-        .for("update");
-      if (!site) return false;
-      if (options.refuseIfRunning && researchInFlight(site)) return false;
-      if (site.status !== "pending" && site.status !== "crawling") {
-        await tx
-          .update(websites)
-          .set({ status: "researching", updatedAt: new Date() })
-          .where(eq(websites.id, websiteId));
-      }
-      return true;
-    },
-  );
-  if (slot.ok) return "queued";
-  return "refused" in slot && slot.refused ? "running" : "limited";
 }
 
 /** Starts (or re-runs) keyword research for a website. */
@@ -337,7 +259,13 @@ export async function addKeywords(
   /** One per line, or comma-separated — people paste both. */
   input: string,
 ): Promise<
-  ActionResult<{ added: number; skipped: number; replanned: boolean; planBusy: boolean }>
+  ActionResult<{
+    added: number;
+    skipped: number;
+    replanned: boolean;
+    planBusy: boolean;
+    monthUsedUp: boolean;
+  }>
 > {
   const guard = await requireEditor(websiteId);
   if (!guard.ok) return { ok: false, error: guard.error };
@@ -435,8 +363,9 @@ export async function addKeywords(
    * field takes a list: someone adding ten phrases triggers one run, not ten.
    *
    * Re-planning is safe. Keywords are upserted, so nothing typed is lost, and
-   * save-calendar clears only items still "planned" — an article already
-   * written or published survives untouched.
+   * save-calendar clears only items no article has started — anything queued,
+   * written or published survives untouched — and plans only what is left of
+   * the month's allowance (lib/keywords/replan.ts).
    *
    * A failure here is not a failure of the add. The keywords are already
    * stored, so the button reports success and the customer can press Refresh
@@ -450,7 +379,15 @@ export async function addKeywords(
     the customer presses Refresh once the current plan is in.
   */
   let planBusy = false;
-  if (inserted.length > 0) {
+  /*
+    With this month's articles all used, a re-plan has nothing it may add -
+    it plans only what is left of the month (lib/keywords/replan.ts) - so it
+    is not queued: three model calls for an unchanged calendar. The keywords
+    are stored and join the next plan.
+  */
+  const monthUsedUp =
+    inserted.length > 0 && (await articlesToPlan(site.id)).usedUp;
+  if (inserted.length > 0 && !monthUsedUp) {
     const outcome = await startResearchJob(site.id, site.organizationId, { refuseIfRunning: true });
     replanned = outcome === "queued";
     planBusy = outcome === "running";
@@ -471,6 +408,8 @@ export async function addKeywords(
       replanned,
       /** A plan was already being built, so none was queued; Refresh after it lands. */
       planBusy,
+      /** This month's articles are all used, so no re-plan was queued. */
+      monthUsedUp,
     },
   };
 }

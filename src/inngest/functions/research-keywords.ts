@@ -12,8 +12,9 @@ import {
 import { labsMarket } from "@/lib/providers/dataforseo-markets";
 import { MODELS } from "@/lib/ai/client";
 import { db } from "@/lib/db";
-import { calendarItems, clusters, keywords, websites } from "@/lib/db/schema";
+import { clusters, keywords, websites } from "@/lib/db/schema";
 import { planCalendar } from "@/lib/keywords/calendar";
+import { articlesToPlan, keptDates, replaceUnstartedPlan } from "@/lib/keywords/replan";
 import { clusterKeywords } from "@/lib/keywords/cluster";
 import { rankKeywords, type SearchIntent } from "@/lib/keywords/score";
 import { generateSeedKeywords } from "@/lib/keywords/seeds";
@@ -81,11 +82,13 @@ export const researchKeywords = inngest.createFunction(
     },
   },
   async ({ event, step, logger }) => {
-    const { websiteId, organizationId, reservations } = event.data as {
+    const { websiteId, organizationId, reservations, trigger } = event.data as {
       websiteId: string;
       /** The website's owner: whoever pays. */
       organizationId: string;
       reservations?: Reservation[];
+      /** "renewal" when the month's automatic re-plan started it (lib/keywords/renewal.ts). */
+      trigger?: "renewal";
     };
 
     /*
@@ -602,9 +605,23 @@ export const researchKeywords = inngest.createFunction(
     });
 
     const planned = await step.run("plan-calendar", async () => {
-      const articleLimit = await checkLimit(websiteId, "articles");
-      const allowance =
-        articleLimit.limit === UNLIMITED ? 12 : articleLimit.limit;
+      /**
+       * Only what is left of this month, around what is kept.
+       *
+       * This planned the plan's FULL monthly allowance from today on every
+       * run, on top of the articles already written - adding keywords on the
+       * 13th of a 30-a-month plan put 30 more on the calendar beside the 12
+       * already out. See lib/keywords/replan.ts.
+       */
+      const allowance = await articlesToPlan(websiteId);
+      if (allowance.count === 0) {
+        logger.info(
+          { step: "plan-calendar", websiteId, planLimit: allowance.limit, planUsed: allowance.used },
+          "No articles left this month - nothing new to plan",
+        );
+        return [];
+      }
+      const occupied = await keptDates(websiteId);
 
       const intents = new Map(
         stored
@@ -612,7 +629,12 @@ export const researchKeywords = inngest.createFunction(
           .map((keyword) => [keyword.term, keyword.intent as string]),
       );
 
-      const articles = await spend(() => planCalendar(grouped, allowance, intents));
+      const articles = await spend(() =>
+        planCalendar(grouped, allowance.count, intents, {
+          perDay: allowance.perDay,
+          occupied,
+        }),
+      );
 
       const price = PRICING.llm[MODELS.GENERATION];
       await track(organizationId, {
@@ -629,9 +651,11 @@ export const researchKeywords = inngest.createFunction(
           step: "plan-calendar",
           websiteId,
           clusterCount: grouped.length,
-          allowance,
-          planLimit:
-            articleLimit.limit === UNLIMITED ? "unlimited" : articleLimit.limit,
+          remaining: allowance.count,
+          perDay: allowance.perDay,
+          keptFromToday: occupied.length,
+          planLimit: allowance.limit,
+          planUsed: allowance.used,
           plannedArticles: articles.length,
         },
         "Content calendar planned",
@@ -639,96 +663,72 @@ export const researchKeywords = inngest.createFunction(
       return articles;
     });
 
-    await step.run("save-calendar", async () => {
+    const saved = await step.run("save-calendar", async () => {
       /**
-       * Only unstarted items are cleared. An article already generated or
-       * published must survive a re-plan — deleting it would orphan real work.
+       * Only items no article has started are replaced: anything queued,
+       * being written, drafted or published survives a re-plan. The
+       * allowance is re-counted under the lock, in case the scheduler started
+       * one in the meantime. See replaceUnstartedPlan.
        */
-      await db
-        .delete(calendarItems)
-        .where(
-          and(
-            eq(calendarItems.websiteId, websiteId),
-            eq(calendarItems.status, "planned"),
-          ),
-        );
+      const result = await replaceUnstartedPlan(websiteId, planned);
 
-      if (planned.length === 0) {
-        /*
-          An empty calendar is the exact state the content screen waits on
-          forever, so it must never pass silently. Warn rather than error:
-          the run did complete, it simply produced nothing to publish.
-        */
-        logger.warn(
-          { step: "save-calendar", websiteId, plannedArticles: 0 },
-          "No calendar items to save - content plan will be empty",
-        );
-
-        /**
-         * STILL RESOLVE THE STATUS before returning.
-         *
-         * The `status: "ready"` write lives at the end of this step, so this
-         * early return skipped it and left the row on "researching" — the
-         * state the content screen treats as "still working". A run that
-         * finished with an empty calendar therefore looked identical to one
-         * still in progress, and the spinner never stopped.
-         *
-         * "ready" rather than "failed": the research genuinely completed and
-         * the keywords are stored. There is simply nothing on the calendar,
-         * which the screen can say plainly once it stops waiting.
-         */
-        await db
-          .update(websites)
-          .set({ status: "ready", updatedAt: new Date() })
-          .where(eq(websites.id, websiteId));
-        return;
-      }
-
-      const clusterIds = await db
-        .select({ id: clusters.id, name: clusters.name })
-        .from(clusters)
-        .where(eq(clusters.websiteId, websiteId));
-      const byName = new Map(clusterIds.map((row) => [row.name, row.id]));
-
-      await db.insert(calendarItems).values(
-        planned.map((article) => ({
-          websiteId,
-          clusterId: byName.get(article.clusterName) ?? null,
-          title: article.title,
-          targetKeyword: article.targetKeyword,
-          intent: article.intent,
-          /**
-           * Re-hydrated: a step's return value is JSON-serialised by Inngest,
-           * so the Date planCalendar produced arrives here as a string.
-           */
-          scheduledFor: new Date(article.scheduledFor),
-          status: "planned",
-        })),
-      );
-
+      /**
+       * "ready" whether or not anything was saved. A run that finished with
+       * nothing new to plan left the row on "researching" once - the state the
+       * content screen treats as "still working" - and the spinner never
+       * stopped. The research did complete and the keywords are stored.
+       */
       await db
         .update(websites)
         .set({ status: "ready", updatedAt: new Date() })
         .where(eq(websites.id, websiteId));
 
-      logger.info(
-        {
-          step: "save-calendar",
-          websiteId,
-          savedItems: planned.length,
-          firstScheduledFor: planned[0]?.scheduledFor ?? null,
-          lastScheduledFor: planned.at(-1)?.scheduledFor ?? null,
-        },
-        "Calendar saved, status set to ready",
-      );
+      if (result.saved === 0) {
+        /*
+          Expected when the month's articles are all used. Otherwise an empty
+          plan is worth a warning: the run completed, but produced nothing.
+        */
+        logger[result.usedUp ? "info" : "warn"](
+          { step: "save-calendar", websiteId, savedItems: 0, usedUp: result.usedUp },
+          result.usedUp
+            ? "This month's articles are all used - nothing new planned"
+            : "No calendar items to save - nothing new planned",
+        );
+      } else {
+        logger.info(
+          {
+            step: "save-calendar",
+            websiteId,
+            savedItems: result.saved,
+            trimmed: planned.length - result.saved,
+            firstScheduledFor: planned[0]?.scheduledFor ?? null,
+            lastScheduledFor: planned[result.saved - 1]?.scheduledFor ?? null,
+          },
+          "Calendar saved, status set to ready",
+        );
+      }
+      return result;
     });
 
     await step.run("notify-ready", async () => {
+      const planned = `${saved.saved} ${saved.saved === 1 ? "article" : "articles"} planned`;
       await notify({
         organizationId,
         type: "keywords.ready",
-        title: "Your search terms are ready",
-        body: `${stored.length} terms found, and ${planned.length} ${planned.length === 1 ? "article" : "articles"} planned.`,
+        /*
+          A renewal run starts with nobody pressing anything, so it says what
+          it was: otherwise "your search terms are ready" arrives out of the
+          blue, about research the customer never asked for.
+        */
+        title:
+          trigger === "renewal"
+            ? "Your content plan for the new month is ready"
+            : "Your search terms are ready",
+        body: saved.usedUp
+          ? `${stored.length} terms found. This month's articles have all been used, so nothing new was planned - your content plan is rebuilt automatically when your plan renews.`
+          : trigger === "renewal"
+            ? `Your plan has renewed: ${planned}, with search terms refreshed (${stored.length} found).`
+            : `${stored.length} terms found, and ${planned}.`,
         href: `/websites/${websiteId}`,
       });
     });
@@ -755,7 +755,7 @@ export const researchKeywords = inngest.createFunction(
      * throwing here would cost the whole plan.
      */
     await step.run("start-writing", async () => {
-      if (planned.length === 0) {
+      if (saved.saved === 0) {
         logger.info(
           { step: "start-writing", websiteId, plannedArticles: 0 },
           "Nothing planned - not waking the scheduler",
@@ -775,7 +775,7 @@ export const researchKeywords = inngest.createFunction(
       });
 
       logger.info(
-        { step: "start-writing", websiteId, plannedArticles: planned.length, sent },
+        { step: "start-writing", websiteId, plannedArticles: saved.saved, sent },
         sent
           ? "Scheduler woken - the first articles start now"
           : "Could not wake the scheduler - the daily run will pick these up",
@@ -794,7 +794,7 @@ export const researchKeywords = inngest.createFunction(
         websiteId,
         keywords: stored.length,
         clusters: grouped.length,
-        articles: planned.length,
+        articles: saved.saved,
         metricsFromProvider: metrics.configured,
       },
       "Keyword research complete",
@@ -804,7 +804,7 @@ export const researchKeywords = inngest.createFunction(
       websiteId,
       keywords: stored.length,
       clusters: grouped.length,
-      articles: planned.length,
+      articles: saved.saved,
       metricsFromProvider: metrics.configured,
     };
   },

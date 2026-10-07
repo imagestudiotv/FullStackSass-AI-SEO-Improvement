@@ -2,6 +2,7 @@ import { requireWebsitePage } from "@/lib/tenant";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import { listArticles } from "@/lib/articles/actions";
 import { listCalendar, listKeywords } from "@/lib/keywords/actions";
+import { articlesToPlan } from "@/lib/keywords/replan";
 import { researchInFlight } from "@/lib/keywords/research-state";
 import { ResearchTabs } from "../research-tabs";
 import { requireWebsitePlan } from "@/lib/billing/require-plan";
@@ -23,10 +24,11 @@ export default async function WebsiteContentPage({
   // judged on this website alone and, if its owner's plan has lapsed, is
   // sent to the dashboard to be told so - never into the owner's checkout.
   await requireWebsitePlan(ctx);
-  const [keywords, calendar, articles] = await Promise.all([
+  const [keywords, calendar, articles, allowance] = await Promise.all([
     listKeywords(site.id),
     listCalendar(site.id),
     listArticles(site.id),
+    articlesToPlan(site.id),
   ]);
 
   return (
@@ -36,6 +38,7 @@ export default async function WebsiteContentPage({
       calendar={calendar}
       articles={articles}
       researching={researchInFlight(site)}
+      monthUsedUp={allowance.usedUp}
       t={t.app.research}
       tCalendar={t.app.calendar}
       tCommon={t.app.common}

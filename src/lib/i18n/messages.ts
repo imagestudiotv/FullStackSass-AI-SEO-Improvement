@@ -1436,6 +1436,8 @@ export type Messages = {
       keywordsAddedSkipped: string;
       replanning: string;
       planBusy: string;
+      /** Nothing new planned: the month's articles are all used, and the renewal re-plan will follow. */
+      monthUsedUp: string;
       plannedArticles: string;
       plannedHelp: string;
       articles: string;
@@ -1460,6 +1462,19 @@ export type Messages = {
       difficultyMedium: string;
       difficultyHigh: string;
       difficultyVeryHigh: string;
+      searchKeywordsLabel: string;
+      searchKeywordsPlaceholder: string;
+      noKeywordMatch: string;
+      clearSearch: string;
+      keywordPages: string;
+      showingRange: string;
+      perPage: string;
+      pageOf: string;
+      firstPage: string;
+      previousPage: string;
+      nextPage: string;
+      lastPage: string;
+      goToPage: string;
       researching: string;
       articleDeleted: string;
       statusQueued: string;
@@ -4371,6 +4386,7 @@ const en: Messages = {
       keywordsAddedSkipped: "Added {added}. Skipped {skipped} already tracked or over your plan.",
       replanning: "Rebuilding your content plan…",
       planBusy: "Your plan is being built right now - press {button} once it is ready to include them.",
+      monthUsedUp: "This month's articles have all been used, so nothing new was planned. Your content plan is rebuilt automatically when your plan renews.",
       plannedArticles: "Planned articles",
       plannedHelp: "Your content plan, by the day each article is due. Hover a planned topic to write it now, change it, or take it off the plan.",
       articles: "Articles",
@@ -4395,6 +4411,19 @@ const en: Messages = {
       difficultyMedium: "Medium",
       difficultyHigh: "High",
       difficultyVeryHigh: "Very high",
+      searchKeywordsLabel: "Search keywords",
+      searchKeywordsPlaceholder: "Keyword or topic",
+      noKeywordMatch: "No keywords match “{query}”.",
+      clearSearch: "Clear search",
+      keywordPages: "Keyword pages",
+      showingRange: "Showing {first}-{last} of {total}",
+      perPage: "Per page",
+      pageOf: "Page {page} of {pages}",
+      firstPage: "First page",
+      previousPage: "Previous page",
+      nextPage: "Next page",
+      lastPage: "Last page",
+      goToPage: "Page {page}",
       researching: "Researching keywords - this takes a minute",
       articleDeleted: "Article deleted",
       statusQueued: "Queued",
@@ -7205,6 +7234,7 @@ const es: Messages = {
       keywordsAddedSkipped: "Añadidas: {added}. Omitidas: {skipped}, ya incluidas o por encima de su plan.",
       replanning: "Reconstruyendo su plan de contenido…",
       planBusy: "Su plan se está creando ahora mismo: pulse {button} cuando esté listo para incluirlas.",
+      monthUsedUp: "Ya se han usado todos los artículos de este mes, así que no se ha planificado nada nuevo. Su plan de contenido se reconstruirá automáticamente cuando se renueve su plan.",
       plannedArticles: "Artículos planificados",
       plannedHelp: "Su plan de contenidos, por el día en que vence cada artículo. Pase el cursor sobre un tema planificado para escribirlo ahora, cambiarlo o quitarlo del plan.",
       articles: "Artículos",
@@ -7229,6 +7259,19 @@ const es: Messages = {
       difficultyMedium: "Media",
       difficultyHigh: "Alta",
       difficultyVeryHigh: "Muy alta",
+      searchKeywordsLabel: "Buscar palabras clave",
+      searchKeywordsPlaceholder: "Palabra clave o tema",
+      noKeywordMatch: "Ninguna palabra clave coincide con “{query}”.",
+      clearSearch: "Borrar la búsqueda",
+      keywordPages: "Páginas de palabras clave",
+      showingRange: "Mostrando {first}-{last} de {total}",
+      perPage: "Por página",
+      pageOf: "Página {page} de {pages}",
+      firstPage: "Primera página",
+      previousPage: "Página anterior",
+      nextPage: "Página siguiente",
+      lastPage: "Última página",
+      goToPage: "Página {page}",
       researching: "Investigando palabras clave - esto tarda un minuto",
       articleDeleted: "Artículo eliminado",
       statusQueued: "En cola",
@@ -10043,6 +10086,7 @@ const fr: Messages = {
       keywordsAddedSkipped: "Ajoutés : {added}. Ignorés : {skipped}, déjà suivis ou au-delà de votre forfait.",
       replanning: "Reconstruction de votre plan de contenu…",
       planBusy: "Votre plan est en cours de création : appuyez sur {button} une fois qu’il est prêt pour les inclure.",
+      monthUsedUp: "Tous les articles de ce mois ont déjà été utilisés, rien de nouveau n’a donc été planifié. Votre plan de contenu sera reconstruit automatiquement au renouvellement de votre forfait.",
       plannedArticles: "Articles planifiés",
       plannedHelp: "Votre plan de contenu, par date de publication prévue. Survolez un sujet planifié pour le rédiger maintenant, le modifier ou le retirer du plan.",
       articles: "Articles",
@@ -10067,6 +10111,19 @@ const fr: Messages = {
       difficultyMedium: "Moyenne",
       difficultyHigh: "Élevée",
       difficultyVeryHigh: "Très élevée",
+      searchKeywordsLabel: "Rechercher des mots-clés",
+      searchKeywordsPlaceholder: "Mot-clé ou sujet",
+      noKeywordMatch: "Aucun mot-clé ne correspond à « {query} ».",
+      clearSearch: "Effacer la recherche",
+      keywordPages: "Pages de mots-clés",
+      showingRange: "Affichage de {first} à {last} sur {total}",
+      perPage: "Par page",
+      pageOf: "Page {page} sur {pages}",
+      firstPage: "Première page",
+      previousPage: "Page précédente",
+      nextPage: "Page suivante",
+      lastPage: "Dernière page",
+      goToPage: "Page {page}",
       researching: "Recherche de mots-clés - cela prend une minute",
       articleDeleted: "Article supprimé",
       statusQueued: "En attente",
@@ -12873,6 +12930,7 @@ const it: Messages = {
       keywordsAddedSkipped: "Aggiunte: {added}. Saltate: {skipped}, già monitorate o oltre il suo piano.",
       replanning: "Ricostruzione del suo piano dei contenuti…",
       planBusy: "Il suo piano è in costruzione proprio ora: prema {button} quando è pronto per includerle.",
+      monthUsedUp: "Gli articoli di questo mese sono già stati usati tutti, quindi non è stato pianificato nulla di nuovo. Il suo piano dei contenuti verrà ricostruito automaticamente al rinnovo del suo piano.",
       plannedArticles: "Articoli pianificati",
       plannedHelp: "Il suo piano dei contenuti, per giorno di pubblicazione previsto. Passi il cursore su un argomento pianificato per scriverlo subito, modificarlo o toglierlo dal piano.",
       articles: "Articoli",
@@ -12897,6 +12955,19 @@ const it: Messages = {
       difficultyMedium: "Media",
       difficultyHigh: "Alta",
       difficultyVeryHigh: "Molto alta",
+      searchKeywordsLabel: "Cerca parole chiave",
+      searchKeywordsPlaceholder: "Parola chiave o argomento",
+      noKeywordMatch: "Nessuna parola chiave corrisponde a “{query}”.",
+      clearSearch: "Cancella la ricerca",
+      keywordPages: "Pagine di parole chiave",
+      showingRange: "Da {first} a {last} di {total}",
+      perPage: "Per pagina",
+      pageOf: "Pagina {page} di {pages}",
+      firstPage: "Prima pagina",
+      previousPage: "Pagina precedente",
+      nextPage: "Pagina successiva",
+      lastPage: "Ultima pagina",
+      goToPage: "Pagina {page}",
       researching: "Ricerca delle parole chiave - ci vuole un minuto",
       articleDeleted: "Articolo eliminato",
       statusQueued: "In coda",
@@ -15712,6 +15783,7 @@ const de: Messages = {
       keywordsAddedSkipped: "Hinzugefügt: {added}. Übersprungen: {skipped}, bereits erfasst oder über Ihrem Tarif.",
       replanning: "Ihr Inhaltsplan wird neu erstellt…",
       planBusy: "Ihr Plan wird gerade erstellt - klicken Sie auf {button}, sobald er fertig ist, um sie aufzunehmen.",
+      monthUsedUp: "Die Artikel dieses Monats sind bereits alle verbraucht, daher wurde nichts Neues geplant. Ihr Inhaltsplan wird bei der Verlängerung Ihres Tarifs automatisch neu erstellt.",
       plannedArticles: "Geplante Artikel",
       plannedHelp: "Ihr Contentplan, nach dem Tag, an dem jeder Artikel fällig ist. Fahren Sie über ein geplantes Thema, um es jetzt zu schreiben, zu ändern oder aus dem Plan zu nehmen.",
       articles: "Artikel",
@@ -15736,6 +15808,19 @@ const de: Messages = {
       difficultyMedium: "Mittel",
       difficultyHigh: "Hoch",
       difficultyVeryHigh: "Sehr hoch",
+      searchKeywordsLabel: "Suchbegriffe durchsuchen",
+      searchKeywordsPlaceholder: "Suchbegriff oder Thema",
+      noKeywordMatch: "Keine Suchbegriffe passen zu „{query}“.",
+      clearSearch: "Suche löschen",
+      keywordPages: "Seiten der Suchbegriffe",
+      showingRange: "{first}-{last} von {total}",
+      perPage: "Pro Seite",
+      pageOf: "Seite {page} von {pages}",
+      firstPage: "Erste Seite",
+      previousPage: "Vorherige Seite",
+      nextPage: "Nächste Seite",
+      lastPage: "Letzte Seite",
+      goToPage: "Seite {page}",
       researching: "Suchbegriffe werden recherchiert - das dauert eine Minute",
       articleDeleted: "Artikel gelöscht",
       statusQueued: "In Warteschlange",

@@ -87,47 +87,81 @@ Rules:
  * already publishes rather than holds an article whose date is today — see
  * its startOfDay comparison. So "due now" simply means the first article is
  * written on the first run instead of the second.
+ *
+ * A RE-PLAN FILLS AROUND WHAT IT KEEPS. Re-planning mid-month keeps every
+ * item that already has an article, and plans only the month's remaining
+ * allowance (lib/keywords/replan.ts). Two things follow:
+ *
+ *  - `perDay` is the plan's own rate, passed in. Derived from `count` it
+ *    would be the remainder's rate instead, so a Scale site with 40 of its
+ *    100 left would drop from four a day to two.
+ *  - `occupied` holds the dates of the kept items. A day already holding
+ *    `perDay` of them is skipped, so today's published article and the
+ *    drafts written ahead are not doubled up with new topics.
  */
-export function scheduleDates(count: number, from: Date = new Date()): Date[] {
+export function scheduleDates(
+  count: number,
+  from: Date = new Date(),
+  options: { perDay?: number; occupied?: Date[] } = {},
+): Date[] {
   if (count <= 0) return [];
 
   /**
    * Articles per day. Ceiling against a 30-day month, so 60 becomes 2 and 90
    * becomes 3, while anything at or below 30 stays at one a day.
    */
-  const perDay = Math.max(1, Math.ceil(count / 30));
+  const perDay = Math.max(1, options.perDay ?? Math.ceil(count / 30));
 
-  return Array.from({ length: count }, (_, index) => {
-    const date = new Date(from);
-    // Day 0 is today. See the note above on why this is not `+ 1`.
-    date.setDate(date.getDate() + Math.floor(index / perDay));
-    /**
-     * Staggered through the working day when several share a date, so the
-     * order within a day is stable and a reader can tell them apart.
-     */
-    date.setHours(9 + (index % perDay) * 3, 0, 0, 0);
+  // Kept items per day, keyed the same local way the dates below are built.
+  const dayKey = (date: Date) =>
+    `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+  const taken = new Map<string, number>();
+  for (const date of options.occupied ?? []) {
+    taken.set(dayKey(date), (taken.get(dayKey(date)) ?? 0) + 1);
+  }
 
-    /**
-     * Never dated later today than it already is.
-     *
-     * The stagger puts articles at 09:00, 12:00, 15:00 — so a customer who
-     * signs up at 16:00 would have every one of today's slots in the past
-     * hours of the same day, and the "instant" first article would sit
-     * waiting for a time that had already gone. Pulled back to `from` when
-     * that happens, which is the moment they paid.
-     *
-     * Only ever applies to day 0: tomorrow's 09:00 is always ahead of now.
-     */
-    if (date.getTime() < from.getTime()) return new Date(from);
+  const dates: Date[] = [];
+  // Day 0 is today. See the note above on why this is not `+ 1`.
+  for (let day = 0; dates.length < count; day += 1) {
+    const base = new Date(from);
+    base.setDate(base.getDate() + day);
 
-    return date;
-  });
+    for (
+      let position = taken.get(dayKey(base)) ?? 0;
+      position < perDay && dates.length < count;
+      position += 1
+    ) {
+      const date = new Date(base);
+      /**
+       * Staggered through the working day when several share a date, so the
+       * order within a day is stable and a reader can tell them apart.
+       */
+      date.setHours(9 + position * 3, 0, 0, 0);
+
+      /**
+       * Never dated later today than it already is.
+       *
+       * The stagger puts articles at 09:00, 12:00, 15:00 — so a customer who
+       * signs up at 16:00 would have every one of today's slots in the past
+       * hours of the same day, and the "instant" first article would sit
+       * waiting for a time that had already gone. Pulled back to `from` when
+       * that happens, which is the moment they paid.
+       *
+       * Only ever applies to day 0: tomorrow's 09:00 is always ahead of now.
+       */
+      dates.push(date.getTime() < from.getTime() ? new Date(from) : date);
+    }
+  }
+
+  return dates;
 }
 
 export async function planCalendar(
   clusters: KeywordCluster[],
   limit: number,
   intentByTerm: Map<string, string> = new Map(),
+  /** The plan's daily rate and the kept items' dates. See scheduleDates. */
+  schedule: { perDay?: number; occupied?: Date[] } = {},
 ): Promise<PlannedArticle[]> {
   if (!isAiConfigured()) {
     throw new Error("ANTHROPIC_API_KEY is not set");
@@ -301,7 +335,7 @@ export async function planCalendar(
     );
   }
 
-  const dates = scheduleDates(slots.length);
+  const dates = scheduleDates(slots.length, new Date(), schedule);
 
   /**
    * Built from the slots, not from the model's list: a missing or renamed

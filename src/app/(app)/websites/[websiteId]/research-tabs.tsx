@@ -8,6 +8,7 @@ import {
   Search,
   Sparkles,
   Trash2,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import * as React from "react";
@@ -19,6 +20,8 @@ import { toast } from "sonner";
 
 import { ContentCalendar } from "./content-calendar";
 import { useRefreshWhile } from "@/components/refresh-while";
+import { TablePager } from "@/components/table-pager";
+import { paginate } from "@/lib/pagination";
 import { runOutcome } from "@/lib/keywords/research-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -58,6 +61,11 @@ type ResearchTabsProps = {
   articles: ArticleRow[];
   /** True while a research run is in flight, so the UI can say so. */
   researching: boolean;
+  /**
+   * This month's articles are all used, so a re-plan adds nothing until the
+   * plan renews - said as that, not as a plan that failed to rebuild.
+   */
+  monthUsedUp: boolean;
   /** This screen's copy, already in the reader's language. */
   t: Messages["app"]["research"];
   /** Shared words used on several screens. */
@@ -81,6 +89,9 @@ const ARTICLE_STATUS: Record<
   published: { key: "statusPublished", variant: "default" },
   failed: { key: "statusFailed", variant: "destructive" },
 };
+
+/** Rows per page on the Opportunities table; the first is the default. */
+const KEYWORD_PAGE_SIZES = [25, 50, 100] as const;
 
 const INTENT_VARIANT: Record<string, "default" | "secondary" | "outline"> = {
   transactional: "default",
@@ -112,6 +123,7 @@ export function ResearchTabs({
   calendar,
   articles,
   researching,
+  monthUsedUp,
   t,
   tCalendar,
   tCommon,
@@ -122,6 +134,57 @@ export function ResearchTabs({
   const [busyId, setBusyId] = useState<string | null>(null);
   /** The add-keywords field. */
   const [newKeywords, setNewKeywords] = useState("");
+
+  /*
+    The Opportunities table, a page at a time.
+
+    It rendered every keyword at once - up to 300 on Grow and 1,500 on Scale -
+    as one list the customer could only scroll. Paged in the browser: every
+    keyword is already here, so a page is a slice, and adding or removing one
+    works exactly as before. The search narrows the list first, by keyword or
+    by topic, and paging runs over what it leaves.
+  */
+  const [keywordQuery, setKeywordQuery] = useState("");
+  const [keywordPage, setKeywordPage] = useState(1);
+  const [keywordPageSize, setKeywordPageSize] = useState<number>(KEYWORD_PAGE_SIZES[0]);
+  const keywordTable = React.useRef<HTMLDivElement>(null);
+
+  const matchingKeywords = React.useMemo(() => {
+    const query = keywordQuery.trim().toLowerCase();
+    if (!query) return keywords;
+    return keywords.filter(
+      (keyword) =>
+        keyword.term.toLowerCase().includes(query) ||
+        (keyword.clusterName?.toLowerCase().includes(query) ?? false),
+    );
+  }, [keywords, keywordQuery]);
+  // Clamped: deleting the last row of the last page lands on the page before.
+  const keywordSlice = paginate(matchingKeywords.length, keywordPage, keywordPageSize);
+  const visibleKeywords = matchingKeywords.slice(keywordSlice.start, keywordSlice.end);
+
+  /**
+   * To another page, bringing the table's top into view when the controls
+   * that were pressed sit below a long page: otherwise the new page opens
+   * on its last rows.
+   */
+  function showKeywordPage(page: number) {
+    setKeywordPage(page);
+    // 64: below the app's sticky 56px header, which would otherwise cover it.
+    if ((keywordTable.current?.getBoundingClientRect().top ?? 0) < 64) {
+      keywordTable.current?.scrollIntoView({ block: "start" });
+    }
+  }
+
+  /** A new page size keeps the first row being read on screen. */
+  function changeKeywordPageSize(size: number) {
+    setKeywordPageSize(size);
+    setKeywordPage(Math.floor(keywordSlice.start / size) + 1);
+  }
+
+  function searchKeywords(query: string) {
+    setKeywordQuery(query);
+    setKeywordPage(1);
+  }
 
   /*
     Follow a research run to its end.
@@ -156,11 +219,13 @@ export function ResearchTabs({
     if (wasResearching.current && !researching) {
       const outcome = runOutcome(beforeRun.current ?? new Set<string>(), plannedIds, calendar.length);
       if (outcome === "ready") toast.success(t.planReady);
+      // Nothing new could be planned, and that is why: not a failure.
+      else if (monthUsedUp) toast.info(t.monthUsedUp, { duration: 15000 });
       else toast.error(outcome === "failed" ? t.researchFailed : t.planNotRebuilt, { duration: 15000 });
       beforeRun.current = null;
     }
     wasResearching.current = researching;
-  }, [researching, plannedIds, calendar.length, t.researchFailed, t.planReady, t.planNotRebuilt]);
+  }, [researching, plannedIds, calendar.length, monthUsedUp, t.researchFailed, t.planReady, t.planNotRebuilt, t.monthUsedUp]);
 
   function handleResearch() {
     // The plan as it stands now, so the end of this run can tell a new plan from the old one.
@@ -197,12 +262,18 @@ export function ResearchTabs({
 
       setNewKeywords("");
       /*
+        Back to the top of the unfiltered list, where the new terms land:
+        they have no score yet, and the list puts unscored terms first.
+        A search left in place could hide them entirely.
+      */
+      searchKeywords("");
+      /*
         Says what happened to every term AND what the product is now doing.
         "8 added" on a list of ten reads as a bug unless the other two are
         accounted for, and a content plan that silently starts rebuilding is
         the kind of surprise that makes people press the button again.
       */
-      const { added, skipped, replanned, planBusy } = result.data;
+      const { added, skipped, replanned, planBusy, monthUsedUp: usedUp } = result.data;
       // In the reader's language, naming the button by its own label.
       const counted =
         skipped > 0
@@ -215,7 +286,10 @@ export function ResearchTabs({
           ? `${counted} ${t.replanning}`
           : planBusy
             ? `${counted} ${format(t.planBusy, { button: t.refresh })}`
-            : counted,
+            : usedUp
+              ? `${counted} ${t.monthUsedUp}`
+              : counted,
+        usedUp ? { duration: 15000 } : undefined,
       );
       router.refresh();
     });
@@ -516,6 +590,41 @@ export function ResearchTabs({
               {t.addKeywordsHelp}
             </p>
 
+            <div ref={keywordTable} className="scroll-mt-20">
+            {/*
+              Only once there is more than a page to look through - and kept
+              while a search is typed, or deleting rows down to one page would
+              hide the box with its filter still applied.
+            */}
+            {keywords.length > KEYWORD_PAGE_SIZES[0] || keywordQuery ? (
+              <div className="relative mb-3 w-full sm:max-w-sm">
+                <Search
+                  className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                  aria-hidden="true"
+                />
+                <Input
+                  value={keywordQuery}
+                  onChange={(event) => searchKeywords(event.target.value)}
+                  placeholder={t.searchKeywordsPlaceholder}
+                  aria-label={t.searchKeywordsLabel}
+                  enterKeyHint="search"
+                  className="pl-8 pr-9"
+                />
+                {keywordQuery ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="absolute right-1 top-1/2 -translate-y-1/2"
+                    aria-label={t.clearSearch}
+                    onClick={() => searchKeywords("")}
+                  >
+                    <X className="size-4" aria-hidden="true" />
+                  </Button>
+                ) : null}
+              </div>
+            ) : null}
+
             <Table minWidth="34rem">
               <TableHeader>
                 <TableRow>
@@ -530,7 +639,25 @@ export function ResearchTabs({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {keywords.map((keyword) => (
+                {matchingKeywords.length === 0 && keywordQuery.trim() ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={6}
+                      className="whitespace-normal py-6 text-center text-sm text-muted-foreground"
+                    >
+                      {format(t.noKeywordMatch, { query: keywordQuery.trim() })}{" "}
+                      <Button
+                        type="button"
+                        variant="link"
+                        className="h-auto p-0"
+                        onClick={() => searchKeywords("")}
+                      >
+                        {t.clearSearch}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ) : null}
+                {visibleKeywords.map((keyword) => (
                   <TableRow key={keyword.id}>
                     <TableCell>
                       <div className="flex items-center gap-2">
@@ -580,6 +707,32 @@ export function ResearchTabs({
                 ))}
               </TableBody>
             </Table>
+
+            {matchingKeywords.length > KEYWORD_PAGE_SIZES[0] ? (
+              <TablePager
+                page={keywordSlice.current}
+                pageCount={keywordSlice.pageCount}
+                first={keywordSlice.start + 1}
+                last={keywordSlice.end}
+                total={matchingKeywords.length}
+                pageSize={keywordPageSize}
+                pageSizes={KEYWORD_PAGE_SIZES}
+                onPage={showKeywordPage}
+                onPageSize={changeKeywordPageSize}
+                labels={{
+                  pagination: t.keywordPages,
+                  showingRange: t.showingRange,
+                  perPage: t.perPage,
+                  pageOf: t.pageOf,
+                  firstPage: t.firstPage,
+                  previousPage: t.previousPage,
+                  nextPage: t.nextPage,
+                  lastPage: t.lastPage,
+                  goToPage: t.goToPage,
+                }}
+              />
+            ) : null}
+            </div>
           </CardContent>
         </Card>
       </TabsContent>
