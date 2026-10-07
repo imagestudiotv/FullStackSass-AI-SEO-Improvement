@@ -36,7 +36,6 @@ import {
   WordPressMark,
 } from "@/components/integration-marks";
 import { Card, CardContent } from "@/components/ui/card";
-import { RenderAllIfOpenedOnSection } from "@/components/render-all-on-jump";
 import { WideScreenOnly } from "@/components/wide-screen-only";
 import type { Messages } from "@/lib/i18n/messages";
 
@@ -111,18 +110,19 @@ const CTA = "h-12 rounded-full px-7 text-base";
  * only the rendering waits. The size reserves a typical section height until
  * the real one is known (about 720px on a phone, 480px side by side on a
  * wide screen), and the browser remembers it afterwards, so the scrollbar
- * barely moves. A jump straight to a section switches all of this off first
- * (components/render-all-on-jump.tsx), so it lands exactly. Exported for the
- * pricing block, which lives in its own file.
+ * barely moves. A jump straight to a section switches all of this off first,
+ * so it lands exactly: data-render-all after a "#" link, back/forward or a
+ * resize (components/render-all-on-jump.tsx), and html:has(:target) for a
+ * page opened on a section ("/#pricing" from a shared link) - plain CSS, so
+ * it applies from the first layout with no script in front of the content.
+ * Exported for the pricing block, which lives in its own file.
  */
 export const OFFSCREEN =
-  "[content-visibility:auto] [contain-intrinsic-size:auto_720px] lg:[contain-intrinsic-size:auto_480px] [[data-render-all]_&]:[content-visibility:visible]";
+  "[content-visibility:auto] [contain-intrinsic-size:auto_720px] lg:[contain-intrinsic-size:auto_480px] [[data-render-all]_&]:[content-visibility:visible] [html:has(:target)_&]:[content-visibility:visible]";
 
 export function Hero({ t, href }: SectionProps) {
   return (
     <section className="relative overflow-hidden bg-gradient-to-b from-primary/[0.055] via-background to-background px-4 pt-14 pb-12 sm:pt-20">
-      {/* Ahead of every OFFSCREEN section in the HTML; see the component. */}
-      <RenderAllIfOpenedOnSection />
       {/*
         The soft warm wash the design puts behind the cards. A radial tint
         rather than an image: it costs no request and scales to any width.

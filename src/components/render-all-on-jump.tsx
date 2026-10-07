@@ -18,6 +18,12 @@ import { useEffect } from "react";
  * real before it scrolls: a one-off cost for a visitor who jumps, nothing
  * for the ordinary first view that PageSpeed measures. In the shell rather
  * than on the home page, because the menu links there from every page.
+ *
+ * A page opened straight onto a section ("/#pricing" from a shared link)
+ * needs no script: OFFSCREEN itself turns off under html:has(:target), which
+ * applies from the first layout. (An inline script used to do that, placed
+ * before the hero; the browser had to stop there until the CSS arrived, so
+ * the first frame showed only the header and the headline came frames later.)
  */
 export function RenderAllOnJump() {
   useEffect(() => {
@@ -52,29 +58,4 @@ export function RenderAllOnJump() {
   }, []);
 
   return null;
-}
-
-/**
- * The same switch for a page opened straight onto a section (a shared
- * "/#pricing" link). It has to happen while the HTML is still arriving,
- * before the browser first lays the page out: switched on after hydration,
- * every section above the target changes height at once and Safari, which
- * does not hold the page in place, was left up to 1,266px off.
- *
- * Goes on the home page itself, ahead of its sections: the only page with
- * deferred sections, and a static one, whose security policy allows a small
- * inline script. Runs from the server's HTML only, as in Next's "preventing
- * flash before hydration" guide; on the client it is inert text.
- */
-export function RenderAllIfOpenedOnSection() {
-  return (
-    <script
-      type={typeof window === "undefined" ? "text/javascript" : "text/plain"}
-      suppressHydrationWarning
-      dangerouslySetInnerHTML={{
-        __html:
-          'if(location.hash)document.documentElement.setAttribute("data-render-all","")',
-      }}
-    />
-  );
 }
