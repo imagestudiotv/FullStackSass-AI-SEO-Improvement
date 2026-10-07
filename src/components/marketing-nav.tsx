@@ -18,17 +18,10 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
-import { BrandLogo } from "@/components/brand-logo";
 import { LanguageSwitcher } from "@/components/language-switcher";
-import { localePath, splitLocale } from "@/lib/i18n/config";
-import { getMessages } from "@/lib/i18n/messages";
+import type { MobileNavSheet } from "@/components/mobile-nav-sheet";
+import { localePath, splitLocale, type Locale } from "@/lib/i18n/config";
+import type { SiteChrome } from "@/lib/i18n/site-chrome";
 import { cn } from "@/lib/utils";
 
 /**
@@ -38,6 +31,10 @@ import { cn } from "@/lib/utils";
  * layout is a server component with no access to the URL, so the nav stayed in
  * English on /es — a Spanish page with an English menu reads as a half-finished
  * translation, which is worse than not offering one.
+ *
+ * The words arrive as a prop (`chrome`, every language) from the server shell.
+ * Never import messages.ts here: in a client component that ships the whole
+ * dictionary to every visitor (see lib/i18n/site-chrome.ts).
  *
  * Every in-site link is built with localePath, so someone reading in Spanish
  * stays in Spanish as they navigate. Links to pages that exist only in English
@@ -214,17 +211,46 @@ function PlatformMenu({
  * A sheet rather than a second dropdown. The platform entries are listed flat
  * inside it, because nesting an accordion in a drawer to save six rows is
  * more machinery than the content justifies.
+ *
+ * The sheet itself (components/mobile-nav-sheet.tsx) is fetched when the
+ * menu is first wanted - the button is hovered, focused or touched, which
+ * usually has it ready by the tap - rather than with the page: a phone
+ * reading the home page should not download a dialog before its first paint.
+ *
+ * Loaded by hand rather than with next/dynamic: that suspends, so a failed
+ * download (a phone going offline) would take the whole page down to the
+ * error screen, and the first open waited out React's Suspense throttle.
+ * Here a failure leaves the page as it was, and the next tap tries again.
  */
+let sheetModule: Promise<typeof import("@/components/mobile-nav-sheet")> | null =
+  null;
+
+function loadSheet() {
+  sheetModule ??= import("@/components/mobile-nav-sheet").catch((error) => {
+    sheetModule = null;
+    throw error;
+  });
+  return sheetModule;
+}
+
 function MobileMarketingNav({
   t,
   href,
 }: {
-  t: ReturnType<typeof getMessages>;
+  t: SiteChrome[Locale];
   href: (path: string) => string;
 }) {
   const [open, setOpen] = useState(false);
-  const close = () => setOpen(false);
+  // Kept once loaded, so closing still animates and reopening is instant.
+  const [Sheet, setSheet] = useState<typeof MobileNavSheet | null>(null);
+  const button = useRef<HTMLButtonElement>(null);
+  const prefetch = () => void loadSheet().catch(() => {});
 
+  const platform = t.nav.platformItems.map((item, index) => ({
+    title: item.title,
+    href: href(PLATFORM_HREFS[index] ?? "/"),
+    icon: PLATFORM_ICONS[index] ?? FileText,
+  }));
   const links = [
     { href: href("/#how-it-works"), label: t.nav.howItWorks },
     { href: "/success-stories", label: t.nav.successStories },
@@ -234,74 +260,53 @@ function MobileMarketingNav({
   ];
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="lg:hidden"
-          aria-label="Open menu"
-        >
-          <Menu className="size-5" />
-        </Button>
-      </SheetTrigger>
-      <SheetContent side="left" className="w-80 overflow-y-auto p-0">
-        <SheetHeader className="border-b p-4">
-          <SheetTitle className="text-left">
-            <BrandLogo height={20} />
-          </SheetTitle>
-        </SheetHeader>
-
-        <div className="p-4">
-          <p className="px-2 pb-2 text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-            {t.nav.platformHeading}
-          </p>
-          <ul className="space-y-0.5">
-            {t.nav.platformItems.map((item, index) => {
-              const Icon = PLATFORM_ICONS[index] ?? FileText;
-              return (
-                <li key={item.title}>
-                  <Link
-                    href={href(PLATFORM_HREFS[index] ?? "/")}
-                    onClick={close}
-                    className="flex items-center gap-3 rounded-md px-2 py-2 text-sm transition-colors hover:bg-accent"
-                  >
-                    <Icon
-                      className="size-4 shrink-0 text-primary"
-                      aria-hidden="true"
-                    />
-                    {item.title}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-
-          <div className="my-3 border-t" role="presentation" />
-
-          <ul className="space-y-0.5">
-            {links.map((link) => (
-              <li key={link.href}>
-                <Link
-                  href={link.href}
-                  onClick={close}
-                  className="block rounded-md px-2 py-2 text-sm transition-colors hover:bg-accent"
-                >
-                  {link.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </SheetContent>
-    </Sheet>
+    <>
+      <Button
+        ref={button}
+        variant="ghost"
+        size="icon"
+        className="lg:hidden"
+        aria-label="Open menu"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        onPointerEnter={prefetch}
+        onTouchStart={prefetch}
+        onFocus={prefetch}
+        onClick={() => {
+          if (Sheet) {
+            setOpen(true);
+            return;
+          }
+          loadSheet()
+            .then((m) => {
+              setSheet(() => m.MobileNavSheet);
+              setOpen(true);
+            })
+            .catch(() => {
+              // Offline: nothing opens, and the next tap tries again.
+            });
+        }}
+      >
+        <Menu className="size-5" />
+      </Button>
+      {Sheet ? (
+        <Sheet
+          open={open}
+          onOpenChange={setOpen}
+          returnFocusTo={button}
+          heading={t.nav.platformHeading}
+          platform={platform}
+          links={links}
+        />
+      ) : null}
+    </>
   );
 }
 
-export function MarketingNav() {
+export function MarketingNav({ chrome }: { chrome: SiteChrome }) {
   const pathname = usePathname();
   const { locale } = splitLocale(pathname);
-  const t = getMessages(locale);
+  const t = chrome[locale];
   const href = (path: string) => localePath(locale, path);
 
   return (
@@ -368,10 +373,10 @@ export function MarketingNav() {
 }
 
 /** Footer link columns, localised the same way. */
-export function MarketingFooterLinks() {
+export function MarketingFooterLinks({ chrome }: { chrome: SiteChrome }) {
   const pathname = usePathname();
   const { locale } = splitLocale(pathname);
-  const t = getMessages(locale);
+  const t = chrome[locale];
   const href = (path: string) => localePath(locale, path);
 
   /*
@@ -463,13 +468,13 @@ function FooterLinkRow({ items }: { items: { href: string; label: string }[] }) 
  * Still hidden on pages that exist only in English, which is the component's
  * own behaviour rather than anything decided here.
  */
-export function MarketingTagline() {
+export function MarketingTagline({ chrome }: { chrome: SiteChrome }) {
   const pathname = usePathname();
   const { locale } = splitLocale(pathname);
   return (
     <>
       <p className="mt-2 max-w-xs text-sm text-muted-foreground">
-        {getMessages(locale).footer.tagline}
+        {chrome[locale].footer.tagline}
       </p>
       <div className="mt-4">
         <LanguageSwitcher />

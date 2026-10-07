@@ -8,6 +8,7 @@ import { BrandLogo } from "@/components/brand-logo";
 import { LiveChat } from "@/components/live-chat";
 import { PreviousPageTracker } from "@/components/previous-page";
 import { RenderAllOnJump } from "@/components/render-all-on-jump";
+import { siteChrome } from "@/lib/i18n/site-chrome";
 
 /**
  * The public site's frame: sticky header with the nav, the page, the compact
@@ -16,6 +17,9 @@ import { RenderAllOnJump } from "@/components/render-all-on-jump";
  * at all - which render outside every route group's layout.
  */
 export function MarketingShell({ children }: { children: React.ReactNode }) {
+  // The header and footer words, picked out here so the browser never loads
+  // the whole dictionary (lib/i18n/site-chrome.ts).
+  const chrome = siteChrome();
   return (
     <div className="flex min-h-svh flex-col">
       {/*
@@ -38,7 +42,7 @@ export function MarketingShell({ children }: { children: React.ReactNode }) {
             {/* The page's primary logo, so it is not lazy-loaded. */}
             <BrandLogo height={24} priority />
           </BrandHomeLink>
-          <MarketingNav />
+          <MarketingNav chrome={chrome} />
         </div>
       </header>
 
@@ -57,9 +61,9 @@ export function MarketingShell({ children }: { children: React.ReactNode }) {
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
             <div className="lg:w-60 lg:shrink-0">
               <BrandLogo height={22} />
-              <MarketingTagline />
+              <MarketingTagline chrome={chrome} />
             </div>
-            <MarketingFooterLinks />
+            <MarketingFooterLinks chrome={chrome} />
           </div>
 
           <p className="mt-6 border-t pt-4 text-sm text-muted-foreground">

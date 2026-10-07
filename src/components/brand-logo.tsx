@@ -54,7 +54,10 @@ export function BrandLogo({
         alt="RepGet"
         width={width}
         height={height}
-        priority={priority}
+        // Never preloaded, even on the page's primary logo: this is the
+        // dark-theme copy, display: none unless the dark theme is on (nothing
+        // turns it on today), so a preload fetched an image nobody saw before
+        // the first paint. Lazy, a hidden image is not fetched at all.
         // Hidden from assistive tech: the light copy is the same word, and
         // announcing "RepGet" twice is noise.
         aria-hidden="true"

@@ -11,6 +11,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("@/lib/auth-client", () => ({ authClient: {} }));
 
+import { getMessages } from "@/lib/i18n/messages";
 import { AuthForm } from "./auth-form";
 
 /**
@@ -35,7 +36,9 @@ function switchHref(html: string): string {
 }
 
 const render = (mode: "sign-in" | "sign-up", initialEmail = "") =>
-  renderToStaticMarkup(createElement(AuthForm, { mode, initialEmail }));
+  renderToStaticMarkup(
+    createElement(AuthForm, { mode, initialEmail, t: getMessages("en").app.auth }),
+  );
 
 describe("the sign-in / sign-up switch link", () => {
   it("keeps an invitation's ?next= and address going from sign-up to sign-in", () => {

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { MarketingShell } from "@/components/marketing-shell";
 import { NotFoundPanel } from "@/components/not-found-panel";
+import { notFoundCopy } from "@/lib/i18n/site-chrome";
 
 /**
  * "Page not found" for an address that matches no route at all (/a/b/c,
@@ -15,7 +16,7 @@ export const metadata: Metadata = { title: "Page not found" };
 export default function NotFound() {
   return (
     <MarketingShell>
-      <NotFoundPanel />
+      <NotFoundPanel copy={notFoundCopy()} />
     </MarketingShell>
   );
 }

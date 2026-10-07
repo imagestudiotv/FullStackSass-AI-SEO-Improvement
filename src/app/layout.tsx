@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { DeferredToaster } from "@/components/deferred-toaster";
 import { SiteAnalytics } from "@/components/site-analytics";
-import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 import { isPreviewDeployment } from "@/lib/deployment";
 import { siteUrl as canonicalSiteUrl } from "@/lib/site-url";
@@ -12,9 +12,16 @@ const geistSans = Geist({
   subsets: ["latin"],
 });
 
+/*
+  Not preloaded: only code-like text (the tools, audit results, the app) uses
+  it, never the first screen of a public page. A preload made every page fetch
+  it (24 KB) before its first paint; now a page that uses it fetches it then,
+  shown meanwhile in the size-matched fallback (font-display: swap).
+*/
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  preload: false,
 });
 
 /**
@@ -96,7 +103,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col">
         {children}
-        <Toaster />
+        <DeferredToaster />
         <SiteAnalytics />
       </body>
     </html>

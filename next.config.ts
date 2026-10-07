@@ -14,9 +14,13 @@ const nextConfig: NextConfig = {
       bundleSizeOptimizations option sets this flag only for webpack builds,
       and this project builds with Turbopack, so it is set here instead.
       Safe because every Sentry.init in the app has debug: false.
+
+      A boolean, not the string "false": Next JSON-encodes each value, so
+      "false" became the string literal "false" in the bundle - truthy - and
+      the debug code stayed in.
     */
     define: {
-      __SENTRY_DEBUG__: "false",
+      __SENTRY_DEBUG__: false,
     },
   },
 
@@ -80,4 +84,14 @@ export default withSentryConfig(nextConfig, {
    */
   release: { create: Boolean(sentryAuthToken) },
   sourcemaps: { disable: !sentryAuthToken },
+
+  /*
+    The browser SDK is loaded on demand and records errors only
+    (src/instrumentation-client.ts). So it has no navigations to name - the
+    route manifest only groups browser transactions, and was injected into
+    every page's first script - and no onRouterTransitionStart to export,
+    which the build would otherwise ask for on every run.
+  */
+  routeManifestInjection: false,
+  suppressOnRouterTransitionStartWarning: true,
 });

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { NotFoundPanel } from "@/components/not-found-panel";
+import { notFoundCopy } from "@/lib/i18n/site-chrome";
 
 /**
  * "Page not found" for the public site (client's launch review, 2026-10-03),
@@ -15,5 +16,5 @@ import { NotFoundPanel } from "@/components/not-found-panel";
 export const metadata: Metadata = { title: "Page not found" };
 
 export default function MarketingNotFound() {
-  return <NotFoundPanel />;
+  return <NotFoundPanel copy={notFoundCopy()} />;
 }

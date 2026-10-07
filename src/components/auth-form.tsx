@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { getMessages, type Messages } from "@/lib/i18n/messages";
+import type { Messages } from "@/lib/i18n/messages";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -61,7 +61,7 @@ const OAUTH_ERRORS: Record<string, string> = {
 export function AuthForm({
   mode,
   initialEmail = "",
-  t = getMessages("en").app.auth,
+  t,
 }: {
   mode: "sign-in" | "sign-up";
   /**
@@ -80,12 +80,15 @@ export function AuthForm({
    */
   initialEmail?: string;
   /**
-   * The form's wording.
+   * The form's wording. Required, and passed by the page: a default here
+   * would mean importing messages.ts into this client component, which
+   * sends every language's whole dictionary to the browser (see
+   * lib/i18n/site-chrome.ts).
    *
    * From Accept-Language, not an account: nobody is signed in on this
    * screen, so there is no stored preference to read.
    */
-  t?: Messages["app"]["auth"];
+  t: Messages["app"]["auth"];
 }) {
   const router = useRouter();
   const isSignUp = mode === "sign-up";

@@ -8,14 +8,16 @@ import { useEffect } from "react";
 import { lastShownPath } from "@/components/previous-page";
 import { Button } from "@/components/ui/button";
 import { localePath, splitLocale } from "@/lib/i18n/config";
-import { getMessages } from "@/lib/i18n/messages";
+import type { NotFoundCopy } from "@/lib/i18n/site-chrome";
 
 /**
  * The public site's "page not found" (client's launch review, 2026-10-03).
  *
  * A client component for the same reason as the marketing nav: only the
  * address says which language the visitor was reading, and a server
- * not-found file is not told the address. /es/anything gets Spanish.
+ * not-found file is not told the address. /es/anything gets Spanish. The
+ * words come from the server as a prop, in every language, so the browser
+ * does not load all of messages.ts (lib/i18n/site-chrome.ts).
  *
  * It also reports the miss once, for the server log (lib/not-found-log.ts):
  * which address, and which page linked to it.
@@ -41,10 +43,10 @@ function reportMiss(path: string) {
   }
 }
 
-export function NotFoundPanel() {
+export function NotFoundPanel({ copy }: { copy: NotFoundCopy }) {
   const pathname = usePathname() ?? "/";
   const { locale } = splitLocale(pathname);
-  const t = getMessages(locale);
+  const t = copy[locale];
 
   useEffect(() => {
     reportMiss(window.location.pathname);
