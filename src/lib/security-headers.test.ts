@@ -60,8 +60,8 @@ describe("securityHeaders", () => {
 describe("contentSecurityPolicy", () => {
   const csp = directives(contentSecurityPolicy(DSN));
 
-  it("allows scripts and styles from this site and Crisp only", () => {
-    expect(csp["script-src"]).toEqual(["'self'", "'unsafe-inline'", "https://*.crisp.chat"]);
+  it("allows scripts from this site, Crisp and Google Analytics, and styles from this site and Crisp", () => {
+    expect(csp["script-src"]).toEqual(["'self'", "'unsafe-inline'", "https://*.crisp.chat", "https://*.googletagmanager.com"]);
     expect(csp["style-src"]).toEqual(["'self'", "'unsafe-inline'", "https://*.crisp.chat"]);
   });
 
@@ -71,13 +71,32 @@ describe("contentSecurityPolicy", () => {
     expect(csp["script-src"]).not.toContain("*");
   });
 
-  it("lets the chat talk to Crisp and errors reach Sentry", () => {
+  it("lets the chat talk to Crisp, Google Analytics send its hits, and errors reach Sentry", () => {
     expect(csp["connect-src"]).toEqual([
       "'self'",
       "https://*.crisp.chat",
       "wss://*.relay.crisp.chat",
+      "https://*.google-analytics.com",
+      "https://*.analytics.google.com",
+      "https://*.googletagmanager.com",
       "https://o4501.ingest.de.sentry.io",
     ]);
+  });
+
+  /*
+    Google Analytics loads only after a visitor accepts the cookie banner
+    (lib/google-analytics.ts): gtag.js from *.googletagmanager.com, hits to
+    the hosts Google lists for GA4. On the nonce pages the nonced bundle
+    inserts the script, which 'strict-dynamic' allows. Nothing broader -
+    no doubleclick or ads hosts: advertising features are off.
+  */
+  it("covers Google Analytics on both policies, and no advertising host", () => {
+    const strict = directives(contentSecurityPolicy(DSN, "a".repeat(32)));
+    for (const policy of [csp, strict]) {
+      expect(policy["script-src"]).toContain("https://*.googletagmanager.com");
+      expect(policy["connect-src"]).toEqual(expect.arrayContaining(["https://*.google-analytics.com", "https://*.analytics.google.com"]));
+    }
+    expect(contentSecurityPolicy(DSN)).not.toMatch(/doubleclick|googleadservices|googlesyndication/);
   });
 
   /*
@@ -135,7 +154,14 @@ describe("contentSecurityPolicy", () => {
   it("works without Sentry: no reporting endpoint, no Sentry origin", () => {
     const bare = directives(contentSecurityPolicy(undefined));
     expect(bare["report-uri"]).toBeUndefined();
-    expect(bare["connect-src"]).toEqual(["'self'", "https://*.crisp.chat", "wss://*.relay.crisp.chat"]);
+    expect(bare["connect-src"]).toEqual([
+      "'self'",
+      "https://*.crisp.chat",
+      "wss://*.relay.crisp.chat",
+      "https://*.google-analytics.com",
+      "https://*.analytics.google.com",
+      "https://*.googletagmanager.com",
+    ]);
   });
 });
 

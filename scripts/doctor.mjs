@@ -164,6 +164,66 @@ if (storageUrl && storageKey) {
   );
 }
 
+/**
+ * The Google Analytics tag on the public pages (lib/google-analytics.ts) is
+ * optional: without it there is no cookie banner and nothing from Google.
+ * A malformed id is dropped silently by the page, so it is named here.
+ */
+const gaTag = env.NEXT_PUBLIC_GA4_MEASUREMENT_ID?.trim();
+if (!gaTag) {
+  caution(
+    "Google Analytics tag is off (NEXT_PUBLIC_GA4_MEASUREMENT_ID is not set)",
+    "Optional. Set the web stream's G-... Measurement ID, then redeploy. See docs/site-analytics.md.",
+  );
+} else if (!/^G-[A-Z0-9]{4,20}$/i.test(gaTag)) {
+  bad(
+    "NEXT_PUBLIC_GA4_MEASUREMENT_ID is not a Measurement ID",
+    "It should look like G-XXXXXXXXXX (GA Admin > Data streams > the web stream). The tag and the banner stay off until it does.",
+  );
+} else {
+  ok(`Google Analytics tag ${gaTag.toUpperCase()} loads after a visitor accepts the cookie banner`);
+}
+
+/**
+ * The admin Site analytics page (repget.com's own GA4) is optional: without
+ * it that one page shows its setup steps. The page itself explains a key
+ * Google refuses; this only catches values that can never work.
+ */
+const gaProperty = env.GA4_PROPERTY_ID?.trim();
+const gaKey = env.GA4_SERVICE_ACCOUNT_KEY?.trim();
+if (gaProperty && gaKey) {
+  let email = null;
+  try {
+    const file = JSON.parse(gaKey.startsWith("{") ? gaKey : Buffer.from(gaKey, "base64").toString("utf8"));
+    email = typeof file.client_email === "string" && typeof file.private_key === "string" ? file.client_email : null;
+  } catch {
+    // Reported below.
+  }
+  if (!/^(?:properties\/)?\d{4,20}$/i.test(gaProperty)) {
+    bad(
+      "GA4_PROPERTY_ID is not a property number",
+      "Use the number from GA Admin > Property details (e.g. 123456789), not the G-... Measurement ID.",
+    );
+  } else if (!email) {
+    bad(
+      "GA4_SERVICE_ACCOUNT_KEY is not a service account JSON key",
+      "Paste the whole .json file from Google Cloud > IAM & Admin > Service accounts > Keys (or it base64-encoded).",
+    );
+  } else {
+    ok(`Admin Site analytics reads GA4 property ${gaProperty.replace(/^properties\//i, "")} as ${email}`);
+  }
+} else if (gaProperty || gaKey) {
+  bad(
+    "Admin Site analytics is half configured",
+    "Both GA4_PROPERTY_ID and GA4_SERVICE_ACCOUNT_KEY are needed. /admin/analytics shows the setup steps.",
+  );
+} else {
+  caution(
+    "Admin Site analytics is off (GA4_PROPERTY_ID and GA4_SERVICE_ACCOUNT_KEY are not set)",
+    "Optional. /admin/analytics shows the setup steps; everything else works without it.",
+  );
+}
+
 // ------------------------------------------------------------- support
 
 const supportEmail = env.NEXT_PUBLIC_SUPPORT_EMAIL;

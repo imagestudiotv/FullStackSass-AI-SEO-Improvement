@@ -3,6 +3,8 @@ import Link from "next/link";
 
 import { BrandLogo } from "@/components/brand-logo";
 import { AuthShowcase } from "@/components/auth-showcase";
+import { ConsentBanner } from "@/components/consent-banner";
+import { getPublicMessages } from "@/lib/i18n/app-locale";
 
 /**
  * Sign-in and sign-up, following the reference design: the form on the left,
@@ -27,9 +29,16 @@ export const dynamic = "force-dynamic";
  */
 export const metadata: Metadata = { robots: { index: false, follow: true } };
 
-export default function AuthLayout({ children }: LayoutProps<"/">) {
+export default async function AuthLayout({ children }: LayoutProps<"/">) {
+  // The language the sign-in page itself uses (the browser's), for the cookie banner.
+  const { locale, t } = await getPublicMessages();
   return (
     <div className="grid min-h-svh lg:grid-cols-2">
+      {/*
+        The analytics cookie banner: sign-in and sign-up count as public pages
+        (components/consent-banner.tsx). First, so it is read before the form.
+      */}
+      <ConsentBanner copy={{ [locale]: t.consent }} locale={locale} />
       {/*
         Form side.
 

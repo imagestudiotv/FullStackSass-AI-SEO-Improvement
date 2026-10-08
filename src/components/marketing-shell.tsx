@@ -5,6 +5,7 @@ import {
 } from "@/components/marketing-nav";
 import { BrandHomeLink } from "@/components/brand-home-link";
 import { BrandLogo } from "@/components/brand-logo";
+import { ConsentBanner } from "@/components/consent-banner";
 import { LiveChat } from "@/components/live-chat";
 import { PreviousPageTracker } from "@/components/previous-page";
 import { RenderAllOnJump } from "@/components/render-all-on-jump";
@@ -22,6 +23,13 @@ export function MarketingShell({ children }: { children: React.ReactNode }) {
   const chrome = siteChrome();
   return (
     <div className="flex min-h-svh flex-col">
+      {/*
+        The analytics cookie banner, and the Google Analytics it controls. It
+        floats over the page, so its place in the document only sets the
+        reading order: first, so a keyboard or screen-reader visitor meets the
+        question before the page.
+      */}
+      <ConsentBanner copy={Object.fromEntries(Object.entries(chrome).map(([locale, words]) => [locale, words.consent]))} />
       {/*
         Sticky, matching the signed-in app and the admin area, which were
         already sticky — the marketing site was the one place the menu

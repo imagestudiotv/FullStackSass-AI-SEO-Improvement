@@ -17,6 +17,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
+import { CookieSettingsButton } from "@/components/consent-banner";
 import { Button } from "@/components/ui/button";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import type { MobileNavSheet } from "@/components/mobile-nav-sheet";
@@ -422,6 +423,7 @@ export function MarketingFooterLinks({ chrome }: { chrome: SiteChrome }) {
         a liability rather than a typo.
       */
       title: t.footer.legal,
+      cookieSettings: true,
       items: [
         { href: "/privacy", label: t.footer.privacy },
         { href: "/terms", label: t.footer.terms },
@@ -443,6 +445,12 @@ export function MarketingFooterLinks({ chrome }: { chrome: SiteChrome }) {
                 </Link>
               </li>
             ))}
+            {/* Reopens the analytics cookie banner; renders nothing when GA is not configured. */}
+            {group.cookieSettings ? (
+              <li className="empty:hidden">
+                <CookieSettingsButton label={t.consent.settings} className="text-muted-foreground transition-colors hover:text-foreground" />
+              </li>
+            ) : null}
           </ul>
         </nav>
       ))}

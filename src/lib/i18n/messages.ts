@@ -85,6 +85,21 @@ export type Messages = {
     terms: string;
     refunds: string;
   };
+  /**
+   * The analytics cookie banner (components/consent-banner.tsx) and the link
+   * that reopens it. Short on purpose: a phone shows it over the page.
+   */
+  consent: {
+    /** Accessible name of the banner. */
+    label: string;
+    message: string;
+    /** Link text to the (English) privacy policy. */
+    privacy: string;
+    accept: string;
+    decline: string;
+    /** Footer link that reopens the choice. */
+    settings: string;
+  };
   home: {
     eyebrow: string;
     title: string;
@@ -3028,6 +3043,14 @@ const en: Messages = {
     privacy: "Privacy",
     terms: "Terms",
     refunds: "Refunds",
+  },
+  consent: {
+    label: "Cookie choice",
+    message: "We would like to use Google Analytics cookies to understand how people use our website. They are only set if you accept.",
+    privacy: "Privacy policy",
+    accept: "Accept",
+    decline: "Decline",
+    settings: "Cookie settings",
   },
   home: {
     eyebrow: "Get ranked. Get cited. Get recommended.",
@@ -6034,6 +6057,14 @@ const es: Messages = {
     privacy: "Privacidad",
     terms: "Términos",
     refunds: "Reembolsos",
+  },
+  consent: {
+    label: "Preferencias de cookies",
+    message: "Nos gustaría usar cookies de Google Analytics para entender cómo se usa nuestro sitio web. Solo se instalan si las acepta.",
+    privacy: "Política de privacidad",
+    accept: "Aceptar",
+    decline: "Rechazar",
+    settings: "Configuración de cookies",
   },
   home: {
     eyebrow: "Posiciónate. Que te citen. Que te recomienden.",
@@ -9064,6 +9095,14 @@ const fr: Messages = {
     terms: "Conditions",
     refunds: "Remboursements",
   },
+  consent: {
+    label: "Choix des cookies",
+    message: "Nous aimerions utiliser les cookies de Google Analytics pour comprendre comment notre site est utilisé. Ils ne sont déposés que si vous les acceptez.",
+    privacy: "Politique de confidentialité",
+    accept: "Accepter",
+    decline: "Refuser",
+    settings: "Paramètres des cookies",
+  },
   home: {
     eyebrow: "Soyez classé. Soyez cité. Soyez recommandé.",
     title: "Positionnez-vous sur Google. Apparaissez dans les réponses IA",
@@ -12089,6 +12128,14 @@ const it: Messages = {
     terms: "Termini",
     refunds: "Rimborsi",
   },
+  consent: {
+    label: "Scelta dei cookie",
+    message: "Vorremmo usare i cookie di Google Analytics per capire come viene usato il nostro sito. Vengono installati solo se li accetta.",
+    privacy: "Informativa sulla privacy",
+    accept: "Accetta",
+    decline: "Rifiuta",
+    settings: "Impostazioni cookie",
+  },
   home: {
     eyebrow: "Posizionati. Fatti citare. Fatti consigliare.",
     title: "Si posizioni su Google. Compaia nelle risposte IA",
@@ -15113,6 +15160,14 @@ const de: Messages = {
     privacy: "Datenschutz",
     terms: "AGB",
     refunds: "Rückerstattungen",
+  },
+  consent: {
+    label: "Cookie-Auswahl",
+    message: "Wir würden gern Cookies von Google Analytics verwenden, um zu verstehen, wie unsere Website genutzt wird. Sie werden nur gesetzt, wenn Sie zustimmen.",
+    privacy: "Datenschutzerklärung",
+    accept: "Akzeptieren",
+    decline: "Ablehnen",
+    settings: "Cookie-Einstellungen",
   },
   home: {
     eyebrow: "Ranken. Zitiert werden. Empfohlen werden.",

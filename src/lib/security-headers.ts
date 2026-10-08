@@ -76,6 +76,13 @@ function sentryOrigin(dsn: string | undefined): string | null {
  *    created after a press on play (app/(marketing)/walkthrough-player.tsx).
  *    Its own scripts run inside that frame, under YouTube's policy, so
  *    nothing else here needs widening.
+ *  - Google Analytics (lib/google-analytics.ts), on public pages and only
+ *    after a visitor accepts the cookie banner: gtag.js from
+ *    *.googletagmanager.com, and its hits to *.google-analytics.com and
+ *    *.analytics.google.com (regional hosts, hence the wildcards - the list
+ *    Google publishes for GA4). Its pixels are covered by img-src https:.
+ *    On the nonce pages the script is inserted by the nonced bundle, which
+ *    'strict-dynamic' allows; the host stays listed for browsers without it.
  *  - Nothing else: payments (Stripe, PayPal) and Google sign-in are full-page
  *    redirects, and fonts are self-hosted by next/font.
  *
@@ -89,17 +96,19 @@ export function contentSecurityPolicy(sentryDsn: string | undefined, nonce?: str
   }
   const crisp = "https://*.crisp.chat";
   const youtube = "https://www.youtube-nocookie.com";
+  const gaScript = "https://*.googletagmanager.com";
+  const gaConnect = ["https://*.google-analytics.com", "https://*.analytics.google.com", gaScript];
   const sentry = sentryOrigin(sentryDsn);
   const report = cspReportUri(sentryDsn);
 
   const directives: [string, string[]][] = [
     ["default-src", ["'self'"]],
-    ["script-src", nonce ? ["'self'", `'nonce-${nonce}'`, "'strict-dynamic'", crisp] : ["'self'", "'unsafe-inline'", crisp]],
+    ["script-src", nonce ? ["'self'", `'nonce-${nonce}'`, "'strict-dynamic'", crisp, gaScript] : ["'self'", "'unsafe-inline'", crisp, gaScript]],
     ["script-src-attr", ["'none'"]],
     ["style-src", ["'self'", "'unsafe-inline'", crisp]],
     ["img-src", ["'self'", "data:", "blob:", "https:"]],
     ["font-src", ["'self'", "data:", crisp]],
-    ["connect-src", ["'self'", crisp, "wss://*.relay.crisp.chat", ...(sentry ? [sentry] : [])]],
+    ["connect-src", ["'self'", crisp, "wss://*.relay.crisp.chat", ...gaConnect, ...(sentry ? [sentry] : [])]],
     ["media-src", ["'self'", crisp]],
     ["frame-src", ["'self'", crisp, youtube]],
     ["worker-src", ["'self'", "blob:"]],

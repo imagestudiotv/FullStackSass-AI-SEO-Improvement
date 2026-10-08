@@ -198,3 +198,17 @@
     font-size: 16px !important;
   }
 }
+
+/*
+ * While the analytics cookie banner is open on a phone
+ * (components/consent-banner.tsx sets data-consent-open on <html>), the
+ * chat waits. The banner spans the bottom of the screen and the launcher
+ * would sit on top of its buttons. On wider screens the banner keeps to the
+ * left and the launcher to the right, so both stay. The chat is back the
+ * moment the banner is answered.
+ */
+@media (max-width: 639.98px) {
+  html[data-consent-open] .crisp-client {
+    display: none !important;
+  }
+}

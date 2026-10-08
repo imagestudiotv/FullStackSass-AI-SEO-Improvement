@@ -2,9 +2,11 @@
  * What a page view tells Vercel Web Analytics about the address it was on.
  *
  * The owner chose Vercel Web Analytics for visit statistics: no cookies, so
- * no consent banner (GA4 is a later item because it needs one). Its script
- * reports a page as `location.href`, query string and fragment included, and
- * some of our addresses carry things that must never leave the browser:
+ * no consent banner. (Google Analytics, which does need one, asks first and
+ * cleans its addresses with this same function: lib/google-analytics.ts.)
+ * Vercel's script reports a page as `location.href`, query string and
+ * fragment included, and some of our addresses carry things that must never
+ * leave the browser:
  *
  *  - /invite/<token>: the token is a bearer credential. Whoever holds it
  *    becomes an editor on a customer's website (lib/websites/

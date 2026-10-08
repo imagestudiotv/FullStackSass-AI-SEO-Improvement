@@ -4,7 +4,8 @@ import { LOCALES, type Locale } from "@/lib/i18n/config";
 import { getMessages, type Messages } from "@/lib/i18n/messages";
 
 /**
- * The few words the public site's header and footer need, in every language.
+ * The few words the public site's header, footer and analytics cookie banner
+ * (components/consent-banner.tsx) need, in every language.
  *
  * The header and footer are client components: only the address says which
  * language the visitor is reading, and the shared layout is not told it. They
@@ -19,7 +20,7 @@ import { getMessages, type Messages } from "@/lib/i18n/messages";
  * from the address. A client component must never import messages.ts itself
  * - only its types (`import type`).
  */
-export type SiteChrome = Record<Locale, Pick<Messages, "nav" | "footer">>;
+export type SiteChrome = Record<Locale, Pick<Messages, "nav" | "footer" | "consent">>;
 
 /** The same, plus the "page not found" copy, for the 404 page. */
 export type NotFoundCopy = Record<
@@ -31,7 +32,7 @@ export function siteChrome(): SiteChrome {
   return Object.fromEntries(
     LOCALES.map((locale) => {
       const t = getMessages(locale);
-      return [locale, { nav: t.nav, footer: t.footer }];
+      return [locale, { nav: t.nav, footer: t.footer, consent: t.consent }];
     }),
   ) as SiteChrome;
 }
