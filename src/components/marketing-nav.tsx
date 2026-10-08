@@ -372,86 +372,80 @@ export function MarketingNav({ chrome }: { chrome: SiteChrome }) {
   );
 }
 
-/** Footer link columns, localised the same way. */
+/**
+ * Footer link groups, localised the same way: Product, Company and Legal.
+ *
+ * Columns of short lists rather than the inline rows they replaced: three
+ * groups of three to six links sit side by side on a desktop, so the footer
+ * stays compact (the client's 2026-10-01 note was about a 500px-tall single
+ * column), and two columns plus Legal on a phone.
+ */
 export function MarketingFooterLinks({ chrome }: { chrome: SiteChrome }) {
   const pathname = usePathname();
   const { locale } = splitLocale(pathname);
   const t = chrome[locale];
   const href = (path: string) => localePath(locale, path);
 
-  /*
-    Two inline groups rather than two columns. The Product column listed
-    eleven links one under the other, which made the footer about 500px tall
-    (client, 2026-10-01: "now is too high"). Inline, they take two rows on a
-    desktop and wrap on narrower screens - also when a translation is longer.
-  */
-  return (
-    <div className="flex min-w-0 flex-1 flex-col gap-6 text-sm sm:flex-row lg:gap-8">
-      <div className="min-w-0 flex-1 lg:border-l lg:pl-8">
-        <p className="font-medium text-foreground">{t.footer.product}</p>
-        <FooterLinkRow
-          items={[
-            { href: href("/audit"), label: t.footer.freeCheck },
-            { href: href("/tools"), label: t.footer.freeTools },
-            { href: href("/pricing"), label: t.footer.pricing },
-            // Also in the header; listed here so the footer stays a full index.
-            { href: "/success-stories", label: t.nav.successStories },
-            { href: "/blog", label: t.footer.blog },
-            { href: "/faq", label: t.footer.faq },
-            { href: "/about", label: t.footer.about },
-            {
-              href: href("/backlink-exchange"),
-              label: t.footer.backlinkExchange,
-            },
-            { href: "/publishers", label: t.footer.publishers },
-            { href: "/affiliate", label: t.footer.affiliate },
-            { href: "/contact", label: t.footer.contact },
-          ]}
-        />
-      </div>
+  const groups = [
+    {
+      title: t.footer.product,
+      items: [
+        { href: href("/audit"), label: t.footer.freeCheck },
+        { href: href("/tools"), label: t.footer.freeTools },
+        { href: href("/pricing"), label: t.footer.pricing },
+        { href: href("/backlink-exchange"), label: t.footer.backlinkExchange },
+        { href: href("/publishers"), label: t.footer.publishers },
+        { href: href("/affiliate"), label: t.footer.affiliate },
+      ],
+    },
+    {
+      /*
+        Through href() too: about, stories, FAQ and contact have translated
+        pages, and a German reader following one from here should land on the
+        German one. (href leaves a page that exists only in English - the
+        blog - on its own path.)
+      */
+      title: t.footer.company,
+      items: [
+        { href: href("/about"), label: t.footer.about },
+        // Also in the header; listed here so the footer stays a full index.
+        { href: href("/success-stories"), label: t.nav.successStories },
+        { href: href("/blog"), label: t.footer.blog },
+        { href: href("/faq"), label: t.footer.faq },
+        { href: href("/contact"), label: t.footer.contact },
+      ],
+    },
+    {
+      /*
+        Legal pages stay in English: privacy, terms and refunds carry
+        commitments with specific legal meanings, and a mistranslated one is
+        a liability rather than a typo.
+      */
+      title: t.footer.legal,
+      items: [
+        { href: "/privacy", label: t.footer.privacy },
+        { href: "/terms", label: t.footer.terms },
+        { href: "/refunds", label: t.footer.refunds },
+      ],
+    },
+  ];
 
-      <div className="shrink-0 lg:border-l lg:pl-8">
-        <p className="font-medium text-foreground">{t.footer.legal}</p>
-        {/*
-          Legal pages stay in English: privacy, terms and refunds carry
-          commitments with specific legal meanings, and a mistranslated one is
-          a liability rather than a typo.
-        */}
-        <FooterLinkRow
-          items={[
-            { href: "/privacy", label: t.footer.privacy },
-            { href: "/terms", label: t.footer.terms },
-            { href: "/refunds", label: t.footer.refunds },
-          ]}
-        />
-      </div>
-    </div>
-  );
-}
-
-/**
- * Links in a row, separated by "|", wrapping as the width needs.
- *
- * Every link carries the separator BEFORE it, and the list is shifted left by
- * exactly one separator inside a clipping box: the separator that would start
- * each line falls outside it. So a wrapped line never begins with a stray "|",
- * however the links happen to wrap.
- */
-function FooterLinkRow({ items }: { items: { href: string; label: string }[] }) {
   return (
-    <div className="mt-2 overflow-hidden">
-      <ul className="-ml-5 flex flex-wrap gap-y-1.5">
-        {items.map((item) => (
-          <li key={item.href} className="flex items-center">
-            <span aria-hidden="true" className="inline-block w-5 text-center text-border">
-              |
-            </span>
-            <Link href={item.href} className="whitespace-nowrap text-muted-foreground hover:text-foreground">
-              {item.label}
-            </Link>
-          </li>
-        ))}
-      </ul>
+    <div className="grid min-w-0 flex-1 grid-cols-2 gap-x-6 gap-y-8 text-sm sm:grid-cols-3">
+      {groups.map((group) => (
+        <nav key={group.title} aria-label={group.title}>
+          <p className="font-medium text-foreground">{group.title}</p>
+          <ul className="mt-3 space-y-2">
+            {group.items.map((item) => (
+              <li key={item.href}>
+                <Link href={item.href} className="text-muted-foreground transition-colors hover:text-foreground">
+                  {item.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      ))}
     </div>
   );
 }

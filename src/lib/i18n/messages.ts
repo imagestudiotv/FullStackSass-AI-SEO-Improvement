@@ -68,6 +68,8 @@ export type Messages = {
   footer: {
     tagline: string;
     product: string;
+    /** The footer's middle group: about, stories, blog, FAQ, contact. */
+    company: string;
     legal: string;
     freeCheck: string;
     freeTools: string;
@@ -89,7 +91,12 @@ export type Messages = {
     subtitle: string;
     checkFree: string;
     getStarted: string;
-    noCard: string;
+    /**
+     * The three reassurances under the hero buttons, shown with a dot between
+     * them. A list rather than one sentence so a phone can wrap between items
+     * instead of leaving a dot at the start of a line.
+     */
+    heroAssurances: string[];
     /** "Free with your audit" band. */
     auditBand: string;
     auditItems: { title: string; body: string }[];
@@ -104,33 +111,88 @@ export type Messages = {
      */
     auditAssurances: string[];
     checkMyWebsite: string;
+    /** The heading that leads from the video into the audit card. */
+    auditIntroTitle: string;
+    auditIntroSub: string;
+    /** The audit field's label (visually hidden) and its pending button text. */
+    auditFieldLabel: string;
+    auditChecking: string;
     howItWorks: string;
+    howItWorksSub: string;
     steps: { title: string; body: string }[];
+    /** Marks a drawing or figures as an illustration, not real data. */
+    exampleLabel: string;
+    /** The Audit step's drawing: a score and three findings the audit really reports. */
+    howAudit: { score: string; findings: string[] };
+    /** Under the integration marks in the Connect step. */
+    howConnectNote: string;
+    /** Accessible name of each integration tile: "{name} setup guide". */
+    howConnectGuide: string;
+    /** The Grow step's drawing. */
+    howGrow: { metric: string; source: string };
     /** Problem / solution. */
     problemsEyebrow: string;
+    problemsTitle: string;
     yourProblem: string;
     ourSolution: string;
-    problems: string[];
-    solutionTitle: string;
-    solution: string[];
+    /**
+     * Each problem with the answer to it, so a phone shows them as pairs.
+     * Every solution names something the product does today.
+     */
+    pairs: { problem: string; solution: string }[];
     /** One subscription. */
-    stackEyebrow: string;
     stackTitle: string;
     stackTitleAccent: string;
     stackSub: string;
     seePricing: string;
     replaces: string[];
-    /** Publishing. */
-    publishesTitle: string;
-    publishesAccent: string;
-    publishesTitleEnd: string;
+    /** Publishing notes, shown with the article examples. */
     publishesSub: string;
     publishesPlugin: string;
-    platformOther: string;
+    /**
+     * The article examples. The samples are written for the page and say so:
+     * they show the format, not an article from a customer account.
+     */
+    articles: {
+      eyebrow: string;
+      title: string;
+      sub: string;
+      points: string[];
+      /** Name of the list of sample cards, for a screen reader. */
+      selectorLabel: string;
+      sampleLabel: string;
+      sampleNote: string;
+      /** "{n} min read" */
+      readTime: string;
+      contentsLabel: string;
+      samples: {
+        kind: string;
+        title: string;
+        minutes: number;
+        description: string;
+        contents: string[];
+        heading: string;
+        paragraphs: string[];
+        /** An optional comparison table, the way the generator can add one. */
+        table?: { head: string[]; rows: string[][] };
+      }[];
+    };
     /** What you see. */
     trackedTitle: string;
     trackedSub: string;
     tracked: { label: string; detail: string }[];
+    /** Under the example analytics cards. */
+    trackedCaption: string;
+    /** Words inside the example analytics cards. */
+    trackedDemo: {
+      clicks: string;
+      impressions: string;
+      mentioned: string;
+      notYet: string;
+      liveLinks: string;
+      published: string;
+      scheduled: string;
+    };
     /**
      * The cards floating either side of the headline.
      *
@@ -156,6 +218,25 @@ export type Messages = {
     /** Heading over the dashboard preview. */
     previewTitle: string;
     previewSub: string;
+    /** The words inside the dashboard drawing. */
+    preview: {
+      nav: string[];
+      period: string;
+      stats: string[];
+      calendarTitle: string;
+      viewAll: string;
+      calendar: { month: string; day: string; title: string }[];
+      statusDraft: string;
+      statusGenerating: string;
+      statusPlanned: string;
+      statusPublished: string;
+      latestTitle: string;
+      articleTitle: string;
+      articleExcerpt: string;
+      viewArticle: string;
+      scoreTitle: string;
+      checks: string[];
+    };
     /**
      * Says the figures in the product shot are an example.
      *
@@ -170,9 +251,13 @@ export type Messages = {
     /** The video section itself. */
     videoTitle: string;
     videoSub: string;
-    videoComingSoon: string;
-    /** Integration band under the hero. Not customer logos — see the section. */
-    worksWithTitle: string;
+    /** The play button's accessible name. */
+    videoPlay: string;
+    /** The player iframe's title. */
+    videoFrameTitle: string;
+    videoWatchOnYouTube: string;
+    /** Read after a link that opens a new tab. */
+    opensInNewTab: string;
     /** Backlink network. */
     networkEyebrow: string;
     networkTitle: string;
@@ -180,6 +265,26 @@ export type Messages = {
     networkHeading: string;
     networkPoints: string[];
     networkHowLink: string;
+    /** The illustrative placement card beside the network section. */
+    networkCard: {
+      label: string;
+      site: string;
+      article: string;
+      mention: string;
+      placement: string;
+      status: string;
+      credit: string;
+    };
+    /** Testimonials. Shown only when there are approved quotes. */
+    testimonialsEyebrow: string;
+    testimonialsTitle: string;
+    testimonialsVerified: string;
+    /** "{score}/{outOf} on {platform} from {count} reviews" */
+    reviewScore: string;
+    /** Homepage FAQ. Questions come from the FAQ page's own list. */
+    faqEyebrow: string;
+    faqMore: string;
+    faqContact: string;
     /** Pricing preview. */
     pricingEyebrow: string;
     pricingTitle: string;
@@ -2908,6 +3013,7 @@ const en: Messages = {
   footer: {
     tagline: "SEO results for small businesses, without the agency.",
     product: "Product",
+    company: "Company",
     legal: "Legal",
     freeCheck: "Free website check",
     freeTools: "Free tools",
@@ -2930,7 +3036,7 @@ const en: Messages = {
       "RepGet publishes SEO content, earns quality backlinks, and builds the authority that gets your business discovered.",
     checkFree: "Check my website for free",
     getStarted: "Get Started",
-    noCard: "No card required to run your first check.",
+    heroAssurances: ["Free website check", "No credit card required", "Results in minutes"],
     auditBand: "Free with your audit",
     auditItems: [
       {
@@ -2949,7 +3055,12 @@ const en: Messages = {
     auditPlaceholder: "Enter your website",
     auditAssurances: ["No account needed", "Nothing to cancel"],
     checkMyWebsite: "Check my website",
+    auditIntroTitle: "Now see what RepGet finds on your website.",
+    auditIntroSub: "Run a free SEO and AI visibility check and discover what is holding your website back.",
+    auditFieldLabel: "Your website address",
+    auditChecking: "Checking…",
     howItWorks: "How it works",
+    howItWorksSub: "From a free check to articles on your own site, in three steps.",
     steps: [
       {
         title: "Audit",
@@ -2957,32 +3068,52 @@ const en: Messages = {
       },
       {
         title: "Connect",
-        body: "Link your site - WordPress, Ghost, Shopify or a webhook - so we can publish for you.",
+        body: "Link your site - WordPress, Ghost, Shopify, Webflow, Wix or a webhook - so we can publish for you.",
       },
       {
         title: "Grow",
         body: "We research, write and publish, then show you what actually changed.",
       },
     ],
+    exampleLabel: "Example",
+    howAudit: {
+      score: "Site health",
+      findings: [
+        "No description for search results",
+        "Images have no description",
+        "Not mentioned by AI assistants yet",
+      ],
+    },
+    howConnectNote: "Direct connections, plus a webhook for any other site.",
+    howConnectGuide: "{name} setup guide",
+    howGrow: {
+      metric: "Clicks from Google",
+      source: "From Search Console",
+    },
     problemsEyebrow: "Problems & solution",
+    problemsTitle: "SEO shouldn't require five tools and a full-time team.",
     yourProblem: "Your problem",
     ourSolution: "Our solution",
-    problems: [
-      "Paid ads drain your budget every month - and stop the moment you do.",
-      "Hours lost juggling audits, keywords, content and a stack of separate tools.",
-      "AI assistants recommend your competitors, and you never find out.",
+    pairs: [
+      {
+        problem: "Paid ads drain your budget every month - and stop the moment you do.",
+        solution: "Articles written and published to your site every month: content you own, not traffic you rent.",
+      },
+      {
+        problem: "Hours lost juggling audits, keywords, content and a stack of separate tools.",
+        solution: "Audit, keyword research, writing, publishing and backlinks, run from one dashboard.",
+      },
+      {
+        problem: "AI assistants recommend your competitors, and you never find out.",
+        solution: "AI visibility tracking shows whether ChatGPT, Gemini, Perplexity and others mention you.",
+      },
+      {
+        problem: "Pages quietly lose rankings, and you only notice when enquiries slow down.",
+        solution: "Losing-traffic reports flag pages getting fewer clicks in Search Console, so you can refresh them in time.",
+      },
     ],
-    solutionTitle: "Everything you need, in one place",
-    solution: [
-      "Full SEO and AI-readiness audit",
-      "AI visibility tracking across assistants",
-      "Keyword and market research",
-      "Articles written for you, published automatically",
-      "Backlinks earned from real businesses",
-    ],
-    stackEyebrow: "Us vs. a stack of tools",
-    stackTitle: "One subscription replaces",
-    stackTitleAccent: "your whole SEO stack",
+    stackTitle: "All the tools you need,",
+    stackTitleAccent: "in one place.",
     stackSub:
       "Audit, AI visibility, research, content, publishing, backlinks and reporting - in one place, for less than the tools cost separately.",
     seePricing: "See pricing",
@@ -2995,14 +3126,87 @@ const en: Messages = {
       "Backlink building",
       "Search Console and Analytics reporting",
     ],
-    publishesTitle: "Publishes",
-    publishesAccent: "directly",
-    publishesTitleEnd: "to your site",
     publishesSub:
       "Connect once. No manual uploads, no copy-paste - articles appear on your site automatically, with their images.",
     publishesPlugin:
       "Our WordPress plugin connects with one key, and works even if your host blocks the WordPress API.",
-    platformOther: "Any site via webhook",
+    articles: {
+      eyebrow: "Content engine",
+      title: "Articles written for what your customers search",
+      sub: "RepGet researches each topic, writes in your language and tone, and publishes to your site - with images, internal links and a meta description.",
+      points: [
+        "Topics chosen from real searches in your market",
+        "Written natively in your language, in the tone you set",
+        "Clear headings, a contents list and comparison tables where they help",
+        "Published automatically, or kept as drafts for you to review",
+      ],
+      selectorLabel: "Sample articles",
+      sampleLabel: "Illustrative sample",
+      sampleNote: "Written for this page to show the format - not an article from a customer's account.",
+      readTime: "{n} min read",
+      contentsLabel: "Contents",
+      samples: [
+        {
+          kind: "How-to guide",
+          title: "How to choose a wedding photographer: 7 questions to ask",
+          minutes: 6,
+          description: "The questions that reveal a photographer's style, experience and what is really included - before you sign anything.",
+          contents: [
+            "Start with the style you love",
+            "Ask what the package really includes",
+            "Check how they work on the day",
+            "Read the contract before you pay",
+          ],
+          heading: "Start with the style you love",
+          paragraphs: [
+            "Before comparing prices, look through two or three complete weddings each photographer has shot - not just their best single images. A full gallery shows how they handle low light, group photos and the quiet moments in between.",
+            "If you keep coming back to the same feel - natural and candid, or posed and polished - you have narrowed the list before the first call.",
+          ],
+        },
+        {
+          kind: "Cost guide",
+          title: "Bathroom renovation costs: what really affects the price",
+          minutes: 7,
+          description: "Layout changes, materials and labour each move the final price. Here is how to see where your budget will go before you ask for quotes.",
+          contents: [
+            "Keeping the layout or moving it",
+            "Materials: where to save and where not to",
+            "Labour and the order of the work",
+            "Getting quotes you can compare",
+          ],
+          heading: "Keeping the layout or moving it",
+          paragraphs: [
+            "The biggest single decision is whether the toilet, shower and basin stay where they are. Moving them means new pipework and often new flooring, which adds days of work before anything visible changes.",
+            "If the current layout works, keeping it lets more of the budget go into the finishes you will see every day.",
+          ],
+        },
+        {
+          kind: "Comparison",
+          title: "Heat pump or gas boiler: which suits your home?",
+          minutes: 8,
+          description: "A side-by-side look at running costs, installation and the kind of home each one suits, so you know what to ask an installer.",
+          contents: [
+            "How each system heats your home",
+            "Side-by-side comparison",
+            "Which homes suit a heat pump",
+            "Questions to ask an installer",
+          ],
+          heading: "Side-by-side comparison",
+          paragraphs: [
+            "Both can heat a home well. The difference is in how they do it, what they need from the building, and how the costs are spread over the years.",
+          ],
+          table: {
+            head: ["", "Heat pump", "Gas boiler"],
+            rows: [
+              ["Upfront cost", "Higher", "Lower"],
+              ["Running cost", "Depends on insulation", "Depends on gas prices"],
+              ["Best suited to", "Well-insulated homes", "Most existing homes"],
+              ["Space needed", "Outdoor unit", "Wall-mounted unit"],
+            ],
+          },
+        },
+      ],
+    },
     trackedTitle: "You see exactly what changed",
     trackedSub:
       "Not a monthly PDF. A dashboard reading your own Search Console and Analytics data.",
@@ -3012,6 +3216,16 @@ const en: Messages = {
       { label: "Backlinks earned", detail: "Checked every day" },
       { label: "Articles published", detail: "And what they did" },
     ],
+    trackedCaption: "Example data for illustration. Your own dashboard shows your figures, from your own accounts.",
+    trackedDemo: {
+      clicks: "Clicks",
+      impressions: "Impressions",
+      mentioned: "Mentioned",
+      notYet: "Not yet",
+      liveLinks: "Live links",
+      published: "Published",
+      scheduled: "Scheduled",
+    },
     pillars: [
       {
         title: "Publish SEO content",
@@ -3032,6 +3246,45 @@ const en: Messages = {
     ],
     previewTitle: "Your growth, on autopilot.",
     previewSub: "High-quality content. Real backlinks. More visibility.",
+    preview: {
+      nav: ["Dashboard", "Content", "Backlinks", "Keywords", "Calendar", "Reports", "Settings"],
+      period: "Last 30 days",
+      stats: ["Articles published", "Backlinks built", "Keywords improved", "Estimated traffic"],
+      calendarTitle: "Content calendar",
+      viewAll: "View all",
+      calendar: [
+        {
+          month: "SEP",
+          day: "14",
+          title: "How to choose a supplier",
+        },
+        {
+          month: "SEP",
+          day: "16",
+          title: "What our prices include",
+        },
+        {
+          month: "SEP",
+          day: "18",
+          title: "Five questions to ask first",
+        },
+        {
+          month: "SEP",
+          day: "20",
+          title: "A guide for first-time buyers",
+        },
+      ],
+      statusDraft: "Draft",
+      statusGenerating: "Generating",
+      statusPlanned: "Planned",
+      statusPublished: "Published",
+      latestTitle: "Latest article",
+      articleTitle: "The complete guide for 2026",
+      articleExcerpt: "Written from what your customers actually search for, then published to your own site.",
+      viewArticle: "View article",
+      scoreTitle: "SEO score",
+      checks: ["Keyword optimised", "Meta description", "Internal links", "Image SEO", "Readability"],
+    },
     previewCaption:
       "An example dashboard. Your own figures start at zero and grow from there.",
     titleLead: "Rank on Google.",
@@ -3047,11 +3300,11 @@ const en: Messages = {
     joinGoogle: "Join with Google",
     seeHow: "See how it works",
     videoTitle: "See RepGet in two minutes",
-    videoSub:
-      "A short walkthrough of what happens after you connect a website.",
-    videoComingSoon:
-      "The walkthrough video is being recorded. In the meantime, the free check shows you the same thing on your own site.",
-    worksWithTitle: "Works with the tools you already use",
+    videoSub: "See how RepGet turns your website into a complete SEO growth workflow.",
+    videoPlay: "Play the video: See RepGet in two minutes",
+    videoFrameTitle: "RepGet walkthrough video",
+    videoWatchOnYouTube: "Watch on YouTube",
+    opensInNewTab: "(opens in a new tab)",
     networkEyebrow: "A vetted backlink network",
     networkTitle: "A backlink network",
     networkTitleRest: "that gets stronger with every new customer.",
@@ -3063,6 +3316,22 @@ const en: Messages = {
       "Checked daily - if a link is removed, tell us and your credit comes back",
     ],
     networkHowLink: "How the exchange works",
+    networkCard: {
+      label: "Placement opportunity",
+      site: "A business in a related field",
+      article: "Spring checklist: getting your garden ready for the season",
+      mention: "Your business, mentioned in the body of the article",
+      placement: "In context, not on a page of links",
+      status: "Checked daily",
+      credit: "1 link credit",
+    },
+    testimonialsEyebrow: "Testimonials",
+    testimonialsTitle: "What people say about RepGet",
+    testimonialsVerified: "Verified customer",
+    reviewScore: "{score}/{outOf} on {platform}, from {count} reviews",
+    faqEyebrow: "FAQ",
+    faqMore: "Still have a question?",
+    faqContact: "Contact us",
     pricingEyebrow: "Pricing",
     pricingTitle: "Start small.",
     pricingTitleAccent: "Grow when you are ready.",
@@ -3078,7 +3347,7 @@ const en: Messages = {
     planArticles: "{n} article each month|{n} articles each month",
     planBacklinks: "Backlinks from our partner network",
     planPublishing: "Auto-publish to WordPress, Shopify and more",
-    closingTitle: "Start growing on autopilot today",
+    closingTitle: "Start growing with RepGet today.",
     closingSub:
       "Run a free check on your website and see what is holding it back. No account needed.",
     cancelAnytime: "Cancel any time",
@@ -5750,6 +6019,7 @@ const es: Messages = {
   footer: {
     tagline: "Resultados SEO para pequeñas empresas, sin agencia.",
     product: "Producto",
+    company: "Empresa",
     legal: "Legal",
     freeCheck: "Análisis gratuito de tu web",
     freeTools: "Herramientas gratuitas",
@@ -5772,7 +6042,7 @@ const es: Messages = {
       "RepGet publica contenido SEO, consigue enlaces de calidad y construye la autoridad que hace que descubran su negocio.",
     checkFree: "Analizar mi web gratis",
     getStarted: "Empezar",
-    noCard: "No hace falta tarjeta para el primer análisis.",
+    heroAssurances: ["Análisis web gratuito", "Sin tarjeta de crédito", "Resultados en minutos"],
     auditBand: "Gratis con tu análisis",
     auditItems: [
       {
@@ -5791,7 +6061,12 @@ const es: Messages = {
     auditPlaceholder: "Introduzca su web",
     auditAssurances: ["Sin crear cuenta", "Nada que cancelar"],
     checkMyWebsite: "Analizar mi web",
+    auditIntroTitle: "Ahora vea qué encuentra RepGet en su web.",
+    auditIntroSub: "Haga un análisis gratuito de SEO y de visibilidad en IA y descubra qué está frenando su web.",
+    auditFieldLabel: "La dirección de su web",
+    auditChecking: "Analizando…",
     howItWorks: "Cómo funciona",
+    howItWorksSub: "De un análisis gratuito a artículos en su propia web, en tres pasos.",
     steps: [
       {
         title: "Análisis",
@@ -5799,32 +6074,52 @@ const es: Messages = {
       },
       {
         title: "Conexión",
-        body: "Conecte su web - WordPress, Ghost, Shopify o un webhook - para que publiquemos por usted.",
+        body: "Conecte su web - WordPress, Ghost, Shopify, Webflow, Wix o un webhook - para que publiquemos por usted.",
       },
       {
         title: "Crecimiento",
         body: "Investigamos, escribimos y publicamos, y le mostramos qué ha cambiado de verdad.",
       },
     ],
+    exampleLabel: "Ejemplo",
+    howAudit: {
+      score: "Salud del sitio",
+      findings: [
+        "Sin descripción para los resultados de búsqueda",
+        "Imágenes sin descripción",
+        "Aún no le mencionan los asistentes de IA",
+      ],
+    },
+    howConnectNote: "Conexiones directas, y un webhook para cualquier otra web.",
+    howConnectGuide: "Guía de configuración de {name}",
+    howGrow: {
+      metric: "Clics desde Google",
+      source: "Desde Search Console",
+    },
     problemsEyebrow: "Problemas y solución",
+    problemsTitle: "El SEO no debería exigir cinco herramientas y un equipo a tiempo completo.",
     yourProblem: "Su problema",
     ourSolution: "Nuestra solución",
-    problems: [
-      "La publicidad de pago agota su presupuesto cada mes, y se detiene en cuanto usted lo hace.",
-      "Horas perdidas entre auditorías, palabras clave, contenido y un montón de herramientas distintas.",
-      "Los asistentes de IA recomiendan a su competencia, y usted nunca se entera.",
+    pairs: [
+      {
+        problem: "La publicidad de pago agota su presupuesto cada mes, y se detiene en cuanto usted lo hace.",
+        solution: "Artículos escritos y publicados en su web cada mes: contenido que es suyo, no tráfico alquilado.",
+      },
+      {
+        problem: "Horas perdidas entre auditorías, palabras clave, contenido y un montón de herramientas distintas.",
+        solution: "Auditoría, investigación de palabras clave, redacción, publicación y enlaces desde un solo panel.",
+      },
+      {
+        problem: "Los asistentes de IA recomiendan a su competencia, y usted nunca se entera.",
+        solution: "El seguimiento de visibilidad en IA muestra si ChatGPT, Gemini, Perplexity y otros le mencionan.",
+      },
+      {
+        problem: "Las páginas pierden posiciones poco a poco, y solo lo nota cuando bajan las consultas.",
+        solution: "Los informes de tráfico en descenso señalan las páginas que reciben menos clics en Search Console, para que pueda actualizarlas a tiempo.",
+      },
     ],
-    solutionTitle: "Todo lo que necesita, en un solo sitio",
-    solution: [
-      "Auditoría SEO y de preparación para IA",
-      "Seguimiento de visibilidad en asistentes de IA",
-      "Investigación de palabras clave y mercado",
-      "Artículos escritos y publicados automáticamente",
-      "Enlaces ganados de empresas reales",
-    ],
-    stackEyebrow: "Nosotros frente a un montón de herramientas",
-    stackTitle: "Una suscripción sustituye",
-    stackTitleAccent: "todo su conjunto de herramientas SEO",
+    stackTitle: "Todas las herramientas que necesita,",
+    stackTitleAccent: "en un solo sitio.",
     stackSub:
       "Auditoría, visibilidad en IA, investigación, contenido, publicación, enlaces e informes: todo en un sitio y por menos de lo que cuestan las herramientas por separado.",
     seePricing: "Ver precios",
@@ -5837,14 +6132,91 @@ const es: Messages = {
       "Creación de enlaces",
       "Informes de Search Console y Analytics",
     ],
-    publishesTitle: "Publica",
-    publishesAccent: "directamente",
-    publishesTitleEnd: "en su web",
     publishesSub:
       "Conecte una vez. Sin subidas manuales ni copiar y pegar: los artículos aparecen solos en su web, con sus imágenes.",
     publishesPlugin:
       "Nuestro plugin de WordPress se conecta con una sola clave y funciona incluso si su alojamiento bloquea la API de WordPress.",
-    platformOther: "Cualquier web mediante webhook",
+    articles: {
+      eyebrow: "Motor de contenido",
+      title: "Artículos escritos para lo que buscan sus clientes",
+      sub: "RepGet investiga cada tema, escribe en su idioma y con su tono, y publica en su web - con imágenes, enlaces internos y una meta descripción.",
+      points: [
+        "Temas elegidos a partir de búsquedas reales en su mercado",
+        "Escritos de forma nativa en su idioma, con el tono que usted elija",
+        "Títulos claros, un índice y tablas comparativas cuando ayudan",
+        "Publicados automáticamente, o guardados como borradores para revisarlos",
+      ],
+      selectorLabel: "Artículos de muestra",
+      sampleLabel: "Muestra ilustrativa",
+      sampleNote: "Escrita para esta página para mostrar el formato; no es un artículo de la cuenta de un cliente.",
+      readTime: "{n} min de lectura",
+      contentsLabel: "Índice",
+      samples: [
+        {
+          kind: "Guía práctica",
+          title: "Cómo elegir fotógrafo de boda: 7 preguntas que hacer",
+          minutes: 6,
+          description: "Las preguntas que revelan el estilo, la experiencia y lo que realmente incluye un fotógrafo, antes de firmar nada.",
+          contents: [
+            "Empiece por el estilo que le gusta",
+            "Pregunte qué incluye realmente el paquete",
+            "Compruebe cómo trabaja el día de la boda",
+            "Lea el contrato antes de pagar",
+          ],
+          heading: "Empiece por el estilo que le gusta",
+          paragraphs: [
+            "Antes de comparar precios, revise dos o tres bodas completas que haya fotografiado cada profesional, no solo sus mejores imágenes sueltas. Una galería completa muestra cómo resuelve la poca luz, las fotos de grupo y los momentos tranquilos entre medias.",
+            "Si vuelve una y otra vez al mismo estilo, natural y espontáneo o posado y cuidado, ya habrá acortado la lista antes de la primera llamada.",
+          ],
+        },
+        {
+          kind: "Guía de costes",
+          title: "Reformar un baño: qué influye realmente en el precio",
+          minutes: 7,
+          description: "La distribución, los materiales y la mano de obra mueven el precio final. Así puede ver adónde irá su presupuesto antes de pedir ofertas.",
+          contents: [
+            "Mantener la distribución o cambiarla",
+            "Materiales: dónde ahorrar y dónde no",
+            "La mano de obra y el orden de los trabajos",
+            "Pedir ofertas que se puedan comparar",
+          ],
+          heading: "Mantener la distribución o cambiarla",
+          paragraphs: [
+            "La decisión más importante es si el inodoro, la ducha y el lavabo se quedan donde están. Moverlos implica tuberías nuevas y a menudo suelo nuevo, lo que suma días de obra antes de que cambie nada visible.",
+            "Si la distribución actual funciona, mantenerla permite dedicar más presupuesto a los acabados que verá cada día.",
+          ],
+        },
+        {
+          kind: "Comparativa",
+          title: "¿Bomba de calor o caldera de gas? Cuál le conviene a su casa",
+          minutes: 8,
+          description: "Una comparación de costes de uso, instalación y el tipo de vivienda al que se adapta cada sistema, para saber qué preguntar al instalador.",
+          contents: [
+            "Cómo calienta su casa cada sistema",
+            "Comparación lado a lado",
+            "Qué viviendas se adaptan a una bomba de calor",
+            "Preguntas para el instalador",
+          ],
+          heading: "Comparación lado a lado",
+          paragraphs: [
+            "Ambos pueden calentar bien una vivienda. La diferencia está en cómo lo hacen, qué necesitan del edificio y cómo se reparten los costes a lo largo de los años.",
+          ],
+          table: {
+            head: ["", "Bomba de calor", "Caldera de gas"],
+            rows: [
+              ["Coste inicial", "Más alto", "Más bajo"],
+              ["Coste de uso", "Depende del aislamiento", "Depende del precio del gas"],
+              [
+                "Más adecuada para",
+                "Viviendas bien aisladas",
+                "La mayoría de viviendas existentes",
+              ],
+              ["Espacio necesario", "Unidad exterior", "Unidad mural"],
+            ],
+          },
+        },
+      ],
+    },
     trackedTitle: "Ve exactamente qué ha cambiado",
     trackedSub:
       "No es un PDF mensual. Es un panel que lee sus propios datos de Search Console y Analytics.",
@@ -5854,6 +6226,16 @@ const es: Messages = {
       { label: "Enlaces conseguidos", detail: "Comprobados a diario" },
       { label: "Artículos publicados", detail: "Y qué resultado dieron" },
     ],
+    trackedCaption: "Datos de ejemplo con fines ilustrativos. Su panel muestra sus propias cifras, de sus propias cuentas.",
+    trackedDemo: {
+      clicks: "Clics",
+      impressions: "Impresiones",
+      mentioned: "Le menciona",
+      notYet: "Aún no",
+      liveLinks: "Enlaces activos",
+      published: "Publicado",
+      scheduled: "Programado",
+    },
     pillars: [
       {
         title: "Publique contenido SEO",
@@ -5874,6 +6256,56 @@ const es: Messages = {
     ],
     previewTitle: "Su crecimiento, en automático.",
     previewSub: "Contenido de calidad. Enlaces reales. Más visibilidad.",
+    preview: {
+      nav: ["Panel", "Contenido", "Enlaces", "Palabras clave", "Calendario", "Informes", "Ajustes"],
+      period: "Últimos 30 días",
+      stats: [
+        "Artículos publicados",
+        "Enlaces conseguidos",
+        "Palabras clave mejoradas",
+        "Tráfico estimado",
+      ],
+      calendarTitle: "Calendario de contenido",
+      viewAll: "Ver todo",
+      calendar: [
+        {
+          month: "SEP",
+          day: "14",
+          title: "Cómo elegir un proveedor",
+        },
+        {
+          month: "SEP",
+          day: "16",
+          title: "Qué incluyen nuestros precios",
+        },
+        {
+          month: "SEP",
+          day: "18",
+          title: "Cinco preguntas antes de empezar",
+        },
+        {
+          month: "SEP",
+          day: "20",
+          title: "Guía para quien compra por primera vez",
+        },
+      ],
+      statusDraft: "Borrador",
+      statusGenerating: "Generando",
+      statusPlanned: "Planificado",
+      statusPublished: "Publicado",
+      latestTitle: "Último artículo",
+      articleTitle: "La guía completa para 2026",
+      articleExcerpt: "Escrito a partir de lo que de verdad buscan sus clientes y publicado en su propia web.",
+      viewArticle: "Ver artículo",
+      scoreTitle: "Puntuación SEO",
+      checks: [
+        "Palabra clave optimizada",
+        "Meta descripción",
+        "Enlaces internos",
+        "SEO de imágenes",
+        "Legibilidad",
+      ],
+    },
     previewCaption:
       "Un panel de ejemplo. Sus cifras empiezan en cero y crecen desde ahí.",
     titleLead: "Posiciónese en Google.",
@@ -5892,11 +6324,11 @@ const es: Messages = {
     joinGoogle: "Entrar con Google",
     seeHow: "Vea cómo funciona",
     videoTitle: "Vea RepGet en dos minutos",
-    videoSub:
-      "Un recorrido breve por lo que ocurre después de conectar una web.",
-    videoComingSoon:
-      "Estamos grabando el vídeo explicativo. Mientras tanto, el análisis gratuito le enseña lo mismo sobre su propia web.",
-    worksWithTitle: "Funciona con las herramientas que ya usa",
+    videoSub: "Vea cómo RepGet convierte su web en un flujo de trabajo completo para crecer con SEO.",
+    videoPlay: "Reproducir el vídeo: Vea RepGet en dos minutos",
+    videoFrameTitle: "Vídeo de presentación de RepGet",
+    videoWatchOnYouTube: "Ver en YouTube",
+    opensInNewTab: "(se abre en una pestaña nueva)",
     networkEyebrow: "Una red de enlaces verificada",
     networkTitle: "Una red de enlaces",
     networkTitleRest: "que se refuerza con cada nuevo cliente.",
@@ -5908,6 +6340,22 @@ const es: Messages = {
       "Comprobados a diario: si se retira un enlace, avísenos y recupera su crédito",
     ],
     networkHowLink: "Cómo funciona el intercambio",
+    networkCard: {
+      label: "Oportunidad de enlace",
+      site: "Una empresa de un sector afín",
+      article: "Lista de primavera: prepare su jardín para la temporada",
+      mention: "Su negocio, mencionado en el cuerpo del artículo",
+      placement: "En contexto, no en una página de enlaces",
+      status: "Comprobado a diario",
+      credit: "1 crédito de enlace",
+    },
+    testimonialsEyebrow: "Testimonios",
+    testimonialsTitle: "Lo que dicen de RepGet",
+    testimonialsVerified: "Cliente verificado",
+    reviewScore: "{score}/{outOf} en {platform}, de {count} reseñas",
+    faqEyebrow: "Preguntas frecuentes",
+    faqMore: "¿Le queda alguna pregunta?",
+    faqContact: "Contáctenos",
     pricingEyebrow: "Precios",
     pricingTitle: "Empiece pequeño.",
     pricingTitleAccent: "Crezca cuando esté listo.",
@@ -5923,7 +6371,7 @@ const es: Messages = {
     planArticles: "{n} artículo al mes|{n} artículos al mes",
     planBacklinks: "Backlinks de nuestra red de socios",
     planPublishing: "Publicación automática en WordPress, Shopify y más",
-    closingTitle: "Empiece a crecer en piloto automático hoy",
+    closingTitle: "Empiece a crecer con RepGet hoy.",
     closingSub:
       "Analice su web gratis y vea qué la está frenando. Sin crear cuenta.",
     cancelAnytime: "Cancele cuando quiera",
@@ -8600,6 +9048,7 @@ const fr: Messages = {
   footer: {
     tagline: "Des résultats SEO pour les petites entreprises, sans agence.",
     product: "Produit",
+    company: "Entreprise",
     legal: "Mentions légales",
     freeCheck: "Analyse gratuite de votre site",
     freeTools: "Outils gratuits",
@@ -8622,7 +9071,11 @@ const fr: Messages = {
       "RepGet publie du contenu SEO, obtient des backlinks de qualité et construit l'autorité qui fait découvrir votre entreprise.",
     checkFree: "Analyser mon site gratuitement",
     getStarted: "Commencer",
-    noCard: "Aucune carte requise pour la première analyse.",
+    heroAssurances: [
+      "Analyse gratuite de votre site",
+      "Sans carte bancaire",
+      "Résultats en quelques minutes",
+    ],
     auditBand: "Offert avec votre analyse",
     auditItems: [
       {
@@ -8641,7 +9094,12 @@ const fr: Messages = {
     auditPlaceholder: "Entrez votre site",
     auditAssurances: ["Sans créer de compte", "Rien à annuler"],
     checkMyWebsite: "Analyser mon site",
+    auditIntroTitle: "Découvrez maintenant ce que RepGet trouve sur votre site.",
+    auditIntroSub: "Lancez une analyse gratuite du SEO et de votre visibilité dans l’IA, et découvrez ce qui freine votre site.",
+    auditFieldLabel: "L’adresse de votre site",
+    auditChecking: "Analyse en cours…",
     howItWorks: "Comment ça marche",
+    howItWorksSub: "D’une analyse gratuite à des articles publiés sur votre site, en trois étapes.",
     steps: [
       {
         title: "Analyse",
@@ -8649,32 +9107,52 @@ const fr: Messages = {
       },
       {
         title: "Connexion",
-        body: "Reliez votre site - WordPress, Ghost, Shopify ou un webhook - pour que nous publiions à votre place.",
+        body: "Reliez votre site - WordPress, Ghost, Shopify, Webflow, Wix ou un webhook - pour que nous publiions à votre place.",
       },
       {
         title: "Croissance",
         body: "Nous cherchons, rédigeons et publions, puis vous montrons ce qui a réellement changé.",
       },
     ],
+    exampleLabel: "Exemple",
+    howAudit: {
+      score: "Santé du site",
+      findings: [
+        "Aucune description pour les résultats de recherche",
+        "Images sans description",
+        "Pas encore cité par les assistants IA",
+      ],
+    },
+    howConnectNote: "Des connexions directes, et un webhook pour tout autre site.",
+    howConnectGuide: "Guide de configuration {name}",
+    howGrow: {
+      metric: "Clics depuis Google",
+      source: "Depuis Search Console",
+    },
     problemsEyebrow: "Problèmes et solution",
+    problemsTitle: "Le SEO ne devrait pas exiger cinq outils et une équipe à plein temps.",
     yourProblem: "Votre problème",
     ourSolution: "Notre solution",
-    problems: [
-      "La publicité payante épuise votre budget chaque mois, et s'arrête dès que vous arrêtez.",
-      "Des heures perdues entre audits, mots-clés, contenu et une pile d'outils séparés.",
-      "Les assistants IA recommandent vos concurrents, et vous ne le savez jamais.",
+    pairs: [
+      {
+        problem: "La publicité payante épuise votre budget chaque mois, et s'arrête dès que vous arrêtez.",
+        solution: "Des articles rédigés et publiés sur votre site chaque mois : un contenu qui vous appartient, pas du trafic loué.",
+      },
+      {
+        problem: "Des heures perdues entre audits, mots-clés, contenu et une pile d'outils séparés.",
+        solution: "Analyse, recherche de mots-clés, rédaction, publication et liens depuis un seul tableau de bord.",
+      },
+      {
+        problem: "Les assistants IA recommandent vos concurrents, et vous ne le savez jamais.",
+        solution: "Le suivi de la visibilité dans l’IA montre si ChatGPT, Gemini, Perplexity et d’autres vous mentionnent.",
+      },
+      {
+        problem: "Vos pages perdent des positions sans bruit, et vous ne le remarquez que lorsque les demandes ralentissent.",
+        solution: "Les rapports de trafic en baisse signalent les pages qui reçoivent moins de clics dans Search Console, pour que vous puissiez les actualiser à temps.",
+      },
     ],
-    solutionTitle: "Tout ce qu'il vous faut, au même endroit",
-    solution: [
-      "Audit SEO et préparation à l'IA",
-      "Suivi de visibilité dans les assistants IA",
-      "Recherche de mots-clés et de marché",
-      "Articles rédigés pour vous et publiés automatiquement",
-      "Liens gagnés auprès d'entreprises réelles",
-    ],
-    stackEyebrow: "Nous face à une pile d'outils",
-    stackTitle: "Un abonnement remplace",
-    stackTitleAccent: "toute votre panoplie SEO",
+    stackTitle: "Tous les outils dont vous avez besoin,",
+    stackTitleAccent: "au même endroit.",
     stackSub:
       "Audit, visibilité IA, recherche, contenu, publication, liens et rapports : le tout au même endroit, pour moins cher que les outils séparément.",
     seePricing: "Voir les tarifs",
@@ -8687,14 +9165,87 @@ const fr: Messages = {
       "Création de liens",
       "Rapports Search Console et Analytics",
     ],
-    publishesTitle: "Publie",
-    publishesAccent: "directement",
-    publishesTitleEnd: "sur votre site",
     publishesSub:
       "Connectez une fois. Aucun téléversement manuel, aucun copier-coller : les articles paraissent seuls sur votre site, avec leurs images.",
     publishesPlugin:
       "Notre extension WordPress se connecte avec une seule clé, et fonctionne même si votre hébergeur bloque l'API WordPress.",
-    platformOther: "N'importe quel site via webhook",
+    articles: {
+      eyebrow: "Moteur de contenu",
+      title: "Des articles écrits pour ce que recherchent vos clients",
+      sub: "RepGet étudie chaque sujet, rédige dans votre langue et avec votre ton, puis publie sur votre site - avec images, liens internes et méta-description.",
+      points: [
+        "Des sujets choisis à partir de vraies recherches sur votre marché",
+        "Rédigés nativement dans votre langue, avec le ton que vous choisissez",
+        "Des titres clairs, un sommaire et des tableaux comparatifs quand ils sont utiles",
+        "Publiés automatiquement, ou gardés en brouillon pour relecture",
+      ],
+      selectorLabel: "Articles d’exemple",
+      sampleLabel: "Exemple illustratif",
+      sampleNote: "Rédigé pour cette page afin de montrer le format ; ce n’est pas un article issu du compte d’un client.",
+      readTime: "{n} min de lecture",
+      contentsLabel: "Sommaire",
+      samples: [
+        {
+          kind: "Guide pratique",
+          title: "Choisir son photographe de mariage : 7 questions à poser",
+          minutes: 6,
+          description: "Les questions qui révèlent le style, l’expérience et ce qui est vraiment inclus, avant de signer quoi que ce soit.",
+          contents: [
+            "Partez du style qui vous plaît",
+            "Demandez ce que comprend vraiment la formule",
+            "Vérifiez comment il travaille le jour J",
+            "Lisez le contrat avant de payer",
+          ],
+          heading: "Partez du style qui vous plaît",
+          paragraphs: [
+            "Avant de comparer les prix, regardez deux ou trois mariages complets photographiés par chaque professionnel, et pas seulement ses meilleures images isolées. Une galerie complète montre comment il gère la faible lumière, les photos de groupe et les moments calmes entre deux temps forts.",
+            "Si vous revenez toujours au même rendu, naturel et spontané ou posé et soigné, votre liste est déjà réduite avant le premier appel.",
+          ],
+        },
+        {
+          kind: "Guide des coûts",
+          title: "Rénover une salle de bains : ce qui fait vraiment varier le prix",
+          minutes: 7,
+          description: "L’agencement, les matériaux et la main-d’œuvre font varier le prix final. Voici comment voir où ira votre budget avant de demander des devis.",
+          contents: [
+            "Garder l’agencement ou le modifier",
+            "Matériaux : où économiser et où ne pas le faire",
+            "La main-d’œuvre et l’ordre des travaux",
+            "Obtenir des devis comparables",
+          ],
+          heading: "Garder l’agencement ou le modifier",
+          paragraphs: [
+            "La décision la plus importante est de savoir si les toilettes, la douche et le lavabo restent à leur place. Les déplacer implique une nouvelle plomberie et souvent un nouveau sol, ce qui ajoute des jours de travaux avant que rien de visible ne change.",
+            "Si l’agencement actuel fonctionne, le conserver permet de consacrer davantage de budget aux finitions que vous verrez tous les jours.",
+          ],
+        },
+        {
+          kind: "Comparatif",
+          title: "Pompe à chaleur ou chaudière à gaz : laquelle convient à votre logement ?",
+          minutes: 8,
+          description: "Une comparaison des coûts d’usage, de l’installation et du type de logement adapté à chacune, pour savoir quoi demander à l’installateur.",
+          contents: [
+            "Comment chaque système chauffe votre logement",
+            "Comparaison côte à côte",
+            "Quels logements conviennent à une pompe à chaleur",
+            "Questions à poser à l’installateur",
+          ],
+          heading: "Comparaison côte à côte",
+          paragraphs: [
+            "Les deux peuvent bien chauffer un logement. La différence tient à leur fonctionnement, à ce qu’ils exigent du bâtiment et à la manière dont les coûts se répartissent au fil des années.",
+          ],
+          table: {
+            head: ["", "Pompe à chaleur", "Chaudière à gaz"],
+            rows: [
+              ["Coût initial", "Plus élevé", "Plus bas"],
+              ["Coût d’usage", "Dépend de l’isolation", "Dépend du prix du gaz"],
+              ["Idéale pour", "Logements bien isolés", "La plupart des logements existants"],
+              ["Encombrement", "Unité extérieure", "Unité murale"],
+            ],
+          },
+        },
+      ],
+    },
     trackedTitle: "Vous voyez exactement ce qui a changé",
     trackedSub:
       "Pas un PDF mensuel. Un tableau de bord qui lit vos propres données Search Console et Analytics.",
@@ -8704,6 +9255,16 @@ const fr: Messages = {
       { label: "Liens obtenus", detail: "Vérifiés chaque jour" },
       { label: "Articles publiés", detail: "Et ce qu'ils ont donné" },
     ],
+    trackedCaption: "Données d’exemple, à titre d’illustration. Votre tableau de bord affiche vos propres chiffres, issus de vos propres comptes.",
+    trackedDemo: {
+      clicks: "Clics",
+      impressions: "Impressions",
+      mentioned: "Mentionné",
+      notYet: "Pas encore",
+      liveLinks: "Liens actifs",
+      published: "Publié",
+      scheduled: "Planifié",
+    },
     pillars: [
       {
         title: "Publiez du contenu SEO",
@@ -8725,6 +9286,51 @@ const fr: Messages = {
     previewTitle: "Votre croissance, en pilote automatique.",
     previewSub:
       "Du contenu de qualité. De vrais backlinks. Plus de visibilité.",
+    preview: {
+      nav: ["Tableau de bord", "Contenu", "Liens", "Mots-clés", "Calendrier", "Rapports", "Paramètres"],
+      period: "30 derniers jours",
+      stats: ["Articles publiés", "Liens obtenus", "Mots-clés améliorés", "Trafic estimé"],
+      calendarTitle: "Calendrier éditorial",
+      viewAll: "Tout voir",
+      calendar: [
+        {
+          month: "SEPT",
+          day: "14",
+          title: "Comment choisir un fournisseur",
+        },
+        {
+          month: "SEPT",
+          day: "16",
+          title: "Ce que comprennent nos tarifs",
+        },
+        {
+          month: "SEPT",
+          day: "18",
+          title: "Cinq questions à poser d’abord",
+        },
+        {
+          month: "SEPT",
+          day: "20",
+          title: "Un guide pour un premier achat",
+        },
+      ],
+      statusDraft: "Brouillon",
+      statusGenerating: "En rédaction",
+      statusPlanned: "Planifié",
+      statusPublished: "Publié",
+      latestTitle: "Dernier article",
+      articleTitle: "Le guide complet pour 2026",
+      articleExcerpt: "Rédigé à partir de ce que vos clients recherchent vraiment, puis publié sur votre propre site.",
+      viewArticle: "Voir l’article",
+      scoreTitle: "Score SEO",
+      checks: [
+        "Mot-clé optimisé",
+        "Méta-description",
+        "Liens internes",
+        "SEO des images",
+        "Lisibilité",
+      ],
+    },
     previewCaption:
       "Un tableau de bord d'exemple. Vos propres chiffres partent de zéro.",
     titleLead: "Positionnez-vous sur Google.",
@@ -8743,11 +9349,11 @@ const fr: Messages = {
     joinGoogle: "Rejoindre avec Google",
     seeHow: "Voir comment ça marche",
     videoTitle: "Découvrez RepGet en deux minutes",
-    videoSub:
-      "Un court aperçu de ce qui se passe après avoir connecté un site.",
-    videoComingSoon:
-      "La vidéo de présentation est en cours d'enregistrement. En attendant, l'analyse gratuite vous montre la même chose sur votre propre site.",
-    worksWithTitle: "Fonctionne avec les outils que vous utilisez déjà",
+    videoSub: "Découvrez comment RepGet transforme votre site en un processus complet de croissance SEO.",
+    videoPlay: "Lire la vidéo : découvrez RepGet en deux minutes",
+    videoFrameTitle: "Vidéo de présentation de RepGet",
+    videoWatchOnYouTube: "Regarder sur YouTube",
+    opensInNewTab: "(s’ouvre dans un nouvel onglet)",
     networkEyebrow: "Un réseau de liens vérifié",
     networkTitle: "Un réseau de liens",
     networkTitleRest: "qui se renforce à chaque nouveau client.",
@@ -8759,6 +9365,22 @@ const fr: Messages = {
       "Vérifiés chaque jour : si un lien disparaît, prévenez-nous et votre crédit revient",
     ],
     networkHowLink: "Comment fonctionne l'échange",
+    networkCard: {
+      label: "Opportunité de lien",
+      site: "Une entreprise d’un secteur proche",
+      article: "Liste de printemps : préparer votre jardin pour la saison",
+      mention: "Votre entreprise, citée dans le corps de l’article",
+      placement: "En contexte, pas sur une page de liens",
+      status: "Vérifié chaque jour",
+      credit: "1 crédit de lien",
+    },
+    testimonialsEyebrow: "Témoignages",
+    testimonialsTitle: "Ce que l’on dit de RepGet",
+    testimonialsVerified: "Client vérifié",
+    reviewScore: "{score}/{outOf} sur {platform}, d’après {count} avis",
+    faqEyebrow: "FAQ",
+    faqMore: "Vous avez encore une question ?",
+    faqContact: "Contactez-nous",
     pricingEyebrow: "Tarifs",
     pricingTitle: "Commencez petit.",
     pricingTitleAccent: "Grandissez quand vous êtes prêt.",
@@ -8774,7 +9396,7 @@ const fr: Messages = {
     planArticles: "{n} article par mois|{n} articles par mois",
     planBacklinks: "Backlinks issus de notre réseau de partenaires",
     planPublishing: "Publication automatique sur WordPress, Shopify et plus",
-    closingTitle: "Commencez à croître en pilote automatique dès aujourd'hui",
+    closingTitle: "Commencez à grandir avec RepGet dès aujourd’hui.",
     closingSub:
       "Lancez une analyse gratuite de votre site et voyez ce qui le freine. Sans créer de compte.",
     cancelAnytime: "Annulez à tout moment",
@@ -11451,6 +12073,7 @@ const it: Messages = {
   footer: {
     tagline: "Risultati SEO per le piccole imprese, senza agenzia.",
     product: "Prodotto",
+    company: "Azienda",
     legal: "Note legali",
     freeCheck: "Analisi gratuita del tuo sito",
     freeTools: "Strumenti gratuiti",
@@ -11473,7 +12096,11 @@ const it: Messages = {
       "RepGet pubblica contenuti SEO, ottiene backlink di qualità e costruisce l'autorevolezza che fa scoprire la sua azienda.",
     checkFree: "Controlla il mio sito gratis",
     getStarted: "Inizia",
-    noCard: "Nessuna carta richiesta per la prima analisi.",
+    heroAssurances: [
+      "Analisi gratuita del sito",
+      "Nessuna carta di credito",
+      "Risultati in pochi minuti",
+    ],
     auditBand: "Incluso con la tua analisi",
     auditItems: [
       {
@@ -11492,7 +12119,12 @@ const it: Messages = {
     auditPlaceholder: "Inserisca il suo sito",
     auditAssurances: ["Senza registrarsi", "Nulla da annullare"],
     checkMyWebsite: "Analizza il mio sito",
+    auditIntroTitle: "Ora scopra cosa trova RepGet sul suo sito.",
+    auditIntroSub: "Avvii un’analisi gratuita di SEO e visibilità nell’IA e scopra cosa sta frenando il suo sito.",
+    auditFieldLabel: "L’indirizzo del suo sito",
+    auditChecking: "Analisi in corso…",
     howItWorks: "Come funziona",
+    howItWorksSub: "Da un’analisi gratuita ad articoli pubblicati sul suo sito, in tre passaggi.",
     steps: [
       {
         title: "Analisi",
@@ -11500,32 +12132,52 @@ const it: Messages = {
       },
       {
         title: "Collegamento",
-        body: "Colleghi il suo sito - WordPress, Ghost, Shopify o un webhook - così pubblichiamo noi per lei.",
+        body: "Colleghi il suo sito - WordPress, Ghost, Shopify, Webflow, Wix o un webhook - così pubblichiamo noi per lei.",
       },
       {
         title: "Crescita",
         body: "Facciamo ricerca, scriviamo e pubblichiamo, poi le mostriamo che cosa è cambiato davvero.",
       },
     ],
+    exampleLabel: "Esempio",
+    howAudit: {
+      score: "Salute del sito",
+      findings: [
+        "Nessuna descrizione per i risultati di ricerca",
+        "Immagini senza descrizione",
+        "Non ancora citato dagli assistenti IA",
+      ],
+    },
+    howConnectNote: "Collegamenti diretti, più un webhook per qualsiasi altro sito.",
+    howConnectGuide: "Guida alla configurazione di {name}",
+    howGrow: {
+      metric: "Clic da Google",
+      source: "Da Search Console",
+    },
     problemsEyebrow: "Problemi e soluzione",
+    problemsTitle: "La SEO non dovrebbe richiedere cinque strumenti e un team a tempo pieno.",
     yourProblem: "Il suo problema",
     ourSolution: "La nostra soluzione",
-    problems: [
-      "Le campagne a pagamento consumano il budget ogni mese e si fermano appena si ferma lei.",
-      "Ore perse tra analisi, parole chiave, contenuti e una serie di strumenti separati.",
-      "Gli assistenti IA consigliano i suoi concorrenti, e lei non lo scopre mai.",
+    pairs: [
+      {
+        problem: "Le campagne a pagamento consumano il budget ogni mese e si fermano appena si ferma lei.",
+        solution: "Articoli scritti e pubblicati sul suo sito ogni mese: contenuti di sua proprietà, non traffico in affitto.",
+      },
+      {
+        problem: "Ore perse tra analisi, parole chiave, contenuti e una serie di strumenti separati.",
+        solution: "Analisi, ricerca delle parole chiave, scrittura, pubblicazione e link da un’unica dashboard.",
+      },
+      {
+        problem: "Gli assistenti IA consigliano i suoi concorrenti, e lei non lo scopre mai.",
+        solution: "Il monitoraggio della visibilità nell’IA mostra se ChatGPT, Gemini, Perplexity e altri la citano.",
+      },
+      {
+        problem: "Le pagine perdono posizioni senza farsi notare, e se ne accorge solo quando le richieste calano.",
+        solution: "I report sul traffico in calo segnalano le pagine che ricevono meno clic in Search Console, così può aggiornarle in tempo.",
+      },
     ],
-    solutionTitle: "Tutto quello che serve, in un unico posto",
-    solution: [
-      "Analisi SEO e di preparazione all'IA",
-      "Monitoraggio della visibilità negli assistenti IA",
-      "Ricerca di parole chiave e di mercato",
-      "Articoli scritti per lei e pubblicati automaticamente",
-      "Link guadagnati da aziende reali",
-    ],
-    stackEyebrow: "Noi contro una serie di strumenti",
-    stackTitle: "Un abbonamento sostituisce",
-    stackTitleAccent: "tutti i suoi strumenti SEO",
+    stackTitle: "Tutti gli strumenti che le servono,",
+    stackTitleAccent: "in un unico posto.",
     stackSub:
       "Analisi, visibilità IA, ricerca, contenuti, pubblicazione, link e report: tutto in un posto e a meno di quanto costino gli strumenti separati.",
     seePricing: "Vedi i prezzi",
@@ -11538,14 +12190,87 @@ const it: Messages = {
       "Costruzione di link",
       "Report da Search Console e Analytics",
     ],
-    publishesTitle: "Pubblica",
-    publishesAccent: "direttamente",
-    publishesTitleEnd: "sul suo sito",
     publishesSub:
       "Colleghi una volta sola. Nessun caricamento manuale, nessun copia e incolla: gli articoli compaiono da soli sul suo sito, con le immagini.",
     publishesPlugin:
       "Il nostro plugin per WordPress si collega con una sola chiave e funziona anche se il suo hosting blocca le API di WordPress.",
-    platformOther: "Qualsiasi sito tramite webhook",
+    articles: {
+      eyebrow: "Motore dei contenuti",
+      title: "Articoli scritti per ciò che cercano i suoi clienti",
+      sub: "RepGet studia ogni argomento, scrive nella sua lingua e con il suo tono, e pubblica sul suo sito - con immagini, link interni e meta description.",
+      points: [
+        "Argomenti scelti da ricerche reali nel suo mercato",
+        "Scritti in modo nativo nella sua lingua, con il tono che sceglie",
+        "Titoli chiari, un indice e tabelle comparative quando servono",
+        "Pubblicati automaticamente, o tenuti come bozze da rivedere",
+      ],
+      selectorLabel: "Articoli di esempio",
+      sampleLabel: "Esempio illustrativo",
+      sampleNote: "Scritto per questa pagina per mostrare il formato: non è un articolo dell’account di un cliente.",
+      readTime: "{n} min di lettura",
+      contentsLabel: "Indice",
+      samples: [
+        {
+          kind: "Guida pratica",
+          title: "Come scegliere il fotografo di matrimonio: 7 domande da fare",
+          minutes: 6,
+          description: "Le domande che rivelano stile, esperienza e cosa è davvero incluso, prima di firmare qualsiasi cosa.",
+          contents: [
+            "Parta dallo stile che ama",
+            "Chieda cosa include davvero il pacchetto",
+            "Verifichi come lavora il giorno del matrimonio",
+            "Legga il contratto prima di pagare",
+          ],
+          heading: "Parta dallo stile che ama",
+          paragraphs: [
+            "Prima di confrontare i prezzi, guardi due o tre matrimoni completi fotografati da ciascun professionista, non solo le sue immagini migliori. Una galleria completa mostra come gestisce la luce scarsa, le foto di gruppo e i momenti più tranquilli.",
+            "Se torna sempre allo stesso stile, naturale e spontaneo oppure posato e curato, ha già accorciato la lista prima della prima telefonata.",
+          ],
+        },
+        {
+          kind: "Guida ai costi",
+          title: "Ristrutturare il bagno: cosa incide davvero sul prezzo",
+          minutes: 7,
+          description: "Disposizione, materiali e manodopera spostano il prezzo finale. Ecco come capire dove andrà il budget prima di chiedere i preventivi.",
+          contents: [
+            "Mantenere la disposizione o cambiarla",
+            "Materiali: dove risparmiare e dove no",
+            "La manodopera e l’ordine dei lavori",
+            "Ottenere preventivi confrontabili",
+          ],
+          heading: "Mantenere la disposizione o cambiarla",
+          paragraphs: [
+            "La decisione più importante è se wc, doccia e lavabo restano dove sono. Spostarli significa nuovi impianti e spesso un nuovo pavimento, con giorni di lavoro in più prima che cambi qualcosa di visibile.",
+            "Se la disposizione attuale funziona, mantenerla permette di destinare più budget alle finiture che vedrà ogni giorno.",
+          ],
+        },
+        {
+          kind: "Confronto",
+          title: "Pompa di calore o caldaia a gas: quale fa per la sua casa?",
+          minutes: 8,
+          description: "Un confronto tra costi di esercizio, installazione e tipo di casa adatto a ciascun sistema, per sapere cosa chiedere all’installatore.",
+          contents: [
+            "Come ogni sistema riscalda la casa",
+            "Confronto fianco a fianco",
+            "Quali case sono adatte a una pompa di calore",
+            "Domande da fare all’installatore",
+          ],
+          heading: "Confronto fianco a fianco",
+          paragraphs: [
+            "Entrambi possono riscaldare bene una casa. La differenza sta nel modo in cui lo fanno, in cosa richiedono all’edificio e in come i costi si distribuiscono negli anni.",
+          ],
+          table: {
+            head: ["", "Pompa di calore", "Caldaia a gas"],
+            rows: [
+              ["Costo iniziale", "Più alto", "Più basso"],
+              ["Costo di esercizio", "Dipende dall’isolamento", "Dipende dal prezzo del gas"],
+              ["Più adatta a", "Case ben isolate", "La maggior parte delle case esistenti"],
+              ["Spazio necessario", "Unità esterna", "Unità a parete"],
+            ],
+          },
+        },
+      ],
+    },
     trackedTitle: "Vede esattamente che cosa è cambiato",
     trackedSub:
       "Non un PDF mensile. Una dashboard che legge i suoi dati di Search Console e Analytics.",
@@ -11555,6 +12280,16 @@ const it: Messages = {
       { label: "Link ottenuti", detail: "Verificati ogni giorno" },
       { label: "Articoli pubblicati", detail: "E che risultati hanno dato" },
     ],
+    trackedCaption: "Dati di esempio a scopo illustrativo. La sua dashboard mostra i suoi dati, dai suoi account.",
+    trackedDemo: {
+      clicks: "Clic",
+      impressions: "Impressioni",
+      mentioned: "Citato",
+      notYet: "Non ancora",
+      liveLinks: "Link attivi",
+      published: "Pubblicato",
+      scheduled: "Programmato",
+    },
     pillars: [
       {
         title: "Pubblichi contenuti SEO",
@@ -11575,6 +12310,56 @@ const it: Messages = {
     ],
     previewTitle: "La sua crescita, in automatico.",
     previewSub: "Contenuti di qualità. Backlink veri. Più visibilità.",
+    preview: {
+      nav: ["Dashboard", "Contenuti", "Link", "Parole chiave", "Calendario", "Report", "Impostazioni"],
+      period: "Ultimi 30 giorni",
+      stats: [
+        "Articoli pubblicati",
+        "Link ottenuti",
+        "Parole chiave migliorate",
+        "Traffico stimato",
+      ],
+      calendarTitle: "Calendario editoriale",
+      viewAll: "Vedi tutto",
+      calendar: [
+        {
+          month: "SET",
+          day: "14",
+          title: "Come scegliere un fornitore",
+        },
+        {
+          month: "SET",
+          day: "16",
+          title: "Cosa includono i nostri prezzi",
+        },
+        {
+          month: "SET",
+          day: "18",
+          title: "Cinque domande da fare prima",
+        },
+        {
+          month: "SET",
+          day: "20",
+          title: "Una guida per chi acquista la prima volta",
+        },
+      ],
+      statusDraft: "Bozza",
+      statusGenerating: "In scrittura",
+      statusPlanned: "Pianificato",
+      statusPublished: "Pubblicato",
+      latestTitle: "Ultimo articolo",
+      articleTitle: "La guida completa per il 2026",
+      articleExcerpt: "Scritto a partire da ciò che i suoi clienti cercano davvero, poi pubblicato sul suo sito.",
+      viewArticle: "Vedi articolo",
+      scoreTitle: "Punteggio SEO",
+      checks: [
+        "Parola chiave ottimizzata",
+        "Meta description",
+        "Link interni",
+        "SEO delle immagini",
+        "Leggibilità",
+      ],
+    },
     previewCaption:
       "Una dashboard di esempio. I suoi numeri partono da zero e crescono da lì.",
     titleLead: "Si posizioni su Google.",
@@ -11590,11 +12375,11 @@ const it: Messages = {
     joinGoogle: "Entra con Google",
     seeHow: "Guarda come funziona",
     videoTitle: "RepGet in due minuti",
-    videoSub:
-      "Una breve panoramica di cosa succede dopo aver collegato un sito.",
-    videoComingSoon:
-      "Stiamo registrando il video di presentazione. Nel frattempo, il controllo gratuito le mostra la stessa cosa sul suo sito.",
-    worksWithTitle: "Funziona con gli strumenti che già usa",
+    videoSub: "Scopra come RepGet trasforma il suo sito in un flusso di lavoro completo per crescere con la SEO.",
+    videoPlay: "Riproduci il video: RepGet in due minuti",
+    videoFrameTitle: "Video di presentazione di RepGet",
+    videoWatchOnYouTube: "Guarda su YouTube",
+    opensInNewTab: "(si apre in una nuova scheda)",
     networkEyebrow: "Una rete di link verificata",
     networkTitle: "Una rete di link",
     networkTitleRest: "che si rafforza con ogni nuovo cliente.",
@@ -11606,6 +12391,22 @@ const it: Messages = {
       "Verificati ogni giorno: se un link sparisce, ce lo segnali e il credito torna indietro",
     ],
     networkHowLink: "Come funziona lo scambio",
+    networkCard: {
+      label: "Opportunità di link",
+      site: "Un’azienda di un settore affine",
+      article: "Checklist di primavera: preparare il giardino per la stagione",
+      mention: "La sua attività, citata nel testo dell’articolo",
+      placement: "Nel contesto, non in una pagina di link",
+      status: "Verificato ogni giorno",
+      credit: "1 credito link",
+    },
+    testimonialsEyebrow: "Testimonianze",
+    testimonialsTitle: "Cosa dicono di RepGet",
+    testimonialsVerified: "Cliente verificato",
+    reviewScore: "{score}/{outOf} su {platform}, da {count} recensioni",
+    faqEyebrow: "Domande frequenti",
+    faqMore: "Ha ancora una domanda?",
+    faqContact: "Ci contatti",
     pricingEyebrow: "Prezzi",
     pricingTitle: "Inizi in piccolo.",
     pricingTitleAccent: "Cresca quando è pronto.",
@@ -11621,7 +12422,7 @@ const it: Messages = {
     planArticles: "{n} articolo al mese|{n} articoli al mese",
     planBacklinks: "Backlink dalla nostra rete di partner",
     planPublishing: "Pubblicazione automatica su WordPress, Shopify e altro",
-    closingTitle: "Inizi oggi a crescere in automatico",
+    closingTitle: "Inizi a crescere con RepGet oggi.",
     closingSub:
       "Faccia un'analisi gratuita del suo sito e veda che cosa lo frena. Senza registrarsi.",
     cancelAnytime: "Disdica quando vuole",
@@ -14297,6 +15098,7 @@ const de: Messages = {
   footer: {
     tagline: "SEO-Ergebnisse für kleine Unternehmen, ohne Agentur.",
     product: "Produkt",
+    company: "Unternehmen",
     legal: "Rechtliches",
     freeCheck: "Kostenlose Website-Analyse",
     freeTools: "Kostenlose Werkzeuge",
@@ -14319,7 +15121,7 @@ const de: Messages = {
       "RepGet veröffentlicht SEO-Inhalte, gewinnt hochwertige Backlinks und baut die Autorität auf, durch die Ihr Unternehmen gefunden wird.",
     checkFree: "Website kostenlos prüfen",
     getStarted: "Loslegen",
-    noCard: "Für die erste Prüfung ist keine Karte nötig.",
+    heroAssurances: ["Kostenloser Website-Check", "Keine Kreditkarte nötig", "Ergebnisse in Minuten"],
     auditBand: "Kostenlos zu Ihrer Analyse",
     auditItems: [
       {
@@ -14338,7 +15140,12 @@ const de: Messages = {
     auditPlaceholder: "Ihre Website eingeben",
     auditAssurances: ["Kein Konto nötig", "Nichts zu kündigen"],
     checkMyWebsite: "Website prüfen",
+    auditIntroTitle: "Sehen Sie jetzt, was RepGet auf Ihrer Website findet.",
+    auditIntroSub: "Starten Sie einen kostenlosen Check für SEO und KI-Sichtbarkeit und erfahren Sie, was Ihre Website ausbremst.",
+    auditFieldLabel: "Adresse Ihrer Website",
+    auditChecking: "Wird geprüft…",
     howItWorks: "So funktioniert es",
+    howItWorksSub: "Vom kostenlosen Check zu Artikeln auf Ihrer eigenen Website - in drei Schritten.",
     steps: [
       {
         title: "Analyse",
@@ -14346,32 +15153,52 @@ const de: Messages = {
       },
       {
         title: "Verbinden",
-        body: "Verbinden Sie Ihre Website - WordPress, Ghost, Shopify oder einen Webhook - damit wir für Sie veröffentlichen.",
+        body: "Verbinden Sie Ihre Website - WordPress, Ghost, Shopify, Webflow, Wix oder einen Webhook - damit wir für Sie veröffentlichen.",
       },
       {
         title: "Wachsen",
         body: "Wir recherchieren, schreiben und veröffentlichen und zeigen Ihnen, was sich wirklich verändert hat.",
       },
     ],
+    exampleLabel: "Beispiel",
+    howAudit: {
+      score: "Website-Zustand",
+      findings: [
+        "Keine Beschreibung für Suchergebnisse",
+        "Bilder ohne Beschreibung",
+        "Noch nicht von KI-Assistenten erwähnt",
+      ],
+    },
+    howConnectNote: "Direkte Anbindungen, dazu ein Webhook für jede andere Website.",
+    howConnectGuide: "Einrichtungsanleitung für {name}",
+    howGrow: {
+      metric: "Klicks aus Google",
+      source: "Aus der Search Console",
+    },
     problemsEyebrow: "Probleme und Lösung",
+    problemsTitle: "SEO sollte nicht fünf Tools und ein Vollzeitteam erfordern.",
     yourProblem: "Ihr Problem",
     ourSolution: "Unsere Lösung",
-    problems: [
-      "Bezahlte Anzeigen verbrauchen jeden Monat Ihr Budget - und hören auf, sobald Sie aufhören.",
-      "Stunden, die zwischen Analysen, Keywords, Inhalten und einem Stapel einzelner Tools verloren gehen.",
-      "KI-Assistenten empfehlen Ihre Wettbewerber, und Sie erfahren es nie.",
+    pairs: [
+      {
+        problem: "Bezahlte Anzeigen verbrauchen jeden Monat Ihr Budget - und hören auf, sobald Sie aufhören.",
+        solution: "Jeden Monat geschriebene und auf Ihrer Website veröffentlichte Artikel: Inhalte, die Ihnen gehören, statt gemieteter Besucher.",
+      },
+      {
+        problem: "Stunden, die zwischen Analysen, Keywords, Inhalten und einem Stapel einzelner Tools verloren gehen.",
+        solution: "Analyse, Keyword-Recherche, Texte, Veröffentlichung und Backlinks in einem Dashboard.",
+      },
+      {
+        problem: "KI-Assistenten empfehlen Ihre Wettbewerber, und Sie erfahren es nie.",
+        solution: "Das KI-Sichtbarkeits-Tracking zeigt, ob ChatGPT, Gemini, Perplexity und andere Sie erwähnen.",
+      },
+      {
+        problem: "Seiten verlieren unbemerkt an Rankings - und Sie merken es erst, wenn die Anfragen ausbleiben.",
+        solution: "Berichte zu sinkendem Traffic zeigen Seiten, die in der Search Console weniger Klicks erhalten, damit Sie sie rechtzeitig überarbeiten.",
+      },
     ],
-    solutionTitle: "Alles, was Sie brauchen, an einem Ort",
-    solution: [
-      "Vollständige SEO- und KI-Analyse",
-      "Sichtbarkeitsverfolgung in KI-Assistenten",
-      "Keyword- und Marktrecherche",
-      "Artikel, die für Sie geschrieben und automatisch veröffentlicht werden",
-      "Backlinks von echten Unternehmen",
-    ],
-    stackEyebrow: "Wir gegen einen Stapel von Tools",
-    stackTitle: "Ein Abo ersetzt",
-    stackTitleAccent: "Ihr gesamtes SEO-Werkzeug",
+    stackTitle: "Alle Tools, die Sie brauchen,",
+    stackTitleAccent: "an einem Ort.",
     stackSub:
       "Analyse, KI-Sichtbarkeit, Recherche, Inhalte, Veröffentlichung, Backlinks und Berichte - an einem Ort und günstiger als die Tools einzeln.",
     seePricing: "Preise ansehen",
@@ -14384,14 +15211,87 @@ const de: Messages = {
       "Backlink-Aufbau",
       "Berichte aus Search Console und Analytics",
     ],
-    publishesTitle: "Veröffentlicht",
-    publishesAccent: "direkt",
-    publishesTitleEnd: "auf Ihrer Website",
     publishesSub:
       "Einmal verbinden. Kein manuelles Hochladen, kein Kopieren und Einfügen - Artikel erscheinen von selbst auf Ihrer Website, mit Bildern.",
     publishesPlugin:
       "Unser WordPress-Plugin verbindet sich mit einem einzigen Schlüssel und funktioniert auch dann, wenn Ihr Hoster die WordPress-API blockiert.",
-    platformOther: "Jede Website per Webhook",
+    articles: {
+      eyebrow: "Content-Engine",
+      title: "Artikel für das, wonach Ihre Kunden suchen",
+      sub: "RepGet recherchiert jedes Thema, schreibt in Ihrer Sprache und Ihrem Ton und veröffentlicht auf Ihrer Website - mit Bildern, internen Links und einer Meta-Beschreibung.",
+      points: [
+        "Themen aus echten Suchanfragen in Ihrem Markt",
+        "Muttersprachlich in Ihrer Sprache geschrieben, im Ton Ihrer Wahl",
+        "Klare Überschriften, ein Inhaltsverzeichnis und Vergleichstabellen, wo sie helfen",
+        "Automatisch veröffentlicht oder als Entwurf zur Prüfung gespeichert",
+      ],
+      selectorLabel: "Beispielartikel",
+      sampleLabel: "Anschauungsbeispiel",
+      sampleNote: "Für diese Seite geschrieben, um das Format zu zeigen - kein Artikel aus einem Kundenkonto.",
+      readTime: "{n} Min. Lesezeit",
+      contentsLabel: "Inhalt",
+      samples: [
+        {
+          kind: "Ratgeber",
+          title: "Hochzeitsfotografen finden: 7 Fragen, die Sie stellen sollten",
+          minutes: 6,
+          description: "Die Fragen, die Stil, Erfahrung und den tatsächlichen Leistungsumfang zeigen - bevor Sie etwas unterschreiben.",
+          contents: [
+            "Beginnen Sie mit dem Stil, der Ihnen gefällt",
+            "Fragen Sie, was das Paket wirklich enthält",
+            "Klären Sie, wie am Hochzeitstag gearbeitet wird",
+            "Lesen Sie den Vertrag vor der Zahlung",
+          ],
+          heading: "Beginnen Sie mit dem Stil, der Ihnen gefällt",
+          paragraphs: [
+            "Bevor Sie Preise vergleichen, sehen Sie sich zwei oder drei vollständige Hochzeiten jedes Fotografen an - nicht nur die besten Einzelbilder. Eine komplette Galerie zeigt, wie mit wenig Licht, Gruppenfotos und den ruhigen Momenten dazwischen umgegangen wird.",
+            "Wenn Sie immer wieder beim selben Stil landen - natürlich und spontan oder inszeniert und elegant -, haben Sie die Auswahl schon vor dem ersten Gespräch eingegrenzt.",
+          ],
+        },
+        {
+          kind: "Kostenratgeber",
+          title: "Badsanierung: Was den Preis wirklich bestimmt",
+          minutes: 7,
+          description: "Grundriss, Materialien und Arbeitszeit bestimmen den Endpreis. So sehen Sie, wohin Ihr Budget fließt, bevor Sie Angebote einholen.",
+          contents: [
+            "Grundriss behalten oder ändern",
+            "Materialien: wo sparen und wo nicht",
+            "Arbeitszeit und Reihenfolge der Arbeiten",
+            "Vergleichbare Angebote einholen",
+          ],
+          heading: "Grundriss behalten oder ändern",
+          paragraphs: [
+            "Die wichtigste Entscheidung ist, ob WC, Dusche und Waschbecken an ihrem Platz bleiben. Werden sie versetzt, braucht es neue Leitungen und oft einen neuen Boden - das kostet Tage, bevor sich sichtbar etwas ändert.",
+            "Funktioniert der bestehende Grundriss, bleibt mehr Budget für die Oberflächen, die Sie jeden Tag sehen.",
+          ],
+        },
+        {
+          kind: "Vergleich",
+          title: "Wärmepumpe oder Gasheizung: Was passt zu Ihrem Zuhause?",
+          minutes: 8,
+          description: "Laufende Kosten, Installation und geeignete Gebäude im direkten Vergleich - damit Sie wissen, was Sie den Installateur fragen sollten.",
+          contents: [
+            "Wie jedes System heizt",
+            "Direkter Vergleich",
+            "Welche Häuser sich für eine Wärmepumpe eignen",
+            "Fragen an den Installateur",
+          ],
+          heading: "Direkter Vergleich",
+          paragraphs: [
+            "Beide können ein Haus gut heizen. Der Unterschied liegt darin, wie sie es tun, was sie vom Gebäude verlangen und wie sich die Kosten über die Jahre verteilen.",
+          ],
+          table: {
+            head: ["", "Wärmepumpe", "Gasheizung"],
+            rows: [
+              ["Anschaffung", "Höher", "Niedriger"],
+              ["Laufende Kosten", "Abhängig von der Dämmung", "Abhängig vom Gaspreis"],
+              ["Am besten für", "Gut gedämmte Häuser", "Die meisten Bestandsgebäude"],
+              ["Platzbedarf", "Außengerät", "Wandgerät"],
+            ],
+          },
+        },
+      ],
+    },
     trackedTitle: "Sie sehen genau, was sich verändert hat",
     trackedSub:
       "Kein monatliches PDF. Ein Dashboard, das Ihre eigenen Daten aus Search Console und Analytics liest.",
@@ -14404,6 +15304,16 @@ const de: Messages = {
         detail: "Und was sie gebracht haben",
       },
     ],
+    trackedCaption: "Beispieldaten zur Veranschaulichung. Ihr Dashboard zeigt Ihre eigenen Zahlen aus Ihren eigenen Konten.",
+    trackedDemo: {
+      clicks: "Klicks",
+      impressions: "Impressionen",
+      mentioned: "Erwähnt",
+      notYet: "Noch nicht",
+      liveLinks: "Aktive Links",
+      published: "Veröffentlicht",
+      scheduled: "Geplant",
+    },
     pillars: [
       {
         title: "SEO-Inhalte veröffentlichen",
@@ -14424,6 +15334,50 @@ const de: Messages = {
     ],
     previewTitle: "Ihr Wachstum, auf Autopilot.",
     previewSub: "Hochwertige Inhalte. Echte Backlinks. Mehr Sichtbarkeit.",
+    preview: {
+      nav: ["Dashboard", "Inhalte", "Backlinks", "Keywords", "Kalender", "Berichte", "Einstellungen"],
+      period: "Letzte 30 Tage",
+      stats: [
+        "Veröffentlichte Artikel",
+        "Aufgebaute Backlinks",
+        "Verbesserte Keywords",
+        "Geschätzter Traffic",
+      ],
+      calendarTitle: "Redaktionskalender",
+      viewAll: "Alle anzeigen",
+      calendar: [
+        {
+          month: "SEP",
+          day: "14",
+          title: "So wählen Sie einen Anbieter",
+        },
+        {
+          month: "SEP",
+          day: "16",
+          title: "Was in unseren Preisen enthalten ist",
+        },
+        {
+          month: "SEP",
+          day: "18",
+          title: "Fünf Fragen vorab",
+        },
+        {
+          month: "SEP",
+          day: "20",
+          title: "Ein Leitfaden für Erstkäufer",
+        },
+      ],
+      statusDraft: "Entwurf",
+      statusGenerating: "Wird erstellt",
+      statusPlanned: "Geplant",
+      statusPublished: "Veröffentlicht",
+      latestTitle: "Neuester Artikel",
+      articleTitle: "Der komplette Leitfaden für 2026",
+      articleExcerpt: "Geschrieben auf Basis dessen, wonach Ihre Kunden wirklich suchen, und auf Ihrer eigenen Website veröffentlicht.",
+      viewArticle: "Artikel ansehen",
+      scoreTitle: "SEO-Score",
+      checks: ["Keyword optimiert", "Meta-Beschreibung", "Interne Links", "Bild-SEO", "Lesbarkeit"],
+    },
     previewCaption:
       "Ein Beispiel-Dashboard. Ihre eigenen Zahlen starten bei null.",
     titleLead: "Bei Google ranken.",
@@ -14439,11 +15393,11 @@ const de: Messages = {
     joinGoogle: "Mit Google beitreten",
     seeHow: "So funktioniert es",
     videoTitle: "RepGet in zwei Minuten",
-    videoSub:
-      "Ein kurzer Rundgang durch das, was nach dem Verbinden einer Website passiert.",
-    videoComingSoon:
-      "Das Erklärvideo wird gerade aufgenommen. Bis dahin zeigt Ihnen die kostenlose Prüfung dasselbe an Ihrer eigenen Website.",
-    worksWithTitle: "Funktioniert mit den Tools, die Sie schon nutzen",
+    videoSub: "Sehen Sie, wie RepGet Ihre Website in einen vollständigen SEO-Wachstumsprozess verwandelt.",
+    videoPlay: "Video abspielen: RepGet in zwei Minuten",
+    videoFrameTitle: "RepGet-Vorstellungsvideo",
+    videoWatchOnYouTube: "Auf YouTube ansehen",
+    opensInNewTab: "(öffnet in einem neuen Tab)",
     networkEyebrow: "Ein geprüftes Backlink-Netzwerk",
     networkTitle: "Ein Backlink-Netzwerk,",
     networkTitleRest: "das mit jedem neuen Kunden stärker wird.",
@@ -14455,6 +15409,22 @@ const de: Messages = {
       "Täglich geprüft - wird ein Link entfernt, sagen Sie uns Bescheid und Sie erhalten Ihr Guthaben zurück",
     ],
     networkHowLink: "So funktioniert der Tausch",
+    networkCard: {
+      label: "Platzierungsmöglichkeit",
+      site: "Ein Unternehmen aus einer verwandten Branche",
+      article: "Frühjahrs-Checkliste: den Garten für die Saison vorbereiten",
+      mention: "Ihr Unternehmen, im Text des Artikels erwähnt",
+      placement: "Im Kontext, nicht auf einer Linkseite",
+      status: "Täglich geprüft",
+      credit: "1 Link-Guthaben",
+    },
+    testimonialsEyebrow: "Stimmen",
+    testimonialsTitle: "Was andere über RepGet sagen",
+    testimonialsVerified: "Verifizierter Kunde",
+    reviewScore: "{score}/{outOf} auf {platform}, aus {count} Bewertungen",
+    faqEyebrow: "FAQ",
+    faqMore: "Noch eine Frage?",
+    faqContact: "Kontaktieren Sie uns",
     pricingEyebrow: "Preise",
     pricingTitle: "Klein anfangen.",
     pricingTitleAccent: "Wachsen, wenn Sie so weit sind.",
@@ -14471,7 +15441,7 @@ const de: Messages = {
     planBacklinks: "Backlinks aus unserem Partnernetzwerk",
     planPublishing:
       "Automatisch veröffentlichen auf WordPress, Shopify und mehr",
-    closingTitle: "Starten Sie heute Ihr Wachstum auf Autopilot",
+    closingTitle: "Starten Sie noch heute Ihr Wachstum mit RepGet.",
     closingSub:
       "Prüfen Sie Ihre Website kostenlos und sehen Sie, was sie bremst. Ohne Konto.",
     cancelAnytime: "Jederzeit kündbar",

@@ -98,6 +98,14 @@ describe("contentSecurityPolicy", () => {
     expect(contentSecurityPolicy(DSN, "a".repeat(32))).not.toContain("vercel");
   });
 
+  it("frames only the chat and YouTube's privacy-enhanced player host", () => {
+    expect(csp["frame-src"]).toEqual(["'self'", "https://*.crisp.chat", "https://www.youtube-nocookie.com"]);
+    // Not the cookie-setting host, and no script or connect exception for YouTube.
+    expect(contentSecurityPolicy(DSN)).not.toContain("https://www.youtube.com");
+    expect(csp["script-src"].join(" ")).not.toContain("youtube");
+    expect(csp["connect-src"].join(" ")).not.toContain("youtube");
+  });
+
   it("allows images from any HTTPS site, as audits and articles need", () => {
     expect(csp["img-src"]).toEqual(["'self'", "data:", "blob:", "https:"]);
   });

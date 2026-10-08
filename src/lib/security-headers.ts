@@ -69,7 +69,13 @@ function sentryOrigin(dsn: string | undefined): string | null {
  *    used only by `next dev`, which gets no CSP; allowing it here would only
  *    widen the production policy.
  *  - Images come from anywhere on HTTPS: audits show customers' own logos and
- *    preview images, and articles show stored and generated images.
+ *    preview images, and articles show stored and generated images. (This
+ *    also covers the walkthrough video's poster, from i.ytimg.com.)
+ *  - The homepage walkthrough video: a frame from YouTube's privacy-enhanced
+ *    host, www.youtube-nocookie.com, and only that host - the player is
+ *    created after a press on play (app/(marketing)/walkthrough-player.tsx).
+ *    Its own scripts run inside that frame, under YouTube's policy, so
+ *    nothing else here needs widening.
  *  - Nothing else: payments (Stripe, PayPal) and Google sign-in are full-page
  *    redirects, and fonts are self-hosted by next/font.
  *
@@ -82,6 +88,7 @@ export function contentSecurityPolicy(sentryDsn: string | undefined, nonce?: str
     throw new Error("Invalid CSP nonce");
   }
   const crisp = "https://*.crisp.chat";
+  const youtube = "https://www.youtube-nocookie.com";
   const sentry = sentryOrigin(sentryDsn);
   const report = cspReportUri(sentryDsn);
 
@@ -94,7 +101,7 @@ export function contentSecurityPolicy(sentryDsn: string | undefined, nonce?: str
     ["font-src", ["'self'", "data:", crisp]],
     ["connect-src", ["'self'", crisp, "wss://*.relay.crisp.chat", ...(sentry ? [sentry] : [])]],
     ["media-src", ["'self'", crisp]],
-    ["frame-src", ["'self'", crisp]],
+    ["frame-src", ["'self'", crisp, youtube]],
     ["worker-src", ["'self'", "blob:"]],
     // Nobody else may frame RepGet (click-jacking); X-Frame-Options below
     // says the same to browsers that predate CSP.

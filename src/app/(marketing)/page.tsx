@@ -1,23 +1,7 @@
 import type { Metadata } from "next";
 
 import { listPlansForPrebuiltPage } from "@/lib/billing";
-import { getMessages } from "@/lib/i18n/messages";
-import {
-  AuditBand,
-  BacklinkNetwork,
-  ClosingCta,
-  DemoVideo,
-  Hero,
-  HowItWorks,
-  OneSubscription,
-  Pillars,
-  ProblemSolution,
-  ProductPreview,
-  Publishing,
-  WhatYouSee,
-  WorksWith,
-} from "./home-sections";
-import { PricingPreview } from "./pricing-preview";
+import { HomePageSections } from "./home-page";
 import { OrganizationSchema } from "./organization-schema";
 import { siteUrl as canonicalSiteUrl } from "@/lib/site-url";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
@@ -26,7 +10,7 @@ import { publicPageMetadata } from "@/lib/seo/page-metadata";
  * Marketing homepage, following the supplied landing design.
  *
  * Renders the same sections as the localised versions, from the same
- * components — see home-sections.tsx. English keeps unprefixed paths, so its
+ * composition — see home-page.tsx. English keeps unprefixed paths, so its
  * href builder returns the path unchanged.
  */
 
@@ -60,7 +44,6 @@ export const metadata: Metadata = {
 
 export default async function HomePage() {
   const plans = await listPlansForPrebuiltPage();
-  const t = getMessages("en").home;
   // English is unprefixed; the localised pages pass a prefixing builder.
   const href = (path: string) => path;
 
@@ -74,20 +57,7 @@ export default async function HomePage() {
   return (
     <>
       <OrganizationSchema siteUrl={siteUrl} plans={plans} />
-      <Hero t={t} href={href} />
-      <ProductPreview t={t} href={href} />
-      <Pillars t={t} href={href} />
-      <WorksWith t={t} href={href} />
-      <DemoVideo t={t} href={href} />
-      <AuditBand t={t} href={href} />
-      <HowItWorks t={t} href={href} />
-      <ProblemSolution t={t} href={href} />
-      <OneSubscription t={t} href={href} />
-      <Publishing t={t} href={href} />
-      <WhatYouSee t={t} href={href} />
-      <BacklinkNetwork t={t} href={href} />
-      <PricingPreview t={t} href={href} plans={plans} />
-      <ClosingCta t={t} href={href} />
+      <HomePageSections locale="en" href={href} plans={plans} />
     </>
   );
 }

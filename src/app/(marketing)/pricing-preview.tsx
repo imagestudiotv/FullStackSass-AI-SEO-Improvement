@@ -1,20 +1,11 @@
-import { Check } from "lucide-react";
+import { ArrowRight, Check } from "lucide-react";
 import Link from "next/link";
 
-import { Badge } from "@/components/ui/badge";
 import { plural } from "@/lib/i18n/format";
 import { STARTER_TIER } from "@/lib/plans/features";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { formatPrice, type PlanRow } from "@/lib/billing-shared";
-import { OFFSCREEN, type SectionProps } from "./home-sections";
+import { OFFSCREEN, SectionHeading, type SectionProps } from "./home-sections";
 
 /**
  * Pricing preview on the homepage.
@@ -24,7 +15,17 @@ import { OFFSCREEN, type SectionProps } from "./home-sections";
  * honour. Only the surrounding copy is translated — the prices are the prices,
  * and plan names stay in English because they are product names, not words.
  * "Launch" is what appears on the invoice.
+ *
+ * However many monthly plans there are, the grid balances itself: one card
+ * centred, two side by side, three across, four or more in rows of four.
  */
+const GRID: Record<number, string> = {
+  1: "mx-auto max-w-md grid-cols-1",
+  2: "mx-auto max-w-3xl grid-cols-1 sm:grid-cols-2",
+  3: "mx-auto max-w-5xl grid-cols-1 md:grid-cols-3",
+};
+const GRID_MANY = "mx-auto max-w-6xl grid-cols-1 sm:grid-cols-2 lg:grid-cols-4";
+
 export function PricingPreview({
   t,
   href,
@@ -33,117 +34,99 @@ export function PricingPreview({
   const monthly = plans.filter((plan) => plan.interval === "month");
 
   return (
-    <section id="pricing" className={`${OFFSCREEN} scroll-mt-20 border-t px-4 py-20`}>
+    <section id="pricing" className={`${OFFSCREEN} scroll-mt-20 border-t bg-primary/[0.025] px-4 py-20`}>
       <div className="mx-auto max-w-6xl">
-        <div>
-          <p className="text-xs font-semibold tracking-[0.14em] text-primary uppercase">
-            {t.pricingEyebrow}
-          </p>
-          <h2 className="mt-4 text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
-            {t.pricingTitle}{" "}
-            <span className="text-primary">{t.pricingTitleAccent}</span>
-          </h2>
-          <p className="mt-4 max-w-lg text-muted-foreground">{t.pricingSub}</p>
-        </div>
+        <SectionHeading
+          center
+          eyebrow={t.pricingEyebrow}
+          title={t.pricingTitle}
+          accent={t.pricingTitleAccent}
+          sub={t.pricingSub}
+        />
 
         {monthly.length === 0 ? (
           // Real state rather than a placeholder: with no plans configured we
           // say so rather than inventing prices checkout would not honour.
-          <p className="mt-12 text-sm text-muted-foreground">{t.unavailable}</p>
+          <p className="mt-12 text-center text-sm text-muted-foreground">{t.unavailable}</p>
         ) : (
-          <div className="mx-auto mt-12 grid max-w-3xl gap-6 sm:grid-cols-2">
+          <ul className={`mt-12 grid gap-6 ${GRID[monthly.length] ?? GRID_MANY}`}>
             {monthly.map((plan) => {
               const featured = plan.tier === "grow";
               const isStarter = plan.tier === STARTER_TIER;
+              const badge = featured ? t.mostPopular : isStarter ? t.tryItFirst : null;
               return (
-                /*
-                  The badge sits on a WRAPPER, not the Card. Card carries
-                  overflow-hidden so images clip to its rounded corners, which
-                  also cut this badge in half at the border.
-                */
-                <div key={plan.id} className="relative pt-2.5">
-                  {featured ? (
-                    <Badge className="absolute top-0 left-6 z-10 shadow-sm">
-                      {t.mostPopular}
-                    </Badge>
-                  ) : null}
-                  {isStarter ? (
-                    <Badge
-                      variant="secondary"
-                      className="absolute top-0 left-6 z-10 border border-emerald-500/40 text-emerald-700 shadow-sm dark:text-emerald-400"
+                <li
+                  key={plan.id}
+                  className={`relative flex flex-col rounded-2xl border p-6 sm:p-7 ${
+                    featured
+                      ? "border-primary/40 bg-card shadow-[0_24px_60px_-30px_rgba(234,88,12,0.45)] ring-1 ring-primary/20"
+                      : isStarter
+                        ? "border-success/30 bg-card"
+                        : "bg-card shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
+                  }`}
+                >
+                  {badge ? (
+                    <span
+                      className={`absolute -top-3 left-6 rounded-full px-3 py-1 text-xs font-semibold shadow-sm ${
+                        featured
+                          ? "bg-primary text-primary-foreground"
+                          : "border border-success/30 bg-success-soft text-success"
+                      }`}
                     >
-                      {t.tryItFirst}
-                    </Badge>
+                      {badge}
+                    </span>
                   ) : null}
-                  <Card
-                    className={`h-full ${
-                      featured
-                        ? "border-primary/40 shadow-sm"
-                        : isStarter
-                          ? "border-emerald-500/40"
-                          : ""
-                    }`}
+
+                  <h3 className="text-base font-semibold">{plan.name}</h3>
+                  <p className="mt-4 flex items-baseline gap-1">
+                    <span className="text-4xl font-semibold tracking-tight tabular-nums">
+                      {formatPrice(plan.priceCents, plan.currency)}
+                    </span>
+                    <span className="text-sm text-muted-foreground">{t.perMonth}</span>
+                  </p>
+
+                  <ul className="mt-6 flex-1 space-y-3 border-t pt-6 text-sm">
+                    {[
+                      plural(t.planArticles, plan.articleLimit, {
+                        n: plan.articleLimit,
+                      }),
+                      /* Capability, not counts — see messages.ts. */
+                      t.planBacklinks,
+                      t.planPublishing,
+                    ].map((feature) => (
+                      <li key={feature} className="flex items-start gap-2.5">
+                        <span
+                          className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/15"
+                          aria-hidden="true"
+                        >
+                          <Check className="size-3 text-primary-strong" />
+                        </span>
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
+
+                  <Button
+                    asChild
+                    size="lg"
+                    className="mt-7 h-11 w-full rounded-full text-base"
+                    variant={featured ? "default" : "outline"}
                   >
-                    <CardHeader>
-                      <CardTitle className="text-base">{plan.name}</CardTitle>
-                      <CardDescription>
-                        <span className="text-3xl font-semibold text-foreground">
-                          {formatPrice(plan.priceCents, plan.currency)}
-                        </span>
-                        <span className="text-muted-foreground">
-                          {t.perMonth}
-                        </span>
-                      </CardDescription>
-                    </CardHeader>
-
-                    <CardContent>
-                      <ul className="space-y-2.5 text-sm">
-                        {[
-                          plural(t.planArticles, plan.articleLimit, {
-                            n: plan.articleLimit,
-                          }),
-                          /* Capability, not counts — see messages.ts. */
-                          t.planBacklinks,
-                          t.planPublishing,
-                        ].map((feature) => (
-                          <li
-                            key={feature}
-                            className="flex items-start gap-2.5"
-                          >
-                            <Check
-                              className="mt-0.5 size-4 shrink-0 text-primary"
-                              aria-hidden="true"
-                            />
-                            <span className="text-muted-foreground">
-                              {feature}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    </CardContent>
-
-                    <CardFooter>
-                      <Button
-                        asChild
-                        className="w-full"
-                        variant={featured ? "default" : "outline"}
-                      >
-                        <Link href="/sign-up">{t.getStartedPlan}</Link>
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                </div>
+                    <Link href="/sign-up">{t.getStartedPlan}</Link>
+                  </Button>
+                </li>
               );
             })}
-          </div>
+          </ul>
         )}
 
-        <p className="mt-8 text-sm text-muted-foreground">
+        <p className="mt-10 text-center text-sm">
           <Link
             href={href("/pricing")}
-            className="underline underline-offset-4"
+            className="inline-flex items-center gap-1.5 font-medium text-foreground underline-offset-4 hover:text-primary hover:underline"
           >
             {t.seeAllPlans}
+            <ArrowRight className="size-4" aria-hidden="true" />
           </Link>
         </p>
       </div>
