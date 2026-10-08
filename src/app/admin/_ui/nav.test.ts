@@ -12,6 +12,7 @@ describe("activeNavItem", () => {
 
   it("lights each section on its own page and its detail pages", () => {
     expect(label("/admin")).toBe("Overview");
+    expect(label("/admin/analytics")).toBe("Site analytics");
     expect(label("/admin/organizations")).toBe("Organizations");
     expect(label("/admin/websites")).toBe("Websites");
     expect(label("/admin/users")).toBe("Users");
@@ -39,6 +40,7 @@ describe("activeNavItem", () => {
     expect(hrefs).toEqual(
       expect.arrayContaining([
         "/admin",
+        "/admin/analytics",
         "/admin/organizations",
         "/admin/websites",
         "/admin/users",

@@ -1,5 +1,6 @@
 import {
   Building2,
+  ChartLine,
   FileText,
   Gauge,
   Globe,
@@ -50,6 +51,13 @@ export const ADMIN_NAV: AdminNavGroup[] = [
         icon: LayoutDashboard,
         keywords: ["dashboard", "home", "attention", "stats"],
         description: "Platform summary and what needs attention",
+      },
+      {
+        href: "/admin/analytics",
+        label: "Site analytics",
+        icon: ChartLine,
+        keywords: ["google analytics", "ga4", "traffic", "visitors", "visits", "pageviews"],
+        description: "Visits to repget.com from Google Analytics",
       },
     ],
   },
