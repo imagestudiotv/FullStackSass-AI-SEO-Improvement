@@ -7,6 +7,11 @@ RepGet's own blog at `/blog` is written in the admin panel: **Admin → Blog** (
 - **New post** opens an empty editor. The first save creates the post.
 - **Fields:**
   - title
+  - in the "Search and cards" panel:
+    - optional SEO title: the page's HTML title and social previews, exactly as typed; blank uses "title | RepGet"
+    - description (see below)
+    - optional primary keyword and secondary keywords (up to 30, comma-separated), with checks on where they appear
+    - optional breadcrumb label; blank uses the title
   - address (slug), made from the title when left empty
   - category: one of the blog's categories (see Categories below)
   - author
@@ -32,13 +37,17 @@ RepGet's own blog at `/blog` is written in the admin panel: **Admin → Blog** (
 | Text and FAQ answers are sanitised like article text; links to RepGet stay normal links, other sites get `nofollow` and open in a new tab | The HTML is published on RepGet's own site |
 | Structured data (JSON-LD) is escaped for a script block | Posts are typed by people now |
 | Only a post that is not published can be deleted | A live post is unpublished first |
-| A change to a live post, saved on a later day, shows "Updated <date>" and sets `dateModified` | What readers and search engines use |
+| A change to a live post's content, saved on a later day, shows "Updated <date>" and sets `dateModified`; a change to the search fields alone does not | What readers and search engines use; a new SEO title is not new content |
 
 Pictures inserted in a post are stored in the article-image bucket under `blog/posts/`.
 
 ## Rendering
 
-The blog index, post pages, category pages and `sitemap.xml` render per request (`force-dynamic`), as the homepage does for live prices. A published or changed post is live at once, and a build never needs the database.
+The blog index, post pages, category pages and `sitemap.xml` render per request (`force-dynamic`), as the homepage does for live prices. A published or changed post is live at once, and a build never needs the database. Index, category and author archives now query 30 articles per page, with stable ordering and numbered navigation. The team byline links to `/blog/author/repget-team`.
+
+The SEO title never becomes a second heading. Keywords are editorial inputs and appear in the BlogPosting structured data; they add no hidden text and no meta-keywords tag. Search engines and link previews get the title, description, canonical and Open Graph tags in the initial HTML `<head>`: `htmlLimitedBots` in `next.config.ts` is Next's own crawler list plus Googlebot. People still get streamed metadata.
+
+See [Blog upgrade setup](blog-upgrade-setup.md) for migrations 0051–0052, the "Get Featured in This Article" placements and the release steps.
 
 ## Deploying
 

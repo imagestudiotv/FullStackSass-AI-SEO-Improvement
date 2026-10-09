@@ -14,6 +14,7 @@ vi.mock("next/link", () => ({
   default: ({ href, children, ...rest }: { href: string; children: ReactNode; [key: string]: unknown }) =>
     createElement("a", { href, ...rest }, children),
 }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("sonner", () => ({ toast: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn() }) }));
 vi.mock("@/lib/stripe/actions", () => ({ createCheckoutSession: vi.fn() }));
 vi.mock("@/lib/paypal/actions", () => ({ createPayPalCheckout: vi.fn() }));
@@ -179,7 +180,7 @@ describe("payment options per website", () => {
 describe("statuses, prices and allowances", () => {
   it("translates every subscription status and keeps past_due a warning", () => {
     expect(subscriptionStatus("past_due", en.billing)).toMatchObject({ label: "Payment overdue", tone: "warning" });
-    expect(subscriptionStatus("trialing", de.billing).label).toBe("Kostenloser Test");
+    expect(subscriptionStatus("trialing", de.billing).label).toBe("Kostenlose Artikel");
     expect(subscriptionStatus("canceled", en.billing).label).toBe("Cancelled");
     expect(subscriptionStatus("something_new", en.billing)).toMatchObject({ label: "Something new", tone: "neutral" });
   });

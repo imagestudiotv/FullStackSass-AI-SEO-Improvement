@@ -3,6 +3,7 @@ import { and, eq, isNull, lte, sql as raw } from "drizzle-orm";
 import { inngest } from "@/inngest/client";
 import { db } from "@/lib/db";
 import { networkSites, subscriptions, websites } from "@/lib/db/schema";
+import { onFreeArticles } from "@/lib/billing/free-articles";
 
 /**
  * Switches the backlink exchange on three days after a website subscribes.
@@ -61,6 +62,8 @@ export const activateExchange = inngest.createFunction(
             isNull(networkSites.id),
             lte(subscriptions.createdAt, threeDaysAgo),
             raw`${subscriptions.status} in ('active', 'trialing')`,
+            // The Partner Network waits for the plan (lib/billing/free-articles.ts).
+            raw`not ${onFreeArticles(websites.id)}`,
           ),
         )
         .limit(200);

@@ -191,8 +191,8 @@ export function AuditResult({
   offer,
 }: {
   result: PublicAuditResult;
-  /** The live starting price and free trial (lib/billing.ts startingOffer). */
-  offer: { price: string | null; trialDays: number };
+  /** The live starting price and the free articles (lib/billing.ts startingOffer). */
+  offer: { price: string | null; freeArticles: number };
 }) {
   const blockedCrawlers = result.crawlers.filter((c) => !c.allowed);
 
@@ -655,13 +655,13 @@ export function AuditResult({
           </div>
 
           {/*
-            From the plans table and the checkout's trial length, so it cannot
+            From the plans table and the offer checkout applies, so it cannot
             outlive an offer: it said "EUR 1 for the first month" after that
             price was gone.
           */}
           <p className="mt-4 text-center text-xs text-muted-foreground">
             {offer.price ? `Plans start at ${offer.price} a month. ` : ""}
-            New accounts can try it free for {offer.trialDays} days.
+            New accounts get their first {offer.freeArticles} articles free.
           </p>
         </CardContent>
       </Card>

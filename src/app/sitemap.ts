@@ -33,6 +33,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/audit`, lastModified: now, priority: 0.9 },
     { url: `${base}/pricing`, lastModified: now, priority: 0.8 },
     { url: `${base}/tools`, lastModified: now, priority: 0.8 },
+    { url: `${base}/blog/author/repget-team`, lastModified: now, priority: 0.5 },
     { url: `${base}/blog`, lastModified: now, priority: 0.8 },
     { url: `${base}/docs/integrations`, lastModified: now, priority: 0.7 },
     {

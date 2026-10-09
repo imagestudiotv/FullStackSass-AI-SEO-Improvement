@@ -6,6 +6,16 @@ import { securityHeaders } from "./src/lib/security-headers";
 import { legacyHostRedirects } from "./src/lib/site-url";
 
 const nextConfig: NextConfig = {
+  /*
+    Search engines and link previews get a page's title, description,
+    canonical and Open Graph tags in the initial HTML <head> (client,
+    2026-10-08). Next already waits for the metadata, instead of streaming
+    it, for the bots in its own list - repeated here - but leaves out
+    Googlebot, which runs JavaScript; Googlebot is added. People still get
+    streamed metadata, so the app's loading screens are not held back.
+  */
+  htmlLimitedBots:
+    /Googlebot|[\w-]+-Google|Google-[\w-]+|Chrome-Lighthouse|Slurp|DuckDuckBot|baiduspider|yandex|sogou|bitlybot|tumblr|vkShare|quora link preview|redditbot|ia_archiver|Bingbot|BingPreview|applebot|facebookexternalhit|facebookcatalog|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview|Yeti|googleweblight/i,
   reactCompiler: true,
 
   compiler: {

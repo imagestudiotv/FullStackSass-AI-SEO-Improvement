@@ -17,7 +17,7 @@
     "check:stored-html": "node --experimental-strip-types scripts/check-stored-html.mjs",
     "reconcile:report": "node scripts/reconcile-report.mjs",
     "plugin:build": "node wordpress-plugin/build.mjs",
-    "plugin:test": "php wordpress-plugin/tests/sync-idempotency.php wordpress-plugin/repget-connector/repget-connector.php",
+    "plugin:test": "php wordpress-plugin/tests/sync-idempotency.php wordpress-plugin/repget-connector/repget-connector.php && php wordpress-plugin/tests/imagestudio-blog.php",
     "doctor": "node scripts/doctor.mjs",
     "db:seed-addons": "node scripts/seed-addons.mjs",
     "db:seed": "node scripts/seed-plans.mjs",

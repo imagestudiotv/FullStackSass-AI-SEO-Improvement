@@ -99,20 +99,8 @@ function hash(value: string): string {
   return createHash("sha256").update(value).digest("hex").slice(0, 32);
 }
 
-/**
- * Who is asking, as a hash - the address itself is never stored.
- *
- * x-real-ip and the first x-forwarded-for entry are set by the hosting edge
- * (Vercel overwrites whatever the client sent). Without either, everyone
- * shares one bucket, which fails closed rather than open.
- */
-export function visitorKey(headers: Pick<Headers, "get">): string {
-  const ip =
-    headers.get("x-real-ip")?.trim() ||
-    headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    "unknown";
-  return hash(ip);
-}
+/** Who is asking, as a hash (lib/visitor-key.ts); also used by the blog's paid placements. */
+export { visitorKey } from "@/lib/visitor-key";
 
 function publicRules(visitor: string): QuotaRule[] {
   return [

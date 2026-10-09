@@ -7,7 +7,7 @@ import {
   websites,
 } from "@/lib/db/schema";
 import type { Database, Executor, Transaction } from "@/lib/db/types";
-import { TRIAL_DAYS } from "@/lib/plans/features";
+import { FREE_ARTICLES_DAYS } from "@/lib/plans/features";
 
 /**
  * Checkouts we have sent a customer to, and what became of them.
@@ -745,7 +745,7 @@ export async function beginCheckout(
       sql`select pg_advisory_xact_lock(hashtextextended(${`trial:${org.id}`}, 0))`,
     );
     const trialDays =
-      input.provider === "stripe" && (await isTrialEligible(tx, org.id)) ? TRIAL_DAYS : 0;
+      input.provider === "stripe" && (await isTrialEligible(tx, org.id)) ? FREE_ARTICLES_DAYS : 0;
 
     const [row] = await tx
       .insert(billingCheckouts)

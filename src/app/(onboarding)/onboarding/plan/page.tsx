@@ -37,7 +37,7 @@ export default async function OnboardingPlanPage({
   const session = await requireSession();
   const { t } = await getAppMessages(session.user.id);
   const { orgId } = await requireOrg();
-  // Whether checkout will really grant the trial the page offers.
+  // Whether checkout will really give the free articles the page offers.
   const trialEligible = await isTrialEligible(db, orgId);
 
   const params = await searchParams;
@@ -146,6 +146,8 @@ export default async function OnboardingPlanPage({
               paypalAvailable={paypalAvailable}
               websiteId={state.websiteId}
               trialEligible={trialEligible}
+              emailVerified={session.user.emailVerified === true}
+              email={session.user.email}
             />
           </div>
 

@@ -1,9 +1,11 @@
 import { ArrowRight, CalendarDays, Clock } from "lucide-react";
+import Link from "next/link";
+import type { ReactNode } from "react";
 
 import { PostCover } from "@/components/post-cover";
 import { ARTICLE_TABLE_CLASSES } from "@/lib/articles/table-styles";
 import { sanitizeHtml } from "@/lib/articles/sanitize";
-import { tableOfContents, withHeadingIds, type BlogPost } from "@/lib/blog/shared";
+import { isTeamAuthor, TEAM_AUTHOR_PATH, tableOfContents, withHeadingIds, type BlogPost } from "@/lib/blog/shared";
 
 function formatDate(iso: string): string {
   return new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", {
@@ -23,7 +25,14 @@ function formatDate(iso: string): string {
  * preview for unsaved text); the short answer, questions and source labels
  * are plain text, which React escapes.
  */
-export function BlogArticle({ post }: { post: BlogPost }) {
+export function BlogArticle({
+  post,
+  sponsorship,
+}: {
+  post: BlogPost;
+  /** The "Get Featured in This Article" button, on the public page only (not the admin preview). */
+  sponsorship?: ReactNode;
+}) {
   const cleanBody = sanitizeHtml(post.body);
   const toc = tableOfContents(cleanBody);
   const body = withHeadingIds(cleanBody);
@@ -36,7 +45,20 @@ export function BlogArticle({ post }: { post: BlogPost }) {
         </h1>
 
         <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-muted-foreground">
-          <span className="font-medium text-foreground">{post.author}</span>
+          {/* The team's byline is a link to its author page (client, 2026-10-08). */}
+          <span className="font-medium text-foreground">
+            {isTeamAuthor(post.author) ? (
+              <Link
+                href={TEAM_AUTHOR_PATH}
+                rel="author"
+                className="underline decoration-foreground/25 underline-offset-4 transition-colors hover:text-primary hover:decoration-primary"
+              >
+                {post.author}
+              </Link>
+            ) : (
+              post.author
+            )}
+          </span>
           <span className="flex items-center gap-1.5">
             <CalendarDays className="size-3.5" aria-hidden="true" />
             <time dateTime={post.publishedAt}>
@@ -50,6 +72,8 @@ export function BlogArticle({ post }: { post: BlogPost }) {
           {post.updatedAt ? (
             <span>Updated {formatDate(post.updatedAt)}</span>
           ) : null}
+          {/* On the right of the author row, as in the client's design; its own row on a phone. */}
+          {sponsorship ? <div className="w-full pt-1 sm:ml-auto sm:w-auto sm:pt-0">{sponsorship}</div> : null}
         </div>
 
         <PostCover

@@ -8,6 +8,7 @@ import {
   type SubscriptionSnapshot,
   type SyncResult,
 } from "@/lib/billing/subscription-sync";
+import { confirmSponsorship, isSponsorshipSession } from "@/lib/blog/sponsorship";
 import { db } from "@/lib/db";
 import type { Executor } from "@/lib/db/types";
 import { billingCustomers, organization, payments, plans, subscriptions } from "@/lib/db/schema";
@@ -186,8 +187,18 @@ export async function processStripeEvent(event: Stripe.Event): Promise<void> {
     case "checkout.session.completed": {
       const session = event.data.object;
 
+      /*
+        A "Get Featured" payment on RepGet's blog (lib/blog/sponsorship.ts)
+        carries its request's id. It is a placement, not an add-on, and
+        confirmSponsorship checks it against the stored request.
+      */
+      if (session.mode === "payment" && isSponsorshipSession(session)) {
+        await confirmSponsorship(session);
+        return;
+      }
+
       /**
-       * One-off payments are add-ons. This is the ONLY place they are
+       * Other one-off payments are add-ons. This is the ONLY place they are
        * recorded — the success redirect cannot be trusted.
        */
       if (session.mode === "payment") {

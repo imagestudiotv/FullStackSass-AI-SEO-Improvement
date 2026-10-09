@@ -41,7 +41,8 @@ describe("siteSchema", () => {
     });
   });
 
-  it("matches the client's Organization entity, with a real logo", async () => {
+  it("matches the client's Organization entity, with a real logo and the support inbox", async () => {
+    // No address configured: RepGet's own inbox (lib/config/site.ts), as production shows.
     expect((await build())["@graph"][1]).toEqual({
       "@type": "Organization",
       "@id": "https://www.repget.com/#organization",
@@ -53,6 +54,7 @@ describe("siteSchema", () => {
         width: 512,
         height: 512,
       },
+      contactPoint: { "@type": "ContactPoint", contactType: "customer support", email: "support@repget.com" },
     });
   });
 

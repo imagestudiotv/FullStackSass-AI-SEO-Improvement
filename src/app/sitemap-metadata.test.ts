@@ -47,6 +47,8 @@ const { POSTS, CATEGORIES } = vi.hoisted(() => {
     {
       slug: "rank-tracker-comparison",
       title: "Rank trackers compared",
+      // Its own search title, which is the whole <title> (Admin -> Blog).
+      seoTitle: "Rank trackers compared: 5 tools, real prices (2026)",
       description: "Five rank trackers, what they cost and what they miss.",
       category: "Comparisons",
       categorySlug: "comparisons",
@@ -62,8 +64,9 @@ const { POSTS, CATEGORIES } = vi.hoisted(() => {
 // Blog pages read the database; these stand in for published posts.
 vi.mock("@/lib/blog/posts", () => ({
   listPosts: async () => POSTS,
+  listPostPage: async () => ({ posts: POSTS, total: POSTS.length }),
+  publishedCategoryCounts: async () => ({}),
   getPost: async (slug: string) => POSTS.find((post) => post.slug === slug) ?? null,
-  postsByCategory: async () => [],
   relatedPosts: async () => [],
 }));
 vi.mock("@/lib/blog/categories", () => ({
@@ -203,11 +206,16 @@ describe("every page in the sitemap", () => {
     }
   });
 
-  /** Next fills og:title/og:description from the page's own; one set by hand must agree. */
+  /**
+   * Next fills og:title/og:description from the page's own; one set by hand
+   * must agree. A title written out whole ({ absolute }, a blog post's SEO
+   * title) is compared as written.
+   */
   it("shares the page's own title and description", () => {
     for (const { pathname, metadata } of pages) {
       const og = metadata.openGraph;
-      if (og?.title !== undefined) expect(og.title, pathname).toBe(metadata.title);
+      const title = metadata.title && typeof metadata.title === "object" && "absolute" in metadata.title ? metadata.title.absolute : metadata.title;
+      if (og?.title !== undefined) expect(og.title, pathname).toBe(title);
       if (og?.description !== undefined) expect(og.description, pathname).toBe(metadata.description);
     }
   });

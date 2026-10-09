@@ -176,7 +176,7 @@ export async function resolveDashboard(
     requirePlan: that would send them into the owner's checkout and name the
     owner's other sites. See requireWebsitePlan.
   */
-  if (ctx.access !== "owner" && !(await isEntitledToSpend(ctx.site.id)).ok) {
+  if (ctx.access !== "owner" && !(await isEntitledToSpend(ctx.site.id, { freeArticles: true })).ok) {
     return { kind: "inactive", ctx, invitations };
   }
 

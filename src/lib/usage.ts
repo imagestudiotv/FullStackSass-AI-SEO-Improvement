@@ -7,7 +7,9 @@ import type { QuotaRule } from "@/lib/billing/spend-quota";
 import {
   allowanceWindowStart,
   calendarMonth,
+  isFreeArticlesTrial,
 } from "@/lib/billing/entitlement-period";
+import { FREE_ARTICLES } from "@/lib/plans/features";
 import {
   articles,
   keywords,
@@ -129,9 +131,9 @@ export type { LimitCheck } from "@/lib/usage-shared";
 /**
  * Statuses that grant access. Stripe keeps a subscription alive through
  * payment retries as "past_due", so treating any non-"active" value as
- * cancelled would lock out customers mid-dunning; "trialing" is a paying
- * customer in waiting. Anything else (canceled, unpaid, incomplete*) does not
- * grant access.
+ * cancelled would lock out customers mid-dunning; "trialing" is a new
+ * customer on their free articles (card given, plan chosen). Anything else
+ * (canceled, unpaid, incomplete*) does not grant access.
  */
 const ENTITLED_STATUSES = new Set(["active", "trialing", "past_due"]);
 
@@ -141,10 +143,10 @@ const ENTITLED_STATUSES = new Set(["active", "trialing", "past_due"]);
  * Not the billing period: an annual plan's billing period is a year, and
  * using it as the usage window let an annual customer spend one month's
  * allowance and then wait eleven months. Periods are months anchored on the
- * billing anchor, and the first paid period after a trial also counts the
- * trial's usage (the trial is part of the first month) - see
- * allowanceWindowStart and the full policy in lib/billing/entitlement-period.ts
- * (month ends, leap years, trials, upgrades, UTC). This is the ONLY place the
+ * billing anchor: during a trial, the trial (its free articles); after it, a
+ * fresh paid month - see allowanceWindowStart and the full policy in
+ * lib/billing/entitlement-period.ts (month ends, leap years, trials,
+ * upgrades, UTC). This is the ONLY place the
  * article window is resolved: display, enforcement and the reservation's
  * stored window all take it from resolvePlan.
  */
@@ -225,8 +227,14 @@ async function resolvePlan(
     return { ok: false as const, reason: "subscription_inactive" as const };
   }
 
+  /*
+    A new account's free articles (lib/billing/free-articles.ts): the trial
+    allows FREE_ARTICLES, whatever the plan it will start; the keyword limit
+    is the plan's, for the research that plans them.
+  */
+  const freeArticles = !agency && isFreeArticlesTrial(sub!);
   const planLimits = agency ?? {
-    articles: sub!.articleLimit!,
+    articles: freeArticles ? FREE_ARTICLES : sub!.articleLimit!,
     keywords: sub!.keywordLimit!,
   };
 
@@ -235,9 +243,18 @@ async function resolvePlan(
    * the calendar month. Without this, periodStart would be given two nulls
    * and every article ever written would count against the monthly limit.
    */
-  const from = agency ? calendarMonth().start : periodStart(sub!);
+  /*
+    The free articles are counted over the whole trial, from its start: a
+    30-day trial is longer than February, and a second month opening inside
+    it would hand out the free articles twice.
+  */
+  const from = agency
+    ? calendarMonth().start
+    : freeArticles
+      ? sub!.currentPeriodStart!
+      : periodStart(sub!);
 
-  return { ok: true as const, orgId, planLimits, from };
+  return { ok: true as const, orgId, planLimits, from, freeArticles };
 }
 
 /** Ledger key for a website's monthly article allowance. */
@@ -345,7 +362,7 @@ export async function articleAllowanceRule(
   websiteId: string,
   executor: Pick<typeof db, "select" | "execute"> = db,
 ): Promise<
-  | { ok: true; rule: QuotaRule; organizationId: string }
+  | { ok: true; rule: QuotaRule; organizationId: string; freeArticles: boolean }
   | { ok: false; reason: "no_active_plan" | "subscription_inactive" }
 > {
   const plan = await resolvePlan(websiteId, executor);
@@ -353,6 +370,7 @@ export async function articleAllowanceRule(
   return {
     ok: true,
     organizationId: plan.orgId,
+    freeArticles: plan.freeArticles,
     rule: {
       key: articleAllowanceKey(websiteId),
       limit: plan.planLimits.articles,
@@ -391,7 +409,7 @@ export async function checkLimit(
   if (!plan.ok) {
     return { allowed: false, used: 0, limit: 0, reason: plan.reason };
   }
-  const { orgId, planLimits, from } = plan;
+  const { orgId, planLimits, from, freeArticles } = plan;
 
   let used: number;
   let limit: number;
@@ -430,6 +448,7 @@ export async function checkLimit(
     used,
     limit,
     reason: allowed ? null : "limit_reached",
+    freeArticles,
   };
 }
 

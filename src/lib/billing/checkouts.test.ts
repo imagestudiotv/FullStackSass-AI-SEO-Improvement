@@ -22,6 +22,7 @@ const state = vi.hoisted(() => ({
   db: null as unknown,
   orgId: "org_a",
   context: null as unknown,
+  emailVerified: true,
 }));
 
 const stripeMock = vi.hoisted(() => ({
@@ -80,6 +81,12 @@ vi.mock("@/lib/paypal/subscriptions", async (importOriginal) => ({
   getSubscription: paypalMock.getSubscription,
   reviseSubscription: paypalMock.reviseSubscription,
 }));
+// The signed-in person; card checkout asks whether their address is confirmed.
+vi.mock("@/lib/auth-guard", () => ({
+  requireSession: vi.fn(async () => ({
+    user: { id: "user_1", email: "owner@example.test", emailVerified: state.emailVerified },
+  })),
+}));
 vi.mock("@/lib/tenant", () => {
   class WebsiteNotFoundError extends Error {}
   return {
@@ -98,6 +105,7 @@ vi.mock("@/lib/tenant", () => {
 
 import { deleteOrganization } from "@/lib/admin/operations";
 import { CHECKOUT_IN_FLIGHT_MS } from "@/lib/billing/checkouts";
+import { CONFIRM_EMAIL_FIRST, FREE_ARTICLES_DAYS } from "@/lib/plans/features";
 import { runReconciliation } from "@/lib/billing/reconciliation";
 import { createPayPalCheckout } from "@/lib/paypal/actions";
 import { createCheckoutSession } from "@/lib/stripe/actions";
@@ -116,6 +124,7 @@ beforeEach(async () => {
   vi.clearAllMocks();
   state.orgId = "org_a";
   state.context = null;
+  state.emailVerified = true;
   await test.client.exec(`
     delete from admin_audit_log;
     delete from billing_checkouts;
@@ -926,11 +935,35 @@ describe("trial eligibility", () => {
   const trialOf = (call: number) =>
     stripeMock.sessionsCreate.mock.calls[call][0].subscription_data.trial_period_days;
 
-  it("offers the trial to a workspace that has never subscribed", async () => {
+  it("offers the free articles' trial to a workspace that has never subscribed", async () => {
     const site = await addSite();
     await createCheckoutSession(planId, site.id);
-    expect(trialOf(0)).toBe(3);
-    expect((await checkouts())[0].trialDays).toBe(3);
+    expect(trialOf(0)).toBe(FREE_ARTICLES_DAYS);
+    expect((await checkouts())[0].trialDays).toBe(FREE_ARTICLES_DAYS);
+  });
+
+  it("refuses it to an unconfirmed address, before anything is recorded or sent to Stripe", async () => {
+    state.emailVerified = false;
+    const site = await addSite();
+    expect(await createCheckoutSession(planId, site.id)).toEqual({ error: CONFIRM_EMAIL_FIRST });
+    expect(stripeMock.sessionsCreate).not.toHaveBeenCalled();
+    expect(await checkouts()).toHaveLength(0);
+  });
+
+  it("lets an unconfirmed address pay when there are no free articles to give", async () => {
+    state.emailVerified = false;
+    await test.db.insert(subscriptions).values({
+      organizationId: "org_a",
+      websiteId: null,
+      planId,
+      status: "canceled",
+      stripeSubscriptionId: "sub_before",
+    });
+    const site = await addSite();
+    expect(await createCheckoutSession(planId, site.id)).toEqual({
+      url: "https://checkout.stripe.test/cs_test_1",
+    });
+    expect(trialOf(0)).toBeUndefined();
   });
 
   it("does not offer it again after any earlier subscription, even a cancelled one", async () => {
@@ -957,7 +990,7 @@ describe("trial eligibility", () => {
 
     await createCheckoutSession(planId, one.id);
     await createCheckoutSession(planId, two.id);
-    expect([trialOf(0), trialOf(1)]).toEqual([3, undefined]);
+    expect([trialOf(0), trialOf(1)]).toEqual([FREE_ARTICLES_DAYS, undefined]);
   });
 
   it("never offers one through PayPal", async () => {

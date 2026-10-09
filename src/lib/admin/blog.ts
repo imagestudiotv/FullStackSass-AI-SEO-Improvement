@@ -11,11 +11,13 @@ import {
   FAQ_ANSWER_LIMIT,
   hasText,
   readingMinutes,
+  TEAM_AUTHOR,
   type BlogCategory,
   type BlogCategoryInfo,
   type BlogFaq,
   type BlogSource,
 } from "@/lib/blog/shared";
+import { SEARCH_LIMITS, secondaryKeywordList } from "@/lib/blog/keywords";
 import { db } from "@/lib/db";
 import { blogCategories, blogPosts } from "@/lib/db/schema";
 import { notifyIndexNow } from "@/lib/indexnow";
@@ -47,6 +49,9 @@ import type { ActionResult } from "@/lib/websites/actions";
  *   2026-10-01). A category's address is set when it is created and never
  *   changes; renaming one renames it on its posts; only a category no post
  *   uses can be deleted.
+ * - The search fields (SEO title, keywords, breadcrumb label; client,
+ *   2026-10-08) are optional and checked like the rest. Changing only them
+ *   does not mark a live post "Updated": readers see the same article.
  * - A change readers can see - publishing, editing a live post, unpublishing,
  *   changing a category with live posts, deleting a category - is reported
  *   to Bing and the other IndexNow engines once saved, naming only the pages
@@ -67,6 +72,10 @@ export type AdminBlogRow = {
 
 export type AdminBlogPost = AdminBlogRow & {
   description: string;
+  seoTitle: string | null;
+  primaryKeyword: string | null;
+  secondaryKeywords: string[];
+  breadcrumbLabel: string | null;
   author: string;
   shortAnswer: string | null;
   bodyHtml: string;
@@ -81,6 +90,13 @@ export type BlogPostInput = {
   /** Empty: made from the title. */
   slug: string;
   description: string;
+  /** Empty: the browser and search title is the title (lib/blog/keywords.ts). */
+  seoTitle: string;
+  primaryKeyword: string;
+  /** As typed: tidied, and repeats dropped, on save. */
+  secondaryKeywords: string[];
+  /** Empty: the breadcrumb ends with the title. */
+  breadcrumbLabel: string;
   category: string;
   author: string;
   shortAnswer: string;
@@ -89,9 +105,8 @@ export type BlogPostInput = {
   sources: BlogSource[];
 };
 
-const DEFAULT_AUTHOR = "RepGet team";
 /** Paths under /blog that are not posts. */
-const RESERVED_SLUGS = new Set(["category"]);
+const RESERVED_SLUGS = new Set(["category", "author", "sponsorship"]);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 class BlogError extends Error {}
@@ -106,6 +121,10 @@ type Clean = {
   title: string;
   slug: string;
   description: string;
+  seoTitle: string | null;
+  primaryKeyword: string | null;
+  secondaryKeywords: string[];
+  breadcrumbLabel: string | null;
   category: BlogCategory;
   author: string;
   shortAnswer: string | null;
@@ -128,6 +147,19 @@ function clean(input: BlogPostInput, publishing: boolean): Clean {
   if (!category) throw new BlogError("Choose a category");
 
   const description = String(input.description ?? "").trim().slice(0, 300);
+
+  const primaryKeyword = oneLine(input.primaryKeyword).slice(0, SEARCH_LIMITS.keyword);
+  const secondaryKeywords = secondaryKeywordList(Array.isArray(input.secondaryKeywords) ? input.secondaryKeywords : [], primaryKeyword);
+  // Refused rather than cut, like the FAQs: dropping the 31st phrase would lose one the writer meant to keep.
+  if (secondaryKeywords.length > SEARCH_LIMITS.secondaryKeywords) {
+    throw new BlogError(
+      `Up to ${SEARCH_LIMITS.secondaryKeywords} secondary keywords - this post has ${secondaryKeywords.length}. Remove some before saving.`,
+    );
+  }
+  const tooLong = secondaryKeywords.find((keyword) => keyword.length > SEARCH_LIMITS.keyword);
+  if (tooLong) {
+    throw new BlogError(`The secondary keyword "${tooLong.slice(0, 40)}…" is too long - keep each one under ${SEARCH_LIMITS.keyword} characters`);
+  }
   const bodyHtml = sanitizeHtml(String(input.bodyHtml ?? ""), { siteHosts: siteHosts() });
 
   const faqRows = Array.isArray(input.faqs) ? input.faqs.slice(0, 30) : [];
@@ -188,13 +220,22 @@ function clean(input: BlogPostInput, publishing: boolean): Clean {
     title,
     slug,
     description,
+    seoTitle: oneLine(input.seoTitle).slice(0, SEARCH_LIMITS.seoTitle) || null,
+    primaryKeyword: primaryKeyword || null,
+    secondaryKeywords,
+    breadcrumbLabel: oneLine(input.breadcrumbLabel).slice(0, SEARCH_LIMITS.breadcrumb) || null,
     category,
-    author: String(input.author ?? "").trim().slice(0, 100) || DEFAULT_AUTHOR,
+    author: oneLine(input.author).slice(0, 100) || TEAM_AUTHOR,
     shortAnswer: String(input.shortAnswer ?? "").trim().slice(0, 1000) || null,
     bodyHtml,
     faqs,
     sources,
   };
+}
+
+/** A one-line field: trimmed, inner runs of spaces made one. */
+function oneLine(value: unknown): string {
+  return String(value ?? "").trim().replace(/\s+/g, " ");
 }
 
 /** True for Postgres's unique-violation error, however the driver wraps it. */
@@ -278,6 +319,10 @@ export async function getBlogPostAdmin(id: string): Promise<AdminBlogPost | null
     updatedAt: row.updatedAt,
     updatedBy: row.updatedBy,
     description: row.description,
+    seoTitle: row.seoTitle,
+    primaryKeyword: row.primaryKeyword,
+    secondaryKeywords: row.secondaryKeywords,
+    breadcrumbLabel: row.breadcrumbLabel,
     author: row.author,
     shortAnswer: row.shortAnswer,
     bodyHtml: row.bodyHtml,
@@ -372,6 +417,12 @@ export async function saveBlogPost(input: {
         fields.bodyHtml !== current.bodyHtml ||
         !sameFaqs(fields.faqs, current.faqs) ||
         !sameSources(fields.sources, current.sources);
+      // Seen by search engines (the <title>, structured data, the breadcrumb), not a new version of the article.
+      const searchChanged =
+        fields.seoTitle !== current.seoTitle ||
+        fields.primaryKeyword !== current.primaryKeyword ||
+        JSON.stringify(fields.secondaryKeywords) !== JSON.stringify(current.secondaryKeywords) ||
+        fields.breadcrumbLabel !== current.breadcrumbLabel;
       const wasLive = current.status === "published";
       const [updated] = await tx
         .update(blogPosts)
@@ -414,7 +465,7 @@ export async function saveBlogPost(input: {
         more), and a draft never is: nobody can see it.
 
         The post's own page: when it went live or came down, or a live post's
-        text, author or category changed.
+        text, search fields, author or category changed.
 
         The listings - the blog's front page and the category pages: when the
         post joined or left them, or its card changed (title, description,
@@ -425,7 +476,8 @@ export async function saveBlogPost(input: {
       const nowLive = input.status === "published";
       const movedCategory = fields.category !== current.category;
       const pageChanged =
-        wasLive !== nowLive || (nowLive && (contentChanged || fields.author !== current.author || movedCategory));
+        wasLive !== nowLive ||
+        (nowLive && (contentChanged || searchChanged || fields.author !== current.author || movedCategory));
       const cardChanged =
         wasLive !== nowLive ||
         (nowLive &&

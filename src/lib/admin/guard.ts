@@ -39,7 +39,8 @@ export class NotAdminError extends Error {
   }
 }
 
-function adminEmails(): string[] {
+/** The administrators' addresses (ADMIN_EMAILS), lower case. Also who hears about a paid blog placement. */
+export function adminEmails(): string[] {
   return (process.env.ADMIN_EMAILS ?? "")
     .split(",")
     .map((email) => email.trim().toLowerCase())

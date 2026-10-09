@@ -63,6 +63,9 @@ export const ACTION_META: Record<AdminAction, ActionMeta> = {
   "blog.category_created": { label: "Blog category added", icon: Newspaper },
   "blog.category_saved": { label: "Blog category changed", icon: Newspaper },
   "blog.category_deleted": { label: "Blog category deleted", icon: Trash2, removal: true },
+  "blog.placement_published": { label: "Featured placement published", icon: Newspaper },
+  "blog.placement_declined": { label: "Featured placement declined", icon: Newspaper },
+  "blog.placement_reopened": { label: "Featured placement back to review", icon: Newspaper },
 
   "platform.control_changed": { label: "Platform control changed", icon: Gauge },
   "publication.dispatch_resolved": { label: "Delivery resolved", icon: Gauge },

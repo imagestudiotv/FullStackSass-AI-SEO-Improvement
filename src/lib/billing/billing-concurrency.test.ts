@@ -17,6 +17,7 @@ import {
   websites,
 } from "@/lib/db/schema";
 import type { Database } from "@/lib/db/types";
+import { FREE_ARTICLES_DAYS } from "@/lib/plans/features";
 import {
   deleteWebsiteIfBillingResolved,
   deleteWorkspaceIfBillingResolved,
@@ -296,7 +297,7 @@ describe.skipIf(!available)("billing locks on real Postgres", () => {
     expect(await a.select().from(billingCheckouts)).toHaveLength(1);
   });
 
-  it("simultaneous checkouts for two websites offer the workspace one trial", async () => {
+  it("simultaneous checkouts for two websites offer the workspace one free-articles trial", async () => {
     const [second] = await a
       .insert(websites)
       .values({ organizationId: "org_a", url: "https://two.test", domain: "two.test" })
@@ -314,7 +315,7 @@ describe.skipIf(!available)("billing locks on real Postgres", () => {
       ),
     ]);
     const trials = results.map((r) => (r.kind === "create" ? r.trialDays : -1));
-    expect(trials.sort()).toEqual([0, 3]);
+    expect(trials.sort((x, y) => x - y)).toEqual([0, FREE_ARTICLES_DAYS]);
   });
 
   it("two syncs of the SAME subscription read the provider one after the other", async () => {

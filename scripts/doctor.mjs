@@ -228,11 +228,9 @@ if (gaProperty && gaKey) {
 
 const supportEmail = env.NEXT_PUBLIC_SUPPORT_EMAIL;
 if (!supportEmail) {
-  bad(
-    "NEXT_PUBLIC_SUPPORT_EMAIL is not set",
-    "Legal pages still show support@example.com. Privacy, terms and refunds all promise a contact address, so this must be real before launch.",
-  );
-} else if (supportEmail.endsWith("@example.com")) {
+  // lib/config/site.ts falls back to RepGet's own inbox.
+  ok("Support email is support@repget.com (the default)");
+} else if (supportEmail.endsWith("@example.com") || supportEmail.endsWith("@yourdomain.com")) {
   bad(
     `NEXT_PUBLIC_SUPPORT_EMAIL is still a placeholder (${supportEmail})`,
     "Use a monitored address.",

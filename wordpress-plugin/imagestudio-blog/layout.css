@@ -1,0 +1,71 @@
+/* Shop is not in the desktop header, English or Italian, so the phone menus
+   drop it too (client, 2026-10-08). English pages use the fullscreen menu
+   widget (.isx-fullscreen-links), Italian pages the older one
+   (#fullscreenMenu .menu-links). Both exist only behind the phone/tablet
+   menu button. */
+.isx-fullscreen-links > a[href$="/shop/"],
+.isx-fullscreen-links > a[href$="/shop"],
+#fullscreenMenu .menu-links > a[href$="/shop/"],
+#fullscreenMenu .menu-links > a[href$="/shop"],
+#isxSinglePortfolioMobileMenu a[href$="/shop/"],
+#isxSinglePortfolioMobileMenu a[href$="/shop"] { display: none !important; }
+
+/* Four independent source columns used to become two grid rows. The shorter
+   first column left a hole below Bridal Silhouette until the second ended. */
+@media (max-width: 767px) {
+  body.home .elementor-element-707268c.isb-mobile-grid {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+    align-items: start !important;
+  }
+  /* The grid's own 15px spacing, between the stacked items as between the columns. */
+  .isb-mobile-column { display: flex; flex-direction: column; min-width: 0; gap: 15px; }
+  /* The fourth column has an Elementor top margin of -156px, which pulled it
+     up into the old row gap. Stacked, it pulled "THE LAKESIDE VOWS" under
+     the next picture instead. */
+  .isb-mobile-column > .e-con {
+    width: 100% !important; max-width: 100%; min-width: 0; height: auto;
+    margin-top: 0 !important; margin-block-start: 0 !important;
+  }
+}
+
+/* A portfolio is a viewport gallery, not a normal page plus footer. */
+html.isb-portfolio-root, body.isb-portfolio { overflow: hidden !important; overscroll-behavior: none; }
+/* The footer is hidden but kept: the chat button (Live Chats, #lcw-widget)
+   lives inside it and must stay. Its button, invite and window are fixed to
+   the screen, so they still show from a footer of no height. */
+body.isb-portfolio #colophon {
+  visibility: hidden !important; height: 0 !important; min-height: 0 !important;
+  overflow: hidden !important; padding: 0 !important; margin: 0 !important; border: 0 !important;
+}
+body.isb-portfolio #colophon #lcw-widget { visibility: visible !important; }
+body.isb-portfolio #viewport {
+  position: fixed !important; inset: 0 !important;
+  width: 100vw !important; height: 100vh !important; height: 100dvh !important;
+  margin: 0 !important; z-index: 1;
+}
+body.isb-portfolio .slide-intro { height: 100dvh !important; min-height: 100dvh !important; }
+body.isb-portfolio .slide-card img {
+  max-height: calc(100dvh - 128px) !important;
+  max-width: 100% !important; width: auto; height: auto;
+  object-fit: contain !important;
+}
+body.isb-portfolio .isx-story-v2-close { min-width: 54px; min-height: 44px; pointer-events: auto !important; }
+@media (min-width: 1025px) {
+  body.isb-portfolio .isx-story-v2 {
+    padding-top: max(126px, var(--isx-story-v2-top, 126px)) !important;
+    /* The story text stops above the fixed Back button (30px from the bottom, 47px tall). */
+    padding-bottom: 96px !important;
+  }
+}
+@media (max-width: 1024px) {
+  body.isb-portfolio .isx-story-v2 {
+    z-index: 2147483646 !important;
+    top: max(80px, env(safe-area-inset-top)) !important;
+    bottom: max(16px, env(safe-area-inset-bottom)) !important;
+  }
+}
+@media (max-width: 768px) and (orientation: portrait) {
+  body.isb-portfolio .intro-img { height: 100dvh !important; }
+  body.isb-portfolio .slide-card { min-height: 100dvh !important; height: 100dvh !important; }
+}

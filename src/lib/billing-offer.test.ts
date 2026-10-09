@@ -13,7 +13,7 @@ const state = vi.hoisted(() => ({ db: null as unknown }));
 vi.mock("@/lib/db", () => ({ db: new Proxy({}, { get: (_t, p) => Reflect.get(state.db as object, p) }) }));
 
 import { startingOffer } from "@/lib/billing";
-import { TRIAL_DAYS } from "@/lib/plans/features";
+import { FREE_ARTICLES } from "@/lib/plans/features";
 
 let test: TestDb;
 beforeAll(async () => {
@@ -24,8 +24,8 @@ beforeAll(async () => {
 const limits = { articleLimit: 30, keywordLimit: 100, siteLimit: 1, monthlyCredits: 10 };
 
 describe("startingOffer", () => {
-  it("is the trial alone while no monthly plan is on sale", async () => {
-    expect(await startingOffer()).toEqual({ price: null, trialDays: TRIAL_DAYS });
+  it("is the free articles alone while no monthly plan is on sale", async () => {
+    expect(await startingOffer()).toEqual({ price: null, freeArticles: FREE_ARTICLES });
   });
 
   it("is the cheapest ACTIVE MONTHLY plan above zero, priced as the pricing page shows it", async () => {
@@ -38,6 +38,6 @@ describe("startingOffer", () => {
       { name: "Starter", tier: "starter", interval: "month", priceCents: 100, isActive: false, ...limits },
       { name: "Free", tier: "free", interval: "month", priceCents: 0, ...limits },
     ]);
-    expect(await startingOffer()).toEqual({ price: "€99", trialDays: TRIAL_DAYS });
+    expect(await startingOffer()).toEqual({ price: "€99", freeArticles: FREE_ARTICLES });
   });
 });

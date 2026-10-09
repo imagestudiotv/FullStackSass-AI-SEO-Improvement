@@ -3,12 +3,17 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { BlogArticle } from "@/components/blog-article";
+import { BlogSponsorship } from "@/components/blog-sponsorship";
 import { getPost, relatedPosts } from "@/lib/blog/posts";
-import { jsonLdScript, plainText } from "@/lib/blog/shared";
+import { isTeamAuthor, TEAM_AUTHOR_PATH, jsonLdScript, plainText } from "@/lib/blog/shared";
+import { sponsorshipConfigured } from "@/lib/blog/sponsorship";
+import { getMessages } from "@/lib/i18n/messages";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
 import { SHARE_IMAGE } from "@/lib/share-image";
 import { siteUrl } from "@/lib/site-url";
 import { breadcrumbList, entityIds } from "@/lib/structured-data";
+
+import { ClosingCta } from "../../home-sections";
 
 /**
  * Rendered per request, from the database: a post published or corrected in
@@ -25,8 +30,16 @@ export async function generateMetadata({
 
   if (!post) return { title: "Post not found" };
 
+  /*
+    The SEO title, when the post has one, is the whole <title>, exactly as
+    written (client, 2026-10-08). Without one the title is the article's,
+    with "| RepGet" added by the root layout, as every post has always had.
+    The visible H1 is the article title either way.
+  */
+  const searchTitle = post.seoTitle || post.title;
+
   return {
-    title: post.title,
+    title: post.seoTitle ? { absolute: post.seoTitle } : post.title,
     description: post.description,
     /*
       An article rather than a website, titled without the "| RepGet" suffix.
@@ -36,7 +49,7 @@ export async function generateMetadata({
     ...publicPageMetadata(`/blog/${post.slug}`, {
       openGraph: {
         type: "article",
-        title: post.title,
+        title: searchTitle,
         description: post.description,
         publishedTime: post.publishedAt,
         modifiedTime: post.updatedAt ?? post.publishedAt,
@@ -45,7 +58,7 @@ export async function generateMetadata({
     }),
     twitter: {
       card: "summary_large_image",
-      title: post.title,
+      title: searchTitle,
       description: post.description,
       images: [SHARE_IMAGE],
     },
@@ -54,8 +67,11 @@ export async function generateMetadata({
 
 export default async function BlogPostPage({
   params,
+  searchParams,
 }: PageProps<"/blog/[slug]">) {
   const { slug } = await params;
+  // Back from Stripe without paying (lib/blog/sponsorship-actions.ts): the panel says nothing was charged.
+  const cancelled = (await searchParams).featured === "cancelled";
   const post = await getPost(slug);
 
   // A missing slug is a genuine 404, not an empty page: a soft 404 keeps a
@@ -84,7 +100,17 @@ export default async function BlogPostPage({
       datePublished: post.publishedAt,
       dateModified: post.updatedAt ?? post.publishedAt,
       articleSection: post.category,
-      author: { "@type": "Organization", name: post.author },
+      /*
+        The post's primary and secondary keywords (Admin -> Blog). Only here:
+        they are never written into the page as text (lib/blog/keywords.ts).
+      */
+      keywords: [post.primaryKeyword, ...(post.secondaryKeywords ?? [])].filter(Boolean).join(", ") || undefined,
+      // The team's byline links to its author page; the author names the same page.
+      author: {
+        "@type": "Organization",
+        name: post.author,
+        ...(isTeamAuthor(post.author) ? { url: `${site}${TEAM_AUTHOR_PATH}` } : {}),
+      },
       // The Organization the homepage defines, by reference rather than again.
       publisher: { "@id": entityIds(site).organization },
     },
@@ -93,7 +119,8 @@ export default async function BlogPostPage({
       { name: "Home", path: "/" },
       { name: "Blog", path: "/blog" },
       { name: post.category, path: `/blog/category/${post.categorySlug}` },
-      { name: post.title, path: `/blog/${post.slug}` },
+      // The label written for the breadcrumb, when there is one (Admin -> Blog).
+      { name: post.breadcrumbLabel || post.title, path: `/blog/${post.slug}` },
     ]),
   ];
 
@@ -148,11 +175,14 @@ export default async function BlogPostPage({
           <span aria-hidden="true">/</span>
           {/* Truncates rather than wrapping to three lines on a phone. */}
           <span className="max-w-full truncate text-foreground">
-            {post.title}
+            {post.breadcrumbLabel || post.title}
           </span>
         </nav>
 
-        <BlogArticle post={post} />
+        <BlogArticle
+          post={post}
+          sponsorship={<BlogSponsorship slug={post.slug} enabled={sponsorshipConfigured()} cancelled={cancelled} />}
+        />
 
         {related.length > 0 ? (
           <nav className="mt-12 rounded-xl border bg-card p-5" aria-label="More posts">
@@ -175,24 +205,8 @@ export default async function BlogPostPage({
         ) : null}
       </div>
 
-      {/* The blog exists to bring people into the product, so it says so. */}
-      <div className="mx-auto max-w-3xl px-4 pb-16">
-        <div className="rounded-2xl bg-foreground px-6 py-12 text-center text-background">
-          <h2 className="text-2xl font-semibold tracking-tight text-balance">
-            See how your own site is doing
-          </h2>
-          <p className="mx-auto mt-3 max-w-md text-pretty opacity-80">
-            We read your pages and show you what is holding you back - on Google
-            and with AI assistants. Free, no account needed.
-          </p>
-          <Link
-            href="/audit"
-            className="mt-7 inline-flex h-11 items-center rounded-full bg-primary px-7 font-medium text-primary-foreground transition-opacity hover:opacity-90"
-          >
-            Check my website
-          </Link>
-        </div>
-      </div>
+      {/* The blog exists to bring people into the product: the homepage's closing panel. */}
+      <ClosingCta t={getMessages("en").home} href={(path) => path} />
     </div>
   );
 }

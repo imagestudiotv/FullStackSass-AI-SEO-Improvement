@@ -156,10 +156,11 @@ export async function getAvailable(organizationId: string): Promise<{
   (usage.ts) but earns no new grant while a payment is failing: the customer
   keeps the balance they have, and once the payment succeeds and the status
   is active again, the next page load grants the current period as usual -
-  same key, so once. A trial earns its grant: it is the first month's
-  allowance, which the paid period after it does not repeat (below).
+  same key, so once. A trial earns nothing: it is a new account's free
+  articles (lib/billing/free-articles.ts), and backlinks wait for the plan;
+  the paid period after it is granted in full (below).
 */
-const GRANTING_STATUSES = ["active", "trialing"];
+const GRANTING_STATUSES = ["active"];
 
 /** Plan grants from before per-subscription keys: "plan_grant:YYYY-MM". */
 const LEGACY_GRANT = /^plan_grant:\d{4}-\d{2}$/;
@@ -186,28 +187,25 @@ function grantPeriodStart(subscriptionId: string, key: string | null): Date | nu
  * credits; and the key was the calendar month of the BILLING period start,
  * which for an annual plan is one month a year.
  *
- * NOW. Every granting subscription (active or trialing) attached to a
+ * NOW. Every granting (active) subscription attached to a
  * website contributes its own plan's credits, keyed
  * `plan_grant:<subscription>:<period start>` where the period is the MONTHLY
  * entitlement period (lib/billing/entitlement-period.ts) - so monthly and
  * annual customers get the advertised monthly amount, and the key is
  * idempotent under any number of concurrent page loads.
  *
- * THE TRIAL IS PART OF THE FIRST MONTH (the client's rule, approved by the
- * owner on 2026-10-05; it replaces "no credits until the first payment",
- * which lasted a day). A trial is its own billing period at the provider,
- * and converting moves the anchor to the trial's end, so the paid period
- * after a 3-day trial used to be granted a second month's credits: a Grow
- * customer had 50 three days in. Now the trial is granted the month's
- * credits when it starts, and THE PERIOD AFTER IT IS STILL THE FIRST MONTH
- * (firstPeriodAfterTrial - the same predicate the article window uses, so
- * credits and articles always agree on which month it is). That period is
- * granted only what the current plan gives beyond what the first month was
- * already granted: nothing on the same plan, the difference after an
- * upgrade during the trial (the customer pays the new price from the
- * conversion). The next full grant comes with the second paid period - a
- * month after the conversion. A trial that is never converted keeps its
- * credits and earns no more: a cancelled subscription does not grant.
+ * A TRIAL EARNS NO CREDITS (client, 2026-10-09: the trial is now a new
+ * account's free articles, and backlinks wait for the plan - lib/billing/
+ * free-articles.ts). It replaces the 2026-10-05 rule that the trial was part
+ * of the first month and was granted that month's credits. The paid period
+ * after a trial is therefore granted in full at the conversion.
+ *
+ * THE FIRST-MONTH TOP-UP is kept for one case: a 3-day trial that was
+ * granted credits under the old rule and converts after this shipped. Its
+ * paid period (firstPeriodAfterTrial) is granted only what the current plan
+ * gives beyond what the trial was already granted: nothing on the same
+ * plan, the difference after an upgrade. With no trial grant, nothing is
+ * covered and the period is granted in full.
  *
  * ONLY THE FIRST MONTH. The broader rule - settle at zero ANY period
  * starting less than a month after another grant - reaches across
@@ -362,7 +360,7 @@ export async function grantMonthlyCredits(
           note: coveredFrom
             ? amount > 0
               ? `Monthly plan allowance, topped up to the current plan (${coveredAmount + already} already granted this month)`
-              : `Covered by the allowance granted for the period from ${coveredFrom.toISOString()}, the same first month (a trial is part of the first month)`
+              : `Covered by the allowance granted for the period from ${coveredFrom.toISOString()}, the same first month (a trial granted credits before 2026-10-09)`
             : already > 0
               ? `Monthly plan allowance (${already} already granted this month)`
               : "Monthly plan allowance",

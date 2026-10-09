@@ -116,7 +116,8 @@ export async function regenerateArticleImage(
     Entitlement before spend. Each regeneration is a billed image call, and
     this action is a public endpoint whatever the page in front of it does.
   */
-  const entitled = await isEntitledToSpend(site.id);
+  // A free article's picture is part of the article (lib/billing/free-articles.ts).
+  const entitled = await isEntitledToSpend(site.id, { freeArticles: true });
   if (!entitled.ok) return { ok: false, error: entitled.error };
 
   if (!isImageGenerationConfigured()) {

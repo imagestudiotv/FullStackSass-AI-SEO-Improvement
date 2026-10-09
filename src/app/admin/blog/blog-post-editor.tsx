@@ -35,6 +35,7 @@ import {
   type BlogPostInput,
 } from "@/lib/admin/blog";
 import { previewHtml } from "@/lib/articles/use-draft";
+import { keywordReport, SEARCH_LIMITS, SEO_TITLE_TARGET, splitKeywords, type KeywordReport } from "@/lib/blog/keywords";
 import {
   blogSlug,
   FAQ_ANSWER_LIMIT,
@@ -43,7 +44,9 @@ import {
   type BlogCategoryInfo,
   type BlogPost,
 } from "@/lib/blog/shared";
+import { COMPANY_NAME } from "@/lib/config/site";
 import { formatDate, formatNumber } from "@/lib/i18n/format";
+import { siteUrl } from "@/lib/site-url";
 import { cn } from "@/lib/utils";
 
 import { AdminFacts, AdminPage, AdminPageHeader, AdminSection } from "../_ui/page";
@@ -106,6 +109,11 @@ function fromPost(post: AdminBlogPost | null, firstCategory: string): BlogPostIn
     title: post?.title ?? "",
     slug: post?.slug ?? "",
     description: post?.description ?? "",
+    seoTitle: post?.seoTitle ?? "",
+    primaryKeyword: post?.primaryKeyword ?? "",
+    // Shown in one field as "a, b" (the field joins entries with ","); the save trims the spaces again.
+    secondaryKeywords: (post?.secondaryKeywords ?? []).map((keyword, index) => (index === 0 ? keyword : ` ${keyword}`)),
+    breadcrumbLabel: post?.breadcrumbLabel ?? "",
     category: post?.category ?? firstCategory,
     author: post?.author ?? "RepGet team",
     shortAnswer: post?.shortAnswer ?? "",
@@ -119,7 +127,8 @@ function fromPost(post: AdminBlogPost | null, firstCategory: string): BlogPostIn
  * Writing one blog post: the content in the main column (title, short
  * answer, the text in the same editor articles use, FAQs and sources), and
  * an inspector beside it for how the post is published - status, address,
- * category, author, the search description, and unpublishing or deleting.
+ * category, author, how it appears in search (SEO title, description,
+ * keywords, breadcrumb), and unpublishing or deleting.
  * The Preview tab shows the post exactly as the blog renders it (the shared
  * BlogArticle), unsaved changes included.
  *
@@ -284,6 +293,7 @@ export function BlogPostEditor({
 
   const badge = postStatus(status, locked);
   const address = locked ? saved.slug : slug;
+  const keywords = keywordReport({ ...draft, slug: address });
 
   return (
     <AdminPage width="default">
@@ -567,7 +577,11 @@ export function BlogPostEditor({
                   </Select>
                 </Field>
 
-                <Field id="blog-author" label="Author" hint="Shown as the byline. Empty means RepGet team.">
+                <Field
+                  id="blog-author"
+                  label="Author"
+                  hint="Shown as the byline. Empty means RepGet team; “RepGet team” links to the team's author page."
+                >
                   <Input
                     id="blog-author"
                     value={draft.author}
@@ -579,27 +593,111 @@ export function BlogPostEditor({
               </div>
             </AdminSection>
 
-            <AdminSection id="post-search" title="Search and cards">
-              <Field
-                id="blog-description"
-                label="Description"
-                counter={<Counter value={draft.description.length} limit={DESCRIPTION_TARGET} />}
-                hint={
-                  draft.description.length > DESCRIPTION_TARGET
-                    ? `Longer than search results show (about ${DESCRIPTION_TARGET} characters); up to ${LIMITS.description} are saved. Needed to publish.`
-                    : "Shown under the title in search results and on the blog's cards. Needed to publish."
-                }
-              >
-                <textarea
-                  id="blog-description"
-                  rows={4}
-                  maxLength={LIMITS.description}
-                  className={TEXTAREA}
-                  value={draft.description}
-                  onChange={(e) => set("description", e.target.value)}
-                  aria-describedby="blog-description-hint"
+            <AdminSection id="post-search" title="Search and cards" description="How the post appears in search results and when it is shared.">
+              <div className="space-y-5">
+                <SearchPreview
+                  title={draft.seoTitle.trim() || `${draft.title.trim() || "Untitled post"} | ${COMPANY_NAME}`}
+                  address={address}
+                  description={draft.description}
                 />
-              </Field>
+
+                <Field
+                  id="blog-seo-title"
+                  label="SEO title (optional)"
+                  counter={draft.seoTitle ? <Counter value={draft.seoTitle.length} limit={SEO_TITLE_TARGET} /> : null}
+                  hint={
+                    draft.seoTitle.length > SEO_TITLE_TARGET
+                      ? `Longer than search results show (about ${SEO_TITLE_TARGET} characters).`
+                      : `The title in the browser tab and in search results, exactly as typed. Empty uses the title above, followed by “| ${COMPANY_NAME}”. The title stays the heading on the page.`
+                  }
+                >
+                  <Input
+                    id="blog-seo-title"
+                    value={draft.seoTitle}
+                    maxLength={SEARCH_LIMITS.seoTitle}
+                    placeholder={draft.title.trim() || "Same as the title"}
+                    onChange={(e) => set("seoTitle", e.target.value)}
+                    aria-describedby="blog-seo-title-hint"
+                  />
+                </Field>
+
+                <Field
+                  id="blog-description"
+                  label="Description"
+                  counter={<Counter value={draft.description.length} limit={DESCRIPTION_TARGET} />}
+                  hint={
+                    draft.description.length > DESCRIPTION_TARGET
+                      ? `Longer than search results show (about ${DESCRIPTION_TARGET} characters); up to ${LIMITS.description} are saved. Needed to publish.`
+                      : "Shown under the title in search results and on the blog's cards. Needed to publish."
+                  }
+                >
+                  <textarea
+                    id="blog-description"
+                    rows={4}
+                    maxLength={LIMITS.description}
+                    className={TEXTAREA}
+                    value={draft.description}
+                    onChange={(e) => set("description", e.target.value)}
+                    aria-describedby="blog-description-hint"
+                  />
+                </Field>
+
+                <Field
+                  id="blog-primary-keyword"
+                  label="Primary keyword (optional)"
+                  hint="The search phrase this post is written for. It is never added to the page as hidden text: the checks below show where your writing uses it, and search engines get it in the post's structured data."
+                >
+                  <Input
+                    id="blog-primary-keyword"
+                    value={draft.primaryKeyword}
+                    maxLength={SEARCH_LIMITS.keyword}
+                    onChange={(e) => set("primaryKeyword", e.target.value)}
+                    aria-describedby="blog-primary-keyword-hint"
+                  />
+                </Field>
+                {keywords.primary.length > 0 ? <PrimaryKeywordChecks keyword={draft.primaryKeyword.trim()} report={keywords} /> : null}
+
+                <Field
+                  id="blog-secondary-keywords"
+                  label="Secondary keywords (optional)"
+                  counter={
+                    keywords.secondary.length > 0 ? (
+                      <Counter value={keywords.secondary.length} limit={SEARCH_LIMITS.secondaryKeywords} />
+                    ) : null
+                  }
+                  hint={
+                    keywords.secondary.length > SEARCH_LIMITS.secondaryKeywords
+                      ? `Too many to save: up to ${SEARCH_LIMITS.secondaryKeywords}. Remove some.`
+                      : "Related phrases, separated by commas. Each is checked against the text and listed in the structured data, like the primary keyword."
+                  }
+                >
+                  <textarea
+                    id="blog-secondary-keywords"
+                    rows={2}
+                    className={TEXTAREA}
+                    value={draft.secondaryKeywords.join(",")}
+                    placeholder="e.g. local seo checklist, google business profile"
+                    onChange={(e) => set("secondaryKeywords", splitKeywords(e.target.value))}
+                    aria-describedby="blog-secondary-keywords-hint"
+                  />
+                </Field>
+                {keywords.secondary.length > 0 ? <SecondaryKeywordChecks report={keywords} /> : null}
+
+                <Field
+                  id="blog-breadcrumb"
+                  label="Breadcrumb label (optional)"
+                  hint="A shorter name for the last step of the trail above the title (Home / Blog / category / this post). Empty uses the title."
+                >
+                  <Input
+                    id="blog-breadcrumb"
+                    value={draft.breadcrumbLabel}
+                    maxLength={SEARCH_LIMITS.breadcrumb}
+                    placeholder={draft.title.trim() || "Same as the title"}
+                    onChange={(e) => set("breadcrumbLabel", e.target.value)}
+                    aria-describedby="blog-breadcrumb-hint"
+                  />
+                </Field>
+              </div>
             </AdminSection>
 
             {post ? (
@@ -824,6 +922,91 @@ function Counter({ value, limit }: { value: number; limit: number }) {
     <span className={cn("text-xs tabular-nums", value > limit ? "font-medium text-warning" : "text-muted-foreground")}>
       {formatNumber(value, "en")} / {formatNumber(limit, "en")}
     </span>
+  );
+}
+
+/**
+ * The post as a search result, roughly as Google lays one out: what the SEO
+ * title and description fields produce, before saving. Cut where results
+ * usually cut them.
+ */
+function SearchPreview({ title, address, description }: { title: string; address: string; description: string }) {
+  const host = new URL(siteUrl()).hostname;
+  const cut = (text: string, limit: number) => (text.length > limit ? `${text.slice(0, limit - 1).trimEnd()}…` : text);
+  return (
+    <figure className="rounded-lg border bg-muted/30 p-3" aria-label="Search result preview">
+      <figcaption className="text-xs font-medium text-muted-foreground">Search result preview</figcaption>
+      <p className="mt-2 truncate text-xs text-muted-foreground">
+        {host} › blog › {address || "…"}
+      </p>
+      <p className="mt-0.5 text-base leading-snug font-medium text-[#1a0dab] wrap-anywhere dark:text-[#8ab4f8]">
+        {cut(title, SEO_TITLE_TARGET + 5)}
+      </p>
+      <p className="mt-1 text-xs leading-relaxed text-muted-foreground wrap-anywhere">
+        {description.trim() ? cut(description.trim(), DESCRIPTION_TARGET) : "No description yet - search engines will pick a line from the text."}
+      </p>
+    </figure>
+  );
+}
+
+/** One line of a keyword check: found, or not yet. */
+function Check({ found, children }: { found: boolean; children: ReactNode }) {
+  return (
+    <li className="flex items-start gap-1.5">
+      {found ? (
+        <CheckCircle2 className="mt-px size-3.5 shrink-0 text-success" aria-hidden="true" />
+      ) : (
+        <CircleDashed className="mt-px size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+      )}
+      <span className={cn("min-w-0 wrap-anywhere", !found && "text-muted-foreground")}>{children}</span>
+      <span className="sr-only">{found ? "(found)" : "(not found)"}</span>
+    </li>
+  );
+}
+
+/**
+ * Where the primary keyword appears, in the places readers and search engines
+ * look first (lib/blog/keywords.ts). Guidance only; nothing is added to the page.
+ */
+function PrimaryKeywordChecks({ keyword, report }: { keyword: string; report: KeywordReport }) {
+  const found = report.primary.filter((check) => check.found).length;
+  return (
+    <div className="rounded-lg border p-3 text-xs" role="group" aria-labelledby="blog-primary-checks">
+      <p id="blog-primary-checks" className="font-medium wrap-anywhere">
+        “{keyword}”: in {found} of {report.primary.length} places
+      </p>
+      <ul className="mt-2 grid gap-1">
+        {report.primary.map((check) => (
+          <Check key={check.id} found={check.found}>
+            {check.label}
+          </Check>
+        ))}
+      </ul>
+      <p className="mt-2 text-muted-foreground">
+        {report.primaryUses === 0
+          ? "Not used in the text yet."
+          : `Used ${formatNumber(report.primaryUses, "en")} ${report.primaryUses === 1 ? "time" : "times"} in the text. Write it where it reads naturally; repeating it does not help.`}
+      </p>
+    </div>
+  );
+}
+
+/** Which secondary keywords the text already uses. */
+function SecondaryKeywordChecks({ report }: { report: KeywordReport }) {
+  const used = report.secondary.filter((entry) => entry.found).length;
+  return (
+    <div className="rounded-lg border p-3 text-xs" role="group" aria-labelledby="blog-secondary-checks">
+      <p id="blog-secondary-checks" className="font-medium">
+        {used} of {report.secondary.length} used in the text
+      </p>
+      <ul className="mt-2 grid gap-1">
+        {report.secondary.map((entry) => (
+          <Check key={entry.keyword} found={entry.found}>
+            {entry.keyword}
+          </Check>
+        ))}
+      </ul>
+    </div>
   );
 }
 

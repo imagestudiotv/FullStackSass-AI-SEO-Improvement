@@ -15,6 +15,7 @@ import {
   Plus,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
@@ -36,7 +37,7 @@ import type { Locale } from "@/lib/i18n/config";
 import { format, formatDate } from "@/lib/i18n/format";
 import type { Messages } from "@/lib/i18n/messages";
 import { createPayPalCheckout } from "@/lib/paypal/actions";
-import { STARTER_TIER } from "@/lib/plans/features";
+import { CONFIRM_EMAIL_FIRST, STARTER_TIER } from "@/lib/plans/features";
 import { createCheckoutSession } from "@/lib/stripe/actions";
 import { createPortalSession, type PortalFlow } from "@/lib/stripe/portal";
 import { cn } from "@/lib/utils";
@@ -115,6 +116,7 @@ export function BillingClient({
   const [interval, setBillingInterval] = useState<"month" | "year">(
     subscription?.interval === "year" ? "year" : "month",
   );
+  const router = useRouter();
   const [pending, setPending] = useState<{ planId: string; provider: "stripe" | "paypal" } | null>(null);
   /** Which portal button is mid-flight, so only that one shows a spinner. */
   const [portalPending, setPortalPending] = useState<PortalFlow | null>(null);
@@ -201,6 +203,15 @@ export function BillingClient({
         return;
       }
       const result = await createCheckoutSession(planId, websiteId);
+      /*
+        A new workspace confirms its email before the free articles, and
+        the code box is on the onboarding plan screen - which also states
+        the offer's terms. Sent there rather than left with a refusal.
+      */
+      if ("error" in result && result.error === CONFIRM_EMAIL_FIRST) {
+        router.push(`/onboarding/plan?site=${encodeURIComponent(websiteId)}`);
+        return;
+      }
       if ("error" in result) {
         toast.error(result.error);
         setPending(null);

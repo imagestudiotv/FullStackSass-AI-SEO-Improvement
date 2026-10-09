@@ -1,0 +1,19 @@
+/*
+ * The article's byline - "IMAGE STUDIO" above the title - as a link to the
+ * author page (includes/author.php). It keeps the byline's own colour and
+ * type; the underline says it can be followed.
+ */
+.cps-single-byline .isb-byline-link,
+.cps-single-byline .isb-byline-link:visited {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  text-decoration-color: currentColor;
+}
+.cps-single-byline .isb-byline-link:hover,
+.cps-single-byline .isb-byline-link:focus-visible {
+  color: inherit;
+  opacity: 1;
+  filter: brightness(1.6);
+}

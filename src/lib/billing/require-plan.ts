@@ -81,7 +81,7 @@ export async function requireWebsitePlan(
     return;
   }
 
-  const entitled = await isEntitledToSpend(ctx.site.id);
+  const entitled = await isEntitledToSpend(ctx.site.id, { freeArticles: true });
   if (!entitled.ok) {
     redirect(`/dashboard?site=${ctx.site.id}`);
   }

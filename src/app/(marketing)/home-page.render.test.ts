@@ -84,7 +84,8 @@ describe("homepage sections", () => {
       esc(t.previewTitle),
       'id="pricing"',
       'id="faq"',
-      esc(t.closingTitle),
+      // The heading is split by its orange words; the line under it is one piece.
+      esc(t.closingSub),
     ]);
     expect(order).toEqual([...order].sort((a, b) => a - b));
   });
@@ -161,6 +162,34 @@ describe("homepage sections", () => {
 
   it("leaves out the testimonials while there are none approved", () => {
     expect(renderHome("en")).not.toContain(esc(getMessages("en").home.testimonialsTitle));
+  });
+});
+
+/** The closing panel on the homepage, the blog and every article (client's design, 7RRq4-suyqqc.jpg). */
+describe("closing panel", () => {
+  it("says exactly what the client's design says, in English", () => {
+    const t = getMessages("en").home;
+    expect([t.closingTitle, t.closingTitleAccent, t.closingSub, t.checkFree, t.createFreeArticles, t.cancelAnytime, t.setupInMinutes]).toEqual([
+      "Your website could be growing faster.",
+      "growing faster.",
+      "Discover what’s holding your website back with a free SEO audit. No account required.",
+      "Check my website for free",
+      "Create 3 Articles for Free",
+      "Cancel any time",
+      "Set up in minutes",
+    ]);
+  });
+
+  it.each(LOCALES)("%s: the heading's last words in orange, the free check, free articles at sign-up, two reassurances", (locale) => {
+    const t = getMessages(locale).home;
+    expect(t.closingTitle.endsWith(t.closingTitleAccent)).toBe(true);
+    const html = renderHome(locale);
+    const panel = html.slice(html.lastIndexOf("<h2", html.indexOf(esc(t.closingSub))));
+    expect(panel).toContain(`<span style="color:#ff5a1f">${esc(t.closingTitleAccent)}</span>`);
+    expect(panel).toMatch(new RegExp(`href="/sign-up"[^>]*>${esc(t.createFreeArticles)}`));
+    expect(panel).toContain(esc(t.checkFree));
+    expect(panel).toContain(esc(t.cancelAnytime));
+    expect(panel).toContain(esc(t.setupInMinutes));
   });
 });
 

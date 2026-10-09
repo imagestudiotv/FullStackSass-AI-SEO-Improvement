@@ -75,7 +75,10 @@ export async function SidebarUsage({
       ? null
       : articles.limit === UNLIMITED
         ? "Unlimited articles"
-        : `${Math.max(articles.limit - articles.used, 0)} of ${articles.limit} articles left`;
+        : articles.freeArticles
+          // A new account's free articles (lib/billing/free-articles.ts), named as such.
+          ? `${Math.max(articles.limit - articles.used, 0)} of ${articles.limit} free articles left`
+          : `${Math.max(articles.limit - articles.used, 0)} of ${articles.limit} articles left`;
 
   return (
     <div className="mt-4 space-y-1 border-t px-3 pt-3">

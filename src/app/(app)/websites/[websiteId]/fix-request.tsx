@@ -18,8 +18,8 @@ import { countText, quoteMailto, type HealthText, type SeverityTotals } from "./
  * nothing is recorded and nothing is charged; the customer's own mail app
  * sends it, or does not. What changed is that the email now carries the list
  * of findings the copy has always promised, and that the button is not
- * offered while the support address is still the placeholder
- * (support@example.com), where a request would go nowhere.
+ * offered while the support address is a placeholder (an @example.com one,
+ * lib/config/site.ts), where a request would go nowhere.
  */
 export function FixRequest({
   domain,
@@ -32,7 +32,7 @@ export function FixRequest({
   t,
 }: {
   domain: string;
-  /** Null while NEXT_PUBLIC_SUPPORT_EMAIL is unset (lib/config/site.ts). */
+  /** Null while the support address is a placeholder (lib/config/site.ts). */
   supportEmail: string | null;
   checkedAt: string;
   /** Each finding by name with the pages it affects, most serious first. */

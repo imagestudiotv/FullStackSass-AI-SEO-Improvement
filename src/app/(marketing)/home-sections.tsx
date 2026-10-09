@@ -25,6 +25,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 import { BrandMark } from "@/components/brand-logo";
 import { Button } from "@/components/ui/button";
@@ -1399,34 +1400,98 @@ export function ProductPreview({ t }: SectionProps) {
 /* Closing call to action                                                     */
 /* -------------------------------------------------------------------------- */
 
+/** The bright orange of the client's closing panel (7RRq4-suyqqc.jpg), for the heading's last words. */
+const CLOSING_ACCENT = "#ff5a1f";
+
 /**
- * A warm, lightly tinted panel rather than a solid orange block: the free
- * check button is the only solid orange in it, so it is unmistakably the
- * thing to press. The reassurances are the published terms (14-day refund,
- * cancel any time - see /refunds).
+ * Two corners of the panel are dotted, as in the client's design: grey dots
+ * on a 30px grid with a few orange ones, fading out towards the middle. Pure
+ * CSS backgrounds - nothing to load, nothing a screen reader meets.
+ */
+function dots(orange: [number, number][]) {
+  return [
+    ...orange.map(([x, y]) => `radial-gradient(circle at ${x}px ${y}px, rgb(255 90 31 / 0.32) 7px, transparent 7.5px)`),
+    "radial-gradient(circle, rgb(255 255 255 / 0.07) 7px, transparent 7.5px)",
+  ].join(", ");
+}
+const DOTS_TOP_RIGHT = dots([[195, 45], [225, 105], [135, 75]]);
+const DOTS_BOTTOM_LEFT = dots([[75, 135], [135, 195], [45, 225]]);
+
+/** The heading with its last words (closingTitleAccent) in orange; plain if a translation does not end with them. */
+function closingTitle(t: SectionProps["t"]): ReactNode {
+  const accent = t.closingTitleAccent;
+  if (!accent || !t.closingTitle.endsWith(accent)) return t.closingTitle;
+  return (
+    <>
+      {t.closingTitle.slice(0, -accent.length)}
+      <span style={{ color: CLOSING_ACCENT }}>{accent}</span>
+    </>
+  );
+}
+
+/**
+ * The closing offer, on the homepage, the blog, its category and author pages
+ * and every article - the client's design (2026-10-08, 7RRq4-suyqqc.jpg): a
+ * near-black panel, "growing faster." in orange, the free check and "Create 3
+ * Articles for Free" (to sign-up), then "Cancel any time" and "Set up in
+ * minutes".
+ *
+ * The free check keeps the site's own orange button: white text on the
+ * brighter orange of the drawing is too faint to read comfortably. The
+ * bright orange is used where it is large - the heading - and on the ticks.
  */
 export function ClosingCta({ t, href }: SectionProps) {
   return (
     <section className={`${OFFSCREEN} px-4 pt-4 pb-20`}>
-      <div className="mx-auto max-w-6xl rounded-3xl border border-primary/15 bg-gradient-to-b from-primary/[0.08] via-primary/[0.04] to-primary/[0.02] px-6 py-14 text-center sm:px-10 sm:py-16">
-        <h2 className="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
-          {t.closingTitle}
-        </h2>
-        <p className="mx-auto mt-3 max-w-md text-pretty text-muted-foreground">{t.closingSub}</p>
+      <div className="relative isolate mx-auto max-w-7xl overflow-hidden rounded-2xl bg-[#171717] px-6 py-16 text-center text-white sm:px-10 sm:py-20">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute top-0 right-0 -z-10 h-60 w-72 sm:h-72 sm:w-96"
+          style={{
+            backgroundImage: DOTS_TOP_RIGHT,
+            backgroundSize: "auto, auto, auto, 30px 30px",
+            maskImage: "radial-gradient(farthest-side at 100% 0%, black 35%, transparent 100%)",
+          }}
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute bottom-0 left-0 -z-10 h-60 w-60 sm:h-80 sm:w-80"
+          style={{
+            backgroundImage: DOTS_BOTTOM_LEFT,
+            backgroundSize: "auto, auto, auto, 30px 30px",
+            maskImage: "radial-gradient(farthest-side at 0% 100%, black 35%, transparent 100%)",
+          }}
+        />
 
-        <div className="mt-8 flex flex-wrap justify-center gap-3">
-          <Button size="lg" asChild className={CTA}>
+        <h2 className="mx-auto max-w-3xl text-3xl font-bold tracking-tight text-balance sm:text-[2.5rem] sm:leading-[1.15]">
+          {closingTitle(t)}
+        </h2>
+        <p className="mx-auto mt-4 max-w-3xl text-pretty text-white/75 sm:text-lg">{t.closingSub}</p>
+
+        <div className="mt-9 flex flex-wrap justify-center gap-3 sm:gap-4">
+          <Button size="lg" asChild className={`${CTA} h-14 px-8 font-semibold sm:text-lg`}>
             <Link href={href("/audit")}>
               {t.checkFree}
-              <ArrowRight className="size-4" />
+              <ArrowRight className="size-5" />
+            </Link>
+          </Button>
+          <Button
+            size="lg"
+            variant="outline"
+            asChild
+            className={`${CTA} h-14 border-white bg-white px-8 font-semibold text-[#171717] hover:bg-white/90 hover:text-[#171717] sm:text-lg dark:border-white dark:bg-white dark:text-[#171717] dark:hover:bg-white/90`}
+          >
+            <Link href={href("/sign-up")}>
+              {t.createFreeArticles}
+              <ArrowRight className="size-5" />
             </Link>
           </Button>
         </div>
 
-        <ul className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm text-muted-foreground">
-          {[t.cancelAnytime, t.guarantee].map((item) => (
-            <li key={item} className="flex items-center gap-1.5">
-              <Check className="size-4 text-primary" aria-hidden="true" />
+        <ul className="mt-7 flex flex-wrap items-center justify-center gap-x-7 gap-y-2 text-white/70 sm:text-lg">
+          {[t.cancelAnytime, t.setupInMinutes].map((item) => (
+            <li key={item} className="flex items-center gap-2">
+              <Check className="size-5" style={{ color: CLOSING_ACCENT }} aria-hidden="true" />
               {item}
             </li>
           ))}

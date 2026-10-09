@@ -3,15 +3,18 @@
 import { and, eq } from "drizzle-orm";
 import type Stripe from "stripe";
 
+import { requireSession } from "@/lib/auth-guard";
 import { checkoutProviderOps } from "@/lib/billing/checkout-providers";
 import {
   beginCheckout,
+  isTrialEligible,
   markCheckoutFailed,
   recordCheckoutRequest,
   recordCheckoutStarted,
 } from "@/lib/billing/checkouts";
 import { db } from "@/lib/db";
 import { billingCustomers, plans, websites } from "@/lib/db/schema";
+import { CONFIRM_EMAIL_FIRST } from "@/lib/plans/features";
 import { isStripeConfigured, stripe } from "@/lib/stripe/client";
 import { getOrCreateCustomer } from "@/lib/stripe/customer";
 import { stripeErrorMessage } from "@/lib/stripe/errors";
@@ -102,6 +105,18 @@ export async function createCheckoutSession(
   }
   if (!plan.stripePriceId) {
     return { error: `Plan "${plan.name}" has no Stripe price configured` };
+  }
+
+  /*
+    The free articles go to a PROVEN address (lib/billing/free-articles.ts):
+    a workspace that would be given them cannot check out until its email is
+    confirmed, so one person cannot collect them again with made-up
+    addresses. Refused rather than charged without them - the page said
+    "0 today", and changing the terms silently would make that untrue.
+  */
+  const session = await requireSession();
+  if (session.user.emailVerified !== true && (await isTrialEligible(db, orgId))) {
+    return { error: CONFIRM_EMAIL_FIRST };
   }
 
   const base = appUrl();

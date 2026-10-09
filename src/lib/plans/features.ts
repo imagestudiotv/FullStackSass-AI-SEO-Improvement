@@ -15,18 +15,45 @@
 export const STARTER_TIER = "starter";
 
 /**
- * Days of free trial on a new subscription.
+ * The offer for a new account: its first articles free (client, 2026-10-09:
+ * "Create 3 Articles for Free" - replacing the 3-day trial).
+ *
+ * A new workspace picks its plan and adds a card at Stripe; nothing is
+ * charged. It may write FREE_ARTICLES articles (with research, images and
+ * publishing - not audits, AI visibility or backlinks), and its plan starts,
+ * and is charged, once the last of them is written - or after
+ * FREE_ARTICLES_DAYS if they were not all used. The paid month then starts
+ * with its full allowance (lib/billing/free-articles.ts).
  *
  * Defined here, in the file every pricing surface already imports, so the
- * number the customer reads and the number Stripe applies are the same one.
- * Two copies would eventually disagree, and the disagreement would be a
- * promise about money that the payment did not honour.
- *
- * Passed to Stripe as subscription_data.trial_period_days; see
- * lib/stripe/actions.ts. Zero would mean "charge immediately" — change it
- * here and both the copy and the charge follow.
+ * numbers the customer reads and the numbers the checkout applies are the
+ * same ones. Two copies would eventually disagree, and the disagreement would
+ * be a promise about money that the payment did not honour.
  */
-export const TRIAL_DAYS = 3;
+export const FREE_ARTICLES = 3;
+
+/**
+ * The longest the free articles wait for the plan to start: passed to Stripe
+ * as the subscription's trial_period_days (lib/stripe/actions.ts), which ends
+ * it then if the articles have not.
+ */
+export const FREE_ARTICLES_DAYS = 30;
+
+/**
+ * Why a paid feature (an audit, AI visibility) is refused during the free
+ * articles (lib/billing/entitled.ts). The pages match it to show the
+ * reader's language (app.workspace.freeArticlesOnly).
+ */
+export const FREE_ARTICLES_ONLY =
+  "This is included once your plan starts - right after your free articles are written.";
+
+/**
+ * Card checkout's refusal while the free articles would be given to an
+ * address nobody has confirmed (lib/stripe/actions.ts). The plan step asks
+ * for the code first, so this is only seen by a request that skipped it.
+ */
+export const CONFIRM_EMAIL_FIRST =
+  "Confirm your email address first - your free articles are given to it.";
 
 /** The subset of a plan row these helpers need. */
 export type PickerPlan = {

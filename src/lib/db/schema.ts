@@ -2342,6 +2342,10 @@ export const blogPosts = pgTable(
     id: pk(),
     slug: text("slug").notNull(),
     title: text("title").notNull(),
+    seoTitle: text("seo_title"),
+    primaryKeyword: text("primary_keyword"),
+    secondaryKeywords: jsonb("secondary_keywords").$type<string[]>().default([]).notNull(),
+    breadcrumbLabel: text("breadcrumb_label"),
     /** Meta description and card summary. */
     description: text("description").default("").notNull(),
     /** A blog_categories name. */
@@ -2381,6 +2385,20 @@ export const blogPosts = pgTable(
     index("blog_posts_status_published_idx").on(table.status, table.publishedAt),
   ],
 );
+
+/** One-time sponsored mentions; deliberately separate from subscriptions. */
+export const blogSponsorships = pgTable("blog_sponsorships", {
+  id: pk(),
+  postSlug: text("post_slug").notNull(),
+  email: text("email").notNull(),
+  websiteUrl: text("website_url").notNull(),
+  message: text("message").notNull(),
+  status: text("status").default("pending").notNull(),
+  checkoutId: text("checkout_id").unique(),
+  checkoutUrl: text("checkout_url"),
+  paidAt: timestamp("paid_at"),
+  ...timestamps,
+});
 
 /**
  * The blog's categories, managed in Admin -> Blog (lib/admin/blog.ts).

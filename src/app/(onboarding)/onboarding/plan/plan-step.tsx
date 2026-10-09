@@ -1,16 +1,20 @@
 "use client";
 
-import { ArrowRight, Check, Loader2, ShieldCheck, Star } from "lucide-react";
+import { ArrowRight, Check, Loader2, MailCheck, ShieldCheck, Star } from "lucide-react";
 import { getMessages, type Messages } from "@/lib/i18n/messages";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { PayPalMark } from "@/components/paypal-mark";
+import { authClient } from "@/lib/auth-client";
+import { confirmEmail, type ConfirmEmailResult } from "@/lib/auth/confirm-email-actions";
 import { formatPrice } from "@/lib/billing-shared";
 import {
+  FREE_ARTICLES,
+  FREE_ARTICLES_DAYS,
   planFeatures,
-  TRIAL_DAYS,
   type PickerPlan,
 } from "@/lib/plans/features";
 import { createPayPalCheckout } from "@/lib/paypal/actions";
@@ -31,12 +35,17 @@ import { WIZARD_STEPS, wizardStepIndex } from "@/lib/onboarding/wizard";
  * in; a comparison table at that moment reopens a decision they came here
  * having made, and the tier that suits almost everyone is the default.
  *
- * THE FREE TRIAL IS REAL. The client asked for it, so it is implemented
- * rather than merely written: TRIAL_DAYS is passed to Stripe as
- * trial_period_days, and the customer is charged nothing today. A trial
- * claimed on the page but not configured in Stripe would be a false statement
+ * THE FREE ARTICLES ARE REAL (client, 2026-10-09: "Create 3 Articles for
+ * Free"). Card checkout gives a new workspace a Stripe trial of
+ * FREE_ARTICLES_DAYS, its first FREE_ARTICLES articles are free, and the plan
+ * starts once the last of them is written (lib/billing/free-articles.ts). An
+ * offer claimed here but not applied at checkout would be a false statement
  * about money on the screen where the card is entered. The exact first-charge
  * date is left to Stripe's own Checkout page — see the note further down.
+ *
+ * The email is confirmed first, with a code, when the free articles are on
+ * offer: checkout refuses without it (lib/stripe/actions.ts), so nobody can
+ * collect them again under a made-up address.
  *
  * WHAT IS STILL NOT COPIED FROM THE REFERENCE: its "€99 ~~€247~~"
  * strike-through and its "90-day money-back guarantee if traffic doesn't
@@ -54,18 +63,24 @@ export function PlanStep({
   paypalAvailable,
   websiteId,
   trialEligible = true,
+  emailVerified = true,
+  email = "",
   t = getMessages("en").app.onboarding,
 }: {
   monthlyPlans: PickerPlan[];
   annualPlans: PickerPlan[];
   paypalAvailable: boolean;
   /**
-   * Whether checkout will actually grant the free trial: only a workspace
+   * Whether checkout will actually give the free articles: only a workspace
    * that has never subscribed (lib/billing/checkouts.ts isTrialEligible).
-   * Promising a trial checkout will not give would be a false statement
+   * Promising an offer checkout will not give would be a false statement
    * about money on the screen where the card is entered.
    */
   trialEligible?: boolean;
+  /** Whether the signed-in address is confirmed; the free articles need it. */
+  emailVerified?: boolean;
+  /** The signed-in address, where the confirmation code is sent. */
+  email?: string;
   /** The website this plan pays for. Always present: step one created it. */
   websiteId: string;
   /** This step's copy, defaulting to English. */
@@ -85,6 +100,49 @@ export function PlanStep({
       "",
   );
   const [pending, setPending] = useState<string | null>(null);
+  const [verified, setVerified] = useState(emailVerified);
+  const [codeSent, setCodeSent] = useState(false);
+  const [code, setCode] = useState("");
+  const [checking, setChecking] = useState<"send" | "confirm" | null>(null);
+
+  /** The code step stands between a new workspace and card checkout. */
+  const needsEmail = trialEligible && !verified;
+
+  async function sendCode() {
+    setChecking("send");
+    // Better Auth's own route: rate limited, and the code is hashed and expires (lib/auth.ts).
+    const { error } = await authClient.emailOtp.sendVerificationOtp({
+      email,
+      type: "email-verification",
+    });
+    setChecking(null);
+    if (error) {
+      toast.error("We could not send the code. Please try again in a minute.");
+      return;
+    }
+    setCodeSent(true);
+    setCode("");
+    toast.success(`We sent a 6-digit code to ${email}.`);
+  }
+
+  async function submitCode(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setChecking("confirm");
+    const result: ConfirmEmailResult = await confirmEmail(code);
+    setChecking(null);
+    if (result.ok) {
+      setVerified(true);
+      toast.success("Email confirmed.");
+      return;
+    }
+    toast.error(
+      result.error === "INVALID"
+        ? "That code is not right. Check the email and try again."
+        : result.error === "EXPIRED" || result.error === "TOO_MANY"
+          ? "That code no longer works. Send a new one."
+          : "We could not check the code. Please try again.",
+    );
+  }
 
   const monthlyForTier =
     monthlyPlans.find((plan) => plan.tier === tier) ?? null;
@@ -131,7 +189,7 @@ export function PlanStep({
   /**
    * NO CALENDAR DATE IS COMPUTED HERE, deliberately.
    *
-   * The obvious version — `new Date(Date.now() + TRIAL_DAYS * 86400e3)` — is
+   * The obvious version — `new Date(Date.now() + FREE_ARTICLES_DAYS * 86400e3)` — is
    * impure in render: the server produces one date and the browser another,
    * which is a hydration mismatch on the screen where somebody is entering a
    * card, and the result depends on a clock and timezone the server does not
@@ -143,8 +201,8 @@ export function PlanStep({
    * would be a second copy that can disagree with the one that actually
    * governs the charge.
    *
-   * So this page states the RULE — free for N days, then the price — and
-   * Stripe states the date.
+   * So this page states the RULE — the free articles, when the plan starts,
+   * then the price — and Stripe states the date.
    */
 
   async function handleCheckout(provider: "stripe" | "paypal") {
@@ -365,9 +423,59 @@ export function PlanStep({
           </div>
         ) : null}
 
+        {/*
+          The email code, before card checkout gives the free articles. Sent
+          only when asked for, so nobody receives a code for a page they
+          merely looked at.
+        */}
+        {needsEmail ? (
+          <div className="mt-4 rounded-2xl border bg-muted/40 p-4">
+            <p className="flex items-center gap-2 text-sm font-medium">
+              <MailCheck className="size-4 shrink-0 text-primary" aria-hidden="true" />
+              Confirm your email to get your {FREE_ARTICLES} free articles
+            </p>
+            {codeSent ? (
+              <form onSubmit={submitCode} className="mt-3 flex flex-wrap gap-2">
+                <Input
+                  value={code}
+                  onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  placeholder="6-digit code"
+                  aria-label="Confirmation code"
+                  className="h-11 min-w-0 flex-1 rounded-full bg-background px-4 tracking-[0.3em]"
+                />
+                <Button type="submit" disabled={checking !== null || code.length !== 6} className="h-11 rounded-full px-5">
+                  {checking === "confirm" ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
+                  Confirm
+                </Button>
+                <p className="w-full text-xs text-muted-foreground">
+                  Sent to {email}.{" "}
+                  <button
+                    type="button"
+                    onClick={sendCode}
+                    disabled={checking !== null}
+                    className="font-medium text-foreground underline underline-offset-2"
+                  >
+                    Send a new code
+                  </button>
+                </p>
+              </form>
+            ) : (
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <Button type="button" variant="outline" onClick={sendCode} disabled={checking !== null} className="h-11 rounded-full px-5">
+                  {checking === "send" ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
+                  Email me a code
+                </Button>
+                <span className="min-w-0 text-xs text-muted-foreground">We send it to {email}.</span>
+              </div>
+            )}
+          </div>
+        ) : null}
+
         <Button
           onClick={() => handleCheckout("stripe")}
-          disabled={pending !== null}
+          disabled={pending !== null || needsEmail}
           className="mt-4 h-14 w-full rounded-full text-base font-semibold"
         >
           {pending === "stripe" ? (
@@ -377,20 +485,20 @@ export function PlanStep({
             </>
           ) : (
             <>
-              {trialEligible ? `Start ${TRIAL_DAYS}-day free trial` : "Continue to payment"}
+              {trialEligible ? `Start with ${FREE_ARTICLES} free articles` : "Continue to payment"}
               <ArrowRight className="size-4" aria-hidden="true" />
             </>
           )}
         </Button>
 
         {/*
-          The trial terms, spelled out under the button.
+          The offer's terms, spelled out under the button.
 
-          TRIAL_DAYS is the same constant passed to Stripe as
-          trial_period_days, so the promise and the charge cannot drift apart.
-          The first charge date is stated plainly rather than left as "cancel
-          any time": someone entering a card is owed the date money leaves
-          their account, not a reassuring phrase.
+          FREE_ARTICLES and FREE_ARTICLES_DAYS are the constants the checkout
+          and the article limit use, so the promise and the charge cannot
+          drift apart. When the plan starts is stated plainly rather than left
+          as "cancel any time": someone entering a card is owed when money
+          leaves their account, not a reassuring phrase.
         */}
         {trialEligible ? (
           <p className="mt-3 text-center text-sm">
@@ -399,16 +507,18 @@ export function PlanStep({
             </span>
             <span className="text-muted-foreground">
               {" "}
-              &middot; then {formatPrice(plan.priceCents, plan.currency)}{" "}
-              {annual ? "a year" : "a month"} after your {TRIAL_DAYS}-day free
-              trial. Cancel before it ends and you are not charged.
+              &middot; your plan starts after your {FREE_ARTICLES} free
+              articles are written (in {FREE_ARTICLES_DAYS} days at the
+              latest), then {formatPrice(plan.priceCents, plan.currency)}{" "}
+              {annual ? "a year" : "a month"}. Cancel before then and you are
+              not charged.
             </span>
           </p>
         ) : (
           <p className="mt-3 text-center text-sm text-muted-foreground">
             {formatPrice(plan.priceCents, plan.currency)}{" "}
             {annual ? "a year" : "a month"}, charged today. This workspace has
-            already had its free trial.
+            already had its free articles.
           </p>
         )}
 
@@ -444,9 +554,9 @@ export function PlanStep({
         ) : null}
 
         {/*
-          PayPal is charged immediately — the trial above is a Stripe
-          subscription feature and is not applied to the PayPal plan. Saying
-          so is the difference between a caveat and a false promise.
+          PayPal is charged immediately — the free articles are a Stripe
+          trial and are not applied to the PayPal plan. Saying so is the
+          difference between a caveat and a false promise.
         */}
         {paypalAvailable ? (
           <p className="mt-2 text-center text-xs text-muted-foreground">

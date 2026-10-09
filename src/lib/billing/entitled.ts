@@ -1,5 +1,6 @@
 import { NonRetriableError } from "inngest";
 
+import { FREE_ARTICLES_ONLY } from "@/lib/plans/features";
 import { checkLimit } from "@/lib/usage";
 
 /**
@@ -20,9 +21,16 @@ import { checkLimit } from "@/lib/usage";
  * different answer with a different message, and usage.ts already handles it
  * where it applies. This asks only the entitlement question: is there a live
  * subscription paying for this website at all.
+ *
+ * A new account on its free articles (lib/billing/free-articles.ts) is
+ * entitled only to what writing them takes - research, the articles, their
+ * pictures, publishing - which those paths ask for with
+ * `{ freeArticles: true }`. Everything else (audits, AI visibility) waits for
+ * the plan to start.
  */
 export async function isEntitledToSpend(
   websiteId: string,
+  options: { freeArticles?: boolean } = {},
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const limit = await checkLimit(websiteId, "keywords");
 
@@ -40,8 +48,13 @@ export async function isEntitledToSpend(
     };
   }
 
+  if (limit.freeArticles && !options.freeArticles) {
+    return { ok: false, error: FREE_ARTICLES_ONLY };
+  }
+
   return { ok: true };
 }
+
 
 /**
  * The same question for a background job, asked INSIDE the step that spends.
@@ -52,8 +65,11 @@ export async function isEntitledToSpend(
  * each paid call is the only check a retry cannot skip. Not retried: waiting
  * does not reactivate a cancelled plan.
  */
-export async function requireEntitledForSpend(websiteId: string): Promise<void> {
-  const entitled = await isEntitledToSpend(websiteId);
+export async function requireEntitledForSpend(
+  websiteId: string,
+  options: { freeArticles?: boolean } = {},
+): Promise<void> {
+  const entitled = await isEntitledToSpend(websiteId, options);
   if (!entitled.ok) {
     throw new NonRetriableError(
       "This website's subscription is not active, so nothing further was spent.",

@@ -321,10 +321,13 @@ export type Messages = {
     planBacklinks: string;
     planPublishing: string;
     /** Closing. */
+    createFreeArticles: string;
     closingTitle: string;
+    /** The end of closingTitle, drawn in orange. Must be its last words, exactly. */
+    closingTitleAccent: string;
     closingSub: string;
     cancelAnytime: string;
-    guarantee: string;
+    setupInMinutes: string;
   };
   pricing: {
     title: string;
@@ -517,6 +520,8 @@ export type Messages = {
       overLimit: string;
       /** Shown to a viewer instead of editable controls. */
       viewOnly: string;
+      /** A paid feature during a new account's free articles (lib/billing/entitled.ts). */
+      freeArticlesOnly: string;
       /** Marks a control that saves the moment it changes. */
       savesImmediately: string;
       /** Marks a group saved by the Save button. */
@@ -3370,11 +3375,13 @@ const en: Messages = {
     planArticles: "{n} article each month|{n} articles each month",
     planBacklinks: "Backlinks from our partner network",
     planPublishing: "Auto-publish to WordPress, Shopify and more",
-    closingTitle: "Start growing with RepGet today.",
+    createFreeArticles: "Create 3 Articles for Free",
+    closingTitle: "Your website could be growing faster.",
+    closingTitleAccent: "growing faster.",
     closingSub:
-      "Run a free check on your website and see what is holding it back. No account needed.",
+      "Discover what’s holding your website back with a free SEO audit. No account required.",
     cancelAnytime: "Cancel any time",
-    guarantee: "14-day money-back guarantee",
+    setupInMinutes: "Set up in minutes",
   },
   pricing: {
     title: "Simple pricing",
@@ -3465,7 +3472,7 @@ const en: Messages = {
     ],
     ctaTitle: "Be the first story on this page.",
     ctaBody:
-      "Start with a free check of your site - it takes a minute and costs nothing. If what we find is worth acting on, new accounts can try RepGet free for {days} days.",
+      "Start with a free check of your site - it takes a minute and costs nothing. If what we find is worth acting on, new accounts get their first {count} articles free.",
     ctaPrimary: "Check my website",
     ctaSecondary: "See pricing",
   },
@@ -3686,6 +3693,7 @@ const en: Messages = {
       charactersLeft: "1 character left|{count} characters left",
       overLimit: "1 character over the limit|{count} characters over the limit",
       viewOnly: "You have view-only access to this website. Only an owner or an editor can make changes.",
+      freeArticlesOnly: "Included once your plan starts - right after your free articles are written.",
       savesImmediately: "Saves as soon as you change it",
       savedWithButton: "Saved with the Save button",
       editsKept: "Your newer edits are kept and still need saving.",
@@ -4173,7 +4181,7 @@ const en: Messages = {
       upgradeBody: "The {plan} plan includes {articles}, {terms} and {credits}.",
       upgradeLink: "See what {plan} offers",
       statusActive: "Active",
-      statusTrialing: "Free trial",
+      statusTrialing: "Free articles",
       statusPastDue: "Payment overdue",
       statusUnpaid: "Unpaid",
       statusIncomplete: "Payment incomplete",
@@ -5974,7 +5982,7 @@ const en: Messages = {
       growthEngineReady: "Your growth engine is ready",
       plan: "Plan",
       payYearly: "Pay yearly",
-      paypalNoTrial: "PayPal starts your plan straight away, without the free trial.",
+      paypalNoTrial: "PayPal starts your plan straight away, without the free articles.",
       cancelAnyTime: "Cancel any time. A promotion code can be entered at checkout.",
       whatsIncluded: "What\u2019s included",
       secureByStripe: "Secure checkout by Stripe. Your card details never reach us.",
@@ -6402,11 +6410,13 @@ const es: Messages = {
     planArticles: "{n} artículo al mes|{n} artículos al mes",
     planBacklinks: "Backlinks de nuestra red de socios",
     planPublishing: "Publicación automática en WordPress, Shopify y más",
-    closingTitle: "Empiece a crecer con RepGet hoy.",
+    createFreeArticles: "Cree 3 artículos gratis",
+    closingTitle: "Su sitio web podría estar creciendo más rápido.",
+    closingTitleAccent: "creciendo más rápido.",
     closingSub:
-      "Analice su web gratis y vea qué la está frenando. Sin crear cuenta.",
+      "Descubra qué está frenando su web con una auditoría SEO gratuita. Sin necesidad de cuenta.",
     cancelAnytime: "Cancele cuando quiera",
-    guarantee: "Garantía de devolución de 14 días",
+    setupInMinutes: "Listo en minutos",
   },
   pricing: {
     title: "Precios sencillos",
@@ -6499,7 +6509,7 @@ const es: Messages = {
     ],
     ctaTitle: "Sea el primer caso de esta página.",
     ctaBody:
-      "Empiece con un análisis gratuito de su web: tarda un minuto y no cuesta nada. Si lo que encontramos merece la pena, las cuentas nuevas pueden probar RepGet gratis durante {days} días.",
+      "Empiece con un análisis gratuito de su web: tarda un minuto y no cuesta nada. Si lo que encontramos merece la pena, las cuentas nuevas reciben sus primeros {count} artículos gratis.",
     ctaPrimary: "Analizar mi web",
     ctaSecondary: "Ver precios",
   },
@@ -6721,6 +6731,7 @@ const es: Messages = {
       charactersLeft: "Queda 1 carácter|Quedan {count} caracteres",
       overLimit: "1 carácter por encima del límite|{count} caracteres por encima del límite",
       viewOnly: "Tiene acceso de solo lectura a este sitio web. Solo un propietario o un editor puede hacer cambios.",
+      freeArticlesOnly: "Incluido en cuanto empiece su plan, justo después de escribir sus artículos gratis.",
       savesImmediately: "Se guarda en cuanto lo cambia",
       savedWithButton: "Se guarda con el botón Guardar",
       editsKept: "Sus cambios más recientes se conservan y aún deben guardarse.",
@@ -7208,7 +7219,7 @@ const es: Messages = {
       upgradeBody: "El plan {plan} incluye {articles}, {terms} y {credits}.",
       upgradeLink: "Vea lo que ofrece {plan}",
       statusActive: "Activa",
-      statusTrialing: "Prueba gratuita",
+      statusTrialing: "Artículos gratis",
       statusPastDue: "Pago vencido",
       statusUnpaid: "Impagada",
       statusIncomplete: "Pago incompleto",
@@ -9010,7 +9021,7 @@ const es: Messages = {
       growthEngineReady: "Su motor de crecimiento está listo",
       plan: "Plan",
       payYearly: "Pago anual",
-      paypalNoTrial: "PayPal inicia su plan de inmediato, sin la prueba gratuita.",
+      paypalNoTrial: "PayPal inicia su plan de inmediato, sin los artículos gratis.",
       cancelAnyTime: "Cancele cuando quiera. Puede introducir un código promocional al pagar.",
       whatsIncluded: "Qué incluye",
       secureByStripe: "Pago seguro con Stripe. Los datos de su tarjeta nunca llegan a nosotros.",
@@ -9435,11 +9446,13 @@ const fr: Messages = {
     planArticles: "{n} article par mois|{n} articles par mois",
     planBacklinks: "Backlinks issus de notre réseau de partenaires",
     planPublishing: "Publication automatique sur WordPress, Shopify et plus",
-    closingTitle: "Commencez à grandir avec RepGet dès aujourd’hui.",
+    createFreeArticles: "Créez 3 articles gratuitement",
+    closingTitle: "Votre site pourrait se développer plus vite.",
+    closingTitleAccent: "se développer plus vite.",
     closingSub:
-      "Lancez une analyse gratuite de votre site et voyez ce qui le freine. Sans créer de compte.",
+      "Découvrez ce qui freine votre site grâce à un audit SEO gratuit. Aucun compte requis.",
     cancelAnytime: "Annulez à tout moment",
-    guarantee: "Garantie satisfait ou remboursé sous 14 jours",
+    setupInMinutes: "Prêt en quelques minutes",
   },
   pricing: {
     title: "Des tarifs simples",
@@ -9531,7 +9544,7 @@ const fr: Messages = {
     ],
     ctaTitle: "Soyez le premier témoignage de cette page.",
     ctaBody:
-      "Commencez par une analyse gratuite de votre site : une minute, sans frais. Si ce que nous trouvons mérite d'agir, les nouveaux comptes peuvent essayer RepGet gratuitement pendant {days} jours.",
+      "Commencez par une analyse gratuite de votre site : une minute, sans frais. Si ce que nous trouvons mérite d'agir, les nouveaux comptes reçoivent leurs {count} premiers articles gratuitement.",
     ctaPrimary: "Analyser mon site",
     ctaSecondary: "Voir les tarifs",
   },
@@ -9755,6 +9768,7 @@ const fr: Messages = {
       charactersLeft: "1 caractère restant|{count} caractères restants",
       overLimit: "1 caractère de trop|{count} caractères de trop",
       viewOnly: "Vous avez un accès en lecture seule à ce site. Seul un propriétaire ou un éditeur peut apporter des modifications.",
+      freeArticlesOnly: "Inclus dès que votre forfait démarre, juste après la rédaction de vos articles gratuits.",
       savesImmediately: "Enregistré dès que vous le modifiez",
       savedWithButton: "Enregistré avec le bouton Enregistrer",
       editsKept: "Vos modifications plus récentes sont conservées et doivent encore être enregistrées.",
@@ -10242,7 +10256,7 @@ const fr: Messages = {
       upgradeBody: "Le forfait {plan} comprend {articles}, {terms} et {credits}.",
       upgradeLink: "Découvrir {plan}",
       statusActive: "Actif",
-      statusTrialing: "Essai gratuit",
+      statusTrialing: "Articles gratuits",
       statusPastDue: "Paiement en retard",
       statusUnpaid: "Impayé",
       statusIncomplete: "Paiement incomplet",
@@ -12043,7 +12057,7 @@ const fr: Messages = {
       growthEngineReady: "Votre moteur de croissance est prêt",
       plan: "Forfait",
       payYearly: "Paiement annuel",
-      paypalNoTrial: "PayPal démarre votre forfait immédiatement, sans essai gratuit.",
+      paypalNoTrial: "PayPal démarre votre forfait immédiatement, sans les articles gratuits.",
       cancelAnyTime: "Annulez à tout moment. Un code promo peut être saisi au paiement.",
       whatsIncluded: "Ce qui est inclus",
       secureByStripe: "Paiement sécurisé par Stripe. Vos données bancaires ne nous parviennent jamais.",
@@ -12469,11 +12483,13 @@ const it: Messages = {
     planArticles: "{n} articolo al mese|{n} articoli al mese",
     planBacklinks: "Backlink dalla nostra rete di partner",
     planPublishing: "Pubblicazione automatica su WordPress, Shopify e altro",
-    closingTitle: "Inizi a crescere con RepGet oggi.",
+    createFreeArticles: "Crei 3 articoli gratis",
+    closingTitle: "Il Suo sito potrebbe crescere più velocemente.",
+    closingTitleAccent: "crescere più velocemente.",
     closingSub:
-      "Faccia un'analisi gratuita del suo sito e veda che cosa lo frena. Senza registrarsi.",
+      "Scopra che cosa frena il Suo sito con un audit SEO gratuito. Nessun account richiesto.",
     cancelAnytime: "Disdica quando vuole",
-    guarantee: "Garanzia di rimborso entro 14 giorni",
+    setupInMinutes: "Pronto in pochi minuti",
   },
   pricing: {
     title: "Prezzi semplici",
@@ -12565,7 +12581,7 @@ const it: Messages = {
     ],
     ctaTitle: "Sia il primo caso di questa pagina.",
     ctaBody:
-      "Inizi con un controllo gratuito del sito: un minuto e nessun costo. Se ciò che troviamo merita, i nuovi account possono provare RepGet gratis per {days} giorni.",
+      "Inizi con un controllo gratuito del sito: un minuto e nessun costo. Se ciò che troviamo merita, i nuovi account ricevono gratis i primi {count} articoli.",
     ctaPrimary: "Controlla il mio sito",
     ctaSecondary: "Vedi i prezzi",
   },
@@ -12786,6 +12802,7 @@ const it: Messages = {
       charactersLeft: "1 carattere rimanente|{count} caratteri rimanenti",
       overLimit: "1 carattere oltre il limite|{count} caratteri oltre il limite",
       viewOnly: "Ha accesso in sola lettura a questo sito web. Solo un proprietario o un editor può apportare modifiche.",
+      freeArticlesOnly: "Incluso non appena inizia il Suo piano, subito dopo la scrittura dei Suoi articoli gratuiti.",
       savesImmediately: "Si salva appena lo modifica",
       savedWithButton: "Si salva con il pulsante Salva",
       editsKept: "Le modifiche più recenti sono state mantenute e devono ancora essere salvate.",
@@ -13273,7 +13290,7 @@ const it: Messages = {
       upgradeBody: "Il piano {plan} include {articles}, {terms} e {credits}.",
       upgradeLink: "Scopra cosa offre {plan}",
       statusActive: "Attivo",
-      statusTrialing: "Prova gratuita",
+      statusTrialing: "Articoli gratuiti",
       statusPastDue: "Pagamento in ritardo",
       statusUnpaid: "Non pagato",
       statusIncomplete: "Pagamento incompleto",
@@ -15075,7 +15092,7 @@ const it: Messages = {
       growthEngineReady: "Il suo motore di crescita è pronto",
       plan: "Piano",
       payYearly: "Pagamento annuale",
-      paypalNoTrial: "PayPal avvia subito il suo piano, senza la prova gratuita.",
+      paypalNoTrial: "PayPal avvia subito il suo piano, senza gli articoli gratuiti.",
       cancelAnyTime: "Disdica quando vuole. Al pagamento può inserire un codice promozionale.",
       whatsIncluded: "Che cosa include",
       secureByStripe: "Pagamento sicuro con Stripe. I dati della sua carta non arrivano mai a noi.",
@@ -15496,11 +15513,13 @@ const de: Messages = {
     planBacklinks: "Backlinks aus unserem Partnernetzwerk",
     planPublishing:
       "Automatisch veröffentlichen auf WordPress, Shopify und mehr",
-    closingTitle: "Starten Sie noch heute Ihr Wachstum mit RepGet.",
+    createFreeArticles: "3 Artikel kostenlos erstellen",
+    closingTitle: "Ihre Website könnte schneller wachsen.",
+    closingTitleAccent: "schneller wachsen.",
     closingSub:
-      "Prüfen Sie Ihre Website kostenlos und sehen Sie, was sie bremst. Ohne Konto.",
+      "Finden Sie mit einem kostenlosen SEO-Audit heraus, was Ihre Website bremst. Kein Konto nötig.",
     cancelAnytime: "Jederzeit kündbar",
-    guarantee: "14 Tage Geld-zurück-Garantie",
+    setupInMinutes: "In wenigen Minuten eingerichtet",
   },
   pricing: {
     title: "Einfache Preise",
@@ -15593,7 +15612,7 @@ const de: Messages = {
     ],
     ctaTitle: "Werden Sie die erste Geschichte auf dieser Seite.",
     ctaBody:
-      "Starten Sie mit einer kostenlosen Prüfung Ihrer Website - eine Minute, kostenlos. Wenn sich das Ergebnis lohnt, können neue Konten RepGet {days} Tage kostenlos testen.",
+      "Starten Sie mit einer kostenlosen Prüfung Ihrer Website - eine Minute, kostenlos. Wenn sich das Ergebnis lohnt, erhalten neue Konten ihre ersten {count} Artikel kostenlos.",
     ctaPrimary: "Website prüfen",
     ctaSecondary: "Preise ansehen",
   },
@@ -15815,6 +15834,7 @@ const de: Messages = {
       charactersLeft: "Noch 1 Zeichen|Noch {count} Zeichen",
       overLimit: "1 Zeichen zu viel|{count} Zeichen zu viel",
       viewOnly: "Sie haben für diese Website nur Lesezugriff. Änderungen können nur Inhaber oder Bearbeiter vornehmen.",
+      freeArticlesOnly: "Enthalten, sobald Ihr Tarif beginnt - direkt nachdem Ihre kostenlosen Artikel geschrieben sind.",
       savesImmediately: "Wird sofort gespeichert, wenn Sie es ändern",
       savedWithButton: "Wird mit der Schaltfläche Speichern gespeichert",
       editsKept: "Ihre neueren Änderungen bleiben erhalten und müssen noch gespeichert werden.",
@@ -16303,7 +16323,7 @@ const de: Messages = {
       upgradeBody: "Der Tarif {plan} umfasst {articles}, {terms} und {credits}.",
       upgradeLink: "Mehr zu {plan}",
       statusActive: "Aktiv",
-      statusTrialing: "Kostenloser Test",
+      statusTrialing: "Kostenlose Artikel",
       statusPastDue: "Zahlung überfällig",
       statusUnpaid: "Unbezahlt",
       statusIncomplete: "Zahlung unvollständig",
@@ -18104,7 +18124,7 @@ const de: Messages = {
       growthEngineReady: "Ihr Wachstumsmotor steht bereit",
       plan: "Tarif",
       payYearly: "Jährlich zahlen",
-      paypalNoTrial: "PayPal startet Ihren Tarif sofort, ohne die kostenlose Testphase.",
+      paypalNoTrial: "PayPal startet Ihren Tarif sofort, ohne die kostenlosen Artikel.",
       cancelAnyTime: "Jederzeit kündbar. Einen Gutscheincode können Sie beim Bezahlen eingeben.",
       whatsIncluded: "Was enthalten ist",
       secureByStripe: "Sichere Zahlung über Stripe. Ihre Kartendaten erreichen uns nie.",

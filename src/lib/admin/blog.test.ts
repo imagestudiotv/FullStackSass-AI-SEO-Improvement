@@ -25,7 +25,7 @@ import {
   type BlogPostInput,
 } from "@/lib/admin/blog";
 import { categoryBySlug, listCategories } from "@/lib/blog/categories";
-import { getPost, listPosts } from "@/lib/blog/posts";
+import { getPost, listPosts, listPostPage } from "@/lib/blog/posts";
 import { FAQ_ANSWER_LIMIT, jsonLdScript, plainText } from "@/lib/blog/shared";
 
 let test: TestDb;
@@ -51,6 +51,10 @@ function input(overrides: Partial<BlogPostInput> = {}): BlogPostInput {
     title: `Choosing a wedding videographer ${n}`,
     slug: "",
     description: "What to ask before you book.",
+    seoTitle: "",
+    primaryKeyword: "",
+    secondaryKeywords: [],
+    breadcrumbLabel: "",
     category: "Guides",
     author: "",
     shortAnswer: "",
@@ -98,6 +102,118 @@ describe("the posts that were constants, moved by migration 0046", () => {
 });
 
 describe("writing and publishing a post", () => {
+  it("keeps the search fields apart from the title, tidied, and clears them when emptied", async () => {
+    const post = await create("published", {
+      title: "Visible editorial heading",
+      seoTitle: "  Search   title  ",
+      primaryKeyword: "  wedding films  ",
+      // Repeats in any letter case, empty entries and the primary keyword again are dropped.
+      secondaryKeywords: ["Rome", " rome ", " Italy ", "", "Wedding films"],
+      breadcrumbLabel: "  Wedding guide  ",
+    });
+    expect(await getPost(post.slug)).toMatchObject({
+      title: "Visible editorial heading",
+      seoTitle: "Search title",
+      primaryKeyword: "wedding films",
+      secondaryKeywords: ["Rome", "Italy"],
+      breadcrumbLabel: "Wedding guide",
+    });
+
+    const current = (await getBlogPostAdmin(post.id))!;
+    expect(current).toMatchObject({ seoTitle: "Search title", secondaryKeywords: ["Rome", "Italy"] });
+    const cleared = await saveBlogPost({
+      id: post.id,
+      expectedVersion: current.version,
+      status: "published",
+      post: { ...input(), title: current.title, slug: current.slug, seoTitle: "  ", primaryKeyword: "", secondaryKeywords: [], breadcrumbLabel: "" },
+    });
+    expect(cleared.ok).toBe(true);
+    expect(await getPost(post.slug)).toMatchObject({
+      title: "Visible editorial heading",
+      seoTitle: null,
+      primaryKeyword: null,
+      secondaryKeywords: [],
+      breadcrumbLabel: null,
+    });
+  });
+
+  it("refuses more than 30 secondary keywords instead of dropping some", async () => {
+    const tooMany = Array.from({ length: 31 }, (_, index) => `phrase ${index}`);
+    const result = await saveBlogPost({ id: null, expectedVersion: 0, status: "draft", post: input({ secondaryKeywords: tooMany }) });
+    expect(result).toEqual({ ok: false, error: expect.stringMatching(/Up to 30 secondary keywords - this post has 31/) });
+
+    // Thirty, once repeats are gone, is fine.
+    const saved = await create("draft", { secondaryKeywords: [...tooMany.slice(0, 30), "PHRASE 0"] });
+    expect((await row(saved.id)).secondaryKeywords).toHaveLength(30);
+  });
+
+  it("changing only the search fields does not mark a live post as updated; changing its text does", async () => {
+    const post = await create("published");
+    await test.db.update(blogPosts).set({ revisedAt: null }).where(eq(blogPosts.id, post.id));
+
+    const current = (await getBlogPostAdmin(post.id))!;
+    const searchOnly = await saveBlogPost({
+      id: post.id,
+      expectedVersion: current.version,
+      status: "published",
+      post: {
+        ...input(),
+        title: current.title,
+        slug: current.slug,
+        seoTitle: "A sharper search title",
+        primaryKeyword: "wedding videographer",
+        secondaryKeywords: ["questions to ask"],
+        breadcrumbLabel: "Videographer guide",
+      },
+    });
+    expect(searchOnly.ok).toBe(true);
+    expect((await row(post.id)).revisedAt).toBeNull();
+
+    const latest = (await getBlogPostAdmin(post.id))!;
+    const textChange = await saveBlogPost({
+      id: post.id,
+      expectedVersion: latest.version,
+      status: "published",
+      post: {
+        ...input(),
+        title: latest.title,
+        slug: latest.slug,
+        seoTitle: latest.seoTitle ?? "",
+        primaryKeyword: latest.primaryKeyword ?? "",
+        secondaryKeywords: latest.secondaryKeywords,
+        breadcrumbLabel: latest.breadcrumbLabel ?? "",
+        bodyHtml: "<h2>Start here</h2><p>Ask to see a full film, not a trailer, and the raw footage.</p>",
+      },
+    });
+    expect(textChange.ok).toBe(true);
+    expect((await row(post.id)).revisedAt).not.toBeNull();
+  });
+
+  it("lists 30 published posts a page, in a stable order, filtered by category or author", async () => {
+    const publishedAt = new Date("2026-10-08T12:00:00Z");
+    // 61 published with the same date - only the id orders them - and one draft.
+    await test.db.insert(blogPosts).values(
+      Array.from({ length: 62 }, (_, index) => ({
+        title: `Pagination article ${index}`,
+        slug: `pagination-test-${index}`,
+        category: "Pagination",
+        author: "Pagination writer",
+        bodyHtml: "<p>Article</p>",
+        description: "Description",
+        status: index === 61 ? "draft" : "published",
+        publishedAt,
+      })),
+    );
+    const pages = await Promise.all([1, 2, 3, 4].map((page) => listPostPage(page, { category: "Pagination" })));
+    expect(pages.map((page) => page.posts.length)).toEqual([30, 30, 1, 0]);
+    expect(pages.every((page) => page.total === 61)).toBe(true);
+    expect(new Set(pages.flatMap((page) => page.posts.map((post) => post.slug))).size).toBe(61);
+    // The author filter ignores letter case.
+    const byAuthor = await listPostPage(1, { author: "PAGINATION WRITER" });
+    expect(byAuthor.posts.map((post) => post.slug)).toEqual(pages[0].posts.map((post) => post.slug));
+    await test.db.delete(blogPosts).where(eq(blogPosts.category, "Pagination"));
+  });
+
   it("a draft is only in the admin panel; publishing puts it on the blog at once", async () => {
     const draft = await create("draft");
     expect(draft).toMatchObject({ status: "draft", version: 0, slug: expect.stringMatching(/^choosing-a-wedding-videographer-\d+$/) });
@@ -353,6 +469,10 @@ describe("IndexNow: what a post's save reports", () => {
         title: stored.title,
         slug: stored.slug,
         description: stored.description,
+        seoTitle: stored.seoTitle ?? "",
+        primaryKeyword: stored.primaryKeyword ?? "",
+        secondaryKeywords: stored.secondaryKeywords,
+        breadcrumbLabel: stored.breadcrumbLabel ?? "",
         category: stored.category,
         author: stored.author,
         shortAnswer: stored.shortAnswer ?? "",
@@ -401,6 +521,15 @@ describe("IndexNow: what a post's save reports", () => {
       await resave(post.id, version, "published", changes);
       expect(reported()).toEqual([`/blog/${post.slug}`, "/blog", "/blog/category/guides"]);
     }
+  });
+
+  it("a live post's search fields: its own page, which search engines read again; not the listings", async () => {
+    const post = await create("published");
+    indexNow.notify.mockClear();
+    await resave(post.id, 0, "published", { seoTitle: "Wedding videographer questions | RepGet" });
+    await resave(post.id, 1, "published", { primaryKeyword: "wedding videographer", secondaryKeywords: ["questions"] });
+    await resave(post.id, 2, "published", { breadcrumbLabel: "Questions" });
+    expect(reported()).toEqual([`/blog/${post.slug}`, `/blog/${post.slug}`, `/blog/${post.slug}`]);
   });
 
   /** Postgres hands jsonb keys back in its own order; that alone must not count as a change. */

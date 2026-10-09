@@ -1,12 +1,13 @@
-import { and, asc, count, eq } from "drizzle-orm";
+import { and, asc, count, eq, sql } from "drizzle-orm";
 import { cache } from "react";
 
 import { isEntitled } from "@/lib/billing-shared";
+import { onFreeArticles } from "@/lib/billing/free-articles";
 import { db } from "@/lib/db";
 import { articles, geoPrompts, websites } from "@/lib/db/schema";
 import { getSubscription } from "@/lib/billing";
 import { isAgencyWorkspace } from "@/lib/agency/core";
-import { TRIAL_DAYS } from "@/lib/plans/features";
+import { FREE_ARTICLES } from "@/lib/plans/features";
 
 /**
  * Where a new customer is in setting up.
@@ -63,6 +64,11 @@ export type OnboardingState = {
    * screens reachable by typing their URL.
    */
   hasPlan: boolean;
+  /**
+   * The website is on its free articles (lib/billing/free-articles.ts): the
+   * AI visibility step waits for the plan, so it is not one of the steps.
+   */
+  freeArticles: boolean;
 };
 
 /**
@@ -118,7 +124,7 @@ export const getOnboardingState = cache(async function getOnboardingState(
 
   const site = sites[0] ?? null;
 
-  const [promptCount, articleCount] = site
+  const [promptCount, articleCount, trial] = site
     ? await Promise.all([
         db
           .select({ n: count() })
@@ -128,8 +134,13 @@ export const getOnboardingState = cache(async function getOnboardingState(
           .select({ n: count() })
           .from(articles)
           .where(eq(articles.websiteId, site.id)),
+        db
+          .select({ on: sql<boolean>`${onFreeArticles(websites.id)}` })
+          .from(websites)
+          .where(eq(websites.id, site.id)),
       ])
-    : [[{ n: 0 }], [{ n: 0 }]];
+    : [[{ n: 0 }], [{ n: 0 }], [{ on: false }]];
+  const freeArticles = Boolean(trial[0]?.on);
 
   const hasPlan = agency || isEntitled(subscription?.status);
   const hasWebsite = site !== null;
@@ -163,7 +174,7 @@ export const getOnboardingState = cache(async function getOnboardingState(
       title: "Choose a plan",
       description: agency
         ? "This workspace is set up by us - no plan needed."
-        : `Each website has its own plan. New accounts can try it free for ${TRIAL_DAYS} days.`,
+        : `Each website has its own plan. New accounts get their first ${FREE_ARTICLES} articles free.`,
       done: hasPlan,
       /*
         The onboarding plan screen, not /billing. /billing carries the
@@ -191,6 +202,13 @@ export const getOnboardingState = cache(async function getOnboardingState(
     },
   ];
 
+  /*
+    Not a step at all during the free articles: AI visibility waits for the
+    plan (lib/billing/entitled.ts), and a step nobody can complete would
+    leave setup unfinished for a month. It comes back when the plan starts.
+  */
+  if (freeArticles) steps.splice(steps.findIndex((step) => step.id === "visibility"), 1);
+
   const current = steps.find((step) => !step.done) ?? null;
 
   return {
@@ -201,5 +219,6 @@ export const getOnboardingState = cache(async function getOnboardingState(
     // "pending" and "crawling" both mean we are still working on it.
     analysing: hasWebsite && !analysed,
     hasPlan,
+    freeArticles,
   };
 });

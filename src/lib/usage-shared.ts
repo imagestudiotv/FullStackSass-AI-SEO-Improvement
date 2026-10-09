@@ -16,4 +16,10 @@ export type LimitCheck = {
   /** Plan limit, or UNLIMITED (-1) when the kind is metered but not capped. */
   limit: number;
   reason: string | null;
+  /**
+   * The website is on its free articles (lib/billing/free-articles.ts): the
+   * article limit is those articles, and features beyond writing them wait
+   * for the plan to start.
+   */
+  freeArticles?: boolean;
 };

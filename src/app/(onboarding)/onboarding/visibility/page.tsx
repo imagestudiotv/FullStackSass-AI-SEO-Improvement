@@ -71,6 +71,17 @@ export default async function OnboardingVisibilityPage({
     );
   }
 
+  /*
+    On the free articles, straight on to the first article: AI visibility
+    waits for the plan (lib/billing/free-articles.ts), and this screen would
+    only offer questions it may not check.
+  */
+  if (state.freeArticles) {
+    redirect(
+      siteParam ? `/onboarding/content?site=${siteParam}` : "/onboarding/content",
+    );
+  }
+
   const [site] = await db
     .select({
       id: websites.id,

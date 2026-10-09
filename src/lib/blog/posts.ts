@@ -1,8 +1,9 @@
 import "server-only";
 
-import { and, desc, eq, type SQL } from "drizzle-orm";
+import { and, desc, eq, sql, type SQL } from "drizzle-orm";
 
-import { blogSlug, readingMinutes, type BlogCategory, type BlogPost } from "@/lib/blog/shared";
+import { BLOG_PAGE_SIZE } from "@/lib/blog/pagination";
+import { blogSlug, readingMinutes, type BlogPost } from "@/lib/blog/shared";
 import { db } from "@/lib/db";
 import { blogCategories, blogPosts } from "@/lib/db/schema";
 
@@ -33,6 +34,10 @@ export function toBlogPost(row: Row & { publishedAt: Date }, categorySlug: strin
   const post: BlogPost = {
     slug: row.slug,
     title: row.title,
+    seoTitle: row.seoTitle,
+    primaryKeyword: row.primaryKeyword,
+    secondaryKeywords: row.secondaryKeywords,
+    breadcrumbLabel: row.breadcrumbLabel,
     description: row.description,
     category: row.category,
     categorySlug: categorySlug ?? blogSlug(row.category),
@@ -52,6 +57,55 @@ export function toBlogPost(row: Row & { publishedAt: Date }, categorySlug: strin
 
 const published = eq(blogPosts.status, "published");
 
+/**
+ * One page of published posts, newest first, BLOG_PAGE_SIZE to a page
+ * (client, 2026-10-08: 30 per page, then the next page), with how many there
+ * are in all. For the blog's front page, a category's page (`category`, a
+ * name) and an author's page (`author`, any letter case).
+ *
+ * Posts published at the same moment are ordered by id, so a post never
+ * appears on two pages or on none as the pages are walked.
+ */
+export async function listPostPage(
+  page: number,
+  filter: { category?: string; author?: string } = {},
+): Promise<{ posts: BlogPost[]; total: number }> {
+  const only = and(
+    filter.category ? eq(blogPosts.category, filter.category) : undefined,
+    filter.author ? sql`lower(trim(${blogPosts.author})) = ${filter.author.trim().toLowerCase()}` : undefined,
+  );
+  const [[count], rows] = await Promise.all([
+    db
+      .select({ total: sql<number>`count(*)::int` })
+      .from(blogPosts)
+      .where(only ? and(published, only) : published),
+    publishedPosts(only)
+      .orderBy(desc(blogPosts.publishedAt), desc(blogPosts.id))
+      .limit(BLOG_PAGE_SIZE)
+      .offset((page - 1) * BLOG_PAGE_SIZE),
+  ]);
+  return {
+    total: count.total,
+    posts: rows.flatMap(({ post, categorySlug }) =>
+      post.publishedAt ? [toBlogPost({ ...post, publishedAt: post.publishedAt }, categorySlug)] : [],
+    ),
+  };
+}
+
+/**
+ * How many published posts each category holds, by name: the front page's
+ * chips. Counted in the database, now that the page lists only one page of
+ * posts.
+ */
+export async function publishedCategoryCounts(): Promise<Record<string, number>> {
+  const rows = await db
+    .select({ category: blogPosts.category, count: sql<number>`count(*)::int` })
+    .from(blogPosts)
+    .where(published)
+    .groupBy(blogPosts.category);
+  return Object.fromEntries(rows.map((row) => [row.category, row.count]));
+}
+
 /** Published posts with their category's page address. */
 function publishedPosts(only?: SQL) {
   return db
@@ -63,7 +117,7 @@ function publishedPosts(only?: SQL) {
 
 /** Every published post, newest first. */
 export async function listPosts(): Promise<BlogPost[]> {
-  const rows = await publishedPosts().orderBy(desc(blogPosts.publishedAt));
+  const rows = await publishedPosts().orderBy(desc(blogPosts.publishedAt), desc(blogPosts.id));
   return rows.flatMap(({ post, categorySlug }) =>
     post.publishedAt ? [toBlogPost({ ...post, publishedAt: post.publishedAt }, categorySlug)] : [],
   );
@@ -73,11 +127,6 @@ export async function listPosts(): Promise<BlogPost[]> {
 export async function getPost(slug: string): Promise<BlogPost | null> {
   const [row] = await publishedPosts(eq(blogPosts.slug, slug)).limit(1);
   return row?.post.publishedAt ? toBlogPost({ ...row.post, publishedAt: row.post.publishedAt }, row.categorySlug) : null;
-}
-
-/** Published posts in one category, newest first. */
-export async function postsByCategory(category: BlogCategory): Promise<BlogPost[]> {
-  return (await listPosts()).filter((post) => post.category === category);
 }
 
 /**

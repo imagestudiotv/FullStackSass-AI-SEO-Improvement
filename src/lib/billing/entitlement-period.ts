@@ -17,35 +17,25 @@
  *    anchor on 31 January gives 28 (or 29) February, then 31 March - it does
  *    not drift to the 28th for good.
  *  - Leap years: an anchor on 29 February gives 28 February in other years.
- *  - THE TRIAL IS PART OF THE FIRST MONTH (the client's rule, approved by the
- *    owner on 2026-10-05). A trial is its own billing period at the
- *    provider, and conversion moves the anchor to the trial's end - but the
- *    allowance does NOT start again there: "the first monthly billing period
- *    is not over yet". So a 3-day trial and the first paid month share one
- *    allowance, and fresh allowances start with the SECOND paid period.
- *    ONE predicate decides it for credits and articles alike,
- *    firstPeriodAfterTrial - so the two can never disagree about which
- *    month a customer is in:
- *      - Link credits: the trial is granted the month's credits when it
- *        starts; the conversion is granted only what the paid plan gives
- *        beyond that - nothing, on the same plan (grantMonthlyCredits in
- *        lib/backlinks/credits.ts).
- *      - Articles: in the first period after a trial the window opens at
- *        the subscription's creation, not at the period start, so what was
- *        written during the trial counts against the first paid month
- *        (allowanceWindowStart, used by usage.ts for display and
- *        enforcement alike).
- *    The first allowance therefore lasts the trial plus a month; every later
- *    period is exactly as described above. The rule is about the FIRST month
- *    only: a later re-anchor (an interval change, a PayPal renewal paid
- *    late) starts a new period with its own credits and articles, as it
- *    always did.
+ *  - A TRIAL IS THE NEW ACCOUNT'S FREE ARTICLES, AND THE PAID MONTH STARTS
+ *    FRESH (client, 2026-10-09: "Create 3 Articles for Free", replacing the
+ *    3-day trial and the 2026-10-05 rule that the trial was part of the first
+ *    month). A trial is its own billing period at the provider; it allows
+ *    FREE_ARTICLES articles (usage.ts) and no link credits (lib/backlinks/
+ *    credits.ts); converting moves the anchor to the trial's end, and the
+ *    paid period starting there has the plan's full allowance of both. The
+ *    articles written during the trial are counted from the trial's start,
+ *    so they are not counted again in the paid month.
+ *    firstPeriodAfterTrial still tells the period after a trial apart from a
+ *    month of its own: the credit grant uses it so a trial granted credits
+ *    under the old rule (a 3-day trial running when this shipped) is not
+ *    granted them a second time at its conversion.
  *  - Upgrading within the same interval keeps the anchor (Stripe prorates
  *    in place): the new plan's limit applies to the current period's usage.
- *    Changing interval moves the billing anchor, and a new period starts -
- *    except in the subscription's first month, where by the rule above the
- *    article count carries on and the credits are topped up to the new
- *    plan rather than granted again.
+ *    Changing interval moves the billing anchor, and a new period starts
+ *    with a fresh article allowance. In the subscription's first month the
+ *    credits are only topped up to the new plan rather than granted again
+ *    (firstPeriodAfterTrial), so one month never holds two grants.
  *  - A cancelled or unpaid subscription has no allowance at all; that is an
  *    entitlement question answered elsewhere (usage.ts), not a period one.
  */
@@ -140,8 +130,8 @@ const DAY_MS = 24 * HOUR_MS;
   a time-zone date shift up to about a day. Without this allowance a PayPal
   customer's second month would read as "still the first month"
   (firstPeriodAfterTrial) and earn no credits. Three days covers that drift
-  and is nowhere near what a trial leaves (TRIAL_DAYS = 3 into a month of
-  28-31 days: ~25 days short).
+  and is nowhere near what a short trial leaves (a 3-day trial into a month
+  of 28-31 days: ~25 days short).
 */
 const EARLY_RENEWAL_MS = 3 * DAY_MS;
 
@@ -176,14 +166,9 @@ export function lessThanAMonthApart(a: Date, b: Date): boolean {
 
   What the gap measures is when the trial ENDED (the paid period starts at
   the conversion), not how long it was configured to last. A trial ended
-  early - from the Stripe Dashboard or API, or by a portal plan switch set
-  to end the trial - within 12 hours of starting therefore reads as no trial
-  at all: the first paid period is a fresh month, with its own credits AND
-  its own articles. Credits and articles take that from the same predicate
-  (firstPeriodAfterTrial), so they still agree; such a customer keeps what
-  the trial was given on top of the first month's allowance. Telling those
-  trials apart would need the trial stored (the trial end, or the
-  checkout's trial days), for both rules at once.
+  within 12 hours of starting - all its free articles written that fast -
+  therefore reads as no trial at all, which changes nothing now that trials
+  earn no credits: the first paid period is granted in full either way.
 */
 const CREATION_LAG_MS = 12 * HOUR_MS;
 
@@ -198,12 +183,13 @@ const CREATION_LAG_MS = 12 * HOUR_MS;
  * paid period on, and for the first period of every subscription without a
  * trial, this is false.
  *
- * THE one rule for "the trial is part of the first month": the article
- * window (allowanceWindowStart) and the credit grant (grantMonthlyCredits)
- * both ask it, so a customer is never in a fresh month for one and the same
- * month for the other. It deliberately says nothing about later periods: a
- * rule of "no two grants less than a month apart" reached across renewals
- * and zeroed a paid month after a PayPal renewal paid late.
+ * Asked by the credit grant (grantMonthlyCredits), so the period after a
+ * trial that was granted credits tops them up rather than granting a second
+ * month. Trials no longer earn credits (free articles only), so for them the
+ * paid period after the trial is granted in full. It deliberately says
+ * nothing about later periods: a rule of "no two grants less than a month
+ * apart" reached across renewals and zeroed a paid month after a PayPal
+ * renewal paid late.
  */
 export function firstPeriodAfterTrial(createdAt: Date | null, start: Date): boolean {
   return (
@@ -216,11 +202,9 @@ export function firstPeriodAfterTrial(createdAt: Date | null, start: Date): bool
 /**
  * Where the CURRENT allowance window starts: what articles are counted from.
  *
- * Normally the start of the monthly entitlement period. In the first period
- * after a trial (firstPeriodAfterTrial) it is the subscription's creation
- * instead, so the trial's usage counts against the first paid month (the
- * policy above). From the second paid period on, and for every subscription
- * without a trial, this is exactly the entitlement period start.
+ * The start of the monthly entitlement period - during a trial, the trial's
+ * start (its free articles); after it, the conversion, so the paid month's
+ * allowance is whole (the policy above).
  *
  * Null when there is no anchor at all (no billing dates and no creation
  * time); callers fall back to the calendar month.
@@ -236,6 +220,29 @@ export function allowanceWindowStart(
 ): Date | null {
   const anchor = billingAnchor(sub);
   if (!anchor) return null;
-  const { start } = entitlementPeriod(anchor, now);
-  return sub.createdAt && firstPeriodAfterTrial(sub.createdAt, start) ? sub.createdAt : start;
+  return entitlementPeriod(anchor, now).start;
+}
+
+/** Longer than any trial that was not the free articles (the old one lasted 3 days). */
+const FREE_ARTICLES_TRIAL_MIN_MS = 7 * DAY_MS;
+
+/**
+ * Whether a subscription is in its free-articles trial (lib/billing/
+ * free-articles.ts): trialing, with the trial - its current period at the
+ * provider - longer than a week. Told apart that way rather than by a column
+ * because the only other trials were the 3-day ones the offer replaced; one
+ * still running when this shipped keeps that trial's terms (its plan's
+ * allowance), as its checkout promised.
+ */
+export function isFreeArticlesTrial(sub: {
+  status: string | null;
+  currentPeriodStart: Date | null;
+  currentPeriodEnd: Date | null;
+}): boolean {
+  return (
+    sub.status === "trialing" &&
+    sub.currentPeriodStart !== null &&
+    sub.currentPeriodEnd !== null &&
+    sub.currentPeriodEnd.getTime() - sub.currentPeriodStart.getTime() > FREE_ARTICLES_TRIAL_MIN_MS
+  );
 }

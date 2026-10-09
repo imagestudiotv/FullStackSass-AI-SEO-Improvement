@@ -56,9 +56,21 @@ export type BlogSource = {
 export type BlogPost = {
   /** URL segment. Permanent once published. */
   slug: string;
+  /** The visible H1, and the card's title. */
   title: string;
   /** Meta description and card summary. Kept under ~160 characters. */
   description: string;
+  /**
+   * The whole <title>, and the title search results and shared links show,
+   * when the post has one; otherwise the title is used (lib/blog/keywords.ts).
+   * Never shown on the page.
+   */
+  seoTitle?: string | null;
+  /** Search phrases the post is written for, listed in its structured data only. */
+  primaryKeyword?: string | null;
+  secondaryKeywords?: string[];
+  /** The breadcrumb's last step, when shorter than the title. */
+  breadcrumbLabel?: string | null;
   category: BlogCategory;
   /** Its category's page: /blog/category/<categorySlug>. */
   categorySlug: string;
@@ -101,11 +113,15 @@ export function blogSlug(text: string): string {
     .replace(/-+$/, "");
 }
 
-/** How many of these posts each category holds, for the index's filter chips. */
-export function categoryCounts(posts: Pick<BlogPost, "category">[]): Record<BlogCategory, number> {
-  const counts: Record<BlogCategory, number> = {};
-  for (const post of posts) counts[post.category] = (counts[post.category] ?? 0) + 1;
-  return counts;
+/** The byline of the posts RepGet writes itself, and the default author. */
+export const TEAM_AUTHOR = "RepGet team";
+
+/** The team's author page: its posts, and what its bylines link to (client, 2026-10-08). */
+export const TEAM_AUTHOR_PATH = "/blog/author/repget-team";
+
+/** True for the team's byline, in any letter case. Other names are plain text. */
+export function isTeamAuthor(author: string): boolean {
+  return author.trim().toLowerCase() === TEAM_AUTHOR.toLowerCase();
 }
 
 /**

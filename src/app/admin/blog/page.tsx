@@ -1,10 +1,11 @@
-import { ExternalLink, Newspaper, Plus } from "lucide-react";
+import { ExternalLink, Megaphone, Newspaper, Plus } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { listBlogCategoriesAdmin, listBlogPostsAdmin } from "@/lib/admin/blog";
+import { placementsToReview } from "@/lib/admin/blog-sponsorships";
 import { formatDate, formatNumber } from "@/lib/i18n/format";
 
 import { ExpandableText } from "../_ui/expandable-text";
@@ -29,7 +30,7 @@ const when = (date: Date) =>
  * A published post is public at once; drafts are visible only here.
  */
 export default async function AdminBlogPage() {
-  const [posts, categories] = await Promise.all([listBlogPostsAdmin(), listBlogCategoriesAdmin()]);
+  const [posts, categories, toReview] = await Promise.all([listBlogPostsAdmin(), listBlogCategoriesAdmin(), placementsToReview()]);
   const live = posts.filter((post) => post.status === "published").length;
 
   return (
@@ -38,15 +39,29 @@ export default async function AdminBlogPage() {
         title="Blog"
         description="RepGet's own blog at /blog. Write posts here; a published post is live at once."
         actions={
-          <Button asChild size="lg">
-            <Link href="/admin/blog/new">
-              <Plus aria-hidden="true" />
-              New post
-            </Link>
-          </Button>
+          <>
+            {/* Paid "Get Featured" requests (lib/blog/sponsorship.ts), with how many wait for a decision. */}
+            <Button asChild size="lg" variant="outline">
+              <Link href="/admin/blog/sponsorships">
+                <Megaphone aria-hidden="true" />
+                Featured placements
+                {toReview > 0 ? (
+                  <span className="rounded-full bg-warning-soft px-1.5 text-xs font-semibold text-warning tabular-nums">
+                    {n(toReview)}
+                    <span className="sr-only"> to review</span>
+                  </span>
+                ) : null}
+              </Link>
+            </Button>
+            <Button asChild size="lg">
+              <Link href="/admin/blog/new">
+                <Plus aria-hidden="true" />
+                New post
+              </Link>
+            </Button>
+          </>
         }
       />
-
       <section aria-labelledby="posts-title" className="space-y-3">
         <ListHeading
           id="posts-title"

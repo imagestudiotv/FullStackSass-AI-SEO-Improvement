@@ -108,7 +108,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
         href: "/admin/blog",
         label: "Blog",
         icon: Newspaper,
-        keywords: ["repget blog", "posts", "categories"],
+        keywords: ["repget blog", "posts", "categories", "featured placements", "sponsored", "get featured"],
         description: "RepGet's own public blog",
       },
     ],
@@ -166,6 +166,7 @@ const DETAIL_LABELS: { pattern: RegExp; label: string }[] = [
   { pattern: /^\/admin\/articles\/[^/]+$/, label: "Article" },
   { pattern: /^\/admin\/network\/(?!operations$)[^/]+$/, label: "Review" },
   { pattern: /^\/admin\/blog\/new$/, label: "New post" },
+  { pattern: /^\/admin\/blog\/sponsorships$/, label: "Featured placements" },
   { pattern: /^\/admin\/blog\/[^/]+$/, label: "Edit post" },
 ];
 

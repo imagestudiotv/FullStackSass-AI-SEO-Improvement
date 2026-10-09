@@ -69,5 +69,6 @@ describe("adminCrumbs", () => {
     expect(trail("/admin/network/operations")).toEqual(["Admin", "Network Operations*"]);
     expect(trail("/admin/blog/new")).toEqual(["Admin", "Blog", "New post*"]);
     expect(trail("/admin/blog/9")).toEqual(["Admin", "Blog", "Edit post*"]);
+    expect(trail("/admin/blog/sponsorships")).toEqual(["Admin", "Blog", "Featured placements*"]);
   });
 });

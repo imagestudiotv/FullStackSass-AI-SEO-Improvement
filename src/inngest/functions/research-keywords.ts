@@ -98,7 +98,8 @@ export const researchKeywords = inngest.createFunction(
     */
     const spend = <T,>(call: () => Promise<T>) =>
       paidCall(reservations, call, {
-        beforeSpend: () => requireEntitledForSpend(websiteId),
+        // Research plans the free articles too (lib/billing/free-articles.ts).
+        beforeSpend: () => requireEntitledForSpend(websiteId, { freeArticles: true }),
       });
 
     /**

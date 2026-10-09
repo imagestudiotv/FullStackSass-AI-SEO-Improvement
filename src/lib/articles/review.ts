@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 
 import { and, eq, sql, type SQL } from "drizzle-orm";
 
+import { onFreeArticles } from "@/lib/billing/free-articles";
 import { db } from "@/lib/db";
 import { articles, calendarItems, networkSites } from "@/lib/db/schema";
 import type { Executor } from "@/lib/db/types";
@@ -153,11 +154,19 @@ export async function inManagedNetwork(websiteId: string, executor: Executor = d
     .select({
       accepting: networkSites.acceptingLinks,
       reviewOn: sql<boolean>`exists (select 1 from platform_controls pc where pc.key = 'managed_review' and pc.enabled)`,
+      freeArticles: sql<boolean>`${onFreeArticles(networkSites.websiteId)}`,
     })
     .from(networkSites)
     .where(eq(networkSites.websiteId, websiteId))
     .limit(1);
-  return Boolean(row?.accepting && row.reviewOn);
+  /*
+    Not while the website is on its free articles (lib/billing/
+    free-articles.ts): the Partner Network waits for the plan, and a free
+    article held for the RepGet team would keep a new customer waiting for
+    the thing they came to try. Drafts written after the plan starts are
+    reviewed as usual.
+  */
+  return Boolean(row?.accepting && row.reviewOn && !row.freeArticles);
 }
 
 /**

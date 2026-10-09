@@ -570,7 +570,7 @@ export async function reanalyzeWebsite(
     A paid site draws on its workspace's hourly ceiling; an unpaid one (still
     in onboarding) on the bounded free allowance. See analysis-quota.ts.
   */
-  const entitled = await isEntitledToSpend(site.id);
+  const entitled = await isEntitledToSpend(site.id, { freeArticles: true });
 
   /*
     Claimed atomically: only a site that is not already being analysed moves

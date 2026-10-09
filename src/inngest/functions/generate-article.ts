@@ -47,11 +47,14 @@ import { notify } from "@/lib/notifications/create";
 import {
   paidCall,
   releaseUnspent,
-  reserve,
   reserveAll,
+  type QuotaRule,
   type Reservation,
 } from "@/lib/billing/spend-quota";
 import { requireEntitledForSpend } from "@/lib/billing/entitled";
+import { endFreeTrialIfUsed } from "@/lib/billing/end-free-trial";
+import { freeArticlesDailyRule } from "@/lib/billing/free-articles";
+import { FREE_ARTICLES, FREE_ARTICLES_ONLY } from "@/lib/plans/features";
 import { deliverNow, enqueueJob } from "@/lib/jobs/outbox";
 
 /**
@@ -341,7 +344,7 @@ export const generateArticle = inngest.createFunction(
       const result = await paidCall(
         reservations,
         () => generateOutline(brief.brief),
-        { beforeSpend: () => requireEntitledForSpend(brief.websiteId) },
+        { beforeSpend: () => requireEntitledForSpend(brief.websiteId, { freeArticles: true }) },
       );
 
       const price = PRICING.llm[MODELS.GENERATION];
@@ -386,7 +389,7 @@ export const generateArticle = inngest.createFunction(
       const result = await paidCall(
         reservations,
         () => generateBody(brief.brief, outline),
-        { beforeSpend: () => requireEntitledForSpend(brief.websiteId) },
+        { beforeSpend: () => requireEntitledForSpend(brief.websiteId, { freeArticles: true }) },
       );
 
       const price = PRICING.llm[MODELS.GENERATION];
@@ -483,7 +486,7 @@ export const generateArticle = inngest.createFunction(
       const startedAt = Date.now();
       try {
         // Both calls are paid; a cancellation between them stops the second.
-        const beforeSpend = () => requireEntitledForSpend(brief.websiteId);
+        const beforeSpend = () => requireEntitledForSpend(brief.websiteId, { freeArticles: true });
         const scene = await paidCall(
           reservations,
           () =>
@@ -956,6 +959,14 @@ export const generateArticle = inngest.createFunction(
       });
     });
 
+    /*
+      A new account's last free article starts its plan (lib/billing/
+      free-articles.ts). After the notification, and never failing the run:
+      the article is written whatever billing says, and the trial ends by
+      itself if this cannot reach Stripe.
+    */
+    await step.run("end-free-trial", () => endFreeTrialIfUsed(brief.websiteId));
+
     /**
      * The one line that answers "did this run produce a usable article".
      *
@@ -1126,8 +1137,16 @@ export async function queueArticleForCalendarItem(
       counting this article a second time.
     */
     const articleId = randomUUID();
-    const slot = await reserve(
-      allowance.rule,
+    /*
+      A free article (lib/billing/free-articles.ts) also takes one of the
+      day's free articles across every account. The allowance comes first,
+      so the job's id is still derived from it (generationJob).
+    */
+    const rules: QuotaRule[] = allowance.freeArticles
+      ? [allowance.rule, freeArticlesDailyRule()]
+      : [allowance.rule];
+    const slot = await reserveAll(
+      rules,
       {
         operation: "article.generate",
         organizationId: allowance.organizationId,
@@ -1137,10 +1156,19 @@ export async function queueArticleForCalendarItem(
       },
       { executor: tx },
     );
-    if (!slot) {
+    if (!slot.ok) {
+      if (slot.rule.key !== allowance.rule.key) {
+        return {
+          ok: false as const,
+          error: "So many free articles are being written today that new ones are paused. Please try again in a few hours.",
+        };
+      }
       return {
         ok: false as const,
-        error: `Your plan includes ${allowance.rule.limit} articles per month, and they have all been used.`,
+        error: allowance.freeArticles
+          ? `Your ${FREE_ARTICLES} free articles have been used. Your plan starts once the last of them is written, and then you can write more.`
+          : `Your plan includes ${allowance.rule.limit} articles per month, and they have all been used.`,
+        freeArticlesUsed: allowance.freeArticles,
       };
     }
 
@@ -1165,12 +1193,22 @@ export async function queueArticleForCalendarItem(
       articleId: row.id,
       websiteId,
       organizationId: allowance.organizationId,
-      reservations: [slot],
+      reservations: slot.reservations,
     });
     await enqueueJob(tx, job);
     return { ok: true as const, articleId: row.id, eventId: job.id };
   });
-  if (!created.ok) return created;
+  if (!created.ok) {
+    /*
+      All free articles taken: in case the call after the last one was
+      written could not start the plan, try again now. The refusal stands
+      either way - the press that found them used up is not charged for.
+    */
+    if ("freeArticlesUsed" in created && created.freeArticlesUsed) {
+      await endFreeTrialIfUsed(websiteId);
+    }
+    return { ok: false, error: created.error };
+  }
 
   /*
     Delivered now if the queue is up. If not, the work is accepted all the
@@ -1217,6 +1255,16 @@ export async function requeueArticle(input: {
     .where(and(eq(articles.id, articleId), eq(articles.websiteId, websiteId)))
     .limit(1);
   if (!current) return { ok: false, error: "Article not found" };
+
+  /*
+    During the free articles (lib/billing/free-articles.ts) only one that
+    did not get written may be tried again - or one whose job died, which
+    the claim below admits only once it is stale. Rewriting or refreshing a
+    written article waits for the plan.
+  */
+  if (entitlement.freeArticles && !["failed", "queued", "generating"].includes(current.status)) {
+    return { ok: false, error: FREE_ARTICLES_ONLY };
+  }
 
   const slot = await reserveAll(
     [

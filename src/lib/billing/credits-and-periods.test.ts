@@ -193,15 +193,21 @@ describe("monthly entitlement periods", () => {
       createdAt: d(createdAt),
     });
 
-    it("opens the first paid period after a trial at the subscription's creation, and only that period", () => {
+    /*
+      A new account's free articles (2026-10-09): the paid month after a
+      trial starts fresh at the conversion. It replaced the 2026-10-05 rule
+      that opened that month at the subscription's creation, so the trial's
+      articles counted against it.
+    */
+    it("opens the paid period after a trial at the conversion", () => {
       // The imagestudio subscription: row written 22 s into a 3-day trial.
       const created = "2026-10-01T18:50:40Z";
       const trialing = sub("2026-10-01T18:50:18Z", "2026-10-04T18:50:18Z", created);
       expect(allowanceWindowStart(trialing, d("2026-10-02T00:00:00Z"))).toEqual(d("2026-10-01T18:50:18Z"));
 
       const converted = sub("2026-10-04T18:50:18Z", "2026-11-04T18:50:18Z", created);
-      expect(allowanceWindowStart(converted, d("2026-10-05T00:00:00Z"))).toEqual(d(created));
-      expect(allowanceWindowStart(converted, d("2026-11-04T18:50:17Z"))).toEqual(d(created));
+      expect(allowanceWindowStart(converted, d("2026-10-05T00:00:00Z"))).toEqual(d("2026-10-04T18:50:18Z"));
+      expect(allowanceWindowStart(converted, d("2026-11-04T18:50:17Z"))).toEqual(d("2026-10-04T18:50:18Z"));
       // The second paid period is a fresh month, renewed or not.
       expect(allowanceWindowStart(converted, d("2026-11-04T18:50:18Z"))).toEqual(d("2026-11-04T18:50:18Z"));
       const renewed = sub("2026-11-04T18:50:18Z", "2026-12-04T18:50:18Z", created);
@@ -211,7 +217,7 @@ describe("monthly entitlement periods", () => {
     it("does the same for an annual plan's first month after its trial", () => {
       const created = "2026-03-01T10:00:30Z";
       const annual = sub("2026-03-04T10:00:00Z", "2027-03-04T10:00:00Z", created, "year");
-      expect(allowanceWindowStart(annual, d("2026-03-10T00:00:00Z"))).toEqual(d(created));
+      expect(allowanceWindowStart(annual, d("2026-03-10T00:00:00Z"))).toEqual(d("2026-03-04T10:00:00Z"));
       expect(allowanceWindowStart(annual, d("2026-04-10T00:00:00Z"))).toEqual(d("2026-04-04T10:00:00Z"));
     });
 
@@ -282,12 +288,13 @@ describe("article allowance windows", () => {
   });
 
   /*
-    The trial is part of the first month (2026-10-05): articles written during
-    a trial count against the first paid month, which used to start a fresh
-    allowance at conversion. Display (checkLimit) and enforcement (the
-    reservation rule) must agree on it.
+    The paid month after a trial starts fresh (2026-10-09; it was "the trial
+    is part of the first month" from 2026-10-05). Display (checkLimit) and
+    enforcement (the reservation rule) must agree on it. A 3-day trial from
+    before the change keeps its plan's allowance during the trial; the free
+    articles' trial is tested in free-articles.test.ts.
   */
-  it("counts a trial's articles against the first paid month, then resets", async () => {
+  it("does not count a trial's articles again in the paid month", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(d("2026-10-02T12:00:00Z"));
     const orgId = await seedOrg();
@@ -308,14 +315,14 @@ describe("article allowance windows", () => {
       .set({ status: "active", currentPeriodStart: d("2026-10-04T18:50:18Z"), currentPeriodEnd: d("2026-11-04T18:50:18Z") })
       .where(eq(subscriptions.id, subscriptionId));
     vi.setSystemTime(d("2026-10-05T12:00:00Z"));
-    expect(await checkLimit(websiteId, "articles")).toMatchObject({ used: 10, limit: 30, allowed: true });
+    expect(await checkLimit(websiteId, "articles")).toMatchObject({ used: 0, limit: 30, allowed: true });
 
     const allowance = await articleAllowanceRule(websiteId);
     if (!allowance.ok) throw new Error("expected an allowance");
-    expect(allowance.rule.window).toEqual({ since: d("2026-10-01T18:50:40Z") });
+    expect(allowance.rule.window).toEqual({ since: d("2026-10-04T18:50:18Z") });
 
-    // 20 left, by both counts: the 30th is admitted, the 31st is not.
-    await useArticles(websiteId, d("2026-10-05T09:00:00Z"), 19);
+    // All 30, by both counts: the 30th is admitted, the 31st is not.
+    await useArticles(websiteId, d("2026-10-05T09:00:00Z"), 29);
     expect(await checkLimit(websiteId, "articles")).toMatchObject({ used: 29, allowed: true });
     expect(await reserve(allowance.rule, { operation: "article.generate", websiteId })).not.toBeNull();
     expect(await checkLimit(websiteId, "articles")).toMatchObject({ used: 30, allowed: false });
@@ -415,12 +422,11 @@ describe("grantMonthlyCredits", () => {
   }
 
   /*
-    The imagestudio case (2026-10-05): Grow, 25 credits a month, a 3-day
-    trial from 1 October 18:50:18, converted on the 4th. Converting granted a
-    second 25. The trial is part of the first month: 25 at the start, nothing
-    at conversion, the next 25 a month after the conversion.
+    A trial earns no credits (2026-10-09: the trial is now a new account's
+    free articles, and backlinks wait for the plan). The paid month is
+    granted in full at the conversion, the next a month after it.
   */
-  it("a trial is the first month's allowance: granted at its start, not again at conversion", async () => {
+  it("a trial earns no credits; the paid month is granted in full at conversion", async () => {
     const orgId = await seedOrg();
     const { subscriptionId } = await seedPaidSite(orgId, {
       interval: "month",
@@ -431,35 +437,58 @@ describe("grantMonthlyCredits", () => {
       createdAt: d("2026-10-01T18:50:40Z"),
     });
 
-    expect(await grantMonthlyCredits(orgId, d("2026-10-01T18:51:00Z"))).toBe(25);
+    expect(await grantMonthlyCredits(orgId, d("2026-10-01T18:51:00Z"))).toBe(0);
     expect(await grantMonthlyCredits(orgId, d("2026-10-02T09:00:00Z"))).toBe(0);
-    expect(await getBalance(orgId)).toBe(25);
+    expect(await getBalance(orgId)).toBe(0);
 
-    // Converted: the provider moves the period to start at the trial's end.
+    await setSubscription(subscriptionId, {
+      status: "active",
+      currentPeriodStart: d("2026-10-04T18:50:18Z"),
+      currentPeriodEnd: d("2026-11-04T18:50:18Z"),
+    });
+    expect(await grantMonthlyCredits(orgId, d("2026-10-04T22:01:31Z"))).toBe(25);
+    expect(await grantMonthlyCredits(orgId, d("2026-10-20T00:00:00Z"))).toBe(0);
+    expect(await grantMonthlyCredits(orgId, d("2026-11-04T18:50:17Z"))).toBe(0);
+    // The second paid period, renewal webhook or not.
+    expect(await grantMonthlyCredits(orgId, d("2026-11-04T18:50:18Z"))).toBe(25);
+    expect(await getBalance(orgId)).toBe(50);
+  });
+
+  /*
+    A 3-day trial granted credits under the 2026-10-05 rule and converting
+    after 2026-10-09: its paid period is the same first month, so it is only
+    topped up to the plan - nothing on the same plan - and settled at zero,
+    saying why, so it stays idempotent.
+  */
+  it("a trial granted credits under the old rule is not granted them again at conversion", async () => {
+    const orgId = await seedOrg();
+    const { subscriptionId } = await seedPaidSite(orgId, {
+      interval: "month",
+      credits: 25,
+      status: "trialing",
+      periodStart: d("2026-10-01T18:50:18Z"),
+      periodEnd: d("2026-10-04T18:50:18Z"),
+      createdAt: d("2026-10-01T18:50:40Z"),
+    });
+    await test.db.insert(creditLedger).values({
+      organizationId: orgId,
+      type: "plan_grant",
+      amount: 25,
+      idempotencyKey: planGrantKey(subscriptionId, d("2026-10-01T18:50:18Z")),
+      createdAt: d("2026-10-01T18:51:00Z"),
+    });
+
     await setSubscription(subscriptionId, {
       status: "active",
       currentPeriodStart: d("2026-10-04T18:50:18Z"),
       currentPeriodEnd: d("2026-11-04T18:50:18Z"),
     });
     expect(await grantMonthlyCredits(orgId, d("2026-10-04T22:01:31Z"))).toBe(0);
-    expect(await getBalance(orgId)).toBe(25);
-    // The conversion period is settled - at zero, saying why - so it stays idempotent.
     const settled = await grantRow(orgId, planGrantKey(subscriptionId, d("2026-10-04T18:50:18Z")));
     expect(settled.amount).toBe(0);
     expect(settled.note).toMatch(/^Covered by the allowance granted for the period from 2026-10-01T18:50:18\.000Z/);
-    expect((await listLedger(orgId)).map((row) => row.amount)).toEqual([25]);
-
-    expect(await grantMonthlyCredits(orgId, d("2026-10-20T00:00:00Z"))).toBe(0);
-    expect(await grantMonthlyCredits(orgId, d("2026-11-04T18:50:17Z"))).toBe(0);
-    // The second paid period, renewal webhook or not.
     expect(await grantMonthlyCredits(orgId, d("2026-11-04T18:50:18Z"))).toBe(25);
-    await setSubscription(subscriptionId, {
-      currentPeriodStart: d("2026-11-04T18:50:18Z"),
-      currentPeriodEnd: d("2026-12-04T18:50:18Z"),
-    });
-    expect(await grantMonthlyCredits(orgId, d("2026-11-20T00:00:00Z"))).toBe(0);
-    expect(await grantMonthlyCredits(orgId, d("2026-12-04T18:50:18Z"))).toBe(25);
-    expect(await getBalance(orgId)).toBe(75);
+    expect(await getBalance(orgId)).toBe(50);
   });
 
   it("does the same for an annual plan with a trial, then grants monthly", async () => {
@@ -472,14 +501,14 @@ describe("grantMonthlyCredits", () => {
       periodEnd: d("2026-03-04T10:00:00Z"),
       createdAt: d("2026-03-01T10:00:30Z"),
     });
-    expect(await grantMonthlyCredits(orgId, d("2026-03-02T00:00:00Z"))).toBe(20);
+    expect(await grantMonthlyCredits(orgId, d("2026-03-02T00:00:00Z"))).toBe(0);
 
     await setSubscription(subscriptionId, {
       status: "active",
       currentPeriodStart: d("2026-03-04T10:00:00Z"),
       currentPeriodEnd: d("2027-03-04T10:00:00Z"),
     });
-    expect(await grantMonthlyCredits(orgId, d("2026-03-05T00:00:00Z"))).toBe(0);
+    expect(await grantMonthlyCredits(orgId, d("2026-03-05T00:00:00Z"))).toBe(20);
     expect(await grantMonthlyCredits(orgId, d("2026-04-04T09:59:59Z"))).toBe(0);
     expect(await grantMonthlyCredits(orgId, d("2026-04-04T10:00:00Z"))).toBe(20);
     expect(await grantMonthlyCredits(orgId, d("2026-05-04T10:00:00Z"))).toBe(20);
@@ -503,7 +532,7 @@ describe("grantMonthlyCredits", () => {
     expect(await getBalance(orgId)).toBe(50);
   });
 
-  it("a trial that is never converted keeps its credits and earns no more", async () => {
+  it("a trial that is never converted is granted nothing", async () => {
     const orgId = await seedOrg();
     const { subscriptionId } = await seedPaidSite(orgId, {
       interval: "month",
@@ -513,11 +542,11 @@ describe("grantMonthlyCredits", () => {
       periodEnd: d("2026-10-04T18:50:18Z"),
       createdAt: d("2026-10-01T18:50:40Z"),
     });
-    expect(await grantMonthlyCredits(orgId, d("2026-10-02T00:00:00Z"))).toBe(25);
+    expect(await grantMonthlyCredits(orgId, d("2026-10-02T00:00:00Z"))).toBe(0);
     await setSubscription(subscriptionId, { status: "canceled" });
     expect(await grantMonthlyCredits(orgId, d("2026-10-05T00:00:00Z"))).toBe(0);
     expect(await grantMonthlyCredits(orgId, d("2026-11-05T00:00:00Z"))).toBe(0);
-    expect(await getBalance(orgId)).toBe(25);
+    expect(await getBalance(orgId)).toBe(0);
   });
 
   it("a monthly plan without a trial is granted on every anchor, as before", async () => {
@@ -630,7 +659,12 @@ describe("grantMonthlyCredits", () => {
     expect(await getBalance(orgId)).toBe(170);
   });
 
-  it("an interval change inside the first month tops the credits up to the new plan, and the article count carries on", async () => {
+  /*
+    Credits are topped up, so the first month never holds two grants; the
+    article window opens at the change, like every re-anchor since the paid
+    month after a trial started fresh (2026-10-09).
+  */
+  it("an interval change inside the first month tops the credits up to the new plan, and opens a fresh article window", async () => {
     const orgId = await seedOrg();
     const { subscriptionId } = await seedPaidSite(orgId, {
       interval: "month",
@@ -647,18 +681,18 @@ describe("grantMonthlyCredits", () => {
       currentPeriodEnd: d("2027-10-10T09:00:00Z"),
     });
     expect(await grantMonthlyCredits(orgId, d("2026-10-11T00:00:00Z"))).toBe(35);
-    expect(await articleWindow(subscriptionId, d("2026-10-11T00:00:00Z"))).toEqual(d("2026-10-01T18:50:40Z"));
+    expect(await articleWindow(subscriptionId, d("2026-10-11T00:00:00Z"))).toEqual(d("2026-10-10T09:00:00Z"));
     expect(await grantMonthlyCredits(orgId, d("2026-11-10T09:00:00Z"))).toBe(60);
     expect(await articleWindow(subscriptionId, d("2026-11-10T09:00:00Z"))).toEqual(d("2026-11-10T09:00:00Z"));
     expect(await getBalance(orgId)).toBe(120);
   });
 
   /*
-    The customer pays the new plan's price from the conversion, so the first
-    month holds the new plan's credits - not the trial plan's. (Within ONE
-    period an upgrade is still not topped up: the period's key is used.)
+    The customer pays the new plan's price from the conversion, so the paid
+    month holds the new plan's credits - and nothing was granted during the
+    trial to top up from.
   */
-  it("an upgrade during the trial tops the first paid month up to the new plan", async () => {
+  it("an upgrade during the trial is granted the new plan in full at conversion", async () => {
     const orgId = await seedOrg();
     const { subscriptionId } = await seedPaidSite(orgId, {
       interval: "month",
@@ -668,7 +702,7 @@ describe("grantMonthlyCredits", () => {
       periodEnd: d("2026-10-04T18:50:18Z"),
       createdAt: d("2026-10-01T18:50:40Z"),
     });
-    expect(await grantMonthlyCredits(orgId, d("2026-10-02T00:00:00Z"))).toBe(5);
+    expect(await grantMonthlyCredits(orgId, d("2026-10-02T00:00:00Z"))).toBe(0);
 
     // Upgraded in the portal: same interval, so the trial's anchor is kept.
     await setSubscription(subscriptionId, { planId: await seedPlan("month", 60) });
@@ -679,9 +713,7 @@ describe("grantMonthlyCredits", () => {
       currentPeriodStart: d("2026-10-04T18:50:18Z"),
       currentPeriodEnd: d("2026-11-04T18:50:18Z"),
     });
-    expect(await grantMonthlyCredits(orgId, d("2026-10-05T00:00:00Z"))).toBe(55);
-    const topUp = await grantRow(orgId, planGrantKey(subscriptionId, d("2026-10-04T18:50:18Z")));
-    expect(topUp.note).toBe("Monthly plan allowance, topped up to the current plan (5 already granted this month)");
+    expect(await grantMonthlyCredits(orgId, d("2026-10-05T00:00:00Z"))).toBe(60);
     expect(await grantMonthlyCredits(orgId, d("2026-10-20T00:00:00Z"))).toBe(0);
     expect(await grantMonthlyCredits(orgId, d("2026-11-04T18:50:18Z"))).toBe(60);
     expect(await getBalance(orgId)).toBe(120);
@@ -690,9 +722,10 @@ describe("grantMonthlyCredits", () => {
   /*
     The other order of the conversion race (plan-grants.concurrency.test.ts
     runs it on real Postgres): the paid period was granted first, and a page
-    load that still read the trial's period settles at zero.
+    load that still read the trial's period grants nothing - a trial earns
+    nothing - and writes nothing.
   */
-  it("a stale read of the trial's period after the paid period was granted settles at zero", async () => {
+  it("a stale read of the trial's period after the paid period was granted grants nothing", async () => {
     const orgId = await seedOrg();
     const { subscriptionId } = await seedPaidSite(orgId, {
       interval: "month",
@@ -709,30 +742,32 @@ describe("grantMonthlyCredits", () => {
       currentPeriodEnd: d("2026-10-04T18:50:18Z"),
     });
     expect(await grantMonthlyCredits(orgId, d("2026-10-04T18:50:10Z"))).toBe(0);
-    const settled = await grantRow(orgId, planGrantKey(subscriptionId, d("2026-10-01T18:50:18Z")));
-    expect(settled.amount).toBe(0);
+    const [trialRow] = await test.db
+      .select()
+      .from(creditLedger)
+      .where(eq(creditLedger.idempotencyKey, planGrantKey(subscriptionId, d("2026-10-01T18:50:18Z"))));
+    expect(trialRow).toBeUndefined();
     expect(await getBalance(orgId)).toBe(25);
   });
 
   /*
-    The 12-hour line measures when the trial ENDED, not its configured
-    length. Ended a day in, it is still the first month for both credits and
-    articles; ended within hours (from the Dashboard, or a portal switch set
-    to end the trial) it reads as no trial - again for both, so they agree.
+    However early a trial ends, the paid month is granted at the conversion
+    and its article window opens there: credits and articles agree on when
+    the month starts.
   */
-  it("a trial ended early is the first month for credits and articles alike, or for neither", async () => {
+  it("a trial ended early is granted at its conversion, where its article window opens", async () => {
     const trial = { interval: "month" as const, credits: 25, status: "trialing", periodStart: d("2026-10-01T18:50:18Z"), periodEnd: d("2026-10-04T18:50:18Z"), createdAt: d("2026-10-01T18:50:40Z") };
 
     const dayIn = await seedOrg();
     const ended = await seedPaidSite(dayIn, trial);
-    expect(await grantMonthlyCredits(dayIn, d("2026-10-01T19:00:00Z"))).toBe(25);
+    expect(await grantMonthlyCredits(dayIn, d("2026-10-01T19:00:00Z"))).toBe(0);
     await setSubscription(ended.subscriptionId, { status: "active", currentPeriodStart: d("2026-10-02T18:50:18Z"), currentPeriodEnd: d("2026-11-02T18:50:18Z") });
-    expect(await grantMonthlyCredits(dayIn, d("2026-10-03T00:00:00Z"))).toBe(0);
-    expect(await articleWindow(ended.subscriptionId, d("2026-10-03T00:00:00Z"))).toEqual(d("2026-10-01T18:50:40Z"));
+    expect(await grantMonthlyCredits(dayIn, d("2026-10-03T00:00:00Z"))).toBe(25);
+    expect(await articleWindow(ended.subscriptionId, d("2026-10-03T00:00:00Z"))).toEqual(d("2026-10-02T18:50:18Z"));
 
     const hoursIn = await seedOrg();
     const early = await seedPaidSite(hoursIn, trial);
-    expect(await grantMonthlyCredits(hoursIn, d("2026-10-01T19:00:00Z"))).toBe(25);
+    expect(await grantMonthlyCredits(hoursIn, d("2026-10-01T19:00:00Z"))).toBe(0);
     await setSubscription(early.subscriptionId, { status: "active", currentPeriodStart: d("2026-10-01T20:50:18Z"), currentPeriodEnd: d("2026-11-01T20:50:18Z") });
     expect(await grantMonthlyCredits(hoursIn, d("2026-10-01T21:00:00Z"))).toBe(25);
     expect(await articleWindow(early.subscriptionId, d("2026-10-01T21:00:00Z"))).toEqual(d("2026-10-01T20:50:18Z"));
@@ -760,7 +795,7 @@ describe("grantMonthlyCredits", () => {
     expect(await getBalance(orgId)).toBe(50);
   });
 
-  it("a first charge after the trial that fails, then succeeds, still shares the trial's allowance", async () => {
+  it("a first charge after the trial that fails, then succeeds, is granted once it is paid", async () => {
     const orgId = await seedOrg();
     const { subscriptionId } = await seedPaidSite(orgId, {
       interval: "month",
@@ -769,11 +804,12 @@ describe("grantMonthlyCredits", () => {
       periodStart: d("2026-10-01T18:50:18Z"),
       createdAt: d("2026-10-01T18:50:40Z"),
     });
-    expect(await grantMonthlyCredits(orgId, d("2026-10-02T00:00:00Z"))).toBe(25);
+    expect(await grantMonthlyCredits(orgId, d("2026-10-02T00:00:00Z"))).toBe(0);
     await setSubscription(subscriptionId, { status: "past_due", currentPeriodStart: d("2026-10-04T18:50:18Z") });
     expect(await grantMonthlyCredits(orgId, d("2026-10-05T00:00:00Z"))).toBe(0);
     await setSubscription(subscriptionId, { status: "active" });
-    expect(await grantMonthlyCredits(orgId, d("2026-10-06T00:00:00Z"))).toBe(0);
+    expect(await grantMonthlyCredits(orgId, d("2026-10-06T00:00:00Z"))).toBe(25);
+    expect(await grantMonthlyCredits(orgId, d("2026-10-20T00:00:00Z"))).toBe(0);
     expect(await grantMonthlyCredits(orgId, d("2026-11-04T18:50:18Z"))).toBe(25);
     expect(await getBalance(orgId)).toBe(50);
   });

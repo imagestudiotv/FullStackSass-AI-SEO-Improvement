@@ -2,34 +2,43 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { BlogPagination } from "@/components/blog-pagination";
 import { PostCard } from "@/components/post-card";
-import { postsByCategory } from "@/lib/blog/posts";
 import { categoryBySlug } from "@/lib/blog/categories";
+import { blogPage, blogPageHref, pageSuffix } from "@/lib/blog/pagination";
+import { listPostPage } from "@/lib/blog/posts";
 import { jsonLdScript } from "@/lib/blog/shared";
+import { getMessages } from "@/lib/i18n/messages";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
 import { siteUrl } from "@/lib/site-url";
 import { breadcrumbList } from "@/lib/structured-data";
+
+import { ClosingCta } from "../../../home-sections";
 
 // Live posts from the database (see lib/blog/posts.ts).
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: PageProps<"/blog/category/[category]">): Promise<Metadata> {
   const { category: slug } = await params;
   const category = await categoryBySlug(slug);
 
   if (!category) return { title: "Category not found" };
 
+  // Page 2 on has a title and description of its own, beside its own canonical.
+  const page = blogPage((await searchParams).page);
   return {
-    title: category.name,
-    description: category.blurb,
-    ...publicPageMetadata(`/blog/category/${category.slug}`),
+    title: `${category.name}${pageSuffix(page)}`,
+    description: page > 1 ? `${category.blurb.replace(/\.$/, "")}${pageSuffix(page)}.` : category.blurb,
+    ...publicPageMetadata(blogPageHref(`/blog/category/${category.slug}`, page)),
   };
 }
 
 export default async function BlogCategoryPage({
   params,
+  searchParams,
 }: PageProps<"/blog/category/[category]">) {
   const { category: slug } = await params;
   const category = await categoryBySlug(slug);
@@ -38,7 +47,10 @@ export default async function BlogCategoryPage({
   // a dead URL in the index indefinitely.
   if (!category) notFound();
 
-  const posts = await postsByCategory(category.name);
+  const page = blogPage((await searchParams).page);
+  const { posts, total } = await listPostPage(page, { category: category.name });
+  // Past the last page is a 404, not the empty-section message.
+  if (page > 1 && posts.length === 0) notFound();
 
   // The visible trail below, as structured data: same names, same order.
   const trail = breadcrumbList(siteUrl(), [
@@ -98,7 +110,7 @@ export default async function BlogCategoryPage({
             </p>
           </div>
         ) : (
-          <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {posts.map((post) => (
               <li key={post.slug}>
                 <PostCard post={post} />
@@ -106,7 +118,11 @@ export default async function BlogCategoryPage({
             ))}
           </ul>
         )}
+
+        <BlogPagination page={page} total={total} path={`/blog/category/${category.slug}`} />
       </div>
+
+      <ClosingCta t={getMessages("en").home} href={(path) => path} />
     </div>
   );
 }
