@@ -5,7 +5,7 @@ import { publicPageMetadata } from "@/lib/seo/page-metadata";
 export const metadata = {
   title: "Refund Policy",
   description:
-    "Our 14-day money-back guarantee and how refunds work at RepGet.",
+    "Our 3-day money-back guarantee and how refunds work at RepGet.",
   ...publicPageMetadata("/refunds"),
 };
 
@@ -13,25 +13,28 @@ export const metadata = {
  * Refund policy and money-back guarantee.
  *
  * The client's brief lists both a refund policy and a money-back guarantee.
+ * Three days, not fourteen (client, 2026-10-09: a longer window "will risk
+ * many refunds in the middle of subscription").
  * The terms below are deliberately concrete — a guarantee with vague conditions
  * is not a guarantee, and hedged wording is exactly what makes customers
  * distrust one.
  */
 export default function RefundsPage() {
   return (
-    <LegalPage title="Refund Policy" updated="31 August 2026">
-      <h2 id="guarantee">14-day money-back guarantee</h2>
+    <LegalPage title="Refund Policy" updated="9 October 2026">
+      <h2 id="guarantee">3-day money-back guarantee</h2>
       <p>
         If you are not happy with the service, email us within{" "}
-        <strong>14 days</strong> of your first payment and we will refund it in
+        <strong>3 days</strong> of your first payment and we will refund it in
         full. You do not need to explain why.
       </p>
       <p>
         This applies to your first payment on a new subscription. It does not
-        apply to later renewals.
+        apply to later renewals. If you started with free articles, your first
+        payment is the one taken when your plan starts.
       </p>
 
-      <h2>After the first 14 days</h2>
+      <h2>After the first 3 days</h2>
       <p>
         Subscriptions are billed in advance. If you cancel, your access
         continues until the end of the period you have paid for, and you are not
@@ -55,7 +58,7 @@ export default function RefundsPage() {
 
       <h2>Annual plans</h2>
       <p>
-        Annual plans are covered by the same 14-day guarantee. After that, if
+        Annual plans are covered by the same 3-day guarantee. After that, if
         you cancel part-way through a year, we will refund the remaining whole
         months on request.
       </p>
