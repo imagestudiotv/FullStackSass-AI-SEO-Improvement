@@ -11,8 +11,8 @@ import { entityIds, softwareApplication } from "@/lib/structured-data";
  * risks describing sub-pages as the organisation itself.
  *
  * WEBSITE is what Google reads first to decide the SITE NAME shown above a
- * search result ("RepGet" rather than "repget.com"); alternateName offers the
- * domain form as a second choice. It names the Organization as its publisher.
+ * search result ("RepGet" rather than "repget.com"); alternateName offers
+ * other choices in order. It names the Organization as its publisher.
  *
  * ORGANIZATION carries the logo and, once real, the support contact.
  *
@@ -30,8 +30,14 @@ import { entityIds, softwareApplication } from "@/lib/structured-data";
  * (`sameAs`) are left out until the brand has some.
  */
 
-/** The domain as people write it, offered to Google as the site's second name. */
-const ALTERNATE_NAME = "RepGet.com";
+/**
+ * Other names for the site, in order of preference: the domain as people
+ * write it, then the domain in lower case. Google detects the domain as a
+ * fallback site name only when it is the LAST alternateName and written in
+ * lower case (developers.google.com/search/docs/appearance/site-names). Without
+ * a fallback it can pick some other name: results showed "Vercel" (2026-10-09).
+ */
+const ALTERNATE_NAMES = ["RepGet.com", "repget.com"];
 
 /**
  * The square R mark, 512x512. Google asks for a logo at least 112px that reads
@@ -75,7 +81,7 @@ export function siteSchema(
     "@id": ids.website,
     url: `${site}/`,
     name: COMPANY_NAME,
-    alternateName: ALTERNATE_NAME,
+    alternateName: ALTERNATE_NAMES,
     publisher: { "@id": organizationId },
   };
 

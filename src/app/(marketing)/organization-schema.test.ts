@@ -36,7 +36,8 @@ describe("siteSchema", () => {
       "@id": "https://www.repget.com/#website",
       url: "https://www.repget.com/",
       name: "RepGet",
-      alternateName: "RepGet.com",
+      // The lower-case domain last: Google's fallback site name.
+      alternateName: ["RepGet.com", "repget.com"],
       publisher: { "@id": "https://www.repget.com/#organization" },
     });
   });
