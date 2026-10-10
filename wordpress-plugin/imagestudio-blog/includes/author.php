@@ -9,9 +9,10 @@
  * portfolio posts.
  *
  * And the article side (isb_filter_article): each editorial article's byline
- * becomes a link to its author's page, and "Get Featured" is added
- * (featured.php). Done on the finished HTML, because the byline and the date
- * line come from the site's own "cps" template, which no filter reaches.
+ * becomes a link to its author's page, "In this article" and the FAQ are
+ * added (extras.php), and "Get Featured" (featured.php). Done on the finished
+ * HTML, because the byline, the date line and the article's text come from
+ * the site's own "cps" template, which no filter reaches.
  */
 
 defined('ABSPATH') || exit;
@@ -71,15 +72,21 @@ add_action('template_redirect', function () {
         $lang = isb_lang();
         $feature = array(isb_feature_trigger($lang), isb_feature_panel($post, $lang));
     }
-    ob_start(function ($html) use ($author_url, $feature) {
-        return isb_filter_article($html, $author_url, $feature);
+    $extras = isb_article_extras($post);
+    ob_start(function ($html) use ($author_url, $feature, $extras) {
+        return isb_filter_article($html, $author_url, $feature, $extras);
     });
 }, 0);
 
-/** The byline linked, and "Get Featured" placed ($feature: its button and panel, or null). */
-function isb_filter_article($html, $author_url, $feature) {
+/**
+ * The byline linked, "In this article" and the FAQ added ($extras: from
+ * isb_article_extras(), or null for none), and "Get Featured" placed
+ * ($feature: its button and panel, or null).
+ */
+function isb_filter_article($html, $author_url, $feature, $extras = null) {
     if (!is_string($html) || strpos($html, 'cps-single') === false) return $html;
     $html = isb_link_byline($html, $author_url);
+    if ($extras) $html = isb_add_extras($html, $extras);
     return $feature ? isb_place_feature($html, $feature[0], $feature[1]) : $html;
 }
 

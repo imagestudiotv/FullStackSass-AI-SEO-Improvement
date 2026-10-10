@@ -1,0 +1,20 @@
+<wpml-config>
+    <!--
+        Article extras (includes/extras.php). An article's FAQ is translated
+        with the article: each question and answer is offered to the
+        translator. "Hide 'In this article'" is copied from the original
+        article to its translations.
+    -->
+    <custom-fields>
+        <custom-field action="translate">_isb_faq</custom-field>
+        <custom-field action="copy">_isb_hide_toc</custom-field>
+    </custom-fields>
+    <custom-fields-texts>
+        <key name="_isb_faq">
+            <key name="*">
+                <key name="q" />
+                <key name="a" />
+            </key>
+        </key>
+    </custom-fields-texts>
+</wpml-config>

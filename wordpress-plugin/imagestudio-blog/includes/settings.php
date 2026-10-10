@@ -1,7 +1,8 @@
 <?php
 /**
  * Settings -> Image Studio Blog: the PayPal email payments go to, whether
- * "Get Featured" shows, the author page's bio, and PayPal's test mode.
+ * "Get Featured" shows, the author page's bio, PayPal's test mode, and
+ * whether articles show "In this article" (extras.php).
  */
 
 defined('ABSPATH') || exit;
@@ -16,6 +17,7 @@ function isb_settings() {
         'post_type' => 'custom_post',
         'bio_en' => '',
         'bio_it' => '',
+        'show_toc' => true,
     ));
 }
 
@@ -54,6 +56,7 @@ add_action('admin_init', function () {
                 'post_type' => sanitize_key($input['post_type'] ?? 'custom_post') ?: 'custom_post',
                 'bio_en' => sanitize_textarea_field($input['bio_en'] ?? ''),
                 'bio_it' => sanitize_textarea_field($input['bio_it'] ?? ''),
+                'show_toc' => !empty($input['show_toc']),
             );
         },
     ));
@@ -109,6 +112,16 @@ function isb_settings_page() {
                             <?php endforeach; ?>
                         </select>
                         <p class="description"><?php esc_html_e('The editorial articles. On imagestudio.com: Editorial (custom_post).', 'imagestudio-blog'); ?></p>
+                    </td>
+                </tr>
+            </table>
+            <h2><?php esc_html_e('Article extras', 'imagestudio-blog'); ?></h2>
+            <table class="form-table" role="presentation">
+                <tr>
+                    <th scope="row"><?php esc_html_e('In this article', 'imagestudio-blog'); ?></th>
+                    <td>
+                        <label><input type="checkbox" name="isb_settings[show_toc]" value="1" <?php checked($s['show_toc']); ?>> <?php esc_html_e('Show \'In this article\' on articles', 'imagestudio-blog'); ?></label>
+                        <p class="description"><?php esc_html_e('A contents box at the top of each article\'s text, with a link to each of its H2 headings, when it has at least 3. It can be hidden on one article in the "Article extras" box of its edit screen, where the article\'s optional FAQ is written too.', 'imagestudio-blog'); ?></p>
                     </td>
                 </tr>
             </table>

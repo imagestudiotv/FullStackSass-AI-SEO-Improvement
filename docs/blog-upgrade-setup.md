@@ -59,9 +59,10 @@ For whoever deploys this work: the client's requests of 8 October 2026 (RepGet b
 
 ## Image Studio (WordPress)
 
-Plugin `wordpress-plugin/imagestudio-blog` (version 2.0.0) adds:
+Plugin `wordpress-plugin/imagestudio-blog` (version 2.1.0) adds:
 
 - the author page `/author/imagestudio/` (30 per page) and the byline link;
+- on articles, an automatic "In this article" contents box and an optional FAQ written in the article's "Article extras" box (2.1.0, client 2026-10-09; settings under Settings -> Image Studio Blog -> Article extras);
 - "Get Featured in This Article", paid with PayPal "Buy Now" to `dimoncic@live.it`. No PayPal API keys are needed.
 
 It also carries the layout fixes the client asked for:
@@ -70,7 +71,7 @@ It also carries the layout fixes the client asked for:
 - **Homepage grid on phones:** the columns stack on their own, so there is no gap under "Bridal Silhouette" and "The Lakeside Vows" is no longer covered.
 - **Portfolio posts:** the gallery fills the screen without the footer, CLOSE works on a computer, and the WhatsApp chat button stays.
 
-Install `wordpress-plugin/releases/imagestudio-blog-2.0.0.zip`, made with `node wordpress-plugin/build-imagestudio.mjs`. The install, cache-clearing and check steps are in the plugin's `README.txt`. Do not install the older "RepGet Blog Services" or "Image Studio Layout Fixes" packages; they are replaced.
+Install `wordpress-plugin/releases/imagestudio-blog-2.1.0.zip`, made with `node wordpress-plugin/build-imagestudio.mjs`. The install, cache-clearing and check steps are in the plugin's `README.txt`. Do not install the older "RepGet Blog Services" or "Image Studio Layout Fixes" packages; they are replaced.
 
 ## Articles in other languages
 

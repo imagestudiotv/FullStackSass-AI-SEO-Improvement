@@ -1,0 +1,227 @@
+/*
+ * Article extras (includes/extras.php), in Image Studio's own look: black on
+ * white, Georgia for reading, small letter-spaced Arial capitals for labels.
+ *  - "In this article": the contents box at the top of the article's text.
+ *  - FAQ: the questions after the text, each a row that opens to its answer
+ *    (<details>: no script).
+ * The article's text is the "cps" template's .cps-single-content (18px
+ * Georgia, links black and underlined, h2 26px bold): its rules are matched
+ * here with stronger selectors.
+ */
+
+/* ------------------------------------------------------ In this article */
+
+.cps-single-content .isb-toc {
+  box-sizing: border-box;
+  margin: 0 0 44px;
+  padding: 26px 30px 24px;
+  border: 1px solid #e2e2e2;
+  background: #f8f8f7;
+  color: #111;
+}
+.cps-single-content .isb-toc .isb-toc-title {
+  margin: 0 0 16px;
+  padding: 0;
+  color: #111;
+  font: 700 11px/1.4 Arial, Helvetica, sans-serif;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.cps-single-content .isb-toc .isb-toc-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  line-height: 1.5;
+}
+.cps-single-content .isb-toc .isb-toc-list li {
+  margin: 0;
+  padding: 0 0 10px;
+  break-inside: avoid;
+}
+.cps-single-content .isb-toc .isb-toc-list li:last-child {
+  padding-bottom: 0;
+}
+.cps-single-content .isb-toc a,
+.cps-single-content .isb-toc a:visited,
+.cps-single-content .isb-toc a:hover {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  color: #111;
+  font-family: Georgia, "Times New Roman", Times, serif;
+  font-size: 16px;
+  text-decoration: none;
+}
+.cps-single-content .isb-toc .isb-toc-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.cps-single-content .isb-toc a:hover .isb-toc-text,
+.cps-single-content .isb-toc a:focus-visible .isb-toc-text {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+.cps-single-content .isb-toc a:focus-visible {
+  outline: 2px solid #111;
+  outline-offset: 3px;
+}
+.cps-single-content .isb-toc .isb-toc-arrow {
+  flex: none;
+  color: #8a8a8a;
+  font: 400 14px/1 Arial, Helvetica, sans-serif;
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+.cps-single-content .isb-toc a:hover .isb-toc-arrow {
+  color: #111;
+  transform: translateX(3px);
+}
+
+/* A long list in two columns on wider screens. */
+@media (min-width: 768px) {
+  .cps-single-content .isb-toc-long .isb-toc-list {
+    columns: 2;
+    column-gap: 40px;
+  }
+}
+
+/*
+ * The headings the box links to stop below the site's fixed header (about
+ * 102px on a computer), not under it - instantly or smoothly (the site's own
+ * CSS asks for smooth scrolling). The theme's script (Astra's "scroll to
+ * ID"), which would ignore this, is kept off the contents links by extras.js.
+ */
+.cps-single-content h2[id] {
+  scroll-margin-top: 124px;
+}
+@media (max-width: 767px) {
+  .cps-single-content h2[id] {
+    scroll-margin-top: 92px;
+  }
+  /* The header add-on already keeps in-page links below its 78px phone bar
+     (scroll-padding-top on <html>, on this same condition): the two add up. */
+  html:has(> body:not(.home) #masthead .isx-mobile-toggle) .cps-single-content h2[id] {
+    scroll-margin-top: 16px;
+  }
+}
+
+/* ------------------------------------------------------------------ FAQ */
+
+/*
+ * The bottom margin keeps the FAQ clear of the black band the site's header
+ * add-on paints behind "Back to Editorial" - the bottom link too - which
+ * reaches 40px above the link.
+ */
+.isb-faq {
+  margin: 56px 0 48px;
+  color: #222;
+  font-family: Georgia, "Times New Roman", Times, serif;
+}
+.isb-faq .isb-faq-title {
+  margin: 0 0 22px;
+  padding: 0;
+  color: #111;
+  font: 700 26px/1.3 Georgia, "Times New Roman", Times, serif;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.isb-faq .isb-faq-list {
+  display: grid;
+  gap: 12px;
+}
+.isb-faq .isb-faq-item {
+  margin: 0;
+  padding: 0;
+  border: 1px solid #e2e2e2;
+  border-radius: 12px;
+  background: #fff;
+  transition: border-color 0.2s ease;
+}
+.isb-faq .isb-faq-item:hover,
+.isb-faq .isb-faq-item[open] {
+  border-color: #b9b9b9;
+}
+.isb-faq .isb-faq-question {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0;
+  padding: 18px 22px;
+  border-radius: 12px;
+  color: #111;
+  font: 700 18px/1.45 Georgia, "Times New Roman", Times, serif;
+  list-style: none;
+  cursor: pointer;
+}
+.isb-faq .isb-faq-question::-webkit-details-marker {
+  display: none;
+}
+.isb-faq .isb-faq-question::marker {
+  content: "";
+}
+.isb-faq .isb-faq-question:focus-visible {
+  outline: 2px solid #111;
+  outline-offset: 2px;
+}
+.isb-faq .isb-faq-q {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.isb-faq .isb-faq-icon {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  color: #555;
+  transition: transform 0.25s ease;
+}
+.isb-faq .isb-faq-item[open] .isb-faq-icon {
+  transform: rotate(180deg);
+}
+.isb-faq .isb-faq-answer {
+  padding: 0 22px 20px;
+  color: #333;
+  font-size: 17px;
+  line-height: 1.75;
+}
+.isb-faq .isb-faq-answer p {
+  margin: 0 0 0.9em;
+}
+.isb-faq .isb-faq-answer p:last-child {
+  margin-bottom: 0;
+}
+
+@media (max-width: 760px) {
+  .cps-single-content .isb-toc {
+    margin-bottom: 32px;
+    padding: 20px 18px;
+  }
+  .cps-single-content .isb-toc a,
+  .cps-single-content .isb-toc a:visited,
+  .cps-single-content .isb-toc a:hover {
+    font-size: 15px;
+  }
+  .isb-faq {
+    margin-top: 44px;
+  }
+  .isb-faq .isb-faq-title {
+    font-size: 22px;
+  }
+  .isb-faq .isb-faq-question {
+    padding: 16px;
+    font-size: 16px;
+  }
+  .isb-faq .isb-faq-answer {
+    padding: 0 16px 16px;
+    font-size: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cps-single-content .isb-toc .isb-toc-arrow,
+  .isb-faq .isb-faq-icon,
+  .isb-faq .isb-faq-item {
+    transition: none;
+  }
+}

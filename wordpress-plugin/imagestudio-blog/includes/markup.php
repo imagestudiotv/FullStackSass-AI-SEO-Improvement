@@ -3,7 +3,7 @@
  * The plugin's pure parts: copy in English and Italian, the changes made to
  * an article's HTML, the PayPal "Buy Now" address and the checks on PayPal's
  * payment notice. No database, no hooks - tests/imagestudio-blog.php runs
- * them on their own.
+ * them on their own. (The contents box and FAQ are in extras.php.)
  */
 
 defined('ABSPATH') || exit;
@@ -56,6 +56,8 @@ function isb_text($key, $lang = 'en') {
             'pages' => 'Article pages',
             'page_of' => 'Page %1$d of %2$d',
             'none' => 'No articles yet.',
+            'toc' => 'In this article',
+            'faq' => 'FAQ',
         ),
         'it' => array(
             'trigger' => 'Fatti citare in questo articolo',
@@ -95,6 +97,8 @@ function isb_text($key, $lang = 'en') {
             'pages' => 'Pagine degli articoli',
             'page_of' => 'Pagina %1$d di %2$d',
             'none' => 'Ancora nessun articolo.',
+            'toc' => 'In questo articolo',
+            'faq' => 'Domande frequenti',
         ),
     );
     $lang = isset($copy[$lang]) ? $lang : 'en';

@@ -1,5 +1,5 @@
 === Image Studio Blog ===
-Version: 2.0.0
+Version: 2.1.0
 Requires WordPress 6.4+, PHP 7.4+. Built for imagestudio.com (Astra child theme, WPML, Rank Math).
 
 What it does
@@ -29,6 +29,50 @@ What it does
      the gallery fills the screen with no footer below it, the photos fit,
      "The story" scrolls on its own and CLOSE works on a computer, and the
      WhatsApp chat button stays. Other pages keep their footer.
+   - Editorial articles (2.0.1): the footer is the homepage's - the small
+     copyright line at the bottom, Services and Studio side by side, no
+     second copyright line. (The articles also print the theme's own footer
+     first, which confused the footer's script.)
+   - "Next project" at the end of a portfolio post (2.0.1) stays in the
+     page's language. The newest post of each language linked to a post in
+     the other language (English villa post -> Italian Victoria & Matteo).
+5. "In this article" (2.1.0, as on RepGet's blog). At the top of each
+   article's text, between the excerpt and the article, a box lists the
+   article's H2 headings as links, an arrow before each. A click jumps to
+   that heading, which stops below the site's fixed header (the theme's own
+   scrolling, which would leave it under the header, is kept off these
+   links - assets/extras.js). It is made on its
+   own whenever an article has at least 3 H2 headings - nothing to write.
+   Each of those headings gets an id for its link, from its text ("Food,
+   beverage and service" -> #food-beverage-and-service; a numbering at the
+   start is left out: "1. Stop posing" -> #stop-posing); an id a heading
+   already has is kept. Italian pages say "In questo articolo". A long list
+   shows in two columns on a computer, one on a phone.
+   - Off for every article: Settings -> Image Studio Blog -> Article extras
+     -> untick "Show 'In this article' on articles".
+   - Off for one article: edit the article -> "Article extras" box -> tick
+     "Hide 'In this article' on this article" -> Update.
+6. FAQ (2.1.0, optional, as on RepGet's blog). Questions and answers at the
+   end of an article, after its text and before "Back to Editorial". Each
+   question is a bordered row; a click opens its answer, another click
+   closes it. Google also gets them as FAQ data (FAQPage). Italian pages
+   head it "Domande frequenti". An article with no questions shows nothing.
+   To add questions: edit the article and scroll to the "Article extras"
+   box (below the text in the block editor, below the editor in the classic
+   one). Fill in Question and Answer; "Add question" adds another (20 at
+   most), "Remove" takes one away; then Update. In an answer, a line break
+   starts a new line and an empty line a new paragraph. Answers are shown
+   as plain text (no links or bold). A question without an answer, or an
+   answer without a question, is kept in the box but not shown.
+   Some articles already have questions written into their text (a
+   "Frequently Asked Questions" heading with the questions as headings). If
+   they are moved into the box, delete them from the text, or the article
+   shows them twice.
+   WPML: the FAQ is translated with the article (wpml-config.xml) - in
+   WPML's Translation Editor each question and answer is offered for
+   translation. An Italian article edited in WordPress itself has its own
+   "Article extras" box. "Hide 'In this article'" is copied from the English
+   article to its Italian translation.
 
 After a payment
 ---------------
@@ -48,7 +92,8 @@ After a payment
 
 Install
 -------
-1. Plugins -> Add New -> Upload Plugin -> imagestudio-blog-2.0.0.zip -> Install -> Activate.
+1. Plugins -> Add Plugin -> Upload Plugin -> imagestudio-blog-2.1.0.zip -> Install Now ->
+   Activate. When updating an installed copy, click "Replace current with uploaded".
    (If the earlier "Image Studio Layout Fixes" or "RepGet Blog Services" plugin is
    installed, deactivate and delete it first.)
 2. Settings -> Image Studio Blog: check the PayPal email (dimoncic@live.it) and that
@@ -62,6 +107,10 @@ Install
    "Bridal Silhouette". Open a portfolio post on a phone and a computer:
    swipe or scroll the photos, open and close "The story", and check the
    WhatsApp button is there.
+7. Open an article with at least 3 H2 headings: "In this article" is above
+   its text; click a link. Add a question or two to one article (its
+   "Article extras" box), Update, clear the caches again, and open it: the
+   FAQ is at the end; click a question.
 
 Testing a payment without real money: tick "PayPal test mode" and use a PayPal
 sandbox buyer account; untick it afterwards.
@@ -69,5 +118,9 @@ sandbox buyer account; untick it afterwards.
 Settings
 --------
 Settings -> Image Studio Blog: PayPal email, show/hide the button, PayPal test
-mode, author bio (English/Italian), and which post type the articles are
-(Editorial, custom_post).
+mode, author bio (English/Italian), which post type the articles are
+(Editorial, custom_post), and "Show 'In this article' on articles" (Article
+extras).
+
+Each article's edit screen: the "Article extras" box - hide "In this article"
+on that article, and its FAQ.
