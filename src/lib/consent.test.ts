@@ -18,24 +18,29 @@ import {
 
 describe("parseConsent", () => {
   it("reads this version's two answers, wherever the cookie sits", () => {
-    expect(parseConsent("repget_consent=1.granted")).toBe("granted");
-    expect(parseConsent("a=1; repget_consent=1.denied; b=2")).toBe("denied");
-    expect(parseConsent("  repget_consent = 1.granted ")).toBe("granted");
+    expect(parseConsent("repget_consent=2.granted")).toBe("granted");
+    expect(parseConsent("a=1; repget_consent=2.denied; b=2")).toBe("denied");
+    expect(parseConsent("  repget_consent = 2.granted ")).toBe("granted");
   });
 
   it("treats anything else as no answer, so the banner asks", () => {
     expect(parseConsent("")).toBeNull();
-    expect(parseConsent("other=1.granted")).toBeNull();
+    expect(parseConsent("other=2.granted")).toBeNull();
     expect(parseConsent("repget_consent=0.granted")).toBeNull();
     expect(parseConsent("repget_consent=yes")).toBeNull();
-    expect(parseConsent("xrepget_consent=1.granted")).toBeNull();
+    expect(parseConsent("xrepget_consent=2.granted")).toBeNull();
+  });
+
+  it("asks again everyone who answered version 1 (analytics only, before advertising was added)", () => {
+    expect(parseConsent("repget_consent=1.granted")).toBeNull();
+    expect(parseConsent("repget_consent=1.denied")).toBeNull();
   });
 });
 
 describe("consentCookie", () => {
   it("is a first-party cookie for six months, Secure on HTTPS", () => {
-    expect(consentCookie("granted", true)).toBe(`${CONSENT_COOKIE}=1.granted; Max-Age=15724800; Path=/; SameSite=Lax; Secure`);
-    expect(consentCookie("denied", false)).toBe(`${CONSENT_COOKIE}=1.denied; Max-Age=15724800; Path=/; SameSite=Lax`);
+    expect(consentCookie("granted", true)).toBe(`${CONSENT_COOKIE}=2.granted; Max-Age=15724800; Path=/; SameSite=Lax; Secure`);
+    expect(consentCookie("denied", false)).toBe(`${CONSENT_COOKIE}=2.denied; Max-Age=15724800; Path=/; SameSite=Lax`);
   });
 });
 

@@ -23,6 +23,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   return {
     title: `Blog${pageSuffix(page)}`,
     description: page > 1 ? `${DESCRIPTION.replace(/\.$/, "")}${pageSuffix(page)}.` : DESCRIPTION,
+    // Page 1 is one page in five languages (/it/blog ...: app/(marketing)/[locale]/blog), with hreflang both ways.
     ...publicPageMetadata(blogPageHref("/blog", page)),
   };
 }

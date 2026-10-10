@@ -49,6 +49,8 @@ export type AdminAction =
   | "blog.placement_published"
   | "blog.placement_declined"
   | "blog.placement_reopened"
+  | "blog.image_deleted"
+  | "blog.translation_created"
   /* Operations (lib/admin/operations.ts). */
   | "platform.control_changed"
   | "publication.dispatch_resolved"

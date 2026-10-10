@@ -44,23 +44,34 @@ async function verifySignature(
   ];
   if (required.some((header) => !headers.get(header))) return false;
 
+  // Not JSON at all: nothing PayPal signed, and it could not be spliced in below.
+  try {
+    JSON.parse(rawBody);
+  } catch {
+    return false;
+  }
+
+  /*
+    The event goes back to PayPal as the EXACT text it sent, spliced into
+    the request rather than parsed and serialised again: PayPal checks it
+    against what it signed, and re-serialising changes escapes ("\/",
+    "\u00e9") and number formatting, which turned genuine events into
+    FAILURE - a 400 PayPal retries for three days and then gives up on.
+  */
+  const envelope = JSON.stringify({
+    auth_algo: headers.get("paypal-auth-algo"),
+    cert_url: headers.get("paypal-cert-url"),
+    transmission_id: headers.get("paypal-transmission-id"),
+    transmission_sig: headers.get("paypal-transmission-sig"),
+    transmission_time: headers.get("paypal-transmission-time"),
+    webhook_id: webhookId,
+  });
+  const body = `${envelope.slice(0, -1)},"webhook_event":${rawBody}}`;
+
   try {
     const result = await payPalRequest<{ verification_status?: string }>(
       "/v1/notifications/verify-webhook-signature",
-      {
-        method: "POST",
-        body: JSON.stringify({
-          auth_algo: headers.get("paypal-auth-algo"),
-          cert_url: headers.get("paypal-cert-url"),
-          transmission_id: headers.get("paypal-transmission-id"),
-          transmission_sig: headers.get("paypal-transmission-sig"),
-          transmission_time: headers.get("paypal-transmission-time"),
-          webhook_id: webhookId,
-          // Parsed, because PayPal expects the event as JSON here. The raw
-          // body is still what was signed, so it is parsed rather than rebuilt.
-          webhook_event: JSON.parse(rawBody),
-        }),
-      },
+      { method: "POST", body },
     );
     return result.verification_status === "SUCCESS";
   } catch {
@@ -70,7 +81,8 @@ async function verifySignature(
 }
 
 export async function POST(request: Request) {
-  if (!isPayPalConfigured() || !process.env.PAYPAL_WEBHOOK_ID) {
+  // Credentials, PAYPAL_WEBHOOK_ID and a valid PAYPAL_ENV (client.ts).
+  if (!isPayPalConfigured()) {
     console.error("[paypal-webhook] PayPal is not configured");
     return NextResponse.json({ error: "not configured" }, { status: 500 });
   }

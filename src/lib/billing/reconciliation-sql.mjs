@@ -142,6 +142,24 @@ export const RECONCILIATION_SQL = {
     group by coalesce(s.website_id, s.claimed_website_id), s.organization_id
     having count(*) > 1`,
 
+  /**
+   * PayPal approvals a customer walked away from that activated anyway while
+   * their website already paid through something else: cancelled by the
+   * sync (subscription-sync.ts, detached_released_approval), but PayPal took
+   * the first payment on activation. Each paid sale listed here is to be
+   * refunded IN PAYPAL; the refund webhook marks it refunded and it drops
+   * off this list.
+   */
+  releasedApprovalsToRefund: `
+    select c.provider_subscription_id, c.status as cancellation_status, c.created_at as cancelled_at,
+           p.organization_id, p.external_id as sale_id, p.amount_cents, p.currency,
+           p.created_at as paid_at
+    from provider_cancellations c
+    join payments p
+      on p.provider = c.provider and p.provider_subscription_id = c.provider_subscription_id
+    where c.reason = 'detached_released_approval' and p.status = 'paid'
+    order by p.created_at`,
+
   /** Issues 3/9: provider cancellations still owed, or given up on. */
   owedCancellations: `
     select provider, provider_subscription_id, reason, status, attempts,

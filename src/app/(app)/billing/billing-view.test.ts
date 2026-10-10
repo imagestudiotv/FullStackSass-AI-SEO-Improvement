@@ -17,7 +17,7 @@ vi.mock("next/link", () => ({
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("sonner", () => ({ toast: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn() }) }));
 vi.mock("@/lib/stripe/actions", () => ({ createCheckoutSession: vi.fn() }));
-vi.mock("@/lib/paypal/actions", () => ({ createPayPalCheckout: vi.fn() }));
+vi.mock("@/lib/paypal/actions", () => ({ createPayPalCheckout: vi.fn(), confirmPayPalReturn: vi.fn() }));
 vi.mock("@/lib/stripe/portal", () => ({ createPortalSession: vi.fn() }));
 vi.mock("@/lib/addons/actions", () => ({ buyAddon: vi.fn() }));
 
@@ -31,6 +31,7 @@ import { BillingClient } from "./billing-client";
 import {
   formatMoney,
   paymentOptions,
+  payPalForPlan,
   planFeatures,
   planGridClass,
   subscriptionStatus,
@@ -75,6 +76,7 @@ function plan(overrides: Partial<PlanRow>): PlanRow {
     sortOrder: 1,
     isActive: true,
     stripePriceId: "price_grow",
+    paypalPlanId: "P-GROW",
     ...overrides,
   } as PlanRow;
 }
@@ -89,6 +91,7 @@ const SCALE = plan({
   keywordLimit: 1500,
   monthlyCredits: 60,
   sortOrder: 2,
+  paypalPlanId: "P-SCALE",
 });
 
 describe("payment options per website", () => {
@@ -211,6 +214,21 @@ describe("statuses, prices and allowances", () => {
     expect(withoutReturnParams("https://app.test/billing?checkout=success&addon=cancelled")).toBe("/billing");
     expect(withoutReturnParams("https://app.test/billing?site=abc")).toBeNull();
   });
+
+  it("drops PayPal's own return parameters too", () => {
+    expect(
+      withoutReturnParams(
+        "https://app.test/billing?paypal=success&site=abc&subscription_id=I-ABC&ba_token=BA-1&token=EC-2#plans",
+      ),
+    ).toBe("/billing?site=abc#plans");
+    expect(withoutReturnParams("https://app.test/billing?site=abc&token=EC-2")).toBe("/billing?site=abc");
+  });
+
+  it("offers PayPal on a plan only when the plan exists in PayPal", () => {
+    expect(payPalForPlan(GROW, { paypal: true })).toBe(true);
+    expect(payPalForPlan(plan({ paypalPlanId: null }), { paypal: true })).toBe(false);
+    expect(payPalForPlan(GROW, { paypal: false })).toBe(false);
+  });
 });
 
 function renderClient(overrides: Partial<Parameters<typeof BillingClient>[0]> = {}) {
@@ -308,6 +326,18 @@ describe("BillingClient", () => {
     expect(out).not.toContain(en.common.manageBilling);
     expect(out).not.toContain(en.billing.payByCard);
     expect(out).not.toContain(en.billing.switchPlan);
+  });
+
+  it("shows no PayPal button on a plan that is not in PayPal", () => {
+    const out = renderClient({
+      plans: [GROW, { ...SCALE, paypalPlanId: null }],
+      subscription: null,
+      entitled: false,
+      websiteSubscriptions: [],
+    });
+    // Two cards can be paid by card; only Grow offers PayPal.
+    expect(out.split(en.billing.payByCard).length - 1).toBe(2);
+    expect(out.split(en.common.payWithPayPal).length - 1).toBe(1);
   });
 
   it("is fully translated: German labels, prices and periods", () => {

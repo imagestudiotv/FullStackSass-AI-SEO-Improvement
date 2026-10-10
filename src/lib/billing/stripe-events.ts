@@ -9,6 +9,7 @@ import {
   type SyncResult,
 } from "@/lib/billing/subscription-sync";
 import { confirmSponsorship, isSponsorshipSession } from "@/lib/blog/sponsorship";
+import { reportFirstPayment } from "@/lib/conversions/conversions";
 import { db } from "@/lib/db";
 import type { Executor } from "@/lib/db/types";
 import { billingCustomers, organization, payments, plans, subscriptions } from "@/lib/db/schema";
@@ -310,6 +311,21 @@ export async function processStripeEvent(event: Stripe.Event): Promise<void> {
        */
       if (event.type === "invoice.paid") {
         await convertReferral(orgId, invoice.amount_paid ?? 0);
+        /*
+          The subscription's first payment for money goes to Google Analytics
+          as a purchase (lib/conversions/conversions.ts): once, only for a
+          payer who accepted the cookie banner, never thrown.
+        */
+        if (invoice.id) {
+          await reportFirstPayment(db, {
+            provider: "stripe",
+            providerSubscriptionId: subscriptionId,
+            externalId: invoice.id,
+            amountCents: invoice.amount_paid ?? 0,
+            currency: invoice.currency ?? "eur",
+            paidAt: invoice.status_transitions?.paid_at ? new Date(invoice.status_transitions.paid_at * 1000) : null,
+          });
+        }
       }
       return;
     }

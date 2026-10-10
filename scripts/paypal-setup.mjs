@@ -13,7 +13,21 @@
  * creating a new plan and deactivating the old one; existing subscribers stay
  * on the plan they signed up to, which is the intended behaviour.
  *
- * Runs against sandbox unless PAYPAL_ENV=live.
+ * Runs against sandbox unless PAYPAL_ENV=live (exactly "live" or "sandbox";
+ * anything else stops it). Live also needs --live.
+ *
+ * IT WRITES TO THE DATABASE IN DIRECT_URL - from .env.local, which is
+ * PRODUCTION, unless the shell sets another. The host is printed first.
+ * plans.paypal_plan_id holds ONE mode's ids, so a stored id this mode cannot
+ * find most likely belongs to the other mode: the script then stops before
+ * writing anything, unless --switch-mode says that switching this
+ * database's PayPal mode is the intention. Run with sandbox credentials
+ * against production, it used to overwrite the live plan ids with sandbox
+ * ones and break every PayPal checkout.
+ *
+ *   npm run paypal:setup                                  (sandbox)
+ *   npm run paypal:setup -- --live                        (live)
+ *   npm run paypal:setup -- --live --switch-mode          (sandbox ids -> live)
  */
 import nextEnv from "@next/env";
 import postgres from "postgres";
@@ -21,7 +35,13 @@ import postgres from "postgres";
 nextEnv.loadEnvConfig(process.cwd());
 
 const { PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET, DIRECT_URL } = process.env;
-const LIVE = process.env.PAYPAL_ENV === "live";
+const ENV = process.env.PAYPAL_ENV || "sandbox";
+if (ENV !== "live" && ENV !== "sandbox") {
+  console.error(`PAYPAL_ENV is "${ENV}"; it must be "live" or "sandbox".`);
+  process.exit(1);
+}
+const LIVE = ENV === "live";
+const SWITCH_MODE = process.argv.includes("--switch-mode");
 const BASE = LIVE
   ? "https://api-m.paypal.com"
   : "https://api-m.sandbox.paypal.com";
@@ -36,7 +56,7 @@ if (!DIRECT_URL) {
   console.error("DIRECT_URL is not set.");
   process.exit(1);
 }
-if (LIVE && process.argv[2] !== "--live") {
+if (LIVE && !process.argv.includes("--live")) {
   console.error(
     "Refusing to run against LIVE PayPal without --live.\n" +
       "Use PAYPAL_ENV=sandbox while building.",
@@ -44,7 +64,18 @@ if (LIVE && process.argv[2] !== "--live") {
   process.exit(1);
 }
 
-console.log(`Mode: ${LIVE ? "LIVE" : "SANDBOX"}\n`);
+/** Where the plan ids will be written: host, port and database name - never the user or password. */
+function databaseTarget(url) {
+  try {
+    const parsed = new URL(url);
+    return `${parsed.hostname}${parsed.port ? `:${parsed.port}` : ""}${parsed.pathname || ""}`;
+  } catch {
+    return "(DIRECT_URL could not be read as a URL)";
+  }
+}
+
+console.log(`Mode: ${LIVE ? "LIVE" : "SANDBOX"}`);
+console.log(`Database: ${databaseTarget(DIRECT_URL)}  <- plan ids are written HERE\n`);
 
 async function token() {
   const response = await fetch(`${BASE}/v1/oauth2/token`, {
@@ -79,9 +110,16 @@ async function api(path, init = {}) {
     },
   });
   const text = await response.text();
-  const body = text ? JSON.parse(text) : null;
+  let body = null;
+  try {
+    body = text ? JSON.parse(text) : null;
+  } catch {
+    // A gateway's HTML error page: reported by status below.
+  }
   if (!response.ok) {
-    throw new Error(body?.message ?? `PayPal returned ${response.status}`);
+    const error = new Error(body?.message ?? `PayPal returned ${response.status}`);
+    error.status = response.status;
+    throw error;
   }
   return body;
 }
@@ -95,6 +133,45 @@ const rows = await sql`
 
 if (rows.length === 0) {
   console.error("No active plans. Run `npm run db:seed` first.");
+  await sql.end();
+  process.exit(1);
+}
+
+/*
+  Every stored id is looked up BEFORE anything is written. Not found in this
+  mode most likely means it belongs to the other one; without --switch-mode
+  the script stops here, so a run with the wrong credentials changes nothing.
+  Any other failure stops it too: an outage is not a reason to replace ids.
+*/
+const storedState = new Map();
+const otherMode = [];
+for (const plan of rows) {
+  if (!plan.paypal_plan_id) continue;
+  try {
+    const existing = await api(`/v1/billing/plans/${plan.paypal_plan_id}`);
+    storedState.set(plan.id, existing.status === "ACTIVE" ? "active" : "inactive");
+  } catch (error) {
+    if (error.status === 404 || SWITCH_MODE) {
+      storedState.set(plan.id, "missing");
+      otherMode.push(plan);
+    } else {
+      console.error(`Could not look up ${plan.name}'s PayPal plan ${plan.paypal_plan_id}: ${error.message}`);
+      console.error("Nothing was changed. Try again later.");
+      await sql.end();
+      process.exit(1);
+    }
+  }
+}
+if (otherMode.length > 0 && !SWITCH_MODE) {
+  console.error(
+    `${otherMode.length} stored PayPal plan id(s) do not exist in ${LIVE ? "LIVE" : "SANDBOX"} PayPal:`,
+  );
+  for (const plan of otherMode) console.error(`  ${plan.name}: ${plan.paypal_plan_id}`);
+  console.error(
+    `\nThey most likely belong to the other PayPal mode. Replacing them would switch the database above\n` +
+      `to ${LIVE ? "LIVE" : "SANDBOX"} PayPal and break checkout for the other mode. Nothing was changed.\n` +
+      "Check PAYPAL_ENV and the credentials. If switching modes IS the intention, re-run with --switch-mode.",
+  );
   await sql.end();
   process.exit(1);
 }
@@ -132,16 +209,15 @@ for (const plan of rows) {
   console.log(`${plan.name} (${plan.tier}/${plan.interval})`);
 
   // A stored plan that still resolves is left alone.
-  if (plan.paypal_plan_id) {
-    try {
-      const existing = await api(`/v1/billing/plans/${plan.paypal_plan_id}`);
-      if (existing.status === "ACTIVE") {
-        console.log(`  plan unchanged: ${existing.id}\n`);
-        continue;
-      }
-    } catch {
-      console.log("  stored plan id not found in this mode - recreating");
-    }
+  const stored = storedState.get(plan.id);
+  if (stored === "active") {
+    console.log(`  plan unchanged: ${plan.paypal_plan_id}\n`);
+    continue;
+  }
+  if (stored === "missing") {
+    console.log("  stored plan id not found in this mode - recreating (--switch-mode)");
+  } else if (stored === "inactive") {
+    console.log("  stored plan is not active - recreating");
   }
 
   const product = await productFor(plan.tier, plan.name);
@@ -171,7 +247,9 @@ for (const plan of rows) {
       ],
       payment_preferences: {
         auto_bill_outstanding: true,
+        // Applies only to a setup fee, and these plans have none.
         setup_fee_failure_action: "CANCEL",
+        // After three failed payments PayPal SUSPENDS it (stored as "unpaid").
         payment_failure_threshold: 3,
       },
     }),

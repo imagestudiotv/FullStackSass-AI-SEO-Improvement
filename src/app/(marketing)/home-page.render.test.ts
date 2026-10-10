@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { PlanRow } from "@/lib/billing-shared";
 import { LOCALES, localePath, type Locale } from "@/lib/i18n/config";
 import { getMessages } from "@/lib/i18n/messages";
+import { REAL_ARTICLES } from "@/lib/marketing/real-articles";
 
 /**
  * The homepage as each language first renders it: the section order the
@@ -127,7 +128,24 @@ describe("homepage sections", () => {
     expect(html.split(`>${t.exampleLabel}<`).length - 1).toBeGreaterThanOrEqual(7);
     expect(html).toContain(esc(t.trackedCaption));
     expect(html).toContain(esc(t.previewCaption));
-    expect(html).toContain(esc(t.articles.sampleLabel));
+  });
+
+  it("shows real, published articles with their picture and a link to the whole article", () => {
+    for (const locale of ["en", "it"] as const) {
+      const t = getMessages(locale).home.articles;
+      const html = renderHome(locale);
+      // The first article renders on the server, in the language it was published in.
+      const [first] = REAL_ARTICLES;
+      expect(html).toContain(esc(first.title));
+      expect(html).toContain(esc(first.heading));
+      expect(html).toContain(`href="${first.href}"`);
+      expect(html).toContain(esc(t.realLabel));
+      expect(html).toContain(esc(t.readFull));
+      // next/image is a plain <img> in this file (see the mock above).
+      expect(html).toContain(`src="${first.image.src}"`);
+      // Every article is offered as a tab.
+      for (const article of REAL_ARTICLES) expect(html).toContain(esc(article.title));
+    }
   });
 
   it("names only real integrations, each linking to its setup guide", () => {

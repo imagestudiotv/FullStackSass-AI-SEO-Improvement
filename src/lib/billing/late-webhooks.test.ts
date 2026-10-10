@@ -5,6 +5,7 @@ import {
   billingCheckouts,
   organization,
   payments,
+  plans,
   providerCancellations,
   subscriptions,
   webhookEvents,
@@ -80,6 +81,9 @@ import { convertReferral, reverseReferralReward } from "@/lib/referrals/core";
 let test: TestDb;
 let eventCounter = 0;
 
+/** The PayPal plan id of our plan: what makes the subscriptions below ours (paypal-events.ts). */
+const OUR_PAYPAL_PLAN = "P-OURS";
+
 beforeAll(async () => {
   vi.stubEnv("STRIPE_WEBHOOK_SECRET", "whsec_test");
   vi.stubEnv("PAYPAL_WEBHOOK_ID", "WH-TEST");
@@ -99,11 +103,22 @@ beforeEach(async () => {
     delete from subscriptions;
     delete from websites;
     delete from organization;
+    delete from plans;
   `);
   await test.db.insert(organization).values([
     { id: "org_a", name: "Acme", slug: "acme", createdAt: new Date() },
     { id: "org_b", name: "Other", slug: "other", createdAt: new Date() },
   ]);
+  await test.db.insert(plans).values({
+    name: "Grow",
+    tier: "grow",
+    paypalPlanId: OUR_PAYPAL_PLAN,
+    priceCents: 4900,
+    articleLimit: 30,
+    keywordLimit: 100,
+    siteLimit: 1,
+    monthlyCredits: 0,
+  });
 });
 
 async function addSite(organizationId = "org_a", domain = "acme.test") {
@@ -170,13 +185,23 @@ async function sendStripe(
   return response.status;
 }
 
+/**
+ * Delivers a PayPal event. `live` is the subscription as PayPal reports it
+ * now; on our plan unless the test says otherwise.
+ */
 async function sendPayPal(
   type: string,
   resource: Record<string, unknown>,
-  live: { id: string; status: string; custom_id: string },
+  live: {
+    id: string;
+    status: string;
+    custom_id: string;
+    plan_id?: string;
+    billing_info?: { failed_payments_count?: number };
+  },
 ) {
   eventCounter += 1;
-  state.paypal = live;
+  state.paypal = { plan_id: OUR_PAYPAL_PLAN, ...live };
   const body = JSON.stringify({ id: `WH-${eventCounter}`, event_type: type, resource });
   const response = await paypalWebhook(
     new Request("https://app.example.test/api/paypal/webhook", {
@@ -585,6 +610,119 @@ describe("PayPal: late events", () => {
 
     const [row] = await subscriptionRows();
     expect(row).toMatchObject({ websiteId: null, status: "canceled" });
+    expect(paypalMock.cancel).not.toHaveBeenCalled();
+  });
+});
+
+/*
+  H3: the PayPal business account may hold subscriptions other integrations
+  made. Their events can reach this webhook; none of them may be recorded,
+  and above all none may be cancelled.
+*/
+describe("PayPal: subscriptions that are not ours", () => {
+  async function untouched() {
+    expect(paypalMock.cancel).not.toHaveBeenCalled();
+    expect(await subscriptionRows()).toHaveLength(0);
+    expect(await test.db.select().from(providerCancellations)).toHaveLength(0);
+  }
+
+  it("ignores another integration's subscription (custom_id ORDER-123) and cancels nothing", async () => {
+    const live = { id: "I-FOREIGN", status: "ACTIVE", custom_id: "ORDER-123", plan_id: "P-SOMEONE-ELSE" };
+
+    expect(await sendPayPal("BILLING.SUBSCRIPTION.ACTIVATED", { id: "I-FOREIGN" }, live)).toBe(200);
+    expect(
+      await sendPayPal(
+        "PAYMENT.SALE.COMPLETED",
+        { id: "SALE-FOREIGN", billing_agreement_id: "I-FOREIGN", amount: { total: "15.00", currency: "EUR" } },
+        live,
+      ),
+    ).toBe(200);
+    expect(await sendPayPal("BILLING.SUBSCRIPTION.SUSPENDED", { id: "I-FOREIGN" }, { ...live, status: "SUSPENDED" })).toBe(200);
+
+    await untouched();
+    expect(await test.db.select().from(payments)).toHaveLength(0);
+    expect(vi.mocked(convertReferral)).not.toHaveBeenCalled();
+  });
+
+  it("ignores our three-id shape when the checkout it names is not one of ours", async () => {
+    const live = {
+      id: "I-LOOKALIKE",
+      status: "ACTIVE",
+      custom_id: "org_deleted:00000000-0000-4000-8000-000000000001:00000000-0000-4000-8000-000000000002",
+      plan_id: "P-SOMEONE-ELSE",
+    };
+    expect(await sendPayPal("BILLING.SUBSCRIPTION.ACTIVATED", { id: "I-LOOKALIKE" }, live)).toBe(200);
+    await untouched();
+  });
+
+  it("still knows its own subscription by the checkout it names, on a plan id no longer stored", async () => {
+    const site = await addSite();
+    const [checkout] = await test.db
+      .insert(billingCheckouts)
+      .values({ organizationId: "org_a", websiteId: site.id, provider: "paypal", status: "open" })
+      .returning();
+
+    await sendPayPal(
+      "BILLING.SUBSCRIPTION.ACTIVATED",
+      { id: "I-MINE" },
+      { id: "I-MINE", status: "ACTIVE", custom_id: `org_a:${site.id}:${checkout.id}`, plan_id: "P-RETIRED" },
+    );
+
+    const [row] = await subscriptionRows();
+    expect(row).toMatchObject({ paypalSubscriptionId: "I-MINE", websiteId: site.id, status: "active" });
+  });
+
+  it("still updates a subscription it recorded before, whatever its custom_id says", async () => {
+    const site = await addSite();
+    await test.db.insert(subscriptions).values({
+      organizationId: "org_a",
+      websiteId: site.id,
+      provider: "paypal",
+      status: "active",
+      paypalSubscriptionId: "I-KNOWN",
+    });
+
+    await sendPayPal(
+      "BILLING.SUBSCRIPTION.SUSPENDED",
+      { id: "I-KNOWN" },
+      { id: "I-KNOWN", status: "SUSPENDED", custom_id: `org_a:${site.id}`, plan_id: "P-RETIRED" },
+    );
+
+    const [row] = await subscriptionRows();
+    // Suspended is unpaid - not entitled (H2) - and nothing was cancelled.
+    expect(row).toMatchObject({ paypalSubscriptionId: "I-KNOWN", status: "unpaid" });
+    expect(paypalMock.cancel).not.toHaveBeenCalled();
+  });
+});
+
+/*
+  H2: what a stopped payer is stored as. SUSPENDED is not entitled; a renewal
+  PayPal is still retrying is past_due; and PayPal's re-activation and
+  failed-payment events are read, since both now change the stored status.
+*/
+describe("PayPal: failing and suspended payments", () => {
+  it("stores past_due while PayPal retries, unpaid once suspended, and active once re-activated", async () => {
+    const site = await addSite();
+    const live = { id: "I-PAYER", custom_id: `org_a:${site.id}` };
+
+    await sendPayPal("BILLING.SUBSCRIPTION.ACTIVATED", { id: "I-PAYER" }, { ...live, status: "ACTIVE" });
+    expect((await subscriptionRows())[0].status).toBe("active");
+
+    // A renewal failed; PayPal keeps it ACTIVE while it retries.
+    expect(
+      await sendPayPal(
+        "BILLING.SUBSCRIPTION.PAYMENT.FAILED",
+        { id: "I-PAYER" },
+        { ...live, status: "ACTIVE", billing_info: { failed_payments_count: 1 } },
+      ),
+    ).toBe(200);
+    expect((await subscriptionRows())[0].status).toBe("past_due");
+
+    await sendPayPal("BILLING.SUBSCRIPTION.SUSPENDED", { id: "I-PAYER" }, { ...live, status: "SUSPENDED" });
+    expect((await subscriptionRows())[0].status).toBe("unpaid");
+
+    await sendPayPal("BILLING.SUBSCRIPTION.RE-ACTIVATED", { id: "I-PAYER" }, { ...live, status: "ACTIVE" });
+    expect((await subscriptionRows())[0].status).toBe("active");
     expect(paypalMock.cancel).not.toHaveBeenCalled();
   });
 });

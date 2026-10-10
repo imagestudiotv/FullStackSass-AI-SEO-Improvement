@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 
 import { BrandLogo } from "@/components/brand-logo";
+import { ConversionEvents } from "@/components/conversion-events";
 import { HeaderTrailing } from "@/components/onboarding/header-trailing";
 import { UserMenu } from "@/components/user-menu";
 import { isAdmin } from "@/lib/admin/guard";
 import { requireSession } from "@/lib/auth-guard";
+import { pendingConversions } from "@/lib/conversions/conversions";
+import { db } from "@/lib/db";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import { ReferralClaim } from "@/components/referral-claim";
 import { readReferralCookie } from "@/lib/referrals/cookie";
@@ -57,7 +60,7 @@ export default async function OnboardingLayout({ children }: LayoutProps<"/">) {
   const admin = await isAdmin();
 
   // Creates the workspace for an account that has none. See requireOrg.
-  await requireOrg();
+  const { orgId } = await requireOrg();
 
   /*
     New sign-ups land here before the dashboard, and checkout starts here, so
@@ -65,6 +68,17 @@ export default async function OnboardingLayout({ children }: LayoutProps<"/">) {
     arrive before any app page had attached it, and pay nobody.
   */
   const referralPending = Boolean(await readReferralCookie());
+
+  /*
+    A new account lands here first, and the free articles start from here, so
+    this is where those two conversions are reported (for a visitor who
+    accepted the cookie banner; lib/conversions/conversions.ts).
+  */
+  const conversions = await pendingConversions(db, {
+    userId: session.user.id,
+    userCreatedAt: session.user.createdAt,
+    organizationId: orgId,
+  });
 
   return (
     <div className="flex min-h-svh flex-col bg-background">
@@ -122,6 +136,7 @@ export default async function OnboardingLayout({ children }: LayoutProps<"/">) {
       </header>
 
       {referralPending ? <ReferralClaim /> : null}
+      {conversions.length > 0 ? <ConversionEvents events={conversions} /> : null}
       <main className="flex-1">{children}</main>
     </div>
   );

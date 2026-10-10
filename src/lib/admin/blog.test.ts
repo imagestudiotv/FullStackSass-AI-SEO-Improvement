@@ -259,7 +259,7 @@ describe("writing and publishing a post", () => {
     expect(a.slug).toBe("cafe-films-italy");
     expect(await saveBlogPost({ id: null, expectedVersion: 0, status: "draft", post: input({ slug: "cafe-films-italy" }) })).toMatchObject({
       ok: false,
-      error: expect.stringMatching(/already uses the address \/blog\/cafe-films-italy/),
+      error: expect.stringMatching(/already uses the address "cafe-films-italy"/),
     });
     expect(await saveBlogPost({ id: null, expectedVersion: 0, status: "draft", post: input({ slug: "Category" }) })).toMatchObject({
       ok: false,

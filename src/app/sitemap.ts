@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 
+import { blogPath } from "@/lib/blog/locale";
 import { listPosts } from "@/lib/blog/posts";
 import { INTEGRATION_DOCS } from "@/lib/publishing/docs";
 import { TOOLS } from "@/lib/tools/registry";
@@ -42,6 +43,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.7,
     },
     { url: `${base}/publishers`, lastModified: now, priority: 0.7 },
+    { url: `${base}/backlinks`, lastModified: now, priority: 0.7 },
+    { url: `${base}/rank-on-chatgpt`, lastModified: now, priority: 0.7 },
     { url: `${base}/affiliate`, lastModified: now, priority: 0.6 },
     { url: `${base}/success-stories`, lastModified: now, priority: 0.6 },
     { url: `${base}/faq`, lastModified: now, priority: 0.6 },
@@ -118,6 +121,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       "/publishers",
       "/success-stories",
       "/backlink-exchange",
+      "/blog",
     ].map((path) => ({
       url: `${base}${localePath(locale, path)}`,
       lastModified: now,
@@ -126,5 +130,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     })),
   );
 
-  return [...pages, ...tools, ...docs, ...posts, ...categories, ...translated];
+  /** Posts in other languages (lib/blog/locale.ts); their blog pages are in `translated` above. */
+  const otherLanguages = await Promise.all(PREFIXED_LOCALES.map(async (locale) => ({ locale, posts: await listPosts(locale) })));
+  const translatedPosts: MetadataRoute.Sitemap = otherLanguages.flatMap(({ locale, posts: list }) => [
+    ...list.map((post) => ({
+      url: `${base}${blogPath(locale, post.slug)}`,
+      lastModified: new Date(`${post.updatedAt ?? post.publishedAt}T00:00:00Z`),
+      priority: 0.6,
+    })),
+  ]);
+
+  return [...pages, ...tools, ...docs, ...posts, ...categories, ...translated, ...translatedPosts];
 }

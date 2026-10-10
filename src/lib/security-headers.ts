@@ -83,6 +83,13 @@ function sentryOrigin(dsn: string | undefined): string | null {
  *    Google publishes for GA4). Its pixels are covered by img-src https:.
  *    On the nonce pages the script is inserted by the nonced bundle, which
  *    'strict-dynamic' allows; the host stays listed for browsers without it.
+ *  - Google Ads, ONLY when the deployment has a Tag Manager container
+ *    (NEXT_PUBLIC_GTM_ID; client, 2026-10-09): the container's Ads tags
+ *    load from www.googleadservices.com and googleads.g.doubleclick.net,
+ *    send conversions to www.google.com, *.doubleclick.net and
+ *    pagead2.googlesyndication.com, and frame td.doubleclick.net; GTM's
+ *    preview (Tag Assistant) needs tagassistant.google.com. Without a
+ *    container none of these hosts is allowed.
  *  - Nothing else: payments (Stripe, PayPal) and Google sign-in are full-page
  *    redirects, and fonts are self-hosted by next/font.
  *
@@ -90,7 +97,12 @@ function sentryOrigin(dsn: string | undefined): string | null {
  * and auth pages use a fresh nonce through proxy.ts and disallow arbitrary
  * inline scripts. Styles still need unsafe-inline for React and Crisp CSS.
  */
-export function contentSecurityPolicy(sentryDsn: string | undefined, nonce?: string): string {
+/** Whether the deployment has a Tag Manager container, and so Google Ads tags. */
+export function hasTagManager(raw: string | undefined = process.env.NEXT_PUBLIC_GTM_ID): boolean {
+  return /^GTM-[A-Z0-9]{4,12}$/i.test(raw?.trim() ?? "");
+}
+
+export function contentSecurityPolicy(sentryDsn: string | undefined, nonce?: string, ads: boolean = hasTagManager()): string {
   if (nonce !== undefined && !/^[A-Za-z0-9+/=_-]{22,128}$/.test(nonce)) {
     throw new Error("Invalid CSP nonce");
   }
@@ -98,19 +110,30 @@ export function contentSecurityPolicy(sentryDsn: string | undefined, nonce?: str
   const youtube = "https://www.youtube-nocookie.com";
   const gaScript = "https://*.googletagmanager.com";
   const gaConnect = ["https://*.google-analytics.com", "https://*.analytics.google.com", gaScript];
+  const assistant = "https://tagassistant.google.com";
+  const adsScript = ads ? ["https://www.googleadservices.com", "https://googleads.g.doubleclick.net", "https://www.google.com", assistant] : [];
+  const adsConnect = ads
+    ? ["https://www.google.com", "https://google.com", "https://*.doubleclick.net", "https://pagead2.googlesyndication.com", "https://www.googleadservices.com", assistant]
+    : [];
+  const adsFrame = ads ? ["https://td.doubleclick.net", "https://www.googletagmanager.com", assistant] : [];
   const sentry = sentryOrigin(sentryDsn);
   const report = cspReportUri(sentryDsn);
 
   const directives: [string, string[]][] = [
     ["default-src", ["'self'"]],
-    ["script-src", nonce ? ["'self'", `'nonce-${nonce}'`, "'strict-dynamic'", crisp, gaScript] : ["'self'", "'unsafe-inline'", crisp, gaScript]],
+    [
+      "script-src",
+      nonce
+        ? ["'self'", `'nonce-${nonce}'`, "'strict-dynamic'", crisp, gaScript, ...adsScript]
+        : ["'self'", "'unsafe-inline'", crisp, gaScript, ...adsScript],
+    ],
     ["script-src-attr", ["'none'"]],
     ["style-src", ["'self'", "'unsafe-inline'", crisp]],
     ["img-src", ["'self'", "data:", "blob:", "https:"]],
     ["font-src", ["'self'", "data:", crisp]],
-    ["connect-src", ["'self'", crisp, "wss://*.relay.crisp.chat", ...gaConnect, ...(sentry ? [sentry] : [])]],
+    ["connect-src", ["'self'", crisp, "wss://*.relay.crisp.chat", ...gaConnect, ...adsConnect, ...(sentry ? [sentry] : [])]],
     ["media-src", ["'self'", crisp]],
-    ["frame-src", ["'self'", crisp, youtube]],
+    ["frame-src", ["'self'", crisp, youtube, ...adsFrame]],
     ["worker-src", ["'self'", "blob:"]],
     // Nobody else may frame RepGet (click-jacking); X-Frame-Options below
     // says the same to browsers that predate CSP.

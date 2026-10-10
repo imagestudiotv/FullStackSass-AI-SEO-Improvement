@@ -1,4 +1,4 @@
-import { ExternalLink, Megaphone, Newspaper, Plus } from "lucide-react";
+import { ExternalLink, ImageIcon, Megaphone, Newspaper, Plus } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { listBlogCategoriesAdmin, listBlogPostsAdmin } from "@/lib/admin/blog";
 import { placementsToReview } from "@/lib/admin/blog-sponsorships";
+import { blogPath, LANGUAGE_NAMES_EN } from "@/lib/blog/locale";
 import { formatDate, formatNumber } from "@/lib/i18n/format";
 
 import { ExpandableText } from "../_ui/expandable-text";
@@ -51,6 +52,13 @@ export default async function AdminBlogPage() {
                     <span className="sr-only"> to review</span>
                   </span>
                 ) : null}
+              </Link>
+            </Button>
+            {/* Every uploaded picture, with the posts that use it (lib/admin/blog-images.ts). */}
+            <Button asChild size="lg" variant="outline">
+              <Link href="/admin/blog/images">
+                <ImageIcon aria-hidden="true" />
+                Images
               </Link>
             </Button>
             <Button asChild size="lg">
@@ -112,11 +120,23 @@ export default async function AdminBlogPage() {
                         >
                           {post.title}
                         </Link>
-                        <p className="mt-0.5 font-mono text-xs text-muted-foreground wrap-anywhere">/blog/{post.slug}</p>
+                        {/* The language, for a post not in English, and a translation still to be reviewed (lib/blog/locale.ts). */}
+                        {post.locale !== "en" || post.needsReview ? (
+                          <p className="mt-1 flex flex-wrap gap-1.5 text-xs">
+                            {post.locale !== "en" ? (
+                              <span className="rounded-full bg-muted px-2 py-0.5 font-medium">
+                                {LANGUAGE_NAMES_EN[post.locale]}
+                                {post.translationOf ? " translation" : ""}
+                              </span>
+                            ) : null}
+                            {post.needsReview ? <span className="rounded-full bg-warning-soft px-2 py-0.5 font-medium text-warning">Needs review</span> : null}
+                          </p>
+                        ) : null}
+                        <p className="mt-0.5 font-mono text-xs text-muted-foreground wrap-anywhere">{blogPath(post.locale, post.slug)}</p>
                         <p className="mt-0.5 text-xs text-muted-foreground md:hidden">{post.category}</p>
                         {post.status === "published" ? (
                           <a
-                            href={`/blog/${post.slug}`}
+                            href={blogPath(post.locale, post.slug)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="mt-1 inline-flex items-center gap-1 rounded-sm text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring sm:hidden"
@@ -152,7 +172,7 @@ export default async function AdminBlogPage() {
                         {post.status === "published" ? (
                           <Button variant="ghost" size="sm" asChild className="text-muted-foreground hover:text-foreground">
                             <a
-                              href={`/blog/${post.slug}`}
+                              href={blogPath(post.locale, post.slug)}
                               target="_blank"
                               rel="noopener noreferrer"
                               aria-label={`View “${post.title}” on the blog (opens in a new tab)`}

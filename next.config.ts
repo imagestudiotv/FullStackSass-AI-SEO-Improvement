@@ -13,9 +13,11 @@ const nextConfig: NextConfig = {
     it, for the bots in its own list - repeated here - but leaves out
     Googlebot, which runs JavaScript; Googlebot is added. People still get
     streamed metadata, so the app's loading screens are not held back.
+    Pinterest is added too (2026-10-09): its site check and its pins read the
+    head like the other link previews do.
   */
   htmlLimitedBots:
-    /Googlebot|[\w-]+-Google|Google-[\w-]+|Chrome-Lighthouse|Slurp|DuckDuckBot|baiduspider|yandex|sogou|bitlybot|tumblr|vkShare|quora link preview|redditbot|ia_archiver|Bingbot|BingPreview|applebot|facebookexternalhit|facebookcatalog|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview|Yeti|googleweblight/i,
+    /Googlebot|Pinterest|[\w-]+-Google|Google-[\w-]+|Chrome-Lighthouse|Slurp|DuckDuckBot|baiduspider|yandex|sogou|bitlybot|tumblr|vkShare|quora link preview|redditbot|ia_archiver|Bingbot|BingPreview|applebot|facebookexternalhit|facebookcatalog|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview|Yeti|googleweblight/i,
   reactCompiler: true,
 
   compiler: {

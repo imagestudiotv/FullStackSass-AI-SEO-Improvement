@@ -8,17 +8,23 @@ import { Button } from "@/components/ui/button";
 import { onConsentChange, onConsentSettingsOpen, openConsentSettings, readConsent, saveConsent, type Consent } from "@/lib/consent";
 import {
   cleanReferrer,
+  consentMode,
   forgetGoogleAnalytics,
-  measurementId,
+  googleTags,
   pauseGoogleAnalytics,
-  startGoogleAnalytics,
+  startGoogleTags,
+  tagsAllowed,
   trackGooglePage,
 } from "@/lib/google-analytics";
 import { splitLocale, type Locale } from "@/lib/i18n/config";
 import type { Messages } from "@/lib/i18n/messages";
 import { cn } from "@/lib/utils";
 
-const GA_ID = measurementId();
+const TAGS = googleTags();
+const GA_ID = TAGS.ga;
+/** Whether there is anything to ask about: GA, a Tag Manager container, or both. */
+const ASKS = Boolean(TAGS.ga || TAGS.gtm);
+const MODE = consentMode();
 
 type Copy = Messages["consent"];
 
@@ -27,8 +33,9 @@ const UNKNOWN = "unknown" as const;
 const serverSnapshot = () => UNKNOWN;
 
 /**
- * The analytics cookie banner, and the Google Analytics it controls
- * (lib/google-analytics.ts).
+ * The cookie banner, and the Google tags it controls (lib/google-analytics.ts):
+ * Google Analytics, and the Tag Manager container for Google Ads when the
+ * deployment has one, under Consent Mode v2.
  *
  * Mounted on the public pages and on sign-in/sign-up only - the marketing
  * shell and the auth layout - and that is the whole of where GA counts:
@@ -37,10 +44,11 @@ const serverSnapshot = () => UNKNOWN;
  * sent to Google, even by a visitor who accepted.
  *
  * Renders nothing, and loads nothing, without NEXT_PUBLIC_GA4_MEASUREMENT_ID
- * or before the browser has read the stored answer, so the server's HTML and
- * the first paint never include it. Accept and Decline carry equal weight;
- * either one closes the banner, and "Cookie settings" (footer, privacy page)
- * opens it again.
+ * or NEXT_PUBLIC_GTM_ID, or before the browser has read the stored answer,
+ * so the server's HTML and the first paint never include it. Accept and
+ * Decline carry equal weight; either one closes the banner, and "Cookie
+ * settings" (footer, privacy page) opens it again. In advanced consent mode
+ * the tags also run, cookieless, while the banner waits for an answer.
  *
  * The words come from the server as props (`copy`) - never import
  * messages.ts here (lib/i18n/site-chrome.ts explains why). The public pages
@@ -52,7 +60,7 @@ export function ConsentBanner({ copy, locale }: { copy: Partial<Record<Locale, C
   const t = copy[locale ?? splitLocale(pathname).locale] ?? copy.en;
   const consent = useSyncExternalStore(onConsentChange, readConsent, serverSnapshot);
   const [reopened, setReopened] = useState(false);
-  const visible = Boolean(GA_ID && t) && (consent === null || reopened);
+  const visible = Boolean(ASKS && t) && (consent === null || reopened);
 
   const panel = useRef<HTMLElement>(null);
   /** Where focus was when "Cookie settings" was pressed, to return it there. */
@@ -84,10 +92,11 @@ export function ConsentBanner({ copy, locale }: { copy: Partial<Record<Locale, C
     return () => document.documentElement.removeAttribute("data-consent-open");
   }, [visible]);
 
-  // GA follows the answer, page by page, and falls silent when this unmounts.
+  // The tags follow the answer, page by page, and GA falls silent when this unmounts.
   useEffect(() => {
-    if (!GA_ID || consent !== "granted") return;
-    startGoogleAnalytics(GA_ID, { soon: justAccepted.current });
+    if (consent === UNKNOWN || !tagsAllowed(consent, MODE)) return;
+    startGoogleTags(TAGS, { granted: consent === "granted", soon: justAccepted.current });
+    if (!GA_ID) return;
     // After the commit, so document.title is the new page's.
     const timer = window.setTimeout(() => {
       const referrer = previous.current ?? cleanReferrer(document.referrer, window.location.origin);
@@ -103,7 +112,7 @@ export function ConsentBanner({ copy, locale }: { copy: Partial<Record<Locale, C
 
   const choose = (value: Consent) => {
     if (value === "granted") justAccepted.current = true;
-    else if (GA_ID) forgetGoogleAnalytics(GA_ID);
+    else forgetGoogleAnalytics(GA_ID);
     setReopened(false);
     saveConsent(value);
     opener.current?.focus();
@@ -135,9 +144,9 @@ export function ConsentBanner({ copy, locale }: { copy: Partial<Record<Locale, C
   );
 }
 
-/** Opens the banner again. Renders nothing when GA is not configured: there is no choice to change. */
+/** Opens the banner again. Renders nothing when no Google tag is configured: there is no choice to change. */
 export function CookieSettingsButton({ label, className }: { label: string; className?: string }) {
-  if (!GA_ID) return null;
+  if (!ASKS) return null;
   return (
     <button
       type="button"

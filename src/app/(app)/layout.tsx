@@ -13,9 +13,11 @@ import { UserMenu } from "@/components/user-menu";
 import { WebsiteSwitcher } from "@/components/dashboard/website-switcher";
 import { isAdmin } from "@/lib/admin/guard";
 import { requireSession } from "@/lib/auth-guard";
+import { pendingConversions } from "@/lib/conversions/conversions";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import { db } from "@/lib/db";
 import { addons, notifications, organization } from "@/lib/db/schema";
+import { ConversionEvents } from "@/components/conversion-events";
 import { ReferralClaim } from "@/components/referral-claim";
 import { ResearchWatcher } from "@/components/research-watcher";
 import { readReferralCookie } from "@/lib/referrals/cookie";
@@ -182,6 +184,13 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
    * nothing is rendered and nothing runs.
    */
   const referralPending = Boolean(await readReferralCookie());
+
+  /** A sign-up or free-articles start not yet reported to Google (lib/conversions/conversions.ts). */
+  const conversions = await pendingConversions(db, {
+    userId: session.user.id,
+    userCreatedAt: session.user.createdAt,
+    organizationId: orgId,
+  });
 
   /**
    * Queried here rather than inside the bell so the badge is right on first
@@ -351,6 +360,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           it at once and nothing has to remember to opt in.
         */}
         {referralPending ? <ReferralClaim /> : null}
+        {conversions.length > 0 ? <ConversionEvents events={conversions} /> : null}
         <main className="min-w-0 flex-1 bg-muted/40 px-4 py-6 md:px-8 md:py-8">
           {children}
         </main>

@@ -26,22 +26,75 @@ export class PayPalError extends Error {
   }
 }
 
+export type PayPalMode = "live" | "sandbox";
+
+/** The last PAYPAL_ENV reported as invalid, so a bad value is logged once, not per request. */
+let reportedEnv: string | null = null;
+
+/**
+ * PAYPAL_ENV, read strictly: exactly "live" or "sandbox". Unset means sandbox,
+ * which is what local development runs on. Anything else ("Live",
+ * "production", a typo) is null - PayPal is then treated as not configured,
+ * and said so in the log. It used to mean sandbox silently: live credentials
+ * sent to the sandbox, every checkout and every webhook failing, and the
+ * button still on show.
+ */
+export function payPalMode(): PayPalMode | null {
+  const value = process.env.PAYPAL_ENV;
+  if (!value || value === "sandbox") return "sandbox";
+  if (value === "live") return "live";
+  if (reportedEnv !== value) {
+    reportedEnv = value;
+    console.error(
+      `[paypal] PAYPAL_ENV is "${value}"; it must be "live" or "sandbox". PayPal is switched off until it is fixed.`,
+    );
+  }
+  return null;
+}
+
+/**
+ * Whether a PayPal checkout can complete end to end: both credentials, a
+ * valid PAYPAL_ENV, and PAYPAL_WEBHOOK_ID - without it every webhook is
+ * refused, so a customer would approve and pay at PayPal and never get the
+ * plan. The PayPal button (actions.ts isPayPalAvailable), the checkout and
+ * the webhook all read this one answer.
+ */
 export function isPayPalConfigured(): boolean {
   return Boolean(
-    process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET,
+    process.env.PAYPAL_CLIENT_ID &&
+      process.env.PAYPAL_CLIENT_SECRET &&
+      process.env.PAYPAL_WEBHOOK_ID &&
+      payPalMode(),
   );
 }
 
 /**
  * Live only when explicitly asked for. Defaulting to sandbox means a missing
- * variable cannot accidentally take real money.
+ * variable cannot accidentally take real money; an invalid one refuses
+ * rather than guessing.
  */
 export function apiBase(): string {
-  return process.env.PAYPAL_ENV === "live" ? LIVE : SANDBOX;
+  const mode = payPalMode();
+  if (!mode) throw new PayPalError('PAYPAL_ENV must be "live" or "sandbox"', "config");
+  return mode === "live" ? LIVE : SANDBOX;
 }
 
 export function isLiveMode(): boolean {
-  return process.env.PAYPAL_ENV === "live";
+  return payPalMode() === "live";
+}
+
+/** A response body as JSON, or null when there is none or it is not JSON (a gateway's HTML page). */
+async function readJson(response: Response): Promise<{ body: Record<string, unknown> | null; readable: boolean }> {
+  const text = await response.text();
+  if (!text) return { body: null, readable: true };
+  try {
+    const parsed: unknown = JSON.parse(text);
+    return parsed && typeof parsed === "object"
+      ? { body: parsed as Record<string, unknown>, readable: true }
+      : { body: null, readable: false };
+  } catch {
+    return { body: null, readable: false };
+  }
 }
 
 type TokenCache = { token: string; expiresAt: number };
@@ -65,16 +118,31 @@ async function accessToken(): Promise<string> {
     throw new PayPalError("PayPal is not configured", "config");
   }
 
-  const response = await fetch(`${apiBase()}/v1/oauth2/token`, {
-    method: "POST",
-    headers: {
-      authorization: `Basic ${Buffer.from(`${clientId}:${secret}`).toString("base64")}`,
-      "content-type": "application/x-www-form-urlencoded",
-    },
-    body: "grant_type=client_credentials",
-  });
+  const base = apiBase();
 
-  const data = (await response.json()) as {
+  /*
+    Every failure here is "auth": nothing but a token was asked for, so no
+    subscription can have been created, and a checkout that fails at this
+    point is safely marked failed rather than left to block the website.
+  */
+  let response: Response;
+  try {
+    response = await fetch(`${base}/v1/oauth2/token`, {
+      method: "POST",
+      headers: {
+        authorization: `Basic ${Buffer.from(`${clientId}:${secret}`).toString("base64")}`,
+        "content-type": "application/x-www-form-urlencoded",
+      },
+      body: "grant_type=client_credentials",
+    });
+  } catch (error) {
+    throw new PayPalError(
+      error instanceof Error ? error.message : "Could not reach PayPal",
+      "auth",
+    );
+  }
+
+  const data = ((await readJson(response)).body ?? {}) as {
     access_token?: string;
     expires_in?: number;
     error_description?: string;
@@ -82,7 +150,7 @@ async function accessToken(): Promise<string> {
 
   if (!response.ok || !data.access_token) {
     throw new PayPalError(
-      data.error_description ?? "PayPal rejected the credentials",
+      data.error_description ?? `PayPal did not issue a token (${response.status})`,
       "auth",
       response.status,
     );
@@ -101,12 +169,13 @@ export async function payPalRequest<T>(
   init: RequestInit & { idempotencyKey?: string } = {},
 ): Promise<T> {
   const token = await accessToken();
+  const base = apiBase();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   let response: Response;
   try {
-    response = await fetch(`${apiBase()}${path}`, {
+    response = await fetch(`${base}${path}`, {
       ...init,
       signal: controller.signal,
       headers: {
@@ -144,8 +213,16 @@ export async function payPalRequest<T>(
     throw new PayPalError("Not found at PayPal", "not_found", 404);
   }
 
-  const text = await response.text();
-  const body = text ? (JSON.parse(text) as Record<string, unknown>) : null;
+  /*
+    A 5xx, or a body that is not JSON (a gateway's HTML error page), is
+    "unknown": PayPal may or may not have acted on the request, so the
+    caller must not treat it as refused. Parsing it used to throw a
+    SyntaxError, which no caller recognised.
+  */
+  const { body, readable } = await readJson(response);
+  if (response.status >= 500 || !readable) {
+    throw new PayPalError(`PayPal returned ${response.status} with no usable answer`, "unknown", response.status);
+  }
 
   if (!response.ok) {
     const detail =

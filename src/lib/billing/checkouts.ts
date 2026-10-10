@@ -30,6 +30,12 @@ import { FREE_ARTICLES_DAYS } from "@/lib/plans/features";
  *                confirms it cannot complete.
  *  - abandoned:  written by an earlier version for PayPal approvals left
  *                behind by a deletion; treated like unresolved.
+ *  - released:   a PayPal approval the customer walked away from ("Cancel
+ *                and return"), which PayPal still reports awaiting approval
+ *                and gives us no way to withdraw. It no longer blocks
+ *                anything. Should it be approved after all while the website
+ *                already pays through something else, the sync cancels it
+ *                (subscription-sync.ts, "detached_released_approval").
  *
  * WHAT A STATUS IS BASED ON. Only the provider's answer. `expiresAt` is a
  * hint for when to ask again, never proof: a Stripe session paid a second
@@ -96,6 +102,13 @@ export type CheckoutProviderOps = {
    * buyer's approval, which PayPal gives us no way to withdraw.
    */
   payPalApprovalState(subscriptionId: string): Promise<"pending" | "live" | "ended">;
+  /**
+   * Reads a PayPal subscription and records it, exactly as its webhook would
+   * (paypal-events.ts syncPayPalSubscription). For an approval PayPal reports
+   * live, so a missed or late webhook does not leave it unrecorded. Optional:
+   * without it the checkout is only marked, as before.
+   */
+  syncPayPalSubscription?(subscriptionId: string): Promise<unknown>;
 };
 
 type CheckoutRow = typeof billingCheckouts.$inferSelect;
@@ -562,7 +575,9 @@ export type BeginCheckoutResult =
  *  - Nothing is released by AGE. A PayPal approval still pending at PayPal,
  *    or a checkout whose create answer was lost, blocks every replacement -
  *    any provider, any plan - until the provider confirms it cannot
- *    complete. The same provider and plan is reused instead.
+ *    complete. The same provider and plan is reused instead. The one other
+ *    way out is the customer's: coming back through PayPal's "Cancel and
+ *    return" releases the approval (settlePayPalReturn).
  *
  * Serialised per website by taking it FOR UPDATE, and per workspace for the
  * trial decision, so concurrent requests are decided one at a time.
@@ -768,12 +783,25 @@ export async function beginCheckout(
   });
 }
 
+/** How long a released PayPal approval is still asked about, in case it is approved after all. */
+const RELEASED_WATCH_MS = 30 * 24 * 60 * 60 * 1000;
+
+/** How often a released approval is asked about: rarely, as nobody is waiting on it. */
+const RELEASED_RECHECK_MS = 6 * 60 * 60 * 1000;
+
 /**
  * Settles checkouts nobody is waiting on - crashed creates and open sessions
  * past their expiry hint - from the billing-maintenance job, so their status
  * reflects the provider without needing a deletion or a new checkout to
  * trigger it. Reads Stripe sessions rather than expiring them: a customer
  * may still be on the payment page.
+ *
+ * A PayPal approval PayPal reports live is RECORDED here too, through the
+ * same sync its webhook runs: a webhook that never arrives (a wrong webhook
+ * id, an outage longer than PayPal's retries) must not leave a paying
+ * customer without their plan. Released approvals are watched for a month,
+ * so one approved after all is recorded - and, if the website pays through
+ * something else by then, cancelled - even without its webhook.
  */
 export async function reconcileCheckouts(
   database: Database,
@@ -781,17 +809,30 @@ export async function reconcileCheckouts(
   now: Date = new Date(),
   limit = 25,
 ): Promise<number> {
+  const before = (ms: number) => new Date(now.getTime() - ms).toISOString();
   const due = await database
     .select()
     .from(billingCheckouts)
     .where(
       and(
-        inArray(billingCheckouts.status, ["open", "unresolved"]),
-        sql`${billingCheckouts.createdAt} < ${new Date(now.getTime() - CHECKOUT_IN_FLIGHT_MS).toISOString()}::timestamp`,
         or(
-          isNull(billingCheckouts.lastCheckedAt),
-          sql`${billingCheckouts.lastCheckedAt} < ${new Date(now.getTime() - 15 * 60 * 1000).toISOString()}::timestamp`,
+          and(
+            inArray(billingCheckouts.status, ["open", "unresolved"]),
+            or(
+              isNull(billingCheckouts.lastCheckedAt),
+              sql`${billingCheckouts.lastCheckedAt} < ${before(15 * 60 * 1000)}::timestamp`,
+            ),
+          ),
+          and(
+            eq(billingCheckouts.status, "released"),
+            sql`${billingCheckouts.createdAt} > ${before(RELEASED_WATCH_MS)}::timestamp`,
+            or(
+              isNull(billingCheckouts.lastCheckedAt),
+              sql`${billingCheckouts.lastCheckedAt} < ${before(RELEASED_RECHECK_MS)}::timestamp`,
+            ),
+          ),
         ),
+        sql`${billingCheckouts.createdAt} < ${before(CHECKOUT_IN_FLIGHT_MS)}::timestamp`,
         // Unresolved rows with no provider id cannot be looked up.
         or(
           ne(billingCheckouts.status, "unresolved"),
@@ -807,6 +848,13 @@ export async function reconcileCheckouts(
     try {
       const next = await askProvider(checkout, ops, now, false);
       if (next) {
+        /*
+          Recorded BEFORE the checkout is marked completed: a sync that
+          fails leaves the row as it was, to be asked again next run.
+        */
+        if (next.status === "completed" && checkout.provider === "paypal" && next.providerSubscriptionId) {
+          await ops.syncPayPalSubscription?.(next.providerSubscriptionId);
+        }
         await applyTransition(database, checkout, next, now);
         if (next.status && next.status !== checkout.status) settled += 1;
       }
@@ -815,4 +863,133 @@ export async function reconcileCheckouts(
     }
   }
   return settled;
+}
+
+/** How long after a PayPal checkout completed a success return still reads its subscription back. */
+const RETURN_RESYNC_MS = 24 * 60 * 60 * 1000;
+
+export type PayPalReturnSettled = {
+  /** Subscriptions read back from PayPal and recorded. */
+  synced: string[];
+  /** Approvals released because the customer walked away from them. */
+  released: string[];
+  /** Approvals PayPal still reports awaiting the buyer. */
+  pending: string[];
+};
+
+/**
+ * The customer is back from PayPal, on the return or the cancel URL. Keyed
+ * on the workspace and website the CALLER established from the session -
+ * never on the subscription id PayPal appends to the address, which anyone
+ * can edit. Every change still rests on what PayPal says when asked now.
+ *
+ *  - Success: each of the website's PayPal checkouts PayPal reports live is
+ *    recorded through the webhook's own sync, so a late or missed webhook
+ *    no longer leaves a paying customer without a plan. A checkout completed
+ *    in the last day whose subscription is unrecorded, or recorded before
+ *    PayPal activated it ("incomplete"), is read again.
+ *  - Cancelled: an approval PayPal still reports APPROVAL_PENDING is
+ *    RELEASED, so it stops blocking card checkout, other plans and deletion
+ *    for good. PayPal gives no way to withdraw it; if it is approved later
+ *    anyway, the sync records it and, should the website already pay
+ *    through something else, owes its cancellation.
+ *
+ * Either way an approval PayPal reports ended is marked expired. A provider
+ * call that fails changes nothing: the checkout keeps its status, and the
+ * maintenance job asks again.
+ */
+export async function settlePayPalReturn(
+  database: Database,
+  scope: { organizationId: string; websiteId: string },
+  outcome: "success" | "cancelled",
+  ops: CheckoutProviderOps,
+  now: Date = new Date(),
+): Promise<PayPalReturnSettled> {
+  const settled: PayPalReturnSettled = { synced: [], released: [], pending: [] };
+  const rows = await database
+    .select({ checkout: billingCheckouts, recordedStatus: subscriptions.status })
+    .from(billingCheckouts)
+    .leftJoin(
+      subscriptions,
+      eq(subscriptions.paypalSubscriptionId, billingCheckouts.providerSubscriptionId),
+    )
+    .where(
+      and(
+        eq(billingCheckouts.organizationId, scope.organizationId),
+        eq(billingCheckouts.websiteId, scope.websiteId),
+        eq(billingCheckouts.provider, "paypal"),
+        isNotNull(billingCheckouts.providerSubscriptionId),
+        outcome === "success"
+          ? or(
+              eq(billingCheckouts.status, "open"),
+              and(
+                eq(billingCheckouts.status, "completed"),
+                sql`${billingCheckouts.updatedAt} > ${new Date(now.getTime() - RETURN_RESYNC_MS).toISOString()}::timestamp`,
+              ),
+            )
+          : eq(billingCheckouts.status, "open"),
+      ),
+    );
+
+  for (const { checkout, recordedStatus } of rows) {
+    // Completed and recorded as PayPal had it once active: nothing to read.
+    if (checkout.status === "completed" && recordedStatus !== null && recordedStatus !== "incomplete") {
+      continue;
+    }
+    const subscriptionId = checkout.providerSubscriptionId!;
+    try {
+      const state = await ops.payPalApprovalState(subscriptionId);
+      if (state === "live") {
+        if (ops.syncPayPalSubscription) {
+          await ops.syncPayPalSubscription(subscriptionId);
+          settled.synced.push(subscriptionId);
+        }
+        continue;
+      }
+      if (checkout.status !== "open") continue;
+      if (state === "ended") {
+        await applyTransition(database, checkout, { status: "expired", providerState: "ended" }, now);
+        continue;
+      }
+      if (outcome === "cancelled") {
+        await applyTransition(database, checkout, { status: "released", providerState: "approval_pending" }, now);
+        settled.released.push(subscriptionId);
+      } else {
+        await applyTransition(database, checkout, { providerState: "approval_pending" }, now);
+        settled.pending.push(subscriptionId);
+      }
+    } catch (error) {
+      console.error(`[checkouts] could not settle the PayPal return for checkout ${checkout.id}`, error);
+    }
+  }
+  return settled;
+}
+
+/**
+ * Whether this PayPal subscription comes from an approval our ledger had
+ * already let go of - released by the customer, or reported ended - so
+ * another checkout for its website was allowed meanwhile. Read by the sync
+ * before it marks the checkout completed.
+ */
+export async function isReleasedApproval(
+  tx: Executor,
+  match: { providerSubscriptionId: string; checkoutId: string | null },
+): Promise<boolean> {
+  const [row] = await tx
+    .select({ id: billingCheckouts.id })
+    .from(billingCheckouts)
+    .where(
+      and(
+        eq(billingCheckouts.provider, "paypal"),
+        inArray(billingCheckouts.status, ["released", "expired"]),
+        match.checkoutId
+          ? or(
+              eq(billingCheckouts.id, match.checkoutId),
+              eq(billingCheckouts.providerSubscriptionId, match.providerSubscriptionId),
+            )
+          : eq(billingCheckouts.providerSubscriptionId, match.providerSubscriptionId),
+      ),
+    )
+    .limit(1);
+  return Boolean(row);
 }

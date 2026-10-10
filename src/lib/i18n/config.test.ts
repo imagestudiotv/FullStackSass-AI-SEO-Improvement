@@ -84,9 +84,11 @@ describe("localePath", () => {
   });
 
   it("links English-only pages as they are", () => {
-    for (const page of ["/audit", "/tools", "/tools/robots-checker", "/docs/integrations/wordpress", "/blog", "/sign-up"]) {
+    for (const page of ["/audit", "/tools", "/tools/robots-checker", "/docs/integrations/wordpress", "/blog/some-post", "/blog/category/guides", "/sign-up"]) {
       expect(localePath("es", page)).toBe(page);
     }
+    // The blog's front page has one per language; its posts have their own addresses (lib/blog/locale.ts).
+    expect(localePath("es", "/blog")).toBe("/es/blog");
   });
 
   it("keeps a fragment or query, on the right page", () => {

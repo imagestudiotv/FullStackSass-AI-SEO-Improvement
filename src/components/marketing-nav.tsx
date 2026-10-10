@@ -394,6 +394,9 @@ export function MarketingFooterLinks({ chrome }: { chrome: SiteChrome }) {
         { href: href("/audit"), label: t.footer.freeCheck },
         { href: href("/tools"), label: t.footer.freeTools },
         { href: href("/pricing"), label: t.footer.pricing },
+        // English-only pages for now: href() leaves them on their own path.
+        { href: href("/backlinks"), label: t.footer.backlinks },
+        { href: href("/rank-on-chatgpt"), label: t.footer.rankOnChatgpt },
         { href: href("/backlink-exchange"), label: t.footer.backlinkExchange },
         { href: href("/publishers"), label: t.footer.publishers },
         { href: href("/affiliate"), label: t.footer.affiliate },
@@ -403,8 +406,8 @@ export function MarketingFooterLinks({ chrome }: { chrome: SiteChrome }) {
       /*
         Through href() too: about, stories, FAQ and contact have translated
         pages, and a German reader following one from here should land on the
-        German one. (href leaves a page that exists only in English - the
-        blog - on its own path.)
+        German one. (href leaves a page that exists only in English on its
+        own path; the blog's front page has a page per language.)
       */
       title: t.footer.company,
       items: [

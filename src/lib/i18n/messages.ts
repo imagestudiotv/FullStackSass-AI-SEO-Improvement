@@ -78,6 +78,9 @@ export type Messages = {
     faq: string;
     about: string;
     contact: string;
+    /** /backlinks and /rank-on-chatgpt: English pages, linked from every language. */
+    backlinks: string;
+    rankOnChatgpt: string;
     backlinkExchange: string;
     publishers: string;
     affiliate: string;
@@ -165,32 +168,28 @@ export type Messages = {
     publishesSub: string;
     publishesPlugin: string;
     /**
-     * The article examples. The samples are written for the page and say so:
-     * they show the format, not an article from a customer account.
+     * The article examples: three real, published articles
+     * (lib/marketing/real-articles.ts, shown in their own language). Only the
+     * words around them are translated.
      */
     articles: {
       eyebrow: string;
       title: string;
       sub: string;
       points: string[];
-      /** Name of the list of sample cards, for a screen reader. */
+      /** Name of the list of article cards, for a screen reader. */
       selectorLabel: string;
-      sampleLabel: string;
-      sampleNote: string;
+      /** The badge on the preview: these are published articles. */
+      realLabel: string;
+      /** Under the preview: where the articles come from. */
+      realNote: string;
+      /** The link to the whole article. */
+      readFull: string;
       /** "{n} min read" */
       readTime: string;
       contentsLabel: string;
-      samples: {
-        kind: string;
-        title: string;
-        minutes: number;
-        description: string;
-        contents: string[];
-        heading: string;
-        paragraphs: string[];
-        /** An optional comparison table, the way the generator can add one. */
-        table?: { head: string[]; rows: string[][] };
-      }[];
+      /** Each article's label (lib/marketing/real-articles.ts `kind`). */
+      kinds: { chatgpt: string; automation: string; wedding: string };
     };
     /** What you see. */
     trackedTitle: string;
@@ -3042,6 +3041,8 @@ const en: Messages = {
     faq: "FAQ",
     about: "About",
     contact: "Contact",
+    backlinks: "Backlinks",
+    rankOnChatgpt: "Rank on ChatGPT",
     backlinkExchange: "Backlink exchange",
     publishers: "Monetize your blog",
     affiliate: "Refer a business",
@@ -3051,7 +3052,7 @@ const en: Messages = {
   },
   consent: {
     label: "Cookie choice",
-    message: "We would like to use Google Analytics cookies to understand how people use our website. They are only set if you accept.",
+    message: "We would like to use Google Analytics and Google Ads cookies to understand how people use our website, measure our ads and show them to past visitors. They are only set if you accept.",
     privacy: "Privacy policy",
     accept: "Accept",
     decline: "Decline",
@@ -3168,72 +3169,13 @@ const en: Messages = {
         "Clear headings, a contents list and comparison tables where they help",
         "Published automatically, or kept as drafts for you to review",
       ],
-      selectorLabel: "Sample articles",
-      sampleLabel: "Illustrative sample",
-      sampleNote: "Written for this page to show the format - not an article from a customer's account.",
+      selectorLabel: "Example articles",
+      realLabel: "Published article",
+      realNote: "Real articles: two from RepGet's blog and one from Image Studio, a RepGet customer. Shown in the language they were published in.",
+      readFull: "Read the full article",
       readTime: "{n} min read",
       contentsLabel: "Contents",
-      samples: [
-        {
-          kind: "How-to guide",
-          title: "How to choose a wedding photographer: 7 questions to ask",
-          minutes: 6,
-          description: "The questions that reveal a photographer's style, experience and what is really included - before you sign anything.",
-          contents: [
-            "Start with the style you love",
-            "Ask what the package really includes",
-            "Check how they work on the day",
-            "Read the contract before you pay",
-          ],
-          heading: "Start with the style you love",
-          paragraphs: [
-            "Before comparing prices, look through two or three complete weddings each photographer has shot - not just their best single images. A full gallery shows how they handle low light, group photos and the quiet moments in between.",
-            "If you keep coming back to the same feel - natural and candid, or posed and polished - you have narrowed the list before the first call.",
-          ],
-        },
-        {
-          kind: "Cost guide",
-          title: "Bathroom renovation costs: what really affects the price",
-          minutes: 7,
-          description: "Layout changes, materials and labour each move the final price. Here is how to see where your budget will go before you ask for quotes.",
-          contents: [
-            "Keeping the layout or moving it",
-            "Materials: where to save and where not to",
-            "Labour and the order of the work",
-            "Getting quotes you can compare",
-          ],
-          heading: "Keeping the layout or moving it",
-          paragraphs: [
-            "The biggest single decision is whether the toilet, shower and basin stay where they are. Moving them means new pipework and often new flooring, which adds days of work before anything visible changes.",
-            "If the current layout works, keeping it lets more of the budget go into the finishes you will see every day.",
-          ],
-        },
-        {
-          kind: "Comparison",
-          title: "Heat pump or gas boiler: which suits your home?",
-          minutes: 8,
-          description: "A side-by-side look at running costs, installation and the kind of home each one suits, so you know what to ask an installer.",
-          contents: [
-            "How each system heats your home",
-            "Side-by-side comparison",
-            "Which homes suit a heat pump",
-            "Questions to ask an installer",
-          ],
-          heading: "Side-by-side comparison",
-          paragraphs: [
-            "Both can heat a home well. The difference is in how they do it, what they need from the building, and how the costs are spread over the years.",
-          ],
-          table: {
-            head: ["", "Heat pump", "Gas boiler"],
-            rows: [
-              ["Upfront cost", "Higher", "Lower"],
-              ["Running cost", "Depends on insulation", "Depends on gas prices"],
-              ["Best suited to", "Well-insulated homes", "Most existing homes"],
-              ["Space needed", "Outdoor unit", "Wall-mounted unit"],
-            ],
-          },
-        },
-      ],
+      kinds: { chatgpt: "AI visibility guide", automation: "SEO guide", wedding: "Wedding guide" },
     },
     trackedTitle: "You see exactly what changed",
     trackedSub:
@@ -6059,6 +6001,8 @@ const es: Messages = {
     faq: "Preguntas frecuentes",
     about: "Nosotros",
     contact: "Contacto",
+    backlinks: "Backlinks",
+    rankOnChatgpt: "Aparecer en ChatGPT",
     backlinkExchange: "Intercambio de enlaces",
     publishers: "Monetiza tu blog",
     affiliate: "Recomienda una empresa",
@@ -6068,7 +6012,7 @@ const es: Messages = {
   },
   consent: {
     label: "Preferencias de cookies",
-    message: "Nos gustaría usar cookies de Google Analytics para entender cómo se usa nuestro sitio web. Solo se instalan si las acepta.",
+    message: "Nos gustaría usar cookies de Google Analytics y Google Ads para entender cómo se usa nuestro sitio web, medir nuestros anuncios y mostrarlos a quienes ya nos visitaron. Solo se instalan si las acepta.",
     privacy: "Política de privacidad",
     accept: "Aceptar",
     decline: "Rechazar",
@@ -6185,76 +6129,13 @@ const es: Messages = {
         "Títulos claros, un índice y tablas comparativas cuando ayudan",
         "Publicados automáticamente, o guardados como borradores para revisarlos",
       ],
-      selectorLabel: "Artículos de muestra",
-      sampleLabel: "Muestra ilustrativa",
-      sampleNote: "Escrita para esta página para mostrar el formato; no es un artículo de la cuenta de un cliente.",
+      selectorLabel: "Artículos de ejemplo",
+      realLabel: "Artículo publicado",
+      realNote: "Artículos reales: dos del blog de RepGet y uno de Image Studio, cliente de RepGet. Se muestran en el idioma en que se publicaron.",
+      readFull: "Leer el artículo completo",
       readTime: "{n} min de lectura",
       contentsLabel: "Índice",
-      samples: [
-        {
-          kind: "Guía práctica",
-          title: "Cómo elegir fotógrafo de boda: 7 preguntas que hacer",
-          minutes: 6,
-          description: "Las preguntas que revelan el estilo, la experiencia y lo que realmente incluye un fotógrafo, antes de firmar nada.",
-          contents: [
-            "Empiece por el estilo que le gusta",
-            "Pregunte qué incluye realmente el paquete",
-            "Compruebe cómo trabaja el día de la boda",
-            "Lea el contrato antes de pagar",
-          ],
-          heading: "Empiece por el estilo que le gusta",
-          paragraphs: [
-            "Antes de comparar precios, revise dos o tres bodas completas que haya fotografiado cada profesional, no solo sus mejores imágenes sueltas. Una galería completa muestra cómo resuelve la poca luz, las fotos de grupo y los momentos tranquilos entre medias.",
-            "Si vuelve una y otra vez al mismo estilo, natural y espontáneo o posado y cuidado, ya habrá acortado la lista antes de la primera llamada.",
-          ],
-        },
-        {
-          kind: "Guía de costes",
-          title: "Reformar un baño: qué influye realmente en el precio",
-          minutes: 7,
-          description: "La distribución, los materiales y la mano de obra mueven el precio final. Así puede ver adónde irá su presupuesto antes de pedir ofertas.",
-          contents: [
-            "Mantener la distribución o cambiarla",
-            "Materiales: dónde ahorrar y dónde no",
-            "La mano de obra y el orden de los trabajos",
-            "Pedir ofertas que se puedan comparar",
-          ],
-          heading: "Mantener la distribución o cambiarla",
-          paragraphs: [
-            "La decisión más importante es si el inodoro, la ducha y el lavabo se quedan donde están. Moverlos implica tuberías nuevas y a menudo suelo nuevo, lo que suma días de obra antes de que cambie nada visible.",
-            "Si la distribución actual funciona, mantenerla permite dedicar más presupuesto a los acabados que verá cada día.",
-          ],
-        },
-        {
-          kind: "Comparativa",
-          title: "¿Bomba de calor o caldera de gas? Cuál le conviene a su casa",
-          minutes: 8,
-          description: "Una comparación de costes de uso, instalación y el tipo de vivienda al que se adapta cada sistema, para saber qué preguntar al instalador.",
-          contents: [
-            "Cómo calienta su casa cada sistema",
-            "Comparación lado a lado",
-            "Qué viviendas se adaptan a una bomba de calor",
-            "Preguntas para el instalador",
-          ],
-          heading: "Comparación lado a lado",
-          paragraphs: [
-            "Ambos pueden calentar bien una vivienda. La diferencia está en cómo lo hacen, qué necesitan del edificio y cómo se reparten los costes a lo largo de los años.",
-          ],
-          table: {
-            head: ["", "Bomba de calor", "Caldera de gas"],
-            rows: [
-              ["Coste inicial", "Más alto", "Más bajo"],
-              ["Coste de uso", "Depende del aislamiento", "Depende del precio del gas"],
-              [
-                "Más adecuada para",
-                "Viviendas bien aisladas",
-                "La mayoría de viviendas existentes",
-              ],
-              ["Espacio necesario", "Unidad exterior", "Unidad mural"],
-            ],
-          },
-        },
-      ],
+      kinds: { chatgpt: "Guía de visibilidad en IA", automation: "Guía de SEO", wedding: "Guía de bodas" },
     },
     trackedTitle: "Ve exactamente qué ha cambiado",
     trackedSub:
@@ -9099,6 +8980,8 @@ const fr: Messages = {
     faq: "FAQ",
     about: "À propos",
     contact: "Contact",
+    backlinks: "Backlinks",
+    rankOnChatgpt: "Apparaître dans ChatGPT",
     backlinkExchange: "Échange de liens",
     publishers: "Monétisez votre blog",
     affiliate: "Recommander une entreprise",
@@ -9108,7 +8991,7 @@ const fr: Messages = {
   },
   consent: {
     label: "Choix des cookies",
-    message: "Nous aimerions utiliser les cookies de Google Analytics pour comprendre comment notre site est utilisé. Ils ne sont déposés que si vous les acceptez.",
+    message: "Nous aimerions utiliser les cookies de Google Analytics et de Google Ads pour comprendre comment notre site est utilisé, mesurer nos annonces et les montrer aux personnes qui nous ont déjà rendu visite. Ils ne sont déposés que si vous les acceptez.",
     privacy: "Politique de confidentialité",
     accept: "Accepter",
     decline: "Refuser",
@@ -9229,72 +9112,13 @@ const fr: Messages = {
         "Des titres clairs, un sommaire et des tableaux comparatifs quand ils sont utiles",
         "Publiés automatiquement, ou gardés en brouillon pour relecture",
       ],
-      selectorLabel: "Articles d’exemple",
-      sampleLabel: "Exemple illustratif",
-      sampleNote: "Rédigé pour cette page afin de montrer le format ; ce n’est pas un article issu du compte d’un client.",
+      selectorLabel: "Exemples d’articles",
+      realLabel: "Article publié",
+      realNote: "De vrais articles : deux du blog de RepGet et un d’Image Studio, client de RepGet. Affichés dans la langue de leur publication.",
+      readFull: "Lire l’article complet",
       readTime: "{n} min de lecture",
       contentsLabel: "Sommaire",
-      samples: [
-        {
-          kind: "Guide pratique",
-          title: "Choisir son photographe de mariage : 7 questions à poser",
-          minutes: 6,
-          description: "Les questions qui révèlent le style, l’expérience et ce qui est vraiment inclus, avant de signer quoi que ce soit.",
-          contents: [
-            "Partez du style qui vous plaît",
-            "Demandez ce que comprend vraiment la formule",
-            "Vérifiez comment il travaille le jour J",
-            "Lisez le contrat avant de payer",
-          ],
-          heading: "Partez du style qui vous plaît",
-          paragraphs: [
-            "Avant de comparer les prix, regardez deux ou trois mariages complets photographiés par chaque professionnel, et pas seulement ses meilleures images isolées. Une galerie complète montre comment il gère la faible lumière, les photos de groupe et les moments calmes entre deux temps forts.",
-            "Si vous revenez toujours au même rendu, naturel et spontané ou posé et soigné, votre liste est déjà réduite avant le premier appel.",
-          ],
-        },
-        {
-          kind: "Guide des coûts",
-          title: "Rénover une salle de bains : ce qui fait vraiment varier le prix",
-          minutes: 7,
-          description: "L’agencement, les matériaux et la main-d’œuvre font varier le prix final. Voici comment voir où ira votre budget avant de demander des devis.",
-          contents: [
-            "Garder l’agencement ou le modifier",
-            "Matériaux : où économiser et où ne pas le faire",
-            "La main-d’œuvre et l’ordre des travaux",
-            "Obtenir des devis comparables",
-          ],
-          heading: "Garder l’agencement ou le modifier",
-          paragraphs: [
-            "La décision la plus importante est de savoir si les toilettes, la douche et le lavabo restent à leur place. Les déplacer implique une nouvelle plomberie et souvent un nouveau sol, ce qui ajoute des jours de travaux avant que rien de visible ne change.",
-            "Si l’agencement actuel fonctionne, le conserver permet de consacrer davantage de budget aux finitions que vous verrez tous les jours.",
-          ],
-        },
-        {
-          kind: "Comparatif",
-          title: "Pompe à chaleur ou chaudière à gaz : laquelle convient à votre logement ?",
-          minutes: 8,
-          description: "Une comparaison des coûts d’usage, de l’installation et du type de logement adapté à chacune, pour savoir quoi demander à l’installateur.",
-          contents: [
-            "Comment chaque système chauffe votre logement",
-            "Comparaison côte à côte",
-            "Quels logements conviennent à une pompe à chaleur",
-            "Questions à poser à l’installateur",
-          ],
-          heading: "Comparaison côte à côte",
-          paragraphs: [
-            "Les deux peuvent bien chauffer un logement. La différence tient à leur fonctionnement, à ce qu’ils exigent du bâtiment et à la manière dont les coûts se répartissent au fil des années.",
-          ],
-          table: {
-            head: ["", "Pompe à chaleur", "Chaudière à gaz"],
-            rows: [
-              ["Coût initial", "Plus élevé", "Plus bas"],
-              ["Coût d’usage", "Dépend de l’isolation", "Dépend du prix du gaz"],
-              ["Idéale pour", "Logements bien isolés", "La plupart des logements existants"],
-              ["Encombrement", "Unité extérieure", "Unité murale"],
-            ],
-          },
-        },
-      ],
+      kinds: { chatgpt: "Guide de visibilité IA", automation: "Guide SEO", wedding: "Guide mariage" },
     },
     trackedTitle: "Vous voyez exactement ce qui a changé",
     trackedSub:
@@ -12135,6 +11959,8 @@ const it: Messages = {
     faq: "Domande frequenti",
     about: "Chi siamo",
     contact: "Contatti",
+    backlinks: "Backlink",
+    rankOnChatgpt: "Comparire su ChatGPT",
     backlinkExchange: "Scambio di link",
     publishers: "Monetizza il tuo blog",
     affiliate: "Segnala un'azienda",
@@ -12144,7 +11970,7 @@ const it: Messages = {
   },
   consent: {
     label: "Scelta dei cookie",
-    message: "Vorremmo usare i cookie di Google Analytics per capire come viene usato il nostro sito. Vengono installati solo se li accetta.",
+    message: "Vorremmo usare i cookie di Google Analytics e Google Ads per capire come viene usato il nostro sito, misurare i nostri annunci e mostrarli a chi ci ha già visitato. Vengono installati solo se li accetta.",
     privacy: "Informativa sulla privacy",
     accept: "Accetta",
     decline: "Rifiuta",
@@ -12266,71 +12092,12 @@ const it: Messages = {
         "Pubblicati automaticamente, o tenuti come bozze da rivedere",
       ],
       selectorLabel: "Articoli di esempio",
-      sampleLabel: "Esempio illustrativo",
-      sampleNote: "Scritto per questa pagina per mostrare il formato: non è un articolo dell’account di un cliente.",
+      realLabel: "Articolo pubblicato",
+      realNote: "Articoli reali: due dal blog di RepGet e uno di Image Studio, cliente di RepGet. Mostrati nella lingua in cui sono stati pubblicati.",
+      readFull: "Leggi l’articolo completo",
       readTime: "{n} min di lettura",
       contentsLabel: "Indice",
-      samples: [
-        {
-          kind: "Guida pratica",
-          title: "Come scegliere il fotografo di matrimonio: 7 domande da fare",
-          minutes: 6,
-          description: "Le domande che rivelano stile, esperienza e cosa è davvero incluso, prima di firmare qualsiasi cosa.",
-          contents: [
-            "Parta dallo stile che ama",
-            "Chieda cosa include davvero il pacchetto",
-            "Verifichi come lavora il giorno del matrimonio",
-            "Legga il contratto prima di pagare",
-          ],
-          heading: "Parta dallo stile che ama",
-          paragraphs: [
-            "Prima di confrontare i prezzi, guardi due o tre matrimoni completi fotografati da ciascun professionista, non solo le sue immagini migliori. Una galleria completa mostra come gestisce la luce scarsa, le foto di gruppo e i momenti più tranquilli.",
-            "Se torna sempre allo stesso stile, naturale e spontaneo oppure posato e curato, ha già accorciato la lista prima della prima telefonata.",
-          ],
-        },
-        {
-          kind: "Guida ai costi",
-          title: "Ristrutturare il bagno: cosa incide davvero sul prezzo",
-          minutes: 7,
-          description: "Disposizione, materiali e manodopera spostano il prezzo finale. Ecco come capire dove andrà il budget prima di chiedere i preventivi.",
-          contents: [
-            "Mantenere la disposizione o cambiarla",
-            "Materiali: dove risparmiare e dove no",
-            "La manodopera e l’ordine dei lavori",
-            "Ottenere preventivi confrontabili",
-          ],
-          heading: "Mantenere la disposizione o cambiarla",
-          paragraphs: [
-            "La decisione più importante è se wc, doccia e lavabo restano dove sono. Spostarli significa nuovi impianti e spesso un nuovo pavimento, con giorni di lavoro in più prima che cambi qualcosa di visibile.",
-            "Se la disposizione attuale funziona, mantenerla permette di destinare più budget alle finiture che vedrà ogni giorno.",
-          ],
-        },
-        {
-          kind: "Confronto",
-          title: "Pompa di calore o caldaia a gas: quale fa per la sua casa?",
-          minutes: 8,
-          description: "Un confronto tra costi di esercizio, installazione e tipo di casa adatto a ciascun sistema, per sapere cosa chiedere all’installatore.",
-          contents: [
-            "Come ogni sistema riscalda la casa",
-            "Confronto fianco a fianco",
-            "Quali case sono adatte a una pompa di calore",
-            "Domande da fare all’installatore",
-          ],
-          heading: "Confronto fianco a fianco",
-          paragraphs: [
-            "Entrambi possono riscaldare bene una casa. La differenza sta nel modo in cui lo fanno, in cosa richiedono all’edificio e in come i costi si distribuiscono negli anni.",
-          ],
-          table: {
-            head: ["", "Pompa di calore", "Caldaia a gas"],
-            rows: [
-              ["Costo iniziale", "Più alto", "Più basso"],
-              ["Costo di esercizio", "Dipende dall’isolamento", "Dipende dal prezzo del gas"],
-              ["Più adatta a", "Case ben isolate", "La maggior parte delle case esistenti"],
-              ["Spazio necessario", "Unità esterna", "Unità a parete"],
-            ],
-          },
-        },
-      ],
+      kinds: { chatgpt: "Guida alla visibilità nell’IA", automation: "Guida SEO", wedding: "Guida al matrimonio" },
     },
     trackedTitle: "Vede esattamente che cosa è cambiato",
     trackedSub:
@@ -15171,6 +14938,8 @@ const de: Messages = {
     faq: "Häufige Fragen",
     about: "Über uns",
     contact: "Kontakt",
+    backlinks: "Backlinks",
+    rankOnChatgpt: "In ChatGPT erscheinen",
     backlinkExchange: "Linktausch",
     publishers: "Monetarisieren Sie Ihren Blog",
     affiliate: "Unternehmen empfehlen",
@@ -15180,7 +14949,7 @@ const de: Messages = {
   },
   consent: {
     label: "Cookie-Auswahl",
-    message: "Wir würden gern Cookies von Google Analytics verwenden, um zu verstehen, wie unsere Website genutzt wird. Sie werden nur gesetzt, wenn Sie zustimmen.",
+    message: "Wir würden gern Cookies von Google Analytics und Google Ads verwenden, um zu verstehen, wie unsere Website genutzt wird, unsere Anzeigen zu messen und sie früheren Besuchern zu zeigen. Sie werden nur gesetzt, wenn Sie zustimmen.",
     privacy: "Datenschutzerklärung",
     accept: "Akzeptieren",
     decline: "Ablehnen",
@@ -15298,71 +15067,12 @@ const de: Messages = {
         "Automatisch veröffentlicht oder als Entwurf zur Prüfung gespeichert",
       ],
       selectorLabel: "Beispielartikel",
-      sampleLabel: "Anschauungsbeispiel",
-      sampleNote: "Für diese Seite geschrieben, um das Format zu zeigen - kein Artikel aus einem Kundenkonto.",
+      realLabel: "Veröffentlichter Artikel",
+      realNote: "Echte Artikel: zwei aus dem RepGet-Blog und einer von Image Studio, einem RepGet-Kunden. In der Sprache gezeigt, in der sie veröffentlicht wurden.",
+      readFull: "Ganzen Artikel lesen",
       readTime: "{n} Min. Lesezeit",
       contentsLabel: "Inhalt",
-      samples: [
-        {
-          kind: "Ratgeber",
-          title: "Hochzeitsfotografen finden: 7 Fragen, die Sie stellen sollten",
-          minutes: 6,
-          description: "Die Fragen, die Stil, Erfahrung und den tatsächlichen Leistungsumfang zeigen - bevor Sie etwas unterschreiben.",
-          contents: [
-            "Beginnen Sie mit dem Stil, der Ihnen gefällt",
-            "Fragen Sie, was das Paket wirklich enthält",
-            "Klären Sie, wie am Hochzeitstag gearbeitet wird",
-            "Lesen Sie den Vertrag vor der Zahlung",
-          ],
-          heading: "Beginnen Sie mit dem Stil, der Ihnen gefällt",
-          paragraphs: [
-            "Bevor Sie Preise vergleichen, sehen Sie sich zwei oder drei vollständige Hochzeiten jedes Fotografen an - nicht nur die besten Einzelbilder. Eine komplette Galerie zeigt, wie mit wenig Licht, Gruppenfotos und den ruhigen Momenten dazwischen umgegangen wird.",
-            "Wenn Sie immer wieder beim selben Stil landen - natürlich und spontan oder inszeniert und elegant -, haben Sie die Auswahl schon vor dem ersten Gespräch eingegrenzt.",
-          ],
-        },
-        {
-          kind: "Kostenratgeber",
-          title: "Badsanierung: Was den Preis wirklich bestimmt",
-          minutes: 7,
-          description: "Grundriss, Materialien und Arbeitszeit bestimmen den Endpreis. So sehen Sie, wohin Ihr Budget fließt, bevor Sie Angebote einholen.",
-          contents: [
-            "Grundriss behalten oder ändern",
-            "Materialien: wo sparen und wo nicht",
-            "Arbeitszeit und Reihenfolge der Arbeiten",
-            "Vergleichbare Angebote einholen",
-          ],
-          heading: "Grundriss behalten oder ändern",
-          paragraphs: [
-            "Die wichtigste Entscheidung ist, ob WC, Dusche und Waschbecken an ihrem Platz bleiben. Werden sie versetzt, braucht es neue Leitungen und oft einen neuen Boden - das kostet Tage, bevor sich sichtbar etwas ändert.",
-            "Funktioniert der bestehende Grundriss, bleibt mehr Budget für die Oberflächen, die Sie jeden Tag sehen.",
-          ],
-        },
-        {
-          kind: "Vergleich",
-          title: "Wärmepumpe oder Gasheizung: Was passt zu Ihrem Zuhause?",
-          minutes: 8,
-          description: "Laufende Kosten, Installation und geeignete Gebäude im direkten Vergleich - damit Sie wissen, was Sie den Installateur fragen sollten.",
-          contents: [
-            "Wie jedes System heizt",
-            "Direkter Vergleich",
-            "Welche Häuser sich für eine Wärmepumpe eignen",
-            "Fragen an den Installateur",
-          ],
-          heading: "Direkter Vergleich",
-          paragraphs: [
-            "Beide können ein Haus gut heizen. Der Unterschied liegt darin, wie sie es tun, was sie vom Gebäude verlangen und wie sich die Kosten über die Jahre verteilen.",
-          ],
-          table: {
-            head: ["", "Wärmepumpe", "Gasheizung"],
-            rows: [
-              ["Anschaffung", "Höher", "Niedriger"],
-              ["Laufende Kosten", "Abhängig von der Dämmung", "Abhängig vom Gaspreis"],
-              ["Am besten für", "Gut gedämmte Häuser", "Die meisten Bestandsgebäude"],
-              ["Platzbedarf", "Außengerät", "Wandgerät"],
-            ],
-          },
-        },
-      ],
+      kinds: { chatgpt: "Leitfaden KI-Sichtbarkeit", automation: "SEO-Leitfaden", wedding: "Hochzeitsratgeber" },
     },
     trackedTitle: "Sie sehen genau, was sich verändert hat",
     trackedSub:

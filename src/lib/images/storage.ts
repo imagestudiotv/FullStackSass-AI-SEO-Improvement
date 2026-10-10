@@ -167,6 +167,73 @@ export async function listWebsiteImages(
     .map(({ url, name }) => ({ url, name }));
 }
 
+/** RepGet's own blog pictures: uploadBlogImage (lib/admin/blog.ts) stores them here. */
+export const BLOG_IMAGE_FOLDER = "blog/posts";
+
+export type StoredImage = {
+  url: string;
+  /** The file name, e.g. 1791570126595-3dob8p.webp. */
+  name: string;
+  /** Its key in the bucket, e.g. blog/posts/1791570126595-3dob8p.webp. */
+  path: string;
+  size: number | null;
+  createdAt: string | null;
+};
+
+/**
+ * Every picture directly in one folder of the bucket, newest first.
+ *
+ * Supabase lists at most a page at a time, so this pages through until a
+ * short page (or `max`). Folders inside the folder are skipped: they have no
+ * metadata.
+ */
+export async function listStoredImages(folder: string, max = 2000): Promise<StoredImage[]> {
+  if (!isImageStorageConfigured()) return [];
+  const supabase = client();
+  const page = 100;
+  const found: StoredImage[] = [];
+  for (let offset = 0; offset < max; offset += page) {
+    const { data, error } = await supabase.storage
+      .from(BUCKET)
+      .list(folder, { limit: page, offset, sortBy: { column: "created_at", order: "desc" } });
+    if (error) throw new Error(`Could not list the images: ${error.message}`);
+    for (const file of data ?? []) {
+      if (!file.metadata) continue;
+      const path = `${folder}/${file.name}`;
+      const { data: published } = supabase.storage.from(BUCKET).getPublicUrl(path);
+      const size = Number((file.metadata as { size?: unknown }).size);
+      found.push({
+        url: published.publicUrl,
+        name: file.name,
+        path,
+        size: Number.isFinite(size) ? size : null,
+        createdAt: (file.created_at as string | null) ?? null,
+      });
+    }
+    if (!data || data.length < page) break;
+  }
+  return found;
+}
+
+/** The bucket key of one of our public image URLs, or null for any other address. */
+export function storedImagePath(url: string): string | null {
+  const marker = `/${BUCKET}/`;
+  const index = url.indexOf(marker);
+  if (index === -1) return null;
+  const path = decodeURIComponent(url.slice(index + marker.length).split(/[?#]/)[0]);
+  return path || null;
+}
+
+/**
+ * Deletes one stored picture by its key. Unlike deleteArticleImage this
+ * reports a failure: it is an administrator's explicit request, and saying
+ * "deleted" when it was not would leave them believing the file is gone.
+ */
+export async function deleteStoredImage(path: string): Promise<void> {
+  const { error } = await client().storage.from(BUCKET).remove([path]);
+  if (error) throw new Error(`Could not delete the image: ${error.message}`);
+}
+
 /**
  * Deletes a stored image, given the public URL we handed out.
  *

@@ -6,6 +6,7 @@ import {
   type CancellationOps,
 } from "@/lib/billing/cancellations";
 import {
+  isReleasedApproval,
   markCheckoutCompleted,
   type CheckoutProvider,
 } from "@/lib/billing/checkouts";
@@ -47,6 +48,12 @@ import { isSubscriptionEnded } from "@/lib/websites/deletion";
  * A second live subscription for a website that already has one is recorded
  * detached, with the website it claimed, and reported for reconciliation. It
  * is never cancelled automatically: which one to keep is the customer's call.
+ * ONE EXCEPTION: a PayPal approval our checkout ledger had already let go of
+ * (released when the customer walked away from it, or reported ended) that
+ * activates anyway. The website was allowed another checkout BECAUSE it was
+ * let go, so it is the one owed a cancellation. PayPal takes the first
+ * payment on activation; that payment is refunded by a person, in PayPal
+ * (docs/paypal-go-live.md, reconciliation report releasedApprovalsToRefund).
  *
  * Lock order matches deletion: (subscription advisory lock), organization,
  * website, subscriptions, checkouts.
@@ -107,6 +114,11 @@ export type SyncOutcome =
   | "detached_stale"
   /** A second live subscription for a site that already has one. */
   | "detached_duplicate"
+  /**
+   * A released PayPal approval that activated anyway while its site already
+   * had a live subscription: recorded, and cancelled. Its payment needs a refund.
+   */
+  | "detached_released_approval"
   /** Its website was deleted: recorded for reconciliation, and cancelled. */
   | "detached_deleted_website"
   /** Metadata names a website in another workspace: recorded, not attached. */
@@ -327,6 +339,7 @@ export async function syncProviderSubscription(
 
     let outcome: SyncOutcome;
     let rowId: string;
+    let cancel = false;
     if (!current) {
       const [row] = await tx
         .insert(subscriptions)
@@ -359,13 +372,33 @@ export async function syncProviderSubscription(
         .returning({ id: subscriptions.id });
       rowId = row.id;
       outcome = "replaced";
+    } else if (
+      provider === "paypal" &&
+      (await isReleasedApproval(tx, {
+        providerSubscriptionId,
+        checkoutId: asUuid(snapshot.checkoutId),
+      }))
+    ) {
+      /*
+        A PayPal approval the ledger had let go of, approved after all while
+        the site pays through something else - which it was allowed to start
+        because this one was let go. This one is cancelled; its first
+        payment, already taken by PayPal, has to be refunded in PayPal.
+      */
+      console.error(
+        `[billing] website ${site.id} already has a live subscription; released PayPal approval ${providerSubscriptionId} activated anyway - recorded unattached and cancelled. REFUND its first payment in PayPal.`,
+      );
+      rowId = await insertDetached();
+      outcome = "detached_released_approval";
+      cancel = true;
+      await owe(outcome);
     } else {
       /*
         Two live subscriptions for one site - checkouts that both completed
-        despite the checkout guard (e.g. a PayPal approval released after its
-        hold). Which one the customer keeps is theirs to say, so neither is
-        cancelled; this one is recorded detached, with the site it claimed,
-        and reported (reconciliation.ts duplicateLiveSubscriptions).
+        despite the checkout guard. Which one the customer keeps is theirs to
+        say, so neither is cancelled; this one is recorded detached, with the
+        site it claimed, and reported (reconciliation.ts
+        duplicateLiveSubscriptions).
       */
       console.error(
         `[billing] website ${site.id} already has a live subscription; ${provider} ${providerSubscriptionId} recorded unattached for reconciliation`,
@@ -375,7 +408,7 @@ export async function syncProviderSubscription(
     }
 
     await complete();
-    return { outcome, owe: false, rowId, orgId: org.id };
+    return { outcome, owe: cancel, rowId, orgId: org.id };
   });
 
   let cancelled = false;

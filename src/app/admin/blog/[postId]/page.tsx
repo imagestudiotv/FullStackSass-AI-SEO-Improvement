@@ -6,6 +6,8 @@ import { BlogPostEditor } from "../blog-post-editor";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Edit post" };
+/** "Draft with AI" (createBlogTranslation) runs from this page: a long post takes a minute or two to translate. */
+export const maxDuration = 300;
 
 export default async function AdminBlogPostPage({ params }: PageProps<"/admin/blog/[postId]">) {
   const { postId } = await params;

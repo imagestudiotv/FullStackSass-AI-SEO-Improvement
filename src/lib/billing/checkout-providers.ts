@@ -108,6 +108,12 @@ export const checkoutProviderOps: CheckoutProviderOps = {
       throw error;
     }
   },
+
+  async syncPayPalSubscription(subscriptionId) {
+    // Loaded when used: paypal-events imports this module's cancellationOps.
+    const { syncPayPalSubscription } = await import("@/lib/billing/paypal-events");
+    return syncPayPalSubscription(subscriptionId);
+  },
 };
 
 /**

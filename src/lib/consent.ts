@@ -6,14 +6,16 @@
  * consent (it is what makes the refusal stick), and nothing else is stored
  * in it. Six months, then the banner asks again, as the French and Italian
  * regulators expect; the version prefix lets a material change to what we
- * ask about void every earlier answer.
+ * ask about void every earlier answer. Version 2 (October 2026) added
+ * advertising measurement (Google Ads, Consent Mode v2) to what Accept
+ * covers, so the analytics-only answers of version 1 are asked again.
  *
  * NO IMPORTS: this runs in every visitor's browser, and is tested as plain
  * functions.
  */
 
 export const CONSENT_COOKIE = "repget_consent";
-const VERSION = "1";
+const VERSION = "2";
 /** Six months, in seconds. */
 export const CONSENT_MAX_AGE = 182 * 24 * 60 * 60;
 

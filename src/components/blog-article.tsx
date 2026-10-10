@@ -5,16 +5,8 @@ import type { ReactNode } from "react";
 import { PostCover } from "@/components/post-cover";
 import { ARTICLE_TABLE_CLASSES } from "@/lib/articles/table-styles";
 import { sanitizeHtml } from "@/lib/articles/sanitize";
+import { BLOG_CHROME, blogDate, fill } from "@/lib/blog/locale";
 import { isTeamAuthor, TEAM_AUTHOR_PATH, tableOfContents, withHeadingIds, type BlogPost } from "@/lib/blog/shared";
-
-function formatDate(iso: string): string {
-  return new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    timeZone: "UTC",
-  });
-}
 
 /**
  * One blog post: title, byline, cover, short answer, contents, body, FAQ and
@@ -24,6 +16,9 @@ function formatDate(iso: string): string {
  * The body and FAQ answers are sanitised HTML (on save, and again by the
  * preview for unsaved text); the short answer, questions and source labels
  * are plain text, which React escapes.
+ *
+ * The words around the post follow its language (lib/blog/locale.ts), and
+ * the article says which language it is in (`lang`) when not English.
  */
 export function BlogArticle({
   post,
@@ -36,9 +31,11 @@ export function BlogArticle({
   const cleanBody = sanitizeHtml(post.body);
   const toc = tableOfContents(cleanBody);
   const body = withHeadingIds(cleanBody);
+  const locale = post.locale ?? "en";
+  const t = BLOG_CHROME[locale];
 
   return (
-    <article>
+    <article lang={locale === "en" ? undefined : locale}>
       <header>
         <h1 className="mt-6 text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
           {post.title}
@@ -62,15 +59,15 @@ export function BlogArticle({
           <span className="flex items-center gap-1.5">
             <CalendarDays className="size-3.5" aria-hidden="true" />
             <time dateTime={post.publishedAt}>
-              {formatDate(post.publishedAt)}
+              {blogDate(post.publishedAt, locale)}
             </time>
           </span>
           <span className="flex items-center gap-1.5">
             <Clock className="size-3.5" aria-hidden="true" />
-            {post.readingMinutes} min read
+            {fill(t.minRead, { n: post.readingMinutes })}
           </span>
           {post.updatedAt ? (
-            <span>Updated {formatDate(post.updatedAt)}</span>
+            <span>{fill(t.updated, { date: blogDate(post.updatedAt, locale) })}</span>
           ) : null}
           {/* On the right of the author row, as in the client's design; its own row on a phone. */}
           {sponsorship ? <div className="w-full pt-1 sm:ml-auto sm:w-auto sm:pt-0">{sponsorship}</div> : null}
@@ -92,7 +89,7 @@ export function BlogArticle({
       {post.shortAnswer ? (
         <div className="mt-8 rounded-xl border bg-card p-5">
           <p className="text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-            Short answer
+            {t.shortAnswer}
           </p>
           <p className="mt-2 leading-7">{post.shortAnswer}</p>
         </div>
@@ -101,10 +98,10 @@ export function BlogArticle({
       {/* Contents. Skipped on a short post, where it is just noise. */}
       {toc.length >= 3 ? (
         <nav
-          aria-label="In this article"
+          aria-label={t.inThisArticle}
           className="mt-6 rounded-xl border bg-primary/[0.04] p-5"
         >
-          <p className="font-semibold">In this article</p>
+          <p className="font-semibold">{t.inThisArticle}</p>
           <ul className="mt-3 space-y-2">
             {toc.map((entry) => (
               <li key={entry.id}>
@@ -147,7 +144,7 @@ export function BlogArticle({
       */}
       {post.faqs && post.faqs.length > 0 ? (
         <section className="mt-14">
-          <h2 className="text-2xl font-semibold tracking-tight">FAQ</h2>
+          <h2 className="text-2xl font-semibold tracking-tight">{t.faq}</h2>
           <ul className="mt-5 space-y-3">
             {post.faqs.map((faq, index) => (
               <li key={`${index}:${faq.question}`}>
@@ -184,7 +181,7 @@ export function BlogArticle({
       {post.sources && post.sources.length > 0 ? (
         <section className="mt-10 rounded-xl border bg-card p-5">
           <h2 className="text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-            Sources
+            {t.sources}
           </h2>
           <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-sm">
             {post.sources.map((source, index) => (

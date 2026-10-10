@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { contentSecurityPolicy, cspHeaderName, cspReportUri, securityHeaders } from "./security-headers";
+import { contentSecurityPolicy, cspHeaderName, cspReportUri, hasTagManager, securityHeaders } from "./security-headers";
 
 /**
  * Security headers (client's launch review, 2026-10-03). The site sent none.
@@ -88,7 +88,8 @@ describe("contentSecurityPolicy", () => {
     (lib/google-analytics.ts): gtag.js from *.googletagmanager.com, hits to
     the hosts Google lists for GA4. On the nonce pages the nonced bundle
     inserts the script, which 'strict-dynamic' allows. Nothing broader -
-    no doubleclick or ads hosts: advertising features are off.
+    no doubleclick or ads hosts - unless the deployment has a Tag Manager
+    container for Google Ads (next test).
   */
   it("covers Google Analytics on both policies, and no advertising host", () => {
     const strict = directives(contentSecurityPolicy(DSN, "a".repeat(32)));
@@ -97,6 +98,24 @@ describe("contentSecurityPolicy", () => {
       expect(policy["connect-src"]).toEqual(expect.arrayContaining(["https://*.google-analytics.com", "https://*.analytics.google.com"]));
     }
     expect(contentSecurityPolicy(DSN)).not.toMatch(/doubleclick|googleadservices|googlesyndication/);
+  });
+
+  it("adds Google Ads' hosts only for a deployment with a Tag Manager container", () => {
+    expect(hasTagManager("GTM-AB12CD3")).toBe(true);
+    expect(hasTagManager(undefined)).toBe(false);
+    expect(hasTagManager("G-ABC123XYZ")).toBe(false);
+    const ads = directives(contentSecurityPolicy(DSN, undefined, true));
+    const strictAds = directives(contentSecurityPolicy(DSN, "a".repeat(32), true));
+    for (const policy of [ads, strictAds]) {
+      expect(policy["script-src"]).toEqual(expect.arrayContaining(["https://www.googleadservices.com", "https://googleads.g.doubleclick.net"]));
+      expect(policy["connect-src"]).toEqual(
+        expect.arrayContaining(["https://www.google.com", "https://*.doubleclick.net", "https://pagead2.googlesyndication.com"]),
+      );
+      expect(policy["frame-src"]).toEqual(expect.arrayContaining(["https://td.doubleclick.net", "https://www.googletagmanager.com"]));
+      expect(policy["script-src"]).not.toContain("https:");
+      expect(policy["script-src"]).not.toContain("*");
+    }
+    expect(contentSecurityPolicy(DSN, undefined, false)).not.toMatch(/doubleclick|googleadservices|googlesyndication|tagassistant/);
   });
 
   /*

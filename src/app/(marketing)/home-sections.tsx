@@ -45,6 +45,7 @@ import {
 import { WideScreenOnly } from "@/components/wide-screen-only";
 import { format } from "@/lib/i18n/format";
 import type { Messages } from "@/lib/i18n/messages";
+import { REAL_ARTICLES } from "@/lib/marketing/real-articles";
 import { walkthroughWatchUrl } from "@/lib/marketing/walkthrough";
 
 /**
@@ -869,10 +870,9 @@ export function Pillars({ t }: SectionProps) {
  * section of their own. #content-engine is the Platform menu's "Content
  * Engine".
  *
- * The samples are written for this page and labelled so: they show the
- * format the generator produces (sections, contents list, a comparison table
- * when it helps), not an article from a customer account. Swap in approved
- * real examples by editing `articles.samples` in the dictionary.
+ * Three real, published articles (client, 2026-10-09): two from RepGet's
+ * blog and one from Image Studio's, a customer. Their snapshot is
+ * lib/marketing/real-articles.ts; edit it to change or refresh them.
  */
 export function ContentEngine({ t, href }: SectionProps) {
   return (
@@ -899,7 +899,7 @@ export function ContentEngine({ t, href }: SectionProps) {
         </div>
 
         <div className="mt-10">
-          <ArticleExamples t={t.articles} />
+          <ArticleExamples t={t.articles} articles={REAL_ARTICLES} />
         </div>
 
         <div className="mt-10 flex flex-col items-center gap-4 text-center">

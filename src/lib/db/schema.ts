@@ -13,6 +13,7 @@
 
 import { relations, sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   boolean,
   date,
   index,
@@ -220,6 +221,12 @@ export const billingCheckouts = pgTable(
     stripeSessionId: text("stripe_session_id"),
     /** PayPal's id from creation; Stripe's once the checkout completes. */
     providerSubscriptionId: text("provider_subscription_id"),
+    /**
+     * "open" | "unresolved" | "abandoned" | "completed" | "failed" |
+     * "expired" | "released" (a PayPal approval the buyer cancelled and
+     * PayPal still reported pending: no longer blocks the website;
+     * lib/billing/checkouts.ts).
+     */
     status: text("status").default("open").notNull(),
     /**
      * When Stripe says the session stops accepting payment. A HINT for when
@@ -241,6 +248,14 @@ export const billingCheckouts = pgTable(
     /** The provider's own word for the checkout when last asked. */
     providerState: text("provider_state"),
     lastCheckedAt: timestamp("last_checked_at"),
+    /**
+     * The payer's Google Analytics identity when they started paying, kept
+     * ONLY for a visitor who had accepted the cookie banner
+     * (lib/conversions/conversions.ts): { clientId, sessionId, capturedAt },
+     * plus purchaseSentAt once the subscription's first real payment has
+     * been reported to GA. Null for everyone else.
+     */
+    analytics: jsonb("analytics"),
     ...timestamps,
   },
   (table) => [
@@ -2375,6 +2390,25 @@ export const blogPosts = pgTable(
     revisedAt: timestamp("revised_at"),
     /** Bumped on every save: a save made from an older copy is refused. */
     version: integer("version").default(0).notNull(),
+    /**
+     * The language the post is written in (lib/i18n/config.ts LOCALES). An
+     * English post lives at /blog/<slug>, any other at /<locale>/blog/<slug>
+     * (client, 2026-10-09: the blog in every language the site has, Italian
+     * first). The slug stays unique across all languages.
+     */
+    locale: text("locale").default("en").notNull(),
+    /**
+     * The English post this one translates, when it is a translation (one per
+     * language, unique below). Null for an original, in any language. SET
+     * NULL: deleting the original leaves the translation as a post of its own.
+     */
+    translationOf: uuid("translation_of").references((): AnyPgColumn => blogPosts.id, { onDelete: "set null" }),
+    /**
+     * A translation drafted by AI (or copied to translate by hand) that no
+     * person has checked yet. It cannot be published until an administrator
+     * confirms a native speaker has read and corrected it (lib/admin/blog.ts).
+     */
+    needsReview: boolean("needs_review").default(false).notNull(),
     /** Administrators' email addresses. */
     createdBy: text("created_by"),
     updatedBy: text("updated_by"),
@@ -2383,6 +2417,8 @@ export const blogPosts = pgTable(
   (table) => [
     uniqueIndex("blog_posts_slug_uidx").on(table.slug),
     index("blog_posts_status_published_idx").on(table.status, table.publishedAt),
+    index("blog_posts_locale_status_published_idx").on(table.locale, table.status, table.publishedAt),
+    uniqueIndex("blog_posts_translation_locale_uidx").on(table.translationOf, table.locale),
   ],
 );
 

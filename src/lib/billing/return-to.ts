@@ -53,9 +53,16 @@ export function checkoutReturnPath(
   provider: "stripe" | "paypal" = "stripe",
 ): string {
   const key = provider === "paypal" ? "paypal" : "checkout";
+  const site = websiteId ? `&site=${websiteId}` : "";
   if (origin === "onboarding") {
-    const site = websiteId ? `&site=${websiteId}` : "";
     return `/onboarding/plan?${key}=${outcome}${site}`;
   }
-  return `/billing?${key}=${outcome}`;
+  /*
+    PayPal's billing return names the website too: the page settles the
+    return for the website it shows (components/paypal-return.tsx), and
+    without it that was whichever site the switcher remembered - not
+    necessarily the one just paid for. The page checks it against the
+    workspace like any ?site=.
+  */
+  return `/billing?${key}=${outcome}${provider === "paypal" ? site : ""}`;
 }

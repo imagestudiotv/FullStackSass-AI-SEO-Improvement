@@ -12,6 +12,7 @@ import {
   recordCheckoutRequest,
   recordCheckoutStarted,
 } from "@/lib/billing/checkouts";
+import { rememberPayer } from "@/lib/conversions/conversions";
 import { db } from "@/lib/db";
 import { billingCustomers, plans, websites } from "@/lib/db/schema";
 import { CONFIRM_EMAIL_FIRST } from "@/lib/plans/features";
@@ -149,6 +150,9 @@ export async function createCheckoutSession(
   }
 
   const { checkoutId, trialDays } = begun;
+
+  // The payer's GA identity, for the purchase reported when the money arrives.
+  await rememberPayer(db, checkoutId);
 
   /*
     Everything that talks to Stripe is inside the try. An error escaping a

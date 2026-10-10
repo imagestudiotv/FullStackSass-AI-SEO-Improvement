@@ -20,6 +20,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
 import { PayPalMark } from "@/components/paypal-mark";
+import { PayPalReturn } from "@/components/paypal-return";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
@@ -46,6 +47,7 @@ import {
   annualSaving,
   formatMoney,
   paymentOptions,
+  payPalForPlan,
   planFeatures,
   planGridClass,
   subscriptionStatus,
@@ -57,7 +59,11 @@ type BillingClientProps = {
   plans: PlanRow[];
   subscription: CurrentSubscription | null;
   entitled: boolean;
-  /** False until PayPal credentials exist; the button is hidden entirely. */
+  /**
+   * False until PayPal can complete a checkout (credentials, webhook id and
+   * mode); the button is hidden entirely. Per plan, it also needs the plan's
+   * PayPal plan id (payPalForPlan).
+   */
   paypalAvailable: boolean;
   /** "success" | "cancelled" after a card checkout. */
   checkout?: string;
@@ -303,6 +309,7 @@ export function BillingClient({
 
   function planCard(plan: PlanRow) {
     const isCurrent = subscription?.planId === plan.id && entitled;
+    const paypal = payPalForPlan(plan, options);
     const saving = plan.interval === "year" ? annualSaving(monthlyByTier.get(plan.tier), plan) : 0;
     const busy = pending?.planId === plan.id;
     const headingId = `plan-${plan.id}`;
@@ -376,11 +383,12 @@ export function BillingClient({
                 </Button>
               ) : null}
               {/*
-                Only where PayPal can complete: configured, and the website is
-                not already paying by card (beginCheckout refuses a second
-                processor while one subscription is live).
+                Only where PayPal can complete: configured, the plan exists in
+                PayPal, and the website is not already paying by card
+                (beginCheckout refuses a second processor while one
+                subscription is live).
               */}
-              {options.paypal ? (
+              {paypal ? (
                 <Button
                   className={CARD_BUTTON}
                   variant="outline"
@@ -400,7 +408,7 @@ export function BillingClient({
                   )}
                 </Button>
               ) : null}
-              {!options.card && !options.paypal ? (
+              {!options.card && !paypal ? (
                 <p className="text-xs leading-5 text-muted-foreground">{t.noPlanChange}</p>
               ) : null}
             </>
@@ -484,6 +492,12 @@ export function BillingClient({
         plan…") because the rows below already show a plan per website.
       */}
       <PageHeader title={t.title} />
+
+      {/*
+        Back from PayPal: the subscription is read back (or a walked-away
+        approval released) for the website this page buys for. Renders nothing.
+      */}
+      <PayPalReturn outcome={paypalResult} websiteId={websiteId} />
 
       {viewingSharedDomain ? (
         <Notice tone="info">{format(t.viewingSharedNote, { shared: viewingSharedDomain })}</Notice>

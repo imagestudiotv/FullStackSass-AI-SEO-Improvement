@@ -1,6 +1,7 @@
 import { and, eq, inArray, ne } from "drizzle-orm";
 
 import { cancellationOps } from "@/lib/billing/checkout-providers";
+import { reportFirstPayment } from "@/lib/conversions/conversions";
 import {
   syncProviderSubscription,
   type SubscriptionSnapshot,
@@ -8,19 +9,22 @@ import {
 } from "@/lib/billing/subscription-sync";
 import { db } from "@/lib/db";
 import type { Executor } from "@/lib/db/types";
-import { organization, payments, plans } from "@/lib/db/schema";
+import { billingCheckouts, organization, payments, plans, subscriptions } from "@/lib/db/schema";
 import { PayPalError } from "@/lib/paypal/client";
 import { convertReferral, reverseReferralReward } from "@/lib/referrals/core";
 import {
   getSubscription,
   mapStatus,
   parseCustomId,
+  parseExactCustomId,
   type PayPalSubscription,
 } from "@/lib/paypal/subscriptions";
 
 /**
  * What a verified PayPal event does. Shared by the webhook route, the
- * webhook-recovery job and the in-app PayPal cancel.
+ * webhook-recovery job and the in-app PayPal cancel; the sync also by the
+ * PayPal return and the checkout reconciler (checkouts.ts), so a missed
+ * webhook does not leave a paying customer without a plan.
  *
  * As with Stripe, the event body only says WHICH subscription changed: the
  * subscription is read from PayPal under a per-subscription lock
@@ -59,12 +63,74 @@ async function existingOrganization(
   return row?.id ?? null;
 }
 
+/**
+ * Whether a PayPal subscription is one of OURS, and the ids it carries.
+ *
+ * The PayPal business account can hold subscriptions other integrations made
+ * - another site, PayPal's own buttons, a plugin - each with its own
+ * custom_id ("ORDER-123"), and their events can reach this webhook. Reading
+ * that as a workspace id made the sync take the workspace for deleted and
+ * cancel somebody else's subscription. So a subscription is ours only when:
+ *  - its custom_id has exactly the shape our checkout writes and names a
+ *    PayPal checkout of ours, in that workspace;
+ *  - its plan is one of our PayPal plans (the older custom_id forms are
+ *    read only then);
+ *  - or we created or recorded it already (a checkout or subscription row
+ *    holds its id).
+ * Anything else is null: left alone, never recorded and never cancelled.
+ */
+async function ownIds(
+  reader: Pick<Executor, "select">,
+  subscriptionId: string,
+  live: PayPalSubscription,
+  ourPlan: boolean,
+): Promise<ReturnType<typeof parseCustomId> | null> {
+  const exact = parseExactCustomId(live.custom_id);
+  if (exact) {
+    const [checkout] = await reader
+      .select({ id: billingCheckouts.id })
+      .from(billingCheckouts)
+      .where(
+        and(
+          eq(billingCheckouts.id, exact.checkoutId),
+          eq(billingCheckouts.provider, "paypal"),
+          eq(billingCheckouts.organizationId, exact.organizationId),
+        ),
+      )
+      .limit(1);
+    if (checkout) return exact;
+  }
+  if (ourPlan || (await createdOrRecorded(reader, subscriptionId))) {
+    return parseCustomId(live.custom_id);
+  }
+  return null;
+}
+
+async function createdOrRecorded(reader: Pick<Executor, "select">, subscriptionId: string): Promise<boolean> {
+  const [created] = await reader
+    .select({ id: billingCheckouts.id })
+    .from(billingCheckouts)
+    .where(
+      and(
+        eq(billingCheckouts.provider, "paypal"),
+        eq(billingCheckouts.providerSubscriptionId, subscriptionId),
+      ),
+    )
+    .limit(1);
+  if (created) return true;
+  const [recorded] = await reader
+    .select({ id: subscriptions.id })
+    .from(subscriptions)
+    .where(eq(subscriptions.paypalSubscriptionId, subscriptionId))
+    .limit(1);
+  return Boolean(recorded);
+}
+
 async function snapshotOf(
   reader: Pick<Executor, "select">,
+  subscriptionId: string,
   live: PayPalSubscription,
 ): Promise<SubscriptionSnapshot> {
-  const custom = parseCustomId(live.custom_id);
-
   let planId: string | null = null;
   if (live.plan_id) {
     const [plan] = await reader
@@ -73,6 +139,19 @@ async function snapshotOf(
       .where(eq(plans.paypalPlanId, live.plan_id))
       .limit(1);
     planId = plan?.id ?? null;
+  }
+
+  const custom = await ownIds(reader, subscriptionId, live, planId !== null);
+  const status = mapStatus(live.status, live.billing_info);
+  if (!custom) {
+    // Not ours: no workspace and none claimed, which the sync leaves alone.
+    return {
+      organizationId: null,
+      claimedOrganizationId: null,
+      claimedWebsiteId: null,
+      checkoutId: null,
+      values: { status },
+    };
   }
 
   /*
@@ -91,7 +170,7 @@ async function snapshotOf(
     claimedWebsiteId: custom.websiteId,
     checkoutId: custom.checkoutId,
     values: {
-      status: mapStatus(live.status),
+      status,
       ...(start ? { currentPeriodStart: new Date(start) } : {}),
       currentPeriodEnd: nextBilling ? new Date(nextBilling) : null,
       // Keep the existing plan if this PayPal plan is not one of ours.
@@ -109,7 +188,7 @@ export async function syncPayPalSubscription(subscriptionId: string): Promise<Sy
       providerSubscriptionId: subscriptionId,
       load: async (tx) => {
         try {
-          return await snapshotOf(tx, await getSubscription(subscriptionId));
+          return await snapshotOf(tx, subscriptionId, await getSubscription(subscriptionId));
         } catch (error) {
           if (error instanceof PayPalError && error.kind === "not_found") return null;
           throw error;
@@ -119,7 +198,11 @@ export async function syncPayPalSubscription(subscriptionId: string): Promise<Sy
     cancellationOps,
   );
 
-  if (!["updated", "attached", "replaced"].includes(result.outcome)) {
+  if (result.outcome === "ignored_no_owner") {
+    console.warn(
+      `[paypal-webhook] subscription ${subscriptionId} names no RepGet workspace (another integration on the PayPal account?) - left alone`,
+    );
+  } else if (!["updated", "attached", "replaced"].includes(result.outcome)) {
     console.warn(
       `[paypal-webhook] subscription ${subscriptionId}: ${result.outcome}${
         result.cancellationOwed ? (result.cancelled ? " (cancelled)" : " (cancellation owed)") : ""
@@ -134,11 +217,18 @@ export async function processPayPalEvent(event: PayPalEvent): Promise<void> {
   const resource = event.resource ?? {};
 
   switch (event.event_type) {
+    /*
+      RE-ACTIVATED and PAYMENT.FAILED change what mapStatus stores: a
+      suspended subscription is "unpaid" (not entitled) until PayPal reports
+      it active again, and a failed renewal is past_due while PayPal retries.
+    */
     case "BILLING.SUBSCRIPTION.ACTIVATED":
     case "BILLING.SUBSCRIPTION.UPDATED":
     case "BILLING.SUBSCRIPTION.CANCELLED":
     case "BILLING.SUBSCRIPTION.SUSPENDED":
-    case "BILLING.SUBSCRIPTION.EXPIRED": {
+    case "BILLING.SUBSCRIPTION.EXPIRED":
+    case "BILLING.SUBSCRIPTION.RE-ACTIVATED":
+    case "BILLING.SUBSCRIPTION.PAYMENT.FAILED": {
       if (!resource.id) return;
       await syncPayPalSubscription(resource.id);
       return;
@@ -150,6 +240,8 @@ export async function processPayPalEvent(event: PayPalEvent): Promise<void> {
       if (!billingId) return;
 
       const synced = await syncPayPalSubscription(billingId);
+      // Not one of ours: logged by the sync, and nothing of ours to record.
+      if (synced.outcome === "ignored_no_owner") return;
       if (!synced.organizationId) {
         // A workspace that no longer exists: nothing to record against, and
         // a retry cannot bring it back.
@@ -197,6 +289,14 @@ export async function processPayPalEvent(event: PayPalEvent): Promise<void> {
         */
         if (status === "paid") {
           await convertReferral(synced.organizationId, Number.isFinite(total) ? Math.round(total * 100) : 0);
+          // The first real payment, to Google Analytics, as on Stripe's (lib/conversions/conversions.ts).
+          await reportFirstPayment(db, {
+            provider: "paypal",
+            providerSubscriptionId: billingId,
+            externalId: resource.id,
+            amountCents: Number.isFinite(total) ? Math.round(total * 100) : 0,
+            currency: resource.amount?.currency ?? "EUR",
+          });
         }
       }
       return;

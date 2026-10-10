@@ -63,7 +63,10 @@ const { POSTS, CATEGORIES } = vi.hoisted(() => {
 
 // Blog pages read the database; these stand in for published posts.
 vi.mock("@/lib/blog/posts", () => ({
-  listPosts: async () => POSTS,
+  // English posts only: no translation is published here.
+  listPosts: async (locale = "en") => (locale === "en" ? POSTS : []),
+  publishedLocales: async () => [],
+  postVersions: async () => [],
   listPostPage: async () => ({ posts: POSTS, total: POSTS.length }),
   publishedCategoryCounts: async () => ({}),
   getPost: async (slug: string) => POSTS.find((post) => post.slug === slug) ?? null,

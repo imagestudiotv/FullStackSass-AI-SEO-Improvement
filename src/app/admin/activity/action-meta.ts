@@ -66,6 +66,8 @@ export const ACTION_META: Record<AdminAction, ActionMeta> = {
   "blog.placement_published": { label: "Featured placement published", icon: Newspaper },
   "blog.placement_declined": { label: "Featured placement declined", icon: Newspaper },
   "blog.placement_reopened": { label: "Featured placement back to review", icon: Newspaper },
+  "blog.image_deleted": { label: "Blog picture deleted", icon: Newspaper },
+  "blog.translation_created": { label: "Blog translation started", icon: Newspaper },
 
   "platform.control_changed": { label: "Platform control changed", icon: Gauge },
   "publication.dispatch_resolved": { label: "Delivery resolved", icon: Gauge },

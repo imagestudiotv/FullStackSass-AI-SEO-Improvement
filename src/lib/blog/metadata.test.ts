@@ -11,7 +11,7 @@ import type { BlogPost } from "./shared";
  */
 
 const state = vi.hoisted(() => ({ post: null as unknown }));
-vi.mock("./posts", () => ({ getPost: async () => state.post, relatedPosts: async () => [] }));
+vi.mock("./posts", () => ({ getPost: async () => state.post, relatedPosts: async () => [], postVersions: async () => [] }));
 vi.mock("./sponsorship", () => ({ sponsorshipConfigured: () => false }));
 vi.mock("@/components/blog-sponsorship", () => ({ BlogSponsorship: () => null }));
 vi.mock("@/app/(marketing)/home-sections", () => ({ ClosingCta: () => null }));

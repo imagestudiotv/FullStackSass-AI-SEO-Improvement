@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import { OnboardingAside } from "@/components/onboarding/onboarding-aside";
 import { TestimonialRail } from "@/components/onboarding/testimonial-rail";
+import { PayPalReturn } from "@/components/paypal-return";
 import { WizardProgress } from "@/components/wizard-progress";
 import { requireSession } from "@/lib/auth-guard";
 import { getAppMessages } from "@/lib/i18n/app-locale";
@@ -42,6 +43,7 @@ export default async function OnboardingPlanPage({
 
   const params = await searchParams;
   const siteParam = typeof params.site === "string" ? params.site : undefined;
+  const paypalResult = typeof params.paypal === "string" ? params.paypal : undefined;
 
   const [state, paypalAvailable, allPlans] = await Promise.all([
     getOnboardingState(orgId, siteParam),
@@ -94,6 +96,12 @@ export default async function OnboardingPlanPage({
     return (
       <div>
         <WizardProgress current="plan" />
+        {/*
+          Back from PayPal: the subscription is read back from PayPal for
+          this website, so a late webhook does not keep the customer
+          waiting. Writes, so it runs as a Server Action from the browser.
+        */}
+        <PayPalReturn outcome={paypalResult} websiteId={state.websiteId} />
         <CheckoutPending
           websiteId={state.websiteId}
           t={t.app.onboarding}
@@ -108,10 +116,17 @@ export default async function OnboardingPlanPage({
   const annualPlans = allPlans
     .filter((plan) => plan.interval === "year")
     .map(toPickerPlan);
+  // The plans a PayPal subscription can be started for: mirrored into PayPal.
+  const paypalPlanIds = allPlans.filter((plan) => plan.paypalPlanId).map((plan) => plan.id);
 
   return (
     <div>
       <WizardProgress current="plan" />
+      {/*
+        Back from PayPal's "Cancel and return": the approval left behind is
+        released, so it does not block paying by card. Renders nothing.
+      */}
+      <PayPalReturn outcome={paypalResult} websiteId={state.websiteId} />
       {/*
           Less headroom than the other steps. The client: "move the part a
           little up because the button start free trial is not visible in the
@@ -144,6 +159,7 @@ export default async function OnboardingPlanPage({
               monthlyPlans={monthlyPlans}
               annualPlans={annualPlans}
               paypalAvailable={paypalAvailable}
+              paypalPlanIds={paypalPlanIds}
               websiteId={state.websiteId}
               trialEligible={trialEligible}
               emailVerified={session.user.emailVerified === true}

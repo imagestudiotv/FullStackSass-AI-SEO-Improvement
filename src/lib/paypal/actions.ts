@@ -3,14 +3,17 @@
 import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
+import { isEntitled } from "@/lib/billing-shared";
 import { checkoutProviderOps } from "@/lib/billing/checkout-providers";
 import {
   beginCheckout,
   markCheckoutFailed,
   recordCheckoutRequest,
   recordCheckoutStarted,
+  settlePayPalReturn,
 } from "@/lib/billing/checkouts";
 import { syncPayPalSubscription } from "@/lib/billing/paypal-events";
+import { rememberPayer } from "@/lib/conversions/conversions";
 import { db } from "@/lib/db";
 import { plans, subscriptions, websites } from "@/lib/db/schema";
 import { isPayPalConfigured, PayPalError } from "@/lib/paypal/client";
@@ -41,8 +44,67 @@ function appUrl(): string {
   return url.replace(/\/$/, "");
 }
 
+/**
+ * Whether to offer PayPal at all: only where a PayPal checkout can complete
+ * (credentials, PAYPAL_WEBHOOK_ID and a valid PAYPAL_ENV - client.ts). A
+ * plan without a PayPal plan id gets no PayPal button either; the pages
+ * decide that per plan.
+ */
 export async function isPayPalAvailable(): Promise<boolean> {
   return isPayPalConfigured();
+}
+
+export type PayPalReturnResult = {
+  /** Something was recorded or released: the page should read its state again. */
+  changed: boolean;
+  /** PayPal has not finished yet (approval or activation pending): worth asking again shortly. */
+  waiting: boolean;
+};
+
+/**
+ * Settles what PayPal's return or cancel redirect left behind, for ONE
+ * website (lib/billing/checkouts.ts settlePayPalReturn). Called by the page
+ * the customer lands on (components/paypal-return.tsx), never during its
+ * render: it writes.
+ *
+ * The workspace comes from the session and the website is re-checked against
+ * it, as everywhere else. The subscription id PayPal appends to the address
+ * is never read: which checkout to look at is our own record, and what
+ * happened to it is what PayPal says when asked now.
+ */
+export async function confirmPayPalReturn(
+  websiteId: string,
+  outcome: "success" | "cancelled",
+): Promise<PayPalReturnResult> {
+  const nothing: PayPalReturnResult = { changed: false, waiting: false };
+  const { orgId } = await requireOrg();
+  if ((outcome !== "success" && outcome !== "cancelled") || !isPayPalConfigured()) return nothing;
+
+  const [site] = await db
+    .select({ id: websites.id })
+    .from(websites)
+    .where(and(eq(websites.id, websiteId), eq(websites.organizationId, orgId)))
+    .limit(1);
+  if (!site) return nothing;
+
+  const settled = await settlePayPalReturn(
+    db,
+    { organizationId: orgId, websiteId: site.id },
+    outcome,
+    checkoutProviderOps,
+  );
+
+  let waiting = false;
+  if (outcome === "success" && (settled.pending.length > 0 || settled.synced.length > 0)) {
+    // Approved but not yet active at PayPal: the plan is not there yet.
+    const [current] = await db
+      .select({ status: subscriptions.status })
+      .from(subscriptions)
+      .where(eq(subscriptions.websiteId, site.id))
+      .limit(1);
+    waiting = !isEntitled(current?.status);
+  }
+  return { changed: settled.synced.length > 0 || settled.released.length > 0, waiting };
 }
 
 /**
@@ -147,6 +209,8 @@ export async function createPayPalCheckout(
   }
 
   const { checkoutId } = begun;
+  // The payer's GA identity, for the purchase reported when the money arrives.
+  await rememberPayer(db, checkoutId);
   const idempotencyKey = `checkout:${checkoutId}`;
   try {
     await recordCheckoutRequest(db, checkoutId, {

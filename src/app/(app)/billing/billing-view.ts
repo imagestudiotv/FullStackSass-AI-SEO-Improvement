@@ -165,6 +165,19 @@ export function paymentOptions(
 }
 
 /**
+ * "Pay with PayPal" on one plan card: PayPal can start for this website, and
+ * the plan has a PayPal plan to subscribe to. A plan not yet mirrored into
+ * PayPal (scripts/paypal-setup.mjs) used to show the button and answer the
+ * click with an error.
+ */
+export function payPalForPlan(
+  plan: Pick<PlanRow, "paypalPlanId">,
+  options: Pick<PaymentOptions, "paypal">,
+): boolean {
+  return options.paypal && Boolean(plan.paypalPlanId);
+}
+
+/**
  * Where a card payment's invoice is found when the webhook left no link:
  * Stripe's portal, behind "Manage billing".
  *  - "page": the plan section already has the button (paymentOptions'
@@ -248,8 +261,14 @@ export function planGridClass(count: number): string {
 /* Return messages                                                            */
 /* ------------------------------------------------------------------------- */
 
-/** The query parameters a checkout returns with, removed once they have been read. */
-export const RETURN_PARAMS = ["checkout", "addon", "paypal"] as const;
+/**
+ * The query parameters a checkout returns with, removed once they have been
+ * read. PayPal appends its own three to our return and cancel URLs: the
+ * subscription id and two tokens, which nothing here reads (the return is
+ * settled from our own records - lib/paypal/actions.ts confirmPayPalReturn)
+ * and which have no business staying in the address bar or its history.
+ */
+export const RETURN_PARAMS = ["checkout", "addon", "paypal", "subscription_id", "ba_token", "token"] as const;
 
 /**
  * The address without the return parameters, keeping ?site= and the hash.

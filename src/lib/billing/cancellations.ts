@@ -25,8 +25,10 @@ import type { Database, Executor } from "@/lib/db/types";
  * once, and the provider call is itself idempotent (it asks first; Stripe's
  * cancel carries an idempotency key; PayPal's is only sent to a live one).
  *
- * Only subscriptions for DELETED websites or workspaces are ever owed.
- * Duplicates are reported for reconciliation (reconciliation.ts) and never
+ * Only subscriptions for DELETED websites or workspaces are ever owed, and
+ * a PayPal approval the customer had walked away from that activated anyway
+ * beside the website's live subscription (subscription-sync.ts). Other
+ * duplicates are reported for reconciliation (reconciliation.ts) and never
  * cancelled here: which one a customer keeps is theirs to say.
  */
 

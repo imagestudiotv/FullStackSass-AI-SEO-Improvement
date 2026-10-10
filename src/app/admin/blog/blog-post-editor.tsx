@@ -6,6 +6,7 @@ import {
   CircleDashed,
   ExternalLink,
   Eye,
+  Languages,
   Loader2,
   Lock,
   Pencil,
@@ -28,14 +29,17 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  createBlogTranslation,
   deleteBlogPost,
   saveBlogPost,
   uploadBlogImage,
   type AdminBlogPost,
   type BlogPostInput,
 } from "@/lib/admin/blog";
+import { listBlogImagesForPicker } from "@/lib/admin/blog-images";
 import { previewHtml } from "@/lib/articles/use-draft";
 import { keywordReport, SEARCH_LIMITS, SEO_TITLE_TARGET, splitKeywords, type KeywordReport } from "@/lib/blog/keywords";
+import { BLOG_LOCALES, blogLocale, blogPath, LANGUAGE_NAMES_EN } from "@/lib/blog/locale";
 import {
   blogSlug,
   FAQ_ANSWER_LIMIT,
@@ -120,6 +124,7 @@ function fromPost(post: AdminBlogPost | null, firstCategory: string): BlogPostIn
     bodyHtml: post?.bodyHtml ?? "",
     faqs: post?.faqs ?? [],
     sources: post?.sources ?? [],
+    locale: post?.locale ?? "en",
   };
 }
 
@@ -134,7 +139,10 @@ function fromPost(post: AdminBlogPost | null, firstCategory: string): BlogPostIn
  *
  * Buttons follow the post's state: a draft is saved or published; a
  * published post's changes are saved straight to the live post, or it is
- * unpublished. Each save carries the version it started from, so a second
+ * unpublished. A post's language is chosen when it is created; an English
+ * post can be given a translation per language (drafted by AI or copied to
+ * translate by hand), and a translation marked "needs review" can only be
+ * published once someone ticks that a native speaker has corrected it. Each save carries the version it started from, so a second
  * administrator's older copy cannot overwrite the first's work. The bar says
  * at all times whether the copy on screen is saved, being saved, or failed.
  */
@@ -161,8 +169,17 @@ export function BlogPostEditor({
   const [confirming, setConfirming] = useState<Confirm | null>(null);
   /** Set when the operator chose to throw their edits away and load the stored post. */
   const [discarding, setDiscarding] = useState(false);
+  /** A translation still marked "needs review", and whether the operator has ticked that it was reviewed. */
+  const [needsReview, setNeedsReview] = useState(Boolean(post?.needsReview));
+  const [reviewed, setReviewed] = useState(false);
+  /** The language a translation is being started in, while it runs. */
+  const [translating, setTranslating] = useState<string | null>(null);
 
   const live = status === "published";
+  const locale = blogLocale(draft.locale);
+  /** "/blog/" or "/it/blog/": where the post lives. */
+  const prefix = `${blogPath(locale)}/`;
+  const blockedByReview = needsReview && !reviewed;
   const unsaved = JSON.stringify(draft) !== JSON.stringify(saved);
   const slug = blogSlug(draft.slug.trim() || draft.title);
   /** A new post's first save: it moves to its own page when done, so typing meanwhile would be lost. */
@@ -195,7 +212,13 @@ export function BlogPostEditor({
     start(async () => {
       let result: Awaited<ReturnType<typeof saveBlogPost>>;
       try {
-        result = await saveBlogPost({ id: post?.id ?? null, expectedVersion: version, status: nextStatus, post: sent });
+        result = await saveBlogPost({
+          id: post?.id ?? null,
+          expectedVersion: version,
+          status: nextStatus,
+          post: sent,
+          ...(needsReview && reviewed ? { reviewed: true } : {}),
+        });
       } catch (error) {
         console.error("[admin/blog] saving the post failed", error);
         fail(action, UNEXPECTED);
@@ -218,8 +241,37 @@ export function BlogPostEditor({
       setDraft((current) => (current === sent ? stored : { ...current, slug: result.data.slug }));
       setVersion(result.data.version);
       setStatus(result.data.status);
+      setNeedsReview(result.data.needsReview);
       if (result.data.status === "published") setLocked(true);
       router.refresh();
+    });
+  }
+
+  /** Starts a translation (lib/admin/blog.ts createBlogTranslation) and opens it. */
+  function translate(target: string, mode: "ai" | "copy") {
+    if (!post) return;
+    setTranslating(target);
+    start(async () => {
+      try {
+        const result = await createBlogTranslation({ sourceId: post.id, locale: target, mode });
+        if (!result.ok) {
+          toast.error(result.error);
+          return;
+        }
+        toast.success(
+          result.data.existed
+            ? "That translation already exists - opening it"
+            : mode === "ai"
+              ? "Draft written - read it, then have a native speaker correct it before publishing"
+              : "Copy made - translate it, then publish",
+        );
+        router.push(`/admin/blog/${result.data.id}`);
+      } catch (error) {
+        console.error("[admin/blog] starting the translation failed", error);
+        toast.error(UNEXPECTED);
+      } finally {
+        setTranslating(null);
+      }
     });
   }
 
@@ -288,6 +340,7 @@ export function BlogPostEditor({
       url: source.url.trim(),
     })),
     body: previewHtml(draft.bodyHtml),
+    locale,
   };
   preview.readingMinutes = readingMinutes(preview);
 
@@ -326,7 +379,7 @@ export function BlogPostEditor({
               {live ? (
                 <>
                   <Button variant="ghost" asChild className="text-muted-foreground hover:text-foreground">
-                    <a href={`/blog/${saved.slug || slug}`} target="_blank" rel="noopener noreferrer">
+                    <a href={`${prefix}${saved.slug || slug}`} target="_blank" rel="noopener noreferrer">
                       View on the blog
                       <ExternalLink aria-hidden="true" />
                       <span className="sr-only">(opens in a new tab)</span>
@@ -349,7 +402,13 @@ export function BlogPostEditor({
                     {pending && running === "draft" ? <Spinner /> : null}
                     Save draft
                   </Button>
-                  <Button type="button" size="lg" disabled={pending || discarding} onClick={() => setConfirming("publish")}>
+                  <Button
+                    type="button"
+                    size="lg"
+                    disabled={pending || discarding || blockedByReview}
+                    title={blockedByReview ? "Tick “Reviewed by a native speaker” under Language first" : undefined}
+                    onClick={() => setConfirming("publish")}
+                  >
                     {pending && running === "publish" ? <Spinner /> : null}
                     Publish
                   </Button>
@@ -422,6 +481,8 @@ export function BlogPostEditor({
                     value={draft.bodyHtml}
                     onChange={(bodyHtml) => setDraft((current) => ({ ...current, bodyHtml }))}
                     onUploadImage={uploadImage}
+                    // Pictures already uploaded for the blog, to use again (Admin -> Blog -> Images).
+                    onListImages={listBlogImagesForPicker}
                     ariaLabel="Post text"
                   />
                 </div>
@@ -478,7 +539,10 @@ export function BlogPostEditor({
                             <span className="sr-only">Fixed: </span>
                           </>
                         ) : null}
-                        <span className="wrap-anywhere">/blog/{address || "…"}</span>
+                        <span className="wrap-anywhere">
+                          {prefix}
+                          {address || "…"}
+                        </span>
                       </span>
                     ),
                   },
@@ -506,6 +570,108 @@ export function BlogPostEditor({
               />
             </AdminSection>
 
+            <AdminSection
+              id="post-language"
+              title="Language"
+              description={
+                post
+                  ? `This post is in ${LANGUAGE_NAMES_EN[locale]}, at ${prefix}….`
+                  : "The language the post is written in. English posts are at /blog/…, the others at /it/blog/…, /de/blog/… and so on."
+              }
+            >
+              <div className="space-y-4">
+                {!post ? (
+                  <Select value={locale} onValueChange={(value) => set("locale", value)}>
+                    <SelectTrigger id="blog-locale" className="w-full" aria-label="Language">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {BLOG_LOCALES.map((option) => (
+                        <SelectItem key={option} value={option}>
+                          {LANGUAGE_NAMES_EN[option]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : null}
+
+                {post?.original ? (
+                  <p className="text-sm">
+                    Translation of{" "}
+                    <Link href={`/admin/blog/${post.original.id}`} className="font-medium underline underline-offset-4">
+                      {post.original.title}
+                    </Link>
+                    .
+                  </p>
+                ) : null}
+
+                {needsReview ? (
+                  <div className="space-y-3 rounded-lg border border-warning/40 bg-warning-soft p-3 text-sm">
+                    <p className="flex items-start gap-2 font-medium text-warning">
+                      <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                      Needs review before publishing
+                    </p>
+                    <p className="text-muted-foreground">
+                      This translation was drafted by AI or copied from the English post. Have a native speaker read and correct it -
+                      the title, headings and keywords especially - then tick the box and publish.
+                    </p>
+                    <label className="flex items-start gap-2">
+                      <input
+                        type="checkbox"
+                        className="mt-0.5 size-4 accent-primary"
+                        checked={reviewed}
+                        onChange={(e) => setReviewed(e.target.checked)}
+                      />
+                      <span>Reviewed by a native speaker</span>
+                    </label>
+                  </div>
+                ) : null}
+
+                {post && !post.original && post.locale === "en" ? (
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">Translations</p>
+                    <ul className="divide-y rounded-lg border">
+                      {BLOG_LOCALES.filter((option) => option !== "en").map((option) => {
+                        const existing = post.translations.find((translation) => translation.locale === option);
+                        return (
+                          <li key={option} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm">
+                            <span className="font-medium">{LANGUAGE_NAMES_EN[option]}</span>
+                            {existing ? (
+                              <Link href={`/admin/blog/${existing.id}`} className="text-xs underline underline-offset-4">
+                                {existing.status === "published" ? "Published" : "Draft"}
+                                {existing.needsReview ? " · needs review" : ""}
+                              </Link>
+                            ) : (
+                              <span className="flex flex-wrap gap-1.5">
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  disabled={pending || unsaved}
+                                  onClick={() => translate(option, "ai")}
+                                >
+                                  {translating === option ? <Spinner /> : <Languages aria-hidden="true" />}
+                                  Draft with AI
+                                </Button>
+                                <Button type="button" size="sm" variant="ghost" disabled={pending || unsaved} onClick={() => translate(option, "copy")}>
+                                  Copy
+                                </Button>
+                              </span>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                    <p className="text-xs text-muted-foreground">
+                      {unsaved
+                        ? "Save your changes first: a translation is made from the saved post."
+                        : "“Draft with AI” translates and adapts the saved post (a minute or two for a long one). “Copy” copies the English text for you to translate by hand. Either way it starts as a draft that needs a native speaker's review."}
+                    </p>
+                  </div>
+                ) : null}
+              </div>
+            </AdminSection>
+
             <AdminSection id="post-details" title="Address and category">
               <div className="space-y-5">
                 <Field
@@ -516,19 +682,21 @@ export function BlogPostEditor({
                       <span className="inline-flex items-start gap-1">
                         <Lock className="mt-0.5 size-3 shrink-0" aria-hidden="true" />
                         <span className="wrap-anywhere">
-                          /blog/{saved.slug} - fixed now that the post has been published: changing it would break every link to it.
+                          {prefix}
+                          {saved.slug} - fixed now that the post has been published: changing it would break every link to it.
                         </span>
                       </span>
                     ) : (
                       <span className="wrap-anywhere">
-                        /blog/{slug || "…"} - leave it empty to make it from the title. It cannot change after publishing.
+                        {prefix}
+                        {slug || "…"} - leave it empty to make it from the title. It cannot change after publishing.
                       </span>
                     )
                   }
                 >
                   <div className="relative">
                     <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 font-mono text-xs text-muted-foreground" aria-hidden="true">
-                      /blog/
+                      {prefix}
                     </span>
                     <Input
                       id="blog-slug"
@@ -537,7 +705,7 @@ export function BlogPostEditor({
                       onChange={(e) => set("slug", e.target.value)}
                       disabled={locked}
                       aria-describedby="blog-slug-hint"
-                      className="pl-14 font-mono text-xs md:text-xs"
+                      className={cn("font-mono text-xs md:text-xs", locale === "en" ? "pl-14" : "pl-[4.75rem]")}
                     />
                   </div>
                 </Field>
@@ -596,6 +764,7 @@ export function BlogPostEditor({
             <AdminSection id="post-search" title="Search and cards" description="How the post appears in search results and when it is shared.">
               <div className="space-y-5">
                 <SearchPreview
+                  prefix={prefix}
                   title={draft.seoTitle.trim() || `${draft.title.trim() || "Untitled post"} | ${COMPANY_NAME}`}
                   address={address}
                   description={draft.description}
@@ -707,7 +876,7 @@ export function BlogPostEditor({
                 title={live ? "Unpublish" : "Delete post"}
                 description={
                   live
-                    ? `Takes the post off the blog until you publish it again. Its address stays /blog/${saved.slug}. A published post must be unpublished before it can be deleted.`
+                    ? `Takes the post off the blog until you publish it again. Its address stays ${prefix}${saved.slug}. A published post must be unpublished before it can be deleted.`
                     : "Deletes the post for good. This cannot be undone."
                 }
               >
@@ -732,7 +901,7 @@ export function BlogPostEditor({
         open={confirming === "publish"}
         onOpenChange={(open) => setConfirming(open ? "publish" : null)}
         title="Publish this post?"
-        description={`It goes live on the blog at once, at /blog/${address || "…"}, and that address cannot change afterwards.`}
+        description={`It goes live on the blog at once, at ${prefix}${address || "…"}, and that address cannot change afterwards.`}
         confirmLabel="Publish"
         pending={pending && running === "publish"}
         onConfirm={() => save("publish")}
@@ -930,14 +1099,14 @@ function Counter({ value, limit }: { value: number; limit: number }) {
  * title and description fields produce, before saving. Cut where results
  * usually cut them.
  */
-function SearchPreview({ title, address, description }: { title: string; address: string; description: string }) {
+function SearchPreview({ title, address, description, prefix = "/blog/" }: { title: string; address: string; description: string; prefix?: string }) {
   const host = new URL(siteUrl()).hostname;
   const cut = (text: string, limit: number) => (text.length > limit ? `${text.slice(0, limit - 1).trimEnd()}…` : text);
   return (
     <figure className="rounded-lg border bg-muted/30 p-3" aria-label="Search result preview">
       <figcaption className="text-xs font-medium text-muted-foreground">Search result preview</figcaption>
       <p className="mt-2 truncate text-xs text-muted-foreground">
-        {host} › blog › {address || "…"}
+        {host} › {prefix.split("/").filter(Boolean).join(" › ")} › {address || "…"}
       </p>
       <p className="mt-0.5 text-base leading-snug font-medium text-[#1a0dab] wrap-anywhere dark:text-[#8ab4f8]">
         {cut(title, SEO_TITLE_TARGET + 5)}

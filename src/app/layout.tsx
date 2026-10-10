@@ -65,6 +65,16 @@ export const metadata: Metadata = {
   },
 
   /**
+   * Site ownership checks, as meta tags in every page's <head>. Pinterest
+   * (client, 2026-10-09: the RepGet account claims www.repget.com) reads it
+   * from the homepage; the value is the one Pinterest's "Claim your website"
+   * screen gave.
+   */
+  verification: {
+    other: { "p:domain_verify": "8355c73131e6c2c7991fcb97d610f4f8" },
+  },
+
+  /**
    * A preview deployment is never a search result: noindex on every page, for
    * crawlers that read the page rather than the X-Robots-Tag header that
    * next.config also sends. Production sets nothing here, so each page's own

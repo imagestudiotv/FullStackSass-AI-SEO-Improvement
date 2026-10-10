@@ -95,6 +95,11 @@ export type BlogPost = {
   sources?: BlogSource[];
   /** Body as HTML, sanitised on every save (lib/articles/sanitize.ts). */
   body: string;
+  /**
+   * The language it is written in (lib/blog/locale.ts); absent means English.
+   * Decides its address and the words around it.
+   */
+  locale?: "en" | "es" | "fr" | "it" | "de";
 };
 
 /**

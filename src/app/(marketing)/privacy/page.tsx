@@ -1,6 +1,7 @@
 import { LegalPage } from "../legal-page";
 import { CookieSettingsButton } from "@/components/consent-banner";
 import { SUPPORT_EMAIL } from "@/lib/config/site";
+import { consentMode } from "@/lib/google-analytics";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
 
 export const metadata = {
@@ -23,8 +24,10 @@ export const metadata = {
  * because a privacy policy that overstates the protections is worse than none.
  */
 export default function PrivacyPage() {
+  // Set per deployment (lib/google-analytics.ts); the policy says which one runs.
+  const advanced = consentMode() === "advanced";
   return (
-    <LegalPage title="Privacy Policy" updated="8 October 2026">
+    <LegalPage title="Privacy Policy" updated="10 October 2026">
       <p>
         This policy explains what information RepGet (&quot;we&quot;,
         &quot;the service&quot;) collects, why we collect it, and what we do
@@ -84,20 +87,37 @@ export default function PrivacyPage() {
         not counted at all.
       </p>
       <p>
-        <strong>Google Analytics, only if you accept.</strong> On our public
-        pages and the sign-in pages - never inside your account - we ask
-        whether we may also use Google Analytics. Nothing is loaded from
-        Google unless you accept. If you do, Google Analytics sets two cookies
-        (<code>_ga</code> and <code>_ga_</code> followed by our property code,
-        kept for 13 months) to recognise a returning browser, and records which
-        pages are viewed, which website sent you, your approximate location
-        (country and city) and your browser and device. Page addresses are
-        cleaned in the same way before they are sent. We have turned
-        Google&apos;s advertising features off, and Google says Google Analytics
-        does not log or store IP addresses. Google keeps these records for at
-        most 14 months, processes them for us under its data processing terms,
-        and may do so in the United States under the EU-US Data Privacy
-        Framework. If you decline, no Google Analytics cookie is set.
+        <strong>Google Analytics and Google Ads, only if you accept.</strong>{" "}
+        On our public pages and the sign-in pages - never inside your account -
+        we ask whether we may use cookies from Google Analytics and Google Ads.{" "}
+        {advanced
+          ? "Until you answer, Google's tags load without cookies and send Google only cookieless signals (that a page was viewed, from which kind of browser and device), which Google uses to estimate the visits it cannot count. If you decline, they stop."
+          : "Nothing is loaded from Google unless you accept."}{" "}
+        If you accept, Google Analytics sets two cookies (<code>_ga</code> and{" "}
+        <code>_ga_</code> followed by our property code, kept for 13 months)
+        to recognise a returning browser, and records which pages are viewed,
+        which website or ad sent you, your approximate location (country and
+        city) and your browser and device. Page addresses are cleaned in the
+        same way before they are sent, keeping only the campaign tags that say
+        which ad or link brought you (such as <code>utm_source</code> or
+        Google&apos;s <code>gclid</code>). Google Ads may set its own cookies
+        (names starting with <code>_gcl_</code>) to tell us when a visit from
+        one of our ads leads to a sign-up, and to show our ads to people who
+        have visited.
+      </p>
+      <p>
+        <strong>Sign-ups and payments, if you accepted.</strong> When you
+        create an account, start your free articles, or make the first
+        payment of a subscription, we tell Google Analytics that this
+        happened - for a payment, the plan, the amount and the currency -
+        linked to the Google Analytics cookie of the browser in which you
+        accepted. We never send your name, your email address, or anything
+        about your websites or articles. Google says Google Analytics does not
+        log or store IP addresses. Google keeps Google Analytics records for at
+        most 14 months, processes them for us under its data processing
+        terms, and may do so in the United States under the EU-US Data
+        Privacy Framework. If you decline, no Google cookie is set and nothing
+        about your account is sent to Google.
       </p>
 
       <h2>Google user data</h2>
@@ -190,8 +210,9 @@ export default function PrivacyPage() {
           <strong>Vercel</strong> - application hosting and visit statistics
         </li>
         <li>
-          <strong>Google</strong> - visit statistics (Google Analytics), only
-          for visitors who accept analytics cookies
+          <strong>Google</strong> - visit statistics (Google Analytics) and
+          advertising measurement (Google Ads), only for visitors who accept
+          cookies
         </li>
         <li>
           <strong>Stripe</strong> - payment processing
@@ -230,15 +251,15 @@ export default function PrivacyPage() {
       <h2>Cookies</h2>
       <p>
         We use a cookie to keep you signed in, and one called{" "}
-        <code>repget_consent</code> to remember your answer about analytics
-        cookies for six months. If you accept analytics cookies, Google
-        Analytics also sets the two cookies described under &quot;Google
-        Analytics&quot; above. We do not use advertising cookies.
+        <code>repget_consent</code> to remember your answer about Google&apos;s
+        cookies for six months. If you accept, Google Analytics also sets the
+        two cookies described above, and Google Ads may set its own (names
+        starting with <code>_gcl_</code>).
       </p>
       <p>
         You can change your answer at any time with &quot;Cookie
         settings&quot; at the bottom of every public page. Declining after
-        accepting stops Google Analytics and deletes its cookies.{" "}
+        accepting stops Google&apos;s tags and deletes their cookies.{" "}
         <CookieSettingsButton label="Change cookie settings" className="font-medium underline underline-offset-4 hover:no-underline" />
       </p>
 

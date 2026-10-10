@@ -5,7 +5,9 @@ import { revalidatePath } from "next/cache";
 
 import { recordAdminAction, type AdminAction } from "@/lib/admin/audit";
 import { requireAdmin } from "@/lib/admin/guard";
+import { isAiConfigured } from "@/lib/ai/client";
 import { sanitizeHtml } from "@/lib/articles/sanitize";
+import { blogLocale, blogPath, isBlogLocale, LANGUAGE_NAMES_EN } from "@/lib/blog/locale";
 import {
   blogSlug,
   FAQ_ANSWER_LIMIT,
@@ -18,8 +20,10 @@ import {
   type BlogSource,
 } from "@/lib/blog/shared";
 import { SEARCH_LIMITS, secondaryKeywordList } from "@/lib/blog/keywords";
+import { translateBlogPost, type TranslatableFields } from "@/lib/blog/translate";
 import { db } from "@/lib/db";
 import { blogCategories, blogPosts } from "@/lib/db/schema";
+import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/config";
 import { notifyIndexNow } from "@/lib/indexnow";
 import {
   ALLOWED_IMAGE_TYPES,
@@ -57,6 +61,12 @@ import type { ActionResult } from "@/lib/websites/actions";
  *   to Bing and the other IndexNow engines once saved, naming only the pages
  *   that changed (lib/indexnow.ts; production only, never in the way of the
  *   save). A draft's changes are not: nobody can see them.
+ * - Languages (client, 2026-10-09; lib/blog/locale.ts): a post is written in
+ *   one language, chosen when it is created. An English post can be given a
+ *   translation per language - drafted by AI or copied to translate by hand
+ *   (createBlogTranslation) - which is saved as a draft marked "needs
+ *   review". It cannot be published until an administrator confirms a
+ *   native speaker has read and corrected it (`reviewed` on the save).
  */
 
 export type AdminBlogRow = {
@@ -68,7 +78,14 @@ export type AdminBlogRow = {
   publishedAt: Date | null;
   updatedAt: Date;
   updatedBy: string | null;
+  locale: Locale;
+  /** The English post this translates, or null for an original. */
+  translationOf: string | null;
+  needsReview: boolean;
 };
+
+/** One language of an article, as the editor lists it. */
+export type BlogTranslationRow = { id: string; locale: Locale; title: string; slug: string; status: string; needsReview: boolean };
 
 export type AdminBlogPost = AdminBlogRow & {
   description: string;
@@ -83,6 +100,10 @@ export type AdminBlogPost = AdminBlogRow & {
   sources: BlogSource[];
   revisedAt: Date | null;
   version: number;
+  /** For an original: its translations, one per language. */
+  translations: BlogTranslationRow[];
+  /** For a translation: the post it translates. */
+  original: BlogTranslationRow | null;
 };
 
 export type BlogPostInput = {
@@ -103,6 +124,8 @@ export type BlogPostInput = {
   bodyHtml: string;
   faqs: BlogFaq[];
   sources: BlogSource[];
+  /** The language, for a new post only (lib/blog/locale.ts); empty is English. A post keeps its language. */
+  locale?: string;
 };
 
 /** Paths under /blog that are not posts. */
@@ -244,15 +267,19 @@ function isUniqueViolation(error: unknown): boolean {
   return code === "23505";
 }
 
-const TAKEN = (slug: string) => `Another post already uses the address /blog/${slug} - choose another`;
+const TAKEN = (slug: string) => `Another post already uses the address "${slug}" (addresses are unique across languages) - choose another`;
 
 /**
- * The public pages a live post is shown on: its own, the blog's front page and
- * its category's page - what a publish reports (see notifyIndexNow).
+ * The public pages a live post is shown on: its own, its language's blog
+ * front page and, for English, its category's page - what a publish reports
+ * (see notifyIndexNow). Category pages are English only.
  */
-function postPages(slug: string, categorySlug: string): string[] {
-  return [`/blog/${slug}`, "/blog", `/blog/category/${categorySlug}`];
+function postPages(locale: Locale, slug: string, categorySlug: string): string[] {
+  return [blogPath(locale, slug), blogPath(locale), ...(locale === DEFAULT_LOCALE ? [`/blog/category/${categorySlug}`] : [])];
 }
+
+const UNREVIEWED =
+  "This translation has not been reviewed yet. Have a native speaker read and correct it, then tick “Reviewed by a native speaker” before publishing.";
 
 /**
  * Stored FAQs and sources in the order clean() builds them. Postgres keeps a
@@ -299,16 +326,34 @@ export async function listBlogPostsAdmin(): Promise<AdminBlogRow[]> {
       publishedAt: blogPosts.publishedAt,
       updatedAt: blogPosts.updatedAt,
       updatedBy: blogPosts.updatedBy,
+      locale: blogPosts.locale,
+      translationOf: blogPosts.translationOf,
+      needsReview: blogPosts.needsReview,
     })
     .from(blogPosts)
-    .orderBy(desc(blogPosts.updatedAt));
+    .orderBy(desc(blogPosts.updatedAt))
+    .then((rows) => rows.map((row) => ({ ...row, locale: blogLocale(row.locale) })));
 }
+
+const translationRow = {
+  id: blogPosts.id,
+  locale: blogPosts.locale,
+  title: blogPosts.title,
+  slug: blogPosts.slug,
+  status: blogPosts.status,
+  needsReview: blogPosts.needsReview,
+};
 
 export async function getBlogPostAdmin(id: string): Promise<AdminBlogPost | null> {
   await requireAdmin();
   if (!UUID.test(id)) return null;
   const [row] = await db.select().from(blogPosts).where(eq(blogPosts.id, id)).limit(1);
   if (!row) return null;
+  const [translations, [original]] = await Promise.all([
+    row.translationOf ? Promise.resolve([]) : db.select(translationRow).from(blogPosts).where(eq(blogPosts.translationOf, row.id)).orderBy(asc(blogPosts.locale)),
+    row.translationOf ? db.select(translationRow).from(blogPosts).where(eq(blogPosts.id, row.translationOf)).limit(1) : Promise.resolve([]),
+  ]);
+  const withLocale = (entry: (typeof translations)[number]) => ({ ...entry, locale: blogLocale(entry.locale) });
   return {
     id: row.id,
     title: row.title,
@@ -330,6 +375,11 @@ export async function getBlogPostAdmin(id: string): Promise<AdminBlogPost | null
     sources: row.sources,
     revisedAt: row.revisedAt,
     version: row.version,
+    locale: blogLocale(row.locale),
+    translationOf: row.translationOf,
+    needsReview: row.needsReview,
+    translations: translations.map(withLocale),
+    original: original ? withLocale(original) : null,
   };
 }
 
@@ -344,7 +394,9 @@ export async function saveBlogPost(input: {
   expectedVersion: number;
   status: "draft" | "published";
   post: BlogPostInput;
-}): Promise<ActionResult<{ id: string; version: number; slug: string; status: string }>> {
+  /** A translation marked "needs review": the administrator confirms a native speaker has read and corrected it. */
+  reviewed?: boolean;
+}): Promise<ActionResult<{ id: string; version: number; slug: string; status: string; needsReview: boolean }>> {
   const admin = await requireAdmin();
   if (input.status !== "draft" && input.status !== "published") return { ok: false, error: "Unknown status" };
   if (input.id !== null && !UUID.test(input.id)) return { ok: false, error: "Post not found" };
@@ -372,10 +424,12 @@ export async function saveBlogPost(input: {
 
       if (input.id === null) {
         if (taken) throw new BlogError(TAKEN(fields.slug));
+        const locale = isBlogLocale(input.post.locale) ? input.post.locale : DEFAULT_LOCALE;
         const [created] = await tx
           .insert(blogPosts)
           .values({
             ...fields,
+            locale,
             status: input.status,
             publishedAt: input.status === "published" ? now : null,
             createdBy: admin.email,
@@ -383,7 +437,7 @@ export async function saveBlogPost(input: {
             createdAt: now,
             updatedAt: now,
           })
-          .returning({ id: blogPosts.id, version: blogPosts.version, slug: blogPosts.slug, status: blogPosts.status });
+          .returning({ id: blogPosts.id, version: blogPosts.version, slug: blogPosts.slug, status: blogPosts.status, needsReview: blogPosts.needsReview });
         await recordAdminAction(
           {
             actorEmail: admin.email,
@@ -395,7 +449,7 @@ export async function saveBlogPost(input: {
           },
           tx,
         );
-        return { saved: created, changedPages: input.status === "published" ? postPages(fields.slug, category.slug) : [] };
+        return { saved: created, changedPages: input.status === "published" ? postPages(locale, fields.slug, category.slug) : [] };
       }
 
       const [current] = await tx.select().from(blogPosts).where(eq(blogPosts.id, input.id)).for("update");
@@ -405,10 +459,13 @@ export async function saveBlogPost(input: {
           "This post was changed after you opened it (by another administrator). Reload it to see the latest version, then make your change again.",
         );
       }
+      const locale = blogLocale(current.locale);
       if (current.publishedAt && fields.slug !== current.slug) {
-        throw new BlogError(`The address of a published post cannot change - it would break every link to /blog/${current.slug}`);
+        throw new BlogError(`The address of a published post cannot change - it would break every link to ${blogPath(locale, current.slug)}`);
       }
       if (taken && taken.id !== current.id) throw new BlogError(TAKEN(fields.slug));
+      const needsReview = current.needsReview && input.reviewed !== true;
+      if (needsReview && input.status === "published") throw new BlogError(UNREVIEWED);
 
       const contentChanged =
         fields.title !== current.title ||
@@ -432,12 +489,13 @@ export async function saveBlogPost(input: {
           publishedAt: current.publishedAt ?? (input.status === "published" ? now : null),
           // A change to a live post is a revision readers and search engines see.
           revisedAt: wasLive && input.status === "published" && contentChanged ? now : current.revisedAt,
+          needsReview,
           version: current.version + 1,
           updatedBy: admin.email,
           updatedAt: now,
         })
         .where(eq(blogPosts.id, current.id))
-        .returning({ id: blogPosts.id, version: blogPosts.version, slug: blogPosts.slug, status: blogPosts.status });
+        .returning({ id: blogPosts.id, version: blogPosts.version, slug: blogPosts.slug, status: blogPosts.status, needsReview: blogPosts.needsReview });
 
       const action: AdminAction =
         !wasLive && input.status === "published"
@@ -454,8 +512,8 @@ export async function saveBlogPost(input: {
           action,
           targetType: "blog_post",
           targetId: current.id,
-          summary: `${verb} the blog post "${fields.title}"`,
-          detail: { slug: fields.slug, version: updated.version, live: input.status === "published" },
+          summary: `${verb} the blog post "${fields.title}"${current.needsReview && !needsReview ? " (translation marked reviewed)" : ""}`,
+          detail: { slug: fields.slug, version: updated.version, live: input.status === "published", locale, ...(current.needsReview && !needsReview ? { reviewed: true } : {}) },
         },
         tx,
       );
@@ -486,12 +544,15 @@ export async function saveBlogPost(input: {
             movedCategory ||
             cardMinutes(fields) !== cardMinutes(current)));
       const changedPages: string[] = [];
-      if (pageChanged) changedPages.push(`/blog/${fields.slug}`);
+      if (pageChanged) changedPages.push(blogPath(locale, fields.slug));
       if (cardChanged) {
-        changedPages.push("/blog");
-        if (nowLive) changedPages.push(`/blog/category/${category.slug}`);
-        if (wasLive && (!nowLive || movedCategory)) {
-          changedPages.push(`/blog/category/${movedCategory ? await categorySlugByName(tx, current.category) : category.slug}`);
+        changedPages.push(blogPath(locale));
+        // Category pages list English posts only.
+        if (locale === DEFAULT_LOCALE) {
+          if (nowLive) changedPages.push(`/blog/category/${category.slug}`);
+          if (wasLive && (!nowLive || movedCategory)) {
+            changedPages.push(`/blog/category/${movedCategory ? await categorySlugByName(tx, current.category) : category.slug}`);
+          }
         }
       }
       return { saved: updated, changedPages };
@@ -541,6 +602,138 @@ export async function deleteBlogPost(input: { id: string; expectedVersion: numbe
   }
   refresh();
   return { ok: true, data: null };
+}
+
+/** The fields an article's translation is made from. */
+function translatable(row: typeof blogPosts.$inferSelect): TranslatableFields {
+  return {
+    title: row.title,
+    seoTitle: row.seoTitle ?? "",
+    description: row.description,
+    shortAnswer: row.shortAnswer ?? "",
+    breadcrumbLabel: row.breadcrumbLabel ?? "",
+    primaryKeyword: row.primaryKeyword ?? "",
+    secondaryKeywords: row.secondaryKeywords,
+    bodyHtml: row.bodyHtml,
+    faqs: row.faqs,
+  };
+}
+
+/**
+ * Starts the translation of an English post into another language, as a
+ * draft marked "needs review" (see the rules at the top), and returns its
+ * id. `mode` "ai" drafts it with AI (lib/blog/translate.ts) - a minute or
+ * two for a long post; "copy" copies the English text, to translate by hand.
+ * A language that already has a translation returns that one instead.
+ *
+ * The draft keeps the original's category, author and sources. Its address
+ * is made from the translated title (unique across languages: the language
+ * code is added when the plain one is taken).
+ */
+export async function createBlogTranslation(input: {
+  sourceId: string;
+  locale: string;
+  mode: "ai" | "copy";
+}): Promise<ActionResult<{ id: string; existed: boolean }>> {
+  const admin = await requireAdmin();
+  if (!UUID.test(input.sourceId)) return { ok: false, error: "Post not found" };
+  if (!isBlogLocale(input.locale) || input.locale === DEFAULT_LOCALE) return { ok: false, error: "Choose a language to translate into" };
+  if (input.mode !== "ai" && input.mode !== "copy") return { ok: false, error: "Unknown way to translate" };
+  const locale = input.locale;
+
+  const [source] = await db.select().from(blogPosts).where(eq(blogPosts.id, input.sourceId)).limit(1);
+  if (!source) return { ok: false, error: "Post not found" };
+  if (source.translationOf || blogLocale(source.locale) !== DEFAULT_LOCALE) {
+    return { ok: false, error: "Translations are made from the English post" };
+  }
+  const existing = async () =>
+    (await db.select({ id: blogPosts.id }).from(blogPosts).where(and(eq(blogPosts.translationOf, source.id), eq(blogPosts.locale, locale))).limit(1))[0];
+  const already = await existing();
+  if (already) return { ok: true, data: { id: already.id, existed: true } };
+
+  let content: TranslatableFields & { slug: string };
+  if (input.mode === "ai") {
+    if (!isAiConfigured()) return { ok: false, error: "AI is not set up on this server (ANTHROPIC_API_KEY). Copy the post to translate it by hand instead." };
+    try {
+      content = await translateBlogPost(translatable(source), DEFAULT_LOCALE, locale);
+    } catch (error) {
+      console.error("[admin/blog] AI translation failed", error);
+      return { ok: false, error: `The ${LANGUAGE_NAMES_EN[locale]} draft could not be written: ${error instanceof Error ? error.message : "the AI did not answer"}. Try again, or copy the post to translate it by hand.` };
+    }
+  } else {
+    content = { ...translatable(source), slug: `${source.slug}-${locale}` };
+  }
+
+  let fields: Clean;
+  try {
+    fields = clean(
+      {
+        ...content,
+        slug: blogSlug(content.slug) || blogSlug(content.title),
+        category: source.category,
+        author: source.author,
+        sources: source.sources,
+      },
+      false,
+    );
+  } catch (error) {
+    if (error instanceof BlogError) return { ok: false, error: `The ${LANGUAGE_NAMES_EN[locale]} draft could not be saved: ${error.message}` };
+    throw error;
+  }
+
+  try {
+    const created = await db.transaction(async (tx) => {
+      // The plain address, then with the language code, then numbered: never another post's.
+      const candidates = [fields.slug, `${fields.slug}-${locale}`, ...[2, 3, 4, 5].map((n) => `${fields.slug}-${locale}-${n}`)];
+      let slug: string | null = null;
+      for (const candidate of candidates) {
+        const [taken] = await tx.select({ id: blogPosts.id }).from(blogPosts).where(eq(blogPosts.slug, candidate)).limit(1);
+        if (!taken && !RESERVED_SLUGS.has(candidate)) {
+          slug = candidate;
+          break;
+        }
+      }
+      if (!slug) throw new BlogError("Every address tried for the translation is taken. Rename the English post's address, then try again.");
+      const now = new Date();
+      const [row] = await tx
+        .insert(blogPosts)
+        .values({
+          ...fields,
+          slug,
+          locale,
+          translationOf: source.id,
+          needsReview: true,
+          status: "draft",
+          createdBy: admin.email,
+          updatedBy: admin.email,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .returning({ id: blogPosts.id });
+      await recordAdminAction(
+        {
+          actorEmail: admin.email,
+          action: "blog.translation_created",
+          targetType: "blog_post",
+          targetId: row.id,
+          summary: `Started the ${LANGUAGE_NAMES_EN[locale]} translation of "${source.title}" (${input.mode === "ai" ? "AI draft" : "copied to translate by hand"})`,
+          detail: { source: source.id, locale, mode: input.mode, slug },
+        },
+        tx,
+      );
+      return row;
+    });
+    refresh(source.id);
+    return { ok: true, data: { id: created.id, existed: false } };
+  } catch (error) {
+    if (error instanceof BlogError) return { ok: false, error: error.message };
+    // Two administrators asked at once: the other one's draft is the translation.
+    if (isUniqueViolation(error)) {
+      const other = await existing();
+      if (other) return { ok: true, data: { id: other.id, existed: true } };
+    }
+    throw error;
+  }
 }
 
 /**

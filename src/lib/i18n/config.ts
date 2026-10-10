@@ -77,8 +77,10 @@ export function splitLocale(pathname: string): {
 /**
  * The pages that exist in every language: the home page and the folders
  * under app/(marketing)/[locale] (config.test.ts keeps the two in step).
- * Everything else - the free check, the tools, the docs, the blog - is
- * English-only and has no /es/... address.
+ * Everything else - the free check, the tools, the docs - is English-only
+ * and has no /es/... address. The blog's front page is here (/it/blog lists
+ * the Italian posts, then the English ones); its posts, category and author
+ * pages are not - a post's other languages come from lib/blog/locale.ts.
  */
 export const TRANSLATED_PATHS: ReadonlySet<string> = new Set([
   "/",
@@ -90,6 +92,7 @@ export const TRANSLATED_PATHS: ReadonlySet<string> = new Set([
   "/publishers",
   "/affiliate",
   "/backlink-exchange",
+  "/blog",
 ]);
 
 /**

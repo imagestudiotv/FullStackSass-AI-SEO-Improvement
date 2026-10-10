@@ -61,6 +61,7 @@ export function PlanStep({
   monthlyPlans,
   annualPlans,
   paypalAvailable,
+  paypalPlanIds,
   websiteId,
   trialEligible = true,
   emailVerified = true,
@@ -69,7 +70,10 @@ export function PlanStep({
 }: {
   monthlyPlans: PickerPlan[];
   annualPlans: PickerPlan[];
+  /** Whether PayPal can complete a checkout at all (lib/paypal/client.ts). */
   paypalAvailable: boolean;
+  /** The plans that exist in PayPal; any other gets no PayPal button. */
+  paypalPlanIds: string[];
   /**
    * Whether checkout will actually give the free articles: only a workspace
    * that has never subscribed (lib/billing/checkouts.ts isTrialEligible).
@@ -241,6 +245,12 @@ export function PlanStep({
   }
 
   const features = planFeatures(plan);
+  /*
+    PayPal for THIS plan: configured, and the plan mirrored into PayPal. A
+    plan without a PayPal plan id used to show the button and answer the
+    click with an error.
+  */
+  const paypal = paypalAvailable && paypalPlanIds.includes(plan.id);
 
   /**
    * The badge on the card, per the design.
@@ -524,10 +534,10 @@ export function PlanStep({
 
         {/*
           PayPal, per the brief: "We include also PayPal payments, not just
-          Cards". Shown only when it is configured — a button that answers "not
+          Cards". Shown only when it can complete — a button that answers "not
           configured" is worse than no button.
         */}
-        {paypalAvailable ? (
+        {paypal ? (
           <Button
             variant="outline"
             onClick={() => handleCheckout("paypal")}
@@ -558,7 +568,7 @@ export function PlanStep({
           trial and are not applied to the PayPal plan. Saying so is the
           difference between a caveat and a false promise.
         */}
-        {paypalAvailable ? (
+        {paypal ? (
           <p className="mt-2 text-center text-xs text-muted-foreground">
             {t.paypalNoTrial}
             </p>

@@ -79,8 +79,13 @@ export async function createPlan(input: {
       ],
       payment_preferences: {
         auto_bill_outstanding: true,
-        // Cancel after three failed attempts rather than retrying forever.
+        // Applies only to a setup fee, and these plans have none.
         setup_fee_failure_action: "CANCEL",
+        /*
+          After three failed payments PayPal SUSPENDS the subscription. It is
+          not cancelled: nothing at PayPal ends a suspended subscription, which
+          is why mapStatus stores SUSPENDED as "unpaid".
+        */
         payment_failure_threshold: 3,
       },
     }),
@@ -101,6 +106,8 @@ export type PayPalSubscription = {
   billing_info?: {
     next_billing_time?: string;
     last_payment?: { time?: string };
+    /** Payments failed since the last one that succeeded; PayPal resets it to 0 on success. */
+    failed_payments_count?: number;
   };
   /** When the subscription started billing (after approval). */
   start_time?: string;
@@ -114,11 +121,36 @@ export type CreatedSubscription = {
   approveUrl: string;
 };
 
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * custom_id in exactly the shape createSubscription writes today:
+ * "<organization>:<website uuid>:<checkout uuid>". Null for anything else -
+ * one of ours in an older form, or a subscription another integration on
+ * the same PayPal account made with its own custom_id ("ORDER-123"). Whether
+ * the checkout it names really is ours is the caller's check
+ * (paypal-events.ts).
+ */
+export function parseExactCustomId(value: string | null | undefined): {
+  organizationId: string;
+  websiteId: string;
+  checkoutId: string;
+} | null {
+  const parts = value ? value.split(":") : [];
+  if (parts.length !== 3) return null;
+  const [organizationId, websiteId, checkoutId] = parts;
+  if (!organizationId || !UUID_RE.test(websiteId) || !UUID_RE.test(checkoutId)) return null;
+  return { organizationId, websiteId, checkoutId };
+}
+
 /**
  * Reads back what createSubscription wrote into custom_id.
  *
  * Tolerates the old form, which held only an organization id: those
- * subscriptions are still live and still send webhooks.
+ * subscriptions are still live and still send webhooks. Tolerant means it
+ * reads ANY text as ids, so it is only used for a subscription already
+ * known to be ours (paypal-events.ts).
  */
 export function parseCustomId(value: string | null | undefined): {
   organizationId: string | null;
@@ -177,6 +209,8 @@ export async function createSubscription(input: {
         application_context: {
           brand_name: "RepGet",
           user_action: "SUBSCRIBE_NOW",
+          // A software service: PayPal must not ask the buyer for a shipping address.
+          shipping_preference: "NO_SHIPPING",
           return_url: input.returnUrl,
           cancel_url: input.cancelUrl,
         },
@@ -250,17 +284,31 @@ export async function reviseSubscription(input: {
  * translating here keeps a single set of statuses in the database rather than
  * two dialects that every reader would have to know about.
  */
-export function mapStatus(paypalStatus: string): string {
+export function mapStatus(
+  paypalStatus: string,
+  billingInfo?: PayPalSubscription["billing_info"],
+): string {
   switch (paypalStatus) {
     case "ACTIVE":
-      return "active";
+      /*
+        PayPal keeps a subscription ACTIVE while it retries a failed payment,
+        counting the failures until one succeeds. That is Stripe's past_due:
+        still entitled, shown as a warning, and over either way - paid
+        (the count resets) or suspended.
+      */
+      return (billingInfo?.failed_payments_count ?? 0) > 0 ? "past_due" : "active";
     case "APPROVAL_PENDING":
     case "APPROVED":
       return "incomplete";
     case "SUSPENDED":
-      // Suspended means payment is failing but the subscription still exists,
-      // which is what Stripe calls past_due.
-      return "past_due";
+      /*
+        PayPal has stopped billing it - after payment_failure_threshold failed
+        payments, or by hand - and nothing at PayPal ever ends a suspended
+        subscription. "unpaid", which is not entitled. It used to be
+        past_due, which is: a subscriber who stopped paying kept articles and
+        monthly credits indefinitely.
+      */
+      return "unpaid";
     case "CANCELLED":
       return "canceled";
     case "EXPIRED":
