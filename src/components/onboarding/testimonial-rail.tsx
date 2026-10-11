@@ -9,19 +9,16 @@ import { Quote, Star } from "lucide-react";
 import { getMessages, type Messages } from "@/lib/i18n/messages";
 import { useEffect, useState } from "react";
 
-import {
-  REVIEW_SCORE,
-  TESTIMONIALS,
-  type Testimonial,
-} from "@/lib/marketing/testimonials";
+import { REVIEW_SCORE, type Testimonial } from "@/lib/marketing/testimonials";
 
 /**
  * The rotating customer quote and review badge from the reference design.
  *
- * RENDERS NOTHING WHEN THERE IS NOTHING TRUE TO SHOW. The data file is empty
- * on purpose — see lib/marketing/testimonials.ts — so today this returns null
- * and the plan screen simply keeps its explanatory card. The moment real
- * quotes are added it appears, with no further work.
+ * RENDERS NOTHING WHEN THERE IS NOTHING TRUE TO SHOW. The cards are the
+ * PUBLISHED ones from Admin -> Testimonials, passed in by the page
+ * (lib/marketing/testimonials-db.ts); with none, this returns null and the
+ * plan screen simply keeps its explanatory card. The moment a card is
+ * published it appears, with no further work.
  *
  * That is why this is a component reading data rather than markup with the
  * words baked in: "we have no testimonials yet" and "here are our
@@ -113,37 +110,38 @@ function Card({
 }
 
 export function TestimonialRail({
+  testimonials,
   t = getMessages("en").app.common,
 }: {
+  /** Published cards (lib/marketing/testimonials-db.ts). */
+  testimonials: Testimonial[];
   /** Shared words, defaulting to English. */
   t?: Messages["app"]["common"];
-} = {}) {
+}) {
   const [index, setIndex] = useState(0);
+  const count = testimonials.length;
 
   useEffect(() => {
-    if (TESTIMONIALS.length < 2) return;
-    const timer = setInterval(
-      () => setIndex((i) => (i + 1) % TESTIMONIALS.length),
-      ROTATE_MS,
-    );
+    if (count < 2) return;
+    const timer = setInterval(() => setIndex((i) => (i + 1) % count), ROTATE_MS);
     return () => clearInterval(timer);
-  }, []);
+  }, [count]);
 
   // Nothing true to show: render nothing at all.
-  if (TESTIMONIALS.length === 0 && !REVIEW_SCORE) return null;
+  if (count === 0 && !REVIEW_SCORE) return null;
 
-  const item = TESTIMONIALS[index] ?? null;
+  const item = testimonials[index] ?? null;
 
   return (
     <div className="space-y-4">
       {item ? <Card t={t} item={item} /> : null}
 
       {/* Dots, so someone can go back to a quote they were reading. */}
-      {TESTIMONIALS.length > 1 ? (
+      {count > 1 ? (
         <div className="flex justify-center gap-1.5">
-          {TESTIMONIALS.map((t, i) => (
+          {testimonials.map((card, i) => (
             <button
-              key={t.name}
+              key={`${i}-${card.name}`}
               type="button"
               onClick={() => setIndex(i)}
               aria-label={`Show quote ${i + 1}`}

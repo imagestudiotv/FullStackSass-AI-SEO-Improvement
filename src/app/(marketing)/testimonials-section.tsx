@@ -1,44 +1,61 @@
-import { BadgeCheck, Star } from "lucide-react";
+import { Plus, Star } from "lucide-react";
 import Image from "next/image";
 
+import { TestimonialCard } from "@/components/testimonial-card";
 import { format } from "@/lib/i18n/format";
-import {
-  REVIEW_SCORE,
-  TESTIMONIALS,
-  type ReviewScore,
-  type Testimonial,
-} from "@/lib/marketing/testimonials";
-import { OFFSCREEN, SectionHeading, type SectionProps } from "./home-sections";
+import { REVIEW_SCORE, type ReviewScore, type Testimonial } from "@/lib/marketing/testimonials";
+import { OFFSCREEN, type SectionProps } from "./home-sections";
 
 /**
- * Quotes from people who use RepGet, in the design's card layout.
+ * Quotes from people who use RepGet, in the client's card design
+ * (2026-10-11 package, "repget-approved-layout-direction"): a left-aligned
+ * heading with a grey second line, white cards with a 64px round picture,
+ * the name and role beside it and the quote below (components/
+ * testimonial-card.tsx), three columns on a computer, two on a tablet, one
+ * on a phone, and the cards past the ninth behind a dark "View more" pill.
  *
- * Reads lib/marketing/testimonials.ts and NOTHING else: no placeholder cards,
- * no sample names, no rating badge until those lists hold real, approved
- * entries. With both empty - as they are until quotes are approved in
- * writing - the section renders nothing at all, heading included, so the
- * page reads straight from the dashboard to pricing.
+ * The cards come from the page: the homepages pass the PUBLISHED cards from
+ * Admin -> Testimonials (lib/marketing/testimonials-db.ts), the admin design
+ * preview passes drafts too. With no card and no review score the section
+ * renders nothing at all, heading included, so the page reads straight from
+ * the dashboard to pricing.
  *
- * The props default to the real sources; tests pass their own.
+ * "View more" is a native <details>: no script, the hidden cards are in the
+ * HTML for anything reading the page, and keyboards and screen readers get
+ * a real control for free.
  */
+
+/** Cards shown before "View more" (the design: three full rows on a computer). */
+const VISIBLE = 9;
+
 export function Testimonials({
   t,
-  testimonials = TESTIMONIALS,
+  testimonials,
   reviewScore = REVIEW_SCORE,
 }: Pick<SectionProps, "t"> & {
-  testimonials?: Testimonial[];
+  testimonials: Testimonial[];
   reviewScore?: ReviewScore | null;
 }) {
   if (testimonials.length === 0 && !reviewScore) return null;
 
+  const shown = testimonials.slice(0, VISIBLE);
+  const more = testimonials.slice(VISIBLE);
+  const grid = `grid grid-cols-1 gap-3 ${
+    testimonials.length === 1 ? "max-w-xl" : testimonials.length === 2 ? "max-w-4xl sm:grid-cols-2" : "sm:grid-cols-2 lg:grid-cols-3"
+  }`;
+
   return (
-    <section className={`${OFFSCREEN} border-t px-4 py-20`}>
+    <section id="testimonials" className={`${OFFSCREEN} scroll-mt-28 border-t px-4 py-20`}>
       <div className="mx-auto max-w-6xl">
-        <SectionHeading center eyebrow={t.testimonialsEyebrow} title={t.testimonialsTitle} />
+        <p className="text-xs font-semibold tracking-[0.14em] text-primary uppercase">{t.testimonialsEyebrow}</p>
+        <h2 className="mt-3 text-3xl font-semibold tracking-tight text-balance sm:text-5xl">
+          {t.testimonialsTitle}
+          <span className="block text-muted-foreground">{t.testimonialsSub}</span>
+        </h2>
 
         {reviewScore ? (
           // A score a reader can check: it links to the public profile it came from.
-          <p className="mt-5 flex justify-center">
+          <p className="mt-6 flex">
             <a
               href={reviewScore.url}
               target="_blank"
@@ -57,59 +74,47 @@ export function Testimonials({
           </p>
         ) : null}
 
-        {testimonials.length > 0 ? (
-          <ul
-            className={`mx-auto mt-12 grid grid-cols-1 gap-5 ${ testimonials.length === 1 ? "max-w-xl" : testimonials.length === 2 ? "max-w-4xl md:grid-cols-2" : "md:grid-cols-2 lg:grid-cols-3" }`}
-          >
-            {testimonials.map((item) => (
-              <li key={`${item.name}-${item.role}`}>
-                <figure className="flex h-full flex-col rounded-2xl border bg-card p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_12px_32px_-20px_rgba(0,0,0,0.18)]">
-                  <blockquote className="flex-1 text-pretty text-foreground">
-                    <p>&ldquo;{item.quote}&rdquo;</p>
-                  </blockquote>
-                  <figcaption className="mt-6 flex items-center gap-3 border-t pt-5">
-                    {item.avatar ? (
-                      <Image
-                        src={item.avatar}
-                        alt=""
-                        width={40}
-                        height={40}
-                        className="size-10 rounded-full object-cover"
-                      />
-                    ) : (
-                      // Initials, not a stock face standing in for a real person.
-                      <span
-                        aria-hidden="true"
-                        className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary-strong"
-                      >
-                        {initials(item.name)}
-                      </span>
-                    )}
-                    <span className="min-w-0">
-                      <span className="flex items-center gap-1.5 font-semibold">
-                        {item.name}
-                        {item.verified ? (
-                          <span className="inline-flex items-center gap-1 text-xs font-medium text-success">
-                            <BadgeCheck className="size-3.5" aria-hidden="true" />
-                            {t.testimonialsVerified}
-                          </span>
-                        ) : null}
-                      </span>
-                      <span className="block text-sm text-muted-foreground">{item.role}</span>
-                    </span>
-                  </figcaption>
-                </figure>
-              </li>
+        {shown.length > 0 ? (
+          <ul className={`mt-10 ${grid}`}>
+            {shown.map((item, index) => (
+              <TestimonialCard key={`${index}-${item.name}`} item={item} verifiedLabel={t.testimonialsVerified} />
             ))}
           </ul>
+        ) : null}
+
+        {more.length > 0 ? (
+          <details className="group mt-3">
+            <summary className="mx-auto mt-5 flex w-fit cursor-pointer list-none items-center gap-3 rounded-full bg-foreground py-2 pr-4 pl-3 text-sm font-semibold text-background shadow-sm outline-none focus-visible:ring-3 focus-visible:ring-primary/40 group-open:hidden [&::-webkit-details-marker]:hidden">
+              {/* The pictures of the cards it opens, as in the design. */}
+              <span className="flex" aria-hidden="true">
+                {more
+                  .filter((item) => item.avatar)
+                  .slice(0, 4)
+                  .map((item, index) => (
+                    <Image
+                      key={`${index}-${item.avatar}`}
+                      src={item.avatar!}
+                      alt=""
+                      width={28}
+                      height={28}
+                      unoptimized
+                      className="-ml-2 size-7 rounded-full border-2 border-foreground object-cover first:ml-0"
+                    />
+                  ))}
+              </span>
+              {t.testimonialsMore}
+              <span className="flex size-6 items-center justify-center rounded-full border border-background/70">
+                <Plus className="size-3.5" aria-hidden="true" />
+              </span>
+            </summary>
+            <ul className={grid}>
+              {more.map((item, index) => (
+                <TestimonialCard key={`${VISIBLE + index}-${item.name}`} item={item} verifiedLabel={t.testimonialsVerified} />
+              ))}
+            </ul>
+          </details>
         ) : null}
       </div>
     </section>
   );
-}
-
-/** "Ada Lovelace" -> "AL"; one name -> its first letter. */
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  return ((parts[0]?.[0] ?? "") + (parts.length > 1 ? parts.at(-1)![0] : "")).toUpperCase();
 }

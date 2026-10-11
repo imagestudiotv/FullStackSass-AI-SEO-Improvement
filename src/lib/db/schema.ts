@@ -2422,6 +2422,42 @@ export const blogPosts = pgTable(
   ],
 );
 
+/**
+ * The homepage's testimonial cards, written in Admin -> Testimonials
+ * (lib/admin/testimonials.ts; client, 2026-10-11).
+ *
+ * Only `published` cards reach the public homepage. Drafts show on the admin
+ * design preview (/preview/testimonials) in the page's real design. Migration
+ * 0055 loads the client's twelve SAMPLE cards as drafts marked `sample`: a
+ * sample cannot be published until its words, name or picture have been
+ * replaced, and publishing any card records who confirmed the person agreed
+ * to it.
+ */
+export const testimonials = pgTable(
+  "testimonials",
+  {
+    id: pk(),
+    name: text("name").notNull(),
+    /** Role and company, e.g. "Founder, Tatem Web Design". */
+    role: text("role").default("").notNull(),
+    quote: text("quote").notNull(),
+    /** A 128 x 128 picture (stored, or a file under /public); null shows initials. */
+    avatarUrl: text("avatar_url"),
+    /** Ascending: the order on the homepage. */
+    sortOrder: integer("sort_order").default(0).notNull(),
+    published: boolean("published").default(false).notNull(),
+    /** Placeholder content from the design package, never published as it is. */
+    sample: boolean("sample").default(false).notNull(),
+    /** The administrator who confirmed the person agreed to publication, and when. */
+    permissionConfirmedBy: text("permission_confirmed_by"),
+    permissionConfirmedAt: timestamp("permission_confirmed_at"),
+    createdBy: text("created_by"),
+    updatedBy: text("updated_by"),
+    ...timestamps,
+  },
+  (table) => [index("testimonials_published_order_idx").on(table.published, table.sortOrder)],
+);
+
 /** One-time sponsored mentions; deliberately separate from subscriptions. */
 export const blogSponsorships = pgTable("blog_sponsorships", {
   id: pk(),

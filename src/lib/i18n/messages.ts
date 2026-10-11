@@ -292,6 +292,10 @@ export type Messages = {
     /** Testimonials. Shown only when there are approved quotes. */
     testimonialsEyebrow: string;
     testimonialsTitle: string;
+    /** The heading's grey second line (the client's design, 2026-10-11). */
+    testimonialsSub: string;
+    /** The pill that shows the cards past the ninth. */
+    testimonialsMore: string;
     testimonialsVerified: string;
     /** "{score}/{outOf} on {platform} from {count} reviews" */
     reviewScore: string;
@@ -3296,7 +3300,9 @@ const en: Messages = {
       credit: "1 link credit",
     },
     testimonialsEyebrow: "Testimonials",
-    testimonialsTitle: "What people say about RepGet",
+    testimonialsTitle: "The results companies see with RepGet",
+    testimonialsSub: "Trusted by teams focused on growth.",
+    testimonialsMore: "View more",
     testimonialsVerified: "Verified customer",
     reviewScore: "{score}/{outOf} on {platform}, from {count} reviews",
     faqEyebrow: "FAQ",
@@ -6270,7 +6276,9 @@ const es: Messages = {
       credit: "1 crédito de enlace",
     },
     testimonialsEyebrow: "Testimonios",
-    testimonialsTitle: "Lo que dicen de RepGet",
+    testimonialsTitle: "Los resultados que las empresas obtienen con RepGet",
+    testimonialsSub: "Equipos centrados en crecer confían en nosotros.",
+    testimonialsMore: "Ver más",
     testimonialsVerified: "Cliente verificado",
     reviewScore: "{score}/{outOf} en {platform}, de {count} reseñas",
     faqEyebrow: "Preguntas frecuentes",
@@ -9249,7 +9257,9 @@ const fr: Messages = {
       credit: "1 crédit de lien",
     },
     testimonialsEyebrow: "Témoignages",
-    testimonialsTitle: "Ce que l’on dit de RepGet",
+    testimonialsTitle: "Les résultats que les entreprises obtiennent avec RepGet",
+    testimonialsSub: "Adopté par des équipes tournées vers la croissance.",
+    testimonialsMore: "Voir plus",
     testimonialsVerified: "Client vérifié",
     reviewScore: "{score}/{outOf} sur {platform}, d’après {count} avis",
     faqEyebrow: "FAQ",
@@ -12229,7 +12239,9 @@ const it: Messages = {
       credit: "1 credito link",
     },
     testimonialsEyebrow: "Testimonianze",
-    testimonialsTitle: "Cosa dicono di RepGet",
+    testimonialsTitle: "I risultati che le aziende ottengono con RepGet",
+    testimonialsSub: "Scelto da team che puntano alla crescita.",
+    testimonialsMore: "Mostra altri",
     testimonialsVerified: "Cliente verificato",
     reviewScore: "{score}/{outOf} su {platform}, da {count} recensioni",
     faqEyebrow: "Domande frequenti",
@@ -15201,7 +15213,9 @@ const de: Messages = {
       credit: "1 Link-Guthaben",
     },
     testimonialsEyebrow: "Stimmen",
-    testimonialsTitle: "Was andere über RepGet sagen",
+    testimonialsTitle: "Die Ergebnisse, die Unternehmen mit RepGet erzielen",
+    testimonialsSub: "Teams, die wachsen wollen, vertrauen RepGet.",
+    testimonialsMore: "Mehr anzeigen",
     testimonialsVerified: "Verifizierter Kunde",
     reviewScore: "{score}/{outOf} auf {platform}, aus {count} Bewertungen",
     faqEyebrow: "FAQ",

@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   Network,
   Newspaper,
+  Quote,
   Receipt,
   ScrollText,
   Users,
@@ -111,6 +112,13 @@ export const ADMIN_NAV: AdminNavGroup[] = [
         keywords: ["repget blog", "posts", "categories", "featured placements", "sponsored", "get featured"],
         description: "RepGet's own public blog",
       },
+      {
+        href: "/admin/testimonials",
+        label: "Testimonials",
+        icon: Quote,
+        keywords: ["reviews", "quotes", "feedback", "customers", "homepage"],
+        description: "The homepage's testimonial cards",
+      },
     ],
   },
   {
@@ -169,6 +177,8 @@ const DETAIL_LABELS: { pattern: RegExp; label: string }[] = [
   { pattern: /^\/admin\/blog\/sponsorships$/, label: "Featured placements" },
   { pattern: /^\/admin\/blog\/images$/, label: "Images" },
   { pattern: /^\/admin\/blog\/[^/]+$/, label: "Edit post" },
+  { pattern: /^\/admin\/testimonials\/new$/, label: "New testimonial" },
+  { pattern: /^\/admin\/testimonials\/[^/]+$/, label: "Edit testimonial" },
 ];
 
 export type Crumb = { href: string; label: string; current: boolean };

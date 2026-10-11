@@ -1,23 +1,23 @@
 /**
- * Customer quotes and the public review score.
+ * The shape of a testimonial card, and the public review score.
  *
- * DELIBERATELY EMPTY. The reference design carries named customers with
- * photographs and growth figures ("organic traffic increased from 120 visits
- * per month to over 12,000") and a Trustpilot 4.8/5 badge. Those are that
- * company's customers and that company's rating.
+ * The cards themselves are no longer written here: they are managed in
+ * Admin -> Testimonials (lib/admin/testimonials.ts, table `testimonials`),
+ * and only PUBLISHED ones reach the homepage (lib/marketing/
+ * testimonials-db.ts). Publishing a card records who confirmed the person
+ * agreed to it, and the client's sample cards (design package 2026-10-11:
+ * quotes written for the mockup, AI-generated faces, names taken from
+ * another company's reviews) cannot be published until their content is
+ * replaced with a real customer's approved words.
  *
- * We have neither yet, and the screen these appear on is the one where
- * somebody decides to enter their card details — so an invented name, face or
- * score there is not decoration, it is fabricated evidence used to take money.
- * A made-up review score is also a straightforward misrepresentation of a
- * third-party rating that anyone can check.
+ * The review score stays here: null until a public profile with real
+ * reviews exists. A made-up score is a misrepresentation anyone can check.
  *
- * So the layout is built and the data is empty: every surface that reads this
- * renders nothing at all until there is something true to put in it.
+ * A card from anyone connected to RepGet - its owners, staff or their own
+ * businesses - must say so in `role` (e.g. "Photo & Film Studio, run by
+ * RepGet's founder"): a hidden connection makes a real quote misleading.
  *
- * TO GO LIVE, fill in TESTIMONIALS with quotes the customer has agreed in
- * writing to publish, and REVIEW_SCORE with the real figure from the real
- * profile. Nothing else needs changing — the cards appear on their own.
+ * NO IMPORTS: shared by the server pages and the admin editor's preview.
  */
 
 export type Testimonial = {
@@ -28,7 +28,8 @@ export type Testimonial = {
   /** Their role and company, e.g. "Founder, Tatem Web Design". */
   role: string;
   /**
-   * Path to a photograph under /public, or null for initials instead.
+   * Path to a photograph under /public, or null for initials instead. A
+   * 128 x 128 WebP: the card shows it at 64px as it is, unresized.
    *
    * Null is the honest default: a stock portrait standing in for a real named
    * customer is a fake face on a real quote.
@@ -55,9 +56,6 @@ export type ReviewScore = {
   /** The public profile, so anybody can check the number for themselves. */
   url: string;
 };
-
-/** Real customer quotes. Empty until there are some. */
-export const TESTIMONIALS: Testimonial[] = [];
 
 /** The real public review score. Null until a profile exists with reviews in it. */
 export const REVIEW_SCORE: ReviewScore | null = null;

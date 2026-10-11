@@ -6,6 +6,7 @@ import type { PlanRow } from "@/lib/billing-shared";
 import { LOCALES, localePath, type Locale } from "@/lib/i18n/config";
 import { getMessages } from "@/lib/i18n/messages";
 import { REAL_ARTICLES } from "@/lib/marketing/real-articles";
+import type { Testimonial } from "@/lib/marketing/testimonials";
 
 /**
  * The homepage as each language first renders it: the section order the
@@ -53,9 +54,9 @@ function plan(over: Partial<PlanRow>): PlanRow {
 
 const PLANS = [plan({ tier: "grow", name: "Grow" }), plan({ tier: "scale", name: "Scale", priceCents: 29900, articleLimit: 100 })];
 
-function renderHome(locale: Locale, plans: PlanRow[] = PLANS) {
+function renderHome(locale: Locale, plans: PlanRow[] = PLANS, testimonials: Testimonial[] = []) {
   const href = (path: string) => (locale === "en" ? path : localePath(locale, path));
-  return renderToStaticMarkup(createElement(HomePageSections, { locale, href, plans }));
+  return renderToStaticMarkup(createElement(HomePageSections, { locale, href, plans, testimonials }));
 }
 
 /** Where each marker first appears, so the order can be compared. */
@@ -178,8 +179,13 @@ describe("homepage sections", () => {
     expect(renderHome("en")).toContain('href="/contact"');
   });
 
-  it("leaves out the testimonials while there are none approved", () => {
+  it("leaves out the testimonials while none is published, and shows the published ones the page passes", () => {
     expect(renderHome("en")).not.toContain(esc(getMessages("en").home.testimonialsTitle));
+    // A fixture, never shipped: the homepage passes the cards published in Admin -> Testimonials.
+    const html = renderHome("it", PLANS, [{ name: "Fixture Studio", role: "Fixture role", quote: "Fixture quote.", avatar: "/images/fixture.webp" }]);
+    expect(html).toContain(esc(getMessages("it").home.testimonialsTitle));
+    expect(html).toContain("Fixture quote.");
+    expect(html).toContain('src="/images/fixture.webp"');
   });
 });
 
@@ -266,5 +272,25 @@ describe("testimonials", () => {
     expect(html.split(t.testimonialsVerified).length - 1).toBe(1);
     expect(html).toContain("4.5/5 on Example, from 12 reviews");
     expect(html).toContain('href="https://example.com/reviews"');
+  });
+
+  it("shows nine cards, then the rest behind View more, with their pictures in the pill", () => {
+    // Test fixtures only - never shipped.
+    const items = Array.from({ length: 11 }, (_, i) => ({
+      quote: `Fixture quote ${i + 1}.`,
+      name: `Fixture ${i + 1}`,
+      role: "Fixture role",
+      avatar: i >= 9 ? `/images/fixture-${i + 1}.webp` : null,
+    }));
+    const html = renderToStaticMarkup(createElement(Testimonials, { t, testimonials: items, reviewScore: null }));
+    const [before, after] = html.split("<details");
+    expect(before.match(/<li /g)).toHaveLength(9);
+    expect(before).toContain(esc(t.testimonialsTitle));
+    expect(before).toContain(esc(t.testimonialsSub));
+    expect(after).toContain(t.testimonialsMore);
+    expect(after.match(/<li /g)).toHaveLength(2);
+    expect(after).toContain('src="/images/fixture-10.webp"');
+    // Both pictures appear twice: in the pill and on their cards.
+    expect(html.split('src="/images/fixture-11.webp"').length - 1).toBe(2);
   });
 });

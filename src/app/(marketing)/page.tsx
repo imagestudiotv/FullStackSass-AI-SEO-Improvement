@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { listPlansForPrebuiltPage } from "@/lib/billing";
+import { listPublishedTestimonials } from "@/lib/marketing/testimonials-db";
 import { HomePageSections } from "./home-page";
 import { OrganizationSchema } from "./organization-schema";
 import { siteUrl as canonicalSiteUrl } from "@/lib/site-url";
@@ -43,7 +44,7 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  const plans = await listPlansForPrebuiltPage();
+  const [plans, testimonials] = await Promise.all([listPlansForPrebuiltPage(), listPublishedTestimonials()]);
   // English is unprefixed; the localised pages pass a prefixing builder.
   const href = (path: string) => path;
 
@@ -57,7 +58,7 @@ export default async function HomePage() {
   return (
     <>
       <OrganizationSchema siteUrl={siteUrl} plans={plans} />
-      <HomePageSections locale="en" href={href} plans={plans} />
+      <HomePageSections locale="en" href={href} plans={plans} testimonials={testimonials} />
     </>
   );
 }

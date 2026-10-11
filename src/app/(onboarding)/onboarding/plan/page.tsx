@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import { OnboardingAside } from "@/components/onboarding/onboarding-aside";
 import { TestimonialRail } from "@/components/onboarding/testimonial-rail";
+import { listPublishedTestimonials } from "@/lib/marketing/testimonials-db";
 import { PayPalReturn } from "@/components/paypal-return";
 import { WizardProgress } from "@/components/wizard-progress";
 import { requireSession } from "@/lib/auth-guard";
@@ -174,10 +175,10 @@ export default async function OnboardingPlanPage({
           >
             {/*
               Customer quotes and the public review score, as the reference
-              has here. Renders nothing at all while there are none — see
-              lib/marketing/testimonials.ts for why that file is empty.
+              has here: the cards published in Admin -> Testimonials. Renders
+              nothing at all while there are none.
             */}
-            <TestimonialRail t={t.app.common} />
+            <TestimonialRail testimonials={await listPublishedTestimonials()} t={t.app.common} />
           </OnboardingAside>
         </div>
       </div>

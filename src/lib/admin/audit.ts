@@ -51,6 +51,11 @@ export type AdminAction =
   | "blog.placement_reopened"
   | "blog.image_deleted"
   | "blog.translation_created"
+  | "testimonial.created"
+  | "testimonial.saved"
+  | "testimonial.published"
+  | "testimonial.unpublished"
+  | "testimonial.deleted"
   /* Operations (lib/admin/operations.ts). */
   | "platform.control_changed"
   | "publication.dispatch_resolved"

@@ -1,6 +1,7 @@
 import type { PlanRow } from "@/lib/billing-shared";
 import type { Locale } from "@/lib/i18n/config";
 import { getMessages } from "@/lib/i18n/messages";
+import type { Testimonial } from "@/lib/marketing/testimonials";
 import { HomeFaq } from "./home-faq";
 import {
   AuditBand,
@@ -36,11 +37,18 @@ export function HomePageSections({
   locale,
   href,
   plans,
+  testimonials,
 }: {
   locale: Locale;
   /** Builds locale-aware paths: unchanged on English, prefixed elsewhere. */
   href: (path: string) => string;
   plans: PlanRow[];
+  /**
+   * The testimonial cards: the PUBLISHED ones from Admin -> Testimonials on
+   * the homepages (lib/marketing/testimonials-db.ts); drafts too only on the
+   * admin design preview (app/(marketing)/preview/testimonials).
+   */
+  testimonials: Testimonial[];
 }) {
   const messages = getMessages(locale);
   const t = messages.home;
@@ -57,7 +65,7 @@ export function HomePageSections({
       <WhatYouSee t={t} href={href} />
       <BacklinkNetwork t={t} href={href} />
       <ProductPreview t={t} href={href} />
-      <Testimonials t={t} />
+      <Testimonials t={t} testimonials={testimonials} />
       <PricingPreview t={t} href={href} plans={plans} />
       <HomeFaq t={t} faq={messages.faq} href={href} />
       <ClosingCta t={t} href={href} />
