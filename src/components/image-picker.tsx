@@ -149,7 +149,7 @@ export function ImagePicker({
           <img
             src={selected}
             alt={altText}
-            className="max-h-80 rounded-md border object-contain"
+            className="max-h-48 rounded-md border object-contain sm:max-h-64"
           />
         </div>
       ) : (
@@ -203,7 +203,13 @@ export function ImagePicker({
         />
       </div>
 
-      <div className="mt-3 flex flex-wrap items-start gap-2">
+      {/*
+        The library scrolls on its own, a few rows high: with every blog
+        picture listed (Admin -> Blog -> Images) the panel used to grow past
+        the bottom of the screen, taking Insert and Cancel with it. p-1 keeps
+        the chosen picture's ring from being clipped by the scroll edge.
+      */}
+      <div className="mt-2 flex max-h-56 flex-wrap items-start gap-2 overflow-y-auto overscroll-contain p-1">
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
@@ -270,7 +276,8 @@ export function ImagePicker({
         }}
       />
 
-      <div className="mt-4 flex items-center justify-end gap-2 border-t pt-3">
+      {/* Pinned to the bottom of a panel that scrolls, so the buttons are always in reach. */}
+      <div className="sticky bottom-0 -mx-4 -mb-4 mt-4 flex items-center justify-end gap-2 rounded-b-lg border-t bg-card px-4 pt-3 pb-4">
         {onRemove ? (
           <Button
             type="button"

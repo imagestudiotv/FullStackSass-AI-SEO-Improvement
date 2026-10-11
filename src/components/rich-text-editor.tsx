@@ -1400,9 +1400,11 @@ export function RichTextEditor({
             role="dialog"
             aria-modal="true"
             aria-label={t.chooseImage}
-            className="fixed left-1/2 top-16 z-50 w-[min(42rem,calc(100vw-2rem))] -translate-x-1/2"
+            // Never taller than the screen: it scrolls inside, with its buttons pinned at the bottom (image-picker.tsx).
+            className="fixed left-1/2 top-16 z-50 max-h-[calc(100svh-5rem)] w-[min(42rem,calc(100vw-2rem))] -translate-x-1/2 overflow-y-auto overscroll-contain rounded-lg"
           >
           <ImagePicker
+            className="my-0"
             images={pickerImages}
             loading={pickerLoading}
             selected={editingImage}
