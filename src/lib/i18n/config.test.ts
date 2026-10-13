@@ -86,7 +86,7 @@ describe("localePath", () => {
   });
 
   it("links English-only pages as they are", () => {
-    for (const page of ["/audit", "/blog/some-post", "/blog/category/guides", "/sign-up", "/privacy"]) {
+    for (const page of ["/blog/some-post", "/blog/category/guides", "/sign-up", "/privacy", "/terms", "/refunds"]) {
       expect(localePath("es", page)).toBe(page);
     }
     // The blog's front page has one per language; its posts have their own addresses (lib/blog/locale.ts).
@@ -96,7 +96,7 @@ describe("localePath", () => {
   it("keeps a fragment or query, on the right page", () => {
     expect(localePath("fr", "/#how-it-works")).toBe("/fr#how-it-works");
     expect(localePath("fr", "/pricing?plan=growth")).toBe("/fr/pricing?plan=growth");
-    expect(localePath("fr", "/audit?domain=example.com")).toBe("/audit?domain=example.com");
+    expect(localePath("fr", "/audit?domain=example.com")).toBe("/fr/audit?domain=example.com");
   });
 
   it("leaves English unprefixed", () => {

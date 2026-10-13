@@ -10,6 +10,8 @@ import {
 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 
+import type { AuditProgressCopy } from "./copy";
+
 /**
  * The "working on it" screen, shown while the crawl runs.
  *
@@ -30,35 +32,12 @@ import { useEffect, useState, type ReactNode } from "react";
  * unmounts the moment the result arrives, whatever the timer was doing.
  */
 
-/**
- * The three assets, named as the design names them.
- *
- * The detail lines under each are the real stages of our own audit, so the
- * words describe work that is genuinely happening while they are on screen.
- */
-const ASSETS = [
-  {
-    label: "AI SEO Audit",
-    lines: [
-      "Opening {domain} and mapping the site…",
-      "Crawling pages & detecting the platform behind {domain}",
-    ],
-  },
-  {
-    label: "Personalized Growth Plan",
-    lines: [
-      "Scoring titles, headings, images and links",
-      "Ordering what to fix by what it is worth",
-    ],
-  },
-  {
-    label: "Business Profile + Free Backlink",
-    lines: [
-      "Checking which AI crawlers are allowed in",
-      "Matching you with a business in a related field",
-    ],
-  },
-];
+/*
+  The three assets, named as the design names them, with the real stages of
+  our own audit under each - so the words describe work genuinely happening
+  while they are on screen. In the visitor's language (./copy.ts), passed in
+  so only that language reaches the browser.
+*/
 
 /** Sized to a typical crawl rather than to a promise. */
 const STAGE_MS = 2600;
@@ -66,8 +45,10 @@ const STAGE_MS = 2600;
 export function AuditProgress({
   domain,
   preview,
+  copy,
 }: {
   domain: string;
+  copy: AuditProgressCopy;
   /**
    * The framed picture of the site.
    *
@@ -95,10 +76,10 @@ export function AuditProgress({
      * there while a slow site finishes responding.
      */
     const timer = setInterval(() => {
-      setStage((current) => Math.min(current + 1, ASSETS.length - 1));
+      setStage((current) => Math.min(current + 1, copy.assets.length - 1));
     }, STAGE_MS);
     return () => clearInterval(timer);
-  }, []);
+  }, [copy.assets.length]);
 
   return (
     <div className="mt-12 grid gap-8 lg:grid-cols-2 lg:gap-12">
@@ -130,15 +111,15 @@ export function AuditProgress({
       {/* The assets, ticking off as the work proceeds. */}
       <div>
         <p className="text-xs font-semibold tracking-[0.14em] text-primary uppercase">
-          Working on it
+          {copy.working}
         </p>
         <h2 className="mt-3 text-2xl font-semibold tracking-tight">
-          Building your 3 free assets…
+          {copy.building}
         </h2>
-        <p className="mt-2 text-muted-foreground">Usually under a minute.</p>
+        <p className="mt-2 text-muted-foreground">{copy.usually}</p>
 
         <ol className="mt-7 space-y-3">
-          {ASSETS.map((asset, index) => {
+          {copy.assets.map((asset, index) => {
             const done = index < stage;
             const active = index === stage;
 
@@ -244,7 +225,7 @@ export function AuditProgress({
         <div
           className="mt-6 h-1 overflow-hidden rounded-full bg-muted"
           role="progressbar"
-          aria-label="Checking your website"
+          aria-label={copy.progressAria}
         >
           <div className="h-full w-1/3 animate-pulse rounded-full bg-primary" />
         </div>

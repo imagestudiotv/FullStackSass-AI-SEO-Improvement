@@ -21,6 +21,7 @@ const SOURCES = [
   "../llms-txt.ts",
   "../meta-tags.ts",
   "../description-writer.ts",
+  "../../audit/public-audit.ts",
   "../../websites/url.ts",
 ];
 
@@ -38,8 +39,8 @@ function messagesIn(source: string): string[] {
 }
 
 const TECHNICAL = /^(og|twitter):|^Viewport$|^<|^meta |^link /;
-/** Not shown to visitors: the generated llms.txt's own heading (the file follows the site, not the page language), and a rate-limit key. */
-const NOT_MESSAGES = new Set(["Home", "public-meta-description"]);
+/** Not shown to visitors: the generated llms.txt's own heading (the file follows the site, not the page language), a rate-limit key and a cache key. */
+const NOT_MESSAGES = new Set(["Home", "public-meta-description", "public-audit:v4:42"]);
 
 describe("the free tools' messages", () => {
   const all = [...new Set(SOURCES.flatMap((file) => messagesIn(readFileSync(path.resolve(__dirname, file), "utf8"))))].filter(

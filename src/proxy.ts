@@ -71,6 +71,7 @@ export const config = {
     "/blog/:path*",
     "/:locale/blog/:path*",
     "/audit",
+    "/:locale/audit",
     "/tools/ai-crawler-checker",
     "/tools/keyword-density",
     "/tools/llm-html-checker",
