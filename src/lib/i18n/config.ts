@@ -77,11 +77,31 @@ export function splitLocale(pathname: string): {
 /**
  * The pages that exist in every language: the home page and the folders
  * under app/(marketing)/[locale] (config.test.ts keeps the two in step).
- * Everything else - the free check, the tools, the docs - is English-only
+ * Everything else - the legal pages, blog categories and authors - is English-only
  * and has no /es/... address. The blog's front page is here (/it/blog lists
  * the Italian posts, then the English ones); its posts, category and author
  * pages are not - a post's other languages come from lib/blog/locale.ts.
  */
+/**
+ * The integration guides (lib/publishing/docs.ts), by slug. Listed here
+ * rather than imported: this module reaches the browser, and the guides'
+ * text must not (config.test.ts keeps the two lists equal).
+ */
+export const INTEGRATION_GUIDE_SLUGS = ["wordpress-plugin", "wordpress", "ghost", "shopify", "webflow", "wix", "webhook"] as const;
+
+/** The free tools under /tools (lib/tools/registry.ts), copied for the same reason. */
+export const TOOL_SLUGS = [
+  "robots-checker",
+  "sitemap-checker",
+  "meta-tag-checker",
+  "ai-crawler-checker",
+  "llms-txt-generator",
+  "llm-html-checker",
+  "snippet-preview",
+  "keyword-density",
+  "meta-description-generator",
+] as const;
+
 export const TRANSLATED_PATHS: ReadonlySet<string> = new Set([
   "/",
   "/pricing",
@@ -93,6 +113,13 @@ export const TRANSLATED_PATHS: ReadonlySet<string> = new Set([
   "/affiliate",
   "/backlink-exchange",
   "/blog",
+  "/backlinks",
+  "/rank-on-chatgpt",
+  "/docs/integrations",
+  ...INTEGRATION_GUIDE_SLUGS.map((slug) => `/docs/integrations/${slug}`),
+  "/tools",
+  ...TOOL_SLUGS.map((slug) => `/tools/${slug}`),
+  "/audit",
 ]);
 
 /**

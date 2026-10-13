@@ -12,7 +12,18 @@
  * them that WordPress hides that screen until they scroll past Profile, or that
  * the spaces in the generated value are safe to include. Those details are the
  * whole reason the page exists.
+ *
+ * In five languages: English here, the others in ./docs-i18n, picked by
+ * integrationDocs(locale). The steps and claims are the same in every
+ * language - change one, change all five.
  */
+
+import type { Locale } from "@/lib/i18n/config";
+
+import { de } from "./docs-i18n/de";
+import { es } from "./docs-i18n/es";
+import { fr } from "./docs-i18n/fr";
+import { it } from "./docs-i18n/it";
 
 export type IntegrationDoc = {
   /** Matches the provider id, so the URL and the connect form agree. */
@@ -27,6 +38,69 @@ export type IntegrationDoc = {
   troubleshooting: { problem: string; fix: string }[];
   /** The platform's own documentation. */
   officialUrl?: string;
+  /** Shown above the steps: in a translation, that the platform's menus are named in English. */
+  note?: string;
+};
+
+/** The words around the guides: the index page, and each guide's headings. */
+export type DocsUi = {
+  metaTitle: string;
+  metaDescription: string;
+  home: string;
+  breadcrumb: string;
+  title: string;
+  intro: string;
+  /** "Using something else? The [webhook integration] sends ..." - the link is otherLink. */
+  otherBefore: string;
+  otherLink: string;
+  otherAfter: string;
+  /** Takes {name}. */
+  connectTitle: string;
+  notFound: string;
+  before: string;
+  setup: string;
+  wrong: string;
+  /** Takes {name}. */
+  official: string;
+  readHere: string;
+  ready: string;
+  /** Takes {name} and {button} (publishTest, emphasised). */
+  readyBody: string;
+  publishTest: string;
+  goToWebsites: string;
+  /** Takes {name}: the platform's menus are named as its English interface shows them. */
+  englishUi: string;
+};
+
+/** One guide's words in another language; slug and officialUrl come from the English guide. */
+export type DocText = Pick<IntegrationDoc, "name" | "summary" | "requirements" | "steps" | "troubleshooting">;
+
+export type DocsTranslation = { ui: DocsUi; docs: Record<string, DocText> };
+
+export const DOCS_UI_EN: DocsUi = {
+  metaTitle: "Integration guides",
+  metaDescription: "How to connect WordPress, Ghost, Shopify or your own endpoint so articles publish automatically.",
+  home: "Home",
+  breadcrumb: "Integration guides",
+  title: "Connect your website",
+  intro:
+    "Connect once and every article we write publishes to your site on its own. Pick your platform below for the exact steps, including where each value lives in that platform's admin.",
+  otherBefore: "Using something else? The",
+  otherLink: "webhook integration",
+  otherAfter: "sends finished articles to any endpoint you control.",
+  connectTitle: "Connect {name}",
+  notFound: "Guide not found",
+  before: "Before you start",
+  setup: "Setup",
+  wrong: "If something goes wrong",
+  official: "{name}'s own documentation:",
+  readHere: "read it here",
+  ready: "Ready to connect?",
+  readyBody:
+    "Open your website in the app, go to Settings → Integrations, and choose {name}. Then press {button} — we create a real draft on your site so you can confirm the whole path works before anything is scheduled.",
+  publishTest: "Publish test article",
+  goToWebsites: "Go to my websites",
+  englishUi: "{name}'s menus and buttons are named as its English interface shows them.",
 };
 
 export const INTEGRATION_DOCS: IntegrationDoc[] = [
@@ -417,6 +491,30 @@ export const INTEGRATION_DOCS: IntegrationDoc[] = [
   },
 ];
 
-export function getIntegrationDoc(slug: string): IntegrationDoc | null {
-  return INTEGRATION_DOCS.find((doc) => doc.slug === slug) ?? null;
+const TRANSLATIONS: Record<Exclude<Locale, "en">, DocsTranslation> = { es, fr, it, de };
+
+/** Platforms whose admin the guides name in English in every language (their own interfaces, not ours or WordPress's). */
+const ENGLISH_ADMIN = new Set(["ghost", "shopify", "webflow", "wix"]);
+
+export function docsUi(locale: Locale): DocsUi {
+  return locale === "en" ? DOCS_UI_EN : TRANSLATIONS[locale].ui;
+}
+
+/** Every guide, in a language. */
+export function integrationDocs(locale: Locale): IntegrationDoc[] {
+  if (locale === "en") return INTEGRATION_DOCS;
+  const { ui, docs } = TRANSLATIONS[locale];
+  return INTEGRATION_DOCS.map((doc) => {
+    const text = docs[doc.slug];
+    if (!text) return doc;
+    return {
+      ...doc,
+      ...text,
+      ...(ENGLISH_ADMIN.has(doc.slug) ? { note: ui.englishUi.replace("{name}", text.name) } : {}),
+    };
+  });
+}
+
+export function getIntegrationDoc(slug: string, locale: Locale = "en"): IntegrationDoc | null {
+  return integrationDocs(locale).find((doc) => doc.slug === slug) ?? null;
 }

@@ -132,3 +132,90 @@ export async function describeArticleScene(article: {
     return null;
   }
 }
+
+const BODY_SCHEMA = {
+  type: "object",
+  properties: {
+    images: {
+      type: "array",
+      items: SCHEMA,
+      description: "One photograph per section listed, in the same order.",
+    },
+  },
+  required: ["images"],
+  additionalProperties: false,
+} as const;
+
+const BODY_SYSTEM = `You choose the photographs INSIDE a blog article: one for each
+section listed, placed in that section.
+
+Each photograph shows what ITS section is about - its specific subject, not the
+article's title again and not the business in general. They must differ from
+each other and from the header photograph described, so a reader scrolling the
+article never sees the same picture twice.
+
+${SYSTEM.split("\n").slice(SYSTEM.split("\n").indexOf("Rules:")).join("\n")}`;
+
+/**
+ * The pictures inside an article (client, 2026-10-13), one per section, in
+ * one call so they can be made to differ from each other and from the cover.
+ * An entry is null when the model gave nothing usable for that section; the
+ * whole result is null on failure. The caller skips what has no scene - a
+ * picture less beats a wrong one.
+ */
+export async function describeBodyScenes(article: {
+  title: string;
+  targetKeyword?: string | null;
+  industry?: string | null;
+  country?: string | null;
+  /** The header photograph, so the body pictures do not repeat it. */
+  coverScene?: string | null;
+  sections: { heading: string; text: string }[];
+}): Promise<(ArticleScene | null)[] | null> {
+  if (!isAiConfigured() || article.sections.length === 0) return null;
+
+  const content = [
+    `Title: ${article.title}`,
+    article.targetKeyword ? `Topic: ${article.targetKeyword}` : null,
+    article.industry ? `Written for a business in: ${article.industry}` : null,
+    article.country ? `Business country: ${article.country}` : null,
+    article.coverScene ? `Header photograph (do not repeat it): ${article.coverScene}` : null,
+    article.sections
+      .map((section, i) => `Section ${i + 1}: ${section.heading}\n${section.text.slice(0, 700)}`)
+      .join("\n\n"),
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+
+  try {
+    const response = await anthropic.messages.create({
+      model: MODELS.EXTRACTION,
+      max_tokens: 400 + 300 * article.sections.length,
+      system: BODY_SYSTEM,
+      output_config: { format: { type: "json_schema", schema: BODY_SCHEMA } },
+      messages: [{ role: "user", content }],
+    });
+    const block = response.content.find((item) => item.type === "text");
+    if (!block || block.type !== "text" || response.stop_reason !== "end_turn") return null;
+    return parseBodyScenes(block.text, article.sections);
+  } catch {
+    return null;
+  }
+}
+
+/** One entry per section, in order; a missing or empty scene is null. */
+export function parseBodyScenes(text: string, sections: { heading: string }[]): (ArticleScene | null)[] | null {
+  let parsed: { images?: unknown };
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  const images = Array.isArray(parsed.images) ? parsed.images : [];
+  return sections.map((section, i) => {
+    const item = images[i] as Partial<ArticleScene> | undefined;
+    if (!item || typeof item.scene !== "string" || !item.scene.trim()) return null;
+    const alt = typeof item.alt === "string" && item.alt.trim() ? item.alt : section.heading;
+    return { scene: item.scene.trim().slice(0, 600), alt: alt.trim().slice(0, 150) };
+  });
+}

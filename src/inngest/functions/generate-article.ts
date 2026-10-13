@@ -40,7 +40,9 @@ import {
   hasConnectedIntegration,
   pendingFirstArticle,
 } from "@/lib/publishing/policy";
-import { describeArticleScene } from "@/lib/images/scene";
+import { describeArticleScene, describeBodyScenes } from "@/lib/images/scene";
+import { bodyImageCount, tableCount } from "@/lib/articles/article-shape";
+import { imageSlots, placeBodyImages, type PlacedImage } from "@/lib/articles/body-images";
 import { nudgePluginIfDue } from "@/lib/plugin/sync";
 import { isImageStorageConfigured, storeArticleImage } from "@/lib/images/storage";
 import { notify } from "@/lib/notifications/create";
@@ -329,10 +331,15 @@ export const generateArticle = inngest.createFunction(
           authorPerspective: site.authorPerspective,
           mentionSimilarProducts: site.mentionSimilarProducts,
           comparisonTable: site.comparisonTable,
+          // 1-3 tables, chosen per article (client, 2026-10-13); seeded by the article, so stable.
+          tableCount: tableCount(articleId, site.targetWordCount),
+          faqSection: site.faqSection,
           imageStyle: site.imageStyle,
           imageBrief: site.imageBrief,
           imageInstructions: site.imageInstructions,
         } satisfies ArticleBrief,
+        /** Pictures inside the article, besides the cover (0-3). */
+        bodyImages: bodyImageCount(site.bodyImages),
         placementId: pending?.placementId ?? null,
       };
     });
@@ -461,7 +468,7 @@ export const generateArticle = inngest.createFunction(
           { step: "generate-image", articleId, websiteId: brief.websiteId },
           "Article already has an image - keeping it",
         );
-        return { url: current.imageUrl, alt: current.imageAlt ?? brief.brief.title };
+        return { url: current.imageUrl, alt: current.imageAlt ?? brief.brief.title, scene: null };
       }
 
       if (!isImageGenerationConfigured() || !isImageStorageConfigured()) {
@@ -541,7 +548,7 @@ export const generateArticle = inngest.createFunction(
           "Header image generated and saved",
         );
 
-        return { url, alt: generated.alt };
+        return { url, alt: generated.alt, scene: scene?.scene ?? null };
       } catch (error) {
         /*
           The swallow is the point of this log. The catch is deliberate - an
@@ -564,6 +571,94 @@ export const generateArticle = inngest.createFunction(
     });
 
     /**
+     * Pictures INSIDE the article, besides the cover (client, 2026-10-13:
+     * "3 more images for the article and not just the hero image"): up to the
+     * website's bodyImages, each showing what its section is about, spread
+     * through the text (lib/articles/body-images.ts).
+     *
+     * One call describes them all, so they differ from each other and from the
+     * cover; then each picture is its own step, so a retry does not pay for
+     * the ones already made. Like the cover, a failure never fails the article:
+     * that picture is left out and the writing goes on.
+     */
+    const bodyPlan = await step.run("describe-body-images", async () => {
+      if (brief.bodyImages === 0) return null;
+      if (!isImageGenerationConfigured() || !isImageStorageConfigured()) return null;
+      const slots = imageSlots(written.bodyHtml, brief.bodyImages, { faq: Boolean(brief.brief.faqSection) });
+      if (slots.length === 0) return null;
+      try {
+        const scenes = await paidCall(
+          reservations,
+          () =>
+            describeBodyScenes({
+              title: brief.brief.title,
+              targetKeyword: brief.brief.targetKeyword,
+              industry: brief.brief.industry,
+              country: brief.brief.country,
+              coverScene: image?.scene ?? null,
+              sections: slots.map((slot) => ({ heading: slot.heading, text: slot.text })),
+            }),
+          { beforeSpend: () => requireEntitledForSpend(brief.websiteId, { freeArticles: true }) },
+        );
+        const planned = slots.flatMap((slot, i) => (scenes?.[i] ? [{ h2: slot.h2, scene: scenes[i].scene, alt: scenes[i].alt }] : []));
+        logger.info(
+          { step: "describe-body-images", articleId, websiteId: brief.websiteId, wanted: brief.bodyImages, sections: slots.length, described: planned.length },
+          "Body pictures planned",
+        );
+        return planned;
+      } catch (error) {
+        logger.warn(
+          { step: "describe-body-images", articleId, websiteId: brief.websiteId, reason: error instanceof Error ? error.message : "unknown" },
+          "Body pictures could not be planned - article continues without them",
+        );
+        return null;
+      }
+    });
+
+    const placedImages: PlacedImage[] = [];
+    for (const [n, planned] of (bodyPlan ?? []).entries()) {
+      const placed = await step.run(`body-image-${n + 1}`, async (): Promise<PlacedImage | null> => {
+        const startedAt = Date.now();
+        try {
+          const generated = await paidCall(
+            reservations,
+            () =>
+              generateArticleImage(brief.brief.title, brief.brief.industry, null, {
+                style: brief.brief.imageStyle,
+                brief: brief.brief.imageBrief,
+                instructions: brief.brief.imageInstructions,
+                scene: planned.scene,
+                alt: planned.alt,
+              }),
+            { beforeSpend: () => requireEntitledForSpend(brief.websiteId, { freeArticles: true }) },
+          );
+          const url = await storeArticleImage(brief.websiteId, articleId, generated.data, generated.contentType);
+          await track(organizationId, {
+            kind: "image",
+            websiteId: brief.websiteId,
+            provider: "image",
+            costUsd: generated.costUsd,
+            metadata: { purpose: "article_body_image", articleId },
+          });
+          logger.info(
+            { step: `body-image-${n + 1}`, articleId, websiteId: brief.websiteId, imageBytes: generated.data.length, costUsd: generated.costUsd, durationMs: Date.now() - startedAt },
+            "Body picture generated and saved",
+          );
+          return { h2: planned.h2, url, alt: generated.alt, width: generated.width, height: generated.height };
+        } catch (error) {
+          logger.warn(
+            { step: `body-image-${n + 1}`, articleId, websiteId: brief.websiteId, reason: error instanceof Error ? error.message : "unknown", durationMs: Date.now() - startedAt },
+            "Body picture failed - continuing without it",
+          );
+          return null;
+        }
+      });
+      if (placed) placedImages.push(placed);
+    }
+    // Pure, so it is the same on every replay of the steps above.
+    const bodyHtml = placedImages.length > 0 ? placeBodyImages(written.bodyHtml, placedImages) : written.bodyHtml;
+
+    /**
      * Internal links are chosen here, never by the writer: asked to link, a
      * model invents "#" placeholders and paths the site never had. This
      * removes any link to the site it could not verify, then adds up to the
@@ -582,7 +677,7 @@ export const generateArticle = inngest.createFunction(
         (lib/articles/toc.ts), so the link checks below see - and keep - only
         section links that resolve.
       */
-      const structured = applyTableOfContents(written.bodyHtml, {
+      const structured = applyTableOfContents(bodyHtml, {
         enabled: brief.brief.tableOfContents,
         language: brief.brief.language,
       });

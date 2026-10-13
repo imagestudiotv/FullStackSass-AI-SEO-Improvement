@@ -15,10 +15,13 @@ import { Button } from "@/components/ui/button";
 export function CopyButton({
   text,
   label = "Copy",
+  copiedLabel = "Copied",
   className,
 }: {
   text: string;
   label?: string;
+  /** Shown for two seconds after a successful copy. */
+  copiedLabel?: string;
   className?: string;
 }) {
   const [copied, setCopied] = useState(false);
@@ -45,7 +48,7 @@ export function CopyButton({
       {copied ? (
         <>
           <Check className="size-3.5" aria-hidden="true" />
-          Copied
+          {copiedLabel}
         </>
       ) : (
         <>

@@ -25,6 +25,7 @@ vi.mock("next/image", () => ({
 }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
+import { ANSWER_ENGINES } from "./home-sections";
 import { HomePageSections } from "./home-page";
 import { PricingPreview } from "./pricing-preview";
 import { Testimonials } from "./testimonials-section";
@@ -292,5 +293,23 @@ describe("testimonials", () => {
     expect(after).toContain('src="/images/fixture-10.webp"');
     // Both pictures appear twice: in the pill and on their cards.
     expect(html.split('src="/images/fixture-11.webp"').length - 1).toBe(2);
+  });
+});
+
+describe("the headline's moving last word (client, 2026-10-13)", () => {
+  it.each(LOCALES)("%s: the template ends with {engine}, so a short name never leaves a gap", (locale) => {
+    const template = getMessages(locale).home.titleAccentTemplate;
+    expect(template.split("{engine}")).toHaveLength(2);
+    expect(template).toMatch(/\{engine\}[.!?]?$/);
+  });
+
+  it.each(LOCALES)("%s: one h1, read as a sentence, with every assistant's name shown in turn", (locale) => {
+    const t = getMessages(locale).home;
+    const html = renderHome(locale);
+    const h1 = /<h1[\s\S]*?<\/h1>/.exec(html)?.[0] ?? "";
+    expect(h1).toContain(`<span class="sr-only">${esc(t.titleAccent)}</span>`);
+    expect(h1).toContain('aria-hidden="true"');
+    for (const engine of ANSWER_ENGINES) expect(h1).toContain(engine);
+    expect(h1).not.toContain("{engine}");
   });
 });

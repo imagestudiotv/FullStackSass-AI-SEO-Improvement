@@ -228,3 +228,47 @@
     @apply font-sans;
   }
 }
+/*
+  The homepage headline's last word, taking turns (HeroEngines in
+  app/(marketing)/home-sections.tsx). CSS only, so nothing runs before the
+  headline. All names share one grid cell: the line keeps the width of the
+  longest, so nothing moves. Five names, 2.5 s each; the -0.35 s start puts
+  the first one in place at the first paint. Reduced motion: the first stays.
+*/
+.hero-engines {
+  display: inline-grid;
+  justify-items: start;
+}
+.hero-engines > span {
+  grid-area: 1 / 1;
+  opacity: 0;
+  animation: hero-engine 12.5s linear infinite both;
+  animation-delay: calc(var(--i) * 2.5s - 0.35s);
+}
+@keyframes hero-engine {
+  0% {
+    opacity: 0;
+    transform: translateY(0.3em);
+  }
+  3% {
+    opacity: 1;
+    transform: none;
+  }
+  17% {
+    opacity: 1;
+    transform: none;
+  }
+  20%,
+  100% {
+    opacity: 0;
+    transform: translateY(-0.3em);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-engines > span {
+    animation: none;
+  }
+  .hero-engines > span:first-child {
+    opacity: 1;
+  }
+}

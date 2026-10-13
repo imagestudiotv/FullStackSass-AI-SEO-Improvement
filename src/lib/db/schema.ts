@@ -552,6 +552,20 @@ export const websites = pgTable("websites", {
    */
   comparisonTable: boolean("comparison_table").default(true).notNull(),
   /**
+   * Pictures inside the article, besides the cover: 0 to 3 (client,
+   * 2026-10-13: "3 more images for the article and not just the hero
+   * image"). Each shows what its section is about, in imageStyle, and they are
+   * spread through the text (lib/articles/body-images.ts). 3 by default, for
+   * websites that existed before it too; values outside 0-3 are clamped where
+   * read (bodyImageCount).
+   */
+  bodyImages: integer("body_images").default(3).notNull(),
+  /**
+   * A "Frequently asked questions" section at the end of each article (client,
+   * 2026-10-13). On by default, for existing websites too.
+   */
+  faqSection: boolean("faq_section").default(true).notNull(),
+  /**
    * The "Powered by RepGet" credit line.
    *
    * Defaults ON, and the client said so explicitly. Turning it off applies
@@ -797,6 +811,46 @@ export const articleVersions = pgTable("article_versions", {
   createdBy: userId(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+/**
+ * Asking Google to index a published article, through SpeedyIndex (client,
+ * 2026-10-13: "index the generated articles ... Your article was indexed" in
+ * the 7-day wins). lib/indexing/run.ts drives it; one row per article URL.
+ *
+ * status: queued (waiting to be sent: new, or held because the SpeedyIndex
+ * balance ran out) -> submitted (in a SpeedyIndex task, taskId) -> indexed
+ * (Google has it: indexedAt, the customer's win) | not_indexed (the task
+ * finished without it, or no answer within ten days; error says why) |
+ * failed (SpeedyIndex refused the URL, or it could not be sent at all).
+ *
+ * SpeedyIndex charges only for URLs that get indexed, and refunds the rest.
+ */
+export const articleIndexing = pgTable(
+  "article_indexing",
+  {
+    id: pk(),
+    articleId: uuid("article_id")
+      .notNull()
+      .references(() => articles.id, { onDelete: "cascade" }),
+    websiteId: websiteId(),
+    url: text("url").notNull(),
+    status: text("status").default("queued").notNull(),
+    taskId: text("task_id"),
+    /** Send attempts that failed without an answer; given up after three. */
+    attempts: integer("attempts").default(0).notNull(),
+    submittedAt: timestamp("submitted_at"),
+    checkedAt: timestamp("checked_at"),
+    indexedAt: timestamp("indexed_at"),
+    error: text("error"),
+    ...timestamps,
+  },
+  (table) => [
+    // A moved post (new address) is a new request; the same address never twice.
+    uniqueIndex("article_indexing_article_url_uidx").on(table.articleId, table.url),
+    index("article_indexing_status_idx").on(table.status),
+    index("article_indexing_website_indexed_idx").on(table.websiteId, table.indexedAt),
+  ],
+);
 
 export const brandVoice = pgTable("brand_voice", {
   id: pk(),

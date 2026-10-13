@@ -18,6 +18,9 @@ import { useState } from "react";
 
 import type { PublicAuditResult } from "@/lib/audit/public-audit";
 
+import type { AuditStepsCopy } from "./copy";
+import { plural } from "./plural";
+
 /**
  * The three assets, kept after the check finishes.
  *
@@ -79,7 +82,17 @@ function Row({
   );
 }
 
-export function AuditSteps({ result }: { result: PublicAuditResult }) {
+export function AuditSteps({
+  result,
+  copy,
+  issueTexts,
+}: {
+  result: PublicAuditResult;
+  /** In the visitor's language; only that language is sent to the browser. */
+  copy: AuditStepsCopy;
+  /** Each finding's one-line text, in the same order as result.issues, already in that language. */
+  issueTexts: string[];
+}) {
   /**
    * Nothing open to begin with. The findings are below this panel in full, so
    * an expanded row on arrival would push them down the page to repeat
@@ -148,22 +161,20 @@ export function AuditSteps({ result }: { result: PublicAuditResult }) {
 
       <div>
         <p className="text-xs font-semibold tracking-[0.14em] text-primary uppercase">
-          Your 3 free assets
+          {copy.yourAssets}
         </p>
         <h2 className="mt-3 text-2xl font-semibold tracking-tight">
-          Done. Here is what each one found.
+          {copy.done}
         </h2>
         <p className="mt-2 text-muted-foreground">
-          Open any of them to see the detail.
+          {copy.openAny}
         </p>
 
         <ul className="mt-7 space-y-3">
         <Row
           index={1}
-          label="AI SEO Audit"
-          summary={`${result.pagesChecked} ${
-            result.pagesChecked === 1 ? "page" : "pages"
-          } read${result.platform ? ` · ${result.platform}` : ""}`}
+          label={copy.assetLabels[0]}
+          summary={`${plural(copy.pagesRead, result.pagesChecked)}${result.platform ? ` · ${result.platform}` : ""}`}
           open={open === 0}
           onToggle={() => toggle(0)}
         >
@@ -176,25 +187,21 @@ export function AuditSteps({ result }: { result: PublicAuditResult }) {
             {[
               {
                 icon: Globe,
-                term: "Pages read",
+                term: copy.termPages,
                 value: String(result.pagesChecked),
-                note: "Free checks read up to five.",
+                note: copy.noteFive,
               },
               {
                 icon: Layers,
-                term: "Platform",
-                value: result.platform ?? "Custom",
-                note: result.platform
-                  ? "Detected from the markup."
-                  : "No common platform recognised.",
+                term: copy.platform,
+                value: result.platform ?? copy.custom,
+                note: result.platform ? copy.platformDetected : copy.platformNone,
               },
               {
                 icon: Languages,
-                term: "Language",
-                value: result.language?.toUpperCase() ?? "Not set",
-                note: result.language
-                  ? "What the page declares."
-                  : "No lang attribute - engines have to guess.",
+                term: copy.language,
+                value: result.language?.toUpperCase() ?? copy.notSet,
+                note: result.language ? copy.languageDeclared : copy.languageNone,
               },
             ].map((item) => {
               const Icon = item.icon;
@@ -214,7 +221,7 @@ export function AuditSteps({ result }: { result: PublicAuditResult }) {
 
         <Row
           index={2}
-          label="Personalized Growth Plan"
+          label={copy.assetLabels[1]}
           /*
             "of 100 on N pages", not "of 100".
 
@@ -225,29 +232,19 @@ export function AuditSteps({ result }: { result: PublicAuditResult }) {
           */
           summary={
             totalIssues === 0
-              ? `Nothing wrong on the ${
-                  result.pagesChecked === 1 ? "page" : "pages"
-                } we read`
-              : `${totalIssues} ${
-                  totalIssues === 1 ? "thing" : "things"
-                } to fix · scored ${result.score} of 100 on ${
-                  result.pagesChecked
-                } ${result.pagesChecked === 1 ? "page" : "pages"}`
+              ? plural(copy.nothingWrong, result.pagesChecked)
+              : `${plural(copy.toFix, totalIssues)} · ${plural(copy.scoredOn, result.pagesChecked)
+                  .replace("{score}", String(result.score))
+                  .replace("{pages}", String(result.pagesChecked))}`
           }
           open={open === 1}
           onToggle={() => toggle(1)}
         >
           {totalIssues === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              We found nothing wrong on the pages we read, which is rarer than
-              it sounds.
-            </p>
+            <p className="text-sm text-muted-foreground">{copy.nothingWrongBody}</p>
           ) : (
             <>
-              <p className="text-sm text-muted-foreground">
-                In the order worth doing them. The full list is below, each
-                with what to change.
-              </p>
+              <p className="text-sm text-muted-foreground">{copy.inOrder}</p>
               <ul className="mt-3 space-y-2">
                 {result.issues.slice(0, 3).map((issue, position) => (
                   <li
@@ -258,20 +255,14 @@ export function AuditSteps({ result }: { result: PublicAuditResult }) {
                       {position + 1}
                     </span>
                     <span className="min-w-0">
-                      {issue.detail}
-                      <span className="text-muted-foreground">
-                        {" "}
-                        · {issue.pageCount}{" "}
-                        {issue.pageCount === 1 ? "page" : "pages"}
-                      </span>
+                      {issueTexts[position] ?? issue.detail}
+                      <span className="text-muted-foreground"> · {plural(copy.pageCount, issue.pageCount)}</span>
                     </span>
                   </li>
                 ))}
               </ul>
               {result.hiddenIssues > 0 ? (
-                <p className="mt-3 text-sm text-muted-foreground">
-                  {result.hiddenIssues} more you get when you join.
-                </p>
+                <p className="mt-3 text-sm text-muted-foreground">{copy.moreWhenJoin.replace("{count}", String(result.hiddenIssues))}</p>
               ) : null}
             </>
           )}
@@ -279,21 +270,17 @@ export function AuditSteps({ result }: { result: PublicAuditResult }) {
 
         <Row
           index={3}
-          label="Business Profile + Free Backlink"
+          label={copy.assetLabels[2]}
           summary={
             blocked.length === 0
-              ? `Every AI assistant can read you · ${allowed}/${result.crawlers.length}`
-              : `${blocked.length} AI ${
-                  blocked.length === 1 ? "assistant is" : "assistants are"
-                } blocked`
+              ? copy.everyoneCanRead.replace("{allowed}", String(allowed)).replace("{total}", String(result.crawlers.length))
+              : plural(copy.assistantsBlocked, blocked.length)
           }
           open={open === 2}
           onToggle={() => toggle(2)}
         >
           <p className="text-sm text-muted-foreground">
-            {blocked.length === 0
-              ? "Your robots.txt lets every major AI crawler through, so you can be cited in their answers."
-              : `Your robots.txt blocks ${blocked.length} of them. They cannot cite a site they are not allowed to read.`}
+            {blocked.length === 0 ? copy.robotsAllAllowed : copy.robotsBlocks.replace("{count}", String(blocked.length))}
           </p>
 
           {/*
@@ -301,16 +288,12 @@ export function AuditSteps({ result }: { result: PublicAuditResult }) {
             Said plainly here rather than implied by the step's name, which
             comes from the design.
           */}
-          <p className="mt-3 text-sm text-muted-foreground">
-            Your profile and first backlink are set up when you join - we match
-            you with a business in a related field and your article carries a
-            link back to your site.
-          </p>
+          <p className="mt-3 text-sm text-muted-foreground">{copy.profileNote}</p>
 
           {result.linkedHosts.length > 0 ? (
             <div className="mt-4">
               <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                Sites you already link out to
+                {copy.linkOutAlready}
               </p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {result.linkedHosts.map((host) => (

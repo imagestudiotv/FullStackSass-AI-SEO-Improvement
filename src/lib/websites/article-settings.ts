@@ -47,6 +47,10 @@ export type ArticleSettingsInput = {
   authorPerspective?: boolean;
   mentionSimilarProducts?: boolean;
   comparisonTable?: boolean;
+  /** Pictures inside the article, besides the cover: 0-3. */
+  bodyImages?: number;
+  /** A "Frequently asked questions" section at the end. */
+  faqSection?: boolean;
   poweredByLink?: boolean;
 
   authorName?: string | null;
@@ -143,6 +147,12 @@ export async function saveArticleSettings(
       ? input.targetWordCount
       : Math.min(Math.max(Math.round(input.targetWordCount), 300), 5000);
 
+  // 0-3: each picture is a paid image, and more would crowd the text.
+  const pictures =
+    input.bodyImages === undefined || !Number.isFinite(input.bodyImages)
+      ? undefined
+      : Math.min(Math.max(Math.round(input.bodyImages), 0), 3);
+
   /**
    * Brand voice first, because it is the half that can REFUSE.
    *
@@ -200,6 +210,8 @@ export async function saveArticleSettings(
       authorPerspective: input.authorPerspective,
       mentionSimilarProducts: input.mentionSimilarProducts,
       comparisonTable: input.comparisonTable,
+      bodyImages: pictures,
+      faqSection: input.faqSection,
       poweredByLink: input.poweredByLink,
       authorName: text(input.authorName),
       authorBio: text(input.authorBio),

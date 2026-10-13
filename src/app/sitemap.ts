@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 
 import { blogPath } from "@/lib/blog/locale";
 import { listPosts } from "@/lib/blog/posts";
-import { localePath, PREFIXED_LOCALES } from "@/lib/i18n/config";
+import { localePath, PREFIXED_LOCALES, TRANSLATED_PATHS } from "@/lib/i18n/config";
 import { INTEGRATION_DOC_PAGES, PUBLIC_PAGES, TOOL_PAGES } from "@/lib/seo/public-pages";
 import { siteUrl as canonicalSiteUrl } from "@/lib/site-url";
 
@@ -85,22 +85,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   /**
    * Translated pages. Listed so search engines find them without having to
    * discover the prefix by following a switcher link, which they may not.
-   * Every page with an app/(marketing)/[locale] route - the same nine that
-   * declare hreflang alternates (lib/i18n/config.ts languageAlternates).
+   * Every page with an app/(marketing)/[locale] route: TRANSLATED_PATHS, the
+   * same list that declares hreflang alternates (lib/i18n/config.ts), so a
+   * newly translated page is listed without anyone remembering to.
    */
   const translated: MetadataRoute.Sitemap = PREFIXED_LOCALES.flatMap((locale) =>
-    [
-      "/",
-      "/pricing",
-      "/about",
-      "/faq",
-      "/contact",
-      "/affiliate",
-      "/publishers",
-      "/success-stories",
-      "/backlink-exchange",
-      "/blog",
-    ].map((path) => ({
+    [...TRANSLATED_PATHS].map((path) => ({
       url: `${base}${localePath(locale, path)}`,
       lastModified: now,
       // The homepage first, then pricing; the rest are supporting pages.

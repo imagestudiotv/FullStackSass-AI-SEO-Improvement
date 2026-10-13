@@ -135,6 +135,8 @@ export type TodaysArticle = {
 
 export type Win =
   | { kind: "published"; title: string; at: Date; href: string }
+  /** Google indexed one of the website's articles (lib/indexing). */
+  | { kind: "indexed"; title: string; at: Date; href: string }
   | { kind: "links_received"; count: number; at: Date; href: string }
   | { kind: "links_given"; count: number; at: Date; href: string }
   | { kind: "audit"; score: number; at: Date; href: string }
@@ -352,13 +354,21 @@ export const BREAKDOWN_LIMIT = 200;
 async function loadWins(subject: { websiteId: string; orgId: string; domain: string }): Promise<{ from: Date; to: Date; items: Win[] }> {
   const week = resolveWindow("7d");
   const base = `/websites/${subject.websiteId}`;
-  const [published, metrics, given, audit, clicks] = await Promise.all([
+  const [published, indexed, metrics, given, audit, clicks] = await Promise.all([
     db.execute(sql`
       select a.id, a.title, to_char(a.first_live_at, 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as at
       from articles a
       where a.website_id = ${subject.websiteId}
         and a.first_live_at >= ${utc(week.from)} and a.first_live_at < ${utc(week.to)}
       order by a.first_live_at desc limit 5
+    `),
+    db.execute(sql`
+      select a.id, a.title, to_char(ai.indexed_at, 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as at
+      from article_indexing ai
+      join articles a on a.id = ai.article_id
+      where ai.website_id = ${subject.websiteId} and ai.status = 'indexed'
+        and ai.indexed_at >= ${utc(week.from)} and ai.indexed_at < ${utc(week.to)}
+      order by ai.indexed_at desc limit 5
     `),
     backlinkMetrics(subject, week),
     db.execute(sql`
@@ -385,6 +395,9 @@ async function loadWins(subject: { websiteId: string; orgId: string; domain: str
   const items: Win[] = [];
   for (const row of rowsOf(published)) {
     items.push({ kind: "published", title: row.title as string, at: new Date(row.at as string), href: `${base}/articles/${row.id}` });
+  }
+  for (const row of rowsOf(indexed)) {
+    items.push({ kind: "indexed", title: row.title as string, at: new Date(row.at as string), href: `${base}/articles/${row.id}` });
   }
   if (metrics.received.firstVerifiedInWindow > 0) {
     const newest = metrics.latest.find((l) => l.eventAt)?.eventAt ?? week.to;

@@ -15,6 +15,7 @@ import { listIntegrations } from "@/lib/publishing/actions";
 import { finishedModeOf } from "@/lib/publishing/policy";
 import { requireWebsitePage } from "@/lib/tenant";
 
+import { bodyImageCount } from "@/lib/articles/article-shape";
 import { ArticleSettingsForm } from "../article-settings-form";
 import { GenerationPanel } from "../generation-panel";
 import { ArticleSettingsSectionNav } from "./settings-section-nav";
@@ -149,6 +150,8 @@ export default async function WebsitePublishingPage({
               authorPerspective: site.authorPerspective,
               mentionSimilarProducts: site.mentionSimilarProducts,
               comparisonTable: site.comparisonTable,
+              bodyImages: bodyImageCount(site.bodyImages),
+              faqSection: site.faqSection,
               poweredByLink: site.poweredByLink,
 
               authorName: site.authorName ?? "",

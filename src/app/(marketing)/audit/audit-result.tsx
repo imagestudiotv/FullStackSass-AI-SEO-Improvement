@@ -21,12 +21,19 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
+import { issueText, notAssessed as localisedNotAssessed, rowDetail } from "@/app/(app)/websites/[websiteId]/health-model";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { fixFor } from "@/lib/audit/fixes";
-import { ISSUE_LABELS } from "@/lib/audit/rules";
+import { ISSUE_LABELS, type AuditSummary } from "@/lib/audit/rules";
 import type { PublicAuditResult } from "@/lib/audit/public-audit";
+import { localePath, type Locale } from "@/lib/i18n/config";
+import { getMessages } from "@/lib/i18n/messages";
+import { TOOLS_COMMON } from "@/lib/tools/i18n/common";
+
 import { AuditSteps } from "./audit-steps";
+import { AUDIT_COPY, type AuditResultCopy } from "./copy";
+import { plural } from "./plural";
 
 /**
  * The audit result, following the reference design.
@@ -58,10 +65,10 @@ import { AuditSteps } from "./audit-steps";
  * part that differs off the end. Falls back to the raw string if it will not
  * parse, since a URL we cannot read is still worth showing.
  */
-function pathOf(url: string): string {
+function pathOf(url: string, homepage: string): string {
   try {
     const { pathname, search } = new URL(url);
-    return pathname === "/" ? "/ (homepage)" : `${pathname}${search}`;
+    return pathname === "/" ? `/ (${homepage})` : `${pathname}${search}`;
   } catch {
     return url;
   }
@@ -80,7 +87,7 @@ function ringTone(score: number): string {
   return "stroke-red-500";
 }
 
-function ScoreRing({ score }: { score: number }) {
+function ScoreRing({ score, outOf }: { score: number; outOf: string }) {
   const radius = 34;
   const circumference = 2 * Math.PI * radius;
   const filled = (score / 100) * circumference;
@@ -109,7 +116,7 @@ function ScoreRing({ score }: { score: number }) {
         <div className={`text-2xl font-semibold tabular-nums ${scoreTone(score)}`}>
           {score}
         </div>
-        <div className="text-[10px] text-muted-foreground">of 100</div>
+        <div className="text-[10px] text-muted-foreground">{outOf}</div>
       </div>
     </div>
   );
@@ -126,23 +133,23 @@ function ScoreRing({ score }: { score: number }) {
  */
 function SeverityBar({
   counts,
+  t,
 }: {
   counts: { critical: number; warning: number; info: number };
+  t: AuditResultCopy;
 }) {
   const total = counts.critical + counts.warning + counts.info;
 
   const segments = [
-    { key: "critical", n: counts.critical, className: "bg-destructive", label: "critical" },
-    { key: "warning", n: counts.warning, className: "bg-amber-500", label: "warnings" },
-    { key: "info", n: counts.info, className: "bg-blue-500", label: "suggestions" },
+    { key: "critical", n: counts.critical, className: "bg-destructive", label: t.critical },
+    { key: "warning", n: counts.warning, className: "bg-amber-500", label: t.warnings },
+    { key: "info", n: counts.info, className: "bg-blue-500", label: t.suggestions },
   ].filter((segment) => segment.n > 0);
 
   return (
     <div className="mt-4">
       {total === 0 ? (
-        <p className="text-sm text-emerald-700 dark:text-emerald-400">
-          Nothing wrong on the pages we read.
-        </p>
+        <p className="text-sm text-emerald-700 dark:text-emerald-400">{t.nothingWrongShort}</p>
       ) : (
         <>
           <div
@@ -166,9 +173,9 @@ function SeverityBar({
 
           <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-sm">
             {[
-              { n: counts.critical, label: "critical", dot: "bg-destructive" },
-              { n: counts.warning, label: "warnings", dot: "bg-amber-500" },
-              { n: counts.info, label: "suggestions", dot: "bg-blue-500" },
+              { n: counts.critical, label: t.critical, dot: "bg-destructive" },
+              { n: counts.warning, label: t.warnings, dot: "bg-amber-500" },
+              { n: counts.info, label: t.suggestions, dot: "bg-blue-500" },
             ].map((item) => (
               <span key={item.label} className="flex items-center gap-1.5">
                 <span
@@ -189,11 +196,38 @@ function SeverityBar({
 export function AuditResult({
   result,
   offer,
+  locale = "en",
 }: {
   result: PublicAuditResult;
   /** The live starting price and the free articles (lib/billing.ts startingOffer). */
   offer: { price: string | null; freeArticles: number };
+  locale?: Locale;
 }) {
+  const copy = AUDIT_COPY[locale];
+  const t = copy.result;
+  const english = locale === "en";
+  // The Website health page's words for each finding (messages.ts app.health), so the
+  // free check and the paid one describe a problem the same way. English keeps its own.
+  const health = getMessages(locale).app.health;
+  const issues = result.issues.map((issue) => {
+    const known = issueText(issue.type, health);
+    const label = english ? (ISSUE_LABELS[issue.type] ?? issue.type) : known.label;
+    const fix = fixFor(issue.type);
+    return {
+      issue,
+      label,
+      detail: english ? issue.detail : (rowDetail(issue.type, issue.detail, health, locale) ?? label),
+      fixText: fix ? (english ? fix.fix : (known.fix ?? fix.fix)) : null,
+      effort: fix ? t.effort[fix.effort === "minutes" ? "minutes" : fix.effort === "an hour" ? "hour" : "longer"] : null,
+      needsDeveloper: fix?.needsDeveloper === true,
+    };
+  });
+  const notAssessed = english
+    ? (result.notAssessed ?? []).join(", ").toLowerCase()
+    : localisedNotAssessed(
+        { pagesCrawled: result.pagesChecked, notAssessed: result.notAssessed ?? [] } as unknown as AuditSummary,
+        health,
+      ).join(", ");
   const blockedCrawlers = result.crawlers.filter((c) => !c.allowed);
 
   return (
@@ -205,7 +239,7 @@ export function AuditResult({
         work it described disappeared the moment it produced anything. These
         are the same rows, still expandable, now holding what each one found.
       */}
-      <AuditSteps result={result} />
+      <AuditSteps result={result} copy={copy.steps} issueTexts={issues.map((row) => row.detail)} />
 
       {/* Header: who we looked at, and the score. */}
       <Card>
@@ -232,14 +266,13 @@ export function AuditResult({
 
           <div className="min-w-0 flex-1">
             <p className="text-xs font-semibold tracking-[0.14em] text-primary uppercase">
-              AI SEO audit
+              {t.eyebrowAudit}
             </p>
             <h2 className="mt-2 truncate text-2xl font-semibold tracking-tight">
               {result.siteName ?? result.domain}
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              {result.domain} · {result.pagesChecked}{" "}
-              {result.pagesChecked === 1 ? "page" : "pages"} read
+              {result.domain} · {plural(copy.steps.pagesRead, result.pagesChecked)}
             </p>
 
             {/*
@@ -250,7 +283,7 @@ export function AuditResult({
               work is. A zero count contributes no segment and shows no alarm
               colour — a red "0 critical" reads as a problem.
             */}
-            <SeverityBar counts={result.counts} />
+            <SeverityBar counts={result.counts} t={t} />
 
             {/*
               WHAT THE SCORE DID NOT LOOK AT.
@@ -268,19 +301,13 @@ export function AuditResult({
             */}
             {(result.notAssessed ?? []).length > 0 ? (
               <p className="mt-3 text-xs text-muted-foreground">
-                <span className="font-medium text-foreground">
-                  Not assessed:
-                </span>{" "}
-                {(result.notAssessed ?? []).join(", ").toLowerCase()} —{" "}
-                {result.pagesChecked === 1
-                  ? "these need more than one page, and only one was read"
-                  : "these need more pages than this check reads"}
-                .
+                <span className="font-medium text-foreground">{t.notAssessedLabel}</span> {notAssessed} —{" "}
+                {result.pagesChecked === 1 ? t.notAssessedOne : t.notAssessedMany}.
               </p>
             ) : null}
           </div>
 
-          <ScoreRing score={result.score} />
+          <ScoreRing score={result.score} outOf={t.outOf} />
         </CardContent>
       </Card>
 
@@ -289,25 +316,21 @@ export function AuditResult({
         {[
           {
             icon: Languages,
-            label: "Language",
-            value: result.language?.toUpperCase() ?? "Not set",
-            note: result.language
-              ? "What the page declares."
-              : "No lang attribute - search engines have to guess.",
+            label: copy.steps.language,
+            value: result.language?.toUpperCase() ?? copy.steps.notSet,
+            note: result.language ? t.langNote : t.langMissing,
           },
           {
             icon: Layers,
-            label: "Platform",
-            value: result.platform ?? "Custom",
-            note: result.platform
-              ? "What your site is built on."
-              : "We could not recognise a common platform.",
+            label: copy.steps.platform,
+            value: result.platform ?? copy.steps.custom,
+            note: result.platform ? t.platformNote : t.platformMissing,
           },
           {
             icon: Globe,
-            label: "Pages read",
+            label: copy.steps.termPages,
             value: String(result.pagesChecked),
-            note: "Free checks read up to five pages.",
+            note: t.pagesNote,
           },
         ].map((tile) => (
           <Card key={tile.label}>
@@ -336,12 +359,10 @@ export function AuditResult({
             <div className="min-w-0 flex-1">
               <p className="flex items-center gap-2 font-medium">
                 <Bot className="size-4 text-primary" aria-hidden="true" />
-                Can AI assistants read your site?
+                {t.crawlersTitle}
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
-                {blockedCrawlers.length === 0
-                  ? "Your robots.txt lets every major AI crawler through."
-                  : `Your robots.txt blocks ${blockedCrawlers.length} of them. They cannot cite a site they are not allowed to read.`}
+                {blockedCrawlers.length === 0 ? t.crawlersAll : copy.steps.robotsBlocks.replace("{count}", String(blockedCrawlers.length))}
               </p>
             </div>
 
@@ -427,21 +448,16 @@ export function AuditResult({
       {/* Findings, each with how to fix it. */}
       <div>
         <h3 className="text-xl font-semibold tracking-tight">
-          Issues we <span className="text-primary">found</span>
+          {t.issuesBefore} <span className="text-primary">{t.issuesAccent}</span>
         </h3>
 
         {result.issues.length === 0 ? (
           <Card className="mt-4">
-            <CardContent className="py-6 text-sm text-muted-foreground">
-              We found nothing wrong on the pages we read. Sign up and we will
-              check your whole site, then start finding the searches your
-              customers use.
-            </CardContent>
+            <CardContent className="py-6 text-sm text-muted-foreground">{t.noIssues}</CardContent>
           </Card>
         ) : (
           <ul className="mt-4 space-y-3">
-            {result.issues.map((issue, index) => {
-              const fix = fixFor(issue.type);
+            {issues.map(({ issue, label, detail, fixText, effort, needsDeveloper }, index) => {
               return (
                 <li key={`${issue.type}-${index}`}>
                   <Card>
@@ -459,20 +475,18 @@ export function AuditResult({
                       )}
                       <div className="min-w-0">
                         <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
-                          {ISSUE_LABELS[issue.type] ?? issue.type}
+                          {label}
                           {/*
                             Named once here rather than repeating the whole
                             finding per page.
                           */}
                           {issue.pageCount > 1 ? (
                             <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-normal text-muted-foreground">
-                              {issue.pageCount} pages
+                              {plural(copy.steps.pageCount, issue.pageCount)}
                             </span>
                           ) : null}
                         </p>
-                        <p className="text-sm text-muted-foreground">
-                          {issue.detail}
-                        </p>
+                        <p className="text-sm text-muted-foreground">{detail}</p>
 
                         {issue.urls.length > 0 ? (
                           <ul className="mt-1.5 space-y-0.5">
@@ -481,12 +495,12 @@ export function AuditResult({
                                 key={url}
                                 className="truncate font-mono text-xs text-muted-foreground"
                               >
-                                {pathOf(url)}
+                                {pathOf(url, t.homepage)}
                               </li>
                             ))}
                             {issue.pageCount > issue.urls.length ? (
                               <li className="text-xs text-muted-foreground">
-                                and {issue.pageCount - issue.urls.length} more
+                                {TOOLS_COMMON[locale].andMore.replace("{count}", String(issue.pageCount - issue.urls.length))}
                               </li>
                             ) : null}
                           </ul>
@@ -495,13 +509,12 @@ export function AuditResult({
                           The fix, not just the fault. A list of problems with
                           no remedy is an anxiety rather than a to-do list.
                         */}
-                        {fix ? (
+                        {fixText ? (
                           <p className="mt-2 border-l-2 border-primary/30 pl-2.5 text-sm">
-                            {fix.fix}
+                            {fixText}
                             <span className="ml-1 text-xs text-muted-foreground">
-                              ({fix.effort}
-                              {fix.needsDeveloper ? ", may need your developer" : ""}
-                              )
+                              ({effort}
+                              {needsDeveloper ? t.needsDev : ""})
                             </span>
                           </p>
                         ) : null}
@@ -521,12 +534,9 @@ export function AuditResult({
           <CardContent className="py-6">
             <p className="flex items-center gap-2 font-medium">
               <Link2 className="size-4 text-primary" aria-hidden="true" />
-              Sites you link out to
+              {t.linksOutTitle}
             </p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Read from your own pages. Useful for spotting links you did not
-              mean to give away.
-            </p>
+            <p className="mt-1 text-sm text-muted-foreground">{t.linksOutBody}</p>
             <div className="mt-4 flex flex-wrap gap-2">
               {result.linkedHosts.map((host) => (
                 <span
@@ -554,19 +564,13 @@ export function AuditResult({
                 aria-hidden="true"
               />
               <div>
-                <p className="font-medium">
-                  {result.hiddenIssues} more{" "}
-                  {result.hiddenIssues === 1 ? "thing" : "things"} to fix
-                </p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Sign up free to see the full list, and we will start writing
-                  the pages that fix them.
-                </p>
+                <p className="font-medium">{plural(t.hidden, result.hiddenIssues)}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{t.hiddenBody}</p>
               </div>
             </div>
             <Button asChild className="h-11 rounded-full px-6">
               <Link href="/sign-up">
-                See the full report
+                {t.seeFull}
                 <ArrowRight className="size-4" />
               </Link>
             </Button>
@@ -590,10 +594,10 @@ export function AuditResult({
         <CardContent className="py-8">
           <div className="text-center">
             <p className="text-xs font-semibold tracking-[0.14em] text-primary uppercase">
-              What happens when you join
+              {t.joinEyebrow}
             </p>
             <h3 className="mt-3 text-2xl font-semibold tracking-tight text-balance">
-              We fix what we found, then keep going
+              {t.joinTitle}
             </h3>
           </div>
 
@@ -601,24 +605,14 @@ export function AuditResult({
             {[
               {
                 icon: ListChecks,
-                title: "Every finding, in order",
-                body: `All ${
-                  result.counts.critical +
-                  result.counts.warning +
-                  result.counts.info +
-                  result.hiddenIssues
-                } of them, with what to change and how long it takes.`,
+                title: t.joinItems[0].title,
+                body: t.joinItems[0].body.replace(
+                  "{count}",
+                  String(result.counts.critical + result.counts.warning + result.counts.info + result.hiddenIssues),
+                ),
               },
-              {
-                icon: FileText,
-                title: "Articles written for you",
-                body: "Researched from what your customers search for, published to your own site.",
-              },
-              {
-                icon: Link2,
-                title: "Real backlinks, earned",
-                body: "Host one article for a related business and earn a link back to yours.",
-              },
+              { icon: FileText, title: t.joinItems[1].title, body: t.joinItems[1].body },
+              { icon: Link2, title: t.joinItems[2].title, body: t.joinItems[2].body },
             ].map((item) => {
               const Icon = item.icon;
               return (
@@ -641,7 +635,7 @@ export function AuditResult({
           <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
             <Button asChild className="h-12 rounded-full px-7 text-base font-semibold">
               <Link href="/sign-up">
-                Get Started
+                {t.getStarted}
                 <ArrowRight className="size-4" />
               </Link>
             </Button>
@@ -650,7 +644,7 @@ export function AuditResult({
               asChild
               className="h-12 rounded-full px-7 text-base"
             >
-              <Link href="/pricing">See pricing</Link>
+              <Link href={localePath(locale, "/pricing")}>{t.seePricing}</Link>
             </Button>
           </div>
 
@@ -660,15 +654,15 @@ export function AuditResult({
             price was gone.
           */}
           <p className="mt-4 text-center text-xs text-muted-foreground">
-            {offer.price ? `Plans start at ${offer.price} a month. ` : ""}
-            New accounts get their first {offer.freeArticles} articles free.
+            {offer.price ? t.plansStart.replace("{price}", offer.price) : ""}
+            {plural(t.freeArticles, offer.freeArticles)}
           </p>
         </CardContent>
       </Card>
 
       {result.cached ? (
         <p className="text-center text-xs text-muted-foreground">
-          Showing a check from the last 24 hours.
+          {t.cached}
         </p>
       ) : null}
     </div>

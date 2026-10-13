@@ -87,8 +87,18 @@ export type ArticleBrief = {
   authorPerspective: boolean;
   /** References comparable products and tools where relevant. */
   mentionSimilarProducts: boolean;
-  /** One comparison table of the options the article is about. */
+  /** Comparison tables of the options the article is about. */
   comparisonTable: boolean;
+  /**
+   * How many, 1-3, when comparisonTable is on - chosen per article in code
+   * (lib/articles/article-shape.ts tableCount). Absent means one, as before.
+   */
+  tableCount?: number;
+  /**
+   * A "Frequently asked questions" section at the end (client, 2026-10-13).
+   * Absent means none, as before.
+   */
+  faqSection?: boolean;
 
   /**
    * Image settings, carried on the brief so the image call has them.
@@ -103,8 +113,11 @@ export type ArticleBrief = {
 };
 
 export type ArticleOutline = {
-  sections: { heading: string; points: string[] }[];
+  /** H2 sections; subheadings become the section's H3s (none for a one-idea section). */
+  sections: { heading: string; subheadings: string[]; points: string[] }[];
   metaDescription: string;
+  /** The FAQ's questions, in the reader's words; empty when the brief asks for no FAQ. */
+  faq: string[];
 };
 
 export type GeneratedArticle = {
@@ -131,18 +144,30 @@ const OUTLINE_SCHEMA = {
             type: "string",
             description: "H2 heading. Specific, not a generic label.",
           },
+          subheadings: {
+            type: "array",
+            items: { type: "string" },
+            description:
+              "0-4 H3 sub-headings for the distinct parts of this section (steps, options, criteria), each specific. Empty when the section is one idea.",
+          },
           points: {
             type: "array",
             items: { type: "string" },
             description: "2-4 points this section must cover.",
           },
         },
-        required: ["heading", "points"],
+        required: ["heading", "subheadings", "points"],
         additionalProperties: false,
       },
     },
+    faq: {
+      type: "array",
+      items: { type: "string" },
+      description:
+        "When the brief asks for an FAQ: 4-6 questions a reader still has after the sections, in the reader's own words. Otherwise empty.",
+    },
   },
-  required: ["metaDescription", "sections"],
+  required: ["metaDescription", "sections", "faq"],
   additionalProperties: false,
 } as const;
 
@@ -170,6 +195,23 @@ function profileBlock(brief: ArticleBrief): string | null {
     brief.language && !isLanguageName(brief.language) ? `Language: ${brief.language}` : null,
   ].filter(Boolean);
   return lines.length ? dataBlock("business_profile", lines.join("\n")) : null;
+}
+
+const TABLE_SHAPE = `Structure: <table><thead><tr><th>Attribute</th><th>Option A</th><th>Option B</th></tr></thead><tbody>...</tbody></table>, with 5-8 rows, one per attribute (for example purpose, cost factors, time needed, best fit, main risk). Every cell is a short plain-text phrase: no links, lists or headings inside cells. Compare only what is common knowledge or follows from the article; no prices, statistics or claims you cannot support.`;
+
+/**
+ * The comparison tables: none, one (the reference's "at a Glance" table), or
+ * two or three - the count chosen per article in code (client, 2026-10-13:
+ * "some time one some time 2, 3 maximum"; lib/articles/article-shape.ts).
+ */
+export function tablesInstruction(brief: ArticleBrief): string {
+  if (!brief.comparisonTable) return `Do not use tables.`;
+  const count = Math.max(1, Math.min(3, Math.trunc(brief.tableCount ?? 1)));
+  if (count === 1) {
+    return `Include exactly ONE comparison table, the way a good guide does ("Videography vs Cinematography at a Glance"). Compare the two or three options, approaches or types this topic is really about - what the reader is choosing between. Give it its own <h2> or <h3> heading in the form "<Option A> vs <Option B> at a Glance" and place it where that comparison is discussed, not at the very start or the very end. ${TABLE_SHAPE} If the topic has no natural "A vs B", compare the alternatives the reader is weighing (for example doing it themselves vs hiring a professional).`;
+  }
+  const word = count === 2 ? "TWO" : "THREE";
+  return `Include exactly ${word} comparison tables, the way a good guide does ("Videography vs Cinematography at a Glance"). Each compares something DIFFERENT the article discusses - the options, approaches, types or choices the reader is weighing - never the same comparison twice. Give each its own <h2> or <h3> heading in the form "<Option A> vs <Option B> at a Glance", and place each where its comparison is discussed: spread through the article, never two tables in a row, not at the very start or the very end. ${TABLE_SHAPE} Where the topic has fewer natural comparisons, compare the alternatives the reader is weighing (for example doing it themselves vs hiring a professional, or a basic vs a complete approach).`;
 }
 
 export function briefContext(brief: ArticleBrief): string {
@@ -245,9 +287,11 @@ export function briefContext(brief: ArticleBrief): string {
       Stated both ways, like the perspective above: left unsaid, a model
       writes a table on some topics and not others.
     */
-    brief.comparisonTable
-      ? `Include exactly ONE comparison table, the way a good guide does ("Videography vs Cinematography at a Glance"). Compare the two or three options, approaches or types this topic is really about - what the reader is choosing between. Give it its own <h2> or <h3> heading in the form "<Option A> vs <Option B> at a Glance" and place it where that comparison is discussed, not at the very start or the very end. Structure: <table><thead><tr><th>Attribute</th><th>Option A</th><th>Option B</th></tr></thead><tbody>...</tbody></table>, with 5-8 rows, one per attribute (for example purpose, cost factors, time needed, best fit, main risk). Every cell is a short plain-text phrase: no links, lists or headings inside cells. Compare only what is common knowledge or follows from the article; no prices, statistics or claims you cannot support. If the topic has no natural "A vs B", compare the alternatives the reader is weighing (for example doing it themselves vs hiring a professional).`
-      : `Do not use tables.`,
+    tablesInstruction(brief),
+    /* Both ways too, for the same reason. */
+    brief.faqSection
+      ? `End the article with a frequently asked questions section: an <h2> heading meaning "Frequently asked questions", written in the article's language, then each question from the structure as an <h3> ending in a question mark, answered in one or two short <p> paragraphs. Answer each directly in its first sentence; do not repeat at length what a section already explains; no links and no lists in the answers.`
+      : `Do not add a frequently asked questions section.`,
     brief.tone ? `Brand tone: ${brief.tone}` : null,
     brief.avoid ? `Avoid: ${brief.avoid}` : null,
     brief.vocabulary ? `Preferred wording: ${brief.vocabulary}` : null,
@@ -289,8 +333,18 @@ export function briefContext(brief: ArticleBrief): string {
 const OUTLINE_SYSTEM = `You plan the structure of an SEO article before it is written.
 
 Rules:
-- 4-7 sections that each answer something different. Overlapping sections
+- 5-8 sections that each answer something different. Overlapping sections
   produce a repetitive article.
+- Give a section 2-4 sub-headings when it has distinct parts a reader scans
+  for (steps, options, criteria, mistakes); leave a one-idea section without.
+  Mix both: sub-headings everywhere read like a manual, none anywhere like a
+  wall of text.
+- If the brief asks for comparison tables, plan each one: add a point
+  "Comparison table: <A> vs <B>" to the section that will hold it, each table
+  in a different section and none in the first or last.
+- If the brief asks for a frequently asked questions section, list 4-6
+  questions a reader still has after the sections - real questions in the
+  reader's words, not the headings rephrased. Otherwise leave the list empty.
 - Order them the way a reader needs them, not alphabetically or by keyword.
 - Cover the target keyword's actual question first, not background context.
 - Where search intent is transactional or commercial, include a practical
@@ -306,11 +360,20 @@ const BODY_SYSTEM = `You write the final SEO article body as HTML.
 
 Output rules:
 - HTML fragment only: <h2>, <h3>, <p>, <ul>, <ol>, <li>, <strong>, <em>, <a>.
-- <table>, <thead>, <tbody>, <tr>, <th>, <td> only for a comparison table the
-  brief asks for.
+- <table>, <thead>, <tbody>, <tr>, <th>, <td> only for the comparison tables
+  the brief asks for.
 - NO <html>, <head>, <body>, <h1>, style attributes, classes or scripts. The
   title is rendered separately, so a second H1 would compete with it.
-- 900-1,400 words unless instructed otherwise.
+- 1,200-2,000 words, not counting a frequently asked questions section, unless
+  instructed otherwise.
+
+Structure rules:
+- Follow the structure given: each "## " is an <h2>, each "### " under it an
+  <h3> of that section, written as headings a reader would scan for.
+- Vary the shape the way a good guide does: short paragraphs, a bulleted or
+  numbered list where the reader benefits from scanning (steps, criteria,
+  options) - roughly one list every two or three sections, not one in every
+  section - and never a heading followed by one long block of text.
 
 Link rules:
 - Do NOT link to pages of the business's own website. Those links are added
@@ -370,12 +433,28 @@ export async function generateOutline(
     throw new Error("No outline returned");
   }
 
-  let parsed: {
-    sections?: unknown;
-    metaDescription?: unknown;
-  };
+  return parseOutline(block.text, { faq: Boolean(brief.faqSection) });
+}
+
+/** Strings only, trimmed, no empties. */
+const textList = (value: unknown, max: number): string[] =>
+  Array.isArray(value)
+    ? value
+        .filter((item): item is string => typeof item === "string")
+        .map((item) => item.trim())
+        .filter(Boolean)
+        .slice(0, max)
+    : [];
+
+/**
+ * The outline model's JSON, checked. Sub-headings and FAQ questions are
+ * optional extras: a section without them is still a section, and an FAQ is
+ * kept only when the brief asked for one.
+ */
+export function parseOutline(text: string, options: { faq: boolean }): ArticleOutline {
+  let parsed: { sections?: unknown; metaDescription?: unknown; faq?: unknown };
   try {
-    parsed = JSON.parse(block.text);
+    parsed = JSON.parse(text);
   } catch {
     throw new Error("Outline was not valid JSON");
   }
@@ -383,18 +462,16 @@ export async function generateOutline(
   const sections = Array.isArray(parsed.sections)
     ? parsed.sections
         .filter(
-          (section): section is { heading: string; points: string[] } =>
+          (section): section is { heading: string; subheadings?: unknown; points?: unknown } =>
             typeof section === "object" &&
             section !== null &&
-            typeof (section as { heading?: unknown }).heading === "string",
+            typeof (section as { heading?: unknown }).heading === "string" &&
+            Boolean((section as { heading: string }).heading.trim()),
         )
         .map((section) => ({
           heading: section.heading.trim(),
-          points: Array.isArray(section.points)
-            ? section.points.filter(
-                (point): point is string => typeof point === "string",
-              )
-            : [],
+          subheadings: textList(section.subheadings, 4),
+          points: textList(section.points, 8),
         }))
     : [];
 
@@ -408,7 +485,23 @@ export async function generateOutline(
       typeof parsed.metaDescription === "string"
         ? parsed.metaDescription.trim().slice(0, 200)
         : "",
+    faq: options.faq ? textList(parsed.faq, 6) : [],
   };
+}
+
+/** The outline as the body writer reads it: "## " sections, "### " parts, points, then the FAQ. */
+export function structureFor(outline: ArticleOutline): string {
+  const sections = outline.sections.map((section) =>
+    [
+      `## ${section.heading}`,
+      ...section.subheadings.map((sub) => `### ${sub}`),
+      ...section.points.map((point) => `- ${point}`),
+    ].join("\n"),
+  );
+  if (outline.faq.length > 0) {
+    sections.push(["## Frequently asked questions (in the article's language)", ...outline.faq.map((q) => `- ${q}`)].join("\n"));
+  }
+  return sections.join("\n\n");
 }
 
 /** URL-safe slug from the title. */
@@ -473,16 +566,16 @@ export async function generateBody(
     throw new Error("ANTHROPIC_API_KEY is not set");
   }
 
-  const structure = outline.sections
-    .map(
-      (section) =>
-        `## ${section.heading}\n${section.points.map((point) => `- ${point}`).join("\n")}`,
-    )
-    .join("\n\n");
+  const structure = structureFor(outline);
 
   const response = await anthropic.messages.create({
     model: MODELS.GENERATION,
-    max_tokens: 8000,
+    /*
+      Room for 2,000 words with sub-headings, up to three tables and an FAQ:
+      truncation is unrecoverable (it is refused below), and the unused
+      allowance costs nothing.
+    */
+    max_tokens: 16000,
     system: BODY_SYSTEM,
     messages: [
       {

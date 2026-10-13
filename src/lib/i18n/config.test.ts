@@ -3,7 +3,9 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { languageAlternates, LOCALES, localePath, splitLocale, TRANSLATED_PATHS } from "@/lib/i18n/config";
+import { INTEGRATION_GUIDE_SLUGS, languageAlternates, LOCALES, localePath, splitLocale, TOOL_SLUGS, TRANSLATED_PATHS } from "@/lib/i18n/config";
+import { INTEGRATION_DOCS } from "@/lib/publishing/docs";
+import { TOOL_PAGES } from "@/lib/seo/public-pages";
 
 /**
  * hreflang only counts when it is reciprocal: every version of a page must
@@ -84,7 +86,7 @@ describe("localePath", () => {
   });
 
   it("links English-only pages as they are", () => {
-    for (const page of ["/audit", "/tools", "/tools/robots-checker", "/docs/integrations/wordpress", "/blog/some-post", "/blog/category/guides", "/sign-up"]) {
+    for (const page of ["/blog/some-post", "/blog/category/guides", "/sign-up", "/privacy", "/terms", "/refunds"]) {
       expect(localePath("es", page)).toBe(page);
     }
     // The blog's front page has one per language; its posts have their own addresses (lib/blog/locale.ts).
@@ -94,7 +96,7 @@ describe("localePath", () => {
   it("keeps a fragment or query, on the right page", () => {
     expect(localePath("fr", "/#how-it-works")).toBe("/fr#how-it-works");
     expect(localePath("fr", "/pricing?plan=growth")).toBe("/fr/pricing?plan=growth");
-    expect(localePath("fr", "/audit?domain=example.com")).toBe("/audit?domain=example.com");
+    expect(localePath("fr", "/audit?domain=example.com")).toBe("/fr/audit?domain=example.com");
   });
 
   it("leaves English unprefixed", () => {
@@ -104,10 +106,36 @@ describe("localePath", () => {
 
   /** The list and the folders must agree, or a link 404s or a translation is never linked. */
   it("knows exactly the pages app/(marketing)/[locale] has", () => {
-    const dir = path.resolve(__dirname, "../../app/(marketing)/[locale]");
-    const folders = readdirSync(dir, { withFileTypes: true })
-      .filter((entry) => entry.isDirectory() && !entry.name.startsWith("[") && !entry.name.startsWith("("))
-      .map((entry) => `/${entry.name}`);
-    expect([...TRANSLATED_PATHS].sort()).toEqual(["/", ...folders].sort());
+    const root = path.resolve(__dirname, "../../app/(marketing)/[locale]");
+    // A dynamic folder stands for the pages its generateStaticParams lists. Blog posts are
+    // database pages with their own addresses in each language (lib/blog/locale.ts), not here.
+    const DYNAMIC: Record<string, string[]> = { "/docs/integrations/[slug]": INTEGRATION_DOCS.map((doc) => doc.slug), "/blog/[slug]": [] };
+    const pages: string[] = [];
+    const walk = (dir: string, at: string) => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        if (entry.isFile() && entry.name === "page.tsx") pages.push(at || "/");
+        if (!entry.isDirectory() || entry.name.startsWith("[...") || entry.name.startsWith("(")) continue;
+        const next = `${at}/${entry.name}`;
+        if (entry.name.startsWith("[")) {
+          expect(DYNAMIC[next], `${next} is not expanded in this test`).toBeDefined();
+          for (const slug of DYNAMIC[next]) {
+            expect(readdirSync(path.join(dir, entry.name))).toContain("page.tsx");
+            pages.push(`${at}/${slug}`);
+          }
+          continue;
+        }
+        walk(path.join(dir, entry.name), next);
+      }
+    };
+    walk(root, "");
+    expect([...TRANSLATED_PATHS].sort()).toEqual(pages.sort());
+  });
+
+  it("lists every integration guide (the slugs are copied so the guides' text stays out of the browser)", () => {
+    expect([...INTEGRATION_GUIDE_SLUGS]).toEqual(INTEGRATION_DOCS.map((doc) => doc.slug));
+  });
+
+  it("lists every free tool, for the same reason", () => {
+    expect(TOOL_SLUGS.map((slug) => `/tools/${slug}`).sort()).toEqual([...TOOL_PAGES].sort());
   });
 });

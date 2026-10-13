@@ -32,6 +32,7 @@ A **secret** grants access and must be rotated if exposed. An **identifier** is 
 | Resend | `RESEND_API_KEY` | `EMAIL_FROM` |
 | Sentry | `SENTRY_AUTH_TOKEN` | `NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_ORG`, `SENTRY_PROJECT` |
 | DataForSEO | `DATAFORSEO_PASSWORD` | `DATAFORSEO_LOGIN` |
+| SpeedyIndex | `SPEEDYINDEX_API_KEY` | `SPEEDYINDEX_DAILY_LIMIT` |
 | Vercel | `VERCEL_OIDC_TOKEN` (short-lived, written by `vercel env pull`) | |
 | Crisp | | `NEXT_PUBLIC_CRISP_WEBSITE_ID` |
 

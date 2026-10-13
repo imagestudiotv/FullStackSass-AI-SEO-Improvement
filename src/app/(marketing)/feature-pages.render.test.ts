@@ -3,8 +3,15 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 import { getMessages } from "@/lib/i18n/messages";
-import { LOCALES } from "@/lib/i18n/config";
-import { BACKLINKS_EXAMPLE, BACKLINKS_PAGE, CHATGPT_EXAMPLE, CHATGPT_PAGE, type FeatureExample } from "@/lib/marketing/feature-pages";
+import { LOCALES, localePath } from "@/lib/i18n/config";
+import {
+  BACKLINKS_EXAMPLE,
+  BACKLINKS_PAGE,
+  CHATGPT_EXAMPLE,
+  featurePageContent,
+  type FeatureExample,
+  type FeaturePage,
+} from "@/lib/marketing/feature-pages";
 
 /**
  * The footer product pages, /backlinks and /rank-on-chatgpt (client,
@@ -24,21 +31,20 @@ import { FeaturePageContent } from "./feature-page";
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/'/g, "&#x27;").replace(/</g, "&lt;");
 
-const PAGES = [
-  { page: BACKLINKS_PAGE, example: BACKLINKS_EXAMPLE },
-  { page: CHATGPT_PAGE, example: CHATGPT_EXAMPLE },
-];
+const PATHS: FeaturePage["path"][] = ["/backlinks", "/rank-on-chatgpt"];
+const PAGES = LOCALES.flatMap((locale) => PATHS.map((path) => ({ locale, ...featurePageContent(path, locale) })));
 
 describe("the footer product pages", () => {
-  for (const { page, example } of PAGES) {
-    describe(page.path, () => {
-      const html = renderToStaticMarkup(createElement(FeaturePageContent, { page, example }));
+  for (const { locale, page, example } of PAGES) {
+    describe(`${locale} ${page.path}`, () => {
+      const html = renderToStaticMarkup(createElement(FeaturePageContent, { page, example, locale }));
 
       it("has one h1, and sends people to sign up", () => {
         expect(html.match(/<h1[\s>]/g)).toHaveLength(1);
         expect(html).toContain(esc(page.accent));
         expect(html).toContain('href="/sign-up"');
-        expect(html).toContain(`href="${page.secondaryCta.href}"`);
+        // In the visitor's language where that page exists.
+        expect(html).toContain(`href="${localePath(locale, page.secondaryCta.href)}"`);
       });
 
       it("shows the real Image Studio article, opening on its own site", () => {
@@ -77,11 +83,42 @@ describe("the footer product pages", () => {
     expect(html).toContain("an example anchor");
   });
 
-  it("claims no figure the product does not back", () => {
-    const words = JSON.stringify([BACKLINKS_PAGE, CHATGPT_PAGE]);
-    // No prices, percentages or customer counts: the only numbers are the free articles and the plan allowances.
-    expect(words).not.toMatch(/[$€£]\s?\d|\d+\s?%|\d[\d,]*\+/);
-    expect(words.match(/\d+/g)).toEqual(["3", "3", "20", "50"]);
+  it("claims no figure the product does not back, in any language", () => {
+    for (const locale of LOCALES) {
+      const words = JSON.stringify(PATHS.map((path) => featurePageContent(path, locale).page));
+      // No prices, percentages or customer counts: the only numbers are the free articles and the plan allowances.
+      expect(words).not.toMatch(/[$€£]\s?\d|\d+\s?%|\d[\d,]*\+/);
+      expect(words.match(/\d+/g)).toEqual(["3", "3", "20", "50"]);
+    }
+  });
+
+  it("says the same in every language: as many benefits, steps, questions and table rows as the English page", () => {
+    const shape = (page: FeaturePage) => ({
+      path: page.path,
+      benefits: page.benefits.length,
+      without: page.compare.without.points.length,
+      with: page.compare.with.points.length,
+      steps: page.steps.length,
+      table: page.table ? [page.table.columns.length, page.table.rows.map((row) => row.cells.length)] : null,
+      related: page.related?.href ?? null,
+      secondary: page.secondaryCta.href,
+      faq: page.faq.length,
+    });
+    for (const path of PATHS) {
+      const english = shape(featurePageContent(path, "en").page);
+      for (const locale of LOCALES) expect(shape(featurePageContent(path, locale).page)).toEqual(english);
+    }
+    expect(featurePageContent("/rank-on-chatgpt", "it").example.highlights).toHaveLength(CHATGPT_EXAMPLE.highlights.length);
+  });
+
+  it("keeps the real article's own title and address in every language, and says it is in English", () => {
+    for (const locale of LOCALES.filter((l) => l !== "en")) {
+      const { page, example } = featurePageContent("/backlinks", locale);
+      expect(example.title).toBe(BACKLINKS_EXAMPLE.title);
+      expect(example.href).toBe(BACKLINKS_EXAMPLE.href);
+      expect(example.about).not.toBe(BACKLINKS_EXAMPLE.about);
+      expect(page.example.readLabel).not.toBe(BACKLINKS_PAGE.example.readLabel);
+    }
   });
 
   it("is in every language's footer", () => {

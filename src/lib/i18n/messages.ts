@@ -227,6 +227,14 @@ export type Messages = {
      */
     titleLead: string;
     titleAccent: string;
+    /**
+     * The headline's second line as it is shown: {engine} is replaced, in
+     * turn, by each AI assistant (Hero in app/(marketing)/home-sections.tsx).
+     * It must END with {engine} plus at most punctuation, so the changing
+     * word never leaves a gap before the rest of the line. titleAccent stays
+     * the sentence screen readers and search engines read.
+     */
+    titleAccentTemplate: string;
     /** The four columns under the product shot. */
     pillars: { title: string; body: string }[];
     /** Heading over the dashboard preview. */
@@ -1167,6 +1175,12 @@ export type Messages = {
       perspectiveHint: string;
       similarHint: string;
       comparisonHint: string;
+      faqSection: string;
+      faqHint: string;
+      bodyImagesLabel: string;
+      bodyImagesHint: string;
+      /** The four choices, in order: 0, 1, 2, 3 pictures. */
+      bodyImagesOptions: string[];
       poweredByHint: string;
       factsPlaceholder: string;
       uspsPlaceholder: string;
@@ -2341,6 +2355,8 @@ export type Messages = {
       noWins: string;
       winPublished: string;
       winPublishedDetail: string;
+      winIndexed: string;
+      winIndexedDetail: string;
       winLinksReceived: string;
       winLinksReceivedDetail: string;
       winLinksGiven: string;
@@ -3271,6 +3287,7 @@ const en: Messages = {
       "An example dashboard. Your own figures start at zero and grow from there.",
     titleLead: "Rank on Google.",
     titleAccent: "Show up in AI answers.",
+    titleAccentTemplate: "Get recommended by {engine}.",
     heroCards: [
       { label: "Rankings and clicks", detail: "From Search Console" },
       { label: "AI visibility", detail: "Whether assistants name you" },
@@ -4271,7 +4288,12 @@ const en: Messages = {
       youtubeHint: "Your choice is saved. Videos are not added to articles at the moment.",
       perspectiveHint: "Writes with a point of view rather than impersonally.",
       similarHint: "References and compares alternatives, for richer coverage.",
-      comparisonHint: "Adds a side-by-side table comparing the options the article is about, such as \"Videography vs Cinematography at a Glance\".",
+      comparisonHint: "Adds one to three side-by-side tables (the number varies from article to article) comparing the options the article is about, such as \"Videography vs Cinematography at a Glance\".",
+      faqSection: "FAQ at the end",
+      faqHint: "Ends each article with 4-6 frequently asked questions and short, direct answers.",
+      bodyImagesLabel: "Pictures inside the article",
+      bodyImagesHint: "Besides the cover image. Each one shows what its section is about, in the image style above, spread through the text.",
+      bodyImagesOptions: ["None - cover image only", "1 picture", "2 pictures", "3 pictures"],
       poweredByHint: "A small credit at the end of each article. Turning it off applies to articles not yet published.",
       factsPlaceholder: "Open since 2004\nFive dentists on the team\nFree parking on site",
       uspsPlaceholder: "Same-day emergency appointments\nWe see nervous patients",
@@ -5346,6 +5368,8 @@ const en: Messages = {
       noWins: "Nothing new in the last 7 days yet.",
       winPublished: "Published: {title}",
       winPublishedDetail: "First published to your website this week",
+      winIndexed: "Indexed by Google: {title}",
+      winIndexedDetail: "Your article was indexed - it can now appear in Google searches",
       winLinksReceived: "{count} new link to your site verified|{count} new links to your site verified",
       winLinksReceivedDetail: "Links from partners' articles, seen live",
       winLinksGiven: "{count} hosted link verified - credits earned|{count} hosted links verified - credits earned",
@@ -6249,6 +6273,7 @@ const es: Messages = {
       "Un panel de ejemplo. Sus cifras empiezan en cero y crecen desde ahí.",
     titleLead: "Posiciónese en Google.",
     titleAccent: "Aparezca en las respuestas de IA.",
+    titleAccentTemplate: "Sea recomendado por {engine}.",
     heroCards: [
       { label: "Posiciones y clics", detail: "Desde Search Console" },
       { label: "Visibilidad en IA", detail: "Si los asistentes le nombran" },
@@ -7255,7 +7280,12 @@ const es: Messages = {
       youtubeHint: "Su elección se guarda. Por ahora no se añaden vídeos a los artículos.",
       perspectiveHint: "Escribe con un punto de vista propio en lugar de forma impersonal.",
       similarHint: "Menciona y compara alternativas para una cobertura más completa.",
-      comparisonHint: "Añade una tabla que compara lado a lado las opciones de las que trata el artículo, como «Videografía frente a cinematografía de un vistazo».",
+      comparisonHint: "Añade de una a tres tablas que comparan lado a lado las opciones de las que trata el artículo (el número varía de un artículo a otro), como «Videografía frente a cinematografía de un vistazo».",
+      faqSection: "Preguntas frecuentes al final",
+      faqHint: "Termina cada artículo con 4-6 preguntas frecuentes y respuestas breves y directas.",
+      bodyImagesLabel: "Imágenes dentro del artículo",
+      bodyImagesHint: "Además de la imagen de portada. Cada una muestra el tema de su sección, con el estilo de imagen indicado arriba, repartidas por el texto.",
+      bodyImagesOptions: ["Ninguna, solo la portada", "1 imagen", "2 imágenes", "3 imágenes"],
       poweredByHint: "Un pequeño crédito al final de cada artículo. Desactivarlo se aplica a los artículos aún no publicados.",
       factsPlaceholder: "Abierto desde 2004\nCinco dentistas en el equipo\nAparcamiento gratuito",
       uspsPlaceholder: "Citas de urgencia el mismo día\nAtendemos a pacientes nerviosos",
@@ -8330,6 +8360,8 @@ const es: Messages = {
       noWins: "Nada nuevo en los últimos 7 días.",
       winPublished: "Publicado: {title}",
       winPublishedDetail: "Publicado por primera vez en tu sitio esta semana",
+      winIndexed: "Indexado por Google: {title}",
+      winIndexedDetail: "Tu artículo fue indexado: ya puede aparecer en las búsquedas de Google",
       winLinksReceived: "{count} enlace nuevo a tu sitio verificado|{count} enlaces nuevos a tu sitio verificados",
       winLinksReceivedDetail: "Enlaces desde artículos de socios, vistos activos",
       winLinksGiven: "{count} enlace alojado verificado: créditos ganados|{count} enlaces alojados verificados: créditos ganados",
@@ -9235,6 +9267,7 @@ const fr: Messages = {
       "Un tableau de bord d'exemple. Vos propres chiffres partent de zéro.",
     titleLead: "Positionnez-vous sur Google.",
     titleAccent: "Apparaissez dans les réponses IA.",
+    titleAccentTemplate: "Soyez recommandé par {engine}.",
     heroCards: [
       { label: "Positions et clics", detail: "Depuis Search Console" },
       { label: "Visibilité IA", detail: "Si les assistants vous citent" },
@@ -10242,7 +10275,12 @@ const fr: Messages = {
       youtubeHint: "Votre choix est enregistré. Pour l’instant, aucune vidéo n’est ajoutée aux articles.",
       perspectiveHint: "Écrit avec un point de vue plutôt que de façon impersonnelle.",
       similarHint: "Cite et compare des alternatives, pour un sujet mieux couvert.",
-      comparisonHint: "Ajoute un tableau comparant côte à côte les options dont parle l’article, comme « Vidéographie ou cinématographie en un coup d’œil ».",
+      comparisonHint: "Ajoute un à trois tableaux comparant côte à côte les options dont parle l’article (le nombre varie d’un article à l’autre), comme « Vidéographie ou cinématographie en un coup d’œil ».",
+      faqSection: "FAQ en fin d’article",
+      faqHint: "Termine chaque article par 4 à 6 questions fréquentes avec des réponses courtes et directes.",
+      bodyImagesLabel: "Images dans l’article",
+      bodyImagesHint: "En plus de l’image de couverture. Chacune montre le sujet de sa section, dans le style d’image choisi ci-dessus, réparties dans le texte.",
+      bodyImagesOptions: ["Aucune, couverture seulement", "1 image", "2 images", "3 images"],
       poweredByHint: "Une petite mention à la fin de chaque article. La désactiver s’applique aux articles pas encore publiés.",
       factsPlaceholder: "Ouvert depuis 2004\nCinq dentistes dans l’équipe\nParking gratuit sur place",
       uspsPlaceholder: "Rendez-vous d’urgence le jour même\nNous recevons les patients anxieux",
@@ -11317,6 +11355,8 @@ const fr: Messages = {
       noWins: "Rien de nouveau ces 7 derniers jours.",
       winPublished: "Publié : {title}",
       winPublishedDetail: "Publié pour la première fois sur votre site cette semaine",
+      winIndexed: "Indexé par Google : {title}",
+      winIndexedDetail: "Votre article a été indexé : il peut désormais apparaître dans les recherches Google",
       winLinksReceived: "{count} nouveau lien vers votre site vérifié|{count} nouveaux liens vers votre site vérifiés",
       winLinksReceivedDetail: "Liens depuis des articles de partenaires, vus en ligne",
       winLinksGiven: "{count} lien hébergé vérifié - crédits gagnés|{count} liens hébergés vérifiés - crédits gagnés",
@@ -12225,6 +12265,7 @@ const it: Messages = {
       "Una dashboard di esempio. I suoi numeri partono da zero e crescono da lì.",
     titleLead: "Si posizioni su Google.",
     titleAccent: "Compaia nelle risposte IA.",
+    titleAccentTemplate: "Si faccia consigliare da {engine}.",
     heroCards: [
       { label: "Posizioni e clic", detail: "Da Search Console" },
       { label: "Visibilità IA", detail: "Se gli assistenti la nominano" },
@@ -13226,7 +13267,12 @@ const it: Messages = {
       youtubeHint: "La sua scelta viene salvata. Per ora non vengono aggiunti video agli articoli.",
       perspectiveHint: "Scrive con un punto di vista invece che in modo impersonale.",
       similarHint: "Cita e confronta alternative, per una trattazione più ricca.",
-      comparisonHint: "Aggiunge una tabella che confronta fianco a fianco le opzioni di cui parla l’articolo, come «Videografia e cinematografia a confronto».",
+      comparisonHint: "Aggiunge da una a tre tabelle che confrontano fianco a fianco le opzioni di cui parla l’articolo (il numero cambia da articolo ad articolo), come «Videografia e cinematografia a confronto».",
+      faqSection: "FAQ alla fine",
+      faqHint: "Conclude ogni articolo con 4-6 domande frequenti e risposte brevi e dirette.",
+      bodyImagesLabel: "Immagini nell’articolo",
+      bodyImagesHint: "Oltre all’immagine di copertina. Ognuna mostra l’argomento della sua sezione, nello stile di immagine scelto sopra, distribuite nel testo.",
+      bodyImagesOptions: ["Nessuna, solo la copertina", "1 immagine", "2 immagini", "3 immagini"],
       poweredByHint: "Una piccola menzione alla fine di ogni articolo. Disattivarla vale per gli articoli non ancora pubblicati.",
       factsPlaceholder: "Aperti dal 2004\nCinque dentisti nel team\nParcheggio gratuito",
       uspsPlaceholder: "Appuntamenti urgenti in giornata\nAccogliamo pazienti ansiosi",
@@ -14301,6 +14347,8 @@ const it: Messages = {
       noWins: "Niente di nuovo negli ultimi 7 giorni.",
       winPublished: "Pubblicato: {title}",
       winPublishedDetail: "Pubblicato per la prima volta sul tuo sito questa settimana",
+      winIndexed: "Indicizzato da Google: {title}",
+      winIndexedDetail: "Il tuo articolo è stato indicizzato: ora può comparire nelle ricerche Google",
       winLinksReceived: "{count} nuovo link al tuo sito verificato|{count} nuovi link al tuo sito verificati",
       winLinksReceivedDetail: "Link dagli articoli dei partner, visti online",
       winLinksGiven: "{count} link ospitato verificato: crediti guadagnati|{count} link ospitati verificati: crediti guadagnati",
@@ -15204,6 +15252,7 @@ const de: Messages = {
       "Ein Beispiel-Dashboard. Ihre eigenen Zahlen starten bei null.",
     titleLead: "Bei Google ranken.",
     titleAccent: "In KI-Antworten erscheinen.",
+    titleAccentTemplate: "Empfohlen von {engine}.",
     heroCards: [
       { label: "Positionen und Klicks", detail: "Aus der Search Console" },
       { label: "KI-Sichtbarkeit", detail: "Ob Assistenten Sie nennen" },
@@ -16209,7 +16258,12 @@ const de: Messages = {
       youtubeHint: "Ihre Auswahl wird gespeichert. Derzeit werden Artikeln keine Videos hinzugefügt.",
       perspectiveHint: "Schreibt mit eigener Perspektive statt unpersönlich.",
       similarHint: "Nennt und vergleicht Alternativen für eine umfassendere Darstellung.",
-      comparisonHint: "Fügt eine Tabelle hinzu, die die Optionen des Artikels nebeneinander vergleicht, etwa „Videografie vs. Kinematografie auf einen Blick“.",
+      comparisonHint: "Fügt ein bis drei Tabellen hinzu, die die Optionen des Artikels nebeneinander vergleichen (die Zahl wechselt von Artikel zu Artikel), etwa „Videografie vs. Kinematografie auf einen Blick“.",
+      faqSection: "FAQ am Ende",
+      faqHint: "Beendet jeden Artikel mit 4-6 häufigen Fragen und kurzen, direkten Antworten.",
+      bodyImagesLabel: "Bilder im Artikel",
+      bodyImagesHint: "Zusätzlich zum Titelbild. Jedes zeigt das Thema seines Abschnitts, im oben gewählten Bildstil, über den Text verteilt.",
+      bodyImagesOptions: ["Keine, nur das Titelbild", "1 Bild", "2 Bilder", "3 Bilder"],
       poweredByHint: "Ein kleiner Hinweis am Ende jedes Artikels. Das Ausschalten gilt für noch nicht veröffentlichte Artikel.",
       factsPlaceholder: "Seit 2004 geöffnet\nFünf Zahnärzte im Team\nKostenlose Parkplätze vor Ort",
       uspsPlaceholder: "Notfalltermine am selben Tag\nWir behandeln ängstliche Patienten",
@@ -17284,6 +17338,8 @@ const de: Messages = {
       noWins: "In den letzten 7 Tagen noch nichts Neues.",
       winPublished: "Veröffentlicht: {title}",
       winPublishedDetail: "Diese Woche erstmals auf Ihrer Website veröffentlicht",
+      winIndexed: "Von Google indexiert: {title}",
+      winIndexedDetail: "Ihr Artikel wurde indexiert und kann jetzt in der Google-Suche erscheinen",
       winLinksReceived: "{count} neuer Link zu Ihrer Website bestätigt|{count} neue Links zu Ihrer Website bestätigt",
       winLinksReceivedDetail: "Links aus Partnerartikeln, live gesehen",
       winLinksGiven: "{count} gehosteter Link bestätigt - Credits verdient|{count} gehostete Links bestätigt - Credits verdient",
