@@ -1,0 +1,33 @@
+# Does the live site still look right to search engines and audit tools?
+#
+# Every sitemap page answers 200 with its own canonical address, hreflang
+# alternates are complete and reciprocal, and no internal link leads to a 404
+# (scripts/check-site.mjs). Search Console and Ahrefs report these weeks
+# later; this finds them on Monday morning (client, 2026-10-13: "check other
+# problems like this, even if not yet showing in webmaster tools").
+#
+# Against production, read-only, one request at a time. Weekly rather than per
+# push: the live site changes with deploys and content (blog posts), not with
+# a branch. workflow_dispatch to run it right after a deploy.
+name: Check live site
+
+on:
+  schedule:
+    # Mondays, 08:30 UTC, after the documentation link check.
+    - cron: "30 8 * * 1"
+  workflow_dispatch:
+
+jobs:
+  site:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # No npm install: the checker uses only node: builtins and global fetch.
+      - name: Check https://www.repget.com
+        run: npm run check:site

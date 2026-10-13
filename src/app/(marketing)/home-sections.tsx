@@ -556,9 +556,17 @@ function ScoreArc({ score, tone = "text-success" }: { score: number; tone?: stri
           strokeDashoffset={length * (1 - score / 100)}
         />
       </svg>
+      {/*
+        "/" and "100" as separate pieces: a bare "/100" string in the page
+        data looks like an address to Google, which then reported
+        www.repget.com/100 as a 404 (client, 2026-10-13). Looks the same.
+      */}
       <p className="absolute inset-x-0 bottom-0 text-center text-xl font-semibold tabular-nums">
         {score}
-        <span className="text-sm text-muted-foreground">/100</span>
+        <span className="text-sm text-muted-foreground">
+          {"/"}
+          {100}
+        </span>
       </p>
     </div>
   );

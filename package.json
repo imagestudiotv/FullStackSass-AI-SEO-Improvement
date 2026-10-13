@@ -13,6 +13,7 @@
     "db:studio": "drizzle-kit studio",
     "check:images": "node scripts/check-image-provider.mjs",
     "check:links": "node scripts/check-links.mjs",
+    "check:site": "node scripts/check-site.mjs",
     "check:secrets": "node scripts/check-secrets.mjs",
     "check:db-security": "node scripts/check-db-security.mjs",
     "check:csp-routes": "node scripts/check-csp-routes.mjs",

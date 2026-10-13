@@ -168,8 +168,13 @@ export default async function IntegrationDocPage({
             — we create a real draft on your site so you can confirm the whole
             path works before anything is scheduled.
           </p>
+          {/*
+            Through sign-in: /websites itself redirects a visitor who is not
+            signed in, which audit tools report as a link to a redirect. Sign-in
+            sends someone already signed in straight on to /websites.
+          */}
           <Link
-            href="/websites"
+            href="/sign-in?next=%2Fwebsites"
             className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
           >
             Go to my websites

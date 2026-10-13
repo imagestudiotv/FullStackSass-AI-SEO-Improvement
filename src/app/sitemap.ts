@@ -2,9 +2,8 @@ import type { MetadataRoute } from "next";
 
 import { blogPath } from "@/lib/blog/locale";
 import { listPosts } from "@/lib/blog/posts";
-import { INTEGRATION_DOCS } from "@/lib/publishing/docs";
-import { TOOLS } from "@/lib/tools/registry";
 import { localePath, PREFIXED_LOCALES } from "@/lib/i18n/config";
+import { INTEGRATION_DOC_PAGES, PUBLIC_PAGES, TOOL_PAGES } from "@/lib/seo/public-pages";
 import { siteUrl as canonicalSiteUrl } from "@/lib/site-url";
 
 /**
@@ -29,31 +28,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = baseUrl();
   const now = new Date();
 
-  const pages: MetadataRoute.Sitemap = [
-    { url: `${base}/`, lastModified: now, priority: 1 },
-    { url: `${base}/audit`, lastModified: now, priority: 0.9 },
-    { url: `${base}/pricing`, lastModified: now, priority: 0.8 },
-    { url: `${base}/tools`, lastModified: now, priority: 0.8 },
-    { url: `${base}/blog/author/repget-team`, lastModified: now, priority: 0.5 },
-    { url: `${base}/blog`, lastModified: now, priority: 0.8 },
-    { url: `${base}/docs/integrations`, lastModified: now, priority: 0.7 },
-    {
-      url: `${base}/backlink-exchange`,
-      lastModified: now,
-      priority: 0.7,
-    },
-    { url: `${base}/publishers`, lastModified: now, priority: 0.7 },
-    { url: `${base}/backlinks`, lastModified: now, priority: 0.7 },
-    { url: `${base}/rank-on-chatgpt`, lastModified: now, priority: 0.7 },
-    { url: `${base}/affiliate`, lastModified: now, priority: 0.6 },
-    { url: `${base}/success-stories`, lastModified: now, priority: 0.6 },
-    { url: `${base}/faq`, lastModified: now, priority: 0.6 },
-    { url: `${base}/about`, lastModified: now, priority: 0.5 },
-    { url: `${base}/contact`, lastModified: now, priority: 0.4 },
-    { url: `${base}/privacy`, lastModified: now, priority: 0.2 },
-    { url: `${base}/terms`, lastModified: now, priority: 0.2 },
-    { url: `${base}/refunds`, lastModified: now, priority: 0.2 },
-  ];
+  /** The public pages, from the list the language-prefix redirect also reads (lib/seo/public-pages.ts). */
+  const pages: MetadataRoute.Sitemap = PUBLIC_PAGES.map((page) => ({
+    url: `${base}${page.path}`,
+    lastModified: now,
+    priority: page.priority,
+  }));
 
   /**
    * Free tools, from the same registry the hub renders from. Listed here
@@ -61,17 +41,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
    * added to the registry never reached a hardcoded list. The results pages
    * take a query parameter, so only the forms are listed.
    */
-  const tools: MetadataRoute.Sitemap = TOOLS.filter((tool) =>
-    tool.href.startsWith("/tools/"),
-  ).map((tool) => ({
-    url: `${base}${tool.href}`,
+  const tools: MetadataRoute.Sitemap = TOOL_PAGES.map((path) => ({
+    url: `${base}${path}`,
     lastModified: now,
     priority: 0.6,
   }));
 
   /** One page per publishing integration, for the same reason. */
-  const docs: MetadataRoute.Sitemap = INTEGRATION_DOCS.map((doc) => ({
-    url: `${base}/docs/integrations/${doc.slug}`,
+  const docs: MetadataRoute.Sitemap = INTEGRATION_DOC_PAGES.map((path) => ({
+    url: `${base}${path}`,
     lastModified: now,
     priority: 0.5,
   }));
