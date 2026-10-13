@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import { Bot, Check, X } from "lucide-react";
 
 import { DomainToolForm } from "@/components/domain-tool-form";
@@ -8,6 +9,8 @@ import {
   ToolHero,
 } from "@/components/tool-page";
 import { AI_CRAWLERS, parseCrawlerAccess } from "@/lib/audit/ai-crawlers";
+import { visitorKey } from "@/lib/visitor-key";
+import { guardedSiteTool } from "@/lib/tools/public-guard";
 import { InvalidUrlError, normalizeWebsiteUrl } from "@/lib/websites/url";
 import { safeFetch } from "@/lib/net/safe-fetch";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
@@ -54,7 +57,12 @@ type Outcome =
     }
   | { ok: false; error: string };
 
-async function check(input: string): Promise<Outcome> {
+/** Behind the shared abuse protection, like every free tool (lib/tools/public-guard.ts). */
+async function check(input: string, visitor: string): Promise<Outcome> {
+  return guardedSiteTool("ai-crawlers", input, visitor, () => checkUnguarded(input));
+}
+
+async function checkUnguarded(input: string): Promise<Outcome> {
   let normalized;
   try {
     normalized = normalizeWebsiteUrl(input);
@@ -86,7 +94,7 @@ export default async function AiCrawlerCheckerPage({
 }: PageProps<"/tools/ai-crawler-checker">) {
   const params = await searchParams;
   const domain = typeof params.domain === "string" ? params.domain.trim() : "";
-  const outcome = domain ? await check(domain) : null;
+  const outcome = domain ? await check(domain, visitorKey(await headers())) : null;
 
   const blocked = outcome?.ok
     ? outcome.crawlers.filter((c) => !c.allowed)

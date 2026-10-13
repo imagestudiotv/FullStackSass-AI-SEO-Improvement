@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import { AlertTriangle, Check, Eye, X } from "lucide-react";
 
 import { DomainToolForm } from "@/components/domain-tool-form";
@@ -8,6 +9,7 @@ import {
   ToolHero,
 } from "@/components/tool-page";
 import { checkReadability } from "@/lib/tools/readability";
+import { visitorKey } from "@/lib/visitor-key";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
 
 export const metadata = {
@@ -32,7 +34,7 @@ export default async function LlmHtmlCheckerPage({
 }: PageProps<"/tools/llm-html-checker">) {
   const params = await searchParams;
   const domain = typeof params.domain === "string" ? params.domain.trim() : "";
-  const outcome = domain ? await checkReadability(domain) : null;
+  const outcome = domain ? await checkReadability(domain, visitorKey(await headers())) : null;
 
   return (
     <div>

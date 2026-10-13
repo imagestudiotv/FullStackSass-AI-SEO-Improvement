@@ -10,7 +10,6 @@
 
 import { relations, sql } from "drizzle-orm";
 import {
-  pgTable,
   text,
   timestamp,
   boolean,
@@ -20,6 +19,9 @@ import {
   integer,
   check,
 } from "drizzle-orm/pg-core";
+
+// Every table gets Row Level Security - see ./table.ts.
+import { pgTable } from "./table";
 
 /** Server-only shared authentication limits; the custom store owns updates. */
 export const authRateLimits = pgTable("auth_rate_limits", {

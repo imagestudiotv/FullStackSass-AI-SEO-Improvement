@@ -2,10 +2,22 @@ import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
 
 import { isPreviewDeployment, PREVIEW_ROBOTS_HEADER } from "./src/lib/deployment";
-import { securityHeaders } from "./src/lib/security-headers";
+import { cspIntegrations, cspMode, securityHeaders } from "./src/lib/security-headers";
 import { legacyHostRedirects } from "./src/lib/site-url";
 
+/*
+  The CSP mode, fixed for this build: enforce unless CSP_MODE=report-only (a
+  temporary rollback). A typo fails the build here instead of weakening the
+  policy. headers() below writes it into the build; src/proxy.ts gets the
+  same value through env, so the two can never disagree.
+*/
+const CSP_MODE = cspMode(process.env.CSP_MODE);
+
 const nextConfig: NextConfig = {
+  env: {
+    REPGET_CSP_MODE: CSP_MODE,
+  },
+
   /*
     Search engines and link previews get a page's title, description,
     canonical and Open Graph tags in the initial HTML <head> (client,
@@ -47,8 +59,8 @@ const nextConfig: NextConfig = {
 
   /**
    * Security headers on every response: HSTS, nosniff, referrer policy,
-   * permissions policy, frame protection, and a configurable CSP. Defaults
-   * to report-only; CSP_MODE=enforce is the staging/production rollout switch.
+   * permissions policy, frame protection, and the CSP - enforced, allowing
+   * only the integrations this build has (src/lib/security-headers.ts).
    * Dynamic routes receive the stricter nonce policy in src/proxy.ts.
    */
   async headers() {
@@ -58,8 +70,8 @@ const nextConfig: NextConfig = {
         headers: [
           ...securityHeaders({
             production: process.env.NODE_ENV === "production",
-            sentryDsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
-            cspMode: process.env.CSP_MODE,
+            integrations: cspIntegrations(process.env),
+            cspMode: CSP_MODE,
           }),
           /*
             Preview deployments only - never production, even with VERCEL_ENV

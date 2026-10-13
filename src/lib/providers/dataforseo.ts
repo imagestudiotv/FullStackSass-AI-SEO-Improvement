@@ -85,6 +85,8 @@ async function post<T>(
     response = await fetch(`${BASE_URL}${endpoint}`, {
       method: "POST",
       signal: controller.signal,
+      // The credentials stay with the API host: never follow a redirect with them.
+      redirect: "error",
       headers: {
         authorization: authHeader(),
         "content-type": "application/json",

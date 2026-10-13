@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import { AlertTriangle, Check, Info } from "lucide-react";
 
 import { DomainToolForm } from "@/components/domain-tool-form";
@@ -8,6 +9,7 @@ import {
   ToolHero,
 } from "@/components/tool-page";
 import { checkRobots } from "@/lib/tools/robots";
+import { visitorKey } from "@/lib/visitor-key";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
 
 export const metadata = {
@@ -28,7 +30,7 @@ export default async function RobotsCheckerPage({
   const params = await searchParams;
   const domain = typeof params.domain === "string" ? params.domain.trim() : "";
 
-  const outcome = domain ? await checkRobots(domain) : null;
+  const outcome = domain ? await checkRobots(domain, visitorKey(await headers())) : null;
 
   return (
     <div>

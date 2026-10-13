@@ -9,6 +9,7 @@ import { describe, it } from "vitest";
 
 import { isPublicIp, normalizeHostname } from "./ip";
 import {
+  InsecureTransportError,
   safeFetch,
   UnsafeUrlError,
   type RequestFn,
@@ -357,6 +358,116 @@ describe("redirects", () => {
     const net = fakeSockets({ "http://loop.example/": () => ({ status: 302, headers: { location: "/" } }) });
     await assert.rejects(safeFetch("http://loop.example/", {}, { resolve: dns.resolve, request: net.request, maxRedirects: 3 }), /Too many redirects/);
     assert.equal(net.requests.length, 4);
+  });
+
+  it("drops custom credential headers across origins, not only Authorization", async () => {
+    const dns = fakeDns({ "a.example": [PUBLIC_A], "b.example": [PUBLIC_B] });
+    const net = fakeSockets({
+      "https://a.example/": () => ({ status: 307, headers: { location: "https://b.example/" } }),
+      "https://b.example/": () => ({ status: 200 }),
+    });
+    await safeFetch(
+      "https://a.example/",
+      {
+        headers: {
+          "x-api-key": "k",
+          "x-signature": "s",
+          "x-shopify-access-token": "t",
+          "proxy-authorization": "p",
+          "user-agent": "RepGet test",
+          accept: "application/json",
+        },
+      },
+      { resolve: dns.resolve, request: net.request },
+    );
+    const crossOrigin = net.requests[1].headers;
+    for (const name of ["x-api-key", "x-signature", "x-shopify-access-token", "proxy-authorization"]) {
+      assert.equal(crossOrigin[name], undefined, `${name} must not cross origins`);
+    }
+    assert.equal(crossOrigin["user-agent"], "RepGet test");
+    assert.equal(crossOrigin.accept, "application/json");
+  });
+});
+
+describe("requests carrying credentials (credentialed)", () => {
+  it("refuses http:// before asking DNS or opening a connection", async () => {
+    const dns = fakeDns({ "site.example": [PUBLIC_A] });
+    const net = fakeSockets({ "http://site.example/wp-json/wp/v2/users/me": () => ({ status: 200 }) });
+    await assert.rejects(
+      safeFetch(
+        "http://site.example/wp-json/wp/v2/users/me",
+        { credentialed: true, headers: { authorization: "Basic secret" } },
+        { resolve: dns.resolve, request: net.request },
+      ),
+      (error: unknown) => error instanceof InsecureTransportError && error.status === 426,
+    );
+    assert.deepEqual(dns.calls, [], "no DNS lookup");
+    assert.equal(net.connections.length, 0, "no connection");
+    assert.equal(net.requests.length, 0, "nothing sent");
+  });
+
+  it("sends over https as usual", async () => {
+    const dns = fakeDns({ "site.example": [PUBLIC_A] });
+    const net = fakeSockets({ "https://site.example/api": () => ({ status: 200, body: "{}" }) });
+    const response = await safeFetch(
+      "https://site.example/api",
+      { credentialed: true, headers: { authorization: "Basic secret" } },
+      { resolve: dns.resolve, request: net.request },
+    );
+    assert.equal(response.status, 200);
+    assert.equal(net.requests[0].headers.authorization, "Basic secret");
+  });
+
+  it("refuses a redirect that downgrades to http, and never requests it", async () => {
+    const dns = fakeDns({ "site.example": [PUBLIC_A] });
+    const net = fakeSockets({
+      "https://site.example/api": () => ({ status: 301, headers: { location: "http://site.example/api" } }),
+      "http://site.example/api": () => ({ status: 200 }),
+    });
+    await assert.rejects(
+      safeFetch("https://site.example/api", { credentialed: true, headers: { authorization: "Basic secret" } }, { resolve: dns.resolve, request: net.request }),
+      (error: unknown) => error instanceof InsecureTransportError && /http:\/\//.test((error as Error).message),
+    );
+    assert.equal(net.requests.length, 1);
+  });
+
+  it("refuses a redirect to another origin, even over https", async () => {
+    const dns = fakeDns({ "site.example": [PUBLIC_A], "www.site.example": [PUBLIC_A] });
+    const net = fakeSockets({
+      "https://site.example/api": () => ({ status: 308, headers: { location: "https://www.site.example/api" } }),
+      "https://www.site.example/api": () => ({ status: 200 }),
+    });
+    await assert.rejects(
+      safeFetch(
+        "https://site.example/api",
+        { method: "POST", body: "{\"secret\":true}", credentialed: true, headers: { "x-signature": "s" } },
+        { resolve: dns.resolve, request: net.request },
+      ),
+      (error: unknown) => error instanceof InsecureTransportError && /https:\/\/www\.site\.example/.test((error as Error).message),
+    );
+    assert.equal(net.requests.length, 1, "the payload went only where the caller sent it");
+  });
+
+  it("follows a same-origin https redirect with its credential", async () => {
+    const dns = fakeDns({ "site.example": [PUBLIC_A] });
+    const net = fakeSockets({
+      "https://site.example/wp-json/wp/v2/posts": () => ({ status: 301, headers: { location: "/index.php?rest_route=/wp/v2/posts" } }),
+      "https://site.example/index.php?rest_route=/wp/v2/posts": () => ({ status: 200 }),
+    });
+    const response = await safeFetch(
+      "https://site.example/wp-json/wp/v2/posts",
+      { credentialed: true, headers: { authorization: "Basic secret" } },
+      { resolve: dns.resolve, request: net.request },
+    );
+    assert.equal(response.status, 200);
+    assert.equal(net.requests[1].headers.authorization, "Basic secret");
+  });
+
+  it("leaves ordinary crawling of http:// sites alone", async () => {
+    const dns = fakeDns({ "old.example": [PUBLIC_A] });
+    const net = fakeSockets({ "http://old.example/": () => ({ status: 200, body: "<html></html>" }) });
+    const response = await safeFetch("http://old.example/", {}, { resolve: dns.resolve, request: net.request });
+    assert.equal(await response.text(), "<html></html>");
   });
 });
 

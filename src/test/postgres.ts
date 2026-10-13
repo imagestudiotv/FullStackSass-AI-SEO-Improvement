@@ -59,7 +59,14 @@ export async function createPostgresTestDb(
    * Replay migrations only up to and including this journal index, so a
    * test can apply later ones itself (the cutover tests apply 0041/0042).
    */
-  options: { throughIndex?: number } = {},
+  options: {
+    throughIndex?: number;
+    /**
+     * Runs in the new database before any migration, e.g. to give it
+     * Supabase's roles and default privileges (src/lib/db/rls.postgres.test.ts).
+     */
+    beforeMigrations?: (sql: ReturnType<typeof postgres>) => Promise<void>;
+  } = {},
 ) {
   const adminUrl = testPostgresUrl();
   if (!adminUrl) throw new Error("TEST_POSTGRES_URL is not set");
@@ -85,6 +92,7 @@ export async function createPostgresTestDb(
   else if (process.env.REQUIRE_PGVECTOR === "1") {
     throw new Error("REQUIRE_PGVECTOR=1 but the server has no pgvector extension");
   }
+  if (options.beforeMigrations) await options.beforeMigrations(setup);
   const journal = JSON.parse(
     readFileSync(path.join(root, "drizzle/meta/_journal.json"), "utf8"),
   ) as Journal;

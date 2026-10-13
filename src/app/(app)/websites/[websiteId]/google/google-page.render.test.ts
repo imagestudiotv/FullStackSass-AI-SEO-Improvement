@@ -49,6 +49,10 @@ const connection = (over: Partial<AnalyticsConnection> = {}): AnalyticsConnectio
   searchConsoleSite: "sc-domain:example.com",
   analyticsProperty: "properties/123456789",
   lastImportedAt: null,
+  // The owner of a connection the owner made: everything is theirs to manage.
+  canManageProperties: true,
+  canReplaceConnection: true,
+  needsApproval: false,
   ...over,
 });
 

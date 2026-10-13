@@ -1,5 +1,5 @@
 === Image Studio Blog ===
-Version: 2.1.0
+Version: 2.2.0
 Requires WordPress 6.4+, PHP 7.4+. Built for imagestudio.com (Astra child theme, WPML, Rank Math).
 
 What it does
@@ -88,11 +88,11 @@ After a payment
   "Mark as published" - or "Decline" and reply to the buyer. "Mark as paid"
   is for a payment found in PayPal whose notice did not arrive.
 - Requests are limited: 5 an hour and 20 a day per visitor, 5 an hour per
-  email, 100 a day in all.
+  email, 100 a day in all (see "Request limits" below).
 
 Install
 -------
-1. Plugins -> Add Plugin -> Upload Plugin -> imagestudio-blog-2.1.0.zip -> Install Now ->
+1. Plugins -> Add Plugin -> Upload Plugin -> imagestudio-blog-2.2.0.zip -> Install Now ->
    Activate. When updating an installed copy, click "Replace current with uploaded".
    (If the earlier "Image Studio Layout Fixes" or "RepGet Blog Services" plugin is
    installed, deactivate and delete it first.)
@@ -111,6 +111,15 @@ Install
    its text; click a link. Add a question or two to one article (its
    "Article extras" box), Update, clear the caches again, and open it: the
    FAQ is at the end; click a question.
+8. (2.2.0) Settings -> Image Studio Blog -> "Visitor address header": the line
+   under it says which address this page was requested from. Open the page
+   from a computer and from a phone on mobile data (not the same Wi-Fi):
+   - each shows that device's own public address: nothing to do;
+   - both show an address of the site's proxy (behind Cloudflare: an address
+     from https://www.cloudflare.com/ips/): paste those published ranges into
+     "Trusted proxies", choose CF-Connecting-IP, Save, and check again - the
+     "counted as visitor" address must now be each device's own.
+   Never add a range ordinary visitors can connect from.
 
 Testing a payment without real money: tick "PayPal test mode" and use a PayPal
 sandbox buyer account; untick it afterwards.
@@ -118,9 +127,34 @@ sandbox buyer account; untick it afterwards.
 Settings
 --------
 Settings -> Image Studio Blog: PayPal email, show/hide the button, PayPal test
-mode, author bio (English/Italian), which post type the articles are
-(Editorial, custom_post), and "Show 'In this article' on articles" (Article
-extras).
+mode, trusted proxies and the visitor address header (request limits), author
+bio (English/Italian), which post type the articles are (Editorial,
+custom_post), and "Show 'In this article' on articles" (Article extras).
+
+Request limits (2.2.0)
+----------------------
+"Continue to PayPal" is limited to 5 requests an hour and 20 a day per
+visitor, 5 an hour per email address, and 100 a day for everyone together.
+Over a limit, the reader is asked to try again later.
+- Who a visitor is: the address that connects to the server. Headers such
+  as CF-Connecting-IP and X-Forwarded-For can be written by anyone, so they
+  are read only when the request comes from one of the "Trusted proxies" in
+  the settings, and only the header chosen there. (Before 2.2.0 they were
+  believed from anyone, so a script could get new limits with every
+  request.) IPv6 visitors are counted per /64 network.
+- Each request is checked against the limits and recorded in one step (a
+  database transaction), so requests sent at the same moment cannot all
+  slip under a limit. Before 2.2.0, 12 requests sent together all got
+  through a limit of 5.
+- The limits are kept in two small tables, <prefix>isb_request_log and
+  <prefix>isb_request_lock. They are created on activation, or by the first
+  request after updating. They must be InnoDB tables (the usual kind); if
+  they cannot be, requests are refused and the settings page says so.
+- A request counts as soon as it is made, whether or not it is paid, and
+  deleting it does not give the slot back. The counts start afresh after
+  updating to 2.2.0.
+- Developers: the limits can be changed with the isb_request_limits filter,
+  and the proxy policy with isb_client_ip_policy.
 
 Each article's edit screen: the "Article extras" box - hide "In this article"
 on that article, and its FAQ.

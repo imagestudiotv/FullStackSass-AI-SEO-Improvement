@@ -61,6 +61,10 @@ id_ecdsa*
 *credentials*.json
 service-account*.json
 "env data.txt"
+# Database dumps hold customer data: never next to the code, never committed.
+*.dump
+*.sql.gz
+db-backups/
 
 # The template stays tracked. This must come AFTER every .env* rule: a later
 # ".env*" re-ignored it before, and a fresh copy would have been dropped.

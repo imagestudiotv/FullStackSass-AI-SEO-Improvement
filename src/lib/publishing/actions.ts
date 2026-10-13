@@ -33,6 +33,7 @@ import { isPublishingConnection } from "@/lib/publishing/kinds";
 import { requireWebsite } from "@/lib/tenant";
 import { requireEditor } from "@/lib/websites/require-editor";
 import { normalizeWebsiteUrl, InvalidUrlError } from "@/lib/websites/url";
+import { httpsRequiredError } from "@/lib/publishing/https";
 import type { ActionResult } from "@/lib/websites/actions";
 
 /**
@@ -152,6 +153,15 @@ export async function connectProvider(
         }
         throw error;
       }
+      /*
+        Every URL field is where the credentials go (WordPress, Ghost,
+        webhook): https only. A bare "example.com" was already made https by
+        normalizeWebsiteUrl; an explicit http:// is refused, not rewritten -
+        the site may not serve https at all. Requests also refuse http on
+        their own (safeFetch `credentialed`), for connections stored earlier.
+      */
+      const insecure = httpsRequiredError(field.label, credentials[field.key]);
+      if (insecure) return { ok: false, error: insecure };
       continue;
     }
 

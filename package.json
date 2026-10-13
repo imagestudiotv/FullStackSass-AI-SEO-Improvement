@@ -14,6 +14,8 @@
     "check:images": "node scripts/check-image-provider.mjs",
     "check:links": "node scripts/check-links.mjs",
     "check:secrets": "node scripts/check-secrets.mjs",
+    "check:db-security": "node scripts/check-db-security.mjs",
+    "check:csp-routes": "node scripts/check-csp-routes.mjs",
     "check:stored-html": "node --experimental-strip-types scripts/check-stored-html.mjs",
     "reconcile:report": "node scripts/reconcile-report.mjs",
     "plugin:build": "node wordpress-plugin/build.mjs",

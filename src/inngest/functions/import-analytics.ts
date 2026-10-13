@@ -9,7 +9,10 @@ import {
   fetchSearchDailyTotals,
   fetchSearchPageDaily,
   GoogleApiError,
+  listAnalyticsProperties,
+  listSearchConsoleSites,
 } from "@/lib/analytics/google-api";
+import { approvedBinding, type PropertyMeta } from "@/lib/analytics/property-access";
 import { db } from "@/lib/db";
 import {
   gaMetrics,
@@ -95,7 +98,20 @@ export const importAnalytics = inngest.createFunction(
 
     const searchConsole = await step.run("import-search-console", async () => {
       const connection = await getConnection(websiteId);
-      if (!connection?.meta.searchConsoleSite) {
+      /*
+        Only the APPROVED binding is fetched (lib/analytics/property-access.ts):
+        a property chosen by someone not allowed to, left over from another
+        connection, or written into the metadata any other way imports nothing.
+      */
+      const property = approvedBinding(connection?.meta ?? null).searchConsoleSite;
+      if (connection?.meta.searchConsoleSite && !property) {
+        logger.warn(
+          { step: "import-search-console", websiteId, imported: 0 },
+          "The chosen Search Console property is not approved for this connection - skipping the import",
+        );
+        return { imported: 0, skipped: "unapproved" as const };
+      }
+      if (!connection || !property) {
         /*
           Zero rows, run succeeds, dashboard stays empty. Warned because the
           customer's view of this is "the numbers never showed up", and the
@@ -114,21 +130,26 @@ export const importAnalytics = inngest.createFunction(
       let totals;
       let pageRows;
       try {
+        // The token must still reach the approved property: an approval is
+        // not a licence to keep fetching after access moved elsewhere.
+        if (!(await listSearchConsoleSites(connection.accessToken)).some((s) => s.siteUrl === property)) {
+          throw new GoogleApiError("The connected account can no longer read this property", "forbidden");
+        }
         pageRows = await fetchSearchPageDaily(
           connection.accessToken,
-          connection.meta.searchConsoleSite,
+          property,
           range.startDate,
           range.endDate,
         );
         totals = await fetchSearchDailyTotals(
           connection.accessToken,
-          connection.meta.searchConsoleSite,
+          property,
           range.startDate,
           range.endDate,
         );
         rows = await fetchSearchAnalytics(
           connection.accessToken,
-          connection.meta.searchConsoleSite,
+          property,
           range.startDate,
           range.endDate,
         );
@@ -144,7 +165,7 @@ export const importAnalytics = inngest.createFunction(
             {
               step: "import-search-console",
               websiteId,
-              property: connection.meta.searchConsoleSite,
+              property,
               kind: error.kind,
               reason: error.message,
               durationMs: Date.now() - startedAt,
@@ -256,7 +277,7 @@ export const importAnalytics = inngest.createFunction(
         {
           step: "import-search-console",
           websiteId,
-          property: connection.meta.searchConsoleSite,
+          property,
           rowsUpserted: rows.length,
           startDate: range.startDate,
           endDate: range.endDate,
@@ -275,7 +296,7 @@ export const importAnalytics = inngest.createFunction(
           {
             step: "import-search-console",
             websiteId,
-            property: connection.meta.searchConsoleSite,
+            property,
             startDate: range.startDate,
             endDate: range.endDate,
           },
@@ -288,7 +309,16 @@ export const importAnalytics = inngest.createFunction(
 
     const analytics = await step.run("import-analytics", async () => {
       const connection = await getConnection(websiteId);
-      if (!connection?.meta.analyticsProperty) {
+      // Approved binding only, as for Search Console above.
+      const property = approvedBinding(connection?.meta ?? null).analyticsProperty;
+      if (connection?.meta.analyticsProperty && !property) {
+        logger.warn(
+          { step: "import-analytics", websiteId, imported: 0 },
+          "The chosen Analytics property is not approved for this connection - skipping the import",
+        );
+        return { imported: 0, skipped: "unapproved" as const };
+      }
+      if (!connection || !property) {
         // Same silent-empty path as Search Console above, and worth the same
         // explicit record: connected to one Google product is not both.
         logger.warn(
@@ -302,15 +332,18 @@ export const importAnalytics = inngest.createFunction(
       let rows;
       let totals;
       try {
+        if (!(await listAnalyticsProperties(connection.accessToken)).some((p) => p.name === property)) {
+          throw new GoogleApiError("The connected account can no longer read this property", "forbidden");
+        }
         totals = await fetchAnalyticsDailyTotals(
           connection.accessToken,
-          connection.meta.analyticsProperty,
+          property,
           range.startDate,
           range.endDate,
         );
         rows = await fetchAnalyticsReport(
           connection.accessToken,
-          connection.meta.analyticsProperty,
+          property,
           range.startDate,
           range.endDate,
         );
@@ -320,7 +353,7 @@ export const importAnalytics = inngest.createFunction(
             {
               step: "import-analytics",
               websiteId,
-              property: connection.meta.analyticsProperty,
+              property,
               kind: error.kind,
               reason: error.message,
               durationMs: Date.now() - startedAt,
@@ -384,7 +417,7 @@ export const importAnalytics = inngest.createFunction(
         {
           step: "import-analytics",
           websiteId,
-          property: connection.meta.analyticsProperty,
+          property,
           rowsUpserted: rows.length,
           startDate: range.startDate,
           endDate: range.endDate,
@@ -398,7 +431,7 @@ export const importAnalytics = inngest.createFunction(
           {
             step: "import-analytics",
             websiteId,
-            property: connection.meta.analyticsProperty,
+            property,
             startDate: range.startDate,
             endDate: range.endDate,
           },
@@ -489,13 +522,8 @@ export const importAnalyticsDaily = inngest.createFunction(
         );
 
       return rows
-        .filter((row) => {
-          const meta = (row.meta ?? {}) as {
-            searchConsoleSite?: string | null;
-            analyticsProperty?: string | null;
-          };
-          return Boolean(meta.searchConsoleSite || meta.analyticsProperty);
-        })
+        // Only websites with an approved property; the import checks again.
+        .filter((row) => approvedBinding((row.meta ?? null) as PropertyMeta | null).basis !== "none")
         .map(({ websiteId, organizationId }) => ({ websiteId, organizationId }));
     });
 

@@ -36,6 +36,8 @@ async function call<T>(
     response = await fetch(url, {
       ...init,
       signal: controller.signal,
+      // The access token stays with Google: never follow a redirect with it.
+      redirect: "error",
       headers: {
         ...init.headers,
         authorization: `Bearer ${accessToken}`,

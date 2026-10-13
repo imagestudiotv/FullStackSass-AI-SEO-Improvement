@@ -37,6 +37,8 @@ async function request<T>(
     response = await fetch(`${API}${path}`, {
       ...init,
       signal: controller.signal,
+      // The API key stays with the API host: never follow a redirect with it.
+      redirect: "error",
       headers: {
         authorization: credentials.apiKey,
         "wix-site-id": credentials.siteId,

@@ -7,7 +7,8 @@ import {
   type PublishInput,
 } from "@/lib/publishing/provider";
 import { isPublicWebsiteUrl } from "@/lib/websites/url";
-import { safeFetch } from "@/lib/net/safe-fetch";
+import { InsecureTransportError, safeFetch } from "@/lib/net/safe-fetch";
+import { insecureConnectionMessage } from "@/lib/publishing/https";
 
 /**
  * A generic webhook, for everything else.
@@ -86,6 +87,8 @@ async function send(
     response = await safeFetch(credentials.endpointUrl, {
       method: "POST",
       signal: controller.signal,
+      // The signed, unpublished article: https only, no redirect away.
+      credentialed: true,
       // A reply is a little JSON; the deadline covers reading it.
       maxBytes: 1024 * 1024,
       timeoutMs: TIMEOUT_MS,
@@ -98,6 +101,13 @@ async function send(
       body,
     });
   } catch (error) {
+    if (error instanceof InsecureTransportError) {
+      throw new ProviderError(
+        insecureConnectionMessage(credentials.endpointUrl, error, "the signed article"),
+        "auth",
+        error.status,
+      );
+    }
     if (error instanceof Error && error.name === "AbortError") {
       throw new ProviderError(
         "Your endpoint took too long to respond",

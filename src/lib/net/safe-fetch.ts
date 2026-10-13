@@ -38,7 +38,12 @@ import { isInternalHostname, isPublicIp, normalizeHostname } from "./ip";
  *   3. The hostname stays the request target, so TLS still sends it as SNI and
  *      verifies the certificate against it. Only address resolution changes.
  *   4. Redirects are followed here, one hop at a time, each hop going through
- *      1-3 again; credentials are dropped when a redirect changes origin.
+ *      1-3 again; when a redirect changes origin, every header outside a
+ *      short allowlist is dropped (Authorization, cookies, API keys,
+ *      signatures...).
+ *   5. A request that carries credentials or a private payload sets
+ *      `credentialed`: https only, before any lookup and on every hop, and
+ *      no redirect to another origin at all.
  *
  * node:http(s) rather than fetch, which cannot be given a lookup function
  * without a separate undici install - and which some firewalls refuse by TLS
@@ -50,6 +55,21 @@ export class UnsafeUrlError extends Error {
   constructor(message = "That address is not a public website") {
     super(message);
     this.name = "UnsafeUrlError";
+  }
+}
+
+/**
+ * A request carrying a credential or a private payload was asked to use - or
+ * was redirected to - plain http, or redirected to another origin. Thrown
+ * BEFORE anything is sent to that address: no DNS lookup, no connection.
+ * `status` 426 (Upgrade Required) marks it as a definite refusal, not a
+ * request that may or may not have arrived.
+ */
+export class InsecureTransportError extends Error {
+  readonly status = 426;
+  constructor(message = "This connection needs an https:// address") {
+    super(message);
+    this.name = "InsecureTransportError";
   }
 }
 
@@ -146,6 +166,19 @@ export type SafeFetchInit = {
   /** "follow" (default) re-validates every hop; "manual" returns the 3xx. */
   redirect?: "follow" | "manual" | "error";
   /**
+   * The request carries a credential - an Authorization header, an API key,
+   * a signature - or a private payload (an unpublished article, a signed
+   * form). Then:
+   *  - https only: an http:// address is refused before any DNS lookup or
+   *    connection (InsecureTransportError), and so is a redirect to one - no
+   *    downgrade, whatever the server answers;
+   *  - a redirect to another origin is refused rather than followed, so
+   *    neither the credential nor the payload travels anywhere the caller did
+   *    not choose. Same-origin https redirects are followed as usual.
+   * Ordinary crawling of public http:// sites does not set this.
+   */
+  credentialed?: boolean;
+  /**
    * The most bytes of body this will deliver, counted AFTER decompression and
    * enforced while the body streams - a response is never downloaded in full
    * and cut afterwards, and a small gzip bomb cannot expand past it.
@@ -208,8 +241,23 @@ const REDIRECTS = new Set([301, 302, 303, 307, 308]);
  */
 const NULL_BODY = new Set([204, 205, 304]);
 
-/** Headers that must not follow a redirect to a different origin. */
-const CREDENTIAL_HEADERS = ["authorization", "cookie", "proxy-authorization"];
+/**
+ * The only request headers that follow a redirect to a different origin.
+ * Everything else is dropped: not just Authorization, Cookie and
+ * Proxy-Authorization, but any custom header that may carry a secret
+ * (X-Api-Key, X-Signature, X-Shopify-Access-Token...). An allowlist, so a
+ * credential header nobody thought of is dropped too.
+ */
+const CROSS_ORIGIN_HEADERS = new Set([
+  "accept",
+  "accept-encoding",
+  "accept-language",
+  "cache-control",
+  "content-type",
+  "pragma",
+  "range",
+  "user-agent",
+]);
 
 /** Serialises any fetch body (string, bytes, URLSearchParams, FormData...). */
 async function serializeBody(
@@ -431,6 +479,11 @@ export async function safeFetch(
   init: SafeFetchInit = {},
   deps: SafeFetchDeps = {},
 ): Promise<Response> {
+  // Checked first: nothing below - not even a DNS lookup - happens for an
+  // address that is refused.
+  let url = assertPublicHttpUrl(input);
+  if (init.credentialed) assertHttps(url, "initial");
+
   const lookup = createSafeLookup(deps.resolve);
   const maxRedirects = deps.maxRedirects ?? 5;
   const limits: Limits = {
@@ -457,7 +510,6 @@ export async function safeFetch(
     }
   }
 
-  let url = assertPublicHttpUrl(input);
   for (let hop = 0; ; hop++) {
     const response = await requestOnce(url, method, headers, body, signal, lookup, limits, deps);
     const location = response.headers.get("location");
@@ -474,6 +526,14 @@ export async function safeFetch(
     }
 
     const next = assertPublicHttpUrl(new URL(location, url));
+    if (init.credentialed) {
+      assertHttps(next, "redirect");
+      if (next.origin !== url.origin) {
+        throw new InsecureTransportError(
+          `The site redirected to ${next.origin}. A request carrying credentials is not sent on to another address: reconnect using ${next.origin} if that is the right one.`,
+        );
+      }
+    }
 
     // fetch's rules: 303 becomes GET, and so does a 301/302 answering a POST.
     if (
@@ -487,8 +547,20 @@ export async function safeFetch(
     }
     // Credentials never follow a redirect to someone else's origin.
     if (next.origin !== url.origin) {
-      for (const name of CREDENTIAL_HEADERS) headers.delete(name);
+      for (const name of [...headers.keys()]) {
+        if (!CROSS_ORIGIN_HEADERS.has(name)) headers.delete(name);
+      }
     }
     url = next;
   }
+}
+
+/** https or nothing, for a request carrying credentials or a private payload. */
+function assertHttps(url: URL, where: "initial" | "redirect"): void {
+  if (url.protocol === "https:") return;
+  throw new InsecureTransportError(
+    where === "initial"
+      ? "This connection sends a password, key or signature, so it needs an https:// address. Reconnect it using the site's https:// address."
+      : `The site redirected to an http:// address (${url.origin}). A request carrying credentials is never sent over plain http.`,
+  );
 }

@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 
 import { getSession } from "@/lib/auth-guard";
-import { saveTokens } from "@/lib/analytics/connection";
+import { getConnectionMeta, saveTokens } from "@/lib/analytics/connection";
+import { propertyPermissions, type ConnectedBy } from "@/lib/analytics/property-access";
 import { exchangeCode, GoogleAuthError } from "@/lib/analytics/google-oauth";
 import {
   consumeOAuthState,
@@ -129,11 +130,27 @@ export async function GET(request: Request) {
    * to viewer while on the consent screen is refused here - which is the
    * window the old code left open.
    */
+  let connectedBy: ConnectedBy;
   try {
     const guard = await requireEditor(websiteId);
     if (!guard.ok) {
       return back(target, { google: "forbidden" });
     }
+    /*
+      Connecting over an existing connection REPLACES it. A guest editor may
+      not swap the owner's Google account for their own (checked again here:
+      the connection may have been made while this person was on Google's
+      consent screen). See lib/analytics/property-access.ts.
+    */
+    const existing = await getConnectionMeta(websiteId);
+    if (existing && !propertyPermissions(guard.context, existing).canReplaceConnection) {
+      return back(target, { google: "forbidden" });
+    }
+    connectedBy = {
+      userId: session.user.id,
+      access: guard.context.access === "owner" ? "owner" : "editor",
+      at: new Date().toISOString(),
+    };
   } catch (caught) {
     /*
       The website was deleted, or this person is no longer in the workspace that
@@ -152,7 +169,7 @@ export async function GET(request: Request) {
       started. It never went through the browser.
     */
     const tokens = await exchangeCode(code, codeVerifier);
-    await saveTokens(websiteId, tokens);
+    await saveTokens(websiteId, tokens, {}, { connectedBy });
   } catch (caught) {
     if (caught instanceof GoogleAuthError) {
       // The message, never the code or any token.
