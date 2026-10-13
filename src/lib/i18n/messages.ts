@@ -227,6 +227,14 @@ export type Messages = {
      */
     titleLead: string;
     titleAccent: string;
+    /**
+     * The headline's second line as it is shown: {engine} is replaced, in
+     * turn, by each AI assistant (Hero in app/(marketing)/home-sections.tsx).
+     * It must END with {engine} plus at most punctuation, so the changing
+     * word never leaves a gap before the rest of the line. titleAccent stays
+     * the sentence screen readers and search engines read.
+     */
+    titleAccentTemplate: string;
     /** The four columns under the product shot. */
     pillars: { title: string; body: string }[];
     /** Heading over the dashboard preview. */
@@ -3271,6 +3279,7 @@ const en: Messages = {
       "An example dashboard. Your own figures start at zero and grow from there.",
     titleLead: "Rank on Google.",
     titleAccent: "Show up in AI answers.",
+    titleAccentTemplate: "Get recommended by {engine}.",
     heroCards: [
       { label: "Rankings and clicks", detail: "From Search Console" },
       { label: "AI visibility", detail: "Whether assistants name you" },
@@ -6249,6 +6258,7 @@ const es: Messages = {
       "Un panel de ejemplo. Sus cifras empiezan en cero y crecen desde ahí.",
     titleLead: "Posiciónese en Google.",
     titleAccent: "Aparezca en las respuestas de IA.",
+    titleAccentTemplate: "Sea recomendado por {engine}.",
     heroCards: [
       { label: "Posiciones y clics", detail: "Desde Search Console" },
       { label: "Visibilidad en IA", detail: "Si los asistentes le nombran" },
@@ -9235,6 +9245,7 @@ const fr: Messages = {
       "Un tableau de bord d'exemple. Vos propres chiffres partent de zéro.",
     titleLead: "Positionnez-vous sur Google.",
     titleAccent: "Apparaissez dans les réponses IA.",
+    titleAccentTemplate: "Soyez recommandé par {engine}.",
     heroCards: [
       { label: "Positions et clics", detail: "Depuis Search Console" },
       { label: "Visibilité IA", detail: "Si les assistants vous citent" },
@@ -12225,6 +12236,7 @@ const it: Messages = {
       "Una dashboard di esempio. I suoi numeri partono da zero e crescono da lì.",
     titleLead: "Si posizioni su Google.",
     titleAccent: "Compaia nelle risposte IA.",
+    titleAccentTemplate: "Si faccia consigliare da {engine}.",
     heroCards: [
       { label: "Posizioni e clic", detail: "Da Search Console" },
       { label: "Visibilità IA", detail: "Se gli assistenti la nominano" },
@@ -15204,6 +15216,7 @@ const de: Messages = {
       "Ein Beispiel-Dashboard. Ihre eigenen Zahlen starten bei null.",
     titleLead: "Bei Google ranken.",
     titleAccent: "In KI-Antworten erscheinen.",
+    titleAccentTemplate: "Empfohlen von {engine}.",
     heroCards: [
       { label: "Positionen und Klicks", detail: "Aus der Search Console" },
       { label: "KI-Sichtbarkeit", detail: "Ob Assistenten Sie nennen" },

@@ -25,7 +25,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 import { BrandMark } from "@/components/brand-logo";
 import { Button } from "@/components/ui/button";
@@ -201,6 +201,43 @@ const HERO_CARD_STYLE: { icon: LucideIcon; className: string }[] = [
   { icon: TrendingUp, className: "right-[4%] top-[14rem] rotate-3" },
 ];
 
+/**
+ * The AI assistants the headline names in turn (client, 2026-10-13: "the
+ * moving text header" of draftseo.ai). Brand names, so the same in every
+ * language.
+ */
+export const ANSWER_ENGINES = ["ChatGPT", "Perplexity", "Gemini", "Claude", "Copilot"] as const;
+
+/**
+ * "Get recommended by ChatGPT." with the last word taking turns.
+ *
+ * CSS only (.hero-engines in globals.css): no script before the headline, so
+ * the page is as fast as before. Every name sits in the same grid cell, so
+ * the line keeps the width of the longest and nothing below it moves, and
+ * the first one is already in place at the first paint. With reduced motion
+ * it stays on the first. The template ends with {engine} (and at most
+ * punctuation, which moves with the name), so a short name never leaves a gap
+ * in the middle of the line.
+ */
+export function HeroEngines({ template }: { template: string }) {
+  const at = template.indexOf("{engine}");
+  const before = at < 0 ? template : template.slice(0, at);
+  const after = at < 0 ? "" : template.slice(at + "{engine}".length);
+  return (
+    <span aria-hidden="true" className="text-primary">
+      {before}
+      <span className="hero-engines">
+        {ANSWER_ENGINES.map((engine, index) => (
+          <span key={engine} style={{ "--i": index } as CSSProperties}>
+            {engine}
+            {after}
+          </span>
+        ))}
+      </span>
+    </span>
+  );
+}
+
 export function Hero({ t, href }: SectionProps) {
   return (
     <section className="relative overflow-hidden bg-gradient-to-b from-primary/[0.055] via-background to-background px-4 pt-14 pb-12 sm:pt-20">
@@ -226,7 +263,9 @@ export function Hero({ t, href }: SectionProps) {
         <h1 className="text-4xl font-semibold tracking-tight text-balance sm:text-6xl">
           {t.titleLead}
           <br />
-          <span className="text-primary">{t.titleAccent}</span>
+          {/* Read once, as a sentence; the moving line below is for the eye only. */}
+          <span className="sr-only">{t.titleAccent}</span>
+          <HeroEngines template={t.titleAccentTemplate} />
         </h1>
 
         <p className="mx-auto mt-4 max-w-xl text-pretty text-muted-foreground sm:text-lg">
