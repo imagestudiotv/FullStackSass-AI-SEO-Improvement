@@ -79,5 +79,14 @@ export const config = {
     "/tools/meta-tag-checker",
     "/tools/robots-checker",
     "/tools/sitemap-checker",
+    // The same tools in the other languages (/es/tools/... and so on): also rendered per request.
+    "/:locale/tools/ai-crawler-checker",
+    "/:locale/tools/keyword-density",
+    "/:locale/tools/llm-html-checker",
+    "/:locale/tools/llms-txt-generator",
+    "/:locale/tools/meta-description-generator",
+    "/:locale/tools/meta-tag-checker",
+    "/:locale/tools/robots-checker",
+    "/:locale/tools/sitemap-checker",
   ],
 };

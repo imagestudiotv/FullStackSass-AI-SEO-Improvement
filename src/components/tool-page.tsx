@@ -1,6 +1,8 @@
 import { Check } from "lucide-react";
 import Link from "next/link";
 
+import { localePath, type Locale } from "@/lib/i18n/config";
+import { TOOLS_COMMON } from "@/lib/tools/i18n/common";
 import { relatedTools } from "@/lib/tools/registry";
 
 /**
@@ -11,20 +13,24 @@ import { relatedTools } from "@/lib/tools/registry";
  * Every tool page having the same skeleton is the point — these pages are
  * mostly reached from search, one at a time, and someone landing on the third
  * one should recognise it immediately.
+ *
+ * In the visitor's language (lib/tools/i18n/common.ts), linking to the other
+ * tools in that language.
  */
 
-export function ToolBreadcrumb({ title }: { title: string }) {
+export function ToolBreadcrumb({ title, locale = "en" }: { title: string; locale?: Locale }) {
+  const t = TOOLS_COMMON[locale];
   return (
     <nav
       aria-label="Breadcrumb"
       className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground"
     >
-      <Link href="/" className="hover:text-foreground">
-        Home
+      <Link href={localePath(locale, "/")} className="hover:text-foreground">
+        {t.home}
       </Link>
       <span aria-hidden="true">/</span>
-      <Link href="/tools" className="text-primary hover:underline">
-        Free tools
+      <Link href={localePath(locale, "/tools")} className="text-primary hover:underline">
+        {t.freeTools}
       </Link>
       <span aria-hidden="true">/</span>
       {/* The current page is not a link — it is where you already are. */}
@@ -34,10 +40,10 @@ export function ToolBreadcrumb({ title }: { title: string }) {
 }
 
 /** The reference's "100% free · No signup · Instant result" row. */
-export function ToolBadges() {
+export function ToolBadges({ locale = "en" }: { locale?: Locale }) {
   return (
     <ul className="mt-5 flex flex-wrap gap-2">
-      {["100% free", "No signup", "Instant result"].map((label) => (
+      {TOOLS_COMMON[locale].badges.map((label) => (
         <li
           key={label}
           className="flex items-center gap-1.5 rounded-full border border-primary/30 px-3 py-1 text-xs font-medium text-primary"
@@ -58,17 +64,19 @@ export function ToolBadges() {
 export function ToolHero({
   title,
   description,
+  locale = "en",
   children,
 }: {
   title: string;
   description: string;
+  locale?: Locale;
   children: React.ReactNode;
 }) {
   return (
     <div className="bg-primary/[0.04]">
       <div className="mx-auto max-w-5xl px-4 py-10 sm:py-14">
-        <ToolBreadcrumb title={title} />
-        <ToolBadges />
+        <ToolBreadcrumb title={title} locale={locale} />
+        <ToolBadges locale={locale} />
         <h1 className="mt-5 text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
           {title}
         </h1>
@@ -104,18 +112,19 @@ export function ToolExplainer({
 }
 
 /** "More free tools" — the same card as the hub, three across. */
-export function MoreTools({ currentHref }: { currentHref: string }) {
+export function MoreTools({ currentHref, locale = "en" }: { currentHref: string; locale?: Locale }) {
+  const t = TOOLS_COMMON[locale];
   const tools = relatedTools(currentHref);
 
   return (
     <div className="mx-auto max-w-5xl px-4 pb-16">
       <div className="flex items-center justify-between gap-4">
-        <h2 className="text-xl font-semibold tracking-tight">More free tools</h2>
+        <h2 className="text-xl font-semibold tracking-tight">{t.moreTools}</h2>
         <Link
-          href="/tools"
+          href={localePath(locale, "/tools")}
           className="text-sm font-medium text-primary hover:underline"
         >
-          All tools
+          {t.allTools}
         </Link>
       </div>
 
@@ -123,7 +132,7 @@ export function MoreTools({ currentHref }: { currentHref: string }) {
         {tools.map((tool) => (
           <Link
             key={tool.href}
-            href={tool.href}
+            href={localePath(locale, tool.href)}
             className="flex gap-3 rounded-xl border bg-card p-4 transition-colors hover:border-primary/40"
           >
             <span
@@ -133,9 +142,9 @@ export function MoreTools({ currentHref }: { currentHref: string }) {
               {tool.emoji}
             </span>
             <span className="min-w-0">
-              <span className="block font-medium">{tool.title}</span>
+              <span className="block font-medium">{t.tools[tool.href]?.title ?? tool.title}</span>
               <span className="mt-0.5 block text-sm text-muted-foreground">
-                {tool.blurb}
+                {t.tools[tool.href]?.blurb ?? tool.blurb}
               </span>
             </span>
           </Link>
@@ -149,9 +158,11 @@ export function MoreTools({ currentHref }: { currentHref: string }) {
 export function ToolCta({
   headline,
   body,
+  locale = "en",
 }: {
   headline: string;
   body: string;
+  locale?: Locale;
 }) {
   return (
     <div className="bg-foreground text-background">
@@ -161,10 +172,10 @@ export function ToolCta({
         </h2>
         <p className="mx-auto mt-4 max-w-xl text-pretty opacity-80">{body}</p>
         <Link
-          href="/audit"
+          href={localePath(locale, "/audit")}
           className="mt-8 inline-flex h-11 items-center rounded-full bg-primary px-7 font-medium text-primary-foreground transition-opacity hover:opacity-90"
         >
-          Get your free audit
+          {TOOLS_COMMON[locale].auditCta}
         </Link>
       </div>
     </div>

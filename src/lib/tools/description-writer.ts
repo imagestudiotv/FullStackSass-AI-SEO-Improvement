@@ -232,6 +232,8 @@ async function writeFromPage(
     `- ${dataRule("website_page")}`,
     `- Between ${SNIPPET_LIMITS.metaMin} and ${SNIPPET_LIMITS.metaMax} characters. This is a hard limit.`,
     "- Describe what is actually on this page. Invent nothing.",
+    // The visitor may be on any language's tool page; the page decides the language.
+    "- Write in the language the page content is written in.",
     "- Give the reader a reason to click, in their words, not marketing language.",
     "- No quotes around the description, no emoji, no brand name padding.",
     "- Each one should take a genuinely different angle.",

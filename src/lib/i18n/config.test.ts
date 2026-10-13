@@ -3,8 +3,9 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { INTEGRATION_GUIDE_SLUGS, languageAlternates, LOCALES, localePath, splitLocale, TRANSLATED_PATHS } from "@/lib/i18n/config";
+import { INTEGRATION_GUIDE_SLUGS, languageAlternates, LOCALES, localePath, splitLocale, TOOL_SLUGS, TRANSLATED_PATHS } from "@/lib/i18n/config";
 import { INTEGRATION_DOCS } from "@/lib/publishing/docs";
+import { TOOL_PAGES } from "@/lib/seo/public-pages";
 
 /**
  * hreflang only counts when it is reciprocal: every version of a page must
@@ -85,7 +86,7 @@ describe("localePath", () => {
   });
 
   it("links English-only pages as they are", () => {
-    for (const page of ["/audit", "/tools", "/tools/robots-checker", "/blog/some-post", "/blog/category/guides", "/sign-up", "/privacy"]) {
+    for (const page of ["/audit", "/blog/some-post", "/blog/category/guides", "/sign-up", "/privacy"]) {
       expect(localePath("es", page)).toBe(page);
     }
     // The blog's front page has one per language; its posts have their own addresses (lib/blog/locale.ts).
@@ -132,5 +133,9 @@ describe("localePath", () => {
 
   it("lists every integration guide (the slugs are copied so the guides' text stays out of the browser)", () => {
     expect([...INTEGRATION_GUIDE_SLUGS]).toEqual(INTEGRATION_DOCS.map((doc) => doc.slug));
+  });
+
+  it("lists every free tool, for the same reason", () => {
+    expect(TOOL_SLUGS.map((slug) => `/tools/${slug}`).sort()).toEqual([...TOOL_PAGES].sort());
   });
 });

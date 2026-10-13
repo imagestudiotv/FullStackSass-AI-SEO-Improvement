@@ -11,6 +11,8 @@ import {
   type LengthVerdict,
 } from "@/lib/tools/snippet";
 
+import type { SnippetFormCopy } from "./copy";
+
 /**
  * Search snippet preview.
  *
@@ -39,7 +41,13 @@ function truncate(text: string, max: number): string {
   return `${(lastSpace > max * 0.6 ? cut.slice(0, lastSpace) : cut).trimEnd()}…`;
 }
 
-export function SnippetForm() {
+/** The advice for a check, in the visitor's language: the check decides the verdict, the copy says it. */
+function advice(check: { length: number; verdict: LengthVerdict }, words: SnippetFormCopy["titleAdvice"], min: number, max: number): string {
+  const text = check.length === 0 ? words.empty : check.verdict === "short" ? words.short : check.verdict === "long" ? words.long : words.good;
+  return text.replace("{min}", String(min)).replace("{max}", String(max));
+}
+
+export function SnippetForm({ copy }: { copy: SnippetFormCopy }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [url, setUrl] = useState("");
@@ -47,14 +55,14 @@ export function SnippetForm() {
   const titleCheck = checkTitle(title);
   const descCheck = checkDescription(description);
 
-  const displayUrl = url.trim() || "example.com/your-page";
+  const displayUrl = url.trim() || copy.displayUrl;
 
   return (
     <div className="space-y-8">
       <div className="space-y-5">
         <div className="space-y-1.5">
           <div className="flex items-baseline justify-between">
-            <Label htmlFor="title">Page title</Label>
+            <Label htmlFor="title">{copy.pageTitle}</Label>
             <span className={`text-xs tabular-nums ${TONE[titleCheck.verdict]}`}>
               {titleCheck.length} / {SNIPPET_LIMITS.titleMax}
             </span>
@@ -63,14 +71,14 @@ export function SnippetForm() {
             id="title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Emergency dentist in Utrecht - open Saturdays"
+            placeholder={copy.titlePlaceholder}
           />
-          <p className="text-xs text-muted-foreground">{titleCheck.advice}</p>
+          <p className="text-xs text-muted-foreground">{advice(titleCheck, copy.titleAdvice, SNIPPET_LIMITS.titleMin, SNIPPET_LIMITS.titleMax)}</p>
         </div>
 
         <div className="space-y-1.5">
           <div className="flex items-baseline justify-between">
-            <Label htmlFor="description">Description</Label>
+            <Label htmlFor="description">{copy.descriptionLabel}</Label>
             <span className={`text-xs tabular-nums ${TONE[descCheck.verdict]}`}>
               {descCheck.length} / {SNIPPET_LIMITS.metaMax}
             </span>
@@ -80,37 +88,37 @@ export function SnippetForm() {
             rows={3}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Same-day appointments for toothache and broken teeth. Open Saturdays, five minutes from Utrecht Centraal."
+            placeholder={copy.descPlaceholder}
             className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
           />
-          <p className="text-xs text-muted-foreground">{descCheck.advice}</p>
+          <p className="text-xs text-muted-foreground">{advice(descCheck, copy.descAdvice, SNIPPET_LIMITS.metaMin, SNIPPET_LIMITS.metaMax)}</p>
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="url">Page address (optional)</Label>
+          <Label htmlFor="url">{copy.urlLabel}</Label>
           <Input
             id="url"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
-            placeholder="example.com/emergency-dentist"
+            placeholder={copy.urlPlaceholder}
           />
         </div>
       </div>
 
       {/* The preview. Styled to read as a search result, not a form output. */}
       <div>
-        <p className="mb-3 text-sm font-medium">How it will look</p>
+        <p className="mb-3 text-sm font-medium">{copy.previewTitle}</p>
         <div className="rounded-lg border bg-background p-4">
           <p className="truncate text-xs text-muted-foreground">{displayUrl}</p>
           <p className="mt-1 text-lg text-[#1a0dab] dark:text-[#8ab4f8]">
             {title.trim()
               ? truncate(title.trim(), SNIPPET_LIMITS.titleMax)
-              : "Your page title appears here"}
+              : copy.titleEmpty}
           </p>
           <p className="mt-1 text-sm text-muted-foreground">
             {description.trim()
               ? truncate(description.trim(), SNIPPET_LIMITS.metaMax)
-              : "Your description appears here. Without one, Google picks a sentence from the page - often the wrong one."}
+              : copy.descEmpty}
           </p>
         </div>
         {/*
@@ -119,10 +127,7 @@ export function SnippetForm() {
           not a guarantee — and a tool that pretends otherwise is one a
           customer eventually catches out.
         */}
-        <p className="mt-3 text-xs text-muted-foreground">
-          Google cuts text by width rather than by character, so treat this as a
-          close guide rather than an exact match.
-        </p>
+        <p className="mt-3 text-xs text-muted-foreground">{copy.widthNote}</p>
       </div>
     </div>
   );

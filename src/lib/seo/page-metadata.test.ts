@@ -64,7 +64,7 @@ describe("publicPageMetadata", () => {
   });
 
   it("declares no hreflang for an English-only page, which has no translations to name", () => {
-    for (const path of ["/blog/a-post", "/tools/robots-checker", "/terms"]) {
+    for (const path of ["/blog/a-post", "/audit", "/terms"]) {
       expect(publicPageMetadata(path).alternates).toEqual({ canonical: path });
     }
   });
