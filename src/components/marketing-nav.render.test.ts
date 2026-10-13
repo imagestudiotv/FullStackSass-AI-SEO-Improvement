@@ -19,6 +19,7 @@ vi.mock("next/link", () => ({
     createElement("a", { href, ...rest }, children),
 }));
 
+import { BrandHomeLink } from "./brand-home-link";
 import { MarketingFooterLinks, MarketingNav } from "./marketing-nav";
 
 const hrefs = (html: string) => [...html.matchAll(/href="([^"]+)"/g)].map((m) => m[1]);
@@ -39,5 +40,20 @@ describe.each(PREFIXED_LOCALES)("on the %s pages", (locale) => {
       // An unprefixed link is only right for a page that has no translation.
       expect(TRANSLATED_PATHS.has(path), `${link} on /${locale} should be /${locale}${path === "/" ? "" : path}`).toBe(false);
     }
+  });
+});
+
+describe("the header logo", () => {
+  it.each([
+    ["/", "/"],
+    ["/pricing", "/"],
+    ["/tools", "/"],
+    ["/de", "/de"],
+    ["/es/pricing", "/es"],
+    ["/it/blog/some-post", "/it"],
+  ])("on %s goes to the homepage in that language (%s)", (pathname, home) => {
+    nav.pathname = pathname;
+    const html = renderToStaticMarkup(createElement(BrandHomeLink, null, "RepGet"));
+    expect(hrefs(html)).toEqual([home]);
   });
 });

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
+import { localePath, splitLocale } from "@/lib/i18n/config";
+
 /**
  * The header logo, which also scrolls back to the top.
  *
@@ -15,6 +17,9 @@ import type { ReactNode } from "react";
  *
  * On any other page it stays an ordinary link, so a normal navigation to the
  * homepage still works and still arrives at the top.
+ *
+ * It goes to the homepage in the page's own language: from /de/pricing to
+ * /de, not to the English homepage (client, 2026-10-13).
  */
 export function BrandHomeLink({
   children,
@@ -23,11 +28,11 @@ export function BrandHomeLink({
 }: {
   children: ReactNode;
   className?: string;
-  /** Locale prefix, so /es stays in Spanish rather than jumping to English. */
+  /** Locale prefix; by default the language of the current address, so /es stays in Spanish. */
   locale?: string;
 }) {
   const pathname = usePathname();
-  const home = locale ? `/${locale}` : "/";
+  const home = locale ? `/${locale}` : localePath(splitLocale(pathname).locale, "/");
   const atHome = pathname === home;
 
   return (
