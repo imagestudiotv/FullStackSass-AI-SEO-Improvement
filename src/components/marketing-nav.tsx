@@ -254,10 +254,10 @@ function MobileMarketingNav({
   }));
   const links = [
     { href: href("/#how-it-works"), label: t.nav.howItWorks },
-    { href: "/success-stories", label: t.nav.successStories },
+    { href: href("/success-stories"), label: t.nav.successStories },
     { href: href("/pricing"), label: t.nav.pricing },
-    { href: "/blog", label: t.nav.blog },
-    { href: "/contact", label: t.nav.contact },
+    { href: href("/blog"), label: t.nav.blog },
+    { href: href("/contact"), label: t.nav.contact },
   ];
 
   return (
@@ -342,10 +342,10 @@ export function MarketingNav({ chrome }: { chrome: SiteChrome }) {
         />
         {[
           { href: href("/#how-it-works"), label: t.nav.howItWorks },
-          { href: "/success-stories", label: t.nav.successStories },
+          { href: href("/success-stories"), label: t.nav.successStories },
           { href: href("/pricing"), label: t.nav.pricing },
-          { href: "/blog", label: t.nav.blog },
-          { href: "/contact", label: t.nav.contact },
+          { href: href("/blog"), label: t.nav.blog },
+          { href: href("/contact"), label: t.nav.contact },
         ].map((item) => (
           <Link
             key={item.href}
