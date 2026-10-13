@@ -240,12 +240,17 @@ export function ArticleSettingsForm({
   const articleStyleKnown = ARTICLE_STYLES.some((style) => style.id === values.articleStyle);
   const adaptive = values.targetWordCount === null;
 
-  const toggles: { key: "tableOfContents" | "youtubeVideo" | "authorPerspective" | "mentionSimilarProducts" | "comparisonTable" | "poweredByLink"; label: string; hint: string }[] = [
+  const toggles: {
+    key: "tableOfContents" | "youtubeVideo" | "authorPerspective" | "mentionSimilarProducts" | "comparisonTable" | "faqSection" | "poweredByLink";
+    label: string;
+    hint: string;
+  }[] = [
     { key: "tableOfContents", label: t.tableOfContents, hint: t.tocHint },
     { key: "youtubeVideo", label: t.youtubeVideo, hint: t.youtubeHint },
     { key: "authorPerspective", label: t.authorPerspective, hint: t.perspectiveHint },
     { key: "mentionSimilarProducts", label: t.mentionSimilar, hint: t.similarHint },
     { key: "comparisonTable", label: t.comparisonTable, hint: t.comparisonHint },
+    { key: "faqSection", label: t.faqSection, hint: t.faqHint },
     { key: "poweredByLink", label: t.poweredBy, hint: t.poweredByHint },
   ];
 
@@ -438,6 +443,26 @@ export function ArticleSettingsForm({
             t={t}
             tWorkspace={tWorkspace}
           />
+          {/* How many pictures inside the article use the style above (client, 2026-10-13). */}
+          <div className="max-w-sm">
+            <Field id="body-images" label={t.bodyImagesLabel} hint={t.bodyImagesHint} t={tWorkspace}>
+              {(props) => (
+                <select
+                  {...props}
+                  value={String(values.bodyImages)}
+                  onChange={(event) => set("bodyImages", Number(event.target.value))}
+                  disabled={readOnly}
+                  className={SELECT_CLASS}
+                >
+                  {t.bodyImagesOptions.map((label, count) => (
+                    <option key={count} value={count}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </Field>
+          </div>
           <StylePicker
             id="cover-style"
             label={t.coverStyleLabel}

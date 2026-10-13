@@ -1175,6 +1175,12 @@ export type Messages = {
       perspectiveHint: string;
       similarHint: string;
       comparisonHint: string;
+      faqSection: string;
+      faqHint: string;
+      bodyImagesLabel: string;
+      bodyImagesHint: string;
+      /** The four choices, in order: 0, 1, 2, 3 pictures. */
+      bodyImagesOptions: string[];
       poweredByHint: string;
       factsPlaceholder: string;
       uspsPlaceholder: string;
@@ -4280,7 +4286,12 @@ const en: Messages = {
       youtubeHint: "Your choice is saved. Videos are not added to articles at the moment.",
       perspectiveHint: "Writes with a point of view rather than impersonally.",
       similarHint: "References and compares alternatives, for richer coverage.",
-      comparisonHint: "Adds a side-by-side table comparing the options the article is about, such as \"Videography vs Cinematography at a Glance\".",
+      comparisonHint: "Adds one to three side-by-side tables (the number varies from article to article) comparing the options the article is about, such as \"Videography vs Cinematography at a Glance\".",
+      faqSection: "FAQ at the end",
+      faqHint: "Ends each article with 4-6 frequently asked questions and short, direct answers.",
+      bodyImagesLabel: "Pictures inside the article",
+      bodyImagesHint: "Besides the cover image. Each one shows what its section is about, in the image style above, spread through the text.",
+      bodyImagesOptions: ["None - cover image only", "1 picture", "2 pictures", "3 pictures"],
       poweredByHint: "A small credit at the end of each article. Turning it off applies to articles not yet published.",
       factsPlaceholder: "Open since 2004\nFive dentists on the team\nFree parking on site",
       uspsPlaceholder: "Same-day emergency appointments\nWe see nervous patients",
@@ -7265,7 +7276,12 @@ const es: Messages = {
       youtubeHint: "Su elección se guarda. Por ahora no se añaden vídeos a los artículos.",
       perspectiveHint: "Escribe con un punto de vista propio en lugar de forma impersonal.",
       similarHint: "Menciona y compara alternativas para una cobertura más completa.",
-      comparisonHint: "Añade una tabla que compara lado a lado las opciones de las que trata el artículo, como «Videografía frente a cinematografía de un vistazo».",
+      comparisonHint: "Añade de una a tres tablas que comparan lado a lado las opciones de las que trata el artículo (el número varía de un artículo a otro), como «Videografía frente a cinematografía de un vistazo».",
+      faqSection: "Preguntas frecuentes al final",
+      faqHint: "Termina cada artículo con 4-6 preguntas frecuentes y respuestas breves y directas.",
+      bodyImagesLabel: "Imágenes dentro del artículo",
+      bodyImagesHint: "Además de la imagen de portada. Cada una muestra el tema de su sección, con el estilo de imagen indicado arriba, repartidas por el texto.",
+      bodyImagesOptions: ["Ninguna, solo la portada", "1 imagen", "2 imágenes", "3 imágenes"],
       poweredByHint: "Un pequeño crédito al final de cada artículo. Desactivarlo se aplica a los artículos aún no publicados.",
       factsPlaceholder: "Abierto desde 2004\nCinco dentistas en el equipo\nAparcamiento gratuito",
       uspsPlaceholder: "Citas de urgencia el mismo día\nAtendemos a pacientes nerviosos",
@@ -10253,7 +10269,12 @@ const fr: Messages = {
       youtubeHint: "Votre choix est enregistré. Pour l’instant, aucune vidéo n’est ajoutée aux articles.",
       perspectiveHint: "Écrit avec un point de vue plutôt que de façon impersonnelle.",
       similarHint: "Cite et compare des alternatives, pour un sujet mieux couvert.",
-      comparisonHint: "Ajoute un tableau comparant côte à côte les options dont parle l’article, comme « Vidéographie ou cinématographie en un coup d’œil ».",
+      comparisonHint: "Ajoute un à trois tableaux comparant côte à côte les options dont parle l’article (le nombre varie d’un article à l’autre), comme « Vidéographie ou cinématographie en un coup d’œil ».",
+      faqSection: "FAQ en fin d’article",
+      faqHint: "Termine chaque article par 4 à 6 questions fréquentes avec des réponses courtes et directes.",
+      bodyImagesLabel: "Images dans l’article",
+      bodyImagesHint: "En plus de l’image de couverture. Chacune montre le sujet de sa section, dans le style d’image choisi ci-dessus, réparties dans le texte.",
+      bodyImagesOptions: ["Aucune, couverture seulement", "1 image", "2 images", "3 images"],
       poweredByHint: "Une petite mention à la fin de chaque article. La désactiver s’applique aux articles pas encore publiés.",
       factsPlaceholder: "Ouvert depuis 2004\nCinq dentistes dans l’équipe\nParking gratuit sur place",
       uspsPlaceholder: "Rendez-vous d’urgence le jour même\nNous recevons les patients anxieux",
@@ -13238,7 +13259,12 @@ const it: Messages = {
       youtubeHint: "La sua scelta viene salvata. Per ora non vengono aggiunti video agli articoli.",
       perspectiveHint: "Scrive con un punto di vista invece che in modo impersonale.",
       similarHint: "Cita e confronta alternative, per una trattazione più ricca.",
-      comparisonHint: "Aggiunge una tabella che confronta fianco a fianco le opzioni di cui parla l’articolo, come «Videografia e cinematografia a confronto».",
+      comparisonHint: "Aggiunge da una a tre tabelle che confrontano fianco a fianco le opzioni di cui parla l’articolo (il numero cambia da articolo ad articolo), come «Videografia e cinematografia a confronto».",
+      faqSection: "FAQ alla fine",
+      faqHint: "Conclude ogni articolo con 4-6 domande frequenti e risposte brevi e dirette.",
+      bodyImagesLabel: "Immagini nell’articolo",
+      bodyImagesHint: "Oltre all’immagine di copertina. Ognuna mostra l’argomento della sua sezione, nello stile di immagine scelto sopra, distribuite nel testo.",
+      bodyImagesOptions: ["Nessuna, solo la copertina", "1 immagine", "2 immagini", "3 immagini"],
       poweredByHint: "Una piccola menzione alla fine di ogni articolo. Disattivarla vale per gli articoli non ancora pubblicati.",
       factsPlaceholder: "Aperti dal 2004\nCinque dentisti nel team\nParcheggio gratuito",
       uspsPlaceholder: "Appuntamenti urgenti in giornata\nAccogliamo pazienti ansiosi",
@@ -16222,7 +16248,12 @@ const de: Messages = {
       youtubeHint: "Ihre Auswahl wird gespeichert. Derzeit werden Artikeln keine Videos hinzugefügt.",
       perspectiveHint: "Schreibt mit eigener Perspektive statt unpersönlich.",
       similarHint: "Nennt und vergleicht Alternativen für eine umfassendere Darstellung.",
-      comparisonHint: "Fügt eine Tabelle hinzu, die die Optionen des Artikels nebeneinander vergleicht, etwa „Videografie vs. Kinematografie auf einen Blick“.",
+      comparisonHint: "Fügt ein bis drei Tabellen hinzu, die die Optionen des Artikels nebeneinander vergleichen (die Zahl wechselt von Artikel zu Artikel), etwa „Videografie vs. Kinematografie auf einen Blick“.",
+      faqSection: "FAQ am Ende",
+      faqHint: "Beendet jeden Artikel mit 4-6 häufigen Fragen und kurzen, direkten Antworten.",
+      bodyImagesLabel: "Bilder im Artikel",
+      bodyImagesHint: "Zusätzlich zum Titelbild. Jedes zeigt das Thema seines Abschnitts, im oben gewählten Bildstil, über den Text verteilt.",
+      bodyImagesOptions: ["Keine, nur das Titelbild", "1 Bild", "2 Bilder", "3 Bilder"],
       poweredByHint: "Ein kleiner Hinweis am Ende jedes Artikels. Das Ausschalten gilt für noch nicht veröffentlichte Artikel.",
       factsPlaceholder: "Seit 2004 geöffnet\nFünf Zahnärzte im Team\nKostenlose Parkplätze vor Ort",
       uspsPlaceholder: "Notfalltermine am selben Tag\nWir behandeln ängstliche Patienten",

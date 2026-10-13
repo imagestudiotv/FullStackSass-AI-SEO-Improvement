@@ -32,6 +32,10 @@ export type StoredArticleSettings = {
   authorPerspective: boolean;
   mentionSimilarProducts: boolean;
   comparisonTable: boolean;
+  /** Pictures inside the article, besides the cover: 0-3. */
+  bodyImages: number;
+  /** A "Frequently asked questions" section at the end. */
+  faqSection: boolean;
   poweredByLink: boolean;
   authorName: string;
   authorBio: string;

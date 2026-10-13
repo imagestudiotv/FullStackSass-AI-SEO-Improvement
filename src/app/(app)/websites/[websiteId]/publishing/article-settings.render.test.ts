@@ -41,6 +41,8 @@ const STORED: StoredArticleSettings = {
   authorPerspective: true,
   mentionSimilarProducts: true,
   comparisonTable: true,
+  bodyImages: 3,
+  faqSection: true,
   poweredByLink: true,
   authorName: "",
   authorBio: "",

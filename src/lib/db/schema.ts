@@ -552,6 +552,20 @@ export const websites = pgTable("websites", {
    */
   comparisonTable: boolean("comparison_table").default(true).notNull(),
   /**
+   * Pictures inside the article, besides the cover: 0 to 3 (client,
+   * 2026-10-13: "3 more images for the article and not just the hero
+   * image"). Each shows what its section is about, in imageStyle, and they are
+   * spread through the text (lib/articles/body-images.ts). 3 by default, for
+   * websites that existed before it too; values outside 0-3 are clamped where
+   * read (bodyImageCount).
+   */
+  bodyImages: integer("body_images").default(3).notNull(),
+  /**
+   * A "Frequently asked questions" section at the end of each article (client,
+   * 2026-10-13). On by default, for existing websites too.
+   */
+  faqSection: boolean("faq_section").default(true).notNull(),
+  /**
    * The "Powered by RepGet" credit line.
    *
    * Defaults ON, and the client said so explicitly. Turning it off applies
