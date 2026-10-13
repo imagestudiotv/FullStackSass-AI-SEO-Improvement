@@ -17,9 +17,13 @@
  * Authority is shown only once the client gives the figure; a placed partner
  * link is shown only once one exists on the article.
  *
- * English only for now: localePath() keeps every language on these paths
- * until translated copy is added.
+ * In five languages: the other four are in feature-pages.translations.ts,
+ * and featurePageContent() picks the visitor's.
  */
+
+import type { Locale } from "@/lib/i18n/config";
+
+import { FEATURE_TRANSLATIONS } from "./feature-pages.translations";
 
 export type FeatureExample = {
   siteName: string;
@@ -65,7 +69,11 @@ export type FeaturePage = {
   faq: { question: string; answer: string }[];
   closingTitle: string;
   closingBody: string;
+  /** The few words the layout adds. minRead takes {n}. */
+  ui: { published: string; minRead: string; compared: string; newTab: string };
 };
+
+const ENGLISH_UI: FeaturePage["ui"] = { published: "Published", minRead: "{n} min read", compared: "Compared", newTab: "(opens in a new tab)" };
 
 const IMAGE_STUDIO = {
   siteName: "Image Studio",
@@ -241,6 +249,7 @@ export const BACKLINKS_PAGE: FeaturePage = {
   ],
   closingTitle: "Get your first backlinks without sending an email",
   closingBody: "Start with three free articles, and see your dashboard for yourself.",
+  ui: ENGLISH_UI,
 };
 
 export const CHATGPT_PAGE: FeaturePage = {
@@ -350,4 +359,23 @@ export const CHATGPT_PAGE: FeaturePage = {
   ],
   closingTitle: "Find out what AI assistants say about your business",
   closingBody: "Start with three free articles, or run the free audit first.",
+  ui: ENGLISH_UI,
 };
+
+/** One page and its example article, in a language. */
+export function featurePageContent(path: FeaturePage["path"], locale: Locale): { page: FeaturePage; example: FeatureExample } {
+  const backlinks = path === "/backlinks";
+  if (locale === "en") return backlinks ? { page: BACKLINKS_PAGE, example: BACKLINKS_EXAMPLE } : { page: CHATGPT_PAGE, example: CHATGPT_EXAMPLE };
+  const t = FEATURE_TRANSLATIONS[locale];
+  const base = backlinks ? BACKLINKS_EXAMPLE : CHATGPT_EXAMPLE;
+  return {
+    page: backlinks ? t.backlinks : t.chatgpt,
+    example: {
+      ...base,
+      about: t.about,
+      category: t.category,
+      image: { ...base.image, alt: backlinks ? t.backlinksImageAlt : t.chatgptImageAlt },
+      highlights: backlinks ? base.highlights : t.chatgptHighlights,
+    },
+  };
+}

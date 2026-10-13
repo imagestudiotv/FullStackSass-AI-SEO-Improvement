@@ -1,15 +1,17 @@
-import { BACKLINKS_EXAMPLE, BACKLINKS_PAGE } from "@/lib/marketing/feature-pages";
+import { featurePageContent } from "@/lib/marketing/feature-pages";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
 
 import { FeaturePageContent } from "../feature-page";
 
+const { page, example } = featurePageContent("/backlinks", "en");
+
 export const metadata = {
-  title: BACKLINKS_PAGE.metaTitle,
-  description: BACKLINKS_PAGE.metaDescription,
+  title: page.metaTitle,
+  description: page.metaDescription,
   ...publicPageMetadata("/backlinks"),
 };
 
-/** Backlinks from the partner network, for a prospect (lib/marketing/feature-pages.ts). English only for now. */
+/** Backlinks from the partner network, for a prospect (lib/marketing/feature-pages.ts). Other languages: [locale]/backlinks. */
 export default function Page() {
-  return <FeaturePageContent page={BACKLINKS_PAGE} example={BACKLINKS_EXAMPLE} />;
+  return <FeaturePageContent page={page} example={example} />;
 }

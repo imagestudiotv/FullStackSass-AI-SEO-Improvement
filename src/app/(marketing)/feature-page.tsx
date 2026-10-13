@@ -17,6 +17,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
+import { localePath, type Locale } from "@/lib/i18n/config";
 import { formatDate } from "@/lib/i18n/format";
 import type { FeatureExample, FeaturePage } from "@/lib/marketing/feature-pages";
 
@@ -42,8 +43,10 @@ const ICONS: Record<FeaturePage["path"], LucideIcon[]> = {
   "/rank-on-chatgpt": [Bot, FileText, Link2, Radar],
 };
 
-export function FeaturePageContent({ page, example }: { page: FeaturePage; example: FeatureExample }) {
+export function FeaturePageContent({ page, example, locale = "en" }: { page: FeaturePage; example: FeatureExample; locale?: Locale }) {
   const icons = ICONS[page.path];
+  // English paths in the copy; the visitor's language where that page exists.
+  const href = (path: string) => localePath(locale, path);
   const faqSchema = {
     "@context": "https://schema.org",
     "@type": "FAQPage",
@@ -77,7 +80,7 @@ export function FeaturePageContent({ page, example }: { page: FeaturePage; examp
               </Link>
             </Button>
             <Button size="lg" variant="outline" asChild className={CTA}>
-              <Link href={page.secondaryCta.href}>{page.secondaryCta.label}</Link>
+              <Link href={href(page.secondaryCta.href)}>{page.secondaryCta.label}</Link>
             </Button>
           </div>
         </div>
@@ -150,7 +153,7 @@ export function FeaturePageContent({ page, example }: { page: FeaturePage; examp
         </div>
       </section>
 
-      <ExampleSection page={page} example={example} />
+      <ExampleSection page={page} example={example} locale={locale} />
 
       {page.table ? (
         <section className="border-t px-4 py-16 sm:py-20">
@@ -162,7 +165,7 @@ export function FeaturePageContent({ page, example }: { page: FeaturePage; examp
                 <thead>
                   <tr className="border-b">
                     <th scope="col" className="p-4">
-                      <span className="sr-only">Compared</span>
+                      <span className="sr-only">{page.ui.compared}</span>
                     </th>
                     {page.table.columns.map((column, index) => (
                       <th
@@ -219,7 +222,7 @@ export function FeaturePageContent({ page, example }: { page: FeaturePage; examp
           </div>
           {page.related ? (
             <p className="mt-6 text-center text-sm">
-              <Link href={page.related.href} className="font-medium underline underline-offset-4 hover:text-primary">
+              <Link href={href(page.related.href)} className="font-medium underline underline-offset-4 hover:text-primary">
                 {page.related.label}
               </Link>
             </p>
@@ -239,7 +242,7 @@ export function FeaturePageContent({ page, example }: { page: FeaturePage; examp
               </Link>
             </Button>
             <Button size="lg" variant="outline" asChild className={CTA}>
-              <Link href={page.secondaryCta.href}>{page.secondaryCta.label}</Link>
+              <Link href={href(page.secondaryCta.href)}>{page.secondaryCta.label}</Link>
             </Button>
           </div>
         </div>
@@ -249,8 +252,8 @@ export function FeaturePageContent({ page, example }: { page: FeaturePage; examp
 }
 
 /** The real article: its picture, where it is published, and what to notice in it. */
-function ExampleSection({ page, example }: { page: FeaturePage; example: FeatureExample }) {
-  const published = formatDate(new Date(`${example.published}T12:00:00Z`), "en", { day: "numeric", month: "long", year: "numeric" });
+function ExampleSection({ page, example, locale }: { page: FeaturePage; example: FeatureExample; locale: Locale }) {
+  const published = formatDate(new Date(`${example.published}T12:00:00Z`), locale, { day: "numeric", month: "long", year: "numeric" });
   return (
     <section className="border-t bg-muted/30 px-4 py-16 sm:py-20">
       <div className="mx-auto max-w-6xl">
@@ -269,7 +272,7 @@ function ExampleSection({ page, example }: { page: FeaturePage; example: Feature
           <div className="flex min-w-0 flex-col p-6 sm:p-8">
             <div className="flex flex-wrap items-center gap-2 text-xs">
               <span className="rounded-full border px-2.5 py-1 font-medium">{example.site}</span>
-              <span className="rounded-full bg-success-soft px-2.5 py-1 font-medium text-success">Published</span>
+              <span className="rounded-full bg-success-soft px-2.5 py-1 font-medium text-success">{page.ui.published}</span>
               {example.domainAuthority !== null ? (
                 <span className="rounded-full bg-primary/10 px-2.5 py-1 font-medium text-primary">
                   {`${page.example.daLabel} ${example.domainAuthority}`}
@@ -283,7 +286,7 @@ function ExampleSection({ page, example }: { page: FeaturePage; example: Feature
               {example.category}
               {" · "}
               <time dateTime={example.published}>{published}</time>
-              {example.minutes ? ` · ${example.minutes} min read` : ""}
+              {example.minutes ? ` · ${page.ui.minRead.replace("{n}", String(example.minutes))}` : ""}
             </p>
             <p className="mt-4 leading-relaxed">{example.description}</p>
             {example.highlights.length > 0 ? (
@@ -309,7 +312,7 @@ function ExampleSection({ page, example }: { page: FeaturePage; example: Feature
                 <a href={example.href} target="_blank" rel="noopener">
                   {page.example.readLabel}
                   <ArrowUpRight className="size-4" aria-hidden="true" />
-                  <span className="sr-only">(opens in a new tab)</span>
+                  <span className="sr-only">{page.ui.newTab}</span>
                 </a>
               </Button>
             </div>

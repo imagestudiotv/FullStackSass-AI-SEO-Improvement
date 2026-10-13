@@ -93,6 +93,8 @@ export const TRANSLATED_PATHS: ReadonlySet<string> = new Set([
   "/affiliate",
   "/backlink-exchange",
   "/blog",
+  "/backlinks",
+  "/rank-on-chatgpt",
 ]);
 
 /**
