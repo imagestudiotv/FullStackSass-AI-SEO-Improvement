@@ -4,10 +4,12 @@ import { isPublicEnglishPage } from "@/lib/seo/public-pages";
 
 /**
  * Any address under a language prefix that is not one of its pages
- * (/es/no-such-page, /fr/tools).
+ * (/es/no-such-page, /fr/privacy).
  *
- * A page that exists only in English (/de/tools, /es/audit,
- * /it/docs/integrations/ghost) is sent to its English address for good (308).
+ * A page that exists only in English (/de/terms, /es/privacy) is sent to its
+ * English address for good (308). Since 2026-10-13 the tools, the free check
+ * and the integration guides exist in every language, so their routes under
+ * [locale] answer first and never reach this one.
  * Until 2026-10-04 the translated pages linked to such addresses, so search
  * engines learned them and kept reporting them as 404s (client, 2026-10-13);
  * a permanent redirect hands them over to the real page. Only pages in
