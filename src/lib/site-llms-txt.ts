@@ -1,5 +1,5 @@
 import { getMessages } from "@/lib/i18n/messages";
-import { INTEGRATION_DOCS } from "@/lib/publishing/docs";
+import { DOCS_UI_EN, INTEGRATION_DOCS } from "@/lib/publishing/docs";
 import { TOOLS } from "@/lib/tools/registry";
 
 /**
@@ -18,7 +18,7 @@ import { TOOLS } from "@/lib/tools/registry";
  *
  * NOTHING NEW IS SAID HERE. The summary is the homepage's own title and
  * description, and every note is that page's existing meta description - the
- * i18n ones read from the English messages, the rest kept identical to the
+ * i18n ones read from the English messages (the guides' from lib/publishing/docs.ts), the rest kept identical to the
  * page (site-llms-txt.test.ts checks each against its page file).
  *
  * Left out for now: /backlink-exchange and /publishers. Their descriptions use
@@ -42,8 +42,6 @@ export const PAGE_NOTES = {
   "/pricing": "Simple monthly pricing. Cancel any time.",
   "/tools":
     "Free tools to check your site: SEO score, robots.txt, sitemaps, AI crawler access, llms.txt, keyword density and more. No signup, real results.",
-  "/docs/integrations":
-    "How to connect WordPress, Ghost, Shopify or your own endpoint so articles publish automatically.",
   "/blog":
     "Guides, comparisons and playbooks for getting found on Google and cited by AI assistants - written for people who run a business, not a marketing team.",
   "/privacy": "What data RepGet collects, why, and how it is stored and protected.",
@@ -96,7 +94,7 @@ export function buildSiteLlmsTxt(siteUrl: string, posts: LlmsPost[]): string {
       ...TOOLS.map((tool) => ({ label: tool.title, path: tool.href, note: tool.blurb })),
     ]),
     ...section(site, "Integration guides", [
-      { label: "Integration guides", path: "/docs/integrations", note: PAGE_NOTES["/docs/integrations"] },
+      { label: "Integration guides", path: "/docs/integrations", note: DOCS_UI_EN.metaDescription },
       ...INTEGRATION_DOCS.map((doc) => ({
         label: doc.name,
         path: `/docs/integrations/${doc.slug}`,

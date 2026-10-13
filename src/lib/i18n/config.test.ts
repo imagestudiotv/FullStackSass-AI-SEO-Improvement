@@ -3,7 +3,8 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { languageAlternates, LOCALES, localePath, splitLocale, TRANSLATED_PATHS } from "@/lib/i18n/config";
+import { INTEGRATION_GUIDE_SLUGS, languageAlternates, LOCALES, localePath, splitLocale, TRANSLATED_PATHS } from "@/lib/i18n/config";
+import { INTEGRATION_DOCS } from "@/lib/publishing/docs";
 
 /**
  * hreflang only counts when it is reciprocal: every version of a page must
@@ -84,7 +85,7 @@ describe("localePath", () => {
   });
 
   it("links English-only pages as they are", () => {
-    for (const page of ["/audit", "/tools", "/tools/robots-checker", "/docs/integrations/wordpress", "/blog/some-post", "/blog/category/guides", "/sign-up"]) {
+    for (const page of ["/audit", "/tools", "/tools/robots-checker", "/blog/some-post", "/blog/category/guides", "/sign-up", "/privacy"]) {
       expect(localePath("es", page)).toBe(page);
     }
     // The blog's front page has one per language; its posts have their own addresses (lib/blog/locale.ts).
@@ -104,10 +105,32 @@ describe("localePath", () => {
 
   /** The list and the folders must agree, or a link 404s or a translation is never linked. */
   it("knows exactly the pages app/(marketing)/[locale] has", () => {
-    const dir = path.resolve(__dirname, "../../app/(marketing)/[locale]");
-    const folders = readdirSync(dir, { withFileTypes: true })
-      .filter((entry) => entry.isDirectory() && !entry.name.startsWith("[") && !entry.name.startsWith("("))
-      .map((entry) => `/${entry.name}`);
-    expect([...TRANSLATED_PATHS].sort()).toEqual(["/", ...folders].sort());
+    const root = path.resolve(__dirname, "../../app/(marketing)/[locale]");
+    // A dynamic folder stands for the pages its generateStaticParams lists. Blog posts are
+    // database pages with their own addresses in each language (lib/blog/locale.ts), not here.
+    const DYNAMIC: Record<string, string[]> = { "/docs/integrations/[slug]": INTEGRATION_DOCS.map((doc) => doc.slug), "/blog/[slug]": [] };
+    const pages: string[] = [];
+    const walk = (dir: string, at: string) => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        if (entry.isFile() && entry.name === "page.tsx") pages.push(at || "/");
+        if (!entry.isDirectory() || entry.name.startsWith("[...") || entry.name.startsWith("(")) continue;
+        const next = `${at}/${entry.name}`;
+        if (entry.name.startsWith("[")) {
+          expect(DYNAMIC[next], `${next} is not expanded in this test`).toBeDefined();
+          for (const slug of DYNAMIC[next]) {
+            expect(readdirSync(path.join(dir, entry.name))).toContain("page.tsx");
+            pages.push(`${at}/${slug}`);
+          }
+          continue;
+        }
+        walk(path.join(dir, entry.name), next);
+      }
+    };
+    walk(root, "");
+    expect([...TRANSLATED_PATHS].sort()).toEqual(pages.sort());
+  });
+
+  it("lists every integration guide (the slugs are copied so the guides' text stays out of the browser)", () => {
+    expect([...INTEGRATION_GUIDE_SLUGS]).toEqual(INTEGRATION_DOCS.map((doc) => doc.slug));
   });
 });

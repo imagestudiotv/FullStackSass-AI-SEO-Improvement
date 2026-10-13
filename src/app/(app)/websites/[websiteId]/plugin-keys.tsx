@@ -20,7 +20,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import type { Locale } from "@/lib/i18n/config";
+import { localePath, type Locale } from "@/lib/i18n/config";
 import { format, formatDate, intlTag } from "@/lib/i18n/format";
 import type { Messages } from "@/lib/i18n/messages";
 import { connectWordPress, generateIntegrationKey, revokeKey } from "@/lib/plugin/actions";
@@ -441,7 +441,7 @@ export function PluginKeys({
             </a>
           ) : null}
           <a
-            href="/docs/integrations/wordpress-plugin"
+            href={localePath(locale, "/docs/integrations/wordpress-plugin")}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1 text-sm underline underline-offset-4"
