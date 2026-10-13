@@ -120,6 +120,15 @@ async function lockKey(tx: Executor, key: string) {
   );
 }
 
+/**
+ * Every live reservation from the window's start on - with NO upper bound.
+ * `now` is taken before the lock is waited for, so a reservation committed
+ * while we waited can carry a later countedAt than our `now` (the request
+ * that won the lock read the clock a moment after us, or on another
+ * instance whose clock runs ahead). Excluding it admitted one request too
+ * many under concurrency (security review, 2026-10-12). Counting it can only
+ * ever count more, never let more through.
+ */
 async function liveCount(tx: Executor, rule: QuotaRule, now: Date) {
   const start = windowStart(rule.window, now);
   const [row] = await tx
@@ -132,7 +141,6 @@ async function liveCount(tx: Executor, rule: QuotaRule, now: Date) {
         "since" in rule.window
           ? gte(spendReservations.countedAt, start)
           : gt(spendReservations.countedAt, start),
-        lte(spendReservations.countedAt, now),
       ),
     );
   return row?.n ?? 0;

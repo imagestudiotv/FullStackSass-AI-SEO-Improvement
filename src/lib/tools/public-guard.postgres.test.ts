@@ -55,7 +55,9 @@ describe.skipIf(!available)("free tool limits on real Postgres", () => {
     // Slots out of the way, so only the quota decides.
     Object.assign(POOL_SLOTS, { fetch: 100 });
     Object.assign(PUBLIC_TOOL_LIMITS.robots, { perVisitorPerHour: 4, perSitePerHour: 1000, globalPerHour: 1000 });
-    for (let round = 0; round < 3; round++) {
+    // Ten rounds: the race this caught (lib/billing/spend-quota.ts, liveCount) showed up
+    // only now and then with three.
+    for (let round = 0; round < 10; round++) {
       const visitor = `race-visitor-${round}-${Math.random()}`;
       const run = vi.fn(async () => "fetched");
       const outcomes = await Promise.all(

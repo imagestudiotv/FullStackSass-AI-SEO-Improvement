@@ -51,7 +51,9 @@ See [credentials.md](credentials.md): the 2026-10-12 recheck (files still presen
 
 **Changed:** `src/lib/tools/public-guard.ts` - capacity reserved atomically in the shared quota store (`reserveAll`, Postgres advisory locks) before any fetch, per visitor (hour/day), per site, overall; one request per site at a time and a bounded pool of concurrent fetches (`operation_leases`); failures count; cached results are free; any store error refuses. Applied to the audit, llms.txt, sitemap, robots, meta tags, readability/keyword density, and AI crawler checks. `src/lib/visitor-key.ts`: forwarding headers only on Vercel or a configured `TRUSTED_CLIENT_IP_HEADER`, valid IPs only, IPv6 per /64; otherwise one shared bucket.
 
-**Status:** implemented and tested (PGlite 12, real Postgres 3 with 12 connections). Takes effect on deploy.
+**Found by CI afterwards (pre-existing, shared with billing):** the reservation ledger (`src/lib/billing/spend-quota.ts`, `liveCount`) counted only rows stamped no later than the caller's own clock, read before it waited for the lock. A request that won the lock with a clock a millisecond later was not counted by the one behind it, so a concurrent burst could get one past a limit (CI: 5 admitted, limit 4) - in the free tools and equally in the paid-work quotas (articles, images, research). Fixed by counting every live reservation from the window's start, whatever its stamp; a deterministic test reproduces the interleaving (fails on the old code), and the real-Postgres race now runs 10 rounds.
+
+**Status:** implemented and tested (PGlite 12, real Postgres 3 with 12 connections; quota-related suites 174/174 after the ledger fix). Takes effect on deploy.
 
 ## 6. WordPress placement requests (Image Studio Blog 2.2.0)
 
