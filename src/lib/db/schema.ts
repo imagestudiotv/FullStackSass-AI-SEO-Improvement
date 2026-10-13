@@ -812,6 +812,46 @@ export const articleVersions = pgTable("article_versions", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+/**
+ * Asking Google to index a published article, through SpeedyIndex (client,
+ * 2026-10-13: "index the generated articles ... Your article was indexed" in
+ * the 7-day wins). lib/indexing/run.ts drives it; one row per article URL.
+ *
+ * status: queued (waiting to be sent: new, or held because the SpeedyIndex
+ * balance ran out) -> submitted (in a SpeedyIndex task, taskId) -> indexed
+ * (Google has it: indexedAt, the customer's win) | not_indexed (the task
+ * finished without it, or no answer within ten days; error says why) |
+ * failed (SpeedyIndex refused the URL, or it could not be sent at all).
+ *
+ * SpeedyIndex charges only for URLs that get indexed, and refunds the rest.
+ */
+export const articleIndexing = pgTable(
+  "article_indexing",
+  {
+    id: pk(),
+    articleId: uuid("article_id")
+      .notNull()
+      .references(() => articles.id, { onDelete: "cascade" }),
+    websiteId: websiteId(),
+    url: text("url").notNull(),
+    status: text("status").default("queued").notNull(),
+    taskId: text("task_id"),
+    /** Send attempts that failed without an answer; given up after three. */
+    attempts: integer("attempts").default(0).notNull(),
+    submittedAt: timestamp("submitted_at"),
+    checkedAt: timestamp("checked_at"),
+    indexedAt: timestamp("indexed_at"),
+    error: text("error"),
+    ...timestamps,
+  },
+  (table) => [
+    // A moved post (new address) is a new request; the same address never twice.
+    uniqueIndex("article_indexing_article_url_uidx").on(table.articleId, table.url),
+    index("article_indexing_status_idx").on(table.status),
+    index("article_indexing_website_indexed_idx").on(table.websiteId, table.indexedAt),
+  ],
+);
+
 export const brandVoice = pgTable("brand_voice", {
   id: pk(),
   websiteId: uuid("website_id")

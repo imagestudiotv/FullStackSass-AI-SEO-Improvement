@@ -407,6 +407,13 @@
       "when": 1791901062839,
       "tag": "0057_article_images_faq",
       "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1791902554533,
+      "tag": "0058_article_indexing",
+      "breakpoints": true
     }
   ]
 }

@@ -90,6 +90,12 @@ export const PRICING = {
     dataforseo: { perCall: 0.002 },
     dataforseoKeywordsPer1kRows: { perCall: 0.02 },
     dataforseoRankTrackingPerKeyword: { perCall: 0.0006 },
+    /**
+     * SpeedyIndex, per URL Google indexed (lib/indexing): 100 tokens, and
+     * the smallest package is $5 for 5,000 tokens. Larger packages are
+     * cheaper; URLs not indexed are refunded, so they cost nothing.
+     */
+    speedyindexIndexedUrl: { perCall: 0.1 },
   },
   geo_query: {
     // TODO: cost per engine differs; set per engine when wired up.

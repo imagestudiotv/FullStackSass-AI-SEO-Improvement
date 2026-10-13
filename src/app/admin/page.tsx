@@ -8,6 +8,7 @@ import {
   Globe,
   Link2Off,
   PauseCircle,
+  SearchX,
   Send,
   ShieldCheck,
   type LucideIcon,
@@ -26,6 +27,7 @@ import {
   parseActivityRange,
   type ActivityRange,
 } from "@/lib/admin/dashboard";
+import { getIndexingSummary } from "@/lib/admin/indexing";
 import { formatDate, formatNumber } from "@/lib/i18n/format";
 import { cn } from "@/lib/utils";
 
@@ -62,12 +64,13 @@ async function attempt<T>(work: () => Promise<T>): Promise<T | null> {
  */
 export default async function AdminOverviewPage({ searchParams }: PageProps<"/admin">) {
   const range = parseActivityRange((await searchParams).range);
-  const [stats, attention, mix, activity, recent] = await Promise.all([
+  const [stats, attention, mix, activity, recent, indexing] = await Promise.all([
     attempt(() => getPlatformStats()),
     getAttention(),
     attempt(() => getSubscriptionMix()),
     attempt(() => getArticleActivity(range)),
     attempt(() => getRecentAdminActions(8)),
+    attempt(() => getIndexingSummary()),
   ]);
 
   const freeze = attention.controls?.find((control) => control.key === "publication_freeze");
@@ -81,6 +84,7 @@ export default async function AdminOverviewPage({ searchParams }: PageProps<"/ad
     { label: "Failed payments", count: attention.failedPayments, href: `/admin/payments?status=failed&paid=${FAILED_PAYMENTS_RANGE}`, icon: CreditCard, tone: "danger", detail: "Charges that failed in the last 30 days" },
     { label: "Past-due subscriptions", count: attention.pastDue, href: "/admin/organizations?status=past_due", icon: CreditCard, tone: "warning", detail: "Payment overdue" },
     { label: "Websites with failed analysis", count: attention.failedWebsites, href: "/admin/websites?status=failed", icon: Globe, tone: "warning", detail: "Site analysis did not finish" },
+    { label: "Articles held for Google indexing", count: indexing ? indexing.heldForBalance : null, href: "/admin#indexing", icon: SearchX, tone: "warning", detail: "The SpeedyIndex balance is empty - top it up and they go out" },
   ];
   const open = items.filter((item) => item.count === null || item.count > 0);
   const clear = items.filter((item) => item.count === 0);
@@ -198,6 +202,8 @@ export default async function AdminOverviewPage({ searchParams }: PageProps<"/ad
         </div>
       </section>
 
+      <IndexingSection indexing={indexing} />
+
       <AdminSection
         title="Article activity"
         description={
@@ -227,6 +233,46 @@ export default async function AdminOverviewPage({ searchParams }: PageProps<"/ad
         )}
       </AdminSection>
     </AdminPage>
+  );
+}
+
+/** Google indexing through SpeedyIndex (lib/indexing): switched on, balance, last 30 days. */
+function IndexingSection({ indexing }: { indexing: Awaited<ReturnType<typeof getIndexingSummary>> | null }) {
+  return (
+    <AdminSection
+      id="indexing"
+      title="Google indexing"
+      description="Every article that goes live is sent to SpeedyIndex; customers are told when Google indexes it. Last 30 days."
+    >
+      {indexing === null ? (
+        <AdminUnavailable title="Indexing figures could not be loaded" />
+      ) : !indexing.configured ? (
+        <p className="text-sm text-muted-foreground">
+          Not switched on. Set SPEEDYINDEX_API_KEY in Vercel (Production) and redeploy; articles that go live after that are sent.
+        </p>
+      ) : (
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+          <AdminStat
+            label="SpeedyIndex balance"
+            value={indexing.tokens === null ? "-" : n(indexing.tokens)}
+            unavailable={indexing.tokens === null}
+            hint={indexing.articlesLeft === null ? "Could not be read just now" : `Tokens - enough for ${n(indexing.articlesLeft)} indexed articles`}
+          />
+          <AdminStat label="Sent" value={n(indexing.last30.sent)} hint={`At most ${n(indexing.dailyLimit)} a day`} />
+          <AdminStat
+            label="Indexed"
+            value={n(indexing.last30.indexed)}
+            hint={indexing.last30.sent > 0 ? `${Math.round((indexing.last30.indexed / indexing.last30.sent) * 100)}% of those sent` : "None sent yet"}
+          />
+          <AdminStat label="Waiting for a result" value={n(indexing.last30.waiting)} hint="Usually 2-3 days, at most about a week" />
+          <AdminStat
+            label="Not indexed"
+            value={n(indexing.last30.notIndexed)}
+            hint={`Refunded by SpeedyIndex${indexing.last30.failed > 0 ? ` · ${n(indexing.last30.failed)} could not be sent` : ""}`}
+          />
+        </div>
+      )}
+    </AdminSection>
   );
 }
 

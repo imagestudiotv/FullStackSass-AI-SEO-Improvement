@@ -21,6 +21,8 @@ export type NotificationType =
   | "article.ready"
   | "article.failed"
   | "article.published"
+  /** Google indexed a published article (lib/indexing). */
+  | "article.indexed"
   /** Scheduled writing stopped because the plan's articles are used up. */
   | "articles.limit_reached"
   | "audit.ready"

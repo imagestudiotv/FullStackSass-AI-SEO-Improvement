@@ -2355,6 +2355,8 @@ export type Messages = {
       noWins: string;
       winPublished: string;
       winPublishedDetail: string;
+      winIndexed: string;
+      winIndexedDetail: string;
       winLinksReceived: string;
       winLinksReceivedDetail: string;
       winLinksGiven: string;
@@ -5366,6 +5368,8 @@ const en: Messages = {
       noWins: "Nothing new in the last 7 days yet.",
       winPublished: "Published: {title}",
       winPublishedDetail: "First published to your website this week",
+      winIndexed: "Indexed by Google: {title}",
+      winIndexedDetail: "Your article was indexed - it can now appear in Google searches",
       winLinksReceived: "{count} new link to your site verified|{count} new links to your site verified",
       winLinksReceivedDetail: "Links from partners' articles, seen live",
       winLinksGiven: "{count} hosted link verified - credits earned|{count} hosted links verified - credits earned",
@@ -8356,6 +8360,8 @@ const es: Messages = {
       noWins: "Nada nuevo en los últimos 7 días.",
       winPublished: "Publicado: {title}",
       winPublishedDetail: "Publicado por primera vez en tu sitio esta semana",
+      winIndexed: "Indexado por Google: {title}",
+      winIndexedDetail: "Tu artículo fue indexado: ya puede aparecer en las búsquedas de Google",
       winLinksReceived: "{count} enlace nuevo a tu sitio verificado|{count} enlaces nuevos a tu sitio verificados",
       winLinksReceivedDetail: "Enlaces desde artículos de socios, vistos activos",
       winLinksGiven: "{count} enlace alojado verificado: créditos ganados|{count} enlaces alojados verificados: créditos ganados",
@@ -11349,6 +11355,8 @@ const fr: Messages = {
       noWins: "Rien de nouveau ces 7 derniers jours.",
       winPublished: "Publié : {title}",
       winPublishedDetail: "Publié pour la première fois sur votre site cette semaine",
+      winIndexed: "Indexé par Google : {title}",
+      winIndexedDetail: "Votre article a été indexé : il peut désormais apparaître dans les recherches Google",
       winLinksReceived: "{count} nouveau lien vers votre site vérifié|{count} nouveaux liens vers votre site vérifiés",
       winLinksReceivedDetail: "Liens depuis des articles de partenaires, vus en ligne",
       winLinksGiven: "{count} lien hébergé vérifié - crédits gagnés|{count} liens hébergés vérifiés - crédits gagnés",
@@ -14339,6 +14347,8 @@ const it: Messages = {
       noWins: "Niente di nuovo negli ultimi 7 giorni.",
       winPublished: "Pubblicato: {title}",
       winPublishedDetail: "Pubblicato per la prima volta sul tuo sito questa settimana",
+      winIndexed: "Indicizzato da Google: {title}",
+      winIndexedDetail: "Il tuo articolo è stato indicizzato: ora può comparire nelle ricerche Google",
       winLinksReceived: "{count} nuovo link al tuo sito verificato|{count} nuovi link al tuo sito verificati",
       winLinksReceivedDetail: "Link dagli articoli dei partner, visti online",
       winLinksGiven: "{count} link ospitato verificato: crediti guadagnati|{count} link ospitati verificati: crediti guadagnati",
@@ -17328,6 +17338,8 @@ const de: Messages = {
       noWins: "In den letzten 7 Tagen noch nichts Neues.",
       winPublished: "Veröffentlicht: {title}",
       winPublishedDetail: "Diese Woche erstmals auf Ihrer Website veröffentlicht",
+      winIndexed: "Von Google indexiert: {title}",
+      winIndexedDetail: "Ihr Artikel wurde indexiert und kann jetzt in der Google-Suche erscheinen",
       winLinksReceived: "{count} neuer Link zu Ihrer Website bestätigt|{count} neue Links zu Ihrer Website bestätigt",
       winLinksReceivedDetail: "Links aus Partnerartikeln, live gesehen",
       winLinksGiven: "{count} gehosteter Link bestätigt - Credits verdient|{count} gehostete Links bestätigt - Credits verdient",

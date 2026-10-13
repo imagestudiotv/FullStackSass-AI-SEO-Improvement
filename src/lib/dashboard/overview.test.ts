@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  articleIndexing,
   articles,
   backlinkRequests,
   gaMetrics,
@@ -79,6 +80,21 @@ describe("achievements", () => {
     expect(o?.achievements.ok && o.achievements.data.articlesPublished).toBe(1);
     const wins = o?.wins.ok ? o.wins.data.items.filter((w) => w.kind === "published") : [];
     expect(wins.map((w) => (w.kind === "published" ? w.title : ""))).toEqual(["Article new"]);
+  });
+
+  it("an article Google indexed this week is a win (client, 2026-10-13: \"Your article was indexed\"); one indexed earlier, or still waiting, is not", async () => {
+    const { orgId, site } = await workspace();
+    const recent = await publishedArticle(site.id, site.domain, "indexed-now", daysAgo(20));
+    const earlier = await publishedArticle(site.id, site.domain, "indexed-before", daysAgo(30));
+    const waiting = await publishedArticle(site.id, site.domain, "waiting", daysAgo(25));
+    await test.db.insert(articleIndexing).values([
+      { articleId: recent.id, websiteId: site.id, url: recent.publishedUrl!, status: "indexed", indexedAt: daysAgo(1) },
+      { articleId: earlier.id, websiteId: site.id, url: earlier.publishedUrl!, status: "indexed", indexedAt: daysAgo(12) },
+      { articleId: waiting.id, websiteId: site.id, url: waiting.publishedUrl!, status: "submitted" },
+    ]);
+    const o = await overview(orgId, site.id);
+    const wins = o?.wins.ok ? o.wins.data.items.filter((w) => w.kind === "indexed") : [];
+    expect(wins).toEqual([{ kind: "indexed", title: "Article indexed-now", at: expect.any(Date), href: `/websites/${site.id}/articles/${recent.id}` }]);
   });
 
   it("article clicks are page-scoped (other pages excluded) and GA sessions stay a separate measure", async () => {

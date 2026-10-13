@@ -1,4 +1,4 @@
-import { ArrowUpRight, ExternalLink, FileText, Link2, Search, Sparkles, Stethoscope, TrendingUp } from "lucide-react";
+import { ArrowUpRight, ExternalLink, FileText, Link2, Search, SearchCheck, Sparkles, Stethoscope, TrendingUp } from "lucide-react";
 import Link from "next/link";
 
 import { AuthorityBadge } from "@/components/reports/authority-badge";
@@ -248,6 +248,8 @@ export function WinsCard({ overview, t, locale }: { overview: DashboardOverview;
     switch (win.kind) {
       case "published":
         return { icon: <FileText className="size-4" />, title: format(t.winPublished, { title: win.title }), detail: t.winPublishedDetail };
+      case "indexed":
+        return { icon: <SearchCheck className="size-4" />, title: format(t.winIndexed, { title: win.title }), detail: t.winIndexedDetail };
       case "links_received":
         return { icon: <Link2 className="size-4" />, title: plural(t.winLinksReceived, win.count, { count: win.count }), detail: t.winLinksReceivedDetail };
       case "links_given":
