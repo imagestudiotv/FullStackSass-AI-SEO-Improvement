@@ -1,6 +1,8 @@
+import { headers } from "next/headers";
 import { Suspense } from "react";
 
 import { runPublicAudit } from "@/lib/audit/public-audit";
+import { visitorKey } from "@/lib/visitor-key";
 import { startingOffer } from "@/lib/billing";
 import { getMessages } from "@/lib/i18n/messages";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
@@ -126,7 +128,9 @@ function AuditHeading() {
  * with the reason beneath it.
  */
 async function AuditOutcome({ domain }: { domain: string }) {
-  const [outcome, offer] = await Promise.all([runPublicAudit(domain), startingOffer()]);
+  // Limits are per visitor, identified only through trusted ingress (lib/visitor-key.ts).
+  const visitor = visitorKey(await headers());
+  const [outcome, offer] = await Promise.all([runPublicAudit(domain, visitor), startingOffer()]);
 
   if (!outcome.ok) {
     return (

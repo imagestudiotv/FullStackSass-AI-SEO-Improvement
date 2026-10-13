@@ -1,4 +1,4 @@
-import { and, eq, gte, sql as raw } from "drizzle-orm";
+import { and, eq, gte } from "drizzle-orm";
 
 import { auditPage, auditSite, scoreAudit, type Issue } from "@/lib/audit/rules";
 import { crawlSite } from "@/lib/audit/crawler";
@@ -11,6 +11,7 @@ import {
   type CrawlerAccess,
 } from "@/lib/audit/ai-crawlers";
 import { fetchRobotsTxt } from "@/lib/audit/robots";
+import { guardPublicTool } from "@/lib/tools/public-guard";
 
 /**
  * Free public audit — the lead magnet.
@@ -37,14 +38,15 @@ const CACHE_HOURS = 24;
 /** Findings shown before signing up. */
 export const PUBLIC_ISSUE_LIMIT = 5;
 
-/**
- * Audits allowed per hour across all visitors.
- *
- * Deliberately global rather than per-IP: an attacker rotates IPs trivially,
- * and the resource being protected is our own crawl capacity and the goodwill
- * of the sites being crawled. A legitimate visitor is never near this.
- */
-const HOURLY_LIMIT = 60;
+/*
+  Rate limits, concurrency and in-flight de-duplication live in
+  lib/tools/public-guard.ts, shared with the other free tools. The old limit
+  here counted cached SUCCESSFUL audits, read before crawling - so failed,
+  blocked and empty crawls were never counted, and simultaneous requests all
+  passed the same count (70 failed attempts reached the crawler under a
+  nominal 60 an hour). Capacity is now reserved before the crawl and counts
+  whatever the crawl does.
+*/
 
 /**
  * One kind of problem, with every page it affects.
@@ -177,20 +179,6 @@ async function readCached(domain: string): Promise<PublicAuditResult | null> {
   return cached ? { ...cached, cached: true } : null;
 }
 
-async function withinRateLimit(): Promise<boolean> {
-  const since = new Date(Date.now() - 60 * 60 * 1000);
-  const [row] = await db
-    .select({ n: raw<number>`count(*)::int` })
-    .from(providerCache)
-    .where(
-      and(
-        eq(providerCache.provider, "public-audit"),
-        gte(providerCache.createdAt, since),
-      ),
-    );
-  return (row?.n ?? 0) < HOURLY_LIMIT;
-}
-
 /**
  * Runs a free audit for a domain.
  *
@@ -200,6 +188,8 @@ async function withinRateLimit(): Promise<boolean> {
  */
 export async function runPublicAudit(
   input: string,
+  /** From visitorKey(): the page reads the request headers; this does not. */
+  visitor: string,
 ): Promise<PublicAuditOutcome> {
   let normalized;
   try {
@@ -217,20 +207,29 @@ export async function runPublicAudit(
     };
   }
 
+  // A cached result is free: it neither counts nor waits.
   const cached = await readCached(normalized.domain);
   if (cached) return { ok: true, result: cached };
 
-  if (!(await withinRateLimit())) {
-    return {
-      ok: false,
-      error: {
-        kind: "rate_limited",
-        message:
-          "We are checking a lot of websites right now. Please try again in a few minutes.",
-      },
-    };
+  const guarded = await guardPublicTool<PublicAuditOutcome>({
+    tool: "audit",
+    site: normalized.domain,
+    visitor,
+    // Waited behind another request for this site: use what it cached.
+    beforeRun: async () => {
+      const fresh = await readCached(normalized.domain);
+      return fresh ? { ok: true, result: fresh } : null;
+    },
+    run: () => crawlAndScore(normalized),
+  });
+  if (!guarded.ok) {
+    return { ok: false, error: { kind: "rate_limited", message: guarded.refusal.message } };
   }
+  return guarded.value;
+}
 
+/** The crawl and the result - only ever run through guardPublicTool. */
+async function crawlAndScore(normalized: { url: string; domain: string }): Promise<PublicAuditOutcome> {
   let crawl;
   try {
     crawl = await crawlSite(normalized.url, PUBLIC_MAX_PAGES);

@@ -3,6 +3,7 @@ import * as cheerio from "cheerio";
 import { InvalidUrlError, isPublicWebsiteUrl, normalizeWebsiteUrl } from "@/lib/websites/url";
 import { SNIPPET_LIMITS } from "@/lib/tools/snippet";
 import { safeFetch } from "@/lib/net/safe-fetch";
+import { guardedSiteTool } from "@/lib/tools/public-guard";
 
 /**
  * Meta tag checker.
@@ -70,7 +71,21 @@ function judge(
   return { status: "good", note: null };
 }
 
-export async function checkMetaTags(input: string): Promise<MetaTagOutcome> {
+/**
+ * The tool, behind the shared abuse protection (lib/tools/public-guard.ts):
+ * per-visitor, per-site and overall limits reserved before any fetch, one
+ * request per site at a time, and bounded concurrency.
+ */
+export async function checkMetaTags(
+  input: string,
+  /** From visitorKey(): the page reads the request headers; this does not. */
+  visitor: string,
+): Promise<MetaTagOutcome> {
+  return guardedSiteTool("meta-tags", input, visitor, () => checkMetaTagsUnguarded(input));
+}
+
+/** Only ever called through checkMetaTags above. */
+async function checkMetaTagsUnguarded(input: string): Promise<MetaTagOutcome> {
   let normalized;
   try {
     normalized = normalizeWebsiteUrl(input);

@@ -1,5 +1,10 @@
 import { isPublicWebsiteUrl } from "@/lib/websites/url";
-import { safeFetch } from "@/lib/net/safe-fetch";
+import { InsecureTransportError, safeFetch } from "@/lib/net/safe-fetch";
+import { insecureConnectionMessage } from "@/lib/publishing/https";
+
+function insecureMessage(siteUrl: string, error: InsecureTransportError): string {
+  return insecureConnectionMessage(siteUrl, error, "your application password");
+}
 
 /**
  * WordPress REST API client.
@@ -77,6 +82,10 @@ async function request<T>(
     response = await safeFetch(apiUrl(credentials.siteUrl, path), {
       ...init,
       signal: controller.signal,
+      // The application password travels in every request: https only, no
+      // downgrade, no redirect to another address - also for connections
+      // stored before this rule (they get a reconnect message below).
+      credentialed: true,
       // The deadline also covers reading the body.
       timeoutMs: TIMEOUT_MS,
       headers: {
@@ -89,6 +98,10 @@ async function request<T>(
       },
     });
   } catch (error) {
+    if (error instanceof InsecureTransportError) {
+      // Nothing was sent. "auth": the fix is to reconnect, not to wait.
+      throw new WordPressError(insecureMessage(credentials.siteUrl, error), "auth", error.status);
+    }
     if (error instanceof Error && error.name === "AbortError") {
       throw new WordPressError("The site took too long to respond", "unreachable");
     }

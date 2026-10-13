@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import { FileText } from "lucide-react";
 
 import { CopyButton } from "@/components/copy-button";
@@ -9,6 +10,7 @@ import {
   ToolHero,
 } from "@/components/tool-page";
 import { generateLlmsTxt } from "@/lib/tools/llms-txt";
+import { visitorKey } from "@/lib/visitor-key";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
 
 export const metadata = {
@@ -27,7 +29,7 @@ export default async function LlmsTxtGeneratorPage({
 }: PageProps<"/tools/llms-txt-generator">) {
   const params = await searchParams;
   const domain = typeof params.domain === "string" ? params.domain.trim() : "";
-  const outcome = domain ? await generateLlmsTxt(domain) : null;
+  const outcome = domain ? await generateLlmsTxt(domain, visitorKey(await headers())) : null;
 
   return (
     <div>

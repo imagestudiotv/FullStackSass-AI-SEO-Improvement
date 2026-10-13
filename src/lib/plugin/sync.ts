@@ -193,6 +193,12 @@ async function postForm(
         },
         body,
         redirect: "error",
+        /*
+          A fresh signature made with the site's key: https only. A plugin
+          reporting an http:// address simply is not nudged (best effort);
+          it still checks in on its own schedule, over https to RepGet.
+        */
+        credentialed: true,
         signal: AbortSignal.timeout(SYNC_TIMEOUT_MS),
         // A check-now reply is a few bytes of JSON: refuse anything bigger
         // while it streams, rather than reading it all and slicing.

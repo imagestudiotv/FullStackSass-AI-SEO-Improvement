@@ -4,12 +4,17 @@
  *   npm run db:rls            # report only, changes nothing
  *   npm run db:rls -- --apply
  *
- * WHY A SCRIPT AND NOT db:push. drizzle-kit push diffs the schema file against
- * the database and writes the DDL it infers; RLS is not expressed in the
- * schema file at all, so push neither applies drizzle/0026_enable_rls.sql nor
- * notices it is missing. The statements are idempotent — ENABLE on a table
- * that already has it is a no-op — so running this repeatedly is safe, and it
- * doubles as the check that nothing has drifted back.
+ * WHY A SCRIPT AND NOT db:push. Before 0056 RLS was not expressed in the
+ * schema file, so push neither applied drizzle/0026_enable_rls.sql nor noticed
+ * it was missing (0046-0048 shipped three tables without it). The schema now
+ * declares RLS on every table (src/lib/db/table.ts) and migrations carry it;
+ * this remains a repair tool for drift. The statements are idempotent — ENABLE
+ * on a table that already has it is a no-op. It covers RLS only, not grants:
+ * the full read-only check is `npm run check:db-security`
+ * (scripts/check-db-security.mjs), which also looks at privileges.
+ *
+ * CAUTION: it loads .env.local, whose DIRECT_URL is the PRODUCTION database on
+ * this project. Check the "Database:" line it prints before using --apply.
  *
  * WHAT IT DOES NOT DO: create policies. RLS with no policy denies every row to
  * every ordinary role, which is the intent. The application is unaffected

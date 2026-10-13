@@ -13,6 +13,7 @@ import { decryptSecret, encryptSecret } from "@/lib/crypto";
 import { db } from "@/lib/db";
 import { integrations } from "@/lib/db/schema";
 import { refreshAccessToken, type TokenSet } from "@/lib/analytics/google-oauth";
+import { metaAfterConnect, type ConnectedBy, type PropertyMeta } from "@/lib/analytics/property-access";
 
 /**
  * Stored Google connection for one website.
@@ -32,18 +33,30 @@ type StoredTokens = {
   scope: string;
 };
 
-export type GoogleMeta = {
-  /** Search Console property, e.g. "sc-domain:example.com". */
+export type GoogleMeta = PropertyMeta & {
+  /**
+   * Search Console property, e.g. "sc-domain:example.com". The CHOICE; what
+   * an import may fetch is the approved binding (lib/analytics/property-access.ts).
+   */
   searchConsoleSite?: string | null;
   /** GA4 property, e.g. "properties/123456789". */
   analyticsProperty?: string | null;
   email?: string | null;
 };
 
+/**
+ * Stores tokens for a website's Google connection.
+ *
+ * `connectedBy` is passed only for a NEW consent (the OAuth callback): it
+ * records who connected the account, and decides what happens to the
+ * previous property choice (metaAfterConnect). A token refresh passes none
+ * and changes nothing but the tokens.
+ */
 export async function saveTokens(
   websiteId: string,
   tokens: TokenSet,
   meta: GoogleMeta = {},
+  options: { connectedBy?: ConnectedBy } = {},
 ): Promise<void> {
   const [existing] = await db
     .select({ id: integrations.id, credentials: integrations.credentials, meta: integrations.meta })
@@ -71,11 +84,14 @@ export async function saveTokens(
     scope: tokens.scope,
   };
 
+  const previousMeta = (existing?.meta as GoogleMeta | null) ?? null;
   const values = {
     credentials: stored,
     status: "connected",
     verifiedAt: new Date(),
-    meta: { ...((existing?.meta as GoogleMeta | null) ?? {}), ...meta },
+    meta: options.connectedBy
+      ? { ...metaAfterConnect(previousMeta, options.connectedBy), ...meta }
+      : { ...(previousMeta ?? {}), ...meta },
     updatedAt: new Date(),
   };
 
@@ -143,6 +159,17 @@ export async function getConnection(
     accessToken: refreshed.accessToken,
     meta,
   };
+}
+
+/** The stored metadata of a website's Google connection, without touching tokens; null when none. */
+export async function getConnectionMeta(websiteId: string): Promise<GoogleMeta | null> {
+  const [row] = await db
+    .select({ meta: integrations.meta })
+    .from(integrations)
+    .where(and(eq(integrations.websiteId, websiteId), eq(integrations.kind, GOOGLE_KIND)))
+    .limit(1);
+  if (!row) return null;
+  return (row.meta as GoogleMeta | null) ?? {};
 }
 
 export async function disconnect(websiteId: string): Promise<void> {

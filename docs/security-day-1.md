@@ -20,7 +20,10 @@ performed as part of this work.
   checks and increments under the database row lock. Limits survive process
   restarts. Rejected attempts do not extend the window. Store errors fail
   closed; no memory fallback exists. Old buckets are removed in bounded batches.
-- CSP supports `CSP_MODE=report-only` (default) and `CSP_MODE=enforce`. Private
+- CSP supports `CSP_MODE=report-only` (default) and `CSP_MODE=enforce`.
+  *(Superseded 2026-10-12: enforce is now the default, `report-only` is a
+  rollback switch, and the mode is fixed at build time for both policies - see
+  [security-review-2026-10-12.md](security-review-2026-10-12.md).)* Private
   application and authentication documents receive a fresh nonce, strict
   script policy, no inline event handlers and no-store caching. Cached public
   pages retain their inline Next.js bootstrap allowance; this is deliberately
@@ -42,6 +45,8 @@ The sanitizer requires Node >=22.12.0; CI uses Node 22.
 2. Deploy a staging build with `CSP_MODE=enforce`. Set it at both build time
    and runtime: Next's global headers are built into the release, while the
    nonce proxy reads runtime configuration. Do not change just one side.
+   *(Superseded 2026-10-12: the proxy now follows the build's mode, and enforce
+   is the default - see security-review-2026-10-12.md for the current steps.)*
 3. Check sign-in, OTP, Google OAuth, customer/admin article previews, editor
    saves, chat, CMS delivery and payment redirects using staging/test accounts.
    Inspect browser CSP violations and Sentry reports. Local fixtures cannot

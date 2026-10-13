@@ -18,9 +18,17 @@ import { getSession } from "@/lib/auth-guard";
 import {
   disconnect,
   getConnection,
+  getConnectionMeta,
   GOOGLE_KIND,
   type GoogleMeta,
 } from "@/lib/analytics/connection";
+import {
+  approvedBinding,
+  isAnalyticsPropertyId,
+  isSearchConsoleSiteId,
+  propertyPermissions,
+  type PropertyApproval,
+} from "@/lib/analytics/property-access";
 import {
   listAnalyticsProperties,
   listSearchConsoleSites,
@@ -51,12 +59,24 @@ export type AnalyticsConnection = {
   searchConsoleSite: string | null;
   analyticsProperty: string | null;
   lastImportedAt: Date | null;
+  /**
+   * What THIS caller may do (lib/analytics/property-access.ts). The UI only
+   * mirrors it; every action below enforces it on the server.
+   */
+  canManageProperties: boolean;
+  canReplaceConnection: boolean;
+  /**
+   * A property is chosen but not approved for this connection: chosen before
+   * approvals were recorded (still importing, as "legacy"), or left over from
+   * another connection (not importing). Choosing it again confirms it.
+   */
+  needsApproval: boolean;
 };
 
 export async function getAnalyticsConnection(
   websiteId: string,
 ): Promise<AnalyticsConnection> {
-  const { site } = await requireWebsite(websiteId);
+  const { site, userId, access } = await requireWebsite(websiteId);
 
   const [row] = await db
     .select()
@@ -73,6 +93,8 @@ export async function getAnalyticsConnection(
       searchConsoleSite: null,
       analyticsProperty: null,
       lastImportedAt: null,
+      ...propertyPermissions({ userId, access }, null),
+      needsApproval: false,
     };
   }
 
@@ -83,8 +105,15 @@ export async function getAnalyticsConnection(
     searchConsoleSite: meta.searchConsoleSite ?? null,
     analyticsProperty: meta.analyticsProperty ?? null,
     lastImportedAt: row.verifiedAt,
+    ...propertyPermissions({ userId, access }, meta),
+    needsApproval: approvedBinding(meta).unapproved,
   };
 }
+
+const CANNOT_MANAGE =
+  "Only the website's owner, or the person who connected this Google account, can see and choose its properties.";
+const CANNOT_REPLACE =
+  "This Google connection belongs to the website's owner. Only the owner can disconnect it or connect a different account.";
 
 /** Produces the Google consent URL for this website. */
 export async function startGoogleConnect(
@@ -94,6 +123,13 @@ export async function startGoogleConnect(
   const guard = await requireEditor(websiteId);
   if (!guard.ok) return { ok: false, error: guard.error };
   const { site } = guard.context;
+
+  // Connecting over an existing connection REPLACES it: not a guest's call
+  // when the owner made it (re-checked in the callback, too).
+  const existing = await getConnectionMeta(site.id);
+  if (existing && !propertyPermissions(guard.context, existing).canReplaceConnection) {
+    return { ok: false, error: CANNOT_REPLACE };
+  }
 
   if (!isGoogleConfigured()) {
     return { ok: false, error: "Google integration is not configured yet." };
@@ -128,6 +164,10 @@ export async function disconnectGoogle(
   const guard = await requireEditor(websiteId);
   if (!guard.ok) return { ok: false, error: guard.error };
   const { site } = guard.context;
+  const existing = await getConnectionMeta(site.id);
+  if (existing && !propertyPermissions(guard.context, existing).canReplaceConnection) {
+    return { ok: false, error: CANNOT_REPLACE };
+  }
   await disconnect(site.id);
   revalidatePath(`/websites/${site.id}/google`);
   return { ok: true, data: null };
@@ -138,11 +178,22 @@ export type AvailableProperties = {
   analytics: { name: string; displayName: string }[];
 };
 
-/** Lists what the connected Google account can actually read. */
+/**
+ * Lists what the connected Google account can read - EVERY property of that
+ * account, not just this website's, so only someone allowed to manage the
+ * connection's properties gets the list (lib/analytics/property-access.ts).
+ * Read access to the website is not enough: a guest would otherwise browse
+ * the owner's other clients.
+ */
 export async function listProperties(
   websiteId: string,
 ): Promise<ActionResult<AvailableProperties>> {
-  const { site } = await requireWebsite(websiteId);
+  const ctx = await requireWebsite(websiteId);
+  const { site } = ctx;
+
+  const meta = await getConnectionMeta(site.id);
+  if (!meta) return { ok: false, error: "Reconnect your Google account" };
+  if (!propertyPermissions(ctx, meta).canManageProperties) return { ok: false, error: CANNOT_MANAGE };
 
   const connection = await getConnection(site.id);
   if (!connection) {
@@ -164,31 +215,71 @@ export async function listProperties(
   }
 }
 
+/**
+ * Chooses - and approves for this website - the properties it imports from.
+ *
+ * Only someone allowed to manage the connection's properties may (see
+ * listProperties). Each id must be well-formed AND one the connected account
+ * can read right now; the choice is stored as an approval bound to this
+ * connection, which is all an import will fetch. A property in the same
+ * Google account is NOT automatically this website's: the approval is the
+ * authorisation, and it covers a GA4 property shared by several domains too.
+ */
 export async function selectProperties(
   websiteId: string,
   input: { searchConsoleSite?: string | null; analyticsProperty?: string | null },
 ): Promise<ActionResult<null>> {
-  /*
-    requireEditor: this WRITES which property the site imports from, so a
-    view-only collaborator could silently repoint the owner's reporting at
-    another property. Its siblings in this file already guard this way; this
-    one was reading with requireWebsite and then writing.
-  */
   const guard = await requireEditor(websiteId);
   if (!guard.ok) return { ok: false, error: guard.error };
   const { site } = guard.context;
 
+  const meta = await getConnectionMeta(site.id);
+  if (!meta) return { ok: false, error: "Reconnect your Google account" };
+  if (!propertyPermissions(guard.context, meta).canManageProperties) return { ok: false, error: CANNOT_MANAGE };
+
+  const searchConsoleSite = typeof input.searchConsoleSite === "string" && input.searchConsoleSite ? input.searchConsoleSite : null;
+  const analyticsProperty = typeof input.analyticsProperty === "string" && input.analyticsProperty ? input.analyticsProperty : null;
+  if (searchConsoleSite !== null && !isSearchConsoleSiteId(searchConsoleSite)) {
+    return { ok: false, error: "That is not a Search Console property" };
+  }
+  if (analyticsProperty !== null && !isAnalyticsPropertyId(analyticsProperty)) {
+    return { ok: false, error: "That is not a Google Analytics property" };
+  }
+
   const connection = await getConnection(site.id);
   if (!connection) return { ok: false, error: "Reconnect your Google account" };
 
+  // The account must reach the properties now - checked with Google, not
+  // taken from the browser.
+  try {
+    if (searchConsoleSite !== null) {
+      const sites = await listSearchConsoleSites(connection.accessToken);
+      if (!sites.some((s) => s.siteUrl === searchConsoleSite)) {
+        return { ok: false, error: "The connected Google account cannot read that Search Console property" };
+      }
+    }
+    if (analyticsProperty !== null) {
+      const properties = await listAnalyticsProperties(connection.accessToken);
+      if (!properties.some((p) => p.name === analyticsProperty)) {
+        return { ok: false, error: "The connected Google account cannot read that Analytics property" };
+      }
+    }
+  } catch (error) {
+    if (error instanceof GoogleApiError) return { ok: false, error: error.message };
+    throw error;
+  }
+
+  const approval: PropertyApproval = {
+    searchConsoleSite,
+    analyticsProperty,
+    approvedBy: guard.context.userId,
+    approvedAt: new Date().toISOString(),
+    connection: connection.meta.connectedBy?.userId ?? null,
+  };
   await db
     .update(integrations)
     .set({
-      meta: {
-        ...connection.meta,
-        searchConsoleSite: input.searchConsoleSite ?? null,
-        analyticsProperty: input.analyticsProperty ?? null,
-      },
+      meta: { ...connection.meta, searchConsoleSite, analyticsProperty, approval },
       updatedAt: new Date(),
     })
     .where(eq(integrations.id, connection.integrationId));
@@ -211,6 +302,10 @@ export async function startImport(
   }
   if (!connection.searchConsoleSite && !connection.analyticsProperty) {
     return { ok: false, error: "Choose a property to import from first" };
+  }
+  // Only an approved binding is imported; the import checks it again.
+  if (approvedBinding(await getConnectionMeta(site.id)).basis === "none") {
+    return { ok: false, error: "The chosen property has to be confirmed by the website's owner (or whoever connected Google) first" };
   }
 
   await queueJob({

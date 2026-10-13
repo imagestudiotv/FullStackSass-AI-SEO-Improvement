@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import { AlertTriangle, Check, FileCode, X } from "lucide-react";
 
 import { DomainToolForm } from "@/components/domain-tool-form";
@@ -8,6 +9,7 @@ import {
   ToolHero,
 } from "@/components/tool-page";
 import { checkSitemap } from "@/lib/tools/sitemap";
+import { visitorKey } from "@/lib/visitor-key";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
 
 export const metadata = {
@@ -27,7 +29,7 @@ export default async function SitemapCheckerPage({
 }: PageProps<"/tools/sitemap-checker">) {
   const params = await searchParams;
   const domain = typeof params.domain === "string" ? params.domain.trim() : "";
-  const outcome = domain ? await checkSitemap(domain) : null;
+  const outcome = domain ? await checkSitemap(domain, visitorKey(await headers())) : null;
 
   return (
     <div>

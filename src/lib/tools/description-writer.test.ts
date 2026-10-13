@@ -176,10 +176,14 @@ describe("failures", () => {
 });
 
 describe("visitorKey", () => {
+  // On Vercel, whose edge overwrites these headers. Elsewhere they are not
+  // trusted at all (lib/visitor-key.ts; public-guard.test.ts covers that).
+  const vercel = { VERCEL: "1" };
+
   it("hashes the edge-supplied address and never returns it", () => {
-    const key = visitorKey(new Headers({ "x-real-ip": "203.0.113.7", "x-forwarded-for": "198.51.100.1" }));
+    const key = visitorKey(new Headers({ "x-real-ip": "203.0.113.7", "x-forwarded-for": "198.51.100.1" }), vercel);
     expect(key).not.toContain("203.0.113.7");
-    expect(key).toBe(visitorKey(new Headers({ "x-real-ip": "203.0.113.7" })));
-    expect(key).not.toBe(visitorKey(new Headers({ "x-forwarded-for": "198.51.100.1, 10.0.0.1" })));
+    expect(key).toBe(visitorKey(new Headers({ "x-real-ip": "203.0.113.7" }), vercel));
+    expect(key).not.toBe(visitorKey(new Headers({ "x-forwarded-for": "198.51.100.1, 10.0.0.1" }), vercel));
   });
 });

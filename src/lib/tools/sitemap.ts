@@ -1,5 +1,6 @@
 import { InvalidUrlError, isPublicWebsiteUrl, normalizeWebsiteUrl } from "@/lib/websites/url";
 import { safeFetch } from "@/lib/net/safe-fetch";
+import { guardedSiteTool } from "@/lib/tools/public-guard";
 
 /**
  * Sitemap finder and validator.
@@ -187,7 +188,21 @@ async function checkOne(
 }
 
 /** Finds and validates the sitemaps for a domain. */
-export async function checkSitemap(input: string): Promise<SitemapOutcome> {
+/**
+ * The tool, behind the shared abuse protection (lib/tools/public-guard.ts):
+ * per-visitor, per-site and overall limits reserved before any fetch, one
+ * request per site at a time, and bounded concurrency.
+ */
+export async function checkSitemap(
+  input: string,
+  /** From visitorKey(): the page reads the request headers; this does not. */
+  visitor: string,
+): Promise<SitemapOutcome> {
+  return guardedSiteTool("sitemap", input, visitor, () => checkSitemapUnguarded(input));
+}
+
+/** Only ever called through checkSitemap above. */
+async function checkSitemapUnguarded(input: string): Promise<SitemapOutcome> {
   let normalized;
   try {
     normalized = normalizeWebsiteUrl(input);

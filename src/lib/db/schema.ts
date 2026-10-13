@@ -20,7 +20,6 @@ import {
   integer,
   jsonb,
   numeric,
-  pgTable,
   real,
   text,
   timestamp,
@@ -28,6 +27,9 @@ import {
   uuid,
   vector,
 } from "drizzle-orm/pg-core";
+
+// Every table gets Row Level Security - see ./table.ts.
+import { pgTable } from "./table";
 
 import { organization, user } from "./auth-tables";
 import { organizationId, pk, timestamps, userId } from "./columns";

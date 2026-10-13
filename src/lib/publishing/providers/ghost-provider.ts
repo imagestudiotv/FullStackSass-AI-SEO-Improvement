@@ -7,7 +7,8 @@ import {
   type PublishInput,
 } from "@/lib/publishing/provider";
 import { isPublicWebsiteUrl } from "@/lib/websites/url";
-import { safeFetch } from "@/lib/net/safe-fetch";
+import { InsecureTransportError, safeFetch } from "@/lib/net/safe-fetch";
+import { insecureConnectionMessage } from "@/lib/publishing/https";
 
 /**
  * Ghost.
@@ -101,6 +102,8 @@ async function request<T>(
     response = await safeFetch(apiUrl(credentials.siteUrl, path), {
       ...init,
       signal: controller.signal,
+      // A signed admin token in every request: https only, no redirect away.
+      credentialed: true,
       // The deadline also covers reading the body.
       timeoutMs: TIMEOUT_MS,
       headers: {
@@ -124,6 +127,9 @@ async function request<T>(
      * real problem is the key they just pasted.
      */
     if (error instanceof ProviderError) throw error;
+    if (error instanceof InsecureTransportError) {
+      throw new ProviderError(insecureConnectionMessage(credentials.siteUrl, error, "your Admin API key"), "auth", error.status);
+    }
 
     if (error instanceof Error && error.name === "AbortError") {
       throw new ProviderError("The site took too long to respond", "unreachable");
@@ -323,8 +329,9 @@ export const ghostProvider: CmsProvider = {
       const response = await safeFetch(apiUrl(credentials.siteUrl, "/images/upload/"), {
         method: "POST",
         signal: controller.signal,
-      // The deadline also covers reading the body.
-      timeoutMs: TIMEOUT_MS,
+        credentialed: true,
+        // The deadline also covers reading the body.
+        timeoutMs: TIMEOUT_MS,
         // No content-type: fetch sets the multipart boundary itself, and
         // setting it by hand produces a body the server cannot parse.
         headers: {
@@ -350,6 +357,11 @@ export const ghostProvider: CmsProvider = {
       }
 
       return { id: url, url };
+    } catch (error) {
+      if (error instanceof InsecureTransportError) {
+        throw new ProviderError(insecureConnectionMessage(credentials.siteUrl, error, "your Admin API key"), "auth", error.status);
+      }
+      throw error;
     } finally {
       clearTimeout(timer);
     }

@@ -76,6 +76,11 @@ jobs:
       - name: Build
         run: npm run build
 
+      # The CSP is enforced: a page under the nonce policy (src/proxy.ts) that
+      # the build prerendered would have every script blocked.
+      - name: No prerendered page under the nonce CSP
+        run: npm run check:csp-routes
+
   # Check runtime and build dependencies separately. Both gates fail on HIGH
   # or CRITICAL findings, except owner-accepted, expiring exceptions in
   # .github/audit-allowlist.json (full-tree gate, dev dependencies only).
@@ -178,3 +183,9 @@ jobs:
           git show a02ac24db2e0ae2a88f831899c88654615eb9827:wordpress-plugin/repget-connector/repget-connector.php > "$RUNNER_TEMP/plugin-1.5.0.php"
           grep -q "Version: *1.5.0" "$RUNNER_TEMP/plugin-1.5.0.php"
           php wordpress-plugin/tests/real-wordpress-concurrency.php "$RUNNER_TEMP/wordpress" wordpress-plugin/repget-connector/repget-connector.php "$RUNNER_TEMP/plugin-1.5.0.php"
+
+      # Image Studio Blog "Get Featured" limits: spoofed forwarding headers,
+      # requests released together at a barrier, trusted-proxy chains, and
+      # PayPal's payment notice for a request made that way.
+      - name: Image Studio plugin request limits (real WordPress + MySQL)
+        run: php wordpress-plugin/tests/imagestudio-featured.php "$RUNNER_TEMP/wordpress" wordpress-plugin/imagestudio-blog/imagestudio-blog.php

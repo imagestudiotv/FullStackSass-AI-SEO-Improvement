@@ -71,7 +71,7 @@ It also carries the layout fixes the client asked for:
 - **Homepage grid on phones:** the columns stack on their own, so there is no gap under "Bridal Silhouette" and "The Lakeside Vows" is no longer covered.
 - **Portfolio posts:** the gallery fills the screen without the footer, CLOSE works on a computer, and the WhatsApp chat button stays.
 
-Install `wordpress-plugin/releases/imagestudio-blog-2.1.0.zip`, made with `node wordpress-plugin/build-imagestudio.mjs`. The install, cache-clearing and check steps are in the plugin's `README.txt`. Do not install the older "RepGet Blog Services" or "Image Studio Layout Fixes" packages; they are replaced.
+Install `wordpress-plugin/releases/imagestudio-blog-2.2.0.zip` (2.2.0: trusted-proxy visitor addresses and atomic "Get Featured" request limits - see the README's "Request limits" and install step 8), made with `node wordpress-plugin/build-imagestudio.mjs`. The install, cache-clearing and check steps are in the plugin's `README.txt`. Do not install the older "RepGet Blog Services" or "Image Studio Layout Fixes" packages; they are replaced.
 
 ## Articles in other languages
 

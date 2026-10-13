@@ -330,6 +330,23 @@ describe("reserveAll", () => {
     const { rows } = await test.client.query("select id from spend_reservations where key = 'visitor'");
     expect(rows).toHaveLength(1);
   });
+
+  /*
+    The race CI caught (2026-10-12): each request reads the clock BEFORE it
+    waits for the lock. A reads 10:00:00.000, B reads 10:00:00.001; B gets the
+    lock first and records itself at .001; then A counts. A must see B's row,
+    even though it is "later" than A's own clock - otherwise one request too
+    many gets through (and across instances, clocks differ by far more).
+  */
+  it("counts a reservation recorded a moment 'later' than its own clock", async () => {
+    const rule = hourly("race", 1);
+    const a = new Date("2026-10-12T10:00:00.000Z");
+    const b = new Date(a.getTime() + 1);
+    expect((await reserveAll([rule], ctx, { now: b })).ok).toBe(true);
+    expect(await reserveAll([rule], ctx, { now: a })).toEqual({ ok: false, rule });
+    // Or seconds later on a slower clock: still counted.
+    expect(await reserveAll([rule], ctx, { now: new Date(a.getTime() - 5_000) })).toEqual({ ok: false, rule });
+  });
 });
 
 describe("sweepAbandonedReservations", () => {

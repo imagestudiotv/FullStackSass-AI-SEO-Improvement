@@ -62,6 +62,8 @@ async function request<T>(
       {
         ...init,
         signal: controller.signal,
+        // fetch keeps custom headers like this token across redirects: never follow one.
+        redirect: "error",
         headers: {
           "content-type": "application/json",
           ...init.headers,

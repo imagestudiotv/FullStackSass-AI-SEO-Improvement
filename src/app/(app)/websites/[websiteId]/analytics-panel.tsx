@@ -77,6 +77,11 @@ const SERVER_ERRORS: Record<string, keyof T> = {
   "Reconnect your Google account": "errorReconnect",
   "Connect Google first": "errorConnectFirst",
   "Choose a property to import from first": "errorChooseFirst",
+  "Only the website's owner, or the person who connected this Google account, can see and choose its properties.":
+    "cannotManageProperties",
+  "This Google connection belongs to the website's owner. Only the owner can disconnect it or connect a different account.":
+    "cannotReplaceConnection",
+  "The chosen property has to be confirmed by the website's owner (or whoever connected Google) first": "errorNotApproved",
 };
 const VIEW_ONLY_ERROR = "You have view-only access to this website.";
 
@@ -133,7 +138,16 @@ export function AnalyticsPanel({ websiteId, connection, canEdit, freshness, hasD
       tWorkspace={tWorkspace}
     />
   ) : (
-    <ConnectPanel key="not-connected" websiteId={websiteId} expired={connection.status === "expired"} canEdit={canEdit} t={t} tWorkspace={tWorkspace} />
+    <ConnectPanel
+      key="not-connected"
+      websiteId={websiteId}
+      expired={connection.status === "expired"}
+      canEdit={canEdit}
+      // An expired connection that is the owner's is the owner's to reconnect.
+      canConnect={canEdit && connection.canReplaceConnection}
+      t={t}
+      tWorkspace={tWorkspace}
+    />
   );
 }
 
@@ -165,12 +179,14 @@ function ConnectPanel({
   websiteId,
   expired,
   canEdit,
+  canConnect,
   t,
   tWorkspace,
 }: {
   websiteId: string;
   expired: boolean;
   canEdit: boolean;
+  canConnect: boolean;
   t: T;
   tWorkspace: TWorkspace;
 }) {
@@ -199,7 +215,7 @@ function ConnectPanel({
           </ol>
         </div>
 
-        {canEdit ? (
+        {canConnect ? (
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
             <Button onClick={connect} disabled={connecting} className="w-full sm:w-auto">
               {connecting ? <Loader2 className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> : null}
@@ -208,7 +224,7 @@ function ConnectPanel({
             <p className="text-xs text-muted-foreground">{t.readOnlyAccess}</p>
           </div>
         ) : (
-          <Notice>{t.viewerCannotConnect}</Notice>
+          <Notice>{canEdit ? t.cannotReplaceConnection : t.viewerCannotConnect}</Notice>
         )}
       </div>
     </WorkspaceSection>
@@ -256,13 +272,24 @@ function ConnectedPanel({
   const [pending, startTransition] = useTransition();
   const [busy, setBusy] = useState<"save" | "import" | "disconnect" | null>(null);
 
+  /*
+    Mirrors the server's rules (lib/analytics/property-access.ts): seeing and
+    choosing the account's properties, and replacing the connection, are for
+    the website's owner or whoever connected the account. The server refuses
+    everyone else whatever this shows.
+  */
+  const canManage = canEdit && connection.canManageProperties;
+  const canReplace = canEdit && connection.canReplaceConnection;
+
   const savedSc = connection.searchConsoleSite ?? "";
   const savedGa = connection.analyticsProperty ?? "";
   const needsSetup = !savedSc && !savedGa;
   const [scSite, setScSite] = useState(savedSc);
   const [gaProperty, setGaProperty] = useState(savedGa);
   const dirty = scSite !== savedSc || gaProperty !== savedGa;
-  useUnsavedChanges(canEdit && dirty, tWorkspace.leaveConfirm);
+  // An unapproved choice is confirmed by saving it as it is.
+  const canSave = dirty || (connection.needsApproval && !needsSetup);
+  useUnsavedChanges(canManage && dirty, tWorkspace.leaveConfirm);
 
   // Open from the start when there is nothing chosen yet: choosing is the only next step.
   const [open, setOpen] = useState(needsSetup);
@@ -270,13 +297,13 @@ function ConnectedPanel({
   const panelId = useId();
 
   /*
-    The account's properties are fetched only for someone who can change
-    them. A viewer sees the saved choice as text and never receives the list
-    of everything in the owner's Google account.
+    The account's properties are fetched only for someone allowed to choose
+    them. Anyone else sees the saved choice as text and never receives the
+    list of everything in that Google account.
   */
-  const [list, setList] = useState<PropertyList>(canEdit ? { kind: "loading" } : { kind: "idle" });
+  const [list, setList] = useState<PropertyList>(canManage ? { kind: "loading" } : { kind: "idle" });
   useEffect(() => {
-    if (!canEdit || list.kind !== "loading") return;
+    if (!canManage || list.kind !== "loading") return;
     let cancelled = false;
     listProperties(websiteId).then(
       (result) => {
@@ -290,7 +317,7 @@ function ConnectedPanel({
     return () => {
       cancelled = true;
     };
-  }, [canEdit, list.kind, websiteId]);
+  }, [canManage, list.kind, websiteId]);
 
   /*
     The report's "Choose a property" links here; following it opens the
@@ -457,6 +484,11 @@ function ConnectedPanel({
           </dl>
 
           {needsSetup && !canEdit ? <Notice>{t.viewerSetupPending}</Notice> : null}
+          {connection.needsApproval && canManage ? (
+            <Notice tone="warning" title={t.confirmPropertiesTitle}>
+              {t.confirmPropertiesBody}
+            </Notice>
+          ) : null}
 
           {/* Below the figures rather than in the header, so long labels never squeeze the title. */}
           {canEdit ? (
@@ -484,7 +516,7 @@ function ConnectedPanel({
 
           {canEdit ? (
             <div id={panelId} hidden={!open} className="space-y-5 border-t pt-5">
-              {needsSetup ? (
+              {needsSetup && canManage ? (
                 <Notice title={t.setupNeededTitle}>{t.setupNeededBody}</Notice>
               ) : null}
 
@@ -493,6 +525,10 @@ function ConnectedPanel({
                 <p className="text-sm text-muted-foreground">{t.propertiesHelp}</p>
               </div>
 
+              {!canManage ? <Notice>{t.cannotManageProperties}</Notice> : null}
+
+              {canManage ? (
+              <>
               {list.kind === "loading" ? (
                 <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
@@ -564,21 +600,25 @@ function ConnectedPanel({
               </div>
 
               <div className="flex flex-wrap items-center gap-3">
-                <Button onClick={handleSave} disabled={working || !dirty}>
+                <Button onClick={handleSave} disabled={working || !canSave}>
                   {busy === "save" && pending ? spinner : null}
                   {scSite || gaProperty ? t.saveAndImport : t.saveSelection}
                 </Button>
                 {/* Also says why Save is unavailable while nothing has changed. */}
                 <p className="text-xs text-muted-foreground" aria-live="polite">
-                  {dirty ? t.selectionUnsaved : t.noSelectionChange}
+                  {canSave ? t.selectionUnsaved : t.noSelectionChange}
                 </p>
               </div>
+              </>
+              ) : null}
 
               <div className="space-y-3 border-t pt-5">
                 <div className="space-y-1">
                   <h3 className="text-sm font-semibold text-foreground">{t.accountTitle}</h3>
                   <p className="text-sm text-muted-foreground">{t.accountHelp}</p>
                 </div>
+                {!canReplace ? <Notice>{t.cannotReplaceConnection}</Notice> : null}
+                {canReplace ? (
                 <div className="flex flex-wrap gap-2">
                   <Button variant="outline" size="sm" onClick={connect} disabled={working}>
                     {connecting ? spinner : <RefreshCw aria-hidden="true" />}
@@ -620,6 +660,7 @@ function ConnectedPanel({
                     </DialogContent>
                   </Dialog>
                 </div>
+                ) : null}
               </div>
             </div>
           ) : null}

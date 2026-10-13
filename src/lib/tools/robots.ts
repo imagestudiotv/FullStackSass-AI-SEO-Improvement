@@ -1,5 +1,6 @@
 import { normalizeWebsiteUrl, InvalidUrlError } from "@/lib/websites/url";
 import { safeFetch } from "@/lib/net/safe-fetch";
+import { guardedSiteTool } from "@/lib/tools/public-guard";
 
 /**
  * robots.txt and sitemap checker.
@@ -105,7 +106,21 @@ function parseRobots(text: string): {
  * takes an address from an anonymous visitor and fetches it from our server —
  * exactly the shape of request that could otherwise reach our own network.
  */
-export async function checkRobots(input: string): Promise<RobotsOutcome> {
+/**
+ * The tool, behind the shared abuse protection (lib/tools/public-guard.ts):
+ * per-visitor, per-site and overall limits reserved before any fetch, one
+ * request per site at a time, and bounded concurrency.
+ */
+export async function checkRobots(
+  input: string,
+  /** From visitorKey(): the page reads the request headers; this does not. */
+  visitor: string,
+): Promise<RobotsOutcome> {
+  return guardedSiteTool("robots", input, visitor, () => checkRobotsUnguarded(input));
+}
+
+/** Only ever called through checkRobots above. */
+async function checkRobotsUnguarded(input: string): Promise<RobotsOutcome> {
   let normalized;
   try {
     normalized = normalizeWebsiteUrl(input);

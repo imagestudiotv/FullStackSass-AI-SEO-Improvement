@@ -64,6 +64,9 @@ beforeEach(async () => {
   vi.clearAllMocks();
   vi.stubEnv("STRIPE_SECRET_KEY", "sk_test_placeholder");
   vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://repget.test");
+  // Served by Vercel, whose edge sets x-real-ip: the only place that header
+  // identifies a visitor (lib/visitor-key.ts).
+  vi.stubEnv("VERCEL", "1");
   // Each test its own visitor, so the hourly limits of one never reach the next.
   n += 1;
   state.ip = `198.51.100.${n}`;

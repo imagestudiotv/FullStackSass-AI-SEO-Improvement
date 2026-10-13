@@ -33,14 +33,6 @@ function isb_placement_statuses() {
     );
 }
 
-/** Limits on anonymous requests: per visitor, per email, and overall. */
-const ISB_LIMITS = array(
-    'visitor_hour' => 5,
-    'visitor_day' => 20,
-    'email_hour' => 5,
-    'all_day' => 100,
-);
-
 function isb_register_placement_type() {
     register_post_type('isb_placement', array(
         'labels' => array(
@@ -178,28 +170,7 @@ add_action('wp_enqueue_scripts', function () {
 
 /* -------------------------------------------------------------- a request */
 
-/** Who is asking, as a keyed hash: the address itself is never stored. */
-function isb_visitor_hash() {
-    $ip = $_SERVER['HTTP_CF_CONNECTING_IP'] ?? '';
-    if ($ip === '' && !empty($_SERVER['HTTP_X_FORWARDED_FOR'])) $ip = trim(explode(',', $_SERVER['HTTP_X_FORWARDED_FOR'])[0]);
-    if ($ip === '') $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-    return substr(hash_hmac('sha256', $ip, wp_salt('nonce')), 0, 32);
-}
-
-/** Requests made within the last $seconds, optionally only those carrying one meta value. */
-function isb_recent_requests($seconds, $meta_key = null, $meta_value = null) {
-    $args = array(
-        'post_type' => 'isb_placement',
-        // The bin too: binning a request does not hand its slot back.
-        'post_status' => array_merge(array_keys(isb_placement_statuses()), array('trash')),
-        'fields' => 'ids',
-        'posts_per_page' => 200,
-        'no_found_rows' => true,
-        'date_query' => array(array('column' => 'post_date_gmt', 'after' => gmdate('Y-m-d H:i:s', time() - $seconds), 'inclusive' => true)),
-    );
-    if ($meta_key) $args['meta_query'] = array(array('key' => $meta_key, 'value' => $meta_value));
-    return count((new WP_Query($args))->posts);
-}
+/* Who is asking and the limits on it: includes/limits.php. */
 
 function isb_back_to($url, array $args) {
     wp_safe_redirect(add_query_arg($args, $url), 303);
@@ -227,13 +198,13 @@ function isb_handle_request() {
 
     $visitor = isb_visitor_hash();
     $email_key = strtolower($email);
-    if (
-        isb_recent_requests(HOUR_IN_SECONDS, '_isb_visitor', $visitor) >= ISB_LIMITS['visitor_hour'] ||
-        isb_recent_requests(DAY_IN_SECONDS, '_isb_visitor', $visitor) >= ISB_LIMITS['visitor_day'] ||
-        isb_recent_requests(HOUR_IN_SECONDS, '_isb_email', $email_key) >= ISB_LIMITS['email_hour'] ||
-        isb_recent_requests(DAY_IN_SECONDS) >= ISB_LIMITS['all_day']
-    ) {
-        isb_back_to($article_url, array('featured' => 'error', 'reason' => 'busy'));
+    // Decided and recorded in one step, so requests arriving together cannot
+    // all pass the same count (includes/limits.php). A recorded request
+    // counts even if what follows fails, and binning or deleting a request
+    // does not hand its slot back.
+    $reserved = isb_reserve_request(isb_request_buckets($visitor, $email_key));
+    if ($reserved !== 'ok') {
+        isb_back_to($article_url, array('featured' => 'error', 'reason' => $reserved === 'busy' ? 'busy' : 'unavailable'));
     }
 
     $secret = wp_generate_password(32, false);

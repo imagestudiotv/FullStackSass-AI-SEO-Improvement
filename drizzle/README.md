@@ -14,3 +14,12 @@ Those comments are superseded:
 - Re-running 0042 outside a single transaction briefly removes its trigger.
 
 For the only baseline statement that may run again (`scripts/cutover/article-baseline-backfill.sql`) and the cutover procedure for 0041/0042 (a write freeze on `articles`), see `docs/migration-cutover.md`.
+
+## Access control for new tables and functions (0056)
+
+Nothing outside the application server may read or write these tables. Since 0056_rls_hardening:
+
+- **Tables**: define them with `pgTable` from `src/lib/db/table.ts`, never drizzle's own. It turns Row Level Security on for every table, so `drizzle-kit generate` writes `ENABLE ROW LEVEL SECURITY` into the migration that creates it (src/lib/db/table.test.ts fails otherwise). No policies: the application connects as the owner, which bypasses RLS.
+- **Privileges**: 0056 revoked every table, sequence and function privilege from Supabase's `anon` and `authenticated` roles and from the default privileges of the role that runs migrations, so new tables start without them. Never `GRANT` to `anon`, `authenticated` or `PUBLIC`.
+- **Functions** (triggers, SQL helpers): PostgreSQL makes every new function executable by `PUBLIC`. Add `REVOKE ALL ON FUNCTION <name>(<args>) FROM PUBLIC;` after each `CREATE FUNCTION`. Triggers still fire: a trigger does not need EXECUTE for the role that fires it.
+- **Checks**: `src/lib/db/rls.postgres.test.ts` (CI, real Postgres with Supabase-like roles) fails if any table lacks RLS or any table, sequence, view or function is reachable by `anon`, `authenticated` or `PUBLIC`. Against a real database, read-only: `CHECK_DATABASE_URL=<connection string> npm run check:db-security` (it never reads `.env.local`).

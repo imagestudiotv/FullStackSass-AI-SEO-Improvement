@@ -1,5 +1,6 @@
 import { crawlSite } from "@/lib/audit/crawler";
 import { InvalidUrlError, normalizeWebsiteUrl } from "@/lib/websites/url";
+import { guardedSiteTool } from "@/lib/tools/public-guard";
 
 /**
  * llms.txt generator.
@@ -69,9 +70,21 @@ function escapeMarkdown(text: string): string {
   return text.replace(/([[\]])/g, "\\$1");
 }
 
+/**
+ * The tool, behind the shared abuse protection (lib/tools/public-guard.ts):
+ * per-visitor, per-site and overall limits reserved before any fetch, one
+ * request per site at a time, and bounded concurrency.
+ */
 export async function generateLlmsTxt(
   input: string,
+  /** From visitorKey(): the page reads the request headers; this does not. */
+  visitor: string,
 ): Promise<LlmsTxtOutcome> {
+  return guardedSiteTool("llms-txt", input, visitor, () => generateLlmsTxtUnguarded(input));
+}
+
+/** Only ever called through generateLlmsTxt above. */
+async function generateLlmsTxtUnguarded(input: string): Promise<LlmsTxtOutcome> {
   let normalized;
   try {
     normalized = normalizeWebsiteUrl(input);

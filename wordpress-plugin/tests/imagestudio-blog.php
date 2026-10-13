@@ -2,8 +2,9 @@
 /**
  * Image Studio Blog (wordpress-plugin/imagestudio-blog): the parts that need
  * no WordPress - the byline link, where "Get Featured" goes in an article,
- * the PayPal "Buy Now" address and the checks on PayPal's payment notice -
- * and the article extras ("In this article", the FAQ and the box that saves
+ * the PayPal "Buy Now" address and the checks on PayPal's payment notice, who
+ * a visitor is for the request limits (trusted proxies only) - and the
+ * article extras ("In this article", the FAQ and the box that saves
  * it), with the few WordPress functions they call stubbed below.
  * The article HTML below is imagestudio.com's own "cps" template, as served
  * on 2026-10-09.
@@ -48,9 +49,15 @@ function is_email($email) { return (bool) filter_var($email, FILTER_VALIDATE_EMA
 function wp_json_encode($data, $options = 0) { return json_encode($data, $options); }
 function remove_accents($text) { return strtr($text, array('à' => 'a', 'á' => 'a', 'è' => 'e', 'é' => 'e', 'ì' => 'i', 'ò' => 'o', 'ó' => 'o', 'ù' => 'u', 'À' => 'A', 'È' => 'E', 'É' => 'E', 'ç' => 'c', 'ñ' => 'n', 'ü' => 'u', 'ö' => 'o', 'ä' => 'a', 'ß' => 'ss')); }
 
+// Request limits (limits.php).
+function wp_salt($scheme = 'auth') { return 'test-salt-' . $scheme; }
+const HOUR_IN_SECONDS = 3600;
+const DAY_IN_SECONDS = 86400;
+
 require __DIR__ . '/../imagestudio-blog/includes/markup.php';
 require __DIR__ . '/../imagestudio-blog/includes/settings.php';
 require __DIR__ . '/../imagestudio-blog/includes/author.php';
+require __DIR__ . '/../imagestudio-blog/includes/limits.php';
 require __DIR__ . '/../imagestudio-blog/includes/extras.php';
 
 $failures = 0;
@@ -134,6 +141,78 @@ check('custom is read back as id and secret', isb_parse_custom('123:abcdefghijkl
 foreach (array('', '123', 'abc:abcdefghijklmnop', '123:short', '1:' . str_repeat('a', 65), "123:abcdefghijklmnop\n") as $bad) {
     check('custom refused: ' . json_encode($bad), isb_parse_custom($bad) === null);
 }
+
+echo "Who a visitor is (limits.php)\n";
+check('an address is kept, trimmed', isb_clean_ip(' 203.0.113.5 ') === '203.0.113.5');
+check('a port is dropped (IPv4 and bracketed IPv6)', isb_clean_ip('203.0.113.5:8080') === '203.0.113.5' && isb_clean_ip('[2001:db8::1]:443') === '2001:db8::1');
+check('IPv6 in canonical form; IPv4-mapped IPv6 becomes IPv4', isb_clean_ip('2001:DB8:0:0::1') === '2001:db8::1' && isb_clean_ip('::ffff:198.51.100.7') === '198.51.100.7');
+foreach (array('', 'unknown', '1.2.3', '256.1.1.1', '203.0.113.5, 198.51.100.1', "203.0.113.5\n198.51.100.1", 'localhost') as $bad) {
+    check('not an address: ' . json_encode($bad), isb_clean_ip($bad) === null);
+}
+check('ranges in canonical form', isb_clean_range('173.245.48.0/20') === '173.245.48.0/20' && isb_clean_range('2400:CB00::/32') === '2400:cb00::/32' && isb_clean_range('198.51.100.7') === '198.51.100.7');
+foreach (array('0.0.0.0/0', '10.0.0.0/7', '::/0', '2001::/15', '1.2.3.4/33', '2001:db8::/129', 'x/24', '1.2.3.4/', '1.2.3.4/a') as $bad) {
+    check('not a range we accept: ' . $bad, isb_clean_range($bad) === null);
+}
+check('in a range, and just outside it', isb_ip_in_ranges('173.245.63.255', array('173.245.48.0/20')) && !isb_ip_in_ranges('173.245.64.0', array('173.245.48.0/20')) && !isb_ip_in_ranges('173.245.47.255', array('173.245.48.0/20')));
+check('IPv6 ranges; IPv4 never matches an IPv6 range', isb_ip_in_ranges('2400:cb00:1::1', array('2400:cb00::/32')) && !isb_ip_in_ranges('2400:cb01::1', array('2400:cb00::/32')) && !isb_ip_in_ranges('203.0.113.5', array('2400:cb00::/32')));
+check('a single trusted address', isb_ip_in_ranges('198.51.100.7', array('198.51.100.7')) && !isb_ip_in_ranges('198.51.100.8', array('198.51.100.7')));
+
+$none = array('proxies' => array(), 'header' => '');
+$spoof = array('HTTP_CF_CONNECTING_IP' => '198.51.100.1', 'HTTP_X_FORWARDED_FOR' => '198.51.100.2', 'HTTP_X_REAL_IP' => '198.51.100.3');
+check('by default the connecting address counts; CF-Connecting-IP, X-Forwarded-For and X-Real-IP are ignored', isb_client_ip(array('REMOTE_ADDR' => '203.0.113.9') + $spoof, $none) === '203.0.113.9');
+check('a header chosen but no trusted proxy: still ignored', isb_client_ip(array('REMOTE_ADDR' => '203.0.113.9') + $spoof, array('proxies' => array(), 'header' => 'cf-connecting-ip')) === '203.0.113.9');
+check('no usable connecting address: null (one shared "unknown" visitor)', isb_client_ip(array('REMOTE_ADDR' => 'garbage') + $spoof, $none) === null && isb_client_ip($spoof, $none) === null && isb_visitor_identity(null) === 'unknown');
+
+$hashes = array();
+for ($i = 0; $i < 50; $i++) {
+    $hashes[isb_visitor_hash(array(
+        'REMOTE_ADDR' => '203.0.113.9',
+        'HTTP_CF_CONNECTING_IP' => '198.51.100.' . $i,
+        'HTTP_X_FORWARDED_FOR' => '192.0.2.' . $i . ', 198.18.0.' . $i,
+        'HTTP_X_REAL_IP' => '198.51.100.' . (100 + $i),
+    ))] = true;
+}
+check('50 requests, a new spoofed address in every header each time: one visitor', count($hashes) === 1);
+$hash = array_keys($hashes)[0];
+check('the hash is keyed, and holds no address', strlen($hash) === 32 && strpos($hash, '203') === false && $hash !== substr(hash('sha256', '203.0.113.9'), 0, 32));
+
+$cloudflare = array('proxies' => array('173.245.48.0/20', '2400:cb00::/32'), 'header' => 'cf-connecting-ip');
+check('behind Cloudflare: from Cloudflare, its CF-Connecting-IP is the visitor', isb_client_ip(array('REMOTE_ADDR' => '173.245.48.10', 'HTTP_CF_CONNECTING_IP' => '198.51.100.20', 'HTTP_X_FORWARDED_FOR' => '192.0.2.1'), $cloudflare) === '198.51.100.20');
+check('behind Cloudflare: straight to the server (not from Cloudflare), CF-Connecting-IP is ignored', isb_client_ip(array('REMOTE_ADDR' => '203.0.113.9', 'HTTP_CF_CONNECTING_IP' => '198.51.100.20'), $cloudflare) === '203.0.113.9');
+check('behind Cloudflare: an unreadable or missing CF-Connecting-IP counts as Cloudflare itself (shared, fails closed)', isb_client_ip(array('REMOTE_ADDR' => '173.245.48.10', 'HTTP_CF_CONNECTING_IP' => 'nonsense'), $cloudflare) === '173.245.48.10' && isb_client_ip(array('REMOTE_ADDR' => '2400:cb00:2::9'), $cloudflare) === '2400:cb00:2::9');
+
+$lb = array('proxies' => array('10.0.0.0/8'), 'header' => 'x-forwarded-for');
+check('X-Forwarded-For through a trusted proxy: the address it appended, not what the client wrote', isb_client_ip(array('REMOTE_ADDR' => '10.0.0.2', 'HTTP_X_FORWARDED_FOR' => '198.51.100.1, 203.0.113.50'), $lb) === '203.0.113.50');
+check('X-Forwarded-For through several trusted proxies: the first untrusted from the right', isb_client_ip(array('REMOTE_ADDR' => '10.0.0.2', 'HTTP_X_FORWARDED_FOR' => 'spoofed, 198.51.100.1, 203.0.113.50, 10.0.0.9'), $lb) === '203.0.113.50');
+check('X-Forwarded-For with an unreadable nearest hop: the last trusted proxy (fails closed)', isb_client_ip(array('REMOTE_ADDR' => '10.0.0.2', 'HTTP_X_FORWARDED_FOR' => '203.0.113.50, garbage'), $lb) === '10.0.0.2');
+check('X-Forwarded-For missing: the proxy itself', isb_client_ip(array('REMOTE_ADDR' => '10.0.0.2'), $lb) === '10.0.0.2');
+check('X-Forwarded-For of trusted proxies only: the furthest one', isb_client_ip(array('REMOTE_ADDR' => '10.0.0.2', 'HTTP_X_FORWARDED_FOR' => '10.0.0.7, 10.0.0.8'), $lb) === '10.0.0.7');
+check('X-Forwarded-For from an untrusted address: ignored', isb_client_ip(array('REMOTE_ADDR' => '203.0.113.9', 'HTTP_X_FORWARDED_FOR' => '198.51.100.1'), $lb) === '203.0.113.9');
+check('X-Forwarded-For entries with ports', isb_client_ip(array('REMOTE_ADDR' => '10.0.0.2', 'HTTP_X_FORWARDED_FOR' => '[2001:db8::5]:1234, 10.0.0.3:80'), $lb) === '2001:db8::5');
+
+// isb_visitor_hash() reads the policy from the settings.
+check('the default settings trust no proxy', isb_client_ip_policy() === array('proxies' => array(), 'header' => ''));
+$hashes = array();
+for ($i = 0; $i < 50; $i++) {
+    $hashes[isb_visitor_hash(array('REMOTE_ADDR' => '10.0.0.2', 'HTTP_X_FORWARDED_FOR' => '198.51.100.' . $i . ', 192.0.2.' . $i . ', 203.0.113.50', 'HTTP_CF_CONNECTING_IP' => '198.51.100.' . $i))] = true;
+}
+check('with the default settings, a proxy forwarding 50 spoofed chains is one visitor', count($hashes) === 1);
+$wp['options']['isb_settings'] = array('trusted_proxies' => implode("\n", array('10.0.0.0/8', '0.0.0.0/0, not-a-range')), 'client_ip_header' => 'x-forwarded-for');
+check('the policy from the settings: only valid, narrow enough ranges', isb_client_ip_policy() === array('proxies' => array('10.0.0.0/8'), 'header' => 'x-forwarded-for'));
+$hashes = array();
+for ($i = 0; $i < 50; $i++) {
+    $hashes[isb_visitor_hash(array('REMOTE_ADDR' => '10.0.0.2', 'HTTP_X_FORWARDED_FOR' => '198.51.100.' . $i . ', 192.0.2.' . $i . ', 203.0.113.50'))] = true;
+}
+check('behind the configured proxy, 50 requests with a new client-written prefix each: one visitor', count($hashes) === 1);
+check('...and not the same visitor as the proxy itself', !isset($hashes[isb_visitor_hash(array('REMOTE_ADDR' => '10.0.0.2'))]));
+unset($wp['options']['isb_settings']);
+
+check('IPv6 visitors counted per /64', isb_visitor_identity('2001:db8:1:2:aaaa::1') === '2001:db8:1:2::/64' && isb_visitor_identity('2001:db8:1:2:bbbb:cccc:dddd:9') === '2001:db8:1:2::/64' && isb_visitor_identity('2001:db8:1:3::1') === '2001:db8:1:3::/64');
+check('IPv4 visitors counted per address', isb_visitor_identity('203.0.113.9') === '203.0.113.9');
+$buckets = isb_request_buckets('abc', ' Buyer@Example.COM ');
+check('four limits: visitor an hour and a day, email an hour, everyone a day', array_map(function ($b) { return array($b[1], $b[2]); }, $buckets) === array(array(3600, 5), array(86400, 20), array(3600, 5), array(86400, 100)));
+check('one visitor bucket for both windows; the email bucket is case-insensitive and holds no address', $buckets[0][0] === 'v:abc' && $buckets[1][0] === 'v:abc' && $buckets[2][0] === isb_request_buckets('x', 'buyer@example.com')[2][0] && strpos($buckets[2][0], 'example') === false && $buckets[3][0] === 'all');
+check('every bucket name fits the table (40 characters)', max(array_map(function ($b) { return strlen($b[0]); }, isb_request_buckets(str_repeat('f', 32), 'a@b.co'))) <= 40);
 
 echo "Copy\n";
 check('English is the client\'s wording', isb_text('title', 'en') === 'Get Your Website Featured in This Article.' && isb_text('buy', 'en') === 'Get Featured for $99' && isb_text('approval', 'en') === 'Subject to editorial approval');

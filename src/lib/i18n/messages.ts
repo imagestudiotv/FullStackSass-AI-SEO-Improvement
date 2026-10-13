@@ -1439,6 +1439,14 @@ export type Messages = {
       importNow: string;
       manageConnection: string;
       viewerSetupPending: string;
+      /** A guest editor on the owner's Google account, or the owner on a guest's: the account's properties stay private. */
+      cannotManageProperties: string;
+      /** Only the owner side (or whoever connected it) may replace or disconnect a connection. */
+      cannotReplaceConnection: string;
+      /** A chosen property that is not (yet) approved for this connection. */
+      confirmPropertiesTitle: string;
+      confirmPropertiesBody: string;
+      errorNotApproved: string;
       importRequestedTitle: string;
       importRequestedBody: string;
       importStillRunning: string;
@@ -4521,6 +4529,11 @@ const en: Messages = {
       importNow: "Import now",
       manageConnection: "Manage connection",
       viewerSetupPending: "Google is connected, but no property has been chosen yet. An owner or an editor can choose one.",
+      cannotManageProperties: "Only the website's owner, or the person who connected this Google account, can see and choose its properties.",
+      cannotReplaceConnection: "This Google account was connected by the website's owner. Only the owner can reconnect, replace or disconnect it.",
+      confirmPropertiesTitle: "Confirm these properties",
+      confirmPropertiesBody: "These properties were chosen before RepGet recorded who approved them, or on an earlier connection. Save them again, or choose others, to confirm them.",
+      errorNotApproved: "The chosen property has to be confirmed first, by the website's owner or whoever connected Google.",
       importRequestedTitle: "Import requested",
       importRequestedBody: "RepGet is importing your figures from Google. This page checks for them for about a minute.",
       importStillRunning: "The import can take a few minutes. New figures appear here when it has finished: reload the page later to see them.",
@@ -7500,6 +7513,11 @@ const es: Messages = {
       importNow: "Importar ahora",
       manageConnection: "Gestionar la conexión",
       viewerSetupPending: "Google está conectado, pero aún no se ha elegido ninguna propiedad. Un propietario o un editor puede elegirla.",
+      cannotManageProperties: "Solo el propietario del sitio web, o la persona que conectó esta cuenta de Google, puede ver y elegir sus propiedades.",
+      cannotReplaceConnection: "Esta cuenta de Google la conectó el propietario del sitio web. Solo el propietario puede reconectarla, sustituirla o desconectarla.",
+      confirmPropertiesTitle: "Confirme estas propiedades",
+      confirmPropertiesBody: "Estas propiedades se eligieron antes de que RepGet registrara quién las aprobó, o en una conexión anterior. Guárdelas de nuevo, o elija otras, para confirmarlas.",
+      errorNotApproved: "Primero hay que confirmar la propiedad elegida: el propietario del sitio web o quien conectó Google.",
       importRequestedTitle: "Importación solicitada",
       importRequestedBody: "RepGet está importando sus cifras de Google. Esta página las busca durante aproximadamente un minuto.",
       importStillRunning: "La importación puede tardar unos minutos. Las cifras nuevas aparecerán aquí cuando termine: vuelva a cargar la página más tarde para verlas.",
@@ -10482,6 +10500,11 @@ const fr: Messages = {
       importNow: "Importer maintenant",
       manageConnection: "Gérer la connexion",
       viewerSetupPending: "Google est connecté, mais aucune propriété n’a encore été choisie. Un propriétaire ou un éditeur peut en choisir une.",
+      cannotManageProperties: "Seul le propriétaire du site, ou la personne qui a connecté ce compte Google, peut voir et choisir ses propriétés.",
+      cannotReplaceConnection: "Ce compte Google a été connecté par le propriétaire du site. Seul le propriétaire peut le reconnecter, le remplacer ou le déconnecter.",
+      confirmPropertiesTitle: "Confirmez ces propriétés",
+      confirmPropertiesBody: "Ces propriétés ont été choisies avant que RepGet n’enregistre qui les a approuvées, ou lors d’une connexion précédente. Enregistrez-les à nouveau, ou choisissez-en d’autres, pour les confirmer.",
+      errorNotApproved: "La propriété choisie doit d’abord être confirmée, par le propriétaire du site ou la personne qui a connecté Google.",
       importRequestedTitle: "Import demandé",
       importRequestedBody: "RepGet importe vos chiffres depuis Google. Cette page les recherche pendant environ une minute.",
       importStillRunning: "L’import peut prendre quelques minutes. Les nouveaux chiffres apparaîtront ici une fois terminé : rechargez la page plus tard pour les voir.",
@@ -13461,6 +13484,11 @@ const it: Messages = {
       importNow: "Importa ora",
       manageConnection: "Gestisci collegamento",
       viewerSetupPending: "Google è collegato, ma non è ancora stata scelta alcuna proprietà. Un proprietario o un editor può sceglierne una.",
+      cannotManageProperties: "Solo il proprietario del sito, o la persona che ha collegato questo account Google, può vederne e sceglierne le proprietà.",
+      cannotReplaceConnection: "Questo account Google è stato collegato dal proprietario del sito. Solo il proprietario può ricollegarlo, sostituirlo o scollegarlo.",
+      confirmPropertiesTitle: "Confermi queste proprietà",
+      confirmPropertiesBody: "Queste proprietà sono state scelte prima che RepGet registrasse chi le ha approvate, o in un collegamento precedente. Le salvi di nuovo, o ne scelga altre, per confermarle.",
+      errorNotApproved: "La proprietà scelta deve prima essere confermata, dal proprietario del sito o da chi ha collegato Google.",
       importRequestedTitle: "Importazione richiesta",
       importRequestedBody: "RepGet sta importando i suoi dati da Google. Questa pagina li cerca per circa un minuto.",
       importStillRunning: "L’importazione può richiedere qualche minuto. I nuovi dati compariranno qui al termine: ricarichi la pagina più tardi per vederli.",
@@ -16439,6 +16467,11 @@ const de: Messages = {
       importNow: "Jetzt importieren",
       manageConnection: "Verbindung verwalten",
       viewerSetupPending: "Google ist verbunden, aber es wurde noch keine Property gewählt. Inhaber oder Bearbeiter können eine wählen.",
+      cannotManageProperties: "Nur der Inhaber der Website oder die Person, die dieses Google-Konto verbunden hat, kann seine Properties sehen und auswählen.",
+      cannotReplaceConnection: "Dieses Google-Konto hat der Inhaber der Website verbunden. Nur der Inhaber kann es neu verbinden, ersetzen oder trennen.",
+      confirmPropertiesTitle: "Bestätigen Sie diese Properties",
+      confirmPropertiesBody: "Diese Properties wurden gewählt, bevor RepGet festhielt, wer sie freigegeben hat, oder bei einer früheren Verbindung. Speichern Sie sie erneut oder wählen Sie andere, um sie zu bestätigen.",
+      errorNotApproved: "Die gewählte Property muss zuerst bestätigt werden – vom Inhaber der Website oder von der Person, die Google verbunden hat.",
       importRequestedTitle: "Import angefordert",
       importRequestedBody: "RepGet importiert Ihre Zahlen von Google. Diese Seite sieht etwa eine Minute lang nach ihnen.",
       importStillRunning: "Der Import kann einige Minuten dauern. Neue Zahlen erscheinen hier, sobald er fertig ist: Laden Sie die Seite später neu, um sie zu sehen.",
