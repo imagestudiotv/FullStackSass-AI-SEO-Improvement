@@ -17,7 +17,7 @@ import { publicPageMetadata } from "@/lib/seo/page-metadata";
 
 export const metadata = {
   title: "Pricing",
-  description: "Simple monthly pricing. Cancel any time.",
+  description: "Simple monthly pricing. Every plan includes everything; plans differ in how much we write for you and how many backlinks you get. Cancel any time.",
   ...publicPageMetadata("/pricing"),
 };
 

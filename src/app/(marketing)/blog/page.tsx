@@ -13,7 +13,7 @@ import { publicPageMetadata } from "@/lib/seo/page-metadata";
 import { ClosingCta } from "../home-sections";
 
 const DESCRIPTION =
-  "Guides, comparisons and playbooks for getting found on Google and cited by AI assistants - written for people who run a business, not a marketing team.";
+  "Guides, comparisons and playbooks for getting found on Google and cited by AI assistants - written for people who run a business, not marketers.";
 
 type Props = { searchParams: Promise<{ page?: string | string[] }> };
 

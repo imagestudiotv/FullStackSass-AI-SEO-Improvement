@@ -309,13 +309,18 @@ export function AuthForm({
 
   return (
     <div>
-      <p className="text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+      {/*
+        lang="en" here and on the button text, the legal line and the switch
+        below: they are not translated yet, and the (auth) layout declares the
+        visitor's language around the form.
+      */}
+      <p lang="en" className="text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
         {isSignUp ? "Create your account" : "Welcome back"}
       </p>
-      <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
+      <h1 lang="en" className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
         {isSignUp ? "Start growing today" : "Sign in to RepGet"}
       </h1>
-      <p className="mt-2 text-muted-foreground">
+      <p lang="en" className="mt-2 text-muted-foreground">
         {isSignUp
           ? "Get started in minutes."
           : "Sign in to access your dashboard."}
@@ -524,7 +529,7 @@ export function AuthForm({
               type={showPassword ? "text" : "password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder={isSignUp ? "Create a password" : undefined}
+              placeholder={isSignUp ? t.passwordPlaceholder : undefined}
               autoComplete={isSignUp ? "new-password" : "current-password"}
               /*
                 New passwords only (lib/auth/password-policy.ts): signing in
@@ -543,7 +548,7 @@ export function AuthForm({
             <button
               type="button"
               onClick={() => setShowPassword((shown) => !shown)}
-              aria-label={showPassword ? "Hide password" : "Show password"}
+              aria-label={showPassword ? t.hidePassword : t.showPassword}
               className="absolute top-1/2 right-3 -translate-y-1/2 rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground"
             >
               {showPassword ? (
@@ -577,19 +582,23 @@ export function AuthForm({
           {pending ? (
             <>
               <Loader2 className="size-4 animate-spin" />
-              {isSignUp
-                ? "Creating your account…"
-                : method === "code"
-                  ? t.sendingCode
-                  : "Signing you in…"}
+              {isSignUp ? (
+                <span lang="en">Creating your account…</span>
+              ) : method === "code" ? (
+                t.sendingCode
+              ) : (
+                <span lang="en">Signing you in…</span>
+              )}
             </>
           ) : (
             <>
-              {isSignUp
-                ? "Create account"
-                : method === "code"
-                  ? t.sendCode
-                  : "Sign in"}
+              {isSignUp ? (
+                <span lang="en">Create account</span>
+              ) : method === "code" ? (
+                t.sendCode
+              ) : (
+                <span lang="en">Sign in</span>
+              )}
               <ArrowRight className="size-4" aria-hidden="true" />
             </>
           )}
@@ -619,7 +628,7 @@ export function AuthForm({
         The legal line the reference carries. It belongs on the screen where
         someone actually agrees, not only in the footer.
       */}
-      <p className="mt-6 text-center text-xs leading-relaxed text-muted-foreground">
+      <p lang="en" className="mt-6 text-center text-xs leading-relaxed text-muted-foreground">
         By continuing, you agree to our{" "}
         <Link href="/terms" className="underline underline-offset-2">
           Terms of Service
@@ -640,7 +649,7 @@ export function AuthForm({
         `email` is whatever is in the field now, which starts as the invited
         address. See authSwitchHref.
       */}
-      <p className="mt-6 text-sm text-muted-foreground">
+      <p lang="en" className="mt-6 text-sm text-muted-foreground">
         {isSignUp ? "Already have an account? " : "Don't have an account? "}
         <Link
           href={authSwitchHref(

@@ -233,7 +233,7 @@ export const INTEGRATION_DOCS: IntegrationDoc[] = [
     slug: "wordpress",
     name: "WordPress",
     summary:
-      "Publish straight to a self-hosted WordPress site using an application password. No plugin to install - but see the plugin guide if your host blocks the REST API.",
+      "Publish straight to a self-hosted WordPress site with an application password. No plugin to install - see the plugin guide if your host blocks the REST API.",
     requirements: [
       "A self-hosted WordPress site (wordpress.org, not a free wordpress.com plan)",
       "An account on it with the Editor or Administrator role",
@@ -281,7 +281,7 @@ export const INTEGRATION_DOCS: IntegrationDoc[] = [
   {
     slug: "ghost",
     name: "Ghost",
-    summary: "Publish to a Ghost blog using an Admin API key.",
+    summary: "Publish to a Ghost blog, self-hosted or Ghost(Pro), using an Admin API key from a custom integration you add in Ghost admin.",
     requirements: [
       "A Ghost site you administer, self-hosted or Ghost(Pro)",
       "Ghost 4.0 or newer",
@@ -323,7 +323,7 @@ export const INTEGRATION_DOCS: IntegrationDoc[] = [
   {
     slug: "shopify",
     name: "Shopify",
-    summary: "Publish articles to a blog on your Shopify store.",
+    summary: "Publish articles to a blog on your Shopify store through a custom app and its Admin API access token.",
     requirements: [
       "A Shopify store you own or staff-administer",
       "Permission to create a custom app in that store",
@@ -416,7 +416,7 @@ export const INTEGRATION_DOCS: IntegrationDoc[] = [
   {
     slug: "wix",
     name: "Wix",
-    summary: "Publish to the blog on your Wix site using an API key.",
+    summary: "Publish to the blog on your Wix site using an API key with blog permissions and your Site ID.",
     requirements: [
       "A Wix site with the Blog app installed",
       "Owner or admin access, so you can create API keys",

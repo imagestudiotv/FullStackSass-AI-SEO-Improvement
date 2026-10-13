@@ -39,7 +39,7 @@ export const revalidate = 3600;
 export const metadata: Metadata = {
   title: { absolute: "AI SEO Platform for Content & Backlinks | RepGet" },
   description:
-    "Automate SEO with RepGet. Research keywords, publish optimized content, build quality backlinks, track rankings and improve visibility in Google and AI search.",
+    "Automate SEO with RepGet. Research keywords, publish optimized content, build quality backlinks, track rankings and grow visibility in Google and AI search.",
   ...publicPageMetadata("/"),
 };
 

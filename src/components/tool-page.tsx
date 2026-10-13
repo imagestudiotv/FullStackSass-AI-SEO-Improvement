@@ -2,6 +2,9 @@ import { Check } from "lucide-react";
 import Link from "next/link";
 
 import { localePath, type Locale } from "@/lib/i18n/config";
+// Server components only (every tool page renders these on the server): never
+// import this file from a "use client" one, or the whole dictionary ships.
+import { getMessages } from "@/lib/i18n/messages";
 import { TOOLS_COMMON } from "@/lib/tools/i18n/common";
 import { relatedTools } from "@/lib/tools/registry";
 
@@ -22,7 +25,8 @@ export function ToolBreadcrumb({ title, locale = "en" }: { title: string; locale
   const t = TOOLS_COMMON[locale];
   return (
     <nav
-      aria-label="Breadcrumb"
+      // "Breadcrumb" in English; the app's own translation elsewhere.
+      aria-label={getMessages(locale).app.editor.breadcrumbLabel}
       className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground"
     >
       <Link href={localePath(locale, "/")} className="hover:text-foreground">

@@ -125,6 +125,8 @@ export function AuthShowcase() {
         so there is one scrollbar and nothing is cut off. justify-start keeps
         the top of the content at the top of the panel.
       */
+      // English only, inside a page that declares the browser's language ((auth)/layout.tsx).
+      lang="en"
       className="relative hidden flex-col justify-start bg-gradient-to-br from-primary/[0.07] via-background to-primary/[0.04] p-10 lg:flex xl:p-14"
       /*
         The faint grid from the reference. An inline gradient rather than an

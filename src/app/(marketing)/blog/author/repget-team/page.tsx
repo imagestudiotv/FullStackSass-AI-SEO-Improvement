@@ -34,7 +34,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   const page = blogPage((await searchParams).page);
   return {
     title: `${TEAM_AUTHOR}${pageSuffix(page)}`,
-    description: `Guides and playbooks from the RepGet team${pageSuffix(page)}.`,
+    description: `Guides and playbooks from the RepGet team on getting found on Google and cited by AI assistants${pageSuffix(page)}.`,
     ...publicPageMetadata(blogPageHref(TEAM_AUTHOR_PATH, page)),
   };
 }

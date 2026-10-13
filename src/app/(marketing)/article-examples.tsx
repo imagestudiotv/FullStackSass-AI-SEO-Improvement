@@ -27,6 +27,11 @@ type Articles = Messages["home"]["articles"];
  * The first article renders on the server, so the preview reads without any
  * interaction or JavaScript. Only this slice of the dictionary comes to the
  * browser (see lib/i18n/site-chrome.ts for why never the whole of it).
+ *
+ * The article's own words (title, description, picture text, contents and
+ * opening) carry the language it was published in (`lang`), so on /it a
+ * screen reader reads them as English; the labels around them (read time,
+ * "Contents", "Read the full article") stay in the page's language.
  */
 export function ArticleExamples({ t, articles }: { t: Articles; articles: RealArticle[] }) {
   const [active, setActive] = useState(0);
@@ -105,7 +110,7 @@ export function ArticleExamples({ t, articles }: { t: Articles; articles: RealAr
               >
                 {t.kinds[item.kind]}
               </span>
-              <span className="mt-1.5 hidden text-sm leading-snug font-medium text-foreground lg:line-clamp-2">
+              <span lang={item.lang} className="mt-1.5 hidden text-sm leading-snug font-medium text-foreground lg:line-clamp-2">
                 {item.title}
               </span>
               <span className="mt-2 hidden text-xs text-muted-foreground lg:block">
@@ -142,10 +147,10 @@ export function ArticleExamples({ t, articles }: { t: Articles; articles: RealAr
           <p className="text-xs font-semibold tracking-[0.12em] text-primary-strong uppercase">
             {t.kinds[article.kind]} · {format(t.readTime, { n: article.minutes })}
           </p>
-          <h3 className="mt-2 text-xl leading-snug font-semibold tracking-tight text-balance sm:text-2xl">
+          <h3 lang={article.lang} className="mt-2 text-xl leading-snug font-semibold tracking-tight text-balance sm:text-2xl">
             {article.title}
           </h3>
-          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+          <p lang={article.lang} className="mt-3 text-sm leading-relaxed text-muted-foreground">
             {article.description}
           </p>
 
@@ -153,7 +158,7 @@ export function ArticleExamples({ t, articles }: { t: Articles; articles: RealAr
             The article's own picture. A diagram is shown whole on white; a
             photograph fills the frame. Below the fold, so it loads lazily.
           */}
-          <div className="mt-5 overflow-hidden rounded-xl border bg-white">
+          <div lang={article.lang} className="mt-5 overflow-hidden rounded-xl border bg-white">
             <Image
               key={article.image.src}
               src={article.image.src}
@@ -171,7 +176,7 @@ export function ArticleExamples({ t, articles }: { t: Articles; articles: RealAr
               className="rounded-xl border bg-muted/30 p-4 text-sm"
             >
               <p className="font-semibold">{t.contentsLabel}</p>
-              <ol className="mt-2 list-decimal space-y-1.5 pl-4 text-muted-foreground marker:text-primary/70">
+              <ol lang={article.lang} className="mt-2 list-decimal space-y-1.5 pl-4 text-muted-foreground marker:text-primary/70">
                 {article.contents.map((entry) => (
                   <li key={entry}>{entry}</li>
                 ))}
@@ -179,17 +184,19 @@ export function ArticleExamples({ t, articles }: { t: Articles; articles: RealAr
             </nav>
 
             <div className="min-w-0">
-              <h4 className="text-lg font-semibold tracking-tight">
-                {article.heading}
-              </h4>
-              {article.paragraphs.map((paragraph) => (
-                <p
-                  key={paragraph}
-                  className="mt-3 text-sm leading-relaxed text-muted-foreground"
-                >
-                  {paragraph}
-                </p>
-              ))}
+              <div lang={article.lang}>
+                <h4 className="text-lg font-semibold tracking-tight">
+                  {article.heading}
+                </h4>
+                {article.paragraphs.map((paragraph) => (
+                  <p
+                    key={paragraph}
+                    className="mt-3 text-sm leading-relaxed text-muted-foreground"
+                  >
+                    {paragraph}
+                  </p>
+                ))}
+              </div>
               <p className="mt-4">
                 {external ? (
                   <a

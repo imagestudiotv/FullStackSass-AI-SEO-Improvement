@@ -42,7 +42,7 @@ export async function generateMetadata({
 
   return {
     title: t.pricing.title,
-    description: t.pricing.subtitle,
+    description: t.pricing.metaDescription,
     ...publicPageMetadata("/pricing", { locale }),
   };
 }

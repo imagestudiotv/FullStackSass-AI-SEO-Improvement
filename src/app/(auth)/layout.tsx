@@ -33,7 +33,8 @@ export default async function AuthLayout({ children }: LayoutProps<"/">) {
   // The language the sign-in page itself uses (the browser's), for the cookie banner.
   const { locale, t } = await getPublicMessages();
   return (
-    <div className="grid min-h-svh lg:grid-cols-2">
+    // That language declared for the page (the root layout's <html> says "en" for every route).
+    <div lang={locale} className="grid min-h-svh lg:grid-cols-2">
       {/*
         The analytics cookie banner: sign-in and sign-up count as public pages
         (components/consent-banner.tsx). First, so it is read before the form.
@@ -81,7 +82,7 @@ export default async function AuthLayout({ children }: LayoutProps<"/">) {
             The mark links home. This is often the first page a customer sees,
             and a logo that goes nowhere is a dead end on a page with no nav.
           */}
-          <Link href="/" aria-label="RepGet home" className="mb-10 inline-flex">
+          <Link href="/" aria-label={t.app.common.brandHome} className="mb-10 inline-flex">
             <BrandLogo height={30} priority />
           </Link>
 

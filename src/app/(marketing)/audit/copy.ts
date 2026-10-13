@@ -83,8 +83,9 @@ export type AuditResultCopy = {
   seeFull: string;
   joinEyebrow: string;
   joinTitle: string;
-  /** The first body takes {count}. */
-  joinItems: [{ title: string; body: string }, { title: string; body: string }, { title: string; body: string }];
+  /** The first body is [one, other] with {count}: "All 1 of them" read oddly (live check, 2026-10-13). */
+  /** The first item's body: one finding, several, and none (a clean result still has a next step). */
+  joinItems: [{ title: string; body: [string, string]; none: string }, { title: string; body: string }, { title: string; body: string }];
   getStarted: string;
   seePricing: string;
   /** {price}; ends with a space, followed by freeArticles. */
@@ -193,7 +194,10 @@ export const AUDIT_COPY: Record<Locale, AuditCopy> = {
       joinEyebrow: "What happens when you join",
       joinTitle: "We fix what we found, then keep going",
       joinItems: [
-        { title: "Every finding, in order", body: "All {count} of them, with what to change and how long it takes." },
+        {
+          title: "Every finding, in order",
+          body: ["The one finding, with what to change and how long it takes.", "All {count} of them, with what to change and how long it takes."], none: "We check your whole site, not just the pages read here, with what to change and how long it takes.",
+        },
         { title: "Articles written for you", body: "Researched from what your customers search for, published to your own site." },
         { title: "Real backlinks, earned", body: "Host one article for a related business and earn a link back to yours." },
       ],
@@ -291,7 +295,7 @@ export const AUDIT_COPY: Record<Locale, AuditCopy> = {
       joinEyebrow: "Qué pasa cuando se une",
       joinTitle: "Arreglamos lo que encontramos y seguimos adelante",
       joinItems: [
-        { title: "Cada hallazgo, en orden", body: "Los {count}, con lo que hay que cambiar y cuánto lleva." },
+        { title: "Cada hallazgo, en orden", body: ["El hallazgo, con lo que hay que cambiar y cuánto lleva.", "Los {count}, con lo que hay que cambiar y cuánto lleva."], none: "Revisamos toda su web, no solo las páginas leídas aquí, con lo que hay que cambiar y cuánto lleva." },
         { title: "Artículos escritos para usted", body: "Basados en lo que buscan sus clientes y publicados en su propia web." },
         { title: "Backlinks reales, ganados", body: "Aloje un artículo de un negocio relacionado y gane un enlace hacia el suyo." },
       ],
@@ -392,7 +396,10 @@ export const AUDIT_COPY: Record<Locale, AuditCopy> = {
       joinEyebrow: "Ce qui se passe quand vous nous rejoignez",
       joinTitle: "Nous corrigeons ce que nous avons trouvé, puis nous continuons",
       joinItems: [
-        { title: "Chaque constat, dans l’ordre", body: "Les {count}, avec ce qu’il faut changer et le temps que cela prend." },
+        {
+          title: "Chaque constat, dans l’ordre",
+          body: ["Le constat, avec ce qu’il faut changer et le temps que cela prend.", "Les {count}, avec ce qu’il faut changer et le temps que cela prend."], none: "Nous vérifions tout votre site, pas seulement les pages lues ici, avec ce qu’il faut changer et le temps que cela prend.",
+        },
         { title: "Des articles rédigés pour vous", body: "Fondés sur ce que recherchent vos clients, publiés sur votre propre site." },
         { title: "De vrais backlinks, mérités", body: "Hébergez un article pour une entreprise d’un secteur proche et gagnez un lien vers le vôtre." },
       ],
@@ -490,7 +497,7 @@ export const AUDIT_COPY: Record<Locale, AuditCopy> = {
       joinEyebrow: "Cosa succede quando si iscrive",
       joinTitle: "Correggiamo ciò che abbiamo trovato, poi andiamo avanti",
       joinItems: [
-        { title: "Ogni segnalazione, in ordine", body: "Tutte e {count}, con cosa cambiare e quanto tempo serve." },
+        { title: "Ogni segnalazione, in ordine", body: ["La segnalazione, con cosa cambiare e quanto tempo serve.", "Tutte e {count}, con cosa cambiare e quanto tempo serve."], none: "Controlliamo tutto il suo sito, non solo le pagine lette qui, con cosa cambiare e quanto tempo serve." },
         { title: "Articoli scritti per lei", body: "Basati su ciò che cercano i suoi clienti, pubblicati sul suo sito." },
         { title: "Backlink veri, guadagnati", body: "Ospiti un articolo per un’azienda affine e guadagni un link verso il suo sito." },
       ],
@@ -588,7 +595,10 @@ export const AUDIT_COPY: Record<Locale, AuditCopy> = {
       joinEyebrow: "Was passiert, wenn Sie beitreten",
       joinTitle: "Wir beheben, was wir gefunden haben, und machen dann weiter",
       joinItems: [
-        { title: "Jeder Befund, der Reihe nach", body: "Alle {count}, mit dem, was zu ändern ist, und wie lange es dauert." },
+        {
+          title: "Jeder Befund, der Reihe nach",
+          body: ["Der Befund, mit dem, was zu ändern ist, und wie lange es dauert.", "Alle {count}, mit dem, was zu ändern ist, und wie lange es dauert."], none: "Wir prüfen Ihre ganze Website, nicht nur die hier gelesenen Seiten, mit dem, was zu ändern ist, und wie lange es dauert.",
+        },
         { title: "Für Sie geschriebene Artikel", body: "Recherchiert nach dem, wonach Ihre Kunden suchen, und auf Ihrer eigenen Website veröffentlicht." },
         { title: "Echte, verdiente Backlinks", body: "Hosten Sie einen Artikel für ein verwandtes Unternehmen und verdienen Sie einen Link zu Ihrem." },
       ],

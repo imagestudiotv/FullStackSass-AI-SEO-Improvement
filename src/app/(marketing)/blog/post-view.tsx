@@ -171,7 +171,7 @@ export function BlogPostView({
       />
 
       <div className="mx-auto max-w-3xl px-4 py-12">
-        <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
+        <nav aria-label={getMessages(locale).app.editor.breadcrumbLabel} className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
           {trail.slice(0, -1).map((step) => (
             <span key={step.path} className="flex items-center gap-1.5">
               <Link href={step.path} className="text-primary hover:underline">

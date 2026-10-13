@@ -44,7 +44,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
       path: "/backlinks",
       metaTitle: "Backlinks desde webs de negocios reales",
       metaDescription:
-        "RepGet coloca enlaces a su web dentro de artículos nuevos en las webs de negocios de sectores relacionados. Enlaces follow, comprobados en la página publicada y con créditos incluidos en todos los planes.",
+        "RepGet coloca enlaces a su web en artículos nuevos de negocios afines. Enlaces follow, comprobados en la página publicada y con créditos en todos los planes.",
       eyebrow: "Backlinks",
       title: "Backlinks desde webs de negocios reales,",
       accent: "sin enviar un solo correo.",
@@ -164,9 +164,9 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
     },
     chatgpt: {
       path: "/rank-on-chatgpt",
-      metaTitle: "Cómo aparecer en ChatGPT y que recomiende su negocio",
+      metaTitle: "Cómo lograr que ChatGPT recomiende su negocio",
       metaDescription:
-        "RepGet ayuda a que asistentes de IA como ChatGPT encuentren su negocio, confíen en él y lo nombren: una comprobación de rastreadores de IA, artículos que responden a preguntas reales, enlaces desde webs relacionadas y seguimiento de su visibilidad en la IA.",
+        "Consiga que ChatGPT y otros asistentes de IA encuentren y nombren su negocio: revisión de rastreadores, artículos útiles, enlaces afines y seguimiento.",
       eyebrow: "Búsqueda con IA",
       title: "Consiga que ChatGPT",
       accent: "recomiende su negocio.",
@@ -289,7 +289,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
       path: "/backlinks",
       metaTitle: "Des backlinks depuis de vrais sites d’entreprises",
       metaDescription:
-        "RepGet place des liens vers votre site dans de nouveaux articles publiés sur les sites d’entreprises de secteurs proches. Des liens follow, vérifiés sur la page en ligne, avec des crédits inclus dans chaque formule.",
+        "RepGet place des liens vers votre site dans de nouveaux articles d’entreprises proches. Liens follow, vérifiés en ligne, crédits inclus dans chaque formule.",
       eyebrow: "Backlinks",
       title: "Des backlinks depuis de vrais sites d’entreprises,",
       accent: "sans un seul e-mail de prospection.",
@@ -409,9 +409,9 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
     },
     chatgpt: {
       path: "/rank-on-chatgpt",
-      metaTitle: "Comment apparaître dans ChatGPT et faire recommander votre entreprise",
+      metaTitle: "Comment apparaître dans ChatGPT et être recommandé",
       metaDescription:
-        "RepGet aide les assistants d’IA comme ChatGPT à trouver votre entreprise, à lui faire confiance et à la citer : une vérification des robots d’IA, des articles qui répondent à de vraies questions, des liens depuis des sites proches et le suivi de votre visibilité dans l’IA.",
+        "Aidez ChatGPT et les assistants d’IA à trouver et citer votre entreprise : vérification des robots d’IA, articles utiles, liens de sites proches et suivi.",
       eyebrow: "Recherche IA",
       title: "Faites recommander votre entreprise",
       accent: "par ChatGPT.",
@@ -534,7 +534,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
       path: "/backlinks",
       metaTitle: "Backlink da siti di aziende reali",
       metaDescription:
-        "RepGet inserisce link al suo sito in nuovi articoli pubblicati sui siti di aziende di settori affini. Link follow, verificati sulla pagina online, con crediti inclusi in ogni piano.",
+        "RepGet inserisce link al suo sito in nuovi articoli di aziende di settori affini. Link follow, verificati sulla pagina online, crediti inclusi in ogni piano.",
       eyebrow: "Backlink",
       title: "Backlink da siti di aziende reali,",
       accent: "senza inviare una sola email.",
@@ -654,9 +654,9 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
     },
     chatgpt: {
       path: "/rank-on-chatgpt",
-      metaTitle: "Come comparire su ChatGPT e far consigliare la sua attività",
+      metaTitle: "Come far consigliare la sua attività da ChatGPT",
       metaDescription:
-        "RepGet aiuta gli assistenti AI come ChatGPT a trovare la sua attività, a fidarsi e a nominarla: un controllo dei crawler AI, articoli che rispondono a domande reali, link da siti affini e il monitoraggio della visibilità nell’AI.",
+        "RepGet aiuta ChatGPT e altri assistenti AI a trovare e nominare la sua attività: controllo dei crawler AI, articoli su domande reali, link e monitoraggio.",
       eyebrow: "Ricerca AI",
       title: "Faccia consigliare la sua attività",
       accent: "da ChatGPT.",
@@ -779,7 +779,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
       path: "/backlinks",
       metaTitle: "Backlinks von echten Unternehmenswebsites",
       metaDescription:
-        "RepGet platziert Links zu Ihrer Website in neuen Artikeln auf den Websites von Unternehmen aus verwandten Branchen. Follow-Links, auf der Live-Seite geprüft, mit Credits in jedem Tarif.",
+        "RepGet platziert Links zu Ihrer Website in neuen Artikeln auf Websites verwandter Branchen. Follow-Links, live geprüft, mit Credits in jedem Tarif.",
       eyebrow: "Backlinks",
       title: "Backlinks von echten Unternehmenswebsites,",
       accent: "ohne eine einzige Outreach-E-Mail.",
@@ -901,7 +901,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
       path: "/rank-on-chatgpt",
       metaTitle: "So erscheinen Sie in ChatGPT und werden empfohlen",
       metaDescription:
-        "RepGet hilft KI-Assistenten wie ChatGPT, Ihr Unternehmen zu finden, ihm zu vertrauen und es zu nennen: ein Check der KI-Crawler, Artikel, die echte Fragen beantworten, Links von verwandten Websites und das Tracking Ihrer KI-Sichtbarkeit.",
+        "RepGet hilft ChatGPT und anderen KI-Assistenten, Ihr Unternehmen zu finden und zu nennen: KI-Crawler-Check, Artikel zu echten Fragen, Links und Tracking.",
       eyebrow: "KI-Suche",
       title: "Lassen Sie Ihr Unternehmen",
       accent: "von ChatGPT empfehlen.",

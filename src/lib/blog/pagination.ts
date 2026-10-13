@@ -20,7 +20,11 @@ export function blogPageHref(path: string, page: number): string {
   return page === 1 ? path : `${path}?page=${page}`;
 }
 
-/** " — Page N" after a listing's title and in its description, from page 2 on, so every page's are its own. */
-export function pageSuffix(page: number): string {
-  return page > 1 ? ` — Page ${page}` : "";
+/**
+ * " — Page N" after a listing's title and in its description, from page 2 on,
+ * so every page's are its own. `label` is the words in the page's language
+ * (lib/blog/locale.ts BLOG_CHROME pageN).
+ */
+export function pageSuffix(page: number, label = "Page {page}"): string {
+  return page > 1 ? ` — ${label.replace("{page}", String(page))}` : "";
 }

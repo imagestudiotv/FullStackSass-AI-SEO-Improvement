@@ -34,7 +34,7 @@ export const de: DocsTranslation = {
     "wordpress-plugin": {
       name: "WordPress-Plugin",
       summary:
-        "Veröffentlichen Sie mit unserem Plugin auf WordPress. Es funktioniert auch, wenn die REST-API blockiert ist, und wir speichern nie ein Passwort zu Ihrer Website.",
+        "Veröffentlichen Sie mit unserem Plugin auf WordPress. Es funktioniert auch bei blockierter REST-API, und wir speichern nie ein Passwort zu Ihrer Website.",
       requirements: [
         "Eine WordPress-Website, auf der Sie Plugins installieren können: selbst gehostet (wordpress.org) oder ein WordPress.com-Tarif, der Plugins erlaubt (Business oder höher)",
         "WordPress 5.6 oder neuer und PHP 7.4 oder neuer",
@@ -142,7 +142,7 @@ export const de: DocsTranslation = {
     wordpress: {
       name: "WordPress",
       summary:
-        "Veröffentlichen Sie mit einem Anwendungspasswort direkt auf einer selbst gehosteten WordPress-Website. Kein Plugin nötig, aber lesen Sie die Plugin-Anleitung, wenn Ihr Hoster die REST-API blockiert.",
+        "Veröffentlichen Sie mit einem Anwendungspasswort direkt auf selbst gehostetem WordPress. Ohne Plugin; bei blockierter REST-API hilft die Plugin-Anleitung.",
       requirements: [
         "Eine selbst gehostete WordPress-Website (wordpress.org, kein kostenloser wordpress.com-Tarif)",
         "Ein Konto darauf mit der Rolle Redakteur oder Administrator",
@@ -218,7 +218,7 @@ export const de: DocsTranslation = {
     },
     shopify: {
       name: "Shopify",
-      summary: "Veröffentlichen Sie Artikel in einem Blog Ihres Shopify-Shops.",
+      summary: "Veröffentlichen Sie Artikel in einem Blog Ihres Shopify-Shops - über eine eigene App und deren Admin-API-Zugriffstoken.",
       requirements: [
         "Ein Shopify-Shop, der Ihnen gehört oder den Sie als Mitarbeiter verwalten",
         "Die Berechtigung, in diesem Shop eine eigene App zu erstellen",

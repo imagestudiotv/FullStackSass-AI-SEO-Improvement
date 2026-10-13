@@ -142,7 +142,7 @@ export const it: DocsTranslation = {
     wordpress: {
       name: "WordPress",
       summary:
-        "Pubblichi direttamente su un sito WordPress self-hosted con una password applicazione. Nessun plugin da installare, ma veda la guida del plugin se il suo hosting blocca l’API REST.",
+        "Pubblichi su un WordPress self-hosted con una password applicazione. Nessun plugin; se il suo hosting blocca l’API REST, veda la guida del plugin.",
       requirements: [
         "Un sito WordPress self-hosted (wordpress.org, non un piano gratuito di wordpress.com)",
         "Un account sul sito con il ruolo Editore o Amministratore",
@@ -187,7 +187,7 @@ export const it: DocsTranslation = {
     },
     ghost: {
       name: "Ghost",
-      summary: "Pubblichi su un blog Ghost con una chiave dell’Admin API.",
+      summary: "Pubblichi su un blog Ghost, self-hosted o Ghost(Pro), con una chiave dell’Admin API presa da un’integrazione personalizzata.",
       requirements: ["Un sito Ghost che amministra, self-hosted o su Ghost(Pro)", "Ghost 4.0 o successivo"],
       steps: [
         { title: "Apra le impostazioni delle integrazioni", body: "Nel pannello di Ghost vada in Settings → Advanced → Integrations." },
@@ -218,7 +218,7 @@ export const it: DocsTranslation = {
     },
     shopify: {
       name: "Shopify",
-      summary: "Pubblichi articoli su un blog del suo negozio Shopify.",
+      summary: "Pubblichi articoli su un blog del suo negozio Shopify tramite un’app personalizzata e il relativo token di accesso Admin API.",
       requirements: [
         "Un negozio Shopify di cui è proprietario o amministratore come membro dello staff",
         "Il permesso di creare un’app personalizzata in quel negozio",
@@ -298,7 +298,7 @@ export const it: DocsTranslation = {
     },
     wix: {
       name: "Wix",
-      summary: "Pubblichi sul blog del suo sito Wix con una chiave API.",
+      summary: "Pubblichi sul blog del suo sito Wix con una chiave API dotata dei permessi Blog e l’ID del sito.",
       requirements: ["Un sito Wix con l’app Blog installata", "Accesso da proprietario o amministratore, per poter creare chiavi API"],
       steps: [
         { title: "Apra la pagina delle chiavi API", body: "Nella dashboard di Wix vada in Settings → API keys, poi Generate API key." },

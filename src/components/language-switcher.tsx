@@ -26,9 +26,13 @@ import { cn } from "@/lib/utils";
  * about 20 KB compressed - into every public page's first download, for a
  * footer control with five links. The links are also in the HTML now, where
  * a crawler finds them, instead of appearing only when the menu opens.
+ *
+ * `label` is the button's screen-reader name in the page's language (from
+ * lib/i18n/site-chrome.ts; never messages.ts here). Each language's name is
+ * written in that language, so its link says so with lang.
  */
 
-export function LanguageSwitcher() {
+export function LanguageSwitcher({ label }: { label: string }) {
   const pathname = usePathname();
   const { locale, path } = splitLocale(pathname);
   const menu = useRef<HTMLDetailsElement>(null);
@@ -67,7 +71,7 @@ export function LanguageSwitcher() {
     <details ref={menu} className="group relative">
       {/* group-open: the highlight the button had while its menu was open. */}
       <summary
-        aria-label="Change language"
+        aria-label={label}
         className={cn(
           buttonVariants({ variant: "ghost", size: "sm" }),
           "cursor-pointer list-none gap-1.5 group-open:bg-muted group-open:text-foreground [&::-webkit-details-marker]:hidden",
@@ -87,6 +91,8 @@ export function LanguageSwitcher() {
               // what makes a switcher useful for indexing rather than only
               // for people.
               hrefLang={option}
+              // "Español" is Spanish whatever the page's language.
+              lang={option}
               aria-current={option === locale ? "true" : undefined}
               onClick={() => {
                 if (menu.current) menu.current.open = false;

@@ -39,8 +39,8 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   const page = blogPage((await searchParams).page);
   const t = BLOG_CHROME[locale];
   return {
-    title: `${t.metaTitle}${pageSuffix(page)}`,
-    description: page > 1 ? `${t.metaDescription.replace(/\.$/, "")}${pageSuffix(page)}.` : t.metaDescription,
+    title: `${t.metaTitle}${pageSuffix(page, t.pageN)}`,
+    description: page > 1 ? `${t.metaDescription.replace(/\.$/, "")}${pageSuffix(page, t.pageN)}.` : t.metaDescription,
     // Page 2 on is its own address (/it/blog?page=2), outside the hreflang set like the English one's.
     ...(page === 1 ? publicPageMetadata("/blog", { locale }) : publicPageMetadata(blogPageHref(blogPath(locale), page))),
   };
@@ -86,7 +86,7 @@ export default async function LocaleBlogIndexPage({ params, searchParams }: Prop
               </li>
             ))}
           </ul>
-          <BlogPagination page={page} total={total} path={blogPath(locale)} />
+          <BlogPagination page={page} total={total} path={blogPath(locale)} locale={locale} />
         </div>
       ) : null}
 

@@ -343,6 +343,8 @@ export type Messages = {
   pricing: {
     title: string;
     subtitle: string;
+    /** The search description (158 characters at most); the subtitle is the visible text and may be longer. */
+    metaDescription: string;
     perMonth: string;
     getStarted: string;
     mostPopular: string;
@@ -2910,6 +2912,11 @@ export type Messages = {
       emailPlaceholder: string;
       password: string;
       passwordHint: string;
+      /** The password field's placeholder on sign-up. */
+      passwordPlaceholder: string;
+      /** What a screen reader hears on the button that shows or hides the password. */
+      showPassword: string;
+      hidePassword: string;
       /** Shown when Better Auth answers 429 (lib/auth/rate-limit.ts). */
       tooManyAttempts: string;
       /** A new password over MAX_PASSWORD_LENGTH (lib/auth/password-policy.ts). */
@@ -3358,6 +3365,7 @@ const en: Messages = {
   },
   pricing: {
     title: "Simple pricing",
+    metaDescription: "Simple monthly pricing. Every plan includes everything; plans differ in how much we write for you and how many backlinks you get. Cancel any time.",
     subtitle:
       "Everything is included in every plan. The difference is how much we write for you each month - and how many backlinks you get from our partner network.",
     perMonth: " / month",
@@ -3382,7 +3390,7 @@ const en: Messages = {
   },
   about: {
     metaTitle: "About",
-    metaDescription: "Why RepGet exists and who it is for.",
+    metaDescription: "Why RepGet exists and who it is for: SEO results without the agency, at a price a small business can actually pay.",
     title: "SEO results without the agency",
     intro: [
       'A dentist, a plumber or a small law firm knows they should "do SEO". What that actually needs is a keyword researcher, a writer, someone who understands technical audits, and outreach for links. An agency bundles all of that for a few thousand a month.',
@@ -3535,7 +3543,7 @@ const en: Messages = {
   backlinkExchange: {
     metaTitle: "How the backlink exchange works",
     metaDescription:
-      "Earn links to your website by publishing one article for another business. Relevant matches only, verified daily, credits refunded when a removed link is confirmed.",
+      "Earn links to your website by publishing one article for another business. Relevant matches only, verified daily, credits back when a removal is confirmed.",
     title: "How the backlink exchange works",
     intro:
       "Links are earned by giving them. You host one article for a business in a related field, and spend what you earn on links back to your own site.",
@@ -3578,7 +3586,7 @@ const en: Messages = {
   },
   faq: {
     metaTitle: "FAQ",
-    metaDescription: "Common questions about how RepGet works.",
+    metaDescription: "Common questions about how RepGet works - how long results take, ranking guarantees, AI-written articles, link credits and cancelling - answered straight.",
     title: "Frequently asked questions",
     subtitle: "Straight answers, including where the limits are.",
     items: [
@@ -3631,7 +3639,7 @@ const en: Messages = {
   },
   contact: {
     metaTitle: "Contact",
-    metaDescription: "How to get in touch with RepGet.",
+    metaDescription: "How to get in touch with RepGet about the product, your account or billing. We read every message and reply within two working days.",
     title: "Contact us",
     subtitle:
       "Questions about the product, your account, or billing - we read every message and reply within two working days.",
@@ -5885,6 +5893,9 @@ const en: Messages = {
       emailPlaceholder: "you@example.com",
       password: "Password",
       passwordHint: "At least 8 characters.",
+      passwordPlaceholder: "Create a password",
+      showPassword: "Show password",
+      hidePassword: "Hide password",
       tooManyAttempts: "Too many attempts. Wait a few minutes and try again.",
       passwordTooLong: "Use at most 128 characters.",
       emailMeACode: "Email me a sign-in code",
@@ -6000,35 +6011,35 @@ const es: Messages = {
     successStories: "Casos de éxito",
     getStartedCta: "Empezar",
     platform: "Plataforma",
-    platformHeading: "Explora la plataforma",
+    platformHeading: "Explore la plataforma",
     platformItems: [
       {
         title: "Motor de contenidos",
         detail:
-          "Planifica y genera artículos diseñados para aumentar la visibilidad orgánica.",
+          "Planifique y genere artículos diseñados para aumentar la visibilidad orgánica.",
       },
       {
         title: "Red de autoridad",
         detail:
-          "Consigue enlaces relevantes y refuerza la autoridad de tu dominio.",
+          "Consiga enlaces relevantes y refuerce la autoridad de su dominio.",
       },
       {
         title: "Inteligencia del sitio",
         detail:
-          "Detecta problemas técnicos y de SEO que afectan a tu rendimiento.",
+          "Detecte problemas técnicos y de SEO que afectan a su rendimiento.",
       },
       {
         title: "Rendimiento en búsqueda",
-        detail: "Sigue posiciones, visibilidad y resultados en Google.",
+        detail: "Siga posiciones, visibilidad y resultados en Google.",
       },
       {
         title: "Presencia en IA",
         detail:
-          "Comprueba con qué frecuencia aparece tu marca en ChatGPT, Claude, Perplexity y la búsqueda con IA.",
+          "Compruebe con qué frecuencia aparece su marca en ChatGPT, Claude, Perplexity y la búsqueda con IA.",
       },
       {
         title: "Recuperación de tráfico",
-        detail: "Identifica páginas en caída antes de perder tráfico valioso.",
+        detail: "Identifique páginas en caída antes de perder tráfico valioso.",
       },
     ],
   },
@@ -6037,7 +6048,7 @@ const es: Messages = {
     product: "Producto",
     company: "Empresa",
     legal: "Legal",
-    freeCheck: "Análisis gratuito de tu web",
+    freeCheck: "Análisis gratuito de su web",
     freeTools: "Herramientas gratuitas",
     pricing: "Precios",
     blog: "Blog",
@@ -6047,8 +6058,8 @@ const es: Messages = {
     backlinks: "Backlinks",
     rankOnChatgpt: "Aparecer en ChatGPT",
     backlinkExchange: "Intercambio de enlaces",
-    publishers: "Monetiza tu blog",
-    affiliate: "Recomienda una empresa",
+    publishers: "Rentabilice su blog",
+    affiliate: "Recomiende una empresa",
     privacy: "Privacidad",
     terms: "Términos",
     refunds: "Reembolsos",
@@ -6062,14 +6073,14 @@ const es: Messages = {
     settings: "Configuración de cookies",
   },
   home: {
-    eyebrow: "Posiciónate. Que te citen. Que te recomienden.",
-    title: "Posiciónese en Google. Aparezca en las respuestas de IA",
+    eyebrow: "Posiciónese. Que le citen. Que le recomienden.",
+    title: "Posiciónese en Google y en las respuestas de IA",
     subtitle:
       "RepGet publica contenido SEO, consigue enlaces de calidad y construye la autoridad que hace que descubran su negocio.",
     checkFree: "Analizar mi web gratis",
     getStarted: "Empezar",
     heroAssurances: ["Análisis web gratuito", "Sin tarjeta de crédito", "Resultados en minutos"],
-    auditBand: "Gratis con tu análisis",
+    auditBand: "Gratis con su análisis",
     auditItems: [
       {
         title: "Auditoría SEO e IA",
@@ -6180,7 +6191,7 @@ const es: Messages = {
       contentsLabel: "Índice",
       kinds: { chatgpt: "Guía de visibilidad en IA", automation: "Guía de SEO", wedding: "Guía de bodas" },
     },
-    trackedTitle: "Ve exactamente qué ha cambiado",
+    trackedTitle: "Vea exactamente qué ha cambiado",
     trackedSub:
       "No es un PDF mensual. Es un panel que lee sus propios datos de Search Console y Analytics.",
     tracked: [
@@ -6329,7 +6340,7 @@ const es: Messages = {
       "Un análisis gratuito para empezar, sin contrato y cancele cuando quiera.",
     seeAllPlans: "Ver todo lo que incluye cada plan",
     mostPopular: "Más popular",
-    tryItFirst: "Pruébalo primero",
+    tryItFirst: "Pruébelo primero",
     getStartedPlan: "Empezar",
     perMonth: " / mes",
     unavailable:
@@ -6347,14 +6358,15 @@ const es: Messages = {
   },
   pricing: {
     title: "Precios sencillos",
+    metaDescription: "Todo está incluido en cada plan. La diferencia es cuánto escribimos para usted cada mes y cuántos backlinks recibe de nuestra red de socios.",
     subtitle:
       "Todo está incluido en cada plan. La diferencia es cuánto escribimos para usted cada mes y cuántos backlinks recibe de nuestra red de socios.",
     perMonth: " / mes",
     getStarted: "Empezar",
     mostPopular: "Más popular",
-    tryItFirst: "Pruébalo primero",
+    tryItFirst: "Pruébelo primero",
     starterTagline:
-      "Pruébanos con un artículo real y un enlace real antes de subir de plan.",
+      "Pruébenos con un artículo real y un enlace real antes de subir de plan.",
     unavailable:
       "Los precios no están disponibles en este momento. Vuelva a intentarlo en breve.",
     annualNote:
@@ -6365,14 +6377,14 @@ const es: Messages = {
       keywords: "{n} términos de búsqueda monitorizados",
       backlinks: "Backlinks de nuestra red de socios",
       audit:
-        "Auditoría del sitio, para que tus páginas estén listas para la IA y Google",
+        "Auditoría del sitio, para que sus páginas estén listas para la IA y Google",
       healthChecks: "Análisis de salud de la web",
-      publishing: "Publica en WordPress, Ghost o Shopify",
+      publishing: "Publique en WordPress, Ghost o Shopify",
     },
   },
   about: {
     metaTitle: "Quiénes somos",
-    metaDescription: "Por qué existe RepGet y para quién es.",
+    metaDescription: "Por qué existe RepGet y para quién es: resultados de SEO sin agencia, a un precio que un pequeño negocio puede pagar de verdad.",
     title: "Resultados de SEO sin agencia",
     intro: [
       'Un dentista, un fontanero o un pequeño bufete sabe que debería "hacer SEO". Lo que eso requiere en realidad es alguien que investigue palabras clave, alguien que escriba, alguien que entienda las auditorías técnicas y alguien que consiga enlaces. Una agencia lo agrupa todo por unos miles al mes.',
@@ -6526,7 +6538,7 @@ const es: Messages = {
   backlinkExchange: {
     metaTitle: "Cómo funciona el intercambio de enlaces",
     metaDescription:
-      "Consiga enlaces hacia su web publicando un artículo para otro negocio. Solo emparejamientos relevantes, verificados a diario y créditos devueltos cuando se confirma que un enlace ha desaparecido.",
+      "Consiga enlaces a su web publicando un artículo para otro negocio. Solo negocios afines, enlaces verificados a diario y crédito devuelto si se retira uno.",
     title: "Cómo funciona el intercambio de enlaces",
     intro:
       "Los enlaces se ganan dándolos. Usted aloja un artículo de un negocio de un sector relacionado y gasta lo que gana en enlaces hacia su propia web.",
@@ -6570,7 +6582,7 @@ const es: Messages = {
   faq: {
     metaTitle: "Preguntas frecuentes",
     metaDescription:
-      "Preguntas habituales sobre cómo funciona RepGet.",
+      "Preguntas habituales sobre cómo funciona RepGet: plazos de resultados, garantías de posicionamiento, artículos con IA, créditos de enlaces y cancelación.",
     title: "Preguntas frecuentes",
     subtitle: "Respuestas claras, incluidos los límites.",
     items: [
@@ -6623,7 +6635,7 @@ const es: Messages = {
   },
   contact: {
     metaTitle: "Contacto",
-    metaDescription: "Cómo ponerse en contacto con RepGet.",
+    metaDescription: "Cómo contactar con RepGet para consultas sobre el producto, su cuenta o la facturación. Leemos todos los mensajes y respondemos en dos días laborables.",
     title: "Contacto",
     subtitle:
       "Preguntas sobre el producto, su cuenta o la facturación: leemos todos los mensajes y respondemos en un plazo de dos días laborables.",
@@ -8878,6 +8890,9 @@ const es: Messages = {
       emailPlaceholder: "usted@ejemplo.com",
       password: "Contraseña",
       passwordHint: "Al menos 8 caracteres.",
+      passwordPlaceholder: "Cree una contraseña",
+      showPassword: "Mostrar contraseña",
+      hidePassword: "Ocultar contraseña",
       tooManyAttempts: "Demasiados intentos. Espere unos minutos y vuelva a intentarlo.",
       passwordTooLong: "Use como máximo 128 caracteres.",
       emailMeACode: "Envíenme un código por correo",
@@ -9057,7 +9072,7 @@ const fr: Messages = {
   },
   home: {
     eyebrow: "Soyez classé. Soyez cité. Soyez recommandé.",
-    title: "Positionnez-vous sur Google. Apparaissez dans les réponses IA",
+    title: "Positionnez-vous sur Google et dans les réponses IA",
     subtitle:
       "RepGet publie du contenu SEO, obtient des backlinks de qualité et construit l'autorité qui fait découvrir votre entreprise.",
     checkFree: "Analyser mon site gratuitement",
@@ -9341,6 +9356,7 @@ const fr: Messages = {
   },
   pricing: {
     title: "Des tarifs simples",
+    metaDescription: "Tout est inclus dans chaque formule. Seuls changent le volume rédigé pour vous chaque mois et le nombre de backlinks reçus de notre réseau de partenaires.",
     subtitle:
       "Tout est inclus dans chaque formule. La différence tient à ce que nous rédigeons pour vous chaque mois, et au nombre de backlinks que vous recevez de notre réseau de partenaires.",
     perMonth: " / mois",
@@ -9365,7 +9381,7 @@ const fr: Messages = {
   },
   about: {
     metaTitle: "À propos",
-    metaDescription: "Pourquoi RepGet existe et à qui il s'adresse.",
+    metaDescription: "Pourquoi RepGet existe et à qui il s’adresse : des résultats SEO sans agence, à un prix qu’une petite entreprise peut vraiment payer.",
     title: "Des résultats SEO sans agence",
     intro: [
       "Un dentiste, un plombier ou un petit cabinet d'avocats sait qu'il devrait \"faire du SEO\". Ce que cela exige réellement, c'est quelqu'un pour la recherche de mots-clés, quelqu'un pour rédiger, quelqu'un qui comprend les audits techniques et quelqu'un pour obtenir des liens. Une agence regroupe tout cela pour quelques milliers par mois.",
@@ -9519,7 +9535,7 @@ const fr: Messages = {
   backlinkExchange: {
     metaTitle: "Comment fonctionne l'échange de liens",
     metaDescription:
-      "Gagnez des liens vers votre site en publiant un article pour une autre entreprise. Uniquement des associations pertinentes, vérifiées chaque jour, crédits remboursés quand la disparition d'un lien est confirmée.",
+      "Gagnez des liens en publiant un article pour une autre entreprise. Partenaires pertinents, liens vérifiés chaque jour, crédit rendu si un lien disparaît.",
     title: "Comment fonctionne l'échange de liens",
     intro:
       "Les liens se gagnent en en donnant. Vous hébergez un article pour une entreprise d'un secteur proche, et vous dépensez ce que vous gagnez en liens vers votre propre site.",
@@ -9564,7 +9580,7 @@ const fr: Messages = {
   faq: {
     metaTitle: "FAQ",
     metaDescription:
-      "Questions fréquentes sur le fonctionnement de RepGet.",
+      "Questions fréquentes sur le fonctionnement de RepGet : délais, garanties de classement, articles rédigés par IA, crédits de liens et résiliation.",
     title: "Questions fréquentes",
     subtitle: "Des réponses franches, y compris sur les limites.",
     items: [
@@ -9618,7 +9634,7 @@ const fr: Messages = {
   },
   contact: {
     metaTitle: "Contact",
-    metaDescription: "Comment joindre RepGet.",
+    metaDescription: "Comment joindre RepGet pour une question sur le produit, votre compte ou la facturation. Nous lisons chaque message et répondons sous deux jours ouvrés.",
     title: "Nous contacter",
     subtitle:
       "Des questions sur le produit, votre compte ou la facturation : nous lisons chaque message et répondons sous deux jours ouvrés.",
@@ -11872,6 +11888,9 @@ const fr: Messages = {
       emailPlaceholder: "vous@exemple.com",
       password: "Mot de passe",
       passwordHint: "Au moins 8 caractères.",
+      passwordPlaceholder: "Créez un mot de passe",
+      showPassword: "Afficher le mot de passe",
+      hidePassword: "Masquer le mot de passe",
       tooManyAttempts: "Trop de tentatives. Patientez quelques minutes et réessayez.",
       passwordTooLong: "Utilisez 128 caractères au maximum.",
       emailMeACode: "Envoyez-moi un code par e-mail",
@@ -11987,36 +12006,36 @@ const it: Messages = {
     successStories: "Casi di successo",
     getStartedCta: "Inizia",
     platform: "Piattaforma",
-    platformHeading: "Esplora la piattaforma",
+    platformHeading: "Esplori la piattaforma",
     platformItems: [
       {
         title: "Motore di contenuti",
         detail:
-          "Pianifica e genera articoli pensati per far crescere la visibilità organica.",
+          "Pianifichi e generi articoli pensati per far crescere la visibilità organica.",
       },
       {
         title: "Rete di autorità",
         detail:
-          "Ottieni backlink pertinenti e rafforza l'autorità del dominio.",
+          "Ottenga backlink pertinenti e rafforzi l'autorità del dominio.",
       },
       {
         title: "Intelligence del sito",
         detail:
-          "Individua problemi tecnici e SEO che influiscono sulle prestazioni.",
+          "Individui problemi tecnici e SEO che influiscono sulle prestazioni.",
       },
       {
         title: "Performance di ricerca",
-        detail: "Monitora posizioni, visibilità e risultati su Google.",
+        detail: "Monitori posizioni, visibilità e risultati su Google.",
       },
       {
         title: "Presenza IA",
         detail:
-          "Controlla quanto spesso il tuo brand compare su ChatGPT, Claude, Perplexity e nella ricerca IA.",
+          "Controlli quanto spesso il suo brand compare su ChatGPT, Claude, Perplexity e nella ricerca IA.",
       },
       {
         title: "Recupero del traffico",
         detail:
-          "Individua le pagine in calo prima che il traffico prezioso sparisca.",
+          "Individui le pagine in calo prima che il traffico prezioso sparisca.",
       },
     ],
   },
@@ -12025,7 +12044,7 @@ const it: Messages = {
     product: "Prodotto",
     company: "Azienda",
     legal: "Note legali",
-    freeCheck: "Analisi gratuita del tuo sito",
+    freeCheck: "Analisi gratuita del suo sito",
     freeTools: "Strumenti gratuiti",
     pricing: "Prezzi",
     blog: "Blog",
@@ -12035,8 +12054,8 @@ const it: Messages = {
     backlinks: "Backlink",
     rankOnChatgpt: "Comparire su ChatGPT",
     backlinkExchange: "Scambio di link",
-    publishers: "Monetizza il tuo blog",
-    affiliate: "Segnala un'azienda",
+    publishers: "Monetizzi il suo blog",
+    affiliate: "Segnali un'azienda",
     privacy: "Privacy",
     terms: "Termini",
     refunds: "Rimborsi",
@@ -12050,7 +12069,7 @@ const it: Messages = {
     settings: "Impostazioni cookie",
   },
   home: {
-    eyebrow: "Posizionati. Fatti citare. Fatti consigliare.",
+    eyebrow: "Si posizioni. Si faccia citare. Si faccia consigliare.",
     title: "Si posizioni su Google. Compaia nelle risposte IA",
     subtitle:
       "RepGet pubblica contenuti SEO, ottiene backlink di qualità e costruisce l'autorevolezza che fa scoprire la sua azienda.",
@@ -12061,7 +12080,7 @@ const it: Messages = {
       "Nessuna carta di credito",
       "Risultati in pochi minuti",
     ],
-    auditBand: "Incluso con la tua analisi",
+    auditBand: "Incluso con la sua analisi",
     auditItems: [
       {
         title: "Analisi SEO e IA",
@@ -12318,7 +12337,7 @@ const it: Messages = {
       "Un'analisi gratuita per iniziare, senza vincoli, e disdica quando vuole.",
     seeAllPlans: "Vedi tutto ciò che include ogni piano",
     mostPopular: "Il più scelto",
-    tryItFirst: "Provalo prima",
+    tryItFirst: "Lo provi prima",
     getStartedPlan: "Inizia",
     perMonth: " / mese",
     unavailable:
@@ -12327,23 +12346,24 @@ const it: Messages = {
     planBacklinks: "Backlink dalla nostra rete di partner",
     planPublishing: "Pubblicazione automatica su WordPress, Shopify e altro",
     createFreeArticles: "Crei 3 articoli gratis",
-    closingTitle: "Il Suo sito potrebbe crescere più velocemente.",
+    closingTitle: "Il suo sito potrebbe crescere più velocemente.",
     closingTitleAccent: "crescere più velocemente.",
     closingSub:
-      "Scopra che cosa frena il Suo sito con un audit SEO gratuito. Nessun account richiesto.",
+      "Scopra che cosa frena il suo sito con un audit SEO gratuito. Nessun account richiesto.",
     cancelAnytime: "Disdica quando vuole",
     setupInMinutes: "Pronto in pochi minuti",
   },
   pricing: {
     title: "Prezzi semplici",
+    metaDescription: "Ogni piano include tutto. La differenza è quanto scriviamo per lei ogni mese e quanti backlink riceve dalla nostra rete di partner.",
     subtitle:
       "Ogni piano include tutto. La differenza è quanto scriviamo per lei ogni mese e quanti backlink riceve dalla nostra rete di partner.",
     perMonth: " / mese",
     getStarted: "Inizia",
     mostPopular: "Il più scelto",
-    tryItFirst: "Provalo prima",
+    tryItFirst: "Lo provi prima",
     starterTagline:
-      "Provaci con un articolo vero e un backlink vero prima di passare a un piano superiore.",
+      "Ci provi con un articolo vero e un backlink vero prima di passare a un piano superiore.",
     unavailable:
       "I prezzi non sono disponibili in questo momento. Riprovi tra poco.",
     annualNote:
@@ -12355,12 +12375,12 @@ const it: Messages = {
       backlinks: "Backlink dalla nostra rete di partner",
       audit: "Audit del sito, per pagine pronte per l'IA e Google",
       healthChecks: "Controlli sullo stato del sito",
-      publishing: "Pubblica su WordPress, Ghost o Shopify",
+      publishing: "Pubblichi su WordPress, Ghost o Shopify",
     },
   },
   about: {
     metaTitle: "Chi siamo",
-    metaDescription: "Perché RepGet esiste e a chi si rivolge.",
+    metaDescription: "Perché RepGet esiste e a chi si rivolge: risultati SEO senza agenzia, a un prezzo che una piccola attività può davvero permettersi.",
     title: "Risultati SEO senza agenzia",
     intro: [
       'Un dentista, un idraulico o un piccolo studio legale sa di dover "fare SEO". Ciò che serve davvero è qualcuno che studi le parole chiave, qualcuno che scriva, qualcuno che capisca gli audit tecnici e qualcuno che ottenga i link. Un\'agenzia mette insieme tutto questo per qualche migliaio al mese.',
@@ -12514,7 +12534,7 @@ const it: Messages = {
   backlinkExchange: {
     metaTitle: "Come funziona lo scambio di link",
     metaDescription:
-      "Guadagni link verso il suo sito pubblicando un articolo per un'altra azienda. Solo abbinamenti pertinenti, verificati ogni giorno, crediti rimborsati quando si conferma che un link è sparito.",
+      "Guadagni link verso il suo sito pubblicando un articolo per un'altra azienda: abbinamenti pertinenti, verifiche quotidiane, crediti resi se un link sparisce.",
     title: "Come funziona lo scambio di link",
     intro:
       "I link si guadagnano dandoli. Lei ospita un articolo per un'azienda di un settore affine e spende ciò che guadagna in link verso il suo sito.",
@@ -12557,7 +12577,7 @@ const it: Messages = {
   },
   faq: {
     metaTitle: "Domande frequenti",
-    metaDescription: "Domande comuni sul funzionamento di RepGet.",
+    metaDescription: "Domande comuni sul funzionamento di RepGet: tempi dei risultati, garanzie di posizionamento, articoli scritti con l'AI, crediti link e disdetta.",
     title: "Domande frequenti",
     subtitle: "Risposte chiare, limiti compresi.",
     items: [
@@ -12610,8 +12630,8 @@ const it: Messages = {
   },
   contact: {
     metaTitle: "Contatti",
-    metaDescription: "Come contattare RepGet.",
-    title: "Contattaci",
+    metaDescription: "Come contattare RepGet per domande sul prodotto, sul suo account o sulla fatturazione. Leggiamo ogni messaggio e rispondiamo entro due giorni lavorativi.",
+    title: "Ci contatti",
     subtitle:
       "Domande sul prodotto, sul suo account o sulla fatturazione: leggiamo ogni messaggio e rispondiamo entro due giorni lavorativi.",
     emailLabel: "E-mail",
@@ -14865,6 +14885,9 @@ const it: Messages = {
       emailPlaceholder: "lei@esempio.com",
       password: "Password",
       passwordHint: "Almeno 8 caratteri.",
+      passwordPlaceholder: "Crei una password",
+      showPassword: "Mostra password",
+      hidePassword: "Nascondi password",
       tooManyAttempts: "Troppi tentativi. Attenda qualche minuto e riprovi.",
       passwordTooLong: "Usi al massimo 128 caratteri.",
       emailMeACode: "Inviatemi un codice via e-mail",
@@ -15324,6 +15347,7 @@ const de: Messages = {
   },
   pricing: {
     title: "Einfache Preise",
+    metaDescription: "In jedem Tarif ist alles enthalten. Der Unterschied: wie viel wir monatlich für Sie schreiben und wie viele Backlinks Sie aus dem Partnernetzwerk erhalten.",
     subtitle:
       "In jedem Tarif ist alles enthalten. Der Unterschied liegt darin, wie viel wir jeden Monat für Sie schreiben und wie viele Backlinks Sie aus unserem Partnernetzwerk erhalten.",
     perMonth: " / Monat",
@@ -15349,7 +15373,7 @@ const de: Messages = {
   about: {
     metaTitle: "Über uns",
     metaDescription:
-      "Warum es RepGet gibt und für wen es gedacht ist.",
+      "Warum es RepGet gibt und für wen: SEO-Ergebnisse ohne Agentur, zu einem Preis, den sich ein kleines Unternehmen wirklich leisten kann.",
     title: "SEO-Ergebnisse ohne Agentur",
     intro: [
       'Eine Zahnarztpraxis, ein Installateur oder eine kleine Kanzlei weiß, dass sie "SEO machen" sollte. Nötig sind dafür in Wirklichkeit jemand für die Keyword-Recherche, jemand zum Schreiben, jemand mit Verständnis für technische Audits und jemand, der Links besorgt. Eine Agentur bündelt all das für einige tausend im Monat.',
@@ -15420,7 +15444,7 @@ const de: Messages = {
   publishers: {
     metaTitle: "Monetarisieren Sie Ihren Blog",
     metaDescription:
-      "Veröffentlichen Sie einen Artikel pro Monat für ein Unternehmen aus einer verwandten Branche und verdienen Sie Link-Guthaben für Backlinks auf Ihre eigene Website.",
+      "Veröffentlichen Sie einen Artikel pro Monat für ein Unternehmen einer verwandten Branche und verdienen Sie Link-Guthaben für Backlinks auf Ihre Website.",
     title: "Monetarisieren Sie Ihren Blog",
     intro:
       "Veröffentlichen Sie einen Artikel pro Monat für ein Unternehmen aus einer verwandten Branche und verdienen Sie Guthaben für Links auf Ihre eigene Website.",
@@ -15503,7 +15527,7 @@ const de: Messages = {
   backlinkExchange: {
     metaTitle: "So funktioniert der Backlink-Austausch",
     metaDescription:
-      "Verdienen Sie Links auf Ihre Website, indem Sie einen Artikel für ein anderes Unternehmen veröffentlichen. Nur passende Zuordnungen, täglich geprüft, Guthaben zurück, wenn bestätigt ist, dass ein Link verschwunden ist.",
+      "Verdienen Sie Links auf Ihre Website mit einem Artikel für ein anderes Unternehmen. Nur passende Partner, Links täglich geprüft, Guthaben bei Verlust zurück.",
     title: "So funktioniert der Backlink-Austausch",
     intro:
       "Links verdient man, indem man welche gibt. Sie veröffentlichen einen Artikel für ein Unternehmen aus einer verwandten Branche und setzen das Verdiente für Links auf Ihre eigene Website ein.",
@@ -15547,7 +15571,7 @@ const de: Messages = {
   },
   faq: {
     metaTitle: "Häufige Fragen",
-    metaDescription: "Häufige Fragen dazu, wie RepGet funktioniert.",
+    metaDescription: "Häufige Fragen dazu, wie RepGet funktioniert: Zeit bis zu Ergebnissen, Ranking-Garantien, KI-Artikel, Link-Guthaben und Kündigung - klar beantwortet.",
     title: "Häufige Fragen",
     subtitle: "Klare Antworten, auch zu den Grenzen.",
     items: [
@@ -15600,7 +15624,7 @@ const de: Messages = {
   },
   contact: {
     metaTitle: "Kontakt",
-    metaDescription: "So erreichen Sie RepGet.",
+    metaDescription: "So erreichen Sie RepGet bei Fragen zum Produkt, zu Ihrem Konto oder zur Abrechnung. Wir lesen jede Nachricht und antworten innerhalb von zwei Werktagen.",
     title: "Kontakt",
     subtitle:
       "Fragen zum Produkt, zu Ihrem Konto oder zur Abrechnung - wir lesen jede Nachricht und antworten innerhalb von zwei Werktagen.",
@@ -17855,6 +17879,9 @@ const de: Messages = {
       emailPlaceholder: "sie@beispiel.de",
       password: "Passwort",
       passwordHint: "Mindestens 8 Zeichen.",
+      passwordPlaceholder: "Legen Sie ein Passwort fest",
+      showPassword: "Passwort anzeigen",
+      hidePassword: "Passwort verbergen",
       tooManyAttempts: "Zu viele Versuche. Warten Sie einige Minuten und versuchen Sie es erneut.",
       passwordTooLong: "Verwenden Sie höchstens 128 Zeichen.",
       emailMeACode: "Code per E-Mail senden",

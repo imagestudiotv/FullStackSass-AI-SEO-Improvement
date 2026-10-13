@@ -13,6 +13,11 @@ import type { Testimonial } from "@/lib/marketing/testimonials";
  * Pictures are stored ready-sized (128 x 128, a few KB) and served as they
  * are: `unoptimized` keeps them off the image resizer, which hung in
  * development on a 64px version of one of them.
+ *
+ * The role and the quote are marked lang="en": every published card is in
+ * English so far, and the translated homepages show them as they are, so
+ * without it /it would read an English quote as Italian. A card in another
+ * language would need a locale column on `testimonials` to say so here.
  */
 export function TestimonialCard({
   item,
@@ -48,7 +53,7 @@ export function TestimonialCard({
           )}
           <span className="min-w-0">
             <span className="block font-semibold tracking-tight wrap-anywhere">{item.name}</span>
-            <span className="block text-sm text-muted-foreground wrap-anywhere">{item.role}</span>
+            <span lang="en" className="block text-sm text-muted-foreground wrap-anywhere">{item.role}</span>
             {item.verified ? (
               <span className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-success">
                 <BadgeCheck className="size-3.5" aria-hidden="true" />
@@ -57,7 +62,7 @@ export function TestimonialCard({
             ) : null}
           </span>
         </figcaption>
-        <blockquote className="mt-4 flex-1 text-sm leading-relaxed text-pretty text-foreground/75 wrap-anywhere">
+        <blockquote lang="en" className="mt-4 flex-1 text-sm leading-relaxed text-pretty text-foreground/75 wrap-anywhere">
           <p>{item.quote}</p>
         </blockquote>
       </figure>

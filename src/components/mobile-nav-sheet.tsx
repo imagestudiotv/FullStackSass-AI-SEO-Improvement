@@ -23,11 +23,17 @@ import {
  * The button lives outside Radix (it is there before this file is), so focus
  * is handed back to it explicitly on close; Radix does that only for its own
  * trigger.
+ *
+ * Radix portals the sheet to <body>, outside MarketingFrame and its lang, so
+ * the sheet declares the page's language itself, and its close button says
+ * "close" in that language.
  */
 export function MobileNavSheet({
   open,
   onOpenChange,
   returnFocusTo,
+  lang,
+  closeLabel,
   heading,
   platform,
   links,
@@ -35,6 +41,10 @@ export function MobileNavSheet({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   returnFocusTo: RefObject<HTMLButtonElement | null>;
+  /** The page's language (the address's locale). */
+  lang: string;
+  /** The close button's screen-reader label, in that language. */
+  closeLabel: string;
   heading: string;
   platform: { title: string; href: string; icon: LucideIcon }[];
   links: { href: string; label: string }[];
@@ -45,6 +55,8 @@ export function MobileNavSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="left"
+        lang={lang}
+        closeLabel={closeLabel}
         className="w-80 overflow-y-auto p-0"
         onCloseAutoFocus={(event) => {
           event.preventDefault();

@@ -92,7 +92,7 @@ export const LLMS_TXT_COPY: Record<Locale, LlmsTxtCopy> = {
   },
   fr: {
     metaDescription:
-      "Générez un llms.txt valide à partir de votre site en ligne, construit à partir d’une vraie exploration de vos pages, pas d’un modèle. Gratuit, sans inscription.",
+      "Générez un llms.txt valide depuis votre site en ligne, construit à partir d’une vraie exploration de vos pages, pas d’un modèle. Gratuit, sans inscription.",
     description:
       "Lit votre site et rédige un llms.txt à partir de ce qui s’y trouve vraiment : vos vraies pages, avec leurs vraies descriptions. Pas un modèle dans lequel on a collé votre domaine.",
     submit: "Générer le llms.txt",
