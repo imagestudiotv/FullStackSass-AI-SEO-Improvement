@@ -142,7 +142,7 @@ export const fr: DocsTranslation = {
     wordpress: {
       name: "WordPress",
       summary:
-        "Publiez directement sur un site WordPress auto-hébergé avec un mot de passe d’application. Aucun plugin à installer, mais consultez le guide du plugin si votre hébergeur bloque l’API REST.",
+        "Publiez sur un WordPress auto-hébergé avec un mot de passe d’application. Sans plugin ; si votre hébergeur bloque l’API REST, voyez le guide du plugin.",
       requirements: [
         "Un site WordPress auto-hébergé (wordpress.org, pas une offre gratuite wordpress.com)",
         "Un compte sur ce site avec le rôle Éditeur ou Administrateur",
@@ -187,7 +187,7 @@ export const fr: DocsTranslation = {
     },
     ghost: {
       name: "Ghost",
-      summary: "Publiez sur un blog Ghost avec une clé de l’Admin API.",
+      summary: "Publiez sur un blog Ghost, auto-hébergé ou Ghost(Pro), avec une clé de l’Admin API issue d’une intégration personnalisée.",
       requirements: ["Un site Ghost que vous administrez, auto-hébergé ou sur Ghost(Pro)", "Ghost 4.0 ou plus récent"],
       steps: [
         { title: "Ouvrez les réglages des intégrations", body: "Dans l’administration de Ghost, allez dans Settings → Advanced → Integrations." },
@@ -218,7 +218,7 @@ export const fr: DocsTranslation = {
     },
     shopify: {
       name: "Shopify",
-      summary: "Publiez des articles sur un blog de votre boutique Shopify.",
+      summary: "Publiez des articles sur un blog de votre boutique Shopify via une application personnalisée et son jeton d’accès Admin API.",
       requirements: [
         "Une boutique Shopify dont vous êtes propriétaire ou que vous administrez en tant que membre du personnel",
         "L’autorisation de créer une application personnalisée dans cette boutique",
@@ -298,7 +298,7 @@ export const fr: DocsTranslation = {
     },
     wix: {
       name: "Wix",
-      summary: "Publiez sur le blog de votre site Wix avec une clé d’API.",
+      summary: "Publiez sur le blog de votre site Wix avec une clé d’API dotée des droits Blog et l’identifiant de votre site.",
       requirements: ["Un site Wix avec l’application Blog installée", "Un accès propriétaire ou administrateur, pour pouvoir créer des clés d’API"],
       steps: [
         { title: "Ouvrez la page des clés d’API", body: "Dans le tableau de bord Wix, allez dans Settings → API keys, puis Generate API key." },

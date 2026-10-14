@@ -51,6 +51,7 @@ import {
 import { COMPANY_NAME } from "@/lib/config/site";
 import { formatDate, formatNumber } from "@/lib/i18n/format";
 import { siteUrl } from "@/lib/site-url";
+import { SNIPPET_LIMITS } from "@/lib/tools/snippet";
 import { cn } from "@/lib/utils";
 
 import { AdminFacts, AdminPage, AdminPageHeader, AdminSection } from "../_ui/page";
@@ -69,8 +70,8 @@ const TEXTAREA =
  * warns past it instead.
  */
 const LIMITS = { title: 200, description: 300, author: 100, shortAnswer: 1000, question: 300, sourceLabel: 200, rows: 30 };
-/** What search results show of a description; longer is saved but cut off there. */
-const DESCRIPTION_TARGET = 160;
+/** What search results show of a description (the free audit's limit); longer is saved but cut off there. */
+const DESCRIPTION_TARGET = SNIPPET_LIMITS.metaMax;
 
 /** A version conflict (saveBlogPost / deleteBlogPost): someone else saved since this copy was opened. */
 const CONFLICT = /changed after you opened it/i;

@@ -30,6 +30,11 @@ export type FeatureExample = {
   site: string;
   /** Who the site belongs to, in a few words. */
   about: string;
+  /**
+   * The language the article is published in. Its title and description are
+   * marked with it, so on /it they are read as English, not Italian.
+   */
+  lang: Locale;
   title: string;
   href: string;
   /** Date published, YYYY-MM-DD. */
@@ -83,6 +88,7 @@ const IMAGE_STUDIO = {
 
 export const BACKLINKS_EXAMPLE: FeatureExample = {
   ...IMAGE_STUDIO,
+  lang: "en",
   title: "Everything Couples Should Know Before Choosing a Wedding Venue in Italy",
   href: "https://imagestudio.com/editorial/post/choosing-wedding-venue-italy/",
   published: "2026-08-27",
@@ -103,6 +109,7 @@ export const BACKLINKS_EXAMPLE: FeatureExample = {
 
 export const CHATGPT_EXAMPLE: FeatureExample = {
   ...IMAGE_STUDIO,
+  lang: "en",
   title: "How to Look Natural in Wedding Photos (Even If You Hate Posing)",
   href: "https://imagestudio.com/editorial/post/how-to-look-natural-in-wedding-photos/",
   published: "2026-10-09",
@@ -133,7 +140,7 @@ export const BACKLINKS_PAGE: FeaturePage = {
   path: "/backlinks",
   metaTitle: "Backlinks from real business websites",
   metaDescription:
-    "RepGet places links to your website inside new articles on related businesses' websites. Followed links, checked on the live page, with credits included in every plan.",
+    "RepGet places links to your site in new articles on related businesses' websites. Followed links, checked on the live page, credits included in every plan.",
   eyebrow: "Backlinks",
   title: "Backlinks from real business websites,",
   accent: "without a single outreach email.",
@@ -254,9 +261,9 @@ export const BACKLINKS_PAGE: FeaturePage = {
 
 export const CHATGPT_PAGE: FeaturePage = {
   path: "/rank-on-chatgpt",
-  metaTitle: "How to rank on ChatGPT and get your business recommended",
+  metaTitle: "How to rank on ChatGPT and get recommended",
   metaDescription:
-    "RepGet helps AI assistants like ChatGPT find, trust and name your business: an AI-crawler check, articles that answer real questions, links from related websites, and AI visibility tracking.",
+    "RepGet helps AI assistants like ChatGPT find, trust and name your business: an AI-crawler check, articles on real questions, related links and tracking.",
   eyebrow: "AI search",
   title: "Get your business",
   accent: "recommended by ChatGPT.",

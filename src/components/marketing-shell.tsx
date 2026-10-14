@@ -1,5 +1,6 @@
 import {
   MarketingFooterLinks,
+  MarketingFrame,
   MarketingNav,
   MarketingTagline,
 } from "@/components/marketing-nav";
@@ -16,13 +17,18 @@ import { siteChrome } from "@/lib/i18n/site-chrome";
  * footer and the live chat. The (marketing) layout wraps every public page in
  * it, and app/not-found.tsx wraps the 404 for addresses that match no route
  * at all - which render outside every route group's layout.
+ *
+ * The frame itself is MarketingFrame, which sets lang to the address's
+ * language (/es -> "es"), because the root layout's <html lang="en"> is
+ * shared by every page and cannot be told it (see marketing-nav.tsx).
  */
 export function MarketingShell({ children }: { children: React.ReactNode }) {
   // The header and footer words, picked out here so the browser never loads
   // the whole dictionary (lib/i18n/site-chrome.ts).
   const chrome = siteChrome();
+  const homeLabels = Object.fromEntries(Object.entries(chrome).map(([locale, words]) => [locale, words.a11y.brandHome]));
   return (
-    <div className="flex min-h-svh flex-col">
+    <MarketingFrame className="flex min-h-svh flex-col">
       {/*
         The analytics cookie banner, and the Google Analytics it controls. It
         floats over the page, so its place in the document only sets the
@@ -46,7 +52,7 @@ export function MarketingShell({ children }: { children: React.ReactNode }) {
       */}
       <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <div className="mx-auto flex h-14 max-w-6xl items-center gap-4 px-4">
-          <BrandHomeLink className="flex items-center">
+          <BrandHomeLink className="flex items-center" labels={homeLabels}>
             {/* The page's primary logo, so it is not lazy-loaded. */}
             <BrandLogo height={24} priority />
           </BrandHomeLink>
@@ -84,6 +90,6 @@ export function MarketingShell({ children }: { children: React.ReactNode }) {
         customer attached, so a message arrives already identified.
       */}
       <LiveChat />
-    </div>
+    </MarketingFrame>
   );
 }

@@ -147,7 +147,7 @@ export const es: DocsTranslation = {
     wordpress: {
       name: "WordPress",
       summary:
-        "Publique directamente en una web WordPress autoalojada con una contraseña de aplicación. Sin plugin que instalar, pero consulte la guía del plugin si su hosting bloquea la API REST.",
+        "Publique directamente en un WordPress autoalojado con una contraseña de aplicación. Sin plugin; si su hosting bloquea la API REST, vea la guía del plugin.",
       requirements: [
         "Una web WordPress autoalojada (wordpress.org, no un plan gratuito de wordpress.com)",
         "Una cuenta en ella con el rol Editor o Administrador",
@@ -192,7 +192,7 @@ export const es: DocsTranslation = {
     },
     ghost: {
       name: "Ghost",
-      summary: "Publique en un blog de Ghost con una clave de la Admin API.",
+      summary: "Publique en un blog de Ghost, autoalojado o Ghost(Pro), con una clave de la Admin API de una integración personalizada.",
       requirements: ["Una web Ghost que usted administre, autoalojada o en Ghost(Pro)", "Ghost 4.0 o posterior"],
       steps: [
         { title: "Abra los ajustes de integraciones", body: "En el panel de Ghost, vaya a Settings → Advanced → Integrations." },
@@ -223,7 +223,7 @@ export const es: DocsTranslation = {
     },
     shopify: {
       name: "Shopify",
-      summary: "Publique artículos en un blog de su tienda Shopify.",
+      summary: "Publique artículos en un blog de su tienda Shopify mediante una app personalizada y su token de acceso de la Admin API.",
       requirements: [
         "Una tienda Shopify de la que sea propietario o administrador como miembro del personal",
         "Permiso para crear una app personalizada en esa tienda",
@@ -303,7 +303,7 @@ export const es: DocsTranslation = {
     },
     wix: {
       name: "Wix",
-      summary: "Publique en el blog de su web Wix con una clave de API.",
+      summary: "Publique en el blog de su web Wix con una clave de API con permisos de blog y el ID de su sitio.",
       requirements: ["Una web Wix con la app Blog instalada", "Acceso de propietario o administrador, para poder crear claves de API"],
       steps: [
         { title: "Abra la página de claves de API", body: "En el panel de Wix, vaya a Settings → API keys y luego Generate API key." },

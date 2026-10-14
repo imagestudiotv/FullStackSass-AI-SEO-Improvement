@@ -206,6 +206,7 @@ export function AuditResult({
   const copy = AUDIT_COPY[locale];
   const t = copy.result;
   const english = locale === "en";
+  const findings = result.counts.critical + result.counts.warning + result.counts.info;
   // The Website health page's words for each finding (messages.ts app.health), so the
   // free check and the paid one describe a problem the same way. English keeps its own.
   const health = getMessages(locale).app.health;
@@ -606,10 +607,8 @@ export function AuditResult({
               {
                 icon: ListChecks,
                 title: t.joinItems[0].title,
-                body: t.joinItems[0].body.replace(
-                  "{count}",
-                  String(result.counts.critical + result.counts.warning + result.counts.info + result.hiddenIssues),
-                ),
+                // The same total as the bar at the top (hiddenIssues counts issue types, not findings).
+                body: findings === 0 ? t.joinItems[0].none : plural(t.joinItems[0].body, findings),
               },
               { icon: FileText, title: t.joinItems[1].title, body: t.joinItems[1].body },
               { icon: Link2, title: t.joinItems[2].title, body: t.joinItems[2].body },

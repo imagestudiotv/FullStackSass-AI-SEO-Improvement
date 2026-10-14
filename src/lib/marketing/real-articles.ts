@@ -14,9 +14,16 @@
  * client tabs (article-examples.tsx).
  */
 
+import type { Locale } from "@/lib/i18n/config";
+
 export type RealArticle = {
   /** Its label in the section, from the dictionary (`articles.kinds`). */
   kind: "chatgpt" | "automation" | "wedding";
+  /**
+   * The language it is published in. The preview marks its words with it, so
+   * on /it the English title and opening are read as English, not Italian.
+   */
+  lang: Locale;
   title: string;
   /** Where it is published: a RepGet path, or a full address on another site. */
   href: string;
@@ -34,6 +41,7 @@ export type RealArticle = {
 export const REAL_ARTICLES: RealArticle[] = [
   {
     kind: "chatgpt",
+    lang: "en",
     title: "How to Get Mentioned in ChatGPT: A Business Guide",
     href: "/blog/get-mentioned-in-chatgpt",
     address: "repget.com/blog/get-mentioned-in-chatgpt",
@@ -64,6 +72,7 @@ export const REAL_ARTICLES: RealArticle[] = [
   },
   {
     kind: "automation",
+    lang: "en",
     title: "AI SEO Automation: What to Automate and What to Review",
     href: "/blog/ai-seo-automation",
     address: "repget.com/blog/ai-seo-automation",
@@ -94,6 +103,7 @@ export const REAL_ARTICLES: RealArticle[] = [
   },
   {
     kind: "wedding",
+    lang: "en",
     title: "How to Look Natural in Wedding Photos (Even If You Hate Posing)",
     href: "https://imagestudio.com/editorial/post/how-to-look-natural-in-wedding-photos/",
     address: "imagestudio.com/editorial/post/how-to-look-natural-in-wedding-photos",

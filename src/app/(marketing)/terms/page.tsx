@@ -5,7 +5,7 @@ import { publicPageMetadata } from "@/lib/seo/page-metadata";
 
 export const metadata = {
   title: "Terms of Service",
-  description: "The terms that apply when you use RepGet.",
+  description: "The terms that apply when you use RepGet - your account, the content we generate, the link network, payment, and why results are not guaranteed.",
   ...publicPageMetadata("/terms"),
 };
 

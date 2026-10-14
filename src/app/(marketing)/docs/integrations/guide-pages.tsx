@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { jsonLdScript } from "@/lib/blog/shared";
 import { localePath, type Locale } from "@/lib/i18n/config";
+import { getMessages } from "@/lib/i18n/messages";
 import { docsUi, integrationDocs, type IntegrationDoc } from "@/lib/publishing/docs";
 import { siteUrl } from "@/lib/site-url";
 import { breadcrumbList } from "@/lib/structured-data";
@@ -17,6 +18,11 @@ import { breadcrumbList } from "@/lib/structured-data";
  * cannot open is how setup stalls for a week.
  */
 
+/** The breadcrumb's screen-reader name: "Breadcrumb", or the app's own translation. */
+function breadcrumbLabel(locale: Locale): string {
+  return getMessages(locale).app.editor.breadcrumbLabel;
+}
+
 export function GuidesIndex({ locale }: { locale: Locale }) {
   const ui = docsUi(locale);
   const href = (path: string) => localePath(locale, path);
@@ -24,7 +30,7 @@ export function GuidesIndex({ locale }: { locale: Locale }) {
     <div>
       <div className="bg-primary/[0.04]">
         <div className="mx-auto max-w-3xl px-4 py-14">
-          <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-sm text-muted-foreground">
+          <nav aria-label={breadcrumbLabel(locale)} className="flex items-center gap-1.5 text-sm text-muted-foreground">
             <Link href={href("/")} className="text-primary hover:underline">
               {ui.home}
             </Link>
@@ -84,7 +90,7 @@ export function Guide({ doc, locale }: { doc: IntegrationDoc; locale: Locale }) 
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(trail) }} />
       <div className="bg-primary/[0.04]">
         <div className="mx-auto max-w-3xl px-4 py-12">
-          <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
+          <nav aria-label={breadcrumbLabel(locale)} className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
             <Link href={href("/")} className="text-primary hover:underline">
               {ui.home}
             </Link>

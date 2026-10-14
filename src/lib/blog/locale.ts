@@ -85,6 +85,14 @@ export type BlogChrome = {
   /** A language's front page with no post yet. */
   noneYet: string;
   readInEnglish: string;
+  /** A listing's page links (components/blog-pagination.tsx), for a screen reader. */
+  pagination: string;
+  /** "{page}" is the page number. */
+  pageN: string;
+  /** "{page}" and "{pages}": the phone's "Page 2 of 5". */
+  pageOf: string;
+  newer: string;
+  older: string;
 };
 
 export const BLOG_CHROME: Record<Locale, BlogChrome> = {
@@ -111,6 +119,11 @@ export const BLOG_CHROME: Record<Locale, BlogChrome> = {
     inEnglish: "Articles in English",
     noneYet: "",
     readInEnglish: "See all articles in English",
+    pagination: "Blog pages",
+    pageN: "Page {page}",
+    pageOf: "Page {page} of {pages}",
+    newer: "Newer",
+    older: "Older",
   },
   es: {
     minRead: "{n} min de lectura",
@@ -119,7 +132,7 @@ export const BLOG_CHROME: Record<Locale, BlogChrome> = {
     inThisArticle: "En este artículo",
     faq: "Preguntas frecuentes",
     sources: "Fuentes",
-    keepReading: "Sigue leyendo",
+    keepReading: "Siga leyendo",
     home: "Inicio",
     blog: "Blog",
     titleLead: "El blog de",
@@ -135,6 +148,11 @@ export const BLOG_CHROME: Record<Locale, BlogChrome> = {
     inEnglish: "Artículos en inglés",
     noneYet: "Todavía no hay artículos en español. Estos son los últimos en inglés.",
     readInEnglish: "Ver todos los artículos en inglés",
+    pagination: "Páginas",
+    pageN: "Página {page}",
+    pageOf: "Página {page} de {pages}",
+    newer: "Más recientes",
+    older: "Anteriores",
   },
   fr: {
     minRead: "{n} min de lecture",
@@ -159,6 +177,11 @@ export const BLOG_CHROME: Record<Locale, BlogChrome> = {
     inEnglish: "Articles en anglais",
     noneYet: "Pas encore d'articles en français. Voici les derniers en anglais.",
     readInEnglish: "Voir tous les articles en anglais",
+    pagination: "Pages",
+    pageN: "Page {page}",
+    pageOf: "Page {page} sur {pages}",
+    newer: "Plus récents",
+    older: "Plus anciens",
   },
   it: {
     minRead: "{n} min di lettura",
@@ -167,7 +190,7 @@ export const BLOG_CHROME: Record<Locale, BlogChrome> = {
     inThisArticle: "In questo articolo",
     faq: "Domande frequenti",
     sources: "Fonti",
-    keepReading: "Continua a leggere",
+    keepReading: "Continui a leggere",
     home: "Home",
     blog: "Blog",
     titleLead: "Il blog di",
@@ -183,6 +206,11 @@ export const BLOG_CHROME: Record<Locale, BlogChrome> = {
     inEnglish: "Articoli in inglese",
     noneYet: "Non ci sono ancora articoli in italiano. Ecco gli ultimi in inglese.",
     readInEnglish: "Vedi tutti gli articoli in inglese",
+    pagination: "Pagine",
+    pageN: "Pagina {page}",
+    pageOf: "Pagina {page} di {pages}",
+    newer: "Più recenti",
+    older: "Meno recenti",
   },
   de: {
     minRead: "{n} Min. Lesezeit",
@@ -207,6 +235,11 @@ export const BLOG_CHROME: Record<Locale, BlogChrome> = {
     inEnglish: "Artikel auf Englisch",
     noneYet: "Noch keine Artikel auf Deutsch. Hier sind die neuesten auf Englisch.",
     readInEnglish: "Alle Artikel auf Englisch ansehen",
+    pagination: "Seiten",
+    pageN: "Seite {page}",
+    pageOf: "Seite {page} von {pages}",
+    newer: "Neuere",
+    older: "Ältere",
   },
 };
 

@@ -49,7 +49,7 @@ export const META_TAGS_COPY: Record<Locale, MetaTagsCopy> = {
   },
   es: {
     metaDescription:
-      "Compruebe todas las metaetiquetas que leen Google y las redes sociales en su página: títulos, descripciones, Open Graph y tarjetas de Twitter. Gratis, sin registro.",
+      "Compruebe las metaetiquetas que leen Google y las redes sociales en su página: títulos, descripciones, Open Graph, tarjetas de Twitter. Gratis, sin registro.",
     description:
       "Lee todas las etiquetas que Google y las redes sociales usan realmente en su página y le dice cuáles faltan, cuáles tienen una longitud incorrecta y para qué sirve cada una.",
     submit: "Comprobar metaetiquetas",
@@ -77,7 +77,7 @@ export const META_TAGS_COPY: Record<Locale, MetaTagsCopy> = {
   },
   fr: {
     metaDescription:
-      "Vérifiez toutes les balises meta que lisent Google et les réseaux sociaux sur votre page : titres, descriptions, Open Graph et cartes Twitter. Gratuit, sans inscription.",
+      "Vérifiez les balises meta que Google et les réseaux sociaux lisent sur votre page : titres, descriptions, Open Graph, cartes Twitter. Gratuit, sans compte.",
     description:
       "Lit toutes les balises que Google et les réseaux sociaux utilisent vraiment sur votre page, et vous dit lesquelles manquent, lesquelles ont une mauvaise longueur et à quoi sert chacune.",
     submit: "Vérifier les balises meta",
@@ -133,7 +133,7 @@ export const META_TAGS_COPY: Record<Locale, MetaTagsCopy> = {
   },
   de: {
     metaDescription:
-      "Prüfen Sie jedes Meta-Tag, das Google und soziale Netzwerke auf Ihrer Seite lesen: Titel, Beschreibungen, Open Graph und Twitter Cards. Kostenlos, ohne Anmeldung.",
+      "Prüfen Sie jedes Meta-Tag, das Google und soziale Netzwerke auf Ihrer Seite lesen: Titel, Beschreibungen, Open Graph, Twitter Cards. Kostenlos, ohne Konto.",
     description:
       "Liest jedes Tag, das Google und soziale Netzwerke auf Ihrer Seite tatsächlich verwenden, und zeigt, welche fehlen, welche die falsche Länge haben und wofür jedes einzelne da ist.",
     submit: "Meta-Tags prüfen",

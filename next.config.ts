@@ -19,6 +19,13 @@ const nextConfig: NextConfig = {
   },
 
   /*
+    No "X-Powered-By: Next.js" on responses rendered per request (the live
+    check of 2026-10-13 found it on the tools and the audit, not on cached
+    pages). It only advertises the framework to anyone probing for one.
+  */
+  poweredByHeader: false,
+
+  /*
     Search engines and link previews get a page's title, description,
     canonical and Open Graph tags in the initial HTML <head> (client,
     2026-10-08). Next already waits for the metadata, instead of streaming

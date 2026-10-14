@@ -19,8 +19,14 @@ import { getMessages, type Messages } from "@/lib/i18n/messages";
  * few KB for all five languages); the components still choose the language
  * from the address. A client component must never import messages.ts itself
  * - only its types (`import type`).
+ *
+ * `a11y` is what only a screen reader hears - the menu button, the phone
+ * menu's close button, the language switcher and the logo link. They were
+ * English on every page; the words are the app's own (`app.common`).
  */
-export type SiteChrome = Record<Locale, Pick<Messages, "nav" | "footer" | "consent">>;
+export type SiteChromeA11y = Pick<Messages["app"]["common"], "openMenu" | "changeLanguage" | "brandHome" | "close">;
+
+export type SiteChrome = Record<Locale, Pick<Messages, "nav" | "footer" | "consent"> & { a11y: SiteChromeA11y }>;
 
 /** The same, plus the "page not found" copy, for the 404 page. */
 export type NotFoundCopy = Record<
@@ -32,7 +38,8 @@ export function siteChrome(): SiteChrome {
   return Object.fromEntries(
     LOCALES.map((locale) => {
       const t = getMessages(locale);
-      return [locale, { nav: t.nav, footer: t.footer, consent: t.consent }];
+      const { openMenu, changeLanguage, brandHome, close } = t.app.common;
+      return [locale, { nav: t.nav, footer: t.footer, consent: t.consent, a11y: { openMenu, changeLanguage, brandHome, close } }];
     }),
   ) as SiteChrome;
 }

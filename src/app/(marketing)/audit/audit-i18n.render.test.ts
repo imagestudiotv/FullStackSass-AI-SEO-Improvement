@@ -91,6 +91,24 @@ describe("the free check's result", () => {
   });
 });
 
+describe("the join block's count", () => {
+  it.each(LOCALES)("in %s says one finding in the singular, and several in the plural", (locale) => {
+    const one: PublicAuditResult = { ...RESULT, issues: [RESULT.issues[1]], counts: { critical: 0, warning: 0, info: 1 }, hiddenIssues: 0 };
+    const [singular, several] = AUDIT_COPY[locale].result.joinItems[0].body;
+    expect(text(renderToStaticMarkup(createElement(AuditResult, { result: one, offer: OFFER, locale })))).toContain(singular);
+    // The total of the bar at the top (1 critical + 1 warning), not that plus the 3 hidden issue types.
+    expect(text(render(locale))).toContain(several.replace("{count}", "2"));
+    expect(singular).not.toContain("{count}");
+  });
+
+  it.each(LOCALES)("in %s has its own words for a clean result, never \"0 of them\"", (locale) => {
+    const clean: PublicAuditResult = { ...RESULT, issues: [], counts: { critical: 0, warning: 0, info: 0 }, hiddenIssues: 0 };
+    const page = text(renderToStaticMarkup(createElement(AuditResult, { result: clean, offer: OFFER, locale })));
+    expect(page).toContain(AUDIT_COPY[locale].result.joinItems[0].none);
+    expect(page).not.toContain(AUDIT_COPY[locale].result.joinItems[0].body[1].replace("{count}", "0"));
+  });
+});
+
 describe("the progress screen", () => {
   it.each(LOCALES)("in %s names the three assets and the site", (locale) => {
     const html = renderToStaticMarkup(createElement(AuditProgress, { domain: "example.com", copy: AUDIT_COPY[locale].progress, preview: null }));

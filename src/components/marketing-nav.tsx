@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { CookieSettingsButton } from "@/components/consent-banner";
 import { Button } from "@/components/ui/button";
@@ -41,6 +41,26 @@ import { cn } from "@/lib/utils";
  * stays in Spanish as they navigate. Links to pages that exist only in English
  * (sign-in, sign-up, the legal pages) deliberately keep their own paths.
  */
+
+/**
+ * Declares the address's language around the banner, header, page and
+ * footer, so /es is read as Spanish rather than English.
+ *
+ * <html lang> comes from the shared root layout, which cannot know the
+ * address without making every prerendered page dynamic, so it says "en"
+ * everywhere; this nearer lang overrides it for everything inside. It reads
+ * the same source as the menu's words (splitLocale of the pathname), so the
+ * server and the browser agree - including on "/index", the name the cached
+ * home page is regenerated under.
+ */
+export function MarketingFrame({ className, children }: { className?: string; children: ReactNode }) {
+  const { locale } = splitLocale(usePathname());
+  return (
+    <div lang={locale} className={className}>
+      {children}
+    </div>
+  );
+}
 
 /**
  * The Platform dropdown.
@@ -236,9 +256,12 @@ function loadSheet() {
 
 function MobileMarketingNav({
   t,
+  locale,
   href,
 }: {
   t: SiteChrome[Locale];
+  /** The sheet is portaled to <body>, outside MarketingFrame, so it declares its own language. */
+  locale: Locale;
   href: (path: string) => string;
 }) {
   const [open, setOpen] = useState(false);
@@ -267,7 +290,7 @@ function MobileMarketingNav({
         variant="ghost"
         size="icon"
         className="lg:hidden"
-        aria-label="Open menu"
+        aria-label={t.a11y.openMenu}
         aria-haspopup="dialog"
         aria-expanded={open}
         onPointerEnter={prefetch}
@@ -295,6 +318,8 @@ function MobileMarketingNav({
           open={open}
           onOpenChange={setOpen}
           returnFocusTo={button}
+          lang={locale}
+          closeLabel={t.a11y.close}
           heading={t.nav.platformHeading}
           platform={platform}
           links={links}
@@ -358,7 +383,7 @@ export function MarketingNav({ chrome }: { chrome: SiteChrome }) {
       </nav>
 
       <div className="ml-auto flex items-center gap-2 lg:ml-0">
-        <MobileMarketingNav t={t} href={href} />
+        <MobileMarketingNav t={t} locale={locale} href={href} />
         <Button variant="ghost" size="sm" asChild>
           <Link href="/sign-in">{t.nav.signIn}</Link>
         </Button>
@@ -482,7 +507,7 @@ export function MarketingTagline({ chrome }: { chrome: SiteChrome }) {
         {chrome[locale].footer.tagline}
       </p>
       <div className="mt-4">
-        <LanguageSwitcher />
+        <LanguageSwitcher label={chrome[locale].a11y.changeLanguage} />
       </div>
     </>
   );

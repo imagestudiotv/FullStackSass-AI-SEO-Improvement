@@ -89,7 +89,7 @@ export const TOOLS_COMMON: Record<Locale, ToolsCommon> = {
     hub: {
       metaTitle: "Herramientas gratuitas de SEO y visibilidad en IA",
       metaDescription:
-        "Herramientas gratuitas para revisar su web: puntuación SEO, robots.txt, sitemaps, acceso de los rastreadores de IA, llms.txt, densidad de palabras clave y más. Sin registro, con resultados reales.",
+        "Herramientas gratis para revisar su web: puntuación SEO, robots.txt, sitemaps, rastreadores de IA, llms.txt, densidad de palabras clave y más. Sin registro.",
       badge: "Herramientas gratuitas",
       title: "Pruebe nuestras herramientas gratuitas de SEO y visibilidad en IA",
       intro: "Sin registro: cada herramienta hace una comprobación real y muestra el resultado completo al instante.",
@@ -127,7 +127,7 @@ export const TOOLS_COMMON: Record<Locale, ToolsCommon> = {
     hub: {
       metaTitle: "Outils gratuits de SEO et de visibilité dans l’IA",
       metaDescription:
-        "Des outils gratuits pour vérifier votre site : score SEO, robots.txt, sitemaps, accès des robots d’IA, llms.txt, densité de mots-clés et plus encore. Sans inscription, avec de vrais résultats.",
+        "Outils gratuits pour vérifier votre site : score SEO, robots.txt, sitemaps, robots d’IA, llms.txt, densité de mots-clés et plus. Sans inscription.",
       badge: "Outils gratuits",
       title: "Essayez nos outils gratuits de SEO et de visibilité dans l’IA",
       intro: "Sans inscription : chaque outil effectue une vraie vérification et affiche le résultat complet immédiatement.",
@@ -165,7 +165,7 @@ export const TOOLS_COMMON: Record<Locale, ToolsCommon> = {
     hub: {
       metaTitle: "Strumenti gratuiti per SEO e visibilità nell’AI",
       metaDescription:
-        "Strumenti gratuiti per controllare il suo sito: punteggio SEO, robots.txt, sitemap, accesso dei crawler AI, llms.txt, densità delle parole chiave e altro. Senza registrazione, con risultati reali.",
+        "Strumenti gratuiti per il suo sito: punteggio SEO, robots.txt, sitemap, crawler AI, llms.txt, densità delle parole chiave e altro. Senza registrazione.",
       badge: "Strumenti gratuiti",
       title: "Provi i nostri strumenti gratuiti per SEO e visibilità nell’AI",
       intro: "Senza registrazione: ogni strumento esegue un controllo reale e mostra subito il risultato completo.",
@@ -203,7 +203,7 @@ export const TOOLS_COMMON: Record<Locale, ToolsCommon> = {
     hub: {
       metaTitle: "Kostenlose Werkzeuge für SEO und KI-Sichtbarkeit",
       metaDescription:
-        "Kostenlose Werkzeuge zum Prüfen Ihrer Website: SEO-Score, robots.txt, Sitemaps, Zugriff von KI-Crawlern, llms.txt, Keyword-Dichte und mehr. Ohne Anmeldung, mit echten Ergebnissen.",
+        "Kostenlose Werkzeuge für Ihre Website: SEO-Score, robots.txt, Sitemaps, KI-Crawler-Zugriff, llms.txt, Keyword-Dichte und mehr. Ohne Anmeldung.",
       badge: "Kostenlose Werkzeuge",
       title: "Testen Sie unsere kostenlosen Werkzeuge für SEO und KI-Sichtbarkeit",
       intro: "Ohne Anmeldung: Jedes Werkzeug führt eine echte Prüfung durch und zeigt sofort das vollständige Ergebnis.",

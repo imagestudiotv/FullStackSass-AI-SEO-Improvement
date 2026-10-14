@@ -32,6 +32,8 @@ import { Testimonials } from "./testimonials-section";
 
 /** Static markup escapes quotes and apostrophes; compare against the escaped form. */
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/'/g, "&#x27;").replace(/</g, "&lt;");
+/** The escaped form, as a literal inside a RegExp. */
+const escRe = (s: string) => esc(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 function plan(over: Partial<PlanRow>): PlanRow {
   return {
@@ -148,6 +150,28 @@ describe("homepage sections", () => {
       // Every article is offered as a tab.
       for (const article of REAL_ARTICLES) expect(html).toContain(esc(article.title));
     }
+  });
+
+  it("marks the English articles' own words as English on the Italian homepage, and keeps its labels Italian", () => {
+    const t = getMessages("it").home.articles;
+    const html = renderHome("it");
+    const [first] = REAL_ARTICLES;
+    expect(first.lang).toBe("en");
+    // The preview's heading, and the title in every article's tab.
+    expect(html).toMatch(new RegExp(`<h3 lang="en"[^>]*>${escRe(first.title)}</h3>`));
+    for (const article of REAL_ARTICLES) expect(html).toMatch(new RegExp(`<span lang="en"[^>]*>${escRe(article.title)}</span>`));
+    expect(html).toMatch(new RegExp(`<p lang="en"[^>]*>${escRe(first.description)}</p>`));
+    expect(html).toContain(`<ol lang="en"`);
+    expect(html).toMatch(/<div lang="en"><h4/);
+    // The labels around them are the page's: not inside an English element.
+    expect(html).toMatch(new RegExp(`<p class="mt-4"><a [^>]*>${escRe(t.readFull)}`));
+    expect(html).toMatch(new RegExp(`<p class="font-semibold">${escRe(t.contentsLabel)}</p>`));
+  });
+
+  it("marks testimonial quotes and roles as English on a translated homepage", () => {
+    const html = renderHome("it", PLANS, [{ name: "Fixture Studio", role: "Fixture role", quote: "Fixture quote.", avatar: null }]);
+    expect(html).toMatch(/<blockquote lang="en"[^>]*><p>Fixture quote\.<\/p><\/blockquote>/);
+    expect(html).toMatch(/<span lang="en"[^>]*>Fixture role<\/span>/);
   });
 
   it("names only real integrations, each linking to its setup guide", () => {

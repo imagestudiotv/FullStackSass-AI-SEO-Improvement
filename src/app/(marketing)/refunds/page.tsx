@@ -5,7 +5,7 @@ import { publicPageMetadata } from "@/lib/seo/page-metadata";
 export const metadata = {
   title: "Refund Policy",
   description:
-    "Our 3-day money-back guarantee and how refunds work at RepGet.",
+    "Our 3-day money-back guarantee and how refunds work at RepGet: annual plans, link credits, how to request a refund and cancelling.",
   ...publicPageMetadata("/refunds"),
 };
 

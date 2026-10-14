@@ -279,7 +279,7 @@ function ExampleSection({ page, example, locale }: { page: FeaturePage; example:
                 </span>
               ) : null}
             </div>
-            <h3 className="mt-4 text-xl font-semibold tracking-tight text-balance sm:text-2xl">{example.title}</h3>
+            <h3 lang={example.lang} className="mt-4 text-xl font-semibold tracking-tight text-balance sm:text-2xl">{example.title}</h3>
             <p className="mt-2 text-sm text-muted-foreground">
               {example.siteName}, {example.about}
               {" · "}
@@ -288,7 +288,7 @@ function ExampleSection({ page, example, locale }: { page: FeaturePage; example:
               <time dateTime={example.published}>{published}</time>
               {example.minutes ? ` · ${page.ui.minRead.replace("{n}", String(example.minutes))}` : ""}
             </p>
-            <p className="mt-4 leading-relaxed">{example.description}</p>
+            <p lang={example.lang} className="mt-4 leading-relaxed">{example.description}</p>
             {example.highlights.length > 0 ? (
               <ul className="mt-5 space-y-2.5">
                 {example.highlights.map((highlight) => (

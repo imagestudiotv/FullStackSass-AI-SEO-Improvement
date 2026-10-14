@@ -7,7 +7,7 @@ import { publicPageMetadata } from "@/lib/seo/page-metadata";
 export const metadata = {
   title: "Privacy Policy",
   description:
-    "What data RepGet collects, why, and how it is stored and protected.",
+    "What data RepGet collects, why, how it is stored and protected, who we share it with, how long we keep it and your rights.",
   ...publicPageMetadata("/privacy"),
 };
 
