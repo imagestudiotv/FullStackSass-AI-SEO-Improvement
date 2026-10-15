@@ -38,11 +38,25 @@ const ALT_MAX = 300;
 
 export type PickerImage = { url: string; name: string };
 
+/**
+ * A choice of which pictures to suggest, as buttons over the library: Admin ->
+ * Blog offers the post's language or every language (client, 2026-10-15: "we
+ * need to separate the images suggestions for each language"). The first
+ * option is chosen each time the panel opens; onSearch is told the choice,
+ * and asked again when it changes. An option's `empty` replaces "no pictures
+ * yet" when it has none.
+ */
+export type PickerScopes = {
+  label: string;
+  options: { value: string; label: string; empty?: string }[];
+};
+
 export function ImagePicker({
   images,
   loading,
   selected: initial = null,
   alt: initialAlt = null,
+  scopes,
   onSearch,
   onUpload,
   onInsert,
@@ -65,7 +79,9 @@ export function ImagePicker({
   selected?: string | null;
   /** The description of the image already in place, when there is one. */
   alt?: string | null;
-  onSearch: (term: string) => void;
+  /** Which pictures to suggest, when the caller offers a choice. Absent: no choice, as before. */
+  scopes?: PickerScopes;
+  onSearch: (term: string, scope?: string) => void;
   /** Stores a file and returns its URL, or null when it failed. */
   onUpload: (file: File) => Promise<string | null>;
   /** Puts the chosen picture in place, with its description ("" for none). */
@@ -83,27 +99,34 @@ export function ImagePicker({
   const [selected, setSelected] = useState<string | null>(initial);
   const [altText, setAltText] = useState(initialAlt ?? "");
   const [term, setTerm] = useState("");
+  const [scope, setScope] = useState(scopes?.options[0]?.value);
   const [uploading, startUpload] = useTransition();
   const fileRef = useRef<HTMLInputElement>(null);
 
   /**
-   * Debounced, so typing does not fire a request per keystroke. 300ms is long
-   * enough to finish a word and short enough not to feel laggy.
+   * Debounced while typing, so typing does not fire a request per keystroke.
+   * 300ms is long enough to finish a word and short enough not to feel laggy.
+   * The first search and a new scope run at once: nothing is being typed, and
+   * the list on screen is not the one asked for until they answer.
    *
-   * Keyed on the term alone. Including onSearch in the dependencies meant a
-   * caller who passed an inline function reset the timer on every render, and
-   * the search never ran — a mistake the picker should not be able to be
-   * broken by, so the latest callback is read through a ref instead.
+   * Keyed on the term and the scope alone. Including onSearch in the
+   * dependencies meant a caller who passed an inline function reset the timer
+   * on every render, and the search never ran — a mistake the picker should
+   * not be able to be broken by, so the latest callback is read through a ref
+   * instead.
    */
   const searchRef = useRef(onSearch);
   useEffect(() => {
     searchRef.current = onSearch;
   }, [onSearch]);
 
+  const typingRef = useRef(false);
   useEffect(() => {
-    const timer = setTimeout(() => searchRef.current(term), 300);
+    const delay = typingRef.current ? 300 : 0;
+    typingRef.current = false;
+    const timer = setTimeout(() => searchRef.current(term, scope), delay);
     return () => clearTimeout(timer);
-  }, [term]);
+  }, [term, scope]);
 
   /*
     Confirmable when there is a picture and something changed: a different
@@ -196,12 +219,34 @@ export function ImagePicker({
         <input
           type="search"
           value={term}
-          onChange={(event) => setTerm(event.target.value)}
+          onChange={(event) => {
+            typingRef.current = true;
+            setTerm(event.target.value);
+          }}
           placeholder={tCommon.searchYourImages}
           aria-label={tCommon.searchYourImages}
           className="h-10 w-full rounded-full border border-input bg-transparent pl-9 pr-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
         />
       </div>
+
+      {scopes && scopes.options.length > 1 ? (
+        <div role="group" aria-label={scopes.label} className="mt-2 flex flex-wrap gap-2">
+          {scopes.options.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => setScope(option.value)}
+              aria-pressed={scope === option.value}
+              className={cn(
+                "rounded-full border px-3 py-1 text-xs font-medium outline-none transition-colors focus-visible:ring-[3px] focus-visible:ring-ring/50",
+                scope === option.value ? "border-foreground bg-foreground text-background" : "hover:bg-muted",
+              )}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       {/*
         The library scrolls on its own, a few rows high: with every blog
@@ -258,7 +303,7 @@ export function ImagePicker({
 
         {!loading && images.length === 0 ? (
           <p className="self-center text-sm text-muted-foreground">
-            {term ? t.noMatches : t.noPicturesYet}
+            {term ? t.noMatches : (scopes?.options.find((option) => option.value === scope)?.empty ?? t.noPicturesYet)}
           </p>
         ) : null}
       </div>

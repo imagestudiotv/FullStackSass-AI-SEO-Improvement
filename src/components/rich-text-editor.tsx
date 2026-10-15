@@ -38,7 +38,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ImagePicker, type PickerImage } from "@/components/image-picker";
+import { ImagePicker, type PickerImage, type PickerScopes } from "@/components/image-picker";
 import { cn } from "@/lib/utils";
 import { getMessages, type Messages } from "@/lib/i18n/messages";
 
@@ -904,6 +904,7 @@ export function RichTextEditor({
   ariaLabel = "Article content",
   onUploadImage: uploadImageProp,
   onListImages,
+  imageScopes,
   t = getMessages("en").app.editorUi,
   variant = "classic",
   toolbar = "full",
@@ -958,8 +959,10 @@ export function RichTextEditor({
    * with script in it, so that rule stays and the bytes are uploaded instead.
    */
   onUploadImage?: (file: File) => Promise<string | null>;
-  /** Pictures this website has used before, optionally filtered. */
-  onListImages?: (term: string) => Promise<PickerImage[]>;
+  /** Pictures this website has used before, optionally filtered; `scope` is the imageScopes option chosen. */
+  onListImages?: (term: string, scope?: string) => Promise<PickerImage[]>;
+  /** A choice of which pictures the picker suggests (ImagePicker's scopes), e.g. the post's language or all. */
+  imageScopes?: PickerScopes;
 }) {
   const compact = toolbar === "compact" && variant === "classic";
   /*
@@ -1003,15 +1006,28 @@ export function RichTextEditor({
    * component: it knows how to lay out images and nothing about where they
    * come from, which is what lets a stock provider be added later without
    * touching it.
+   *
+   * Only the latest request's answer is shown: an earlier one that comes back
+   * later (an older search, the other scope) must not replace it. A new scope
+   * empties the list first, so the previous scope's pictures cannot be chosen
+   * while its own load.
    */
+  const latestListRef = useRef(0);
+  const listedScopeRef = useRef<string | undefined>(undefined);
   const loadImages = useCallback(
-    async (term: string) => {
+    async (term: string, scope?: string) => {
       if (!onListImages) return;
+      const request = ++latestListRef.current;
+      if (scope !== listedScopeRef.current) {
+        listedScopeRef.current = scope;
+        setPickerImages([]);
+      }
       setPickerLoading(true);
       try {
-        setPickerImages(await onListImages(term));
+        const images = await onListImages(term, scope);
+        if (request === latestListRef.current) setPickerImages(images);
       } finally {
-        setPickerLoading(false);
+        if (request === latestListRef.current) setPickerLoading(false);
       }
     },
     [onListImages],
@@ -1065,14 +1081,28 @@ export function RichTextEditor({
    * because the panel is absolutely positioned inside it — a viewport
    * coordinate would drift as soon as the page scrolled.
    */
-  const openPicker = useCallback((replacing?: string, alt?: string | null) => {
-    // Where focus goes back to when the workspace dialog closes without a change.
-    pickerReturnRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    focusEditorOnCloseRef.current = false;
-    setEditingImage(replacing ?? null);
-    setEditingAlt(replacing ? (alt ?? null) : null);
-    setPickerOpen(true);
-  }, []);
+  const openPicker = useCallback(
+    (replacing?: string, alt?: string | null) => {
+      // Where focus goes back to when the workspace dialog closes without a change.
+      pickerReturnRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      focusEditorOnCloseRef.current = false;
+      setEditingImage(replacing ?? null);
+      setEditingAlt(replacing ? (alt ?? null) : null);
+      /*
+        A spinner rather than the last list: that was another language or an
+        old search, and the panel opens on its first choice (imageScopes).
+        Answers still on their way are dropped. Only when there is a list to
+        wait for - without one the spinner would never stop.
+      */
+      if (onListImages) {
+        latestListRef.current += 1;
+        setPickerImages([]);
+        setPickerLoading(true);
+      }
+      setPickerOpen(true);
+    },
+    [onListImages],
+  );
 
   useEffect(() => {
     openPickerRef.current = openPicker;
@@ -1353,6 +1383,7 @@ export function RichTextEditor({
                   loading={pickerLoading}
                   selected={editingImage}
                   alt={editingAlt}
+                  scopes={imageScopes}
                   onSearch={loadImages}
                   onUpload={onUploadImage}
                   onInsert={insertFromPicker}
@@ -1409,6 +1440,7 @@ export function RichTextEditor({
             loading={pickerLoading}
             selected={editingImage}
             alt={editingAlt}
+            scopes={imageScopes}
             onSearch={loadImages}
             onUpload={onUploadImage}
             onInsert={(url, altText) => {

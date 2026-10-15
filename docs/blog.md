@@ -39,7 +39,7 @@ RepGet's own blog at `/blog` is written in the admin panel: **Admin → Blog** (
 | Only a post that is not published can be deleted | A live post is unpublished first |
 | A change to a live post's content, saved on a later day, shows "Updated <date>" and sets `dateModified`; a change to the search fields alone does not | What readers and search engines use; a new SEO title is not new content |
 
-Pictures inserted in a post are stored in the article-image bucket under `blog/posts/`.
+Pictures inserted in a post are stored in the article-image bucket under `blog/posts/`, since 2026-10-15 in a folder per language (`blog/posts/it/...`): the post's language, or the one chosen next to Upload on Admin -> Blog -> Images (none is preselected while all languages are shown). The editor's picture button suggests the pictures in the post's language, with "All languages" one click away. A picture is in the languages of the posts that use it or, while no post does, in the language it was uploaded for (a new post starts in English, so pictures can go in before its language is set). A translation starts as a copy of its English post, pictures included, so a translation's use does not count for a picture its English post still has, or for one older than the translation that was not uploaded for its language; a picture added to the translation later counts. Pictures from before 2026-10-15 sit directly in `blog/posts/`; one that no post uses has no language and is listed under "All languages" only. The Images page shows each picture's languages and can show one language's.
 
 ## Rendering
 

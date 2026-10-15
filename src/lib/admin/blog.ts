@@ -739,9 +739,13 @@ export async function createBlogTranslation(input: {
 }
 
 /**
- * Stores a picture pasted, dropped or chosen in the post editor and returns
- * its address. In the article-image bucket, under blog/ - never under a
- * customer's folder.
+ * Stores a picture pasted, dropped or chosen in the post editor, or uploaded
+ * on the Images page, and returns its address. In the article-image bucket,
+ * under blog/ - never under a customer's folder - in the folder of the
+ * language it is for, sent as "locale": the post's, or the one chosen on the
+ * Images page. Each language's posts are suggested its own pictures
+ * (lib/admin/blog-images.ts). Without a language, the blog folder itself, as
+ * before languages.
  */
 export async function uploadBlogImage(formData: FormData): Promise<ActionResult<{ url: string }>> {
   await requireAdmin();
@@ -755,7 +759,9 @@ export async function uploadBlogImage(formData: FormData): Promise<ActionResult<
       error: `That image is ${Math.round(file.size / 1024 / 1024)}MB. The limit is ${MAX_IMAGE_BYTES / 1024 / 1024}MB.`,
     };
   }
-  const url = await storeArticleImage("blog", "posts", Buffer.from(await file.arrayBuffer()), file.type);
+  const language = formData.get("locale");
+  const folder = isBlogLocale(language) ? `posts/${language}` : "posts";
+  const url = await storeArticleImage("blog", folder, Buffer.from(await file.arrayBuffer()), file.type);
   return { ok: true, data: { url } };
 }
 

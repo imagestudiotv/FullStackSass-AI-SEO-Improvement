@@ -22,6 +22,7 @@ import { useEffect, useState, useTransition, type ReactNode } from "react";
 import { toast } from "sonner";
 
 import { BlogArticle } from "@/components/blog-article";
+import type { PickerScopes } from "@/components/image-picker";
 import { RichTextEditor } from "@/components/rich-text-editor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,6 +51,7 @@ import {
   type BlogPost,
 } from "@/lib/blog/shared";
 import { COMPANY_NAME } from "@/lib/config/site";
+import type { Locale } from "@/lib/i18n/config";
 import { formatDate, formatNumber } from "@/lib/i18n/format";
 import { siteUrl } from "@/lib/site-url";
 import { SNIPPET_LIMITS } from "@/lib/tools/snippet";
@@ -109,6 +111,24 @@ const isoDay = (date: Date) => date.toISOString().slice(0, 10);
 const day = (date: Date) => formatDate(date, "en", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 const when = (date: Date) =>
   `${formatDate(date, "en", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "UTC" })} UTC`;
+
+/**
+ * What the picture button suggests: the pictures in the post's language
+ * first (client, 2026-10-15: "we need to separate the images suggestions for
+ * each language" - an Italian post's pictures have Italian words in them),
+ * or every picture, for one that suits any language. lib/admin/blog-images.ts
+ * says which language a picture is in.
+ */
+function pictureScopes(locale: Locale): PickerScopes {
+  const language = LANGUAGE_NAMES_EN[locale];
+  return {
+    label: "Pictures to show",
+    options: [
+      { value: locale, label: language, empty: `No ${language} pictures yet - upload one, or choose All languages.` },
+      { value: "all", label: "All languages" },
+    ],
+  };
+}
 
 function fromPost(post: AdminBlogPost | null, firstCategory: string): BlogPostInput {
   return {
@@ -303,6 +323,8 @@ export function BlogPostEditor({
   async function uploadImage(file: File): Promise<string | null> {
     const form = new FormData();
     form.set("file", file);
+    // Stored as one of this language's pictures (pictureScopes).
+    form.set("locale", locale);
     try {
       const result = await uploadBlogImage(form);
       if (!result.ok) {
@@ -478,7 +500,7 @@ export function BlogPostEditor({
               <AdminSection
                 id="post-text"
                 title="Text"
-                description="Headings (H2) become the post's contents list. Links to RepGet's own pages stay normal links; links to other sites open in a new tab. Click a picture to replace it or edit its description (alt text)."
+                description="Headings (H2) become the post's contents list. Links to RepGet's own pages stay normal links; links to other sites open in a new tab. Click a picture to replace it or edit its description (alt text). The picture button suggests the pictures in this post's language."
               >
                 {/* The editor's own toolbar is sticky; park it under the admin top bar (and the action bar from md up). */}
                 <div className="[&_.sticky]:top-16 [&_.sticky]:z-10 md:[&_.sticky]:top-30">
@@ -486,8 +508,9 @@ export function BlogPostEditor({
                     value={draft.bodyHtml}
                     onChange={(bodyHtml) => setDraft((current) => ({ ...current, bodyHtml }))}
                     onUploadImage={uploadImage}
-                    // Pictures already uploaded for the blog, to use again (Admin -> Blog -> Images).
+                    // Pictures already uploaded for the blog, to use again (Admin -> Blog -> Images): this language's, or all.
                     onListImages={listBlogImagesForPicker}
+                    imageScopes={pictureScopes(locale)}
                     ariaLabel="Post text"
                   />
                 </div>

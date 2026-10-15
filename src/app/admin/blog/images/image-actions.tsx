@@ -8,6 +8,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { uploadBlogImage } from "@/lib/admin/blog";
 import { deleteBlogImage } from "@/lib/admin/blog-images";
+import { BLOG_LOCALES, isBlogLocale, LANGUAGE_NAMES_EN } from "@/lib/blog/locale";
+import type { Locale } from "@/lib/i18n/config";
 
 import { ConfirmDialog } from "../confirm-dialog";
 
@@ -73,16 +75,26 @@ export function ImageCardActions({ url, inUse }: { url: string; inUse: boolean }
   );
 }
 
-/** Uploads a picture to the blog's folder, ready to use in any post. */
-export function UploadBlogImage() {
+/**
+ * Uploads a picture to the blog, as one of a language's pictures: the post
+ * editor suggests a post the pictures in its language (lib/admin/blog-images.ts).
+ * The language starts as the one the page shows. On "All languages" there is
+ * none until one is chosen: a default would file pictures under it unnoticed,
+ * and an Italian picture filed as English is suggested to English posts.
+ */
+export function UploadBlogImage({ language: shown }: { language: Locale | null }) {
   const router = useRouter();
   const input = useRef<HTMLInputElement>(null);
   const [pending, start] = useTransition();
+  const [language, setLanguage] = useState<Locale | null>(shown);
 
   function upload(file: File) {
+    const chosen = language;
+    if (!chosen) return;
     start(async () => {
       const form = new FormData();
       form.set("file", file);
+      form.set("locale", chosen);
       const result = await uploadBlogImage(form).catch(() => null);
       if (!result) {
         toast.error("The picture could not be uploaded. Try again.");
@@ -92,13 +104,37 @@ export function UploadBlogImage() {
         toast.error(result.error);
         return;
       }
-      toast.success("Picture uploaded");
+      toast.success(`${LANGUAGE_NAMES_EN[chosen]} picture uploaded`);
       router.refresh();
     });
   }
 
   return (
-    <>
+    <div className="flex flex-wrap items-center gap-2">
+      <label htmlFor="blog-image-language" className="text-sm text-muted-foreground">
+        Upload as
+      </label>
+      <select
+        id="blog-image-language"
+        value={language ?? ""}
+        onChange={(event) => {
+          const value = event.target.value;
+          setLanguage(isBlogLocale(value) ? value : null);
+        }}
+        disabled={pending}
+        className="h-9 rounded-md border bg-background px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+      >
+        {language ? null : (
+          <option value="" disabled>
+            Choose a language
+          </option>
+        )}
+        {BLOG_LOCALES.map((locale) => (
+          <option key={locale} value={locale}>
+            {LANGUAGE_NAMES_EN[locale]}
+          </option>
+        ))}
+      </select>
       <input
         ref={input}
         type="file"
@@ -112,10 +148,16 @@ export function UploadBlogImage() {
           if (file) upload(file);
         }}
       />
-      <Button type="button" size="lg" onClick={() => input.current?.click()} disabled={pending}>
+      <Button
+        type="button"
+        size="lg"
+        onClick={() => input.current?.click()}
+        disabled={pending || !language}
+        title={language ? undefined : "Choose the picture's language first"}
+      >
         {pending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Upload aria-hidden="true" />}
         Upload picture
       </Button>
-    </>
+    </div>
   );
 }
