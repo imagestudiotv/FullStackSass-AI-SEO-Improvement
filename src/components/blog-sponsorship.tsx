@@ -8,9 +8,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import type { SponsorshipPanelCopy } from "@/lib/blog/sponsorship-copy";
 import { startBlogSponsorship } from "@/lib/blog/sponsorship-actions";
+import type { Locale } from "@/lib/i18n/config";
 
 const BLACK = "bg-foreground text-background hover:bg-foreground/90 dark:bg-foreground dark:text-background";
+/**
+ * The panel's full-width pay buttons. Their words may wrap: "Continuer vers le
+ * paiement - 99 USD" is wider than the button on most phones, and a label that
+ * cannot wrap spills out of both ends of it.
+ */
+const WIDE = "h-auto min-h-12 w-full rounded-full py-2 text-center text-base leading-snug font-semibold whitespace-normal";
 
 /**
  * "Get Featured in This Article" (client, 2026-10-08, after babylovegrowth's
@@ -25,10 +33,30 @@ const BLACK = "bg-foreground text-background hover:bg-foreground/90 dark:bg-fore
  * (lib/blog/sponsorship-actions.ts). Where Stripe is not set up, the panel
  * points to the contact page instead of a form that cannot be paid.
  *
+ * On every language's articles (client, 2026-10-15), in the article's
+ * language: the page passes this panel's words (`copy`, from
+ * lib/blog/sponsorship-copy.ts) and its language, which the server uses for
+ * its answers, Stripe's page and the way back.
+ *
  * `cancelled`: the buyer came back from Stripe without paying, so the panel
  * opens again, saying nothing was charged.
  */
-export function BlogSponsorship({ slug, enabled, cancelled = false }: { slug: string; enabled: boolean; cancelled?: boolean }) {
+export function BlogSponsorship({
+  slug,
+  locale,
+  enabled,
+  copy,
+  contactHref,
+  cancelled = false,
+}: {
+  slug: string;
+  locale: Locale;
+  enabled: boolean;
+  copy: SponsorshipPanelCopy;
+  /** The contact page in the article's language. */
+  contactHref: string;
+  cancelled?: boolean;
+}) {
   const [open, setOpen] = useState(cancelled);
   const [step, setStep] = useState<"offer" | "details">("offer");
   const [error, setError] = useState<string | null>(null);
@@ -53,7 +81,7 @@ export function BlogSponsorship({ slug, enabled, cancelled = false }: { slug: st
     setError(null);
     start(async () => {
       try {
-        const result = await startBlogSponsorship({ id, slug, ...details });
+        const result = await startBlogSponsorship({ id, slug, locale, ...details });
         if ("url" in result) {
           setRedirecting(true);
           window.location.assign(result.url);
@@ -61,7 +89,7 @@ export function BlogSponsorship({ slug, enabled, cancelled = false }: { slug: st
         }
         setError(result.error);
       } catch {
-        setError("We could not reach the server. Check your connection and try again.");
+        setError(copy.network);
       }
     });
   }
@@ -79,8 +107,9 @@ export function BlogSponsorship({ slug, enabled, cancelled = false }: { slug: st
       }}
     >
       <PopoverTrigger asChild>
-        <Button variant="outline" className="h-10 rounded-full px-4 font-medium text-foreground">
-          Get Featured in This Article
+        {/* Wraps rather than spilling out of the pill if a language's words are long for a phone. */}
+        <Button variant="outline" className="h-auto min-h-10 rounded-full px-4 py-2 text-left leading-snug font-medium whitespace-normal text-foreground">
+          {copy.trigger}
           <ArrowUpRight className="size-4" aria-hidden="true" />
         </Button>
       </PopoverTrigger>
@@ -89,6 +118,8 @@ export function BlogSponsorship({ slug, enabled, cancelled = false }: { slug: st
         sideOffset={12}
         collisionPadding={16}
         aria-labelledby="featured-title"
+        // Portaled out of the article: it declares the article's language itself.
+        lang={locale}
         // The box itself takes focus, not its first button: read from the heading, no ring on a mouse click.
         tabIndex={-1}
         onOpenAutoFocus={(event) => {
@@ -100,20 +131,17 @@ export function BlogSponsorship({ slug, enabled, cancelled = false }: { slug: st
       >
         <p className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
           <Sparkles className="size-3.5" aria-hidden="true" />
-          Sponsored feature opportunity
+          {copy.eyebrow}
         </p>
         <h2 id="featured-title" className="mt-3 text-xl font-semibold tracking-tight sm:text-2xl">
-          Get Your Website Featured in This Article.
+          {copy.title}
         </h2>
-        <p className="mt-2.5 text-sm leading-relaxed text-muted-foreground sm:text-base">
-          Reach readers already interested in this topic. Showcase your business with a relevant sponsored mention and
-          website link inside this article.
-        </p>
+        <p className="mt-2.5 text-sm leading-relaxed text-muted-foreground sm:text-base">{copy.intro}</p>
 
         {cancelled && step === "offer" ? (
           <p role="status" className="mt-4 flex items-start gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
             <Info className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-            Payment cancelled - you were not charged. You can start again whenever you like.
+            {copy.cancelled}
           </p>
         ) : null}
 
@@ -122,27 +150,27 @@ export function BlogSponsorship({ slug, enabled, cancelled = false }: { slug: st
             <>
               <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
                 <div>
-                  <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">One-time payment</p>
-                  <p className="mt-1 text-3xl font-semibold tabular-nums">$99</p>
+                  <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">{copy.oneTime}</p>
+                  <p className="mt-1 text-3xl font-semibold tabular-nums">{copy.price}</p>
                 </div>
                 <div className="space-y-2 text-sm sm:text-right">
                   <p className="flex items-center gap-1.5 sm:justify-end">
                     <CircleCheck className="size-4 text-success" aria-hidden="true" />
-                    No subscription
+                    {copy.noSubscription}
                   </p>
-                  <p className="text-muted-foreground">Per article placement</p>
+                  <p className="text-muted-foreground">{copy.perArticle}</p>
                 </div>
               </div>
-              <Button type="button" className={`mt-4 h-12 w-full rounded-full text-base font-semibold ${BLACK}`} onClick={() => setStep("details")}>
-                Get Featured for $99
+              <Button type="button" className={`mt-4 ${WIDE} ${BLACK}`} onClick={() => setStep("details")}>
+                {copy.start.replace("{price}", copy.price)}
                 <ArrowUpRight className="size-4" aria-hidden="true" />
               </Button>
-              <p className="mt-3 text-center text-sm text-muted-foreground">Subject to editorial approval</p>
+              <p className="mt-3 text-center text-sm text-muted-foreground">{copy.approval}</p>
             </>
           ) : enabled ? (
             <form onSubmit={submit} className="space-y-4">
               <div className="flex items-center justify-between gap-3">
-                <p className="font-medium">Tell us what to feature</p>
+                <p className="font-medium">{copy.detailsTitle}</p>
                 <button
                   type="button"
                   onClick={() => {
@@ -153,22 +181,22 @@ export function BlogSponsorship({ slug, enabled, cancelled = false }: { slug: st
                   className="inline-flex items-center gap-1 rounded-sm text-sm text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
                 >
                   <ArrowLeft className="size-3.5" aria-hidden="true" />
-                  Back
+                  {copy.back}
                 </button>
               </div>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
-                  <Label htmlFor="featured-email">Your email</Label>
+                  <Label htmlFor="featured-email">{copy.email}</Label>
                   <Input id="featured-email" name="email" type="email" autoComplete="email" required maxLength={254} disabled={busy} className="bg-background" />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="featured-website">Your website</Label>
+                  <Label htmlFor="featured-website">{copy.website}</Label>
                   <Input
                     id="featured-website"
                     name="website"
                     inputMode="url"
                     autoComplete="url"
-                    placeholder="yourwebsite.com"
+                    placeholder={copy.websitePlaceholder}
                     required
                     maxLength={2000}
                     disabled={busy}
@@ -177,7 +205,7 @@ export function BlogSponsorship({ slug, enabled, cancelled = false }: { slug: st
                 </div>
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="featured-message">What should the mention say about your business?</Label>
+                <Label htmlFor="featured-message">{copy.message}</Label>
                 <textarea
                   id="featured-message"
                   name="message"
@@ -185,7 +213,7 @@ export function BlogSponsorship({ slug, enabled, cancelled = false }: { slug: st
                   required
                   maxLength={1000}
                   disabled={busy}
-                  placeholder="A sentence or two: what you offer, and who it is for."
+                  placeholder={copy.messagePlaceholder}
                   className="flex w-full min-w-0 rounded-lg border border-input bg-background px-2.5 py-2 text-base outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
                 />
               </div>
@@ -194,29 +222,29 @@ export function BlogSponsorship({ slug, enabled, cancelled = false }: { slug: st
                   {error}
                 </p>
               ) : null}
-              <Button type="submit" disabled={busy} className={`h-12 w-full rounded-full text-base font-semibold ${BLACK}`}>
+              <Button type="submit" disabled={busy} className={`${WIDE} ${BLACK}`}>
                 {busy ? (
                   <>
                     <Loader2 className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
-                    Opening secure payment…
+                    {copy.opening}
                   </>
                 ) : (
                   <>
-                    Continue to payment - $99
+                    {copy.continue.replace("{price}", copy.price)}
                     <ArrowUpRight className="size-4" aria-hidden="true" />
                   </>
                 )}
               </Button>
-              <p className="text-center text-sm text-muted-foreground">Secure payment by Stripe. Subject to editorial approval.</p>
+              <p className="text-center text-sm text-muted-foreground">{copy.secure}</p>
             </form>
           ) : (
             <div className="space-y-3 text-sm">
-              <p>Online payment is not available right now.</p>
+              <p>{copy.unavailable}</p>
               <p>
-                <Link href="/contact" className="font-medium underline underline-offset-4">
-                  Contact us
+                <Link href={contactHref} className="font-medium underline underline-offset-4">
+                  {copy.contactLink}
                 </Link>{" "}
-                and we will arrange your placement.
+                {copy.contactRest}
               </p>
               <button
                 type="button"
@@ -224,7 +252,7 @@ export function BlogSponsorship({ slug, enabled, cancelled = false }: { slug: st
                 className="inline-flex items-center gap-1 rounded-sm text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <ArrowLeft className="size-3.5" aria-hidden="true" />
-                Back
+                {copy.back}
               </button>
             </div>
           )}

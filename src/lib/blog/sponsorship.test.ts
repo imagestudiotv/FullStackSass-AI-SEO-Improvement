@@ -6,7 +6,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import type Stripe from "stripe";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { adminAuditLog, blogSponsorships, spendReservations } from "@/lib/db/schema";
+import { adminAuditLog, blogPosts, blogSponsorships, spendReservations } from "@/lib/db/schema";
 import { createTestDb, type TestDb } from "@/test/db";
 
 /**
@@ -37,16 +37,27 @@ vi.mock("@/lib/admin/guard", () => ({
   adminEmails: () => ["owner@repget.test"],
   requireAdmin: async () => ({ userId: "admin", email: "owner@repget.test" }),
 }));
-vi.mock("./posts", () => ({
-  getPost: async (slug: string) => (slug === "live-article" ? { slug, title: "A live article" } : null),
-}));
+// One live article in English and one in Italian (slugs are unique across languages).
+vi.mock("./posts", () => {
+  const live: Record<string, { slug: string; title: string; locale: "en" | "it" }> = {
+    "live-article": { slug: "live-article", title: "A live article", locale: "en" },
+    "articolo-vivo": { slug: "articolo-vivo", title: "Un articolo vivo", locale: "it" },
+  };
+  return {
+    getPost: async (slug: string, locale = "en") => (live[slug]?.locale === locale ? live[slug] : null),
+    getPostInAnyLanguage: async (slug: string) => live[slug] ?? null,
+  };
+});
 
 import { listPlacements, setPlacementStatus } from "@/lib/admin/blog-sponsorships";
 import { processStripeEvent } from "@/lib/billing/stripe-events";
+import LocaleSponsorshipThanksPage from "@/app/(marketing)/[locale]/blog/sponsorship/thanks/page";
 import SponsorshipThanksPage from "@/app/(marketing)/blog/sponsorship/thanks/page";
+import { LOCALES } from "@/lib/i18n/config";
 
-import { confirmSponsorship, SPONSORSHIP_LIMITS } from "./sponsorship";
-import { startBlogSponsorship } from "./sponsorship-actions";
+import { confirmSponsorship, SPONSORSHIP_CENTS, SPONSORSHIP_LIMITS } from "./sponsorship";
+import { startBlogSponsorship, type SponsorshipInput } from "./sponsorship-actions";
+import { SPONSORSHIP_COPY } from "./sponsorship-copy";
 
 let test: TestDb;
 
@@ -77,7 +88,8 @@ beforeEach(async () => {
   state.sendEmail.mockResolvedValue({ ok: true, id: "email" });
 });
 
-function request(overrides: Partial<{ id: string; slug: string; email: string; website: string; message: string }> = {}) {
+/** A request as the panel sends it; `locale` may be anything, as a forged one could be. */
+function request(overrides: Partial<{ id: string; slug: string; locale: string; email: string; website: string; message: string }> = {}) {
   return {
     id: randomUUID(),
     slug: "live-article",
@@ -85,7 +97,7 @@ function request(overrides: Partial<{ id: string; slug: string; email: string; w
     website: "https://example.com",
     message: "Our wedding videography studio in Rome.",
     ...overrides,
-  };
+  } as SponsorshipInput & { id: string; slug: string; email: string; website: string; message: string };
 }
 
 async function order(id: string) {
@@ -106,8 +118,8 @@ function paidSession(id: string, checkoutId: string, overrides: Partial<Stripe.C
 }
 
 /** A request that went to Stripe: its id and its checkout's id. */
-async function started() {
-  const data = request();
+async function started(overrides: Parameters<typeof request>[0] = {}) {
+  const data = request(overrides);
   const result = await startBlogSponsorship(data);
   if (!("url" in result)) throw new Error(result.error);
   return { id: data.id, checkoutId: (await order(data.id)).checkoutId! };
@@ -289,10 +301,127 @@ describe("Admin: deciding on paid requests", () => {
 
 // The panel's button, as the article renders it before anyone opens it.
 describe("the button on the article", () => {
-  it("is the client's pill: Get Featured in This Article", async () => {
+  const button = async (locale: "en" | "it") => {
     const { BlogSponsorship } = await import("@/components/blog-sponsorship");
-    const html = renderToStaticMarkup(createElement(BlogSponsorship, { slug: "live-article", enabled: true }));
+    return renderToStaticMarkup(
+      createElement(BlogSponsorship, { slug: "live-article", locale, enabled: true, copy: SPONSORSHIP_COPY[locale].panel, contactHref: "/contact" }),
+    );
+  };
+
+  it("is the client's pill: Get Featured in This Article", async () => {
+    const html = await button("en");
     expect(html).toContain("Get Featured in This Article");
     expect(html).toContain('aria-haspopup="dialog"');
+  });
+
+  it("is in the article's language on a translated article", async () => {
+    expect(await button("it")).toContain(SPONSORSHIP_COPY.it.panel.trigger);
+  });
+});
+
+/** The offer in every language (client, 2026-10-15): lib/blog/sponsorship-copy.ts. */
+describe("in every language", () => {
+  it("every language has all of it, and the price is the server's", () => {
+    const keys = (value: object): string[] =>
+      Object.entries(value).flatMap(([key, inner]) => (typeof inner === "object" ? keys(inner).map((k) => `${key}.${k}`) : [key]));
+    const english = keys(SPONSORSHIP_COPY.en).sort();
+    for (const locale of LOCALES) {
+      expect(keys(SPONSORSHIP_COPY[locale]).sort(), locale).toEqual(english);
+      const empty = keys(SPONSORSHIP_COPY[locale]).filter((key) => {
+        const value = key.split(".").reduce<unknown>((at, part) => (at as Record<string, unknown>)[part], SPONSORSHIP_COPY[locale]);
+        return typeof value !== "string" || !value.trim();
+      });
+      expect(empty, locale).toEqual([]);
+      const { panel, thanks } = SPONSORSHIP_COPY[locale];
+      expect(panel.start, locale).toContain("{price}");
+      expect(panel.continue, locale).toContain("{price}");
+      expect(thanks.paidWithTitle, locale).toContain("{title}");
+      expect(thanks.writeTo, locale).toContain("{email}");
+      // Never a promise the client did not make.
+      expect(JSON.stringify(SPONSORSHIP_COPY[locale]), locale).not.toMatch(/refund|rimbors|reembols|rembours|erstatt/i);
+    }
+    expect(SPONSORSHIP_CENTS).toBe(9900);
+    expect(SPONSORSHIP_COPY.en.panel.price).toBe("$99");
+    for (const locale of LOCALES.filter((l) => l !== "en")) expect(SPONSORSHIP_COPY[locale].panel.price, locale).toBe("99 USD");
+  });
+
+  it("an Italian article: Stripe's page, its texts and the way back are Italian", async () => {
+    const data = request({ slug: "articolo-vivo", locale: "it" });
+    expect(await startBlogSponsorship(data)).toEqual({ url: "https://checkout.stripe.com/c/pay/test" });
+    const [params] = state.create.mock.calls[0];
+    expect(params).toMatchObject({
+      locale: "it",
+      metadata: { blogSponsorshipId: data.id, articleSlug: "articolo-vivo", articleLocale: "it" },
+      line_items: [{ price_data: { currency: "usd", unit_amount: 9900, product_data: { name: SPONSORSHIP_COPY.it.stripe.productName } } }],
+      success_url: "https://repget.test/it/blog/sponsorship/thanks?session_id={CHECKOUT_SESSION_ID}",
+      cancel_url: "https://repget.test/it/blog/articolo-vivo?featured=cancelled",
+      custom_text: { submit: { message: SPONSORSHIP_COPY.it.stripe.submitMessage } },
+    });
+    expect((await order(data.id)).postSlug).toBe("articolo-vivo");
+  });
+
+  it("answers in the article's language, and finds the article only in it", async () => {
+    expect(await startBlogSponsorship(request({ slug: "articolo-vivo", locale: "it", website: "localhost" }))).toEqual({
+      error: SPONSORSHIP_COPY.it.errors.website,
+    });
+    // An English slug on an Italian page, and the other way round: no such article there.
+    expect(await startBlogSponsorship(request({ slug: "live-article", locale: "it" }))).toEqual({ error: SPONSORSHIP_COPY.it.errors.gone });
+    expect(await startBlogSponsorship(request({ slug: "articolo-vivo" }))).toEqual({ error: SPONSORSHIP_COPY.en.errors.gone });
+    // A language the site does not have is refused, in English.
+    expect(await startBlogSponsorship(request({ locale: "xx" }))).toEqual({ error: SPONSORSHIP_COPY.en.errors.invalid });
+    // A forged call that sends no object at all: the same answer, not a crash.
+    for (const forged of [null, [], [null], "it"]) {
+      expect(await startBlogSponsorship(forged as never), JSON.stringify(forged)).toEqual({ error: SPONSORSHIP_COPY.en.errors.invalid });
+    }
+    vi.stubEnv("STRIPE_SECRET_KEY", "");
+    expect(await startBlogSponsorship(request({ slug: "articolo-vivo", locale: "it" }))).toEqual({ error: SPONSORSHIP_COPY.it.errors.notConfigured });
+    expect(state.create).not.toHaveBeenCalled();
+  });
+
+  it("the page after paying is Italian, and leads back to the Italian article", async () => {
+    const { id, checkoutId } = await started({ slug: "articolo-vivo", locale: "it" });
+    state.retrieve.mockResolvedValue(paidSession(id, checkoutId, { metadata: { blogSponsorshipId: id, articleSlug: "articolo-vivo" } }));
+    const render = async (locale: string, sessionId?: string) =>
+      renderToStaticMarkup(
+        await LocaleSponsorshipThanksPage({ params: Promise.resolve({ locale }), searchParams: Promise.resolve({ session_id: sessionId }) }),
+      );
+    const html = await render("it", checkoutId);
+    expect(html).toContain(SPONSORSHIP_COPY.it.thanks.paidTitle);
+    expect(html).toContain("Un articolo vivo");
+    expect(html).toContain('href="/it/blog/articolo-vivo"');
+    expect(html).toContain('href="/it/contact"');
+    expect(await render("it", "cs_test_madeupmadeupmadeup")).toContain(SPONSORSHIP_COPY.it.thanks.waitingTitle);
+    await expect(render("en", checkoutId)).rejects.toThrow(/NEXT_HTTP_ERROR_FALLBACK;404/);
+  });
+
+  it("the administrators' email says which language's article the mention goes in", async () => {
+    const { id, checkoutId } = await started({ slug: "articolo-vivo", locale: "it" });
+    expect(await confirmSponsorship(paidSession(id, checkoutId))).toBe(true);
+    expect(state.sendEmail).toHaveBeenCalledTimes(1);
+    expect(state.sendEmail.mock.calls[0][0]).toMatchObject({ subject: "Paid placement request: Un articolo vivo" });
+    expect(state.sendEmail.mock.calls[0][0].text).toContain('"Un articolo vivo" (Italian, /it/blog/articolo-vivo)');
+  });
+
+  it("the admin list names the article's language", async () => {
+    // A real published Italian article, for the list's join.
+    const [post] = await test.db
+      .insert(blogPosts)
+      .values({ slug: "articolo-in-lista", title: "Articolo in lista", category: "Guides", author: "RepGet team", status: "published", publishedAt: new Date(), locale: "it" })
+      .returning({ id: blogPosts.id });
+    try {
+      const data = request({ slug: "articolo-in-lista", locale: "it" });
+      // Started straight in the database: the stand-in posts above do not know this article.
+      await test.db.insert(blogSponsorships).values({ id: data.id, postSlug: data.slug, email: data.email, websiteUrl: data.website, message: data.message });
+      const row = (await listPlacements("unpaid")).rows.find((r) => r.id === data.id);
+      expect(row).toMatchObject({ postTitle: "Articolo in lista", postLocale: "it" });
+
+      // Its decision is logged with the article's real, Italian address.
+      await test.db.update(blogSponsorships).set({ status: "paid", paidAt: new Date() }).where(eq(blogSponsorships.id, data.id));
+      expect(await setPlacementStatus({ id: data.id, status: "published" })).toEqual({ ok: true, data: { status: "published" } });
+      const [entry] = await test.db.select().from(adminAuditLog).where(eq(adminAuditLog.targetId, data.id));
+      expect(entry.summary).toContain("in /it/blog/articolo-in-lista");
+    } finally {
+      await test.db.delete(blogPosts).where(eq(blogPosts.id, post.id));
+    }
   });
 });

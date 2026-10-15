@@ -133,7 +133,14 @@ describe("localePath", () => {
       }
     };
     walk(root, "");
-    expect([...TRANSLATED_PATHS].sort()).toEqual(pages.sort());
+    /*
+      Pages under [locale] that are not public pages, so not in TRANSLATED_PATHS
+      (which gives hreflang and sitemap entries): the page Stripe returns a
+      "Get Featured" buyer to, noindex (client, 2026-10-15).
+    */
+    const NOT_PUBLIC = new Set(["/blog/sponsorship/thanks"]);
+    for (const page of NOT_PUBLIC) expect(pages, `${page} is listed as not public but has no page`).toContain(page);
+    expect([...TRANSLATED_PATHS].sort()).toEqual(pages.filter((page) => !NOT_PUBLIC.has(page)).sort());
   });
 
   it("lists every integration guide (the slugs are copied so the guides' text stays out of the browser)", () => {

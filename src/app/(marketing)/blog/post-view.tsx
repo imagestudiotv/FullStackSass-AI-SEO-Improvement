@@ -80,7 +80,7 @@ export function BlogPostView({
   post: BlogPost;
   versions: PostVersion[];
   related: BlogPost[];
-  /** English posts only (lib/blog/sponsorship.ts is keyed by the English slug). */
+  /** "Get Featured in This Article", in the post's language (components/blog-sponsorship.tsx). */
   sponsorship?: ReactNode;
 }) {
   const locale: Locale = post.locale ?? DEFAULT_LOCALE;

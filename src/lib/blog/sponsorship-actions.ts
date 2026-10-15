@@ -7,10 +7,13 @@ import { headers } from "next/headers";
 import { z } from "zod";
 
 import { reserveAll, type QuotaRule } from "@/lib/billing/spend-quota";
+import { blogPath } from "@/lib/blog/locale";
 import { getPost } from "@/lib/blog/posts";
-import { SPONSORSHIP_CENTS, SPONSORSHIP_CURRENCY, SPONSORSHIP_LIMITS, sponsorshipConfigured } from "@/lib/blog/sponsorship";
+import { SPONSORSHIP_CENTS, SPONSORSHIP_CURRENCY, SPONSORSHIP_LIMITS, sponsorshipConfigured, sponsorshipThanksPath } from "@/lib/blog/sponsorship";
+import { SPONSORSHIP_COPY } from "@/lib/blog/sponsorship-copy";
 import { db } from "@/lib/db";
 import { blogSponsorships } from "@/lib/db/schema";
+import { LOCALES } from "@/lib/i18n/config";
 import { siteUrl } from "@/lib/site-url";
 import { stripe } from "@/lib/stripe/client";
 import { visitorKey } from "@/lib/visitor-key";
@@ -25,6 +28,11 @@ import { visitorKey } from "@/lib/visitor-key";
  * while the details stay the same, so pressing the button twice, or again
  * after a network error, reuses the one request and its one checkout instead
  * of starting another.
+ *
+ * In the article's language (client, 2026-10-15; lib/blog/sponsorship-copy.ts):
+ * the answers, Stripe's page, the way back from it and the page after paying.
+ * The article is looked for in that language only, so a slug and a language
+ * that do not belong together are refused like any unpublished article.
  */
 
 const MESSAGE_LIMIT = 1000;
@@ -32,6 +40,8 @@ const MESSAGE_LIMIT = 1000;
 const inputSchema = z.object({
   id: z.string().uuid(),
   slug: z.string().min(1).max(100),
+  // Older pages sent none: English, as they were.
+  locale: z.enum(LOCALES).default("en"),
   email: z.string().trim().toLowerCase().email().max(254),
   website: z.string().trim().min(1).max(2000),
   message: z.string().trim().min(1).max(MESSAGE_LIMIT),
@@ -70,21 +80,34 @@ function limits(email: string, visitor: string): QuotaRule[] {
 
 type Result = { url: string } | { error: string };
 
+/**
+ * The page's words, from the language it sent, before the rest is checked: a
+ * refusal is in its language too. Read defensively - a forged call can send
+ * anything, even no object at all, and gets the English "invalid" answer.
+ */
+function wordsFor(input: unknown) {
+  const sent = input && typeof input === "object" ? (input as { locale?: unknown }).locale : undefined;
+  return SPONSORSHIP_COPY[LOCALES.find((candidate) => candidate === sent) ?? "en"];
+}
+
 export async function startBlogSponsorship(input: SponsorshipInput): Promise<Result> {
+  const copy = wordsFor(input);
+  const errors = copy.errors;
   if (!sponsorshipConfigured()) {
-    return { error: "Online payment is not available right now. Please contact us about a placement." };
+    return { error: errors.notConfigured };
   }
 
   const parsed = inputSchema.safeParse(input);
   if (!parsed.success) {
-    return { error: "Enter your email, your website and what you would like mentioned." };
+    return { error: errors.invalid };
   }
   const website = websiteAddress(parsed.data.website);
-  if (!website) return { error: "Enter your website's address, for example yourwebsite.com." };
+  if (!website) return { error: errors.website };
   const data = { ...parsed.data, website };
 
-  const post = await getPost(data.slug);
-  if (!post) return { error: "This article is no longer available." };
+  // The article in the page's language: /it/blog/<slug> for an Italian one.
+  const post = await getPost(data.slug, data.locale);
+  if (!post) return { error: errors.gone };
 
   // The same request again (a double click, a retry) is not a new one: no new slot, no new checkout.
   const [existing] = await db.select().from(blogSponsorships).where(eq(blogSponsorships.id, data.id));
@@ -94,11 +117,7 @@ export async function startBlogSponsorship(input: SponsorshipInput): Promise<Res
       metadata: { articleSlug: data.slug },
     });
     if (!admitted.ok) {
-      return {
-        error: admitted.rule.key === "blog-featured:global"
-          ? "We are receiving a lot of requests right now. Please try again in a few minutes."
-          : "Too many requests from you in a short time. Please try again in an hour.",
-      };
+      return { error: admitted.rule.key === "blog-featured:global" ? errors.busy : errors.tooMany };
     }
     await db
       .insert(blogSponsorships)
@@ -114,26 +133,21 @@ export async function startBlogSponsorship(input: SponsorshipInput): Promise<Res
     order.websiteUrl !== data.website ||
     order.message !== data.message
   ) {
-    return { error: "Your details changed while we were opening the payment. Please press the button again." };
+    return { error: errors.changed };
   }
   if (order.status !== "pending") {
-    return { error: "This request is already paid. We will be in touch at the email you gave." };
+    return { error: errors.alreadyPaid };
   }
 
   try {
     if (order.checkoutId) {
       const session = await stripe.checkout.sessions.retrieve(order.checkoutId);
       if (session.status === "open" && session.url) return { url: session.url };
-      return {
-        error:
-          session.status === "complete"
-            ? "This request is already paid. We will be in touch at the email you gave."
-            : "That payment page has expired. Close this box and start again.",
-      };
+      return { error: session.status === "complete" ? errors.alreadyPaid : errors.expired };
     }
     // Stripe forgets idempotency keys after a day; never risk a second checkout for an old request.
     if (Date.now() - order.createdAt.getTime() > 23 * 60 * 60 * 1000) {
-      return { error: "That payment page has expired. Close this box and start again." };
+      return { error: errors.expired };
     }
 
     const session = await stripe.checkout.sessions.create(
@@ -142,10 +156,12 @@ export async function startBlogSponsorship(input: SponsorshipInput): Promise<Res
         payment_method_types: ["card"],
         customer_email: data.email,
         client_reference_id: data.id,
-        metadata: { blogSponsorshipId: data.id, articleSlug: data.slug },
+        // Stripe's page in the article's language.
+        locale: data.locale,
+        metadata: { blogSponsorshipId: data.id, articleSlug: data.slug, articleLocale: data.locale },
         payment_intent_data: {
           description: `Featured placement: ${post.title}`.slice(0, 500),
-          metadata: { blogSponsorshipId: data.id, articleSlug: data.slug },
+          metadata: { blogSponsorshipId: data.id, articleSlug: data.slug, articleLocale: data.locale },
         },
         line_items: [
           {
@@ -153,14 +169,14 @@ export async function startBlogSponsorship(input: SponsorshipInput): Promise<Res
             price_data: {
               currency: SPONSORSHIP_CURRENCY,
               unit_amount: SPONSORSHIP_CENTS,
-              product_data: { name: "Featured placement in a RepGet article", description: post.title.slice(0, 200) },
+              product_data: { name: copy.stripe.productName, description: post.title.slice(0, 200) },
             },
           },
         ],
-        success_url: `${siteUrl()}/blog/sponsorship/thanks?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${siteUrl()}/blog/${encodeURIComponent(data.slug)}?featured=cancelled`,
+        success_url: `${siteUrl()}${sponsorshipThanksPath(data.locale)}?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${siteUrl()}${blogPath(data.locale, encodeURIComponent(data.slug))}?featured=cancelled`,
         custom_text: {
-          submit: { message: "One-time payment for a sponsored mention and link in this article. Subject to editorial approval." },
+          submit: { message: copy.stripe.submitMessage },
         },
       },
       { idempotencyKey: `blog-sponsorship:${data.id}` },
@@ -169,9 +185,9 @@ export async function startBlogSponsorship(input: SponsorshipInput): Promise<Res
       .update(blogSponsorships)
       .set({ checkoutId: session.id, checkoutUrl: session.url, updatedAt: new Date() })
       .where(eq(blogSponsorships.id, data.id));
-    return session.url ? { url: session.url } : { error: "The payment page did not open. Please try again." };
+    return session.url ? { url: session.url } : { error: errors.notOpened };
   } catch (error) {
     console.error("[blog-sponsorship] checkout failed", error);
-    return { error: "The payment page did not open. Please try again - you will not be charged twice." };
+    return { error: errors.failed };
   }
 }

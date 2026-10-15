@@ -2,6 +2,7 @@ import { ExternalLink, Mail, Newspaper } from "lucide-react";
 import Link from "next/link";
 
 import { listPlacements, type PlacementView } from "@/lib/admin/blog-sponsorships";
+import { blogLocale, blogPath, LANGUAGE_NAMES_EN } from "@/lib/blog/locale";
 import { formatDate, formatNumber } from "@/lib/i18n/format";
 import { cn } from "@/lib/utils";
 
@@ -101,6 +102,8 @@ export default async function FeaturedPlacementsPage({ searchParams }: { searchP
         <ul className="space-y-4">
           {rows.map((row) => {
             const status = statusOf(row);
+            // A request on a translated article is placed in that article (client, 2026-10-15).
+            const locale = blogLocale(row.postLocale);
             return (
               <li key={row.id} className="rounded-xl border bg-card p-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -108,16 +111,23 @@ export default async function FeaturedPlacementsPage({ searchParams }: { searchP
                     <AdminStatus tone={status.tone} label={status.label} />
                     <p className="pt-1 font-medium wrap-anywhere">
                       {row.postTitle ? (
-                        <a
-                          href={`/blog/${row.postSlug}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-start gap-1 rounded-sm underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
-                        >
-                          {row.postTitle}
-                          <ExternalLink className="mt-1 size-3 shrink-0 text-muted-foreground" aria-hidden="true" />
-                          <span className="sr-only">(opens in a new tab)</span>
-                        </a>
+                        <>
+                          <a
+                            href={blogPath(locale, row.postSlug)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-start gap-1 rounded-sm underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+                          >
+                            {row.postTitle}
+                            <ExternalLink className="mt-1 size-3 shrink-0 text-muted-foreground" aria-hidden="true" />
+                            <span className="sr-only">(opens in a new tab)</span>
+                          </a>
+                          {locale !== "en" ? (
+                            <span className="ml-2 rounded-full border px-2 py-0.5 align-middle text-xs font-normal text-muted-foreground">
+                              {LANGUAGE_NAMES_EN[locale]}
+                            </span>
+                          ) : null}
+                        </>
                       ) : (
                         <>
                           /blog/{row.postSlug} <span className="font-normal text-muted-foreground">(no longer published)</span>

@@ -162,6 +162,17 @@ export async function getPost(slug: string, locale: Locale = DEFAULT_LOCALE): Pr
   return row ? (toPublished(row)[0] ?? null) : null;
 }
 
+/**
+ * One published post by slug in whichever language it is written - slugs are
+ * unique across languages - or null. For what is keyed by the slug alone, a
+ * "Get Featured" request (lib/blog/sponsorship.ts): its `locale` says where
+ * the post lives.
+ */
+export async function getPostInAnyLanguage(slug: string): Promise<BlogPost | null> {
+  const [row] = await publishedPosts(eq(blogPosts.slug, slug)).limit(1);
+  return row ? (toPublished(row)[0] ?? null) : null;
+}
+
 /** A published version of an article in one language: where it lives. */
 export type PostVersion = { locale: Locale; path: string };
 

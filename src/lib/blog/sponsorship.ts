@@ -4,11 +4,13 @@ import { and, eq } from "drizzle-orm";
 import type Stripe from "stripe";
 
 import { adminEmails } from "@/lib/admin/guard";
-import { getPost } from "@/lib/blog/posts";
+import { blogPath, LANGUAGE_NAMES_EN } from "@/lib/blog/locale";
+import { getPostInAnyLanguage } from "@/lib/blog/posts";
 import { db } from "@/lib/db";
 import { blogSponsorships } from "@/lib/db/schema";
 import { escapeHtml, emailButton, emailLayout, emailText } from "@/lib/email/layout";
 import { sendEmail } from "@/lib/email/send";
+import type { Locale } from "@/lib/i18n/config";
 import { siteUrl } from "@/lib/site-url";
 import { isStripeConfigured } from "@/lib/stripe/client";
 
@@ -30,6 +32,11 @@ import { isStripeConfigured } from "@/lib/stripe/client";
  *   published - an administrator placed the mention
  *   declined  - an administrator declined it (anything owed is settled by
  *               hand, in Stripe; nothing is promised on the page)
+ *
+ * On every language's articles (client, 2026-10-15): a request names its
+ * article by slug, which is unique across languages, so the article's own
+ * row says which language it is in; the buyer sees the offer, Stripe's page
+ * and the page after paying in that language (lib/blog/sponsorship-copy.ts).
  */
 
 export const SPONSORSHIP_CENTS = 9900;
@@ -56,6 +63,11 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /** True wherever Stripe is: the button then leads to checkout instead of the contact page. */
 export function sponsorshipConfigured(): boolean {
   return isStripeConfigured();
+}
+
+/** The page Stripe returns a buyer to, in the article's language: /blog/sponsorship/thanks, /it/blog/sponsorship/thanks... */
+export function sponsorshipThanksPath(locale: Locale): string {
+  return `${blogPath(locale)}/sponsorship/thanks`;
 }
 
 /** A Checkout Session started by a "Get Featured" request, whatever its state. */
@@ -110,21 +122,23 @@ async function notifyAdmins(order: typeof blogSponsorships.$inferSelect): Promis
   const to = adminEmails();
   if (to.length === 0) return;
   try {
-    const post = await getPost(order.postSlug);
+    const post = await getPostInAnyLanguage(order.postSlug);
     const title = post?.title ?? `/blog/${order.postSlug}`;
+    // Which language's article: an Italian request is placed in the Italian article.
+    const language = post?.locale && post.locale !== "en" ? ` (${LANGUAGE_NAMES_EN[post.locale]}, ${blogPath(post.locale, post.slug)})` : "";
     const review = `${siteUrl()}/admin/blog/sponsorships`;
     const html = emailLayout({
       heading: "New paid placement to review",
       preheader: `$99 paid for a mention in “${title}”.`,
       body: [
-        emailText(`<strong>${escapeHtml(order.email)}</strong> paid $99 for a sponsored mention in <strong>${escapeHtml(title)}</strong>.`),
+        emailText(`<strong>${escapeHtml(order.email)}</strong> paid $99 for a sponsored mention in <strong>${escapeHtml(title)}</strong>${escapeHtml(language)}.`),
         emailText(`Website: ${escapeHtml(order.websiteUrl)}`),
         emailText(`What they would like mentioned:<br>${escapeHtml(order.message)}`),
         emailButton(review, "Review the request"),
       ].join(""),
     });
     const text = [
-      `${order.email} paid $99 for a sponsored mention in "${title}".`,
+      `${order.email} paid $99 for a sponsored mention in "${title}"${language}.`,
       `Website: ${order.websiteUrl}`,
       `What they would like mentioned: ${order.message}`,
       `Review it: ${review}`,

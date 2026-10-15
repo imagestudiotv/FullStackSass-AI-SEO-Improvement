@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 
 import { recordAdminAction, type AdminAction } from "@/lib/admin/audit";
 import { requireAdmin } from "@/lib/admin/guard";
+import { blogLocale, blogPath } from "@/lib/blog/locale";
 import { db } from "@/lib/db";
 import { blogPosts, blogSponsorships } from "@/lib/db/schema";
 import type { ActionResult } from "@/lib/websites/actions";
@@ -24,6 +25,8 @@ export type PlacementRow = {
   postSlug: string;
   /** Null when the article has since been unpublished or deleted. */
   postTitle: string | null;
+  /** The article's language (lib/blog/locale.ts); null with the title. A request is placed in that article. */
+  postLocale: string | null;
   email: string;
   websiteUrl: string;
   message: string;
@@ -50,6 +53,7 @@ export async function listPlacements(view: PlacementView): Promise<{ rows: Place
       id: blogSponsorships.id,
       postSlug: blogSponsorships.postSlug,
       postTitle: blogPosts.title,
+      postLocale: blogPosts.locale,
       email: blogSponsorships.email,
       websiteUrl: blogSponsorships.websiteUrl,
       message: blogSponsorships.message,
@@ -104,13 +108,15 @@ export async function setPlacementStatus(input: { id: string; status: "published
       .where(and(eq(blogSponsorships.id, input.id), inArray(blogSponsorships.status, move.from)))
       .returning({ id: blogSponsorships.id, postSlug: blogSponsorships.postSlug, email: blogSponsorships.email });
     if (!updated) return null;
+    // The article's real address: /it/blog/<slug> for an Italian one (slugs are unique across languages).
+    const [post] = await tx.select({ locale: blogPosts.locale }).from(blogPosts).where(eq(blogPosts.slug, updated.postSlug)).limit(1);
     await recordAdminAction(
       {
         actorEmail: admin.email,
         action: move.action,
         targetType: "blog_placement",
         targetId: updated.id,
-        summary: `${move.verb}: the paid placement for ${updated.email} in /blog/${updated.postSlug}`,
+        summary: `${move.verb}: the paid placement for ${updated.email} in ${blogPath(blogLocale(post?.locale), updated.postSlug)}`,
         detail: { postSlug: updated.postSlug, status: input.status },
       },
       tx,

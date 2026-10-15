@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { BlogSponsorship } from "@/components/blog-sponsorship";
 import { getPost, postVersions, relatedPosts } from "@/lib/blog/posts";
 import { sponsorshipConfigured } from "@/lib/blog/sponsorship";
+import { SPONSORSHIP_COPY } from "@/lib/blog/sponsorship-copy";
 
 import { BlogPostView, postMetadata } from "../post-view";
 
@@ -47,7 +48,16 @@ export default async function BlogPostPage({
       post={post}
       versions={versions}
       related={related}
-      sponsorship={<BlogSponsorship slug={post.slug} enabled={sponsorshipConfigured()} cancelled={cancelled} />}
+      sponsorship={
+        <BlogSponsorship
+          slug={post.slug}
+          locale="en"
+          enabled={sponsorshipConfigured()}
+          copy={SPONSORSHIP_COPY.en.panel}
+          contactHref="/contact"
+          cancelled={cancelled}
+        />
+      }
     />
   );
 }
