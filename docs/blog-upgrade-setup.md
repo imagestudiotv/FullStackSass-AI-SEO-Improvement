@@ -6,7 +6,7 @@ For whoever deploys this work: the client's requests of 8 October 2026 (RepGet b
 
 **RepGet blog**
 
-- **Team author page** at `/blog/author/repget-team`. The "RepGet team" byline on every article links to it. It lists the team's articles, 30 per page.
+- **Team author page** at `/blog/author/repget-team`, and in every language since 2026-10-15 (`/it/blog/author/repget-team`...). The team byline on every article links to the page in the article's language. It lists the team's articles in that language, 30 per page.
 - **Closing panel** ("Your website could be growing faster.") on the homepage, `/blog`, category pages, the author page and every article, in all five languages. Its buttons go to the free website check (`/audit`) and to sign-up ("Create 3 Articles for Free").
 - **"Get Featured in This Article"**: a button beside the byline opens the offer ($99 one time, per article, subject to editorial approval). The buyer gives an email, a website and what the mention should say, then pays through Stripe Checkout. No refunds are promised.
 - **30 articles per page** on the blog, category and author pages, with Newer / page numbers / Older.
@@ -53,7 +53,7 @@ For whoever deploys this work: the client's requests of 8 October 2026 (RepGet b
 ## Checks after deploying
 
 - An article's page source (view-source) shows its SEO title, description, canonical address and Open Graph tags in `<head>`.
-- The byline links to `/blog/author/repget-team`. `/blog?page=2` exists once there are more than 30 articles.
+- The byline links to `/blog/author/repget-team` (on an Italian article, `/it/blog/author/repget-team`). `/blog?page=2` exists once there are more than 30 articles.
 - "Get Featured in This Article" opens the offer and reaches Stripe Checkout. Close Checkout without paying; a real payment moves real money.
 - Sign up with a new address: the plan step asks for the email code. "Start with 3 free articles" opens Stripe Checkout showing a free trial. Do not complete it with a real card unless you mean to; if you do, cancel the subscription in Stripe afterwards.
 

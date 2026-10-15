@@ -205,6 +205,8 @@ describe("every page in the sitemap", () => {
     expect(paths).toEqual(expect.arrayContaining(CATEGORIES.map((category) => `/blog/category/${category.slug}`)));
     // An Italian post, and its category's page in Italian - the only Italian category with a post.
     expect(paths).toEqual(expect.arrayContaining(["/it/blog/cos-e-llms-txt", "/it/blog/category/guides"]));
+    // The team's author page in every language (client, 2026-10-15).
+    expect(paths).toEqual(expect.arrayContaining(["/blog/author/repget-team", "/it/blog/author/repget-team", "/de/blog/author/repget-team"]));
     expect(paths).not.toContain("/it/blog/category/comparisons");
   });
 

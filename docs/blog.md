@@ -43,7 +43,7 @@ Pictures inserted in a post are stored in the article-image bucket under `blog/p
 
 ## Rendering
 
-The blog index, post pages, category pages and `sitemap.xml` render per request (`force-dynamic`), as the homepage does for live prices. A published or changed post is live at once, and a build never needs the database. Index, category and author archives now query 30 articles per page, with stable ordering and numbered navigation. The team byline links to `/blog/author/repget-team`.
+The blog index, post pages, category pages and `sitemap.xml` render per request (`force-dynamic`), as the homepage does for live prices. A published or changed post is live at once, and a build never needs the database. Index, category and author archives now query 30 articles per page, with stable ordering and numbered navigation. The team byline links to the team's author page in the post's language (`/blog/author/repget-team`, `/it/blog/author/repget-team`...). Since 2026-10-15 the category and author pages exist in every language: `/it/blog/category/<slug>` lists the Italian posts under the category's Italian name (Admin -> Blog -> Categories -> Edit -> In other languages; a blank language shows the English), and a language with no post in a category says so, shows the English ones and is noindex.
 
 The SEO title never becomes a second heading. Keywords are editorial inputs and appear in the BlogPosting structured data; they add no hidden text and no meta-keywords tag. Search engines and link previews get the title, description, canonical and Open Graph tags in the initial HTML `<head>`: `htmlLimitedBots` in `next.config.ts` is Next's own crawler list plus Googlebot. People still get streamed metadata.
 

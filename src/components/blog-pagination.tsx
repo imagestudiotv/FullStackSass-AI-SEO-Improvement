@@ -21,8 +21,9 @@ const STEP =
  * "Page X of Y" between the two buttons instead of the numbers, which do not
  * fit beside them.
  *
- * In the listing's language (lib/blog/locale.ts): /it/blog passes "it". The
- * English listings (the blog, its categories, the team's page) pass nothing.
+ * In the listing's language (lib/blog/locale.ts): /it/blog, its category
+ * pages and the team's Italian page pass "it". The English listings may pass
+ * nothing.
  */
 export function BlogPagination({
   page,

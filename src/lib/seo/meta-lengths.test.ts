@@ -119,6 +119,20 @@ describe("titles and descriptions of the public pages", () => {
     expect(off).toEqual([]);
   });
 
+  it("the team's author page, in every language, from page 1 to page 99", () => {
+    const off = LOCALES.flatMap((locale) => {
+      const t = BLOG_CHROME[locale];
+      return [1, 99].flatMap((page) => {
+        const suffix = pageSuffix(page, t.pageN);
+        const title = `${t.teamName}${suffix}${SUFFIX}`;
+        const description = `${t.authorMetaDescription}${suffix}.`;
+        const fits = title.length <= LIMITS.titleMax && description.length >= LIMITS.metaMin && description.length <= LIMITS.metaMax;
+        return fits ? [] : [`${locale} page ${page}: ${title.length} / ${description.length}`];
+      });
+    });
+    expect(off).toEqual([]);
+  });
+
   describe("the English home page (its metadata is written in app/(marketing)/page.tsx)", () => {
     const source = readFileSync(path.resolve(__dirname, "../../app/(marketing)/page.tsx"), "utf8");
     const title: string = JSON.parse(source.match(/title: \{ absolute: ("[^"]+") \}/)?.[1] ?? '""');

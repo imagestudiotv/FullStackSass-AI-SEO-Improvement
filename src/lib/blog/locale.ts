@@ -8,9 +8,10 @@ import { DEFAULT_LOCALE, LOCALES, type Locale } from "@/lib/i18n/config";
  * An English post lives at /blog/<slug>; a post in another language at
  * /<locale>/blog/<slug>. Translations of one article link to each other
  * (hreflang and a visible "Also in" line), so search engines treat them as
- * one article in several languages rather than as copies. Categories exist
- * in every language (client, 2026-10-15): /it/blog/category/<slug> lists the
- * Italian posts, under the category's Italian name. Author pages stay English.
+ * one article in several languages rather than as copies. Categories and the
+ * team's author page exist in every language (client, 2026-10-15):
+ * /it/blog/category/<slug> lists the Italian posts under the category's
+ * Italian name, /it/blog/author/repget-team the team's Italian posts.
  *
  * The words around a post (dates, "min read", "In this article"...) are
  * here rather than in messages.ts: the admin editor's preview, a client
@@ -107,6 +108,18 @@ export type BlogChrome = {
   noneYet: string;
   /** A category's page in a language with no post in it yet; the English ones follow. */
   sectionEmpty: string;
+  /** The RepGet team as an author: its byline, and its author page (/it/blog/author/repget-team). */
+  teamName: string;
+  /** Above the team's name on its author page. */
+  authorEyebrow: string;
+  /** The team's description on its author page, and in its structured data. */
+  authorBio: string;
+  /** The author page's meta description, without its full stop (" - Page N" goes before it). */
+  authorMetaDescription: string;
+  /** The author page's list of posts. */
+  articlesHeading: string;
+  /** The author page in a language with no post by the team yet; the English ones follow. */
+  authorNoneYet: string;
   readInEnglish: string;
   /** A listing's page links (components/blog-pagination.tsx), for a screen reader. */
   pagination: string;
@@ -142,6 +155,12 @@ export const BLOG_CHROME: Record<Locale, BlogChrome> = {
     inEnglish: "Articles in English",
     noneYet: "",
     sectionEmpty: "There is nothing in this section yet.",
+    teamName: "RepGet team",
+    authorEyebrow: "Author",
+    authorBio: "The team behind RepGet. We write practical guides to keyword research, SEO content, publishing, backlinks, and getting your business found on Google and named by AI assistants.",
+    authorMetaDescription: "Guides and playbooks from the RepGet team on getting found on Google and cited by AI assistants",
+    articlesHeading: "Articles",
+    authorNoneYet: "The team's first article is on its way.",
     readInEnglish: "See all articles in English",
     pagination: "Blog pages",
     pageN: "Page {page}",
@@ -172,6 +191,12 @@ export const BLOG_CHROME: Record<Locale, BlogChrome> = {
     inEnglish: "Artículos en inglés",
     noneYet: "Todavía no hay artículos en español. Estos son los últimos en inglés.",
     sectionEmpty: "Todavía no hay artículos en español en esta sección.",
+    teamName: "El equipo de RepGet",
+    authorEyebrow: "Autor",
+    authorBio: "El equipo detrás de RepGet. Escribimos guías prácticas sobre investigación de palabras clave, contenido SEO, publicación y backlinks, y sobre cómo conseguir que su negocio aparezca en Google y que los asistentes de IA lo mencionen.",
+    authorMetaDescription: "Guías y estrategias del equipo de RepGet para aparecer en Google y lograr que los asistentes de IA citen su negocio",
+    articlesHeading: "Artículos",
+    authorNoneYet: "Todavía no hay artículos del equipo en español.",
     readInEnglish: "Ver todos los artículos en inglés",
     pagination: "Páginas",
     pageN: "Página {page}",
@@ -202,6 +227,12 @@ export const BLOG_CHROME: Record<Locale, BlogChrome> = {
     inEnglish: "Articles en anglais",
     noneYet: "Pas encore d'articles en français. Voici les derniers en anglais.",
     sectionEmpty: "Pas encore d'articles en français dans cette rubrique.",
+    teamName: "L’équipe RepGet",
+    authorEyebrow: "Auteur",
+    authorBio: "L’équipe derrière RepGet. Nous écrivons des guides pratiques sur la recherche de mots-clés, le contenu SEO, la publication et les backlinks, et sur la façon de rendre votre entreprise visible sur Google et citée par les assistants d’IA.",
+    authorMetaDescription: "Guides et méthodes de l’équipe RepGet pour être trouvé sur Google et cité par les assistants d’IA",
+    articlesHeading: "Articles",
+    authorNoneYet: "Pas encore d’articles de l’équipe en français.",
     readInEnglish: "Voir tous les articles en anglais",
     pagination: "Pages",
     pageN: "Page {page}",
@@ -232,6 +263,12 @@ export const BLOG_CHROME: Record<Locale, BlogChrome> = {
     inEnglish: "Articoli in inglese",
     noneYet: "Non ci sono ancora articoli in italiano. Ecco gli ultimi in inglese.",
     sectionEmpty: "Non ci sono ancora articoli in italiano in questa sezione.",
+    teamName: "Il team RepGet",
+    authorEyebrow: "Autore",
+    authorBio: "Il team dietro RepGet. Scriviamo guide pratiche su ricerca delle parole chiave, contenuti SEO, pubblicazione e backlink, e su come far trovare la sua attività su Google e farla citare dagli assistenti IA.",
+    authorMetaDescription: "Guide e strategie del team RepGet per farsi trovare su Google ed essere citati dagli assistenti IA",
+    articlesHeading: "Articoli",
+    authorNoneYet: "Non ci sono ancora articoli del team in italiano.",
     readInEnglish: "Vedi tutti gli articoli in inglese",
     pagination: "Pagine",
     pageN: "Pagina {page}",
@@ -262,6 +299,12 @@ export const BLOG_CHROME: Record<Locale, BlogChrome> = {
     inEnglish: "Artikel auf Englisch",
     noneYet: "Noch keine Artikel auf Deutsch. Hier sind die neuesten auf Englisch.",
     sectionEmpty: "In dieser Rubrik gibt es noch keine Artikel auf Deutsch.",
+    teamName: "Das RepGet-Team",
+    authorEyebrow: "Autor",
+    authorBio: "Das Team hinter RepGet. Wir schreiben praktische Leitfäden zu Keyword-Recherche, SEO-Inhalten, Veröffentlichung und Backlinks – und dazu, wie Ihr Unternehmen bei Google gefunden und von KI-Assistenten genannt wird.",
+    authorMetaDescription: "Leitfäden und Strategien des RepGet-Teams, um bei Google gefunden und von KI-Assistenten zitiert zu werden",
+    articlesHeading: "Artikel",
+    authorNoneYet: "Noch keine Artikel des Teams auf Deutsch.",
     readInEnglish: "Alle Artikel auf Englisch ansehen",
     pagination: "Seiten",
     pageN: "Seite {page}",

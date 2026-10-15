@@ -47,7 +47,8 @@ export function postMetadata(post: BlogPost, versions: PostVersion[]): Metadata 
       description: post.description,
       publishedTime: post.publishedAt,
       modifiedTime: post.updatedAt ?? post.publishedAt,
-      authors: [post.author],
+      // The team under its name in the post's language, as its byline reads.
+      authors: [isTeamAuthor(post.author) ? BLOG_CHROME[locale].teamName : post.author],
     },
   });
   const alternates = languages(versions);
@@ -124,12 +125,10 @@ export function BlogPostView({
         they are never written into the page as text (lib/blog/keywords.ts).
       */
       keywords: [post.primaryKeyword, ...(post.secondaryKeywords ?? [])].filter(Boolean).join(", ") || undefined,
-      // The team's byline links to its author page; the author names the same page.
-      author: {
-        "@type": "Organization",
-        name: post.author,
-        ...(isTeamAuthor(post.author) ? { url: `${site}${TEAM_AUTHOR_PATH}` } : {}),
-      },
+      // The team's byline links to its author page in the post's language; the author names the same page.
+      author: isTeamAuthor(post.author)
+        ? { "@type": "Organization", name: t.teamName, url: `${site}${localePath(locale, TEAM_AUTHOR_PATH)}` }
+        : { "@type": "Organization", name: post.author },
       // The Organization the homepage defines, by reference rather than again.
       publisher: { "@id": entityIds(site).organization },
     },

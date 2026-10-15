@@ -7,6 +7,7 @@ import { ARTICLE_TABLE_CLASSES } from "@/lib/articles/table-styles";
 import { sanitizeHtml } from "@/lib/articles/sanitize";
 import { BLOG_CHROME, blogDate, fill } from "@/lib/blog/locale";
 import { isTeamAuthor, TEAM_AUTHOR_PATH, tableOfContents, withHeadingIds, type BlogPost } from "@/lib/blog/shared";
+import { localePath } from "@/lib/i18n/config";
 
 /**
  * One blog post: title, byline, cover, short answer, contents, body, FAQ and
@@ -42,15 +43,18 @@ export function BlogArticle({
         </h1>
 
         <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-muted-foreground">
-          {/* The team's byline is a link to its author page (client, 2026-10-08). */}
+          {/*
+            The team's byline is a link to its author page (client,
+            2026-10-08), named and linked in the post's language (2026-10-15).
+          */}
           <span className="font-medium text-foreground">
             {isTeamAuthor(post.author) ? (
               <Link
-                href={TEAM_AUTHOR_PATH}
+                href={localePath(locale, TEAM_AUTHOR_PATH)}
                 rel="author"
                 className="underline decoration-foreground/25 underline-offset-4 transition-colors hover:text-primary hover:decoration-primary"
               >
-                {post.author}
+                {t.teamName}
               </Link>
             ) : (
               post.author

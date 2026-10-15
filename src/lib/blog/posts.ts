@@ -20,8 +20,8 @@ import { DEFAULT_LOCALE, LOCALES, type Locale } from "@/lib/i18n/config";
  *
  * Every read is for ONE language, English unless asked (lib/blog/locale.ts):
  * /blog and its category and author pages list English posts, /it/blog and
- * its category pages the Italian ones, and a slug only answers in its own
- * language.
+ * its category and author pages the Italian ones, and a slug only answers in
+ * its own language.
  */
 
 type Row = typeof blogPosts.$inferSelect;
