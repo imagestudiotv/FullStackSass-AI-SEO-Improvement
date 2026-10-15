@@ -61,6 +61,7 @@ import { AdminFacts, AdminPage, AdminPageHeader, AdminSection } from "../_ui/pag
 import { AdminStatus } from "../_ui/status";
 import { useUnsavedChanges } from "../_ui/use-unsaved-changes";
 import { ConfirmDialog } from "./confirm-dialog";
+import { adminBlogPath } from "./languages";
 import { postStatus } from "./post-status";
 
 const TEXTAREA =
@@ -130,7 +131,7 @@ function pictureScopes(locale: Locale): PickerScopes {
   };
 }
 
-function fromPost(post: AdminBlogPost | null, firstCategory: string): BlogPostInput {
+function fromPost(post: AdminBlogPost | null, firstCategory: string, newLocale: Locale): BlogPostInput {
   return {
     title: post?.title ?? "",
     slug: post?.slug ?? "",
@@ -146,7 +147,7 @@ function fromPost(post: AdminBlogPost | null, firstCategory: string): BlogPostIn
     bodyHtml: post?.bodyHtml ?? "",
     faqs: post?.faqs ?? [],
     sources: post?.sources ?? [],
-    locale: post?.locale ?? "en",
+    locale: post?.locale ?? newLocale,
   };
 }
 
@@ -171,16 +172,19 @@ function fromPost(post: AdminBlogPost | null, firstCategory: string): BlogPostIn
 export function BlogPostEditor({
   post,
   categories,
+  newLocale = "en",
 }: {
   post: AdminBlogPost | null;
   /** The blog's categories (Admin -> Blog), in their order. */
   categories: BlogCategoryInfo[];
+  /** The language a new post starts in: the tab it was started from on Admin -> Blog. */
+  newLocale?: Locale;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const firstCategory = categories[0]?.name ?? "";
-  const [draft, setDraft] = useState<BlogPostInput>(() => fromPost(post, firstCategory));
-  const [saved, setSaved] = useState<BlogPostInput>(() => fromPost(post, firstCategory));
+  const [draft, setDraft] = useState<BlogPostInput>(() => fromPost(post, firstCategory, newLocale));
+  const [saved, setSaved] = useState<BlogPostInput>(() => fromPost(post, firstCategory, newLocale));
   const [version, setVersion] = useState(post?.version ?? 0);
   const [status, setStatus] = useState(post?.status ?? "draft");
   // The address is permanent once the post has been published, even if it is unpublished later.
@@ -316,7 +320,7 @@ export function BlogPostEditor({
       }
       setConfirming(null);
       toast.success("Post deleted");
-      router.replace("/admin/blog");
+      router.replace(adminBlogPath(locale));
     });
   }
 
@@ -378,7 +382,8 @@ export function BlogPostEditor({
   return (
     <AdminPage width="default">
       <AdminPageHeader
-        back={{ href: "/admin/blog", label: "All posts" }}
+        // Back to the list of the post's language (Admin -> Blog's tabs).
+        back={{ href: adminBlogPath(locale), label: `${LANGUAGE_NAMES_EN[locale]} posts` }}
         title={post ? saved.title || "Untitled post" : "New post"}
         description={live ? "Live on the blog. Saved changes go live at once." : "Not on the blog. Only administrators can see it."}
         meta={<AdminStatus tone={badge.tone} label={badge.label} icon={badge.icon} title={badge.title} />}
