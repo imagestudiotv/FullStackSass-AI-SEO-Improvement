@@ -22,7 +22,9 @@ import {
   saveBlogCategory,
   type AdminBlogCategory,
 } from "@/lib/admin/blog";
+import { LANGUAGE_NAMES_EN } from "@/lib/blog/locale";
 import { blogSlug } from "@/lib/blog/shared";
+import { LOCALES } from "@/lib/i18n/config";
 import { formatNumber } from "@/lib/i18n/format";
 
 import { AdminEmpty } from "../_ui/states";
@@ -35,22 +37,41 @@ const UNEXPECTED = "The server did not finish this - try again. If it keeps fail
 
 const postsLabel = (count: number) => `${formatNumber(count, "en")} ${count === 1 ? "post" : "posts"}`;
 
+type Translations = AdminBlogCategory["translations"];
+
+/** The blog's languages other than English, in which a category has a name of its own. */
+const OTHER_LOCALES = LOCALES.filter((locale): locale is keyof Translations => locale !== "en");
+
+/** Two sets of translations the same once blanks are ignored (a blank shows the English either way). */
+function sameTranslations(a: Translations, b: Translations): boolean {
+  return OTHER_LOCALES.every(
+    (locale) =>
+      (a[locale]?.name ?? "").trim() === (b[locale]?.name ?? "").trim() &&
+      (a[locale]?.blurb ?? "").trim() === (b[locale]?.blurb ?? "").trim(),
+  );
+}
+
 /**
  * The blog's categories: add one, rename it or change its description, and
  * delete one no post uses (client, 2026-10-01). A new category's page
  * (/blog/category/<address>) exists at once; it appears on the blog's index
  * as soon as a published post is in it.
+ *
+ * Each also has a name and description per language (client, 2026-10-15),
+ * shown on that language's blog (/it/blog, /it/blog/category/<address>); a
+ * language left blank shows the English ones.
  */
 export function BlogCategories({ categories }: { categories: AdminBlogCategory[] }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [name, setName] = useState("");
   const [blurb, setBlurb] = useState("");
+  const [translations, setTranslations] = useState<Translations>({});
   const [editing, setEditing] = useState<string | null>(null);
   const [editDirty, setEditDirty] = useState(false);
 
   // A half-typed new category or an open rename is lost by leaving: ask first.
-  useUnsavedChanges(Boolean(name.trim() || blurb.trim()) || editDirty);
+  useUnsavedChanges(Boolean(name.trim() || blurb.trim()) || !sameTranslations(translations, {}) || editDirty);
 
   function stopEditing() {
     setEditing(null);
@@ -61,7 +82,7 @@ export function BlogCategories({ categories }: { categories: AdminBlogCategory[]
     event.preventDefault();
     start(async () => {
       try {
-        const result = await createBlogCategory({ name, blurb });
+        const result = await createBlogCategory({ name, blurb, translations });
         if (!result.ok) {
           toast.error(result.error);
           return;
@@ -69,6 +90,7 @@ export function BlogCategories({ categories }: { categories: AdminBlogCategory[]
         toast.success(`Added "${result.data.name}"`);
         setName("");
         setBlurb("");
+        setTranslations({});
         router.refresh();
       } catch (error) {
         console.error("[admin/blog] adding a category failed", error);
@@ -112,6 +134,21 @@ export function BlogCategories({ categories }: { categories: AdminBlogCategory[]
               />
             </div>
           </div>
+          {/* Optional now, and editable later: closed so the form stays two fields long. */}
+          <details className="rounded-lg border bg-background/60 p-3">
+            <summary className="cursor-pointer text-sm font-medium">In other languages (optional)</summary>
+            <div className="mt-3 space-y-3">
+              <TranslationFields
+                idPrefix="new-category"
+                slug={newSlug}
+                translations={translations}
+                englishName={name}
+                englishBlurb={blurb}
+                disabled={pending}
+                onChange={setTranslations}
+              />
+            </div>
+          </details>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs text-muted-foreground wrap-anywhere" aria-live="polite">
               {newSlug
@@ -165,6 +202,7 @@ export function BlogCategories({ categories }: { categories: AdminBlogCategory[]
                   <TableCell className="min-w-36 whitespace-normal sm:min-w-48">
                     <p className="font-medium wrap-anywhere">{category.name}</p>
                     {category.blurb ? <p className="mt-0.5 text-xs text-muted-foreground wrap-anywhere">{category.blurb}</p> : null}
+                    <TranslationSummary translations={category.translations} />
                     <div className="mt-1 md:hidden">
                       <CategoryPageLink slug={category.slug} />
                     </div>
@@ -220,6 +258,103 @@ function CategoryPageLink({ slug }: { slug: string }) {
   );
 }
 
+/**
+ * A category's names in the other languages, in one line under its English
+ * one: what each language's blog shows. A dash is a language still showing
+ * the English name.
+ */
+function TranslationSummary({ translations }: { translations: Translations }) {
+  return (
+    <p className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+      {OTHER_LOCALES.map((locale) => {
+        const name = translations[locale]?.name?.trim();
+        return (
+          <span key={locale} className="wrap-anywhere">
+            <abbr title={LANGUAGE_NAMES_EN[locale]} className="font-medium no-underline">
+              {locale.toUpperCase()}
+            </abbr>{" "}
+            {name ? (
+              <span lang={locale}>{name}</span>
+            ) : (
+              <>
+                <span aria-hidden="true">-</span>
+                <span className="sr-only">not translated, shows the English name</span>
+              </>
+            )}
+          </span>
+        );
+      })}
+    </p>
+  );
+}
+
+/**
+ * A category's name and description in each of the other languages, for the
+ * Add and Edit forms. The English ones show as placeholders: what that
+ * language's blog shows while its field is left blank.
+ */
+function TranslationFields({
+  idPrefix,
+  slug,
+  translations,
+  englishName,
+  englishBlurb,
+  disabled,
+  onChange,
+}: {
+  idPrefix: string;
+  /** The category's address, for the example; empty while a new one has no name. */
+  slug: string;
+  translations: Translations;
+  englishName: string;
+  englishBlurb: string;
+  disabled: boolean;
+  onChange: (next: Translations) => void;
+}) {
+  function set(locale: keyof Translations, field: "name" | "blurb", value: string) {
+    const current = translations[locale] ?? { name: "", blurb: "" };
+    onChange({ ...translations, [locale]: { ...current, [field]: value } });
+  }
+  return (
+    <>
+      <p className="text-xs text-muted-foreground wrap-anywhere">
+        Shown on that language&apos;s blog{slug ? `, for example /it/blog/category/${slug}` : ""}. Left blank, it shows the
+        English name and description.
+      </p>
+      {OTHER_LOCALES.map((locale) => (
+        <div key={locale} className="grid gap-3 sm:grid-cols-[minmax(0,14rem)_minmax(0,1fr)]">
+          <div className="space-y-1.5">
+            <Label htmlFor={`${idPrefix}-name-${locale}`}>{LANGUAGE_NAMES_EN[locale]} name</Label>
+            <Input
+              id={`${idPrefix}-name-${locale}`}
+              lang={locale}
+              value={translations[locale]?.name ?? ""}
+              maxLength={40}
+              placeholder={englishName}
+              onChange={(event) => set(locale, "name", event.target.value)}
+              disabled={disabled}
+              className="bg-background"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor={`${idPrefix}-blurb-${locale}`}>{LANGUAGE_NAMES_EN[locale]} description</Label>
+            <Input
+              id={`${idPrefix}-blurb-${locale}`}
+              lang={locale}
+              value={translations[locale]?.blurb ?? ""}
+              maxLength={200}
+              placeholder={englishBlurb}
+              onChange={(event) => set(locale, "blurb", event.target.value)}
+              disabled={disabled}
+              className="bg-background"
+            />
+          </div>
+        </div>
+      ))}
+    </>
+  );
+}
+
 function EditCategory({
   category,
   onDone,
@@ -233,11 +368,15 @@ function EditCategory({
   const [pending, start] = useTransition();
   const [name, setName] = useState(category.name);
   const [blurb, setBlurb] = useState(category.blurb);
+  const [translations, setTranslations] = useState<Translations>(category.translations);
 
-  function change(nextName: string, nextBlurb: string) {
+  function change(nextName: string, nextBlurb: string, nextTranslations: Translations = translations) {
     setName(nextName);
     setBlurb(nextBlurb);
-    onDirtyChange(nextName !== category.name || nextBlurb !== category.blurb);
+    setTranslations(nextTranslations);
+    onDirtyChange(
+      nextName !== category.name || nextBlurb !== category.blurb || !sameTranslations(nextTranslations, category.translations),
+    );
   }
 
   return (
@@ -248,7 +387,7 @@ function EditCategory({
         event.preventDefault();
         start(async () => {
           try {
-            const result = await saveBlogCategory({ id: category.id, name, blurb });
+            const result = await saveBlogCategory({ id: category.id, name, blurb, translations });
             if (!result.ok) {
               toast.error(result.error);
               return;
@@ -287,6 +426,18 @@ function EditCategory({
           />
         </div>
       </div>
+      <fieldset className="space-y-3 rounded-lg border bg-background/60 p-3">
+        <legend className="px-1 text-sm font-semibold">In other languages</legend>
+        <TranslationFields
+          idPrefix={`category-${category.id}`}
+          slug={category.slug}
+          translations={translations}
+          englishName={name}
+          englishBlurb={blurb}
+          disabled={pending}
+          onChange={(next) => change(name, blurb, next)}
+        />
+      </fieldset>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs text-muted-foreground wrap-anywhere">
           The address stays /blog/category/{category.slug}.
@@ -374,7 +525,7 @@ function CategoryActions({ category }: { category: AdminBlogCategory }) {
         open={confirming}
         onOpenChange={setConfirming}
         title={`Delete the category "${category.name}"?`}
-        description={`Its page /blog/category/${category.slug} will stop existing. This cannot be undone.`}
+        description={`Its page /blog/category/${category.slug}, and the same page on each language's blog (/it/blog/category/${category.slug} and the others), will stop existing. This cannot be undone.`}
         confirmLabel="Delete category"
         tone="danger"
         pending={pending}

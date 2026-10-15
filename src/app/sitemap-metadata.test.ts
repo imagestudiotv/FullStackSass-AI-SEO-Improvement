@@ -57,21 +57,43 @@ const { POSTS, CATEGORIES } = vi.hoisted(() => {
       readingMinutes: 7,
       body: "<p>Body.</p>",
     },
+    {
+      // In Italian: its page, and its category's Italian page (client, 2026-10-15).
+      slug: "cos-e-llms-txt",
+      title: "Che cos'è llms.txt?",
+      description: "Il file che dice agli assistenti IA di che cosa parla il suo sito.",
+      category: "Guides",
+      categoryLabel: "Guide",
+      categorySlug: "guides",
+      publishedAt: "2026-10-01",
+      author: "Jane Doe",
+      readingMinutes: 4,
+      body: "<p>Testo.</p>",
+      locale: "it",
+    },
   ];
   return { POSTS, CATEGORIES };
 });
 
+type MockPost = (typeof POSTS)[number] & { locale?: string };
+const inLanguage = (locale = "en") => (POSTS as MockPost[]).filter((post) => (post.locale ?? "en") === locale);
+
 // Blog pages read the database; these stand in for published posts.
 vi.mock("@/lib/blog/posts", () => ({
-  // English posts only: no translation is published here.
-  listPosts: async (locale = "en") => (locale === "en" ? POSTS : []),
-  publishedLocales: async () => [],
+  listPosts: async (locale = "en") => inLanguage(locale),
+  publishedLocales: async () => ["it"],
   postVersions: async () => [],
-  listPostPage: async () => ({ posts: POSTS, total: POSTS.length }),
+  listPostPage: async (_page: number, filter: { locale?: string; category?: string } = {}) => {
+    const posts = inLanguage(filter.locale).filter((post) => !filter.category || post.category === filter.category);
+    return { posts, total: posts.length };
+  },
   publishedCategoryCounts: async () => ({}),
-  getPost: async (slug: string) => POSTS.find((post) => post.slug === slug) ?? null,
+  publishedCategoryLocales: async (category: string) =>
+    ["en", "es", "fr", "it", "de"].filter((locale) => inLanguage(locale).some((post) => post.category === category)),
+  getPost: async (slug: string, locale = "en") => inLanguage(locale).find((post) => post.slug === slug) ?? null,
   relatedPosts: async () => [],
 }));
+// The database's readers only; the hreflang rule (lib/blog/locale.ts) is the real one.
 vi.mock("@/lib/blog/categories", () => ({
   listCategories: async () => CATEGORIES,
   categoryBySlug: async (slug: string) => CATEGORIES.find((category) => category.slug === slug) ?? null,
@@ -179,8 +201,20 @@ describe("every page in the sitemap", () => {
   it("is found, translated pages and blog posts included", () => {
     const paths = pages.map((page) => page.pathname);
     expect(paths).toEqual(expect.arrayContaining(["/", "/fr", "/it/pricing", "/blog", "/terms"]));
-    expect(paths).toEqual(expect.arrayContaining(POSTS.map((post) => `/blog/${post.slug}`)));
+    expect(paths).toEqual(expect.arrayContaining(inLanguage("en").map((post) => `/blog/${post.slug}`)));
     expect(paths).toEqual(expect.arrayContaining(CATEGORIES.map((category) => `/blog/category/${category.slug}`)));
+    // An Italian post, and its category's page in Italian - the only Italian category with a post.
+    expect(paths).toEqual(expect.arrayContaining(["/it/blog/cos-e-llms-txt", "/it/blog/category/guides"]));
+    expect(paths).not.toContain("/it/blog/category/comparisons");
+  });
+
+  it("a category's pages in two languages name each other, and themselves, as alternates", () => {
+    const languagesOf = (pathname: string) => pages.find((page) => page.pathname === pathname)?.metadata.alternates?.languages;
+    const both = { en: "/blog/category/guides", it: "/it/blog/category/guides", "x-default": "/blog/category/guides" };
+    expect(languagesOf("/blog/category/guides")).toEqual(both);
+    expect(languagesOf("/it/blog/category/guides")).toEqual(both);
+    // English only: no alternates.
+    expect(languagesOf("/blog/category/comparisons")).toBeUndefined();
   });
 
   it("has an og:url, and it is exactly its canonical", () => {

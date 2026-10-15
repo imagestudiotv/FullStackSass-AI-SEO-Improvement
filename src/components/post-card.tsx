@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { PostCover } from "@/components/post-cover";
-import { BLOG_CHROME, blogPath, fill } from "@/lib/blog/locale";
+import { BLOG_CHROME, blogPath, categoryPath, fill } from "@/lib/blog/locale";
 import type { BlogPost } from "@/lib/blog/shared";
 
 const DATE_LOCALES = { en: "en-GB", es: "es-ES", fr: "fr-FR", it: "it-IT", de: "de-DE" } as const;
@@ -25,13 +25,15 @@ export function formatPostDate(iso: string, locale: keyof typeof DATE_LOCALES = 
  * stretches its hit area over the card, leaving the chip separately clickable.
  *
  * A post in another language links to its own address (/it/blog/...), with
- * its date and read time in that language. Category pages are English, so
- * its category is a label rather than a link.
+ * its date and read time in that language, and its category under the
+ * category's name in that language, linking to that language's category page
+ * (/it/blog/category/...) - which has this post in it.
  */
 export function PostCard({ post }: { post: BlogPost }) {
   const locale = post.locale ?? "en";
   return (
     <article className="group relative flex h-full flex-col overflow-hidden rounded-xl border bg-card transition-colors hover:border-primary/40">
+      {/* The English name: it picks the cover's colour, the same in every language. */}
       <PostCover
         slug={post.slug}
         title={post.title}
@@ -40,16 +42,12 @@ export function PostCard({ post }: { post: BlogPost }) {
       />
 
       <div className="flex flex-1 flex-col p-5">
-        {locale === "en" ? (
-          <Link
-            href={`/blog/category/${post.categorySlug}`}
-            className="relative z-10 w-fit rounded-full bg-muted px-2.5 py-1 text-xs font-medium transition-colors hover:bg-muted-foreground/15"
-          >
-            {post.category}
-          </Link>
-        ) : (
-          <span className="w-fit rounded-full bg-muted px-2.5 py-1 text-xs font-medium">{post.category}</span>
-        )}
+        <Link
+          href={categoryPath(locale, post.categorySlug)}
+          className="relative z-10 w-fit rounded-full bg-muted px-2.5 py-1 text-xs font-medium transition-colors hover:bg-muted-foreground/15"
+        >
+          {post.categoryLabel ?? post.category}
+        </Link>
 
         <h3 className="mt-3 font-semibold tracking-tight text-balance">
           <Link

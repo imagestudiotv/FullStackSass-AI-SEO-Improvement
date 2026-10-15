@@ -2528,6 +2528,11 @@ export const blogSponsorships = pgTable("blog_sponsorships", {
   ...timestamps,
 });
 
+/** A blog category's name and description in one of the blog's other languages. */
+export type BlogCategoryText = { name: string; blurb: string };
+/** blog_categories.translations: by locale, for the languages other than English. */
+export type BlogCategoryTranslations = Partial<Record<"es" | "fr" | "it" | "de", BlogCategoryText>>;
+
 /**
  * The blog's categories, managed in Admin -> Blog (lib/admin/blog.ts).
  *
@@ -2548,6 +2553,14 @@ export const blogCategories = pgTable(
     slug: text("slug").notNull(),
     /** One line under the category's heading, and its meta description. */
     blurb: text("blurb").default("").notNull(),
+    /**
+     * The name and description in the blog's other languages (client,
+     * 2026-10-15: categories on every language's blog), keyed by locale:
+     * {"it": {"name": "Guide", "blurb": "..."}}. A language without an entry
+     * shows the English ones. The address stays the same in every language
+     * (/it/blog/category/<slug>). Migration 0059 fills in the first three.
+     */
+    translations: jsonb("translations").$type<BlogCategoryTranslations>().default({}).notNull(),
     /** Order on the blog index and in the editor. */
     sortOrder: integer("sort_order").default(0).notNull(),
     ...timestamps,

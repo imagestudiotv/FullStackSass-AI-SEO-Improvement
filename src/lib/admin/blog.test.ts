@@ -25,8 +25,8 @@ import {
   type BlogPostInput,
 } from "@/lib/admin/blog";
 import { categoryBySlug, listCategories } from "@/lib/blog/categories";
-import { getPost, listPosts, listPostPage } from "@/lib/blog/posts";
-import { FAQ_ANSWER_LIMIT, jsonLdScript, plainText } from "@/lib/blog/shared";
+import { getPost, listPosts, listPostPage, publishedCategoryCounts, publishedCategoryLocales } from "@/lib/blog/posts";
+import { FAQ_ANSWER_LIMIT, jsonLdScript, plainText, type BlogCategoryTranslations } from "@/lib/blog/shared";
 
 let test: TestDb;
 const ADMIN = "admin@repget.test";
@@ -636,7 +636,7 @@ describe("categories (client, 2026-10-01: he adds his own)", () => {
   it("adding one: its page exists at once, posts can use it, and it is logged", async () => {
     const added = await createBlogCategory({ name: "  Case   studies ", blurb: "Real results, step by step." });
     expect(added).toMatchObject({ ok: true, data: { name: "Case studies", slug: "case-studies", posts: 0 } });
-    expect(await categoryBySlug("case-studies")).toEqual({ name: "Case studies", slug: "case-studies", blurb: "Real results, step by step." });
+    expect(await categoryBySlug("case-studies")).toEqual({ name: "Case studies", slug: "case-studies", blurb: "Real results, step by step.", translations: {} });
     // Last in the order.
     expect((await listCategories()).at(-1)?.name).toBe("Case studies");
 
@@ -728,12 +728,18 @@ describe("categories (client, 2026-10-01: he adds his own)", () => {
     expect(reported()).toEqual([`/blog/${post.slug}`, "/blog", "/blog/category/guides", "/blog/category/case-studies"]);
   });
 
-  it("IndexNow: deleting a category reports its page, which is gone", async () => {
+  it("IndexNow: deleting a category reports its page in every language, which is gone", async () => {
     const added = await createBlogCategory({ name: "Case studies", blurb: "" });
     if (!added.ok) throw new Error(added.error);
     indexNow.notify.mockClear();
     expect(await deleteBlogCategory({ id: added.data.id })).toEqual({ ok: true, data: null });
-    expect(reported()).toEqual(["/blog/category/case-studies"]);
+    expect(reported()).toEqual([
+      "/blog/category/case-studies",
+      "/es/blog/category/case-studies",
+      "/fr/blog/category/case-studies",
+      "/it/blog/category/case-studies",
+      "/de/blog/category/case-studies",
+    ]);
   });
 
   it("only administrators", async () => {
@@ -741,5 +747,161 @@ describe("categories (client, 2026-10-01: he adds his own)", () => {
     await expect(listBlogCategoriesAdmin()).rejects.toThrow();
     await expect(createBlogCategory({ name: "Sneaky", blurb: "" })).rejects.toThrow();
     await expect(deleteBlogCategory({ id: "00000000-0000-0000-0000-000000000000" })).rejects.toThrow();
+  });
+});
+
+describe("categories in every language (client, 2026-10-15)", () => {
+  /** A category of its own for each test, so the three the blog has stay as they are. */
+  beforeEach(async () => {
+    // "Site notes" is Field notes after a rename below; "Guide" is added by one test.
+    for (const category of ["Field notes", "Site notes"]) await test.db.delete(blogPosts).where(eq(blogPosts.category, category));
+    for (const slug of ["field-notes", "guide"]) await test.db.delete(blogCategories).where(eq(blogCategories.slug, slug));
+  });
+
+  async function fieldNotes(translations?: BlogCategoryTranslations) {
+    const added = await createBlogCategory({ name: "Field notes", blurb: "What we learned on real websites.", translations });
+    if (!added.ok) throw new Error(added.error);
+    return added.data;
+  }
+
+  it("migration 0059 names the three in every language, with descriptions fit for search results", async () => {
+    const bySlug = Object.fromEntries((await listCategories()).map((category) => [category.slug, category]));
+    expect(bySlug.guides.translations).toMatchObject({ es: { name: "Guías" }, fr: { name: "Guides" }, it: { name: "Guide" }, de: { name: "Leitfäden" } });
+    expect(bySlug.comparisons.translations).toMatchObject({
+      es: { name: "Comparativas" },
+      fr: { name: "Comparatifs" },
+      it: { name: "Confronti" },
+      de: { name: "Vergleiche" },
+    });
+    expect(bySlug.playbooks.translations).toMatchObject({ es: { name: "Estrategias" }, fr: { name: "Méthodes" }, it: { name: "Strategie" }, de: { name: "Strategien" } });
+    // Each description is its page's meta description: within what the free audit checks (lib/audit/rules.ts).
+    for (const slug of ["guides", "comparisons", "playbooks"]) {
+      for (const locale of ["es", "fr", "it", "de"] as const) {
+        const blurb = bySlug[slug].translations?.[locale]?.blurb ?? "";
+        expect(blurb.length, `${slug} ${locale}`).toBeGreaterThanOrEqual(70);
+        expect(blurb.length, `${slug} ${locale}`).toBeLessThanOrEqual(158);
+      }
+    }
+  });
+
+  it("saving: tidied, a blank language dropped, and one saved without them keeps them", async () => {
+    const category = await fieldNotes();
+    expect(category.translations).toEqual({});
+    const saved = await saveBlogCategory({
+      id: category.id,
+      name: "Field notes",
+      blurb: "What we learned on real websites.",
+      translations: {
+        it: { name: "  Note   dal campo ", blurb: " Cosa abbiamo imparato sui siti veri. " },
+        es: { name: " ", blurb: "" },
+        fr: { name: "", blurb: "Ce que nous avons appris sur de vrais sites." },
+      },
+    });
+    expect(saved).toEqual({ ok: true, data: null });
+    expect((await categoryBySlug("field-notes"))?.translations).toEqual({
+      it: { name: "Note dal campo", blurb: "Cosa abbiamo imparato sui siti veri." },
+      fr: { name: "", blurb: "Ce que nous avons appris sur de vrais sites." },
+    });
+    expect((await listBlogCategoriesAdmin()).find((c) => c.slug === "field-notes")?.translations.it?.name).toBe("Note dal campo");
+
+    // A save without them (a page open from before they existed) does not wipe them.
+    expect(await saveBlogCategory({ id: category.id, name: "Field notes", blurb: "Notes from real websites." })).toEqual({ ok: true, data: null });
+    expect((await categoryBySlug("field-notes"))?.translations?.it?.name).toBe("Note dal campo");
+  });
+
+  it("a name in a language is checked: short, and not shown as another category's in that language", async () => {
+    const category = await fieldNotes();
+    const save = (translations: BlogCategoryTranslations) => saveBlogCategory({ id: category.id, name: "Field notes", blurb: "", translations });
+    expect(await save({ it: { name: "x".repeat(41), blurb: "" } })).toMatchObject({ ok: false, error: expect.stringMatching(/Italian name/) });
+    // The Italian blog already calls Guides "Guide".
+    expect(await save({ it: { name: "guide", blurb: "" } })).toMatchObject({ ok: false, error: expect.stringMatching(/In Italian, "Guides"/) });
+    expect(await createBlogCategory({ name: "Case notes", blurb: "", translations: { de: { name: "Leitfäden", blurb: "" } } })).toMatchObject({
+      ok: false,
+      error: expect.stringMatching(/German/),
+    });
+    expect(await categoryBySlug("case-notes")).toBeNull();
+
+    // Added with no Italian name, "Guide" would show as "Guide" on the Italian blog too: the refusal says how to fix it.
+    expect(await createBlogCategory({ name: "Guide", blurb: "" })).toEqual({
+      ok: false,
+      error: `In Italian, "Guides" is already shown as "Guide" - give this one an Italian name of its own under "In other languages", or choose a different name`,
+    });
+    expect(await categoryBySlug("guide")).toBeNull();
+    // With one, it is added.
+    expect(await createBlogCategory({ name: "Guide", blurb: "", translations: { it: { name: "Guida rapida", blurb: "" } } })).toMatchObject({ ok: true });
+  });
+
+  it("a post in another language carries its category's name there; counts and lists are per language", async () => {
+    await fieldNotes({ it: { name: "Note dal campo", blurb: "Cosa abbiamo imparato sui siti veri." } });
+    const italian = await create("published", { locale: "it", slug: "note-dal-campo-uno", category: "Field notes" });
+    await create("published", { locale: "es", slug: "notas-de-campo-uno", category: "Field notes" });
+    await create("draft", { locale: "it", slug: "note-dal-campo-bozza", category: "Field notes" });
+    // A language whose only post here is a draft has no category page of its own (noindex, out of hreflang).
+    await create("draft", { locale: "de", slug: "feldnotizen-entwurf", category: "Field notes" });
+
+    expect(await getPost(italian.slug, "it")).toMatchObject({ category: "Field notes", categoryLabel: "Note dal campo", categorySlug: "field-notes" });
+    // No Spanish name: the English one.
+    expect((await getPost("notas-de-campo-uno", "es"))?.categoryLabel).toBe("Field notes");
+    // English posts keep the English name.
+    expect((await listPosts()).every((post) => post.categoryLabel === post.category)).toBe(true);
+
+    expect((await publishedCategoryCounts("it"))["Field notes"]).toBe(1);
+    expect((await publishedCategoryCounts())["Field notes"]).toBeUndefined();
+    expect(await publishedCategoryLocales("Field notes")).toEqual(["es", "it"]);
+    expect((await listPostPage(1, { locale: "it", category: "Field notes" })).posts.map((post) => post.slug)).toEqual([italian.slug]);
+  });
+
+  it("IndexNow: an Italian post reports its Italian category page; a new name there reports only Italian pages", async () => {
+    const category = await fieldNotes();
+    indexNow.notify.mockClear();
+    const italian = await create("published", { locale: "it", slug: "note-dal-campo-due", category: "Field notes" });
+    expect(reported()).toEqual(["/it/blog/note-dal-campo-due", "/it/blog", "/it/blog/category/field-notes"]);
+
+    indexNow.notify.mockClear();
+    const italianName = { it: { name: "Note dal campo", blurb: "" } };
+    expect(await saveBlogCategory({ id: category.id, name: "Field notes", blurb: "What we learned on real websites.", translations: italianName })).toEqual({
+      ok: true,
+      data: null,
+    });
+    expect(reported()).toEqual(["/it/blog/category/field-notes", "/it/blog", `/it/blog/${italian.slug}`]);
+
+    indexNow.notify.mockClear();
+    // A German name: no German post in it, so no German page to report.
+    expect(
+      await saveBlogCategory({
+        id: category.id,
+        name: "Field notes",
+        blurb: "What we learned on real websites.",
+        translations: { ...italianName, de: { name: "Feldnotizen", blurb: "" } },
+      }),
+    ).toEqual({ ok: true, data: null });
+    expect(reported()).toEqual([]);
+  });
+
+  it("IndexNow: a new English name or description reports the languages that show it, not one with its own", async () => {
+    const italianName = { it: { name: "Note dal campo", blurb: "" } };
+    const category = await fieldNotes(italianName);
+    // Spanish has no name of its own (it shows the English); Italian has one.
+    const spanish = await create("published", { locale: "es", slug: "notas-de-campo-tres", category: "Field notes" });
+    await create("published", { locale: "it", slug: "note-dal-campo-tres", category: "Field notes" });
+    const save = (name: string, blurb: string, translations: BlogCategoryTranslations) => saveBlogCategory({ id: category.id, name, blurb, translations });
+
+    indexNow.notify.mockClear();
+    // A new English name: the Spanish pages show it; the Italian ones keep "Note dal campo".
+    expect(await save("Site notes", "What we learned on real websites.", italianName)).toEqual({ ok: true, data: null });
+    expect(reported()).toEqual(["/es/blog/category/field-notes", "/es/blog", `/es/blog/${spanish.slug}`]);
+
+    indexNow.notify.mockClear();
+    // A new English description: Italian has none of its own, so both category pages show it.
+    expect(await save("Site notes", "Notes from real websites.", italianName)).toEqual({ ok: true, data: null });
+    expect(reported()).toEqual(["/es/blog/category/field-notes", "/it/blog/category/field-notes"]);
+
+    indexNow.notify.mockClear();
+    // Only the Italian description: the Italian category page alone.
+    expect(await save("Site notes", "Notes from real websites.", { it: { name: "Note dal campo", blurb: "Cosa abbiamo imparato sui siti veri." } })).toEqual({
+      ok: true,
+      data: null,
+    });
+    expect(reported()).toEqual(["/it/blog/category/field-notes"]);
   });
 });

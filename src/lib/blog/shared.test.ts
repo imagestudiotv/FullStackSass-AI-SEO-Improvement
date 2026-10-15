@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { hasText, plainText, readingMinutes } from "@/lib/blog/shared";
+import { categoryAlternates } from "@/lib/blog/locale";
+import { categoryText, hasText, plainText, readingMinutes } from "@/lib/blog/shared";
 
 /**
  * FAQ answers are written in a rich text editor (2026-10-04), so they arrive
@@ -56,5 +57,66 @@ describe("readingMinutes", () => {
     const words = Array.from({ length: 200 }, (_, i) => `<li>w${i}</li>`).join("");
     expect(readingMinutes({ body: `<ul>${words}</ul>`, shortAnswer: undefined, faqs: [] })).toBe(1);
     expect(readingMinutes({ body: `<ul>${words}${words}${words}</ul>`, shortAnswer: undefined, faqs: [] })).toBe(3);
+  });
+});
+
+/**
+ * A category's name and description on another language's blog (client,
+ * 2026-10-15). Admin -> Blog keeps a language given only a description with a
+ * blank name (lib/admin/blog.ts cleanCategory), so a blank field reads as the
+ * English one, field by field - never as an empty chip, heading or title.
+ */
+describe("categoryText: a category's words in a language", () => {
+  const english = { name: "Field notes", blurb: "What we learned on real websites." };
+  const category = {
+    ...english,
+    translations: {
+      it: { name: "Note dal campo", blurb: "Cosa abbiamo imparato sui siti veri." },
+      fr: { name: "", blurb: "Ce que nous avons appris sur de vrais sites." },
+      de: { name: "Feldnotizen", blurb: "" },
+      es: { name: "   ", blurb: " " },
+    },
+  };
+
+  it("is the translation where there is one", () => {
+    expect(categoryText(category, "it")).toEqual({ name: "Note dal campo", blurb: "Cosa abbiamo imparato sui siti veri." });
+  });
+
+  it("takes the English for each field left blank or spaces only", () => {
+    expect(categoryText(category, "fr")).toEqual({ name: "Field notes", blurb: "Ce que nous avons appris sur de vrais sites." });
+    expect(categoryText(category, "de")).toEqual({ name: "Feldnotizen", blurb: english.blurb });
+    expect(categoryText(category, "es")).toEqual(english);
+  });
+
+  it("is the English in English, without translations, and in a language the blog does not have", () => {
+    expect(categoryText(category, "en")).toEqual(english);
+    expect(categoryText(category)).toEqual(english);
+    expect(categoryText(english, "it")).toEqual(english);
+    expect(categoryText(category, "pt")).toEqual(english);
+  });
+});
+
+/** hreflang for a category's pages (lib/blog/locale.ts): the languages with posts in it. */
+describe("categoryAlternates", () => {
+  it("is nothing under two languages", () => {
+    expect(categoryAlternates("guides", [])).toBeUndefined();
+    expect(categoryAlternates("guides", ["en"])).toBeUndefined();
+    expect(categoryAlternates("guides", ["it"])).toBeUndefined();
+  });
+
+  it("lists every language's page, and x-default is the English one", () => {
+    expect(categoryAlternates("guides", ["en", "it"])).toEqual({
+      en: "/blog/category/guides",
+      it: "/it/blog/category/guides",
+      "x-default": "/blog/category/guides",
+    });
+  });
+
+  it("without English, x-default is the first language's page", () => {
+    expect(categoryAlternates("guides", ["it", "de"])).toEqual({
+      it: "/it/blog/category/guides",
+      de: "/de/blog/category/guides",
+      "x-default": "/it/blog/category/guides",
+    });
   });
 });

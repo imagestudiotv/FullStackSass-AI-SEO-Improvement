@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 
-import { blogPath } from "@/lib/blog/locale";
+import { blogPath, categoryPath } from "@/lib/blog/locale";
 import { listPosts } from "@/lib/blog/posts";
 import { localePath, PREFIXED_LOCALES, TRANSLATED_PATHS } from "@/lib/i18n/config";
 import { INTEGRATION_DOC_PAGES, PUBLIC_PAGES, TOOL_PAGES } from "@/lib/seo/public-pages";
@@ -108,5 +108,25 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     })),
   ]);
 
-  return [...pages, ...tools, ...docs, ...posts, ...categories, ...translated, ...translatedPosts];
+  /**
+   * Each language's category pages (/it/blog/category/<slug>, client
+   * 2026-10-15), by the same rule as the English ones: only those with a post
+   * in that language, dated by its newest. A language's page with none in it
+   * is marked noindex and is not listed.
+   */
+  const translatedCategories: MetadataRoute.Sitemap = otherLanguages.flatMap(({ locale, posts: list }) => {
+    const newest = new Map<string, string>();
+    for (const post of list) {
+      const date = post.updatedAt ?? post.publishedAt;
+      const seen = newest.get(post.categorySlug);
+      if (!seen || date > seen) newest.set(post.categorySlug, date);
+    }
+    return [...newest].map(([slug, date]) => ({
+      url: `${base}${categoryPath(locale, slug)}`,
+      lastModified: new Date(`${date}T00:00:00Z`),
+      priority: 0.4,
+    }));
+  });
+
+  return [...pages, ...tools, ...docs, ...posts, ...categories, ...translated, ...translatedPosts, ...translatedCategories];
 }

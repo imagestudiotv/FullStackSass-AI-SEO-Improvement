@@ -4,10 +4,10 @@ import { and, desc, eq, or, sql, type SQL } from "drizzle-orm";
 
 import { BLOG_PAGE_SIZE } from "@/lib/blog/pagination";
 import { blogLocale, blogPath } from "@/lib/blog/locale";
-import { blogSlug, readingMinutes, type BlogPost } from "@/lib/blog/shared";
+import { blogSlug, categoryText, readingMinutes, type BlogCategoryTranslations, type BlogPost } from "@/lib/blog/shared";
 import { db } from "@/lib/db";
 import { blogCategories, blogPosts } from "@/lib/db/schema";
-import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/config";
+import { DEFAULT_LOCALE, LOCALES, type Locale } from "@/lib/i18n/config";
 
 /**
  * The public blog's reads: PUBLISHED posts only. Drafts and unpublished posts
@@ -19,8 +19,9 @@ import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/config";
  * live at once and a build never needs the database.
  *
  * Every read is for ONE language, English unless asked (lib/blog/locale.ts):
- * /blog and its category and author pages list English posts, /it/blog the
- * Italian ones, and a slug only answers in its own language.
+ * /blog and its category and author pages list English posts, /it/blog and
+ * its category pages the Italian ones, and a slug only answers in its own
+ * language.
  */
 
 type Row = typeof blogPosts.$inferSelect;
@@ -34,9 +35,15 @@ function day(date: Date): string {
  * A stored post in the shape the pages render. `categorySlug` is its
  * category's page address, when the category still exists; a post whose
  * category was renamed away (cannot happen: renaming renames its posts) would
- * fall back to the name made into an address.
+ * fall back to the name made into an address. `categoryTranslations` gives
+ * the category's name in the post's language (categoryLabel).
  */
-export function toBlogPost(row: Row & { publishedAt: Date }, categorySlug: string | null = null): BlogPost {
+export function toBlogPost(
+  row: Row & { publishedAt: Date },
+  categorySlug: string | null = null,
+  categoryTranslations: BlogCategoryTranslations | null = null,
+): BlogPost {
+  const locale = blogLocale(row.locale);
   const post: BlogPost = {
     slug: row.slug,
     title: row.title,
@@ -46,6 +53,7 @@ export function toBlogPost(row: Row & { publishedAt: Date }, categorySlug: strin
     breadcrumbLabel: row.breadcrumbLabel,
     description: row.description,
     category: row.category,
+    categoryLabel: categoryText({ name: row.category, blurb: "", translations: categoryTranslations ?? undefined }, locale).name,
     categorySlug: categorySlug ?? blogSlug(row.category),
     publishedAt: day(row.publishedAt),
     // Only a revision on a later day reads as an update.
@@ -56,7 +64,7 @@ export function toBlogPost(row: Row & { publishedAt: Date }, categorySlug: strin
     faqs: row.faqs.length > 0 ? row.faqs : undefined,
     sources: row.sources.length > 0 ? row.sources : undefined,
     body: row.bodyHtml,
-    locale: blogLocale(row.locale),
+    locale,
   };
   post.readingMinutes = readingMinutes(post);
   return post;
@@ -94,47 +102,64 @@ export async function listPostPage(
   ]);
   return {
     total: count.total,
-    posts: rows.flatMap(({ post, categorySlug }) =>
-      post.publishedAt ? [toBlogPost({ ...post, publishedAt: post.publishedAt }, categorySlug)] : [],
-    ),
+    posts: rows.flatMap(toPublished),
   };
 }
 
 /**
- * How many published posts each category holds, by name: the front page's
- * chips. Counted in the database, now that the page lists only one page of
- * posts.
+ * How many published posts each category holds in a language (English unless
+ * asked), by name: a blog front page's chips. Counted in the database, now
+ * that the page lists only one page of posts.
  */
-export async function publishedCategoryCounts(): Promise<Record<string, number>> {
+export async function publishedCategoryCounts(locale: Locale = DEFAULT_LOCALE): Promise<Record<string, number>> {
   const rows = await db
     .select({ category: blogPosts.category, count: sql<number>`count(*)::int` })
     .from(blogPosts)
-    .where(and(published, eq(blogPosts.locale, DEFAULT_LOCALE)))
+    .where(and(published, eq(blogPosts.locale, locale)))
     .groupBy(blogPosts.category);
   return Object.fromEntries(rows.map((row) => [row.category, row.count]));
 }
 
-/** Published posts with their category's page address. */
+/**
+ * The languages with at least one published post in a category (by name),
+ * English first: the versions of its page, for hreflang - a language's page
+ * with nothing in it is not one of them.
+ */
+export async function publishedCategoryLocales(category: string): Promise<Locale[]> {
+  const rows = await db
+    .selectDistinct({ locale: blogPosts.locale })
+    .from(blogPosts)
+    .where(and(published, eq(blogPosts.category, category)));
+  const found = new Set(rows.map((row) => blogLocale(row.locale)));
+  return LOCALES.filter((locale) => found.has(locale));
+}
+
+/** Published posts with their category's page address and its names in the other languages. */
 function publishedPosts(only?: SQL) {
   return db
-    .select({ post: blogPosts, categorySlug: blogCategories.slug })
+    .select({ post: blogPosts, categorySlug: blogCategories.slug, categoryTranslations: blogCategories.translations })
     .from(blogPosts)
     .leftJoin(blogCategories, eq(blogCategories.name, blogPosts.category))
     .where(only ? and(published, only) : published);
 }
 
+type PublishedRow = Awaited<ReturnType<typeof publishedPosts>>[number];
+
+/** A row of publishedPosts as the pages render it; none while it has no publication date (cannot happen when published). */
+function toPublished({ post, categorySlug, categoryTranslations }: PublishedRow): BlogPost[] {
+  return post.publishedAt ? [toBlogPost({ ...post, publishedAt: post.publishedAt }, categorySlug, categoryTranslations)] : [];
+}
+
 /** Every published post in a language (English unless asked), newest first. */
 export async function listPosts(locale: Locale = DEFAULT_LOCALE): Promise<BlogPost[]> {
   const rows = await publishedPosts(eq(blogPosts.locale, locale)).orderBy(desc(blogPosts.publishedAt), desc(blogPosts.id));
-  return rows.flatMap(({ post, categorySlug }) =>
-    post.publishedAt ? [toBlogPost({ ...post, publishedAt: post.publishedAt }, categorySlug)] : [],
-  );
+  return rows.flatMap(toPublished);
 }
 
 /** One published post by slug, in a language (English unless asked), or null. */
 export async function getPost(slug: string, locale: Locale = DEFAULT_LOCALE): Promise<BlogPost | null> {
   const [row] = await publishedPosts(and(eq(blogPosts.slug, slug), eq(blogPosts.locale, locale))).limit(1);
-  return row?.post.publishedAt ? toBlogPost({ ...row.post, publishedAt: row.post.publishedAt }, row.categorySlug) : null;
+  return row ? (toPublished(row)[0] ?? null) : null;
 }
 
 /** A published version of an article in one language: where it lives. */

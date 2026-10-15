@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { BlogPagination } from "@/components/blog-pagination";
@@ -11,6 +10,7 @@ import { getMessages } from "@/lib/i18n/messages";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
 
 import { ClosingCta } from "../home-sections";
+import { CategoryChips } from "./category-chips";
 
 const DESCRIPTION =
   "Guides, comparisons and playbooks for getting found on Google and cited by AI assistants - written for people who run a business, not marketers.";
@@ -60,34 +60,8 @@ export default async function BlogIndexPage({ searchParams }: Props) {
             Claude, Gemini and Perplexity.
           </p>
 
-          {/*
-            Counts are real, read from the posts themselves. A category chip
-            claiming a number the index cannot fill is the first thing a
-            reader notices.
-          */}
-          <ul className="mt-7 flex flex-wrap gap-2.5">
-            {/*
-              Empty categories are hidden rather than shown with a zero. A chip
-              reading "Comparisons 0" advertises a section with nothing in it and
-              makes the whole blog look abandoned; the category page still exists
-              for when the first post lands.
-            */}
-            {categories.filter(
-              (category) => (counts[category.name] ?? 0) > 0,
-            ).map((category) => (
-              <li key={category.slug}>
-                <Link
-                  href={`/blog/category/${category.slug}`}
-                  className="flex items-center gap-2 rounded-full border bg-card px-4 py-2 text-sm font-medium transition-colors hover:border-primary/40"
-                >
-                  {category.name}
-                  <span className="text-muted-foreground tabular-nums">
-                    {counts[category.name]}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
+          {/* Real counts, empty categories hidden (category-chips.tsx says why). */}
+          <CategoryChips categories={categories} counts={counts} locale="en" />
         </div>
       </div>
 

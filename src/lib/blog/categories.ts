@@ -9,10 +9,16 @@ import { blogCategories } from "@/lib/db/schema";
 /**
  * The blog's categories, as the public pages and the editor read them.
  * Managed in Admin -> Blog (lib/admin/blog.ts); see blogCategories in the
- * schema for why a post names its category by name.
+ * schema for why a post names its category by name. Their pages' addresses
+ * and hreflang in each language are in lib/blog/locale.ts.
  */
 
-const columns = { name: blogCategories.name, slug: blogCategories.slug, blurb: blogCategories.blurb };
+const columns = {
+  name: blogCategories.name,
+  slug: blogCategories.slug,
+  blurb: blogCategories.blurb,
+  translations: blogCategories.translations,
+};
 
 /** Every category, in the order set in the admin panel. */
 export async function listCategories(): Promise<BlogCategoryInfo[]> {

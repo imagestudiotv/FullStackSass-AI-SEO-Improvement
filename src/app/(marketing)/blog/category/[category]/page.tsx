@@ -5,8 +5,9 @@ import { notFound } from "next/navigation";
 import { BlogPagination } from "@/components/blog-pagination";
 import { PostCard } from "@/components/post-card";
 import { categoryBySlug } from "@/lib/blog/categories";
+import { categoryAlternates } from "@/lib/blog/locale";
 import { blogPage, blogPageHref, pageSuffix } from "@/lib/blog/pagination";
-import { listPostPage } from "@/lib/blog/posts";
+import { listPostPage, publishedCategoryLocales } from "@/lib/blog/posts";
 import { jsonLdScript } from "@/lib/blog/shared";
 import { getMessages } from "@/lib/i18n/messages";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
@@ -29,10 +30,19 @@ export async function generateMetadata({
 
   // Page 2 on has a title and description of its own, beside its own canonical.
   const page = blogPage((await searchParams).page);
+  const base = publicPageMetadata(blogPageHref(`/blog/category/${category.slug}`, page));
+  /*
+    The category's pages in the other languages with posts in it
+    (/it/blog/category/<slug>, client 2026-10-15), when this one has English
+    posts and so is one of them.
+  */
+  const locales = page === 1 ? await publishedCategoryLocales(category.name) : [];
+  const languages = locales.includes("en") ? categoryAlternates(category.slug, locales) : undefined;
   return {
     title: `${category.name}${pageSuffix(page)}`,
     description: page > 1 ? `${category.blurb.replace(/\.$/, "")}${pageSuffix(page)}.` : category.blurb,
-    ...publicPageMetadata(blogPageHref(`/blog/category/${category.slug}`, page)),
+    ...base,
+    alternates: languages ? { ...base.alternates, languages } : base.alternates,
   };
 }
 

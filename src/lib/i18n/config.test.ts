@@ -107,9 +107,14 @@ describe("localePath", () => {
   /** The list and the folders must agree, or a link 404s or a translation is never linked. */
   it("knows exactly the pages app/(marketing)/[locale] has", () => {
     const root = path.resolve(__dirname, "../../app/(marketing)/[locale]");
-    // A dynamic folder stands for the pages its generateStaticParams lists. Blog posts are
-    // database pages with their own addresses in each language (lib/blog/locale.ts), not here.
-    const DYNAMIC: Record<string, string[]> = { "/docs/integrations/[slug]": INTEGRATION_DOCS.map((doc) => doc.slug), "/blog/[slug]": [] };
+    // A dynamic folder stands for the pages its generateStaticParams lists. Blog posts and blog
+    // categories are database pages with their own addresses in each language (lib/blog/locale.ts),
+    // not here.
+    const DYNAMIC: Record<string, string[]> = {
+      "/docs/integrations/[slug]": INTEGRATION_DOCS.map((doc) => doc.slug),
+      "/blog/[slug]": [],
+      "/blog/category/[category]": [],
+    };
     const pages: string[] = [];
     const walk = (dir: string, at: string) => {
       for (const entry of readdirSync(dir, { withFileTypes: true })) {

@@ -4,13 +4,15 @@ import { notFound } from "next/navigation";
 
 import { BlogPagination } from "@/components/blog-pagination";
 import { PostCard } from "@/components/post-card";
+import { listCategories } from "@/lib/blog/categories";
 import { BLOG_CHROME, blogPath, fill, LANGUAGE_NAMES } from "@/lib/blog/locale";
 import { blogPage, blogPageHref, pageSuffix } from "@/lib/blog/pagination";
-import { listPostPage } from "@/lib/blog/posts";
+import { listPostPage, publishedCategoryCounts } from "@/lib/blog/posts";
 import { isLocale, localePath, type Locale } from "@/lib/i18n/config";
 import { getMessages } from "@/lib/i18n/messages";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
 
+import { CategoryChips } from "../../blog/category-chips";
 import { ClosingCta } from "../../home-sections";
 
 /**
@@ -20,6 +22,10 @@ import { ClosingCta } from "../../home-sections";
  * finds something to read. A language with no post yet says so, in that
  * language, above the English ones. Like the other translated pages, it is
  * one page in five languages (hreflang from lib/i18n/config.ts).
+ *
+ * Its categories sit under the heading as on /blog, under their names in the
+ * language and counting its posts (client, 2026-10-15), each leading to the
+ * language's category page (/it/blog/category/<slug>).
  */
 export const dynamic = "force-dynamic";
 
@@ -50,9 +56,11 @@ export default async function LocaleBlogIndexPage({ params, searchParams }: Prop
   const locale = await language(params);
   const page = blogPage((await searchParams).page);
   const t = BLOG_CHROME[locale];
-  const [{ posts, total }, english] = await Promise.all([
+  const [{ posts, total }, english, categories, counts] = await Promise.all([
     listPostPage(page, { locale }),
     listPostPage(1, { locale: "en" }),
+    listCategories(),
+    publishedCategoryCounts(locale),
   ]);
   // Past the last page is a 404, not an empty grid.
   if (page > 1 && posts.length === 0) notFound();
@@ -70,6 +78,7 @@ export default async function LocaleBlogIndexPage({ params, searchParams }: Prop
             {t.titleLead} <span className="text-primary">{t.titleAccent}</span>
           </h1>
           <p className="mt-4 max-w-2xl text-pretty text-muted-foreground sm:text-lg">{t.intro}</p>
+          <CategoryChips categories={categories} counts={counts} locale={locale} />
         </div>
       </div>
 

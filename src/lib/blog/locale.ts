@@ -8,8 +8,9 @@ import { DEFAULT_LOCALE, LOCALES, type Locale } from "@/lib/i18n/config";
  * An English post lives at /blog/<slug>; a post in another language at
  * /<locale>/blog/<slug>. Translations of one article link to each other
  * (hreflang and a visible "Also in" line), so search engines treat them as
- * one article in several languages rather than as copies. Category and
- * author pages stay English.
+ * one article in several languages rather than as copies. Categories exist
+ * in every language (client, 2026-10-15): /it/blog/category/<slug> lists the
+ * Italian posts, under the category's Italian name. Author pages stay English.
  *
  * The words around a post (dates, "min read", "In this article"...) are
  * here rather than in messages.ts: the admin editor's preview, a client
@@ -52,6 +53,26 @@ export function blogPath(locale: Locale, slug?: string): string {
   return slug ? `${base}/${slug}` : base;
 }
 
+/** A category's page in a language: the same address under the language's prefix. */
+export function categoryPath(locale: Locale, slug: string): string {
+  return `${blogPath(locale)}/category/${slug}`;
+}
+
+/**
+ * hreflang for a category's first page: its page in every language that has
+ * a published post in it (lib/blog/posts.ts publishedCategoryLocales), plus
+ * x-default - the English page when English is among them, otherwise the
+ * first. Nothing when fewer than two: the alternates only count when every
+ * version lists every other, and a page with nothing in it in a language is
+ * not one of the versions.
+ */
+export function categoryAlternates(slug: string, locales: readonly Locale[]): Record<string, string> | undefined {
+  if (locales.length < 2) return undefined;
+  const map: Record<string, string> = Object.fromEntries(locales.map((locale) => [locale, categoryPath(locale, slug)]));
+  map["x-default"] = map[DEFAULT_LOCALE] ?? categoryPath(locales[0], slug);
+  return map;
+}
+
 /** The site's home page in a language. */
 export function homePath(locale: Locale): string {
   return locale === DEFAULT_LOCALE ? "/" : `/${locale}`;
@@ -84,6 +105,8 @@ export type BlogChrome = {
   inEnglish: string;
   /** A language's front page with no post yet. */
   noneYet: string;
+  /** A category's page in a language with no post in it yet; the English ones follow. */
+  sectionEmpty: string;
   readInEnglish: string;
   /** A listing's page links (components/blog-pagination.tsx), for a screen reader. */
   pagination: string;
@@ -118,6 +141,7 @@ export const BLOG_CHROME: Record<Locale, BlogChrome> = {
     alsoIn: "Also in",
     inEnglish: "Articles in English",
     noneYet: "",
+    sectionEmpty: "There is nothing in this section yet.",
     readInEnglish: "See all articles in English",
     pagination: "Blog pages",
     pageN: "Page {page}",
@@ -147,6 +171,7 @@ export const BLOG_CHROME: Record<Locale, BlogChrome> = {
     alsoIn: "También en",
     inEnglish: "Artículos en inglés",
     noneYet: "Todavía no hay artículos en español. Estos son los últimos en inglés.",
+    sectionEmpty: "Todavía no hay artículos en español en esta sección.",
     readInEnglish: "Ver todos los artículos en inglés",
     pagination: "Páginas",
     pageN: "Página {page}",
@@ -176,6 +201,7 @@ export const BLOG_CHROME: Record<Locale, BlogChrome> = {
     alsoIn: "Aussi en",
     inEnglish: "Articles en anglais",
     noneYet: "Pas encore d'articles en français. Voici les derniers en anglais.",
+    sectionEmpty: "Pas encore d'articles en français dans cette rubrique.",
     readInEnglish: "Voir tous les articles en anglais",
     pagination: "Pages",
     pageN: "Page {page}",
@@ -205,6 +231,7 @@ export const BLOG_CHROME: Record<Locale, BlogChrome> = {
     alsoIn: "Disponibile anche in",
     inEnglish: "Articoli in inglese",
     noneYet: "Non ci sono ancora articoli in italiano. Ecco gli ultimi in inglese.",
+    sectionEmpty: "Non ci sono ancora articoli in italiano in questa sezione.",
     readInEnglish: "Vedi tutti gli articoli in inglese",
     pagination: "Pagine",
     pageN: "Pagina {page}",
@@ -234,6 +261,7 @@ export const BLOG_CHROME: Record<Locale, BlogChrome> = {
     alsoIn: "Auch auf",
     inEnglish: "Artikel auf Englisch",
     noneYet: "Noch keine Artikel auf Deutsch. Hier sind die neuesten auf Englisch.",
+    sectionEmpty: "In dieser Rubrik gibt es noch keine Artikel auf Deutsch.",
     readInEnglish: "Alle Artikel auf Englisch ansehen",
     pagination: "Seiten",
     pageN: "Seite {page}",

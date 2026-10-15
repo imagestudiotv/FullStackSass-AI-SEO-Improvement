@@ -42,6 +42,7 @@ import { keywordReport, SEARCH_LIMITS, SEO_TITLE_TARGET, splitKeywords, type Key
 import { BLOG_LOCALES, blogLocale, blogPath, LANGUAGE_NAMES_EN } from "@/lib/blog/locale";
 import {
   blogSlug,
+  categoryText,
   FAQ_ANSWER_LIMIT,
   hasText,
   readingMinutes,
@@ -318,12 +319,15 @@ export function BlogPostEditor({
   }
 
   /** The post as the blog would render it now, from the working copy. */
+  const draftCategory = categories.find((category) => category.name === draft.category);
   const preview: BlogPost = {
     slug: slug || "untitled",
     title: draft.title.trim() || "Untitled post",
     description: draft.description,
     category: draft.category,
-    categorySlug: categories.find((category) => category.name === draft.category)?.slug ?? blogSlug(draft.category),
+    // Under its name in the post's language, as the public page shows it.
+    categoryLabel: draftCategory ? categoryText(draftCategory, locale).name : undefined,
+    categorySlug: draftCategory?.slug ?? blogSlug(draft.category),
     publishedAt: (post?.publishedAt ?? new Date()).toISOString().slice(0, 10),
     // As the public page shows it (lib/blog/posts.ts): only a revision on a later day reads as an update.
     updatedAt:

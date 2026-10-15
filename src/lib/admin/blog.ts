@@ -7,15 +7,17 @@ import { recordAdminAction, type AdminAction } from "@/lib/admin/audit";
 import { requireAdmin } from "@/lib/admin/guard";
 import { isAiConfigured } from "@/lib/ai/client";
 import { sanitizeHtml } from "@/lib/articles/sanitize";
-import { blogLocale, blogPath, isBlogLocale, LANGUAGE_NAMES_EN } from "@/lib/blog/locale";
+import { blogLocale, blogPath, categoryPath, isBlogLocale, LANGUAGE_NAMES_EN } from "@/lib/blog/locale";
 import {
   blogSlug,
+  categoryText,
   FAQ_ANSWER_LIMIT,
   hasText,
   readingMinutes,
   TEAM_AUTHOR,
   type BlogCategory,
   type BlogCategoryInfo,
+  type BlogCategoryTranslations,
   type BlogFaq,
   type BlogSource,
 } from "@/lib/blog/shared";
@@ -23,7 +25,7 @@ import { SEARCH_LIMITS, secondaryKeywordList } from "@/lib/blog/keywords";
 import { translateBlogPost, type TranslatableFields } from "@/lib/blog/translate";
 import { db } from "@/lib/db";
 import { blogCategories, blogPosts } from "@/lib/db/schema";
-import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/config";
+import { DEFAULT_LOCALE, LOCALES, type Locale } from "@/lib/i18n/config";
 import { notifyIndexNow } from "@/lib/indexnow";
 import {
   ALLOWED_IMAGE_TYPES,
@@ -52,7 +54,9 @@ import type { ActionResult } from "@/lib/websites/actions";
  * - Categories are added, renamed and described here too (client,
  *   2026-10-01). A category's address is set when it is created and never
  *   changes; renaming one renames it on its posts; only a category no post
- *   uses can be deleted.
+ *   uses can be deleted. Its name and description can be given in each of
+ *   the blog's other languages (client, 2026-10-15), shown on that
+ *   language's blog; a language without them shows the English.
  * - The search fields (SEO title, keywords, breadcrumb label; client,
  *   2026-10-08) are optional and checked like the rest. Changing only them
  *   does not mark a live post "Updated": readers see the same article.
@@ -271,11 +275,11 @@ const TAKEN = (slug: string) => `Another post already uses the address "${slug}"
 
 /**
  * The public pages a live post is shown on: its own, its language's blog
- * front page and, for English, its category's page - what a publish reports
- * (see notifyIndexNow). Category pages are English only.
+ * front page and its category's page in its language - what a publish
+ * reports (see notifyIndexNow).
  */
 function postPages(locale: Locale, slug: string, categorySlug: string): string[] {
-  return [blogPath(locale, slug), blogPath(locale), ...(locale === DEFAULT_LOCALE ? [`/blog/category/${categorySlug}`] : [])];
+  return [blogPath(locale, slug), blogPath(locale), categoryPath(locale, categorySlug)];
 }
 
 const UNREVIEWED =
@@ -547,12 +551,10 @@ export async function saveBlogPost(input: {
       if (pageChanged) changedPages.push(blogPath(locale, fields.slug));
       if (cardChanged) {
         changedPages.push(blogPath(locale));
-        // Category pages list English posts only.
-        if (locale === DEFAULT_LOCALE) {
-          if (nowLive) changedPages.push(`/blog/category/${category.slug}`);
-          if (wasLive && (!nowLive || movedCategory)) {
-            changedPages.push(`/blog/category/${movedCategory ? await categorySlugByName(tx, current.category) : category.slug}`);
-          }
+        // Its category's page in its own language lists it (/it/blog/category/... for an Italian post).
+        if (nowLive) changedPages.push(categoryPath(locale, category.slug));
+        if (wasLive && (!nowLive || movedCategory)) {
+          changedPages.push(categoryPath(locale, movedCategory ? await categorySlugByName(tx, current.category) : category.slug));
         }
       }
       return { saved: updated, changedPages };
@@ -765,7 +767,12 @@ export type AdminBlogCategory = BlogCategoryInfo & {
   id: string;
   /** Posts in it, drafts included. */
   posts: number;
+  /** Its name and description in the other languages; a missing one shows the English (client, 2026-10-15). */
+  translations: BlogCategoryTranslations;
 };
+
+/** The languages a category is translated into: every one the blog has but English. */
+const TRANSLATED_LOCALES = LOCALES.filter((locale): locale is keyof BlogCategoryTranslations => locale !== DEFAULT_LOCALE);
 
 /** Every category with how many posts use it, in the blog's order. */
 export async function listBlogCategoriesAdmin(): Promise<AdminBlogCategory[]> {
@@ -776,20 +783,41 @@ export async function listBlogCategoriesAdmin(): Promise<AdminBlogCategory[]> {
       name: blogCategories.name,
       slug: blogCategories.slug,
       blurb: blogCategories.blurb,
+      translations: blogCategories.translations,
       posts: sql<number>`(select count(*)::int from blog_posts p where p.category = ${blogCategories.name})`,
     })
     .from(blogCategories)
     .orderBy(asc(blogCategories.sortOrder), asc(blogCategories.name));
 }
 
-/** Name and description, tidied and checked. */
-function cleanCategory(input: { name: unknown; blurb: unknown }): { name: string; blurb: string } {
-  const name = String(input.name ?? "").replace(/\s+/g, " ").trim();
+/**
+ * Name and description, tidied and checked, and the same for each language
+ * typed in. A language left blank is dropped, so it shows the English name
+ * and description; one with only a description keeps the English name.
+ */
+function cleanCategory(input: { name: unknown; blurb: unknown; translations?: unknown }): {
+  name: string;
+  blurb: string;
+  translations: BlogCategoryTranslations;
+} {
+  const name = oneLine(input.name);
   if (!name) throw new BlogError("Give the category a name");
   if (name.length > 40) throw new BlogError("Keep the name under 40 characters - it is shown as a chip and a heading");
   if (!blogSlug(name)) throw new BlogError("The name needs letters or numbers");
-  const blurb = String(input.blurb ?? "").replace(/\s+/g, " ").trim().slice(0, 200);
-  return { name, blurb };
+  const blurb = oneLine(input.blurb).slice(0, 200);
+
+  const given = input.translations && typeof input.translations === "object" ? (input.translations as Record<string, unknown>) : {};
+  const translations: BlogCategoryTranslations = {};
+  for (const locale of TRANSLATED_LOCALES) {
+    const entry = given[locale] && typeof given[locale] === "object" ? (given[locale] as { name?: unknown; blurb?: unknown }) : {};
+    const translatedName = oneLine(entry.name);
+    const translatedBlurb = oneLine(entry.blurb).slice(0, 200);
+    if (translatedName.length > 40) {
+      throw new BlogError(`Keep the ${LANGUAGE_NAMES_EN[locale]} name under 40 characters - it is shown as a chip and a heading`);
+    }
+    if (translatedName || translatedBlurb) translations[locale] = { name: translatedName, blurb: translatedBlurb };
+  }
+  return { name, blurb, translations };
 }
 
 /** Another category already called this (in any letter case), or null. */
@@ -802,29 +830,67 @@ async function sameName(tx: Pick<typeof db, "select">, name: string, except: str
   return row ?? null;
 }
 
+/**
+ * Two categories shown under the same name in a language would be two chips
+ * reading the same: refused like a duplicate English name. Compares the names
+ * as each language's blog shows them (a missing translation is the English).
+ */
+async function sameNameInALanguage(
+  tx: Pick<typeof db, "select">,
+  category: { name: string; translations: BlogCategoryTranslations },
+  except: string | null,
+): Promise<string | null> {
+  const others = await tx
+    .select({ id: blogCategories.id, name: blogCategories.name, translations: blogCategories.translations })
+    .from(blogCategories);
+  for (const locale of TRANSLATED_LOCALES) {
+    const shown = categoryText({ ...category, blurb: "" }, locale).name.toLowerCase();
+    const clash = others.find((other) => other.id !== except && categoryText({ ...other, blurb: "" }, locale).name.toLowerCase() === shown);
+    if (clash) {
+      const language = LANGUAGE_NAMES_EN[locale];
+      const taken = `In ${language}, "${clash.name}" is already shown as "${categoryText({ ...clash, blurb: "" }, locale).name}"`;
+      // Its own name there was typed in: that is what to change. Otherwise it is showing its English name there.
+      return category.translations[locale]?.name?.trim()
+        ? `${taken} - give this one a different ${language} name`
+        : `${taken} - give this one ${/^[AEIOU]/.test(language) ? "an" : "a"} ${language} name of its own under "In other languages", or choose a different name`;
+    }
+  }
+  return null;
+}
+
 function refreshCategories(slug?: string) {
   revalidatePath("/admin/blog");
-  revalidatePath("/blog");
-  if (slug) revalidatePath(`/blog/category/${slug}`);
+  for (const locale of LOCALES) {
+    revalidatePath(blogPath(locale));
+    if (slug) revalidatePath(categoryPath(locale, slug));
+  }
 }
 
 /**
  * Adds a category, last in the order. Its address (/blog/category/<slug>) is
- * made from the name now and never changes.
+ * made from the name now and never changes; it is the same in every language
+ * (/it/blog/category/<slug>). Its other languages are optional here and can
+ * be filled in later (saveBlogCategory).
  */
-export async function createBlogCategory(input: { name: string; blurb: string }): Promise<ActionResult<AdminBlogCategory>> {
+export async function createBlogCategory(input: {
+  name: string;
+  blurb: string;
+  translations?: BlogCategoryTranslations;
+}): Promise<ActionResult<AdminBlogCategory>> {
   const admin = await requireAdmin();
   try {
-    const { name, blurb } = cleanCategory(input);
+    const { name, blurb, translations } = cleanCategory(input);
     const slug = blogSlug(name);
     const created = await db.transaction(async (tx) => {
       if (await sameName(tx, name, null)) throw new BlogError(`There is already a category called "${name}"`);
+      const clash = await sameNameInALanguage(tx, { name, translations }, null);
+      if (clash) throw new BlogError(clash);
       const [taken] = await tx.select({ id: blogCategories.id }).from(blogCategories).where(eq(blogCategories.slug, slug)).limit(1);
       if (taken) throw new BlogError(`Another category already uses the address /blog/category/${slug} - choose a different name`);
       const [last] = await tx.select({ order: sql<number>`coalesce(max(${blogCategories.sortOrder}), -1)::int` }).from(blogCategories);
       const [row] = await tx
         .insert(blogCategories)
-        .values({ name, slug, blurb, sortOrder: (last?.order ?? -1) + 1 })
+        .values({ name, slug, blurb, translations, sortOrder: (last?.order ?? -1) + 1 })
         .returning({ id: blogCategories.id });
       await recordAdminAction(
         {
@@ -837,7 +903,7 @@ export async function createBlogCategory(input: { name: string; blurb: string })
         },
         tx,
       );
-      return { id: row.id, name, slug, blurb, posts: 0 };
+      return { id: row.id, name, slug, blurb, translations, posts: 0 };
     });
     refreshCategories(slug);
     return { ok: true, data: created };
@@ -849,37 +915,55 @@ export async function createBlogCategory(input: { name: string; blurb: string })
 }
 
 /**
- * Renames a category or changes its description. Its posts follow a new
- * name in the same transaction; its address stays.
+ * Renames a category, changes its description or its names and descriptions
+ * in the other languages. Its posts follow a new name in the same
+ * transaction; its address stays.
  */
-export async function saveBlogCategory(input: { id: string; name: string; blurb: string }): Promise<ActionResult<null>> {
+export async function saveBlogCategory(input: {
+  id: string;
+  name: string;
+  blurb: string;
+  translations?: BlogCategoryTranslations;
+}): Promise<ActionResult<null>> {
   const admin = await requireAdmin();
   if (!UUID.test(input.id)) return { ok: false, error: "Category not found" };
   try {
-    const { name, blurb } = cleanCategory(input);
+    const cleaned = cleanCategory(input);
+    const { name, blurb } = cleaned;
     const changedPages: string[] = [];
     const slug = await db.transaction(async (tx) => {
       const [current] = await tx.select().from(blogCategories).where(eq(blogCategories.id, input.id)).for("update");
       if (!current) throw new BlogError("Category not found");
+      // Sent without them (a page open from before they existed): kept as they are, not wiped.
+      const translations = input.translations === undefined ? current.translations : cleaned.translations;
       if (await sameName(tx, name, current.id)) throw new BlogError(`There is already a category called "${name}"`);
-      await tx.update(blogCategories).set({ name, blurb, updatedAt: new Date() }).where(eq(blogCategories.id, current.id));
+      const clash = await sameNameInALanguage(tx, { name, translations }, current.id);
+      if (clash) throw new BlogError(clash);
+      await tx.update(blogCategories).set({ name, blurb, translations, updatedAt: new Date() }).where(eq(blogCategories.id, current.id));
       if (name !== current.name) {
         await tx.update(blogPosts).set({ category: name }).where(eq(blogPosts.category, current.name));
       }
 
       /*
-        Reported only while the category has live posts - without them its
-        page is not in the sitemap. Its page shows the name and description; a
-        new name also shows on the blog's front page and on each live post.
+        Reported only in a language where the category has live posts -
+        without them its page there is not in the sitemap - and only where
+        what that language shows changed (a new English name also changes the
+        languages without a translation). Its page shows the name and
+        description; a new name also shows on the language's blog front page
+        and on each of its live posts.
       */
       const live = await tx
-        .select({ slug: blogPosts.slug })
+        .select({ slug: blogPosts.slug, locale: blogPosts.locale })
         .from(blogPosts)
         .where(and(eq(blogPosts.category, name), eq(blogPosts.status, "published")));
-      const renamed = name !== current.name;
-      if (live.length > 0 && (renamed || blurb !== current.blurb)) {
-        changedPages.push(`/blog/category/${current.slug}`);
-        if (renamed) changedPages.push("/blog", ...live.map((post) => `/blog/${post.slug}`));
+      for (const locale of LOCALES) {
+        const posts = live.filter((post) => blogLocale(post.locale) === locale);
+        if (posts.length === 0) continue;
+        const before = categoryText(current, locale);
+        const after = categoryText({ name, blurb, translations }, locale);
+        if (before.name === after.name && before.blurb === after.blurb) continue;
+        changedPages.push(categoryPath(locale, current.slug));
+        if (before.name !== after.name) changedPages.push(blogPath(locale), ...posts.map((post) => blogPath(locale, post.slug)));
       }
       await recordAdminAction(
         {
@@ -905,9 +989,10 @@ export async function saveBlogCategory(input: { id: string; name: string; blurb:
 }
 
 /**
- * Deletes a category no post uses (drafts included). Its page stops existing,
- * which is reported (IndexNow takes gone pages too): it may have been listed
- * while it had live posts.
+ * Deletes a category no post uses (drafts included). Its page in every
+ * language (/blog/category/<slug>, /it/blog/category/<slug>...) stops
+ * existing, which is reported (IndexNow takes gone pages too): each may have
+ * been listed while it had live posts in its language.
  */
 export async function deleteBlogCategory(input: { id: string }): Promise<ActionResult<null>> {
   const admin = await requireAdmin();
@@ -940,7 +1025,8 @@ export async function deleteBlogCategory(input: { id: string }): Promise<ActionR
       return current.slug;
     });
     refreshCategories(slug);
-    notifyIndexNow([`/blog/category/${slug}`]);
+    // Gone in every language, like the pages refreshCategories just revalidated.
+    notifyIndexNow(LOCALES.map((locale) => categoryPath(locale, slug)));
     return { ok: true, data: null };
   } catch (error) {
     if (error instanceof BlogError) return { ok: false, error: error.message };

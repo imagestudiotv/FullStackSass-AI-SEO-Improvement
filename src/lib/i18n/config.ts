@@ -77,10 +77,11 @@ export function splitLocale(pathname: string): {
 /**
  * The pages that exist in every language: the home page and the folders
  * under app/(marketing)/[locale] (config.test.ts keeps the two in step).
- * Everything else - the legal pages, blog categories and authors - is English-only
- * and has no /es/... address. The blog's front page is here (/it/blog lists
- * the Italian posts, then the English ones); its posts, category and author
- * pages are not - a post's other languages come from lib/blog/locale.ts.
+ * Everything else - the legal pages and the blog's author page - is
+ * English-only and has no /es/... address. The blog's front page is here
+ * (/it/blog lists the Italian posts, then the English ones); its posts and
+ * category pages are not: they are database pages, with addresses and
+ * hreflang of their own in each language (lib/blog/locale.ts).
  */
 /**
  * The integration guides (lib/publishing/docs.ts), by slug. Listed here

@@ -3,7 +3,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { BlogArticle } from "@/components/blog-article";
-import { BLOG_CHROME, blogPath, homePath, LANGUAGE_NAMES } from "@/lib/blog/locale";
+import { BLOG_CHROME, blogPath, categoryPath, homePath, LANGUAGE_NAMES } from "@/lib/blog/locale";
 import type { PostVersion } from "@/lib/blog/posts";
 import { isTeamAuthor, TEAM_AUTHOR_PATH, jsonLdScript, plainText, type BlogPost } from "@/lib/blog/shared";
 import { DEFAULT_LOCALE, localePath, type Locale } from "@/lib/i18n/config";
@@ -84,7 +84,6 @@ export function BlogPostView({
 }) {
   const locale: Locale = post.locale ?? DEFAULT_LOCALE;
   const t = BLOG_CHROME[locale];
-  const english = locale === DEFAULT_LOCALE;
 
   /**
    * Article structured data. This is what lets a post appear as a rich result
@@ -93,20 +92,19 @@ export function BlogPostView({
    */
   const site = siteUrl();
   const address = `${site}${blogPath(locale, post.slug)}`;
-  const trail = english
-    ? [
-        { name: "Home", path: "/" },
-        { name: "Blog", path: "/blog" },
-        { name: post.category, path: `/blog/category/${post.categorySlug}` },
-        // The label written for the breadcrumb, when there is one (Admin -> Blog).
-        { name: post.breadcrumbLabel || post.title, path: blogPath(locale, post.slug) },
-      ]
-    : [
-        // Category pages are English only: a translated post's trail skips them.
-        { name: t.home, path: homePath(locale) },
-        { name: t.blog, path: blogPath(locale) },
-        { name: post.breadcrumbLabel || post.title, path: blogPath(locale, post.slug) },
-      ];
+  /*
+    Home, the blog, the post's category and the post - in the post's language
+    (client, 2026-10-15: categories on every language's blog), the category
+    under its name there and leading to that language's category page.
+  */
+  const categoryName = post.categoryLabel ?? post.category;
+  const trail = [
+    { name: t.home, path: homePath(locale) },
+    { name: t.blog, path: blogPath(locale) },
+    { name: categoryName, path: categoryPath(locale, post.categorySlug) },
+    // The label written for the breadcrumb, when there is one (Admin -> Blog).
+    { name: post.breadcrumbLabel || post.title, path: blogPath(locale, post.slug) },
+  ];
   const jsonLd: Record<string, unknown>[] = [
     {
       "@context": "https://schema.org",
@@ -120,7 +118,7 @@ export function BlogPostView({
       image: `${site}${SHARE_IMAGE.url}`,
       datePublished: post.publishedAt,
       dateModified: post.updatedAt ?? post.publishedAt,
-      articleSection: post.category,
+      articleSection: categoryName,
       /*
         The post's primary and secondary keywords (Admin -> Blog). Only here:
         they are never written into the page as text (lib/blog/keywords.ts).

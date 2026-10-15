@@ -14,6 +14,11 @@
  * every link and discards whatever ranking the post has earned.
  */
 
+// Types only: this file is also bundled for the browser (the editor's preview).
+import type { BlogCategoryText, BlogCategoryTranslations } from "@/lib/db/schema";
+
+export type { BlogCategoryText, BlogCategoryTranslations };
+
 /**
  * Sections of the blog: blog_categories rows, managed in Admin -> Blog
  * (lib/admin/blog.ts) and read by lib/blog/categories.ts.
@@ -27,11 +32,29 @@ export type BlogCategory = string;
 /** A category as pages and the editor use it. */
 export type BlogCategoryInfo = {
   name: string;
-  /** Its page: /blog/category/<slug>. Permanent once created. */
+  /** Its page: /blog/category/<slug>, and /<locale>/blog/category/<slug> in another language. Permanent once created. */
   slug: string;
   /** One line under its heading, and its meta description. */
   blurb: string;
+  /** Its name and description in the other languages (Admin -> Blog); a missing one is the English. */
+  translations?: BlogCategoryTranslations;
 };
+
+/**
+ * A category's name and description in a language: its translation, field by
+ * field, or the English where there is none (client, 2026-10-15: categories on
+ * every language's blog). A blank translation counts as none.
+ */
+export function categoryText(
+  category: Pick<BlogCategoryInfo, "name" | "blurb" | "translations">,
+  locale: string = "en",
+): BlogCategoryText {
+  const translated = locale === "en" ? undefined : category.translations?.[locale as keyof BlogCategoryTranslations];
+  return {
+    name: translated?.name?.trim() || category.name,
+    blurb: translated?.blurb?.trim() || category.blurb,
+  };
+}
 
 /** A question and its answer, rendered as an expandable block. */
 export type BlogFaq = {
@@ -72,7 +95,13 @@ export type BlogPost = {
   /** The breadcrumb's last step, when shorter than the title. */
   breadcrumbLabel?: string | null;
   category: BlogCategory;
-  /** Its category's page: /blog/category/<categorySlug>. */
+  /**
+   * Its category's name in the post's language (Admin -> Blog), for the page.
+   * Absent means `category`, which stays the English name: the key the other
+   * code matches on.
+   */
+  categoryLabel?: string;
+  /** Its category's page: /blog/category/<categorySlug>, under the post's language. */
   categorySlug: string;
   /** ISO date (YYYY-MM-DD), UTC. Drives ordering and the sitemap. */
   publishedAt: string;

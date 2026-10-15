@@ -101,7 +101,8 @@ describe("a post's language", () => {
 
   it("is published at its own language's address, and reported there", async () => {
     const post = await create("published", { locale: "it", slug: "una-guida-italiana" });
-    expect(indexNow.notify).toHaveBeenLastCalledWith(["/it/blog/una-guida-italiana", "/it/blog"]);
+    // Its category page in Italian lists it too (client, 2026-10-15: categories in every language).
+    expect(indexNow.notify).toHaveBeenLastCalledWith(["/it/blog/una-guida-italiana", "/it/blog", "/it/blog/category/guides"]);
     expect(await getPost("una-guida-italiana")).toBeNull();
     expect((await getPost("una-guida-italiana", "it"))?.locale).toBe("it");
     expect((await listPosts("it")).map((p) => p.slug)).toContain("una-guida-italiana");
@@ -204,7 +205,7 @@ describe("reviewing and publishing a translation", () => {
 
     const published = await saveBlogPost({ id: post.id, expectedVersion: post.version + 1, status: "published", post: fields, reviewed: true });
     expect(published.ok && published.data).toMatchObject({ status: "published", needsReview: false });
-    expect(indexNow.notify).toHaveBeenLastCalledWith([`/it/blog/${post.slug}`, "/it/blog"]);
+    expect(indexNow.notify).toHaveBeenLastCalledWith([`/it/blog/${post.slug}`, "/it/blog", "/it/blog/category/guides"]);
   });
 
   it("links the languages of one article to each other, published ones only", async () => {
