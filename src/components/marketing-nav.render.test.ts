@@ -144,6 +144,20 @@ describe("the header's screen-reader labels", () => {
     expect(logo).toContain(`aria-label="${brandHome}"`);
   });
 
+  it.each([
+    ["/", "Dark mode"],
+    ["/es/pricing", "Modo oscuro"],
+    ["/fr/blog", "Mode sombre"],
+    ["/it/blog", "Modalità scura"],
+    ["/de", "Dunkelmodus"],
+  ] as const)("the night mode button on %s is named %s, in the header and the footer, and starts light", (pathname, label) => {
+    nav.pathname = pathname;
+    for (const Component of [MarketingNav, MarketingTagline]) {
+      const html = renderToStaticMarkup(createElement(Component, { chrome }));
+      expect(html).toContain(`aria-label="${label}" aria-pressed="false" title="${label}"`);
+    }
+  });
+
   it("the logo stays English for a caller that passes no labels", () => {
     nav.pathname = "/de";
     expect(renderToStaticMarkup(createElement(BrandHomeLink, null, "RepGet"))).toContain('aria-label="RepGet home"');

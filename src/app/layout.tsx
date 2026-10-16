@@ -6,6 +6,7 @@ import "./globals.css";
 import { isPreviewDeployment } from "@/lib/deployment";
 import { siteUrl as canonicalSiteUrl } from "@/lib/site-url";
 import { SITE_OPEN_GRAPH } from "@/lib/seo/page-metadata";
+import { THEME_SCRIPT } from "@/lib/theme";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -111,6 +112,16 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
+      <head>
+        {/*
+          Night mode, before anything is drawn (lib/theme.ts). Inline and
+          first in <head> so a dark page never flashes white; the nonce pages
+          allow it by its hash (lib/security-headers.ts). It adds a class to
+          <html> that the server did not render - suppressHydrationWarning
+          above is what lets React accept that.
+        */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
       <body className="min-h-full flex flex-col">
         {children}
         <DeferredToaster />

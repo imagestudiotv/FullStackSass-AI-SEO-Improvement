@@ -31,16 +31,16 @@ type Line = { icon: LucideIcon; tone: "progress" | "info" | "success" | "warning
 const TONE_CLASS: Record<Line["tone"], string> = {
   progress: "text-foreground",
   info: "text-foreground",
-  success: "text-emerald-800",
-  warning: "text-amber-900",
+  success: "text-emerald-800 dark:text-emerald-400",
+  warning: "text-amber-900 dark:text-amber-400",
   danger: "text-foreground",
 };
 
 const ICON_CLASS: Record<Line["tone"], string> = {
   progress: "text-primary",
   info: "text-muted-foreground",
-  success: "text-emerald-700",
-  warning: "text-amber-700",
+  success: "text-emerald-700 dark:text-emerald-400",
+  warning: "text-amber-700 dark:text-amber-400",
   danger: "text-destructive",
 };
 

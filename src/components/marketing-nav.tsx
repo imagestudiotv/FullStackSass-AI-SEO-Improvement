@@ -20,6 +20,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { CookieSettingsButton } from "@/components/consent-banner";
 import { Button } from "@/components/ui/button";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { ThemeToggle } from "@/components/theme-toggle";
 import type { MobileNavSheet } from "@/components/mobile-nav-sheet";
 import { localePath, splitLocale, type Locale } from "@/lib/i18n/config";
 import type { SiteChrome } from "@/lib/i18n/site-chrome";
@@ -384,6 +385,7 @@ export function MarketingNav({ chrome }: { chrome: SiteChrome }) {
 
       <div className="ml-auto flex items-center gap-2 lg:ml-0">
         <MobileMarketingNav t={t} locale={locale} href={href} />
+        <ThemeToggle label={t.a11y.darkMode} />
         <Button variant="ghost" size="sm" asChild>
           <Link href="/sign-in">{t.nav.signIn}</Link>
         </Button>
@@ -506,8 +508,9 @@ export function MarketingTagline({ chrome }: { chrome: SiteChrome }) {
       <p className="mt-2 max-w-xs text-sm text-muted-foreground">
         {chrome[locale].footer.tagline}
       </p>
-      <div className="mt-4">
+      <div className="mt-4 flex items-center gap-2">
         <LanguageSwitcher label={chrome[locale].a11y.changeLanguage} />
+        <ThemeToggle label={chrome[locale].a11y.darkMode} />
       </div>
     </>
   );

@@ -164,6 +164,19 @@ export const ALL_INTEGRATIONS = (sentryDsn?: string): CspIntegrations => ({ sent
  *    Forms post only to this site (form-action 'self'): every form here is a
  *    server action or a same-site route.
  */
+/**
+ * The night mode script (lib/theme.ts THEME_SCRIPT), allowed by its hash on
+ * the nonce pages. It runs inline in <head> before the first paint, where no
+ * nonce can reach a static root layout. Written out rather than computed:
+ * this module imports nothing (see the top). security-headers.test.ts
+ * recomputes it from the script, so changing one without the other fails.
+ *
+ * Only on the nonce policy. The cached pages' policy keeps 'unsafe-inline',
+ * and a hash there would switch 'unsafe-inline' off for every other inline
+ * script on those pages.
+ */
+export const THEME_SCRIPT_HASH = "'sha256-nj7s1qe9iqUW2pzhF6thy8NIIuqyBMAOo+kkJ6bWvmQ='";
+
 export function contentSecurityPolicy(integrations: CspIntegrations, nonce?: string): string {
   if (nonce !== undefined && !/^[A-Za-z0-9+/=_-]{22,128}$/.test(nonce)) {
     throw new Error("Invalid CSP nonce");
@@ -191,7 +204,7 @@ export function contentSecurityPolicy(integrations: CspIntegrations, nonce?: str
     [
       "script-src",
       nonce
-        ? ["'self'", `'nonce-${nonce}'`, "'strict-dynamic'", ...crispScript, ...gaScript, ...adsScript]
+        ? ["'self'", `'nonce-${nonce}'`, THEME_SCRIPT_HASH, "'strict-dynamic'", ...crispScript, ...gaScript, ...adsScript]
         : ["'self'", "'unsafe-inline'", ...crispScript, ...gaScript, ...adsScript],
     ],
     ["script-src-attr", ["'none'"]],

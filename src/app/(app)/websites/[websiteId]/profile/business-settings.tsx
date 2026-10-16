@@ -285,7 +285,7 @@ export function BusinessSettings({
                 {t.countryHint}
                 {englishMarket ? (
                   // A warning with a fix, never a silent rewrite: the stored value changes only if they press it and save.
-                  <span className="mt-1.5 flex flex-wrap items-start gap-x-1.5 gap-y-1 font-medium text-amber-800">
+                  <span className="mt-1.5 flex flex-wrap items-start gap-x-1.5 gap-y-1 font-medium text-amber-800 dark:text-amber-400">
                     <AlertTriangle className="mt-1 size-3.5 shrink-0" aria-hidden="true" />
                     <span className="min-w-0">{t.marketNotEnglish}</span>
                     <button

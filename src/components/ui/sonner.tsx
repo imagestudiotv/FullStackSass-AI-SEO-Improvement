@@ -1,16 +1,17 @@
 "use client"
 
-import { useTheme } from "next-themes"
+import { useDarkTheme } from "@/components/theme-toggle"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
 import { CircleCheckIcon, InfoIcon, Loader2Icon, OctagonXIcon, TriangleAlertIcon } from "lucide-react"
 
 
 const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme()
+  // Night mode is the page's own switch (lib/theme.ts), not the system setting.
+  const dark = useDarkTheme()
 
   return (
     <Sonner
-      theme={theme as ToasterProps["theme"]}
+      theme={dark ? "dark" : "light"}
       className="toaster group"
       icons={{
         success: (

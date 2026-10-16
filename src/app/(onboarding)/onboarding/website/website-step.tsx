@@ -189,7 +189,7 @@ export function WebsiteStep({
                   : "We can publish straight to it once you are set up."}
               </p>
             </div>
-            <span className="flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-600">
+            <span className="flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
               {t.detected}
               <Check className="size-3" aria-hidden="true" />
             </span>
@@ -351,7 +351,7 @@ function WebsiteCard({
                 {t.readingWebsite}
               </p>
             ) : preview ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-600">
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
                 {t.websiteFound}
                 <Check className="size-3" aria-hidden="true" />
               </span>
@@ -393,7 +393,7 @@ function WebsiteCard({
               {preview.platform ? (
                 <span className="flex items-center gap-1.5 pr-4">
                   <Check
-                    className="size-3.5 shrink-0 text-emerald-600"
+                    className="size-3.5 shrink-0 text-emerald-600 dark:text-emerald-400"
                     aria-hidden="true"
                   />
                   {preview.platform}

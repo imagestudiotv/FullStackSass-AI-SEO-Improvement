@@ -77,7 +77,7 @@ export function BrandColourField({
                 aria-hidden="true"
               />
             ) : (
-              <span className="flex size-full items-center justify-center bg-amber-50 text-amber-700" aria-hidden="true">
+              <span className="flex size-full items-center justify-center bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400" aria-hidden="true">
                 <AlertTriangle className="size-4" />
               </span>
             )}
@@ -94,7 +94,7 @@ export function BrandColourField({
           <span
             className={cn(
               "text-sm",
-              state.kind === "invalid" ? "font-medium text-amber-800" : "text-muted-foreground",
+              state.kind === "invalid" ? "font-medium text-amber-800 dark:text-amber-400" : "text-muted-foreground",
             )}
           >
             {state.kind === "none" ? t.noColour : state.kind === "invalid" ? t.invalidColour : state.hex}

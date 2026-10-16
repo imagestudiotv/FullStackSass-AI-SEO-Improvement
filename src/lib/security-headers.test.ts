@@ -1,5 +1,8 @@
+import { createHash } from "node:crypto";
+
 import { describe, expect, it } from "vitest";
 
+import { THEME_SCRIPT } from "./theme";
 import {
   ALL_INTEGRATIONS,
   contentSecurityPolicy,
@@ -9,6 +12,7 @@ import {
   cspReportUri,
   hasTagManager,
   securityHeaders,
+  THEME_SCRIPT_HASH,
   type CspIntegrations,
 } from "./security-headers";
 
@@ -240,6 +244,16 @@ describe("contentSecurityPolicy", () => {
   it("keeps 'unsafe-inline' for scripts on the baseline (cached public pages) - that policy is not strict", () => {
     expect(csp["script-src"]).toContain("'unsafe-inline'");
     expect(csp["script-src-attr"]).toEqual(["'none'"]);
+  });
+
+  it("allows the night mode script by its hash on the nonce pages, and only there", () => {
+    // Recomputed from the script itself: changing one without the other fails here.
+    const hash = `'sha256-${createHash("sha256").update(THEME_SCRIPT, "utf8").digest("base64")}'`;
+    expect(THEME_SCRIPT_HASH).toBe(hash);
+    expect(directives(contentSecurityPolicy(ALL, NONCE))["script-src"]).toContain(hash);
+    expect(directives(contentSecurityPolicy(NONE, NONCE))["script-src"]).toContain(hash);
+    // A hash on the cached pages' policy would switch their 'unsafe-inline' off.
+    expect(csp["script-src"]).not.toContain(hash);
   });
 
   it("reports violations to the Sentry project in the DSN", () => {

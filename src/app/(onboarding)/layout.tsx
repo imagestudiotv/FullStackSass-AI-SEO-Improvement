@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { BrandLogo } from "@/components/brand-logo";
 import { ConversionEvents } from "@/components/conversion-events";
 import { HeaderTrailing } from "@/components/onboarding/header-trailing";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/user-menu";
 import { isAdmin } from "@/lib/admin/guard";
 import { requireSession } from "@/lib/auth-guard";
@@ -125,6 +126,7 @@ export default async function OnboardingLayout({ children }: LayoutProps<"/">) {
             where it becomes the checkout reassurance. See header-trailing.
           */}
           <HeaderTrailing t={t.app.common} />
+          <ThemeToggle label={t.app.common.darkMode} />
           <UserMenu
             name={session.user.name}
             email={session.user.email}

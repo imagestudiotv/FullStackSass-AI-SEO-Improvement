@@ -161,8 +161,8 @@ export function GenerationPanel({
                   </>
                 ) : status.kind === "saved" ? (
                   <>
-                    <CheckCircle2 className="size-3.5 text-emerald-700" aria-hidden="true" />
-                    <span className="text-emerald-700">{tWorkspace.saved}</span>
+                    <CheckCircle2 className="size-3.5 text-emerald-700 dark:text-emerald-400" aria-hidden="true" />
+                    <span className="text-emerald-700 dark:text-emerald-400">{tWorkspace.saved}</span>
                   </>
                 ) : null}
               </span>

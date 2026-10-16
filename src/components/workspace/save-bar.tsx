@@ -102,7 +102,7 @@ export function SaveBar({
     );
   } else if (state.kind === "saved") {
     status = (
-      <span className="flex items-center gap-2 text-emerald-700">
+      <span className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
         <CheckCircle2 className="size-4" aria-hidden="true" />
         {t.saved}
       </span>

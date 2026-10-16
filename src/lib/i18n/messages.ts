@@ -2643,6 +2643,8 @@ export type Messages = {
       openMenu: string;
       changeLanguage: string;
       brandHome: string;
+      /** The night mode button's name (components/theme-toggle.tsx). */
+      darkMode: string;
       skipped: string;
       hideSetupSteps: string;
       setupProgress: string;
@@ -5637,6 +5639,7 @@ const en: Messages = {
       openMenu: "Open menu",
       changeLanguage: "Change language",
       brandHome: "RepGet home",
+      darkMode: "Dark mode",
       skipped: "Skipped",
       hideSetupSteps: "Hide setup steps",
       setupProgress: "Setup progress",
@@ -8636,6 +8639,7 @@ const es: Messages = {
       openMenu: "Abrir menú",
       changeLanguage: "Cambiar idioma",
       brandHome: "Inicio de RepGet",
+      darkMode: "Modo oscuro",
       skipped: "Omitido",
       hideSetupSteps: "Ocultar los pasos",
       setupProgress: "Progreso de la configuración",
@@ -11636,6 +11640,7 @@ const fr: Messages = {
       openMenu: "Ouvrir le menu",
       changeLanguage: "Changer de langue",
       brandHome: "Accueil RepGet",
+      darkMode: "Mode sombre",
       skipped: "Ignoré",
       hideSetupSteps: "Masquer les étapes",
       setupProgress: "Progression de la configuration",
@@ -14635,6 +14640,7 @@ const it: Messages = {
       openMenu: "Apri il menu",
       changeLanguage: "Cambia lingua",
       brandHome: "Home di RepGet",
+      darkMode: "Modalità scura",
       skipped: "Saltato",
       hideSetupSteps: "Nascondi i passaggi",
       setupProgress: "Avanzamento della configurazione",
@@ -17631,6 +17637,7 @@ const de: Messages = {
       openMenu: "Menü öffnen",
       changeLanguage: "Sprache ändern",
       brandHome: "RepGet-Startseite",
+      darkMode: "Dunkelmodus",
       skipped: "Übersprungen",
       hideSetupSteps: "Schritte ausblenden",
       setupProgress: "Fortschritt der Einrichtung",

@@ -30,8 +30,12 @@ export function ProviderLogo({
   const logo = PROVIDER_LOGOS[providerId];
 
   return (
+    /*
+      White in night mode too: the marks keep their official colours (below),
+      and Ghost's is near-black - on a dark tile it disappeared.
+    */
     <span
-      className={`flex size-10 shrink-0 items-center justify-center rounded-xl border bg-background ${className ?? ""}`}
+      className={`flex size-10 shrink-0 items-center justify-center rounded-xl border bg-background dark:border-white/10 dark:bg-white ${className ?? ""}`}
     >
       {logo ? (
         <svg

@@ -21,10 +21,11 @@ import { getMessages, type Messages } from "@/lib/i18n/messages";
  * - only its types (`import type`).
  *
  * `a11y` is what only a screen reader hears - the menu button, the phone
- * menu's close button, the language switcher and the logo link. They were
- * English on every page; the words are the app's own (`app.common`).
+ * menu's close button, the language switcher, the logo link and the night
+ * mode button (also its hover tip). They were English on every page; the
+ * words are the app's own (`app.common`).
  */
-export type SiteChromeA11y = Pick<Messages["app"]["common"], "openMenu" | "changeLanguage" | "brandHome" | "close">;
+export type SiteChromeA11y = Pick<Messages["app"]["common"], "openMenu" | "changeLanguage" | "brandHome" | "close" | "darkMode">;
 
 export type SiteChrome = Record<Locale, Pick<Messages, "nav" | "footer" | "consent"> & { a11y: SiteChromeA11y }>;
 
@@ -38,8 +39,8 @@ export function siteChrome(): SiteChrome {
   return Object.fromEntries(
     LOCALES.map((locale) => {
       const t = getMessages(locale);
-      const { openMenu, changeLanguage, brandHome, close } = t.app.common;
-      return [locale, { nav: t.nav, footer: t.footer, consent: t.consent, a11y: { openMenu, changeLanguage, brandHome, close } }];
+      const { openMenu, changeLanguage, brandHome, close, darkMode } = t.app.common;
+      return [locale, { nav: t.nav, footer: t.footer, consent: t.consent, a11y: { openMenu, changeLanguage, brandHome, close, darkMode } }];
     }),
   ) as SiteChrome;
 }

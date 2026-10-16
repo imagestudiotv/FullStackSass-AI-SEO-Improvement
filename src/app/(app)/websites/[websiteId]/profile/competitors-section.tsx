@@ -238,7 +238,7 @@ export function CompetitorsSection({
               // Already on screen under the field; spoken here because a refusal can arrive seconds after the press.
               <span className="sr-only">{announcement.text}</span>
             ) : announcement ? (
-              <span className={announcement.tone === "done" ? "inline-flex items-center gap-1.5 text-emerald-700" : "text-muted-foreground"}>
+              <span className={announcement.tone === "done" ? "inline-flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400" : "text-muted-foreground"}>
                 {announcement.tone === "done" ? <CheckCircle2 className="size-3.5 shrink-0" aria-hidden="true" /> : null}
                 {announcement.text}
               </span>

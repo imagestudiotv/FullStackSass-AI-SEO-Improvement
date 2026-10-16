@@ -394,14 +394,14 @@ export function PluginKeys({
       */}
       {context && context.alsoIn.length > 0 ? (
         <div className="flex gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm" role="note">
-          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" aria-hidden="true" />
+          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden="true" />
           <p>{format(t.alsoIn, { domain: context.domain, workspaces: otherWorkspaces })}</p>
         </div>
       ) : null}
 
       {connected ? (
         <div className="flex items-start gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 p-3 text-sm" role="status">
-          <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-600" aria-hidden="true" />
+          <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
           <div className="min-w-0">
             <p className="font-medium">
               {t.connectedTitle}
@@ -547,7 +547,7 @@ export function PluginKeys({
                         {key.keyPrefix}
                         <span className="text-muted-foreground">…</span>
                         {connected && key.id === connected.id ? (
-                          <span className="ml-2 rounded bg-emerald-500/15 px-1.5 py-0.5 font-sans text-xs text-emerald-700">
+                          <span className="ml-2 rounded bg-emerald-500/15 px-1.5 py-0.5 font-sans text-xs text-emerald-700 dark:text-emerald-400">
                             {t.connectedTitle}
                           </span>
                         ) : null}

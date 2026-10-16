@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 
 import { BrandMark } from "@/components/brand-logo";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
@@ -189,6 +190,8 @@ export function AdminShell({
           >
             <Search className="size-5" aria-hidden="true" />
           </Button>
+
+          <ThemeToggle label="Dark mode" />
 
           <Button variant="ghost" size="sm" asChild className="h-9 shrink-0 gap-1.5 text-muted-foreground">
             <Link href="/dashboard">

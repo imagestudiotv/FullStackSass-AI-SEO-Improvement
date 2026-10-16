@@ -57,7 +57,7 @@ export function UncertainPublication({
             {text.confirm}
           </Button>
           {result ? (
-            <p role={result.ok ? "status" : "alert"} className={result.ok ? "text-emerald-800" : "text-destructive"}>
+            <p role={result.ok ? "status" : "alert"} className={result.ok ? "text-emerald-800 dark:text-emerald-400" : "text-destructive"}>
               {result.message}
             </p>
           ) : null}

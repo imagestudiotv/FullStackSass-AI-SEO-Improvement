@@ -103,7 +103,7 @@ export function ArticleFields({
                 </>
               )}
             </span>
-            {slugDropsLetters(values.slug) ? <span className="mt-1 block text-amber-800">{t.slugDropped}</span> : null}
+            {slugDropsLetters(values.slug) ? <span className="mt-1 block text-amber-800 dark:text-amber-400">{t.slugDropped}</span> : null}
             {wordPressLive ? <span className="mt-1 block">{t.slugWordPressNote}</span> : null}
           </>
         }

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AppSidebar } from "@/components/app-sidebar";
 import { MobileNav } from "@/components/mobile-nav";
 import { NotificationBell } from "@/components/notification-bell";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { BrandLogo, BrandMark } from "@/components/brand-logo";
 import { LiveChat } from "@/components/live-chat";
 import { SidebarNav } from "@/components/sidebar-nav";
@@ -300,6 +301,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             Count is rendered on the server so the badge is correct on first
             paint. The list itself loads when the bell is opened.
           */}
+          <ThemeToggle label={t.app.common.darkMode} />
           <NotificationBell initialUnread={unread} t={t.app.auth} />
           <UserMenu
             name={session.user.name}

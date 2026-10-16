@@ -51,15 +51,15 @@ import {
 
 /** The StatusBadge tones (components/ui/status-badge.tsx), so severity reads like every other status. */
 const TONE = {
-  critical: "border-red-200 bg-red-50 text-red-700",
-  warning: "border-amber-200 bg-amber-50 text-amber-700",
+  critical: "border-red-200 bg-red-50 text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300",
+  warning: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300",
   neutral: "border-transparent bg-muted text-muted-foreground",
-  positive: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  positive: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300",
 } as const;
 
 const SEVERITY_META: Record<Severity, { icon: LucideIcon; tone: keyof typeof TONE; bar: string; iconClass: string }> = {
-  critical: { icon: OctagonAlert, tone: "critical", bar: "bg-red-500", iconClass: "text-red-600" },
-  warning: { icon: AlertTriangle, tone: "warning", bar: "bg-amber-500", iconClass: "text-amber-600" },
+  critical: { icon: OctagonAlert, tone: "critical", bar: "bg-red-500", iconClass: "text-red-600 dark:text-red-400" },
+  warning: { icon: AlertTriangle, tone: "warning", bar: "bg-amber-500", iconClass: "text-amber-600 dark:text-amber-400" },
   info: { icon: Lightbulb, tone: "neutral", bar: "bg-muted-foreground/40", iconClass: "text-muted-foreground" },
 };
 
@@ -221,9 +221,9 @@ export function RunStatus({
 /* ------------------------------------------------------------------------- */
 
 const BAND: Record<ScoreBand, { text: string; ring: string; tone: keyof typeof TONE; icon: LucideIcon }> = {
-  good: { text: "text-emerald-700", ring: "stroke-emerald-500", tone: "positive", icon: CheckCircle2 },
-  fair: { text: "text-amber-700", ring: "stroke-amber-500", tone: "warning", icon: AlertTriangle },
-  poor: { text: "text-red-700", ring: "stroke-red-500", tone: "critical", icon: OctagonAlert },
+  good: { text: "text-emerald-700 dark:text-emerald-400", ring: "stroke-emerald-500", tone: "positive", icon: CheckCircle2 },
+  fair: { text: "text-amber-700 dark:text-amber-400", ring: "stroke-amber-500", tone: "warning", icon: AlertTriangle },
+  poor: { text: "text-red-700 dark:text-red-400", ring: "stroke-red-500", tone: "critical", icon: OctagonAlert },
 };
 
 function ScoreDisplay({ score, unreadable, t }: { score: number | null; unreadable: boolean; t: HealthText }) {

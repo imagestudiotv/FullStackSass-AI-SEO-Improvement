@@ -323,7 +323,7 @@ export function FeaturedImage({
                 {error}
               </Notice>
             ) : status ? (
-              <p role="status" className="text-xs text-emerald-700">{status}</p>
+              <p role="status" className="text-xs text-emerald-700 dark:text-emerald-400">{status}</p>
             ) : null}
           </div>
         </>

@@ -13,8 +13,8 @@ import { cn } from "@/lib/utils";
  */
 const TONE = {
   info: { className: "border-border bg-muted/40 text-foreground", icon: Info, iconClass: "text-muted-foreground" },
-  warning: { className: "border-amber-200 bg-amber-50 text-amber-950", icon: AlertTriangle, iconClass: "text-amber-700" },
-  success: { className: "border-emerald-200 bg-emerald-50 text-emerald-950", icon: CheckCircle2, iconClass: "text-emerald-700" },
+  warning: { className: "border-amber-200 bg-amber-50 text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100", icon: AlertTriangle, iconClass: "text-amber-700 dark:text-amber-400" },
+  success: { className: "border-emerald-200 bg-emerald-50 text-emerald-950 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-100", icon: CheckCircle2, iconClass: "text-emerald-700 dark:text-emerald-400" },
   danger: { className: "border-destructive/30 bg-destructive/5 text-foreground", icon: XCircle, iconClass: "text-destructive" },
 } as const;
 

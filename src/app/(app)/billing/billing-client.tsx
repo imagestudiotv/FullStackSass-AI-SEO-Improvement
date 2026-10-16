@@ -629,9 +629,9 @@ export function BillingClient({
                     className={cn(
                       "mt-2 text-xl font-semibold tracking-tight wrap-anywhere",
                       status?.tone === "warning"
-                        ? "text-amber-700"
+                        ? "text-amber-700 dark:text-amber-400"
                         : status?.tone === "critical"
-                          ? "text-red-700"
+                          ? "text-red-700 dark:text-red-400"
                           : "text-foreground",
                     )}
                   >
