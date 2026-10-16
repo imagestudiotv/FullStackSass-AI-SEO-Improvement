@@ -70,15 +70,23 @@ const cms = vi.hoisted(() => ({
   createError: null as null | Error,
   searchable: true,
   calls: [] as string[],
+  /** Every upload's file name and alt text, in order. */
+  uploads: [] as Array<{ filename: string; alt: string }>,
+  /** What an upload returns; the one fixed media item when unset. */
+  media: null as null | ((file: { filename: string }) => { id: string; url: string }),
+  /** Uploads this refuses fail. */
+  refuseUpload: null as null | ((file: { filename: string; alt: string }) => boolean),
 }));
 vi.mock("@/lib/publishing/registry", async () => {
   const { ProviderError } = await import("@/lib/publishing/provider");
   void ProviderError;
   const provider = {
-    uploadMedia: vi.fn(async () => {
+    uploadMedia: vi.fn(async (_c: unknown, file: { filename: string; alt: string }) => {
       cms.calls.push("upload");
+      cms.uploads.push({ filename: file.filename, alt: file.alt });
       if (cms.onUpload) await cms.onUpload();
-      return { id: "m1", url: "https://site.test/m1.jpg" };
+      if (cms.refuseUpload?.(file)) throw new Error("The site refused the upload");
+      return cms.media ? cms.media(file) : { id: "m1", url: "https://site.test/m1.jpg" };
     }),
     createPost: vi.fn(async (_c: unknown, input: { title: string; contentHtml: string; slug: string | null; status: string }) => {
       cms.calls.push("create");
@@ -139,6 +147,9 @@ beforeEach(() => {
   cms.onCreate = null;
   cms.createError = null;
   cms.searchable = true;
+  cms.uploads.length = 0;
+  cms.media = null;
+  cms.refuseUpload = null;
   inngestMock.send.mockClear();
 });
 
@@ -547,5 +558,108 @@ describe("the record of what was sent", () => {
     expect(d).toMatchObject({ status: "sent", channel: "direct", trigger: "manual", revisionHash: reviewHash(row), remoteId: "1" });
     const logs = await test.db.select().from(publishLogs).where(eq(publishLogs.articleId, s.post.id));
     expect(logs.map((l) => [l.status, l.remoteId])).toEqual([["published", "1"]]);
+  });
+});
+
+describe("pictures inside the article (client, 2026-10-16)", () => {
+  const STORAGE = "https://store.test/storage/v1/object/public/article-images/";
+
+  beforeEach(() => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://store.test/");
+    cms.media = (file) => ({ id: String(100 + cms.uploads.length), url: `https://site.test/wp-content/uploads/${file.filename}` });
+  });
+  afterEach(() => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "");
+  });
+
+  async function pictured() {
+    const s = await scene({ slug: "music-video-crew" });
+    const a = `${STORAGE}${s.websiteId}/${s.post.id}/1791986572090-96wum8.jpg`;
+    const b = `${STORAGE}${s.websiteId}/${s.post.id}/1791986573111-ab12cd.jpg`;
+    const body = [
+      `<h2>Roles</h2><p>Who does what.</p><img src="${a}" alt="Director coordinating a shoot" width="1280" height="720">`,
+      `<h2>Budget</h2><p>What it costs.</p><img src="${b}" alt="">`,
+      `<p>Their own photo:</p><img src="https://elsewhere.test/own.jpg" alt="Own">`,
+    ].join("");
+    await test.db.update(articles).set({ bodyHtml: body }).where(eq(articles.id, s.post.id));
+    return { s, a, b };
+  }
+
+  it("a direct send uploads each RepGet picture, under a readable name, and the post points at the uploads", async () => {
+    const { s, a, b } = await pictured();
+    await expect(run(s)).resolves.toMatchObject({ status: "publish" });
+
+    expect(cms.uploads).toEqual([
+      { filename: "director-coordinating-a-shoot.jpg", alt: "Director coordinating a shoot" },
+      // No alt text: named after the article and the picture's place in it.
+      { filename: "music-video-crew-2.jpg", alt: "" },
+    ]);
+    const [post] = [...cms.posts.values()];
+    expect(post.contentHtml).not.toContain(STORAGE);
+    expect(post.contentHtml).toContain('src="https://site.test/wp-content/uploads/director-coordinating-a-shoot.jpg"');
+    expect(post.contentHtml).toContain('class="wp-image-101"');
+    expect(post.contentHtml).toContain('src="https://site.test/wp-content/uploads/music-video-crew-2.jpg"');
+    expect(post.contentHtml).toContain('class="wp-image-102"');
+    // A picture that is not RepGet's is left as it is.
+    expect(post.contentHtml).toContain('src="https://elsewhere.test/own.jpg"');
+    // The stored article keeps RepGet's addresses: it is what RepGet shows and edits.
+    const [row] = await test.db.select().from(articles).where(eq(articles.id, s.post.id));
+    expect(row.bodyHtml).toContain(a);
+    const [d] = await dispatches(s.post.id);
+    expect(d.requestSnapshot).toMatchObject({
+      pictures: {
+        [a]: { id: "101", url: "https://site.test/wp-content/uploads/director-coordinating-a-shoot.jpg" },
+        [b]: { id: "102", url: "https://site.test/wp-content/uploads/music-video-crew-2.jpg" },
+      },
+    });
+  });
+
+  it("the next send of the article points at the same uploads instead of uploading again", async () => {
+    const { s } = await pictured();
+    await run(s);
+    expect(cms.uploads).toHaveLength(2);
+
+    const [row] = await test.db.select().from(articles).where(eq(articles.id, s.post.id));
+    await test.db.update(articles).set({ bodyHtml: `${row.bodyHtml}<p>A new closing line.</p>` }).where(eq(articles.id, s.post.id));
+    await expect(run(s)).resolves.toMatchObject({ status: "publish" });
+
+    expect(cms.calls.filter((call) => call === "upload")).toHaveLength(2);
+    expect(cms.calls).toContain("update:1");
+    const updated = cms.posts.get("1");
+    expect(updated?.contentHtml).toContain("A new closing line.");
+    expect(updated?.contentHtml).not.toContain(STORAGE);
+    expect(updated?.contentHtml).toContain('class="wp-image-101"');
+    // ...and that send keeps them too, for the one after.
+    const second = (await dispatches(s.post.id)).at(-1);
+    expect(Object.keys((second?.requestSnapshot as { pictures?: object })?.pictures ?? {})).toHaveLength(2);
+  });
+
+  it("a picture the site refuses goes out as it was; the article is not held back", async () => {
+    const { s, a, b } = await pictured();
+    cms.refuseUpload = (file) => file.alt === "";
+    await expect(run(s)).resolves.toMatchObject({ status: "publish" });
+
+    const [post] = [...cms.posts.values()];
+    expect(post.contentHtml).not.toContain(`src="${a}"`);
+    expect(post.contentHtml).toContain(`src="${b}"`);
+    const [d] = await dispatches(s.post.id);
+    expect(Object.keys((d.requestSnapshot as { pictures: object }).pictures)).toEqual([a]);
+  });
+
+  it("without picture storage nothing is uploaded and the text goes as it was", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "");
+    const { s, a } = await pictured();
+    await run(s);
+    expect(cms.uploads).toEqual([]);
+    expect([...cms.posts.values()][0].contentHtml).toContain(`src="${a}"`);
+  });
+
+  it("the plugin's check is told where RepGet keeps its pictures", async () => {
+    const s = await scene();
+    await test.db.delete(integrations).where(eq(integrations.websiteId, s.websiteId));
+    await test.db.insert(integrationKeys).values({ websiteId: s.websiteId, keyHash: randomUUID(), keyPrefix: "seo_x" });
+    keyMock.websiteId = s.websiteId;
+    const feed = await (await pluginArticles(new NextRequest("https://app.test/api/plugin/articles", { headers: { "x-integration-key": "seo_k" } }))).json();
+    expect(feed.storage).toEqual([STORAGE]);
   });
 });

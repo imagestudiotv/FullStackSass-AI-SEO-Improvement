@@ -9,6 +9,7 @@ import { siteScope } from "@/lib/articles/link-guard";
 import { placementUrlsForArticle } from "@/lib/backlinks/placements";
 import { db } from "@/lib/db";
 import { websites } from "@/lib/db/schema";
+import { storedImagePrefix } from "@/lib/images/storage";
 import { dueArticlesForPlugin, pluginPostsForWebsite } from "@/lib/plugin/due";
 import { recordSyncUrl } from "@/lib/plugin/sync";
 import { recordInstall, recordPluginVersion, resolveIntegrationKey } from "@/lib/plugin/keys";
@@ -160,9 +161,18 @@ export async function GET(request: NextRequest) {
     });
   }
 
+  const pictures = storedImagePrefix();
+
   return NextResponse.json(
     {
       ok: true,
+      /*
+        Where RepGet keeps its pictures. Plugin 1.8.0+ copies those inside an
+        article into the site's media library, under readable names, and
+        points the post at the copies - for new articles and, a few per check,
+        for the ones it published before. Ignored by older plugins.
+      */
+      storage: pictures ? [pictures] : [],
       // Posts this plugin already created, for moving them to another
       // content type. Ignored by plugins before 1.5.0.
       sent: sent

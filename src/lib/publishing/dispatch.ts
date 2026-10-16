@@ -8,6 +8,7 @@ import { articles, calendarItems, publicationDispatches, websites } from "@/lib/
 import type { Executor } from "@/lib/db/types";
 import { FREEZE_LOCK, isControlEnabled } from "@/lib/publishing/controls";
 import { ownershipMarker } from "@/lib/publishing/ownership";
+import { readPictureCopies, type PictureCopies } from "@/lib/publishing/picture-copies";
 import { automaticStatus, FIRST_ARTICLE_STATUS, isFirstArticle } from "@/lib/publishing/policy";
 
 /**
@@ -510,6 +511,41 @@ export async function settleDispatch(
     .where(and(eq(publicationDispatches.id, dispatchId), eq(publicationDispatches.status, "in_flight")))
     .returning({ id: publicationDispatches.id });
   return rows.length > 0;
+}
+
+/**
+ * Pictures a direct send put in the CMS's media library, kept with that send
+ * (request_snapshot.pictures). The next send of the article over the same
+ * connection points at them rather than uploading them again
+ * (sentPictures). Best effort: the post is already out when this runs.
+ */
+export async function recordSentPictures(dispatchId: string, copies: PictureCopies, executor: Executor = db): Promise<void> {
+  if (Object.keys(copies).length === 0) return;
+  await executor
+    .update(publicationDispatches)
+    .set({
+      requestSnapshot: sql`coalesce(${publicationDispatches.requestSnapshot}, '{}'::jsonb) || ${JSON.stringify({ pictures: copies })}::jsonb`,
+    })
+    .where(eq(publicationDispatches.id, dispatchId));
+}
+
+/** The pictures the latest completed direct send of this article over this connection uploaded. */
+export async function sentPictures(articleId: string, integrationId: string, executor: Executor = db): Promise<PictureCopies> {
+  const [last] = await executor
+    .select({ pictures: sql<unknown>`${publicationDispatches.requestSnapshot} -> 'pictures'` })
+    .from(publicationDispatches)
+    .where(
+      and(
+        eq(publicationDispatches.articleId, articleId),
+        eq(publicationDispatches.channel, "direct"),
+        eq(publicationDispatches.status, "sent"),
+        eq(publicationDispatches.integrationId, integrationId),
+        sql`${publicationDispatches.requestSnapshot} -> 'pictures' is not null`,
+      ),
+    )
+    .orderBy(desc(publicationDispatches.claimedAt))
+    .limit(1);
+  return readPictureCopies(last?.pictures);
 }
 
 /** The latest direct dispatch whose outcome is unknown, if that is the latest. */

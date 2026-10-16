@@ -215,6 +215,19 @@ export async function listStoredImages(folder: string, max = 2000): Promise<Stor
   return found;
 }
 
+/**
+ * The start of every public address storeArticleImage hands out - the same
+ * address getPublicUrl builds, without needing the service key. The WordPress
+ * plugin (1.8.0+) is sent it with each check, to recognise RepGet's pictures
+ * in an article and copy them into the customer's media library; the direct
+ * connections use it the same way (lib/publishing/body-images.ts). Null
+ * without storage.
+ */
+export function storedImagePrefix(): string | null {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim().replace(/\/+$/, "");
+  return url ? `${url}/storage/v1/object/public/${BUCKET}/` : null;
+}
+
 /** The bucket key of one of our public image URLs, or null for any other address. */
 export function storedImagePath(url: string): string | null {
   const marker = `/${BUCKET}/`;

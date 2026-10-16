@@ -15,10 +15,14 @@ import {
   claimDispatch,
   HOLD_MESSAGES,
   latestUncertain,
+  recordSentPictures,
+  sentPictures,
   settleDispatch,
   type DispatchTrigger,
 } from "@/lib/publishing/dispatch";
+import { imageExtension, imageFileName } from "@/lib/publishing/image-names";
 import { withOwnershipMarker } from "@/lib/publishing/ownership";
+import { pointAtCopies, storedPictures, type PictureCopies } from "@/lib/publishing/picture-copies";
 import { nextLookupDelayMs, reconcileDirectUncertain } from "@/lib/publishing/reconcile";
 import { notify } from "@/lib/notifications/create";
 import { markFirstArticleSentAndContinue } from "@/lib/publishing/policy";
@@ -29,6 +33,7 @@ import {
   generateArticleImage,
   isImageGenerationConfigured,
 } from "@/lib/images/generate";
+import { storedImagePrefix } from "@/lib/images/storage";
 import { ProviderError } from "@/lib/publishing/provider";
 import { getProvider } from "@/lib/publishing/registry";
 
@@ -422,10 +427,8 @@ export const publishArticleJob = inngest.createFunction(
         const media = await provider.uploadMedia(integration.credentials, {
           data: generated.data,
           contentType: generated.contentType,
-          filename: `${prepared.post.slug ?? "header"}.${
-            generated.contentType.includes("jpeg") ? "jpg"
-              : generated.contentType.includes("webp") ? "webp" : "png"
-          }`,
+          // Named after the article, as the WordPress plugin names it (lib/publishing/image-names.ts).
+          filename: `${imageFileName(prepared.post.slug, prepared.post.title)}.${imageExtension(generated.contentType)}`,
           alt: generated.alt,
         });
 
@@ -462,6 +465,81 @@ export const publishArticleJob = inngest.createFunction(
         );
         return null;
       }
+    });
+
+    /*
+      The pictures INSIDE the article go to the customer's media library too,
+      like the header (client, 2026-10-16), so the published post loads none
+      of them from RepGet. Each is uploaded once per connection: the copies are
+      kept with the send (recordSentPictures) and found again by the next one.
+      A picture that cannot be uploaded goes out as it is - it still shows,
+      from RepGet - rather than holding the article back. Shopify and the
+      webhook take pictures by address and upload nothing.
+    */
+    const pictureCopies: PictureCopies = await step.run("upload-body-pictures", async () => {
+      const prefix = storedImagePrefix();
+      if (!prefix) return {};
+      const wanted = storedPictures(prepared.post.contentHtml, prefix);
+      if (wanted.length === 0) return {};
+      const provider = getProvider(prepared.providerId);
+      if (!provider?.uploadMedia) return {};
+      // As for the header: nothing is uploaded for a revision that is already held.
+      const now = await checkReleasable(articleId);
+      if (!now.ok) return {};
+
+      const copies: PictureCopies = { ...(await sentPictures(articleId, prepared.integrationId)) };
+      if (wanted.every((picture) => copies[picture.src])) return copies;
+      const integration = await loadCredentialsById(prepared.integrationId);
+      if (!integration) return copies;
+
+      const startedAt = Date.now();
+      let uploaded = 0;
+      for (const [index, picture] of wanted.entries()) {
+        if (copies[picture.src]) continue;
+        try {
+          // Our own storage, through the same guarded fetch as every other download.
+          const response = await safeFetch(picture.src, {
+            signal: AbortSignal.timeout(30_000),
+            maxBytes: 25 * 1024 * 1024,
+            timeoutMs: 30_000,
+          });
+          if (!response.ok) throw new Error(`Could not load the picture (${response.status})`);
+          const contentType = response.headers.get("content-type") ?? "image/jpeg";
+          const media = await provider.uploadMedia(integration.credentials, {
+            data: Buffer.from(await response.arrayBuffer()),
+            contentType,
+            // Named after what it shows; without alt text, after the article and its place in it.
+            filename: `${imageFileName(picture.alt, `${prepared.post.slug ?? prepared.post.title}-${index + 1}`)}.${imageExtension(contentType)}`,
+            alt: picture.alt,
+          });
+          copies[picture.src] = { id: String(media.id), url: media.url };
+          uploaded++;
+        } catch (error) {
+          logger.warn(
+            {
+              step: "upload-body-pictures",
+              articleId,
+              websiteId,
+              providerId: prepared.providerId,
+              reason: error instanceof Error ? error.message : "unknown",
+            },
+            "A picture could not be uploaded - it goes out loading from RepGet",
+          );
+        }
+      }
+      logger.info(
+        {
+          step: "upload-body-pictures",
+          articleId,
+          websiteId,
+          providerId: prepared.providerId,
+          pictures: wanted.length,
+          uploaded,
+          durationMs: Date.now() - startedAt,
+        },
+        "Pictures uploaded to the customer's media library",
+      );
+      return copies;
     });
 
     /*
@@ -641,11 +719,16 @@ export const publishArticleJob = inngest.createFunction(
           else (lib/publishing/ownership.ts).
         */
         contentHtml: withOwnershipMarker(
-          prepareForDelivery(claim.article.bodyHtml, {
-            poweredBy: site?.poweredByLink ?? false,
-            siteHosts: site ? siteScope(site).hosts : undefined,
-            followUrls: await placementUrlsForArticle(articleId),
-          }),
+          // The pictures uploaded above, in place of RepGet's addresses.
+          pointAtCopies(
+            prepareForDelivery(claim.article.bodyHtml, {
+              poweredBy: site?.poweredByLink ?? false,
+              siteHosts: site ? siteScope(site).hosts : undefined,
+              followUrls: await placementUrlsForArticle(articleId),
+            }),
+            pictureCopies,
+            { wordpress: prepared.providerId === "wordpress" },
+          ),
           { articleId, websiteId, dispatchId: claim.dispatchId },
         ),
         slug: claim.article.slug,
@@ -661,6 +744,13 @@ export const publishArticleJob = inngest.createFunction(
           ? await provider.updatePost(integration.credentials, remoteId, post)
           : await provider.createPost(integration.credentials, post);
         await settleDispatch(claim.dispatchId, { status: "sent", remoteId: sent.remoteId, remoteUrl: sent.remoteUrl, remoteStatus: sent.status });
+        // Never fails the send: the post is out. Without the record, the next send uploads them again.
+        await recordSentPictures(claim.dispatchId, pictureCopies).catch((error) =>
+          logger.warn(
+            { step: "send-to-cms", articleId, websiteId, reason: error instanceof Error ? error.message : "unknown" },
+            "Could not keep the uploaded pictures with the send",
+          ),
+        );
 
         /**
          * `returnedStatus` is read back from the CMS rather than assumed: a

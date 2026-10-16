@@ -2,7 +2,7 @@
 /**
  * Plugin Name: RepGet Connector
  * Description: Publishes articles written by RepGet straight to this site. Press Connect to RepGet to connect.
- * Version: 1.7.1
+ * Version: 1.8.0
  * Requires at least: 5.6
  * Requires PHP: 7.4
  * License: GPLv2 or later
@@ -42,7 +42,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('REPGET_VERSION', '1.7.1');
+define('REPGET_VERSION', '1.8.0');
 define('REPGET_OPTION_KEY', 'repget_integration_key');
 define('REPGET_OPTION_STATUS', 'repget_status');
 define('REPGET_OPTION_ENDPOINT', 'repget_endpoint');
@@ -92,6 +92,25 @@ define('REPGET_CONNECT_TTL', 900);
 define('REPGET_PLUGIN_SLUG', 'repget-connector');
 /** RepGet's update manifest, cached. See repget_update_manifest(). */
 define('REPGET_UPDATE_MANIFEST', 'repget_update_manifest');
+/*
+  Pictures (1.8.0): an article's pictures are copied into this site's media
+  library under readable names, and the post points at the copies. See
+  "Pictures" below.
+*/
+/** Seconds of picture copying per check; what is left is copied on a later check. */
+define('REPGET_IMAGE_BUDGET', 30);
+/** Seconds one picture download may take. */
+define('REPGET_IMAGE_TIMEOUT', 20);
+/** Posts published before 1.8.0, or not finished, given their pictures per check. */
+define('REPGET_IMAGE_POSTS_PER_CHECK', 3);
+/** Failed copies of one picture before it is left loading from RepGet. */
+define('REPGET_IMAGE_MAX_TRIES', 3);
+/** Longest picture file name, before the extension. */
+define('REPGET_IMAGE_NAME_MAX', 60);
+/** Failed copies so far, per picture address: md5(address) => count. */
+define('REPGET_OPTION_IMAGE_FAILURES', 'repget_image_failures');
+/** On a post: the md5 of its content when nothing more could be copied from it. */
+define('REPGET_META_IMAGES_CHECKED', '_repget_images_checked');
 
 /**
  * Default API host. Overridable for self-hosted or staging installs.
@@ -1684,6 +1703,11 @@ function repget_sync($token = null) {
         ? $result['articles']
         : array();
 
+    // Pictures (1.8.0): where RepGet keeps them, and when this check stops copying.
+    $prefixes = repget_storage_prefixes($result);
+    $deadline = repget_image_deadline();
+    $GLOBALS['repget_images_failed_now'] = array();
+
     $published = 0;
 
     foreach ($articles as $article) {
@@ -1728,21 +1752,41 @@ function repget_sync($token = null) {
             : 'publish';
 
         $existing = repget_find_post($article_id);
+        $slug = isset($article['slug']) ? sanitize_title($article['slug']) : '';
+
+        /**
+         * wp_kses_post rather than raw HTML. The body comes from an API,
+         * and while we generate it ourselves, a plugin that injects
+         * unfiltered HTML into a customer's site is one compromise away
+         * from being the vector. WordPress's own post-content whitelist is
+         * exactly the right filter here.
+         */
+        $content = wp_kses_post($article['html']);
+        /*
+          The pictures before the post (1.8.0), so it is written once, already
+          showing this site's copies. Nothing here can stop the article: a
+          picture not copied keeps loading from RepGet and is copied later.
+        */
+        $copied = array();
+        if ($prefixes) {
+            $pictures = repget_localize_images(
+                $content,
+                $prefixes,
+                $existing,
+                $slug !== '' ? $slug : repget_image_name($article['title'], 'article'),
+                $deadline
+            );
+            $content = $pictures['html'];
+            $copied = $pictures['ids'];
+        }
 
         $fields = array(
             'post_title'   => sanitize_text_field($article['title']),
-            /**
-             * wp_kses_post rather than raw HTML. The body comes from an API,
-             * and while we generate it ourselves, a plugin that injects
-             * unfiltered HTML into a customer's site is one compromise away
-             * from being the vector. WordPress's own post-content whitelist is
-             * exactly the right filter here.
-             */
-            'post_content' => wp_kses_post($article['html']),
+            'post_content' => $content,
             'post_excerpt' => isset($article['excerpt'])
                 ? sanitize_text_field($article['excerpt'])
                 : '',
-            'post_name'    => isset($article['slug']) ? sanitize_title($article['slug']) : '',
+            'post_name'    => $slug,
         );
 
         if ($existing > 0) {
@@ -1798,6 +1842,11 @@ function repget_sync($token = null) {
             update_post_meta($post_id, REPGET_META_ARTICLE, $article_id);
         }
 
+        // Pictures copied before the post existed now belong to it.
+        if ($copied) {
+            repget_adopt_images($copied, $post_id);
+        }
+
         /*
           The header image, when one was generated. A failure here is not fatal:
           the article is still published, just without its image. Only on
@@ -1805,7 +1854,13 @@ function repget_sync($token = null) {
           attachment to the media library each time.
         */
         if ($existing === 0 && !empty($article['image']['url'])) {
-            repget_attach_image($post_id, $article['image']['url'], $article['image']['alt']);
+            repget_attach_image(
+                $post_id,
+                $article['image']['url'],
+                isset($article['image']['alt']) ? $article['image']['alt'] : '',
+                $slug,
+                $article['title']
+            );
         }
 
         /*
@@ -1831,6 +1886,9 @@ function repget_sync($token = null) {
 
         $published++;
     }
+
+    // Pictures of posts published before 1.8.0, and any an earlier check did not finish.
+    repget_localize_older_posts($prefixes, $deadline, $token);
 
     return $published;
 }
@@ -2143,19 +2201,463 @@ function repget_report($article_id, $dispatch_id, $url, $remote_id, $error, $sta
     ));
 }
 
-/** Downloads the header image into the media library and sets it featured. */
-function repget_attach_image($post_id, $url, $alt) {
+/**
+ * The header picture: copied into the media library - or found, when it was
+ * copied before - and set as the post's featured image. Named after the
+ * article (its slug, else its title).
+ */
+function repget_attach_image($post_id, $url, $alt, $slug = '', $title = '') {
+    $attachment_id = repget_find_image($url);
+    if ($attachment_id === 0) {
+        $attachment_id = repget_copy_image(
+            $url,
+            $post_id,
+            repget_image_name($slug, $title),
+            $alt,
+            REPGET_IMAGE_TIMEOUT
+        );
+        if (is_wp_error($attachment_id)) {
+            return;
+        }
+    }
+    set_post_thumbnail($post_id, $attachment_id);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Pictures (1.8.0)                                                           */
+/* -------------------------------------------------------------------------- */
+
+/*
+  RepGet keeps every picture it makes in its own storage. Before 1.8.0 only an
+  article's header picture was copied into this site's media library - under
+  RepGet's storage name, "1791986572090-96wum8.jpg" - and the pictures inside
+  the text kept loading from RepGet (client, 2026-10-16).
+
+  Now every RepGet picture in an article is copied before the post is
+  written, named after what it shows (its alt text; the header after the
+  article), and the post points at the copies - with WordPress's own
+  attachment class, so the theme gets WordPress's responsive sizes. RepGet's
+  pictures are recognised by the storage address RepGet sends with each check
+  ("storage"); every other picture is left alone.
+
+  A copy is found again by the address it came from (_source_url, which
+  media_sideload_image() has always recorded), so an update, a retry or the
+  next check never copies a picture twice. The work is bounded per check
+  (REPGET_IMAGE_BUDGET, inside the host's own time limit): what does not fit
+  keeps loading from RepGet, which still works, and is copied on a later
+  check - as are the pictures of posts published before 1.8.0, a few posts per
+  check. A picture that fails REPGET_IMAGE_MAX_TRIES times is left where it is.
+*/
+
+/** The storage addresses RepGet sent with this check: https prefixes ending in "/". */
+function repget_storage_prefixes($response) {
+    $sent = is_array($response) && isset($response['storage']) && is_array($response['storage'])
+        ? $response['storage']
+        : array();
+    $prefixes = array();
+    foreach ($sent as $prefix) {
+        if (is_string($prefix) && preg_match('#^https://[^/\s?\#]+/[^\s?\#"\'<>]*/$#', $prefix)) {
+            $prefixes[] = $prefix;
+        }
+    }
+    return array_values(array_unique($prefixes));
+}
+
+/** True for a picture address inside RepGet's storage. */
+function repget_is_stored_image($url, $prefixes) {
+    foreach ($prefixes as $prefix) {
+        if (strlen($url) > strlen($prefix) && strncmp($url, $prefix, strlen($prefix)) === 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * When this check stops copying pictures: REPGET_IMAGE_BUDGET seconds from
+ * now, and at least ten seconds before the host's own time limit for the
+ * request runs out - a check cut off by the host would leave its lock behind.
+ */
+function repget_image_deadline() {
+    $deadline = time() + REPGET_IMAGE_BUDGET;
+    $limit = (int) ini_get('max_execution_time');
+    if ($limit > 0) {
+        $started = isset($_SERVER['REQUEST_TIME']) ? (int) $_SERVER['REQUEST_TIME'] : time();
+        $deadline = min($deadline, $started + $limit - 10);
+    }
+    return $deadline;
+}
+
+/**
+ * A readable file name, without its extension: from `$text` - what the
+ * picture shows - else `$fallback`, else "image". Lower case, words joined by
+ * hyphens, accents dropped, at most REPGET_IMAGE_NAME_MAX characters, cut
+ * between words. The rule RepGet uses for its direct connections
+ * (lib/publishing/image-names.ts); a name of digits only falls back too.
+ */
+function repget_image_name($text, $fallback) {
+    $name = repget_image_name_from($text);
+    if ($name !== '' && !preg_match('/^[0-9-]+$/', $name)) {
+        return $name;
+    }
+    $name = repget_image_name_from($fallback);
+    return $name !== '' ? $name : 'image';
+}
+
+function repget_image_name_from($text) {
+    /*
+      The same letters on every site: remove_accents() spells by the site's
+      language (a German site's "ä" is "ae", any other's "a"), so it is given
+      one; and "ß" is "ss", where WordPress would write "s".
+    */
+    $text = str_replace('ß', 'ss', html_entity_decode((string) $text, ENT_QUOTES, 'UTF-8'));
+    $text = remove_accents($text, 'en_US');
+    $name = trim(preg_replace('/[^a-z0-9]+/', '-', strtolower($text)), '-');
+    if (strlen($name) > REPGET_IMAGE_NAME_MAX) {
+        // The last hyphen within the limit; at the limit for one long word.
+        $cut = substr($name, 0, REPGET_IMAGE_NAME_MAX + 1);
+        $at = strrpos($cut, '-');
+        $name = rtrim($at !== false && $at > 0 ? substr($cut, 0, $at) : substr($name, 0, REPGET_IMAGE_NAME_MAX), '-');
+    }
+    return $name;
+}
+
+/** A picture's file type from its address: jpg, png, webp or gif; '' for anything else. */
+function repget_image_extension($url) {
+    $path = (string) wp_parse_url($url, PHP_URL_PATH);
+    if (!preg_match('/\.(jpe?g|png|webp|gif)$/i', $path, $match)) {
+        return '';
+    }
+    $extension = strtolower($match[1]);
+    return $extension === 'jpeg' ? 'jpg' : $extension;
+}
+
+/** The media library copy of a picture, found by the address it was copied from; 0 for none. */
+function repget_find_image($url) {
+    $found = get_posts(array(
+        'post_type'        => 'attachment',
+        'post_status'      => 'inherit',
+        'posts_per_page'   => 1,
+        'fields'           => 'ids',
+        'orderby'          => 'ID',
+        'order'            => 'ASC',
+        'no_found_rows'    => true,
+        // A translation plugin must not hide a copy filed under another language.
+        'suppress_filters' => true,
+        'meta_key'         => '_source_url',
+        'meta_value'       => $url,
+    ));
+    return $found ? (int) $found[0] : 0;
+}
+
+/**
+ * Copies one picture into the media library as "<name>.<extension>",
+ * attached to `$post_id` (0 for a post not written yet; see
+ * repget_adopt_images). The alt text becomes the picture's alt text and title,
+ * as 1.7 did for the header. Returns the attachment id, or a WP_Error.
+ */
+function repget_copy_image($url, $post_id, $name, $alt, $timeout) {
+    $extension = repget_image_extension($url);
+    if ($extension === '') {
+        return new WP_Error('repget_image_type', __('Not a picture address.', 'repget'));
+    }
+
     require_once ABSPATH . 'wp-admin/includes/media.php';
     require_once ABSPATH . 'wp-admin/includes/file.php';
     require_once ABSPATH . 'wp-admin/includes/image.php';
 
-    $attachment_id = media_sideload_image($url, $post_id, $alt, 'id');
-    if (is_wp_error($attachment_id)) {
-        return;
+    $file = download_url($url, (int) $timeout);
+    if (is_wp_error($file)) {
+        return $file;
     }
 
-    update_post_meta($attachment_id, '_wp_attachment_image_alt', sanitize_text_field($alt));
-    set_post_thumbnail($post_id, $attachment_id);
+    $alt = sanitize_text_field((string) $alt);
+    $attachment_id = media_handle_sideload(
+        array('name' => $name . '.' . $extension, 'tmp_name' => $file),
+        (int) $post_id,
+        $alt !== '' ? $alt : null
+    );
+    if (is_wp_error($attachment_id)) {
+        wp_delete_file($file);
+        return $attachment_id;
+    }
+
+    // What media_sideload_image() records, and how the copy is found again.
+    add_post_meta($attachment_id, '_source_url', $url);
+    if ($alt !== '') {
+        update_post_meta($attachment_id, '_wp_attachment_image_alt', $alt);
+    }
+    return (int) $attachment_id;
+}
+
+/** Failed copies so far, per picture address (md5 => count). */
+function repget_image_failures() {
+    $failures = get_option(REPGET_OPTION_IMAGE_FAILURES, array());
+    return is_array($failures) ? $failures : array();
+}
+
+/** True once a picture failed to copy REPGET_IMAGE_MAX_TRIES times: it stays where it is. */
+function repget_image_given_up($url) {
+    $failures = repget_image_failures();
+    $key = md5($url);
+    return isset($failures[$key]) && (int) $failures[$key] >= REPGET_IMAGE_MAX_TRIES;
+}
+
+function repget_image_failed($url) {
+    $failures = repget_image_failures();
+    $key = md5($url);
+    $failures[$key] = (isset($failures[$key]) ? (int) $failures[$key] : 0) + 1;
+    // Bounded: the oldest addresses are forgotten first.
+    if (count($failures) > 500) {
+        $failures = array_slice($failures, -500, null, true);
+    }
+    update_option(REPGET_OPTION_IMAGE_FAILURES, $failures, false);
+    // Once per check is enough: the next try is the next check's.
+    $GLOBALS['repget_images_failed_now'][$key] = true;
+}
+
+/** True for a picture that already failed during this check. */
+function repget_image_failed_now($url) {
+    return isset($GLOBALS['repget_images_failed_now'][md5($url)]);
+}
+
+/** Every <img> tag: a ">" inside a quoted value does not end it. */
+function repget_img_pattern() {
+    return '/<img\b(?:[^>"\']|"[^"]*"|\'[^\']*\')*>/i';
+}
+
+/**
+ * An <img> tag's attributes, in order: name => array('text' => as written,
+ * 'value' => decoded). The first of a repeated name wins, as in a browser.
+ */
+function repget_img_attributes($tag) {
+    $inner = preg_replace('/^<img\b|\/?>$/i', '', $tag);
+    preg_match_all(
+        '/([^\s"\'>\/=]+)(?:\s*=\s*(?:"([^"]*)"|\'([^\']*)\'|([^\s"\'=<>`]+)))?/',
+        (string) $inner,
+        $matches,
+        PREG_SET_ORDER | PREG_UNMATCHED_AS_NULL
+    );
+    $attributes = array();
+    foreach ($matches as $match) {
+        $name = strtolower($match[1]);
+        if (isset($attributes[$name])) {
+            continue;
+        }
+        $raw = isset($match[2]) ? $match[2] : (isset($match[3]) ? $match[3] : (isset($match[4]) ? $match[4] : ''));
+        $attributes[$name] = array(
+            'text'  => $match[0],
+            'value' => html_entity_decode($raw, ENT_QUOTES, 'UTF-8'),
+        );
+    }
+    return $attributes;
+}
+
+/**
+ * `$tag` showing its media library copy: the copy's address, and WordPress's
+ * class for that attachment (wp-image-<id>), which is how WordPress finds the
+ * attachment in a post and adds the responsive sizes it made. srcset and
+ * sizes go: they named RepGet's addresses. Everything else stays as it was.
+ */
+function repget_retarget_image($tag, $url, $attachment_id) {
+    $attributes = repget_img_attributes($tag);
+    $classes = array();
+    if (isset($attributes['class'])) {
+        foreach (preg_split('/\s+/', $attributes['class']['value'], -1, PREG_SPLIT_NO_EMPTY) as $class) {
+            if (!preg_match('/^wp-image-\d+$/', $class)) {
+                $classes[] = $class;
+            }
+        }
+    }
+    $classes[] = 'wp-image-' . (int) $attachment_id;
+    $class = 'class="' . esc_attr(implode(' ', $classes)) . '"';
+
+    $out = '<img';
+    foreach ($attributes as $name => $attribute) {
+        if ($name === 'src') {
+            $out .= ' src="' . esc_url($url) . '"';
+        } elseif ($name === 'class') {
+            $out .= ' ' . $class;
+        } elseif ($name !== 'srcset' && $name !== 'sizes') {
+            $out .= ' ' . $attribute['text'];
+        }
+    }
+    if (!isset($attributes['class'])) {
+        $out .= ' ' . $class;
+    }
+    return $out . (substr($tag, -2) === '/>' ? ' />' : '>');
+}
+
+/**
+ * `$html` with each RepGet picture pointing at its media library copy. A
+ * picture with no copy yet is copied while `$deadline` (a unix time) allows -
+ * named after its alt text, or "<fallback>-<n>" without one, n being its place
+ * among the article's RepGet pictures.
+ *
+ * Returns array('html', 'ids' => the copies it points at, 'left' => RepGet
+ * pictures still loading from RepGet that a later check may copy).
+ */
+function repget_localize_images($html, $prefixes, $post_id, $fallback, $deadline) {
+    $none = array('html' => $html, 'ids' => array(), 'left' => 0);
+    if (!$prefixes || stripos((string) $html, '<img') === false) {
+        return $none;
+    }
+
+    $state = array('copies' => array(), 'places' => array(), 'ids' => array(), 'left' => 0);
+    $out = preg_replace_callback(
+        repget_img_pattern(),
+        function ($match) use ($prefixes, $post_id, $fallback, $deadline, &$state) {
+            $tag = $match[0];
+            $attributes = repget_img_attributes($tag);
+            $src = isset($attributes['src']) ? trim($attributes['src']['value']) : '';
+            if ($src === '' || !repget_is_stored_image($src, $prefixes)) {
+                return $tag;
+            }
+            if (!isset($state['places'][$src])) {
+                $state['places'][$src] = count($state['places']) + 1;
+            }
+
+            if (!isset($state['copies'][$src])) {
+                $attachment_id = repget_find_image($src);
+                if ($attachment_id === 0) {
+                    if (repget_image_given_up($src)) {
+                        return $tag;
+                    }
+                    if (time() >= $deadline || repget_image_failed_now($src)) {
+                        $state['left']++;
+                        return $tag;
+                    }
+                    $alt = isset($attributes['alt']) ? $attributes['alt']['value'] : '';
+                    $attachment_id = repget_copy_image(
+                        $src,
+                        $post_id,
+                        repget_image_name($alt, $fallback . '-' . $state['places'][$src]),
+                        $alt,
+                        max(5, min(REPGET_IMAGE_TIMEOUT, $deadline - time()))
+                    );
+                    if (is_wp_error($attachment_id)) {
+                        repget_image_failed($src);
+                        if (!repget_image_given_up($src)) {
+                            $state['left']++;
+                        }
+                        return $tag;
+                    }
+                }
+                $state['copies'][$src] = $attachment_id;
+            }
+
+            $url = wp_get_attachment_url($state['copies'][$src]);
+            if (!$url) {
+                return $tag;
+            }
+            $state['ids'][] = $state['copies'][$src];
+            return repget_retarget_image($tag, $url, $state['copies'][$src]);
+        },
+        (string) $html
+    );
+    if (!is_string($out)) {
+        // The pattern gave up (a backtracking limit on a pathological page): leave the page as it was.
+        return $none;
+    }
+    return array('html' => $out, 'ids' => array_values(array_unique($state['ids'])), 'left' => $state['left']);
+}
+
+/**
+ * Copies made before their post existed, attached to it now - what the media
+ * library's own "Attach" does. A copy already attached elsewhere stays there.
+ */
+function repget_adopt_images($ids, $post_id) {
+    global $wpdb;
+    foreach ($ids as $attachment_id) {
+        $attachment_id = (int) $attachment_id;
+        if ($attachment_id > 0 && (int) get_post_field('post_parent', $attachment_id) === 0) {
+            $wpdb->update(
+                $wpdb->posts,
+                array('post_parent' => (int) $post_id),
+                array('ID' => $attachment_id, 'post_type' => 'attachment')
+            );
+            clean_attachment_cache($attachment_id);
+        }
+    }
+}
+
+/**
+ * The pictures of RepGet posts published before 1.8.0, or not finished on an
+ * earlier check: a few posts per check, newest first, while `$deadline`
+ * allows. Returns how many posts changed.
+ *
+ * Only picture addresses change, written in place: the post's dates,
+ * revisions and author stay as they were, and the write happens only if the
+ * post still holds exactly what was read - an edit saved in WordPress
+ * meanwhile is never overwritten; the next check starts again from it, and
+ * the copies already made are reused. A post with nothing left to copy is
+ * marked with its content's md5 and not looked at again until it changes.
+ */
+function repget_localize_older_posts($prefixes, $deadline, $token = null) {
+    global $wpdb;
+    if (!$prefixes || time() >= $deadline) {
+        return 0;
+    }
+
+    $args = array(REPGET_META_ARTICLE);
+    foreach ($prefixes as $prefix) {
+        $args[] = '%' . $wpdb->esc_like($prefix) . '%';
+    }
+    $args[] = REPGET_META_IMAGES_CHECKED;
+    $args[] = REPGET_IMAGE_POSTS_PER_CHECK;
+    $mentions = implode(' OR ', array_fill(0, count($prefixes), 'p.post_content LIKE %s'));
+    $ids = $wpdb->get_col($wpdb->prepare(
+        "SELECT p.ID FROM {$wpdb->posts} p
+         INNER JOIN {$wpdb->postmeta} m ON m.post_id = p.ID AND m.meta_key = %s
+         WHERE p.post_type NOT IN ('revision', 'attachment')
+           AND p.post_status NOT IN ('trash', 'auto-draft', 'inherit')
+           AND ({$mentions})
+           AND NOT EXISTS (
+             SELECT 1 FROM {$wpdb->postmeta} c
+             WHERE c.post_id = p.ID AND c.meta_key = %s AND c.meta_value = MD5(p.post_content)
+           )
+         GROUP BY p.ID
+         ORDER BY p.ID DESC
+         LIMIT %d",
+        $args
+    ));
+
+    $changed = 0;
+    foreach ((array) $ids as $post_id) {
+        if (time() >= $deadline) {
+            break;
+        }
+        // Still ours? A check that lost its lease writes nothing more.
+        if ($token !== null && repget_lock_renew($token) !== 'owned') {
+            break;
+        }
+        $post = get_post((int) $post_id);
+        if (!$post) {
+            continue;
+        }
+        $fallback = $post->post_name !== '' ? $post->post_name : repget_image_name($post->post_title, 'image');
+        $pictures = repget_localize_images($post->post_content, $prefixes, $post->ID, $fallback, $deadline);
+
+        if ($pictures['html'] !== $post->post_content) {
+            // MD5: exact bytes - the column's collation would call a change of letter case "equal".
+            $written = $wpdb->query($wpdb->prepare(
+                "UPDATE {$wpdb->posts} SET post_content = %s WHERE ID = %d AND MD5(post_content) = %s",
+                $pictures['html'],
+                $post->ID,
+                md5($post->post_content)
+            ));
+            clean_post_cache($post->ID);
+            if ($written !== 1) {
+                // Edited meanwhile (or the write failed): the next check starts from what is there now.
+                continue;
+            }
+            $changed++;
+        }
+        if ($pictures['left'] === 0) {
+            update_post_meta($post->ID, REPGET_META_IMAGES_CHECKED, md5($pictures['html']));
+        }
+    }
+    return $changed;
 }
 
 /* -------------------------------------------------------------------------- */

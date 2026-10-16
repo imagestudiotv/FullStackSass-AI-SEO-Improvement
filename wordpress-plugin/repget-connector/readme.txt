@@ -2,7 +2,7 @@
 Requires at least: 5.6
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 1.7.1
+Stable tag: 1.8.0
 License: GPLv2 or later
 
 Publishes articles written by RepGet straight to your WordPress site.
@@ -56,6 +56,14 @@ host about a real cron job.
 As published posts, with the featured image set. They are ordinary posts, so
 you can edit or unpublish them like anything else.
 
+= Where are the pictures kept? =
+
+In your media library, like pictures you upload yourself. Each article's
+pictures are saved there under readable names - taken from what each picture
+shows, the featured image's from the article - and the article shows them
+from your site. A picture RepGet sends again, for example when an
+article is updated, uses the copy already in your media library.
+
 = How do I stop publishing to this site, or move it to another account? =
 
 Press "Disconnect" on the RepGet screen in WordPress. RepGet is told, and the
@@ -85,6 +93,20 @@ screen, so RepGet can bring you back to it. Nothing else is sent. The plugin
 only fetches articles and reports whether each one published.
 
 == Changelog ==
+
+= 1.8.0 =
+* The pictures inside an article are now saved in your media library, like
+  the featured image, and the article shows them from your site instead of
+  from RepGet.
+* Pictures get readable file names, taken from what they show - for example
+  director-coordinating-a-music-video-shoot.jpg instead of
+  1791986572090-96wum8.jpg. The featured image is named after the article.
+* Articles published with an earlier version are brought up to date too, a
+  few at each check: their pictures are copied and the articles point at the
+  copies. Nothing else in them changes, and an article you are editing is
+  left for the next check.
+* A picture is never saved twice: an updated article uses the copy already in
+  your media library.
 
 = 1.7.1 =
 * The plugin now talks to RepGet at www.repget.com, RepGet's own address,

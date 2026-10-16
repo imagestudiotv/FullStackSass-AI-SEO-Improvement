@@ -175,6 +175,12 @@ jobs:
       - name: Plugin against real WordPress + MySQL
         run: php wordpress-plugin/tests/real-wordpress.php "$RUNNER_TEMP/wordpress" wordpress-plugin/repget-connector/repget-connector.php
 
+      # 1.8.0: an article's pictures copied into the media library under
+      # readable names, older posts brought up to date in place, an edit
+      # saved meanwhile never overwritten, failing pictures given up.
+      - name: Plugin pictures against real WordPress + MySQL
+        run: php wordpress-plugin/tests/real-wordpress-images.php "$RUNNER_TEMP/wordpress" wordpress-plugin/repget-connector/repget-connector.php
+
       # Separate PHP processes released together at a barrier: lock races,
       # lease takeover, a process killed mid-insert, failed acknowledgements,
       # overlapping entry points, and the upgrade from 1.5.0.
