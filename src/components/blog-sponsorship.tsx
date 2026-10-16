@@ -15,7 +15,7 @@ import type { Locale } from "@/lib/i18n/config";
 const BLACK = "bg-foreground text-background hover:bg-foreground/90 dark:bg-foreground dark:text-background";
 /**
  * The panel's full-width pay buttons. Their words may wrap: "Continuer vers le
- * paiement - 99 USD" is wider than the button on most phones, and a label that
+ * paiement - 99 €" is wider than the button on most phones, and a label that
  * cannot wrap spills out of both ends of it.
  */
 const WIDE = "h-auto min-h-12 w-full rounded-full py-2 text-center text-base leading-snug font-semibold whitespace-normal";
@@ -24,10 +24,10 @@ const WIDE = "h-auto min-h-12 w-full rounded-full py-2 text-center text-base lea
  * "Get Featured in This Article" (client, 2026-10-08, after babylovegrowth's
  * article pages; design okPInmTvoyUs.jpg): a pill on the right of the
  * article's author row opens a panel under it with the offer, word for word
- * as the client's design has it - $99, one time, no subscription, per article
- * placement, subject to editorial approval.
+ * as the client's design has it - €99 (US dollars until 2026-10-16), one
+ * time, no subscription, per article placement, subject to editorial approval.
  *
- * "Get Featured for $99" then asks three short things in the same panel -
+ * "Get Featured for €99" then asks three short things in the same panel -
  * the buyer's email, website, and what the mention should say (agreed with
  * the client: the placement needs them) - and goes on to Stripe
  * (lib/blog/sponsorship-actions.ts). Where Stripe is not set up, the panel

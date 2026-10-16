@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { listPlacements, type PlacementView } from "@/lib/admin/blog-sponsorships";
 import { blogLocale, blogPath, LANGUAGE_NAMES_EN } from "@/lib/blog/locale";
+import { SPONSORSHIP_PRICE_LABEL } from "@/lib/blog/sponsorship";
 import { formatDate, formatNumber } from "@/lib/i18n/format";
 import { cn } from "@/lib/utils";
 
@@ -44,7 +45,7 @@ function statusOf(row: { status: string; createdAt: Date }): { tone: StatusTone;
 }
 
 /**
- * Admin -> Blog -> Featured placements: who paid $99 to be mentioned in which
+ * Admin -> Blog -> Featured placements: who paid €99 to be mentioned in which
  * article (lib/blog/sponsorship.ts), oldest paid request first. Placing the
  * mention is done by hand in the article; this page records the decision.
  * Unpaid requests are kept apart, so they can never bury a paid one.
@@ -60,7 +61,7 @@ export default async function FeaturedPlacementsPage({ searchParams }: { searchP
       <AdminPageHeader
         back={{ href: "/admin/blog", label: "Blog" }}
         title="Featured placements"
-        description="Paid “Get Featured in This Article” requests from the blog ($99, one time). Add the sponsored mention to the article yourself, then mark it published here - or decline it."
+        description={`Paid “Get Featured in This Article” requests from the blog (${SPONSORSHIP_PRICE_LABEL}, one time). Add the sponsored mention to the article yourself, then mark it published here - or decline it.`}
       />
 
       <nav aria-label="Placement status" className="flex flex-wrap gap-2">

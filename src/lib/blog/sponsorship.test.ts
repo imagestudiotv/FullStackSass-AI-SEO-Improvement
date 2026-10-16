@@ -10,7 +10,7 @@ import { adminAuditLog, blogPosts, blogSponsorships, spendReservations } from "@
 import { createTestDb, type TestDb } from "@/test/db";
 
 /**
- * "Get Featured in This Article" (client, 2026-10-08): $99, once, through
+ * "Get Featured in This Article" (client, 2026-10-08): €99 (dollars until 2026-10-16), once, through
  * RepGet's existing Stripe account and webhook; reviewed by an administrator.
  * Stripe and email are stand-ins; the database is real (PGlite).
  */
@@ -55,7 +55,7 @@ import LocaleSponsorshipThanksPage from "@/app/(marketing)/[locale]/blog/sponsor
 import SponsorshipThanksPage from "@/app/(marketing)/blog/sponsorship/thanks/page";
 import { LOCALES } from "@/lib/i18n/config";
 
-import { confirmSponsorship, SPONSORSHIP_CENTS, SPONSORSHIP_LIMITS } from "./sponsorship";
+import { confirmSponsorship, SPONSORSHIP_CENTS, SPONSORSHIP_CURRENCY, SPONSORSHIP_LIMITS } from "./sponsorship";
 import { startBlogSponsorship, type SponsorshipInput } from "./sponsorship-actions";
 import { SPONSORSHIP_COPY } from "./sponsorship-copy";
 
@@ -111,7 +111,7 @@ function paidSession(id: string, checkoutId: string, overrides: Partial<Stripe.C
     payment_status: "paid",
     status: "complete",
     amount_total: 9900,
-    currency: "usd",
+    currency: "eur",
     metadata: { blogSponsorshipId: id, articleSlug: "live-article" },
     ...overrides,
   } as Stripe.Checkout.Session;
@@ -126,7 +126,7 @@ async function started(overrides: Parameters<typeof request>[0] = {}) {
 }
 
 describe("starting a placement payment", () => {
-  it("opens a one-time $99 checkout priced on the server, and the same request reuses it", async () => {
+  it("opens a one-time €99 checkout priced on the server, and the same request reuses it", async () => {
     const data = request();
     // A price sent by the browser is ignored: it is not even read.
     expect(await startBlogSponsorship({ ...data, amount: 1 } as never)).toEqual({ url: "https://checkout.stripe.com/c/pay/test" });
@@ -135,7 +135,7 @@ describe("starting a placement payment", () => {
       mode: "payment",
       customer_email: data.email,
       metadata: { blogSponsorshipId: data.id, articleSlug: "live-article" },
-      line_items: [{ quantity: 1, price_data: { currency: "usd", unit_amount: 9900 } }],
+      line_items: [{ quantity: 1, price_data: { currency: "eur", unit_amount: 9900 } }],
       success_url: "https://repget.test/blog/sponsorship/thanks?session_id={CHECKOUT_SESSION_ID}",
       cancel_url: "https://repget.test/blog/live-article?featured=cancelled",
     });
@@ -201,12 +201,13 @@ describe("starting a placement payment", () => {
 });
 
 describe("confirming the payment", () => {
-  it("counts only this request's own session, paid, one time, exactly $99 in US dollars", async () => {
+  it("counts only this request's own session, paid, one time, exactly €99", async () => {
     const { id, checkoutId } = await started();
     for (const tamper of [
       { id: "cs_test_someone_else" },
       { amount_total: 99 },
-      { currency: "eur" },
+      { currency: "gbp" },
+      { amount_total: 9000, currency: "usd" },
       { payment_status: "unpaid" as const },
       { mode: "subscription" as const },
     ]) {
@@ -230,6 +231,14 @@ describe("confirming the payment", () => {
       subject: "Paid placement request: A live article",
       replyTo: first.email,
     });
+    expect(state.sendEmail.mock.calls[0][0].text).toContain("paid €99.00 for a sponsored mention");
+  });
+
+  it("a dollar checkout opened before the switch to euros still counts, and the email says what was paid", async () => {
+    const { id, checkoutId } = await started();
+    expect(await confirmSponsorship(paidSession(id, checkoutId, { currency: "usd" }))).toBe(true);
+    expect((await order(id)).status).toBe("paid");
+    expect(state.sendEmail.mock.calls[0][0].text).toContain("paid US$99.00 for a sponsored mention");
   });
 
   it("is a placement in RepGet's existing Stripe webhook, never an add-on purchase", async () => {
@@ -340,9 +349,10 @@ describe("in every language", () => {
       // Never a promise the client did not make.
       expect(JSON.stringify(SPONSORSHIP_COPY[locale]), locale).not.toMatch(/refund|rimbors|reembols|rembours|erstatt/i);
     }
-    expect(SPONSORSHIP_CENTS).toBe(9900);
-    expect(SPONSORSHIP_COPY.en.panel.price).toBe("$99");
-    for (const locale of LOCALES.filter((l) => l !== "en")) expect(SPONSORSHIP_COPY[locale].panel.price, locale).toBe("99 USD");
+    expect([SPONSORSHIP_CENTS, SPONSORSHIP_CURRENCY]).toEqual([9900, "eur"]);
+    expect(SPONSORSHIP_COPY.en.panel.price).toBe("€99");
+    // A non-breaking space: the sign never wraps onto a line of its own.
+    for (const locale of LOCALES.filter((l) => l !== "en")) expect(SPONSORSHIP_COPY[locale].panel.price, locale).toBe("99\u00a0€");
   });
 
   it("an Italian article: Stripe's page, its texts and the way back are Italian", async () => {
@@ -352,7 +362,7 @@ describe("in every language", () => {
     expect(params).toMatchObject({
       locale: "it",
       metadata: { blogSponsorshipId: data.id, articleSlug: "articolo-vivo", articleLocale: "it" },
-      line_items: [{ price_data: { currency: "usd", unit_amount: 9900, product_data: { name: SPONSORSHIP_COPY.it.stripe.productName } } }],
+      line_items: [{ price_data: { currency: "eur", unit_amount: 9900, product_data: { name: SPONSORSHIP_COPY.it.stripe.productName } } }],
       success_url: "https://repget.test/it/blog/sponsorship/thanks?session_id={CHECKOUT_SESSION_ID}",
       cancel_url: "https://repget.test/it/blog/articolo-vivo?featured=cancelled",
       custom_text: { submit: { message: SPONSORSHIP_COPY.it.stripe.submitMessage } },

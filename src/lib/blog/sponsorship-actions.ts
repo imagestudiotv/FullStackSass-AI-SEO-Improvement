@@ -20,7 +20,7 @@ import { visitorKey } from "@/lib/visitor-key";
 
 /**
  * Starts a "Get Featured" payment: records the request, then opens a Stripe
- * Checkout for $99 (lib/blog/sponsorship.ts). Public - no account needed -
+ * Checkout for €99 (lib/blog/sponsorship.ts). Public - no account needed -
  * so what it accepts is checked here, and how often anyone may start one is
  * capped (SPONSORSHIP_LIMITS, lib/blog/sponsorship.ts).
  *

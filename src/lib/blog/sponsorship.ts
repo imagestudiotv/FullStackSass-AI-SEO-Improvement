@@ -16,7 +16,7 @@ import { isStripeConfigured } from "@/lib/stripe/client";
 
 /**
  * "Get Featured in This Article" on RepGet's own blog (client, 2026-10-08):
- * a reader pays $99, once, through Stripe, for a sponsored mention and a
+ * a reader pays €99, once, through Stripe, for a sponsored mention and a
  * link inside the article, subject to editorial approval. Nothing is added
  * to an article automatically - an administrator reviews each paid request
  * (Admin -> Blog -> Featured placements) and edits the article by hand.
@@ -39,8 +39,34 @@ import { isStripeConfigured } from "@/lib/stripe/client";
  * and the page after paying in that language (lib/blog/sponsorship-copy.ts).
  */
 
+/** In euros since 2026-10-16 (client: "change the currency from USD to EUR"); US dollars before. */
 export const SPONSORSHIP_CENTS = 9900;
-export const SPONSORSHIP_CURRENCY = "usd";
+export const SPONSORSHIP_CURRENCY = "eur";
+/** The price as administrators read it (the admin list). Buyers see sponsorship-copy.ts. */
+export const SPONSORSHIP_PRICE_LABEL = "€99";
+
+/**
+ * Prices a request's checkout may carry from before the current one. A buyer
+ * who opened the dollar checkout just before the switch to euros can still
+ * pay it while Stripe keeps it open (24 hours) - the same request is shown
+ * the same checkout again - and that payment must count, not be left
+ * "pending" with the money taken.
+ */
+const EARLIER_PRICES: ReadonlyArray<{ cents: number; currency: string }> = [{ cents: 9900, currency: "usd" }];
+
+/** The session paid the price of a placement: today's, or one a checkout opened earlier still carries. */
+function paidThePrice(session: Pick<Stripe.Checkout.Session, "amount_total" | "currency">): boolean {
+  return [{ cents: SPONSORSHIP_CENTS, currency: SPONSORSHIP_CURRENCY }, ...EARLIER_PRICES].some(
+    (price) => session.amount_total === price.cents && session.currency === price.currency,
+  );
+}
+
+/** What a session actually took, e.g. "€99.00" - for the administrators' email. */
+function amountPaid(session: Pick<Stripe.Checkout.Session, "amount_total" | "currency">): string {
+  return new Intl.NumberFormat("en-IE", { style: "currency", currency: (session.currency ?? SPONSORSHIP_CURRENCY).toUpperCase() }).format(
+    (session.amount_total ?? 0) / 100,
+  );
+}
 
 /**
  * Each request is a Stripe call on the account that also runs subscriptions,
@@ -81,7 +107,8 @@ export function isSponsorshipSession(session: Pick<Stripe.Checkout.Session, "met
  * never with anything a browser sent.
  *
  * Paid means all of it: the session is the one stored for this request, a
- * one-time payment, paid, for exactly $99 in US dollars. Only a pending
+ * one-time payment, paid, for exactly the price (€99; see EARLIER_PRICES for
+ * a checkout opened before the switch from dollars). Only a pending
  * request moves, so a replayed event changes nothing and a request an
  * administrator has already handled stays handled. Returns whether the
  * request is paid (or beyond) now.
@@ -93,8 +120,7 @@ export async function confirmSponsorship(session: Stripe.Checkout.Session): Prom
     !UUID.test(id) ||
     session.mode !== "payment" ||
     session.payment_status !== "paid" ||
-    session.amount_total !== SPONSORSHIP_CENTS ||
-    session.currency !== SPONSORSHIP_CURRENCY
+    !paidThePrice(session)
   ) {
     return false;
   }
@@ -113,12 +139,12 @@ export async function confirmSponsorship(session: Stripe.Checkout.Session): Prom
     .returning({ id: blogSponsorships.id });
 
   // Told once, by whichever confirmation got there first (webhook or thanks page).
-  if (moved.length > 0) await notifyAdmins(order);
+  if (moved.length > 0) await notifyAdmins(order, amountPaid(session));
   return moved.length > 0 || order.status !== "pending";
 }
 
 /** Emails the administrators about a newly paid request. Never throws: the payment is recorded either way. */
-async function notifyAdmins(order: typeof blogSponsorships.$inferSelect): Promise<void> {
+async function notifyAdmins(order: typeof blogSponsorships.$inferSelect, paid: string): Promise<void> {
   const to = adminEmails();
   if (to.length === 0) return;
   try {
@@ -129,16 +155,16 @@ async function notifyAdmins(order: typeof blogSponsorships.$inferSelect): Promis
     const review = `${siteUrl()}/admin/blog/sponsorships`;
     const html = emailLayout({
       heading: "New paid placement to review",
-      preheader: `$99 paid for a mention in “${title}”.`,
+      preheader: `${paid} paid for a mention in “${title}”.`,
       body: [
-        emailText(`<strong>${escapeHtml(order.email)}</strong> paid $99 for a sponsored mention in <strong>${escapeHtml(title)}</strong>${escapeHtml(language)}.`),
+        emailText(`<strong>${escapeHtml(order.email)}</strong> paid ${escapeHtml(paid)} for a sponsored mention in <strong>${escapeHtml(title)}</strong>${escapeHtml(language)}.`),
         emailText(`Website: ${escapeHtml(order.websiteUrl)}`),
         emailText(`What they would like mentioned:<br>${escapeHtml(order.message)}`),
         emailButton(review, "Review the request"),
       ].join(""),
     });
     const text = [
-      `${order.email} paid $99 for a sponsored mention in "${title}"${language}.`,
+      `${order.email} paid ${paid} for a sponsored mention in "${title}"${language}.`,
       `Website: ${order.websiteUrl}`,
       `What they would like mentioned: ${order.message}`,
       `Review it: ${review}`,

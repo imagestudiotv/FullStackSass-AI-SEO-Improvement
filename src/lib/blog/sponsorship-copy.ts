@@ -9,9 +9,10 @@ import type { Locale } from "@/lib/i18n/config";
  * Pages pass the panel's words for their language to the button
  * (components/blog-sponsorship.tsx, a client component), so a reader's
  * browser gets one language, never this whole table. The price is the
- * server's (lib/blog/sponsorship.ts SPONSORSHIP_CENTS, in US dollars;
- * sponsorship.test.ts keeps them equal): shown as "$99" in English and
- * "99 USD" elsewhere, where a bare "$" could be read as another dollar.
+ * server's (lib/blog/sponsorship.ts SPONSORSHIP_CENTS, in euros since
+ * 2026-10-16; sponsorship.test.ts keeps them equal), written the way each
+ * language writes euros: "€99" in English, "99 €" in the others - with a
+ * non-breaking space, so the sign never wraps onto a line of its own.
  */
 
 export type SponsorshipPanelCopy = {
@@ -94,7 +95,7 @@ export const SPONSORSHIP_COPY: Record<Locale, SponsorshipCopy> = {
         "Reach readers already interested in this topic. Showcase your business with a relevant sponsored mention and website link inside this article.",
       cancelled: "Payment cancelled - you were not charged. You can start again whenever you like.",
       oneTime: "One-time payment",
-      price: "$99",
+      price: "€99",
       noSubscription: "No subscription",
       perArticle: "Per article placement",
       start: "Get Featured for {price}",
@@ -155,7 +156,7 @@ export const SPONSORSHIP_COPY: Record<Locale, SponsorshipCopy> = {
         "Llegue a lectores que ya se interesan por este tema. Dé a conocer su negocio con una mención patrocinada relevante y un enlace a su web dentro de este artículo.",
       cancelled: "Pago cancelado: no se le ha cobrado nada. Puede empezar de nuevo cuando quiera.",
       oneTime: "Pago único",
-      price: "99 USD",
+      price: "99\u00a0€",
       noSubscription: "Sin suscripción",
       perArticle: "Precio por artículo",
       start: "Conseguir la mención por {price}",
@@ -217,7 +218,7 @@ export const SPONSORSHIP_COPY: Record<Locale, SponsorshipCopy> = {
         "Touchez des lecteurs déjà intéressés par ce sujet. Mettez en avant votre entreprise grâce à une mention sponsorisée pertinente et un lien vers votre site dans cet article.",
       cancelled: "Paiement annulé : rien ne vous a été facturé. Vous pouvez recommencer quand vous le souhaitez.",
       oneTime: "Paiement unique",
-      price: "99 USD",
+      price: "99\u00a0€",
       noSubscription: "Sans abonnement",
       perArticle: "Prix par article",
       start: "Obtenir la mention pour {price}",
@@ -279,7 +280,7 @@ export const SPONSORSHIP_COPY: Record<Locale, SponsorshipCopy> = {
         "Raggiunga lettori già interessati a questo argomento. Presenti la sua attività con una menzione sponsorizzata pertinente e un link al suo sito all’interno di questo articolo.",
       cancelled: "Pagamento annullato: non le è stato addebitato nulla. Può ricominciare quando vuole.",
       oneTime: "Pagamento unico",
-      price: "99 USD",
+      price: "99\u00a0€",
       noSubscription: "Nessun abbonamento",
       perArticle: "Prezzo per articolo",
       start: "Ottenere la menzione per {price}",
@@ -342,7 +343,7 @@ export const SPONSORSHIP_COPY: Record<Locale, SponsorshipCopy> = {
         "Erreichen Sie Leser, die sich bereits für dieses Thema interessieren. Präsentieren Sie Ihr Unternehmen mit einer passenden gesponserten Erwähnung und einem Link zu Ihrer Website in diesem Artikel.",
       cancelled: "Zahlung abgebrochen – Ihnen wurde nichts berechnet. Sie können jederzeit neu beginnen.",
       oneTime: "Einmalige Zahlung",
-      price: "99 USD",
+      price: "99\u00a0€",
       noSubscription: "Kein Abo",
       perArticle: "Preis pro Artikel",
       start: "Erwähnung für {price} sichern",

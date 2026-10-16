@@ -8,7 +8,7 @@ For whoever deploys this work: the client's requests of 8 October 2026 (RepGet b
 
 - **Team author page** at `/blog/author/repget-team`, and in every language since 2026-10-15 (`/it/blog/author/repget-team`...). The team byline on every article links to the page in the article's language. It lists the team's articles in that language, 30 per page.
 - **Closing panel** ("Your website could be growing faster.") on the homepage, `/blog`, category pages, the author page and every article, in all five languages. Its buttons go to the free website check (`/audit`) and to sign-up ("Create 3 Articles for Free").
-- **"Get Featured in This Article"**: a button beside the byline opens the offer ($99 one time, per article, subject to editorial approval). The buyer gives an email, a website and what the mention should say, then pays through Stripe Checkout. No refunds are promised.
+- **"Get Featured in This Article"**: a button beside the byline opens the offer (€99 one time - US dollars until 2026-10-16 - per article, subject to editorial approval). The buyer gives an email, a website and what the mention should say, then pays through Stripe Checkout. No refunds are promised.
 - **30 articles per page** on the blog, category and author pages, with Newer / page numbers / Older.
 - **Search engines** get each page's title, description, canonical address and social tags in the first HTML they download (Googlebot and the bots in Next's own list; people still get the faster streamed page).
 - The support address shown on the site defaults to `support@repget.com`.
