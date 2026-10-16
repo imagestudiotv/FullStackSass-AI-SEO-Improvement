@@ -412,8 +412,16 @@ export async function generateOutline(
      * Generous because a truncated response is unrecoverable: structured
      * output stops mid-JSON and JSON.parse throws on content that was
      * otherwise fine. 2000 was not enough for a 6-section outline.
+     *
+     * The same room as the body (16,000), not 6,000: Sonnet 5 thinks before
+     * it answers whenever `thinking` is left out, and the thinking counts
+     * against max_tokens. An outline is about 1,500 tokens, but on a
+     * puzzling brief the thinking alone used up the rest and the outline was
+     * cut off - "Outline was truncated before it finished" on Image Studio's
+     * "image studios santa monica", 2026-10-16. The thinking stays: it is how
+     * every outline so far was planned.
      */
-    max_tokens: 6000,
+    max_tokens: 16000,
     system: OUTLINE_SYSTEM,
     output_config: { format: { type: "json_schema", schema: OUTLINE_SCHEMA } },
     messages: [{ role: "user", content: briefContext(brief) }],

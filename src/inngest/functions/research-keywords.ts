@@ -16,6 +16,7 @@ import { clusters, keywords, websites } from "@/lib/db/schema";
 import { planCalendar } from "@/lib/keywords/calendar";
 import { articlesToPlan, keptDates, replaceUnstartedPlan } from "@/lib/keywords/replan";
 import { clusterKeywords } from "@/lib/keywords/cluster";
+import { brandMarks, isBrandSearch } from "@/lib/keywords/brand";
 import { rankKeywords, type SearchIntent } from "@/lib/keywords/score";
 import { generateSeedKeywords } from "@/lib/keywords/seeds";
 import {
@@ -383,7 +384,16 @@ export const researchKeywords = inngest.createFunction(
     });
 
     const stored = await step.run("score-and-store", async () => {
-      const ranked = rankKeywords(metrics.rows);
+      /*
+        A search that names the website - its own name or a namesake's,
+        "image studios santa monica" - is navigational whatever the provider
+        labelled it (lib/keywords/brand.ts): scored as such, and kept out of
+        the plan below.
+      */
+      const marks = brandMarks(site);
+      const ranked = rankKeywords(
+        metrics.rows.map((row) => (isBrandSearch(row.term, marks) ? { ...row, intent: "navigational" as const } : row)),
+      );
 
       const limit = await checkLimit(websiteId, "keywords");
 
@@ -510,14 +520,28 @@ export const researchKeywords = inngest.createFunction(
        * other. It has no volume or score of its own, which is fine: the model
        * groups on meaning, and the metrics only order what it returns.
        */
-      const all = await db
+      const everything = await db
         .select({
           term: keywords.term,
           volume: keywords.volume,
           priorityScore: keywords.priorityScore,
+          intent: keywords.intent,
+          source: keywords.source,
         })
         .from(keywords)
         .where(eq(keywords.websiteId, websiteId));
+
+      /*
+        Not searches for a business by name (lib/keywords/brand.ts): the
+        provider's navigational terms, and any that name the website or a
+        namesake - including ones stored by an earlier run under another
+        label. They stay in the keyword list; only the automatic plan skips
+        them. A term the customer typed in is theirs to plan, so it stays.
+      */
+      const marks = brandMarks(site);
+      const all = everything.filter(
+        (keyword) => keyword.source === "manual" || (keyword.intent !== "navigational" && !isBrandSearch(keyword.term, marks)),
+      );
 
       /*
         A manually added term has no priority score — nothing measured it.
@@ -564,6 +588,8 @@ export const researchKeywords = inngest.createFunction(
           websiteId,
           // Everything on the site, including manually added terms.
           inputKeywords: all.length,
+          // Searches for a business by name, left out of the plan.
+          businessNameSearches: everything.length - all.length,
           clusterCount: result.length,
           model: MODELS.GENERATION,
           names: result.slice(0, 8).map((c) => c.name),

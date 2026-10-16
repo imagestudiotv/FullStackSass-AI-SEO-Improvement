@@ -7,6 +7,13 @@ import { notBeforePlannedSql, releasableSql } from "@/lib/articles/review";
 import { notFrozenSql } from "@/lib/publishing/controls";
 import { notInFlightSql } from "@/lib/publishing/dispatch";
 
+/** Approved (and still as approved: releasableSql) on its planned UTC day or after it. */
+const approvedOnOrAfterPlannedDaySql = raw`(
+  ${articles.reviewStatus} = 'approved'
+  and ${articles.reviewApprovedAt} is not null
+  and ${articles.reviewApprovedAt}::date >= ${calendarItems.scheduledFor}::date
+)`;
+
 /**
  * Articles the WordPress plugin should create now, for one website.
  *
@@ -80,6 +87,16 @@ export function dueArticlesForPlugin(
             or(
               isNull(calendarItems.scheduledFor),
               lte(calendarItems.scheduledFor, now),
+              /*
+                Approved by the RepGet team on its planned day, or later:
+                due at once, as the direct connection sends it at approval
+                (releaseAfterApproval, lib/articles/release.ts). This waited
+                for the day's time slot (09:00, 12:00 or 15:00 UTC) instead,
+                so an article approved at 07:33 on its day stayed back, and
+                "Check for articles now" found nothing (2026-10-03). An
+                article approved before its day still goes at its slot.
+              */
+              approvedOnOrAfterPlannedDaySql,
             ),
           ),
         ),

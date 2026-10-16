@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { articles, calendarItems, clusters } from "@/lib/db/schema";
+import { articles, calendarItems, clusters, keywords, websites } from "@/lib/db/schema";
 import { createTestDb, type TestDb } from "@/test/db";
 import { seedWebsite } from "@/test/fixtures";
 
@@ -56,6 +56,8 @@ vi.mock("@/lib/keywords/calendar", async (original) => {
 });
 
 import { researchKeywords } from "@/inngest/functions/research-keywords";
+import { clusterKeywords } from "@/lib/keywords/cluster";
+import { generateSeedKeywords } from "@/lib/keywords/seeds";
 import { articlesToPlan, keptDates, replaceUnstartedPlan } from "./replan";
 
 let test: TestDb;
@@ -269,5 +271,28 @@ describe("re-planning through the research job", () => {
         body: expect.stringContaining("30 articles planned"),
       }),
     );
+  });
+});
+
+describe("searches for a business by name (client, 2026-10-16)", () => {
+  it("stay out of the plan: a namesake of the site and the provider's navigational terms; the customer's own term stays", async () => {
+    const { orgId, websiteId } = await seedWebsite(test);
+    await test.db.update(websites).set({ brandName: "Image Studio" }).where(eq(websites.id, websiteId));
+    vi.mocked(generateSeedKeywords).mockResolvedValueOnce([
+      { term: "wedding photographer", intent: "commercial" },
+      // Image Studio's real case: labelled commercial by the provider, and planned.
+      { term: "image studios santa monica", intent: "commercial" },
+      { term: "canva login", intent: "navigational" },
+    ]);
+    await test.db.insert(keywords).values({ websiteId, term: "image studio reviews", source: "manual" });
+    vi.mocked(clusterKeywords).mockClear();
+
+    await runResearch(websiteId, orgId);
+
+    const clustered = vi.mocked(clusterKeywords).mock.calls[0][0].map((keyword) => keyword.term).sort();
+    expect(clustered).toEqual(["image studio reviews", "wedding photographer"]);
+    const [namesake] = await test.db.select({ intent: keywords.intent }).from(keywords).where(eq(keywords.term, "image studios santa monica"));
+    // Kept in the list, as navigational - the customer can still plan it by hand.
+    expect(namesake.intent).toBe("navigational");
   });
 });

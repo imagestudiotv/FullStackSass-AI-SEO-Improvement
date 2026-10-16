@@ -246,7 +246,14 @@ async function writeFromPage(
     const response = await paidCall(reservations, () =>
       anthropic.messages.create({
         model: MODELS.GENERATION,
-        max_tokens: 1024,
+        /*
+          Room for the thinking as well as the answer: Sonnet 5 thinks before
+          it answers when `thinking` is left out, and the thinking counts
+          against max_tokens. The three descriptions are ~200 tokens, but 1,024
+          let a long think cut the JSON off - a paid call ending in "could not
+          write". Only what is generated is billed, so the room costs nothing.
+        */
+        max_tokens: 4096,
         messages: [{ role: "user", content: prompt }],
       }),
     );

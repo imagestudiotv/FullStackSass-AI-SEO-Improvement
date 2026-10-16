@@ -367,6 +367,29 @@ describe("the review gate holds a pending article on every publishing path", () 
     expect(item.at?.getTime()).toBe(planned.getTime());
   });
 
+  it("the plugin: approved on its planned day goes at once, approved earlier waits for its time slot", async () => {
+    const ws = await workspace("slot");
+    // A plugin site (no direct connection) whose first article went out long ago.
+    const host = await site(ws.orgId, `slot-${randomUUID().slice(0, 6)}.test`);
+    await test.db.update(websites).set({ firstArticleSentAt: new Date("2026-09-01T10:00:00Z") }).where(eq(websites.id, host));
+    const slot = new Date("2026-10-20T15:00:00Z");
+    const onTheDay = await article(host, { plannedFor: slot });
+    const dayBefore = await article(host, { plannedFor: slot });
+    for (const post of [onTheDay, dayBefore]) expect(await approve(post.id)).toMatchObject({ ok: true });
+    // When each was approved (UTC, as the application writes it).
+    await test.db.update(articles).set({ reviewApprovedAt: new Date("2026-10-20T07:33:00Z") }).where(eq(articles.id, onTheDay.id));
+    await test.db.update(articles).set({ reviewApprovedAt: new Date("2026-10-19T20:00:00Z") }).where(eq(articles.id, dayBefore.id));
+
+    const due = async (at: string) => (await dueArticlesForPlugin(host, 5, new Date(at))).map((r) => r.id).sort();
+    // 08:00 on the day, before the 15:00 slot: only the one approved that morning.
+    expect(await due("2026-10-20T08:00:00Z")).toEqual([onTheDay.id]);
+    // At the slot, both.
+    expect(await due("2026-10-20T15:00:00Z")).toEqual([onTheDay.id, dayBefore.id].sort());
+    // Reopened for review: neither the approval nor the day sends it.
+    await test.db.update(articles).set({ reviewStatus: "pending" }).where(eq(articles.id, onTheDay.id));
+    expect(await due("2026-10-20T08:00:00Z")).toEqual([]);
+  });
+
   it("an article outside the network (review_status null) keeps the old first-article rule", async () => {
     const ws = await workspace("legacy");
     const host = await site(ws.orgId, `legacy-${randomUUID().slice(0, 6)}.test`, { cms: true, accepting: false });
