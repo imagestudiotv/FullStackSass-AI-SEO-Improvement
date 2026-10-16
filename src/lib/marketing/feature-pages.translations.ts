@@ -29,7 +29,7 @@ export type FeatureTranslation = {
 
 export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
   es: {
-    about: "un estudio de vídeo y fotografía de bodas en Italia con el mismo propietario que RepGet",
+    about: "un estudio de vídeo y fotografía de bodas en Italia",
     category: "Bodas",
     backlinksImageAlt: "Una pareja saliendo de su ceremonia de boda en el Castello di Rossino, en Italia, con los invitados a ambos lados.",
     chatgptImageAlt: "Invitados y la pareja compartiendo un momento natural, sin posar, en un banquete de boda en Italia.",
@@ -274,7 +274,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
   },
 
   fr: {
-    about: "un studio de vidéo et de photographie de mariage en Italie, qui a le même propriétaire que RepGet",
+    about: "un studio de vidéo et de photographie de mariage en Italie",
     category: "Mariage",
     backlinksImageAlt: "Un couple quittant sa cérémonie de mariage au Castello di Rossino, en Italie, entre deux rangées d’invités.",
     chatgptImageAlt: "Les invités et le couple partageant un moment naturel, sans pose, lors d’une réception de mariage en Italie.",
@@ -519,7 +519,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
   },
 
   it: {
-    about: "uno studio di video e fotografia di matrimonio in Italia, con lo stesso proprietario di RepGet",
+    about: "uno studio di video e fotografia di matrimonio in Italia",
     category: "Matrimonio",
     backlinksImageAlt: "Una coppia esce dalla cerimonia di nozze al Castello di Rossino, in Italia, tra gli invitati ai due lati.",
     chatgptImageAlt: "Gli invitati e gli sposi condividono un momento naturale, non in posa, durante un ricevimento di nozze in Italia.",
@@ -764,7 +764,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
   },
 
   de: {
-    about: "ein Studio für Hochzeitsfilme und -fotografie in Italien mit demselben Inhaber wie RepGet",
+    about: "ein Studio für Hochzeitsfilme und -fotografie in Italien",
     category: "Hochzeit",
     backlinksImageAlt: "Ein Paar verlässt seine Trauung im Castello di Rossino in Italien, die Gäste stehen zu beiden Seiten.",
     chatgptImageAlt: "Gäste und das Brautpaar teilen einen natürlichen, ungestellten Moment bei einer Hochzeitsfeier in Italien.",

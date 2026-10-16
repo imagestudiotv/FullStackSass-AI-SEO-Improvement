@@ -83,7 +83,7 @@ const ENGLISH_UI: FeaturePage["ui"] = { published: "Published", minRead: "{n} mi
 const IMAGE_STUDIO = {
   siteName: "Image Studio",
   site: "imagestudio.com",
-  about: "a wedding film and photography studio in Italy with the same owner as RepGet",
+  about: "a wedding film and photography studio in Italy",
 };
 
 export const BACKLINKS_EXAMPLE: FeatureExample = {

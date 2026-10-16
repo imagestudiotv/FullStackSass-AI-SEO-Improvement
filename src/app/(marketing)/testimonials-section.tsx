@@ -44,16 +44,14 @@ export function Testimonials({
   const shown = testimonials.slice(0, VISIBLE);
   const more = testimonials.slice(VISIBLE);
   /*
-    The quote the case study is about links to its numbers, and says what the
-    case study says: Image Studio and RepGet have the same owner
+    The quote the case study is about links to its numbers
     (lib/marketing/case-study-image-studio.ts). Matched by name, as written in
     Admin -> Testimonials, give or take case and spaces.
   */
   const caseStudy = href(CASE_STUDY_PATH);
   const isCaseStudy = (item: Testimonial) => item.name.trim().toLowerCase() === CASE_STUDY_TESTIMONIAL.toLowerCase();
   const hasCaseStudy = testimonials.some(isCaseStudy);
-  const extrasFor = (item: Testimonial) =>
-    isCaseStudy(item) ? { link: { href: caseStudy, label: t.testimonialsCaseStudyCard }, note: t.testimonialsSameOwner } : {};
+  const linkFor = (item: Testimonial) => (isCaseStudy(item) ? { href: caseStudy, label: t.testimonialsCaseStudyCard } : undefined);
   const grid = `grid grid-cols-1 gap-3 ${
     testimonials.length === 1 ? "max-w-xl" : testimonials.length === 2 ? "max-w-4xl sm:grid-cols-2" : "sm:grid-cols-2 lg:grid-cols-3"
   }`;
@@ -101,7 +99,7 @@ export function Testimonials({
         {shown.length > 0 ? (
           <ul className={`mt-10 ${grid}`}>
             {shown.map((item, index) => (
-              <TestimonialCard key={`${index}-${item.name}`} item={item} verifiedLabel={t.testimonialsVerified} {...extrasFor(item)} />
+              <TestimonialCard key={`${index}-${item.name}`} item={item} verifiedLabel={t.testimonialsVerified} link={linkFor(item)} />
             ))}
           </ul>
         ) : null}
@@ -133,7 +131,7 @@ export function Testimonials({
             </summary>
             <ul className={grid}>
               {more.map((item, index) => (
-                <TestimonialCard key={`${VISIBLE + index}-${item.name}`} item={item} verifiedLabel={t.testimonialsVerified} {...extrasFor(item)} />
+                <TestimonialCard key={`${VISIBLE + index}-${item.name}`} item={item} verifiedLabel={t.testimonialsVerified} link={linkFor(item)} />
               ))}
             </ul>
           </details>

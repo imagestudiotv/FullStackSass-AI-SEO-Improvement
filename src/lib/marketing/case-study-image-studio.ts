@@ -14,9 +14,8 @@ import type { Locale } from "@/lib/i18n/config";
  * The rules it keeps, agreed with the client on 2026-10-15:
  * - Only what a RepGet plan does. The site-speed and technical work done by
  *   hand on imagestudio.com is left out: a customer could not buy it.
- * - It says that Image Studio and RepGet have the same owner. Without that the
- *   page reads as an independent customer's story, which advertising rules
- *   treat as misleading; with it, it reads as what it is.
+ * - The owner's quote is signed as the owner of Image Studio and RepGet. The
+ *   client chose (2026-10-15) not to add a separate same-owner line.
  * - Real numbers only, each with its source (the chart is drawn from them,
  *   never generated). The figures come from Image Studio's own Google Search
  *   Console as RepGet imports it, and from RepGet's records for the site.
@@ -111,8 +110,6 @@ export type CaseStudyCopy = {
   eyebrow: string;
   title: string;
   lede: string;
-  /** Image Studio and RepGet have the same owner - always shown, near the top. */
-  disclosure: string;
   /** {date}, {next} */
   updated: string;
   figures: {
@@ -190,8 +187,6 @@ export const CASE_STUDY_COPY: Record<Locale, CaseStudyCopy> = {
     eyebrow: "Case study · started {date}",
     title: "Image Studio: a Rome and Milan film studio on RepGet, tracked in public from day one",
     lede: "We are documenting RepGet's work on imagestudio.com as it happens: where the site started, what RepGet did, and what changed. This page is updated on the 1st of every month, good news or not.",
-    disclosure:
-      "Image Studio and RepGet have the same owner. That is why it was the first site on RepGet, and why we can show its numbers in full.",
     updated: "Updated {date} · next update {next}",
     figures: {
       keywords: "keywords researched on day one",
@@ -277,10 +272,6 @@ export const CASE_STUDY_COPY: Record<Locale, CaseStudyCopy> = {
         a: "Yes. Clicks, appearances and positions come from Image Studio's own Google Search Console. The audit, keyword, plan and article counts are RepGet's records. The chart is drawn from those numbers; it is not an illustration.",
       },
       {
-        q: "Why is Image Studio the first case study?",
-        a: "Image Studio and RepGet have the same owner, so it was the first site on RepGet and the one whose numbers we can show in full, including the weak ones.",
-      },
-      {
         q: "Why publish a case study after two weeks?",
         a: "So the starting point is on record before any results come in. Each month adds what changed, including what did not.",
       },
@@ -310,8 +301,6 @@ export const CASE_STUDY_COPY: Record<Locale, CaseStudyCopy> = {
     eyebrow: "Caso de estudio · desde el {date}",
     title: "Image Studio: un estudio de cine de Roma y Milán en RepGet, seguido en público desde el primer día",
     lede: "Documentamos el trabajo de RepGet en imagestudio.com a medida que ocurre: de dónde partía el sitio, qué hizo RepGet y qué cambió. Esta página se actualiza el día 1 de cada mes, con buenas noticias o sin ellas.",
-    disclosure:
-      "Image Studio y RepGet tienen el mismo propietario. Por eso fue el primer sitio en RepGet y por eso podemos mostrar sus cifras completas.",
     updated: "Actualizado el {date} · próxima actualización: {next}",
     figures: {
       keywords: "palabras clave investigadas el primer día",
@@ -398,10 +387,6 @@ export const CASE_STUDY_COPY: Record<Locale, CaseStudyCopy> = {
         a: "Sí. Los clics, las apariciones y las posiciones proceden del propio Google Search Console de Image Studio. Las cifras de la auditoría, las palabras clave, el plan y los artículos son registros de RepGet. El gráfico se dibuja con esas cifras; no es una ilustración.",
       },
       {
-        q: "¿Por qué Image Studio es el primer caso de estudio?",
-        a: "Image Studio y RepGet tienen el mismo propietario, así que fue el primer sitio en RepGet y aquel cuyas cifras podemos mostrar completas, también las flojas.",
-      },
-      {
         q: "¿Por qué publicar un caso de estudio a las dos semanas?",
         a: "Para que el punto de partida quede registrado antes de que lleguen los resultados. Cada mes se añade lo que cambió, y también lo que no.",
       },
@@ -431,8 +416,6 @@ export const CASE_STUDY_COPY: Record<Locale, CaseStudyCopy> = {
     eyebrow: "Étude de cas · depuis le {date}",
     title: "Image Studio : un studio de cinéma de Rome et de Milan sur RepGet, suivi en public dès le premier jour",
     lede: "Nous documentons le travail de RepGet sur imagestudio.com au fil de l'eau : le point de départ du site, ce que RepGet a fait et ce qui a changé. Cette page est mise à jour le 1er de chaque mois, que les nouvelles soient bonnes ou non.",
-    disclosure:
-      "Image Studio et RepGet ont le même propriétaire. C'est pourquoi il a été le premier site sur RepGet, et pourquoi nous pouvons en montrer tous les chiffres.",
     updated: "Mis à jour le {date} · prochaine mise à jour : {next}",
     figures: {
       keywords: "mots-clés étudiés le premier jour",
@@ -519,10 +502,6 @@ export const CASE_STUDY_COPY: Record<Locale, CaseStudyCopy> = {
         a: "Oui. Les clics, apparitions et positions proviennent du Google Search Console d'Image Studio. Les chiffres de l'audit, des mots-clés, du plan et des articles sont les données de RepGet. Le graphique est tracé à partir de ces chiffres ; ce n'est pas une illustration.",
       },
       {
-        q: "Pourquoi Image Studio est-il la première étude de cas ?",
-        a: "Image Studio et RepGet ont le même propriétaire : c'est donc le premier site sur RepGet, et celui dont nous pouvons montrer tous les chiffres, y compris les moins bons.",
-      },
-      {
         q: "Pourquoi publier une étude de cas au bout de deux semaines ?",
         a: "Pour que le point de départ soit consigné avant l'arrivée des résultats. Chaque mois ajoute ce qui a changé, et aussi ce qui n'a pas changé.",
       },
@@ -552,8 +531,6 @@ export const CASE_STUDY_COPY: Record<Locale, CaseStudyCopy> = {
     eyebrow: "Caso di studio · dal {date}",
     title: "Image Studio: uno studio di cinema di Roma e Milano su RepGet, seguito in pubblico dal primo giorno",
     lede: "Documentiamo il lavoro di RepGet su imagestudio.com man mano che avviene: da dove partiva il sito, cosa ha fatto RepGet e cosa è cambiato. Questa pagina viene aggiornata il 1° di ogni mese, che le notizie siano buone o no.",
-    disclosure:
-      "Image Studio e RepGet hanno lo stesso proprietario. Per questo è stato il primo sito su RepGet, e per questo possiamo mostrarne i numeri per intero.",
     updated: "Aggiornato il {date} · prossimo aggiornamento: {next}",
     figures: {
       keywords: "parole chiave analizzate il primo giorno",
@@ -640,10 +617,6 @@ export const CASE_STUDY_COPY: Record<Locale, CaseStudyCopy> = {
         a: "Sì. Clic, apparizioni e posizioni provengono dal Google Search Console di Image Studio. I numeri di audit, parole chiave, piano e articoli sono dati di RepGet. Il grafico è disegnato su questi numeri; non è un'illustrazione.",
       },
       {
-        q: "Perché Image Studio è il primo caso di studio?",
-        a: "Image Studio e RepGet hanno lo stesso proprietario: è stato quindi il primo sito su RepGet, e quello di cui possiamo mostrare tutti i numeri, anche quelli deboli.",
-      },
-      {
         q: "Perché pubblicare un caso di studio dopo due settimane?",
         a: "Perché il punto di partenza resti registrato prima che arrivino i risultati. Ogni mese si aggiunge cosa è cambiato, e anche cosa no.",
       },
@@ -673,8 +646,6 @@ export const CASE_STUDY_COPY: Record<Locale, CaseStudyCopy> = {
     eyebrow: "Fallstudie · seit {date}",
     title: "Image Studio: ein Filmstudio aus Rom und Mailand auf RepGet, öffentlich verfolgt ab dem ersten Tag",
     lede: "Wir dokumentieren die Arbeit von RepGet an imagestudio.com, während sie geschieht: wo die Website stand, was RepGet getan hat und was sich verändert hat. Diese Seite wird am 1. jedes Monats aktualisiert, ob die Nachrichten gut sind oder nicht.",
-    disclosure:
-      "Image Studio und RepGet haben denselben Inhaber. Deshalb war es die erste Website auf RepGet, und deshalb können wir ihre Zahlen vollständig zeigen.",
     updated: "Aktualisiert am {date} · nächstes Update: {next}",
     figures: {
       keywords: "Keywords am ersten Tag recherchiert",
@@ -758,10 +729,6 @@ export const CASE_STUDY_COPY: Record<Locale, CaseStudyCopy> = {
       {
         q: "Sind diese Zahlen echt?",
         a: "Ja. Klicks, Einblendungen und Positionen stammen aus der Google Search Console von Image Studio. Die Zahlen zu Audit, Keywords, Plan und Artikeln sind Aufzeichnungen von RepGet. Das Diagramm ist aus diesen Zahlen gezeichnet; es ist keine Illustration.",
-      },
-      {
-        q: "Warum ist Image Studio die erste Fallstudie?",
-        a: "Image Studio und RepGet haben denselben Inhaber. Darum war es die erste Website auf RepGet und die, deren Zahlen wir vollständig zeigen können, auch die schwachen.",
       },
       {
         q: "Warum eine Fallstudie nach zwei Wochen veröffentlichen?",

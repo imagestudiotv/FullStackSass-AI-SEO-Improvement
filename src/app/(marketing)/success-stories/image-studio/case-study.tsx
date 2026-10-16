@@ -163,8 +163,6 @@ export function CaseStudyPage({ locale }: { locale: Locale }) {
           <p className="text-xs font-semibold tracking-[0.14em] text-primary uppercase">{format(c.eyebrow, { date: d.long(s.started) })}</p>
           <h1 className="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">{c.title}</h1>
           <p className="text-lg text-pretty text-muted-foreground">{c.lede}</p>
-          {/* Always shown: without it this reads as an independent customer's story. */}
-          <p className="border-l-2 border-primary pl-3 text-sm text-pretty">{c.disclosure}</p>
           <p className="text-sm text-muted-foreground">{format(c.updated, { date: d.long(s.updated), next: d.long(s.nextUpdate) })}</p>
         </header>
 

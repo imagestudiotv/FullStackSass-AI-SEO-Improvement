@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { LOCALES } from "@/lib/i18n/config";
+import { format } from "@/lib/i18n/format";
 import { getMessages } from "@/lib/i18n/messages";
 import { CASE_STUDY_COPY, IMAGE_STUDIO } from "@/lib/marketing/case-study-image-studio";
 
@@ -28,13 +29,11 @@ const esc = (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").
 const jsonLd = (html: string) => JSON.parse(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/.exec(html)?.[1] ?? "[]");
 
 describe("the Image Studio case study", () => {
-  it("says, near the top, that Image Studio and RepGet have the same owner", () => {
+  // The client chose (2026-10-15) no separate same-owner line: the signature under the quote says who is speaking.
+  it("signs the owner's quote as the owner of Image Studio and RepGet, in every language", () => {
     for (const locale of LOCALES) {
-      const html = render(locale);
-      const disclosure = html.indexOf(esc(CASE_STUDY_COPY[locale].disclosure));
-      expect(disclosure, locale).toBeGreaterThan(0);
-      // Before any number or the quote.
-      expect(disclosure, locale).toBeLessThan(html.indexOf("<dl"));
+      expect(CASE_STUDY_COPY[locale].quoteBy, locale).toMatch(/Image Studio.*RepGet/);
+      expect(render(locale), locale).toContain(`>${esc(format(CASE_STUDY_COPY[locale].quoteBy, { name: IMAGE_STUDIO.owner }))}<`);
     }
   });
 

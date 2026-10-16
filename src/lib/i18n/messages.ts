@@ -309,8 +309,6 @@ export type Messages = {
     testimonialsCaseStudy: string;
     /** The same link on the card of the testimonial it belongs to. */
     testimonialsCaseStudyCard: string;
-    /** On that card: Image Studio and RepGet have the same owner. */
-    testimonialsSameOwner: string;
     /** "{score}/{outOf} on {platform} from {count} reviews" */
     reviewScore: string;
     /** Homepage FAQ. Questions come from the FAQ page's own list. */
@@ -3214,7 +3212,7 @@ const en: Messages = {
       ],
       selectorLabel: "Example articles",
       realLabel: "Published article",
-      realNote: "Real articles: two from RepGet's blog and one from Image Studio, which has the same owner as RepGet. Shown in the language they were published in.",
+      realNote: "Real articles: two from RepGet's blog and one from Image Studio's website. Shown in the language they were published in.",
       readFull: "Read the full article",
       readTime: "{n} min read",
       contentsLabel: "Contents",
@@ -3346,7 +3344,6 @@ const en: Messages = {
     testimonialsVerified: "Verified customer",
     testimonialsCaseStudy: "See the numbers behind one of these: the Image Studio case study",
     testimonialsCaseStudyCard: "Read the case study",
-    testimonialsSameOwner: "Same owner as RepGet",
     reviewScore: "{score}/{outOf} on {platform}, from {count} reviews",
     faqEyebrow: "FAQ",
     faqMore: "Still have a question?",
@@ -3426,7 +3423,7 @@ const en: Messages = {
     eyebrow: "Success stories",
     title: "Real sites, real numbers, updated every month.",
     intro:
-      "Each case study starts from a site's real starting point and adds its results on the 1st of every month, including the months where little moves. The first is Image Studio, which has the same owner as RepGet.",
+      "Each case study starts from a site's real starting point and adds its results on the 1st of every month, including the months where little moves. The first is Image Studio, a film studio in Rome and Milan.",
     resultsTitle: "What we measure",
     results: [
       {
@@ -6197,7 +6194,7 @@ const es: Messages = {
       ],
       selectorLabel: "Artículos de ejemplo",
       realLabel: "Artículo publicado",
-      realNote: "Artículos reales: dos del blog de RepGet y uno de Image Studio, que tiene el mismo propietario que RepGet. Se muestran en el idioma en que se publicaron.",
+      realNote: "Artículos reales: dos del blog de RepGet y uno de la web de Image Studio. Se muestran en el idioma en que se publicaron.",
       readFull: "Leer el artículo completo",
       readTime: "{n} min de lectura",
       contentsLabel: "Índice",
@@ -6343,7 +6340,6 @@ const es: Messages = {
     testimonialsVerified: "Cliente verificado",
     testimonialsCaseStudy: "Vea las cifras detrás de uno de ellos: el caso de estudio de Image Studio",
     testimonialsCaseStudyCard: "Leer el caso de estudio",
-    testimonialsSameOwner: "Mismo propietario que RepGet",
     reviewScore: "{score}/{outOf} en {platform}, de {count} reseñas",
     faqEyebrow: "Preguntas frecuentes",
     faqMore: "¿Le queda alguna pregunta?",
@@ -6424,7 +6420,7 @@ const es: Messages = {
     eyebrow: "Casos de éxito",
     title: "Sitios reales, cifras reales, actualizadas cada mes.",
     intro:
-      "Cada caso de estudio parte del punto de partida real de un sitio y añade sus resultados el día 1 de cada mes, también los meses en que apenas hay cambios. El primero es Image Studio, que tiene el mismo propietario que RepGet.",
+      "Cada caso de estudio parte del punto de partida real de un sitio y añade sus resultados el día 1 de cada mes, también los meses en que apenas hay cambios. El primero es Image Studio, un estudio de cine de Roma y Milán.",
     resultsTitle: "Lo que medimos",
     results: [
       {
@@ -9202,7 +9198,7 @@ const fr: Messages = {
       ],
       selectorLabel: "Exemples d’articles",
       realLabel: "Article publié",
-      realNote: "De vrais articles : deux du blog de RepGet et un d’Image Studio, qui a le même propriétaire que RepGet. Affichés dans la langue de leur publication.",
+      realNote: "De vrais articles : deux du blog de RepGet et un du site d’Image Studio. Affichés dans la langue de leur publication.",
       readFull: "Lire l’article complet",
       readTime: "{n} min de lecture",
       contentsLabel: "Sommaire",
@@ -9344,7 +9340,6 @@ const fr: Messages = {
     testimonialsVerified: "Client vérifié",
     testimonialsCaseStudy: "Voyez les chiffres derrière l'un d'eux : l'étude de cas d'Image Studio",
     testimonialsCaseStudyCard: "Lire l'étude de cas",
-    testimonialsSameOwner: "Même propriétaire que RepGet",
     reviewScore: "{score}/{outOf} sur {platform}, d’après {count} avis",
     faqEyebrow: "FAQ",
     faqMore: "Vous avez encore une question ?",
@@ -9424,7 +9419,7 @@ const fr: Messages = {
     eyebrow: "Témoignages",
     title: "De vrais sites, de vrais chiffres, mis à jour chaque mois.",
     intro:
-      "Chaque étude de cas part du vrai point de départ d'un site et ajoute ses résultats le 1er de chaque mois, y compris les mois où peu de choses bougent. La première est Image Studio, qui a le même propriétaire que RepGet.",
+      "Chaque étude de cas part du vrai point de départ d'un site et ajoute ses résultats le 1er de chaque mois, y compris les mois où peu de choses bougent. La première est celle d'Image Studio, un studio de cinéma de Rome et de Milan.",
     resultsTitle: "Ce que nous mesurons",
     results: [
       {
@@ -12203,7 +12198,7 @@ const it: Messages = {
       ],
       selectorLabel: "Articoli di esempio",
       realLabel: "Articolo pubblicato",
-      realNote: "Articoli reali: due dal blog di RepGet e uno di Image Studio, che ha lo stesso proprietario di RepGet. Mostrati nella lingua in cui sono stati pubblicati.",
+      realNote: "Articoli reali: due dal blog di RepGet e uno dal sito di Image Studio. Mostrati nella lingua in cui sono stati pubblicati.",
       readFull: "Leggi l’articolo completo",
       readTime: "{n} min di lettura",
       contentsLabel: "Indice",
@@ -12346,7 +12341,6 @@ const it: Messages = {
     testimonialsVerified: "Cliente verificato",
     testimonialsCaseStudy: "I numeri dietro uno di questi: il caso di studio di Image Studio",
     testimonialsCaseStudyCard: "Leggi il caso di studio",
-    testimonialsSameOwner: "Stesso proprietario di RepGet",
     reviewScore: "{score}/{outOf} su {platform}, da {count} recensioni",
     faqEyebrow: "Domande frequenti",
     faqMore: "Ha ancora una domanda?",
@@ -12426,7 +12420,7 @@ const it: Messages = {
     eyebrow: "Casi di successo",
     title: "Siti reali, numeri reali, aggiornati ogni mese.",
     intro:
-      "Ogni caso di studio parte dal vero punto di partenza di un sito e ne aggiunge i risultati il 1° di ogni mese, anche nei mesi in cui si muove poco. Il primo è Image Studio, che ha lo stesso proprietario di RepGet.",
+      "Ogni caso di studio parte dal vero punto di partenza di un sito e ne aggiunge i risultati il 1° di ogni mese, anche nei mesi in cui si muove poco. Il primo è Image Studio, uno studio di cinema di Roma e Milano.",
     resultsTitle: "Cosa misuriamo",
     results: [
       {
@@ -15200,7 +15194,7 @@ const de: Messages = {
       ],
       selectorLabel: "Beispielartikel",
       realLabel: "Veröffentlichter Artikel",
-      realNote: "Echte Artikel: zwei aus dem RepGet-Blog und einer von Image Studio, das denselben Inhaber hat wie RepGet. In der Sprache gezeigt, in der sie veröffentlicht wurden.",
+      realNote: "Echte Artikel: zwei aus dem RepGet-Blog und einer von der Website von Image Studio. In der Sprache gezeigt, in der sie veröffentlicht wurden.",
       readFull: "Ganzen Artikel lesen",
       readTime: "{n} Min. Lesezeit",
       contentsLabel: "Inhalt",
@@ -15340,7 +15334,6 @@ const de: Messages = {
     testimonialsVerified: "Verifizierter Kunde",
     testimonialsCaseStudy: "Die Zahlen hinter einem davon: die Fallstudie zu Image Studio",
     testimonialsCaseStudyCard: "Fallstudie lesen",
-    testimonialsSameOwner: "Gleicher Inhaber wie RepGet",
     reviewScore: "{score}/{outOf} auf {platform}, aus {count} Bewertungen",
     faqEyebrow: "FAQ",
     faqMore: "Noch eine Frage?",
@@ -15422,7 +15415,7 @@ const de: Messages = {
     eyebrow: "Erfolgsgeschichten",
     title: "Echte Websites, echte Zahlen, jeden Monat aktualisiert.",
     intro:
-      "Jede Fallstudie beginnt beim echten Ausgangspunkt einer Website und ergänzt ihre Ergebnisse am 1. jedes Monats, auch in Monaten, in denen sich wenig bewegt. Die erste ist Image Studio, das denselben Inhaber hat wie RepGet.",
+      "Jede Fallstudie beginnt beim echten Ausgangspunkt einer Website und ergänzt ihre Ergebnisse am 1. jedes Monats, auch in Monaten, in denen sich wenig bewegt. Die erste ist die von Image Studio, einem Filmstudio in Rom und Mailand.",
     resultsTitle: "Was wir messen",
     results: [
       {

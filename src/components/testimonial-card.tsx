@@ -25,7 +25,6 @@ export function TestimonialCard({
   verifiedLabel,
   as: Tag = "li",
   link,
-  note,
 }: {
   item: Testimonial;
   verifiedLabel: string;
@@ -33,8 +32,6 @@ export function TestimonialCard({
   as?: "li" | "div";
   /** A link under the quote - the case study behind it, for the card it belongs to. */
   link?: { href: string; label: string };
-  /** A line under the role, in the page's language - e.g. that this business and RepGet have the same owner. */
-  note?: string;
 }) {
   return (
     <Tag className="min-w-0">
@@ -61,7 +58,6 @@ export function TestimonialCard({
           <span className="min-w-0">
             <span className="block font-semibold tracking-tight wrap-anywhere">{item.name}</span>
             <span lang="en" className="block text-sm text-muted-foreground wrap-anywhere">{item.role}</span>
-            {note ? <span className="block text-xs text-muted-foreground">{note}</span> : null}
             {item.verified ? (
               <span className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-success">
                 <BadgeCheck className="size-3.5" aria-hidden="true" />

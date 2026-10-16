@@ -337,12 +337,10 @@ describe("testimonials", () => {
     expect(links).toHaveLength(2);
     expect(links[0]).toContain(esc(t.testimonialsCaseStudy));
     expect(links[1]).toContain(t.testimonialsCaseStudyCard);
-    // Only on the card it is about, which says what the case study says: the same owner.
+    // Only on the card it is about.
     const [imageStudio, grace] = html.split("<li ").slice(1);
     expect(imageStudio).toContain(t.testimonialsCaseStudyCard);
-    expect(imageStudio).toContain(t.testimonialsSameOwner);
     expect(grace).not.toContain(t.testimonialsCaseStudyCard);
-    expect(grace).not.toContain(t.testimonialsSameOwner);
   });
 
   it("does not offer the case study's numbers when its quote is not shown", () => {
