@@ -29,7 +29,7 @@ export type FeatureTranslation = {
 
 export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
   es: {
-    about: "un estudio de vídeo y fotografía de bodas en Italia y cliente de RepGet",
+    about: "un estudio de vídeo y fotografía de bodas en Italia con el mismo propietario que RepGet",
     category: "Bodas",
     backlinksImageAlt: "Una pareja saliendo de su ceremonia de boda en el Castello di Rossino, en Italia, con los invitados a ambos lados.",
     chatgptImageAlt: "Invitados y la pareja compartiendo un momento natural, sin posar, en un banquete de boda en Italia.",
@@ -110,7 +110,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
       example: {
         eyebrow: "Un ejemplo real",
         title: "Este es el tipo de artículo en el que va un enlace",
-        body: "Los enlaces de los socios se colocan dentro de artículos como este: escritos por RepGet para un negocio real, para sus propios lectores, y publicados en su propia web.",
+        body: "Los enlaces de los socios se colocan dentro de artículos como este: escritos para un negocio real, para sus propios lectores, y publicados en su propia web.",
         readLabel: "Leer el artículo (en inglés)",
         daLabel: "Domain Authority",
         placedLabel: "Enlace de socio en este artículo",
@@ -232,7 +232,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
       example: {
         eyebrow: "Un ejemplo real",
         title: "Un artículo escrito para ser citado",
-        body: "Escrito por RepGet y publicado en la propia web del cliente. Fíjese en cómo está construido:",
+        body: "Publicado en la propia web del negocio. Fíjese en cómo está construido:",
         readLabel: "Leer el artículo (en inglés)",
         daLabel: "Domain Authority",
         placedLabel: "Enlace de socio en este artículo",
@@ -274,7 +274,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
   },
 
   fr: {
-    about: "un studio de vidéo et de photographie de mariage en Italie, client de RepGet",
+    about: "un studio de vidéo et de photographie de mariage en Italie, qui a le même propriétaire que RepGet",
     category: "Mariage",
     backlinksImageAlt: "Un couple quittant sa cérémonie de mariage au Castello di Rossino, en Italie, entre deux rangées d’invités.",
     chatgptImageAlt: "Les invités et le couple partageant un moment naturel, sans pose, lors d’une réception de mariage en Italie.",
@@ -355,7 +355,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
       example: {
         eyebrow: "Un exemple réel",
         title: "Voici le type d’article qui accueille un lien",
-        body: "Les liens partenaires sont placés dans des articles comme celui-ci : écrits par RepGet pour une vraie entreprise, pour ses propres lecteurs, et publiés sur son propre site.",
+        body: "Les liens partenaires sont placés dans des articles comme celui-ci : écrits pour une vraie entreprise, pour ses propres lecteurs, et publiés sur son propre site.",
         readLabel: "Lire l’article (en anglais)",
         daLabel: "Domain Authority",
         placedLabel: "Lien partenaire dans cet article",
@@ -477,7 +477,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
       example: {
         eyebrow: "Un exemple réel",
         title: "Un article écrit pour être cité",
-        body: "Écrit par RepGet et publié sur le site du client. Voyez comment il est construit :",
+        body: "Publié sur le site de l'entreprise. Voyez comment il est construit :",
         readLabel: "Lire l’article (en anglais)",
         daLabel: "Domain Authority",
         placedLabel: "Lien partenaire dans cet article",
@@ -519,7 +519,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
   },
 
   it: {
-    about: "uno studio di video e fotografia di matrimonio in Italia, cliente di RepGet",
+    about: "uno studio di video e fotografia di matrimonio in Italia, con lo stesso proprietario di RepGet",
     category: "Matrimonio",
     backlinksImageAlt: "Una coppia esce dalla cerimonia di nozze al Castello di Rossino, in Italia, tra gli invitati ai due lati.",
     chatgptImageAlt: "Gli invitati e gli sposi condividono un momento naturale, non in posa, durante un ricevimento di nozze in Italia.",
@@ -600,7 +600,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
       example: {
         eyebrow: "Un esempio reale",
         title: "Ecco il tipo di articolo in cui va un link",
-        body: "I link dei partner vengono inseriti in articoli come questo: scritti da RepGet per un’azienda reale, per i suoi lettori, e pubblicati sul suo sito.",
+        body: "I link dei partner vengono inseriti in articoli come questo: scritti per un’azienda reale, per i suoi lettori, e pubblicati sul suo sito.",
         readLabel: "Leggi l’articolo (in inglese)",
         daLabel: "Domain Authority",
         placedLabel: "Link partner in questo articolo",
@@ -722,7 +722,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
       example: {
         eyebrow: "Un esempio reale",
         title: "Un articolo scritto per essere citato",
-        body: "Scritto da RepGet e pubblicato sul sito del cliente. Noti come è costruito:",
+        body: "Pubblicato sul sito dell’azienda. Noti come è costruito:",
         readLabel: "Leggi l’articolo (in inglese)",
         daLabel: "Domain Authority",
         placedLabel: "Link partner in questo articolo",
@@ -764,7 +764,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
   },
 
   de: {
-    about: "ein Studio für Hochzeitsfilme und -fotografie in Italien und RepGet-Kunde",
+    about: "ein Studio für Hochzeitsfilme und -fotografie in Italien mit demselben Inhaber wie RepGet",
     category: "Hochzeit",
     backlinksImageAlt: "Ein Paar verlässt seine Trauung im Castello di Rossino in Italien, die Gäste stehen zu beiden Seiten.",
     chatgptImageAlt: "Gäste und das Brautpaar teilen einen natürlichen, ungestellten Moment bei einer Hochzeitsfeier in Italien.",
@@ -845,7 +845,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
       example: {
         eyebrow: "Ein echtes Beispiel",
         title: "In solchen Artikeln stehen die Links",
-        body: "Partnerlinks werden in Artikeln wie diesem platziert: von RepGet für ein echtes Unternehmen geschrieben, für dessen eigene Leser, und auf dessen eigener Website veröffentlicht.",
+        body: "Partnerlinks werden in Artikeln wie diesem platziert: für ein echtes Unternehmen geschrieben, für dessen eigene Leser, und auf dessen eigener Website veröffentlicht.",
         readLabel: "Artikel lesen (auf Englisch)",
         daLabel: "Domain Authority",
         placedLabel: "Partnerlink in diesem Artikel",
@@ -967,7 +967,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
       example: {
         eyebrow: "Ein echtes Beispiel",
         title: "Ein Artikel, geschrieben, um zitiert zu werden",
-        body: "Von RepGet geschrieben und auf der eigenen Website des Kunden veröffentlicht. Achten Sie auf den Aufbau:",
+        body: "Auf der eigenen Website des Unternehmens veröffentlicht. Achten Sie auf den Aufbau:",
         readLabel: "Artikel lesen (auf Englisch)",
         daLabel: "Domain Authority",
         placedLabel: "Partnerlink in diesem Artikel",

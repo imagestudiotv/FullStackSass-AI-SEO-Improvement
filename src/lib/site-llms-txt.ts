@@ -1,4 +1,5 @@
 import { getMessages } from "@/lib/i18n/messages";
+import { CASE_STUDY_COPY, CASE_STUDY_PATH } from "@/lib/marketing/case-study-image-studio";
 import { DOCS_UI_EN, INTEGRATION_DOCS } from "@/lib/publishing/docs";
 import { TOOLS_COMMON } from "@/lib/tools/i18n/common";
 import { TOOLS } from "@/lib/tools/registry";
@@ -85,6 +86,7 @@ export function buildSiteLlmsTxt(siteUrl: string, posts: LlmsPost[]): string {
       { label: "Pricing", path: "/pricing", note: PAGE_NOTES["/pricing"] },
       { label: t.faq.metaTitle, path: "/faq", note: t.faq.metaDescription },
       { label: t.successStories.metaTitle, path: "/success-stories", note: t.successStories.metaDescription },
+      { label: CASE_STUDY_COPY.en.metaTitle, path: CASE_STUDY_PATH, note: CASE_STUDY_COPY.en.metaDescription },
       { label: t.about.metaTitle, path: "/about", note: t.about.metaDescription },
       { label: t.contact.metaTitle, path: "/contact", note: t.contact.metaDescription },
     ]),

@@ -83,7 +83,7 @@ const ENGLISH_UI: FeaturePage["ui"] = { published: "Published", minRead: "{n} mi
 const IMAGE_STUDIO = {
   siteName: "Image Studio",
   site: "imagestudio.com",
-  about: "a wedding film and photography studio in Italy, and a RepGet customer",
+  about: "a wedding film and photography studio in Italy with the same owner as RepGet",
 };
 
 export const BACKLINKS_EXAMPLE: FeatureExample = {
@@ -206,7 +206,7 @@ export const BACKLINKS_PAGE: FeaturePage = {
   example: {
     eyebrow: "A real example",
     title: "This is the kind of article a link goes in",
-    body: "Partner links are placed inside articles like this one: written by RepGet for a real business, for its own readers, and published on its own website.",
+    body: "Partner links are placed inside articles like this one: written for a real business, for its own readers, and published on its own website.",
     readLabel: "Read the article",
     daLabel: "Domain Authority",
     placedLabel: "Partner link in this article",
@@ -329,7 +329,7 @@ export const CHATGPT_PAGE: FeaturePage = {
   example: {
     eyebrow: "A real example",
     title: "An article written to be quoted",
-    body: "Written by RepGet and published on the customer's own website. Notice how it is built:",
+    body: "Published on the business's own website. Notice how it is built:",
     readLabel: "Read the article",
     daLabel: "Domain Authority",
     placedLabel: "Partner link in this article",

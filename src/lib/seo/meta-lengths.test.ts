@@ -18,6 +18,7 @@ import { BLOG_CHROME } from "@/lib/blog/locale";
 import { pageSuffix } from "@/lib/blog/pagination";
 import { LOCALES, type Locale } from "@/lib/i18n/config";
 import { getMessages } from "@/lib/i18n/messages";
+import { CASE_STUDY_COPY, CASE_STUDY_PATH } from "@/lib/marketing/case-study-image-studio";
 import { featurePageContent } from "@/lib/marketing/feature-pages";
 import { docsUi, integrationDocs } from "@/lib/publishing/docs";
 import { buildSiteLlmsTxt, PAGE_NOTES } from "@/lib/site-llms-txt";
@@ -79,6 +80,7 @@ function pagesIn(locale: Locale): Meta[] {
     add(path, page.metaTitle, page.metaDescription);
   }
   add("/audit", AUDIT_COPY[locale].metaTitle, AUDIT_COPY[locale].metaDescription);
+  add(CASE_STUDY_PATH, CASE_STUDY_COPY[locale].metaTitle, CASE_STUDY_COPY[locale].metaDescription);
   return pages;
 }
 

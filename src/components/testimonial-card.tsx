@@ -1,5 +1,6 @@
-import { BadgeCheck } from "lucide-react";
+import { ArrowRight, BadgeCheck } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 
 import type { Testimonial } from "@/lib/marketing/testimonials";
 
@@ -23,11 +24,17 @@ export function TestimonialCard({
   item,
   verifiedLabel,
   as: Tag = "li",
+  link,
+  note,
 }: {
   item: Testimonial;
   verifiedLabel: string;
   /** "li" inside the section's list; "div" on its own (the editor preview). */
   as?: "li" | "div";
+  /** A link under the quote - the case study behind it, for the card it belongs to. */
+  link?: { href: string; label: string };
+  /** A line under the role, in the page's language - e.g. that this business and RepGet have the same owner. */
+  note?: string;
 }) {
   return (
     <Tag className="min-w-0">
@@ -54,6 +61,7 @@ export function TestimonialCard({
           <span className="min-w-0">
             <span className="block font-semibold tracking-tight wrap-anywhere">{item.name}</span>
             <span lang="en" className="block text-sm text-muted-foreground wrap-anywhere">{item.role}</span>
+            {note ? <span className="block text-xs text-muted-foreground">{note}</span> : null}
             {item.verified ? (
               <span className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-success">
                 <BadgeCheck className="size-3.5" aria-hidden="true" />
@@ -65,6 +73,12 @@ export function TestimonialCard({
         <blockquote lang="en" className="mt-4 flex-1 text-sm leading-relaxed text-pretty text-foreground/75 wrap-anywhere">
           <p>{item.quote}</p>
         </blockquote>
+        {link ? (
+          <Link href={link.href} className="mt-4 inline-flex w-fit items-center gap-1 text-sm font-medium text-primary underline-offset-4 hover:underline">
+            {link.label}
+            <ArrowRight className="size-3.5 shrink-0" aria-hidden="true" />
+          </Link>
+        ) : null}
       </figure>
     </Tag>
   );

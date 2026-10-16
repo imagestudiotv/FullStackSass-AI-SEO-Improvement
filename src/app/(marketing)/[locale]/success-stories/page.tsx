@@ -39,5 +39,5 @@ export default async function LocalisedSuccessStoriesPage({
   // English lives at /success-stories; /en/... would be a second URL for one page.
   if (!isLocale(locale) || locale === "en") notFound();
 
-  return <SuccessStoriesContent t={getMessages(locale)} />;
+  return <SuccessStoriesContent t={getMessages(locale)} locale={locale} />;
 }

@@ -18,5 +18,5 @@ export const metadata = {
  * why this page is about measurements rather than named customers.
  */
 export default function SuccessStoriesPage() {
-  return <SuccessStoriesContent t={t} />;
+  return <SuccessStoriesContent t={t} locale="en" />;
 }

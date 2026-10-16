@@ -22,6 +22,7 @@ export const PUBLIC_PAGES: { path: string; priority: number }[] = [
   { path: "/rank-on-chatgpt", priority: 0.7 },
   { path: "/affiliate", priority: 0.6 },
   { path: "/success-stories", priority: 0.6 },
+  { path: "/success-stories/image-studio", priority: 0.6 },
   { path: "/faq", priority: 0.6 },
   { path: "/about", priority: 0.5 },
   { path: "/contact", priority: 0.4 },

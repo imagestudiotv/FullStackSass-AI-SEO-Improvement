@@ -276,7 +276,7 @@ describe("testimonials", () => {
   const t = getMessages("en").home;
 
   it("renders nothing at all without approved quotes or a review score", () => {
-    expect(renderToStaticMarkup(createElement(Testimonials, { t, testimonials: [], reviewScore: null }))).toBe("");
+    expect(renderToStaticMarkup(createElement(Testimonials, { t, href: (path: string) => path, testimonials: [], reviewScore: null }))).toBe("");
   });
 
   it("shows quotes with initials and the verified mark only where set", () => {
@@ -284,6 +284,7 @@ describe("testimonials", () => {
     const html = renderToStaticMarkup(
       createElement(Testimonials, {
         t,
+        href: (path: string) => path,
         testimonials: [
           { quote: "Fixture quote one.", name: "Ada Lovelace", role: "Fixture role", verified: true },
           { quote: "Fixture quote two.", name: "Grace", role: "Fixture role" },
@@ -307,7 +308,7 @@ describe("testimonials", () => {
       role: "Fixture role",
       avatar: i >= 9 ? `/images/fixture-${i + 1}.webp` : null,
     }));
-    const html = renderToStaticMarkup(createElement(Testimonials, { t, testimonials: items, reviewScore: null }));
+    const html = renderToStaticMarkup(createElement(Testimonials, { t, href: (path: string) => path, testimonials: items, reviewScore: null }));
     const [before, after] = html.split("<details");
     expect(before.match(/<li /g)).toHaveLength(9);
     expect(before).toContain(esc(t.testimonialsTitle));
@@ -317,6 +318,46 @@ describe("testimonials", () => {
     expect(after).toContain('src="/images/fixture-10.webp"');
     // Both pictures appear twice: in the pill and on their cards.
     expect(html.split('src="/images/fixture-11.webp"').length - 1).toBe(2);
+  });
+
+  it("links the case study from the section, and from the card of the quote it is about (client, 2026-10-15)", () => {
+    // Test fixtures only - never shipped. "Image Studio" is the name the case study links from (CASE_STUDY_TESTIMONIAL), as typed in the admin.
+    const html = renderToStaticMarkup(
+      createElement(Testimonials, {
+        t,
+        href: (path: string) => `/it${path}`,
+        testimonials: [
+          { quote: "Fixture quote one.", name: " image studio ", role: "Fixture role" },
+          { quote: "Fixture quote two.", name: "Grace", role: "Fixture role" },
+        ],
+        reviewScore: null,
+      }),
+    );
+    const links = [...html.matchAll(/<a [^>]*href="\/it\/success-stories\/image-studio"[^>]*>([\s\S]*?)<\/a>/g)].map((match) => match[1]);
+    expect(links).toHaveLength(2);
+    expect(links[0]).toContain(esc(t.testimonialsCaseStudy));
+    expect(links[1]).toContain(t.testimonialsCaseStudyCard);
+    // Only on the card it is about, which says what the case study says: the same owner.
+    const [imageStudio, grace] = html.split("<li ").slice(1);
+    expect(imageStudio).toContain(t.testimonialsCaseStudyCard);
+    expect(imageStudio).toContain(t.testimonialsSameOwner);
+    expect(grace).not.toContain(t.testimonialsCaseStudyCard);
+    expect(grace).not.toContain(t.testimonialsSameOwner);
+  });
+
+  it("does not offer the case study's numbers when its quote is not shown", () => {
+    // Test fixtures only - never shipped.
+    const html = renderToStaticMarkup(
+      createElement(Testimonials, {
+        t,
+        href: (path: string) => path,
+        testimonials: [{ quote: "Fixture quote two.", name: "Grace", role: "Fixture role" }],
+        reviewScore: null,
+      }),
+    );
+    expect(html).toContain("Fixture quote two.");
+    expect(html).not.toContain("/success-stories/image-studio");
+    expect(html).not.toContain(esc(t.testimonialsCaseStudy));
   });
 });
 

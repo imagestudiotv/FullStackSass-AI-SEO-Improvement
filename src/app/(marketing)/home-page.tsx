@@ -65,7 +65,7 @@ export function HomePageSections({
       <WhatYouSee t={t} href={href} />
       <BacklinkNetwork t={t} href={href} />
       <ProductPreview t={t} href={href} />
-      <Testimonials t={t} testimonials={testimonials} />
+      <Testimonials t={t} href={href} testimonials={testimonials} />
       <PricingPreview t={t} href={href} plans={plans} />
       <HomeFaq t={t} faq={messages.faq} href={href} />
       <ClosingCta t={t} href={href} />

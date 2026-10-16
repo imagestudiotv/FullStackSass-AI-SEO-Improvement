@@ -1,8 +1,10 @@
-import { Plus, Star } from "lucide-react";
+import { ArrowRight, Plus, Star } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 
 import { TestimonialCard } from "@/components/testimonial-card";
 import { format } from "@/lib/i18n/format";
+import { CASE_STUDY_PATH, CASE_STUDY_TESTIMONIAL } from "@/lib/marketing/case-study-image-studio";
 import { REVIEW_SCORE, type ReviewScore, type Testimonial } from "@/lib/marketing/testimonials";
 import { OFFSCREEN, type SectionProps } from "./home-sections";
 
@@ -30,9 +32,10 @@ const VISIBLE = 9;
 
 export function Testimonials({
   t,
+  href,
   testimonials,
   reviewScore = REVIEW_SCORE,
-}: Pick<SectionProps, "t"> & {
+}: Pick<SectionProps, "t" | "href"> & {
   testimonials: Testimonial[];
   reviewScore?: ReviewScore | null;
 }) {
@@ -40,6 +43,17 @@ export function Testimonials({
 
   const shown = testimonials.slice(0, VISIBLE);
   const more = testimonials.slice(VISIBLE);
+  /*
+    The quote the case study is about links to its numbers, and says what the
+    case study says: Image Studio and RepGet have the same owner
+    (lib/marketing/case-study-image-studio.ts). Matched by name, as written in
+    Admin -> Testimonials, give or take case and spaces.
+  */
+  const caseStudy = href(CASE_STUDY_PATH);
+  const isCaseStudy = (item: Testimonial) => item.name.trim().toLowerCase() === CASE_STUDY_TESTIMONIAL.toLowerCase();
+  const hasCaseStudy = testimonials.some(isCaseStudy);
+  const extrasFor = (item: Testimonial) =>
+    isCaseStudy(item) ? { link: { href: caseStudy, label: t.testimonialsCaseStudyCard }, note: t.testimonialsSameOwner } : {};
   const grid = `grid grid-cols-1 gap-3 ${
     testimonials.length === 1 ? "max-w-xl" : testimonials.length === 2 ? "max-w-4xl sm:grid-cols-2" : "sm:grid-cols-2 lg:grid-cols-3"
   }`;
@@ -74,10 +88,20 @@ export function Testimonials({
           </p>
         ) : null}
 
+        {/* The numbers behind one of the quotes (client, 2026-10-15: link the case study from the homepage and testimonials) - only when that quote is shown. */}
+        {hasCaseStudy ? (
+          <p className="mt-5">
+            <Link href={caseStudy} className="inline-flex items-center gap-1.5 text-sm font-medium text-primary underline-offset-4 hover:underline">
+              {t.testimonialsCaseStudy}
+              <ArrowRight className="size-4 shrink-0" aria-hidden="true" />
+            </Link>
+          </p>
+        ) : null}
+
         {shown.length > 0 ? (
           <ul className={`mt-10 ${grid}`}>
             {shown.map((item, index) => (
-              <TestimonialCard key={`${index}-${item.name}`} item={item} verifiedLabel={t.testimonialsVerified} />
+              <TestimonialCard key={`${index}-${item.name}`} item={item} verifiedLabel={t.testimonialsVerified} {...extrasFor(item)} />
             ))}
           </ul>
         ) : null}
@@ -109,7 +133,7 @@ export function Testimonials({
             </summary>
             <ul className={grid}>
               {more.map((item, index) => (
-                <TestimonialCard key={`${VISIBLE + index}-${item.name}`} item={item} verifiedLabel={t.testimonialsVerified} />
+                <TestimonialCard key={`${VISIBLE + index}-${item.name}`} item={item} verifiedLabel={t.testimonialsVerified} {...extrasFor(item)} />
               ))}
             </ul>
           </details>

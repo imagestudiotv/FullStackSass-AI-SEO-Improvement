@@ -111,6 +111,8 @@ export const TRANSLATED_PATHS: ReadonlySet<string> = new Set([
   "/faq",
   "/contact",
   "/success-stories",
+  // lib/marketing/case-study-image-studio.ts CASE_STUDY_PATH (client, 2026-10-15: the first case study).
+  "/success-stories/image-studio",
   "/publishers",
   "/affiliate",
   "/backlink-exchange",

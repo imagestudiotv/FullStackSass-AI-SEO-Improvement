@@ -305,6 +305,12 @@ export type Messages = {
     /** The pill that shows the cards past the ninth. */
     testimonialsMore: string;
     testimonialsVerified: string;
+    /** The testimonials section's link to the case study (lib/marketing/case-study-image-studio.ts). */
+    testimonialsCaseStudy: string;
+    /** The same link on the card of the testimonial it belongs to. */
+    testimonialsCaseStudyCard: string;
+    /** On that card: Image Studio and RepGet have the same owner. */
+    testimonialsSameOwner: string;
     /** "{score}/{outOf} on {platform} from {count} reviews" */
     reviewScore: string;
     /** Homepage FAQ. Questions come from the FAQ page's own list. */
@@ -402,6 +408,8 @@ export type Messages = {
     eyebrow: string;
     title: string;
     intro: string;
+    /** Over the results cards: what every case study reports. */
+    resultsTitle: string;
     results: { label: string; body: string }[];
     timelineTitle: string;
     timelineIntro: string;
@@ -3206,7 +3214,7 @@ const en: Messages = {
       ],
       selectorLabel: "Example articles",
       realLabel: "Published article",
-      realNote: "Real articles: two from RepGet's blog and one from Image Studio, a RepGet customer. Shown in the language they were published in.",
+      realNote: "Real articles: two from RepGet's blog and one from Image Studio, which has the same owner as RepGet. Shown in the language they were published in.",
       readFull: "Read the full article",
       readTime: "{n} min read",
       contentsLabel: "Contents",
@@ -3336,6 +3344,9 @@ const en: Messages = {
     testimonialsSub: "Trusted by teams focused on growth.",
     testimonialsMore: "View more",
     testimonialsVerified: "Verified customer",
+    testimonialsCaseStudy: "See the numbers behind one of these: the Image Studio case study",
+    testimonialsCaseStudyCard: "Read the case study",
+    testimonialsSameOwner: "Same owner as RepGet",
     reviewScore: "{score}/{outOf} on {platform}, from {count} reviews",
     faqEyebrow: "FAQ",
     faqMore: "Still have a question?",
@@ -3411,11 +3422,12 @@ const en: Messages = {
   successStories: {
     metaTitle: "Success stories",
     metaDescription:
-      "What RepGet customers measure: rankings, AI visibility, published articles and backlinks earned - and how the first results arrive.",
+      "Real RepGet case studies with the numbers behind them: rankings, AI visibility, articles and backlinks, starting with Image Studio, updated monthly.",
     eyebrow: "Success stories",
-    title: "We would rather show you what we measure than invent a customer.",
+    title: "Real sites, real numbers, updated every month.",
     intro:
-      "RepGet is new, and we are not going to invent a business that used it or round someone's numbers up for a landing page. Here is what the product actually tracks, and what the first months honestly look like - so you can judge it on something real.",
+      "Each case study starts from a site's real starting point and adds its results on the 1st of every month, including the months where little moves. The first is Image Studio, which has the same owner as RepGet.",
+    resultsTitle: "What we measure",
     results: [
       {
         label: "Rankings and clicks",
@@ -3451,7 +3463,7 @@ const en: Messages = {
         body: "Search Console data arrives for the first articles. This is where rankings begin to move - SEO does not pay out in week one, and anyone promising otherwise is selling something else.",
       },
     ],
-    ctaTitle: "Be the first story on this page.",
+    ctaTitle: "Your site could be the next story.",
     ctaBody:
       "Start with a free check of your site - it takes a minute and costs nothing. If what we find is worth acting on, new accounts get their first {count} articles free.",
     ctaPrimary: "Check my website",
@@ -6185,7 +6197,7 @@ const es: Messages = {
       ],
       selectorLabel: "Artículos de ejemplo",
       realLabel: "Artículo publicado",
-      realNote: "Artículos reales: dos del blog de RepGet y uno de Image Studio, cliente de RepGet. Se muestran en el idioma en que se publicaron.",
+      realNote: "Artículos reales: dos del blog de RepGet y uno de Image Studio, que tiene el mismo propietario que RepGet. Se muestran en el idioma en que se publicaron.",
       readFull: "Leer el artículo completo",
       readTime: "{n} min de lectura",
       contentsLabel: "Índice",
@@ -6329,6 +6341,9 @@ const es: Messages = {
     testimonialsSub: "Equipos centrados en crecer confían en nosotros.",
     testimonialsMore: "Ver más",
     testimonialsVerified: "Cliente verificado",
+    testimonialsCaseStudy: "Vea las cifras detrás de uno de ellos: el caso de estudio de Image Studio",
+    testimonialsCaseStudyCard: "Leer el caso de estudio",
+    testimonialsSameOwner: "Mismo propietario que RepGet",
     reviewScore: "{score}/{outOf} en {platform}, de {count} reseñas",
     faqEyebrow: "Preguntas frecuentes",
     faqMore: "¿Le queda alguna pregunta?",
@@ -6405,12 +6420,12 @@ const es: Messages = {
   successStories: {
     metaTitle: "Casos de éxito",
     metaDescription:
-      "Lo que miden los clientes de RepGet: posiciones, visibilidad en IA, artículos publicados y enlaces conseguidos, y cómo llegan los primeros resultados.",
+      "Casos de estudio reales de RepGet con sus cifras: posiciones, visibilidad en IA, artículos y backlinks, empezando por Image Studio. Actualizados cada mes.",
     eyebrow: "Casos de éxito",
-    title:
-      "Preferimos enseñarle lo que medimos antes que inventarnos un cliente.",
+    title: "Sitios reales, cifras reales, actualizadas cada mes.",
     intro:
-      "RepGet es nuevo, y no vamos a inventarnos una empresa que lo haya usado ni a redondear las cifras de nadie para una página de ventas. Esto es lo que el producto mide de verdad, y cómo son los primeros meses, para que pueda juzgarlo con algo real.",
+      "Cada caso de estudio parte del punto de partida real de un sitio y añade sus resultados el día 1 de cada mes, también los meses en que apenas hay cambios. El primero es Image Studio, que tiene el mismo propietario que RepGet.",
+    resultsTitle: "Lo que medimos",
     results: [
       {
         label: "Posiciones y clics",
@@ -6446,7 +6461,7 @@ const es: Messages = {
         body: "Llegan los datos de Search Console de los primeros artículos. Aquí es donde empiezan a moverse las posiciones: el SEO no da resultados en la primera semana, y quien prometa lo contrario le está vendiendo otra cosa.",
       },
     ],
-    ctaTitle: "Sea el primer caso de esta página.",
+    ctaTitle: "Su sitio podría ser el próximo caso.",
     ctaBody:
       "Empiece con un análisis gratuito de su web: tarda un minuto y no cuesta nada. Si lo que encontramos merece la pena, las cuentas nuevas reciben sus primeros {count} artículos gratis.",
     ctaPrimary: "Analizar mi web",
@@ -9187,7 +9202,7 @@ const fr: Messages = {
       ],
       selectorLabel: "Exemples d’articles",
       realLabel: "Article publié",
-      realNote: "De vrais articles : deux du blog de RepGet et un d’Image Studio, client de RepGet. Affichés dans la langue de leur publication.",
+      realNote: "De vrais articles : deux du blog de RepGet et un d’Image Studio, qui a le même propriétaire que RepGet. Affichés dans la langue de leur publication.",
       readFull: "Lire l’article complet",
       readTime: "{n} min de lecture",
       contentsLabel: "Sommaire",
@@ -9327,6 +9342,9 @@ const fr: Messages = {
     testimonialsSub: "Adopté par des équipes tournées vers la croissance.",
     testimonialsMore: "Voir plus",
     testimonialsVerified: "Client vérifié",
+    testimonialsCaseStudy: "Voyez les chiffres derrière l'un d'eux : l'étude de cas d'Image Studio",
+    testimonialsCaseStudyCard: "Lire l'étude de cas",
+    testimonialsSameOwner: "Même propriétaire que RepGet",
     reviewScore: "{score}/{outOf} sur {platform}, d’après {count} avis",
     faqEyebrow: "FAQ",
     faqMore: "Vous avez encore une question ?",
@@ -9402,12 +9420,12 @@ const fr: Messages = {
   successStories: {
     metaTitle: "Témoignages",
     metaDescription:
-      "Ce que mesurent les clients RepGet : positions, visibilité IA, articles publiés et backlinks obtenus, et comment arrivent les premiers résultats.",
+      "De vraies études de cas RepGet, chiffres à l'appui : positions, visibilité IA, articles et backlinks, à commencer par Image Studio. Mises à jour chaque mois.",
     eyebrow: "Témoignages",
-    title:
-      "Nous préférons vous montrer ce que nous mesurons plutôt que d'inventer un client.",
+    title: "De vrais sites, de vrais chiffres, mis à jour chaque mois.",
     intro:
-      "RepGet est récent, et nous n'allons pas inventer une entreprise qui l'aurait utilisé ni arrondir les chiffres de quelqu'un pour une page de vente. Voici ce que le produit mesure réellement, et à quoi ressemblent honnêtement les premiers mois.",
+      "Chaque étude de cas part du vrai point de départ d'un site et ajoute ses résultats le 1er de chaque mois, y compris les mois où peu de choses bougent. La première est Image Studio, qui a le même propriétaire que RepGet.",
+    resultsTitle: "Ce que nous mesurons",
     results: [
       {
         label: "Positions et clics",
@@ -9443,7 +9461,7 @@ const fr: Messages = {
         body: "Les données Search Console arrivent pour les premiers articles. C'est là que les positions commencent à bouger : le SEO ne paie pas en une semaine, et quiconque promet le contraire vend autre chose.",
       },
     ],
-    ctaTitle: "Soyez le premier témoignage de cette page.",
+    ctaTitle: "Votre site pourrait être la prochaine étude de cas.",
     ctaBody:
       "Commencez par une analyse gratuite de votre site : une minute, sans frais. Si ce que nous trouvons mérite d'agir, les nouveaux comptes reçoivent leurs {count} premiers articles gratuitement.",
     ctaPrimary: "Analyser mon site",
@@ -12185,7 +12203,7 @@ const it: Messages = {
       ],
       selectorLabel: "Articoli di esempio",
       realLabel: "Articolo pubblicato",
-      realNote: "Articoli reali: due dal blog di RepGet e uno di Image Studio, cliente di RepGet. Mostrati nella lingua in cui sono stati pubblicati.",
+      realNote: "Articoli reali: due dal blog di RepGet e uno di Image Studio, che ha lo stesso proprietario di RepGet. Mostrati nella lingua in cui sono stati pubblicati.",
       readFull: "Leggi l’articolo completo",
       readTime: "{n} min di lettura",
       contentsLabel: "Indice",
@@ -12326,6 +12344,9 @@ const it: Messages = {
     testimonialsSub: "Scelto da team che puntano alla crescita.",
     testimonialsMore: "Mostra altri",
     testimonialsVerified: "Cliente verificato",
+    testimonialsCaseStudy: "I numeri dietro uno di questi: il caso di studio di Image Studio",
+    testimonialsCaseStudyCard: "Leggi il caso di studio",
+    testimonialsSameOwner: "Stesso proprietario di RepGet",
     reviewScore: "{score}/{outOf} su {platform}, da {count} recensioni",
     faqEyebrow: "Domande frequenti",
     faqMore: "Ha ancora una domanda?",
@@ -12401,12 +12422,12 @@ const it: Messages = {
   successStories: {
     metaTitle: "Casi di successo",
     metaDescription:
-      "Ciò che misurano i clienti RepGet: posizioni, visibilità IA, articoli pubblicati e backlink ottenuti, e come arrivano i primi risultati.",
+      "Casi di studio reali di RepGet con i numeri dietro: posizioni, visibilità nell'IA, articoli e backlink, a partire da Image Studio. Aggiornati ogni mese.",
     eyebrow: "Casi di successo",
-    title:
-      "Preferiamo mostrarle ciò che misuriamo piuttosto che inventare un cliente.",
+    title: "Siti reali, numeri reali, aggiornati ogni mese.",
     intro:
-      "RepGet è nuovo e non inventeremo un'azienda che lo ha usato né arrotonderemo i numeri di qualcuno per una pagina di vendita. Ecco cosa misura davvero il prodotto e come sono onestamente i primi mesi.",
+      "Ogni caso di studio parte dal vero punto di partenza di un sito e ne aggiunge i risultati il 1° di ogni mese, anche nei mesi in cui si muove poco. Il primo è Image Studio, che ha lo stesso proprietario di RepGet.",
+    resultsTitle: "Cosa misuriamo",
     results: [
       {
         label: "Posizioni e clic",
@@ -12442,7 +12463,7 @@ const it: Messages = {
         body: "Arrivano i dati di Search Console dei primi articoli. È qui che le posizioni iniziano a muoversi: la SEO non rende nella prima settimana, e chi promette il contrario le sta vendendo altro.",
       },
     ],
-    ctaTitle: "Sia il primo caso di questa pagina.",
+    ctaTitle: "Il suo sito potrebbe essere il prossimo caso.",
     ctaBody:
       "Inizi con un controllo gratuito del sito: un minuto e nessun costo. Se ciò che troviamo merita, i nuovi account ricevono gratis i primi {count} articoli.",
     ctaPrimary: "Controlla il mio sito",
@@ -15179,7 +15200,7 @@ const de: Messages = {
       ],
       selectorLabel: "Beispielartikel",
       realLabel: "Veröffentlichter Artikel",
-      realNote: "Echte Artikel: zwei aus dem RepGet-Blog und einer von Image Studio, einem RepGet-Kunden. In der Sprache gezeigt, in der sie veröffentlicht wurden.",
+      realNote: "Echte Artikel: zwei aus dem RepGet-Blog und einer von Image Studio, das denselben Inhaber hat wie RepGet. In der Sprache gezeigt, in der sie veröffentlicht wurden.",
       readFull: "Ganzen Artikel lesen",
       readTime: "{n} Min. Lesezeit",
       contentsLabel: "Inhalt",
@@ -15317,6 +15338,9 @@ const de: Messages = {
     testimonialsSub: "Teams, die wachsen wollen, vertrauen RepGet.",
     testimonialsMore: "Mehr anzeigen",
     testimonialsVerified: "Verifizierter Kunde",
+    testimonialsCaseStudy: "Die Zahlen hinter einem davon: die Fallstudie zu Image Studio",
+    testimonialsCaseStudyCard: "Fallstudie lesen",
+    testimonialsSameOwner: "Gleicher Inhaber wie RepGet",
     reviewScore: "{score}/{outOf} auf {platform}, aus {count} Bewertungen",
     faqEyebrow: "FAQ",
     faqMore: "Noch eine Frage?",
@@ -15394,12 +15418,12 @@ const de: Messages = {
   successStories: {
     metaTitle: "Erfolgsgeschichten",
     metaDescription:
-      "Was RepGet-Kunden messen: Rankings, KI-Sichtbarkeit, veröffentlichte Artikel und gewonnene Backlinks - und wann die ersten Ergebnisse kommen.",
+      "Echte Fallstudien von RepGet mit den Zahlen dahinter: Rankings, KI-Sichtbarkeit, Artikel und Backlinks, beginnend mit Image Studio. Monatlich aktualisiert.",
     eyebrow: "Erfolgsgeschichten",
-    title:
-      "Wir zeigen Ihnen lieber, was wir messen, als einen Kunden zu erfinden.",
+    title: "Echte Websites, echte Zahlen, jeden Monat aktualisiert.",
     intro:
-      "RepGet ist neu, und wir erfinden weder ein Unternehmen, das es eingesetzt hätte, noch runden wir die Zahlen von jemandem für eine Verkaufsseite auf. Hier steht, was das Produkt tatsächlich misst und wie die ersten Monate ehrlich aussehen.",
+      "Jede Fallstudie beginnt beim echten Ausgangspunkt einer Website und ergänzt ihre Ergebnisse am 1. jedes Monats, auch in Monaten, in denen sich wenig bewegt. Die erste ist Image Studio, das denselben Inhaber hat wie RepGet.",
+    resultsTitle: "Was wir messen",
     results: [
       {
         label: "Rankings und Klicks",
@@ -15435,7 +15459,7 @@ const de: Messages = {
         body: "Die Search-Console-Daten der ersten Artikel treffen ein. Jetzt bewegen sich die Rankings - SEO zahlt sich nicht in Woche eins aus, und wer das verspricht, verkauft etwas anderes.",
       },
     ],
-    ctaTitle: "Werden Sie die erste Geschichte auf dieser Seite.",
+    ctaTitle: "Ihre Website könnte die nächste Geschichte sein.",
     ctaBody:
       "Starten Sie mit einer kostenlosen Prüfung Ihrer Website - eine Minute, kostenlos. Wenn sich das Ergebnis lohnt, erhalten neue Konten ihre ersten {count} Artikel kostenlos.",
     ctaPrimary: "Website prüfen",
