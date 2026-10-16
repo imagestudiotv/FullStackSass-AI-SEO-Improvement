@@ -2570,3 +2570,92 @@ export const blogCategories = pgTable(
     uniqueIndex("blog_categories_slug_uidx").on(table.slug),
   ],
 );
+
+/* ------------------------------------------------------------------------- */
+/* RepGet's blog autopilot (client, 2026-10-16)                               */
+/* ------------------------------------------------------------------------- */
+
+/**
+ * The blog autopilot's settings - one row, key "blog" (lib/blog/autopilot).
+ * The client's choices (2026-10-16): one English article a day in the house
+ * style with every field filled, the same article in each other language as a
+ * linked translation, saved as DRAFTS for an administrator to approve; the
+ * client's own topic list first, then topics RepGet finds itself; pictures
+ * made for each article.
+ */
+export const blogAutopilot = pgTable("blog_autopilot", {
+  key: text("key").primaryKey().default("blog"),
+  /** Off until an administrator turns it on. */
+  enabled: boolean("enabled").default(false).notNull(),
+  /** The UTC hour the day's article is written (0-23). */
+  runHour: integer("run_hour").default(6).notNull(),
+  /** The languages each article is also written in, besides English (lib/i18n/config.ts LOCALES). */
+  languages: jsonb("languages").$type<string[]>().default(["es", "fr", "it", "de"]).notNull(),
+  updatedBy: text("updated_by"),
+  ...timestamps,
+});
+
+/**
+ * What the autopilot writes about, in order: the client's list ("admin"),
+ * then topics RepGet suggests from search data once it runs out
+ * ("suggested"). A topic is written once; its post stays linked.
+ *
+ *   queued  - waiting its turn (lowest sort_order first)
+ *   writing - the day's run has it
+ *   written - its English draft (and translations) exist: post_id
+ *   failed  - the run could not write it: error; "Try again" queues it again
+ */
+export const blogAutopilotTopics = pgTable(
+  "blog_autopilot_topics",
+  {
+    id: pk(),
+    /** What the article is about, in a line: "How to choose keywords for a local business". */
+    topic: text("topic").notNull(),
+    /** The search phrase to target, when the administrator has one. */
+    keyword: text("keyword"),
+    /** Anything the writer should know for this one article. */
+    notes: text("notes"),
+    /** "admin" | "suggested". */
+    source: text("source").default("admin").notNull(),
+    status: text("status").default("queued").notNull(),
+    sortOrder: integer("sort_order").default(0).notNull(),
+    /** The English post written for it. SET NULL: deleting the post leaves the topic as history. */
+    postId: uuid("post_id").references(() => blogPosts.id, { onDelete: "set null" }),
+    error: text("error"),
+    createdBy: text("created_by"),
+    writtenAt: timestamp("written_at"),
+    ...timestamps,
+  },
+  (table) => [index("blog_autopilot_topics_status_order_idx").on(table.status, table.sortOrder)],
+);
+
+/**
+ * Each autopilot run: the daily one ("schedule") and any an administrator
+ * starts by hand ("manual"). At most ONE scheduled run per UTC day - the
+ * partial unique index is what stops a retried or doubled schedule from
+ * writing the day's article twice.
+ */
+export const blogAutopilotRuns = pgTable(
+  "blog_autopilot_runs",
+  {
+    id: pk(),
+    /** The UTC day it ran for. */
+    runDate: date("run_date").notNull(),
+    /** "schedule" | "manual". */
+    trigger: text("trigger").notNull(),
+    topicId: uuid("topic_id").references(() => blogAutopilotTopics.id, { onDelete: "set null" }),
+    /** "running" | "done" | "failed". */
+    status: text("status").default("running").notNull(),
+    /** The English post it wrote. */
+    postId: uuid("post_id").references(() => blogPosts.id, { onDelete: "set null" }),
+    /** What each step produced: translations by language, pictures, model costs. */
+    detail: jsonb("detail").$type<Record<string, unknown>>().default({}).notNull(),
+    error: text("error"),
+    startedAt: timestamp("started_at").defaultNow().notNull(),
+    finishedAt: timestamp("finished_at"),
+  },
+  (table) => [
+    uniqueIndex("blog_autopilot_runs_scheduled_day_uidx").on(table.runDate).where(sql`${table.trigger} = 'schedule'`),
+    index("blog_autopilot_runs_started_idx").on(table.startedAt),
+  ],
+);

@@ -51,6 +51,11 @@ export type AdminAction =
   | "blog.placement_reopened"
   | "blog.image_deleted"
   | "blog.translation_created"
+  /* The blog autopilot (lib/admin/blog-autopilot.ts). */
+  | "blog.autopilot_settings_saved"
+  | "blog.autopilot_topics_added"
+  | "blog.autopilot_topic_saved"
+  | "blog.autopilot_topic_deleted"
   | "testimonial.created"
   | "testimonial.saved"
   | "testimonial.published"

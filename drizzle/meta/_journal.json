@@ -421,6 +421,13 @@
       "when": 1792074707898,
       "tag": "0059_blog_category_translations",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1792191600324,
+      "tag": "0060_blog_autopilot",
+      "breakpoints": true
     }
   ]
 }

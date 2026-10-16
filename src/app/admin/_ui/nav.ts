@@ -176,6 +176,7 @@ const DETAIL_LABELS: { pattern: RegExp; label: string }[] = [
   { pattern: /^\/admin\/blog\/new$/, label: "New post" },
   { pattern: /^\/admin\/blog\/sponsorships$/, label: "Featured placements" },
   { pattern: /^\/admin\/blog\/images$/, label: "Images" },
+  { pattern: /^\/admin\/blog\/autopilot$/, label: "Autopilot" },
   { pattern: /^\/admin\/blog\/[^/]+$/, label: "Edit post" },
   { pattern: /^\/admin\/testimonials\/new$/, label: "New testimonial" },
   { pattern: /^\/admin\/testimonials\/[^/]+$/, label: "Edit testimonial" },

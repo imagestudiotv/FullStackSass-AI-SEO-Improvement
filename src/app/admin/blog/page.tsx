@@ -1,4 +1,4 @@
-import { ExternalLink, ImageIcon, Megaphone, Newspaper, Plus } from "lucide-react";
+import { Bot, ExternalLink, ImageIcon, Megaphone, Newspaper, Plus } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -123,6 +123,13 @@ export default async function AdminBlogPage({ searchParams }: { searchParams: Pr
               <Link href="/admin/blog/images">
                 <ImageIcon aria-hidden="true" />
                 Images
+              </Link>
+            </Button>
+            {/* The daily article, its languages and its topic list (lib/blog/autopilot). */}
+            <Button asChild size="lg" variant="outline">
+              <Link href="/admin/blog/autopilot">
+                <Bot aria-hidden="true" />
+                Autopilot
               </Link>
             </Button>
             {/* In the language shown, and says so. */}
