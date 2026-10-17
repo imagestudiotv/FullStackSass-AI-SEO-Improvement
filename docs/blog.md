@@ -49,6 +49,8 @@ The SEO title never becomes a second heading. Keywords are editorial inputs and 
 
 See [Blog upgrade setup](blog-upgrade-setup.md) for migrations 0051–0052, the "Get Featured in This Article" placements and the release steps.
 
+The [blog autopilot](blog-autopilot.md) writes a post a day as drafts, with translations and pictures (Admin -> Blog -> Autopilot).
+
 ## Deploying
 
 `0046_blog_posts` only adds a table (and the three posts), so an older build keeps working with it applied. **Apply it before deploying the code that reads it.** Otherwise `/blog`, the posts and `sitemap.xml` fail until it is applied.

@@ -590,7 +590,12 @@ export async function finishDraft(
   if (tables < 3) warnings.push(`The article has ${tables} table${tables === 1 ? "" : "s"}; the blog's posts have 3 to 5.`);
   const dashes = (bodyHtml.replace(/<[^>]+>/g, " ").match(/[–—]| - /g) ?? []).length;
   if (dashes > 0) warnings.push(`The article uses ${dashes} dash${dashes === 1 ? "" : "es"} as punctuation; the blog's posts use none.`);
-  if (checked.removed.length > 0) warnings.push(`${checked.removed.length} link${checked.removed.length === 1 ? " was" : "s were"} removed (see the links).`);
+  if (checked.removed.length > 0) {
+    // Named, so the reviewer can find the words that lost their link and link them by hand if they should be.
+    const named = checked.removed.slice(0, 3).map((link) => `"${link.text || link.href}" (${link.reason})`);
+    const more = checked.removed.length > 3 ? ` and ${checked.removed.length - 3} more` : "";
+    warnings.push(`Links removed, their words kept: ${named.join(", ")}${more}.`);
+  }
   if (checkedFaqs.length < 6) warnings.push(`The article has ${checkedFaqs.length} FAQs; the blog's posts have 6 to 8.`);
 
   const keywords = keywordReport({ ...draft, shortAnswer: draft.shortAnswer, faqs: checkedFaqs });

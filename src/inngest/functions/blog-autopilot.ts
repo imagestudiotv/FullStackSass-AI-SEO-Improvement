@@ -1,23 +1,29 @@
 import { NonRetriableError } from "inngest";
 
 import { inngest } from "@/inngest/client";
-import { MODELS } from "@/lib/ai/client";
+import { isAiConfigured, MODELS } from "@/lib/ai/client";
 import { addUsage } from "@/lib/blog/autopilot/model";
 import { emailDraftsReady } from "@/lib/blog/autopilot/notify";
 import { canMakePictures, makePicture, placePictures } from "@/lib/blog/autopilot/pictures";
 import {
   failAutopilotRun,
+  failStaleRuns,
   finishAutopilotRun,
   loadClaim,
   loadDraft,
   noteCost,
   noteRun,
+  recordEmptyDay,
   RUN_EVENT,
   runCost,
   saveAutopilotDraft,
   saveAutopilotTranslation,
+  scheduledRunExists,
+  startAutopilotRun,
+  utcDay,
 } from "@/lib/blog/autopilot/run";
 import { readAutopilotSettings } from "@/lib/blog/autopilot/settings";
+import { queuedTopicCount, suggestTopics } from "@/lib/blog/autopilot/suggest";
 import { bodySlices, swapPictures, translateBodyPart, translateFields, type TranslationSource } from "@/lib/blog/autopilot/translate";
 import { bodyParts, finishDraft, loadWriterContext, planArticle, writePart, type WrittenPart } from "@/lib/blog/autopilot/write";
 import { LANGUAGE_NAMES_EN } from "@/lib/blog/locale";
@@ -260,5 +266,74 @@ export const blogAutopilotRun = inngest.createFunction(
     });
     logger.info({ step: "done", runId, postId: saved.postId, translations: translations.length, warnings: warnings.length, emailed: emailed.sent }, "Blog autopilot run finished");
     return { written: true, ...saved, translations: translations.length };
+  },
+);
+
+/**
+ * The daily article (client's choice 1), when the autopilot is switched on.
+ *
+ * Every hour at five past: once the day's hour (settings, UTC) has come, the
+ * next topic is taken and written - once a day, kept by the runs table's
+ * one-scheduled-run-per-day index. On or AFTER the hour, so a tick that
+ * Inngest delays or skips, or a manual run still going at the hour, only
+ * moves the article later that day.
+ *
+ * When the list is empty RepGet chooses topics first (client's choice 3);
+ * when there is still nothing to write, the day is recorded with the reason
+ * - shown on the autopilot page - and not tried again every hour.
+ *
+ * Also, every hour whether or not it is switched on: runs that stopped
+ * without finishing are failed, so their topic can be tried again.
+ */
+export const blogAutopilotSchedule = inngest.createFunction(
+  {
+    id: "blog-autopilot-schedule",
+    retries: 1,
+    concurrency: { limit: 1 },
+    triggers: [{ cron: "5 * * * *" }],
+  },
+  async ({ step, logger }) => {
+    const stale = await step.run("fail-stale-runs", () => failStaleRuns());
+    if (stale > 0) logger.warn({ step: "fail-stale-runs", stale }, "Blog autopilot runs stopped without finishing; marked failed");
+
+    const settings = await step.run("settings", () => readAutopilotSettings());
+    if (!settings.enabled) return { written: false, reason: "off" };
+    const now = new Date(await step.run("now", () => new Date().toISOString()));
+    if (now.getUTCHours() < settings.runHour) return { written: false, reason: "before-the-hour" };
+    const day = utcDay(now);
+    if (await step.run("ran-today", () => scheduledRunExists(day))) return { written: false, reason: "done-today" };
+
+    if (!isAiConfigured()) {
+      await step.run("no-ai", () => recordEmptyDay(day, "Nothing was written today: the AI is not set up on this server (ANTHROPIC_API_KEY).", now));
+      return { written: false, reason: "no-ai" };
+    }
+
+    if ((await step.run("queued", () => queuedTopicCount())) === 0) {
+      const suggested = await step.run("suggest-topics", async () => {
+        try {
+          return { added: (await suggestTopics()).added };
+        } catch (error) {
+          return { error: error instanceof Error ? error.message : "RepGet could not choose topics." };
+        }
+      });
+      if ("error" in suggested) {
+        await step.run("empty-day", () => recordEmptyDay(day, `Nothing was written today: the topic list is empty. ${suggested.error}`, now));
+        return { written: false, reason: "empty" };
+      }
+      logger.info({ step: "suggest-topics", added: suggested.added.length }, "Blog autopilot chose topics for an empty list");
+    }
+
+    const outcome = await step.run("start-run", () => startAutopilotRun({ trigger: "schedule", now }));
+    if ("skipped" in outcome) {
+      if (outcome.skipped === "empty") {
+        await step.run("empty-day", () =>
+          recordEmptyDay(day, "Nothing was written today: the topic list is empty and RepGet found no new topics. Add topics to the list.", now),
+        );
+      }
+      // "busy": an article is being written; the next hour tries again.
+      return { written: false, reason: outcome.skipped };
+    }
+    logger.info({ step: "start-run", runId: outcome.claimed.runId }, "Blog autopilot started the day's article");
+    return { written: true, runId: outcome.claimed.runId };
   },
 );

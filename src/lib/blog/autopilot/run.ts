@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, eq, like, or, sql } from "drizzle-orm";
+import { and, asc, eq, like, lt, or, sql } from "drizzle-orm";
 
 import { recordAdminAction } from "@/lib/admin/audit";
 import { LANGUAGE_NAMES_EN } from "@/lib/blog/locale";
@@ -364,4 +364,44 @@ export async function noteRun(runId: string, detail: Record<string, unknown>, ex
     .update(blogAutopilotRuns)
     .set({ detail: sql`${blogAutopilotRuns.detail} || ${JSON.stringify(detail)}::jsonb` })
     .where(eq(blogAutopilotRuns.id, runId));
+}
+
+/** A run still "running" after this long has stopped for good (every step is minutes; the whole run under an hour). */
+export const STALE_RUN_HOURS = 3;
+
+/**
+ * Fails runs that stopped without finishing - a job lost by the queue, a
+ * deployment that dropped it - so their topic can be tried again and
+ * "Write the next one now" is not blocked for ever. Returns how many.
+ */
+export async function failStaleRuns(now: Date = new Date()): Promise<number> {
+  const before = new Date(now.getTime() - STALE_RUN_HOURS * 3600_000);
+  const stale = await db
+    .select({ id: blogAutopilotRuns.id })
+    .from(blogAutopilotRuns)
+    .where(and(eq(blogAutopilotRuns.status, "running"), lt(blogAutopilotRuns.startedAt, before)));
+  for (const run of stale) await failAutopilotRun(run.id, "The writing stopped without finishing. Try again.");
+  return stale.length;
+}
+
+/** True when the day's scheduled run exists (written, failed or skipped). */
+export async function scheduledRunExists(runDate: string): Promise<boolean> {
+  const [run] = await db
+    .select({ id: blogAutopilotRuns.id })
+    .from(blogAutopilotRuns)
+    .where(and(eq(blogAutopilotRuns.runDate, runDate), eq(blogAutopilotRuns.trigger, "schedule")))
+    .limit(1);
+  return Boolean(run);
+}
+
+/**
+ * Records a day the schedule had nothing to write, once: it shows on the
+ * autopilot page with the reason, and the schedule does not try again every
+ * hour that day.
+ */
+export async function recordEmptyDay(runDate: string, reason: string, now: Date = new Date()): Promise<void> {
+  await db
+    .insert(blogAutopilotRuns)
+    .values({ runDate, trigger: "schedule", status: "failed", error: reason.slice(0, 500), startedAt: now, finishedAt: now })
+    .onConflictDoNothing();
 }

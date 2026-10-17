@@ -293,6 +293,9 @@ describe("the draft", () => {
     // Only official documentation is ever fetched.
     expect(checkedUrls).toEqual(["https://developers.google.com/search/docs/fundamentals/seo-starter-guide", "https://support.google.com/business/answer/gone"]);
     expect(SOURCE_HOSTS.has("ahrefs.com")).toBe(false);
+    expect(report.warnings).toContain(
+      `Links removed, their words kept: "secret" (not one of RepGet's pages), "a competitor" (not official documentation), "gone" (the page did not answer) and 2 more.`,
+    );
     expect(report.links.internal).toBe(4);
     expect(report.links.external).toBe(1);
     expect(report.links.removed.map((link) => link.reason)).toEqual([

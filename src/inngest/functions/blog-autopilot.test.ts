@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import sharp from "sharp";
-import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { blogAutopilot, blogAutopilotRuns, blogAutopilotTopics, blogPosts, jobOutbox } from "@/lib/db/schema";
 import { message, partReplies, planReply } from "@/test/blog-autopilot";
@@ -48,7 +48,7 @@ vi.mock("@/lib/email/send", () => ({ sendEmail: mail.send }));
 import { startAutopilotRun } from "@/lib/blog/autopilot/run";
 import { bodyParts } from "@/lib/blog/autopilot/write";
 
-import { blogAutopilotRun } from "./blog-autopilot";
+import { blogAutopilotRun, blogAutopilotSchedule } from "./blog-autopilot";
 
 type Handler = (input: unknown) => Promise<unknown>;
 type Job = { config: { onFailure: Handler; concurrency: unknown; triggers: unknown }; handler: Handler };
@@ -403,5 +403,90 @@ describe("the blog autopilot's job", () => {
     ]);
     expect(mail.send.mock.calls[0][0].text).toContain("The English draft and its Italian translation are ready to review.");
     expect(mail.send.mock.calls[0][0].text).toContain("- The French translation could not be made");
+  });
+});
+
+describe("the daily schedule", () => {
+  const schedule = blogAutopilotSchedule as unknown as Job;
+  const tick = (at: string) => {
+    vi.setSystemTime(new Date(at));
+    return schedule.handler({ step: memoisedStep(), logger }) as Promise<{ written: boolean; reason?: string; runId?: string }>;
+  };
+  const turnOn = (runHour = 6) => test.db.insert(blogAutopilot).values({ key: "blog", enabled: true, runHour, languages: [] });
+  const scheduled = () => test.db.select().from(blogAutopilotRuns).where(eq(blogAutopilotRuns.trigger, "schedule"));
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.stubEnv("ANTHROPIC_API_KEY", "test-key");
+    vi.stubEnv("DATAFORSEO_LOGIN", "");
+    vi.stubEnv("DATAFORSEO_PASSWORD", "");
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("runs every hour, writing nothing while the autopilot is off", async () => {
+    expect(schedule.config.triggers).toEqual([{ cron: "5 * * * *" }]);
+    await test.db.insert(blogAutopilotTopics).values({ topic: "Waiting", sortOrder: 1 });
+    expect(await tick("2026-10-17T06:05:00Z")).toEqual({ written: false, reason: "off" });
+    expect(await scheduled()).toHaveLength(0);
+  });
+
+  it("starts the day's article once the hour has come, once a day", async () => {
+    await turnOn(6);
+    await test.db.insert(blogAutopilotTopics).values([
+      { topic: "First", sortOrder: 1 },
+      { topic: "Second", sortOrder: 2 },
+    ]);
+    expect(await tick("2026-10-17T05:05:00Z")).toEqual({ written: false, reason: "before-the-hour" });
+    const started = await tick("2026-10-17T06:05:00Z");
+    expect(started.written).toBe(true);
+    const [run] = await scheduled();
+    expect(run).toMatchObject({ id: started.runId, runDate: "2026-10-17", status: "running" });
+    expect(inngestMock.send).toHaveBeenCalledWith(expect.objectContaining({ name: "blog/autopilot.run", data: { runId: started.runId } }));
+    // The run ends; later ticks that day write nothing more.
+    await test.db.update(blogAutopilotRuns).set({ status: "done" });
+    await test.db.update(blogAutopilotTopics).set({ status: "written" }).where(eq(blogAutopilotTopics.topic, "First"));
+    expect(await tick("2026-10-17T07:05:00Z")).toEqual({ written: false, reason: "done-today" });
+    expect(await tick("2026-10-17T23:05:00Z")).toEqual({ written: false, reason: "done-today" });
+    // The next day, the next topic.
+    expect((await tick("2026-10-18T06:05:00Z")).written).toBe(true);
+    expect((await test.db.select().from(blogAutopilotTopics).where(eq(blogAutopilotTopics.topic, "Second")))[0].status).toBe("writing");
+  });
+
+  it("writes it later that day when the hour was missed or an article was being written", async () => {
+    await turnOn(6);
+    await test.db.insert(blogAutopilotTopics).values([
+      { topic: "By hand", sortOrder: 1, status: "writing" },
+      { topic: "Scheduled", sortOrder: 2 },
+    ]);
+    expect(await tick("2026-10-17T06:05:00Z")).toEqual({ written: false, reason: "busy" });
+    await test.db.update(blogAutopilotTopics).set({ status: "written" }).where(eq(blogAutopilotTopics.topic, "By hand"));
+    expect((await tick("2026-10-17T09:05:00Z")).written).toBe(true);
+  });
+
+  it("records a day with nothing to write, with the reason, and does not try again every hour", async () => {
+    await turnOn(6);
+    // An empty list and no search data to choose topics from.
+    expect(await tick("2026-10-17T06:05:00Z")).toEqual({ written: false, reason: "empty" });
+    const [day] = await scheduled();
+    expect(day).toMatchObject({ runDate: "2026-10-17", status: "failed" });
+    expect(day.error).toBe(
+      "Nothing was written today: the topic list is empty. Search data is not set up on this server, so RepGet cannot choose topics. Add topics to the list instead.",
+    );
+    expect(await tick("2026-10-17T07:05:00Z")).toEqual({ written: false, reason: "done-today" });
+    expect(await scheduled()).toHaveLength(1);
+  });
+
+  it("fails runs that stopped without finishing, so their topic can be tried again", async () => {
+    await test.db.insert(blogAutopilotTopics).values({ topic: "Stuck", sortOrder: 1, status: "writing" });
+    const [topic] = await test.db.select().from(blogAutopilotTopics);
+    await test.db.insert(blogAutopilotRuns).values({ runDate: "2026-10-17", trigger: "manual", topicId: topic.id, status: "running", startedAt: new Date("2026-10-17T02:00:00Z") });
+    await test.db.insert(blogAutopilotRuns).values({ runDate: "2026-10-17", trigger: "manual", status: "running", startedAt: new Date("2026-10-17T04:30:00Z") });
+    await tick("2026-10-17T06:05:00Z");
+    const runs = await test.db.select().from(blogAutopilotRuns).orderBy(blogAutopilotRuns.startedAt);
+    expect(runs.map((run) => run.status)).toEqual(["failed", "running"]);
+    expect(runs[0].error).toBe("The writing stopped without finishing. Try again.");
+    expect((await test.db.select().from(blogAutopilotTopics))[0]).toMatchObject({ status: "failed", error: "The writing stopped without finishing. Try again." });
   });
 });

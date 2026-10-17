@@ -25,7 +25,7 @@ const RUN_STATUS: Record<string, { tone: StatusTone; label: string }> = {
 function costParts(costs: { writing: number; pictures: number; translations: number }): string {
   const parts = Object.entries(costs)
     .filter(([, usd]) => usd > 0)
-    .map(([part, usd]) => `${part} ${usd.toFixed(2)}`);
+    .map(([part, usd]) => `${part} $${usd.toFixed(2)}`);
   return parts.length > 1 ? ` (${parts.join(", ")})` : "";
 }
 
@@ -88,7 +88,7 @@ export default async function BlogAutopilotPage() {
                           {[
                             run.words !== null ? `${run.words.toLocaleString("en-US")} words` : null,
                             run.translations ? `${run.translations} translation${run.translations === 1 ? "" : "s"}` : null,
-                            run.costUsd !== null ? `AI cost ${run.costUsd.toFixed(2)}${costParts(run.costs)}` : null,
+                            run.costUsd !== null ? `AI cost $${run.costUsd.toFixed(2)}${costParts(run.costs)}` : null,
                           ]
                             .filter(Boolean)
                             .join(" · ")}
