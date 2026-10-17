@@ -73,6 +73,7 @@ export const ACTION_META: Record<AdminAction, ActionMeta> = {
   "blog.autopilot_topics_added": { label: "Blog autopilot topics added", icon: Newspaper },
   "blog.autopilot_topic_saved": { label: "Blog autopilot topic changed", icon: Newspaper },
   "blog.autopilot_topic_deleted": { label: "Blog autopilot topic removed", icon: Trash2, removal: true },
+  "blog.autopilot_run_started": { label: "Blog autopilot article started", icon: Newspaper },
   "testimonial.created": { label: "Testimonial added", icon: Quote },
   "testimonial.saved": { label: "Testimonial saved", icon: Quote },
   "testimonial.published": { label: "Testimonial published", icon: Quote },

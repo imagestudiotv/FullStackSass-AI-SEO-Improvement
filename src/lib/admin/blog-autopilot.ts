@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache";
 
 import { recordAdminAction } from "@/lib/admin/audit";
 import { requireAdmin } from "@/lib/admin/guard";
+import { isAiConfigured } from "@/lib/ai/client";
+import { startAutopilotRun } from "@/lib/blog/autopilot/run";
 import {
   AUTOPILOT_KEY,
   autopilotLanguages,
@@ -57,6 +59,10 @@ export type AdminAutopilotRun = {
   error: string | null;
   startedAt: Date;
   finishedAt: Date | null;
+  /** From the run's record, once the article is checked: what it cost, its length, what fell short of the house style. */
+  costUsd: number | null;
+  words: number | null;
+  warnings: string[];
 };
 
 export type AdminAutopilot = {
@@ -95,6 +101,16 @@ function cleanTopic(input: TopicInput): CleanTopic | string {
   const notes = String(input.notes ?? "").trim();
   if (notes.length > TOPIC_LIMITS.notes) return `Keep the notes under ${TOPIC_LIMITS.notes} characters`;
   return { topic, keyword: keyword || null, notes: notes || null };
+}
+
+/** The figures the writer kept with the run (lib/blog/autopilot/write.ts DraftReport), read defensively. */
+function runFigures(detail: Record<string, unknown>): Pick<AdminAutopilotRun, "costUsd" | "words" | "warnings"> {
+  const usage = detail.usage as { costUsd?: unknown } | undefined;
+  return {
+    costUsd: typeof usage?.costUsd === "number" ? usage.costUsd : null,
+    words: typeof detail.words === "number" ? detail.words : null,
+    warnings: Array.isArray(detail.warnings) ? detail.warnings.filter((warning): warning is string => typeof warning === "string") : [],
+  };
 }
 
 /** Everything the page shows. */
@@ -146,6 +162,7 @@ export async function getBlogAutopilotAdmin(): Promise<AdminAutopilot> {
       error: run.error,
       startedAt: run.startedAt,
       finishedAt: run.finishedAt,
+      ...runFigures(run.detail),
     })),
   };
 }
@@ -389,4 +406,39 @@ export async function retryBlogAutopilotTopic(id: string): Promise<ActionResult<
   if (error) return { ok: false, error };
   refresh();
   return { ok: true, data: null };
+}
+
+/**
+ * Writes the next topic now, without waiting for the day's hour (and
+ * whether or not the daily article is switched on). The topic is taken at
+ * once - the page shows it being written - and a second press is refused
+ * until it is done. Saved as a draft, like every autopilot article.
+ */
+export async function writeBlogAutopilotNow(): Promise<ActionResult<{ topic: string }>> {
+  const admin = await requireAdmin();
+  if (!isAiConfigured()) return { ok: false, error: "The AI is not set up on this server (ANTHROPIC_API_KEY), so nothing can be written yet" };
+  const outcome = await startAutopilotRun({
+    trigger: "manual",
+    requestedBy: admin.email,
+    record: (tx, claim) =>
+      recordAdminAction(
+        {
+          actorEmail: admin.email,
+          action: "blog.autopilot_run_started",
+          targetType: "blog_autopilot_topic",
+          targetId: claim.topicId,
+          summary: `Started writing "${claim.topic}" with the blog autopilot`,
+          detail: { runId: claim.runId },
+        },
+        tx,
+      ),
+  });
+  if ("skipped" in outcome) {
+    return {
+      ok: false,
+      error: outcome.skipped === "empty" ? "Add a topic first - nothing is waiting to be written" : "An article is being written right now - wait for it to finish",
+    };
+  }
+  refresh();
+  return { ok: true, data: { topic: outcome.claimed.topic } };
 }

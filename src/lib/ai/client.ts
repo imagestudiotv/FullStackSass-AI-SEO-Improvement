@@ -15,10 +15,14 @@ import Anthropic from "@anthropic-ai/sdk";
  *  - EXTRACTION: short, structured, high volume. Haiku is the right cost point.
  *  - GENERATION: the article itself, which IS the product. At roughly $0.08 per
  *    article Sonnet is under 3% of revenue on every plan, so quality wins.
+ *  - BLOG: RepGet's own blog, written by the blog autopilot (lib/blog/autopilot):
+ *    one long article a day that speaks for RepGet itself, so the best model
+ *    (client, 2026-10-17: "Please do with the best model"). About $1 an article.
  */
 export const MODELS = {
   EXTRACTION: "claude-haiku-4-5",
   GENERATION: "claude-sonnet-5",
+  BLOG: "claude-opus-5-5",
 } as const;
 
 let client: Anthropic | null = null;

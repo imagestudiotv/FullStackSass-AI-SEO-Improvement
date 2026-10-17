@@ -13,7 +13,7 @@ import {
   type ReserveContext,
 } from "@/lib/billing/spend-quota";
 import { db } from "@/lib/db";
-import { articles, jobOutbox, websites } from "@/lib/db/schema";
+import { articles, blogAutopilotRuns, blogAutopilotTopics, jobOutbox, websites } from "@/lib/db/schema";
 import type { Database, Executor } from "@/lib/db/types";
 
 /**
@@ -349,5 +349,20 @@ async function giveUpOn(tx: Executor, row: typeof jobOutbox.$inferSelect): Promi
           newerJobFor("websiteId", data.websiteId),
         ),
       );
+  }
+  // The blog autopilot takes its topic when queued (lib/blog/autopilot/run.ts): a run that will never start fails, so "Try again" can queue it.
+  if (row.name === "blog/autopilot.run" && typeof data.runId === "string") {
+    const error = "The writing could not be started. Try again.";
+    const [run] = await tx
+      .update(blogAutopilotRuns)
+      .set({ status: "failed", error, finishedAt: now })
+      .where(and(eq(blogAutopilotRuns.id, data.runId), eq(blogAutopilotRuns.status, "running")))
+      .returning({ topicId: blogAutopilotRuns.topicId });
+    if (run?.topicId) {
+      await tx
+        .update(blogAutopilotTopics)
+        .set({ status: "failed", error, updatedAt: now })
+        .where(and(eq(blogAutopilotTopics.id, run.topicId), eq(blogAutopilotTopics.status, "writing")));
+    }
   }
 }

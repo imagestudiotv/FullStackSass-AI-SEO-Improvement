@@ -56,7 +56,7 @@ export default async function BlogAutopilotPage() {
               noun="runs"
               icon={Bot}
               title="No runs yet"
-              description="The first article is written at the chosen hour once the autopilot is on."
+              description="The first article is written at the chosen hour once the autopilot is on - or now, with “Write the next one now”."
             />
           ) : (
             <ul className="divide-y">
@@ -64,8 +64,9 @@ export default async function BlogAutopilotPage() {
                 const status = RUN_STATUS[run.status] ?? { tone: "neutral" as const, label: run.status };
                 return (
                   <li key={run.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 text-sm sm:px-5">
-                    <span className="w-28 shrink-0 tabular-nums text-muted-foreground">{formatDate(run.startedAt, "en", { day: "numeric", month: "short", year: "numeric" })}</span>
-                    <span className="min-w-0 flex-1">
+                    <span className="order-1 w-28 shrink-0 tabular-nums text-muted-foreground">{formatDate(run.startedAt, "en", { day: "numeric", month: "short", year: "numeric" })}</span>
+                    {/* On a phone: the date and status on one line, the article below them. */}
+                    <span className="order-3 min-w-0 basis-full sm:order-2 sm:flex-1 sm:basis-0">
                       {run.postId ? (
                         <Link href={`/admin/blog/${run.postId}`} className="font-medium underline-offset-4 hover:underline">
                           {run.topic ?? "Article"}
@@ -74,9 +75,33 @@ export default async function BlogAutopilotPage() {
                         <span className="font-medium">{run.topic ?? "No topic"}</span>
                       )}
                       {run.trigger === "manual" ? <span className="ml-2 text-xs text-muted-foreground">started by hand</span> : null}
+                      {run.words !== null || run.costUsd !== null ? (
+                        <span className="mt-0.5 block text-xs text-muted-foreground tabular-nums">
+                          {[
+                            run.words !== null ? `${run.words.toLocaleString("en-US")} words` : null,
+                            run.costUsd !== null ? `AI cost $${run.costUsd.toFixed(2)}` : null,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </span>
+                      ) : null}
+                      {run.warnings.length > 0 ? (
+                        <details className="mt-1 text-xs text-muted-foreground">
+                          <summary className="cursor-pointer select-none">
+                            {run.warnings.length} thing{run.warnings.length === 1 ? "" : "s"} to check in the draft
+                          </summary>
+                          <ul className="mt-1 list-disc space-y-0.5 pl-5">
+                            {run.warnings.map((warning) => (
+                              <li key={warning}>{warning}</li>
+                            ))}
+                          </ul>
+                        </details>
+                      ) : null}
                       {run.error ? <span className="mt-0.5 block text-xs text-danger">{run.error}</span> : null}
                     </span>
-                    <AdminStatus tone={status.tone} label={status.label} />
+                    <span className="order-2 ml-auto sm:order-3">
+                      <AdminStatus tone={status.tone} label={status.label} />
+                    </span>
                   </li>
                 );
               })}

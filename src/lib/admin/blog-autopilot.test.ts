@@ -1,7 +1,7 @@
 import { asc, eq } from "drizzle-orm";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { adminAuditLog, blogAutopilotTopics, blogCategories, blogPosts } from "@/lib/db/schema";
+import { adminAuditLog, blogAutopilotRuns, blogAutopilotTopics, blogCategories, blogPosts, jobOutbox } from "@/lib/db/schema";
 import { createTestDb, type TestDb } from "@/test/db";
 
 /**
@@ -17,6 +17,9 @@ vi.mock("@/lib/db", () => ({
 }));
 vi.mock("@/lib/auth-guard", () => ({ getSession: async () => state.session }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+// "Write one now" sends its job through the outbox; the queue is mocked, nothing leaves the process.
+const inngestMock = vi.hoisted(() => ({ send: vi.fn(async () => ({ ids: ["evt"] })) }));
+vi.mock("@/inngest/client", () => ({ inngest: inngestMock }));
 
 import {
   addBlogAutopilotTopics,
@@ -26,6 +29,7 @@ import {
   retryBlogAutopilotTopic,
   saveBlogAutopilotSettings,
   saveBlogAutopilotTopic,
+  writeBlogAutopilotNow,
 } from "@/lib/admin/blog-autopilot";
 import { parseTopicLines } from "@/app/admin/blog/autopilot/autopilot-topics";
 import { DEFAULT_AUTOPILOT, readAutopilotSettings, romeHourLabel } from "@/lib/blog/autopilot/settings";
@@ -156,5 +160,50 @@ describe("a pasted list", () => {
       { topic: "Service pages", keyword: "" },
       { topic: "A", keyword: "b | c" },
     ]);
+  });
+});
+
+describe("write one now", () => {
+  beforeEach(async () => {
+    await test.db.delete(blogAutopilotRuns);
+    await test.db.delete(jobOutbox);
+    vi.stubEnv("ANTHROPIC_API_KEY", "test-key");
+  });
+
+  it("takes the first topic at once and sends the job, logged as the administrator", async () => {
+    await add("First", "Second");
+    expect(await writeBlogAutopilotNow()).toEqual({ ok: true, data: { topic: "First" } });
+    const page = await getBlogAutopilotAdmin();
+    expect(page.writing.map((topic) => topic.topic)).toEqual(["First"]);
+    expect(page.queued.map((topic) => topic.topic)).toEqual(["Second"]);
+    expect(page.runs).toEqual([expect.objectContaining({ trigger: "manual", status: "running", topic: "First", costUsd: null, words: null, warnings: [] })]);
+    expect(inngestMock.send).toHaveBeenCalledWith(expect.objectContaining({ name: "blog/autopilot.run" }));
+    const [log] = await test.db.select().from(adminAuditLog).where(eq(adminAuditLog.action, "blog.autopilot_run_started"));
+    expect(log).toMatchObject({ actorEmail: ADMIN, summary: `Started writing "First" with the blog autopilot` });
+
+    // A second press while it is written is refused, and nothing more is taken.
+    expect(await writeBlogAutopilotNow()).toEqual({ ok: false, error: "An article is being written right now - wait for it to finish" });
+    expect(await queue()).toEqual(["Second"]);
+  });
+
+  it("shows what a finished run cost and what to check in its draft", async () => {
+    await add("First");
+    await writeBlogAutopilotNow();
+    await test.db.update(blogAutopilotRuns).set({ status: "done", detail: { usage: { costUsd: 1.0234 }, words: 3412, warnings: ["The article has 2 tables; the blog's posts have 3 to 5.", 7] } });
+    expect((await getBlogAutopilotAdmin()).runs[0]).toMatchObject({
+      costUsd: 1.0234,
+      words: 3412,
+      warnings: ["The article has 2 tables; the blog's posts have 3 to 5."],
+    });
+  });
+
+  it("is refused with nothing to write, without the AI, and for anyone but an administrator", async () => {
+    expect(await writeBlogAutopilotNow()).toEqual({ ok: false, error: "Add a topic first - nothing is waiting to be written" });
+    vi.stubEnv("ANTHROPIC_API_KEY", "");
+    await add("First");
+    expect(await writeBlogAutopilotNow()).toMatchObject({ ok: false, error: expect.stringContaining("ANTHROPIC_API_KEY") });
+    expect(await queue()).toEqual(["First"]);
+    state.session = null;
+    await expect(writeBlogAutopilotNow()).rejects.toThrow();
   });
 });

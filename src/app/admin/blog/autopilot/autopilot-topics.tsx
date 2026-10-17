@@ -1,9 +1,9 @@
 "use client";
 
-import { ArrowDown, ArrowUp, ListPlus, Pencil, Plus, RotateCcw, Sparkles, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ListPlus, PenLine, Pencil, Plus, RotateCcw, Sparkles, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useId, useState, useTransition } from "react";
+import { useEffect, useId, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import {
   moveBlogAutopilotTopic,
   retryBlogAutopilotTopic,
   saveBlogAutopilotTopic,
+  writeBlogAutopilotNow,
   type AdminAutopilotTopic,
 } from "@/lib/admin/blog-autopilot";
 
@@ -57,6 +58,37 @@ function useRun() {
   return { pending, run };
 }
 
+/** While an article is being written, the page looks again every 20 seconds, so the draft shows up by itself. */
+function RefreshWhileWriting() {
+  const router = useRouter();
+  useEffect(() => {
+    const timer = setInterval(() => router.refresh(), 20_000);
+    return () => clearInterval(timer);
+  }, [router]);
+  return null;
+}
+
+/** Writes the first topic in the list now, as a draft, without waiting for the day's hour. */
+function WriteNow({ next, busy }: { next: AdminAutopilotTopic | undefined; busy: boolean }) {
+  const { pending, run } = useRun();
+  return (
+    <Button
+      size="sm"
+      disabled={pending || busy || !next}
+      title={busy ? "An article is being written" : next ? `Writes "${next.topic}" now` : "Add a topic first"}
+      onClick={() =>
+        run(
+          writeBlogAutopilotNow,
+          "Writing started. The draft appears here in about 10 minutes.",
+        )
+      }
+    >
+      <PenLine aria-hidden />
+      {pending ? "Starting…" : "Write the next one now"}
+    </Button>
+  );
+}
+
 /** The topics: what is next, in order, then what could not be written and what has been. */
 export function AutopilotTopics({
   queued,
@@ -72,15 +104,19 @@ export function AutopilotTopics({
   const id = useId();
   return (
     <section aria-labelledby={`${id}-heading`} className="rounded-xl border bg-card">
-      <div className="border-b px-4 py-4 sm:px-5">
-        <h2 id={`${id}-heading`} className="font-medium">
-          Topics
-        </h2>
-        <p className="mt-0.5 text-sm text-muted-foreground">
-          Written from the top, one a day. When the list is empty, RepGet chooses topics itself from search data, skipping what the blog already
-          covers.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b px-4 py-4 sm:px-5">
+        <div className="min-w-60 flex-1">
+          <h2 id={`${id}-heading`} className="font-medium">
+            Topics
+          </h2>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            Written from the top, one a day. When the list is empty, RepGet chooses topics itself from search data, skipping what the blog already
+            covers.
+          </p>
+        </div>
+        <WriteNow next={queued[0]} busy={writing.length > 0} />
       </div>
+      {writing.length > 0 ? <RefreshWhileWriting /> : null}
 
       <AddTopics />
 
@@ -89,7 +125,10 @@ export function AutopilotTopics({
           {writing.map((topic) => (
             <li key={topic.id} className="flex flex-wrap items-center gap-3 px-4 py-3 sm:px-5">
               <TopicText topic={topic} />
-              <AdminStatus tone="info" label="Being written now" />
+              <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                About 10 minutes; this page updates by itself.
+                <AdminStatus tone="info" label="Being written now" />
+              </span>
             </li>
           ))}
         </ul>

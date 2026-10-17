@@ -12,6 +12,7 @@
 import { activateExchange } from "./activate-exchange";
 import { analyzeWebsite } from "./analyze-website";
 import { auditWebsite } from "./audit-website";
+import { blogAutopilotRun } from "./blog-autopilot";
 import { checkGeo } from "./check-geo";
 import { collectAuthority } from "./collect-authority";
 import { generateArticle } from "./generate-article";
@@ -41,4 +42,5 @@ export const functions = [
   billingMaintenance,
   collectAuthority,
   indexArticles,
+  blogAutopilotRun,
 ];

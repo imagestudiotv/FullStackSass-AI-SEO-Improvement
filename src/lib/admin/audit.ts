@@ -56,6 +56,7 @@ export type AdminAction =
   | "blog.autopilot_topics_added"
   | "blog.autopilot_topic_saved"
   | "blog.autopilot_topic_deleted"
+  | "blog.autopilot_run_started"
   | "testimonial.created"
   | "testimonial.saved"
   | "testimonial.published"
