@@ -98,13 +98,13 @@ function isb_settings_page() {
             <table class="form-table" role="presentation">
                 <tr>
                     <th scope="row"><?php esc_html_e('Show on articles', 'imagestudio-blog'); ?></th>
-                    <td><label><input type="checkbox" name="isb_settings[show_feature]" value="1" <?php checked($s['show_feature']); ?>> <?php esc_html_e('Show the "Get Featured" button on every editorial article ($99, one time, through PayPal)', 'imagestudio-blog'); ?></label></td>
+                    <td><label><input type="checkbox" name="isb_settings[show_feature]" value="1" <?php checked($s['show_feature']); ?>> <?php echo esc_html(sprintf(__('Show the "Get Featured" button on every editorial article (%s, one time, through PayPal)', 'imagestudio-blog'), isb_price_label('en'))); ?></label></td>
                 </tr>
                 <tr>
                     <th scope="row"><label for="isb-paypal-email"><?php esc_html_e('PayPal email', 'imagestudio-blog'); ?></label></th>
                     <td>
                         <input id="isb-paypal-email" class="regular-text" type="email" name="isb_settings[paypal_email]" value="<?php echo esc_attr($s['paypal_email']); ?>" required>
-                        <p class="description"><?php esc_html_e('The PayPal account the $99 is paid to. No PayPal developer keys are needed.', 'imagestudio-blog'); ?></p>
+                        <p class="description"><?php echo esc_html(sprintf(__('The PayPal account the %s is paid to. No PayPal developer keys are needed.', 'imagestudio-blog'), isb_price_label('en'))); ?></p>
                     </td>
                 </tr>
                 <tr>

@@ -114,7 +114,7 @@ $url = isb_paypal_url(array(
 parse_str(parse_url($url, PHP_URL_QUERY), $q);
 check('goes to paypal.com, a single "Buy Now" payment', strpos($url, 'https://www.paypal.com/cgi-bin/webscr?') === 0 && $q['cmd'] === '_xclick');
 check('pays dimoncic@live.it', $q['business'] === 'dimoncic@live.it');
-check('exactly $99.00 USD, quantity 1, nothing to ship', $q['amount'] === '99.00' && $q['currency_code'] === 'USD' && $q['quantity'] === '1' && $q['no_shipping'] === '1');
+check('exactly 99.00 EUR, quantity 1, nothing to ship', $q['amount'] === '99.00' && $q['currency_code'] === 'EUR' && $q['quantity'] === '1' && $q['no_shipping'] === '1');
 check('names the article and the request (IS-123)', $q['item_name'] === 'Featured placement: The Real Cost of a Luxury Wedding in Italy' && $q['item_number'] === 'IS-123');
 check('carries the request and its secret back', $q['custom'] === '123:abcdefghijklmnopqrstuvwxyz012345');
 check('returns to the article, and tells the site about the payment', $q['return'] === 'https://imagestudio.com/editorial/post/x/?featured=thanks' && $q['cancel_return'] === 'https://imagestudio.com/editorial/post/x/?featured=cancelled' && $q['notify_url'] === 'https://imagestudio.com/wp-json/imagestudio-blog/v1/paypal-ipn');
@@ -124,14 +124,17 @@ check('test mode goes to the PayPal sandbox; an Italian page gets PayPal in Ital
 
 echo "PayPal's payment notice\n";
 $expect = array('email' => 'dimoncic@live.it', 'secret' => 'abcdefghijklmnopqrstuvwxyz012345');
-$good = array('payment_status' => 'Completed', 'txn_type' => 'web_accept', 'receiver_email' => 'Dimoncic@Live.it', 'business' => 'dimoncic@live.it', 'mc_gross' => '99.00', 'mc_currency' => 'USD', 'txn_id' => '9AB12345CD678901E', 'custom_secret' => 'abcdefghijklmnopqrstuvwxyz012345');
-check('a completed $99 USD payment to dimoncic@live.it for this request pays for it', isb_ipn_problem($good, $expect) === null);
+$good = array('payment_status' => 'Completed', 'txn_type' => 'web_accept', 'receiver_email' => 'Dimoncic@Live.it', 'business' => 'dimoncic@live.it', 'mc_gross' => '99.00', 'mc_currency' => 'EUR', 'txn_id' => '9AB12345CD678901E', 'custom_secret' => 'abcdefghijklmnopqrstuvwxyz012345');
+check('a completed 99.00 EUR payment to dimoncic@live.it for this request pays for it', isb_ipn_problem($good, $expect) === null);
+$before = $expect + array('amount' => '99.00', 'currency' => 'USD');
+check('a request made before 2.3.0 (offered at 99.00 USD): its USD payment pays for it', isb_ipn_problem(array_merge($good, array('mc_currency' => 'USD')), $before) === null);
+check('... and a EUR payment does not', isb_ipn_problem($good, $before) === 'wrong currency');
 foreach (array(
     'not completed' => array('payment_status' => 'Pending'),
     'not a Buy Now payment' => array('txn_type' => 'subscr_payment'),
     'paid to another account' => array('receiver_email' => 'someone@else.com', 'business' => 'someone@else.com'),
     'wrong amount' => array('mc_gross' => '9.90'),
-    'wrong currency' => array('mc_currency' => 'EUR'),
+    'wrong currency' => array('mc_currency' => 'USD'),
     'no transaction id' => array('txn_id' => ''),
     'wrong request secret' => array('custom_secret' => 'zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz'),
 ) as $reason => $tamper) {
@@ -215,7 +218,10 @@ check('one visitor bucket for both windows; the email bucket is case-insensitive
 check('every bucket name fits the table (40 characters)', max(array_map(function ($b) { return strlen($b[0]); }, isb_request_buckets(str_repeat('f', 32), 'a@b.co'))) <= 40);
 
 echo "Copy\n";
-check('English is the client\'s wording', isb_text('title', 'en') === 'Get Your Website Featured in This Article.' && isb_text('buy', 'en') === 'Get Featured for $99' && isb_text('approval', 'en') === 'Subject to editorial approval');
+check('English is the client\'s wording', isb_text('title', 'en') === 'Get Your Website Featured in This Article.' && isb_text('buy', 'en') === 'Get Featured for €99' && isb_text('approval', 'en') === 'Subject to editorial approval');
+check('the price in euros: "€99" in English, "99 €" in Italian, in the buttons too', isb_price_label('en') === '€99' && isb_price_label('it') === '99 €' && isb_text('continue', 'en') === 'Continue to PayPal - €99' && isb_text('buy', 'it') === 'Fatti citare per 99 €' && isb_text('continue', 'it') === 'Continua su PayPal - 99 €');
+check('other amounts: cents kept, US dollars for old requests', isb_money('99.50', 'EUR', 'it') === '99,50 €' && isb_money('99.00', 'USD') === '$99' && isb_money('5.00', 'CHF') === 'CHF 5');
+check('no "$" left in the English or Italian offer texts', strpos(json_encode(array_map(function ($k) { return array(isb_text($k, 'en'), isb_text($k, 'it')); }, array('buy', 'continue', 'one_time', 'per_article', 'secure'))), '$') === false);
 check('Italian pages get Italian; an unknown language gets English', isb_text('trigger', 'it') === 'Fatti citare in questo articolo' && isb_text('trigger', 'de') === 'Get Featured in This Article');
 check('nothing promises a refund', stripos(json_encode(array(isb_text('thanks', 'en'), isb_text('secure', 'en'), isb_text('description', 'en'))), 'refund') === false);
 check('the article extras in English and Italian', isb_text('toc', 'en') === 'In this article' && isb_text('faq', 'en') === 'FAQ' && isb_text('toc', 'it') === 'In questo articolo' && isb_text('faq', 'it') === 'Domande frequenti');

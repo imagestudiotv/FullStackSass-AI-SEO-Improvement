@@ -238,6 +238,7 @@ reset_world();
 $outcomes = race(array(array('email' => 'payer@example.test', 'server' => array('REMOTE_ADDR' => '203.0.113.200'))));
 $ids = placement_ids();
 check('the request went on to PayPal and was recorded, not paid', $outcomes === array('paypal') && count($ids) === 1 && get_post_status($ids[0]) === 'isb_awaiting');
+check('the request remembers its price: 99.00 EUR', get_post_meta($ids[0] ?? 0, '_isb_amount', true) === '99.00' && get_post_meta($ids[0] ?? 0, '_isb_currency', true) === 'EUR');
 $id = $ids[0] ?? 0;
 $secret = (string) get_post_meta($id, '_isb_secret', true);
 $asked = 0;
@@ -247,18 +248,28 @@ add_filter('pre_http_request', function ($pre, $args, $url) use (&$asked) {
     return array('response' => array('code' => 200, 'message' => 'OK'), 'body' => 'VERIFIED', 'headers' => array(), 'cookies' => array());
 }, 10, 3);
 add_filter('pre_wp_mail', '__return_true');
-$notice = function ($secret_sent, $txn) use ($id) {
+$notice = function ($secret_sent, $txn, $currency = 'EUR') use ($id) {
     $request = new WP_REST_Request('POST', '/imagestudio-blog/v1/paypal-ipn');
     $request->set_body(http_build_query(array(
         'custom' => $id . ':' . $secret_sent, 'payment_status' => 'Completed', 'txn_type' => 'web_accept', 'test_ipn' => '1',
-        'receiver_email' => 'seller@example.test', 'business' => 'seller@example.test', 'mc_gross' => '99.00', 'mc_currency' => 'USD', 'txn_id' => $txn,
+        'receiver_email' => 'seller@example.test', 'business' => 'seller@example.test', 'mc_gross' => '99.00', 'mc_currency' => $currency, 'txn_id' => $txn,
     )));
     $request->set_header('content-type', 'application/x-www-form-urlencoded');
     return rest_do_request($request)->get_status();
 };
 check('a notice with the wrong secret: PayPal not even asked, not paid', $notice(str_repeat('z', 32), 'TXN-WRONG') === 200 && $asked === 0 && get_post_status($id) === 'isb_awaiting');
-check('the genuine notice: PayPal asked, paid', $notice($secret, 'TXN-1') === 200 && $asked === 1 && get_post_status($id) === 'isb_paid' && get_post_meta($id, '_isb_txn', true) === 'TXN-1');
+check('a USD payment for a EUR request: not paid, and the reason noted', $notice($secret, 'TXN-USD', 'USD') === 200 && get_post_status($id) === 'isb_awaiting' && get_post_meta($id, '_isb_payment_note', true) === 'PayPal notice not accepted: wrong currency');
+// PayPal was asked once already: about the USD payment, refused after its VERIFIED answer.
+check('the genuine notice: PayPal asked, paid', $notice($secret, 'TXN-1') === 200 && $asked === 2 && get_post_status($id) === 'isb_paid' && get_post_meta($id, '_isb_txn', true) === 'TXN-1');
 check('the same notice again: nothing changes', $notice($secret, 'TXN-2') === 200 && get_post_status($id) === 'isb_paid' && get_post_meta($id, '_isb_txn', true) === 'TXN-1');
+
+echo "A request made before 2.3.0 (no price stored) is still paid in US dollars
+";
+wp_update_post(array('ID' => $id, 'post_status' => 'isb_awaiting'));
+delete_post_meta($id, '_isb_amount');
+delete_post_meta($id, '_isb_currency');
+delete_post_meta($id, '_isb_txn');
+check('its 99.00 USD notice pays for it', $notice($secret, 'TXN-OLD', 'USD') === 200 && get_post_status($id) === 'isb_paid' && get_post_meta($id, '_isb_txn', true) === 'TXN-OLD');
 
 reset_world();
 delete_option('isb_settings');

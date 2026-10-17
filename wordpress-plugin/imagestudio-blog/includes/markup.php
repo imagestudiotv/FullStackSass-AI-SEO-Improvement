@@ -8,9 +8,27 @@
 
 defined('ABSPATH') || exit;
 
-/** The price: one time, in US dollars (client, 2026-10-08). */
+/**
+ * The price: one time (client, 2026-10-08), in euros since 2.3.0 (client,
+ * 2026-10-16: "change the currency from USD to EUR"). Requests made before
+ * 2.3.0 keep their own price and currency (see isb_ipn_problem()).
+ */
 const ISB_PRICE = '99.00';
-const ISB_CURRENCY = 'USD';
+const ISB_CURRENCY = 'EUR';
+
+/** An amount as readers see it: "€99" in English, "99 €" in Italian. */
+function isb_money($amount, $currency, $lang = 'en') {
+    $number = preg_replace('~\.00$~', '', (string) $amount);
+    $symbols = array('EUR' => '€', 'USD' => '$', 'GBP' => '£');
+    $symbol = $symbols[strtoupper($currency)] ?? strtoupper($currency) . ' ';
+    if ($lang === 'it') $number = str_replace('.', ',', $number);
+    return $lang === 'it' ? $number . ' ' . trim($symbol) : $symbol . $number;
+}
+
+/** The current price, in the page's language. */
+function isb_price_label($lang = 'en') {
+    return isb_money(ISB_PRICE, ISB_CURRENCY, $lang);
+}
 
 /**
  * Copy, in the page's language. Image Studio is English and Italian (WPML);
@@ -26,7 +44,7 @@ function isb_text($key, $lang = 'en') {
             'one_time' => 'One-time payment',
             'no_subscription' => 'No subscription',
             'per_article' => 'Per article placement',
-            'buy' => 'Get Featured for $99',
+            'buy' => 'Get Featured for {price}',
             'approval' => 'Subject to editorial approval',
             'details' => 'Tell us what to feature',
             'back' => 'Back',
@@ -35,7 +53,7 @@ function isb_text($key, $lang = 'en') {
             'website_hint' => 'yourwebsite.com',
             'message' => 'What should the mention say about your business?',
             'message_hint' => 'A sentence or two: what you offer, and who it is for.',
-            'continue' => 'Continue to PayPal - $99',
+            'continue' => 'Continue to PayPal - {price}',
             'opening' => 'Opening PayPal…',
             'secure' => 'Secure payment by PayPal. Subject to editorial approval.',
             'close' => 'Close',
@@ -67,7 +85,7 @@ function isb_text($key, $lang = 'en') {
             'one_time' => 'Pagamento unico',
             'no_subscription' => 'Nessun abbonamento',
             'per_article' => 'Per singolo articolo',
-            'buy' => 'Fatti citare per $99',
+            'buy' => 'Fatti citare per {price}',
             'approval' => 'Soggetto ad approvazione editoriale',
             'details' => 'Dicci cosa presentare',
             'back' => 'Indietro',
@@ -76,7 +94,7 @@ function isb_text($key, $lang = 'en') {
             'website_hint' => 'iltuosito.it',
             'message' => 'Cosa deve dire la menzione sulla tua attività?',
             'message_hint' => 'Una o due frasi: cosa offri e a chi.',
-            'continue' => 'Continua su PayPal - $99',
+            'continue' => 'Continua su PayPal - {price}',
             'opening' => 'Apertura di PayPal…',
             'secure' => 'Pagamento sicuro con PayPal. Soggetto ad approvazione editoriale.',
             'close' => 'Chiudi',
@@ -102,7 +120,8 @@ function isb_text($key, $lang = 'en') {
         ),
     );
     $lang = isset($copy[$lang]) ? $lang : 'en';
-    return isset($copy[$lang][$key]) ? $copy[$lang][$key] : $copy['en'][$key];
+    $text = isset($copy[$lang][$key]) ? $copy[$lang][$key] : $copy['en'][$key];
+    return str_replace('{price}', isb_price_label($lang), $text);
 }
 
 /**
@@ -177,7 +196,7 @@ function isb_website_address($value) {
 }
 
 /**
- * A PayPal "Buy Now" address (PayPal Payments Standard): $99 to the
+ * A PayPal "Buy Now" address (PayPal Payments Standard): the price to the
  * configured PayPal email, for this request. Needs no API keys - PayPal
  * takes the payment into the account that email belongs to.
  *
@@ -211,9 +230,10 @@ function isb_paypal_url(array $args) {
 /**
  * What is wrong with a payment notice (PayPal IPN) for a request, or null
  * when it pays for it: completed, a single "Buy Now" payment, to the
- * configured PayPal email, exactly $99 in US dollars, and carrying the
- * request's own secret. PayPal's VERIFIED answer is checked separately, by
- * the caller.
+ * configured PayPal email, exactly the request's own price and currency
+ * ($expect 'amount' and 'currency'; the current ones when not given), and
+ * carrying the request's own secret. PayPal's VERIFIED answer is checked
+ * separately, by the caller.
  */
 function isb_ipn_problem(array $ipn, array $expect) {
     $receiver = strtolower(trim($ipn['receiver_email'] ?? ($ipn['business'] ?? '')));
@@ -222,8 +242,8 @@ function isb_ipn_problem(array $ipn, array $expect) {
     if (($ipn['payment_status'] ?? '') !== 'Completed') return 'not completed';
     if (($ipn['txn_type'] ?? '') !== 'web_accept') return 'not a Buy Now payment';
     if ($receiver !== $email && $business !== $email) return 'paid to another account';
-    if (($ipn['mc_gross'] ?? '') !== ISB_PRICE) return 'wrong amount';
-    if (strtoupper($ipn['mc_currency'] ?? '') !== ISB_CURRENCY) return 'wrong currency';
+    if (($ipn['mc_gross'] ?? '') !== (string) ($expect['amount'] ?? ISB_PRICE)) return 'wrong amount';
+    if (strtoupper($ipn['mc_currency'] ?? '') !== strtoupper((string) ($expect['currency'] ?? ISB_CURRENCY))) return 'wrong currency';
     if (empty($ipn['txn_id'])) return 'no transaction id';
     if (!hash_equals((string) $expect['secret'], (string) ($ipn['custom_secret'] ?? ''))) return 'wrong request secret';
     return null;

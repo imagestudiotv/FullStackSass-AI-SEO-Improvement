@@ -1,5 +1,5 @@
 === Image Studio Blog ===
-Version: 2.2.0
+Version: 2.3.0
 Requires WordPress 6.4+, PHP 7.4+. Built for imagestudio.com (Astra child theme, WPML, Rank Math).
 
 What it does
@@ -13,9 +13,9 @@ What it does
 2. Clickable byline. "IMAGE STUDIO" above each English article's title links to
    that page. (The Italian article template shows no author name.)
 3. "Get Featured in This Article". A button in each article's date line opens
-   the offer (client design: $99, one-time, no subscription, per article
+   the offer (client design: €99, one-time, no subscription, per article
    placement, subject to editorial approval). The reader gives an email, a
-   website and what the mention should say, then pays $99 through a PayPal
+   website and what the mention should say, then pays €99 through a PayPal
    "Buy Now" page to the PayPal email in the settings (dimoncic@live.it). No
    PayPal developer account or API keys are needed. Italian pages get Italian
    copy and PayPal in Italian.
@@ -80,7 +80,8 @@ After a payment
   which article, and the reference IS-<number> matches the request in WordPress.
 - PayPal also notifies the site (IPN). The site asks PayPal to confirm the
   notice is genuine and checks it: completed, to the configured PayPal email,
-  exactly 99.00 USD, for that request. The request is then marked
+  exactly that request's price (99.00 EUR; a request made before 2.3.0:
+  99.00 USD), for that request. The request is then marked
   "Paid - to review" and the site administrator (Settings -> General ->
   Administration Email Address) gets an email.
 - In WordPress: Featured placements (left menu). Paid requests are listed
@@ -92,7 +93,7 @@ After a payment
 
 Install
 -------
-1. Plugins -> Add Plugin -> Upload Plugin -> imagestudio-blog-2.2.0.zip -> Install Now ->
+1. Plugins -> Add Plugin -> Upload Plugin -> imagestudio-blog-2.3.0.zip -> Install Now ->
    Activate. When updating an installed copy, click "Replace current with uploaded".
    (If the earlier "Image Studio Layout Fixes" or "RepGet Blog Services" plugin is
    installed, deactivate and delete it first.)
@@ -120,6 +121,19 @@ Install
      "Trusted proxies", choose CF-Connecting-IP, Save, and check again - the
      "counted as visitor" address must now be each device's own.
    Never add a range ordinary visitors can connect from.
+
+9. (2.3.0) Open an article's "Get Featured" panel in English and in
+   Italian: the price reads "€99" and "99 €", and "Continue to PayPal" opens
+   PayPal's page for 99.00 EUR (no need to pay).
+
+Price and currency (2.3.0)
+--------------------------
+Since 2.3.0 the price is 99.00 euros (client, 2026-10-16), shown as "€99" in
+English and "99 €" in Italian. Each request remembers the price it was
+offered at, and its payment must match it: a request made before 2.3.0 was
+offered at 99.00 US dollars and is still paid by a 99.00 USD payment. The
+PayPal account must accept euros (an Italian PayPal account does). The price
+is ISB_PRICE / ISB_CURRENCY in includes/markup.php.
 
 Testing a payment without real money: tick "PayPal test mode" and use a PayPal
 sandbox buyer account; untick it afterwards.

@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: Image Studio Blog
- * Description: Image Studio's editorial author page, a clickable "Image Studio" byline, "Get Featured in This Article" ($99 through PayPal), an "In this article" contents box and an optional FAQ on editorial articles. Also carries the site's phone-layout fixes.
- * Version: 2.2.0
+ * Description: Image Studio's editorial author page, a clickable "Image Studio" byline, "Get Featured in This Article" (€99 through PayPal), an "In this article" contents box and an optional FAQ on editorial articles. Also carries the site's phone-layout fixes.
+ * Version: 2.3.0
  * Requires at least: 6.4
  * Requires PHP: 7.4
  * Author: RepGet
@@ -15,7 +15,7 @@
  *  - Author page (includes/author.php): WordPress's own author page,
  *    /author/imagestudio/, lists the editorial articles, 30 to a page, in
  *    the Editorial page's style. The byline in each article links to it.
- *  - Get Featured (includes/featured.php): a reader pays $99 once, through a
+ *  - Get Featured (includes/featured.php): a reader pays €99 once, through a
  *    plain PayPal "Buy Now" to the configured PayPal email, for a sponsored
  *    mention in the article, subject to editorial approval. Requests are
  *    kept under "Featured placements" in the admin menu. No PayPal API keys.
@@ -37,7 +37,7 @@
 
 defined('ABSPATH') || exit;
 
-define('ISB_VERSION', '2.2.0');
+define('ISB_VERSION', '2.3.0');
 define('ISB_FILE', __FILE__);
 define('ISB_DIR', __DIR__);
 

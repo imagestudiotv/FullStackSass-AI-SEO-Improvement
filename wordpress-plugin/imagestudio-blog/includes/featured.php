@@ -1,7 +1,7 @@
 <?php
 /**
  * "Get Featured in This Article" on Image Studio's editorial articles
- * (client, 2026-10-08): the same offer as RepGet's blog - $99, one time, a
+ * (client, 2026-10-08): the same offer as RepGet's blog - €99 (US$99 before 2.3.0), one time, a
  * sponsored mention and link, subject to editorial approval - paid through
  * PayPal to the configured PayPal email (dimoncic@live.it) instead of Stripe.
  *
@@ -10,7 +10,7 @@
  *     markup.php). The panel asks for an email, a website and what to
  *     mention, and posts them here (isb_handle_request).
  *  2. The request is kept as a private "Featured placement", and the buyer
- *     goes to a plain PayPal "Buy Now" page for $99 - no PayPal API keys.
+ *     goes to a plain PayPal "Buy Now" page for the price - no PayPal API keys.
  *  3. PayPal tells the site about the payment (IPN, isb_handle_ipn). The site
  *     asks PayPal to confirm the notice is genuine, checks it pays for this
  *     request, marks the request paid and emails the site administrator.
@@ -128,7 +128,7 @@ function isb_feature_panel($post, $lang) {
             <div class="isb-price-row">
                 <div>
                     <p class="isb-label"><?php echo $t('one_time'); ?></p>
-                    <p class="isb-price">$99</p>
+                    <p class="isb-price"><?php echo esc_html(isb_price_label($lang)); ?></p>
                 </div>
                 <div class="isb-terms">
                     <p class="isb-check"><?php echo isb_icon('check') . $t('no_subscription'); ?></p>
@@ -220,6 +220,9 @@ function isb_handle_request() {
             '_isb_lang' => $lang,
             '_isb_secret' => $secret,
             '_isb_visitor' => $visitor,
+            // The price this request was offered at: what its payment must be.
+            '_isb_amount' => ISB_PRICE,
+            '_isb_currency' => ISB_CURRENCY,
         ),
     ), true);
     if (is_wp_error($id)) isb_back_to($article_url, array('featured' => 'error', 'reason' => 'unavailable'));
@@ -261,7 +264,7 @@ add_action('rest_api_init', function () {
  * Nothing is believed from the notice itself: it must name a request that
  * exists and carry that request's secret before PayPal is even asked, PayPal
  * must answer VERIFIED to the exact message, and the payment must be
- * completed, to the configured PayPal email, for exactly $99 USD.
+ * completed, to the configured PayPal email, for exactly the request's price.
  */
 function isb_handle_ipn(WP_REST_Request $request) {
     $ok = new WP_REST_Response(null, 200);
@@ -297,7 +300,12 @@ function isb_handle_ipn(WP_REST_Request $request) {
         return $ok;
     }
 
-    $problem = isb_ipn_problem($ipn + array('custom_secret' => $custom['secret']), array('email' => $settings['paypal_email'], 'secret' => $secret));
+    $problem = isb_ipn_problem($ipn + array('custom_secret' => $custom['secret']), array(
+        'email' => $settings['paypal_email'],
+        'secret' => $secret,
+        'amount' => isb_request_amount($placement->ID),
+        'currency' => isb_request_currency($placement->ID),
+    ));
     if ($problem) {
         update_post_meta($placement->ID, '_isb_payment_note', 'PayPal notice not accepted: ' . $problem);
         return $ok;
@@ -314,12 +322,23 @@ function isb_handle_ipn(WP_REST_Request $request) {
     return $ok;
 }
 
+/** A request's price and currency. Requests made before 2.3.0 were offered at 99.00 US dollars. */
+function isb_request_amount($id) {
+    $amount = (string) get_post_meta($id, '_isb_amount', true);
+    return $amount !== '' ? $amount : '99.00';
+}
+
+function isb_request_currency($id) {
+    $currency = (string) get_post_meta($id, '_isb_currency', true);
+    return $currency !== '' ? $currency : 'USD';
+}
+
 /** Emails the site administrator about a paid request. */
 function isb_notify_paid($id) {
     $article = get_post((int) get_post_meta($id, '_isb_article', true));
     $title = $article ? $article->post_title : '';
     $body = implode("\n\n", array(
-        sprintf('%s paid $99 for a sponsored mention in "%s".', get_post_meta($id, '_isb_email', true), $title),
+        sprintf('%s paid %s for a sponsored mention in "%s".', get_post_meta($id, '_isb_email', true), isb_money(isb_request_amount($id), isb_request_currency($id)), $title),
         'Website: ' . get_post_meta($id, '_isb_website', true),
         "What they would like mentioned:\n" . get_post_meta($id, '_isb_message', true),
         'Review it: ' . admin_url('post.php?post=' . (int) $id . '&action=edit'),
