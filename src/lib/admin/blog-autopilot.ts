@@ -1,12 +1,13 @@
 "use server";
 
-import { and, asc, desc, eq, gt, inArray, lt, max, min, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, inArray, lt, max, min, not, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { recordAdminAction } from "@/lib/admin/audit";
 import { requireAdmin } from "@/lib/admin/guard";
 import { isAiConfigured } from "@/lib/ai/client";
 import { startAutopilotRun } from "@/lib/blog/autopilot/run";
+import { SuggestError, suggestTopics } from "@/lib/blog/autopilot/suggest";
 import {
   AUTOPILOT_KEY,
   autopilotLanguages,
@@ -28,7 +29,9 @@ import type { ActionResult } from "@/lib/websites/actions";
  *
  * Topic rules:
  *  - The queue is written in order (lowest sort_order first). New topics join
- *    the end; "Try again" puts a failed one back at the front.
+ *    the end of the administrators' own - ahead of topics RepGet chose that
+ *    are still waiting (client's choice 3: his list first) - and "Try again"
+ *    puts a failed one back at the front.
  *  - Only a topic that is not being written can be edited or deleted. A
  *    written topic is history: deleting it leaves its post untouched.
  *  - The same topic cannot wait twice, and one already written is refused,
@@ -260,8 +263,14 @@ export async function addBlogAutopilotTopics(input: {
       }
     }
     if (fresh.length === 0) return { added: 0, skipped };
-    const [{ last }] = await tx.select({ last: max(blogAutopilotTopics.sortOrder) }).from(blogAutopilotTopics);
+    // After the administrators' own topics, ahead of RepGet's suggestions still waiting.
+    const waitingSuggestion = and(eq(blogAutopilotTopics.source, "suggested"), eq(blogAutopilotTopics.status, "queued"));
+    const [{ last }] = await tx.select({ last: max(blogAutopilotTopics.sortOrder) }).from(blogAutopilotTopics).where(not(waitingSuggestion!));
     const start = (last ?? 0) + 1;
+    await tx
+      .update(blogAutopilotTopics)
+      .set({ sortOrder: sql`${blogAutopilotTopics.sortOrder} + ${fresh.length}` })
+      .where(and(waitingSuggestion, gte(blogAutopilotTopics.sortOrder, start)));
     const now = new Date();
     await tx.insert(blogAutopilotTopics).values(
       fresh.map((topic, index) => ({
@@ -460,4 +469,33 @@ export async function writeBlogAutopilotNow(): Promise<ActionResult<{ topic: str
   }
   refresh();
   return { ok: true, data: { topic: outcome.claimed.topic } };
+}
+
+/**
+ * Lets RepGet choose topics now, from search data (lib/blog/autopilot/suggest.ts):
+ * added after the administrators' own, marked "Chosen by RepGet". About a minute.
+ */
+export async function suggestBlogAutopilotTopics(): Promise<ActionResult<{ added: string[] }>> {
+  const admin = await requireAdmin();
+  if (!isAiConfigured()) return { ok: false, error: "The AI is not set up on this server (ANTHROPIC_API_KEY), so RepGet cannot choose topics yet" };
+  let added: string[];
+  let costUsd: number;
+  try {
+    ({ added, costUsd } = await suggestTopics({ requestedBy: admin.email }));
+  } catch (error) {
+    if (error instanceof SuggestError) return { ok: false, error: error.message };
+    console.error("[admin/blog-autopilot] topic suggestions failed", error);
+    return { ok: false, error: "RepGet could not choose topics just now. Try again in a minute." };
+  }
+  if (added.length > 0) {
+    await recordAdminAction({
+      actorEmail: admin.email,
+      action: "blog.autopilot_topics_added",
+      targetType: "blog_autopilot",
+      summary: `RepGet chose ${added.length} topic${added.length === 1 ? "" : "s"} for the blog autopilot`,
+      detail: { topics: added, source: "suggested", costUsd },
+    });
+  }
+  refresh();
+  return { ok: true, data: { added } };
 }

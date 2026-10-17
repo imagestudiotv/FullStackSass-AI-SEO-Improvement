@@ -20,6 +20,9 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 // "Write one now" sends its job through the outbox; the queue is mocked, nothing leaves the process.
 const inngestMock = vi.hoisted(() => ({ send: vi.fn(async () => ({ ids: ["evt"] })) }));
 vi.mock("@/inngest/client", () => ({ inngest: inngestMock }));
+// RepGet's own topic choice is tested in lib/blog/autopilot/suggest.test.ts; here only the action around it.
+const suggest = vi.hoisted(() => ({ topics: vi.fn(), SuggestError: class SuggestError extends Error {} }));
+vi.mock("@/lib/blog/autopilot/suggest", () => ({ suggestTopics: suggest.topics, SuggestError: suggest.SuggestError }));
 
 import {
   addBlogAutopilotTopics,
@@ -29,6 +32,7 @@ import {
   retryBlogAutopilotTopic,
   saveBlogAutopilotSettings,
   saveBlogAutopilotTopic,
+  suggestBlogAutopilotTopics,
   writeBlogAutopilotNow,
 } from "@/lib/admin/blog-autopilot";
 import { parseTopicLines } from "@/app/admin/blog/autopilot/autopilot-topics";
@@ -211,5 +215,41 @@ describe("write one now", () => {
     expect(await queue()).toEqual(["First"]);
     state.session = null;
     await expect(writeBlogAutopilotNow()).rejects.toThrow();
+  });
+});
+
+describe("RepGet's own topics", () => {
+  beforeEach(() => {
+    vi.stubEnv("ANTHROPIC_API_KEY", "test-key");
+    suggest.topics.mockReset();
+  });
+
+  it("wait behind the administrators' topics, also ones added later", async () => {
+    await add("Mine one");
+    await test.db.insert(blogAutopilotTopics).values([
+      { topic: "RepGet's one", source: "suggested", sortOrder: 50 },
+      { topic: "RepGet's two", source: "suggested", sortOrder: 51 },
+    ]);
+    await add("Mine two", "Mine three");
+    expect(await queue()).toEqual(["Mine one", "Mine two", "Mine three", "RepGet's one", "RepGet's two"]);
+  });
+
+  it("are chosen on request, and the choice is in the admin log", async () => {
+    suggest.topics.mockResolvedValueOnce({ added: ["One", "Two"], costUsd: 0.06 });
+    expect(await suggestBlogAutopilotTopics()).toEqual({ ok: true, data: { added: ["One", "Two"] } });
+    expect(suggest.topics).toHaveBeenCalledWith({ requestedBy: ADMIN });
+    const [log] = await test.db.select().from(adminAuditLog).where(eq(adminAuditLog.summary, "RepGet chose 2 topics for the blog autopilot"));
+    expect(log).toMatchObject({ actorEmail: ADMIN, action: "blog.autopilot_topics_added", detail: { topics: ["One", "Two"], source: "suggested", costUsd: 0.06 } });
+  });
+
+  it("say why they could not be chosen", async () => {
+    suggest.topics.mockRejectedValueOnce(new suggest.SuggestError("Search data is not set up on this server"));
+    expect(await suggestBlogAutopilotTopics()).toEqual({ ok: false, error: "Search data is not set up on this server" });
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    suggest.topics.mockRejectedValueOnce(new Error("socket hang up"));
+    expect(await suggestBlogAutopilotTopics()).toEqual({ ok: false, error: "RepGet could not choose topics just now. Try again in a minute." });
+    vi.stubEnv("ANTHROPIC_API_KEY", "");
+    expect(await suggestBlogAutopilotTopics()).toMatchObject({ ok: false, error: expect.stringContaining("ANTHROPIC_API_KEY") });
+    expect(suggest.topics).toHaveBeenCalledTimes(2);
   });
 });

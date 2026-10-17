@@ -15,6 +15,7 @@ import {
   moveBlogAutopilotTopic,
   retryBlogAutopilotTopic,
   saveBlogAutopilotTopic,
+  suggestBlogAutopilotTopics,
   writeBlogAutopilotNow,
   type AdminAutopilotTopic,
 } from "@/lib/admin/blog-autopilot";
@@ -89,6 +90,40 @@ function WriteNow({ next, busy }: { next: AdminAutopilotTopic | undefined; busy:
   );
 }
 
+/** Lets RepGet choose topics from search data now, rather than when the list runs out. */
+function SuggestTopics() {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  return (
+    <Button
+      size="sm"
+      variant="outline"
+      disabled={pending}
+      title="RepGet chooses topics from search data, skipping what the blog already covers, and adds them after yours"
+      onClick={() =>
+        start(async () => {
+          const result = await suggestBlogAutopilotTopics().catch(() => null);
+          if (!result) {
+            toast.error("The server did not finish this. Try again.");
+            return;
+          }
+          if (!result.ok) {
+            toast.error(result.error);
+            return;
+          }
+          const count = result.data.added.length;
+          if (count === 0) toast.info("No new topics: the ones RepGet found are already in the list.");
+          else toast.success(`RepGet added ${count} topic${count === 1 ? "" : "s"} after yours`);
+          router.refresh();
+        })
+      }
+    >
+      <Sparkles aria-hidden />
+      {pending ? "Choosing… about a minute" : "Suggest topics"}
+    </Button>
+  );
+}
+
 /** The topics: what is next, in order, then what could not be written and what has been. */
 export function AutopilotTopics({
   queued,
@@ -110,11 +145,14 @@ export function AutopilotTopics({
             Topics
           </h2>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            Written from the top, one a day. When the list is empty, RepGet chooses topics itself from search data, skipping what the blog already
-            covers.
+            Written from the top, one a day: yours first, then the ones RepGet chooses from search data, skipping what the blog already covers.
+            When the list runs out, RepGet adds more itself.
           </p>
         </div>
-        <WriteNow next={queued[0]} busy={writing.length > 0} />
+        <div className="flex flex-wrap gap-2">
+          <SuggestTopics />
+          <WriteNow next={queued[0]} busy={writing.length > 0} />
+        </div>
       </div>
       {writing.length > 0 ? <RefreshWhileWriting /> : null}
 
