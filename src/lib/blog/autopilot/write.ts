@@ -1,10 +1,8 @@
 import "server-only";
 
-import type Anthropic from "@anthropic-ai/sdk";
 import * as cheerio from "cheerio";
 import { and, asc, desc, eq, lte } from "drizzle-orm";
 
-import { anthropic, MODELS } from "@/lib/ai/client";
 import { keywordReport } from "@/lib/blog/keywords";
 import { blogPath } from "@/lib/blog/locale";
 import { blogSiteHosts, type BlogPostInput } from "@/lib/blog/post-fields";
@@ -16,6 +14,7 @@ import { siteUrl } from "@/lib/site-url";
 import { TOOLS } from "@/lib/tools/registry";
 
 import { checkLinks, pagePath, type LinkRules, type RemovedLink } from "./links";
+import { askClaude, type CallUsage } from "./model";
 import type { AutopilotClaim } from "./run";
 
 /**
@@ -35,20 +34,15 @@ import type { AutopilotClaim } from "./run";
  * each part reading what came before it. The instructions and examples are
  * the same for every call and cached, so only the first call pays for them.
  *
- * Claude Opus 5.5 (MODELS.BLOG). Its thinking is always on; `effort` sets how
- * much. Answers come back as JSON in a fixed shape (output_config.format).
+ * Claude Opus 5.5 at high effort (lib/blog/autopilot/model.ts).
  */
 
-/** Room for the model's thinking and the longest part. */
-const MAX_TOKENS = 32_000;
 /** The body is written in parts of at most this many sections. */
 const SECTIONS_PER_PART = 4;
 /** The body's length, as the blog's posts run. */
 export const TARGET_WORDS = 3_400;
 /** Long posts only are style examples. */
 const EXAMPLE_MIN_WORDS = 2_000;
-/** Published at $ per million tokens for Claude Opus 5.5; a 5-minute cache write is 1.25x input. */
-const PRICE_PER_MTOK = { input: 4, output: 20, cacheRead: 0.2, cacheWrite: 5 };
 
 export type WriterContext = {
   /** "17 October 2026". */
@@ -95,7 +89,7 @@ export type ArticlePlan = {
   faqQuestions: string[];
 };
 
-export type CallUsage = { inputTokens: number; outputTokens: number; cacheReadTokens: number; cacheWriteTokens: number; costUsd: number };
+export type { CallUsage };
 
 export type WrittenPart = { html: string; faqs: BlogFaq[]; usage: CallUsage };
 
@@ -251,62 +245,6 @@ function topicBlock(claim: Pick<AutopilotClaim, "topic" | "keyword" | "notes">):
   if (claim.keyword) lines.push(`Search phrase to target: ${claim.keyword}`);
   if (claim.notes) lines.push(`Notes from RepGet's team:\n${claim.notes}`);
   return `<topic>\n${lines.join("\n").replace(/<\/?\s*topic/gi, (match) => match.replace("<", "&lt;"))}\n</topic>`;
-}
-
-/* ------------------------------------------------------------------ */
-/* The model                                                           */
-/* ------------------------------------------------------------------ */
-
-function priced(usage: Anthropic.Usage): CallUsage {
-  const cacheRead = usage.cache_read_input_tokens ?? 0;
-  const cacheWrite = usage.cache_creation_input_tokens ?? 0;
-  const costUsd =
-    (usage.input_tokens * PRICE_PER_MTOK.input +
-      usage.output_tokens * PRICE_PER_MTOK.output +
-      cacheRead * PRICE_PER_MTOK.cacheRead +
-      cacheWrite * PRICE_PER_MTOK.cacheWrite) /
-    1_000_000;
-  return { inputTokens: usage.input_tokens, outputTokens: usage.output_tokens, cacheReadTokens: cacheRead, cacheWriteTokens: cacheWrite, costUsd };
-}
-
-export function addUsage(usages: CallUsage[]): CallUsage & { calls: number } {
-  const sum = (key: keyof CallUsage) => usages.reduce((total, usage) => total + usage[key], 0);
-  return {
-    calls: usages.length,
-    inputTokens: sum("inputTokens"),
-    outputTokens: sum("outputTokens"),
-    cacheReadTokens: sum("cacheReadTokens"),
-    cacheWriteTokens: sum("cacheWriteTokens"),
-    costUsd: Math.round(sum("costUsd") * 10_000) / 10_000,
-  };
-}
-
-/** One call: the shared instructions (cached), this call's request, and the JSON shape of the answer. */
-async function ask(context: WriterContext, request: string, schema: Record<string, unknown>): Promise<{ value: Record<string, unknown>; usage: CallUsage }> {
-  const message = await anthropic.messages
-    .stream({
-      model: MODELS.BLOG,
-      max_tokens: MAX_TOKENS,
-      system: [{ type: "text", text: writerInstructions(context), cache_control: { type: "ephemeral" } }],
-      output_config: { effort: "high", format: { type: "json_schema", schema } },
-      messages: [{ role: "user", content: request }],
-    })
-    .finalMessage();
-
-  if (message.stop_reason === "refusal") throw new Error("The AI declined to write about this topic. Reword the topic, then try again.");
-  if (message.stop_reason === "max_tokens") throw new Error("The AI ran out of room while writing. Try again.");
-  const text = message.content
-    .filter((block): block is Anthropic.TextBlock => block.type === "text")
-    .map((block) => block.text)
-    .join("");
-  let value: unknown;
-  try {
-    value = JSON.parse(text);
-  } catch {
-    throw new Error("The AI's answer was not in the expected form. Try again.");
-  }
-  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("The AI's answer was not in the expected form. Try again.");
-  return { value: value as Record<string, unknown>, usage: priced(message.usage) };
 }
 
 /* ------------------------------------------------------------------ */
@@ -468,7 +406,13 @@ export async function planArticle(
   context: WriterContext,
 ): Promise<{ plan: ArticlePlan; warnings: string[]; usage: CallUsage }> {
   if (context.categories.length === 0) throw new Error("The blog has no categories. Add one in Admin > Blog > Categories, then try again.");
-  const { value, usage } = await ask(context, `${topicBlock(claim)}\n\n${PLAN_REQUEST}`, planSchema(context.categories.map((category) => category.name)));
+  const { value, usage } = await askClaude({
+    system: writerInstructions(context),
+    request: `${topicBlock(claim)}\n\n${PLAN_REQUEST}`,
+    schema: planSchema(context.categories.map((category) => category.name)),
+    effort: "high",
+    cache: true,
+  });
   return { ...readPlan(value, context), usage };
 }
 
@@ -560,7 +504,7 @@ export async function writePart(
   ]
     .filter(Boolean)
     .join("\n\n");
-  const { value, usage } = await ask(context, request, last ? LAST_PART_SCHEMA : PART_SCHEMA);
+  const { value, usage } = await askClaude({ system: writerInstructions(context), request, schema: last ? LAST_PART_SCHEMA : PART_SCHEMA, effort: "high", cache: true });
 
   const html = tidyPart(String(value.bodyHtml ?? ""));
   const expected = parts[index].to - parts[index].from;

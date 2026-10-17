@@ -25,8 +25,8 @@ import { cleanBlogPost } from "@/lib/blog/post-fields";
 import { TEAM_AUTHOR } from "@/lib/blog/shared";
 
 import { SOURCE_HOSTS } from "./links";
+import { addUsage } from "./model";
 import {
-  addUsage,
   bodyParts,
   finishDraft,
   loadWriterContext,

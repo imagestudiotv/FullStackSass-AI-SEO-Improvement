@@ -79,7 +79,7 @@ function WriteNow({ next, busy }: { next: AdminAutopilotTopic | undefined; busy:
       onClick={() =>
         run(
           writeBlogAutopilotNow,
-          "Writing started. The draft appears here in about 10 minutes.",
+          "Writing started. The drafts appear here within the hour, and you get an email.",
         )
       }
     >
@@ -126,7 +126,7 @@ export function AutopilotTopics({
             <li key={topic.id} className="flex flex-wrap items-center gap-3 px-4 py-3 sm:px-5">
               <TopicText topic={topic} />
               <span className="flex items-center gap-2 text-xs text-muted-foreground">
-                About 10 minutes; this page updates by itself.
+                About 10 minutes, more with translations; this page updates by itself.
                 <AdminStatus tone="info" label="Being written now" />
               </span>
             </li>

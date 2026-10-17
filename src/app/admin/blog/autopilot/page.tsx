@@ -87,6 +87,7 @@ export default async function BlogAutopilotPage() {
                         <span className="mt-0.5 block text-xs text-muted-foreground tabular-nums">
                           {[
                             run.words !== null ? `${run.words.toLocaleString("en-US")} words` : null,
+                            run.translations ? `${run.translations} translation${run.translations === 1 ? "" : "s"}` : null,
                             run.costUsd !== null ? `AI cost ${run.costUsd.toFixed(2)}${costParts(run.costs)}` : null,
                           ]
                             .filter(Boolean)

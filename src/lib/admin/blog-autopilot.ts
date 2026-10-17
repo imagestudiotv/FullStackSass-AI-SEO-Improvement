@@ -63,6 +63,8 @@ export type AdminAutopilotRun = {
   costUsd: number | null;
   costs: { writing: number; pictures: number; translations: number };
   words: number | null;
+  /** The translations it saved, once it has finished. */
+  translations: number | null;
   warnings: string[];
 };
 
@@ -110,7 +112,7 @@ function cleanTopic(input: TopicInput): CleanTopic | string {
  * and "write-part-N" are the writing, "picture-*" the pictures,
  * "translate-*" the translations - and the checks' report.
  */
-function runFigures(detail: Record<string, unknown>): Pick<AdminAutopilotRun, "costUsd" | "costs" | "words" | "warnings"> {
+function runFigures(detail: Record<string, unknown>): Pick<AdminAutopilotRun, "costUsd" | "costs" | "words" | "translations" | "warnings"> {
   const costs = { writing: 0, pictures: 0, translations: 0 };
   let any = false;
   for (const [stepId, value] of Object.entries((detail.costs ?? {}) as Record<string, unknown>)) {
@@ -125,6 +127,7 @@ function runFigures(detail: Record<string, unknown>): Pick<AdminAutopilotRun, "c
     costUsd: any ? costs.writing + costs.pictures + costs.translations : null,
     costs,
     words: typeof detail.words === "number" ? detail.words : null,
+    translations: detail.translations && typeof detail.translations === "object" ? Object.keys(detail.translations).length : null,
     warnings: Array.isArray(detail.warnings) ? detail.warnings.filter((warning): warning is string => typeof warning === "string") : [],
   };
 }

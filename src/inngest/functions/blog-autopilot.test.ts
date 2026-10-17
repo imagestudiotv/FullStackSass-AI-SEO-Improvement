@@ -2,16 +2,18 @@ import { eq } from "drizzle-orm";
 import sharp from "sharp";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { blogAutopilotRuns, blogAutopilotTopics, blogPosts, jobOutbox } from "@/lib/db/schema";
+import { blogAutopilot, blogAutopilotRuns, blogAutopilotTopics, blogPosts, jobOutbox } from "@/lib/db/schema";
 import { message, partReplies, planReply } from "@/test/blog-autopilot";
 import { createTestDb, type TestDb } from "@/test/db";
 
 /**
  * The blog autopilot's job from start to finish, on a real (in-process)
- * database with the model mocked: a topic becomes an English draft with
- * every field, its costs and picture ideas kept with the run; a failure
- * retries only the step that failed; and a run that cannot finish hands its
- * topic back.
+ * database with the model, the pictures and email mocked: a topic becomes an
+ * English draft with every field and its pictures, then a linked draft in
+ * each chosen language with its own pictures, and the administrators are
+ * told; a failure retries only the step that failed; what still fails on its
+ * last try is listed, never stopping the rest; and a run that cannot finish
+ * hands its topic back.
  */
 
 const state = vi.hoisted(() => ({ db: null as unknown }));
@@ -40,6 +42,9 @@ vi.mock("@/lib/images/storage", () => ({
   },
 }));
 
+const mail = vi.hoisted(() => ({ send: vi.fn() }));
+vi.mock("@/lib/email/send", () => ({ sendEmail: mail.send }));
+
 import { startAutopilotRun } from "@/lib/blog/autopilot/run";
 import { bodyParts } from "@/lib/blog/autopilot/write";
 
@@ -54,6 +59,7 @@ let test: TestDb;
 
 beforeAll(async () => {
   vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://www.repget.com");
+  vi.stubEnv("ADMIN_EMAILS", "admin@repget.test");
   test = await createTestDb();
   state.db = test.db;
 });
@@ -63,6 +69,7 @@ beforeEach(async () => {
   await test.db.delete(blogAutopilotTopics);
   await test.db.delete(blogPosts);
   await test.db.delete(jobOutbox);
+  await test.db.delete(blogAutopilot);
   inngestMock.send.mockReset();
   inngestMock.send.mockResolvedValue({ ids: ["evt"] });
   ai.stream.mockReset();
@@ -70,7 +77,54 @@ beforeEach(async () => {
   images.generate.mockImplementation(async () => ({ data: await sharp({ create: { width: 1536, height: 1024, channels: 3, background: "#fff" } }).png().toBuffer(), costUsd: 0.19 }));
   images.configured.mockReturnValue(true);
   images.stored.length = 0;
+  mail.send.mockReset();
+  mail.send.mockResolvedValue({ ok: true, id: "email" });
+  failing.clear();
+  // Translator calls are answered by translating(); the writer's answers are queued per test (modelWrites).
+  ai.stream.mockImplementation((params: Params) => ({ finalMessage: async () => translating(params) }));
 });
+
+type Params = { system: { text: string }[]; messages: { content: string }[] };
+const CODES: Record<string, string> = { Spanish: "es", French: "fr", Italian: "it", German: "de" };
+/** Languages whose fields fail, to see what happens when a translation cannot be made. */
+const failing = new Set<string>();
+const inside = (text: string, tag: string) => text.slice(text.indexOf(`<${tag}>\n`) + tag.length + 3, text.lastIndexOf(`\n</${tag}>`));
+
+/** A translator that marks every text with the language and keeps the HTML, as the real one must. */
+function translating(params: Params) {
+  const language = /from English into (\w+)\./.exec(params.system[0].text)?.[1];
+  if (!language) throw new Error("an unexpected writer call: queue its answer with modelWrites");
+  const code = CODES[language];
+  const request = params.messages[0].content;
+  if (request.includes("<html_part>")) {
+    return message({ bodyHtml: inside(request, "html_part").replace(/>([^<]+)</g, (_m, words: string) => `>[${code}] ${words}<`) });
+  }
+  if (failing.has(code)) throw new Error("overloaded_error");
+  const source = JSON.parse(inside(request, "article_json"));
+  const mark = (value: string) => (value ? `[${code}] ${value}` : "");
+  return message({
+    title: mark(source.title),
+    slug: `${code} ${source.title}`,
+    seoTitle: mark(source.seoTitle),
+    description: mark(source.description),
+    shortAnswer: mark(source.shortAnswer),
+    breadcrumbLabel: mark(source.breadcrumbLabel),
+    primaryKeyword: mark(source.primaryKeyword),
+    secondaryKeywords: source.secondaryKeywords.map(mark),
+    faqs: source.faqs.map((faq: { question: string; answer: string }) => ({ question: mark(faq.question), answer: faq.answer.replace("<p>", `<p>[${code}] `) })),
+    pictures: source.pictures.map((picture: { title: string; labels: string[]; alt: string }) => ({
+      title: mark(picture.title),
+      labels: picture.labels.map(mark),
+      alt: mark(picture.alt),
+    })),
+  });
+}
+
+/** English only, unless a test chooses languages. */
+async function languages(...chosen: string[]) {
+  await test.db.insert(blogAutopilot).values({ key: "blog", languages: chosen });
+}
+
 
 /** Inngest-style memoisation: a finished step replays its stored (JSON) result on a retry. */
 function memoisedStep() {
@@ -94,6 +148,9 @@ function modelWrites(...replies: unknown[]) {
 }
 const WHOLE_ARTICLE = () => [message(planReply()), ...partReplies(bodyParts(10)).map((part) => message(part, { usage: { cache_creation_input_tokens: 0, cache_read_input_tokens: 20_000 } }))];
 
+/** One invocation, as Inngest makes it: `attempt` 2 of 3 is a step's last try. */
+const invoke = (runId: string, step: unknown, attempt = 0) => job.handler({ event: { data: { runId } }, step, logger, attempt, maxAttempts: 3 });
+
 async function queuedRun() {
   await test.db.insert(blogAutopilotTopics).values({ topic: "Local SEO for plumbers", keyword: "local SEO for plumbers", sortOrder: 1 });
   const outcome = await startAutopilotRun({ trigger: "manual", requestedBy: "admin@repget.test" });
@@ -108,10 +165,11 @@ describe("the blog autopilot's job", () => {
   });
 
   it("writes the topic as an English draft with every field, keeping its costs and picture ideas with the run", async () => {
+    await languages();
     const claim = await queuedRun();
     modelWrites(...WHOLE_ARTICLE());
     const step = memoisedStep();
-    const result = (await job.handler({ event: { data: { runId: claim.runId } }, step, logger })) as { written: boolean; postId: string };
+    const result = (await invoke(claim.runId, step)) as { written: boolean; postId: string };
 
     expect(result.written).toBe(true);
     expect(step.ran).toEqual([
@@ -125,7 +183,10 @@ describe("the blog autopilot's job", () => {
       "picture-en-1",
       "picture-en-2",
       "save-draft",
+      "languages",
+      "english-source",
       "finish-run",
+      "email-admins",
     ]);
     // One plan and three parts, all asking Opus 5.5 with the same instructions, so the cache serves the later calls.
     expect(ai.stream).toHaveBeenCalledTimes(4);
@@ -185,26 +246,32 @@ describe("the blog autopilot's job", () => {
   });
 
   it("retries only the step that failed: the plan and the parts already written are not paid for twice", async () => {
+    await languages();
     const claim = await queuedRun();
     const [plan, part1, , part3] = WHOLE_ARTICLE();
     const part2 = partReplies(bodyParts(10))[1];
     modelWrites(plan, part1);
     ai.stream.mockImplementationOnce(() => ({ finalMessage: async () => Promise.reject(new Error("overloaded_error")) }));
     const step = memoisedStep();
-    await expect(job.handler({ event: { data: { runId: claim.runId } }, step, logger })).rejects.toThrow("overloaded_error");
+    await expect(invoke(claim.runId, step)).rejects.toThrow("overloaded_error");
 
     modelWrites(message(part2), part3);
-    await job.handler({ event: { data: { runId: claim.runId } }, step, logger });
+    await invoke(claim.runId, step);
     expect(ai.stream).toHaveBeenCalledTimes(5);
     expect(step.ran.filter((id) => id === "plan-article")).toHaveLength(1);
     expect(await test.db.select().from(blogPosts)).toHaveLength(1);
   });
 
-  it("saves the article when a picture cannot be made, and says which one to add by hand", async () => {
+  it("tries a picture again, and saves the article without it when its last try fails, saying which one to add by hand", async () => {
+    await languages();
     const claim = await queuedRun();
     modelWrites(...WHOLE_ARTICLE());
+    const step = memoisedStep();
     images.generate.mockRejectedValueOnce(new Error("Image provider rejected the request (400): content policy"));
-    const result = (await job.handler({ event: { data: { runId: claim.runId } }, step: memoisedStep(), logger })) as { postId: string };
+    // Not the last try: thrown, so Inngest tries the step again.
+    await expect(invoke(claim.runId, step)).rejects.toThrow("content policy");
+    images.generate.mockRejectedValueOnce(new Error("Image provider rejected the request (400): content policy"));
+    const result = (await invoke(claim.runId, step, 2)) as { postId: string };
     const [post] = await test.db.select().from(blogPosts).where(eq(blogPosts.id, result.postId));
     expect(post.bodyHtml.match(/<img /g)).toHaveLength(1);
     const [run] = await test.db.select().from(blogAutopilotRuns).where(eq(blogAutopilotRuns.id, claim.runId));
@@ -215,16 +282,17 @@ describe("the blog autopilot's job", () => {
   });
 
   it("writes the article without pictures where they are not set up, and says so", async () => {
+    await languages();
     images.configured.mockReturnValue(false);
     const claim = await queuedRun();
     modelWrites(...WHOLE_ARTICLE());
-    const result = (await job.handler({ event: { data: { runId: claim.runId } }, step: memoisedStep(), logger })) as { postId: string };
+    const result = (await invoke(claim.runId, memoisedStep())) as { postId: string };
     const [post] = await test.db.select().from(blogPosts).where(eq(blogPosts.id, result.postId));
     expect(post.bodyHtml).not.toContain("<img");
     expect(images.generate).not.toHaveBeenCalled();
     const [run] = await test.db.select().from(blogAutopilotRuns).where(eq(blogAutopilotRuns.id, claim.runId));
     expect((run.detail as { warnings: string[] }).warnings).toEqual([
-      "Pictures are not set up on this server (an OpenAI image key and image storage), so the article has none.",
+      "Pictures are not set up on this server (an OpenAI image key and image storage), so the articles have none.",
     ]);
   });
 
@@ -240,19 +308,100 @@ describe("the blog autopilot's job", () => {
   it("does nothing for a run that is no longer waiting", async () => {
     const claim = await queuedRun();
     await test.db.update(blogAutopilotRuns).set({ status: "failed" }).where(eq(blogAutopilotRuns.id, claim.runId));
-    expect(await job.handler({ event: { data: { runId: claim.runId } }, step: memoisedStep(), logger })).toEqual({ written: false });
+    expect(await invoke(claim.runId, memoisedStep())).toEqual({ written: false });
     expect(ai.stream).not.toHaveBeenCalled();
   });
 
   it("does not retry an article that breaks the blog's rules", async () => {
+    await languages();
     const claim = await queuedRun();
     const parts = partReplies(bodyParts(10));
     const last = parts[2] as { faqs: { question: string; answer: string }[] };
     last.faqs[0] = { question: last.faqs[0].question, answer: `<p>${"word ".repeat(1_100)}</p>` };
     modelWrites(message(planReply()), ...parts.map((part) => message(part)));
-    await expect(job.handler({ event: { data: { runId: claim.runId } }, step: memoisedStep(), logger })).rejects.toMatchObject({
+    await expect(invoke(claim.runId, memoisedStep())).rejects.toMatchObject({
       name: "NonRetriableError",
       message: expect.stringContaining("The answer to question 1 is too long"),
     });
+  });
+
+  it("then writes every chosen language as a linked draft with its own pictures, and emails the administrators", async () => {
+    // No settings saved: every language (Spanish, French, Italian, German).
+    const claim = await queuedRun();
+    modelWrites(...WHOLE_ARTICLE());
+    const step = memoisedStep();
+    const result = (await invoke(claim.runId, step)) as { postId: string; translations: number };
+    expect(result.translations).toBe(4);
+    expect(step.ran.filter((id) => id.startsWith("translate-it") || id.startsWith("picture-it") || id === "save-it")).toEqual([
+      "translate-it-fields",
+      "translate-it-part-1",
+      "translate-it-part-2",
+      "translate-it-part-3",
+      "picture-it-1",
+      "picture-it-2",
+      "save-it",
+    ]);
+    // 4 to write it, then 4 per language (the fields and the body's three parts).
+    expect(ai.stream).toHaveBeenCalledTimes(20);
+    expect(images.stored).toEqual(["posts/en", "posts/en", "posts/es", "posts/es", "posts/fr", "posts/fr", "posts/it", "posts/it", "posts/de", "posts/de"]);
+
+    const posts = await test.db.select().from(blogPosts);
+    expect(posts.map((post) => post.locale).sort()).toEqual(["de", "en", "es", "fr", "it"]);
+    const italian = posts.find((post) => post.locale === "it")!;
+    expect(italian).toMatchObject({
+      translationOf: result.postId,
+      needsReview: true,
+      status: "draft",
+      title: "[it] Local SEO for Plumbers: How to Get Found by Nearby Customers",
+      slug: "it-local-seo-for-plumbers-how-to-get-found-by-nearby-customers",
+      primaryKeyword: "[it] local SEO for plumbers",
+      category: "Playbooks",
+    });
+    expect(italian.faqs).toHaveLength(6);
+    expect((italian.bodyHtml.match(/<h2>/g) ?? []).length).toBe(10);
+    expect(italian.bodyHtml).toContain('<a href="https://www.repget.com/audit">[it] free website audit</a>');
+    // Its own pictures, with its own words; no English picture left in it.
+    expect(
+      images.generate.mock.calls.some(([prompt]) => String(prompt).includes('"[it] From search to call"') && String(prompt).includes("All text is in Italian")),
+    ).toBe(true);
+    expect(italian.bodyHtml).toMatch(/blog\/posts\/it\/\d+\.webp" alt="\[it\] How a local search becomes a call"/);
+    expect(italian.bodyHtml).not.toContain("blog/posts/en/");
+
+    const [run] = await test.db.select().from(blogAutopilotRuns).where(eq(blogAutopilotRuns.id, claim.runId));
+    const detail = run.detail as { translations: Record<string, string>; costs: Record<string, number>; warnings: string[] };
+    expect(Object.keys(detail.translations).sort()).toEqual(["de", "es", "fr", "it"]);
+    expect(detail.translations.it).toBe(italian.id);
+    expect(detail.costs).toMatchObject({ "picture-it-1": 0.19, "picture-de-2": 0.19 });
+    expect(Object.keys(detail.costs)).toEqual(expect.arrayContaining(["translate-it-fields", "translate-de-part-3"]));
+    expect(detail.warnings).toEqual([]);
+    expect(run.status).toBe("done");
+
+    expect(mail.send).toHaveBeenCalledTimes(1);
+    const [{ to, subject, text }] = mail.send.mock.calls[0];
+    expect(to).toBe("admin@repget.test");
+    expect(subject).toBe("Blog drafts to review: Local SEO for Plumbers: How to Get Found by Nearby Customers");
+    expect(text).toContain("The English draft and its Spanish, French, Italian, German translations are ready to review.");
+    expect(text).toContain(`Italian: https://www.repget.com/admin/blog/${italian.id}`);
+    expect(text).toMatch(/AI cost: \$\d+\.\d\d\./);
+  });
+
+  it("lists a language that still fails on its last try, and saves the others", async () => {
+    await languages("fr", "it");
+    failing.add("fr");
+    const claim = await queuedRun();
+    modelWrites(...WHOLE_ARTICLE());
+    const step = memoisedStep();
+    // Not the last try: the French fields are tried again.
+    await expect(invoke(claim.runId, step)).rejects.toThrow("overloaded_error");
+    const result = (await invoke(claim.runId, step, 2)) as { translations: number };
+    expect(result.translations).toBe(1);
+    expect((await test.db.select().from(blogPosts)).map((post) => post.locale).sort()).toEqual(["en", "it"]);
+    const [run] = await test.db.select().from(blogAutopilotRuns).where(eq(blogAutopilotRuns.id, claim.runId));
+    expect(run.status).toBe("done");
+    expect((run.detail as { warnings: string[] }).warnings).toEqual([
+      'The French translation could not be made: overloaded_error. Use "Translate" on the English draft to make it.',
+    ]);
+    expect(mail.send.mock.calls[0][0].text).toContain("The English draft and its Italian translation are ready to review.");
+    expect(mail.send.mock.calls[0][0].text).toContain("- The French translation could not be made");
   });
 });

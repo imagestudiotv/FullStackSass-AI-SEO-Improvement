@@ -3,10 +3,13 @@ import "server-only";
 import { and, asc, eq, like, or, sql } from "drizzle-orm";
 
 import { recordAdminAction } from "@/lib/admin/audit";
-import { BlogPostError, cleanBlogPost, type BlogPostInput } from "@/lib/blog/post-fields";
+import { LANGUAGE_NAMES_EN } from "@/lib/blog/locale";
+import { BlogPostError, cleanBlogPost, isUniqueViolation, RESERVED_SLUGS, type BlogPostInput } from "@/lib/blog/post-fields";
+import { blogSlug } from "@/lib/blog/shared";
 import { db } from "@/lib/db";
 import { blogAutopilotRuns, blogAutopilotTopics, blogCategories, blogPosts } from "@/lib/db/schema";
 import type { Executor } from "@/lib/db/types";
+import type { Locale } from "@/lib/i18n/config";
 import { deliverNow, enqueueJob } from "@/lib/jobs/outbox";
 
 /**
@@ -189,6 +192,109 @@ export async function saveAutopilotDraft(
   });
 }
 
+/** The English draft as saved (cleaned), for its translations; null once it is deleted. */
+export async function loadDraft(postId: string) {
+  const [post] = await db
+    .select({
+      title: blogPosts.title,
+      seoTitle: blogPosts.seoTitle,
+      description: blogPosts.description,
+      shortAnswer: blogPosts.shortAnswer,
+      breadcrumbLabel: blogPosts.breadcrumbLabel,
+      primaryKeyword: blogPosts.primaryKeyword,
+      secondaryKeywords: blogPosts.secondaryKeywords,
+      bodyHtml: blogPosts.bodyHtml,
+      faqs: blogPosts.faqs,
+    })
+    .from(blogPosts)
+    .where(eq(blogPosts.id, postId))
+    .limit(1);
+  return post ?? null;
+}
+
+/**
+ * Saves one translation of the run's English draft, as the editor's AI
+ * translation would be (lib/admin/blog.ts createBlogTranslation): a draft
+ * linked to the English post, marked "needs review" - it cannot be published
+ * until an administrator ticks "reviewed by a native speaker" - with the
+ * English post's category, author and sources, and an address of its own.
+ * A language already translated returns that translation: a retried step
+ * saves nothing twice.
+ */
+export async function saveAutopilotTranslation(
+  sourceId: string,
+  locale: Exclude<Locale, "en">,
+  translated: Omit<BlogPostInput, "category" | "author" | "sources" | "locale">,
+): Promise<{ postId: string; slug: string }> {
+  const language = LANGUAGE_NAMES_EN[locale];
+  const existing = async (executor: Executor) =>
+    (
+      await executor
+        .select({ id: blogPosts.id, slug: blogPosts.slug })
+        .from(blogPosts)
+        .where(and(eq(blogPosts.translationOf, sourceId), eq(blogPosts.locale, locale)))
+        .limit(1)
+    )[0];
+  try {
+    return await db.transaction(async (tx) => {
+      const [source] = await tx.select().from(blogPosts).where(eq(blogPosts.id, sourceId)).for("share").limit(1);
+      if (!source) throw new BlogPostError("The English draft was deleted before its translations were saved");
+      const already = await existing(tx);
+      if (already) return { postId: already.id, slug: already.slug };
+      const fields = cleanBlogPost(
+        { ...translated, slug: blogSlug(translated.slug) || blogSlug(translated.title), category: source.category, author: source.author, sources: source.sources },
+        true,
+      );
+      // The plain address, then with the language code, then numbered: never another post's.
+      const candidates = [fields.slug, `${fields.slug}-${locale}`, ...[2, 3, 4, 5].map((n) => `${fields.slug}-${locale}-${n}`)];
+      let slug: string | null = null;
+      for (const candidate of candidates) {
+        const [taken] = await tx.select({ id: blogPosts.id }).from(blogPosts).where(eq(blogPosts.slug, candidate)).limit(1);
+        if (!taken && !RESERVED_SLUGS.has(candidate)) {
+          slug = candidate;
+          break;
+        }
+      }
+      if (!slug) throw new BlogPostError(`Every address tried for the ${language} translation is taken`);
+      const now = new Date();
+      const [row] = await tx
+        .insert(blogPosts)
+        .values({
+          ...fields,
+          slug,
+          locale,
+          translationOf: source.id,
+          needsReview: true,
+          status: "draft",
+          createdBy: AUTOPILOT_ACTOR,
+          updatedBy: AUTOPILOT_ACTOR,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .returning({ id: blogPosts.id });
+      await recordAdminAction(
+        {
+          actorEmail: AUTOPILOT_ACTOR,
+          action: "blog.translation_created",
+          targetType: "blog_post",
+          targetId: row.id,
+          summary: `The blog autopilot wrote the ${language} draft of "${source.title}"`,
+          detail: { source: source.id, locale, mode: "autopilot", slug },
+        },
+        tx,
+      );
+      return { postId: row.id, slug };
+    });
+  } catch (error) {
+    // Saved at the same moment by an administrator's own "Translate": theirs is the translation.
+    if (isUniqueViolation(error)) {
+      const other = await existing(db);
+      if (other) return { postId: other.id, slug: other.slug };
+    }
+    throw error;
+  }
+}
+
 /** Closes a run whose English draft is saved: the run is done and its topic written. Closing twice changes nothing. */
 export async function finishAutopilotRun(claim: Pick<AutopilotClaim, "runId" | "topicId">, report: Record<string, unknown> = {}): Promise<void> {
   const now = new Date();
@@ -243,6 +349,13 @@ export async function noteCost(runId: string, step: string, usd: number, executo
       detail: sql`jsonb_set(case when ${blogAutopilotRuns.detail} ? 'costs' then ${blogAutopilotRuns.detail} else ${blogAutopilotRuns.detail} || '{"costs": {}}'::jsonb end, array['costs', ${step}]::text[], to_jsonb(${value}::numeric))`,
     })
     .where(eq(blogAutopilotRuns.id, runId));
+}
+
+/** What the run's AI cost so far: the sum of its steps' costs (noteCost), or null before any. */
+export async function runCost(runId: string, executor: Executor = db): Promise<number | null> {
+  const [run] = await executor.select({ detail: blogAutopilotRuns.detail }).from(blogAutopilotRuns).where(eq(blogAutopilotRuns.id, runId)).limit(1);
+  const costs = Object.values((run?.detail.costs ?? {}) as Record<string, unknown>).map(Number).filter(Number.isFinite);
+  return costs.length ? Math.round(costs.reduce((total, usd) => total + usd, 0) * 100) / 100 : null;
 }
 
 /** Adds what a step found (costs, warnings, picture ideas...) to the run's record. */

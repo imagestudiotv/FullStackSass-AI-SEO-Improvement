@@ -27,9 +27,12 @@ import {
   failAutopilotRun,
   finishAutopilotRun,
   loadClaim,
+  loadDraft,
   noteCost,
   RUN_EVENT,
+  runCost,
   saveAutopilotDraft,
+  saveAutopilotTranslation,
   startAutopilotRun,
   type AutopilotClaim,
 } from "./run";
@@ -248,5 +251,73 @@ describe("the run's job", () => {
     await noteCost(claim.runId, "picture-en-1", 0.19);
     await noteCost(claim.runId, "picture-en-2", -1);
     expect((await runRow(claim.runId)).detail).toEqual({ requestedBy: "admin@repget.test", costs: { "plan-article": 0.3123, "picture-en-1": 0.19, "picture-en-2": 0 } });
+  });
+});
+
+describe("a translation", () => {
+  async function english() {
+    await topics("First");
+    const claim = await claimed();
+    return { claim, ...(await saveAutopilotDraft(claim, draft({ sources: [{ label: "Google", url: "https://developers.google.com/search" }] }), {})) };
+  }
+  const italian = () => ({
+    title: "SEO locale per idraulici",
+    slug: "SEO locale per idraulici",
+    description: "Scopri la SEO locale per idraulici.",
+    seoTitle: "SEO locale per idraulici",
+    primaryKeyword: "SEO locale per idraulici",
+    secondaryKeywords: ["SEO idraulico"],
+    breadcrumbLabel: "",
+    shortAnswer: "Inizia dal profilo.",
+    bodyHtml: "<p>Qualcuno cerca un idraulico.</p><h2>Come funziona</h2><p>Testo.</p>",
+    faqs: [{ question: "Che cos'è?", answer: "<p>Farsi trovare.</p>" }],
+  });
+
+  it("is saved as a draft linked to the English one, marked for a native speaker's review, once", async () => {
+    const { postId: sourceId } = await english();
+    const saved = await saveAutopilotTranslation(sourceId, "it", italian());
+    expect(saved.slug).toBe("seo-locale-per-idraulici");
+    const [post] = await test.db.select().from(blogPosts).where(eq(blogPosts.id, saved.postId));
+    expect(post).toMatchObject({
+      locale: "it",
+      translationOf: sourceId,
+      needsReview: true,
+      status: "draft",
+      category: "Playbooks",
+      author: TEAM_AUTHOR,
+      sources: [{ label: "Google", url: "https://developers.google.com/search" }],
+      createdBy: AUTOPILOT_ACTOR,
+    });
+    const [log] = await test.db.select().from(adminAuditLog).where(eq(adminAuditLog.targetId, saved.postId));
+    expect(log).toMatchObject({ actorEmail: AUTOPILOT_ACTOR, action: "blog.translation_created", summary: 'The blog autopilot wrote the Italian draft of "Local SEO for Plumbers: How to Get Found"' });
+    expect(await saveAutopilotTranslation(sourceId, "it", italian())).toEqual(saved);
+    expect(await test.db.select().from(blogPosts).where(eq(blogPosts.locale, "it"))).toHaveLength(1);
+  });
+
+  it("gets an address of its own when the plain one is taken", async () => {
+    const { postId: sourceId } = await english();
+    await test.db.insert(blogPosts).values({ slug: "seo-locale-per-idraulici", title: "Taken", category: "Guides", author: TEAM_AUTHOR });
+    expect((await saveAutopilotTranslation(sourceId, "it", italian())).slug).toBe("seo-locale-per-idraulici-it");
+  });
+
+  it("is refused when its English draft was deleted, or it breaks the blog's rules", async () => {
+    const { postId: sourceId } = await english();
+    await expect(saveAutopilotTranslation(sourceId, "de", { ...italian(), description: "" })).rejects.toThrow(BlogPostError);
+    await test.db.delete(blogPosts).where(eq(blogPosts.id, sourceId));
+    await expect(saveAutopilotTranslation(sourceId, "it", italian())).rejects.toThrow("The English draft was deleted");
+  });
+
+  it("is made from the English draft as it was saved", async () => {
+    const { postId } = await english();
+    expect(await loadDraft(postId)).toMatchObject({ title: "Local SEO for Plumbers: How to Get Found", primaryKeyword: "local SEO for plumbers", faqs: [{ question: "What is local SEO?" }] });
+    expect(await loadDraft("00000000-0000-4000-8000-000000000000")).toBeNull();
+  });
+
+  it("adds to what the run cost", async () => {
+    const { claim } = await english();
+    expect(await runCost(claim.runId)).toBeNull();
+    await noteCost(claim.runId, "plan-article", 0.3);
+    await noteCost(claim.runId, "translate-it-fields", 0.054);
+    expect(await runCost(claim.runId)).toBe(0.35);
   });
 });

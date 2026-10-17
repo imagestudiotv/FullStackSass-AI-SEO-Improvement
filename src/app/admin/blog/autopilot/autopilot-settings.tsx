@@ -82,7 +82,7 @@ export function AutopilotSettingsForm({
               </option>
             ))}
           </select>
-          <p className="text-xs text-muted-foreground">The drafts are ready for you about half an hour later.</p>
+          <p className="text-xs text-muted-foreground">The drafts are ready for you within the hour, and the administrators get an email when they are.</p>
         </div>
 
         <fieldset className="space-y-1.5">
