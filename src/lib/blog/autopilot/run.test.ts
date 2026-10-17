@@ -22,7 +22,17 @@ import { BlogPostError, type BlogPostInput } from "@/lib/blog/post-fields";
 import { TEAM_AUTHOR } from "@/lib/blog/shared";
 import { deliverJobs, MAX_DELIVERY_ATTEMPTS } from "@/lib/jobs/outbox";
 
-import { AUTOPILOT_ACTOR, failAutopilotRun, loadClaim, RUN_EVENT, saveAutopilotDraft, startAutopilotRun, type AutopilotClaim } from "./run";
+import {
+  AUTOPILOT_ACTOR,
+  failAutopilotRun,
+  finishAutopilotRun,
+  loadClaim,
+  noteCost,
+  RUN_EVENT,
+  saveAutopilotDraft,
+  startAutopilotRun,
+  type AutopilotClaim,
+} from "./run";
 
 let test: TestDb;
 
@@ -150,10 +160,15 @@ describe("the run's job", () => {
     expect(await loadClaim("00000000-0000-4000-8000-000000000000")).toBeNull();
   });
 
-  it("saves the article as a draft by the RepGet team, once, and closes the run", async () => {
+  it("saves the article as a draft by the RepGet team, once; the run is closed when everything is done", async () => {
     await topics("First");
     const claim = await claimed();
     const saved = await saveAutopilotDraft(claim, draft(), { words: 3_400, usage: { costUsd: 1.02 } });
+    // Saved, but the run goes on (the translations) until it is closed.
+    expect(await runRow(claim.runId)).toMatchObject({ status: "running", postId: saved.postId });
+    expect(await topicRow("First")).toMatchObject({ status: "writing", postId: saved.postId });
+    await finishAutopilotRun(claim, { translations: 4 });
+    await finishAutopilotRun(claim, { translations: 99 });
     expect(saved.slug).toBe("local-seo-for-plumbers");
 
     const [post] = await test.db.select().from(blogPosts).where(eq(blogPosts.id, saved.postId));
@@ -172,8 +187,9 @@ describe("the run's job", () => {
     expect(await runRow(claim.runId)).toMatchObject({
       status: "done",
       postId: saved.postId,
-      detail: { requestedBy: "admin@repget.test", words: 3_400, usage: { costUsd: 1.02 } },
+      detail: { requestedBy: "admin@repget.test", words: 3_400, usage: { costUsd: 1.02 }, translations: 4 },
     });
+    expect((await topicRow("First")).writtenAt).not.toBeNull();
     const [log] = await test.db.select().from(adminAuditLog).where(eq(adminAuditLog.targetId, saved.postId));
     expect(log).toMatchObject({ actorEmail: AUTOPILOT_ACTOR, action: "blog.post_created" });
 
@@ -209,8 +225,28 @@ describe("the run's job", () => {
 
     const next = await claimed();
     await saveAutopilotDraft(next, draft(), {});
+    await finishAutopilotRun(next);
     await failAutopilotRun(next.runId, "Late failure");
     expect((await runRow(next.runId)).status).toBe("done");
     expect((await topicRow("Second")).status).toBe("written");
+  });
+
+  it("keeps the topic written when the run fails after its English draft was saved, so it is never written twice", async () => {
+    await topics("First");
+    const claim = await claimed();
+    const saved = await saveAutopilotDraft(claim, draft(), {});
+    await failAutopilotRun(claim.runId, "The translations could not be finished");
+    expect(await runRow(claim.runId)).toMatchObject({ status: "failed", error: "The translations could not be finished", postId: saved.postId });
+    expect(await topicRow("First")).toMatchObject({ status: "written", postId: saved.postId });
+  });
+
+  it("keeps what each step cost under its name, so a retried step is not counted twice", async () => {
+    await topics("First");
+    const claim = await claimed();
+    await noteCost(claim.runId, "plan-article", 0.31234);
+    await noteCost(claim.runId, "picture-en-1", 0.19);
+    await noteCost(claim.runId, "picture-en-1", 0.19);
+    await noteCost(claim.runId, "picture-en-2", -1);
+    expect((await runRow(claim.runId)).detail).toEqual({ requestedBy: "admin@repget.test", costs: { "plan-article": 0.3123, "picture-en-1": 0.19, "picture-en-2": 0 } });
   });
 });

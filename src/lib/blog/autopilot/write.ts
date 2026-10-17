@@ -66,7 +66,18 @@ export type WriterContext = {
 export type PlannedSection = { heading: string; covers: string; subheadings: string[]; table: string; links: string[] };
 
 /** A diagram for step 3 (pictures), kept with the run until then. */
-export type PictureIdea = { afterSection: number; heading: string; idea: string; labels: string[]; alt: string };
+export type PictureIdea = {
+  /** The section it illustrates, from 1, and that section's heading. */
+  afterSection: number;
+  heading: string;
+  /** The headline written in the picture. */
+  title: string;
+  /** What it shows and how it is laid out, for the image model. */
+  idea: string;
+  /** Every other text in the picture. */
+  labels: string[];
+  alt: string;
+};
 
 export type ArticlePlan = {
   title: string;
@@ -334,8 +345,8 @@ function planSchema(categories: string[]): Record<string, unknown> {
         items: {
           type: "object",
           additionalProperties: false,
-          properties: { afterSection: { type: "integer" }, idea: STRING, labels: STRINGS, alt: STRING },
-          required: ["afterSection", "idea", "labels", "alt"],
+          properties: { afterSection: { type: "integer" }, title: STRING, idea: STRING, labels: STRINGS, alt: STRING },
+          required: ["afterSection", "title", "idea", "labels", "alt"],
         },
       },
       faqQuestions: STRINGS,
@@ -372,7 +383,7 @@ const PLAN_REQUEST = [
   "- reader: in a sentence, who this is for and what they can do after reading.",
   "- opening: in a sentence or two, the concrete situation the article opens with.",
   '- sections: 10 to 13, in reading order. For each: heading (its H2), covers (what it says, specifically, in a sentence or two), subheadings (its H3s, 0 to 4), table (what its table compares and its columns, or empty), links (the full addresses it links to, from <repget_pages>, <blog_posts> or official documentation; may be empty). Include a worked example and a practical plan or checklist. The second-to-last is "Where RepGet fits" and the last is "The bottom line".',
-  "- pictures: exactly 2 diagrams that make a point of the article easier to grasp at a glance (a flow, a decision tree, a checklist, a simple comparison). For each: afterSection (the number, from 1, of the section it illustrates, not one of the last two), idea (what it shows and how it is laid out, for an illustrator), labels (the 3 to 8 short texts that appear in it, a few words each), alt (alt text under 125 characters).",
+  "- pictures: exactly 2 diagrams that make a point of the article easier to grasp at a glance (a flow, a decision tree, a checklist, a simple comparison). For each: afterSection (the number, from 1, of the section it illustrates, not one of the last two), title (its headline, under 50 characters), idea (what it shows and how it is laid out, for an illustrator: the boxes, arrows or columns and what goes in each), labels (every other text in it, 3 to 10 short texts of a few words each, spelled exactly as they should appear), alt (alt text under 125 characters).",
   "- faqQuestions: 6 to 8 questions people search about this topic that the article answers, worded as they would type them, not repeating the section headings.",
   "",
   "If one of the <blog_posts> already covers this topic's main question, choose an angle that adds something new and link to that post instead of repeating it.",
@@ -407,9 +418,16 @@ export function readPlan(value: Record<string, unknown>, context: WriterContext)
     .map((raw) => {
       const picture = (raw ?? {}) as Record<string, unknown>;
       const afterSection = Math.trunc(Number(picture.afterSection));
-      return { afterSection, heading: sections[afterSection - 1]?.heading ?? "", idea: oneLine(picture.idea), labels: strings(picture.labels), alt: oneLine(picture.alt).slice(0, 200) };
+      return {
+        afterSection,
+        heading: sections[afterSection - 1]?.heading ?? "",
+        title: oneLine(picture.title).slice(0, 80),
+        idea: oneLine(picture.idea),
+        labels: strings(picture.labels).slice(0, 12),
+        alt: oneLine(picture.alt).slice(0, 200),
+      };
     })
-    .filter((picture) => picture.heading && picture.idea)
+    .filter((picture) => picture.heading && picture.idea && picture.title && picture.alt)
     .slice(0, 2);
 
   const description = oneLine(value.description);

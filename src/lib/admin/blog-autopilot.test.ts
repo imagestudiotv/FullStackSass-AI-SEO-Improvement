@@ -177,6 +177,7 @@ describe("write one now", () => {
     expect(page.writing.map((topic) => topic.topic)).toEqual(["First"]);
     expect(page.queued.map((topic) => topic.topic)).toEqual(["Second"]);
     expect(page.runs).toEqual([expect.objectContaining({ trigger: "manual", status: "running", topic: "First", costUsd: null, words: null, warnings: [] })]);
+    expect(page.runs[0].costs).toEqual({ writing: 0, pictures: 0, translations: 0 });
     expect(inngestMock.send).toHaveBeenCalledWith(expect.objectContaining({ name: "blog/autopilot.run" }));
     const [log] = await test.db.select().from(adminAuditLog).where(eq(adminAuditLog.action, "blog.autopilot_run_started"));
     expect(log).toMatchObject({ actorEmail: ADMIN, summary: `Started writing "First" with the blog autopilot` });
@@ -189,9 +190,13 @@ describe("write one now", () => {
   it("shows what a finished run cost and what to check in its draft", async () => {
     await add("First");
     await writeBlogAutopilotNow();
-    await test.db.update(blogAutopilotRuns).set({ status: "done", detail: { usage: { costUsd: 1.0234 }, words: 3412, warnings: ["The article has 2 tables; the blog's posts have 3 to 5.", 7] } });
-    expect((await getBlogAutopilotAdmin()).runs[0]).toMatchObject({
-      costUsd: 1.0234,
+    await test.db.update(blogAutopilotRuns).set({ status: "done", detail: { costs: { "plan-article": 0.3, "write-part-1": 0.2234, "picture-en-1": 0.19, "picture-en-2": 0.19, "translate-it-fields": 0.12, bogus: "x" }, words: 3412, warnings: ["The article has 2 tables; the blog's posts have 3 to 5.", 7] } });
+    const [run] = (await getBlogAutopilotAdmin()).runs;
+    expect(run.costUsd).toBeCloseTo(1.0234, 6);
+    expect(run.costs.writing).toBeCloseTo(0.5234, 6);
+    expect(run.costs.pictures).toBeCloseTo(0.38, 6);
+    expect(run.costs.translations).toBeCloseTo(0.12, 6);
+    expect(run).toMatchObject({
       words: 3412,
       warnings: ["The article has 2 tables; the blog's posts have 3 to 5."],
     });

@@ -21,6 +21,14 @@ const RUN_STATUS: Record<string, { tone: StatusTone; label: string }> = {
   failed: { tone: "danger", label: "Failed" },
 };
 
+/** "(writing $1.10, pictures $0.75, translations $1.20)": only the parts that cost something. */
+function costParts(costs: { writing: number; pictures: number; translations: number }): string {
+  const parts = Object.entries(costs)
+    .filter(([, usd]) => usd > 0)
+    .map(([part, usd]) => `${part} ${usd.toFixed(2)}`);
+  return parts.length > 1 ? ` (${parts.join(", ")})` : "";
+}
+
 /**
  * Admin -> Blog -> Autopilot (client, 2026-10-16): the switch, the hour and
  * languages, the topic list in the order it will be written, and the recent
@@ -79,7 +87,7 @@ export default async function BlogAutopilotPage() {
                         <span className="mt-0.5 block text-xs text-muted-foreground tabular-nums">
                           {[
                             run.words !== null ? `${run.words.toLocaleString("en-US")} words` : null,
-                            run.costUsd !== null ? `AI cost $${run.costUsd.toFixed(2)}` : null,
+                            run.costUsd !== null ? `AI cost ${run.costUsd.toFixed(2)}${costParts(run.costs)}` : null,
                           ]
                             .filter(Boolean)
                             .join(" · ")}

@@ -59,8 +59,9 @@ export type AdminAutopilotRun = {
   error: string | null;
   startedAt: Date;
   finishedAt: Date | null;
-  /** From the run's record, once the article is checked: what it cost, its length, what fell short of the house style. */
+  /** From the run's record: what its AI cost (in all, and for the writing, the pictures and the translations), its length, what fell short of the house style. */
   costUsd: number | null;
+  costs: { writing: number; pictures: number; translations: number };
   words: number | null;
   warnings: string[];
 };
@@ -103,11 +104,26 @@ function cleanTopic(input: TopicInput): CleanTopic | string {
   return { topic, keyword: keyword || null, notes: notes || null };
 }
 
-/** The figures the writer kept with the run (lib/blog/autopilot/write.ts DraftReport), read defensively. */
-function runFigures(detail: Record<string, unknown>): Pick<AdminAutopilotRun, "costUsd" | "words" | "warnings"> {
-  const usage = detail.usage as { costUsd?: unknown } | undefined;
+/**
+ * The figures the autopilot kept with the run, read defensively: the cost of
+ * each step by its name (lib/blog/autopilot/run.ts noteCost) - "plan-article"
+ * and "write-part-N" are the writing, "picture-*" the pictures,
+ * "translate-*" the translations - and the checks' report.
+ */
+function runFigures(detail: Record<string, unknown>): Pick<AdminAutopilotRun, "costUsd" | "costs" | "words" | "warnings"> {
+  const costs = { writing: 0, pictures: 0, translations: 0 };
+  let any = false;
+  for (const [stepId, value] of Object.entries((detail.costs ?? {}) as Record<string, unknown>)) {
+    const usd = Number(value);
+    if (!Number.isFinite(usd)) continue;
+    any = true;
+    if (stepId.startsWith("picture-")) costs.pictures += usd;
+    else if (stepId.startsWith("translate-")) costs.translations += usd;
+    else costs.writing += usd;
+  }
   return {
-    costUsd: typeof usage?.costUsd === "number" ? usage.costUsd : null,
+    costUsd: any ? costs.writing + costs.pictures + costs.translations : null,
+    costs,
     words: typeof detail.words === "number" ? detail.words : null,
     warnings: Array.isArray(detail.warnings) ? detail.warnings.filter((warning): warning is string => typeof warning === "string") : [],
   };

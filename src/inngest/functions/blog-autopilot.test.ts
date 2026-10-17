@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import sharp from "sharp";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { blogAutopilotRuns, blogAutopilotTopics, blogPosts, jobOutbox } from "@/lib/db/schema";
@@ -28,6 +29,16 @@ vi.mock("@/lib/ai/client", () => ({
   MODELS: { EXTRACTION: "claude-haiku-4-5", GENERATION: "claude-sonnet-5", BLOG: "claude-opus-5-5" },
   isAiConfigured: () => true,
 }));
+// The pictures: OpenAI images and storage, mocked (a blank PNG; an address per stored file).
+const images = vi.hoisted(() => ({ generate: vi.fn(), configured: vi.fn(() => true), stored: [] as string[] }));
+vi.mock("@/lib/images/generate", () => ({ generateOpenAiImage: images.generate, isOpenAiImageConfigured: images.configured }));
+vi.mock("@/lib/images/storage", () => ({
+  isImageStorageConfigured: () => true,
+  storeArticleImage: async (_folder: string, sub: string) => {
+    images.stored.push(sub);
+    return `https://storage.example/article-images/blog/${sub}/${images.stored.length}.webp`;
+  },
+}));
 
 import { startAutopilotRun } from "@/lib/blog/autopilot/run";
 import { bodyParts } from "@/lib/blog/autopilot/write";
@@ -55,6 +66,10 @@ beforeEach(async () => {
   inngestMock.send.mockReset();
   inngestMock.send.mockResolvedValue({ ids: ["evt"] });
   ai.stream.mockReset();
+  images.generate.mockReset();
+  images.generate.mockImplementation(async () => ({ data: await sharp({ create: { width: 1536, height: 1024, channels: 3, background: "#fff" } }).png().toBuffer(), costUsd: 0.19 }));
+  images.configured.mockReturnValue(true);
+  images.stored.length = 0;
 });
 
 /** Inngest-style memoisation: a finished step replays its stored (JSON) result on a retry. */
@@ -99,7 +114,19 @@ describe("the blog autopilot's job", () => {
     const result = (await job.handler({ event: { data: { runId: claim.runId } }, step, logger })) as { written: boolean; postId: string };
 
     expect(result.written).toBe(true);
-    expect(step.ran).toEqual(["load-run", "plan-article", "write-part-1", "write-part-2", "write-part-3", "check-article", "save-draft"]);
+    expect(step.ran).toEqual([
+      "load-run",
+      "plan-article",
+      "write-part-1",
+      "write-part-2",
+      "write-part-3",
+      "check-article",
+      "can-make-pictures",
+      "picture-en-1",
+      "picture-en-2",
+      "save-draft",
+      "finish-run",
+    ]);
     // One plan and three parts, all asking Opus 5.5 with the same instructions, so the cache serves the later calls.
     expect(ai.stream).toHaveBeenCalledTimes(4);
     const systems = ai.stream.mock.calls.map(([params]) => JSON.stringify((params as { system: unknown }).system));
@@ -123,19 +150,38 @@ describe("the blog autopilot's job", () => {
     expect(post.shortAnswer?.length).toBeGreaterThan(300);
     expect((post.bodyHtml.match(/<h2>/g) ?? []).length).toBe(10);
     expect(post.bodyHtml).toContain('<a href="https://www.repget.com/audit">free website audit</a>');
+    // The two diagrams, made in English and stored with the English pictures, in the sections they illustrate.
+    expect(images.generate).toHaveBeenCalledTimes(2);
+    expect(images.generate.mock.calls[0][0]).toContain('Headline at the top, large: "From search to call".');
+    expect(images.stored).toEqual(["posts/en", "posts/en"]);
+    const sectionOf = (url: string) => post.bodyHtml.slice(0, post.bodyHtml.indexOf(url)).match(/<h2>/g)?.length;
+    expect(post.bodyHtml).toContain('alt="How a local search becomes a call" width="1536" height="1024"');
+    expect(sectionOf("https://storage.example/article-images/blog/posts/en/1.webp")).toBe(1);
+    expect(sectionOf("https://storage.example/article-images/blog/posts/en/2.webp")).toBe(7);
 
     const [topic] = await test.db.select().from(blogAutopilotTopics).where(eq(blogAutopilotTopics.id, claim.topicId));
     expect(topic).toMatchObject({ status: "written", postId: post.id });
     const [run] = await test.db.select().from(blogAutopilotRuns).where(eq(blogAutopilotRuns.id, claim.runId));
     expect(run).toMatchObject({ status: "done", postId: post.id });
-    const detail = run.detail as { model: string; usage: { calls: number; costUsd: number }; words: number; pictures: unknown[]; warnings: string[] };
+    const detail = run.detail as {
+      model: string;
+      usage: { calls: number; costUsd: number };
+      costs: Record<string, number>;
+      words: number;
+      pictures: unknown[];
+      picturesMade: number;
+      warnings: string[];
+    };
     expect(detail.model).toBe("claude-opus-5-5");
     expect(detail.usage.calls).toBe(4);
     // The plan writes the cache ($5/M); the parts read it ($0.20/M).
     expect(detail.usage.costUsd).toBeCloseTo((4_000 * 4 + 8_000 * 20 + 20_000 * 5 + 60_000 * 0.2) / 1_000_000, 4);
     expect(detail.words).toBeGreaterThan(3_200);
     expect(detail.pictures).toHaveLength(2);
+    expect(detail.picturesMade).toBe(2);
     expect(detail.warnings).toEqual([]);
+    expect(detail.costs).toMatchObject({ "picture-en-1": 0.19, "picture-en-2": 0.19 });
+    expect(Object.keys(detail.costs)).toEqual(expect.arrayContaining(["plan-article", "write-part-1", "write-part-2", "write-part-3"]));
   });
 
   it("retries only the step that failed: the plan and the parts already written are not paid for twice", async () => {
@@ -152,6 +198,34 @@ describe("the blog autopilot's job", () => {
     expect(ai.stream).toHaveBeenCalledTimes(5);
     expect(step.ran.filter((id) => id === "plan-article")).toHaveLength(1);
     expect(await test.db.select().from(blogPosts)).toHaveLength(1);
+  });
+
+  it("saves the article when a picture cannot be made, and says which one to add by hand", async () => {
+    const claim = await queuedRun();
+    modelWrites(...WHOLE_ARTICLE());
+    images.generate.mockRejectedValueOnce(new Error("Image provider rejected the request (400): content policy"));
+    const result = (await job.handler({ event: { data: { runId: claim.runId } }, step: memoisedStep(), logger })) as { postId: string };
+    const [post] = await test.db.select().from(blogPosts).where(eq(blogPosts.id, result.postId));
+    expect(post.bodyHtml.match(/<img /g)).toHaveLength(1);
+    const [run] = await test.db.select().from(blogAutopilotRuns).where(eq(blogAutopilotRuns.id, claim.runId));
+    expect(run.status).toBe("done");
+    expect((run.detail as { warnings: string[] }).warnings).toEqual([
+      'Picture 1 ("From search to call") could not be made: Image provider rejected the request (400): content policy. Add one by hand if the section needs it.',
+    ]);
+  });
+
+  it("writes the article without pictures where they are not set up, and says so", async () => {
+    images.configured.mockReturnValue(false);
+    const claim = await queuedRun();
+    modelWrites(...WHOLE_ARTICLE());
+    const result = (await job.handler({ event: { data: { runId: claim.runId } }, step: memoisedStep(), logger })) as { postId: string };
+    const [post] = await test.db.select().from(blogPosts).where(eq(blogPosts.id, result.postId));
+    expect(post.bodyHtml).not.toContain("<img");
+    expect(images.generate).not.toHaveBeenCalled();
+    const [run] = await test.db.select().from(blogAutopilotRuns).where(eq(blogAutopilotRuns.id, claim.runId));
+    expect((run.detail as { warnings: string[] }).warnings).toEqual([
+      "Pictures are not set up on this server (an OpenAI image key and image storage), so the article has none.",
+    ]);
   });
 
   it("hands the topic back with the reason when every retry is spent", async () => {

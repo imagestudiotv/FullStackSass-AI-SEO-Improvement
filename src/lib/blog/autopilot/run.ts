@@ -134,8 +134,9 @@ async function freeSlug(tx: Executor, slug: string): Promise<string> {
 
 /**
  * Saves the English article as a draft - never published: an administrator
- * reads it and publishes it (client's choice 2) - and closes the run.
- * Saving twice (a retried step) returns the post saved the first time.
+ * reads it and publishes it (client's choice 2). The run goes on (the
+ * translations) and is closed by finishAutopilotRun. Saving twice (a retried
+ * step) returns the post saved the first time.
  */
 export async function saveAutopilotDraft(
   claim: AutopilotClaim,
@@ -179,21 +180,37 @@ export async function saveAutopilotDraft(
       },
       tx,
     );
-    await tx
-      .update(blogAutopilotTopics)
-      .set({ status: "written", postId: post.id, error: null, writtenAt: now, updatedAt: now })
-      .where(eq(blogAutopilotTopics.id, claim.topicId));
+    await tx.update(blogAutopilotTopics).set({ postId: post.id, updatedAt: now }).where(eq(blogAutopilotTopics.id, claim.topicId));
     await tx
       .update(blogAutopilotRuns)
-      .set({ status: "done", postId: post.id, finishedAt: now, detail: sql`${blogAutopilotRuns.detail} || ${JSON.stringify(report)}::jsonb` })
+      .set({ postId: post.id, detail: sql`${blogAutopilotRuns.detail} || ${JSON.stringify(report)}::jsonb` })
       .where(eq(blogAutopilotRuns.id, claim.runId));
     return { postId: post.id, slug };
   });
 }
 
+/** Closes a run whose English draft is saved: the run is done and its topic written. Closing twice changes nothing. */
+export async function finishAutopilotRun(claim: Pick<AutopilotClaim, "runId" | "topicId">, report: Record<string, unknown> = {}): Promise<void> {
+  const now = new Date();
+  await db.transaction(async (tx) => {
+    const [run] = await tx
+      .update(blogAutopilotRuns)
+      .set({ status: "done", finishedAt: now, detail: sql`${blogAutopilotRuns.detail} || ${JSON.stringify(report)}::jsonb` })
+      .where(and(eq(blogAutopilotRuns.id, claim.runId), eq(blogAutopilotRuns.status, "running")))
+      .returning({ postId: blogAutopilotRuns.postId });
+    if (!run) return;
+    await tx
+      .update(blogAutopilotTopics)
+      .set({ status: "written", postId: run.postId, error: null, writtenAt: now, updatedAt: now })
+      .where(and(eq(blogAutopilotTopics.id, claim.topicId), eq(blogAutopilotTopics.status, "writing")));
+  });
+}
+
 /**
- * Records a run that could not finish: the run and its topic are marked
- * failed with the reason, and "Try again" puts the topic back in the queue.
+ * Records a run that could not finish: the run is marked failed with the
+ * reason. Its topic is failed too - "Try again" puts it back in the queue -
+ * unless its English draft was already saved: then the topic is written
+ * (trying again would write the article twice) and the draft is kept.
  * A run already finished is left alone.
  */
 export async function failAutopilotRun(runId: string, reason: string, executor: Executor = db): Promise<void> {
@@ -204,13 +221,28 @@ export async function failAutopilotRun(runId: string, reason: string, executor: 
       .update(blogAutopilotRuns)
       .set({ status: "failed", error, finishedAt: now })
       .where(and(eq(blogAutopilotRuns.id, runId), eq(blogAutopilotRuns.status, "running")))
-      .returning({ topicId: blogAutopilotRuns.topicId });
+      .returning({ topicId: blogAutopilotRuns.topicId, postId: blogAutopilotRuns.postId });
     if (!run?.topicId) return;
     await tx
       .update(blogAutopilotTopics)
-      .set({ status: "failed", error, updatedAt: now })
+      .set(run.postId ? { status: "written", postId: run.postId, writtenAt: now, updatedAt: now } : { status: "failed", error, updatedAt: now })
       .where(and(eq(blogAutopilotTopics.id, run.topicId), eq(blogAutopilotTopics.status, "writing")));
   });
+}
+
+/**
+ * What one step paid for AI, kept with the run under the step's name: set,
+ * not added, so a retried step is never counted twice. The run's cost is
+ * the sum (lib/admin/blog-autopilot.ts).
+ */
+export async function noteCost(runId: string, step: string, usd: number, executor: Executor = db): Promise<void> {
+  const value = Math.round(Math.max(0, usd) * 10_000) / 10_000;
+  await executor
+    .update(blogAutopilotRuns)
+    .set({
+      detail: sql`jsonb_set(case when ${blogAutopilotRuns.detail} ? 'costs' then ${blogAutopilotRuns.detail} else ${blogAutopilotRuns.detail} || '{"costs": {}}'::jsonb end, array['costs', ${step}]::text[], to_jsonb(${value}::numeric))`,
+    })
+    .where(eq(blogAutopilotRuns.id, runId));
 }
 
 /** Adds what a step found (costs, warnings, picture ideas...) to the run's record. */

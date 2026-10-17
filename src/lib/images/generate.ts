@@ -164,6 +164,8 @@ function openAiModel(): string {
 
 async function generateWithOpenAi(
   prompt: string,
+  /** gpt-image quality; omitted, the model chooses ("auto"). */
+  quality?: "low" | "medium" | "high",
 ): Promise<{ data: Buffer; costUsd: number }> {
   const response = await fetch("https://api.openai.com/v1/images/generations", {
     method: "POST",
@@ -188,6 +190,7 @@ async function generateWithOpenAi(
        * parameter, and the GPT image models reject it.
        */
       size: openAiSize(openAiModel()),
+      ...(quality ? { quality } : {}),
     }),
   });
 
@@ -288,6 +291,26 @@ async function generateWithReplicate(
     data: Buffer.from(await image.arrayBuffer()),
     costUsd: REPLICATE_PER_IMAGE_USD,
   };
+}
+
+/**
+ * A picture exactly as `prompt` describes it, text included: the blog
+ * autopilot's diagrams (lib/blog/autopilot/pictures.ts), where the words ARE
+ * the picture. OpenAI only - its image models write legible text, the
+ * Replicate model does not - so callers check isOpenAiImageConfigured()
+ * first. Returned as the provider made it (PNG, 1536 x 1024 for gpt-image).
+ */
+export async function generateOpenAiImage(
+  prompt: string,
+  quality: "low" | "medium" | "high",
+): Promise<{ data: Buffer; costUsd: number }> {
+  if (activeProvider() !== "openai") throw new Error("OpenAI image generation is not configured");
+  return generateWithOpenAi(prompt, quality);
+}
+
+/** True when pictures with text in them can be made (see generateOpenAiImage). */
+export function isOpenAiImageConfigured(): boolean {
+  return activeProvider() === "openai";
 }
 
 /**

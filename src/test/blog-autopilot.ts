@@ -40,8 +40,8 @@ export function planReply(overrides: Record<string, unknown> = {}): Record<strin
       links: [],
     })),
     pictures: [
-      { afterSection: 1, idea: "A flow from search to map pack to call", labels: ["Search", "Map pack", "Call"], alt: "How a local search becomes a call" },
-      { afterSection: 7, idea: "A 30-day plan as four weekly boxes", labels: ["Week 1", "Week 2", "Week 3", "Week 4"], alt: "A 30-day local SEO plan" },
+      { afterSection: 1, title: "From search to call", idea: "A flow from search to map pack to call", labels: ["Search", "Map pack", "Call"], alt: "How a local search becomes a call" },
+      { afterSection: 7, title: "A 30-day local SEO plan", idea: "A 30-day plan as four weekly boxes", labels: ["Week 1", "Week 2", "Week 3", "Week 4"], alt: "A 30-day local SEO plan" },
     ],
     faqQuestions: [
       "What is local SEO for plumbers?",
