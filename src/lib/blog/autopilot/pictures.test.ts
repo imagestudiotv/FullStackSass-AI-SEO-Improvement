@@ -36,12 +36,12 @@ describe("a picture", () => {
     expect(prompt).toContain("No logos");
   });
 
-  it("is made at high quality, stored as WebP in the blog's folder for its language", async () => {
+  it("is made at medium quality, stored as WebP in the blog's folder for its language", async () => {
     const png = await sharp({ create: { width: 1536, height: 1024, channels: 3, background: "#ffffff" } }).png().toBuffer();
     images.generate.mockResolvedValue({ data: png, costUsd: 0.19 });
     images.store.mockResolvedValue("https://storage.example/article-images/blog/posts/it/1-a.webp");
     const made = await makePicture(BRIEF, "it");
-    expect(images.generate).toHaveBeenCalledWith(expect.stringContaining("Italian"), "high");
+    expect(images.generate).toHaveBeenCalledWith(expect.stringContaining("Italian"), "medium");
     const [folder, subfolder, data, type] = images.store.mock.calls[0];
     expect([folder, subfolder, type]).toEqual(["blog", "posts/it", "image/webp"]);
     expect((await sharp(data as Buffer).metadata()).format).toBe("webp");

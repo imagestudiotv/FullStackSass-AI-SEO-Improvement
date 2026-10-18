@@ -19,13 +19,15 @@ import { isImageStorageConfigured, storeArticleImage } from "@/lib/images/storag
  * with its words translated (lib/blog/autopilot/translate.ts), so an
  * Italian reader never meets an English diagram.
  *
- * OpenAI's image model, because the words have to be legible. Without it -
+ * OpenAI's image model, because the words have to be legible: at medium
+ * quality since 2026-10-18 (client: about a quarter of the cost of high,
+ * roughly $0.05 a picture instead of $0.19). Without it -
  * or without image storage - the article is written without pictures and
  * the run says so; a picture that fails never fails the article.
  */
 
-/** Text in a diagram must be crisp; "high" is what makes small labels legible. */
-const QUALITY = "high";
+/** Medium (client, 2026-10-18). "high" gives the crispest small labels at about four times the cost. */
+const QUALITY = "medium";
 
 /** What one picture says, in one language. */
 export type PictureBrief = { title: string; idea: string; labels: string[]; alt: string };

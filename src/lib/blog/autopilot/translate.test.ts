@@ -11,7 +11,7 @@ import { message } from "@/test/blog-autopilot";
 const ai = vi.hoisted(() => ({ stream: vi.fn() }));
 vi.mock("@/lib/ai/client", () => ({
   anthropic: { messages: { stream: ai.stream } },
-  MODELS: { EXTRACTION: "claude-haiku-4-5", GENERATION: "claude-sonnet-5", BLOG: "claude-opus-5-5" },
+  MODELS: { EXTRACTION: "claude-haiku-4-5", GENERATION: "claude-sonnet-5", BLOG: "claude-sonnet-5" },
   isAiConfigured: () => true,
 }));
 
@@ -54,11 +54,11 @@ const ITALIAN = {
 beforeEach(() => ai.stream.mockReset());
 
 describe("the fields", () => {
-  it("are translated by Claude Opus 5.5 with the editor's rules, the pictures' words included", async () => {
+  it("are translated by Claude Sonnet 5 with the editor's rules, the pictures' words included", async () => {
     answer(ITALIAN);
     const { fields, usage } = await translateFields(SOURCE, "it");
     const request = asked();
-    expect(request.model).toBe("claude-opus-5-5");
+    expect(request.model).toBe("claude-sonnet-5");
     expect(request.output_config).toMatchObject({ effort: "medium" });
     expect(request.system[0].text).toContain("from English into Italian");
     expect(request.system[0].text).toContain("Keep every fact, number, date, price and claim exactly as it is.");

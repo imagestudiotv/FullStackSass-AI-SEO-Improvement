@@ -6,7 +6,7 @@ import { createTestDb, type TestDb } from "@/test/db";
 
 /**
  * The blog autopilot's writer (client, 2026-10-16/17): the house style it is
- * given, the plan and the parts it asks Claude Opus 5.5 for, and the checks
+ * given, the plan and the parts it asks Claude Sonnet 5 for, and the checks
  * before a draft is saved. The model is mocked; nothing leaves the process.
  */
 
@@ -17,7 +17,7 @@ vi.mock("@/lib/db", () => ({
 const ai = vi.hoisted(() => ({ stream: vi.fn() }));
 vi.mock("@/lib/ai/client", () => ({
   anthropic: { messages: { stream: ai.stream } },
-  MODELS: { EXTRACTION: "claude-haiku-4-5", GENERATION: "claude-sonnet-5", BLOG: "claude-opus-5-5" },
+  MODELS: { EXTRACTION: "claude-haiku-4-5", GENERATION: "claude-sonnet-5", BLOG: "claude-sonnet-5" },
   isAiConfigured: () => true,
 }));
 
@@ -148,12 +148,12 @@ describe("what the writer is given", () => {
 });
 
 describe("the plan", () => {
-  it("asks Claude Opus 5.5 at high effort for JSON in a fixed shape, with the instructions cached", async () => {
+  it("asks Claude Sonnet 5 at high effort for JSON in a fixed shape, with the instructions cached", async () => {
     answers(message(planReply()));
     const result = await planArticle(TOPIC, context());
     const request = asked();
-    expect(request.model).toBe("claude-opus-5-5");
-    // Opus 5.5 always thinks; sending `thinking` or forcing a tool is refused by the API.
+    expect(request.model).toBe("claude-sonnet-5");
+    // Thinking is left to the model (adaptive); a forced tool is not used.
     expect(request).not.toHaveProperty("thinking");
     expect(request).not.toHaveProperty("tool_choice");
     expect(request.output_config).toMatchObject({ effort: "high", format: { type: "json_schema" } });
@@ -172,8 +172,8 @@ describe("the plan", () => {
       expect.objectContaining({ afterSection: 7, heading: SECTION_HEADINGS[6] }),
     ]);
     expect(result.warnings).toEqual([]);
-    // $4 in, $20 out, $5 to write the cache, per million tokens.
-    expect(result.usage.costUsd).toBeCloseTo((1_000 * 4 + 2_000 * 20 + 20_000 * 5) / 1_000_000, 6);
+    // Sonnet 5: $2 in, $10 out, $2.50 to write the cache, per million tokens.
+    expect(result.usage.costUsd).toBeCloseTo((1_000 * 2 + 2_000 * 10 + 20_000 * 2.5) / 1_000_000, 6);
   });
 
   it("cannot be steered by a topic that closes its own block", async () => {

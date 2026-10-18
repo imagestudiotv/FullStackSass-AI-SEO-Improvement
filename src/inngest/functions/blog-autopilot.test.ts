@@ -28,7 +28,7 @@ vi.mock("@/inngest/client", () => ({ inngest: inngestMock }));
 const ai = vi.hoisted(() => ({ stream: vi.fn() }));
 vi.mock("@/lib/ai/client", () => ({
   anthropic: { messages: { stream: ai.stream } },
-  MODELS: { EXTRACTION: "claude-haiku-4-5", GENERATION: "claude-sonnet-5", BLOG: "claude-opus-5-5" },
+  MODELS: { EXTRACTION: "claude-haiku-4-5", GENERATION: "claude-sonnet-5", BLOG: "claude-sonnet-5" },
   isAiConfigured: () => true,
 }));
 // The pictures: OpenAI images and storage, mocked (a blank PNG; an address per stored file).
@@ -188,11 +188,11 @@ describe("the blog autopilot's job", () => {
       "finish-run",
       "email-admins",
     ]);
-    // One plan and three parts, all asking Opus 5.5 with the same instructions, so the cache serves the later calls.
+    // One plan and three parts, all asking Sonnet 5 with the same instructions, so the cache serves the later calls.
     expect(ai.stream).toHaveBeenCalledTimes(4);
     const systems = ai.stream.mock.calls.map(([params]) => JSON.stringify((params as { system: unknown }).system));
     expect(new Set(systems).size).toBe(1);
-    for (const [params] of ai.stream.mock.calls) expect(params).toMatchObject({ model: "claude-opus-5-5", output_config: { effort: "high" } });
+    for (const [params] of ai.stream.mock.calls) expect(params).toMatchObject({ model: "claude-sonnet-5", output_config: { effort: "high" } });
 
     const [post] = await test.db.select().from(blogPosts).where(eq(blogPosts.id, result.postId));
     expect(post).toMatchObject({
@@ -233,10 +233,10 @@ describe("the blog autopilot's job", () => {
       picturesMade: number;
       warnings: string[];
     };
-    expect(detail.model).toBe("claude-opus-5-5");
+    expect(detail.model).toBe("claude-sonnet-5");
     expect(detail.usage.calls).toBe(4);
-    // The plan writes the cache ($5/M); the parts read it ($0.20/M).
-    expect(detail.usage.costUsd).toBeCloseTo((4_000 * 4 + 8_000 * 20 + 20_000 * 5 + 60_000 * 0.2) / 1_000_000, 4);
+    // At Sonnet 5's prices: the plan writes the cache ($2.50/M); the parts read it ($0.20/M).
+    expect(detail.usage.costUsd).toBeCloseTo((4_000 * 2 + 8_000 * 10 + 20_000 * 2.5 + 60_000 * 0.2) / 1_000_000, 4);
     expect(detail.words).toBeGreaterThan(3_200);
     expect(detail.pictures).toHaveLength(2);
     expect(detail.picturesMade).toBe(2);

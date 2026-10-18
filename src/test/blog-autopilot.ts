@@ -95,7 +95,7 @@ export function partReplies(ranges: { from: number; to: number }[], options: { w
   });
 }
 
-/** A Claude message carrying `value` as its JSON answer, with a thinking block first as Opus 5.5 sends. */
+/** A Claude message carrying `value` as its JSON answer, with a thinking block first, as the model sends. */
 export function message(
   value: unknown,
   options: { stop?: string; usage?: Partial<Record<"input_tokens" | "output_tokens" | "cache_read_input_tokens" | "cache_creation_input_tokens", number>> } = {},
@@ -104,7 +104,7 @@ export function message(
     id: "msg_test",
     type: "message",
     role: "assistant",
-    model: "claude-opus-5-5",
+    model: "claude-sonnet-5",
     content: [
       { type: "thinking", thinking: "", signature: "sig" },
       { type: "text", text: typeof value === "string" ? value : JSON.stringify(value) },

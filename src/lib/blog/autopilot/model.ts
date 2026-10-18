@@ -5,32 +5,37 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { anthropic, MODELS } from "@/lib/ai/client";
 
 /**
- * One call to Claude Opus 5.5 (MODELS.BLOG) for the blog autopilot - the
- * writer (write.ts) and the translator (translate.ts) - and what it cost.
+ * One call to the blog autopilot's model (MODELS.BLOG: Claude Sonnet 5 since
+ * 2026-10-18, Opus 5.5 before) for the writer (write.ts), the translator
+ * (translate.ts) and the topic chooser (suggest.ts) - and what it cost.
  *
- * Opus 5.5 always thinks; `effort` says how much. A forced tool is refused
- * by this model, so answers come back as JSON in a fixed shape
- * (output_config.format). Streamed, because a long answer would otherwise
- * meet the request timeout.
+ * Both models think by default (adaptive); `effort` says how much. Answers
+ * come back as JSON in a fixed shape (output_config.format), which both
+ * accept - Opus 5.5 refuses a forced tool. Streamed, because a long answer
+ * would otherwise meet the request timeout.
  */
 
 /** Room for the model's thinking and the longest answer. */
 const MAX_TOKENS = 32_000;
 
-/** Published at $ per million tokens for Claude Opus 5.5; a 5-minute cache write is 1.25x input. */
-const PRICE_PER_MTOK = { input: 4, output: 20, cacheRead: 0.2, cacheWrite: 5 };
+/** Published prices, $ per million tokens; a 5-minute cache write is 1.25x input, a cache read 0.1x. */
+const PRICES_PER_MTOK: Record<string, { input: number; output: number; cacheRead: number; cacheWrite: number }> = {
+  "claude-sonnet-5": { input: 2, output: 10, cacheRead: 0.2, cacheWrite: 2.5 },
+  "claude-opus-5-5": { input: 4, output: 20, cacheRead: 0.2, cacheWrite: 5 },
+};
+
+/** The model's prices; an unknown model is priced as Opus 5.5, so a cost is never under-reported. */
+function prices() {
+  return PRICES_PER_MTOK[MODELS.BLOG] ?? PRICES_PER_MTOK["claude-opus-5-5"];
+}
 
 export type CallUsage = { inputTokens: number; outputTokens: number; cacheReadTokens: number; cacheWriteTokens: number; costUsd: number };
 
 function priced(usage: Anthropic.Usage): CallUsage {
   const cacheRead = usage.cache_read_input_tokens ?? 0;
   const cacheWrite = usage.cache_creation_input_tokens ?? 0;
-  const costUsd =
-    (usage.input_tokens * PRICE_PER_MTOK.input +
-      usage.output_tokens * PRICE_PER_MTOK.output +
-      cacheRead * PRICE_PER_MTOK.cacheRead +
-      cacheWrite * PRICE_PER_MTOK.cacheWrite) /
-    1_000_000;
+  const price = prices();
+  const costUsd = (usage.input_tokens * price.input + usage.output_tokens * price.output + cacheRead * price.cacheRead + cacheWrite * price.cacheWrite) / 1_000_000;
   return { inputTokens: usage.input_tokens, outputTokens: usage.output_tokens, cacheReadTokens: cacheRead, cacheWriteTokens: cacheWrite, costUsd };
 }
 

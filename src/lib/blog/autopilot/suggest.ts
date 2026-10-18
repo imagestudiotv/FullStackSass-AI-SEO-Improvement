@@ -21,7 +21,7 @@ import { TOPIC_LIMITS } from "./settings";
  *     United States in English - the English blog's readers.
  *  2. What the blog already covers is left out: every post's search phrases
  *     and every topic already waiting or written.
- *  3. Claude Opus 5.5 chooses the topics a small-business reader most needs
+ *  3. Claude (MODELS.BLOG) chooses the topics a small-business reader most needs
  *     from what is left - varied, realistic to rank for, and not a second
  *     article on a question the blog already answers - each targeting one of
  *     the phrases exactly as searched.

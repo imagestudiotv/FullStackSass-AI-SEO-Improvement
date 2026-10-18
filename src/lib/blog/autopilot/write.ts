@@ -34,7 +34,7 @@ import type { AutopilotClaim } from "./run";
  * each part reading what came before it. The instructions and examples are
  * the same for every call and cached, so only the first call pays for them.
  *
- * Claude Opus 5.5 at high effort (lib/blog/autopilot/model.ts).
+ * MODELS.BLOG (Claude Sonnet 5) at high effort (lib/blog/autopilot/model.ts).
  */
 
 /** The body is written in parts of at most this many sections. */
