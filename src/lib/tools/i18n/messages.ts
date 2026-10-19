@@ -227,6 +227,15 @@ const ENTRIES: Entry[] = [
   },
   { en: "Could not be reached.", t: { es: "No se pudo acceder.", fr: "Inaccessible.", it: "Non raggiungibile.", de: "Nicht erreichbar." } },
   {
+    en: "Took longer than 15 seconds to load. Search engines may give up on it too.",
+    t: {
+      es: "Tardó más de 15 segundos en cargarse. Los buscadores también podrían dejar de intentarlo.",
+      fr: "Le chargement a pris plus de 15 secondes. Les moteurs de recherche risquent aussi d’abandonner.",
+      it: "Ha impiegato più di 15 secondi a caricarsi. Anche i motori di ricerca potrebbero rinunciare.",
+      de: "Das Laden dauerte länger als 15 Sekunden. Auch Suchmaschinen könnten aufgeben.",
+    },
+  },
+  {
     en: /^Returns (\d+) instead of loading\.$/,
     t: { es: "Devuelve $1 en lugar de cargarse.", fr: "Renvoie $1 au lieu de se charger.", it: "Restituisce $1 invece di caricarsi.", de: "Liefert $1, statt zu laden." },
   },

@@ -13,7 +13,12 @@ import { guardedSiteTool } from "@/lib/tools/public-guard";
  * nested so deep nothing reads it.
  */
 
-const TIMEOUT_MS = 10_000;
+/**
+ * Per file. Sitemaps a plugin builds on request can take a while: one of
+ * imagestudio.com's took 8-10 seconds every time (2026-10-19), and 10 cut it
+ * off. A file slower than this is reported as too slow, never left out.
+ */
+const TIMEOUT_MS = 15_000;
 
 /** Sitemaps are XML and can be large; this is well past any sensible one. */
 const MAX_BYTES = 5_000_000;
@@ -92,7 +97,7 @@ function sameAddress(url: string): string {
 
 async function fetchText(
   url: string,
-): Promise<{ status: number; text: string; finalUrl: string } | null> {
+): Promise<{ status: number; text: string; finalUrl: string } | { failed: "timeout" | "unreachable" }> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
@@ -109,8 +114,9 @@ async function fetchText(
     const buffer = await response.arrayBuffer();
     const text = new TextDecoder().decode(buffer);
     return { status: response.status, text, finalUrl: response.url || url };
-  } catch {
-    return null;
+  } catch (error) {
+    const name = error instanceof Error ? error.name : "";
+    return { failed: name === "AbortError" || name === "TimeoutError" ? "timeout" : "unreachable" };
   } finally {
     clearTimeout(timer);
   }
@@ -142,7 +148,7 @@ function parseSitemap(xml: string): { isIndex: boolean; locs: string[] } {
 /** Reads robots.txt for declared sitemaps. */
 async function sitemapsFromRobots(origin: string): Promise<string[]> {
   const fetched = await fetchText(`${origin}/robots.txt`);
-  if (!fetched || fetched.status !== 200) return [];
+  if ("failed" in fetched || fetched.status !== 200) return [];
 
   const found: string[] = [];
   for (const line of fetched.text.split(/\r?\n/)) {
@@ -177,8 +183,11 @@ async function checkOne(
   }
 
   const fetched = await fetchText(url);
-  if (!fetched) {
-    return { ...base, problem: "Could not be reached." };
+  if ("failed" in fetched) {
+    return {
+      ...base,
+      problem: fetched.failed === "timeout" ? "Took longer than 15 seconds to load. Search engines may give up on it too." : "Could not be reached.",
+    };
   }
 
   if (fetched.status !== 200) {
@@ -299,7 +308,12 @@ async function checkSitemapUnguarded(input: string): Promise<SitemapOutcome> {
         seen.add(sameAddress(child));
         const childFinding = await checkOne(child, "sitemap index");
         fetches += 1;
-        if (!childFinding.ok || read.has(sameAddress(childFinding.finalUrl))) continue;
+        // One the index lists that does not load is a finding: the site owner needs to know.
+        if (!childFinding.ok) {
+          found.push(childFinding);
+          continue;
+        }
+        if (read.has(sameAddress(childFinding.finalUrl))) continue;
         read.add(sameAddress(childFinding.finalUrl));
         found.push(childFinding);
         childrenRead += 1;

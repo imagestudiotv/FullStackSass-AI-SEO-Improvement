@@ -9,10 +9,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  */
 
 /** The web, as the tool sees it: address -> [status, body, address it lands on]. */
-const web = vi.hoisted(() => new Map<string, { status: number; body: string; landsOn?: string }>());
+const web = vi.hoisted(() => new Map<string, { status: number; body: string; landsOn?: string; slow?: boolean }>());
 vi.mock("@/lib/net/safe-fetch", () => ({
   safeFetch: async (url: string) => {
     const hit = web.get(url) ?? { status: 404, body: "Not found" };
+    // What safeFetch throws when its deadline passes.
+    if (hit.slow) throw new DOMException("The operation was aborted due to timeout", "TimeoutError");
     const response = new Response(hit.body, { status: hit.status });
     Object.defineProperty(response, "url", { value: hit.landsOn ?? url });
     return response;
@@ -83,5 +85,21 @@ describe("the Sitemap Checker", () => {
     expect(result.childSitemaps).toBe(30);
     expect(result.childSitemapsRead).toBeLessThan(30);
     expect(result.totalUrls).toBe(5 * result.childSitemapsRead);
+  });
+
+  it("lists a sitemap the index names that does not load, with the reason, instead of leaving it out", async () => {
+    const children = ["post", "page", "priority"].map((name) => `https://shop-example.org/${name}-sitemap.xml`);
+    web.set("https://shop-example.org/robots.txt", { status: 200, body: "Sitemap: https://shop-example.org/sitemap_index.xml" });
+    web.set("https://shop-example.org/sitemap_index.xml", { status: 200, body: index(children) });
+    web.set(children[0], { status: 200, body: urlset(pages(18, "https://shop-example.org")) });
+    web.set(children[1], { status: 200, body: urlset(pages(40, "https://shop-example.org")) });
+    web.set(children[2], { status: 200, body: "", slow: true });
+
+    const result = await check("shop-example.org");
+    const slow = result.found.find((finding) => finding.url === children[2]);
+    expect(slow).toMatchObject({ ok: false, source: "sitemap index", problem: "Took longer than 15 seconds to load. Search engines may give up on it too." });
+    expect(result.totalUrls).toBe(58);
+    expect(result.childSitemapsRead).toBe(2);
+    expect(result.childSitemaps).toBe(3);
   });
 });
