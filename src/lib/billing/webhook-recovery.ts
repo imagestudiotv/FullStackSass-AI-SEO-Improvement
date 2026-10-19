@@ -4,6 +4,7 @@ import type Stripe from "stripe";
 
 import { processPayPalEvent, type PayPalEvent } from "@/lib/billing/paypal-events";
 import { processStripeEvent } from "@/lib/billing/stripe-events";
+import { processPartnerConnectEvent } from "@/lib/partners/presentation/webhooks";
 import {
   claimForRecovery,
   completeWebhookEvent,
@@ -28,6 +29,9 @@ export async function recoverWebhookEvents(
         await processStripeEvent(event.payload as Stripe.Event);
       } else if (event.provider === "paypal") {
         await processPayPalEvent(event.payload as PayPalEvent);
+      } else if (event.provider === "stripe_connect") {
+        // Events on partners' connected accounts (app/api/stripe/connect-webhook).
+        await processPartnerConnectEvent(event.payload as Stripe.Event);
       }
       await completeWebhookEvent(event.id, event.token);
       recovered.push(event.id);

@@ -19,6 +19,7 @@ import { pageSuffix } from "@/lib/blog/pagination";
 import { LOCALES, type Locale } from "@/lib/i18n/config";
 import { getMessages } from "@/lib/i18n/messages";
 import { CASE_STUDY_COPY, CASE_STUDY_PATH } from "@/lib/marketing/case-study-image-studio";
+import { partnerCopy } from "@/lib/partners/presentation/copy";
 import { featurePageContent } from "@/lib/marketing/feature-pages";
 import { docsUi, integrationDocs } from "@/lib/publishing/docs";
 import { buildSiteLlmsTxt, PAGE_NOTES } from "@/lib/site-llms-txt";
@@ -66,6 +67,7 @@ function pagesIn(locale: Locale): Meta[] {
   ] as const) {
     add(page, section.metaTitle, section.metaDescription);
   }
+  add("/partners", partnerCopy(locale).page.metaTitle, partnerCopy(locale).page.metaDescription);
 
   const common = TOOLS_COMMON[locale];
   add("/tools", common.hub.metaTitle, common.hub.metaDescription);

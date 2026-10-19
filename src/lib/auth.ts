@@ -211,7 +211,7 @@ function createAuth() {
     databaseHooks: {
       user: {
         create: {
-          after: async (user) => {
+          after: async (user, context) => {
             /**
              * Never fail signup over this.
              *
@@ -232,6 +232,20 @@ function createAuth() {
                 "[auth] could not create a workspace at signup; the app layout will retry",
                 error,
               );
+            }
+
+            /*
+              The cash partner program records, once, whether this NEW
+              account may be attributed to a partner (and to which, from the
+              partner cookie). Only here: an existing account never gets
+              eligibility. Imported on demand so this config module does not
+              depend on the partner program's module graph; it never throws.
+            */
+            try {
+              const { capturePartnerSignup } = await import("@/lib/partners/presentation/signup-hook");
+              await capturePartnerSignup(user, context);
+            } catch (error) {
+              console.error("[auth] partner signup capture could not run", error);
             }
           },
         },

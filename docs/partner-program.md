@@ -192,6 +192,68 @@ The base is subscription revenue actually collected, excluding tax (`domain/poli
 - **No crossover.** A cash affiliate link never grants legacy credits, and a legacy referral never creates a cash attribution.
 - **Conflicts.** If the same customer organization has both a legacy credit referral and a cash attribution, its cash commissions are created as `needs_review` (held) and a `credit_cash_conflict` review case is opened.
 
+## Applications, approval and the portal
+
+- **Applying.** `/partner/apply` requires a signed-in user whose address is PROVEN. The proof is read from the user row, never from the session.
+  - Unverified users get the same one-time code the plan step uses (`lib/auth/confirm-email-actions.ts`).
+  - Applications are rate-limited: 3 per user per day and 60 per hour overall.
+  - A user can have one open application at a time.
+- **Approval** (Admin → Affiliate partners → Partner applications) runs in one transaction under the application's row lock. It:
+  - creates the user's single profile (ON CONFLICT on `user_id`) with a random 10-character code from an unambiguous alphabet;
+  - opens the base tier;
+  - records ONE welcome email in the outbox (`partners/welcome:<partnerId>`).
+
+  Retried or concurrent approvals return the same profile (verified with 4 connections on real PostgreSQL). The email is claimed before it is sent, so a retried job sends it once. Rejection needs a reason, and every decision is audited.
+- **The portal** is the `(partner)` route group: `/partner`, `/partner/apply`, `/partner/settings`.
+  - It needs a session and nothing else: no plan, no website and no workspace. `requireOrg` is never called, so a visit cannot create one.
+  - Every page re-checks access through `presentation/guards.ts`.
+  - A suspended partner can see their history but cannot act.
+  - Partner access never grants admin access.
+- **Account menu.** Users with a partner profile see "Partner portal" in the account menu.
+
+## Tracking and signup attribution
+
+- **Links.** A partner link is `/go/<code>`. It records a click and redirects to the home page, or to an allowlisted page given in `?to=`.
+  - **Rate limits:** 30 per visitor per minute, 3,000 per minute overall.
+  - **Never fails a visitor.** An unknown code, a suspended partner, the closed program or a database error still lands the visitor on the site.
+- **Cookie.** It is `repget_partner`: httpOnly, SameSite=Lax, 90 days. Its value is a random 256-bit token, and the click row stores only its SHA-256.
+  - It is separate from the legacy `ref` cookie. Neither link touches the other's cookie.
+  - The first valid link wins. A later link counts as a click for its partner but does not move the cookie.
+  - The visitor's network is stored only as an HMAC (`PARTNER_TRACKING_SECRET`, else `BETTER_AUTH_SECRET`).
+- **Consent.** Like `ref`, the cookie is first-party attribution, not analytics or advertising, so it is set without the Google consent banner, whose choices govern Google's tags only. The privacy policy names both cookies (updated 19 October 2026).
+- **Signup capture.** Better Auth's user-create hook (`lib/auth.ts` → `presentation/signup-hook.ts`) runs once for every new account, whether by email, one-time code or Google, after the signup workspace exists. It:
+  - reads the cookie and the method from the auth context;
+  - records `partner_signup_eligibility`;
+  - for a valid click, locks the founding workspace's attribution.
+
+  It never throws. If the hook could not create the workspace, the attribution is completed when the app creates it (`eligibilityForOrganization`).
+
+## Stripe Connect
+
+- **Account** (`infrastructure/stripe/connect-onboarding.ts`), created when the partner first clicks "Set up payouts", never on approval. The row is reserved first (one per partner and environment), then the account is created with the stable idempotency key `partner-account:<partnerId>:<environment>`.
+  - `controller.stripe_dashboard.type = express`, so the partner manages their bank in Stripe's Express Dashboard.
+  - `controller.fees.payer = application` and `controller.losses.payments = application`.
+  - `capabilities.transfers.requested = true`, with no card payments.
+  - `settings.payouts.schedule.interval = manual`, so funds wait until RepGet creates the bank payout for a settlement.
+  - `country` = the partner's payout country, which must be in `PARTNER_PAYOUT_COUNTRIES`.
+  - `metadata.repget_partner_id`, which is checked on every read.
+
+  If Stripe refuses the configuration for a country, the refusal is shown to the partner as an error, not hidden.
+- **Onboarding** is Stripe-hosted, through `accountLinks.create` (type `account_onboarding`, `collection_options.fields = eventually_due`).
+  - **Return URL:** `/partner/settings?onboarding=returned`. The return proves nothing: the page re-reads the account from Stripe.
+  - **Refresh URL:** `/partner/connect/refresh`. It makes a new single-use link for the signed-in partner's own existing account and never creates one.
+- **Readiness** comes from the account itself:
+  - `onboarding`: details not submitted;
+  - `restricted`: a disabled reason, past-due requirements, or transfers inactive;
+  - `verification_pending`: transfers pending, or payouts not yet enabled;
+  - `ready`: transfers active and payouts enabled.
+
+  A read for a different partner (metadata), a different environment, or an unknown account changes nothing.
+- **Connect webhook:** `/api/stripe/connect-webhook`, secret `STRIPE_CONNECT_WEBHOOK_SECRET`. Configure it in Stripe as an endpoint for **events on connected accounts**.
+  - **Part 2 events:** `account.updated`, `account.application.deauthorized`, `capability.updated`, `account.external_account.created`, `account.external_account.updated`, `account.external_account.deleted`.
+  - **Part 4 events:** `payout.created`, `payout.updated`, `payout.paid`, `payout.failed`, `payout.canceled`.
+  - Events are stored in `webhook_events` with provider `stripe_connect`, and the billing-maintenance recovery job replays them.
+
 ## Program switches
 
 Three independent `platform_controls` rows, all off until an administrator switches them on with a reason (a missing row means off):

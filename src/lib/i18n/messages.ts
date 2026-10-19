@@ -86,6 +86,8 @@ export type Messages = {
     backlinkExchange: string;
     publishers: string;
     affiliate: string;
+    /** The cash partner program (/partners). */
+    partners: string;
     privacy: string;
     terms: string;
     refunds: string;
@@ -3102,6 +3104,7 @@ const en: Messages = {
     backlinkExchange: "Backlink exchange",
     publishers: "Monetize your blog",
     affiliate: "Refer a business",
+    partners: "Partner program",
     privacy: "Privacy",
     terms: "Terms",
     refunds: "Refunds",
@@ -6096,6 +6099,7 @@ const es: Messages = {
     backlinkExchange: "Intercambio de enlaces",
     publishers: "Rentabilice su blog",
     affiliate: "Recomiende una empresa",
+    partners: "Programa de socios",
     privacy: "Privacidad",
     terms: "Términos",
     refunds: "Reembolsos",
@@ -9108,6 +9112,7 @@ const fr: Messages = {
     backlinkExchange: "Échange de liens",
     publishers: "Monétisez votre blog",
     affiliate: "Recommander une entreprise",
+    partners: "Programme partenaires",
     privacy: "Confidentialité",
     terms: "Conditions",
     refunds: "Remboursements",
@@ -12120,6 +12125,7 @@ const it: Messages = {
     backlinkExchange: "Scambio di link",
     publishers: "Monetizzi il suo blog",
     affiliate: "Segnali un'azienda",
+    partners: "Programma partner",
     privacy: "Privacy",
     terms: "Termini",
     refunds: "Rimborsi",
@@ -15132,6 +15138,7 @@ const de: Messages = {
     backlinkExchange: "Linktausch",
     publishers: "Monetarisieren Sie Ihren Blog",
     affiliate: "Unternehmen empfehlen",
+    partners: "Partnerprogramm",
     privacy: "Datenschutz",
     terms: "AGB",
     refunds: "Rückerstattungen",

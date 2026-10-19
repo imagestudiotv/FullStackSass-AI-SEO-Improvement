@@ -26,6 +26,8 @@ export default function robots(): MetadataRoute.Robots {
         "/billing",
         "/settings",
         "/admin",
+        // The partner portal (the public page is /partners, which stays indexable).
+        "/partner/",
         // The results page fetches a third-party site per request; crawling it
         // with arbitrary domains would turn our crawler into someone else's
         // traffic. The form itself stays indexable.

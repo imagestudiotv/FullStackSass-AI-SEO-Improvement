@@ -21,7 +21,7 @@ A **secret** grants access and must be rotated if exposed. An **identifier** is 
 | Provider | Secret | Identifier / config |
 |---|---|---|
 | Stripe | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | price and product ids |
-| Partner program | `PARTNER_TRACKING_SECRET` (optional) | `PARTNER_LIVE_PAYOUTS`, `PARTNER_PAYOUT_COUNTRIES` (docs/partner-program.md) |
+| Partner program | `STRIPE_CONNECT_WEBHOOK_SECRET`, `PARTNER_TRACKING_SECRET` (optional) | `PARTNER_LIVE_PAYOUTS`, `PARTNER_PAYOUT_COUNTRIES` (docs/partner-program.md) |
 | PayPal | `PAYPAL_CLIENT_SECRET` | `PAYPAL_CLIENT_ID`, `PAYPAL_WEBHOOK_ID`, `PAYPAL_ENV` |
 | Supabase / Postgres | `DATABASE_URL`, `DIRECT_URL` (contain the password), `SUPABASE_SERVICE_ROLE_KEY` | `NEXT_PUBLIC_SUPABASE_URL` |
 | Better Auth | `BETTER_AUTH_SECRET` | `BETTER_AUTH_URL` |

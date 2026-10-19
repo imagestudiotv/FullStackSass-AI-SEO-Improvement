@@ -1,3 +1,4 @@
+import type { UserDirectory } from "./directory";
 import type { Outbox } from "./outbox";
 import type {
   ApplicationRepository,
@@ -31,6 +32,8 @@ export type PartnerRepositories = {
   coupons: CouponRepository;
   reviews: ReviewCaseRepository;
   providerEvents: ProviderEventRepository;
+  /** The app's identity tables (users, workspaces, invitations), read in the same transaction. */
+  directory: UserDirectory;
   /** Jobs recorded here commit with the transaction (the transactional outbox). */
   outbox: Outbox;
   audit: AuditLog;

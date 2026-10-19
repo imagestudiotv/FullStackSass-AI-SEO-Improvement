@@ -21,6 +21,7 @@ export const PUBLIC_PAGES: { path: string; priority: number }[] = [
   { path: "/backlinks", priority: 0.7 },
   { path: "/rank-on-chatgpt", priority: 0.7 },
   { path: "/affiliate", priority: 0.6 },
+  { path: "/partners", priority: 0.6 },
   { path: "/success-stories", priority: 0.6 },
   { path: "/success-stories/image-studio", priority: 0.6 },
   { path: "/faq", priority: 0.6 },

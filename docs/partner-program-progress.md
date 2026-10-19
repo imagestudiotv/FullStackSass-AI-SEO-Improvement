@@ -6,8 +6,8 @@ Statuses: **done** (implemented and verified as stated), **in progress**, **plan
 
 | Phase | Commit title | Status |
 |---|---|---|
-| 1 | `feat(partners): [1/5] establish domain architecture and persistence` | done |
-| 2 | `feat(partners): [2/5] implement onboarding and referral attribution` | planned |
+| 1 | `feat(partners): [1/5] establish domain architecture and persistence` | done (7184a11) |
+| 2 | `feat(partners): [2/5] implement onboarding and referral attribution` | done |
 | 3 | `feat(partners): [3/5] implement commissions and billing reconciliation` | planned |
 | 4 | `feat(partners): [4/5] deliver dashboards and automated payouts` | planned |
 | 5 | `test(partners): [5/5] verify end-to-end flows and launch readiness` | planned |
@@ -33,18 +33,21 @@ Statuses: **done** (implemented and verified as stated), **in progress**, **plan
 
 ## Phase 2: applications, approval and attribution
 
-| Requirement | Status |
-|---|---|
-| Public `/partners` page and application flow | planned |
-| Legacy credit referrals still reachable | planned |
-| Admin review, approval, rejection, suspension | planned |
-| Same-login portal without subscription | planned |
-| Referral codes, links, welcome email (once) | planned |
-| Secure tracking, signup eligibility, expiry, locking | planned |
-| Email / Google / one-time-code signup; invitation exclusion | planned |
-| Coupon ownership and attribution rules | planned |
-| Consent, rate limits | planned |
-| Stripe connected account and hosted onboarding, readiness states | planned |
+| Requirement | Status | Where | Verified by |
+|---|---|---|---|
+| Public `/partners` page (5 languages), figures from the policy | done | `app/(marketing)/partners*`, `presentation/copy.ts` | `partners-ui.render.test.ts`: every locale, no unfilled placeholder, 25/30/35%, 12 months, EUR 25.00, rates follow the policy. Meta-length, i18n path, sitemap and hreflang tests |
+| Legacy credit referrals unchanged and still reachable | done | `/affiliate`, `/r/CODE` and the settings card untouched; linked from `/partners` | Existing `referrals.test.ts` suite green. `entry-points.test.ts`: `/go` never sets `ref` |
+| Application flow, same login, verified address | done | `use-cases/submit-application.ts`, `/partner/apply` | `onboarding.test.ts`: no new user or workspace; one open application; existing partner refused; validation; rate limit; closed program. `guards.test.ts` |
+| Admin review, approval, rejection, suspension, payout hold | done | `use-cases/review-application.ts`, `/admin/partners/*` | `onboarding.test.ts`; audit entries checked |
+| Approval idempotent (profiles, emails, Stripe accounts) | done | Profile ON CONFLICT; outbox id `partners/welcome:<id>`; account reserve plus idempotency key | `onboarding.test.ts`. `onboarding.postgres.test.ts` (real PostgreSQL, 4 connections): one profile and one job; 4 payout setups give one account row and one idempotency key |
+| Welcome email once | done | `sendWelcome` (claim, release on failure) | `onboarding.test.ts`: a failure is retried, then exactly one email |
+| Partners without subscriptions use the portal | done | `(partner)` route group: session only, never `requireOrg` / `requirePlan` | `guards.test.ts`; layout code review |
+| Secure tracking, expiry, first touch, locking | done | `/go/<code>`, `record-referral-click.ts`, `tracking-cookie.ts` | `onboarding.test.ts`: hash only, first touch, expiry, duplicates, unknown / suspended / closed / flood. `entry-points.test.ts`: httpOnly, allowlisted redirects only, never fails the visitor |
+| Signup eligibility (email, Google, one-time code); invitations; existing users; extra organizations; self-referral; tampering | done | `attribute-new-customer.ts`, `signup-hook.ts`, `lib/auth.ts` hook | `attribution.test.ts`. `entry-points.test.ts`: the hook reads cookie and method from the auth context and never throws |
+| Coupon ownership and attribution rules; conflicts become review cases | done for the attribution rule and review case; Stripe coupon objects in Part 3 | `attributeByCoupon` | `attribution.test.ts` |
+| Consent and rate limits | done | First-party attribution cookie (documented); quota and burst limiters | Privacy policy updated; tests above |
+| Stripe account association and hosted onboarding; readiness states | done | `manage-payout-account.ts`, `connect-onboarding.ts`, `/partner/settings`, `/partner/connect/refresh`, Connect webhook | `payout-account.test.ts`: one account; same idempotency key after a lost answer; the return proves nothing; readiness states; wrong partner / environment / owner refused. `entry-points.test.ts`: signature, stored for recovery, duplicate, unknown account |
+| Stripe test-mode verification | blocked | — | No Stripe test-mode run in this phase: the only Stripe test key available delivers webhooks to the deployed app, and creating connected accounts with it was not authorised. Adapter shapes come from SDK 22.6.0 types (API 2026-08-26.dahlia) and are exercised with fakes |
 
 ## Phase 3: Stripe billing and commissions
 

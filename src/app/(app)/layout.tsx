@@ -14,6 +14,7 @@ import { SidebarUsage } from "@/components/sidebar-usage";
 import { UserMenu } from "@/components/user-menu";
 import { WebsiteSwitcher } from "@/components/dashboard/website-switcher";
 import { isAdmin } from "@/lib/admin/guard";
+import { partnerPortalLink } from "@/lib/partners/presentation/portal-link";
 import { FEEDBACK_COPY } from "@/lib/feedback/copy";
 import { requireSession } from "@/lib/auth-guard";
 import { pendingConversions } from "@/lib/conversions/conversions";
@@ -175,6 +176,8 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   // Only admins see the link; the area itself 404s for everyone else.
   const admin = await isAdmin();
   const { t, locale } = await getAppMessages(session.user.id);
+  // The cash partner portal, in the account menu of users who are partners (lib/partners).
+  const partnerPortalLabel = (await partnerPortalLink(session.user.id, locale)) ?? undefined;
 
   const org = await db.query.organization.findFirst({
     where: eq(organization.id, orgId),
@@ -317,6 +320,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             image={session.user.image}
             isAdmin={admin}
             adminLabel={t.app.common.admin}
+            partnerPortalLabel={partnerPortalLabel}
           />
         </div>
       </header>

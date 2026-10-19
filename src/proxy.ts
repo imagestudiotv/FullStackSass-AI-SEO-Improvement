@@ -68,6 +68,8 @@ export const config = {
     "/sign-up",
     "/invite/:path*",
     "/connect/:path*",
+    // The partner portal: per-user, never prerendered.
+    "/partner/:path*",
     "/blog/:path*",
     "/:locale/blog/:path*",
     "/audit",

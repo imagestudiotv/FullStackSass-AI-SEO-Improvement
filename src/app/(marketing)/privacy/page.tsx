@@ -27,7 +27,7 @@ export default function PrivacyPage() {
   // Set per deployment (lib/google-analytics.ts); the policy says which one runs.
   const advanced = consentMode() === "advanced";
   return (
-    <LegalPage title="Privacy Policy" updated="10 October 2026">
+    <LegalPage title="Privacy Policy" updated="19 October 2026">
       <p>
         This policy explains what information RepGet (&quot;we&quot;,
         &quot;the service&quot;) collects, why we collect it, and what we do
@@ -255,6 +255,15 @@ export default function PrivacyPage() {
         cookies for six months. If you accept, Google Analytics also sets the
         two cookies described above, and Google Ads may set its own (names
         starting with <code>_gcl_</code>).
+      </p>
+      <p>
+        Two cookies remember which link brought you here, so the right person
+        is credited if you open an account: <code>ref</code> for a customer&apos;s
+        referral link (30 days) and <code>repget_partner</code> for a partner&apos;s
+        link (90 days). Each holds a code or a random token, nothing about
+        you, and is used for nothing else. For partner links we keep when the
+        link was opened and a one-way, keyed fingerprint of your network - never
+        your address - and delete unused clicks after the link&apos;s window.
       </p>
       <p>
         You can change your answer at any time with &quot;Cookie

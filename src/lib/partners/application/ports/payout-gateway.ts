@@ -66,10 +66,9 @@ export type PayoutEvidence = {
   metadata: Record<string, string>;
 };
 
-export interface StripePayoutGateway {
+/** Connected-account onboarding and readiness: no money moves here. */
+export interface ConnectAccountGateway {
   environment(): Environment;
-
-  /* Onboarding and readiness */
   createConnectedAccount(input: {
     partnerId: string;
     email: string;
@@ -81,7 +80,10 @@ export interface StripePayoutGateway {
   /** Express Dashboard login link for an onboarded account. */
   createDashboardLink(accountId: string): Promise<{ url: string }>;
   retrieveAccount(accountId: string): Promise<AccountReadiness>;
+}
 
+/** Money movement: platform balance, transfers, reversals, bank payouts. */
+export interface StripePayoutGateway extends ConnectAccountGateway {
   /* Funds */
   platformAvailableBalance(currency: string): Promise<bigint>;
   connectedAvailableBalance(accountId: string, currency: string): Promise<bigint>;

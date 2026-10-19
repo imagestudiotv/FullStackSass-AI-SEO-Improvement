@@ -18,6 +18,7 @@ import { collectAuthority } from "./collect-authority";
 import { generateArticle } from "./generate-article";
 import { importAnalytics, importAnalyticsDaily } from "./import-analytics";
 import { indexArticles } from "./index-articles";
+import { partnerWelcome } from "./partner-onboarding";
 import { billingMaintenance, deliverOutbox } from "./maintenance";
 import { publishArticleJob } from "./publish-article";
 import { renewalReplan } from "./renewal-replan";
@@ -44,4 +45,5 @@ export const functions = [
   indexArticles,
   blogAutopilotRun,
   blogAutopilotSchedule,
+  partnerWelcome,
 ];

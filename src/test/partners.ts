@@ -1,7 +1,145 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
-import { member, organization, partnerApplications, partnerProfiles, partnerTierHistory, user } from "@/lib/db/schema";
-import type { Executor } from "@/lib/db/types";
+import { member, organization, partnerApplications, partnerProfiles, partnerTierHistory, platformControls, user } from "@/lib/db/schema";
+import type { Database, Executor } from "@/lib/db/types";
+import type { AccountReadiness, ConnectAccountGateway, ProviderOutcome } from "@/lib/partners/application/ports/payout-gateway";
+import type { PartnerControlKey } from "@/lib/partners/application/ports/repositories";
+import type { PartnerDeps } from "@/lib/partners/application/use-cases/deps";
+import { fixedClock } from "@/lib/partners/infrastructure/clock";
+import { userDirectory } from "@/lib/partners/infrastructure/directory";
+import { drizzleUnitOfWork } from "@/lib/partners/infrastructure/persistence/unit-of-work";
+import { settingsFromEnv } from "@/lib/partners/infrastructure/settings";
+
+/** Switches a partner program control on (or off) directly, as an operator would. */
+export async function setControl(db: Executor, key: PartnerControlKey, enabled = true) {
+  await db
+    .insert(platformControls)
+    .values({ key, enabled, reason: "test", updatedBy: "test", updatedAt: new Date() })
+    .onConflictDoUpdate({ target: platformControls.key, set: { enabled } });
+}
+
+/** A fake Connect gateway: records calls, answers from `accounts`, never reaches Stripe. */
+export function fakeConnect(environment: "test" | "live" = "test") {
+  const accounts = new Map<string, AccountReadiness>();
+  const calls: { method: string; args: unknown }[] = [];
+  let nextCreate: ProviderOutcome<{ accountId: string }> | null = null;
+  const byKey = new Map<string, string>();
+  const gateway: ConnectAccountGateway = {
+    environment: () => environment,
+    async createConnectedAccount(input) {
+      calls.push({ method: "createConnectedAccount", args: input });
+      if (nextCreate) {
+        const outcome = nextCreate;
+        nextCreate = null;
+        if (outcome.kind !== "succeeded") return outcome;
+      }
+      // Stripe's idempotency: the same key returns the same account.
+      const existing = byKey.get(input.idempotencyKey);
+      const accountId = existing ?? `acct_${randomUUID().replace(/-/g, "").slice(0, 16)}`;
+      byKey.set(input.idempotencyKey, accountId);
+      if (!accounts.has(accountId)) {
+        accounts.set(accountId, readiness(accountId, { metadataPartnerId: input.partnerId, livemode: environment === "live" }));
+      }
+      return { kind: "succeeded", value: { accountId } };
+    },
+    async createOnboardingLink(input) {
+      calls.push({ method: "createOnboardingLink", args: input });
+      return { url: `https://connect.stripe.test/setup/${input.accountId}`, expiresAt: new Date(Date.now() + 300_000) };
+    },
+    async createDashboardLink(accountId) {
+      calls.push({ method: "createDashboardLink", args: accountId });
+      return { url: `https://connect.stripe.test/express/${accountId}` };
+    },
+    async retrieveAccount(accountId) {
+      calls.push({ method: "retrieveAccount", args: accountId });
+      const account = accounts.get(accountId);
+      if (!account) throw Object.assign(new Error("No such account"), { statusCode: 404, code: "resource_missing" });
+      return account;
+    },
+  };
+  return {
+    gateway,
+    accounts,
+    calls,
+    failNextCreate(outcome: ProviderOutcome<{ accountId: string }>) {
+      nextCreate = outcome;
+    },
+  };
+}
+
+export function readiness(accountId: string, overrides: Partial<AccountReadiness> = {}): AccountReadiness {
+  return {
+    accountId,
+    livemode: false,
+    status: "onboarding",
+    country: "IT",
+    defaultCurrency: "eur",
+    detailsSubmitted: false,
+    payoutsEnabled: false,
+    transfersCapability: "inactive",
+    requirementsCurrentlyDue: ["individual.verification.document"],
+    requirementsPastDue: [],
+    requirementsPendingVerification: [],
+    disabledReason: null,
+    currentDeadline: null,
+    payoutInterval: "manual",
+    metadataPartnerId: null,
+    ...overrides,
+  };
+}
+
+/**
+ * Real repositories on a disposable database, a controlled clock, and
+ * fakes for the external boundaries (Stripe, mail, rate limits).
+ */
+export function partnerTestDeps(db: Database, overrides: Partial<PartnerDeps> = {}) {
+  const clock = fixedClock(new Date("2026-10-01T09:00:00Z"));
+  const mail: { to: string; kind: string }[] = [];
+  let mailFails = false;
+  const admitted = { quota: true, burst: true };
+  const deps: PartnerDeps = {
+    uow: drizzleUnitOfWork(db, { deliver: false }),
+    clock,
+    settings: { ...settingsFromEnv({ STRIPE_SECRET_KEY: "sk_test_fake", NEXT_PUBLIC_APP_URL: "https://repget.test" } as unknown as NodeJS.ProcessEnv) },
+    directory: userDirectory(db),
+    random: {
+      indexes: (n, max) => Array.from({ length: n }, () => Math.floor(Math.random() * max)),
+      token: () => createHash("sha256").update(randomUUID()).digest("base64url"),
+      uuid: () => randomUUID(),
+    },
+    hasher: {
+      sha256: (value) => createHash("sha256").update(value).digest("hex"),
+      hmac: (value) => createHash("sha256").update(`test-key:${value}`).digest("hex").slice(0, 32),
+    },
+    mailer: {
+      async sendPartnerWelcome(input) {
+        if (mailFails) return { ok: false, error: "mail down" };
+        mail.push({ to: input.to, kind: "welcome" });
+        return { ok: true };
+      },
+      async sendPartnerNotice(input) {
+        mail.push({ to: input.to, kind: input.subject });
+        return { ok: true };
+      },
+    },
+    quotaLimiter: { admit: async () => admitted.quota },
+    burstLimiter: { admit: async () => admitted.burst },
+    connect: null,
+    payouts: null,
+    billing: null,
+    couponGateway: null,
+    ...overrides,
+  };
+  return {
+    deps,
+    clock,
+    mail,
+    admitted,
+    failMail(fail = true) {
+      mailFails = fail;
+    },
+  };
+}
 
 /**
  * Disposable partner-program fixtures. Every id is random, so tests sharing

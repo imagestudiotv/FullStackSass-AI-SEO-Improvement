@@ -430,6 +430,7 @@ export function MarketingFooterLinks({ chrome }: { chrome: SiteChrome }) {
         { href: href("/backlink-exchange"), label: t.footer.backlinkExchange },
         { href: href("/publishers"), label: t.footer.publishers },
         { href: href("/affiliate"), label: t.footer.affiliate },
+        { href: href("/partners"), label: t.footer.partners },
       ],
     },
     {

@@ -4,6 +4,8 @@ import {
   FileText,
   Gauge,
   Globe,
+  Handshake,
+  Inbox,
   LayoutDashboard,
   MessageSquare,
   Network,
@@ -11,6 +13,7 @@ import {
   Quote,
   Receipt,
   ScrollText,
+  UserCheck,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -130,6 +133,36 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     ],
   },
   {
+    /*
+      The cash affiliate program (lib/partners). Named "Affiliate partners" so
+      it is never confused with the Partner Network (backlinks) above.
+    */
+    label: "Affiliate partners",
+    items: [
+      {
+        href: "/admin/partners",
+        label: "Affiliate program",
+        icon: Handshake,
+        keywords: ["affiliates", "partners", "switches", "stripe connect", "commission"],
+        description: "Program switches, readiness and what needs attention",
+      },
+      {
+        href: "/admin/partners/applications",
+        label: "Partner applications",
+        icon: Inbox,
+        keywords: ["apply", "approve", "reject", "affiliates"],
+        description: "Review applications to the affiliate program",
+      },
+      {
+        href: "/admin/partners/partners",
+        label: "Partners",
+        icon: UserCheck,
+        keywords: ["affiliates", "suspend", "hold", "referral code"],
+        description: "Approved affiliate partners",
+      },
+    ],
+  },
+  {
     label: "Operations",
     items: [
       {
@@ -189,6 +222,7 @@ const DETAIL_LABELS: { pattern: RegExp; label: string }[] = [
   { pattern: /^\/admin\/testimonials\/new$/, label: "New testimonial" },
   { pattern: /^\/admin\/testimonials\/[^/]+$/, label: "Edit testimonial" },
   { pattern: /^\/admin\/feedback\/[^/]+$/, label: "Message" },
+  { pattern: /^\/admin\/partners\/partners\/[^/]+$/, label: "Partner" },
 ];
 
 export type Crumb = { href: string; label: string; current: boolean };

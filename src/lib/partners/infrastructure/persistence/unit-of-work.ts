@@ -5,6 +5,7 @@ import type { Database, Executor } from "@/lib/db/types";
 import { deliverJobs, enqueueJob } from "@/lib/jobs/outbox";
 
 import type { PartnerJob } from "../../application/ports/outbox";
+import { userDirectory } from "../directory";
 import type { PartnerRepositories, UnitOfWork } from "../../application/ports/unit-of-work";
 import { couponRepository, providerEventRepository, reviewCaseRepository, stripeAccountRepository } from "./repositories/accounts";
 import { attributionRepository, trackingRepository } from "./repositories/attribution";
@@ -36,6 +37,7 @@ export function repositoriesFor(
     coupons: couponRepository(executor),
     reviews: reviewCaseRepository(executor),
     providerEvents: providerEventRepository(executor),
+    directory: userDirectory(executor),
     outbox: {
       async enqueue(job: PartnerJob) {
         await enqueueJob(executor, { id: job.id, name: job.name, data: job.data });

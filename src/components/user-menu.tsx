@@ -1,6 +1,6 @@
 "use client";
 
-import { LogOut, ShieldCheck } from "lucide-react";
+import { Handshake, LogOut, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -44,6 +44,11 @@ type UserMenuProps = {
    * callers that never show the entry.
    */
   adminLabel?: string;
+  /**
+   * The cash partner portal, for a user who owns a partner profile - decided
+   * on the server. Absent for everyone else.
+   */
+  partnerPortalLabel?: string;
 };
 
 /**
@@ -67,6 +72,7 @@ export function UserMenu({
   image,
   isAdmin = false,
   adminLabel = "Admin",
+  partnerPortalLabel,
 }: UserMenuProps) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
@@ -116,6 +122,17 @@ export function UserMenu({
           here, and putting a navigation directly beside the control that ends
           the session invites the wrong click.
         */}
+        {partnerPortalLabel ? (
+          <>
+            <DropdownMenuItem asChild>
+              <Link href="/partner">
+                <Handshake className="size-4" />
+                {partnerPortalLabel}
+              </Link>
+            </DropdownMenuItem>
+            {isAdmin ? null : <DropdownMenuSeparator />}
+          </>
+        ) : null}
         {isAdmin ? (
           <>
             <DropdownMenuItem asChild>
