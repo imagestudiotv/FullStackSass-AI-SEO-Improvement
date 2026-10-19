@@ -254,6 +254,83 @@ The base is subscription revenue actually collected, excluding tax (`domain/poli
   - **Part 4 events:** `payout.created`, `payout.updated`, `payout.paid`, `payout.failed`, `payout.canceled`.
   - Events are stored in `webhook_events` with provider `stripe_connect`, and the billing-maintenance recovery job replays them.
 
+## Commissions from Stripe payments
+
+### The flow
+
+1. **Hand-off.** The existing platform webhook (`/api/stripe/webhook`) runs the billing work. `processStripeEvent` then records the affiliate work the event implies in `partner_provider_events` (`presentation/webhooks.ts`). This happens BEFORE the webhook event is marked complete:
+   - a crash in between leaves the event unfinished, so it is retried, and the billing work is idempotent;
+   - the recovery job replays it through the same function.
+
+   Only the object id is taken from the event, and an event for the other environment is ignored.
+2. **Processing.** The `partner-provider-event` job (delivered through the outbox) and the five-minute `partner-commissions-sweep` claim due work with a token and a lease.
+   - Failures retry with backoff (1 minute doubling, capped at 2 hours). After 12 attempts the work is marked failed and a review case opens.
+   - While `partner_commissions` is off nothing is claimed; the work waits without using attempts.
+3. **Invoice** (`use-cases/process-payment.ts`). The Stripe reads all happen outside any transaction (`infrastructure/stripe/billing-source.ts`):
+   - the invoice, every line (paginated), every invoice payment, each payment intent (expanded to its charge), the charge's refunds and disputes, and the redeemed promotion codes.
+
+   Then ONE short transaction under the customer's attribution row lock:
+   - complete a link attribution waiting for its workspace;
+   - apply a partner coupon (attribute, or a conflict case);
+   - record one `partner_payment_facts` row per VERIFIED invoice payment (unique per Stripe invoice payment, so a duplicate webhook is the same fact);
+   - set the 12-month window;
+   - create the commission at the tier in force at the payment's own time, with the policy version, and write its `commission_earned` ledger entry;
+   - apply the charge's current refunds and disputes.
+
+   Tier and balance projections are refreshed after commit. Customers that are neither attributed nor eligible are skipped without a Stripe call.
+4. **Refunds and disputes** (`use-cases/process-adjustment.ts`) re-read the charge and apply the cumulative rule (see "Refunds and disputes" above).
+   - Each change is a new ledger entry (`reversal:<commissionId>:<n>`).
+   - A refund after payout also opens a review case: offset, or recover by transfer reversal (Part 4).
+5. **Net 30.** The sweep marks matured commissions available. `partner-tiers-daily` re-counts every active partner's qualifying customers and rebuilds the balance projections.
+
+### Stripe events to enable
+
+On the EXISTING platform endpoint, in addition to what billing already uses:
+
+- **Invoices:** `invoice.paid`, `invoice.payment_succeeded`, `invoice_payment.paid`
+- **Credit notes:** `credit_note.created`, `credit_note.updated`, `credit_note.voided`
+- **Refunds:** `charge.refunded`, `charge.refund.updated`, `refund.created`, `refund.updated`, `refund.failed`
+- **Disputes:** `charge.dispute.created`, `charge.dispute.updated`, `charge.dispute.closed`, `charge.dispute.funds_withdrawn`, `charge.dispute.funds_reinstated`
+- **Transfers:** `transfer.reversed`, `transfer.updated`
+
+The list lives in code as `PARTNER_PLATFORM_EVENTS` (`infrastructure/stripe/event-normalizer.ts`). An event that is not subscribed is still recovered by reconciliation for payments (see below), but refunds and disputes rely on these events.
+
+### Review cases instead of guesses
+
+| Kind | When |
+|---|---|
+| `financial_inconsistency` | Any of: a non-subscription line; cash beyond the invoice total; an unsupported currency; a charge that also paid something else; a credit note credited without a refund; an earlier payment arriving late that moves the window start |
+| `coupon_conflict` | Another partner's coupon redeemed by an attributed customer (the attribution never moves) |
+| `credit_cash_conflict` | The customer is also a legacy credit referral; its cash commissions are created `needs_review` |
+| `fraud_signal` | Shared network or device with the partner, or a plus-address; the attribution is `review` |
+| `reconciliation` | A refund after payout; a discrepancy found by the daily reconciliation; Stripe work that failed 12 times |
+
+### Coupons
+
+An administrator creates a coupon (`use-cases/manage-coupon.ts`): a Stripe coupon plus its promotion code, with idempotency keys derived from the row. Customers enter promotion codes in the existing subscription Checkout (`allow_promotion_codes`). Redemption is read from the PAID invoice's discounts.
+
+Campaign types and their durations:
+
+| Campaign type | Duration | Behaviour |
+|---|---|---|
+| `percent_first_payment` | `once` | Applies to the first payment, monthly or annual |
+| `percent_first_3_months` | `repeating`, 3 months | On a monthly plan, the first three payments. On an annual plan, the whole first annual payment. RepGet's monthly and annual prices share a product, so this cannot be restricted to monthly. Creating it requires `acknowledgeAnnualBehaviour` |
+| `fixed_amount` | `once` | Fixed amount off the first payment, in the coupon's currency |
+| `custom` | `once`, `repeating` N months, or `forever` | Percent or fixed amount |
+
+Restrictions Stripe enforces: products, expiry, currency, maximum redemptions, first-time customers only. A start date in the future creates the code inactive, and the sweep activates it when the date comes. A Stripe refusal leaves the coupon `failed`, never active.
+
+### Reconciliation
+
+The daily `partner-reconciliation` job (03:40 UTC, `use-cases/reconcile-commissions.ts`):
+
+- **Recovers missed payments.** A Stripe payment of real money for an attributed customer with no payment fact is recorded again as affiliate work.
+- **Reports discrepancies** as review cases: a fact without its commission, a missing or doubled earned entry, a reversal that differs from its ledger entries.
+- **Rebuilds AND reports** a drifted balance projection.
+- **Deletes** unattributed clicks 30 days after their window.
+
+The same checks are available read-only through `npm run reconcile:report -- partnerPaymentsWithoutFacts partnerEarnedMismatches partnerReversalMismatches partnerStuckProviderEvents partnerOpenReviewCases`.
+
 ## Program switches
 
 Three independent `platform_controls` rows, all off until an administrator switches them on with a reason (a missing row means off):

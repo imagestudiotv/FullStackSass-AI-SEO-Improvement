@@ -7,8 +7,8 @@ Statuses: **done** (implemented and verified as stated), **in progress**, **plan
 | Phase | Commit title | Status |
 |---|---|---|
 | 1 | `feat(partners): [1/5] establish domain architecture and persistence` | done (7184a11) |
-| 2 | `feat(partners): [2/5] implement onboarding and referral attribution` | done |
-| 3 | `feat(partners): [3/5] implement commissions and billing reconciliation` | planned |
+| 2 | `feat(partners): [2/5] implement onboarding and referral attribution` | done (3b22c46) |
+| 3 | `feat(partners): [3/5] implement commissions and billing reconciliation` | done |
 | 4 | `feat(partners): [4/5] deliver dashboards and automated payouts` | planned |
 | 5 | `test(partners): [5/5] verify end-to-end flows and launch readiness` | planned |
 
@@ -51,16 +51,23 @@ Statuses: **done** (implemented and verified as stated), **in progress**, **plan
 
 ## Phase 3: Stripe billing and commissions
 
-| Requirement | Status |
-|---|---|
-| Durable affiliate work recorded inside the webhook boundary | planned |
-| Invoice payment normalization (cash, tax, discounts, credits) | planned |
-| Refund / dispute normalization, cumulative reversals | planned |
-| Tier history and rate snapshots | planned |
-| Ledger entries and adjustments | planned |
-| Duplicate / concurrent / delayed / out-of-order handling | planned |
-| Recovery job and reconciliation queries | planned |
-| Coupon / promotion-code integration | planned |
+| Requirement | Status | Where | Verified by |
+|---|---|---|---|
+| Durable affiliate work inside the webhook boundary | done | `processStripeEvent` → `recordPartnerPlatformWork` (`partner_provider_events`) before the event completes; recovery job replays it | `coupons.test.ts` (recorded once per event id; part of `processStripeEvent`; other environment and unrelated events ignored); existing billing suites green |
+| Payment normalization: cash, tax, discounts, credits, partial collections | done | `infrastructure/stripe/billing-source.ts`, `use-cases/process-payment.ts` | `stripe-adapters.test.ts`: verified only with a succeeded intent, the full amount received and a captured charge; payment records are out-of-band; paginated lines; non-subscription lines flagged; charges with disputes. `commissions.test.ts`: EUR 99.00 → 24.75; EUR 89.10 → 22.28 with no double discount; inclusive tax; credit balance; partial collections counted once each |
+| Free trials, zero invoices, failed and out-of-band payments | done | same | `commissions.test.ts` |
+| Renewals, annual billing, upgrades, downgrades, cancellations | done | same; tiers stop counting a lapsed subscription | `commissions.test.ts` (one more commission per renewal, none twice per invoice; proration paid; downgrade credit earns nothing; lapsed / fully refunded customers not counted) |
+| Eligibility cutoff | done | `process-payment.ts` window | `commissions.test.ts`: 1 ms before the end commissioned; at the end outside; annual renewal outside |
+| Tier boundaries 10 and 25, rate snapshots, late payments | done | `refresh-partner-tier.ts`, tier history | `commissions.test.ts`: 9 → base, 10 → growth, 25 → premier; a payment made before the promotion but processed after keeps 25%; after it 30% (EUR 29.70) |
+| Immutable ledger and adjustments | done | `partner_ledger_entries` (trigger), `reversal:<id>:<n>` keys | `commissions.test.ts`, `persistence.test.ts` |
+| Partial, repeated and full refunds; disputes; overlap; refund before payment; refund after payout | done | `process-adjustment.ts` | `commissions.test.ts`; `commissions.postgres.test.ts` (4 connections applying one refund → reversed once) |
+| Duplicate, concurrent, delayed and out-of-order handling | done | unique facts, commissions and operation keys; attribution row lock; state read from Stripe | `commissions.postgres.test.ts`: 4 connections processing one payment → one fact, one commission, one earned entry; two renewals racing → window from the earlier payment |
+| Missed-event recovery and reconciliation | done | `reconcile-commissions.ts`, `partner-reconciliation` job, `npm run reconcile:report` partner reports | `commissions.test.ts` (missed payment recovered then commissioned; recovered once); `reconciliation-sql.test.ts` (reports run on the migrated schema, SELECT only) |
+| Stripe coupon / promotion-code integration | done | `manage-coupon.ts`, `stripeCouponGateway` | `coupons.test.ts` (campaign durations including the annual acknowledgement; taken code; suspended partner; Stripe refusal → failed; future start inactive then activated; deactivation with a reason); `stripe-adapters.test.ts` (Stripe parameters and idempotency keys); coupon-attributed commission in `commissions.test.ts` |
+| Review cases for ambiguous financial information | done | see `docs/partner-program.md` | `commissions.test.ts` (mixed invoice, unsupported currency, credit/cash conflict) |
+| Commission processing switch | done | `processProviderEvents` defers without claiming | `commissions.test.ts` (work waits with 0 attempts, then is processed) |
+| Never from a checkout-success page | done | commissions only from verified Stripe reads in the worker; no success-page code path exists | code review |
+| Stripe test-mode verification | blocked | — | As in Phase 2: no isolated Stripe test-mode webhook destination was available |
 
 ## Phase 4: dashboards and automated payouts
 

@@ -300,6 +300,13 @@ export function commissionRepository(db: Executor): CommissionRepository {
         .where(and(eq(partnerLedgerEntries.commissionId, commissionId), eq(partnerLedgerEntries.kind, kind)));
       return BigInt(row?.total ?? "0");
     },
+    async countLedger(commissionId, kind) {
+      const [row] = await db
+        .select({ n: sql<number>`count(*)::int` })
+        .from(partnerLedgerEntries)
+        .where(and(eq(partnerLedgerEntries.commissionId, commissionId), eq(partnerLedgerEntries.kind, kind)));
+      return Number(row?.n ?? 0);
+    },
     async balancesToConsider(environment) {
       const rows = await db
         .selectDistinct({ partnerId: partnerLedgerEntries.partnerId, currency: partnerLedgerEntries.currency })

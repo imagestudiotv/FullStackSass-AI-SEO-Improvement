@@ -44,6 +44,8 @@ export type NormalizedInvoice = {
   startingBalance: bigint;
   amountPaid: bigint;
   amountPaidOffStripe: bigint;
+  /** Credit notes issued after payment (refunded or credited to the customer's balance). */
+  postPaymentCreditNotes: bigint;
   allLinesSubscription: boolean;
   linesComplete: boolean;
   /** Stripe promotion code ids redeemed on this invoice. */
@@ -94,11 +96,14 @@ export type CouponSpec = {
   firstTimeTransaction: boolean;
   metadata: Record<string, string>;
   idempotencyKey: string;
+  /** False for a campaign that starts later: the code exists but cannot be redeemed yet. */
+  active: boolean;
 };
 
 export interface CouponGateway {
   createCouponWithCode(spec: CouponSpec): Promise<{ couponId: string; promotionCodeId: string }>;
   deactivatePromotionCode(promotionCodeId: string): Promise<void>;
+  activatePromotionCode(promotionCodeId: string): Promise<void>;
   /** Product ids and their recurring intervals, to validate a campaign's restrictions. */
   productIntervals(productIds: string[]): Promise<Record<string, string[]>>;
 }

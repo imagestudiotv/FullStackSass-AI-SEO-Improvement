@@ -325,6 +325,8 @@ export interface CommissionRepository {
     netTransferred: bigint;
   }>;
   ledgerTotalFor(commissionId: string, kind: LedgerKind): Promise<bigint>;
+  /** How many ledger entries of a kind a commission has (sequence for adjustment keys). */
+  countLedger(commissionId: string, kind: LedgerKind): Promise<number>;
   /** Partner/currency pairs that have any commission (for projections and runs). */
   balancesToConsider(environment: Environment): Promise<{ partnerId: string; currency: string }[]>;
   pendingMaturity(environment: Environment, now: Date): Promise<string[]>;
@@ -549,7 +551,7 @@ export type CouponRecord = {
 
 export interface CouponRepository {
   create(input: Omit<CouponRecord, "id" | "stripeCouponId" | "stripePromotionCodeId" | "status"> & { createdByEmail: string }): Promise<CouponRecord | null>;
-  attachStripe(id: string, values: { stripeCouponId: string; stripePromotionCodeId: string }): Promise<void>;
+  attachStripe(id: string, values: { stripeCouponId: string; stripePromotionCodeId: string }, status: CouponRecord["status"]): Promise<void>;
   setStatus(id: string, status: CouponRecord["status"], at: Date): Promise<void>;
   findById(id: string): Promise<CouponRecord | null>;
   findByPromotionCode(environment: Environment, stripePromotionCodeId: string): Promise<CouponRecord | null>;
@@ -639,4 +641,26 @@ export type AuditEntry = {
 
 export interface AuditLog {
   record(entry: AuditEntry): Promise<void>;
+}
+
+/* ----------------------------------------------------------- reconciliation */
+
+export type ReconciliationFinding = { kind: string; subject: string; detail: Record<string, string | number | null> };
+
+/**
+ * Read-only checks that compare independent records. Findings are reported
+ * (and turned into review cases or recovered work by the use case) - never
+ * "fixed" by editing financial rows.
+ */
+export interface ReconciliationRepository {
+  /** Stripe payments of real money for attributed customers with no payment fact: a missed or unprocessed event. */
+  paymentsWithoutFacts(environment: Environment, limit: number): Promise<{ invoiceId: string; organizationId: string }[]>;
+  /** Facts that say "commissioned" with no commission row. */
+  factsWithoutCommission(environment: Environment, limit: number): Promise<ReconciliationFinding[]>;
+  /** A commission whose earned entry is missing, duplicated or of another amount. */
+  earnedMismatches(environment: Environment, limit: number): Promise<ReconciliationFinding[]>;
+  /** A commission whose recorded reversal differs from its reversal ledger entries. */
+  reversalMismatches(environment: Environment, limit: number): Promise<ReconciliationFinding[]>;
+  /** Stored balance projections, for comparison with a fresh computation. */
+  projections(environment: Environment): Promise<{ partnerId: string; currency: string; values: Record<string, bigint> }[]>;
 }

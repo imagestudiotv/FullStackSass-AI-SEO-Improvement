@@ -15,6 +15,7 @@ import { partnerMailer } from "./infrastructure/notifications";
 import { drizzleUnitOfWork } from "./infrastructure/persistence/unit-of-work";
 import { burstRateLimiter, quotaRateLimiter } from "./infrastructure/rate-limit";
 import { settingsFromEnv } from "./infrastructure/settings";
+import { stripeBillingSource, stripeCouponGateway } from "./infrastructure/stripe/billing-source";
 import { connectAccountGateway } from "./infrastructure/stripe/connect-onboarding";
 
 /**
@@ -58,8 +59,8 @@ export function partnerDeps(): PartnerDeps {
       burstLimiter: burstRateLimiter(),
       connect,
       payouts: null,
-      billing: null,
-      couponGateway: null,
+      billing: environment ? stripeBillingSource(stripe, environment) : null,
+      couponGateway: environment ? stripeCouponGateway(stripe) : null,
     };
   }
   return deps;

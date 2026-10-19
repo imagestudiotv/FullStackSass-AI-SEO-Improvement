@@ -13,6 +13,7 @@ import { reportFirstPayment } from "@/lib/conversions/conversions";
 import { db } from "@/lib/db";
 import type { Executor } from "@/lib/db/types";
 import { billingCustomers, organization, payments, plans, subscriptions } from "@/lib/db/schema";
+import { PARTNER_PLATFORM_EVENTS } from "@/lib/partners/infrastructure/stripe/event-normalizer";
 import { convertReferral } from "@/lib/referrals/core";
 import { stripe } from "@/lib/stripe/client";
 
@@ -182,8 +183,23 @@ function invoiceSubscriptionId(invoice: Stripe.Invoice): string | null {
 
 /**
  * Handles one verified Stripe event. Throws when it should be retried.
+ *
+ * Billing first; then the cash partner program records the affiliate work
+ * the event implies (lib/partners/presentation/webhooks.ts) - durably, in
+ * this same attempt, before the webhook route or the recovery job marks the
+ * event complete. A failure there throws, so the event is retried; the
+ * billing work above is idempotent.
  */
 export async function processStripeEvent(event: Stripe.Event): Promise<void> {
+  await processBillingEvent(event);
+  if ((PARTNER_PLATFORM_EVENTS as readonly string[]).includes(event.type)) {
+    // Imported on demand: billing does not depend on the partner program's module graph.
+    const { recordPartnerPlatformWork } = await import("@/lib/partners/presentation/webhooks");
+    await recordPartnerPlatformWork(event);
+  }
+}
+
+async function processBillingEvent(event: Stripe.Event): Promise<void> {
   switch (event.type) {
     case "checkout.session.completed": {
       const session = event.data.object;

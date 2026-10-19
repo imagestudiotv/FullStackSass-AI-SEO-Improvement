@@ -1,12 +1,13 @@
 import { createHash } from "node:crypto";
 
-import { and, asc, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, gt, gte, inArray, lt, ne, sql } from "drizzle-orm";
 
 import {
   billingCustomers,
   invitation,
   member,
   organization,
+  payments,
   session,
   user,
   websiteInvitations,
@@ -92,6 +93,30 @@ export function userDirectory(db: Executor): UserDirectory {
         .where(eq(billingCustomers.stripeCustomerId, customerId))
         .limit(1);
       return row?.organizationId ?? null;
+    },
+    async organizationForInvoice(invoiceId) {
+      const [row] = await db
+        .select({ organizationId: payments.organizationId })
+        .from(payments)
+        .where(and(eq(payments.provider, "stripe"), eq(payments.externalId, invoiceId)))
+        .limit(1);
+      return row?.organizationId ?? null;
+    },
+    async priorPaidPayments(organizationId, before, excludingStripeInvoiceId) {
+      const [row] = await db
+        .select({ id: payments.id })
+        .from(payments)
+        .where(
+          and(
+            eq(payments.organizationId, organizationId),
+            gt(payments.amountCents, 0),
+            inArray(payments.status, ["paid", "refunded"]),
+            lt(payments.paidAt, before),
+            ne(payments.externalId, excludingStripeInvoiceId),
+          ),
+        )
+        .limit(1);
+      return Boolean(row);
     },
     async customerLabels(organizationIds) {
       if (organizationIds.length === 0) return {};

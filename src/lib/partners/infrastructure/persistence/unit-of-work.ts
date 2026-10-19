@@ -12,6 +12,7 @@ import { attributionRepository, trackingRepository } from "./repositories/attrib
 import { commissionRepository } from "./repositories/commissions";
 import { applicationRepository, partnerRepository, tierRepository } from "./repositories/partners";
 import { controlsRepository, programRepository } from "./repositories/program";
+import { reconciliationRepository } from "./repositories/reconciliation";
 import { settlementRepository } from "./repositories/settlements";
 
 /**
@@ -37,6 +38,7 @@ export function repositoriesFor(
     coupons: couponRepository(executor),
     reviews: reviewCaseRepository(executor),
     providerEvents: providerEventRepository(executor),
+    reconciliation: reconciliationRepository(executor),
     directory: userDirectory(executor),
     outbox: {
       async enqueue(job: PartnerJob) {

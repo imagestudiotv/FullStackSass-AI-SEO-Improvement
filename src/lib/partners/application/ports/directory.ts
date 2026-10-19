@@ -32,6 +32,13 @@ export interface UserDirectory {
   }>;
   /** The organization paying for a Stripe customer (billing_customers). */
   organizationForStripeCustomer(customerId: string): Promise<string | null>;
+  /** The organization the billing webhook recorded a Stripe invoice for (payments). */
+  organizationForInvoice(invoiceId: string): Promise<string | null>;
+  /**
+   * Whether the organization paid real money before `before`, through any
+   * provider (Stripe or PayPal) - an existing customer is never "new".
+   */
+  priorPaidPayments(organizationId: string, before: Date, excludingStripeInvoiceId: string): Promise<boolean>;
   /** A short, privacy-safe label for a referred customer: the website domain, else a masked name. */
   customerLabels(organizationIds: string[]): Promise<Record<string, string>>;
 }

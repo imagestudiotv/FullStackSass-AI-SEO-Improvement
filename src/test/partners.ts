@@ -1,7 +1,18 @@
 import { createHash, randomUUID } from "node:crypto";
 
-import { member, organization, partnerApplications, partnerProfiles, partnerTierHistory, platformControls, user } from "@/lib/db/schema";
+import {
+  billingCustomers,
+  member,
+  organization,
+  partnerApplications,
+  partnerProfiles,
+  partnerTierHistory,
+  platformControls,
+  subscriptions,
+  user,
+} from "@/lib/db/schema";
 import type { Database, Executor } from "@/lib/db/types";
+import type { BillingSource, NormalizedCharge, NormalizedInvoice } from "@/lib/partners/application/ports/billing-source";
 import type { AccountReadiness, ConnectAccountGateway, ProviderOutcome } from "@/lib/partners/application/ports/payout-gateway";
 import type { PartnerControlKey } from "@/lib/partners/application/ports/repositories";
 import type { PartnerDeps } from "@/lib/partners/application/use-cases/deps";
@@ -220,4 +231,127 @@ export async function seedPartner(
     effectiveFrom: approvedAt,
   });
   return { partnerId: partner.id, userId: owner.id, email: owner.email, code, applicationId: application.id };
+}
+
+/* ---------------------------------------------------------------- billing */
+
+/** A fake Stripe Billing: invoices and charges as the tests set them, read the way the adapter would return them. */
+export function fakeBilling(environment: "test" | "live" = "test") {
+  const invoices = new Map<string, NormalizedInvoice>();
+  const charges = new Map<string, NormalizedCharge>();
+  const reads: string[] = [];
+  const source: BillingSource = {
+    environment: () => environment,
+    async loadInvoice(invoiceId) {
+      reads.push(`invoice:${invoiceId}`);
+      const invoice = invoices.get(invoiceId);
+      if (!invoice) throw Object.assign(new Error(`No such invoice ${invoiceId}`), { statusCode: 404 });
+      return invoice;
+    },
+    async loadCharge(chargeId) {
+      reads.push(`charge:${chargeId}`);
+      const charge = charges.get(chargeId);
+      if (!charge) throw Object.assign(new Error(`No such charge ${chargeId}`), { statusCode: 404 });
+      return charge;
+    },
+    async invoiceIdsForPaymentIntent() {
+      return [];
+    },
+    async chargeForDispute() {
+      return null;
+    },
+  };
+  return {
+    source,
+    reads,
+    /** A paid subscription invoice with one verified collection (or several), and its charges. */
+    invoice(input: {
+      id?: string;
+      customerId: string;
+      currency?: string;
+      total: number;
+      tax?: number;
+      discount?: number;
+      collections?: { cash: number; paidAt: Date; verified?: boolean; outOfBand?: boolean; status?: string }[];
+      allLinesSubscription?: boolean;
+      promotionCodeIds?: string[];
+      postPaymentCreditNotes?: number;
+      subscriptionId?: string | null;
+    }) {
+      const id = input.id ?? `in_${randomUUID().replace(/-/g, "").slice(0, 16)}`;
+      const currency = input.currency ?? "eur";
+      const collections = (input.collections ?? []).map((c) => {
+        const chargeId = `ch_${randomUUID().replace(/-/g, "").slice(0, 16)}`;
+        const verified = c.verified ?? true;
+        if (verified && !c.outOfBand) {
+          charges.set(chargeId, { environment, chargeId, paymentIntentId: `pi_${chargeId.slice(3)}`, currency, amount: BigInt(c.cash), refunded: BigInt(0), disputes: [] });
+        }
+        return {
+          invoicePaymentId: `inpay_${randomUUID().replace(/-/g, "").slice(0, 16)}`,
+          status: c.status ?? "paid",
+          cash: BigInt(c.cash),
+          currency,
+          paidAt: c.paidAt,
+          paymentIntentId: c.outOfBand ? null : `pi_${chargeId.slice(3)}`,
+          chargeId: c.outOfBand ? null : chargeId,
+          verified,
+          outOfBand: c.outOfBand ?? false,
+        };
+      });
+      const invoice: NormalizedInvoice = {
+        environment,
+        invoiceId: id,
+        customerId: input.customerId,
+        subscriptionId: input.subscriptionId === undefined ? "sub_test" : input.subscriptionId,
+        currency,
+        status: "paid",
+        billingReason: "subscription_cycle",
+        total: BigInt(input.total),
+        subtotal: BigInt(input.total + (input.discount ?? 0)),
+        tax: BigInt(input.tax ?? 0),
+        discount: BigInt(input.discount ?? 0),
+        startingBalance: BigInt(0),
+        amountPaid: collections.reduce((sum, c) => sum + c.cash, BigInt(0)),
+        amountPaidOffStripe: BigInt(0),
+        postPaymentCreditNotes: BigInt(input.postPaymentCreditNotes ?? 0),
+        allLinesSubscription: input.allLinesSubscription ?? true,
+        linesComplete: true,
+        promotionCodeIds: input.promotionCodeIds ?? [],
+        collections,
+        evidence: { test: true },
+      };
+      invoices.set(id, invoice);
+      return invoice;
+    },
+    /** Sets a charge's CURRENT refund and dispute state, as Stripe would report it now. */
+    setCharge(chargeId: string, update: { refunded?: number; disputes?: { id?: string; status: string; amount: number }[] }) {
+      const charge = charges.get(chargeId)!;
+      charges.set(chargeId, {
+        ...charge,
+        refunded: update.refunded === undefined ? charge.refunded : BigInt(update.refunded),
+        disputes: update.disputes
+          ? update.disputes.map((d) => ({ id: d.id ?? `dp_${chargeId}`, status: d.status, amount: BigInt(d.amount), currency: charge.currency }))
+          : charge.disputes,
+      });
+    },
+  };
+}
+
+/** The Stripe customer a workspace pays with (billing_customers). */
+export async function seedStripeCustomer(db: Executor, organizationId: string) {
+  const customerId = `cus_${randomUUID().replace(/-/g, "").slice(0, 14)}`;
+  await db.insert(billingCustomers).values({ organizationId, stripeCustomerId: customerId });
+  return customerId;
+}
+
+/** An active Stripe subscription for a workspace, its current period ending at `periodEnd`. */
+export async function seedActiveSubscription(db: Executor, organizationId: string, periodEnd: Date, status = "active") {
+  await db.insert(subscriptions).values({
+    organizationId,
+    provider: "stripe",
+    stripeSubscriptionId: `sub_${randomUUID().replace(/-/g, "").slice(0, 14)}`,
+    status,
+    currentPeriodStart: new Date(periodEnd.getTime() - 30 * 24 * 60 * 60 * 1000),
+    currentPeriodEnd: periodEnd,
+  });
 }

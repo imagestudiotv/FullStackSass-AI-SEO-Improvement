@@ -166,10 +166,10 @@ export function couponRepository(db: Executor): CouponRepository {
         .returning();
       return row ? toCoupon(row) : null;
     },
-    async attachStripe(id, values) {
+    async attachStripe(id, values, status) {
       await db
         .update(partnerCoupons)
-        .set({ ...values, status: "active", updatedAt: new Date() })
+        .set({ ...values, status, updatedAt: new Date() })
         .where(eq(partnerCoupons.id, id));
     },
     async setStatus(id, status, at) {

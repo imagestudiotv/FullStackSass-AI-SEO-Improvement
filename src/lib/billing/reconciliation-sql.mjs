@@ -242,4 +242,51 @@ export const RECONCILIATION_SQL = {
     where w.status in ('pending', 'analyzing')
       and w.updated_at < timezone('utc', now()) - interval '1 hour'
     order by 5`,
+
+  /*
+    The cash partner program (lib/partners; docs/partner-program.md). The
+    daily partner-reconciliation job runs the same checks, recovers missed
+    payments and opens review cases; these are the read-only operator view.
+  */
+
+  /** Stripe payments of real money for attributed customers that have no partner payment fact: a missed or unprocessed webhook. */
+  partnerPaymentsWithoutFacts: `
+    select p.external_id as invoice_id, p.organization_id, p.amount_cents, p.currency, p.paid_at, a.partner_id
+    from payments p
+    join partner_attributions a on a.organization_id = p.organization_id and a.status in ('active', 'review')
+    where p.provider = 'stripe' and p.status = 'paid' and p.amount_cents > 0
+      and p.paid_at >= a.locked_at - interval '1 day'
+      and not exists (select 1 from partner_payment_facts f where f.invoice_id = p.external_id)
+    order by p.paid_at`,
+
+  /** A commission whose earned ledger entry is missing, doubled, or of another amount. */
+  partnerEarnedMismatches: `
+    select c.id as commission_id, c.environment, c.amount, coalesce(sum(l.amount), 0) as earned, count(l.id) as entries
+    from partner_commissions c
+    left join partner_ledger_entries l on l.commission_id = c.id and l.kind = 'commission_earned'
+    group by c.id, c.environment, c.amount
+    having count(l.id) <> 1 or coalesce(sum(l.amount), 0) <> c.amount`,
+
+  /** A commission whose recorded reversal differs from its reversal ledger entries. */
+  partnerReversalMismatches: `
+    select c.id as commission_id, c.environment, c.reversed_amount, -coalesce(sum(l.amount), 0) as ledger_reversed
+    from partner_commissions c
+    left join partner_ledger_entries l
+      on l.commission_id = c.id and l.kind = 'commission_adjustment' and l.operation_key like 'reversal:%'
+    group by c.id, c.environment, c.reversed_amount
+    having -coalesce(sum(l.amount), 0) <> c.reversed_amount`,
+
+  /** Affiliate work from Stripe events that failed, or is still waiting a retry. */
+  partnerStuckProviderEvents: `
+    select id, environment, stripe_event_id, event_type, object_id, status, attempts, last_error, next_attempt_at
+    from partner_provider_events
+    where status = 'failed' or (status in ('pending', 'processing') and attempts > 0)
+    order by created_at`,
+
+  /** Open partner review cases, oldest first. */
+  partnerOpenReviewCases: `
+    select id, kind, environment, partner_id, organization_id, summary, created_at
+    from partner_review_cases
+    where status = 'open'
+    order by created_at`,
 };
