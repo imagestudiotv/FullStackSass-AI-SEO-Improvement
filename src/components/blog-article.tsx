@@ -36,7 +36,7 @@ export function BlogArticle({
   const t = BLOG_CHROME[locale];
 
   return (
-    <article lang={locale === "en" ? undefined : locale}>
+    <article lang={locale === "en" ? undefined : locale} className="text-foreground">
       <header>
         <h1 className="mt-6 text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
           {post.title}

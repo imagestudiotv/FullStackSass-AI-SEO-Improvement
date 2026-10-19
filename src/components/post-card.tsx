@@ -32,7 +32,7 @@ export function formatPostDate(iso: string, locale: keyof typeof DATE_LOCALES = 
 export function PostCard({ post }: { post: BlogPost }) {
   const locale = post.locale ?? "en";
   return (
-    <article className="group relative flex h-full flex-col overflow-hidden rounded-xl border bg-card transition-colors hover:border-primary/40">
+    <article className="group relative flex h-full flex-col overflow-hidden rounded-xl border bg-card text-card-foreground transition-colors hover:border-primary/40">
       {/* The English name: it picks the cover's colour, the same in every language. */}
       <PostCover
         slug={post.slug}

@@ -100,52 +100,53 @@
   /* Night mode (lib/theme.ts): the browser's own parts - scrollbars, form
      controls, the date picker - go dark with the page. */
   color-scheme: dark;
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  /* Slightly lighter orange in dark mode: the light-theme value does not
-     carry enough contrast against a dark ground. */
-  --primary: oklch(0.70 0.185 41.5);
+  /* Soft charcoal, with distinct raised surfaces and off-white text. These
+     shared tokens cover marketing, the workspace, editors and dialogs. */
+  --background: oklch(0.27 0.012 260);
+  --foreground: oklch(0.95 0.006 260);
+  --card: oklch(0.31 0.014 260);
+  --card-foreground: var(--foreground);
+  --popover: oklch(0.34 0.014 260);
+  --popover-foreground: var(--foreground);
+  /* Links and small labels also need contrast on raised and tinted cards. */
+  --primary: oklch(0.78 0.14 41.5);
   --primary-strong: var(--primary);
   /**
    * Deliberately NOT --primary. Dark mode wants L 0.48-0.67 and the primary
-   * token sits at 0.70, which fails the band; this steps it to 0.655 in the
+   * token sits at 0.78, which fails the band; this steps it to 0.655 in the
    * same hue so the line stays readable on the dark card.
    */
   --chart-line: oklch(0.655 0.185 41.5);
   --primary-foreground: oklch(0.145 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.355 0.014 260);
+  --secondary-foreground: var(--foreground);
+  --muted: oklch(0.355 0.014 260);
+  --muted-foreground: oklch(0.78 0.01 260);
+  --accent: oklch(0.38 0.014 260);
+  --accent-foreground: var(--foreground);
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
+  --border: oklch(0.43 0.014 260);
+  --input: oklch(0.53 0.015 260);
+  --ring: oklch(0.7 0.02 260);
   --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
-  --admin-canvas: oklch(0.17 0.004 56);
-  --admin-sidebar: oklch(0.13 0.004 56);
-  --admin-sidebar-foreground: oklch(0.86 0.005 75);
-  --admin-sidebar-muted: oklch(0.62 0.008 70);
-  --admin-sidebar-accent: oklch(0.24 0.006 56);
-  --admin-sidebar-border: oklch(1 0 0 / 8%);
+  --chart-2: oklch(0.79 0 0);
+  --chart-3: oklch(0.72 0 0);
+  --chart-4: oklch(0.66 0 0);
+  --chart-5: oklch(0.61 0 0);
+  --sidebar: oklch(0.29 0.014 260);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--accent);
+  --sidebar-accent-foreground: var(--foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
+  --admin-canvas: var(--background);
+  --admin-sidebar: var(--sidebar);
+  --admin-sidebar-foreground: var(--foreground);
+  --admin-sidebar-muted: var(--muted-foreground);
+  --admin-sidebar-accent: var(--accent);
+  --admin-sidebar-border: var(--border);
   --success: oklch(0.72 0.14 152);
   --success-soft: oklch(0.3 0.05 152);
   --warning: oklch(0.78 0.13 80);
@@ -154,6 +155,25 @@
   --info-soft: oklch(0.3 0.05 250);
   --danger: oklch(0.72 0.17 25);
   --danger-soft: oklch(0.3 0.06 27);
+}
+
+/* Blog cover artwork carries its own title. Both the artwork and the text
+   must change together; light gradients with a dark-mode white title made
+   titles disappear on the blog grid, article pages and admin previews. */
+.post-cover {
+  --cover-pattern-opacity: 1;
+  --cover-start: oklch(0.97 0.02 var(--cover-hue));
+  --cover-end: oklch(0.93 0.05 var(--cover-hue));
+  --cover-mark: oklch(0.62 0.16 var(--cover-hue));
+  --cover-accent: oklch(0.62 0.18 var(--cover-hue));
+}
+
+.dark .post-cover {
+  --cover-pattern-opacity: 0.5;
+  --cover-start: oklch(0.36 0.025 var(--cover-hue));
+  --cover-end: oklch(0.30 0.035 var(--cover-hue));
+  --cover-mark: oklch(0.72 0.09 var(--cover-hue));
+  --cover-accent: oklch(0.76 0.12 var(--cover-hue));
 }
 
 @theme inline {

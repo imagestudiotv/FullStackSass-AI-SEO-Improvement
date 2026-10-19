@@ -626,11 +626,11 @@ const INTEGRATIONS: {
   tone: string;
   slug: string;
 }[] = [
-  { name: "WordPress", Mark: WordPressMark, tone: "bg-[#21759b]/10 text-[#21759b]", slug: "wordpress" },
+  { name: "WordPress", Mark: WordPressMark, tone: "bg-[#21759b]/10 text-[#21759b] dark:bg-sky-400/10 dark:text-sky-300", slug: "wordpress" },
   { name: "Ghost", Mark: GhostMark, tone: "bg-foreground/10 text-foreground", slug: "ghost" },
-  { name: "Shopify", Mark: ShopifyMark, tone: "bg-[#95bf47]/15 text-[#5e8e3e]", slug: "shopify" },
-  { name: "Webflow", Mark: WebflowMark, tone: "bg-[#4353ff]/10 text-[#4353ff]", slug: "webflow" },
-  { name: "Wix", Mark: WixMark, tone: "bg-[#0c6efd]/10 text-[#0c6efd]", slug: "wix" },
+  { name: "Shopify", Mark: ShopifyMark, tone: "bg-[#95bf47]/15 text-[#5e8e3e] dark:text-lime-300", slug: "shopify" },
+  { name: "Webflow", Mark: WebflowMark, tone: "bg-[#4353ff]/10 text-[#4353ff] dark:bg-indigo-400/10 dark:text-indigo-300", slug: "webflow" },
+  { name: "Wix", Mark: WixMark, tone: "bg-[#0c6efd]/10 text-[#0c6efd] dark:bg-blue-400/10 dark:text-blue-300", slug: "wix" },
   { name: "Webhook", Mark: WebhookMark, tone: "bg-primary/10 text-primary", slug: "webhook" },
 ];
 
@@ -1490,7 +1490,7 @@ function closingTitle(t: SectionProps["t"]): ReactNode {
 export function ClosingCta({ t, href }: SectionProps) {
   return (
     <section className={`${OFFSCREEN} px-4 pt-4 pb-20`}>
-      <div className="relative isolate mx-auto max-w-7xl overflow-hidden rounded-2xl bg-[#171717] px-6 py-16 text-center text-white sm:px-10 sm:py-20">
+      <div className="relative isolate mx-auto max-w-7xl overflow-hidden rounded-2xl bg-[#171717] px-6 py-16 text-center text-white sm:px-10 sm:py-20 dark:bg-card dark:ring-1 dark:ring-border">
         <div
           aria-hidden="true"
           className="pointer-events-none absolute top-0 right-0 -z-10 h-60 w-72 sm:h-72 sm:w-96"

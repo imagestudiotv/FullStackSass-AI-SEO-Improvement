@@ -1,4 +1,7 @@
+import type { CSSProperties } from "react";
+
 import type { BlogCategory } from "@/lib/blog/shared";
+import { cn } from "@/lib/utils";
 
 /**
  * The cover shown on a post card and at the top of a post.
@@ -138,7 +141,8 @@ export function PostCover({
 
   return (
     <div
-      className={className}
+      className={cn("post-cover", className)}
+      style={{ "--cover-hue": hue } as CSSProperties}
       // Decorative: the title sits next to it in the card, so announcing this
       // would just repeat it.
       aria-hidden="true"
@@ -151,61 +155,66 @@ export function PostCover({
       >
         <defs>
           <linearGradient id={`cover-${slug}`} x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor={`oklch(0.97 0.02 ${hue})`} />
-            <stop offset="100%" stopColor={`oklch(0.93 0.05 ${hue})`} />
+            <stop offset="0%" stopColor="var(--cover-start)" />
+            <stop offset="100%" stopColor="var(--cover-end)" />
           </linearGradient>
         </defs>
 
         <rect width="100" height="56" fill={`url(#cover-${slug})`} />
 
-        {shapes.map((shape) => {
-          const fill = `oklch(0.62 0.16 ${hue} / ${shape.opacity})`;
-          const x = (shape.x / 100) * 100;
-          const y = (shape.y / 100) * 56;
+        <g opacity="var(--cover-pattern-opacity)">
+          {shapes.map((shape) => {
+            const fill = "var(--cover-mark)";
+            const x = (shape.x / 100) * 100;
+            const y = (shape.y / 100) * 56;
 
-          if (shape.kind === 0) {
+            if (shape.kind === 0) {
+              return (
+                <circle
+                  key={shape.key}
+                  cx={x}
+                  cy={y}
+                  r={shape.size / 2}
+                  fill="none"
+                  stroke={fill}
+                  strokeOpacity={shape.opacity}
+                  strokeWidth="0.6"
+                />
+              );
+            }
+            if (shape.kind === 1) {
+              return (
+                <rect
+                  key={shape.key}
+                  x={x}
+                  y={y}
+                  width={shape.size}
+                  height={shape.size}
+                  rx="1"
+                  fill="none"
+                  stroke={fill}
+                  strokeOpacity={shape.opacity}
+                  strokeWidth="0.6"
+                  transform={`rotate(${shape.rotation} ${x} ${y})`}
+                />
+              );
+            }
             return (
-              <circle
+              <line
                 key={shape.key}
-                cx={x}
-                cy={y}
-                r={shape.size / 2}
-                fill="none"
+                x1={x}
+                y1={y}
+                x2={x + shape.size}
+                y2={y}
                 stroke={fill}
+                strokeOpacity={shape.opacity}
                 strokeWidth="0.6"
-              />
-            );
-          }
-          if (shape.kind === 1) {
-            return (
-              <rect
-                key={shape.key}
-                x={x}
-                y={y}
-                width={shape.size}
-                height={shape.size}
-                rx="1"
-                fill="none"
-                stroke={fill}
-                strokeWidth="0.6"
+                strokeLinecap="round"
                 transform={`rotate(${shape.rotation} ${x} ${y})`}
               />
             );
-          }
-          return (
-            <line
-              key={shape.key}
-              x1={x}
-              y1={y}
-              x2={x + shape.size}
-              y2={y}
-              stroke={fill}
-              strokeWidth="0.6"
-              strokeLinecap="round"
-              transform={`rotate(${shape.rotation} ${x} ${y})`}
-            />
-          );
-        })}
+          })}
+        </g>
 
         {/*
           The title, set into the artwork the way the reference's covers carry
@@ -236,7 +245,7 @@ export function PostCover({
           y1={30 + (lines.length - 1) * 3}
           x2="58"
           y2={30 + (lines.length - 1) * 3}
-          stroke={`oklch(0.62 0.18 ${hue})`}
+          stroke="var(--cover-accent)"
           strokeWidth="1"
           strokeLinecap="round"
         />
