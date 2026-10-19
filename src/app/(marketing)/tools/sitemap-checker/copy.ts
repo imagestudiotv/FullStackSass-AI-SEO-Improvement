@@ -23,6 +23,8 @@ export type SitemapCopy = {
   /** [one, other], with {count}. */
   listedPages: [string, string];
   listedSitemaps: [string, string];
+  /** When an index lists more sitemaps than were read; {read} and {total}. */
+  partialRead: string;
   intro: string;
   explainer: { heading: string; body: string }[];
   ctaHeadline: string;
@@ -51,6 +53,7 @@ export const SITEMAP_COPY: Record<Locale, SitemapCopy> = {
     indexBadge: "index",
     listedPages: ["{count} page listed.", "{count} pages listed."],
     listedSitemaps: ["{count} sitemap listed.", "{count} sitemaps listed."],
+    partialRead: "We read {read} of the {total} sitemaps your index lists, so “Pages listed” counts the pages in those only.",
     intro:
       "A sitemap is a list of your pages written for machines. It does not make you rank, but it does make sure everything gets found - especially pages nothing links to yet.",
     explainer: [
@@ -73,6 +76,7 @@ export const SITEMAP_COPY: Record<Locale, SitemapCopy> = {
     submit: "Comprobar sitemap",
     statFound: "Sitemaps encontrados",
     statPages: "Páginas listadas",
+    partialRead: "Leímos {read} de los {total} sitemaps que enumera su índice, así que «Páginas listadas» solo cuenta las páginas de esos.",
     statRobots: "En robots.txt",
     yes: "Sí",
     no: "No",
@@ -109,6 +113,7 @@ export const SITEMAP_COPY: Record<Locale, SitemapCopy> = {
     submit: "Vérifier le sitemap",
     statFound: "Sitemaps trouvés",
     statPages: "Pages listées",
+    partialRead: "Nous avons lu {read} des {total} sitemaps listés dans votre index : « Pages listées » ne compte donc que les pages de ceux-ci.",
     statRobots: "Dans le robots.txt",
     yes: "Oui",
     no: "Non",
@@ -145,6 +150,7 @@ export const SITEMAP_COPY: Record<Locale, SitemapCopy> = {
     submit: "Controlla la sitemap",
     statFound: "Sitemap trovate",
     statPages: "Pagine elencate",
+    partialRead: "Abbiamo letto {read} delle {total} sitemap elencate nel suo indice, quindi «Pagine elencate» conta solo le pagine di quelle.",
     statRobots: "Nel robots.txt",
     yes: "Sì",
     no: "No",
@@ -181,6 +187,7 @@ export const SITEMAP_COPY: Record<Locale, SitemapCopy> = {
     submit: "Sitemap prüfen",
     statFound: "Gefundene Sitemaps",
     statPages: "Aufgeführte Seiten",
+    partialRead: "Wir haben {read} der {total} Sitemaps aus Ihrem Index gelesen, „Aufgeführte Seiten“ zählt also nur deren Seiten.",
     statRobots: "In der robots.txt",
     yes: "Ja",
     no: "Nein",

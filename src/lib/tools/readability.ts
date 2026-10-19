@@ -87,13 +87,19 @@ const TERMS_SHOWN = 12;
 const JS_REQUIRED_RATIO = 1.5;
 
 /** Splits text into comparable words. */
-function tokenize(text: string): string[] {
+/** Every word, in order, short ones included. */
+function allWords(text: string): string[] {
   return text
     .toLowerCase()
     // Keep letters, digits and internal apostrophes; everything else splits.
     .split(/[^\p{L}\p{N}']+/u)
     .map((word) => word.replace(/^'+|'+$/g, ""))
-    .filter((word) => word.length > 2);
+    .filter(Boolean);
+}
+
+/** The words worth counting: three letters or more. */
+function tokenize(text: string): string[] {
+  return allWords(text).filter((word) => word.length > 2);
 }
 
 function countTerms(
@@ -228,11 +234,18 @@ async function checkReadabilityUnguarded(input: string): Promise<ReadabilityOutc
    * adjacent phrases. Pairs where both halves are stop words are dropped —
    * "of the" is not a finding — but a pair with one is kept, since "for
    * dentists" is exactly the kind of phrase that matters.
+   *
+   * Paired from every word, short ones included, and a pair with a word of
+   * one or two letters is skipped. Pairing the counted words only joined
+   * words that are never next to each other: "How it works" became the
+   * phrase "how works".
    */
+  const every = allWords(text);
   const phrases: string[] = [];
-  for (let i = 0; i < words.length - 1; i += 1) {
-    const first = words[i];
-    const second = words[i + 1];
+  for (let i = 0; i < every.length - 1; i += 1) {
+    const first = every[i];
+    const second = every[i + 1];
+    if (first.length <= 2 || second.length <= 2) continue;
     if (STOP_WORDS.has(first) && STOP_WORDS.has(second)) continue;
     phrases.push(`${first} ${second}`);
   }

@@ -42,6 +42,8 @@ export type SitemapFinding = {
   entryCount: number;
   /** Why it is not usable, when it is not. */
   problem: string | null;
+  /** Where the file loaded from after redirects: one file is counted once, however it was reached. */
+  finalUrl: string;
 };
 
 export type SitemapResult = {
@@ -54,6 +56,8 @@ export type SitemapResult = {
   totalUrls: number;
   /** Child sitemaps listed by any index files found. */
   childSitemaps: number;
+  /** How many of those were read: totalUrls counts their pages only. */
+  childSitemapsRead: number;
 };
 
 export type SitemapOutcome =
@@ -63,12 +67,32 @@ export type SitemapOutcome =
 /** Entries listed per sitemap in the UI. */
 const ENTRIES_SHOWN = 10;
 
-/** Sitemaps fetched per run, so an index with 50 children cannot hang us. */
-const MAX_FETCHES = 6;
+/**
+ * Sitemaps fetched per run, so an index with 50 children cannot hang us.
+ * Twelve reads a typical WordPress index whole (posts, pages, products,
+ * categories...); six stopped half-way through one with ten.
+ */
+const MAX_FETCHES = 12;
+
+/**
+ * One address however it is spelled: example.com and www.example.com, http
+ * and https. Sites are entered without "www." (lib/websites/url.ts) while
+ * robots.txt names the www address, so the same sitemap was found twice -
+ * once declared, once at the usual location - and its pages counted twice.
+ */
+function sameAddress(url: string): string {
+  try {
+    const parsed = new URL(url);
+    const port = parsed.port ? `:${parsed.port}` : "";
+    return `${parsed.hostname.toLowerCase().replace(/^www\./, "")}${port}${parsed.pathname}${parsed.search}`;
+  } catch {
+    return url;
+  }
+}
 
 async function fetchText(
   url: string,
-): Promise<{ status: number; text: string } | null> {
+): Promise<{ status: number; text: string; finalUrl: string } | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
@@ -84,7 +108,7 @@ async function fetchText(
     // Read only as much as we allow, rather than buffering a huge file.
     const buffer = await response.arrayBuffer();
     const text = new TextDecoder().decode(buffer);
-    return { status: response.status, text };
+    return { status: response.status, text, finalUrl: response.url || url };
   } catch {
     return null;
   } finally {
@@ -143,6 +167,7 @@ async function checkOne(
     entries: [],
     entryCount: 0,
     problem: null,
+    finalUrl: url,
   };
 
   // Re-checked per URL: robots.txt is attacker-controlled input, and a
@@ -159,6 +184,7 @@ async function checkOne(
   if (fetched.status !== 200) {
     return {
       ...base,
+      finalUrl: fetched.finalUrl,
       status: fetched.status,
       problem: `Returns ${fetched.status} instead of loading.`,
     };
@@ -170,6 +196,7 @@ async function checkOne(
     const looksHtml = /^\s*<(?:!doctype\s+html|html)[\s>]/i.test(fetched.text);
     return {
       ...base,
+      finalUrl: fetched.finalUrl,
       status: fetched.status,
       problem: looksHtml
         ? "This is a web page, not a sitemap."
@@ -179,6 +206,7 @@ async function checkOne(
 
   return {
     ...base,
+    finalUrl: fetched.finalUrl,
     status: fetched.status,
     ok: true,
     isIndex,
@@ -228,19 +256,22 @@ async function checkSitemapUnguarded(input: string): Promise<SitemapOutcome> {
   const queue: { url: string; source: SitemapFinding["source"] }[] = [];
 
   for (const url of declaredInRobots) {
-    if (seen.has(url)) continue;
-    seen.add(url);
+    if (seen.has(sameAddress(url))) continue;
+    seen.add(sameAddress(url));
     queue.push({ url, source: "robots.txt" });
   }
   for (const path of COMMON_PATHS) {
     const url = `${origin}${path}`;
-    if (seen.has(url)) continue;
-    seen.add(url);
+    if (seen.has(sameAddress(url))) continue;
+    seen.add(sameAddress(url));
     queue.push({ url, source: "common location" });
   }
 
   const found: SitemapFinding[] = [];
+  /** Where each file read came from after redirects: /sitemap.xml redirecting to the declared index is that index. */
+  const read = new Set<string>();
   let fetches = 0;
+  let childrenRead = 0;
 
   for (const candidate of queue) {
     if (fetches >= MAX_FETCHES) break;
@@ -252,6 +283,8 @@ async function checkSitemapUnguarded(input: string): Promise<SitemapOutcome> {
      * case for five of the six paths we try. Only report guesses that worked.
      */
     if (candidate.source === "common location" && !finding.ok) continue;
+    if (finding.ok && read.has(sameAddress(finding.finalUrl))) continue;
+    if (finding.ok) read.add(sameAddress(finding.finalUrl));
     found.push(finding);
 
     /**
@@ -262,11 +295,14 @@ async function checkSitemapUnguarded(input: string): Promise<SitemapOutcome> {
     if (finding.ok && finding.isIndex) {
       for (const child of finding.entries) {
         if (fetches >= MAX_FETCHES) break;
-        if (seen.has(child)) continue;
-        seen.add(child);
+        if (seen.has(sameAddress(child))) continue;
+        seen.add(sameAddress(child));
         const childFinding = await checkOne(child, "sitemap index");
         fetches += 1;
-        if (childFinding.ok) found.push(childFinding);
+        if (!childFinding.ok || read.has(sameAddress(childFinding.finalUrl))) continue;
+        read.add(sameAddress(childFinding.finalUrl));
+        found.push(childFinding);
+        childrenRead += 1;
       }
     }
   }
@@ -284,6 +320,7 @@ async function checkSitemapUnguarded(input: string): Promise<SitemapOutcome> {
       childSitemaps: found
         .filter((f) => f.ok && f.isIndex)
         .reduce((sum, f) => sum + f.entryCount, 0),
+      childSitemapsRead: childrenRead,
     },
   };
 }

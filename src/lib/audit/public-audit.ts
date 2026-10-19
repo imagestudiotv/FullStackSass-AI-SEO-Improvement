@@ -160,7 +160,10 @@ function cacheKeyFor(domain: string): string {
   // v4: notAssessed, and platform detection that no longer mistakes what a
   // site links to for what it is built on - a v3 entry has no notAssessed
   // (the result page read its length and crashed) and the old platform guess.
-  return `public-audit:v4:${domain}`;
+  // v5: the crawler follows a site that redirects to its www address (or to
+  // https); a v4 entry for such a site read its homepage only, scoring it on
+  // one page and skipping every cross-page check.
+  return `public-audit:v5:${domain}`;
 }
 
 async function readCached(domain: string): Promise<PublicAuditResult | null> {

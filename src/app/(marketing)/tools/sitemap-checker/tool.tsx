@@ -63,6 +63,13 @@ export async function SitemapTool({ locale, searchParams }: { locale: Locale; se
               ))}
             </div>
 
+            {/* A large index is read in part; the page count says so rather than looking complete. */}
+            {outcome.result.childSitemaps > outcome.result.childSitemapsRead ? (
+              <p className="text-sm text-muted-foreground">
+                {t.partialRead.replace("{read}", n(outcome.result.childSitemapsRead)).replace("{total}", n(outcome.result.childSitemaps))}
+              </p>
+            ) : null}
+
             {/*
               Not being declared in robots.txt is the single most common real
               problem here, and it is invisible from the site itself.

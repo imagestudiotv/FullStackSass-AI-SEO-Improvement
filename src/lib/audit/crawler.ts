@@ -59,6 +59,11 @@ function canonicalise(raw: string): string | null {
   }
 }
 
+/** A host without its "www.": example.com and www.example.com are one site. */
+function siteHost(hostname: string): string {
+  return hostname.toLowerCase().replace(/^www\./, "");
+}
+
 export async function crawlSite(
   startUrl: string,
   maxPages: number,
@@ -69,9 +74,12 @@ export async function crawlSite(
     throw new CrawlError("Invalid start URL", "unreachable");
   }
 
-  const origin = new URL(start).origin;
+  const startAt = new URL(start);
+  let origin = startAt.origin;
   const queue: string[] = [start];
   const seen = new Set<string>([start]);
+  /** Where each page read landed: a page reached twice (two links, a redirect) is read once. */
+  const read = new Set<string>();
   const pages: PageSnapshot[] = [];
   const failures: { url: string; reason: string }[] = [];
 
@@ -80,14 +88,40 @@ export async function crawlSite(
 
     try {
       const snapshot = await fetchHomepage(url, isPublicWebsiteUrl);
-      pages.push(snapshot);
+      const landed = new URL(snapshot.finalUrl);
+      const landedAt = canonicalise(snapshot.finalUrl) ?? url;
+      const duplicate = read.has(landedAt);
+      if (!duplicate) {
+        read.add(landedAt);
+        // Not queued again from a link to the address it landed on.
+        seen.add(landedAt);
+        pages.push(snapshot);
+      }
+
+      /**
+       * The site's own address is where its FIRST page lands. Addresses are
+       * stored without "www." (lib/websites/url.ts), and most sites redirect
+       * that to their www address, or http to https. Following links only on
+       * the address we started from read one page of every such site - the
+       * homepage - and called that an audit. The same host with or without
+       * "www." on the same port is the same site; anything else is not.
+       */
+      if (
+        !duplicate &&
+        pages.length === 1 &&
+        landed.origin !== origin &&
+        siteHost(landed.hostname) === siteHost(startAt.hostname) &&
+        landed.port === startAt.port
+      ) {
+        origin = landed.origin;
+      }
 
       /**
        * Links are followed from the FINAL url after redirects, and only within
        * the same origin. A redirect to another domain must not turn a site
        * audit into a crawl of somewhere we were never asked to touch.
        */
-      if (new URL(snapshot.finalUrl).origin === origin) {
+      if (!duplicate && landed.origin === origin) {
         for (const link of snapshot.internalUrls) {
           const next = canonicalise(link);
           if (!next || seen.has(next)) continue;
