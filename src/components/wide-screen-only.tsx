@@ -3,11 +3,11 @@
 import { useSyncExternalStore, type ReactNode } from "react";
 
 /**
- * Tailwind's `xl` breakpoint, the width the hero's floating cards appear at.
+ * Tailwind's `2xl` breakpoint, the width the hero's floating cards appear at.
  * In rem as Tailwind writes it, so the two agree when someone has changed
  * their browser's default font size.
  */
-const WIDE = "(min-width: 80rem)";
+const WIDE = "(min-width: 96rem)";
 
 function subscribe(onChange: () => void) {
   const query = window.matchMedia(WIDE);
@@ -18,7 +18,7 @@ function subscribe(onChange: () => void) {
 /**
  * Renders its children only on a wide screen.
  *
- * For decoration that CSS already hides below `xl` (hidden xl:block): hidden
+ * For decoration that CSS already hides below `2xl` (hidden 2xl:block): hidden
  * elements still cost a phone the HTML, the DOM and React's start-up work for
  * every one of them. On PageSpeed's slow phone that start-up is what kept the
  * home page's mobile score below green, so a phone now skips all three. (The

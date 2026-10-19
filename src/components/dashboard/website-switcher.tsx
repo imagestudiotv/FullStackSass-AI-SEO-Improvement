@@ -11,6 +11,7 @@ import { toast } from "sonner";
 
 import { format } from "@/lib/i18n/format";
 import { selectWebsite } from "@/lib/websites/actions";
+import { websiteSwitchDestination } from "@/lib/websites/switch-destination";
 import { cn } from "@/lib/utils";
 // Type-only: erased at compile time, so the server-only module never reaches
 // the client bundle.
@@ -25,7 +26,7 @@ import type { WebsiteAccess } from "@/lib/websites/accessible";
  * about WHO owns a shared site: no workspace id or name ever reaches this
  * client component.
  */
-type SwitcherWebsite = {
+export type SwitcherWebsite = {
   id: string;
   domain: string;
   brandName: string | null;
@@ -51,6 +52,8 @@ export function WebsiteSwitcher({
   websites,
   current,
   compact = false,
+  inMenu = false,
+  onNavigate,
   t = getMessages("en").app.dash,
 }: {
   /** In display order: owned oldest first, then shared in order granted. */
@@ -58,6 +61,9 @@ export function WebsiteSwitcher({
   current: SwitcherWebsite;
   /** Smaller, for the header, where it sits beside the workspace picker. */
   compact?: boolean;
+  /** In a narrow navigation drawer, keep the options in its scroll flow. */
+  inMenu?: boolean;
+  onNavigate?: () => void;
   /** The switcher's wording, defaulting to English. */
   t?: Messages["app"]["dash"];
 }) {
@@ -95,7 +101,9 @@ export function WebsiteSwitcher({
     if (!open) return;
 
     function onPointerDown(event: PointerEvent) {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+      // Keep an inline drawer list stable until click completes. Collapsing
+      // it on pointerdown can move the link or close button under the pointer.
+      if (!inMenu && !rootRef.current?.contains(event.target as Node)) setOpen(false);
     }
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") setOpen(false);
@@ -107,7 +115,7 @@ export function WebsiteSwitcher({
       document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [open]);
+  }, [open, inMenu]);
 
   /**
    * Remember the choice, then go where it applies.
@@ -132,24 +140,22 @@ export function WebsiteSwitcher({
         option here — and pushing to its URL anyway would land on a 404
         after the cookie had already refused it.
       */
-      const result = await selectWebsite(id);
+      let result;
+      try {
+        result = await selectWebsite(id);
+      } catch {
+        toast.error(t.switchFailed);
+        return;
+      }
       if (!result.ok) {
         toast.error(result.error);
         router.refresh();
         return;
       }
 
-      const section = /^\/websites\/[^/]+(\/.*)?$/.exec(pathname);
-      if (section) {
-        router.push(`/websites/${id}${section[1] ?? ""}`);
-      } else {
-        // A query parameter, not a route: the dashboard is one page showing
-        // one site at a time. websites[0] is the dashboard's own default (the
-        // oldest owned site, else the first shared one - pickDashboardSite),
-        // so the bare /dashboard shows the same site.
-        router.push(id === websites[0]?.id ? "/dashboard" : `/dashboard?site=${id}`);
-      }
-      router.refresh();
+      // Load the destination with the accepted site cookie. Closing a mobile
+      // drawer unmounts this component and can interrupt its router transition.
+      window.location.assign(websiteSwitchDestination(pathname, id, websites[0]?.id));
     });
   }
 
@@ -176,7 +182,7 @@ export function WebsiteSwitcher({
         aria-selected={selected}
         onClick={() => choose(site.id)}
         className={cn(
-          "flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm transition-colors",
+          "flex min-h-11 w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm transition-colors",
           selected ? "bg-accent text-accent-foreground" : "hover:bg-accent/60",
         )}
       >
@@ -229,6 +235,7 @@ export function WebsiteSwitcher({
           compact
             ? "h-8 rounded-md px-2 text-sm"
             : "h-11 rounded-full pl-3 pr-2 text-base",
+          inMenu && "h-11 w-full justify-between rounded-md text-sm",
         )}
       >
         <Globe className="size-4 text-muted-foreground" aria-hidden="true" />
@@ -254,7 +261,7 @@ export function WebsiteSwitcher({
       {open ? (
         <div
             role="listbox"
-            className="absolute left-0 z-50 mt-2 max-h-[70vh] w-72 overflow-y-auto rounded-lg border bg-popover p-1 shadow-md"
+            className={cn("mt-2 rounded-lg border bg-popover p-1 shadow-md", inMenu ? "w-full" : "absolute left-0 z-50 max-h-[70vh] w-72 overflow-y-auto")}
           >
             {owned.map(renderOption)}
 
@@ -284,8 +291,8 @@ export function WebsiteSwitcher({
 
             <Link
               href="/websites/new"
-              onClick={() => setOpen(false)}
-              className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-sm font-medium text-primary transition-colors hover:bg-accent/60"
+              onClick={() => { setOpen(false); onNavigate?.(); }}
+              className="flex min-h-11 w-full items-center gap-2 rounded-md px-2.5 py-2 text-sm font-medium text-primary transition-colors hover:bg-accent/60"
             >
               <Plus className="size-4 shrink-0" aria-hidden="true" />
               {t.addAWebsite}

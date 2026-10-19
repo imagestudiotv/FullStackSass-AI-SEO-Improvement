@@ -277,6 +277,7 @@ function MobileMarketingNav({
     icon: PLATFORM_ICONS[index] ?? FileText,
   }));
   const links = [
+    { href: "/sign-in", label: t.nav.signIn },
     { href: href("/#how-it-works"), label: t.nav.howItWorks },
     { href: href("/success-stories"), label: t.nav.successStories },
     { href: href("/pricing"), label: t.nav.pricing },
@@ -290,7 +291,7 @@ function MobileMarketingNav({
         ref={button}
         variant="ghost"
         size="icon"
-        className="lg:hidden"
+        className="size-11 shrink-0 lg:hidden"
         aria-label={t.a11y.openMenu}
         aria-haspopup="dialog"
         aria-expanded={open}
@@ -319,6 +320,8 @@ function MobileMarketingNav({
           open={open}
           onOpenChange={setOpen}
           returnFocusTo={button}
+          themeLabel={t.a11y.darkMode}
+          menuLabel={t.a11y.openMenu}
           lang={locale}
           closeLabel={t.a11y.close}
           heading={t.nav.platformHeading}
@@ -383,13 +386,13 @@ export function MarketingNav({ chrome }: { chrome: SiteChrome }) {
         ))}
       </nav>
 
-      <div className="ml-auto flex items-center gap-2 lg:ml-0">
+      <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2 lg:ml-0">
         <MobileMarketingNav t={t} locale={locale} href={href} />
-        <ThemeToggle label={t.a11y.darkMode} />
-        <Button variant="ghost" size="sm" asChild>
+        <span className="hidden sm:contents"><ThemeToggle label={t.a11y.darkMode} /></span>
+        <Button variant="ghost" size="sm" className="hidden sm:inline-flex" asChild>
           <Link href="/sign-in">{t.nav.signIn}</Link>
         </Button>
-        <Button size="sm" asChild>
+        <Button size="sm" className="min-h-11 sm:min-h-0" asChild>
           <Link href="/sign-up">
             {t.nav.getStartedCta}
             <ArrowRight className="size-3.5" />

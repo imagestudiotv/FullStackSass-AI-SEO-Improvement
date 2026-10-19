@@ -4,6 +4,7 @@ import { Menu } from "lucide-react";
 import { useState } from "react";
 
 import { BrandLogo } from "@/components/brand-logo";
+import { WebsiteSwitcher, type SwitcherWebsite } from "@/components/dashboard/website-switcher";
 import { SidebarNav, type SidebarAddon } from "@/components/sidebar-nav";
 import type { Messages } from "@/lib/i18n/messages";
 import { Button } from "@/components/ui/button";
@@ -21,9 +22,17 @@ export function MobileNav({
   selectedWebsiteId = null,
   addons = [],
   hideAddons = false,
+  websites = [],
+  currentWebsite,
+  switcherText,
+  closeLabel,
   t,
 }: {
   onboardingComplete?: boolean;
+  websites?: SwitcherWebsite[];
+  currentWebsite?: SwitcherWebsite | null;
+  switcherText?: Messages["app"]["dash"];
+  closeLabel?: string;
   /**
    * Forwarded to SidebarNav, so a phone hides Add-ons in the same cases the
    * desktop sidebar does - otherwise an invitee could buy from the phone menu
@@ -57,12 +66,18 @@ export function MobileNav({
           <Menu className="size-5" />
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="w-64 p-0" closeLabel={t.main}>
+      <SheetContent side="left" className="w-80 overflow-y-auto overscroll-contain p-0" closeLabel={closeLabel}>
         <SheetHeader className="border-b p-4">
           <SheetTitle className="text-left">
-            <BrandLogo height={20} />
+            <span aria-hidden="true"><BrandLogo height={20} /></span>
+            <span className="sr-only">{t.main}</span>
           </SheetTitle>
         </SheetHeader>
+        {currentWebsite ? (
+          <div className="border-b p-3">
+            <WebsiteSwitcher websites={websites} current={currentWebsite} t={switcherText} inMenu onNavigate={() => setOpen(false)} />
+          </div>
+        ) : null}
         <SidebarNav
           onNavigate={() => setOpen(false)}
           onboardingComplete={onboardingComplete}

@@ -1,5 +1,7 @@
 import { CirclePause, Plus, Users } from "lucide-react";
 import Link from "next/link";
+import { Suspense } from "react";
+import { NextActions } from "@/components/dashboard/next-actions";
 
 import { AchievementsSection } from "@/components/dashboard/achievements";
 import {
@@ -297,6 +299,10 @@ export default async function DashboardPage({
       />
 
       <PendingInvitations invitations={inviteCards} t={inviteText} />
+
+      <Suspense fallback={<div className="h-28 animate-pulse rounded-xl border bg-card" aria-hidden="true" />}>
+        <NextActions websiteId={ctx.site.id} ownerOrgId={ctx.ownerOrgId} canManage={ctx.access === "owner"} locale={locale} />
+      </Suspense>
 
       {/*
         The reference layout: authority and today's article across the top,

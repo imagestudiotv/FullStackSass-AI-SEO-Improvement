@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { RefObject } from "react";
 
 import { BrandLogo } from "@/components/brand-logo";
+import { ThemeToggle } from "@/components/theme-toggle";
 import {
   Sheet,
   SheetContent,
@@ -34,6 +35,8 @@ export function MobileNavSheet({
   returnFocusTo,
   lang,
   closeLabel,
+  menuLabel,
+  themeLabel,
   heading,
   platform,
   links,
@@ -45,6 +48,8 @@ export function MobileNavSheet({
   lang: string;
   /** The close button's screen-reader label, in that language. */
   closeLabel: string;
+  menuLabel: string;
+  themeLabel: string;
   heading: string;
   platform: { title: string; href: string; icon: LucideIcon }[];
   links: { href: string; label: string }[];
@@ -65,11 +70,16 @@ export function MobileNavSheet({
       >
         <SheetHeader className="border-b p-4">
           <SheetTitle className="text-left">
-            <BrandLogo height={20} />
+            <span aria-hidden="true"><BrandLogo height={20} /></span>
+            <span className="sr-only">{menuLabel}</span>
           </SheetTitle>
         </SheetHeader>
 
         <div className="p-4">
+          <div className="mb-3 flex items-center justify-between gap-3 border-b pb-3 sm:hidden">
+            <span className="text-sm">{themeLabel}</span>
+            <ThemeToggle label={themeLabel} />
+          </div>
           <p className="px-2 pb-2 text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
             {heading}
           </p>

@@ -12,6 +12,13 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Floating help must not cover modal forms or navigation. Restore it when
+   the modal closes without discarding its current setup/chat state. */
+body:has([role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"])
+  :is([data-slot="setup-tracker"], .crisp-client) {
+  display: none !important;
+}
+
 /* ---------------------------------------------------------------------------
    BRAND PALETTE — change colours HERE and nowhere else.
    Neutral slate base with a single accent. Every component reads these tokens,

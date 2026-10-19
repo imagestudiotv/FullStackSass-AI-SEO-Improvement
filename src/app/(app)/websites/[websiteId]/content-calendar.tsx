@@ -12,7 +12,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Messages } from "@/lib/i18n/messages";
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useState, useSyncExternalStore, useTransition } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -151,6 +151,14 @@ function statusFor(article: ArticleRow | undefined): string {
   return "planned";
 }
 
+function subscribeCompact(onChange: () => void) {
+  const query = window.matchMedia("(max-width: 47.999rem)");
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
+}
+const compactSnapshot = () => window.matchMedia("(max-width: 47.999rem)").matches;
+const serverCompactSnapshot = () => false;
+
 export function ContentCalendar({
   websiteId,
   calendar,
@@ -170,6 +178,7 @@ export function ContentCalendar({
   tCommon: Messages["app"]["common"];
 }) {
   const router = useRouter();
+  const compact = useSyncExternalStore(subscribeCompact, compactSnapshot, serverCompactSnapshot);
   const [pending, startTransition] = useTransition();
   const [month, setMonth] = useState(() => startOfMonth(new Date()));
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -375,7 +384,7 @@ export function ContentCalendar({
         {/* Metrics only where they mean something: a written article's
             difficulty is history, not a decision to make. */}
         {!article && (item.difficulty !== null || item.volume !== null) ? (
-          <p className="mt-1 text-[0.65rem] text-muted-foreground">
+          <p className="mt-1 text-xs text-muted-foreground">
             {item.difficulty !== null ? `Difficulty ${item.difficulty}` : null}
             {item.difficulty !== null && item.volume !== null ? " · " : null}
             {item.volume !== null ? `Volume ${item.volume}` : null}
@@ -383,7 +392,7 @@ export function ContentCalendar({
         ) : null}
 
         {item.intent ? (
-          <p className="mt-1 truncate text-[0.65rem] capitalize text-muted-foreground">
+          <p className="mt-1 truncate text-xs capitalize text-muted-foreground">
             {item.intent}
           </p>
         ) : null}
@@ -394,7 +403,7 @@ export function ContentCalendar({
           which display:none on hover alone would not.
         */}
         {inProgress ? (
-          <p className="mt-1.5 rounded-md bg-muted/60 px-2 py-1.5 text-[0.65rem] leading-snug text-muted-foreground">
+          <p className="mt-1.5 rounded-md bg-muted/60 px-2 py-1.5 text-xs leading-snug text-muted-foreground">
             {tCommon.articleInProgress}
             </p>
         ) : null}
@@ -413,7 +422,7 @@ export function ContentCalendar({
               size="sm"
               disabled={pending}
               onClick={() => write(item.id)}
-              className="h-6 px-1.5 text-[0.65rem]"
+              className="h-11 px-3 text-xs"
             >
               {busy ? (
                 <Loader2 className="size-3 animate-spin" />
@@ -432,7 +441,7 @@ export function ContentCalendar({
                 setEditingId(item.id);
                 setDraft(item.title);
               }}
-              className="h-6 px-1.5"
+              className="size-11 p-2"
             >
               <Pencil className="size-3" />
             </Button>
@@ -447,7 +456,7 @@ export function ContentCalendar({
                 setDraftNotes(item.customInstructions ?? "");
               }}
               className={cn(
-                "h-6 px-1.5",
+                "size-11 p-2",
                 // A filled-in note is worth seeing without hovering.
                 item.customInstructions && "text-primary opacity-100",
               )}
@@ -461,7 +470,7 @@ export function ContentCalendar({
               aria-label={t.removeFromPlan}
               disabled={pending}
               onClick={() => remove(item.id)}
-              className="h-6 px-1.5 text-muted-foreground hover:text-destructive"
+              className="size-11 p-2 text-muted-foreground hover:text-destructive"
             >
               <Trash2 className="size-3" />
             </Button>
@@ -479,7 +488,7 @@ export function ContentCalendar({
               if (event.key === "Escape") setNotesId(null);
             }}
             placeholder={t.instructionsPlaceholder}
-            className="mt-1.5 w-full rounded border border-input bg-transparent p-1.5 text-[0.65rem] outline-none focus-visible:border-ring"
+            className="mt-1.5 w-full rounded border border-input bg-transparent p-1.5 text-xs outline-none focus-visible:border-ring"
           />
         ) : null}
       </div>
@@ -514,6 +523,7 @@ export function ContentCalendar({
             type="button"
             variant="outline"
             size="sm"
+            className="size-11"
             aria-label={t.previousMonth}
             onClick={() => shiftMonth(-1)}
           >
@@ -529,6 +539,7 @@ export function ContentCalendar({
             type="button"
             variant="outline"
             size="sm"
+            className="size-11"
             aria-label={t.nextMonth}
             onClick={() => shiftMonth(1)}
           >
@@ -546,6 +557,20 @@ export function ContentCalendar({
         day lists them in full beside it, which keeps the month readable at a
         glance and gives the articles room to be read.
       */}
+      {compact ? (
+        <section aria-label={t.agenda} className="space-y-4">
+          <h3 className="text-sm font-semibold">{t.agenda}</h3>
+          {[...byDay.keys()].filter(key => key.startsWith(dayKey(month).slice(0, 7))).sort().map(key => (
+            <section key={key} className="space-y-2">
+              <h4 className="border-b pb-2 text-sm font-medium">{dayLabel(key)}</h4>
+              {byDay.get(key)!.map(renderItem)}
+            </section>
+          ))}
+          {![...byDay.keys()].some(key => key.startsWith(dayKey(month).slice(0, 7))) ? (
+            <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">{t.emptyMonth}</p>
+          ) : null}
+        </section>
+      ) : (
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="overflow-x-auto">
           <div className="min-w-[34rem]">
@@ -678,6 +703,8 @@ export function ContentCalendar({
           )}
         </div>
       </div>
+
+      )}
 
       {undated.length > 0 ? (
         <div className="space-y-2">

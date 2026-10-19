@@ -37,7 +37,7 @@ const GROUPS: { lead: Panel; supporting: [Panel, Panel] }[] = [
   {
     lead: {
       headline: "Articles written and published for you",
-      body: "Researched against what your customers actually search for, written for your site, and posted to it - WordPress, Ghost, Shopify or a webhook. You approve them first unless you say otherwise.",
+      body: "Researched against what your customers actually search for, written for your site, and delivered through your publishing connection. Review your publishing settings when you connect your website.",
     },
     supporting: [
       {
@@ -45,8 +45,8 @@ const GROUPS: { lead: Panel; supporting: [Panel, Panel] }[] = [
         body: "Your plan decides the pace. The calendar spreads them across the month rather than dumping them in a day.",
       },
       {
-        headline: "Nothing publishes behind your back",
-        body: "Auto-publish is off until you turn it on.",
+        headline: "Know when your articles go live",
+        body: "New websites start with automatic live publishing. The first article is sent as soon as it is ready and your site is connected; later articles follow your publishing settings and planned dates.",
       },
     ],
   },

@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import type { Messages } from "@/lib/i18n/messages";
 import Link from "next/link";
 import {
@@ -19,6 +18,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth-client";
+import { localAuthRedirect } from "@/lib/auth/local-origin";
 import { authSwitchHref, CALLBACK_URL, safeNext } from "@/lib/auth/next";
 import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from "@/lib/auth/password-policy";
 import { Button } from "@/components/ui/button";
@@ -90,8 +90,13 @@ export function AuthForm({
    */
   t: Messages["app"]["auth"];
 }) {
-  const router = useRouter();
   const isSignUp = mode === "sign-up";
+
+  useEffect(() => {
+    if (process.env.NODE_ENV === "production") return;
+    const canonical = localAuthRedirect(window.location.href, process.env.NEXT_PUBLIC_APP_URL);
+    if (canonical) window.location.replace(canonical);
+  }, []);
 
   const [name, setName] = useState("");
   // Prefilled for an invitation - see the initialEmail prop.
@@ -177,134 +182,85 @@ export function AuthForm({
     return error.status === 429 ? t.tooManyAttempts : (error.message ?? fallback);
   }
 
-  async function handleGoogle() {
-    setGooglePending(true);
-    const { error } = await authClient.signIn.social({
-      provider: "google",
-      callbackURL: next,
-      /**
-       * Where a failure DURING the OAuth round trip lands.
-       *
-       * Without this it defaults to the site root, so a failed Google sign-in
-       * dropped the customer on the marketing homepage with ?error=... in the
-       * address bar and nothing reading it — they simply appeared not to be
-       * signed in, with no reason given. Sending it back to the sign-in page
-       * puts the message beside the buttons that produced it.
-       *
-       * The `error` returned here does NOT cover that case: it only catches
-       * failures before the browser leaves for Google.
-       *
-       * ?next= is kept when it says anything. A bare "/sign-in" here was one
-       * of the ways an invitation got lost: cancelling Google on an
-       * invitation's sign-up page came back to a sign-in page that no longer
-       * knew about the invitation, and the next sign-in went to the
-       * dashboard. Better Auth appends ?error= with the right separator, and
-       * `next` has already been through safeNext, so this is a path on this
-       * origin with its own query safely encoded. The default is left out
-       * because the page falls back to it anyway.
-       */
-      errorCallbackURL:
-        next === CALLBACK_URL
-          ? "/sign-in"
-          : `/sign-in?next=${encodeURIComponent(next)}`,
-    });
-    if (error) {
-      setGooglePending(false);
-      toast.error(failure(error, "Google sign-in failed"));
+  async function runRequest(
+    request: () => Promise<{ error?: { status?: number; message?: string } | null }>,
+    onSuccess: () => void,
+    fallback: string,
+    google = false,
+  ) {
+    const setBusy = google ? setGooglePending : setPending;
+    setBusy(true);
+    try {
+      const { error } = await request();
+      if (error) {
+        toast.error(failure(error, fallback));
+        return;
+      }
+      onSuccess();
+    } catch {
+      toast.error(t.connectionFailed);
+    } finally {
+      setBusy(false);
     }
   }
 
-  /**
-   * Step one: ask for a code.
-   *
-   * The response is deliberately not inspected for "does this account exist".
-   * Better Auth answers the same way either way, and so does this — a form
-   * that says "no account with that address" tells anybody who asks which of
-   * your customers' addresses are registered.
-   */
+  // Start one fresh authenticated request. push + refresh rendered the
+  // expensive dashboard twice and could retain the previous anonymous cache.
+  const enterApp = () => window.location.assign(next);
+
+  async function handleGoogle() {
+    await runRequest(
+      () => authClient.signIn.social({
+        provider: "google",
+        callbackURL: next,
+        errorCallbackURL: next === CALLBACK_URL ? "/sign-in" : `/sign-in?next=${encodeURIComponent(next)}`,
+      }),
+      () => {}, // Better Auth performs the OAuth redirect.
+      "Google sign-in failed",
+      true,
+    );
+  }
+
   async function handleRequestCode() {
     const cleanEmail = email.trim();
     if (!cleanEmail) {
       toast.error(t.enterEmailFirst);
       return;
     }
-
-    setPending(true);
-    const { error } = await authClient.emailOtp.sendVerificationOtp({
-      email: cleanEmail,
-      type: "sign-in",
-    });
-    setPending(false);
-
-    if (error) {
-      toast.error(failure(error, t.codeNotSent));
-      return;
-    }
-
-    setCodeSent(true);
-    setCode("");
-    toast.success(t.codeSent);
+    await runRequest(
+      () => authClient.emailOtp.sendVerificationOtp({ email: cleanEmail, type: "sign-in" }),
+      () => {
+        setCodeSent(true);
+        setCode("");
+        toast.success(t.codeSent);
+      },
+      t.codeNotSent,
+    );
   }
 
-  /** Step two: exchange the code for a session. */
   async function handleVerifyCode(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setPending(true);
-
-    const { error } = await authClient.signIn.emailOtp({
-      email: email.trim(),
-      otp: code.trim(),
-    });
-
-    if (error) {
-      setPending(false);
-      /*
-        The code stays in the field on failure. Clearing it would be the
-        obvious thing and the wrong one: the usual cause is one mistyped
-        digit, and retyping all six to fix one is worse than correcting it.
-      */
-      toast.error(failure(error, t.codeInvalid));
-      return;
-    }
-
-    router.push(next);
-    router.refresh();
+    await runRequest(
+      () => authClient.signIn.emailOtp({ email: email.trim(), otp: code.trim() }),
+      enterApp,
+      t.codeInvalid,
+    );
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setPending(true);
-
-    /**
-     * Trimmed before sending. Pasted credentials routinely carry a trailing
-     * space, which fails the browser's own email validation and shows an
-     * "Invalid email" tooltip before the request is ever made — a confusing
-     * dead end for the customer.
-     */
-    const cleanEmail = email.trim();
-
     if (isSignUp && password.length > MAX_PASSWORD_LENGTH) {
-      setPending(false);
       toast.error(t.passwordTooLong);
       return;
     }
-
-    const { error } = isSignUp
-      ? await authClient.signUp.email({
-          name: name.trim(),
-          email: cleanEmail,
-          password,
-        })
-      : await authClient.signIn.email({ email: cleanEmail, password });
-
-    if (error) {
-      setPending(false);
-      toast.error(failure(error, "Something went wrong"));
-      return;
-    }
-
-    router.push(next);
-    router.refresh();
+    const cleanEmail = email.trim();
+    await runRequest(
+      () => isSignUp
+        ? authClient.signUp.email({ name: name.trim(), email: cleanEmail, password })
+        : authClient.signIn.email({ email: cleanEmail, password }),
+      enterApp,
+      "Something went wrong",
+    );
   }
 
   return (

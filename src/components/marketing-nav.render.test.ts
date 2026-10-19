@@ -169,6 +169,8 @@ describe("the header's screen-reader labels", () => {
         open: true,
         onOpenChange: () => {},
         returnFocusTo: { current: null },
+        themeLabel: chrome.it.a11y.darkMode,
+        menuLabel: chrome.it.a11y.openMenu,
         lang: "it",
         closeLabel: chrome.it.a11y.close,
         heading: chrome.it.nav.platformHeading,

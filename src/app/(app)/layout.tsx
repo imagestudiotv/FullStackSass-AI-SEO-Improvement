@@ -248,6 +248,10 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <MobileNav
           t={t.app.nav}
+          websites={switcherWebsites}
+          currentWebsite={switcherCurrent}
+          switcherText={t.app.dash}
+          closeLabel={t.app.common.close}
           onboardingComplete={onboardingComplete}
           setupProgress={setupProgress}
           selectedWebsiteId={fallbackWebsiteId}

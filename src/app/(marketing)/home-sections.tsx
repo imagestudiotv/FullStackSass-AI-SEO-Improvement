@@ -335,7 +335,7 @@ export function Hero({ t, href }: SectionProps) {
         Floating cards, wide screens only, in the DOM too (see WideScreenOnly):
         a phone never builds or hydrates these cards. They appear just after
         hydration on a wide screen, so they fade in rather than pop. The
-        xl:block below still decides what shows if a window is resized across
+        2xl:block below still decides what shows if a window is resized across
         the breakpoint.
       */}
       <WideScreenOnly>
@@ -344,7 +344,7 @@ export function Hero({ t, href }: SectionProps) {
           Inset from the top rather than pinned to it, so no card can slide
           under the sticky header however these offsets are tuned later.
         */
-        className="pointer-events-none absolute inset-x-0 top-6 mx-auto hidden h-full max-w-7xl motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-500 xl:block"
+        className="pointer-events-none absolute inset-x-0 top-6 mx-auto hidden h-full max-w-[96rem] motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-500 2xl:block"
         aria-hidden="true"
       >
         {/*
@@ -997,12 +997,12 @@ function CardTitle({
   example: string;
 }) {
   return (
-    <div className="flex items-start justify-between gap-3">
-      <div className="flex items-start gap-3">
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex min-w-0 items-start gap-3">
         <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10">
           <Icon className="size-4.5 text-primary" aria-hidden="true" />
         </span>
-        <div>
+        <div className="min-w-0 break-words">
           <h3 className="text-sm font-semibold">{label}</h3>
           <p className="text-xs text-muted-foreground">{detail}</p>
         </div>
@@ -1183,12 +1183,12 @@ export function BacklinkNetwork({ t, href }: SectionProps) {
         </div>
 
         <div className={`${CARD} relative p-5 sm:p-6`}>
-          <div className="flex items-center justify-between gap-3">
-            <p className="flex items-center gap-2.5 text-sm font-semibold">
-              <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="flex min-w-0 items-center gap-2.5 text-sm font-semibold">
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
                 <Link2 className="size-4 text-primary" aria-hidden="true" />
               </span>
-              {card.label}
+              <span className="min-w-0 break-words">{card.label}</span>
             </p>
             <ExampleChip label={t.exampleLabel} />
           </div>
@@ -1516,7 +1516,7 @@ export function ClosingCta({ t, href }: SectionProps) {
         <p className="mx-auto mt-4 max-w-3xl text-pretty text-white/75 sm:text-lg">{t.closingSub}</p>
 
         <div className="mt-9 flex flex-wrap justify-center gap-3 sm:gap-4">
-          <Button size="lg" asChild className={`${CTA} h-14 px-8 font-semibold sm:text-lg`}>
+          <Button size="lg" asChild className={`${CTA} h-auto min-h-14 max-w-full whitespace-normal px-5 py-3 font-semibold sm:px-8 sm:text-lg`}>
             <Link href={href("/audit")}>
               {t.checkFree}
               <ArrowRight className="size-5" />
@@ -1526,7 +1526,7 @@ export function ClosingCta({ t, href }: SectionProps) {
             size="lg"
             variant="outline"
             asChild
-            className={`${CTA} h-14 border-white bg-white px-8 font-semibold text-[#171717] hover:bg-white/90 hover:text-[#171717] sm:text-lg dark:border-white dark:bg-white dark:text-[#171717] dark:hover:bg-white/90`}
+            className={`${CTA} h-auto min-h-14 max-w-full whitespace-normal border-white bg-white px-5 py-3 font-semibold text-[#171717] hover:bg-white/90 hover:text-[#171717] sm:px-8 sm:text-lg dark:border-white dark:bg-white dark:text-[#171717] dark:hover:bg-white/90`}
           >
             <Link href={href("/sign-up")}>
               {t.createFreeArticles}

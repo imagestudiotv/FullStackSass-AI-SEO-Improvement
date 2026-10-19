@@ -3,7 +3,7 @@
 import { ChevronDown, Package } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { navItems } from "@/lib/nav-items";
 import type { Messages } from "@/lib/i18n/messages";
@@ -92,6 +92,7 @@ export function SidebarNav({
   // The URL still wins: someone on /websites/abc/google is looking at abc
   // whatever they last chose in the switcher.
   const websiteId = fromPath ?? selectedWebsiteId;
+  const rememberedRoute = useRef<string | null | undefined>(undefined);
 
   /**
    * Record the website when the address names one.
@@ -105,8 +106,14 @@ export function SidebarNav({
    * website does not post on every page change.
    */
   useEffect(() => {
+    // A switch updates the cookie before navigation completes. Remember each
+    // route once so this effect cannot write the old site back in that gap.
+    if (rememberedRoute.current === fromPath) return;
+    rememberedRoute.current = fromPath;
     if (!fromPath || fromPath === selectedWebsiteId) return;
-    void selectWebsite(fromPath);
+    void selectWebsite(fromPath).catch(() => {
+      // The current route still works; let a later route visit retry.
+    });
   }, [fromPath, selectedWebsiteId]);
 
   /**

@@ -1601,6 +1601,12 @@ export type Messages = {
       plannedArticles: string;
       plannedHelp: string;
       articles: string;
+      searchArticles: string;
+      allStatuses: string;
+      noArticleMatch: string;
+      clearFilters: string;
+      articlePages: string;
+      deleteArticleLabel: string;
       articlesHelp: string;
       nothingWritten: string;
       write: string;
@@ -1958,6 +1964,8 @@ export type Messages = {
       addInstructions: string;
       removeFromPlan: string;
       instructionsPlaceholder: string;
+      agenda: string;
+      emptyMonth: string;
       previousMonth: string;
       nextMonth: string;
       savedInstructions: string;
@@ -2875,6 +2883,7 @@ export type Messages = {
       articleType: string;
       whyThisTopic: string;
       view: string;
+      switchFailed: string;
       addAWebsite: string;
       /** Heading of the switcher's group of websites shared with the reader. */
       sharedWithYou: string;
@@ -2943,6 +2952,7 @@ export type Messages = {
       resendCode: string;
       useDifferentEmail: string;
       codeSent: string;
+      connectionFailed: string;
       codeNotSent: string;
       codeInvalid: string;
       enterEmailFirst: string;
@@ -4693,8 +4703,14 @@ const en: Messages = {
       planBusy: "Your plan is being built right now - press {button} once it is ready to include them.",
       monthUsedUp: "This month's articles have all been used, so nothing new was planned. Your content plan is rebuilt automatically when your plan renews.",
       plannedArticles: "Planned articles",
-      plannedHelp: "Your content plan, by the day each article is due. Hover a planned topic to write it now, change it, or take it off the plan.",
+      plannedHelp: "Your content plan, by the day each article is due. Use a topic's controls to write it now, change it, or remove it from the plan.",
       articles: "Articles",
+      searchArticles: "Search articles",
+      allStatuses: "All statuses",
+      noArticleMatch: "No articles match these filters.",
+      clearFilters: "Clear filters",
+      articlePages: "Article pages",
+      deleteArticleLabel: "Delete {title}",
       articlesHelp: "Written from your content plan. Open one to read, edit or rewrite it.",
       nothingWritten: "Nothing written yet. Use",
       write: "Write",
@@ -4992,6 +5008,8 @@ const en: Messages = {
       addInstructions: "Add instructions",
       removeFromPlan: "Remove from plan",
       instructionsPlaceholder: "Anything this article should cover or avoid.",
+      agenda: "Monthly agenda",
+      emptyMonth: "Nothing planned for this month.",
       previousMonth: "Previous month",
       nextMonth: "Next month",
       savedInstructions: "Saved - we will use this when writing",
@@ -5869,6 +5887,7 @@ const en: Messages = {
       articleType: "Article type",
       whyThisTopic: "Why this topic?",
       view: "View",
+      switchFailed: "Could not switch websites. Try again.",
       addAWebsite: "Add a website",
       sharedWithYou: "Shared with you",
       sharedSiteLabel: "Shared with you · {role}",
@@ -5925,6 +5944,7 @@ const en: Messages = {
       resendCode: "Send another code",
       useDifferentEmail: "Use a different email",
       codeSent: "Check your email for the code.",
+      connectionFailed: "We could not reach RepGet. Check your connection and try again.",
       codeNotSent: "That code could not be sent. Try again.",
       codeInvalid: "That code is not right, or it has expired.",
       enterEmailFirst: "Enter your email address first.",
@@ -7693,8 +7713,14 @@ const es: Messages = {
       planBusy: "Su plan se está creando ahora mismo: pulse {button} cuando esté listo para incluirlas.",
       monthUsedUp: "Ya se han usado todos los artículos de este mes, así que no se ha planificado nada nuevo. Su plan de contenido se reconstruirá automáticamente cuando se renueve su plan.",
       plannedArticles: "Artículos planificados",
-      plannedHelp: "Su plan de contenidos, por el día en que vence cada artículo. Pase el cursor sobre un tema planificado para escribirlo ahora, cambiarlo o quitarlo del plan.",
+      plannedHelp: "Su plan de contenidos, por el día en que vence cada artículo. Use los controles de un tema para escribirlo ahora, cambiarlo o quitarlo del plan.",
       articles: "Artículos",
+      searchArticles: "Buscar artículos",
+      allStatuses: "Todos los estados",
+      noArticleMatch: "Ningún artículo coincide con estos filtros.",
+      clearFilters: "Borrar filtros",
+      articlePages: "Páginas de artículos",
+      deleteArticleLabel: "Eliminar {title}",
       articlesHelp: "Escritos a partir de su plan de contenidos. Abra uno para leerlo, editarlo o reescribirlo.",
       nothingWritten: "Todavía no hay nada escrito. Use",
       write: "Escribir",
@@ -7992,6 +8018,8 @@ const es: Messages = {
       addInstructions: "Añadir instrucciones",
       removeFromPlan: "Quitar del plan",
       instructionsPlaceholder: "Cualquier cosa que este artículo deba tratar o evitar.",
+      agenda: "Agenda mensual",
+      emptyMonth: "Nada planificado para este mes.",
       previousMonth: "Mes anterior",
       nextMonth: "Mes siguiente",
       savedInstructions: "Guardado - lo usaremos al escribir",
@@ -8870,6 +8898,7 @@ const es: Messages = {
       articleType: "Tipo de artículo",
       whyThisTopic: "¿Por qué este tema?",
       view: "Ver",
+      switchFailed: "No se pudo cambiar de sitio web. Inténtelo de nuevo.",
       addAWebsite: "Añadir un sitio web",
       sharedWithYou: "Compartidos con usted",
       sharedSiteLabel: "Compartido con usted · {role}",
@@ -8926,6 +8955,7 @@ const es: Messages = {
       resendCode: "Enviar otro código",
       useDifferentEmail: "Usar otro correo",
       codeSent: "Revise su correo para ver el código.",
+      connectionFailed: "No pudimos conectar con RepGet. Compruebe su conexión e inténtelo de nuevo.",
       codeNotSent: "No se ha podido enviar el código. Inténtelo de nuevo.",
       codeInvalid: "Ese código no es correcto o ha caducado.",
       enterEmailFirst: "Introduzca primero su correo electrónico.",
@@ -10696,8 +10726,14 @@ const fr: Messages = {
       planBusy: "Votre plan est en cours de création : appuyez sur {button} une fois qu’il est prêt pour les inclure.",
       monthUsedUp: "Tous les articles de ce mois ont déjà été utilisés, rien de nouveau n’a donc été planifié. Votre plan de contenu sera reconstruit automatiquement au renouvellement de votre forfait.",
       plannedArticles: "Articles planifiés",
-      plannedHelp: "Votre plan de contenu, par date de publication prévue. Survolez un sujet planifié pour le rédiger maintenant, le modifier ou le retirer du plan.",
+      plannedHelp: "Votre plan de contenu, par date de publication prévue. Utilisez les commandes d’un sujet pour le rédiger maintenant, le modifier ou le retirer du plan.",
       articles: "Articles",
+      searchArticles: "Rechercher des articles",
+      allStatuses: "Tous les statuts",
+      noArticleMatch: "Aucun article ne correspond à ces filtres.",
+      clearFilters: "Effacer les filtres",
+      articlePages: "Pages des articles",
+      deleteArticleLabel: "Supprimer {title}",
       articlesHelp: "Rédigés à partir de votre plan de contenu. Ouvrez-en un pour le lire, le modifier ou le réécrire.",
       nothingWritten: "Rien de rédigé pour l\u2019instant. Utilisez",
       write: "Rédiger",
@@ -10995,6 +11031,8 @@ const fr: Messages = {
       addInstructions: "Ajouter des consignes",
       removeFromPlan: "Retirer du plan",
       instructionsPlaceholder: "Ce que cet article doit aborder ou éviter.",
+      agenda: "Programme du mois",
+      emptyMonth: "Rien de prévu ce mois-ci.",
       previousMonth: "Mois précédent",
       nextMonth: "Mois suivant",
       savedInstructions: "Enregistré - nous l\u2019utiliserons à la rédaction",
@@ -11872,6 +11910,7 @@ const fr: Messages = {
       articleType: "Type d\u2019article",
       whyThisTopic: "Pourquoi ce sujet ?",
       view: "Voir",
+      switchFailed: "Impossible de changer de site. Réessayez.",
       addAWebsite: "Ajouter un site",
       sharedWithYou: "Partagés avec vous",
       sharedSiteLabel: "Partagé avec vous · {role}",
@@ -11928,6 +11967,7 @@ const fr: Messages = {
       resendCode: "Envoyer un autre code",
       useDifferentEmail: "Utiliser une autre adresse",
       codeSent: "Consultez votre boîte mail pour le code.",
+      connectionFailed: "Impossible de joindre RepGet. Vérifiez votre connexion et réessayez.",
       codeNotSent: "Ce code n\u2019a pas pu être envoyé. Réessayez.",
       codeInvalid: "Ce code est incorrect ou a expiré.",
       enterEmailFirst: "Saisissez d\u2019abord votre adresse e-mail.",
@@ -13696,8 +13736,14 @@ const it: Messages = {
       planBusy: "Il suo piano è in costruzione proprio ora: prema {button} quando è pronto per includerle.",
       monthUsedUp: "Gli articoli di questo mese sono già stati usati tutti, quindi non è stato pianificato nulla di nuovo. Il suo piano dei contenuti verrà ricostruito automaticamente al rinnovo del suo piano.",
       plannedArticles: "Articoli pianificati",
-      plannedHelp: "Il suo piano dei contenuti, per giorno di pubblicazione previsto. Passi il cursore su un argomento pianificato per scriverlo subito, modificarlo o toglierlo dal piano.",
+      plannedHelp: "Il suo piano dei contenuti, per giorno di pubblicazione previsto. Usi i controlli di un argomento per scriverlo subito, modificarlo o toglierlo dal piano.",
       articles: "Articoli",
+      searchArticles: "Cerca articoli",
+      allStatuses: "Tutti gli stati",
+      noArticleMatch: "Nessun articolo corrisponde a questi filtri.",
+      clearFilters: "Cancella filtri",
+      articlePages: "Pagine degli articoli",
+      deleteArticleLabel: "Elimina {title}",
       articlesHelp: "Scritti a partire dal suo piano dei contenuti. Ne apra uno per leggerlo, modificarlo o riscriverlo.",
       nothingWritten: "Ancora nulla di scritto. Usi",
       write: "Scrivi",
@@ -13995,6 +14041,8 @@ const it: Messages = {
       addInstructions: "Aggiungi istruzioni",
       removeFromPlan: "Togli dal piano",
       instructionsPlaceholder: "Qualsiasi cosa questo articolo debba trattare o evitare.",
+      agenda: "Agenda mensile",
+      emptyMonth: "Nulla in programma per questo mese.",
       previousMonth: "Mese precedente",
       nextMonth: "Mese successivo",
       savedInstructions: "Salvato - lo useremo in fase di scrittura",
@@ -14873,6 +14921,7 @@ const it: Messages = {
       articleType: "Tipo di articolo",
       whyThisTopic: "Perché questo argomento?",
       view: "Vedi",
+      switchFailed: "Impossibile cambiare sito. Riprovi.",
       addAWebsite: "Aggiungi un sito",
       sharedWithYou: "Condivisi con lei",
       sharedSiteLabel: "Condiviso con lei · {role}",
@@ -14929,6 +14978,7 @@ const it: Messages = {
       resendCode: "Invia un altro codice",
       useDifferentEmail: "Usa un\u2019altra e-mail",
       codeSent: "Controlli la sua e-mail per il codice.",
+      connectionFailed: "Impossibile connettersi a RepGet. Controlli la connessione e riprovi.",
       codeNotSent: "Non è stato possibile inviare il codice. Riprovi.",
       codeInvalid: "Il codice non è corretto o è scaduto.",
       enterEmailFirst: "Inserisca prima il suo indirizzo e-mail.",
@@ -16695,8 +16745,14 @@ const de: Messages = {
       planBusy: "Ihr Plan wird gerade erstellt - klicken Sie auf {button}, sobald er fertig ist, um sie aufzunehmen.",
       monthUsedUp: "Die Artikel dieses Monats sind bereits alle verbraucht, daher wurde nichts Neues geplant. Ihr Inhaltsplan wird bei der Verlängerung Ihres Tarifs automatisch neu erstellt.",
       plannedArticles: "Geplante Artikel",
-      plannedHelp: "Ihr Contentplan, nach dem Tag, an dem jeder Artikel fällig ist. Fahren Sie über ein geplantes Thema, um es jetzt zu schreiben, zu ändern oder aus dem Plan zu nehmen.",
+      plannedHelp: "Ihr Contentplan, nach dem Tag, an dem jeder Artikel fällig ist. Nutzen Sie die Schaltflächen eines Themas, um es jetzt zu schreiben, zu ändern oder aus dem Plan zu nehmen.",
       articles: "Artikel",
+      searchArticles: "Artikel suchen",
+      allStatuses: "Alle Status",
+      noArticleMatch: "Keine Artikel entsprechen diesen Filtern.",
+      clearFilters: "Filter zurücksetzen",
+      articlePages: "Artikelseiten",
+      deleteArticleLabel: "{title} löschen",
       articlesHelp: "Aus Ihrem Contentplan geschrieben. Öffnen Sie einen, um ihn zu lesen, zu bearbeiten oder neu schreiben zu lassen.",
       nothingWritten: "Noch nichts geschrieben. Nutzen Sie",
       write: "Schreiben",
@@ -16994,6 +17050,8 @@ const de: Messages = {
       addInstructions: "Anweisungen hinzufügen",
       removeFromPlan: "Aus dem Plan entfernen",
       instructionsPlaceholder: "Alles, was dieser Artikel behandeln oder vermeiden soll.",
+      agenda: "Monatsübersicht",
+      emptyMonth: "Für diesen Monat ist nichts geplant.",
       previousMonth: "Voriger Monat",
       nextMonth: "Nächster Monat",
       savedInstructions: "Gespeichert - wir verwenden das beim Schreiben",
@@ -17871,6 +17929,7 @@ const de: Messages = {
       articleType: "Artikelart",
       whyThisTopic: "Warum dieses Thema?",
       view: "Ansehen",
+      switchFailed: "Die Website konnte nicht gewechselt werden. Versuchen Sie es erneut.",
       addAWebsite: "Website hinzufügen",
       sharedWithYou: "Mit Ihnen geteilt",
       sharedSiteLabel: "Mit Ihnen geteilt · {role}",
@@ -17927,6 +17986,7 @@ const de: Messages = {
       resendCode: "Neuen Code senden",
       useDifferentEmail: "Andere E-Mail verwenden",
       codeSent: "Sehen Sie in Ihrem Postfach nach dem Code.",
+      connectionFailed: "RepGet ist nicht erreichbar. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
       codeNotSent: "Der Code konnte nicht gesendet werden. Versuchen Sie es erneut.",
       codeInvalid: "Der Code ist falsch oder abgelaufen.",
       enterEmailFirst: "Geben Sie zuerst Ihre E-Mail-Adresse ein.",

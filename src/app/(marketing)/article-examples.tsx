@@ -82,7 +82,7 @@ export function ArticleExamples({ t, articles }: { t: Articles; articles: RealAr
         role="tablist"
         aria-label={t.selectorLabel}
         onKeyDown={onKeyDown}
-        className="grid grid-cols-3 gap-2 lg:grid-cols-1 lg:content-start lg:gap-3"
+        className="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:grid-cols-1 lg:content-start lg:gap-3"
       >
         {articles.map((item, index) => {
           const selected = index === active;
@@ -99,14 +99,14 @@ export function ArticleExamples({ t, articles }: { t: Articles; articles: RealAr
               aria-controls={`${base}-panel`}
               tabIndex={selected ? 0 : -1}
               onClick={() => setActive(index)}
-              className={`rounded-xl border p-2.5 text-center transition-colors focus-visible:ring-3 focus-visible:ring-primary/40 focus-visible:outline-none lg:p-4 lg:text-left ${
+              className={`min-w-0 rounded-xl border p-2.5 text-center transition-colors focus-visible:ring-3 focus-visible:ring-primary/40 focus-visible:outline-none lg:p-4 lg:text-left ${
                 selected
                   ? "border-primary/40 bg-primary/[0.05] shadow-sm"
                   : "bg-card hover:border-primary/25 hover:bg-primary/[0.02]"
               }`}
             >
               <span
-                className={`block text-xs font-semibold ${selected ? "text-primary-strong" : "text-muted-foreground"}`}
+                className={`block break-words text-xs font-semibold ${selected ? "text-primary-strong" : "text-muted-foreground"}`}
               >
                 {t.kinds[item.kind]}
               </span>

@@ -260,14 +260,17 @@ export async function getDashboardOverview(
 
   const window = resolveWindow(input.range);
   const subject = { websiteId: site.id, orgId: input.ownerOrgId, domain: site.domain };
+  // The summary and achievements use the same period; share their queries.
+  const metricsPromise = backlinkMetrics(subject, window);
+  const historyPromise = receivedHistory(subject, window);
   const [credits, backlinks, history, todaysArticle, wins, bestArticles, achievements, search] = await Promise.all([
     input.showCredits ? workspaceCredits(input.ownerOrgId).catch(() => null) : Promise.resolve(null),
-    load("backlinks", () => backlinkMetrics(subject, window)),
-    load("history", () => receivedHistory(subject, window)),
+    load("backlinks", () => metricsPromise),
+    load("history", () => historyPromise),
     load("todays_article", () => loadTodaysArticle(site.id)),
     load("wins", () => loadWins(subject)),
     load("best_articles", () => loadBestArticles(site.id, site.domain)),
-    load("achievements", () => loadAchievements(subject, window)),
+    load("achievements", () => loadAchievements(subject, window, metricsPromise, historyPromise)),
     load("search", () => loadSearch(site.id, window)),
   ]);
   /*
@@ -452,7 +455,10 @@ async function loadBestArticles(websiteId: string, domain: string): Promise<{ th
   };
 }
 
-async function loadAchievements(subject: { websiteId: string; orgId: string; domain: string }, window: ReportWindow): Promise<Achievements> {
+async function loadAchievements(
+  subject: { websiteId: string; orgId: string; domain: string }, window: ReportWindow,
+  metricsPromise: Promise<BacklinkMetrics>, historyPromise: Promise<History>,
+): Promise<Achievements> {
   const policy = await activePolicy();
   const valuation = clickValuation(policy);
   const fromDay = isoDay(window.from);
@@ -542,8 +548,8 @@ async function loadAchievements(subject: { websiteId: string; orgId: string; dom
       select (select max(date)::text from gsc_page_metrics where website_id = ${subject.websiteId}) as gsc,
              (select max(date)::text from ga_metrics where website_id = ${subject.websiteId}) as ga
     `),
-    backlinkMetrics(subject, window),
-    receivedHistory(subject, window),
+    metricsPromise,
+    historyPromise,
     readOneAuthority(subject.domain),
     db.select({ score: audits.score }).from(audits).where(and(eq(audits.websiteId, subject.websiteId), sql`${audits.score} is not null`)).orderBy(desc(audits.createdAt)).limit(1),
   ]);

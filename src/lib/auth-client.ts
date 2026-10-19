@@ -20,6 +20,7 @@ import type { auth } from "@/lib/auth";
  */
 export const authClient = createAuthClient({
   baseURL: process.env.NEXT_PUBLIC_APP_URL,
+  fetchOptions: { timeout: 20_000 },
   plugins: [
     organizationClient(),
     // Mirrors emailOTP() on the server; see the note above.

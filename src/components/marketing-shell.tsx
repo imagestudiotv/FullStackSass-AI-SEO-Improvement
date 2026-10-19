@@ -51,8 +51,8 @@ export function MarketingShell({ children }: { children: React.ReactNode }) {
         dialog, which is where the other two layouts put it.
       */}
       <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-        <div className="mx-auto flex h-14 max-w-6xl items-center gap-4 px-4">
-          <BrandHomeLink className="flex items-center" labels={homeLabels}>
+        <div className="mx-auto flex min-h-14 max-w-6xl items-center gap-2 px-4 sm:gap-4">
+          <BrandHomeLink className="flex shrink-0 items-center" labels={homeLabels}>
             {/* The page's primary logo, so it is not lazy-loaded. */}
             <BrandLogo height={24} priority />
           </BrandHomeLink>

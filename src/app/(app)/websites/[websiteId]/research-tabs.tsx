@@ -10,7 +10,6 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import Link from "next/link";
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { format } from "@/lib/i18n/format";
@@ -18,6 +17,7 @@ import type { Messages } from "@/lib/i18n/messages";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
+import { ArticleList } from "@/components/articles/article-list";
 import { ContentCalendar } from "./content-calendar";
 import { useRefreshWhile } from "@/components/refresh-while";
 import { TablePager } from "@/components/table-pager";
@@ -74,20 +74,6 @@ type ResearchTabsProps = {
   tStatus: Messages["app"]["status"];
   /** The calendar's own slice, forwarded to it. */
   tCalendar: Messages["app"]["calendar"];
-};
-
-const ARTICLE_STATUS: Record<
-  string,
-  {
-    key: keyof Messages["app"]["research"];
-    variant: "default" | "secondary" | "destructive";
-  }
-> = {
-  queued: { key: "statusQueued", variant: "secondary" },
-  generating: { key: "statusGenerating", variant: "secondary" },
-  draft: { key: "statusDraft", variant: "default" },
-  published: { key: "statusPublished", variant: "default" },
-  failed: { key: "statusFailed", variant: "destructive" },
 };
 
 /** Rows per page on the Opportunities table; the first is the default. */
@@ -376,16 +362,16 @@ export function ResearchTabs({
           Three labels with counts do not fit a phone at any wrapping, and a
           list that wraps to three lines costs more room than it saves.
         */}
-        <TabsList className="max-w-full overflow-x-auto">
-          <TabsTrigger value="calendar">
+        <TabsList className="max-w-full flex-wrap justify-start gap-1 group-data-horizontal/tabs:h-auto">
+          <TabsTrigger value="calendar" className="min-h-11 flex-none">
             <CalendarDays className="size-4" />
             {t.contentPlan} ({calendar.length})
           </TabsTrigger>
-          <TabsTrigger value="articles">
+          <TabsTrigger value="articles" className="min-h-11 flex-none">
             <FileText className="size-4" />
             {t.articlesTab} ({articles.length})
           </TabsTrigger>
-          <TabsTrigger value="keywords">
+          <TabsTrigger value="keywords" className="min-h-11 flex-none">
             <Search className="size-4" />
             {t.opportunities} ({keywords.length})
           </TabsTrigger>
@@ -485,60 +471,8 @@ export function ResearchTabs({
                 {t.nothingWritten} <strong>{t.write}</strong>
               </p>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t.title}</TableHead>
-                    <TableHead className="w-28">{t.status}</TableHead>
-                    <TableHead className="hidden w-24 sm:table-cell">
-                      {t.words}
-                    </TableHead>
-                    <TableHead className="w-10" />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {articles.map((article) => {
-                    const known = ARTICLE_STATUS[article.status];
-                    const status = {
-                      label: known ? t[known.key] : article.status,
-                      variant: known?.variant ?? ("secondary" as const),
-                    };
-                    return (
-                      <TableRow key={article.id}>
-                        <TableCell>
-                          <Link
-                            href={`/websites/${websiteId}/articles/${article.id}`}
-                            className="hover:underline"
-                          >
-                            {article.title}
-                          </Link>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={status.variant}>{status.label}</Badge>
-                        </TableCell>
-                        <TableCell className="hidden text-muted-foreground sm:table-cell">
-                          {article.wordCount?.toLocaleString() ?? "-"}
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            aria-label={`Delete ${article.title}`}
-                            disabled={pending && busyId === article.id}
-                            onClick={() => handleDeleteArticle(article.id)}
-                          >
-                            {pending && busyId === article.id ? (
-                              <Loader2 className="size-4 animate-spin" />
-                            ) : (
-                              <Trash2 className="size-4" />
-                            )}
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+              <ArticleList websiteId={websiteId} articles={articles} pending={pending} busyId={busyId}
+                onDelete={handleDeleteArticle} t={t} tStatus={tStatus} />
             )}
           </CardContent>
         </Card>

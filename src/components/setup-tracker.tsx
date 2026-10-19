@@ -222,7 +222,7 @@ export function SetupTracker({
    */
   if (dismissed) {
     return (
-      <div className="fixed right-4 bottom-28 z-[999999] hidden sm:block">
+      <div data-slot="setup-tracker" className="fixed right-4 bottom-28 z-[999999] hidden sm:block">
         <button
           type="button"
           onClick={restore}
@@ -256,7 +256,7 @@ export function SetupTracker({
       to 68px from the bottom, and 96px left only a 28px gap that its hover
       halo still reached into.
     */
-    <div className="fixed right-4 bottom-28 z-[999999] hidden w-80 max-w-[calc(100vw-2rem)] sm:block">
+    <div data-slot="setup-tracker" className="fixed right-4 bottom-28 z-[999999] hidden max-h-[calc(100dvh-8rem)] w-80 max-w-[calc(100vw-2rem)] overflow-y-auto overscroll-contain rounded-2xl sm:block">
       <div className="overflow-hidden rounded-2xl border bg-card shadow-lg">
         <div className="flex items-center gap-2 border-b px-4 py-3">
           <p className="min-w-0 flex-1 text-sm font-semibold">
