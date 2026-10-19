@@ -60,6 +60,7 @@ export type AdminAction =
   /* Feedback from customers and visitors (lib/admin/feedback.ts). */
   | "feedback.status_changed"
   | "feedback.replied"
+  | "feedback.deleted"
   | "testimonial.created"
   | "testimonial.saved"
   | "testimonial.published"

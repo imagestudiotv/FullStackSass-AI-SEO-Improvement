@@ -18,15 +18,21 @@ export const FEEDBACK_LIMITS = {
   email: 254,
   /** More links than this reads as spam. */
   links: 5,
+  /** The most pictures one message can carry. */
+  screenshots: 5,
   /**
-   * A screenshot as it reaches the server. Server actions take 1 MB in all
-   * (Next.js's default), so the form shrinks a bigger picture in the browser
-   * first (shrinkScreenshot) and the server re-encodes it anyway.
+   * All of a message's pictures together, as they reach the server. Server
+   * actions take 1 MB in all (Next.js's default), so the form shrinks the
+   * pictures in the browser to share this (shrinkScreenshot): one picture
+   * may use all of it, five a fifth each. The server re-encodes them anyway.
    */
   screenshotBytes: 900 * 1024,
   /** The widest a screenshot is kept. */
   screenshotWidth: 1600,
 } as const;
+
+/** What an administrator can delete: a message that is dealt with (Done) or will not be (Won't do). */
+export const FEEDBACK_DELETABLE: readonly FeedbackStatus[] = ["done", "wont_do"];
 
 /** Messages per page in Admin -> Feedback. Here, not in the "use server" admin module: that may export async actions only. */
 export const FEEDBACK_ADMIN_PAGE_SIZE = 25;
@@ -42,6 +48,7 @@ export type FeedbackErrorCode =
   | "name"
   | "links"
   | "screenshot_type"
+  | "screenshot_count"
   | "screenshot_size"
   | "screenshot_unreadable"
   | "too_many"

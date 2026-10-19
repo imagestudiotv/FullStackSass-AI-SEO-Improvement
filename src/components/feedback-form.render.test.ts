@@ -34,6 +34,9 @@ describe("the feedback form on the Contact page", () => {
     for (const kind of FEEDBACK_KINDS) expect(html).toContain(copy.kinds[kind]);
     expect(html).toContain(copy.emailLabel);
     expect(html).toContain(copy.send);
+    // Several pictures at once, up to five.
+    expect(html).toContain(copy.screenshotHint.replace("{max}", "5"));
+    expect(html).toMatch(/<input[^>]*type="file"[^>]*multiple=""/);
     // The field only a bot fills in is in the form, out of sight and out of the tab order.
     expect(html).toMatch(/<div aria-hidden="true" class="absolute -left-\[9999px\][^"]*"><label>Company<input [^>]*tabindex="-1"[^>]*name="company"/);
   });
@@ -63,5 +66,8 @@ describe("the form's words", () => {
     const strings = JSON.stringify(copy).match(/"[^"]*"/g) ?? [];
     expect(strings.every((value) => value !== '""')).toBe(true);
     expect(copy.accountEmail).toContain("{email}");
+    expect(copy.screenshotHint).toContain("{max}");
+    expect(copy.errors.screenshot_count).toContain("{max}");
+    expect(copy.screenshotRemove).toContain("{n}");
   });
 });

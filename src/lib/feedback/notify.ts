@@ -22,7 +22,8 @@ export async function emailNewFeedback(entry: {
   name: string | null;
   source: "dashboard" | "website";
   pageUrl: string | null;
-  hasScreenshot: boolean;
+  /** How many pictures came with it. */
+  screenshots: number;
 }): Promise<{ sent: number }> {
   const to = adminEmails();
   if (to.length === 0) return { sent: 0 };
@@ -33,6 +34,12 @@ export async function emailNewFeedback(entry: {
     const from = entry.source === "dashboard" ? "a customer, from the dashboard" : "a visitor, from the website";
     const preview = entry.message.replace(/\s+/g, " ").trim();
     const subject = `New feedback (${kind}): ${preview.length > 60 ? `${preview.slice(0, 59)}…` : preview}`;
+    const pictures =
+      entry.screenshots === 0
+        ? ""
+        : entry.screenshots === 1
+          ? "A screenshot is attached in the admin panel."
+          : `${entry.screenshots} screenshots are attached in the admin panel.`;
     const html = emailLayout({
       heading: `New feedback: ${kind}`,
       preheader: preview.slice(0, 140),
@@ -40,7 +47,7 @@ export async function emailNewFeedback(entry: {
         emailText(`From <strong>${escapeHtml(who)}</strong>, ${escapeHtml(from)}.`),
         emailText(escapeHtml(entry.message).replace(/\n/g, "<br>")),
         entry.pageUrl ? emailText(`Page: ${escapeHtml(entry.pageUrl)}`) : "",
-        entry.hasScreenshot ? emailText("A screenshot is attached in the admin panel.") : "",
+        pictures ? emailText(pictures) : "",
         emailButton(link, "Open in Admin"),
       ].join(""),
     });
@@ -48,7 +55,7 @@ export async function emailNewFeedback(entry: {
       `New feedback (${kind}) from ${who}, ${from}.`,
       entry.message,
       entry.pageUrl ? `Page: ${entry.pageUrl}` : "",
-      entry.hasScreenshot ? "A screenshot is attached in the admin panel." : "",
+      pictures,
       `Open it: ${link}`,
     ]
       .filter(Boolean)

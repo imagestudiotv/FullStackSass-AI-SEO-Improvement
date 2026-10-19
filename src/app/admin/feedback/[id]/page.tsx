@@ -6,6 +6,7 @@ import { getFeedbackAdmin } from "@/lib/admin/feedback";
 import { LANGUAGE_NAMES_EN } from "@/lib/blog/locale";
 import { isLocale } from "@/lib/i18n/config";
 import { formatDate } from "@/lib/i18n/format";
+import { cn } from "@/lib/utils";
 
 import { AdminFacts, AdminPage, AdminPageHeader, AdminSection } from "../../_ui/page";
 import { AdminStatus } from "../../_ui/status";
@@ -18,7 +19,7 @@ export const metadata = { title: "Feedback" };
 const when = (date: Date | string) =>
   `${formatDate(new Date(date), "en", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "UTC" })} UTC`;
 
-/** One feedback message: what was sent, by whom and from where, its screenshot, its replies, and what to do with it. */
+/** One feedback message: what was sent, by whom and from where, its pictures, its replies, and what to do with it. */
 export default async function FeedbackMessagePage({ params }: { params: Promise<{ id: string }> }) {
   const item = await getFeedbackAdmin((await params).id);
   if (!item) notFound();
@@ -37,22 +38,32 @@ export default async function FeedbackMessagePage({ params }: { params: Promise<
         <div className="min-w-0 space-y-6">
           <AdminSection title="Message">
             <p className="text-sm whitespace-pre-wrap wrap-anywhere">{item.message}</p>
-            {item.hasScreenshot ? (
-              <a
-                href={`/admin/feedback/${item.id}/screenshot`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-5 block w-fit rounded-lg border outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element -- an admin-only image route, not a static asset */}
-                <img src={`/admin/feedback/${item.id}/screenshot`} alt="The screenshot sent with this message" className="max-h-96 max-w-full rounded-lg" />
-                <span className="sr-only">(opens the screenshot in a new tab)</span>
-              </a>
+            {item.screenshots > 0 ? (
+              <ul className={cn("mt-5 grid gap-3", item.screenshots === 1 ? "grid-cols-1" : "grid-cols-2 sm:grid-cols-3")}>
+                {Array.from({ length: item.screenshots }, (_, index) => {
+                  const src = `/admin/feedback/${item.id}/screenshots/${index + 1}`;
+                  const alt = item.screenshots === 1 ? "The screenshot sent with this message" : `Screenshot ${index + 1} of ${item.screenshots}`;
+                  return (
+                    <li key={src}>
+                      <a
+                        href={src}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block w-fit max-w-full rounded-lg border bg-muted/30 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element -- an admin-only image route, not a static asset */}
+                        <img src={src} alt={alt} className={cn("max-w-full rounded-lg", item.screenshots === 1 ? "max-h-96" : "max-h-48 object-contain")} />
+                        <span className="sr-only">(opens it in a new tab)</span>
+                      </a>
+                    </li>
+                  );
+                })}
+              </ul>
             ) : null}
           </AdminSection>
 
           <AdminSection title="Reply and status" description={`A reply is emailed to ${item.email}, in ${language}, with their message quoted underneath.`}>
-            <FeedbackActions id={item.id} status={item.status} language={language} />
+            <FeedbackActions id={item.id} status={item.status} language={language} sender={item.email} screenshots={item.screenshots} replies={item.replies.length} />
           </AdminSection>
 
           {item.replies.length > 0 ? (

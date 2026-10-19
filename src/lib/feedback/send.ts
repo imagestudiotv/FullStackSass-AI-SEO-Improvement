@@ -4,7 +4,7 @@ import sharp from "sharp";
 
 import { consumeReservation, reserveAll, type QuotaRule, type Reservation } from "@/lib/billing/spend-quota";
 import { db } from "@/lib/db";
-import { feedback } from "@/lib/db/schema";
+import { feedback, feedbackScreenshots } from "@/lib/db/schema";
 import { isLocale } from "@/lib/i18n/config";
 import { siteUrl } from "@/lib/site-url";
 
@@ -21,8 +21,8 @@ import {
 
 /**
  * Receiving feedback for RepGet (client, 2026-10-19: from customers and site
- * visitors; an idea, a problem or anything else, with an optional
- * screenshot; administrators follow it up). The forms post through
+ * visitors; an idea, a problem or anything else, with up to five
+ * pictures; administrators follow it up). The forms post through
  * lib/feedback/actions.ts; this checks, limits and stores it, then tells the
  * administrators.
  *
@@ -33,7 +33,7 @@ import {
  *  - a field only bots fill in, and a form sent faster than a person can
  *    type: both are answered "thank you" and nothing is stored or sent;
  *  - more than five links is refused, as spam usually is;
- *  - a screenshot must decode as an image, and is re-encoded here: whatever
+ *  - each picture must decode as an image, and is re-encoded here: whatever
  *    else the file carried is not kept.
  */
 
@@ -51,7 +51,8 @@ export type FeedbackInput = {
   /** The page the form was on. */
   pageUrl: string;
   locale: string;
-  screenshot: { data: Buffer; type: string } | null;
+  /** The pictures, in the order they were added; none is fine. */
+  screenshots: { data: Buffer; type: string }[];
   /** A field people never see; only a bot fills it in. */
   trap: string;
   /** From the form appearing to it being sent. */
@@ -121,12 +122,14 @@ export async function submitFeedback(input: FeedbackInput, sender: FeedbackSende
   const name = oneLine(input.name);
   if (name.length > FEEDBACK_LIMITS.name) return { ok: false, code: "name" };
 
-  let screenshot: Buffer | null = null;
-  if (input.screenshot) {
-    if (!(SCREENSHOT_TYPES as readonly string[]).includes(input.screenshot.type)) return { ok: false, code: "screenshot_type" };
-    if (input.screenshot.data.length > FEEDBACK_LIMITS.screenshotBytes) return { ok: false, code: "screenshot_size" };
-    screenshot = await reencode(input.screenshot.data);
-    if (!screenshot) return { ok: false, code: "screenshot_unreadable" };
+  if (input.screenshots.length > FEEDBACK_LIMITS.screenshots) return { ok: false, code: "screenshot_count" };
+  if (input.screenshots.some((picture) => !(SCREENSHOT_TYPES as readonly string[]).includes(picture.type))) return { ok: false, code: "screenshot_type" };
+  if (input.screenshots.reduce((sum, picture) => sum + picture.data.length, 0) > FEEDBACK_LIMITS.screenshotBytes) return { ok: false, code: "screenshot_size" };
+  const screenshots: Buffer[] = [];
+  for (const picture of input.screenshots) {
+    const webp = await reencode(picture.data);
+    if (!webp) return { ok: false, code: "screenshot_unreadable" };
+    screenshots.push(webp);
   }
 
   type Saved =
@@ -151,11 +154,12 @@ export async function submitFeedback(input: FeedbackInput, sender: FeedbackSende
         organizationId: sender.organizationId,
         pageUrl: ownPage(input.pageUrl),
         locale: isLocale(input.locale) ? input.locale : "en",
-        screenshot,
-        screenshotType: screenshot ? "image/webp" : null,
         visitor: sender.visitor,
       })
       .returning({ id: feedback.id, pageUrl: feedback.pageUrl });
+    if (screenshots.length > 0) {
+      await tx.insert(feedbackScreenshots).values(screenshots.map((data, index) => ({ feedbackId: row.id, position: index + 1, data, type: "image/webp" })));
+    }
     return { refused: null, row, reservations: admitted.reservations };
   });
   if (saved.refused) return { ok: false, code: saved.refused };
@@ -171,7 +175,7 @@ export async function submitFeedback(input: FeedbackInput, sender: FeedbackSende
     name: name || null,
     source: sender.source,
     pageUrl: saved.row.pageUrl,
-    hasScreenshot: Boolean(screenshot),
+    screenshots: screenshots.length,
   });
   return { ok: true, id: saved.row.id };
 }

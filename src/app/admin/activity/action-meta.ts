@@ -77,6 +77,7 @@ export const ACTION_META: Record<AdminAction, ActionMeta> = {
   "blog.autopilot_run_started": { label: "Blog autopilot article started", icon: Newspaper },
   "feedback.status_changed": { label: "Feedback status changed", icon: MessageSquare },
   "feedback.replied": { label: "Feedback replied to", icon: MessageSquare },
+  "feedback.deleted": { label: "Feedback deleted", icon: Trash2, removal: true },
   "testimonial.created": { label: "Testimonial added", icon: Quote },
   "testimonial.saved": { label: "Testimonial saved", icon: Quote },
   "testimonial.published": { label: "Testimonial published", icon: Quote },

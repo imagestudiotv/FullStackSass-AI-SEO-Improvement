@@ -2694,9 +2694,10 @@ export const feedback = pgTable(
     /** The language they wrote from; a reply is sent in it. */
     locale: text("locale").default("en").notNull(),
     /**
-     * An optional screenshot, re-encoded as WebP and at most 1,600 px wide.
-     * Kept here rather than in the public picture bucket: a screenshot of
-     * someone's dashboard is private. Never selected for lists.
+     * Before migration 0062, a message's one screenshot. 0062 copied these
+     * into feedback_screenshots, which holds every picture since (up to
+     * five); the app no longer reads or writes them. A later migration
+     * drops them, after copying any sent by the old code in between.
      */
     screenshot: bytea("screenshot"),
     screenshotType: text("screenshot_type"),
@@ -2715,4 +2716,27 @@ export const feedback = pgTable(
     index("feedback_status_created_idx").on(table.status, table.createdAt),
     index("feedback_created_idx").on(table.createdAt),
   ],
+);
+
+/**
+ * The pictures sent with a feedback message (client, 2026-10-19: several,
+ * not one), in the order they were added. Each is re-encoded as WebP, at
+ * most 1,600 px wide. Kept here rather than in the public picture bucket: a
+ * screenshot of someone's dashboard is private. Served to administrators
+ * alone (app/admin/feedback/[id]/screenshots/[n]); deleted with the message.
+ */
+export const feedbackScreenshots = pgTable(
+  "feedback_screenshots",
+  {
+    id: pk(),
+    feedbackId: uuid("feedback_id")
+      .notNull()
+      .references(() => feedback.id, { onDelete: "cascade" }),
+    /** 1, 2, 3... as the sender added them. */
+    position: integer("position").notNull(),
+    data: bytea("data").notNull(),
+    type: text("type").default("image/webp").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [uniqueIndex("feedback_screenshots_feedback_position_uidx").on(table.feedbackId, table.position)],
 );

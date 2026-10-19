@@ -108,10 +108,10 @@ export default async function FeedbackPage({ searchParams }: { searchParams: Pro
                     <span className="rounded-full border px-2 py-0.5 font-medium">{KIND_LABEL[row.kind]}</span>
                     <span className="text-muted-foreground">{SOURCE_LABEL[row.source] ?? row.source}</span>
                     {isLocale(row.locale) && row.locale !== "en" ? <span className="text-muted-foreground">{LANGUAGE_NAMES_EN[row.locale]}</span> : null}
-                    {row.hasScreenshot ? (
+                    {row.screenshots > 0 ? (
                       <span className="inline-flex items-center gap-1 text-muted-foreground">
                         <ImageIcon className="size-3.5" aria-hidden="true" />
-                        Screenshot
+                        {row.screenshots === 1 ? "Screenshot" : `${row.screenshots} screenshots`}
                       </span>
                     ) : null}
                     {row.replies > 0 ? (

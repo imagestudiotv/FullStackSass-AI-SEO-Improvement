@@ -10,12 +10,13 @@ vi.mock("./send", () => ({ submitFeedback: core.submit }));
 
 import { sendFeedback } from "./actions";
 
-function form(fields: Record<string, string>, file?: File) {
+function form(fields: Record<string, string>, files: File[] = []) {
   const data = new FormData();
   for (const [key, value] of Object.entries(fields)) data.set(key, value);
-  if (file) data.set("screenshot", file);
+  for (const file of files) data.append("screenshot", file);
   return data;
 }
+const file = (bytes: number, type = "image/png") => new File([new Uint8Array(bytes)], "picture", { type });
 const FIELDS = { kind: "idea", message: "A weekly ranking email.", email: "sam@example.com", name: "Sam", page: "/dashboard", locale: "de", source: "dashboard", elapsed: "9000", company: "" };
 
 beforeEach(() => {
@@ -28,7 +29,7 @@ describe("sending feedback", () => {
   it("from a visitor counts as the website's, whatever the form says, with no account", async () => {
     expect(await sendFeedback(form(FIELDS))).toEqual({ ok: true });
     const [input, sender] = core.submit.mock.calls[0];
-    expect(input).toMatchObject({ kind: "idea", email: "sam@example.com", pageUrl: "/dashboard", locale: "de", elapsedMs: 9000, trap: "", screenshot: null });
+    expect(input).toMatchObject({ kind: "idea", email: "sam@example.com", pageUrl: "/dashboard", locale: "de", elapsedMs: 9000, trap: "", screenshots: [] });
     expect(sender).toMatchObject({ source: "website", userId: null, accountEmail: null, organizationId: null });
     expect(sender.visitor).toEqual(expect.any(String));
   });
@@ -39,11 +40,15 @@ describe("sending feedback", () => {
     expect(core.submit.mock.calls[0][1]).toMatchObject({ source: "dashboard", userId: "user-1", accountEmail: "dana@shop.example", organizationId: "org-1" });
   });
 
-  it("passes a screenshot on, and refuses one too big before reading it", async () => {
-    await sendFeedback(form(FIELDS, new File([new Uint8Array(1000)], "shot.png", { type: "image/png" })));
-    expect(core.submit.mock.calls[0][0].screenshot).toMatchObject({ type: "image/png" });
-    expect(core.submit.mock.calls[0][0].screenshot.data.length).toBe(1000);
-    expect(await sendFeedback(form(FIELDS, new File([new Uint8Array(901 * 1024)], "big.png", { type: "image/png" })))).toEqual({ ok: false, code: "screenshot_size" });
+  it("passes the pictures on in order, and refuses too many or too much before reading them", async () => {
+    await sendFeedback(form(FIELDS, [file(1000), file(2000, "image/webp")]));
+    const sent = core.submit.mock.calls[0][0].screenshots as { data: Buffer; type: string }[];
+    expect(sent.map((picture) => [picture.type, picture.data.length])).toEqual([
+      ["image/png", 1000],
+      ["image/webp", 2000],
+    ]);
+    expect(await sendFeedback(form(FIELDS, Array.from({ length: 6 }, () => file(10))))).toEqual({ ok: false, code: "screenshot_count" });
+    expect(await sendFeedback(form(FIELDS, [file(500 * 1024), file(401 * 1024)]))).toEqual({ ok: false, code: "screenshot_size" });
     expect(core.submit).toHaveBeenCalledTimes(1);
   });
 

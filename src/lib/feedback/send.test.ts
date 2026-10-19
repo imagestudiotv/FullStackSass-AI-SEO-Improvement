@@ -2,14 +2,14 @@ import { eq } from "drizzle-orm";
 import sharp from "sharp";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { feedback, organization, spendReservations, user } from "@/lib/db/schema";
+import { feedback, feedbackScreenshots, organization, spendReservations, user } from "@/lib/db/schema";
 import { createTestDb, type TestDb } from "@/test/db";
 
 /**
  * Receiving feedback for RepGet (client, 2026-10-19): from site visitors and
- * signed-in customers, an idea, a problem or anything else, with an optional
- * screenshot - checked, limited, stored privately, and the administrators
- * told by email.
+ * signed-in customers, an idea, a problem or anything else, with up to
+ * five pictures - checked, limited, stored privately, and the
+ * administrators told by email.
  */
 
 const state = vi.hoisted(() => ({ db: null as unknown }));
@@ -56,13 +56,18 @@ const input = (overrides: Partial<FeedbackInput> = {}): FeedbackInput => ({
   name: "  Sam  ",
   pageUrl: "https://repget.com/pricing?plan=pro",
   locale: "it",
-  screenshot: null,
+  screenshots: [],
   trap: "",
   elapsedMs: 12_000,
   ...overrides,
 });
 
 const rows = () => test.db.select().from(feedback);
+const pictures = () => test.db.select().from(feedbackScreenshots).orderBy(feedbackScreenshots.position);
+const picture = (width: number, format: "png" | "jpeg") => {
+  const image = sharp({ create: { width, height: Math.round(width * 0.6), channels: 3, background: "#ffffff" } });
+  return (format === "png" ? image.png() : image.jpeg()).toBuffer();
+};
 
 describe("feedback from a site visitor", () => {
   it("is stored privately and the administrators get an email they can reply to", async () => {
@@ -90,16 +95,29 @@ describe("feedback from a site visitor", () => {
     expect(subject).toBe("New feedback (Idea): Please add a weekly email with my rankings.");
     expect(text).toContain(`https://www.repget.com/admin/feedback/${row.id}`);
     expect(text).toContain("Sam <visitor@example.com>, a visitor, from the website.");
+    expect(text).not.toContain("screenshot");
+    expect(await pictures()).toHaveLength(0);
   });
 
-  it("keeps a screenshot as a WebP no wider than 1,600 pixels", async () => {
-    const png = await sharp({ create: { width: 2400, height: 1500, channels: 3, background: "#ffffff" } }).png().toBuffer();
-    await submitFeedback(input({ kind: "problem", screenshot: { data: png, type: "image/png" } }), visitor());
+  it("keeps its pictures in the order they were added, each a WebP no wider than 1,600 pixels", async () => {
+    await submitFeedback(
+      input({ kind: "problem", screenshots: [{ data: await picture(2400, "png"), type: "image/png" }, { data: await picture(300, "jpeg"), type: "image/jpeg" }] }),
+      visitor(),
+    );
     const [row] = await rows();
-    expect(row.screenshotType).toBe("image/webp");
-    const meta = await sharp(Buffer.from(row.screenshot as Uint8Array)).metadata();
-    expect(meta).toMatchObject({ format: "webp", width: 1600 });
-    expect(mail.send.mock.calls[0][0].text).toContain("A screenshot is attached in the admin panel.");
+    const kept = await pictures();
+    expect(kept.map((item) => [item.feedbackId, item.position, item.type])).toEqual([
+      [row.id, 1, "image/webp"],
+      [row.id, 2, "image/webp"],
+    ]);
+    const sizes = await Promise.all(kept.map(async (item) => (await sharp(Buffer.from(item.data)).metadata()).width));
+    expect(sizes).toEqual([1600, 300]);
+    // Nothing in the column a message's one screenshot used before (0062).
+    expect(row.screenshot).toBeNull();
+    expect(mail.send.mock.calls[0][0].text).toContain("2 screenshots are attached in the admin panel.");
+
+    await submitFeedback(input({ message: "Just the one picture this time.", screenshots: [{ data: await picture(400, "png"), type: "image/png" }] }), visitor());
+    expect(mail.send.mock.calls[1][0].text).toContain("A screenshot is attached in the admin panel.");
   });
 
   it("keeps the page only when it is one of RepGet's own", async () => {
@@ -110,6 +128,7 @@ describe("feedback from a site visitor", () => {
   });
 
   it("is refused, saying why, when it cannot be sent as it is", async () => {
+    const good = { data: await picture(400, "png"), type: "image/png" };
     const cases: [Partial<FeedbackInput>, string][] = [
       [{ kind: "complaint" }, "kind"],
       [{ message: "Too short" }, "message_short"],
@@ -117,14 +136,17 @@ describe("feedback from a site visitor", () => {
       [{ message: "Cheap links https://a.example https://b.example https://c.example www.d.example http://e.example http://f.example" }, "links"],
       [{ email: "not-an-address" }, "email"],
       [{ name: "n".repeat(101) }, "name"],
-      [{ screenshot: { data: Buffer.from("GIF89a"), type: "image/gif" } }, "screenshot_type"],
-      [{ screenshot: { data: Buffer.alloc(901 * 1024), type: "image/png" } }, "screenshot_size"],
-      [{ screenshot: { data: Buffer.from("not really a png"), type: "image/png" } }, "screenshot_unreadable"],
+      [{ screenshots: [good, { data: Buffer.from("GIF89a"), type: "image/gif" }] }, "screenshot_type"],
+      [{ screenshots: Array.from({ length: 6 }, () => good) }, "screenshot_count"],
+      // The pictures share 900 KB, together.
+      [{ screenshots: [{ data: Buffer.alloc(500 * 1024), type: "image/png" }, { data: Buffer.alloc(401 * 1024), type: "image/png" }] }, "screenshot_size"],
+      [{ screenshots: [good, { data: Buffer.from("not really a png"), type: "image/png" }] }, "screenshot_unreadable"],
     ];
     for (const [change, code] of cases) {
       expect(await submitFeedback(input(change), visitor()), code).toEqual({ ok: false, code });
     }
     expect(await rows()).toHaveLength(0);
+    expect(await pictures()).toHaveLength(0);
     expect(mail.send).not.toHaveBeenCalled();
   });
 

@@ -16,8 +16,8 @@ import { FEEDBACK_LIMITS, type FeedbackResult } from "./shared";
  *
  * Fields: kind, message, email, name, page, locale, source ("dashboard" |
  * "website"), elapsed (milliseconds the form was open), company (the field
- * only a bot fills in), and an optional screenshot file - already shrunk by
- * the form (shrinkScreenshot), since an action takes 1 MB in all.
+ * only a bot fills in), and up to five "screenshot" files - already shrunk
+ * by the form (shrinkScreenshot), since an action takes 1 MB in all.
  */
 export async function sendFeedback(form: FormData): Promise<FeedbackResult> {
   const field = (name: string) => {
@@ -26,12 +26,11 @@ export async function sendFeedback(form: FormData): Promise<FeedbackResult> {
   };
   const session = await getSession().catch(() => null);
 
-  let screenshot: { data: Buffer; type: string } | null = null;
-  const file = form.get("screenshot");
-  if (file instanceof File && file.size > 0) {
-    if (file.size > FEEDBACK_LIMITS.screenshotBytes) return { ok: false, code: "screenshot_size" };
-    screenshot = { data: Buffer.from(await file.arrayBuffer()), type: file.type };
-  }
+  // Counted and sized before any is read.
+  const files = form.getAll("screenshot").filter((file): file is File => file instanceof File && file.size > 0);
+  if (files.length > FEEDBACK_LIMITS.screenshots) return { ok: false, code: "screenshot_count" };
+  if (files.reduce((sum, file) => sum + file.size, 0) > FEEDBACK_LIMITS.screenshotBytes) return { ok: false, code: "screenshot_size" };
+  const screenshots = await Promise.all(files.map(async (file) => ({ data: Buffer.from(await file.arrayBuffer()), type: file.type })));
 
   const result = await submitFeedback(
     {
@@ -41,7 +40,7 @@ export async function sendFeedback(form: FormData): Promise<FeedbackResult> {
       name: field("name"),
       pageUrl: field("page"),
       locale: field("locale"),
-      screenshot,
+      screenshots,
       trap: field("company"),
       elapsedMs: Number(field("elapsed")),
     },

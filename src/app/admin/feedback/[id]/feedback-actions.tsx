@@ -1,28 +1,47 @@
 "use client";
 
-import { Send } from "lucide-react";
+import { Send, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useId, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { replyToFeedback, setFeedbackStatus } from "@/lib/admin/feedback";
-import { FEEDBACK_STATUSES, type FeedbackStatus } from "@/lib/feedback/shared";
+import { deleteFeedback, replyToFeedback, setFeedbackStatus } from "@/lib/admin/feedback";
+import { FEEDBACK_DELETABLE, FEEDBACK_STATUSES, type FeedbackStatus } from "@/lib/feedback/shared";
 
+import { ConfirmDialog } from "../../blog/confirm-dialog";
 import { STATUS_LABEL } from "../labels";
 
 /**
  * What an administrator does with a message: set its status, and reply to the
  * sender by email - optionally changing the status at the same time, which
- * the email then mentions ("We have added this to our plans").
+ * the email then mentions ("We have added this to our plans") - and delete
+ * it once it is Done or Won't do.
  */
-export function FeedbackActions({ id, status, language }: { id: string; status: FeedbackStatus; language: string }) {
+export function FeedbackActions({
+  id,
+  status,
+  language,
+  sender,
+  screenshots,
+  replies,
+}: {
+  id: string;
+  status: FeedbackStatus;
+  language: string;
+  /** The sender's address, named in the delete confirmation. */
+  sender: string;
+  screenshots: number;
+  replies: number;
+}) {
   const router = useRouter();
   const formId = useId();
   const [pending, start] = useTransition();
   const [reply, setReply] = useState("");
   const [replyStatus, setReplyStatus] = useState<FeedbackStatus | "">("");
+  const [confirming, setConfirming] = useState(false);
+  const deletable = FEEDBACK_DELETABLE.includes(status);
 
   function changeStatus(next: FeedbackStatus) {
     if (next === status) return;
@@ -53,6 +72,29 @@ export function FeedbackActions({ id, status, language }: { id: string; status: 
       router.refresh();
     });
   }
+
+  function remove() {
+    start(async () => {
+      const result = await deleteFeedback({ id }).catch(() => null);
+      if (!result) {
+        toast.error("The server did not finish this. Reload the page to see whether the message is gone.");
+        return;
+      }
+      setConfirming(false);
+      if (!result.ok) {
+        toast.error(result.error);
+        router.refresh();
+        return;
+      }
+      toast.success("Message deleted");
+      router.push(`/admin/feedback?view=${result.data.status}`);
+    });
+  }
+
+  const goes = [
+    screenshots === 0 ? "" : screenshots === 1 ? "its screenshot" : `its ${screenshots} screenshots`,
+    replies === 0 ? "" : replies === 1 ? "the reply sent" : `the ${replies} replies sent`,
+  ].filter(Boolean);
 
   return (
     <div className="space-y-6">
@@ -111,6 +153,33 @@ export function FeedbackActions({ id, status, language }: { id: string; status: 
           </Button>
         </div>
       </form>
+
+      <div className="border-t pt-5">
+        <p className="text-sm font-medium">Delete</p>
+        {deletable ? (
+          <div className="mt-2 flex flex-wrap items-center gap-3">
+            <p className="text-sm text-muted-foreground">Dealt with, or not a fit: remove it from the list for good.</p>
+            <Button type="button" variant="outline" size="sm" disabled={pending} onClick={() => setConfirming(true)} className="ml-auto">
+              <Trash2 aria-hidden />
+              Delete message
+            </Button>
+          </div>
+        ) : (
+          <p className="mt-1 text-sm text-muted-foreground">Mark it Done or Won&apos;t do first to delete it.</p>
+        )}
+      </div>
+      {confirming ? (
+        <ConfirmDialog
+          open
+          onOpenChange={(open) => (open ? null : setConfirming(false))}
+          title="Delete this message?"
+          description={`The message from ${sender}${goes.length ? `, with ${goes.join(" and ")},` : ""} is deleted for good. The admin log keeps a line saying you deleted it.`}
+          confirmLabel="Delete message"
+          tone="danger"
+          pending={pending}
+          onConfirm={remove}
+        />
+      ) : null}
     </div>
   );
 }
