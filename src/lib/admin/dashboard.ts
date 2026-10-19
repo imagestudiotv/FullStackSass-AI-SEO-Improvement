@@ -6,7 +6,7 @@ import { requireAdmin } from "@/lib/admin/guard";
 import { sinceFrom } from "@/lib/admin/shared";
 import { missingPlacements } from "@/lib/backlinks/placements";
 import { db } from "@/lib/db";
-import { adminAuditLog, articles, payments, publicationDispatches, subscriptions, websites } from "@/lib/db/schema";
+import { adminAuditLog, articles, feedback, payments, publicationDispatches, subscriptions, websites } from "@/lib/db/schema";
 import { readControls, type ControlState } from "@/lib/publishing/controls";
 import { IN_FLIGHT_TIMEOUT_MS, UNACKNOWLEDGED } from "@/lib/publishing/dispatch";
 
@@ -49,6 +49,8 @@ export type Attention = {
   pastDue: number | null;
   /** Websites whose analysis failed. */
   failedWebsites: number | null;
+  /** Feedback nobody has looked at yet (status new; lib/feedback). */
+  newFeedback: number | null;
   /** The publication freeze and managed review switches. */
   controls: ControlState[] | null;
 };
@@ -58,7 +60,7 @@ export async function getAttention(): Promise<Attention> {
   const staleBefore = new Date(Date.now() - IN_FLIGHT_TIMEOUT_MS);
   const one = async (query: Promise<{ n: number }[]>) => Number((await query)[0]?.n ?? 0);
 
-  const [awaitingReview, failedArticles, unresolvedDeliveries, missingLinks, failedPayments, pastDue, failedWebsites, controls] =
+  const [awaitingReview, failedArticles, unresolvedDeliveries, missingLinks, failedPayments, pastDue, failedWebsites, controls, newFeedback] =
     await Promise.all([
       settle(() =>
         one(
@@ -102,9 +104,10 @@ export async function getAttention(): Promise<Attention> {
       settle(() => one(db.select({ n: count() }).from(subscriptions).where(eq(subscriptions.status, "past_due")))),
       settle(() => one(db.select({ n: count() }).from(websites).where(eq(websites.status, "failed")))),
       settle(() => readControls()),
+      settle(() => one(db.select({ n: count() }).from(feedback).where(eq(feedback.status, "new")))),
     ]);
 
-  return { awaitingReview, failedArticles, unresolvedDeliveries, missingLinks, failedPayments, pastDue, failedWebsites, controls };
+  return { awaitingReview, failedArticles, unresolvedDeliveries, missingLinks, failedPayments, pastDue, failedWebsites, controls, newFeedback };
 }
 
 /** The Payments page date filter value the "Failed payments" attention item counts and links to. */

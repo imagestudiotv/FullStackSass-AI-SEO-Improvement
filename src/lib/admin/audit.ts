@@ -57,6 +57,9 @@ export type AdminAction =
   | "blog.autopilot_topic_saved"
   | "blog.autopilot_topic_deleted"
   | "blog.autopilot_run_started"
+  /* Feedback from customers and visitors (lib/admin/feedback.ts). */
+  | "feedback.status_changed"
+  | "feedback.replied"
   | "testimonial.created"
   | "testimonial.saved"
   | "testimonial.published"

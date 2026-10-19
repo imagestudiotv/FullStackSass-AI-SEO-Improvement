@@ -5,6 +5,7 @@ import {
   Gauge,
   Globe,
   LayoutDashboard,
+  MessageSquare,
   Network,
   Newspaper,
   Quote,
@@ -85,6 +86,13 @@ export const ADMIN_NAV: AdminNavGroup[] = [
         icon: Users,
         keywords: ["people", "accounts", "members"],
         description: "People with an account",
+      },
+      {
+        href: "/admin/feedback",
+        label: "Feedback",
+        icon: MessageSquare,
+        keywords: ["ideas", "problems", "bugs", "suggestions", "improvements", "requests", "replies"],
+        description: "Ideas and problems sent by customers and visitors",
       },
     ],
   },
@@ -180,6 +188,7 @@ const DETAIL_LABELS: { pattern: RegExp; label: string }[] = [
   { pattern: /^\/admin\/blog\/[^/]+$/, label: "Edit post" },
   { pattern: /^\/admin\/testimonials\/new$/, label: "New testimonial" },
   { pattern: /^\/admin\/testimonials\/[^/]+$/, label: "Edit testimonial" },
+  { pattern: /^\/admin\/feedback\/[^/]+$/, label: "Message" },
 ];
 
 export type Crumb = { href: string; label: string; current: boolean };

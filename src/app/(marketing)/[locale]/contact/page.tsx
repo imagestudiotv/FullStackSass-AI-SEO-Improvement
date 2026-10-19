@@ -33,5 +33,5 @@ export default async function LocalisedContactPage({
   const { locale } = await params;
   if (!isLocale(locale) || locale === "en") notFound();
 
-  return <ContactContent t={getMessages(locale)} supportEmail={SUPPORT_EMAIL} />;
+  return <ContactContent t={getMessages(locale)} locale={locale} supportEmail={SUPPORT_EMAIL} />;
 }

@@ -444,6 +444,7 @@ export function MarketingFooterLinks({ chrome }: { chrome: SiteChrome }) {
         { href: href("/blog"), label: t.footer.blog },
         { href: href("/faq"), label: t.footer.faq },
         { href: href("/contact"), label: t.footer.contact },
+        { href: `${href("/contact")}#feedback`, label: t.footer.feedback },
       ],
     },
     {

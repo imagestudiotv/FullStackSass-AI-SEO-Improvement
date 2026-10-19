@@ -1,5 +1,8 @@
 import { Mail } from "lucide-react";
 
+import { FeedbackForm } from "@/components/feedback-form";
+import { FEEDBACK_COPY } from "@/lib/feedback/copy";
+import type { Locale } from "@/lib/i18n/config";
 import type { Messages } from "@/lib/i18n/messages";
 
 /**
@@ -98,6 +101,7 @@ export function FaqContent({ t }: { t: Messages }) {
 
 export function ContactContent({
   t,
+  locale,
   supportEmail,
   /** Prefilled subject, when billing sent someone here for a quote. */
   subject,
@@ -105,6 +109,8 @@ export function ContactContent({
   subtitle,
 }: {
   t: Messages;
+  /** The page's language: the feedback form's words, and the language a reply is written in. */
+  locale: Locale;
   supportEmail: string;
   subject?: string;
   title?: string;
@@ -142,6 +148,20 @@ export function ContactContent({
           </div>
         </div>
       </div>
+
+      {/*
+        Feedback and ideas for RepGet (lib/feedback; client, 2026-10-19), for
+        anyone: the footer's "Send feedback" links here (#feedback).
+      */}
+      <section id="feedback" aria-labelledby="feedback-heading" className="mt-10 scroll-mt-24 rounded-lg border bg-background p-6">
+        <h2 id="feedback-heading" className="text-xl font-semibold tracking-tight">
+          {FEEDBACK_COPY[locale].title}
+        </h2>
+        <p className="mt-1 text-sm text-muted-foreground">{FEEDBACK_COPY[locale].intro}</p>
+        <div className="mt-6">
+          <FeedbackForm copy={FEEDBACK_COPY[locale]} locale={locale} source="website" />
+        </div>
+      </section>
     </div>
   );
 }

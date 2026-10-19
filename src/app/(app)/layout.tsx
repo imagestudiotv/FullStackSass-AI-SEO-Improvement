@@ -3,6 +3,7 @@ import { and, asc, eq, isNull, sql as raw } from "drizzle-orm";
 import Link from "next/link";
 
 import { AppSidebar } from "@/components/app-sidebar";
+import { FeedbackButton } from "@/components/feedback-button";
 import { MobileNav } from "@/components/mobile-nav";
 import { NotificationBell } from "@/components/notification-bell";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -13,6 +14,7 @@ import { SidebarUsage } from "@/components/sidebar-usage";
 import { UserMenu } from "@/components/user-menu";
 import { WebsiteSwitcher } from "@/components/dashboard/website-switcher";
 import { isAdmin } from "@/lib/admin/guard";
+import { FEEDBACK_COPY } from "@/lib/feedback/copy";
 import { requireSession } from "@/lib/auth-guard";
 import { pendingConversions } from "@/lib/conversions/conversions";
 import { getAppMessages } from "@/lib/i18n/app-locale";
@@ -172,7 +174,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const subscription = await getSubscription(orgId);
   // Only admins see the link; the area itself 404s for everyone else.
   const admin = await isAdmin();
-  const { t } = await getAppMessages(session.user.id);
+  const { t, locale } = await getAppMessages(session.user.id);
 
   const org = await db.query.organization.findFirst({
     where: eq(organization.id, orgId),
@@ -301,6 +303,8 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             Count is rendered on the server so the badge is correct on first
             paint. The list itself loads when the bell is opened.
           */}
+          {/* Ideas and problems, straight to RepGet's team (lib/feedback). Only this language's words go to the browser. */}
+          <FeedbackButton copy={FEEDBACK_COPY[locale]} locale={locale} accountEmail={session.user.email} />
           <ThemeToggle label={t.app.common.darkMode} />
           <NotificationBell initialUnread={unread} t={t.app.auth} />
           <UserMenu

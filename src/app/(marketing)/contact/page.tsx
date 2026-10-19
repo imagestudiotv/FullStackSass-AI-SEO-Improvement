@@ -12,11 +12,9 @@ export const metadata = {
 };
 
 /**
- * Contact page.
- *
- * Deliberately an email address rather than a contact form. A form needs a
- * backend endpoint, spam handling and a delivery mechanism — none of which
- * exist yet, and a form that silently fails is worse than no form.
+ * Contact page: the support address, and the feedback form (lib/feedback,
+ * 2026-10-19), which has its own limits, spam checks and delivery to the
+ * administrators. Questions still go to the address.
  */
 export default async function ContactPage({
   searchParams,
@@ -33,6 +31,7 @@ export default async function ContactPage({
   return (
     <ContactContent
       t={t}
+      locale="en"
       supportEmail={SUPPORT_EMAIL}
       subject={
         quote

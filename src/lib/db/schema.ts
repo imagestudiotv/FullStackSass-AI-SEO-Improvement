@@ -15,6 +15,7 @@ import { relations, sql } from "drizzle-orm";
 import {
   type AnyPgColumn,
   boolean,
+  customType,
   date,
   index,
   integer,
@@ -2657,5 +2658,61 @@ export const blogAutopilotRuns = pgTable(
   (table) => [
     uniqueIndex("blog_autopilot_runs_scheduled_day_uidx").on(table.runDate).where(sql`${table.trigger} = 'schedule'`),
     index("blog_autopilot_runs_started_idx").on(table.startedAt),
+  ],
+);
+
+/** Raw bytes (Postgres bytea), read and written as a Buffer. */
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({
+  dataType: () => "bytea",
+});
+
+/**
+ * Feedback and improvement ideas for RepGet itself (client, 2026-10-19):
+ * from signed-in customers in the dashboard and from visitors on the public
+ * site. Private: only administrators read it (Admin -> Feedback), and a
+ * reply goes to the sender by email.
+ *
+ *   status: new -> planned | done | wont_do (an administrator's choice)
+ */
+export const feedback = pgTable(
+  "feedback",
+  {
+    id: pk(),
+    /** "idea" | "problem" | "other". */
+    kind: text("kind").notNull(),
+    message: text("message").notNull(),
+    /** Where a reply goes: the customer's account address, or what a visitor typed. */
+    email: text("email").notNull(),
+    name: text("name"),
+    /** "dashboard" (a signed-in customer) | "website" (anyone on the public site). */
+    source: text("source").notNull(),
+    /** The signed-in customer, and their workspace at the time. */
+    userId: userId(),
+    organizationId: text("organization_id").references(() => organization.id, { onDelete: "set null" }),
+    /** The page they were on when they wrote it. */
+    pageUrl: text("page_url"),
+    /** The language they wrote from; a reply is sent in it. */
+    locale: text("locale").default("en").notNull(),
+    /**
+     * An optional screenshot, re-encoded as WebP and at most 1,600 px wide.
+     * Kept here rather than in the public picture bucket: a screenshot of
+     * someone's dashboard is private. Never selected for lists.
+     */
+    screenshot: bytea("screenshot"),
+    screenshotType: text("screenshot_type"),
+    /** "new" | "planned" | "done" | "wont_do". */
+    status: text("status").default("new").notNull(),
+    /** Every reply sent to the sender, oldest first. */
+    replies: jsonb("replies")
+      .$type<{ message: string; by: string; at: string; status: string | null }[]>()
+      .default([])
+      .notNull(),
+    /** Who sent it, as the hashed visitor key (lib/visitor-key.ts): for limits only, never shown. */
+    visitor: text("visitor"),
+    ...timestamps,
+  },
+  (table) => [
+    index("feedback_status_created_idx").on(table.status, table.createdAt),
+    index("feedback_created_idx").on(table.createdAt),
   ],
 );

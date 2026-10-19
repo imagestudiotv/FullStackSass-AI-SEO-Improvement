@@ -78,6 +78,8 @@ export type Messages = {
     faq: string;
     about: string;
     contact: string;
+    /** The footer's link to the feedback form on the Contact page. */
+    feedback: string;
     /** /backlinks and /rank-on-chatgpt: English pages, linked from every language. */
     backlinks: string;
     rankOnChatgpt: string;
@@ -3084,6 +3086,7 @@ const en: Messages = {
     faq: "FAQ",
     about: "About",
     contact: "Contact",
+    feedback: "Send feedback",
     backlinks: "Backlinks",
     rankOnChatgpt: "Rank on ChatGPT",
     backlinkExchange: "Backlink exchange",
@@ -6067,6 +6070,7 @@ const es: Messages = {
     faq: "Preguntas frecuentes",
     about: "Nosotros",
     contact: "Contacto",
+    feedback: "Enviar comentarios",
     backlinks: "Backlinks",
     rankOnChatgpt: "Aparecer en ChatGPT",
     backlinkExchange: "Intercambio de enlaces",
@@ -9068,6 +9072,7 @@ const fr: Messages = {
     faq: "FAQ",
     about: "À propos",
     contact: "Contact",
+    feedback: "Donner votre avis",
     backlinks: "Backlinks",
     rankOnChatgpt: "Apparaître dans ChatGPT",
     backlinkExchange: "Échange de liens",
@@ -12069,6 +12074,7 @@ const it: Messages = {
     faq: "Domande frequenti",
     about: "Chi siamo",
     contact: "Contatti",
+    feedback: "Invia un feedback",
     backlinks: "Backlink",
     rankOnChatgpt: "Comparire su ChatGPT",
     backlinkExchange: "Scambio di link",
@@ -15070,6 +15076,7 @@ const de: Messages = {
     faq: "Häufige Fragen",
     about: "Über uns",
     contact: "Kontakt",
+    feedback: "Feedback senden",
     backlinks: "Backlinks",
     rankOnChatgpt: "In ChatGPT erscheinen",
     backlinkExchange: "Linktausch",
