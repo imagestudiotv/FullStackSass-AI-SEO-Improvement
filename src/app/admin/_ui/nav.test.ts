@@ -23,6 +23,15 @@ describe("activeNavItem", () => {
     expect(label("/admin/activity")).toBe("Activity");
   });
 
+  it("lights the affiliate program's sections, on their detail pages too", () => {
+    expect(label("/admin/partners")).toBe("Affiliate program");
+    expect(label("/admin/partners/partners/8f0e")).toBe("Partners");
+    expect(label("/admin/partners/payouts")).toBe("Partner payouts");
+    expect(label("/admin/partners/payouts/8f0e")).toBe("Partner payouts");
+    expect(label("/admin/partners/commissions")).toBe("Partner commissions");
+    expect(label("/admin/partners/reviews")).toBe("Partner review cases");
+  });
+
   it("tells Network Operations from Partner Network, and a review page from both", () => {
     expect(label("/admin/network")).toBe("Partner Network");
     expect(label("/admin/network/operations")).toBe("Network Operations");

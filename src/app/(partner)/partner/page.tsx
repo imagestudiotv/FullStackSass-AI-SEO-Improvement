@@ -2,11 +2,13 @@ import { AlertTriangle, PauseCircle } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { CouponsPanel, EarningsPanel, MetricsPanel } from "@/components/partners/dashboard-views";
 import { ReferralLink } from "@/components/partners/referral-link";
 import { TierProgress } from "@/components/partners/tier-progress";
-import { partnerOverview } from "@/lib/partners/application/queries/partner-overview";
+import { METRIC_RANGES, partnerDashboard, type MetricRange } from "@/lib/partners/application/queries/partner-dashboard";
 import { fill } from "@/lib/partners/presentation/copy";
 import { rateLabel } from "@/lib/partners/presentation/format";
+import { balanceView, couponView, formatPortalDate, metricsView } from "@/lib/partners/presentation/views";
 import { partnerDeps } from "@/lib/partners/server";
 
 import { requirePartnerPage } from "./portal";
@@ -18,15 +20,27 @@ export async function generateMetadata() {
   return { title: copy.portal.overview.title };
 }
 
-export default async function PartnerOverviewPage() {
-  const { access, copy } = await requirePartnerPage();
-  const overview = await partnerOverview(partnerDeps(), access.context);
+function rangeFrom(value: string | string[] | undefined): MetricRange {
+  const days = Number(Array.isArray(value) ? value[0] : value);
+  return (METRIC_RANGES as readonly number[]).includes(days) ? (days as MetricRange) : 30;
+}
+
+export default async function PartnerOverviewPage({ searchParams }: PageProps<"/partner">) {
+  const { access, copy, locale } = await requirePartnerPage();
+  const days = rangeFrom((await searchParams).range);
+  const overview = await partnerDashboard(partnerDeps(), access.context, { days });
   if (!overview) notFound();
   const t = copy.portal;
   const { progress, partner, policy } = overview;
   const remaining = progress.next
     ? fill(t.overview.remaining, { count: progress.remaining, tier: progress.next.name, rate: rateLabel(progress.next.rateBasisPoints) })
     : t.overview.topTier;
+  const ranges = METRIC_RANGES.map((range) => ({
+    days: range,
+    href: range === 30 ? "/partner" : `/partner?range=${range}`,
+    current: range === days,
+    label: fill(t.overview.metrics.range, { days: range }),
+  }));
 
   return (
     <div className="space-y-6">
@@ -38,13 +52,21 @@ export default async function PartnerOverviewPage() {
         <Banner icon={PauseCircle} title={t.hold.title} body={t.hold.body} />
       ) : null}
 
-      <section className="rounded-xl border bg-card p-6" aria-labelledby="link-title">
+      <section className="rounded-xl border bg-card p-4 sm:p-6" aria-labelledby="link-title">
         <h2 id="link-title" className="font-semibold">{t.overview.linkTitle}</h2>
         <p className="mt-1 text-sm text-muted-foreground">{fill(t.overview.linkHint, { days: policy.attributionWindowDays })}</p>
         <div className="mt-4">
           <ReferralLink url={overview.referralUrl} label={t.overview.linkTitle} copyLabel={t.overview.copy} copiedLabel={t.overview.copied} />
         </div>
       </section>
+
+      <EarningsPanel
+        copy={t}
+        balances={overview.balances.map((balance) => balanceView(balance, t, locale, policy.maturityDays))}
+        nextPayout={fill(t.overview.nextPayout, { date: formatPortalDate(overview.nextPayoutAt, locale) })}
+      />
+
+      <MetricsPanel copy={t} metrics={metricsView(overview.metrics, t, locale)} ranges={ranges} />
 
       <div className="grid gap-6 md:grid-cols-2">
         <TierProgress
@@ -69,6 +91,8 @@ export default async function PartnerOverviewPage() {
           </Link>
         </section>
       </div>
+
+      <CouponsPanel copy={t} coupons={overview.coupons.map((coupon) => couponView(coupon, t, locale))} />
     </div>
   );
 }

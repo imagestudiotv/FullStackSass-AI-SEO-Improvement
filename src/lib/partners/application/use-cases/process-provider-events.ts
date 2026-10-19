@@ -3,6 +3,7 @@ import type { PartnerDeps } from "./deps";
 import { rebuildPartnerProjections } from "./mature-commissions";
 import { processChargeAdjustments } from "./process-adjustment";
 import { processInvoice } from "./process-payment";
+import { syncTransferReversals } from "./reconcile-settlement";
 import { refreshPartnerTier } from "./refresh-partner-tier";
 
 /**
@@ -87,12 +88,9 @@ async function dispatch(deps: PartnerDeps, event: ProviderEventRecord): Promise<
       return processInvoice(deps, event.objectId, event.environment);
     case "charge":
       return processChargeAdjustments(deps, event.objectId, event.environment);
-    case "transfer": {
-      // A reversal or update of a transfer RepGet made (Part 4 reconciles it); anything else is not ours.
-      const attempt = await deps.uow.repositories.settlements.findTransferAttemptByStripeId(event.objectId);
-      if (!attempt) return { outcome: "no_partner_transfer", partnerIds: [] };
-      return { outcome: "transfer_recorded", partnerIds: [] };
-    }
+    case "transfer":
+      // A reversal or update of a transfer RepGet made: recorded from Stripe's view of it; anything else is not ours.
+      return syncTransferReversals(deps, event.objectId);
     default:
       return { outcome: "not_relevant", partnerIds: [] };
   }

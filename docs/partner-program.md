@@ -29,7 +29,7 @@ Dependency direction, enforced by `src/lib/partners/architecture.test.ts`:
 
 `server.ts` is the only module that builds concrete adapters. It does so on first use, so importing a route needs no database connection and no Stripe key. That matters because `next build` evaluates every route module.
 
-Transactions are short. No Stripe call ever runs inside one. Stripe is called between transactions, and its answer is re-checked in the next. Lock order everywhere: partner, balance projection, attribution, commissions, settlement.
+Transactions are short. No Stripe call ever runs inside one. Stripe is called between transactions, and its answer is re-checked in the next. Lock order everywhere: partner, balance projection, attribution, payment fact, commissions, settlement; every row lock is `FOR NO KEY UPDATE` (see Payouts, Locking).
 
 ## Identities
 
@@ -330,6 +330,100 @@ The daily `partner-reconciliation` job (03:40 UTC, `use-cases/reconcile-commissi
 - **Deletes** unattributed clicks 30 days after their window.
 
 The same checks are available read-only through `npm run reconcile:report -- partnerPaymentsWithoutFacts partnerEarnedMismatches partnerReversalMismatches partnerStuckProviderEvents partnerOpenReviewCases`.
+
+## Payouts
+
+Three separate records, never merged: what RepGet owes (the ledger), the **transfer** from RepGet's Stripe balance to the partner's connected account, and the **bank payout** from that account to the partner's bank. Only Stripe's evidence moves a settlement forward; no screen and no administrator action can mark money transferred or paid.
+
+### The monthly run
+
+`partner-payouts-monthly` runs at 00:00 UTC on the 1st (`use-cases/prepare-settlement.ts`). For each partner and currency with a balance, in ONE short transaction:
+
+1. lock the partner row, then the partner/currency balance row (the serialisation point every settlement for that balance passes through);
+2. re-check the partner: active, no payout hold;
+3. lock the unpaid commissions and compute the plan from the ledger (`payable = min(E, L − P − R)`, see Payout eligibility);
+4. create the settlement (run key `YYYY-MM`, `transfer_group` = `repget-partner-settlement-<uuid>`), reserve each allocated commission (one active allocation per commission), and record the execution job in the outbox (`partners/settlement.execute`).
+
+Before that transaction: the `partner_payouts` switch, the live-money key for live mode, and a payout-ready connected account. Anything short of a payout is a **carry forward** with its reason: `nothing_payable`, `below_threshold` (EUR 24.75 stays below EUR 25.00), `negative_position`, `no_threshold`.
+
+### Stage 2: the transfer
+
+`executeSettlement` (`use-cases/execute-transfer.ts`) takes the settlement's 5-minute work lease. A lease running out does not prove a Stripe call failed: anything that may have reached Stripe is recorded first and reconciled after.
+
+- **Pre-flight**, every time, before any money moves: both switches, the live-money key, the environment of the Stripe key, the partner (active, no hold), the connected account re-read from Stripe (ready, owned by this partner per its metadata), the platform's available balance in that currency, and the allocations unchanged (checked again in the same transaction that records the attempt). A failed pre-flight cancels the settlement and releases the commissions. Too little platform balance is retried; after 8 attempts a `payout_funding` review case is opened and the settlement is cancelled.
+- **The attempt** is recorded as `processing` BEFORE the request, with the operation id `partner-transfer:<settlementId>:<n>`. That id is both the Stripe idempotency key and the transfer's metadata; the transfer carries the settlement's `transfer_group`.
+- **Outcomes:**
+  - success: `transfer_confirmed` is written to the ledger once (operation key `transfer:<tr_id>`), the settlement becomes `transferred`, its commissions `paid`;
+  - refused and retryable (`balance_insufficient`, `rate_limited`, `lock_timeout`): back to `reserved` for a later attempt;
+  - refused permanently: the attempt fails, a review case is opened, the settlement is cancelled;
+  - **no answer** (timeout, 5xx): `transfer_unknown`. It is resolved by looking the settlement's `transfer_group` up at Stripe. Within 23 hours the SAME request is repeated with the SAME idempotency key, so Stripe returns the original transfer if it was made. After that, a transfer absent from the group never existed and a new attempt may be made.
+- The database allows ONE transfer per settlement that may have moved money (partial unique index on live attempts), so no retry, worker race or bank payout failure can pay the same earnings twice.
+
+### Stage 3: the bank payout
+
+`payoutStage` (`use-cases/execute-bank-payout.ts`) creates the payout ON the connected account (the `Stripe-Account` header; the account's payout schedule is manual), with the operation id `partner-payout:<settlementId>:<n>` as idempotency key and metadata, after checking the connected balance.
+
+- Statuses come from Stripe only: Connect `payout.*` events and polling. `paid` only when Stripe says `paid`; `in_transit` and `pending` are shown as such.
+- A failed payout (`payout_failed`) leaves the money in the partner's Stripe balance and is retried with a new attempt; it never repeats the transfer. After 3 failures a `payout_discrepancy` review case is opened.
+- A payout RepGet did not create (for example one the partner triggered) is never matched to a settlement: an `unexpected_payout` review case is opened.
+- The `partner_payouts` switch off stops NEW bank payouts. Payouts already created keep being tracked.
+
+### After payment: refunds, reversals and adjustments
+
+- **A refund or chargeback after the transfer** reverses the commission in the ledger. What RepGet owes falls below the unpaid commissions, and the difference is **deducted from upcoming payouts** (shown to the partner as "will be deducted"). It is never hidden by editing a balance.
+- **Transfer reversal**, by an administrator with a reason: at most what the partner owes back and at most what remains of the transfer, operation id `partner-reversal:<attemptId>:<n>`. It is recorded from Stripe's own view of the transfer (`transfer_reversal`, keyed by the Stripe reversal id). A reversal made outside RepGet is recorded once and opens a `payout_discrepancy` case.
+- **Manual adjustments** are signed ledger entries (`manual:<uuid>`). A negative one is deducted from upcoming payouts. A positive one may only cancel an earlier deduction: payouts pay commissions, so a credit that no commission backs would be shown as owed but could never be paid, and is refused (`unbacked_credit`).
+
+### Recovery
+
+- `partner-payouts-sweep` (every 10 minutes) executes due settlements: new ones whose job was lost, unknown transfers, bank payouts to create or poll.
+- The daily reconciliation adds settlement checks: a reservation abandoned for more than 7 days, transfers still unknown, settlements needing review, failing bank payouts, and every confirmed transfer compared with Stripe (missing, different amount, reversed outside RepGet). Each finding is a review case.
+
+### Locking
+
+Lock order everywhere: partner, balance projection, attribution, payment fact, commission, settlement. Every row lock is `FOR NO KEY UPDATE`: it excludes other lockers exactly as `FOR UPDATE` does, but not the `FOR KEY SHARE` lock a foreign-key check takes. With `FOR UPDATE`, a refund (holding a commission, writing a ledger row that references the partner) and the monthly run (holding the partner, waiting for that commission) deadlocked. The real-Postgres race tests found it, and `settlements.postgres.test.ts` reproduces the exact interleaving. Keys are never changed and these rows are never deleted, so nothing needs the stronger lock.
+
+## Dashboards and reports
+
+Dedicated read queries (`application/queries/partner-dashboard.ts`, `admin-reports.ts`, `infrastructure/persistence/repositories/reporting.ts`). Partner and admin pages read the same records with the same status mapping (`commissionDisplayStatus`, `transferDisplayState`, `bankDisplayState` in the domain). Nothing is recomputed in React.
+
+**The five figures**, per currency (never converted), computed from the ledger and the commissions by the function that maintains the balance projection, so they are current rather than as of the last rebuild:
+
+| Figure | Definition |
+|---|---|
+| Total earned | Commission earned minus refunds, chargebacks and corrections, all time |
+| Pending | Unpaid and not payable yet: maturing (Net 30), held or under review |
+| Available | Unpaid and payable at the next monthly run |
+| Transferred | Net amount sent to the partner's Stripe balance |
+| Paid to your bank | The part of Transferred that Stripe confirmed paid to the bank |
+
+They never count money twice: earned = pending + available + in a payout (shown as "being sent now") + transferred − corrections still to deduct. `dashboards.test.ts` checks this against the raw ledger after a payout and a refund.
+
+**Metrics** for a chosen range (last 30, 90 or 365 days, UTC, both ends shown): link opens recorded; new accounts the link rule attributed; customers attributed (link or coupon); attributed customers with a commissionable payment in the range; and conversion = paying customers ÷ clicks ("-" without clicks).
+
+**Privacy.** A partner sees a referred customer as a shortened website address (`ex•••.com`) or an opaque reference (`Customer 3FA2C1`), never a name, an email or a full address. Administrators see the workspace name, the website and the same reference.
+
+**Exports** (`/admin/partners/export/{commissions,settlements,ledger}`, optionally `?partner=<id>`): administrators only (404 to anyone else), CSV with exact decimal amounts in their own currency, the customer as reference and internal workspace id only, no secret and no bank detail. Cells that could run as spreadsheet formulas are neutralised. At most 20,000 rows; a cut export says so in the `x-export-truncated` header.
+
+## Administrator controls
+
+Every action calls `requireAdmin()` itself, needs a reason of at least 5 characters, and is recorded in the activity log in the same transaction as the change.
+
+| Page | Actions |
+|---|---|
+| `/admin/partners` | The three switches; readiness; counts of what needs attention; exports |
+| `/admin/partners/applications`, `/admin/partners/partners` | Approve, reject, suspend, reactivate, hold or release payouts |
+| `/admin/partners/partners/[id]` | Balances per currency, recent payouts, the ledger, coupons (create, deactivate), balance adjustment |
+| `/admin/partners/attribution` | Attribution history; confirm a referral held for review; disqualify (unpaid commissions rejected) |
+| `/admin/partners/commissions` | Approve (held for review), reject (a reversing ledger entry), hold, release (not a dispute hold) |
+| `/admin/partners/payouts` | Next-run preview with blockers; run this month's payouts now; prepare one partner now (still one payout per currency per month); reconcile now; every settlement |
+| `/admin/partners/payouts/[id]` | Every attempt with its operation id; retry (reconciles before anything new; not for a settlement under review); cancel (only before anything may have reached Stripe); transfer reversal |
+| `/admin/partners/reviews` | Resolve or dismiss a case; for referral cases, confirm or disqualify the referral |
+| `/admin/partners/coupons` | Every coupon and campaign; deactivate |
+
+## Promotional resources
+
+`/partner/resources`: the brand files as shipped (`public/images`: logo for light and dark backgrounds, icon), banners in the partner's language (`public/partners/banners`, 728×90, 300×250 and 1200×628, one factual line and a call to action), and ready-made texts with the partner's own link filled in, plus the promotion rules. No figures, testimonials or performance claims.
 
 ## Program switches
 

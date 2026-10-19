@@ -46,6 +46,8 @@ export type TransferEvidence = {
   transferGroup: string | null;
   amountReversed: bigint;
   reversed: boolean;
+  /** Every reversal Stripe holds for it (whoever made it), so each is recorded once by its id. */
+  reversals: { id: string; amount: bigint; created: Date }[];
   balanceTransactionId: string | null;
   created: Date;
   metadata: Record<string, string>;

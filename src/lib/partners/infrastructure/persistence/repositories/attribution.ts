@@ -167,11 +167,11 @@ export function attributionRepository(db: Executor): AttributionRepository {
         .select()
         .from(partnerAttributions)
         .where(eq(partnerAttributions.organizationId, organizationId))
-        .for("update");
+        .for("no key update");
       return row ? toAttribution(row) : null;
     },
     async lock(id) {
-      const [row] = await db.select().from(partnerAttributions).where(eq(partnerAttributions.id, id)).for("update");
+      const [row] = await db.select().from(partnerAttributions).where(eq(partnerAttributions.id, id)).for("no key update");
       return row ? toAttribution(row) : null;
     },
     async createOrGet(input) {

@@ -55,8 +55,34 @@ export default async function AffiliateProgramPage() {
         <AdminStat label="Applications waiting" value={overview.openApplications} href="/admin/partners/applications" />
         <AdminStat label="Active partners" value={overview.activePartners} href="/admin/partners/partners" />
         <AdminStat label="Suspended partners" value={overview.suspendedPartners} href="/admin/partners/partners?status=suspended" />
-        <AdminStat label="Open review cases" value={overview.openReviewCases} hint={failedEvents ? `${failedEvents} Stripe events failed` : waitingEvents ? `${waitingEvents} Stripe events waiting` : undefined} />
+        <AdminStat
+          label="Open review cases"
+          value={overview.openReviewCases}
+          href="/admin/partners/reviews"
+          hint={failedEvents ? `${failedEvents} Stripe events failed` : waitingEvents ? `${waitingEvents} Stripe events waiting` : undefined}
+        />
+        <AdminStat label="Commissions to review" value={overview.commissionsNeedingReview} href="/admin/partners/commissions?status=review" />
+        <AdminStat label="Commissions held" value={overview.commissionsHeld} href="/admin/partners/commissions?status=held" />
+        <AdminStat label="Payouts needing attention" value={overview.payoutsNeedingAttention} href="/admin/partners/payouts" hint="Unknown outcome, review or failed bank payout" />
+        <AdminStat label="Partner referrals" value="Open" href="/admin/partners/attribution" />
       </div>
+
+      <AdminSection title="Reports and exports" description="CSV files from the same records the partner portal shows. No secrets, bank details or customer names and emails.">
+        <ul className="flex flex-wrap gap-2 text-sm">
+          {[
+            { href: "/admin/partners/export/commissions", label: "Commissions (CSV)" },
+            { href: "/admin/partners/export/settlements", label: "Payouts (CSV)" },
+            { href: "/admin/partners/export/ledger", label: "Ledger (CSV)" },
+            { href: "/admin/partners/coupons", label: "Coupons and campaigns" },
+          ].map((item) => (
+            <li key={item.href}>
+              <Link href={item.href} className="inline-flex rounded-md border px-3 py-1.5 hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring">
+                {item.label}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </AdminSection>
 
       <AdminSection title="Program switches" description="Each switch is independent. Every change needs a reason and is recorded in the activity log." tone="danger" bodyClassName="p-0">
         <ul className="divide-y">

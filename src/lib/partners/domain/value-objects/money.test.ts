@@ -106,3 +106,20 @@ describe("CommissionRate", () => {
     expect(CommissionRate.ofBasisPoints(3000).toPercentLabel()).toBe("30%");
   });
 });
+
+describe("Money.parseDecimal (what an administrator types)", () => {
+  it("reads typed amounts exactly, as text", () => {
+    expect(Money.parseDecimal("24.75", "eur").amount).toBe(big(2475));
+    expect(Money.parseDecimal("-0.5", "eur").amount).toBe(big(-50));
+    expect(Money.parseDecimal(" 100 ", "eur").amount).toBe(big(10000));
+    expect(Money.parseDecimal("0.1", "eur").add(Money.parseDecimal("0.2", "eur")).toDecimalString()).toBe("0.30");
+    expect(Money.parseDecimal("500", "jpy").amount).toBe(big(500));
+  });
+
+  it("refuses anything that is not a plain amount in that currency", () => {
+    for (const text of ["", "1,50", "1.234", "1e3", "abc", "--1", "12.", ".5", "1 000"]) {
+      expect(() => Money.parseDecimal(text, "eur")).toThrow(InvalidAmountError);
+    }
+    expect(() => Money.parseDecimal("1.5", "jpy")).toThrow(InvalidAmountError);
+  });
+});

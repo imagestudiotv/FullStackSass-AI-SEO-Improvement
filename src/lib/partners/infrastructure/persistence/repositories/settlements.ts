@@ -108,7 +108,7 @@ export function settlementRepository(db: Executor): SettlementRepository {
             eq(partnerBalanceProjections.currency, currency),
           ),
         )
-        .for("update");
+        .for("no key update");
     },
     async writeProjection(partnerId, environment, currency, values) {
       await db
@@ -190,7 +190,7 @@ export function settlementRepository(db: Executor): SettlementRepository {
       return row ? toSettlement(row) : null;
     },
     async lock(id) {
-      const [row] = await db.select().from(partnerSettlements).where(eq(partnerSettlements.id, id)).for("update");
+      const [row] = await db.select().from(partnerSettlements).where(eq(partnerSettlements.id, id)).for("no key update");
       return row ? toSettlement(row) : null;
     },
     async claim(id, token, until, now) {

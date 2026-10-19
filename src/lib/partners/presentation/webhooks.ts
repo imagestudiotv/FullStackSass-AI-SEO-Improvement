@@ -2,6 +2,7 @@ import "server-only";
 
 import type Stripe from "stripe";
 
+import { applyPayoutEvent } from "../application/use-cases/execute-bank-payout";
 import { syncPayoutAccount } from "../application/use-cases/manage-payout-account";
 import { partnerWorkFor } from "../infrastructure/stripe/event-normalizer";
 import { partnerDeps } from "../server";
@@ -39,6 +40,18 @@ export async function processPartnerConnectEvent(event: Stripe.Event): Promise<v
       if (!result.ok && result.reason !== "not_found") {
         console.warn(`[partners] ${event.type} for ${accountId} not applied`, { reason: result.reason, detail: result.detail });
       }
+      return;
+    }
+    case "payout.created":
+    case "payout.updated":
+    case "payout.paid":
+    case "payout.failed":
+    case "payout.canceled":
+    case "payout.reconciliation_completed": {
+      const deps = partnerDeps();
+      if (!deps.payouts) return;
+      const outcome = await applyPayoutEvent(deps, { accountId, payoutId: event.data.object.id, livemode: event.livemode });
+      if (outcome !== "applied") console.info(`[partners] ${event.type} ${event.data.object.id}: ${outcome}`);
       return;
     }
     default:

@@ -8,6 +8,8 @@ import { commissionFor, disputeEffect, eligibleBases, reversalTarget } from "./c
 import { addCalendarMonthsUtc, eligibilityWindow, isWithinWindow } from "./eligibility";
 import { emailSignals, evaluateFraud } from "./fraud";
 import { maturesAt, monthlyRunKey, nextMonthlyRun, planSettlement } from "./maturity";
+import { commissionDisplayStatus } from "../entities/commission";
+import { bankDisplayState, transferDisplayState } from "../entities/settlement";
 import { DEFAULT_PROGRAM_POLICY, parseProgramPolicy, payoutThreshold } from "./program";
 import { tierAt, tierForCount, tierProgress } from "./tiers";
 
@@ -383,5 +385,36 @@ describe("program policy", () => {
     expect(bad({ payoutThresholds: { eur: "-1" } })).toThrow();
     expect(bad({ payoutThresholds: { huf: "100" } })).toThrow();
     expect(bad({ maturityDays: 0 })).toThrow();
+  });
+});
+
+describe("what a person is shown (partner portal and admin alike)", () => {
+  const now = new Date("2026-10-19T12:00:00Z");
+  const base = { status: "pending" as const, reviewState: "approved" as const, holdReason: null, maturesAt: new Date("2026-10-30T00:00:00Z") };
+
+  it("shows commissions as stored, with held / review / matured views of unpaid money", () => {
+    expect(commissionDisplayStatus(base, now)).toBe("pending");
+    expect(commissionDisplayStatus({ ...base, maturesAt: new Date("2026-10-01T00:00:00Z") }, now)).toBe("available");
+    expect(commissionDisplayStatus({ ...base, holdReason: "dispute_open", maturesAt: new Date("2026-10-01T00:00:00Z") }, now)).toBe("held");
+    expect(commissionDisplayStatus({ ...base, reviewState: "needs_review" }, now)).toBe("review");
+    expect(commissionDisplayStatus({ ...base, status: "reserved" }, now)).toBe("reserved");
+    expect(commissionDisplayStatus({ ...base, status: "paid", holdReason: "x" }, now)).toBe("paid");
+    expect(commissionDisplayStatus({ ...base, status: "reversed" }, now)).toBe("reversed");
+  });
+
+  it("calls a transfer sent only once Stripe confirmed it, and a bank payout paid only once Stripe says so", () => {
+    expect(transferDisplayState("reserved", null)).toBe("pending");
+    expect(transferDisplayState("transfer_processing", "processing")).toBe("processing");
+    expect(transferDisplayState("transfer_unknown", "unknown")).toBe("processing");
+    expect(transferDisplayState("needs_review", "unknown")).toBe("processing");
+    expect(transferDisplayState("needs_review", "confirmed")).toBe("confirmed");
+    expect(transferDisplayState("transferred", "confirmed")).toBe("confirmed");
+    expect(transferDisplayState("payout_failed", "confirmed")).toBe("confirmed");
+    expect(transferDisplayState("paid", "reversed")).toBe("reversed");
+    expect(bankDisplayState(null)).toBe("not_started");
+    expect(bankDisplayState("unknown")).toBe("pending");
+    expect(bankDisplayState("in_transit")).toBe("in_transit");
+    expect(bankDisplayState("canceled")).toBe("failed");
+    expect(bankDisplayState("paid")).toBe("paid");
   });
 });

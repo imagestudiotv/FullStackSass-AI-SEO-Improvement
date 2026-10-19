@@ -21,13 +21,21 @@ function assertAdmin(admin: AdminContext): void {
 export async function adminProgramOverview(deps: PartnerDeps, admin: AdminContext) {
   assertAdmin(admin);
   const repos = deps.uow.repositories;
-  const [readiness, applications, partners, suspended, cases, events] = await Promise.all([
+  const environment = deps.settings.environment();
+  const one = { offset: 0, limit: 1 };
+  const none = Promise.resolve({ total: 0 });
+  const [readiness, applications, partners, suspended, cases, events, review, held, unknown, stuck, failed] = await Promise.all([
     programReadiness(deps),
-    repos.applications.list({ status: "submitted", offset: 0, limit: 1 }),
-    repos.partners.list({ status: "active", offset: 0, limit: 1 }),
-    repos.partners.list({ status: "suspended", offset: 0, limit: 1 }),
-    repos.reviews.list({ status: "open", offset: 0, limit: 1 }),
+    repos.applications.list({ status: "submitted", ...one }),
+    repos.partners.list({ status: "active", ...one }),
+    repos.partners.list({ status: "suspended", ...one }),
+    repos.reviews.list({ status: "open", ...one }),
     repos.providerEvents.backlog(),
+    environment ? repos.reporting.commissions({ environment, review: "needs_review", status: "pending", ...one }) : none,
+    environment ? repos.reporting.commissions({ environment, held: true, ...one }) : none,
+    environment ? repos.reporting.settlements({ environment, state: "transfer_unknown", ...one }) : none,
+    environment ? repos.reporting.settlements({ environment, state: "needs_review", ...one }) : none,
+    environment ? repos.reporting.settlements({ environment, state: "payout_failed", ...one }) : none,
   ]);
   return {
     readiness,
@@ -36,6 +44,10 @@ export async function adminProgramOverview(deps: PartnerDeps, admin: AdminContex
     suspendedPartners: suspended.total,
     openReviewCases: cases.total,
     providerEvents: events,
+    commissionsNeedingReview: review.total,
+    commissionsHeld: held.total,
+    /** Payouts a person should look at: outcome unknown, needs review, bank payout failed. */
+    payoutsNeedingAttention: unknown.total + stuck.total + failed.total,
   };
 }
 

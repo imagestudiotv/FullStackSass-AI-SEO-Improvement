@@ -13,7 +13,14 @@ import {
 } from "@/lib/db/schema";
 import type { Database, Executor } from "@/lib/db/types";
 import type { BillingSource, NormalizedCharge, NormalizedInvoice } from "@/lib/partners/application/ports/billing-source";
-import type { AccountReadiness, ConnectAccountGateway, ProviderOutcome } from "@/lib/partners/application/ports/payout-gateway";
+import type {
+  AccountReadiness,
+  ConnectAccountGateway,
+  PayoutEvidence,
+  ProviderOutcome,
+  StripePayoutGateway,
+  TransferEvidence,
+} from "@/lib/partners/application/ports/payout-gateway";
 import type { PartnerControlKey } from "@/lib/partners/application/ports/repositories";
 import type { PartnerDeps } from "@/lib/partners/application/use-cases/deps";
 import { fixedClock } from "@/lib/partners/infrastructure/clock";
@@ -354,4 +361,163 @@ export async function seedActiveSubscription(db: Executor, organizationId: strin
     currentPeriodStart: new Date(periodEnd.getTime() - 30 * 24 * 60 * 60 * 1000),
     currentPeriodEnd: periodEnd,
   });
+}
+
+/* ---------------------------------------------------------------- payouts */
+
+type Outcome<T> = ProviderOutcome<T>;
+
+/**
+ * A fake Stripe Connect money flow. Transfers are idempotent by key (like
+ * Stripe), findable by transfer group; bank payouts live on the connected
+ * account and are findable by listing it. Balances, refusals and lost
+ * answers ("unknown": the operation may have happened) are set by tests.
+ */
+export function fakePayouts(environment: "test" | "live" = "test") {
+  const connect = fakeConnect(environment);
+  const platform = new Map<string, bigint>();
+  const connected = new Map<string, bigint>();
+  const transfers = new Map<string, TransferEvidence>();
+  const byKey = new Map<string, string>();
+  const payouts = new Map<string, PayoutEvidence>();
+  const payoutByKey = new Map<string, string>();
+  const nextTransfer: Outcome<never>[] = [];
+  const nextPayout: Outcome<never>[] = [];
+  /** A lost answer: the transfer IS made, but the caller hears "unknown". */
+  let loseNextTransferAnswer = false;
+  const created = { transfers: 0, payouts: 0 };
+  const key = (k: string) => k;
+
+  const gateway: StripePayoutGateway = {
+    ...connect.gateway,
+    async platformAvailableBalance(currency) {
+      return platform.get(currency) ?? BigInt(0);
+    },
+    async connectedAvailableBalance(accountId, currency) {
+      return connected.get(`${accountId}:${currency}`) ?? BigInt(0);
+    },
+    async createTransfer(input) {
+      const existing = byKey.get(key(input.idempotencyKey));
+      if (existing) return { kind: "succeeded", value: transfers.get(existing)! };
+      const refusal = nextTransfer.shift();
+      if (refusal) return refusal;
+      const id = `tr_${randomUUID().replace(/-/g, "").slice(0, 16)}`;
+      const transfer: TransferEvidence = {
+        id,
+        livemode: environment === "live",
+        amount: input.amount,
+        currency: input.currency,
+        destination: input.destination,
+        transferGroup: input.transferGroup,
+        amountReversed: BigInt(0),
+        reversed: false,
+        reversals: [],
+        balanceTransactionId: `txn_${id}`,
+        created: new Date(),
+        metadata: input.metadata,
+      };
+      transfers.set(id, transfer);
+      byKey.set(key(input.idempotencyKey), id);
+      created.transfers += 1;
+      platform.set(input.currency, (platform.get(input.currency) ?? BigInt(0)) - input.amount);
+      const accountKey = `${input.destination}:${input.currency}`;
+      connected.set(accountKey, (connected.get(accountKey) ?? BigInt(0)) + input.amount);
+      if (loseNextTransferAnswer) {
+        loseNextTransferAnswer = false;
+        return { kind: "unknown", message: "ETIMEDOUT" };
+      }
+      return { kind: "succeeded", value: transfer };
+    },
+    async findTransfersByGroup(group) {
+      return [...transfers.values()].filter((t) => t.transferGroup === group);
+    },
+    async retrieveTransfer(id) {
+      const transfer = transfers.get(id);
+      if (!transfer) throw Object.assign(new Error("No such transfer"), { statusCode: 404 });
+      return transfer;
+    },
+    async createTransferReversal(input) {
+      const transfer = transfers.get(input.transferId)!;
+      const reversal = { id: `trr_${randomUUID().replace(/-/g, "").slice(0, 12)}`, amount: input.amount, created: new Date() };
+      transfers.set(transfer.id, { ...transfer, amountReversed: transfer.amountReversed + input.amount, reversals: [...transfer.reversals, reversal] });
+      return { kind: "succeeded", value: { reversalId: reversal.id, amount: input.amount } };
+    },
+    async createBankPayout(input) {
+      const existing = payoutByKey.get(input.idempotencyKey);
+      if (existing) return { kind: "succeeded", value: payouts.get(existing)! };
+      const refusal = nextPayout.shift();
+      if (refusal) return refusal;
+      const id = `po_${randomUUID().replace(/-/g, "").slice(0, 16)}`;
+      const payout: PayoutEvidence = {
+        id,
+        accountId: input.accountId,
+        livemode: environment === "live",
+        amount: input.amount,
+        currency: input.currency,
+        status: "pending",
+        automatic: false,
+        arrivalDate: new Date(Date.now() + 2 * 86_400_000),
+        failureCode: null,
+        failureMessage: null,
+        created: new Date(),
+        metadata: input.metadata,
+      };
+      payouts.set(id, payout);
+      payoutByKey.set(input.idempotencyKey, id);
+      created.payouts += 1;
+      const accountKey = `${input.accountId}:${input.currency}`;
+      connected.set(accountKey, (connected.get(accountKey) ?? BigInt(0)) - input.amount);
+      return { kind: "succeeded", value: payout };
+    },
+    async retrievePayout(_accountId, payoutId) {
+      return payouts.get(payoutId)!;
+    },
+    async listPayouts(accountId) {
+      return [...payouts.values()].filter((p) => p.accountId === accountId);
+    },
+  };
+
+  return {
+    gateway,
+    accounts: connect.accounts,
+    calls: connect.calls,
+    transfers,
+    payouts,
+    created,
+    fund(currency: string, amount: number) {
+      platform.set(currency, BigInt(amount));
+    },
+    refuseNextTransfer(code: string) {
+      nextTransfer.push({ kind: "refused", code, message: code } as Outcome<never>);
+    },
+    timeoutNextTransfer() {
+      nextTransfer.push({ kind: "unknown", message: "ETIMEDOUT" } as Outcome<never>);
+    },
+    loseNextTransferAnswer() {
+      loseNextTransferAnswer = true;
+    },
+    refuseNextPayout(code: string) {
+      nextPayout.push({ kind: "refused", code, message: code } as Outcome<never>);
+    },
+    /** Stripe moves the payout on (paid, failed: the money returns to the connected balance). */
+    setPayoutStatus(payoutId: string, status: string) {
+      const payout = payouts.get(payoutId)!;
+      payouts.set(payoutId, { ...payout, status, failureCode: status === "failed" ? "account_closed" : null });
+      if (status === "failed") {
+        const accountKey = `${payout.accountId}:${payout.currency}`;
+        connected.set(accountKey, (connected.get(accountKey) ?? BigInt(0)) + payout.amount);
+      }
+    },
+    /** A payout RepGet did not create (e.g. automatic). */
+    foreignPayout(accountId: string, amount: number) {
+      const id = `po_${randomUUID().replace(/-/g, "").slice(0, 16)}`;
+      payouts.set(id, { id, accountId, livemode: environment === "live", amount: BigInt(amount), currency: "eur", status: "paid", automatic: true, arrivalDate: null, failureCode: null, failureMessage: null, created: new Date(), metadata: {} });
+      return id;
+    },
+    reverseOutside(transferId: string, amount: number) {
+      const transfer = transfers.get(transferId)!;
+      const reversal = { id: `trr_${randomUUID().replace(/-/g, "").slice(0, 12)}`, amount: BigInt(amount), created: new Date() };
+      transfers.set(transferId, { ...transfer, amountReversed: transfer.amountReversed + BigInt(amount), reversals: [...transfer.reversals, reversal] });
+    },
+  };
 }

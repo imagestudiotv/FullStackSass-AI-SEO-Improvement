@@ -205,7 +205,7 @@ export function targetLink(row: Pick<AuditRow, "action" | "targetType" | "target
     case "partner_review_case":
       return { href: "/admin/partners/reviews", destination: "partner review cases" };
     case "partner_settlement":
-      return { href: "/admin/partners/payouts", destination: "partner payouts" };
+      return id ? { href: `/admin/partners/payouts/${id}`, destination: "the partner payout" } : { href: "/admin/partners/payouts", destination: "partner payouts" };
     case "partner_program":
       return { href: "/admin/partners", destination: "the partner program" };
     default:

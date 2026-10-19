@@ -97,7 +97,7 @@ export function applicationRepository(db: Executor): ApplicationRepository {
       return row ? toApplication(row) : null;
     },
     async lock(id) {
-      const [row] = await db.select().from(partnerApplications).where(eq(partnerApplications.id, id)).for("update");
+      const [row] = await db.select().from(partnerApplications).where(eq(partnerApplications.id, id)).for("no key update");
       return row ? toApplication(row) : null;
     },
     async decide(id, decision) {
@@ -152,7 +152,16 @@ export function partnerRepository(db: Executor): PartnerRepository {
       return row ? toPartner(row) : null;
     },
     async lock(id) {
-      const [row] = await db.select().from(partnerProfiles).where(eq(partnerProfiles.id, id)).for("update");
+      /*
+        FOR NO KEY UPDATE, like every partner-program row lock: it excludes
+        other lockers exactly as FOR UPDATE does, but not the FOR KEY SHARE
+        lock a foreign-key check takes. With FOR UPDATE, a transaction
+        inserting a row that references this partner (a ledger entry, a
+        projection) while holding another row this transaction wants was a
+        deadlock - found by the hold-vs-monthly-run race test. Keys are never
+        changed and these rows are never deleted, so nothing needs more.
+      */
+      const [row] = await db.select().from(partnerProfiles).where(eq(partnerProfiles.id, id)).for("no key update");
       return row ? toPartner(row) : null;
     },
     async createOrGet(input) {

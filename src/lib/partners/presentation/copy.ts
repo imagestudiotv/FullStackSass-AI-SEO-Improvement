@@ -80,8 +80,14 @@ export type PartnerCopy = {
       noEarnings: string;
       noThreshold: string;
       threshold: string;
-      metrics: { clicks: string; signups: string; customers: string; conversion: string; range: string };
+      metrics: { clicks: string; signups: string; referred: string; customers: string; conversion: string; range: string; period: string; since: string; definition: string };
+      balancesTitle: string;
+      currencyNote: string;
+      inPayout: string;
+      offset: string;
+      nextPayout: string;
       couponsTitle: string;
+      copyCode: string;
       noCoupons: string;
       couponDiscount: string;
     };
@@ -111,6 +117,8 @@ export type PartnerCopy = {
       transferStates: Record<"pending" | "processing" | "confirmed" | "reversed", string>;
       bankStates: Record<"not_started" | "pending" | "in_transit" | "paid" | "failed", string>;
       schedule: string;
+      offset: string;
+      arrival: string;
     };
     setup: {
       title: string;
@@ -124,7 +132,7 @@ export type PartnerCopy = {
       countryUnsupported: string;
       errors: Record<"generic" | "provider_outcome_unknown" | "onboarding_incomplete" | "suspended" | "disabled", string>;
     };
-    resources: { title: string; intro: string; logos: string; download: string; copyTitle: string; copyIntro: string; templates: { title: string; body: string }[]; rules: string; rulesList: string[] };
+    resources: { title: string; intro: string; logos: string; logosIntro: string; banners: string; bannersIntro: string; files: { logo: string; logoLight: string; mark: string; banner: string }; copyText: string; download: string; copyTitle: string; copyIntro: string; templates: { title: string; body: string }[]; rules: string; rulesList: string[] };
     settings: { title: string; profile: string; name: string; email: string; country: string; code: string; status: string; statuses: Record<"active" | "suspended", string> };
     pagination: { previous: string; next: string; page: string };
   };
@@ -238,14 +246,30 @@ const en: PartnerCopy = {
       noEarnings: "No commission yet. Share your link to get started.",
       noThreshold: "Automatic payouts are not available for {currency} yet. Your balance is kept and shown here.",
       threshold: "Payouts start once your available balance reaches {amount}.",
-      metrics: { clicks: "Link clicks", signups: "New accounts", customers: "Paying customers", conversion: "Clicks to paying", range: "Last {days} days" },
+      metrics: {
+        clicks: "Link clicks",
+        signups: "New accounts",
+        referred: "Referred customers",
+        customers: "Paying customers",
+        conversion: "Clicks to paying",
+        range: "Last {days} days",
+        period: "Period",
+        since: "{start} to {end} (UTC)",
+        definition: "Counted in the period: link opens recorded, new accounts created through your link, customers attributed to you (link or coupon), and those of them who made a commissionable payment.",
+      },
+      balancesTitle: "Earnings",
+      currencyNote: "Each currency is shown on its own. Amounts are never converted.",
+      inPayout: "Being sent now: {amount}",
+      offset: "{amount} will be deducted from upcoming payouts (a refund or correction after a payout).",
+      nextPayout: "Next payout run: {date}",
       couponsTitle: "Your coupons",
+      copyCode: "Copy code",
       noCoupons: "No coupon has been assigned to you.",
       couponDiscount: "{discount} for new customers",
     },
     referrals: {
       title: "Referrals",
-      intro: "Accounts attributed to you. Customers are shown by their website, never by name or email.",
+      intro: "Accounts attributed to you. Customers are shown by a shortened website address or a reference, never by name or email.",
       customer: "Customer",
       source: "Source",
       since: "Since",
@@ -279,6 +303,8 @@ const en: PartnerCopy = {
       transferStates: { pending: "Preparing", processing: "Sending", confirmed: "Sent", reversed: "Reversed" },
       bankStates: { not_started: "Not started", pending: "Pending", in_transit: "On the way", paid: "Paid", failed: "Failed - we will retry" },
       schedule: "Payouts run on the first day of each month.",
+      offset: "{amount} deducted for corrections",
+      arrival: "Expected by {date}",
     },
     setup: {
       title: "Payout setup",
@@ -309,6 +335,11 @@ const en: PartnerCopy = {
       title: "Resources",
       intro: "Logos and ready-made text you are welcome to use. Please describe RepGet accurately.",
       logos: "Logos",
+      logosIntro: "Use the logo as provided: do not change its colours or proportions.",
+      banners: "Banners",
+      bannersIntro: "Ready-made images for websites and newsletters. Link them to your partner link.",
+      files: { logo: "Logo for light backgrounds", logoLight: "Logo for dark backgrounds", mark: "Icon", banner: "Banner {size}" },
+      copyText: "Copy text",
       download: "Download",
       copyTitle: "Text you can use",
       copyIntro: "Edit freely. Please do not promise results or earnings.",
@@ -438,14 +469,30 @@ const es: PartnerCopy = {
       noEarnings: "Aún no hay comisiones. Comparta su enlace para empezar.",
       noThreshold: "Los pagos automáticos aún no están disponibles en {currency}. Su saldo se conserva y se muestra aquí.",
       threshold: "Los pagos empiezan cuando su saldo disponible alcanza {amount}.",
-      metrics: { clicks: "Clics en el enlace", signups: "Cuentas nuevas", customers: "Clientes de pago", conversion: "De clic a pago", range: "Últimos {days} días" },
+      metrics: {
+        clicks: "Clics en el enlace",
+        signups: "Cuentas nuevas",
+        referred: "Clientes referidos",
+        customers: "Clientes de pago",
+        conversion: "De clic a pago",
+        range: "Últimos {days} días",
+        period: "Periodo",
+        since: "Del {start} al {end} (UTC)",
+        definition: "Contados en el periodo: aperturas registradas de su enlace, cuentas nuevas creadas con su enlace, clientes que se le atribuyen (enlace o cupón) y, de ellos, los que hicieron un pago con comisión.",
+      },
+      balancesTitle: "Ganancias",
+      currencyNote: "Cada moneda se muestra por separado. Los importes nunca se convierten.",
+      inPayout: "Enviándose ahora: {amount}",
+      offset: "Se descontarán {amount} de los próximos pagos (un reembolso o una corrección posterior a un pago).",
+      nextPayout: "Próximo pago: {date}",
       couponsTitle: "Sus cupones",
+      copyCode: "Copiar código",
       noCoupons: "No tiene ningún cupón asignado.",
       couponDiscount: "{discount} para clientes nuevos",
     },
     referrals: {
       title: "Referidos",
-      intro: "Cuentas que se le atribuyen. Los clientes se muestran por su sitio web, nunca por nombre ni correo.",
+      intro: "Cuentas que se le atribuyen. Los clientes se muestran con una dirección web abreviada o una referencia, nunca por nombre ni correo.",
       customer: "Cliente",
       source: "Origen",
       since: "Desde",
@@ -479,6 +526,8 @@ const es: PartnerCopy = {
       transferStates: { pending: "Preparando", processing: "Enviando", confirmed: "Enviado", reversed: "Anulado" },
       bankStates: { not_started: "Sin iniciar", pending: "Pendiente", in_transit: "En camino", paid: "Pagado", failed: "Fallido - lo reintentaremos" },
       schedule: "Los pagos se realizan el primer día de cada mes.",
+      offset: "{amount} descontados por correcciones",
+      arrival: "Llegada prevista: {date}",
     },
     setup: {
       title: "Configuración de pagos",
@@ -509,6 +558,11 @@ const es: PartnerCopy = {
       title: "Recursos",
       intro: "Logotipos y textos que puede usar. Describa RepGet con precisión.",
       logos: "Logotipos",
+      logosIntro: "Use el logotipo tal cual: no cambie sus colores ni sus proporciones.",
+      banners: "Banners",
+      bannersIntro: "Imágenes listas para webs y boletines. Enlácelas a su enlace de partner.",
+      files: { logo: "Logotipo para fondos claros", logoLight: "Logotipo para fondos oscuros", mark: "Icono", banner: "Banner {size}" },
+      copyText: "Copiar texto",
       download: "Descargar",
       copyTitle: "Textos que puede usar",
       copyIntro: "Modifíquelos libremente. No prometa resultados ni ganancias.",
@@ -638,14 +692,30 @@ const fr: PartnerCopy = {
       noEarnings: "Aucune commission pour l'instant. Partagez votre lien pour commencer.",
       noThreshold: "Les versements automatiques ne sont pas encore disponibles en {currency}. Votre solde est conservé et affiché ici.",
       threshold: "Les versements commencent quand votre solde disponible atteint {amount}.",
-      metrics: { clicks: "Clics sur le lien", signups: "Nouveaux comptes", customers: "Clients payants", conversion: "Du clic au paiement", range: "{days} derniers jours" },
+      metrics: {
+        clicks: "Clics sur le lien",
+        signups: "Nouveaux comptes",
+        referred: "Clients recommandés",
+        customers: "Clients payants",
+        conversion: "Du clic au paiement",
+        range: "{days} derniers jours",
+        period: "Période",
+        since: "Du {start} au {end} (UTC)",
+        definition: "Comptés sur la période : ouvertures enregistrées de votre lien, nouveaux comptes créés via votre lien, clients qui vous sont attribués (lien ou code promo) et, parmi eux, ceux qui ont effectué un paiement commissionné.",
+      },
+      balancesTitle: "Gains",
+      currencyNote: "Chaque devise est affichée séparément. Les montants ne sont jamais convertis.",
+      inPayout: "En cours d'envoi : {amount}",
+      offset: "{amount} sera déduit des prochains versements (un remboursement ou une correction après un versement).",
+      nextPayout: "Prochain versement : {date}",
       couponsTitle: "Vos codes promo",
+      copyCode: "Copier le code",
       noCoupons: "Aucun code promo ne vous a été attribué.",
       couponDiscount: "{discount} pour les nouveaux clients",
     },
     referrals: {
       title: "Filleuls",
-      intro: "Comptes qui vous sont attribués. Les clients apparaissent par leur site, jamais par leur nom ou leur e-mail.",
+      intro: "Comptes qui vous sont attribués. Les clients apparaissent sous une adresse de site abrégée ou une référence, jamais par leur nom ou leur e-mail.",
       customer: "Client",
       source: "Origine",
       since: "Depuis",
@@ -679,6 +749,8 @@ const fr: PartnerCopy = {
       transferStates: { pending: "En préparation", processing: "Envoi en cours", confirmed: "Envoyé", reversed: "Annulé" },
       bankStates: { not_started: "Pas commencé", pending: "En attente", in_transit: "En route", paid: "Versé", failed: "Échec - nous réessaierons" },
       schedule: "Les versements ont lieu le premier jour de chaque mois.",
+      offset: "{amount} déduit pour corrections",
+      arrival: "Arrivée prévue : {date}",
     },
     setup: {
       title: "Configuration des versements",
@@ -709,6 +781,11 @@ const fr: PartnerCopy = {
       title: "Ressources",
       intro: "Logos et textes prêts à l'emploi que vous pouvez utiliser. Merci de décrire RepGet fidèlement.",
       logos: "Logos",
+      logosIntro: "Utilisez le logo tel quel : n'en modifiez ni les couleurs ni les proportions.",
+      banners: "Bannières",
+      bannersIntro: "Des images prêtes pour les sites et les newsletters. Faites-les pointer vers votre lien partenaire.",
+      files: { logo: "Logo pour fonds clairs", logoLight: "Logo pour fonds sombres", mark: "Icône", banner: "Bannière {size}" },
+      copyText: "Copier le texte",
       download: "Télécharger",
       copyTitle: "Textes à utiliser",
       copyIntro: "Modifiez-les librement. Ne promettez ni résultats ni revenus.",
@@ -838,14 +915,30 @@ const it: PartnerCopy = {
       noEarnings: "Nessuna commissione per ora. Condivida il suo link per iniziare.",
       noThreshold: "I pagamenti automatici non sono ancora disponibili in {currency}. Il saldo è conservato e mostrato qui.",
       threshold: "I pagamenti iniziano quando il saldo disponibile raggiunge {amount}.",
-      metrics: { clicks: "Clic sul link", signups: "Nuovi account", customers: "Clienti paganti", conversion: "Da clic a pagamento", range: "Ultimi {days} giorni" },
+      metrics: {
+        clicks: "Clic sul link",
+        signups: "Nuovi account",
+        referred: "Clienti segnalati",
+        customers: "Clienti paganti",
+        conversion: "Da clic a pagamento",
+        range: "Ultimi {days} giorni",
+        period: "Periodo",
+        since: "Dal {start} al {end} (UTC)",
+        definition: "Conteggiati nel periodo: aperture registrate del suo link, nuovi account creati tramite il suo link, clienti attribuiti a lei (link o coupon) e, tra questi, quelli che hanno effettuato un pagamento con commissione.",
+      },
+      balancesTitle: "Guadagni",
+      currencyNote: "Ogni valuta è mostrata a parte. Gli importi non vengono mai convertiti.",
+      inPayout: "In invio ora: {amount}",
+      offset: "{amount} sarà detratto dai prossimi pagamenti (un rimborso o una correzione dopo un pagamento).",
+      nextPayout: "Prossimo pagamento: {date}",
       couponsTitle: "I suoi coupon",
+      copyCode: "Copia codice",
       noCoupons: "Non le è stato assegnato alcun coupon.",
       couponDiscount: "{discount} per i nuovi clienti",
     },
     referrals: {
       title: "Referral",
-      intro: "Account attribuiti a lei. I clienti sono indicati con il loro sito, mai con nome o email.",
+      intro: "Account attribuiti a lei. I clienti sono indicati con un indirizzo del sito abbreviato o un riferimento, mai con nome o email.",
       customer: "Cliente",
       source: "Origine",
       since: "Dal",
@@ -879,6 +972,8 @@ const it: PartnerCopy = {
       transferStates: { pending: "In preparazione", processing: "Invio in corso", confirmed: "Inviato", reversed: "Annullato" },
       bankStates: { not_started: "Non iniziato", pending: "In attesa", in_transit: "In arrivo", paid: "Pagato", failed: "Non riuscito - riproveremo" },
       schedule: "I pagamenti avvengono il primo giorno di ogni mese.",
+      offset: "{amount} detratti per correzioni",
+      arrival: "Arrivo previsto: {date}",
     },
     setup: {
       title: "Configurazione dei pagamenti",
@@ -909,6 +1004,11 @@ const it: PartnerCopy = {
       title: "Risorse",
       intro: "Loghi e testi pronti che può usare. La preghiamo di descrivere RepGet in modo accurato.",
       logos: "Loghi",
+      logosIntro: "Usi il logo così com'è: non ne modifichi colori o proporzioni.",
+      banners: "Banner",
+      bannersIntro: "Immagini pronte per siti e newsletter. Le colleghi al suo link partner.",
+      files: { logo: "Logo per sfondi chiari", logoLight: "Logo per sfondi scuri", mark: "Icona", banner: "Banner {size}" },
+      copyText: "Copia testo",
       download: "Scarica",
       copyTitle: "Testi da usare",
       copyIntro: "Li modifichi liberamente. Non prometta risultati né guadagni.",
@@ -1038,14 +1138,30 @@ const de: PartnerCopy = {
       noEarnings: "Noch keine Provision. Teilen Sie Ihren Link, um zu beginnen.",
       noThreshold: "Automatische Auszahlungen sind für {currency} noch nicht verfügbar. Ihr Guthaben bleibt erhalten und wird hier angezeigt.",
       threshold: "Auszahlungen beginnen, sobald Ihr verfügbares Guthaben {amount} erreicht.",
-      metrics: { clicks: "Link-Klicks", signups: "Neue Konten", customers: "Zahlende Kunden", conversion: "Vom Klick zur Zahlung", range: "Letzte {days} Tage" },
+      metrics: {
+        clicks: "Link-Klicks",
+        signups: "Neue Konten",
+        referred: "Geworbene Kunden",
+        customers: "Zahlende Kunden",
+        conversion: "Vom Klick zur Zahlung",
+        range: "Letzte {days} Tage",
+        period: "Zeitraum",
+        since: "{start} bis {end} (UTC)",
+        definition: "Im Zeitraum gezählt: erfasste Aufrufe Ihres Links, über Ihren Link erstellte neue Konten, Ihnen zugeordnete Kunden (Link oder Gutschein) und davon diejenigen mit einer provisionsfähigen Zahlung.",
+      },
+      balancesTitle: "Einnahmen",
+      currencyNote: "Jede Währung wird getrennt angezeigt. Beträge werden nie umgerechnet.",
+      inPayout: "Wird gerade gesendet: {amount}",
+      offset: "{amount} wird von den nächsten Auszahlungen abgezogen (eine Erstattung oder Korrektur nach einer Auszahlung).",
+      nextPayout: "Nächster Auszahlungslauf: {date}",
       couponsTitle: "Ihre Gutscheine",
+      copyCode: "Code kopieren",
       noCoupons: "Ihnen wurde kein Gutschein zugewiesen.",
       couponDiscount: "{discount} für Neukunden",
     },
     referrals: {
       title: "Empfehlungen",
-      intro: "Ihnen zugeordnete Konten. Kunden werden über ihre Website angezeigt, nie mit Name oder E-Mail.",
+      intro: "Ihnen zugeordnete Konten. Kunden werden mit einer verkürzten Website-Adresse oder einer Referenz angezeigt, nie mit Name oder E-Mail.",
       customer: "Kunde",
       source: "Herkunft",
       since: "Seit",
@@ -1079,6 +1195,8 @@ const de: PartnerCopy = {
       transferStates: { pending: "In Vorbereitung", processing: "Wird gesendet", confirmed: "Gesendet", reversed: "Storniert" },
       bankStates: { not_started: "Nicht begonnen", pending: "Ausstehend", in_transit: "Unterwegs", paid: "Gezahlt", failed: "Fehlgeschlagen - wir versuchen es erneut" },
       schedule: "Auszahlungen erfolgen am ersten Tag jedes Monats.",
+      offset: "{amount} für Korrekturen abgezogen",
+      arrival: "Voraussichtlich am {date}",
     },
     setup: {
       title: "Auszahlungen einrichten",
@@ -1109,6 +1227,11 @@ const de: PartnerCopy = {
       title: "Material",
       intro: "Logos und fertige Texte, die Sie gerne verwenden können. Bitte beschreiben Sie RepGet zutreffend.",
       logos: "Logos",
+      logosIntro: "Verwenden Sie das Logo unverändert: Ändern Sie weder Farben noch Proportionen.",
+      banners: "Banner",
+      bannersIntro: "Fertige Bilder für Websites und Newsletter. Verlinken Sie sie mit Ihrem Partnerlink.",
+      files: { logo: "Logo für helle Hintergründe", logoLight: "Logo für dunkle Hintergründe", mark: "Symbol", banner: "Banner {size}" },
+      copyText: "Text kopieren",
       download: "Herunterladen",
       copyTitle: "Texte zur Verwendung",
       copyIntro: "Passen Sie sie frei an. Versprechen Sie bitte keine Ergebnisse oder Einnahmen.",

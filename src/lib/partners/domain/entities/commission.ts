@@ -64,6 +64,25 @@ export function isPayable(commission: CommissionSnapshot, now: Date): boolean {
   );
 }
 
+/**
+ * What a person is shown for a commission - the same in the partner portal
+ * and the admin area. "held" and "review" are views of pending/available
+ * money that no settlement may take yet, not separate stored statuses.
+ */
+export type CommissionDisplayStatus = CommissionStatus | "held" | "review";
+
+export function commissionDisplayStatus(
+  commission: Pick<CommissionSnapshot, "status" | "reviewState" | "holdReason" | "maturesAt">,
+  now: Date,
+): CommissionDisplayStatus {
+  if (commission.status !== "pending" && commission.status !== "available") return commission.status;
+  if (commission.holdReason) return "held";
+  if (commission.reviewState === "needs_review") return "review";
+  // Matured since the last sweep: payable now, as the balances already count it.
+  if (commission.reviewState === "approved" && commission.maturesAt.getTime() <= now.getTime()) return "available";
+  return "pending";
+}
+
 /** The status a commission should show at `now`, when nothing is in flight. */
 export function projectedStatus(commission: CommissionSnapshot, now: Date): CommissionStatus {
   if (commission.status === "reserved" || commission.status === "paid") return commission.status;

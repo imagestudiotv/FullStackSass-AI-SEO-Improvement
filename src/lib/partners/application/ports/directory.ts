@@ -39,8 +39,14 @@ export interface UserDirectory {
    * provider (Stripe or PayPal) - an existing customer is never "new".
    */
   priorPaidPayments(organizationId: string, before: Date, excludingStripeInvoiceId: string): Promise<boolean>;
-  /** A short, privacy-safe label for a referred customer: the website domain, else a masked name. */
+  /**
+   * A short, privacy-safe label for a referred customer, for the PARTNER's
+   * eyes: a shortened website address ("ex•••.com") or an opaque reference
+   * ("Customer 3FA2C1") - never a name, an email or a full address.
+   */
   customerLabels(organizationIds: string[]): Promise<Record<string, string>>;
+  /** For administrators only: the workspace name and first website, with the same reference. */
+  organizationSummaries(organizationIds: string[]): Promise<Record<string, { name: string; domain: string | null; reference: string }>>;
 }
 
 export interface Mailer {

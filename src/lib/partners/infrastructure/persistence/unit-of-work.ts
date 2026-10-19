@@ -13,6 +13,7 @@ import { commissionRepository } from "./repositories/commissions";
 import { applicationRepository, partnerRepository, tierRepository } from "./repositories/partners";
 import { controlsRepository, programRepository } from "./repositories/program";
 import { reconciliationRepository } from "./repositories/reconciliation";
+import { reportingRepository } from "./repositories/reporting";
 import { settlementRepository } from "./repositories/settlements";
 
 /**
@@ -39,6 +40,7 @@ export function repositoriesFor(
     reviews: reviewCaseRepository(executor),
     providerEvents: providerEventRepository(executor),
     reconciliation: reconciliationRepository(executor),
+    reporting: reportingRepository(executor),
     directory: userDirectory(executor),
     outbox: {
       async enqueue(job: PartnerJob) {

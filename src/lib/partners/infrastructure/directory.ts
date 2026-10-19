@@ -121,24 +121,65 @@ export function userDirectory(db: Executor): UserDirectory {
     async customerLabels(organizationIds) {
       if (organizationIds.length === 0) return {};
       /*
-        Privacy-safe: the customer's (public) website domain once they have
-        one, else an opaque reference. Never a name or an email: a partner
-        link can be posted publicly, and the people who arrive through it are
-        not necessarily anyone the partner knows.
+        Privacy-safe: a shortened form of the customer's website address
+        (enough for a partner to recognise a referral they made, not enough
+        to look the business up), else an opaque reference. Never a name or
+        an email: a partner link can be posted publicly, and the people who
+        arrive through it are not necessarily anyone the partner knows.
       */
-      const sites = await db
-        .select({ organizationId: websites.organizationId, domain: websites.domain })
-        .from(websites)
-        .where(inArray(websites.organizationId, organizationIds))
-        .orderBy(asc(websites.createdAt));
+      const domains = await firstDomains(db, organizationIds);
       const labels: Record<string, string> = {};
-      for (const site of sites) {
-        if (!labels[site.organizationId]) labels[site.organizationId] = site.domain;
-      }
       for (const id of organizationIds) {
-        if (!labels[id]) labels[id] = `Customer ${createHash("sha256").update(id).digest("hex").slice(0, 6).toUpperCase()}`;
+        const domain = domains.get(id);
+        labels[id] = domain ? maskDomain(domain) : customerReference(id);
       }
       return labels;
     },
+    async organizationSummaries(organizationIds) {
+      if (organizationIds.length === 0) return {};
+      const [domains, names] = await Promise.all([
+        firstDomains(db, organizationIds),
+        db.select({ id: organization.id, name: organization.name }).from(organization).where(inArray(organization.id, organizationIds)),
+      ]);
+      const byId = new Map(names.map((row) => [row.id, row.name]));
+      const summaries: Record<string, { name: string; domain: string | null; reference: string }> = {};
+      for (const id of organizationIds) {
+        summaries[id] = { name: byId.get(id) ?? "(workspace removed)", domain: domains.get(id) ?? null, reference: customerReference(id) };
+      }
+      return summaries;
+    },
   };
+}
+
+async function firstDomains(db: Executor, organizationIds: string[]): Promise<Map<string, string>> {
+  const sites = await db
+    .select({ organizationId: websites.organizationId, domain: websites.domain })
+    .from(websites)
+    .where(inArray(websites.organizationId, organizationIds))
+    .orderBy(asc(websites.createdAt));
+  const domains = new Map<string, string>();
+  for (const site of sites) {
+    if (!domains.has(site.organizationId)) domains.set(site.organizationId, site.domain);
+  }
+  return domains;
+}
+
+/** The same opaque reference for a customer in the partner's and the administrator's views. */
+export function customerReference(organizationId: string): string {
+  return `Customer ${createHash("sha256").update(organizationId).digest("hex").slice(0, 6).toUpperCase()}`;
+}
+
+/**
+ * "example.co.uk" -> "ex•••.co.uk", "www.shop.io" -> "sh•••.io": the first two
+ * letters of the name and its ending. Subdomains are dropped.
+ */
+export function maskDomain(domain: string): string {
+  const labels = domain.trim().toLowerCase().replace(/^https?:\/\//, "").split("/")[0].split(".").filter(Boolean);
+  if (labels[0] === "www") labels.shift();
+  if (labels.length < 2) return `${(labels[0] ?? "").slice(0, 2)}•••`;
+  // A two-part ending such as co.uk or com.br: both parts short.
+  const twoPart = labels.length >= 3 && labels[labels.length - 1].length <= 3 && labels[labels.length - 2].length <= 3;
+  const suffix = labels.slice(twoPart ? -2 : -1).join(".");
+  const name = labels[labels.length - (twoPart ? 3 : 2)];
+  return `${name.slice(0, 2)}•••.${suffix}`;
 }

@@ -16,7 +16,7 @@ import { drizzleUnitOfWork } from "./infrastructure/persistence/unit-of-work";
 import { burstRateLimiter, quotaRateLimiter } from "./infrastructure/rate-limit";
 import { settingsFromEnv } from "./infrastructure/settings";
 import { stripeBillingSource, stripeCouponGateway } from "./infrastructure/stripe/billing-source";
-import { connectAccountGateway } from "./infrastructure/stripe/connect-onboarding";
+import { stripePayoutGateway } from "./infrastructure/stripe/payout-gateway";
 
 /**
  * THE COMPOSITION ROOT. The only module that constructs concrete adapters
@@ -46,7 +46,8 @@ export function partnerDeps(): PartnerDeps {
   if (!deps) {
     const settings = settingsFromEnv();
     const environment = settings.environment();
-    const connect = environment ? connectAccountGateway(stripe, environment) : null;
+    // One Stripe Connect adapter: onboarding and readiness, transfers and bank payouts.
+    const payouts = environment ? stripePayoutGateway(stripe, environment) : null;
     deps = {
       uow: drizzleUnitOfWork(db),
       clock: systemClock,
@@ -57,8 +58,8 @@ export function partnerDeps(): PartnerDeps {
       mailer: partnerMailer,
       quotaLimiter: quotaRateLimiter(),
       burstLimiter: burstRateLimiter(),
-      connect,
-      payouts: null,
+      connect: payouts,
+      payouts,
       billing: environment ? stripeBillingSource(stripe, environment) : null,
       couponGateway: environment ? stripeCouponGateway(stripe) : null,
     };

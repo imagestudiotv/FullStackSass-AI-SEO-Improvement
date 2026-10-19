@@ -37,6 +37,21 @@ export class Money {
     return Money.of(value.amount, value.currency);
   }
 
+  /**
+   * From what a person typed: "12", "12.5", "-0.75" (a dot, at most the
+   * currency's decimals). Exact - the digits are read as text, never as a
+   * float. Anything else throws InvalidAmountError.
+   */
+  static parseDecimal(text: string, currencyCode: string): Money {
+    const resolved = resolveCurrency(currencyCode);
+    const match = /^(-)?(\d{1,15})(?:\.(\d+))?$/.exec(text.trim());
+    if (!match) throw new InvalidAmountError(`Not an amount: ${text.slice(0, 40)}`);
+    const [, sign, whole, fraction = ""] = match;
+    if (fraction.length > resolved.exponent) throw new InvalidAmountError(`More decimals than ${resolved.code.toUpperCase()} has`);
+    const minor = BigInt(whole + fraction.padEnd(resolved.exponent, "0"));
+    return new Money(sign ? -minor : minor, resolved);
+  }
+
   get code(): string {
     return this.currency.code;
   }

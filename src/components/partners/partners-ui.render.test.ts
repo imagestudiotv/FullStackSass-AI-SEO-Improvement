@@ -20,7 +20,10 @@ import { LOCALES, localePath } from "@/lib/i18n/config";
 import { DEFAULT_PROGRAM_POLICY } from "@/lib/partners/domain/policies/program";
 import { partnerCopy } from "@/lib/partners/presentation/copy";
 
+import { balanceView, commissionRowView, metricsView, payoutRowView, referralRowView } from "@/lib/partners/presentation/views";
+
 import { ApplicationForm } from "./application-form";
+import { CommissionList, EarningsPanel, MetricsPanel, PayoutList, ReferralList, ResourcesView } from "./dashboard-views";
 import { PartnerNavigation } from "./partner-navigation";
 import { PayoutSetup } from "./payout-setup";
 import { TierProgress } from "./tier-progress";
@@ -104,5 +107,90 @@ describe("portal components", () => {
     expect(tier).toContain('role="progressbar"');
     expect(tier).toContain('aria-valuenow="17"');
     expect(text(tier)).toContain("8 more customers to reach Premier Partner - 35%");
+  });
+});
+
+describe("the partner dashboard and histories", () => {
+  const figures = {
+    currency: "eur",
+    earned: BigInt(4950),
+    pending: BigInt(2475),
+    available: BigInt(2475),
+    inPayout: BigInt(0),
+    transferred: BigInt(0),
+    bankPaid: BigInt(0),
+    offset: BigInt(0),
+    liability: BigInt(4950),
+    threshold: BigInt(2500),
+    belowThreshold: true,
+    updatedAt: new Date("2026-10-19T00:00:00Z"),
+  };
+
+  it.each(LOCALES)("%s: earnings, metrics and every history render filled in, as tables and as phone cards", (locale) => {
+    const copy = partnerCopy(locale).portal;
+    const earnings = renderToStaticMarkup(createElement(EarningsPanel, { copy, balances: [balanceView(figures, copy, locale, 30)], nextPayout: "1 Nov 2026" }));
+    const metrics = renderToStaticMarkup(
+      createElement(MetricsPanel, {
+        copy,
+        metrics: metricsView({ clicks: 4, signups: 2, customers: 2, payingCustomers: 1, days: 30, since: new Date("2026-09-19T00:00:00Z"), until: new Date("2026-10-19T00:00:00Z") }, copy, locale),
+        ranges: [30, 90, 365].map((days) => ({ days, href: `/partner?range=${days}`, current: days === 90, label: String(days) })),
+      }),
+    );
+    const commissions = renderToStaticMarkup(
+      createElement(CommissionList, {
+        copy,
+        rows: [commissionRowView({ id: "c1", paidAt: new Date("2026-09-01T00:00:00Z"), customer: "ex\u2022\u2022\u2022.com", currency: "eur", base: BigInt(9900), rateBasisPoints: 2500, amount: BigInt(2475), reversed: BigInt(0), status: "review", maturesAt: new Date("2026-10-01T00:00:00Z") }, copy, locale)],
+      }),
+    );
+    const payouts = renderToStaticMarkup(
+      createElement(PayoutList, {
+        copy,
+        rows: [payoutRowView({ id: "s1", createdAt: new Date("2026-10-01T00:00:00Z"), currency: "eur", amount: BigInt(4950), offset: BigInt(0), transfer: "confirmed", bank: "pending", bankPaidAt: null, bankArrivalDate: null }, copy, locale)],
+      }),
+    );
+    const referrals = renderToStaticMarkup(createElement(ReferralList, { copy, rows: [referralRowView({ id: "a1", customer: "Customer 3FA2C1", source: "coupon", status: "active", since: new Date("2026-09-01T00:00:00Z") }, copy, locale)] }));
+
+    for (const html of [earnings, metrics, commissions, payouts, referrals]) expect(text(html)).not.toMatch(/\{\w+\}/);
+    expect(text(earnings)).toContain(copy.overview.cards.bankPaid);
+    expect(text(earnings)).toContain(copy.overview.definitions.bankPaid);
+    expect(metrics).toMatch(/aria-current="true"[^>]*>90|href="\/partner\?range=90"[^>]*aria-current="true"/);
+    // A table for wide screens and stacked cards for phones, both labelled.
+    for (const html of [commissions, payouts, referrals]) {
+      expect(html).toContain("<table");
+      expect(html).toContain('class="space-y-3 md:hidden"');
+    }
+    expect(text(commissions)).toContain(copy.commissions.statuses.review);
+    expect(text(payouts)).toContain(copy.payouts.transferStates.confirmed);
+    expect(text(payouts)).toContain(copy.payouts.bankStates.pending);
+    expect(text(referrals)).toContain("Customer 3FA2C1");
+  });
+
+  it("says so when there is nothing yet", () => {
+    const copy = partnerCopy("en").portal;
+    expect(text(renderToStaticMarkup(createElement(EarningsPanel, { copy, balances: [], nextPayout: "" })))).toContain(copy.overview.noEarnings);
+    expect(text(renderToStaticMarkup(createElement(CommissionList, { copy, rows: [] })))).toContain(copy.commissions.empty);
+    expect(text(renderToStaticMarkup(createElement(PayoutList, { copy, rows: [] })))).toContain(copy.payouts.empty);
+    expect(text(renderToStaticMarkup(createElement(ReferralList, { copy, rows: [] })))).toContain(copy.referrals.empty);
+  });
+
+  it.each(LOCALES)("%s: resources offer downloads, banners and texts with the partner's own link", (locale) => {
+    const copy = partnerCopy(locale).portal;
+    const link = "https://repget.test/go/abcdefghjk";
+    const html = renderToStaticMarkup(
+      createElement(ResourcesView, {
+        copy,
+        logos: [{ href: "/images/repget-logo.png", preview: "/images/repget-logo.png", name: copy.resources.files.logo, detail: "PNG", width: 2757, height: 690 }],
+        banners: [{ href: `/partners/banners/repget-${locale}-728x90.png`, preview: `/partners/banners/repget-${locale}-728x90.png`, name: "Banner", detail: "PNG", width: 728, height: 90 }],
+        templates: copy.resources.templates.map((template) => ({ title: template.title, body: template.body.replace("{link}", link) })),
+      }),
+    );
+    expect(text(html)).not.toMatch(/\{\w+\}/);
+    expect(html).toContain('href="/images/repget-logo.png" download=""');
+    expect(html).toContain(`href="/partners/banners/repget-${locale}-728x90.png" download=""`);
+    expect(html.split(link).length - 1).toBe(copy.resources.templates.length);
+    const words = text(html).replace(/&#x27;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, "&");
+    for (const rule of copy.resources.rulesList) expect(words).toContain(rule);
+    expect(words).toContain(copy.resources.copyText);
+    expect(words).not.toContain(copy.overview.copy);
   });
 });

@@ -8,8 +8,8 @@ Statuses: **done** (implemented and verified as stated), **in progress**, **plan
 |---|---|---|
 | 1 | `feat(partners): [1/5] establish domain architecture and persistence` | done (7184a11) |
 | 2 | `feat(partners): [2/5] implement onboarding and referral attribution` | done (3b22c46) |
-| 3 | `feat(partners): [3/5] implement commissions and billing reconciliation` | done |
-| 4 | `feat(partners): [4/5] deliver dashboards and automated payouts` | planned |
+| 3 | `feat(partners): [3/5] implement commissions and billing reconciliation` | done (c306075) |
+| 4 | `feat(partners): [4/5] deliver dashboards and automated payouts` | done |
 | 5 | `test(partners): [5/5] verify end-to-end flows and launch readiness` | planned |
 
 ## Phase 1: architecture, domain and database
@@ -71,13 +71,28 @@ Statuses: **done** (implemented and verified as stated), **in progress**, **plan
 
 ## Phase 4: dashboards and automated payouts
 
-| Requirement | Status |
-|---|---|
-| Partner dashboard, commissions, payouts, resources, settings | planned |
-| Admin partners, applications, attribution, commissions, coupons, fraud, payouts | planned |
-| Monthly settlement and reservations | planned |
-| Stripe transfer and bank payout adapter, stable operation ids | planned |
-| Failed / unknown recovery, reversals, negative adjustments | planned |
+| Requirement | Status | Where | Verified by |
+|---|---|---|---|
+| Monthly settlement selection and reservations | done | `use-cases/prepare-settlement.ts`, `partner-payouts-monthly` (00:00 UTC on the 1st) | `settlements.test.ts`: EUR 24.75 carried forward below EUR 25.00, then paid with the next mature commission (EUR 49.50) a month later; a re-run reserves nothing twice; suspended / held / unready / switched off pay nothing |
+| Stripe transfer and bank-payout adapter, stable operation ids | done | `infrastructure/stripe/payout-gateway.ts`; `partner-transfer:<id>:<n>`, `partner-payout:<id>:<n>`, `partner-reversal:<id>:<n>` | `settlements.test.ts` with a fake Connect that is idempotent like Stripe; adapter parameters from the SDK 22.6.0 types |
+| Successful transfer with bank payout still pending; bank paid only on Stripe's word | done | `execute-transfer.ts`, `execute-bank-payout.ts`, Connect `payout.*` events | `settlements.test.ts`; `dashboards.test.ts` (transferred, not bank-paid) |
+| Account restrictions, insufficient platform funds | done | transfer pre-flight | `settlements.test.ts`: a restricted account's payout is cancelled and its commissions released; too little platform balance waits with nothing sent, and after 8 attempts opens a `payout_funding` case and releases the payout |
+| Live money only with `PARTNER_LIVE_PAYOUTS=enabled`; one unsettled payout at a time; payouts already sent keep moving with the switch off | done | settings, partial unique index, payout stage | `settlements.test.ts` |
+| Timeouts and ambiguous outcomes | done | `transfer_unknown` resolved by `transfer_group`, same idempotency key within 23 h | `settlements.test.ts`: timeout, and an answer lost after the transfer was made → one transfer |
+| Failed bank payout retries never create a second transfer | done | bank payout attempts separate from transfers | `settlements.test.ts` |
+| Concurrent jobs cannot pay the same earnings twice | done | balance-row lock, settlement lease, one-live-transfer index | `settlements.postgres.test.ts` (real PostgreSQL, 4 connections): four runs reserve once; four workers make one transfer and one ledger entry |
+| Admin hold racing the monthly run | done | locks in the documented order | `settlements.postgres.test.ts`: 8 alternating rounds, both orders exercised; a held commission is never inside a payout. Mutation check: without the reserved-status guard the test fails |
+| Deadlock between ledger writes and partner locks | done (found and fixed in this phase) | every row lock `FOR NO KEY UPDATE` | The race test above hit `deadlock detected` about once in six runs; `settlements.postgres.test.ts` now reproduces the exact interleaving deterministically (fails with `FOR UPDATE`, passes with `FOR NO KEY UPDATE`); 10 consecutive runs of the race suite clean |
+| Transfer reversals and negative adjustments | done | `reconcile-settlement.ts`, `manage-commission.ts` | `settlements.test.ts`: refund after payout offset against the next payout or recovered once by reversal, never more than owed; outside reversal recorded once with a case. `dashboards.test.ts`: negative adjustment deducted; a credit no commission backs refused |
+| Suspended / held partners cannot receive automatic payouts | done | prepare and pre-flight | `settlements.test.ts` |
+| Complete partner dashboard (five figures, definitions, metrics, tier, link, setup, coupons) | done | `/partner`, `queries/partner-dashboard.ts`, `presentation/views.ts`, `components/partners/dashboard-views.tsx` | `dashboards.test.ts`: figures reconcile with the raw ledger after reservation, transfer and a refund (earned = pending + available + in payout + transferred − corrections); the admin area shows the same numbers. Render tests in all five languages |
+| Commission, payout and referral histories; privacy-safe labels | done | `/partner/commissions`, `/partner/payouts`, `/partner/referrals` | `dashboards.test.ts`: own records only, masked domain or opaque reference; a context naming another partner's id sees nothing |
+| Promotional resources | done | `/partner/resources`, `public/partners/banners/*` (5 languages × 3 sizes) | Render tests: downloads, every template with the partner's link, rules |
+| Full administrator controls | done | `/admin/partners/{attribution,commissions,payouts,payouts/[id],reviews,coupons}`, partner detail | `dashboards.test.ts`: hold / release (dispute hold refused), reject with a reversing entry, approve, adjust, prepare now (once per month), retry (audited; refused under review), reconcile now (audited), preview with blockers; admin reports refuse a non-admin context |
+| Reports and exports | done | `/admin/partners/export/[report]` | `dashboards.test.ts` (exact decimals, no email); `presentation.test.ts` (formula injection, CSV format) |
+| Configuration readiness and actionable errors | done | `/admin/partners`, `/admin/partners/payouts` readiness; admin action messages | Code review; browser check below |
+| Mobile / desktop, light / dark; keyboard; dialogs; states | done | isolated production build (app copy with no `.env` files, empty environment, throwaway database on the disposable cluster, seeded through the real use cases with fake Stripe gateways) | Headless Chrome, 7 partner and 12 admin pages × desktop 1440 / phone 390 × light / dark = 76 renders: all 200, no horizontal overflow, no console or CSP errors (other than Vercel Insights, absent off Vercel), no unfilled placeholder. Partner blocked from `/admin/partners` and the CSV export (404); signed out sent to sign-in; visible focus on every control reached by keyboard; coupon, adjustment, hold and disqualify dialogs fit a 390 px phone with focus inside; CSV export is an attachment without emails. Contrast: the danger buttons were changed to the danger tokens after the shared `destructive` variant measured 3.5-4.2:1; no partner-page finding remains. Remaining, outside this work: the admin sidebar's "Admin" label (3.69:1) and the default orange primary button (3.46:1) |
+| Real Stripe test-mode flow | blocked | — | Not run: the only Stripe test key available delivers webhooks to the deployed application, and creating connected accounts, transfers or payouts with it was not authorised. Every Stripe path is exercised against fakes that follow the SDK types |
 
 ## Phase 5: end-to-end validation and launch readiness
 

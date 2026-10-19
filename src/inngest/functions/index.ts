@@ -20,6 +20,7 @@ import { importAnalytics, importAnalyticsDaily } from "./import-analytics";
 import { indexArticles } from "./index-articles";
 import { partnerCommissionsSweep, partnerProviderEvent, partnerTiersDaily } from "./partner-commissions";
 import { partnerWelcome } from "./partner-onboarding";
+import { partnerPayoutsMonthly, partnerPayoutsSweep, partnerSettlementExecute } from "./partner-payouts";
 import { partnerReconciliation } from "./partner-reconciliation";
 import { billingMaintenance, deliverOutbox } from "./maintenance";
 import { publishArticleJob } from "./publish-article";
@@ -52,4 +53,7 @@ export const functions = [
   partnerCommissionsSweep,
   partnerTiersDaily,
   partnerReconciliation,
+  partnerPayoutsMonthly,
+  partnerSettlementExecute,
+  partnerPayoutsSweep,
 ];

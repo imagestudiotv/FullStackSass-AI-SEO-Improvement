@@ -664,3 +664,86 @@ export interface ReconciliationRepository {
   /** Stored balance projections, for comparison with a fresh computation. */
   projections(environment: Environment): Promise<{ partnerId: string; currency: string; values: Record<string, bigint> }[]>;
 }
+
+/* ---------------------------------------------------------------- reporting */
+
+export type CommissionView = {
+  id: string;
+  partnerId: string;
+  organizationId: string;
+  paidAt: Date;
+  currency: string;
+  baseAmount: bigint;
+  rateBasisPoints: number;
+  tierKey: string;
+  amount: bigint;
+  reversedAmount: bigint;
+  status: CommissionRecord["status"];
+  reviewState: CommissionRecord["reviewState"];
+  holdReason: string | null;
+  maturesAt: Date;
+  settlementId: string | null;
+};
+
+export type SettlementView = SettlementRecord & {
+  transferStatus: TransferStatus | null;
+  stripeTransferId: string | null;
+  bankStatus: BankPayoutStatus | null;
+  bankPaidAt: Date | null;
+  bankArrivalDate: Date | null;
+};
+
+export type ReferralView = {
+  attributionId: string;
+  organizationId: string;
+  source: AttributionSource;
+  status: AttributionStatus;
+  lockedAt: Date;
+  windowEndsAt: Date | null;
+  payments: number;
+};
+
+export type LedgerView = {
+  id: string;
+  partnerId: string;
+  currency: string;
+  kind: "commission_earned" | "commission_adjustment" | "transfer_confirmed" | "transfer_reversal";
+  amount: bigint;
+  operationKey: string;
+  commissionId: string | null;
+  settlementId: string | null;
+  reason: string;
+  actor: string;
+  createdAt: Date;
+};
+
+export type BalanceView = {
+  currency: string;
+  netEarned: bigint;
+  netTransferred: bigint;
+  liability: bigint;
+  pending: bigint;
+  available: bigint;
+  reserved: bigint;
+  held: bigint;
+  bankPaid: bigint;
+  rebuiltAt: Date;
+};
+
+/**
+ * Dedicated read queries for dashboards and exports - the SAME records the
+ * financial code writes (ledger projections, commissions, settlements),
+ * never totals recomputed in a page. Partner queries take the partner id the
+ * guard derived from the session.
+ */
+export interface ReportingRepository {
+  balances(partnerId: string, environment: Environment): Promise<BalanceView[]>;
+  /** Every currency the partner has ledger entries in (each commission writes one when earned). */
+  currencies(partnerId: string, environment: Environment): Promise<string[]>;
+  metrics(partnerId: string, environment: Environment, since: Date): Promise<{ clicks: number; signups: number; customers: number; payingCustomers: number }>;
+  commissions(filter: { environment: Environment; partnerId?: string; status?: string; review?: string; held?: boolean; offset: number; limit: number }): Promise<{ rows: CommissionView[]; total: number }>;
+  settlements(filter: { environment: Environment; partnerId?: string; state?: string; excludeStates?: string[]; offset: number; limit: number }): Promise<{ rows: SettlementView[]; total: number }>;
+  referrals(filter: { partnerId?: string; status?: string; offset: number; limit: number }): Promise<{ rows: (ReferralView & { partnerId: string })[]; total: number }>;
+  /** The immutable ledger, newest first: the transaction history behind every balance. */
+  ledger(filter: { environment: Environment; partnerId?: string; currency?: string; settlementId?: string; offset: number; limit: number }): Promise<{ rows: LedgerView[]; total: number }>;
+}

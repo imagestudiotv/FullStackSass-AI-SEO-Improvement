@@ -2,6 +2,7 @@ import type { ReconciliationFinding } from "../ports/repositories";
 import type { PartnerDeps } from "./deps";
 import { computeBalances } from "./mature-commissions";
 import { recordRecoveredWork } from "./process-provider-events";
+import { reconcileSettlements } from "./reconcile-settlement";
 
 /**
  * Daily billing reconciliation for the partner program.
@@ -39,6 +40,7 @@ export async function reconcileCommissions(deps: PartnerDeps) {
     ...(await repos.reconciliation.factsWithoutCommission(environment, 200)),
     ...(await repos.reconciliation.earnedMismatches(environment, 200)),
     ...(await repos.reconciliation.reversalMismatches(environment, 200)),
+    ...(await reconcileSettlements(deps)),
   ];
 
   for (const stored of await repos.reconciliation.projections(environment)) {
@@ -62,7 +64,7 @@ export async function reconcileCommissions(deps: PartnerDeps) {
       partnerId: null,
       attributionId: null,
       commissionId: finding.kind === "earned_mismatch" || finding.kind === "reversal_mismatch" ? finding.subject : null,
-      settlementId: null,
+      settlementId: ["abandoned_reservation", "transfer_unknown", "needs_review", "bank_payout_failed"].includes(finding.kind) ? finding.subject : null,
       paymentFactId: finding.kind === "fact_without_commission" ? finding.subject : null,
       organizationId: null,
       summary: `Reconciliation: ${finding.kind.replace(/_/g, " ")}`,

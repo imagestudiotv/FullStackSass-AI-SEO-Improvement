@@ -277,7 +277,7 @@ export function reviewCaseRepository(db: Executor): ReviewCaseRepository {
       return row ? toCase(row) : null;
     },
     async lock(id) {
-      const [row] = await db.select().from(partnerReviewCases).where(eq(partnerReviewCases.id, id)).for("update");
+      const [row] = await db.select().from(partnerReviewCases).where(eq(partnerReviewCases.id, id)).for("no key update");
       return row ? toCase(row) : null;
     },
     async resolve(id, values) {

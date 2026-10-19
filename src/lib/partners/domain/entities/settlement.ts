@@ -99,6 +99,43 @@ export const BANK_PAYOUT_TRANSITIONS: TransitionTable<BankPayoutStatus> = {
   canceled: [],
 };
 
+/**
+ * The two steps of a payout as a person is shown them (partner portal and
+ * admin area alike). The transfer step is derived from the settlement's own
+ * state - "Sent" only once Stripe confirmed the transfer - and the bank step
+ * from the latest bank payout attempt, "Paid" only once Stripe says so.
+ */
+export type TransferDisplayState = "pending" | "processing" | "confirmed" | "reversed";
+export type BankDisplayState = "not_started" | "pending" | "in_transit" | "paid" | "failed";
+
+const CONFIRMED_STATES: readonly SettlementState[] = ["transferred", "payout_pending", "payout_in_transit", "paid", "payout_failed"];
+
+export function transferDisplayState(state: SettlementState, transferStatus: TransferStatus | null): TransferDisplayState {
+  if (transferStatus === "reversed") return "reversed";
+  if (CONFIRMED_STATES.includes(state)) return "confirmed";
+  if (state === "needs_review") return transferStatus === "confirmed" || transferStatus === "partially_reversed" ? "confirmed" : "processing";
+  if (state === "transfer_processing" || state === "transfer_unknown") return "processing";
+  return "pending";
+}
+
+export function bankDisplayState(status: BankPayoutStatus | null): BankDisplayState {
+  switch (status) {
+    case null:
+    case "not_started":
+      return "not_started";
+    case "unknown":
+    case "pending":
+      return "pending";
+    case "in_transit":
+      return "in_transit";
+    case "paid":
+      return "paid";
+    case "failed":
+    case "canceled":
+      return "failed";
+  }
+}
+
 /** Maps a Stripe Payout status to ours. Unknown values are not guessed. */
 export function bankPayoutStatusFromStripe(status: string): BankPayoutStatus | null {
   switch (status) {

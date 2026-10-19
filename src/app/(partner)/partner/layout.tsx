@@ -38,6 +38,10 @@ export default async function PartnerLayout({ children }: LayoutProps<"/partner"
     viewer.state === "partner"
       ? [
           { href: "/partner", label: copy.nav.overview },
+          { href: "/partner/referrals", label: copy.nav.referrals },
+          { href: "/partner/commissions", label: copy.nav.commissions },
+          { href: "/partner/payouts", label: copy.nav.payouts },
+          { href: "/partner/resources", label: copy.nav.resources },
           { href: "/partner/settings", label: copy.nav.settings },
         ]
       : [{ href: "/partner/apply", label: copy.nav.apply }];

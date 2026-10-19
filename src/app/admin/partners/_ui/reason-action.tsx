@@ -20,6 +20,14 @@ import { Textarea } from "@/components/ui/textarea";
 
 type Answer = { ok: true; data: unknown } | { ok: false; error: string };
 
+/*
+  The danger tokens rather than the shared "destructive" button variant,
+  whose text measures under 4.5:1 on its tinted background in both themes
+  (and the danger text itself is lightened on dark surfaces).
+*/
+const DANGER_TRIGGER = "border-danger/30 bg-danger-soft text-danger hover:border-danger/60 hover:bg-danger-soft hover:text-danger dark:text-red-300 dark:hover:text-red-300";
+const DANGER_CONFIRM = "bg-danger text-background hover:bg-danger/90";
+
 /**
  * One administrator decision on the partner program: a button that opens a
  * confirmation saying what will happen, with the reason the audit log
@@ -57,7 +65,7 @@ export function ReasonAction({
   return (
     <Dialog open={open} onOpenChange={(next) => !pending && setOpen(next)}>
       <DialogTrigger asChild>
-        <Button type="button" size={size} variant={tone === "danger" ? "destructive" : "outline"}>
+        <Button type="button" size={size} variant="outline" className={tone === "danger" ? DANGER_TRIGGER : undefined}>
           {label}
         </Button>
       </DialogTrigger>
@@ -71,7 +79,9 @@ export function ReasonAction({
               const result = await action(reason.trim()).catch(() => null);
               if (!result) return void toast.error("The request failed. Try again.");
               if (!result.ok) return void toast.error(result.error);
-              toast.success(success);
+              // A server-written summary (e.g. what a run did) replaces the generic confirmation.
+              const data = result.data as { message?: unknown } | null;
+              toast.success(typeof data?.message === "string" ? data.message : success);
               setReason("");
               setOpen(false);
               router.refresh();
@@ -101,7 +111,7 @@ export function ReasonAction({
             <Button type="button" variant="outline" disabled={pending} onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" variant={tone === "danger" ? "destructive" : "default"} disabled={pending || !ready}>
+            <Button type="submit" variant="default" className={tone === "danger" ? DANGER_CONFIRM : undefined} disabled={pending || !ready}>
               {pending ? <Loader2 className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> : null}
               {confirmLabel}
             </Button>

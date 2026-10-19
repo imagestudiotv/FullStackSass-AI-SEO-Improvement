@@ -135,7 +135,9 @@ describe("AdminShell", () => {
 describe("page finder", () => {
   it("matches pages by label, keyword or description - every word must match", () => {
     const labels = (query: string) => filterDestinations(ADMIN_NAV_ITEMS, query).map((item) => item.label);
-    expect(labels("pay")).toEqual(["Payments"]);
+    // "Partner payouts" (the affiliate program's settlements) deliberately matches too.
+    expect(labels("pay")).toEqual(["Partner payouts", "Payments"]);
+    expect(labels("fraud")).toEqual(["Partner review cases"]);
     expect(labels("refund")).toEqual(["Payments"]);
     expect(labels("freeze")).toEqual(["Network Operations"]);
     expect(labels("missing links")).toEqual(["Partner Network"]);

@@ -38,3 +38,9 @@ export function countryNames(codes: string[], locale: string): { code: string; n
     .map((code) => ({ code, name: names?.of(code) ?? code }))
     .sort((a, b) => a.name.localeCompare(b.name, locale));
 }
+
+/** ?page=3 -> 3; anything else -> 1. */
+export function pageParam(value: string | string[] | undefined): number {
+  const page = Number(Array.isArray(value) ? value[0] : value);
+  return Number.isInteger(page) && page > 0 && page < 100_000 ? page : 1;
+}

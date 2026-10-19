@@ -11,6 +11,7 @@ import type {
   ProgramRepository,
   ProviderEventRepository,
   ReconciliationRepository,
+  ReportingRepository,
   ReviewCaseRepository,
   SettlementRepository,
   StripeAccountRepository,
@@ -34,6 +35,7 @@ export type PartnerRepositories = {
   reviews: ReviewCaseRepository;
   providerEvents: ProviderEventRepository;
   reconciliation: ReconciliationRepository;
+  reporting: ReportingRepository;
   /** The app's identity tables (users, workspaces, invitations), read in the same transaction. */
   directory: UserDirectory;
   /** Jobs recorded here commit with the transaction (the transactional outbox). */

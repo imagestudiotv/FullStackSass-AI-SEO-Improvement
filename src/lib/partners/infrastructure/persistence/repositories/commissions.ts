@@ -70,7 +70,7 @@ export function commissionRepository(db: Executor): CommissionRepository {
       return row ? toFact(row) : null;
     },
     async lockFact(id) {
-      const [row] = await db.select().from(partnerPaymentFacts).where(eq(partnerPaymentFacts.id, id)).for("update");
+      const [row] = await db.select().from(partnerPaymentFacts).where(eq(partnerPaymentFacts.id, id)).for("no key update");
       return row ? toFact(row) : null;
     },
     async factsByCharge(environment, chargeId) {
@@ -188,7 +188,7 @@ export function commissionRepository(db: Executor): CommissionRepository {
       return row ? toCommission(row) : null;
     },
     async lockCommission(id) {
-      const [row] = await db.select().from(partnerCommissions).where(eq(partnerCommissions.id, id)).for("update");
+      const [row] = await db.select().from(partnerCommissions).where(eq(partnerCommissions.id, id)).for("no key update");
       return row ? toCommission(row) : null;
     },
     async createCommission(input) {
@@ -249,7 +249,7 @@ export function commissionRepository(db: Executor): CommissionRepository {
           ),
         )
         .orderBy(asc(partnerCommissions.maturesAt), asc(partnerCommissions.id))
-        .for("update");
+        .for("no key update");
       return rows.map(toCommission);
     },
     async appendLedger(entry) {
