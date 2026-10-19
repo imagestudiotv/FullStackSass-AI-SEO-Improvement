@@ -14,7 +14,14 @@ import { ACTION_META, ACTION_OPTIONS, actionMeta, targetLabel, targetLink } from
 function auditCodes(): string[] {
   const source = readFileSync(join(process.cwd(), "src/lib/admin/audit.ts"), "utf8");
   const union = source.slice(source.indexOf("export type AdminAction"), source.indexOf("export type AuditEntry"));
-  return [...union.matchAll(/\|\s*"([a-z_.]+)"/g)].map((match) => match[1]);
+  const codes = [...union.matchAll(/\|\s*"([a-z_.]+)"/g)].map((match) => match[1]);
+  // The partner program's codes are a union of their own, included by name.
+  if (/\|\s*PartnerAuditAction\b/.test(union)) {
+    const partner = readFileSync(join(process.cwd(), "src/lib/partners/application/contracts/commands.ts"), "utf8");
+    const partnerUnion = partner.slice(partner.indexOf("export type PartnerAuditAction"), partner.indexOf("export const PARTNER_AUDIT_ACTIONS"));
+    codes.push(...[...partnerUnion.matchAll(/\|\s*"([a-z_.]+)"/g)].map((match) => match[1]));
+  }
+  return codes;
 }
 
 describe("activity action labels", () => {

@@ -3,6 +3,7 @@ import {
   Coins,
   FileText,
   Gauge,
+  Handshake,
   MessageSquare,
   Network,
   Newspaper,
@@ -88,6 +89,29 @@ export const ACTION_META: Record<AdminAction, ActionMeta> = {
   "publication.dispatch_resolved": { label: "Delivery resolved", icon: Gauge },
   "authority.collection_requested": { label: "Domain Authority refresh requested", icon: Gauge },
   "valuation.policy_published": { label: "Valuation policy published", icon: Gauge },
+
+  "partner.application_approved": { label: "Partner application approved", icon: Handshake },
+  "partner.application_rejected": { label: "Partner application rejected", icon: Handshake },
+  "partner.suspended": { label: "Partner suspended", icon: Handshake },
+  "partner.reactivated": { label: "Partner reactivated", icon: Handshake },
+  "partner.payout_hold_set": { label: "Partner payouts held", icon: Handshake },
+  "partner.payout_hold_released": { label: "Partner payout hold released", icon: Handshake },
+  "partner.control_changed": { label: "Partner program switch changed", icon: Handshake },
+  "partner.attribution_disqualified": { label: "Partner referral disqualified", icon: Handshake },
+  "partner.attribution_confirmed": { label: "Partner referral confirmed", icon: Handshake },
+  "partner.commission_adjusted": { label: "Partner commission adjusted", icon: Handshake },
+  "partner.commission_held": { label: "Partner commission held", icon: Handshake },
+  "partner.commission_released": { label: "Partner commission released", icon: Handshake },
+  "partner.commission_approved": { label: "Partner commission approved", icon: Handshake },
+  "partner.commission_rejected": { label: "Partner commission rejected", icon: Handshake },
+  "partner.coupon_created": { label: "Partner coupon created", icon: Handshake },
+  "partner.coupon_deactivated": { label: "Partner coupon deactivated", icon: Handshake },
+  "partner.review_resolved": { label: "Partner review case resolved", icon: Handshake },
+  "partner.settlement_created": { label: "Partner payout prepared", icon: Handshake },
+  "partner.settlement_retried": { label: "Partner payout retried", icon: Handshake },
+  "partner.settlement_canceled": { label: "Partner payout cancelled", icon: Handshake },
+  "partner.transfer_reversal_requested": { label: "Partner transfer reversal requested", icon: Handshake },
+  "partner.reconciliation_run": { label: "Partner reconciliation run", icon: Handshake },
 };
 
 /** Every code, labelled, for the Action filter. */
@@ -121,6 +145,14 @@ const TARGET_LABELS: Record<string, string> = {
   publication_dispatch: "Delivery",
   authority: "Domain Authority",
   valuation_policy: "Valuation policy",
+  partner: "Partner",
+  partner_application: "Partner application",
+  partner_attribution: "Partner referral",
+  partner_commission: "Partner commission",
+  partner_coupon: "Partner coupon",
+  partner_review_case: "Partner review case",
+  partner_settlement: "Partner payout",
+  partner_program: "Partner program",
 };
 
 /** What kind of thing the entry acted on, in words. */
@@ -160,6 +192,22 @@ export function targetLink(row: Pick<AuditRow, "action" | "targetType" | "target
     case "authority":
     case "valuation_policy":
       return { href: "/admin/network/operations", destination: "Network Operations" };
+    case "partner":
+      return id ? { href: `/admin/partners/partners/${id}`, destination: "the partner" } : null;
+    case "partner_application":
+      return { href: "/admin/partners/applications", destination: "partner applications" };
+    case "partner_attribution":
+      return { href: "/admin/partners/attribution", destination: "partner referrals" };
+    case "partner_commission":
+      return { href: "/admin/partners/commissions", destination: "partner commissions" };
+    case "partner_coupon":
+      return { href: "/admin/partners/coupons", destination: "partner coupons" };
+    case "partner_review_case":
+      return { href: "/admin/partners/reviews", destination: "partner review cases" };
+    case "partner_settlement":
+      return { href: "/admin/partners/payouts", destination: "partner payouts" };
+    case "partner_program":
+      return { href: "/admin/partners", destination: "the partner program" };
     default:
       return null;
   }

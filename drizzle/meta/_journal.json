@@ -442,6 +442,20 @@
       "when": 1792421333153,
       "tag": "0062_feedback_screenshots",
       "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1792436482610,
+      "tag": "0063_partner_program",
+      "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "7",
+      "when": 1792436545120,
+      "tag": "0064_partner_program_guards",
+      "breakpoints": true
     }
   ]
 }

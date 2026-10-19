@@ -5,6 +5,7 @@ import { ADMIN_PAGE_SIZE, type Page } from "@/lib/admin/shared";
 import { db } from "@/lib/db";
 import type * as schema from "@/lib/db/schema";
 import { adminAuditLog } from "@/lib/db/schema";
+import type { PartnerAuditAction } from "@/lib/partners/application/contracts/commands";
 
 /**
  * Recording what an administrator did.
@@ -70,7 +71,9 @@ export type AdminAction =
   | "platform.control_changed"
   | "publication.dispatch_resolved"
   | "authority.collection_requested"
-  | "valuation.policy_published";
+  | "valuation.policy_published"
+  /* The cash partner program (lib/partners). */
+  | PartnerAuditAction;
 
 export type AuditEntry = {
   actorEmail: string;

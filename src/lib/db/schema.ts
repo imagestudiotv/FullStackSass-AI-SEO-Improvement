@@ -36,6 +36,8 @@ import { organization, user } from "./auth-tables";
 import { organizationId, pk, timestamps, userId } from "./columns";
 
 export * from "./auth-tables";
+// The cash partner program (docs/partner-program.md).
+export * from "./partner-tables";
 
 /** FK to websites.id. Declared here because websites lives in this module. */
 const websiteId = () =>
