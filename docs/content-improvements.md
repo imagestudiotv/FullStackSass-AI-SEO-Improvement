@@ -85,6 +85,9 @@ Additional AI visibility engines are a separate feature. Article task routing do
 - Triggered the normal analytics import for the one existing approved Search Console connection. A new completeness record was verified for 2026-08-18 through 2026-10-17.
 - Browser checks on production used a temporary synthetic account and a database-only trial fixture with no payment-provider identifiers. The tested draft came from the live English trial and was inserted as a held draft for UI verification; this is not a claim that a production Inngest generation job was exercised. Postpone/restore, source disclosure, saved-version approval and renewed review after a saved edit all worked. No CMS was connected and nothing was published.
 - Browser verification caught research holds using Partner Network wording. The correction distinguishes the review source in publishing, editing, rewriting and image-change notices. Four focused regression suites passed (45 tests), including the independent team-review case.
+- Final application release: `e59728f`, Vercel deployment `dpl_8BUQNrehixStYfNnYKsfwqCaLt1S`, promoted to `www.repget.com`. Its production build passed; the final live health check returned `{ok:true, db:true}`. The corrected research-change message was verified in the production browser.
+- Dashboard layout was visually checked in both themes. Screenshots are retained locally under ignored `test-results/content-pilot/`. The temporary user, workspace, website, trial fixture, drafts and reminders were deleted; a follow-up database check confirmed no test user or website remained.
+- Application and release notes are committed locally. These releases used the Vercel CLI; no Git push was performed.
 
 ### Remaining rollout work
 
