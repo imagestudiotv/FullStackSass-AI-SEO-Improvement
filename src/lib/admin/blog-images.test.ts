@@ -291,13 +291,14 @@ describe("each language's pictures (client, 2026-10-15)", () => {
       return data;
     };
     expect(await uploadBlogImage(form("it"))).toEqual({ ok: true, data: { url: `${BASE}blog/posts/it/new.webp` } });
-    expect(storage.store).toHaveBeenLastCalledWith("blog", "posts/it", expect.any(Buffer), "image/webp");
+    // Named after the file it came from (client, 2026-10-20).
+    expect(storage.store).toHaveBeenLastCalledWith("blog", "posts/it", expect.any(Buffer), "image/webp", "photo");
     await uploadBlogImage(form("en"));
-    expect(storage.store).toHaveBeenLastCalledWith("blog", "posts/en", expect.any(Buffer), "image/webp");
+    expect(storage.store).toHaveBeenLastCalledWith("blog", "posts/en", expect.any(Buffer), "image/webp", "photo");
     // No language, or one the blog does not have: the blog folder, as before languages.
     for (const locale of [undefined, "xx", "../de"]) {
       await uploadBlogImage(form(locale));
-      expect(storage.store).toHaveBeenLastCalledWith("blog", "posts", expect.any(Buffer), "image/webp");
+      expect(storage.store).toHaveBeenLastCalledWith("blog", "posts", expect.any(Buffer), "image/webp", "photo");
     }
   });
 });

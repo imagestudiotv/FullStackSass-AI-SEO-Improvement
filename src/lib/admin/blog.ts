@@ -616,7 +616,8 @@ export async function uploadBlogImage(formData: FormData): Promise<ActionResult<
   }
   const language = formData.get("locale");
   const folder = isBlogLocale(language) ? `posts/${language}` : "posts";
-  const url = await storeArticleImage("blog", folder, Buffer.from(await file.arrayBuffer()), file.type);
+  // Named after the file it came from, "keyword-planner-steps.webp" (client, 2026-10-20); a pasted "image.png" gets a time-and-random name.
+  const url = await storeArticleImage("blog", folder, Buffer.from(await file.arrayBuffer()), file.type, file.name.replace(/\.[a-z0-9]+$/i, ""));
   return { ok: true, data: { url } };
 }
 

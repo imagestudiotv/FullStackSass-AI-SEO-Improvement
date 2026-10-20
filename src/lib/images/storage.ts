@@ -9,6 +9,8 @@ import "server-only";
 
 import { createClient } from "@supabase/supabase-js";
 
+import { imageFileName } from "@/lib/publishing/image-names";
+
 /**
  * Where an article's image lives before it is published.
  *
@@ -79,32 +81,52 @@ function extensionFor(contentType: string): string {
  * Stores an image and returns a public URL for it.
  *
  * Keyed by website and article so a bucket listing is readable and one
- * customer's files are not interleaved with another's. The random suffix
- * defeats browser and CDN caching: replacing an image at a fixed path would
- * leave the old picture on screen until the cache expired, which reads as the
- * replace button not working.
+ * customer's files are not interleaved with another's.
+ *
+ * Named after what it shows when `name` says (client, 2026-10-20: the blog's
+ * pictures were "just numbers"): "reach-keyword-planner-without-running-ads.webp",
+ * with "-2", "-3"... when that name is taken in the folder (lib/publishing/
+ * image-names.ts makes the name). Without a name - or one that says nothing,
+ * like a pasted "image.png" - a time-and-random one, "1792386573592-7aj2a9.webp".
+ *
+ * Never stored over an existing file (upsert off): replacing an image at a
+ * fixed path would leave the old picture on screen until browser and CDN
+ * caches expired, which reads as the replace button not working.
  */
 export async function storeArticleImage(
   websiteId: string,
   articleId: string,
   data: Buffer,
   contentType: string,
+  name?: string | null,
 ): Promise<string> {
-  const supabase = client();
-  const path = `${websiteId}/${articleId}/${Date.now()}-${Math.random()
-    .toString(36)
-    .slice(2, 8)}.${extensionFor(contentType)}`;
+  const bucket = client().storage.from(BUCKET);
+  const folder = `${websiteId}/${articleId}`;
+  const extension = extensionFor(contentType);
+  const upload = (file: string) => bucket.upload(`${folder}/${file}`, data, { contentType, upsert: false });
+  const published = (file: string) => bucket.getPublicUrl(`${folder}/${file}`).data.publicUrl;
 
-  const { error } = await supabase.storage
-    .from(BUCKET)
-    .upload(path, data, { contentType, upsert: false });
+  const readable = name?.trim() ? imageFileName(name, null) : null;
+  if (readable && readable !== "image") {
+    const { data: existing } = await bucket.list(folder, { search: readable, limit: 100 });
+    const taken = new Set((existing ?? []).map((file) => file.name));
+    const free = [readable, ...Array.from({ length: 8 }, (_, index) => `${readable}-${index + 2}`)]
+      .map((base) => `${base}.${extension}`)
+      .find((file) => !taken.has(file));
+    if (free) {
+      const { error } = await upload(free);
+      if (!error) return published(free);
+      // Taken a moment ago by another upload: the time-and-random name below.
+      if (!/already exists|duplicate/i.test(error.message)) throw new Error(`Could not store the image: ${error.message}`);
+    }
+  }
 
+  const file = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${extension}`;
+  const { error } = await upload(file);
   if (error) {
     throw new Error(`Could not store the image: ${error.message}`);
   }
-
-  const { data: published } = supabase.storage.from(BUCKET).getPublicUrl(path);
-  return published.publicUrl;
+  return published(file);
 }
 
 /**

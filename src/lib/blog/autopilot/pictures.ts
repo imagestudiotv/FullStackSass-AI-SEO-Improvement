@@ -56,14 +56,18 @@ export function picturePrompt(brief: PictureBrief, locale: Locale): string {
     .join("\n");
 }
 
-/** Makes one picture and stores it with the blog's pictures in that language (blog/posts/<locale>/). */
+/**
+ * Makes one picture and stores it with the blog's pictures in that language
+ * (blog/posts/<locale>/), named after its headline in that language
+ * (client, 2026-10-20): blog/posts/es/alcanza-keyword-planner-sin-anuncios.webp.
+ */
 export async function makePicture(brief: PictureBrief, locale: Locale): Promise<MadePicture> {
   const generated = await generateOpenAiImage(picturePrompt(brief, locale), QUALITY);
   // WebP, like the blog's own pictures: a fraction of the PNG, and every browser shows it.
   const image = sharp(generated.data, { limitInputPixels: 40_000_000, failOn: "error" }).rotate();
   const { data, info } = await image.webp({ quality: 88 }).toBuffer({ resolveWithObject: true });
   if (!info.width || !info.height) throw new Error("The picture came back empty");
-  const url = await storeArticleImage("blog", `posts/${locale}`, data, "image/webp");
+  const url = await storeArticleImage("blog", `posts/${locale}`, data, "image/webp", brief.title || brief.alt);
   return { url, alt: brief.alt, width: info.width, height: info.height, costUsd: generated.costUsd };
 }
 
