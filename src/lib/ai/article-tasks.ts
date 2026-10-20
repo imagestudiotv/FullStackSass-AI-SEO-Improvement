@@ -36,7 +36,7 @@ export function articleTask(task: ArticleTask, researched = false) {
   return {
     model: process.env[`ARTICLE_MODEL_${task.toUpperCase()}`]?.trim() || defaults[task],
     maxTokens: task === "research_plan" ? 1000 : task === "outline" || task === "body" || task === "evidence_correction" || task === "evidence_check" ? 16000 : 4000,
-    promptVersion: `article-${task}-${task === "evidence_check" || task === "body" ? "v8" : task === "outline" ? "v7" : task === "evidence_correction" ? "v6" : task === "research" || task === "research_plan" ? "v4" : task === "source_selection" ? "v2" : "v1"}`,
+    promptVersion: `article-${task}-${task === "body" ? "v9" : task === "evidence_check" || task === "outline" ? "v8" : task === "evidence_correction" ? "v6" : task === "research" || task === "research_plan" ? "v4" : task === "source_selection" ? "v2" : "v1"}`,
   };
 }
 

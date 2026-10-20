@@ -213,7 +213,7 @@ export function tablesInstruction(brief: ArticleBrief): string {
   if (!brief.comparisonTable) return `Do not use tables.`;
   const count = Math.max(1, Math.min(3, Math.trunc(brief.tableCount ?? 1)));
   if (brief.research?.status === "ready") {
-    return `Include exactly ${count} comparison table(s), each in a different relevant section, not at the start or end. Use <table><thead><tr><th>...</th></tr></thead><tbody><tr><td>...</td></tr></tbody></table>. Only compare factual attributes established by the supplied quotations. When evidence about the alternatives is missing, use a comparison checklist with the same neutral question for both options, or explicitly hypothetical examples of two ways to do the requested task. Do not introduce a supplier or product comparison unrelated to the title just to fill a table. Do not invent capabilities, availability, costs, outcomes or risks to fill cells. Each table needs a specific H2 or H3 and 5-8 concise rows. No links, lists or headings inside cells.`;
+    return `Include exactly ${count} comparison or decision-checklist table(s), each in a different relevant section, not at the start or end. Use <table><thead><tr><th>...</th></tr></thead><tbody><tr><td>...</td></tr></tbody></table>. Only compare factual attributes established by the supplied quotations. When evidence about the alternatives is missing, use a practical checklist with columns such as Question, What to check, and Next step. Each row must add a distinct useful check related to the article's question. Do not fill two comparison columns with identical advice or repeated placeholders. Frame a checklist as recommendations once; do not narrate the research process or label every cell as advice. Do not introduce an unrelated supplier or product comparison. Do not invent capabilities, availability, costs, outcomes or risks to fill cells. Each table needs a specific H2 or H3 and 5-8 concise rows. No links, lists or headings inside cells.`;
   }
   if (count === 1) {
     return `Include exactly ONE comparison table, the way a good guide does ("Videography vs Cinematography at a Glance"). Compare the two or three options, approaches or types this topic is really about - what the reader is choosing between. Give it its own <h2> or <h3> heading in the form "<Option A> vs <Option B> at a Glance" and place it where that comparison is discussed, not at the very start or the very end. ${TABLE_SHAPE} If the topic has no natural "A vs B", compare the alternatives the reader is weighing (for example doing it themselves vs hiring a professional).`;
@@ -354,7 +354,9 @@ Rules:
   wall of text.
 - If the brief asks for comparison tables, plan each one: add a point
   "Comparison table: <A> vs <B>" to the section that will hold it, each table
-  in a different section and none in the first or last.
+  in a different section and none in the first or last. If the evidence
+  cannot support a useful comparison, plan a decision checklist with
+  distinct questions, checks and next steps instead of identical columns.
 - If the brief asks for a frequently asked questions section, list 4-6
   questions a reader still has after the sections - real questions in the
   reader's words, not the headings rephrased. Otherwise leave the list empty.

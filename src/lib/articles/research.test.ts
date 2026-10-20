@@ -274,7 +274,7 @@ describe("research evidence", () => {
       mentionSimilarProducts: true, comparisonTable: true });
     expect(context).toContain("Optional related terms");
     expect(context).toContain("Do not introduce alternatives from memory");
-    expect(context).toContain("comparison checklist");
+    expect(context).toContain("practical checklist");
     expect(context).not.toContain("common knowledge");
     expect(context).not.toMatch(/Unrelated promotional copy|example.org\/unrelated|Old verdict|Invented feature/);
     expect(context).not.toMatch(/An unrelated broad research topic|An unrelated subquestion/);
