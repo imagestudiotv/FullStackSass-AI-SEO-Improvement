@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, ilike, inArray, isNull, lt, lte, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, isNotNull, isNull, lt, lte, or, sql, type SQL } from "drizzle-orm";
 
 import { containsPattern } from "@/lib/admin/shared";
 import {
@@ -213,6 +213,22 @@ export function couponRepository(db: Executor): CouponRepository {
       ]);
       return { rows: rows.map(toCoupon), total: Number(count?.n ?? 0) };
     },
+    async dueToActivate(environment, now, limit) {
+      const rows = await db
+        .select()
+        .from(partnerCoupons)
+        .where(
+          and(
+            eq(partnerCoupons.environment, environment),
+            eq(partnerCoupons.status, "creating"),
+            isNotNull(partnerCoupons.stripePromotionCodeId),
+            lte(partnerCoupons.startsAt, now),
+          ),
+        )
+        .orderBy(asc(partnerCoupons.startsAt))
+        .limit(limit);
+      return rows.map(toCoupon);
+    },
   };
 }
 
@@ -423,6 +439,14 @@ export function providerEventRepository(db: Executor): ProviderEventRepository {
         .from(partnerProviderEvents)
         .groupBy(partnerProviderEvents.status);
       return rows.map((row) => ({ status: row.status, count: Number(row.count) }));
+    },
+    async retryFailed(now) {
+      const rows = await db
+        .update(partnerProviderEvents)
+        .set({ status: "pending", attempts: 0, nextAttemptAt: now, lastError: null, claimToken: null, claimedUntil: null, updatedAt: now })
+        .where(eq(partnerProviderEvents.status, "failed"))
+        .returning({ id: partnerProviderEvents.id });
+      return rows.length;
     },
   };
 }

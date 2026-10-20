@@ -260,6 +260,28 @@ describe("transfer, then bank payout", () => {
     expect(commissions.every((c) => c.status === "available")).toBe(true);
   });
 
+  it("asks a person when, three days after the transfer, the connected balance still does not cover the bank payout", async () => {
+    const w = world();
+    const { partner, settlementId } = await prepared(w);
+    // The transfer is made, but the money is not there in EUR (converted to the account's currency, or withdrawn).
+    const originalCreate = w.stripe.gateway.createTransfer.bind(w.stripe.gateway);
+    w.stripe.gateway.createTransfer = async (input) => {
+      const outcome = await originalCreate(input);
+      w.stripe.drainConnected(partner.accountId, "eur");
+      return outcome;
+    };
+    expect(await executeSettlement(w.deps, settlementId)).toMatchObject({ state: "transferred", detail: "connected_balance_pending" });
+    expect(w.stripe.created.payouts).toBe(0);
+    w.clock.advance(2 * DAY);
+    expect(await executeSettlement(w.deps, settlementId)).toMatchObject({ state: "transferred" });
+    expect(await test.db.select().from(partnerReviewCases).where(eq(partnerReviewCases.settlementId, settlementId))).toEqual([]);
+    w.clock.advance(2 * DAY);
+    expect(await executeSettlement(w.deps, settlementId)).toMatchObject({ state: "needs_review" });
+    const cases = await test.db.select().from(partnerReviewCases).where(eq(partnerReviewCases.settlementId, settlementId));
+    expect(cases.map((c) => c.kind)).toEqual(["payout_discrepancy"]);
+    expect(w.stripe.created).toEqual({ transfers: 1, payouts: 0 });
+  });
+
   it("releases a payout whose partner was held after it was prepared", async () => {
     const w = world();
     const { partner, settlementId } = await prepared(w);

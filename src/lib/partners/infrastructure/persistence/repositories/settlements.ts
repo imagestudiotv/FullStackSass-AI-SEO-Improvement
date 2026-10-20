@@ -41,6 +41,7 @@ function toSettlement(row: typeof partnerSettlements.$inferSelect): SettlementRe
     createdAt: row.createdAt,
     transferredAt: row.transferredAt,
     paidAt: row.paidAt,
+    resumedAt: row.resumedAt,
   };
 }
 
@@ -130,7 +131,11 @@ export function settlementRepository(db: Executor): SettlementRepository {
             eq(partnerSettlements.environment, environment),
             eq(partnerSettlements.currency, currency),
             eq(partnerSettlementItems.active, true),
-            inArray(partnerSettlements.state, [...PRE_TRANSFER_STATES]),
+            // Not yet transferred: the pre-transfer states, and one under review before its transfer was confirmed.
+            or(
+              inArray(partnerSettlements.state, [...PRE_TRANSFER_STATES]),
+              and(eq(partnerSettlements.state, "needs_review"), isNull(partnerSettlements.transferredAt)),
+            ),
           ),
         );
       return BigInt(row?.total ?? "0");
@@ -228,6 +233,7 @@ export function settlementRepository(db: Executor): SettlementRepository {
           ...(values.canceledReason ? { canceledReason: values.canceledReason } : {}),
           ...(values.reviewReason ? { reviewReason: values.reviewReason } : {}),
           ...(values.lastError !== undefined ? { lastError: values.lastError } : {}),
+          ...(values.resumedAt ? { resumedAt: values.resumedAt } : {}),
           updatedAt: new Date(),
         })
         .where(and(eq(partnerSettlements.id, id), inArray(partnerSettlements.state, from)))
@@ -399,6 +405,14 @@ export function settlementRepository(db: Executor): SettlementRepository {
         .where(and(eq(partnerBankPayoutAttempts.id, id), inArray(partnerBankPayoutAttempts.status, from)))
         .returning({ id: partnerBankPayoutAttempts.id });
       return rows.length > 0;
+    },
+    async findPayoutAttemptByOperationId(stripeAccountId, operationId) {
+      const [row] = await db
+        .select()
+        .from(partnerBankPayoutAttempts)
+        .where(and(eq(partnerBankPayoutAttempts.stripeAccountId, stripeAccountId), eq(partnerBankPayoutAttempts.operationId, operationId)))
+        .limit(1);
+      return row ? toPayout(row) : null;
     },
     async findPayoutAttemptByStripeId(stripeAccountId, stripePayoutId) {
       const [row] = await db

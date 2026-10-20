@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { requireAdmin } from "@/lib/admin/guard";
 import { adminProgramOverview } from "@/lib/partners/application/queries/admin-overview";
-import { setPartnerControlAction } from "@/lib/partners/presentation/admin-actions";
+import { retryFailedStripeWorkAction, setPartnerControlAction } from "@/lib/partners/presentation/admin-actions";
 import { partnerDeps } from "@/lib/partners/server";
 
 import { AdminPage, AdminPageHeader, AdminSection, AdminStat } from "../_ui/page";
@@ -66,6 +66,32 @@ export default async function AffiliateProgramPage() {
         <AdminStat label="Payouts needing attention" value={overview.payoutsNeedingAttention} href="/admin/partners/payouts" hint="Unknown outcome, review or failed bank payout" />
         <AdminStat label="Partner referrals" value="Open" href="/admin/partners/attribution" />
       </div>
+
+      {failedEvents > 0 ? (
+        <AdminSection
+          title="Stripe work that failed"
+          description={`${failedEvents} Stripe event${failedEvents === 1 ? "" : "s"} could not be processed after every retry (each also has a review case). Fix the cause, then queue them again: every piece of work is idempotent.`}
+          tone="danger"
+          actions={
+            <ReasonAction
+              action={retryFailedStripeWorkAction}
+              label="Queue again…"
+              title="Queue the failed Stripe work again?"
+              description="Puts every failed piece back in the queue, due now. Processing it twice changes nothing."
+              confirmLabel="Queue again"
+              success="Queued again"
+            />
+          }
+        >
+          <p className="text-sm text-muted-foreground">
+            Details are in the{" "}
+            <Link className="underline underline-offset-4" href="/admin/partners/reviews?kind=reconciliation">
+              reconciliation review cases
+            </Link>
+            .
+          </p>
+        </AdminSection>
+      ) : null}
 
       <AdminSection title="Reports and exports" description="CSV files from the same records the partner portal shows. No secrets, bank details or customer names and emails.">
         <ul className="flex flex-wrap gap-2 text-sm">

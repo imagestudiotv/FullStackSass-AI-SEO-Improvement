@@ -322,6 +322,13 @@ describe("uniqueness guarantees", () => {
     expect(await failure(() => seedSettlement(partner.partnerId, "2026-11", "paid"))).toMatch(/23505|run_uidx/);
   });
 
+  it("a cancelled settlement does not use up its monthly run (migration 0065)", async () => {
+    const partner = await seedPartner(test.db);
+    await seedSettlement(partner.partnerId, "2027-01", "canceled");
+    await expect(seedSettlement(partner.partnerId, "2027-01", "reserved")).resolves.toBeTruthy();
+    expect(await failure(() => seedSettlement(partner.partnerId, "2027-01", "paid"))).toMatch(/23505|run_uidx/);
+  });
+
   it("one transfer that may have moved money per settlement", async () => {
     const partner = await seedPartner(test.db);
     const settlementId = await seedSettlement(partner.partnerId);
@@ -364,5 +371,25 @@ describe("uniqueness guarantees", () => {
     const partner = await seedPartner(test.db);
     await seedCommission(partner.partnerId);
     expect(await failure(() => test.db.execute(sql`delete from partner_profiles where id = ${partner.partnerId}`))).toMatch(/23503|foreign key/);
+  });
+});
+
+describe("transactions", () => {
+  it("roll back every write when anything inside fails", async () => {
+    const { drizzleUnitOfWork } = await import("./unit-of-work");
+    const uow = drizzleUnitOfWork(test.db as never, { deliver: false });
+    const partner = await seedPartner(test.db);
+    const operationKey = `rollback-${randomUUID()}`;
+    await expect(
+      uow.transaction(async (tx) => {
+        await tx.commissions.appendLedger({ environment: "test", partnerId: partner.partnerId, currency: "eur", kind: "commission_adjustment", amount: BigInt(-100), operationKey, commissionId: null, reason: "Rolled back", actor: "test" });
+        await tx.audit.record({ actorEmail: "admin@repget.test", action: "partner.commission_adjusted", targetType: "partner", targetId: partner.partnerId, summary: "Rolled back", detail: {} });
+        throw new Error("fails after the writes");
+      }),
+    ).rejects.toThrow("fails after the writes");
+    const ledger = await test.db.execute(sql`select count(*)::int as n from partner_ledger_entries where operation_key = ${operationKey}`);
+    expect((ledger as unknown as { rows: { n: number }[] }).rows[0].n).toBe(0);
+    const audit = await test.db.execute(sql`select count(*)::int as n from admin_audit_log where target_id = ${partner.partnerId} and summary = 'Rolled back'`);
+    expect((audit as unknown as { rows: { n: number }[] }).rows[0].n).toBe(0);
   });
 });

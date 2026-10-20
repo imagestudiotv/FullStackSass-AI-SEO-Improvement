@@ -228,6 +228,8 @@ The base is subscription revenue actually collected, excluding tax (`domain/poli
 
   It never throws. If the hook could not create the workspace, the attribution is completed when the app creates it (`eligibilityForOrganization`).
 
+- **Network signals and IPv6.** Better Auth stores a session's address as the IPv4 address or, for IPv6, its /64 network in expanded form. A signup's address is compared in that same form (`sessionAddressForm` in `infrastructure/directory.ts`), so a signup from the partner's own IPv6 network is flagged. The browser tests found the mismatch: before, the shared-network signal could never fire for IPv6.
+
 ## Stripe Connect
 
 - **Account** (`infrastructure/stripe/connect-onboarding.ts`), created when the partner first clicks "Set up payouts", never on approval. The row is reserved first (one per partner and environment), then the account is created with the stable idempotency key `partner-account:<partnerId>:<environment>`.
@@ -251,7 +253,7 @@ The base is subscription revenue actually collected, excluding tax (`domain/poli
   A read for a different partner (metadata), a different environment, or an unknown account changes nothing.
 - **Connect webhook:** `/api/stripe/connect-webhook`, secret `STRIPE_CONNECT_WEBHOOK_SECRET`. Configure it in Stripe as an endpoint for **events on connected accounts**.
   - **Part 2 events:** `account.updated`, `account.application.deauthorized`, `capability.updated`, `account.external_account.created`, `account.external_account.updated`, `account.external_account.deleted`.
-  - **Part 4 events:** `payout.created`, `payout.updated`, `payout.paid`, `payout.failed`, `payout.canceled`.
+  - **Part 4 events:** `payout.created`, `payout.updated`, `payout.paid`, `payout.failed`, `payout.canceled`, `payout.reconciliation_completed`.
   - Events are stored in `webhook_events` with provider `stripe_connect`, and the billing-maintenance recovery job replays them.
 
 ## Commissions from Stripe payments
@@ -365,6 +367,7 @@ Before that transaction: the `partner_payouts` switch, the live-money key for li
 
 - Statuses come from Stripe only: Connect `payout.*` events and polling. `paid` only when Stripe says `paid`; `in_transit` and `pending` are shown as such.
 - A failed payout (`payout_failed`) leaves the money in the partner's Stripe balance and is retried with a new attempt; it never repeats the transfer. After 3 failures a `payout_discrepancy` review case is opened.
+- The connected balance in the settlement's currency must cover the payout. If it still does not 72 hours after the transfer (most likely Stripe converted the transfer into the account's own currency, or the partner moved the money), the settlement goes to review with a `payout_discrepancy` case instead of waiting silently. See the currency limitation in [partner-program-launch.md](partner-program-launch.md).
 - A payout RepGet did not create (for example one the partner triggered) is never matched to a settlement: an `unexpected_payout` review case is opened.
 - The `partner_payouts` switch off stops NEW bank payouts. Payouts already created keep being tracked.
 
@@ -407,17 +410,17 @@ They never count money twice: earned = pending + available + in a payout (shown 
 
 ## Administrator controls
 
-Every action calls `requireAdmin()` itself, needs a reason of at least 5 characters, and is recorded in the activity log in the same transaction as the change.
+Every action calls `requireAdmin()` itself and is recorded in the activity log in the same transaction as the change. Every override needs a reason of at least 5 characters; approving an application takes an optional note, and creating a coupon records its campaign instead.
 
 | Page | Actions |
 |---|---|
-| `/admin/partners` | The three switches; readiness; counts of what needs attention; exports |
+| `/admin/partners` | The three switches; readiness; counts of what needs attention; queue failed Stripe work again; exports (optionally for a period) |
 | `/admin/partners/applications`, `/admin/partners/partners` | Approve, reject, suspend, reactivate, hold or release payouts |
 | `/admin/partners/partners/[id]` | Balances per currency, recent payouts, the ledger, coupons (create, deactivate), balance adjustment |
 | `/admin/partners/attribution` | Attribution history; confirm a referral held for review; disqualify (unpaid commissions rejected) |
-| `/admin/partners/commissions` | Approve (held for review), reject (a reversing ledger entry), hold, release (not a dispute hold) |
+| `/admin/partners/commissions` | Filter by status and payment period; approve (held for review), reject (a reversing ledger entry; final - later refunds and disputes no longer touch it), hold, release (a dispute's hold can be neither replaced nor released) |
 | `/admin/partners/payouts` | Next-run preview with blockers; run this month's payouts now; prepare one partner now (still one payout per currency per month); reconcile now; every settlement |
-| `/admin/partners/payouts/[id]` | Every attempt with its operation id; retry (reconciles before anything new; not for a settlement under review); cancel (only before anything may have reached Stripe); transfer reversal |
+| `/admin/partners/payouts/[id]` | Every attempt with its operation id; retry (reconciles before anything new); resume a settlement under review (back to the state Stripe's evidence supports, with a fresh count of bank-payout failures); cancel (only before anything may have reached Stripe, also from review); transfer reversal (one at a time: refused while an earlier one is unconfirmed) |
 | `/admin/partners/reviews` | Resolve or dismiss a case; for referral cases, confirm or disqualify the referral |
 | `/admin/partners/coupons` | Every coupon and campaign; deactivate |
 
@@ -449,3 +452,38 @@ Names only; values belong in the host's environment settings (see [credentials.m
 | `PARTNER_LIVE_PAYOUTS` | `enabled` allows live transfers and bank payouts; anything else keeps live money still |
 | `PARTNER_PAYOUT_COUNTRIES` | Optional comma-separated ISO countries partners may be paid in; defaults to US, CA, GB, CH and the EEA |
 | `PARTNER_TRACKING_SECRET` | Optional key for pseudonymous visitor hashes; falls back to `BETTER_AUTH_SECRET` |
+
+## Launch and verification
+
+- Rollout order, Stripe configuration, funding, schedules, support procedures and the remaining external prerequisites: [partner-program-launch.md](partner-program-launch.md).
+- Browser end-to-end tests of the twenty flows: [e2e/partners/README.md](../e2e/partners/README.md).
+
+## Review fixes (Part 5) and known limitations
+
+A review of the complete program before launch found the following defects; each is fixed and pinned by a test (`review-fixes.test.ts` unless noted):
+
+- A rejected or disqualified commission was not final: a later refund or lost dispute reversed it a second time, and balances kept counting it. It is now terminal everywhere.
+- An administrator's hold could replace a dispute's hold, and releasing it cleared the dispute hold.
+- A transfer reversal with no answer could be requested again (a second, real reversal); and a later reversal of the same amount could be matched to a refused request. One reversal at a time now, matched by its operation id, with a case for an unknown outcome.
+- A settlement under review had no way out. It can be resumed (to the state Stripe's evidence supports) or cancelled before anything reached Stripe; unconfirmed settlements under review count as in flight when the next run plans.
+- A transfer or bank payout whose outcome was unknown was re-sent within Stripe's idempotency window even after the payouts switch was turned off or the partner suspended. It is now only looked up until a new one would be allowed.
+- A cancelled settlement used up the month (migration 0065 makes the run index ignore cancelled rows), and a fully refunded commission was released as "pending" instead of "reversed".
+- Lock order: cancelling and confirming a settlement locked the settlement before its commissions, the opposite of the transfer submission.
+- Fraud signals: a coupon attribution never compared the signup with the coupon partner's sessions, and a link attribution completed after signup (workspace created later) dropped the signals recorded at signup. Signups now store keyed hashes of their network and browser (migration 0065) for later comparisons. IPv6 addresses are compared in Better Auth's /64 form (found by the browser tests).
+- Connect events were stored whole in `webhook_events`, including bank-account objects; only the event's id, type, account and object id are kept now (`entry-points.test.ts`).
+- A first-touch cookie of a partner suspended since still held the browser; unknown referral codes were not rate-limited per visitor; a partner could repeatedly trigger Stripe calls from payout setup (now 12 a minute per partner); an account creation unresolved after Stripe's idempotency window could be retried into a second account (now a review case).
+- Coupon activation read only the first 200 coupons; a transfer's reversals were read from the embedded list (10 at most).
+- A refund undone after the commission was paid left an amount owed that no payout could include; it now opens a `financial_inconsistency` case.
+- A confirmed transfer whose connected balance never covers the bank payout (e.g. converted by Stripe into the account's currency) waited silently; after 72 hours it now goes to review (`settlements.test.ts`).
+- The portal had no loading or error state of its own; the admin area had no list or retry of failed Stripe work, no activity figures per partner and no report periods.
+
+Known limitations and deliberate differences from the original specification:
+
+- **States.** Commissions have `paid` and `reversed` states besides pending / available / reserved; "held" and "review" are views of unpaid money, not stored states. A bank payout that is returned after being paid goes from paid to failed (Stripe's own model), not to a separate "returned" state.
+- **Records.** Payment facts do not link to RepGet's `payments` row (`payment_id` is empty); the Stripe invoice payment id is the reference. Balance-transaction ids are stored for transfers, not for bank payouts or reversals. Program versions have an effective-from date only (each version applies until the next). Transfer and bank-payout attempts record `unknown` plus when they were last checked, rather than a separate reconciliation state.
+- **Retention.** Clicks that never led to an attribution are deleted 30 days after their window; clicks that did are kept with their pseudonymous visitor hash as attribution evidence. Partner profiles and applications keep the partner's name and contact email after their user account is deleted, because they are part of the financial history; erase them on request by hand if no longer needed for legal or tax purposes.
+- **Reconciliation scope.** The daily check compares the newest 500 settlements' transfers with Stripe; older history is not re-read every day.
+- **Notifications** to partners are emails only (the app's in-app notifications are for customer workspaces).
+- **Reporting.** Admin lists have status filters and the commissions list a payment period; search exists for applications, partners and coupons. Partner histories paginate without filters. Exports are CSV.
+- **Logs** are plain messages with the relevant ids, not structured JSON.
+- **Tests.** The architecture test checks imports inside `src/lib/partners` and client components, and scans for float operations on money in the application and infrastructure layers; it is a guard, not a proof. In the browser tests the Stripe-dependent step of a flow (a payment, a transfer, a bank payout) runs as the real use case in the tests' process with a fake Stripe, and the app's own clock is not controlled ([e2e/partners/README.md](../e2e/partners/README.md)). No test runs against Stripe test mode yet.

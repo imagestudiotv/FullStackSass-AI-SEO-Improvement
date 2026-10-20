@@ -156,6 +156,11 @@ export type EligibilityRecord = {
   candidatePartnerId: string | null;
   linkOutcome: string;
   couponDeadline: Date;
+  /** Booleans computed at signup against the link's partner. */
+  fraudSignals: { sharedNetwork: boolean; sharedDevice: boolean };
+  /** Keyed hashes of the signup's network and browser, to compare with another partner's sessions later. */
+  signupNetworkHash: string | null;
+  signupDeviceHash: string | null;
 };
 
 export interface TrackingRepository {
@@ -174,7 +179,7 @@ export interface TrackingRepository {
   findEligibility(userId: string): Promise<EligibilityRecord | null>;
   findEligibilityByOrganization(organizationId: string): Promise<EligibilityRecord | null>;
   /** Null when the user already has a record (unique index): eligibility is captured once. */
-  createEligibility(input: Omit<EligibilityRecord, "id"> & { fraudSignals: Record<string, boolean> }): Promise<EligibilityRecord | null>;
+  createEligibility(input: Omit<EligibilityRecord, "id">): Promise<EligibilityRecord | null>;
   setFoundingOrganization(eligibilityId: string, organizationId: string): Promise<void>;
   purgeClicks(before: Date): Promise<number>;
 }
@@ -352,6 +357,8 @@ export type SettlementRecord = {
   createdAt: Date;
   transferredAt: Date | null;
   paidAt: Date | null;
+  /** Set when a person resumed it after review. */
+  resumedAt: Date | null;
 };
 
 export type TransferAttemptRecord = {
@@ -412,7 +419,7 @@ export interface SettlementRepository {
   reservedInFlight(partnerId: string, environment: Environment, currency: string): Promise<bigint>;
   bankPaidTotal(partnerId: string, environment: Environment, currency: string): Promise<bigint>;
   /** Null when this run already has a settlement, or another is still pre-transfer (unique indexes). */
-  create(input: Omit<SettlementRecord, "id" | "state" | "attempts" | "nextAttemptAt" | "lastError" | "createdAt" | "transferredAt" | "paidAt"> & {
+  create(input: Omit<SettlementRecord, "id" | "state" | "attempts" | "nextAttemptAt" | "lastError" | "createdAt" | "transferredAt" | "paidAt" | "resumedAt"> & {
     createdBy: string;
     items: { commissionId: string; amount: bigint }[];
     now: Date;
@@ -428,6 +435,7 @@ export interface SettlementRepository {
     canceledReason?: string;
     reviewReason?: string;
     lastError?: string | null;
+    resumedAt?: Date;
   }): Promise<boolean>;
   items(settlementId: string, activeOnly?: boolean): Promise<{ commissionId: string; amount: bigint; active: boolean }[]>;
   deactivateItems(settlementId: string): Promise<void>;
@@ -461,6 +469,8 @@ export interface SettlementRepository {
     checkedAt: Date;
   }): Promise<boolean>;
   findPayoutAttemptByStripeId(stripeAccountId: string, stripePayoutId: string): Promise<BankPayoutAttemptRecord | null>;
+  /** By our operation id (the payout's repget_operation_id metadata), on that connected account. */
+  findPayoutAttemptByOperationId(stripeAccountId: string, operationId: string): Promise<BankPayoutAttemptRecord | null>;
 
   createReversal(input: Omit<TransferReversalRecord, "id" | "status" | "stripeReversalId"> & { reason: string; requestedBy: string }): Promise<TransferReversalRecord | null>;
   updateReversal(id: string, values: { status: TransferReversalRecord["status"]; stripeReversalId?: string | null; failureMessage?: string | null; confirmedAt?: Date | null }): Promise<void>;
@@ -557,6 +567,8 @@ export interface CouponRepository {
   findByPromotionCode(environment: Environment, stripePromotionCodeId: string): Promise<CouponRecord | null>;
   forPartner(partnerId: string, environment: Environment): Promise<CouponRecord[]>;
   list(environment: Environment, filter: { offset: number; limit: number; search?: string }): Promise<{ rows: CouponRecord[]; total: number }>;
+  /** Scheduled coupons whose start has come (created at Stripe, not yet active), oldest first. */
+  dueToActivate(environment: Environment, now: Date, limit: number): Promise<CouponRecord[]>;
 }
 
 /* ------------------------------------------------------------- review cases */
@@ -626,6 +638,8 @@ export interface ProviderEventRepository {
   complete(id: string, token: string, values: { status: "done" | "ignored"; outcome: string; at: Date }): Promise<boolean>;
   release(id: string, token: string, values: { error: string; nextAttemptAt: Date; failed: boolean }): Promise<boolean>;
   backlog(): Promise<{ status: string; count: number }[]>;
+  /** Puts work that failed every attempt back in the queue, due now; returns how many. */
+  retryFailed(now: Date): Promise<number>;
 }
 
 /* ----------------------------------------------------- audit, outbox, mailer */
@@ -741,9 +755,11 @@ export interface ReportingRepository {
   /** Every currency the partner has ledger entries in (each commission writes one when earned). */
   currencies(partnerId: string, environment: Environment): Promise<string[]>;
   metrics(partnerId: string, environment: Environment, since: Date): Promise<{ clicks: number; signups: number; customers: number; payingCustomers: number }>;
-  commissions(filter: { environment: Environment; partnerId?: string; status?: string; review?: string; held?: boolean; offset: number; limit: number }): Promise<{ rows: CommissionView[]; total: number }>;
-  settlements(filter: { environment: Environment; partnerId?: string; state?: string; excludeStates?: string[]; offset: number; limit: number }): Promise<{ rows: SettlementView[]; total: number }>;
+  /** `from` inclusive, `to` exclusive (UTC), on the payment date. */
+  commissions(filter: { environment: Environment; partnerId?: string; status?: string; review?: string; held?: boolean; from?: Date; to?: Date; offset: number; limit: number }): Promise<{ rows: CommissionView[]; total: number }>;
+  /** `from` inclusive, `to` exclusive (UTC), on the creation date. */
+  settlements(filter: { environment: Environment; partnerId?: string; state?: string; excludeStates?: string[]; from?: Date; to?: Date; offset: number; limit: number }): Promise<{ rows: SettlementView[]; total: number }>;
   referrals(filter: { partnerId?: string; status?: string; offset: number; limit: number }): Promise<{ rows: (ReferralView & { partnerId: string })[]; total: number }>;
   /** The immutable ledger, newest first: the transaction history behind every balance. */
-  ledger(filter: { environment: Environment; partnerId?: string; currency?: string; settlementId?: string; offset: number; limit: number }): Promise<{ rows: LedgerView[]; total: number }>;
+  ledger(filter: { environment: Environment; partnerId?: string; currency?: string; settlementId?: string; from?: Date; to?: Date; offset: number; limit: number }): Promise<{ rows: LedgerView[]; total: number }>;
 }

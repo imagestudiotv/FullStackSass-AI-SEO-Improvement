@@ -383,6 +383,9 @@ export function fakePayouts(environment: "test" | "live" = "test") {
   const payoutByKey = new Map<string, string>();
   const nextTransfer: Outcome<never>[] = [];
   const nextPayout: Outcome<never>[] = [];
+  const nextReversal: Outcome<never>[] = [];
+  /** A lost answer: the reversal IS made, but the caller hears "unknown". */
+  let loseNextReversalAnswer = false;
   /** A lost answer: the transfer IS made, but the caller hears "unknown". */
   let loseNextTransferAnswer = false;
   const created = { transfers: 0, payouts: 0 };
@@ -437,9 +440,15 @@ export function fakePayouts(environment: "test" | "live" = "test") {
       return transfer;
     },
     async createTransferReversal(input) {
+      const forced = nextReversal.shift();
+      if (forced) return forced;
       const transfer = transfers.get(input.transferId)!;
-      const reversal = { id: `trr_${randomUUID().replace(/-/g, "").slice(0, 12)}`, amount: input.amount, created: new Date() };
+      const reversal = { id: `trr_${randomUUID().replace(/-/g, "").slice(0, 12)}`, amount: input.amount, created: new Date(), operationId: input.metadata.repget_operation_id ?? null };
       transfers.set(transfer.id, { ...transfer, amountReversed: transfer.amountReversed + input.amount, reversals: [...transfer.reversals, reversal] });
+      if (loseNextReversalAnswer) {
+        loseNextReversalAnswer = false;
+        return { kind: "unknown", message: "ECONNRESET" } as Outcome<never>;
+      }
       return { kind: "succeeded", value: { reversalId: reversal.id, amount: input.amount } };
     },
     async createBankPayout(input) {
@@ -496,6 +505,17 @@ export function fakePayouts(environment: "test" | "live" = "test") {
     loseNextTransferAnswer() {
       loseNextTransferAnswer = true;
     },
+    /** The connected account's balance in a currency becomes 0 - e.g. Stripe converted the transfer into the account's own currency. */
+    drainConnected(accountId: string, currency: string) {
+      connected.set(`${accountId}:${currency}`, BigInt(0));
+    },
+    loseNextReversalAnswer() {
+      loseNextReversalAnswer = true;
+    },
+    /** Stripe refuses the next transfer reversal (e.g. the connected balance is too low): nothing is reversed. */
+    refuseNextReversal(code: string) {
+      nextReversal.push({ kind: "refused", code, message: code } as Outcome<never>);
+    },
     refuseNextPayout(code: string) {
       nextPayout.push({ kind: "refused", code, message: code } as Outcome<never>);
     },
@@ -516,7 +536,7 @@ export function fakePayouts(environment: "test" | "live" = "test") {
     },
     reverseOutside(transferId: string, amount: number) {
       const transfer = transfers.get(transferId)!;
-      const reversal = { id: `trr_${randomUUID().replace(/-/g, "").slice(0, 12)}`, amount: BigInt(amount), created: new Date() };
+      const reversal = { id: `trr_${randomUUID().replace(/-/g, "").slice(0, 12)}`, amount: BigInt(amount), created: new Date(), operationId: null };
       transfers.set(transferId, { ...transfer, amountReversed: transfer.amountReversed + BigInt(amount), reversals: [...transfer.reversals, reversal] });
     },
   };

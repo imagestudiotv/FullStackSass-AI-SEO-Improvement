@@ -18,6 +18,29 @@ import { partnerDeps } from "../server";
  * state. An account that is not a partner's in this environment changes
  * nothing. Throws only for what a retry can fix.
  */
+/**
+ * What is kept of a Connect event: who, what and which object - all the
+ * handler (and a replay) needs, since it re-reads the account or payout from
+ * Stripe. The rest is dropped before storage: external-account events carry
+ * bank details (holder name, bank, last digits, routing number) and account
+ * events carry contact details, none of which RepGet keeps.
+ */
+export function minimalConnectEvent(event: Stripe.Event): Stripe.Event {
+  const object = event.data.object as { id?: string; object?: string };
+  return {
+    id: event.id,
+    object: "event",
+    api_version: event.api_version,
+    created: event.created,
+    livemode: event.livemode,
+    pending_webhooks: event.pending_webhooks,
+    request: { id: null, idempotency_key: null },
+    type: event.type,
+    account: event.account,
+    data: { object: { id: object.id, object: object.object } },
+  } as unknown as Stripe.Event;
+}
+
 export async function processPartnerConnectEvent(event: Stripe.Event): Promise<void> {
   const accountId = event.account;
   if (!accountId) {

@@ -7,7 +7,7 @@ import { pageFrom } from "@/lib/admin/shared";
 import { adminCommissions, COMMISSION_FILTERS, type CommissionFilter } from "@/lib/partners/application/queries/admin-reports";
 import { approveCommissionAction, holdCommissionAction, rejectCommissionAction } from "@/lib/partners/presentation/admin-actions";
 import { rateLabel } from "@/lib/partners/presentation/format";
-import { idSchema } from "@/lib/partners/presentation/validation";
+import { idSchema, reportPeriod } from "@/lib/partners/presentation/validation";
 import { partnerDeps } from "@/lib/partners/server";
 
 import { AdminPage, AdminPageHeader } from "../../_ui/page";
@@ -41,7 +41,9 @@ export default async function PartnerCommissionsPage({ searchParams }: PageProps
   const params = await searchParams;
   const status = (COMMISSION_FILTERS as readonly string[]).includes(String(params.status)) ? (params.status as CommissionFilter) : undefined;
   const partnerId = typeof params.partner === "string" && idSchema.safeParse(params.partner).success ? params.partner : undefined;
-  const result = await adminCommissions(partnerDeps(), { kind: "admin", userId: who.userId, email: who.email }, { status, partnerId, page: pageFrom(params.page) });
+  const period = reportPeriod(params.from, params.to);
+  const result = await adminCommissions(partnerDeps(), { kind: "admin", userId: who.userId, email: who.email }, { status, partnerId, from: period.from, to: period.to, page: pageFrom(params.page) });
+  const exportQuery = new URLSearchParams(Object.entries({ partner: partnerId, from: period.fromText, to: period.toText }).filter((entry): entry is [string, string] => Boolean(entry[1]))).toString();
 
   return (
     <AdminPage width="wide">
@@ -50,7 +52,7 @@ export default async function PartnerCommissionsPage({ searchParams }: PageProps
         description="One commission per commissionable Stripe payment of a referred customer: the base excludes tax, discounts and credits; refunds and chargebacks reverse it. Amounts never change - corrections are new ledger entries."
         back={{ href: "/admin/partners", label: "Affiliate program" }}
         actions={
-          <Link href={`/admin/partners/export/commissions${partnerId ? `?partner=${partnerId}` : ""}`} className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring">
+          <Link href={`/admin/partners/export/commissions${exportQuery ? `?${exportQuery}` : ""}`} className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring">
             <Download className="size-4" aria-hidden="true" />
             Export CSV
           </Link>
@@ -60,13 +62,34 @@ export default async function PartnerCommissionsPage({ searchParams }: PageProps
         <AdminUnavailable title="Stripe is not configured" description="Commissions are recorded per Stripe environment. Set STRIPE_SECRET_KEY to see them." />
       ) : (
         <>
-          <AdminToolbar filters={FILTERS} keep={partnerId ? ["partner"] : []} resultLabel={`${result.total} commission${result.total === 1 ? "" : "s"} (${result.environment})`} />
+          <AdminToolbar filters={FILTERS} keep={["partner", "from", "to"]} resultLabel={`${result.total} commission${result.total === 1 ? "" : "s"} (${result.environment})`} />
+          {/* The period, by payment date (UTC): a plain form, so it works without scripts. */}
+          <form method="get" className="flex flex-wrap items-end gap-3 text-sm" aria-label="Payment date period">
+            {status ? <input type="hidden" name="status" value={status} /> : null}
+            {partnerId ? <input type="hidden" name="partner" value={partnerId} /> : null}
+            <label className="grid gap-1">
+              <span className="text-xs text-muted-foreground">Paid from (UTC)</span>
+              <input type="date" name="from" defaultValue={period.fromText} className="h-9 rounded-md border bg-background px-2 focus-visible:outline-2 focus-visible:outline-ring" />
+            </label>
+            <label className="grid gap-1">
+              <span className="text-xs text-muted-foreground">to (included)</span>
+              <input type="date" name="to" defaultValue={period.toText} className="h-9 rounded-md border bg-background px-2 focus-visible:outline-2 focus-visible:outline-ring" />
+            </label>
+            <button type="submit" className="h-9 rounded-md border px-3 hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring">
+              Apply period
+            </button>
+            {period.fromText || period.toText ? (
+              <Link href={`/admin/partners/commissions${partnerId ? `?partner=${partnerId}` : ""}`} className="h-9 content-center text-muted-foreground underline underline-offset-4">
+                All dates
+              </Link>
+            ) : null}
+          </form>
           {result.rows.length === 0 ? (
             <div className="rounded-xl border bg-card">
               <AdminEmpty filtering={Boolean(status || partnerId)} icon={Coins} noun="commissions" title="No commissions yet" description="They appear when a referred customer pays through Stripe." clearHref="/admin/partners/commissions" />
             </div>
           ) : (
-            <AdminTableCard footer={<Pagination page={result.page} pageSize={result.pageSize} total={result.total} basePath="/admin/partners/commissions" params={{ status, partner: partnerId }} />}>
+            <AdminTableCard footer={<Pagination page={result.page} pageSize={result.pageSize} total={result.total} basePath="/admin/partners/commissions" params={{ status, partner: partnerId, from: period.fromText, to: period.toText }} />}>
               <Table minWidth="1100px">
                 <TableHeader>
                   <TableRow>

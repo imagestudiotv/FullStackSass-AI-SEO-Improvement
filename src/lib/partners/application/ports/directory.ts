@@ -30,6 +30,10 @@ export interface UserDirectory {
     sharedNetwork: boolean;
     sharedDevice: boolean;
   }>;
+  /** An address in the form sessions store it (an IPv6 address as its /64), for comparing networks. */
+  networkKey(ipAddress: string): string;
+  /** A user's most recent sessions: their network (networkKey form) and browser. Read to compare, never stored. */
+  recentSessions(userId: string): Promise<{ network: string | null; userAgent: string | null }[]>;
   /** The organization paying for a Stripe customer (billing_customers). */
   organizationForStripeCustomer(customerId: string): Promise<string | null>;
   /** The organization the billing webhook recorded a Stripe invoice for (payments). */

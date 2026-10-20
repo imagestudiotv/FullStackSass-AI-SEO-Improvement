@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 
 import Link from "next/link";
 
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requireAdmin } from "@/lib/admin/guard";
 import { pageFrom } from "@/lib/admin/shared";
 import { formatDate } from "@/lib/i18n/format";
@@ -195,6 +196,38 @@ export default async function PartnerDetailPage({ params, searchParams }: PagePr
           </Link>
         </p>
       </AdminSection>
+
+      {finance ? (
+        <AdminSection title="Activity" description="The same definitions as the partner's dashboard: link opens recorded, new accounts the link attributed, customers attributed (link or coupon), and those of them with a commissioned payment in the period." bodyClassName="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Period</TableHead>
+                <TableHead data-numeric>Clicks</TableHead>
+                <TableHead data-numeric>New accounts</TableHead>
+                <TableHead data-numeric>Referred</TableHead>
+                <TableHead data-numeric>Paying</TableHead>
+                <TableHead data-numeric>Clicks to paying</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {finance.activity.map((row) => (
+                <TableRow key={row.days}>
+                  <TableCell>
+                    Last {row.days} days
+                    <p className="text-xs text-muted-foreground">since {when(row.since)}</p>
+                  </TableCell>
+                  <TableCell data-numeric>{row.clicks}</TableCell>
+                  <TableCell data-numeric>{row.signups}</TableCell>
+                  <TableCell data-numeric>{row.customers}</TableCell>
+                  <TableCell data-numeric>{row.payingCustomers}</TableCell>
+                  <TableCell data-numeric>{row.clicks > 0 ? new Intl.NumberFormat("en-GB", { style: "percent", maximumFractionDigits: 1 }).format(row.payingCustomers / row.clicks) : "-"}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </AdminSection>
+      ) : null}
 
       <AdminSection title="Recent payouts" bodyClassName="p-0">
         {!finance || finance.settlements.length === 0 ? (

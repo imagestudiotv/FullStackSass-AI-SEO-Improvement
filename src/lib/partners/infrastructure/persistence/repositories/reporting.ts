@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, isNotNull, notInArray, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, gte, isNotNull, lt, notInArray, sql, type SQL } from "drizzle-orm";
 
 import {
   partnerAttributions,
@@ -94,6 +94,8 @@ export function reportingRepository(db: Executor): ReportingRepository {
       if (filter.status) conditions.push(eq(partnerCommissions.status, filter.status));
       if (filter.review) conditions.push(eq(partnerCommissions.reviewState, filter.review));
       if (filter.held) conditions.push(isNotNull(partnerCommissions.holdReason));
+      if (filter.from) conditions.push(gte(partnerCommissions.earnedAt, filter.from));
+      if (filter.to) conditions.push(lt(partnerCommissions.earnedAt, filter.to));
       const where = and(...conditions);
       const [rows, [total]] = await Promise.all([
         db
@@ -133,6 +135,8 @@ export function reportingRepository(db: Executor): ReportingRepository {
       if (filter.partnerId) conditions.push(eq(partnerSettlements.partnerId, filter.partnerId));
       if (filter.state) conditions.push(eq(partnerSettlements.state, filter.state));
       if (filter.excludeStates?.length) conditions.push(notInArray(partnerSettlements.state, filter.excludeStates));
+      if (filter.from) conditions.push(gte(partnerSettlements.createdAt, filter.from));
+      if (filter.to) conditions.push(lt(partnerSettlements.createdAt, filter.to));
       const where = and(...conditions);
       const [rows, [total]] = await Promise.all([
         db.select().from(partnerSettlements).where(where).orderBy(desc(partnerSettlements.createdAt)).offset(filter.offset).limit(filter.limit),
@@ -170,6 +174,7 @@ export function reportingRepository(db: Executor): ReportingRepository {
           createdAt: row.createdAt,
           transferredAt: row.transferredAt,
           paidAt: row.paidAt,
+          resumedAt: row.resumedAt,
           transferStatus: (transfer?.status as TransferStatus | undefined) ?? null,
           stripeTransferId: transfer?.id ?? null,
           bankStatus: (bank?.status as BankPayoutStatus | undefined) ?? null,
@@ -215,6 +220,8 @@ export function reportingRepository(db: Executor): ReportingRepository {
       if (filter.partnerId) conditions.push(eq(partnerLedgerEntries.partnerId, filter.partnerId));
       if (filter.currency) conditions.push(eq(partnerLedgerEntries.currency, filter.currency));
       if (filter.settlementId) conditions.push(eq(partnerLedgerEntries.settlementId, filter.settlementId));
+      if (filter.from) conditions.push(gte(partnerLedgerEntries.createdAt, filter.from));
+      if (filter.to) conditions.push(lt(partnerLedgerEntries.createdAt, filter.to));
       const where = and(...conditions);
       const [rows, [total]] = await Promise.all([
         db

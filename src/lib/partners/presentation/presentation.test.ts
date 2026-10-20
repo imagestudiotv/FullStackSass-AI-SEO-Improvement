@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import { LOCALES } from "@/lib/i18n/config";
 
-import { customerReference, maskDomain } from "../infrastructure/directory";
+import { customerReference, maskDomain, sessionAddressForm } from "../infrastructure/directory";
 import { partnerCopy } from "./copy";
 import { csvCell, toCsv } from "./csv";
-import { percentToBasisPoints, utcDateFrom } from "./validation";
+import { percentToBasisPoints, reportPeriod, utcDateFrom } from "./validation";
 import { balanceView, commissionRowView, couponView, metricsView, pagerView, payoutRowView } from "./views";
 
 /**
@@ -42,6 +42,18 @@ describe("typed input", () => {
     expect(percentToBasisPoints("1e2")).toBeNull();
   });
 
+  it("reads a report period as UTC days, both included", () => {
+    expect(reportPeriod("2026-10-01", "2026-10-31")).toEqual({
+      from: new Date("2026-10-01T00:00:00.000Z"),
+      to: new Date("2026-11-01T00:00:00.000Z"),
+      fromText: "2026-10-01",
+      toText: "2026-10-31",
+    });
+    expect(reportPeriod("2026-10-05", "2026-10-01")).toEqual({});
+    expect(reportPeriod("2026-02-30", undefined)).toEqual({});
+    expect(reportPeriod(undefined, null)).toEqual({});
+  });
+
   it("reads dates as UTC days and refuses impossible ones", () => {
     expect(utcDateFrom("2026-11-01")?.toISOString()).toBe("2026-11-01T00:00:00.000Z");
     expect(utcDateFrom("")).toBeNull();
@@ -62,6 +74,18 @@ describe("privacy-safe customer labels", () => {
     expect(customerReference("org-1")).toMatch(/^Customer [0-9A-F]{6}$/);
     expect(customerReference("org-1")).toBe(customerReference("org-1"));
     expect(customerReference("org-1")).not.toBe(customerReference("org-2"));
+  });
+});
+
+describe("comparing a signup's address with the partner's sessions", () => {
+  it("uses the form Better Auth stores (IPv4 as is, IPv6 as its /64)", () => {
+    expect(sessionAddressForm("198.51.100.7")).toBe("198.51.100.7");
+    expect(sessionAddressForm("2001:DB8:763d:a5::1")).toBe("2001:0db8:763d:00a5:0000:0000:0000:0000");
+    expect(sessionAddressForm("2001:db8:763d:a5:ffff:1:2:3")).toBe("2001:0db8:763d:00a5:0000:0000:0000:0000");
+    expect(sessionAddressForm("::ffff:192.0.2.1")).toBe("192.0.2.1");
+    expect(sessionAddressForm("::ffff:c000:201")).toBe("192.0.2.1");
+    expect(sessionAddressForm("::1")).toBe("0000:0000:0000:0000:0000:0000:0000:0000");
+    expect(sessionAddressForm("not an address")).toBe("not an address");
   });
 });
 

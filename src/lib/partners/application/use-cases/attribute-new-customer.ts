@@ -1,5 +1,5 @@
 import { decideCouponAttribution, decideSignup, type CouponDecision } from "../../domain/policies/attribution";
-import type { FraudDecision } from "../../domain/policies/fraud";
+import { emailSignals, evaluateFraud, type FraudDecision } from "../../domain/policies/fraud";
 import { fail, ok, type Result } from "../contracts/results";
 import type { AttributionRecord, CouponRecord, EligibilityRecord, PartnerRecord } from "../ports/repositories";
 import type { PartnerRepositories } from "../ports/unit-of-work";
@@ -35,6 +35,32 @@ export type SignupResult = {
   attribution: AttributionRecord | null;
   linkOutcome: string;
 };
+
+type Fingerprint = { networkHash: string | null; deviceHash: string | null };
+
+/** Keyed hashes of a signup's network and browser: comparable later, never the address itself. */
+function fingerprintOf(deps: PartnerDeps, ipAddress: string | null, userAgent: string | null): Fingerprint {
+  return {
+    networkHash: ipAddress ? deps.hasher.hmac(`net:${deps.directory.networkKey(ipAddress)}`) : null,
+    deviceHash: ipAddress && userAgent ? deps.hasher.hmac(`ua:${userAgent}`) : null,
+  };
+}
+
+/**
+ * Shared network / device between a stored signup fingerprint and a partner's
+ * recent sessions - for attributions decided after the signup (a coupon, a
+ * workspace created later), against the partner the attribution goes to.
+ */
+async function signalsAgainst(deps: PartnerDeps, repos: PartnerRepositories, partnerUserId: string, fingerprint: Fingerprint) {
+  if (!fingerprint.networkHash) return { sharedNetwork: false, sharedDevice: false };
+  const sessions = (await repos.directory.recentSessions(partnerUserId)).filter(
+    (session) => session.network !== null && deps.hasher.hmac(`net:${session.network}`) === fingerprint.networkHash,
+  );
+  return {
+    sharedNetwork: sessions.length > 0,
+    sharedDevice: fingerprint.deviceHash !== null && sessions.some((session) => session.userAgent !== null && deps.hasher.hmac(`ua:${session.userAgent}`) === fingerprint.deviceHash),
+  };
+}
 
 export async function captureSignupEligibility(
   deps: PartnerDeps,
@@ -80,6 +106,10 @@ export async function captureSignupEligibility(
       linkOutcome: decision.link.outcome === "attribute" ? "attribute" : decision.link.reason,
       couponDeadline: decision.couponDeadline,
       fraudSignals: signals,
+      ...(() => {
+        const fingerprint = fingerprintOf(deps, input.ipAddress, input.userAgent);
+        return { signupNetworkHash: fingerprint.networkHash, signupDeviceHash: fingerprint.deviceHash };
+      })(),
     });
     if (!eligibility) return fail("already_processed");
 
@@ -130,16 +160,25 @@ export async function eligibilityForOrganization(
       const partner = await repos.partners.findById(record.candidatePartnerId);
       if (partner?.status === "active") {
         const version = await repos.programs.versionAt(record.signedUpAt);
-        await lockAttribution(repos, deps, {
-          organizationId,
-          foundingUserId: userId,
-          partnerId: partner.id,
-          source: "link",
-          clickId: record.clickId,
-          couponId: null,
-          fraud: { decision: "allow", reasons: [] },
-          ruleVersion: version.policy.version,
+        // The signals recorded at signup against this same partner, and the workspace's members now.
+        const fraud = evaluateFraud({
+          ...emailSignals(user.email, partner.contactEmail),
+          partnerIsMember: await repos.attributions.isPartnerMember(organizationId, partner.userId),
+          sharedNetwork: record.fraudSignals.sharedNetwork,
+          sharedDevice: record.fraudSignals.sharedDevice,
         });
+        if (fraud.decision !== "reject") {
+          await lockAttribution(repos, deps, {
+            organizationId,
+            foundingUserId: userId,
+            partnerId: partner.id,
+            source: "link",
+            clickId: record.clickId,
+            couponId: null,
+            fraud,
+            ruleVersion: version.policy.version,
+          });
+        }
       }
     }
     return filled;
@@ -189,7 +228,11 @@ export async function attributeByCoupon(
     priorPayment: input.priorPayment,
     paidAt: input.paidAt,
     partnerIsMember: await repos.attributions.isPartnerMember(input.organizationId, couponPartner.userId),
-    fraud: { sharedNetwork: false, sharedDevice: false },
+    // The signup's network and browser against THIS partner's sessions (the signup compared them with the link's partner only).
+    fraud:
+      eligibility && couponPartner.userId
+      ? await signalsAgainst(deps, repos, couponPartner.userId, { networkHash: eligibility.signupNetworkHash, deviceHash: eligibility.signupDeviceHash })
+      : { sharedNetwork: false, sharedDevice: false },
   });
 
   if (decision.outcome === "conflict" && current) {

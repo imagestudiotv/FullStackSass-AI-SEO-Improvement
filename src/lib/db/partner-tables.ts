@@ -222,6 +222,14 @@ export const partnerSignupEligibility = pgTable(
     couponDeadline: timestamp("coupon_deadline").notNull(),
     /** Booleans only (shared network / device with the partner). */
     fraudSignals: jsonb("fraud_signals").default({}).notNull(),
+    /**
+     * Keyed hashes (HMAC) of the signup's network (an IPv6 address as its /64)
+     * and browser - never the address itself - so a later attribution (a
+     * coupon, a workspace created after signup) can be compared with THAT
+     * partner's sessions.
+     */
+    signupNetworkHash: text("signup_network_hash"),
+    signupDeviceHash: text("signup_device_hash"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [
@@ -537,10 +545,15 @@ export const partnerSettlements = pgTable(
     createdBy: text("created_by").notNull(),
     transferredAt: timestamp("transferred_at"),
     paidAt: timestamp("paid_at"),
+    /** When a person last resumed it after review: earlier failures no longer count against it. */
+    resumedAt: timestamp("resumed_at"),
     ...timestamps,
   },
   (table) => [
-    uniqueIndex("partner_settlements_run_uidx").on(table.partnerId, table.environment, table.currency, table.runKey),
+    // One per partner, currency and run - a cancelled one does not use up the month.
+    uniqueIndex("partner_settlements_run_uidx")
+      .on(table.partnerId, table.environment, table.currency, table.runKey)
+      .where(sql`${table.state} <> 'canceled'`),
     uniqueIndex("partner_settlements_group_uidx").on(table.transferGroup),
     // At most one settlement per partner and currency whose transfer is not settled.
     uniqueIndex("partner_settlements_open_uidx")

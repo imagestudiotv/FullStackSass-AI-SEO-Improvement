@@ -152,6 +152,26 @@ describe("signup attribution", () => {
     expect(cases).toMatchObject([{ kind: "fraud_signal", status: "open" }]);
   });
 
+  it("matches an IPv6 signup against the /64 form Better Auth stores for sessions", async () => {
+    const env = partnerTestDeps(test.db);
+    const partner = await seedPartner(test.db);
+    await test.db.insert(session).values({
+      id: randomUUID(),
+      token: randomUUID(),
+      userId: partner.userId,
+      expiresAt: new Date("2027-01-01T00:00:00Z"),
+      // As Better Auth stores 2001:db8:763d:a5::1.
+      ipAddress: "2001:0db8:763d:00a5:0000:0000:0000:0000",
+      userAgent: "Mozilla/5.0 Partner",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    // Another address in the same /64: the same network.
+    const { result } = await signUp(env, { token: await click(env, partner.code), ip: "2001:db8:763d:a5:1234::9", ua: "Mozilla/5.0 Other" });
+    if (!result.ok) throw new Error(result.reason);
+    expect(result.value.attribution).toMatchObject({ status: "review" });
+  });
+
   it("never attributes an existing account or a later workspace of the same person", async () => {
     const env = partnerTestDeps(test.db);
     const partner = await seedPartner(test.db);

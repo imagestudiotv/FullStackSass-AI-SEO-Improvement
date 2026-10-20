@@ -50,7 +50,10 @@ async function applyReversals(deps: PartnerDeps, attempt: TransferAttemptRecord,
       });
       if (!wrote) continue;
       recorded += 1;
-      const mine = ours.find((r) => r.stripeReversalId === reversal.id || (r.status !== "confirmed" && r.amount === reversal.amount));
+      // Ours by Stripe id, else by our operation id; never a request Stripe refused.
+      const mine =
+        ours.find((r) => r.stripeReversalId === reversal.id) ??
+        ours.find((r) => reversal.operationId !== null && r.operationId === reversal.operationId && r.status !== "confirmed");
       if (mine) {
         await tx.settlements.updateReversal(mine.id, { status: "confirmed", stripeReversalId: reversal.id, confirmedAt: deps.clock.now() });
       } else {
@@ -93,6 +96,9 @@ export async function requestTransferReversal(
   if (!settlement) return fail("not_found");
   const attempt = (await repos.settlements.transferAttempts(settlement.id)).find((a) => ["confirmed", "partially_reversed"].includes(a.status));
   if (!attempt?.stripeTransferId) return fail("invalid", "no_confirmed_transfer");
+  // One reversal at a time: one whose outcome Stripe has not confirmed may have taken the money already.
+  const unconfirmed = (await repos.settlements.reversals(attempt.id)).filter((r) => r.status === "processing" || r.status === "unknown");
+  if (unconfirmed.length > 0) return fail("conflict", "reversal_pending");
   const ledger = await repos.commissions.ledgerSum(settlement.partnerId, settlement.environment, settlement.currency);
   const owed = ledger.liability < BigInt(0) ? -ledger.liability : BigInt(0);
   const remaining = attempt.amount - attempt.amountReversed;
@@ -134,6 +140,20 @@ export async function requestTransferReversal(
   }
   if (outcome.kind === "unknown") {
     await repos.settlements.updateReversal(reversal.id, { status: "unknown", failureMessage: outcome.message });
+    // Settled by the next read of the transfer (transfer.reversed / reconciliation), matched by its operation id.
+    await repos.reviews.open({
+      kind: "payout_discrepancy",
+      dedupeKey: `reversal_unknown:${reversal.operationId}`,
+      environment: settlement.environment,
+      partnerId: settlement.partnerId,
+      attributionId: null,
+      commissionId: null,
+      settlementId: settlement.id,
+      paymentFactId: null,
+      organizationId: null,
+      summary: "A transfer reversal got no answer from Stripe; no further reversal is allowed until it is confirmed or refused",
+      evidence: { operationId: reversal.operationId, transfer: attempt.stripeTransferId, amount: input.amount.toString() },
+    });
     return ok({ status: "unknown" });
   }
   await repos.settlements.updateReversal(reversal.id, { status: "processing", stripeReversalId: outcome.value.reversalId });

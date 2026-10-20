@@ -40,7 +40,8 @@ export type PartnerAuditAction =
   | "partner.settlement_retried"
   | "partner.settlement_canceled"
   | "partner.transfer_reversal_requested"
-  | "partner.reconciliation_run";
+  | "partner.reconciliation_run"
+  | "partner.provider_events_retried";
 
 export const PARTNER_AUDIT_ACTIONS: readonly PartnerAuditAction[] = [
   "partner.application_approved",
@@ -65,6 +66,7 @@ export const PARTNER_AUDIT_ACTIONS: readonly PartnerAuditAction[] = [
   "partner.settlement_canceled",
   "partner.transfer_reversal_requested",
   "partner.reconciliation_run",
+  "partner.provider_events_retried",
 ];
 
 /** Reasons are required for every override; this is the shortest accepted. */

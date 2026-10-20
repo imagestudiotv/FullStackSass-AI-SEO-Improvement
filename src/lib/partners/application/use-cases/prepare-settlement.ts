@@ -1,5 +1,5 @@
 import { canReceiveAutomaticPayout } from "../../domain/entities/partner";
-import { isPayable, netPayable } from "../../domain/entities/commission";
+import { isPayable, netPayable, projectedStatus } from "../../domain/entities/commission";
 import { monthlyRunKey, planSettlement, type SettlementPlan } from "../../domain/policies/maturity";
 import { payoutThreshold } from "../../domain/policies/program";
 import { Money } from "../../domain/value-objects/money";
@@ -137,8 +137,11 @@ export async function runMonthlySettlements(deps: PartnerDeps, actor: SystemCont
 
 /**
  * Cancels a settlement that has NOT been submitted to Stripe, releasing its
- * reservations. A transfer that was sent, or whose outcome is unknown, is
- * never cancelled this way: money may have moved.
+ * reservations - from "reserved", or from "needs_review" when no transfer was
+ * confirmed and no attempt may have reached Stripe. A transfer that was sent,
+ * or whose outcome is unknown, is never cancelled this way: money may have
+ * moved. Locks the commissions first, then the settlement (the order the
+ * transfer submission uses).
  */
 export async function cancelSettlement(
   deps: PartnerDeps,
@@ -148,21 +151,22 @@ export async function cancelSettlement(
 ): Promise<Result<null>> {
   const environment = deps.settings.environment();
   const result = await deps.uow.transaction(async (tx): Promise<Result<{ partnerId: string; currency: string }>> => {
+    const items = await tx.settlements.items(settlementId, true);
+    const commissions = [];
+    for (const item of [...items].sort((a, b) => (a.commissionId < b.commissionId ? -1 : 1))) commissions.push(await tx.commissions.lockCommission(item.commissionId));
     const settlement = await tx.settlements.lock(settlementId);
     if (!settlement) return fail("not_found");
     if (settlement.state === "canceled") return ok({ partnerId: settlement.partnerId, currency: settlement.currency });
-    if (settlement.state !== "reserved") return fail("invalid", `state_${settlement.state}`);
+    const cancellable = settlement.state === "reserved" || (settlement.state === "needs_review" && settlement.transferredAt === null);
+    if (!cancellable) return fail("invalid", `state_${settlement.state}`);
     const attempts = await tx.settlements.transferAttempts(settlementId);
     if (attempts.some((attempt) => !["retryable_failure", "failed"].includes(attempt.status))) return fail("invalid", "transfer_may_exist");
-    await tx.settlements.setState(settlementId, ["reserved"], "canceled", { canceledReason: reason.slice(0, 300) });
-    const items = await tx.settlements.items(settlementId, true);
+    await tx.settlements.setState(settlementId, ["reserved", "needs_review"], "canceled", { canceledReason: reason.slice(0, 300) });
     await tx.settlements.deactivateItems(settlementId);
-    for (const item of items) {
-      const commission = await tx.commissions.lockCommission(item.commissionId);
+    for (const commission of commissions) {
       if (commission?.status === "reserved") {
-        await tx.commissions.updateCommission(commission.id, {
-          status: isPayable({ ...snapshotOf(commission), status: "available" }, deps.clock.now()) ? "available" : "pending",
-        });
+        // Back to what it is now: available, pending, held - or reversed if a refund took all of it meanwhile.
+        await tx.commissions.updateCommission(commission.id, { status: projectedStatus({ ...snapshotOf(commission), status: "available" }, deps.clock.now()) });
       }
     }
     if (actor.kind === "admin") {

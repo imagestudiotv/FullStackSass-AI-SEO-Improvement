@@ -32,7 +32,7 @@ const asNumber = (amount: bigint) => {
   return Number(amount);
 };
 
-export function transferEvidence(transfer: Stripe.Transfer): TransferEvidence {
+export function transferEvidence(transfer: Stripe.Transfer, allReversals?: Stripe.TransferReversal[]): TransferEvidence {
   return {
     id: transfer.id,
     livemode: transfer.livemode,
@@ -42,7 +42,12 @@ export function transferEvidence(transfer: Stripe.Transfer): TransferEvidence {
     transferGroup: transfer.transfer_group,
     amountReversed: big(transfer.amount_reversed),
     reversed: transfer.reversed,
-    reversals: (transfer.reversals?.data ?? []).map((reversal) => ({ id: reversal.id, amount: big(reversal.amount), created: new Date(reversal.created * 1000) })),
+    reversals: (allReversals ?? transfer.reversals?.data ?? []).map((reversal) => ({
+      id: reversal.id,
+      amount: big(reversal.amount),
+      created: new Date(reversal.created * 1000),
+      operationId: reversal.metadata?.repget_operation_id ?? null,
+    })),
     balanceTransactionId: id(transfer.balance_transaction as string | { id: string } | null),
     created: new Date(transfer.created * 1000),
     metadata: transfer.metadata ?? {},
@@ -105,7 +110,12 @@ export function stripePayoutGateway(stripe: Stripe, environment: Environment): S
       return found;
     },
     async retrieveTransfer(transferId) {
-      return transferEvidence(await stripe.transfers.retrieve(transferId));
+      const transfer = await stripe.transfers.retrieve(transferId);
+      // The embedded list holds the first 10 reversals only.
+      if (!transfer.reversals?.has_more) return transferEvidence(transfer);
+      const all: Stripe.TransferReversal[] = [];
+      for await (const reversal of stripe.transfers.listReversals(transferId, { limit: 100 })) all.push(reversal);
+      return transferEvidence(transfer, all);
     },
     async createTransferReversal(input) {
       try {

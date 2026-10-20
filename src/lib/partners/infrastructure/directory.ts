@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
+import { isIP } from "node:net";
 
-import { and, asc, eq, gt, gte, inArray, lt, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, inArray, lt, ne, sql } from "drizzle-orm";
 
 import {
   billingCustomers,
@@ -76,15 +77,29 @@ export function userDirectory(db: Executor): UserDirectory {
     },
     async sessionSignals(partnerUserId, signup) {
       if (!signup.ipAddress) return { sharedNetwork: false, sharedDevice: false };
+      // Sessions hold the address as Better Auth stores it (an IPv6 address as its /64); compare like with like.
+      const forms = [...new Set([signup.ipAddress, sessionAddressForm(signup.ipAddress)])];
       const rows = await db
         .select({ userAgent: session.userAgent })
         .from(session)
-        .where(and(eq(session.userId, partnerUserId), eq(session.ipAddress, signup.ipAddress)))
+        .where(and(eq(session.userId, partnerUserId), inArray(session.ipAddress, forms)))
         .limit(20);
       return {
         sharedNetwork: rows.length > 0,
         sharedDevice: Boolean(signup.userAgent) && rows.some((row) => row.userAgent === signup.userAgent),
       };
+    },
+    networkKey(ipAddress) {
+      return sessionAddressForm(ipAddress);
+    },
+    async recentSessions(userId) {
+      const rows = await db
+        .select({ ipAddress: session.ipAddress, userAgent: session.userAgent })
+        .from(session)
+        .where(eq(session.userId, userId))
+        .orderBy(desc(session.createdAt))
+        .limit(50);
+      return rows.map((row) => ({ network: row.ipAddress ? sessionAddressForm(row.ipAddress) : null, userAgent: row.userAgent }));
     },
     async organizationForStripeCustomer(customerId) {
       const [row] = await db
@@ -162,6 +177,37 @@ async function firstDomains(db: Executor, organizationIds: string[]): Promise<Ma
     if (!domains.has(site.organizationId)) domains.set(site.organizationId, site.domain);
   }
   return domains;
+}
+
+/**
+ * An address in the form Better Auth stores in session.ip_address
+ * (@better-auth/core utils/ip normalizeIP, default /64): IPv4 as is, an
+ * IPv4-mapped IPv6 address as its IPv4, any other IPv6 address expanded with
+ * everything after its /64 network zeroed - "2001:db8:763d:a5::1" ->
+ * "2001:0db8:763d:00a5:0000:0000:0000:0000". Without this, a signup's raw
+ * IPv6 address never matched the partner's sessions and the shared-network
+ * signal could not fire for IPv6 visitors.
+ */
+export function sessionAddressForm(ip: string): string {
+  const value = ip.trim().toLowerCase();
+  const version = isIP(value);
+  if (version !== 6) return value;
+  let text = value;
+  // A dotted IPv4 tail ("::ffff:192.0.2.1", "64:ff9b::192.0.2.1") as two hex groups.
+  const dotted = /(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(text);
+  if (dotted) {
+    const [a, b, c, d] = dotted.slice(1).map(Number);
+    text = `${text.slice(0, dotted.index)}${((a << 8) | b).toString(16)}:${((c << 8) | d).toString(16)}`;
+  }
+  const [left, right] = text.includes("::") ? text.split("::") : [text, null];
+  const head = left ? left.split(":") : [];
+  const tail = right === null ? [] : right ? right.split(":") : [];
+  const groups = [...head, ...Array(8 - head.length - tail.length).fill("0"), ...tail].map((group) => group.padStart(4, "0"));
+  if (groups.slice(0, 5).every((group) => group === "0000") && groups[5] === "ffff") {
+    const [high, low] = [parseInt(groups[6], 16), parseInt(groups[7], 16)];
+    return `${high >> 8}.${high & 255}.${low >> 8}.${low & 255}`;
+  }
+  return [...groups.slice(0, 4), "0000", "0000", "0000", "0000"].join(":");
 }
 
 /** The same opaque reference for a customer in the partner's and the administrator's views. */

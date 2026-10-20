@@ -1,3 +1,5 @@
+import { MIN_REASON_LENGTH, type AdminContext } from "../contracts/commands";
+import { fail, ok, type Result } from "../contracts/results";
 import type { ProviderEventRecord } from "../ports/repositories";
 import type { PartnerDeps } from "./deps";
 import { rebuildPartnerProjections } from "./mature-commissions";
@@ -27,6 +29,25 @@ export function eventBackoffMs(attempts: number): number {
 }
 
 export type EventRunResult = { deferred: boolean; done: string[]; retrying: string[]; failed: string[] };
+
+/**
+ * An administrator puts Stripe work that failed every attempt back in the
+ * queue (after fixing the cause - a configuration, an outage). Safe to repeat:
+ * every piece of work is idempotent. The sweep processes it within minutes.
+ */
+export async function retryFailedProviderEvents(deps: PartnerDeps, admin: AdminContext, reason: string): Promise<Result<{ requeued: number }>> {
+  if (reason.trim().length < MIN_REASON_LENGTH) return fail("invalid", "reason");
+  const requeued = await deps.uow.repositories.providerEvents.retryFailed(deps.clock.now());
+  await deps.uow.repositories.audit.record({
+    actorEmail: admin.email,
+    action: "partner.provider_events_retried",
+    targetType: "partner_program",
+    targetId: "provider_events",
+    summary: `Put ${requeued} failed piece${requeued === 1 ? "" : "s"} of Stripe work back in the queue`,
+    detail: { reason: reason.trim(), requeued },
+  });
+  return ok({ requeued });
+}
 
 export async function processProviderEvents(
   deps: PartnerDeps,

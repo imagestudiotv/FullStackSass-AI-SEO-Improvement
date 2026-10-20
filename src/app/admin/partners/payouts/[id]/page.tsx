@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 
 import { requireAdmin } from "@/lib/admin/guard";
 import { adminSettlementDetail } from "@/lib/partners/application/queries/admin-reports";
-import { cancelSettlementAction, requestTransferReversalAction, retrySettlementAction } from "@/lib/partners/presentation/admin-actions";
+import { cancelSettlementAction, requestTransferReversalAction, resumeSettlementAction, retrySettlementAction } from "@/lib/partners/presentation/admin-actions";
 import { idSchema } from "@/lib/partners/presentation/validation";
 import { partnerDeps } from "@/lib/partners/server";
 
@@ -59,6 +59,16 @@ export default async function PartnerPayoutPage({ params }: PageProps<"/admin/pa
                 description="Runs the next step now. An unknown transfer is first looked up at Stripe by its transfer group and repeated only with the same idempotency key, so nothing can be sent twice."
                 confirmLabel="Retry"
                 success="Retried"
+              />
+            ) : null}
+            {detail.resumable ? (
+              <ReasonAction
+                action={resumeSettlementAction.bind(null, settlement.id)}
+                label="Resume after review…"
+                title="Resume this payout?"
+                description="Only after the review case is understood. It goes back to the state Stripe's evidence supports - transferred if the transfer is confirmed, otherwise waiting for (or sending) its transfer - and is executed again with every check."
+                confirmLabel="Resume"
+                success="Payout resumed"
               />
             ) : null}
             {detail.cancellable ? (

@@ -11,8 +11,9 @@ import { adjustPartnerBalance, approveCommission, holdCommission, rejectCommissi
 import { createPartnerCoupon, deactivatePartnerCoupon } from "../application/use-cases/manage-coupon";
 import { confirmAttribution, disqualifyAttribution, resolveReviewCase } from "../application/use-cases/manage-fraud-case";
 import { setProgramControl } from "../application/use-cases/manage-program";
-import { prepareSettlementNow, reconcileNow, retrySettlement, runMonthlySettlementsNow } from "../application/use-cases/manage-settlement";
+import { prepareSettlementNow, reconcileNow, resumeSettlement, retrySettlement, runMonthlySettlementsNow } from "../application/use-cases/manage-settlement";
 import { cancelSettlement } from "../application/use-cases/prepare-settlement";
+import { retryFailedProviderEvents } from "../application/use-cases/process-provider-events";
 import { requestTransferReversal } from "../application/use-cases/reconcile-settlement";
 import {
   approveApplication,
@@ -57,6 +58,9 @@ const MESSAGES: Record<string, string> = {
   unbacked_credit: "A credit can only cancel an earlier deduction. Positive amounts that no commission backs would never be paid out.",
   rejected: "This commission was rejected; it cannot be approved.",
   not_an_admin_hold: "This hold was set by a dispute. Only the dispute's outcome releases it.",
+  held_by_dispute: "This commission is already held by an open dispute; that hold stays until the dispute ends.",
+  reversal_pending: "A reversal of this transfer is still being confirmed by Stripe. Wait for it before requesting another.",
+  transfer_confirmed: "The transfer is confirmed; resume the payout instead.",
   status_reserved: "This commission is in a payout being sent. Cancel or finish that payout first.",
   status_paid: "This commission is paid. Correct it with a balance adjustment instead.",
   disqualified: "This referral was disqualified.",
@@ -203,6 +207,16 @@ export async function retrySettlementAction(settlementId: string, reason: string
   return { ok: true, data: { state: result.value.state } };
 }
 
+export async function resumeSettlementAction(settlementId: string, reason: string): Promise<AdminAnswer<{ state: string }>> {
+  const who = await admin();
+  if (!idSchema.safeParse(settlementId).success) return invalid();
+  if (!reasonSchema.safeParse(reason).success) return invalid("reason");
+  const result = await resumeSettlement(partnerDeps(), who, settlementId, reason);
+  refresh();
+  if (!result.ok) return answer(result);
+  return { ok: true, data: { state: result.value.state } };
+}
+
 export async function cancelSettlementAction(settlementId: string, reason: string): Promise<AdminAnswer> {
   const who = await admin();
   if (!idSchema.safeParse(settlementId).success) return invalid();
@@ -224,6 +238,15 @@ export async function requestTransferReversalAction(settlementId: string, amount
   const result = await requestTransferReversal(deps, who, { settlementId, amount: money.amount, reason });
   refresh();
   return answer(result);
+}
+
+export async function retryFailedStripeWorkAction(reason: string): Promise<AdminAnswer<{ message: string }>> {
+  const who = await admin();
+  if (!reasonSchema.safeParse(reason).success) return invalid("reason");
+  const result = await retryFailedProviderEvents(partnerDeps(), who, reason);
+  refresh();
+  if (!result.ok) return answer(result);
+  return { ok: true, data: { message: `${result.value.requeued} piece(s) of Stripe work queued again; the sweep processes them within minutes.` } };
 }
 
 export async function reconcileNowAction(reason: string): Promise<AdminAnswer<{ message: string }>> {

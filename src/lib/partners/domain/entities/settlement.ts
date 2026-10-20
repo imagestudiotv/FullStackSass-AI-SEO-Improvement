@@ -46,7 +46,7 @@ export const SETTLEMENT_TRANSITIONS: TransitionTable<SettlementState> = {
   paid: ["payout_failed", "needs_review"],
   payout_failed: ["payout_pending", "needs_review"],
   canceled: [],
-  needs_review: ["transferred", "reserved", "canceled", "payout_pending", "payout_failed", "paid"],
+  needs_review: ["transferred", "transfer_unknown", "reserved", "canceled", "payout_pending", "payout_failed", "paid"],
 };
 
 /** States in which the allocated commissions are still RESERVED (transfer not confirmed). */

@@ -42,27 +42,32 @@ export async function recordReferralClick(deps: PartnerDeps, input: ClickInput):
   if (!(await repos.controls.isEnabled("partner_program"))) {
     return { setCookie: null, recorded: false, reason: "program_closed" };
   }
+  // Per visitor first, for every request - unknown codes included, so guessing codes is limited too.
+  const visitorHash = deps.hasher.hmac(input.visitor);
+  const visitorAdmitted = await deps.burstLimiter.admit(
+    [{ key: `partner-click:visitor:${visitorHash}`, limit: CLICK_RATE.perVisitorPerMinute, windowSeconds: 60 }],
+    "partner.click",
+  );
+  if (!visitorAdmitted) return { setCookie: null, recorded: false, reason: "rate_limited" };
   const code = normaliseReferralCode(input.code);
   if (!code) return { setCookie: null, recorded: false, reason: "unknown_code" };
   const partner = await repos.partners.findByReferralCode(code);
   if (!partner) return { setCookie: null, recorded: false, reason: "unknown_code" };
   if (partner.status !== "active") return { setCookie: null, recorded: false, reason: "inactive_partner" };
-
-  const visitorHash = deps.hasher.hmac(input.visitor);
-  const admitted = await deps.burstLimiter.admit(
-    [
-      { key: `partner-click:visitor:${visitorHash}`, limit: CLICK_RATE.perVisitorPerMinute, windowSeconds: 60 },
-      { key: "partner-click:global", limit: CLICK_RATE.globalPerMinute, windowSeconds: 60 },
-    ],
-    "partner.click",
-  );
+  // The global ceiling counts real partner clicks only (what writes to the database).
+  const admitted = await deps.burstLimiter.admit([{ key: "partner-click:global", limit: CLICK_RATE.globalPerMinute, windowSeconds: 60 }], "partner.click");
   if (!admitted) return { setCookie: null, recorded: false, reason: "rate_limited" };
 
   const now = deps.clock.now();
   const existing = input.existingToken
     ? await repos.tracking.findClickByTokenHash(deps.hasher.sha256(input.existingToken))
     : null;
-  const firstTouchStands = existing !== null && existing.expiresAt.getTime() > now.getTime();
+  let firstTouchStands = existing !== null && existing.expiresAt.getTime() > now.getTime();
+  // First touch is the first VALID partner's: a click for a partner suspended since does not hold the browser.
+  if (firstTouchStands && existing!.partnerId !== partner.id) {
+    const holder = await repos.partners.findById(existing!.partnerId);
+    if (!holder || holder.status !== "active") firstTouchStands = false;
+  }
 
   if (firstTouchStands && (await repos.tracking.recentClick(partner.id, visitorHash, new Date(now.getTime() - DUPLICATE_WINDOW_MS)))) {
     return { setCookie: null, recorded: false, reason: "duplicate" };

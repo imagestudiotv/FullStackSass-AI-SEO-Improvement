@@ -41,6 +41,17 @@ export function setupState(account: StripeAccountRecord | null): PayoutSetupStat
 
 type Access = { context: PartnerContext; partner: PartnerRecord };
 
+/**
+ * Each of these calls Stripe; the platform's Stripe rate limit is shared with
+ * checkout and billing, so one partner reloading cannot use it up.
+ */
+const STRIPE_BUDGET = { perPartnerPerMinute: 12 };
+const IDEMPOTENCY_WINDOW_MS = 23 * 60 * 60 * 1000;
+
+async function withinStripeBudget(deps: PartnerDeps, partnerId: string): Promise<boolean> {
+  return deps.burstLimiter.admit([{ key: `partner-stripe:${partnerId}`, limit: STRIPE_BUDGET.perPartnerPerMinute, windowSeconds: 60 }], "partner.stripe");
+}
+
 export async function startPayoutSetup(deps: PartnerDeps, access: Access): Promise<Result<{ url: string }>> {
   if (access.partner.status !== "active") return fail("forbidden", "suspended");
   const connect = deps.connect;
@@ -49,9 +60,32 @@ export async function startPayoutSetup(deps: PartnerDeps, access: Access): Promi
   const country = access.partner.country?.toUpperCase() ?? "";
   if (!deps.settings.payoutCountries().includes(country)) return fail("invalid", "country_not_supported");
 
+  if (!(await withinStripeBudget(deps, access.partner.id))) return fail("rate_limited");
+
   const repos = deps.uow.repositories;
   const key = creationKey(access.partner.id, environment);
   let account = await repos.stripeAccounts.reserve(access.partner.id, environment, key, country, deps.clock.now());
+  if (!account.stripeAccountId && deps.clock.now().getTime() - account.createdAt.getTime() > IDEMPOTENCY_WINDOW_MS) {
+    /*
+      Reserved more than a day ago and never confirmed: Stripe may have made the
+      account while the answer was lost, and its idempotency key has expired, so
+      a new request could make a SECOND account. A person checks first.
+    */
+    await repos.reviews.open({
+      kind: "payout_discrepancy",
+      dedupeKey: `account_unresolved:${account.id}`,
+      environment,
+      partnerId: access.partner.id,
+      attributionId: null,
+      commissionId: null,
+      settlementId: null,
+      paymentFactId: null,
+      organizationId: null,
+      summary: "A connected-account creation for this partner was never confirmed; look for an account with this partner's repget_partner_id metadata at Stripe before letting them retry",
+      evidence: { creationKey: account.creationKey, reservedAt: account.createdAt.toISOString() },
+    });
+    return fail("provider_outcome_unknown", "account_unresolved");
+  }
   if (!account.stripeAccountId) {
     const created = await connect.createConnectedAccount({
       partnerId: access.partner.id,
@@ -75,6 +109,7 @@ export async function refreshOnboardingLink(deps: PartnerDeps, access: Access): 
   if (!connect) return fail("disabled", "stripe_not_configured");
   const account = await deps.uow.repositories.stripeAccounts.find(access.partner.id, connect.environment());
   if (!account?.stripeAccountId) return fail("not_found");
+  if (!(await withinStripeBudget(deps, access.partner.id))) return fail("rate_limited");
   return onboardingLink(deps, account.stripeAccountId);
 }
 
@@ -100,6 +135,8 @@ export async function syncPayoutAccount(
 ): Promise<Result<{ state: PayoutSetupState; account: StripeAccountRecord }>> {
   const connect = deps.connect;
   if (!connect) return fail("disabled", "stripe_not_configured");
+  // A partner's own refreshes are budgeted; webhooks and jobs (system) are not.
+  if (actor.kind === "partner" && !(await withinStripeBudget(deps, actor.partnerId))) return fail("rate_limited");
   const environment = connect.environment();
   const repos = deps.uow.repositories;
 
@@ -144,6 +181,7 @@ export async function openPayoutDashboard(deps: PartnerDeps, access: Access): Pr
   if (!connect) return fail("disabled", "stripe_not_configured");
   const account = await deps.uow.repositories.stripeAccounts.find(access.partner.id, connect.environment());
   if (!account?.stripeAccountId || !account.detailsSubmitted) return fail("onboarding_incomplete");
+  if (!(await withinStripeBudget(deps, access.partner.id))) return fail("rate_limited");
   return ok(await connect.createDashboardLink(account.stripeAccountId));
 }
 

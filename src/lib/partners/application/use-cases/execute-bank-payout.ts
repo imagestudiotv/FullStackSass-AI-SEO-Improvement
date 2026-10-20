@@ -23,6 +23,8 @@ import { rebuildProjection } from "./mature-commissions";
 
 const MINUTE = 60 * 1000;
 const HOUR = 60 * MINUTE;
+/** How long a confirmed transfer may sit without the connected balance covering its bank payout before a person is asked. */
+const BALANCE_WAIT_MS = 72 * HOUR;
 const LIVE: BankPayoutStatus[] = ["unknown", "pending", "in_transit", "paid"];
 
 export function payoutOperationId(settlementId: string, attempt: number): string {
@@ -49,6 +51,10 @@ export async function payoutStage(deps: PartnerDeps, settlement: SettlementRecor
     const found = (await gateway.listPayouts(live.stripeAccountId, since)).find((p) => p.metadata.repget_operation_id === live.operationId);
     if (found) return applyPayoutEvidence(deps, settlement, live, found);
     if (now.getTime() - (live.submittedAt ?? live.updatedAt).getTime() < 23 * HOUR) {
+      // Repeating it may be its first real submission: only while a new bank payout would be allowed.
+      if (!(await repos.controls.isEnabled("partner_payouts")) || !deps.settings.moneyMovementAllowed(settlement.environment)) {
+        return { next: new Date(now.getTime() + HOUR), error: "payout_unknown_held" };
+      }
       const outcome = await gateway.createBankPayout({
         accountId: live.stripeAccountId,
         amount: live.amount,
@@ -69,14 +75,26 @@ export async function payoutStage(deps: PartnerDeps, settlement: SettlementRecor
   if (!(await repos.controls.isEnabled("partner_payouts")) || !deps.settings.moneyMovementAllowed(settlement.environment)) {
     return { next: new Date(now.getTime() + 6 * HOUR), error: "payouts_paused" };
   }
-  const failures = attempts.filter((a) => a.status === "failed" || a.status === "canceled").length;
+  // Failures since a person last resumed it: the review started a fresh count.
+  const resumed = settlement.resumedAt?.getTime() ?? 0;
+  const failures = attempts.filter((a) => (a.status === "failed" || a.status === "canceled") && (a.submittedAt ?? a.updatedAt).getTime() > resumed).length;
   if (failures >= 3) {
     await raiseDiscrepancy(deps, settlement, "bank payout failed three times", { attempts: String(attempts.length) });
     return { next: new Date(now.getTime() + 24 * HOUR), error: "payout_failed_repeatedly" };
   }
   const balance = await gateway.connectedAvailableBalance(settlement.stripeAccountId, settlement.currency);
   if (balance < settlement.transferAmount) {
-    // Transfers to some accounts become available later (recipient accounts: +24h).
+    // Transfers to some accounts become available later (recipient accounts: +24h). Still short after
+    // three days: most likely Stripe converted the transfer into the account's own currency, or the
+    // partner moved the money - a person must look (the case is opened once).
+    const since = new Date(Math.max((settlement.transferredAt ?? settlement.createdAt).getTime(), settlement.resumedAt?.getTime() ?? 0));
+    if (now.getTime() - since.getTime() > BALANCE_WAIT_MS) {
+      await raiseDiscrepancy(deps, settlement, "connected balance does not cover the bank payout", {
+        currency: settlement.currency,
+        available: balance.toString(),
+        needed: settlement.transferAmount.toString(),
+      });
+    }
     return { next: new Date(now.getTime() + 6 * HOUR), error: "connected_balance_pending" };
   }
 
@@ -194,15 +212,12 @@ export async function applyPayoutEvent(deps: PartnerDeps, input: { accountId: st
   const attempt = await repos.settlements.findPayoutAttemptByStripeId(input.accountId, input.payoutId);
   const payout = await gateway.retrievePayout(input.accountId, input.payoutId);
   if (!attempt) {
-    const matched = payout.metadata.repget_operation_id
-      ? (await repos.settlements.list({ environment, partnerId: account.partnerId, offset: 0, limit: 50 })).rows
-      : [];
-    for (const settlement of matched) {
-      const candidate = (await repos.settlements.payoutAttempts(settlement.id)).find((a) => a.operationId === payout.metadata.repget_operation_id);
-      if (candidate) {
-        await applyPayoutEvidence(deps, settlement, candidate, payout);
-        return "applied";
-      }
+    // Ours, but its create answer was lost: found by the operation id we put in its metadata.
+    const candidate = payout.metadata.repget_operation_id ? await repos.settlements.findPayoutAttemptByOperationId(input.accountId, payout.metadata.repget_operation_id) : null;
+    const owner = candidate ? await repos.settlements.findById(candidate.settlementId) : null;
+    if (candidate && owner) {
+      await applyPayoutEvidence(deps, owner, candidate, payout);
+      return "applied";
     }
     await repos.reviews.open({
       kind: "unexpected_payout",

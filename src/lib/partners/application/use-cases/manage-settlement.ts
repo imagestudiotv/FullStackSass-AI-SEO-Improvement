@@ -17,6 +17,10 @@ import { reconcileCommissions } from "./reconcile-commissions";
  *   runMonthlyNow   the monthly run for everyone, now
  *   retry           executes a settlement now instead of at its next attempt
  *                   (the lease and the one-live-transfer index still apply)
+ *   resume          a settlement a person reviewed goes back to the state its
+ *                   evidence supports - transferred (a confirmed transfer),
+ *                   transfer_unknown (an attempt that may have reached Stripe)
+ *                   or reserved - and is executed again
  *   reconcileNow    the daily reconciliation, now
  */
 
@@ -61,6 +65,31 @@ export async function retrySettlement(deps: PartnerDeps, admin: AdminContext, se
     return ok(null);
   });
   if (!recorded.ok) return recorded;
+  return ok(await executeSettlement(deps, settlementId));
+}
+
+export async function resumeSettlement(deps: PartnerDeps, admin: AdminContext, settlementId: string, reason: string): Promise<Result<ExecutionResult>> {
+  if (reason.trim().length < MIN_REASON_LENGTH) return fail("invalid", "reason");
+  const resumed = await deps.uow.transaction(async (tx): Promise<Result<string>> => {
+    const settlement = await tx.settlements.lock(settlementId);
+    if (!settlement) return fail("not_found");
+    if (settlement.state !== "needs_review") return fail("invalid", `state_${settlement.state}`);
+    const transfers = await tx.settlements.transferAttempts(settlementId);
+    const confirmed = transfers.some((a) => ["confirmed", "partially_reversed", "reversed"].includes(a.status));
+    const mayExist = transfers.some((a) => a.status === "processing" || a.status === "unknown");
+    const target = confirmed ? "transferred" : mayExist ? "transfer_unknown" : "reserved";
+    if (!(await tx.settlements.setState(settlementId, ["needs_review"], target, { lastError: null, resumedAt: deps.clock.now() }))) return fail("conflict");
+    await tx.audit.record({
+      actorEmail: admin.email,
+      action: "partner.settlement_retried",
+      targetType: "partner_settlement",
+      targetId: settlementId,
+      summary: `Resumed a partner payout after review (now ${target.replace(/_/g, " ")})`,
+      detail: { reason: reason.trim(), resumedTo: target },
+    });
+    return ok(target);
+  });
+  if (!resumed.ok) return resumed;
   return ok(await executeSettlement(deps, settlementId));
 }
 

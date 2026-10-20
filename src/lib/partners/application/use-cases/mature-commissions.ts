@@ -82,6 +82,8 @@ export async function computeBalances(deps: PartnerDeps, partnerId: string, envi
   let reserved = ZERO;
   let held = ZERO;
   for (const commission of commissions) {
+    // Rejected / disqualified: reversed in the ledger already, owed in no bucket.
+    if (commission.reviewState === "rejected") continue;
     const net = netPayable(snapshotOf(commission)).amount;
     if (net === ZERO) continue;
     if (commission.status === "reserved") reserved += net;

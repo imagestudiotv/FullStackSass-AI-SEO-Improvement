@@ -1,7 +1,7 @@
 import { isAdmin, requireAdmin } from "@/lib/admin/guard";
 import { adminExport, EXPORT_REPORTS, type ExportReport } from "@/lib/partners/application/queries/admin-reports";
 import { toCsv } from "@/lib/partners/presentation/csv";
-import { idSchema } from "@/lib/partners/presentation/validation";
+import { idSchema, reportPeriod } from "@/lib/partners/presentation/validation";
 import { partnerDeps } from "@/lib/partners/server";
 
 /**
@@ -20,14 +20,17 @@ export async function GET(request: Request, { params }: { params: Promise<{ repo
   const who = await requireAdmin();
   const { report } = await params;
   if (!(EXPORT_REPORTS as readonly string[]).includes(report)) return notFound();
-  const partner = new URL(request.url).searchParams.get("partner");
+  const query = new URL(request.url).searchParams;
+  const partner = query.get("partner");
   if (partner !== null && !idSchema.safeParse(partner).success) return notFound();
+  const period = reportPeriod(query.get("from"), query.get("to"));
 
-  const result = await adminExport(partnerDeps(), { kind: "admin", userId: who.userId, email: who.email }, { report: report as ExportReport, partnerId: partner ?? undefined });
+  const result = await adminExport(partnerDeps(), { kind: "admin", userId: who.userId, email: who.email }, { report: report as ExportReport, partnerId: partner ?? undefined, from: period.from, to: period.to });
   if (!result) return new Response("Stripe is not configured on this deployment.", { status: 409, headers: { "cache-control": "no-store" } });
 
   const stamp = new Date().toISOString().slice(0, 10);
-  const name = `repget-partner-${report}-${result.environment}${partner ? `-${partner.slice(0, 8)}` : ""}-${stamp}.csv`;
+  const range = period.fromText || period.toText ? `-${period.fromText ?? "start"}_to_${period.toText ?? stamp}` : "";
+  const name = `repget-partner-${report}-${result.environment}${partner ? `-${partner.slice(0, 8)}` : ""}${range}-${stamp}.csv`;
   return new Response(toCsv(result.header, result.rows), {
     headers: {
       "content-type": "text/csv; charset=utf-8",

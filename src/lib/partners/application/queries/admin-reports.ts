@@ -41,7 +41,7 @@ function partnerSummary(partner: PartnerRecord | undefined) {
 export const COMMISSION_FILTERS = ["pending", "available", "reserved", "paid", "reversed", "held", "review"] as const;
 export type CommissionFilter = (typeof COMMISSION_FILTERS)[number];
 
-export async function adminCommissions(deps: PartnerDeps, admin: AdminContext, filter: { status?: CommissionFilter; partnerId?: string; page: number }) {
+export async function adminCommissions(deps: PartnerDeps, admin: AdminContext, filter: { status?: CommissionFilter; partnerId?: string; from?: Date; to?: Date; page: number }) {
   assertAdmin(admin);
   const environment = deps.settings.environment();
   const paging = pageOf(filter.page);
@@ -55,6 +55,8 @@ export async function adminCommissions(deps: PartnerDeps, admin: AdminContext, f
     status: status === "held" ? undefined : status === "review" ? "pending" : status,
     review: status === "review" ? "needs_review" : undefined,
     held: status === "held" ? true : undefined,
+    from: filter.from,
+    to: filter.to,
     offset: paging.offset,
     limit: paging.limit,
   });
@@ -140,10 +142,14 @@ export async function adminSettlementDetail(deps: PartnerDeps, admin: AdminConte
     transfer: transferDisplayState(settlement.state, latestTransfer?.status ?? null),
     bank: bankDisplayState(latestPayout?.status ?? null),
     /** Cancel is offered only before anything may have reached Stripe. */
-    cancellable: settlement.state === "reserved" && transfers.every((attempt) => attempt.status === "retryable_failure" || attempt.status === "failed"),
+    cancellable:
+      (settlement.state === "reserved" || (settlement.state === "needs_review" && settlement.transferredAt === null)) &&
+      transfers.every((attempt) => attempt.status === "retryable_failure" || attempt.status === "failed"),
+    /** A payout under review goes back to work only by a person's decision. */
+    resumable: settlement.state === "needs_review",
     /** What a reversal could recover at most (the use case re-checks against the ledger). */
     reversible: confirmed ? confirmed.amount - confirmed.amountReversed : BigInt(0),
-    retryable: !["paid", "canceled"].includes(settlement.state),
+    retryable: !["paid", "canceled", "needs_review"].includes(settlement.state),
   };
 }
 
@@ -279,18 +285,24 @@ export async function adminPartnerFinance(deps: PartnerDeps, admin: AdminContext
   if (!environment) return null;
   const repos = deps.uow.repositories;
   const version = await repos.programs.versionAt(deps.clock.now());
-  const [balances, ledger, settlements] = await Promise.all([
+  const now = deps.clock.now();
+  const [balances, ledger, settlements, ...activity] = await Promise.all([
     partnerBalances(deps, input.partnerId, environment, version.policy),
     repos.reporting.ledger({ environment, partnerId: input.partnerId, offset: paging.offset, limit: paging.limit }),
     repos.reporting.settlements({ environment, partnerId: input.partnerId, offset: 0, limit: 10 }),
+    ...ACTIVITY_DAYS.map((days) => repos.reporting.metrics(input.partnerId, environment, new Date(now.getTime() - days * 86_400_000))),
   ]);
   return {
     environment,
     balances,
     ledger: { rows: ledger.rows, total: ledger.total, page: paging.page, pageSize: paging.pageSize },
     settlements: settlements.rows.map((row) => ({ ...row, transfer: transferDisplayState(row.state, row.transferStatus), bank: bankDisplayState(row.bankStatus) })),
+    /** The partner's own dashboard figures, for the last 30, 90 and 365 days (UTC). */
+    activity: ACTIVITY_DAYS.map((days, index) => ({ days, since: new Date(now.getTime() - days * 86_400_000), ...activity[index] })),
   };
 }
+
+const ACTIVITY_DAYS = [30, 90, 365] as const;
 
 /* ------------------------------------------------------------------ exports */
 
@@ -308,7 +320,7 @@ const iso = (value: Date | null) => (value ? value.toISOString() : "");
  * secret, no bank detail, no customer name or email: a customer is its
  * opaque reference and internal workspace id.
  */
-export async function adminExport(deps: PartnerDeps, admin: AdminContext, input: { report: ExportReport; partnerId?: string }) {
+export async function adminExport(deps: PartnerDeps, admin: AdminContext, input: { report: ExportReport; partnerId?: string; from?: Date; to?: Date }) {
   assertAdmin(admin);
   const environment = deps.settings.environment();
   if (!environment) return null;
@@ -330,7 +342,7 @@ export async function adminExport(deps: PartnerDeps, admin: AdminContext, input:
     const limit = Math.min(EXPORT_BATCH, EXPORT_MAX_ROWS - rows.length);
     let fetched = 0;
     if (input.report === "commissions") {
-      const page = await repos.reporting.commissions({ environment, partnerId: input.partnerId, offset, limit });
+      const page = await repos.reporting.commissions({ environment, partnerId: input.partnerId, from: input.from, to: input.to, offset, limit });
       fetched = page.rows.length;
       const partners = await partnersById(deps, page.rows.map((row) => row.partnerId));
       const customers = await repos.directory.organizationSummaries([...new Set(page.rows.map((row) => row.organizationId))]);
@@ -354,7 +366,7 @@ export async function adminExport(deps: PartnerDeps, admin: AdminContext, input:
         ]);
       }
     } else if (input.report === "settlements") {
-      const page = await repos.reporting.settlements({ environment, partnerId: input.partnerId, offset, limit });
+      const page = await repos.reporting.settlements({ environment, partnerId: input.partnerId, from: input.from, to: input.to, offset, limit });
       fetched = page.rows.length;
       const partners = await partnersById(deps, page.rows.map((row) => row.partnerId));
       for (const row of page.rows) {
@@ -377,7 +389,7 @@ export async function adminExport(deps: PartnerDeps, admin: AdminContext, input:
         ]);
       }
     } else {
-      const page = await repos.reporting.ledger({ environment, partnerId: input.partnerId, offset, limit });
+      const page = await repos.reporting.ledger({ environment, partnerId: input.partnerId, from: input.from, to: input.to, offset, limit });
       fetched = page.rows.length;
       for (const row of page.rows) {
         rows.push([

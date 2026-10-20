@@ -135,6 +135,7 @@ export type PartnerCopy = {
     resources: { title: string; intro: string; logos: string; logosIntro: string; banners: string; bannersIntro: string; files: { logo: string; logoLight: string; mark: string; banner: string }; copyText: string; download: string; copyTitle: string; copyIntro: string; templates: { title: string; body: string }[]; rules: string; rulesList: string[] };
     settings: { title: string; profile: string; name: string; email: string; country: string; code: string; status: string; statuses: Record<"active" | "suspended", string> };
     pagination: { previous: string; next: string; page: string };
+    failure: { title: string; body: string; reference: string; retry: string };
   };
 };
 
@@ -358,6 +359,7 @@ const en: PartnerCopy = {
     },
     settings: { title: "Settings", profile: "Partner profile", name: "Name", email: "Email", country: "Payout country", code: "Referral code", status: "Status", statuses: { active: "Active", suspended: "Suspended" } },
     pagination: { previous: "Previous", next: "Next", page: "Page {page} of {pages}" },
+    failure: { title: "This page could not be loaded", body: "Trying again usually works. Your earnings and payouts are not affected.", reference: "If it keeps happening, quote reference {reference} to support.", retry: "Try again" },
   },
 };
 
@@ -581,6 +583,7 @@ const es: PartnerCopy = {
     },
     settings: { title: "Ajustes", profile: "Perfil de socio", name: "Nombre", email: "Correo", country: "País de cobro", code: "Código de referido", status: "Estado", statuses: { active: "Activo", suspended: "Suspendido" } },
     pagination: { previous: "Anterior", next: "Siguiente", page: "Página {page} de {pages}" },
+    failure: { title: "No se pudo cargar esta página", body: "Volver a intentarlo suele funcionar. Sus ganancias y pagos no se ven afectados.", reference: "Si sigue ocurriendo, indique la referencia {reference} a soporte.", retry: "Reintentar" },
   },
 };
 
@@ -804,6 +807,7 @@ const fr: PartnerCopy = {
     },
     settings: { title: "Paramètres", profile: "Profil partenaire", name: "Nom", email: "E-mail", country: "Pays de versement", code: "Code de parrainage", status: "Statut", statuses: { active: "Actif", suspended: "Suspendu" } },
     pagination: { previous: "Précédent", next: "Suivant", page: "Page {page} sur {pages}" },
+    failure: { title: "Cette page n'a pas pu être chargée", body: "Réessayer suffit généralement. Vos gains et vos versements ne sont pas concernés.", reference: "Si cela se reproduit, communiquez la référence {reference} au support.", retry: "Réessayer" },
   },
 };
 
@@ -1027,6 +1031,7 @@ const it: PartnerCopy = {
     },
     settings: { title: "Impostazioni", profile: "Profilo partner", name: "Nome", email: "Email", country: "Paese di pagamento", code: "Codice referral", status: "Stato", statuses: { active: "Attivo", suspended: "Sospeso" } },
     pagination: { previous: "Precedente", next: "Successiva", page: "Pagina {page} di {pages}" },
+    failure: { title: "Non è stato possibile caricare questa pagina", body: "Di solito basta riprovare. I suoi guadagni e i pagamenti non ne risentono.", reference: "Se succede ancora, indichi il riferimento {reference} all'assistenza.", retry: "Riprova" },
   },
 };
 
@@ -1250,6 +1255,7 @@ const de: PartnerCopy = {
     },
     settings: { title: "Einstellungen", profile: "Partnerprofil", name: "Name", email: "E-Mail", country: "Auszahlungsland", code: "Empfehlungscode", status: "Status", statuses: { active: "Aktiv", suspended: "Gesperrt" } },
     pagination: { previous: "Zurück", next: "Weiter", page: "Seite {page} von {pages}" },
+    failure: { title: "Diese Seite konnte nicht geladen werden", body: "Ein neuer Versuch hilft meist. Ihre Einnahmen und Auszahlungen sind nicht betroffen.", reference: "Wenn es wieder passiert, nennen Sie dem Support die Referenz {reference}.", retry: "Erneut versuchen" },
   },
 };
 

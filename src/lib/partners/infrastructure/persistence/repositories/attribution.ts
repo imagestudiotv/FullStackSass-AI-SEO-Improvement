@@ -35,6 +35,12 @@ function toEligibility(row: typeof partnerSignupEligibility.$inferSelect): Eligi
     candidatePartnerId: row.candidatePartnerId,
     linkOutcome: row.linkOutcome,
     couponDeadline: row.couponDeadline,
+    fraudSignals: {
+      sharedNetwork: (row.fraudSignals as Record<string, unknown>)?.sharedNetwork === true,
+      sharedDevice: (row.fraudSignals as Record<string, unknown>)?.sharedDevice === true,
+    },
+    signupNetworkHash: row.signupNetworkHash,
+    signupDeviceHash: row.signupDeviceHash,
   };
 }
 
@@ -115,6 +121,8 @@ export function trackingRepository(db: Executor): TrackingRepository {
           linkOutcome: input.linkOutcome,
           couponDeadline: input.couponDeadline,
           fraudSignals: input.fraudSignals,
+          signupNetworkHash: input.signupNetworkHash,
+          signupDeviceHash: input.signupDeviceHash,
           createdAt: input.signedUpAt,
         })
         .onConflictDoNothing({ target: partnerSignupEligibility.userId })

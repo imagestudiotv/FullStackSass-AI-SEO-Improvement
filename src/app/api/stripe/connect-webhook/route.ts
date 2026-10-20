@@ -7,7 +7,7 @@ import {
   completeWebhookEvent,
   releaseWebhookEvent,
 } from "@/lib/billing/webhook-events";
-import { processPartnerConnectEvent } from "@/lib/partners/presentation/webhooks";
+import { minimalConnectEvent, processPartnerConnectEvent } from "@/lib/partners/presentation/webhooks";
 import { stripe } from "@/lib/stripe/client";
 
 /**
@@ -44,11 +44,13 @@ export async function POST(request: Request) {
   // A platform event sent here by mistake is acknowledged and ignored: it has no connected account.
   if (!event.account) return NextResponse.json({ received: true, ignored: "no_account" });
 
-  const claim = await claimWebhookEvent({ id: event.id, provider: "stripe_connect", type: event.type, payload: event });
+  // Stored and processed without the payload's bank or contact details (see minimalConnectEvent).
+  const minimal = minimalConnectEvent(event);
+  const claim = await claimWebhookEvent({ id: event.id, provider: "stripe_connect", type: event.type, payload: minimal });
   if (!claim.claimed) return NextResponse.json({ received: true, duplicate: true, reason: claim.reason });
 
   try {
-    await processPartnerConnectEvent(event);
+    await processPartnerConnectEvent(minimal);
   } catch (error) {
     await releaseWebhookEvent(event.id, claim.token, error);
     console.error(`[stripe-connect-webhook] ${event.type} failed`, error);

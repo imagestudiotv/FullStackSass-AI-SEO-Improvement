@@ -98,7 +98,22 @@ async function transferStage(deps: PartnerDeps, settlement: SettlementRecord): P
     return { next: now };
   }
   const live = attempts.find((a) => a.status === "processing" || a.status === "unknown");
-  if (live) return resolveUnknownTransfer(deps, settlement, live);
+  if (live) {
+    /*
+      Repeating the request may be its FIRST real submission (the original may
+      never have reached Stripe), so it is allowed only while a new transfer
+      would be: both switches, the environment and the partner are re-checked.
+      Otherwise the attempt is only looked up at Stripe, never sent.
+    */
+    const partner = await repos.partners.findById(settlement.partnerId);
+    const mayResubmit =
+      (await repos.controls.isEnabled("partner_payouts")) &&
+      deps.settings.moneyMovementAllowed(settlement.environment) &&
+      gateway.environment() === settlement.environment &&
+      partner !== null &&
+      canReceiveAutomaticPayout(partner);
+    return resolveUnknownTransfer(deps, settlement, live, mayResubmit);
+  }
 
   // ---- a new submission: only from "reserved", and only after the pre-flight passes ----
   const cancel = async (reason: string): Promise<Step> => {
@@ -146,7 +161,7 @@ async function transferStage(deps: PartnerDeps, settlement: SettlementRecord): P
   const attempt = await deps.uow.transaction(async (tx) => {
     const items = await tx.settlements.items(settlement.id, true);
     const gross = items.reduce((sum, item) => sum + item.amount, BigInt(0));
-    for (const item of items) {
+    for (const item of [...items].sort((a, b) => (a.commissionId < b.commissionId ? -1 : 1))) {
       const commission = await tx.commissions.lockCommission(item.commissionId);
       const unchanged =
         commission !== null &&
@@ -231,7 +246,7 @@ async function applyTransferOutcome(
 }
 
 /** A transfer whose answer was lost (or whose worker died): never retried blindly. */
-async function resolveUnknownTransfer(deps: PartnerDeps, settlement: SettlementRecord, attempt: TransferAttemptRecord): Promise<Step> {
+async function resolveUnknownTransfer(deps: PartnerDeps, settlement: SettlementRecord, attempt: TransferAttemptRecord, mayResubmit: boolean): Promise<Step> {
   const gateway = deps.payouts!;
   const now = deps.clock.now();
   const group = await gateway.findTransfersByGroup(settlement.transferGroup);
@@ -245,6 +260,8 @@ async function resolveUnknownTransfer(deps: PartnerDeps, settlement: SettlementR
   }
   const submitted = attempt.submittedAt ?? attempt.updatedAt;
   if (now.getTime() - submitted.getTime() < 23 * HOUR) {
+    // Switched off, held or suspended since: look only (above), never send. Past the window it is settled below.
+    if (!mayResubmit) return { next: new Date(now.getTime() + HOUR), error: "transfer_unknown_held" };
     // Within Stripe's idempotency window: the SAME request, the SAME key - Stripe returns the original result if there was one.
     const outcome = await gateway.createTransfer({
       destination: settlement.stripeAccountId,
@@ -278,6 +295,10 @@ async function confirmTransfer(deps: PartnerDeps, settlement: SettlementRecord, 
     return { next: new Date(now.getTime() + 24 * HOUR), error: "transfer_mismatch" };
   }
   await deps.uow.transaction(async (tx) => {
+    // Lock order: commissions before the settlement, as everywhere else.
+    const items = await tx.settlements.items(settlement.id, true);
+    const locked = [];
+    for (const item of [...items].sort((a, b) => (a.commissionId < b.commissionId ? -1 : 1))) locked.push(await tx.commissions.lockCommission(item.commissionId));
     await tx.settlements.updateTransferAttempt(attempt.id, ["processing", "unknown", "retryable_failure", "failed"], {
       status: "confirmed",
       stripeTransferId: transfer.id,
@@ -297,8 +318,7 @@ async function confirmTransfer(deps: PartnerDeps, settlement: SettlementRecord, 
       actor: "system",
     });
     await tx.settlements.setState(settlement.id, ["transfer_processing", "transfer_unknown", "reserved", "needs_review"], "transferred", { transferredAt: now, lastError: null });
-    for (const item of await tx.settlements.items(settlement.id, true)) {
-      const commission = await tx.commissions.lockCommission(item.commissionId);
+    for (const commission of locked) {
       if (commission && commission.status === "reserved") {
         await tx.commissions.updateCommission(commission.id, { status: "paid", paidSettlementId: settlement.id });
       }

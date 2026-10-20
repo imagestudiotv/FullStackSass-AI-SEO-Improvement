@@ -197,9 +197,9 @@ export async function activateDueCoupons(deps: PartnerDeps) {
   const repos = deps.uow.repositories;
   const now = deps.clock.now();
   let activated = 0;
-  const { rows } = await repos.coupons.list(environment, { offset: 0, limit: 200 });
-  for (const coupon of rows) {
-    if (coupon.status !== "creating" || !coupon.stripePromotionCodeId || !coupon.startsAt || coupon.startsAt.getTime() > now.getTime()) continue;
+  // Exactly the due ones (the sweep runs every 5 minutes, so 200 at a time is plenty).
+  for (const coupon of await repos.coupons.dueToActivate(environment, now, 200)) {
+    if (!coupon.stripePromotionCodeId) continue;
     await gateway.activatePromotionCode(coupon.stripePromotionCodeId);
     await repos.coupons.setStatus(coupon.id, "active", now);
     activated += 1;

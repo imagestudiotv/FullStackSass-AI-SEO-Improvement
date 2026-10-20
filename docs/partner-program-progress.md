@@ -9,8 +9,8 @@ Statuses: **done** (implemented and verified as stated), **in progress**, **plan
 | 1 | `feat(partners): [1/5] establish domain architecture and persistence` | done (7184a11) |
 | 2 | `feat(partners): [2/5] implement onboarding and referral attribution` | done (3b22c46) |
 | 3 | `feat(partners): [3/5] implement commissions and billing reconciliation` | done (c306075) |
-| 4 | `feat(partners): [4/5] deliver dashboards and automated payouts` | done |
-| 5 | `test(partners): [5/5] verify end-to-end flows and launch readiness` | planned |
+| 4 | `feat(partners): [4/5] deliver dashboards and automated payouts` | done (60c87f2) |
+| 5 | `test(partners): [5/5] verify end-to-end flows and launch readiness` | done (this commit); Stripe test-mode verification blocked |
 
 ## Phase 1: architecture, domain and database
 
@@ -96,8 +96,16 @@ Statuses: **done** (implemented and verified as stated), **in progress**, **plan
 
 ## Phase 5: end-to-end validation and launch readiness
 
-| Requirement | Status |
-|---|---|
-| Browser E2E (20 flows) | planned |
-| Full suites, build, lint, security checks | planned |
-| Runbooks, rollout order, external prerequisites | planned |
+| Requirement | Status | Where | Verified by |
+|---|---|---|---|
+| Browser E2E of the 20 flows | done | `e2e/partners/*` (runner `app.mjs`, Chrome over the DevTools protocol, vitest; [README](../e2e/partners/README.md)) | 37 tests in 4 files covering the 20 flows (+ the Connect route and a refund between transfer and bank payout), against an isolated production build and a throwaway database: 37 passed in three consecutive runs on the final build. What is real and what is faked is listed in the README: the app, routes, sign-up/sign-in forms, guards, pages, server actions and the Stripe webhook routes are real; Stripe is a fake at the adapter boundary and the Stripe-dependent step of a flow runs as the real use case in the tests' process |
+| Defects found by the E2E run and by a review of the complete diff, fixed | done | see [partner-program.md](partner-program.md), "Review fixes (Part 5)"; migration `0065_partner_program_review_fixes.sql` | `review-fixes.test.ts` (16), new cases in `settlements.test.ts`, `attribution.test.ts`, `entry-points.test.ts`, `persistence.test.ts`, `presentation.test.ts`, `dashboards.test.ts`; mutation checks: undoing the rejected-is-final, one-reversal-at-a-time, no-re-send-while-off and coupon-fraud fixes each fails its test; undoing the IPv6 comparison fails its test |
+| Unit, integration and offline regression suites | done | `npm test` | 3103 passed, 93 skipped (the real-PostgreSQL files without `TEST_POSTGRES_URL`); no unrelated baseline failure |
+| Financial concurrency on real PostgreSQL | done | every `*.postgres.test.ts` | 16 files, 94 passed, sequentially on a disposable PostgreSQL 18.3 cluster (127.0.0.1:55461) |
+| TypeScript, lint, architecture | done | `tsc --noEmit`, `eslint .`, `architecture.test.ts` | clean; architecture test passes |
+| Production build with a safe isolated configuration | done | `node e2e/partners/app.mjs build` on an app copy with no `.env` file and an environment built from scratch | succeeded (Next.js 16.3.8, all partner routes compiled) |
+| Repository security and database checks | done | `check:secrets`, `check:db-security` (on the throwaway database), `check:csp-routes` (on the isolated build), `plugin:test` | no credentials found; 93 tables with RLS and no API-role privileges; no prerendered route under the nonce CSP; plugin harness all passed |
+| Launch documentation | done | [partner-program-launch.md](partner-program-launch.md) | Rollout order, environment variable names, Stripe Connect enablement and currency limitation, webhook events, test/live isolation, funding, transfer vs bank-payout accounting, schedules, support procedures, disablement and rollback, exact external prerequisites |
+| Stripe test-mode verification | blocked | [partner-program-launch.md](partner-program-launch.md) section 5 | Not run. The only Stripe test key available delivers webhooks to the deployed production application; creating connected accounts, transfers or payouts with it was not authorised. The checklist to run it on an isolated preview is written |
+| Live payouts | not ready | — | Require the production migration, Stripe Connect configuration, the test-mode verification above, platform funding and `PARTNER_LIVE_PAYOUTS=enabled`; all off by default |
+| Disposable fixtures removed; production untouched | done | — | Throwaway databases (`repget_e2e_partners`, `partner_preview`), the run's state file with its generated secrets, the preview seed and browser profiles removed; the disposable cluster stopped. Production checked read-only (a READ ONLY transaction printing counts only): 63 migrations applied (up to 0062), no partner tables, no partner switches, no ledger trigger - unchanged. Nothing was deployed or pushed |

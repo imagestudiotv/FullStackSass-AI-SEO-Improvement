@@ -15,6 +15,7 @@ vi.mock("@/lib/partners/presentation/actions", () => ({
 vi.mock("@/lib/auth/confirm-email-actions", () => ({ confirmEmail: vi.fn() }));
 vi.mock("@/lib/auth-client", () => ({ authClient: { emailOtp: { sendVerificationOtp: vi.fn() } } }));
 
+import PartnerError from "@/app/(partner)/partner/error";
 import { PartnersContent } from "@/app/(marketing)/partners-content";
 import { LOCALES, localePath } from "@/lib/i18n/config";
 import { DEFAULT_PROGRAM_POLICY } from "@/lib/partners/domain/policies/program";
@@ -192,5 +193,18 @@ describe("the partner dashboard and histories", () => {
     for (const rule of copy.resources.rulesList) expect(words).toContain(rule);
     expect(words).toContain(copy.resources.copyText);
     expect(words).not.toContain(copy.overview.copy);
+  });
+});
+
+describe("the portal's error state", () => {
+  it("never shows the error's own message; gives the reference and a retry", () => {
+    const error = Object.assign(new Error("select * from partner_ledger_entries failed: password=hunter2"), { digest: "4096231" });
+    const html = text(renderToStaticMarkup(createElement(PartnerError, { error, reset: () => {} })));
+    const copy = partnerCopy("en").portal.failure;
+    expect(html).toContain(copy.title);
+    expect(html).toContain("4096231");
+    expect(html).toContain(copy.retry);
+    expect(html).not.toContain("hunter2");
+    expect(html).not.toContain("partner_ledger_entries");
   });
 });

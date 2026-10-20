@@ -100,7 +100,9 @@ export async function holdCommission(deps: PartnerDeps, admin: AdminContext, com
     const commission = await tx.commissions.lockCommission(commissionId);
     if (!commission) return fail("not_found");
     if (commission.status === "reserved" || commission.status === "paid") return fail("invalid", `status_${commission.status}`);
-    if (!hold && commission.holdReason && !commission.holdReason.startsWith(ADMIN_HOLD_PREFIX)) return fail("invalid", "not_an_admin_hold");
+    if (commission.reviewState === "rejected" || commission.status === "reversed") return fail("invalid", "rejected");
+    // A dispute's hold is the dispute's: an administrator can neither replace it nor release it.
+    if (commission.holdReason && !commission.holdReason.startsWith(ADMIN_HOLD_PREFIX)) return fail("invalid", hold ? "held_by_dispute" : "not_an_admin_hold");
     const holdReason = hold ? `${ADMIN_HOLD_PREFIX}${reason.trim()}`.slice(0, 300) : null;
     await tx.commissions.updateCommission(commission.id, {
       holdReason,
@@ -138,7 +140,7 @@ export async function adjustPartnerBalance(
       // Held under the partner lock, which every settlement also takes first.
       const ledger = await tx.commissions.ledgerSum(partner.id, environment, amount.code);
       const unpaid = (await tx.commissions.commissionsForPartner(partner.id, environment, amount.code))
-        .filter((commission) => commission.status !== "paid")
+        .filter((commission) => commission.status !== "paid" && commission.status !== "reversed" && commission.reviewState !== "rejected")
         .reduce((sum, commission) => sum.add(netPayable(snapshotOf(commission))), Money.zero(amount.code));
       if (ledger.liability + amount.amount > unpaid.amount) return fail("invalid", "unbacked_credit");
     }

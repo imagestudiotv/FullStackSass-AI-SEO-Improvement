@@ -158,4 +158,16 @@ describe("the Connect webhook", () => {
     const platformEvent = await connectWebhook(signed({ id: `evt_${randomUUID()}`, object: "event", type: "invoice.paid", livemode: false, created: 1, data: { object: {} } }));
     expect(await platformEvent.json()).toMatchObject({ ignored: "no_account" });
   });
+
+  it("stores no bank or contact details from the event", async () => {
+    state.deps = partnerTestDeps(test.db, { connect: fakeConnect().gateway }).deps;
+    const eventId = `evt_${randomUUID()}`;
+    const bank = { id: "ba_1", object: "bank_account", account_holder_name: "Jane Partner", bank_name: "STRIPE TEST BANK", last4: "6789", routing_number: "110000000", fingerprint: "fp_secret" };
+    const response = await connectWebhook(signed({ id: eventId, object: "event", type: "account.external_account.updated", account: "acct_stranger", livemode: false, created: 1790000000, data: { object: bank } }));
+    expect(response.status).toBe(200);
+    const [stored] = await test.db.select().from(webhookEvents).where(eq(webhookEvents.id, eventId));
+    const text = JSON.stringify(stored.payload);
+    for (const secret of ["Jane Partner", "STRIPE TEST BANK", "6789", "110000000", "fp_secret"]) expect(text).not.toContain(secret);
+    expect(stored.payload).toMatchObject({ id: eventId, type: "account.external_account.updated", account: "acct_stranger", data: { object: { id: "ba_1", object: "bank_account" } } });
+  });
 });

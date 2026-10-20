@@ -81,6 +81,12 @@ export async function applyChargeState(
   const found = await repos.commissions.findCommissionByFact(fact.id);
   if (!found) return "no_commission";
   const commission = (await repos.commissions.lockCommission(found.id))!;
+  /*
+    Rejected or disqualified: what was left of it was already reversed in the
+    ledger (rejected:/disqualified:<id>). A later refund or chargeback must not
+    reverse it again, and an undone refund must not restore it.
+  */
+  if (commission.reviewState === "rejected") return "unchanged";
   const code = commission.currency;
   const target = reversalTarget({
     commission: Money.of(commission.amount, code),
@@ -115,6 +121,22 @@ export async function applyChargeState(
     });
     if (commission.status === "paid" && delta > ZERO) {
       await openClawbackCase(repos, commission, fact, target.amount, delta);
+    }
+    if (commission.status === "paid" && delta < ZERO) {
+      // Owed again, but payouts pay unpaid commissions only: a person decides how it reaches the partner.
+      await repos.reviews.open({
+        kind: "financial_inconsistency",
+        dedupeKey: `restored_after_payout:${commission.id}:${target.amount.toString()}`,
+        environment: commission.environment,
+        partnerId: commission.partnerId,
+        attributionId: commission.attributionId,
+        commissionId: commission.id,
+        settlementId: commission.paidSettlementId,
+        paymentFactId: fact.id,
+        organizationId: fact.organizationId,
+        summary: `A refund or dispute on a paid commission was undone: ${Money.of(-delta, code).toDecimalString()} ${code.toUpperCase()} is owed to the partner again and is not paid automatically`,
+        evidence: { restored: (-delta).toString(), totalReversed: target.amount.toString(), settlementId: commission.paidSettlementId },
+      });
     }
   }
 

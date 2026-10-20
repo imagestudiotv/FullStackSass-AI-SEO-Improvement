@@ -110,6 +110,13 @@ describe("the partner dashboard", () => {
       expect.objectContaining({ currency: "eur", earned: BigInt(2475), pending: BigInt(0), available: BigInt(2475), inPayout: BigInt(0), transferred: BigInt(0), bankPaid: BigInt(0), offset: BigInt(0), threshold: BigInt(2500), belowThreshold: true }),
     ]);
     expect(dashboard!.metrics).toMatchObject({ clicks: 1, signups: 1, customers: 1, payingCustomers: 1, days: 90 });
+    // The admin page shows the same definitions for 30 / 90 / 365 days: the click was 41 days ago.
+    const finance = await adminPartnerFinance(w.deps, admin, { partnerId: partner.partnerId, page: 1 });
+    expect(finance!.activity.map((a) => [a.days, a.clicks, a.signups, a.customers, a.payingCustomers])).toEqual([
+      [30, 0, 0, 0, 0],
+      [90, 1, 1, 1, 1],
+      [365, 1, 1, 1, 1],
+    ]);
   });
 
   it("reconciles every figure with the ledger and Stripe's evidence, without double counting", async () => {
@@ -256,7 +263,8 @@ describe("administrator decisions", () => {
     await test.db.update(partnerSettlements).set({ state: "needs_review" }).where(eq(partnerSettlements.id, settlementId));
     expect(await retrySettlement(w.deps, admin, settlementId, "Push it through")).toMatchObject({ ok: false, detail: "state_needs_review" });
     const detail = await adminSettlementDetail(w.deps, admin, settlementId);
-    expect(detail).toMatchObject({ cancellable: false, retryable: true, transfer: "confirmed" });
+    // Under review: not retried blindly - resumed by a person (transfer confirmed, so not cancellable either).
+    expect(detail).toMatchObject({ cancellable: false, retryable: false, resumable: true, transfer: "confirmed" });
     expect(detail!.ledger.map((entry) => entry.kind)).toEqual(["transfer_confirmed"]);
   });
 

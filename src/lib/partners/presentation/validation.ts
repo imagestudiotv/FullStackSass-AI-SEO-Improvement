@@ -51,6 +51,27 @@ export function utcDateFrom(text: string | null | undefined): Date | null | unde
   return Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value ? undefined : date;
 }
 
+/**
+ * A report's period from ?from=YYYY-MM-DD&to=YYYY-MM-DD (UTC, both days
+ * included): `to` becomes the next day's midnight, exclusive. Invalid or
+ * reversed dates are ignored rather than guessed.
+ */
+export function reportPeriod(from: unknown, to: unknown): { from?: Date; to?: Date; fromText?: string; toText?: string } {
+  const start = typeof from === "string" ? utcDateFrom(from) : null;
+  const end = typeof to === "string" ? utcDateFrom(to) : null;
+  const period: { from?: Date; to?: Date; fromText?: string; toText?: string } = {};
+  if (start) {
+    period.from = start;
+    period.fromText = start.toISOString().slice(0, 10);
+  }
+  if (end) {
+    period.to = new Date(end.getTime() + 86_400_000);
+    period.toText = end.toISOString().slice(0, 10);
+  }
+  if (period.from && period.to && period.from >= period.to) return {};
+  return period;
+}
+
 export const couponFormSchema = z.object({
   code: z.string().trim().min(4).max(24),
   campaign: z.string().trim().min(3).max(60),
