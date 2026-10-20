@@ -67,6 +67,8 @@ const unreadablePublishers = [
 ];
 function unsupportedSource(url: URL) {
   return unreadablePublishers.some(host => url.hostname === host || url.hostname.endsWith(`.${host}`)) ||
+    /(?:^|\.)(?:community|communities|forum|forums|discuss|discussions)\./i.test(url.hostname) ||
+    /\/(?:forum|forums|thread|threads|community)(?:\/|$)/i.test(url.pathname) ||
     /\/(?:login|log-in|signin|sign-in|signup|sign-up)(?:\/|$)/i.test(url.pathname);
 }
 
@@ -113,12 +115,14 @@ export async function collectResearchSources(
   // original localized query supplies alternatives. Hints never become citations.
   const queries = [...new Set([options.primaryQuery, brief.targetKeyword || brief.title]
     .filter((q): q is string => Boolean(q?.trim())).map(q => q.trim().slice(0, 300)))];
-  const items: Awaited<ReturnType<typeof articleSearch>>["items"] = [];
+  const focused: Awaited<ReturnType<typeof articleSearch>>["items"] = [];
+  const general: typeof focused = [];
   let completedSearches = 0;
   for (const query of queries) {
     try {
       const result = await search(query, brief.country, language, onSearchCost);
-      items.push(...result.items.filter(item => {
+      const isFocused = Boolean(domain && query === options.primaryQuery?.trim().slice(0, 300));
+      (isFocused ? focused : general).push(...result.items.filter(item => {
         if (!domain || query !== options.primaryQuery?.trim().slice(0, 300)) return true;
         return isPrimary(item.url);
       }));
@@ -129,6 +133,9 @@ export async function collectResearchSources(
     }
   }
   if (!completedSearches) throw new Error("Research searches could not be completed");
+  // A blocked primary publisher must not consume all six fetches through its
+  // different subdomains. Reserve early attempts for the independent search.
+  const items = [...focused.slice(0, 2), ...general, ...focused.slice(2)];
   const seen = new Set<string>();
   const hosts = new Map<string, number>();
   const hostAttempts = new Map<string, number>();
@@ -149,10 +156,6 @@ export async function collectResearchSources(
       seen.add(url.href);
       return true;
     } catch { return false; }
-  }).sort((a, b) => {
-    // A publisher's community forum is not its own product documentation.
-    const community = (url: string) => /\/(?:forum|forums|thread|threads|community)(?:\/|$)/i.test(new URL(url).pathname);
-    return Number(community(a.url)) - Number(community(b.url));
   });
   let fetches = 0;
   while (candidates.length && fetches < 6) {

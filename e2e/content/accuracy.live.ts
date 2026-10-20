@@ -41,7 +41,9 @@ const cases = [
     comparisonTable: false, tableOfContents: false, targetWordCount: 700 } },
 ];
 
-for (const sample of cases) it.skipIf(!run)(`fresh automatic accuracy: ${sample.id}`, async () => {
+const requested = process.env.REPGET_ACCURACY_CASES?.split(",").filter(Boolean);
+if (requested?.some(id => !cases.some(sample => sample.id === id))) throw new Error("Unknown accuracy case");
+for (const sample of cases) it.skipIf(!run || Boolean(requested && !requested.includes(sample.id)))(`fresh automatic accuracy: ${sample.id}`, async () => {
   const folder = `test-results/content-accuracy/${run}`;
   mkdirSync(folder, { recursive: true });
   const output = `${folder}/${sample.id}.json`;

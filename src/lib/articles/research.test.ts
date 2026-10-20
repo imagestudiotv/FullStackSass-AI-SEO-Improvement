@@ -262,6 +262,26 @@ describe("research evidence", () => {
     const [source] = await collectResearchSources(brief, vi.fn());
     expect(source.excerpt).toBe(quote.repeat(8));
   });
+  it("rejects community questions and reserves fetches for independent sources when official subdomains are blocked", async () => {
+    const primary = ["www", "helpx", "docs", "learn"].map(host => ({ url: `https://${host}.example.org/guide`, title: "Guide" }));
+    mocks.search.mockResolvedValueOnce({ items: [
+      { url: "https://community.example.org/questions-123/unanswered", title: "Unanswered" }, ...primary,
+    ] }).mockResolvedValueOnce({ items: [
+      { url: "https://practitioner.example.net/guide", title: "Guide" },
+      { url: "https://independent.example.net/guide", title: "Guide" },
+    ] });
+    mocks.fetch.mockImplementation(async (url: string) => url.includes("example.org")
+      ? new Response("Blocked", { status: 403 })
+      : new Response(`<article><p>${quote.repeat(8)}</p></article>`, { headers: { "content-type": "text/html" } }));
+    const result = await collectResearchSources(brief, vi.fn(), undefined, {
+      primaryQuery: "site:example.org verification", primaryDomain: "example.org",
+    });
+    expect(result).toHaveLength(2);
+    const fetched = mocks.fetch.mock.calls.map(call => call[0]);
+    expect(fetched.some(url => url.includes("community."))).toBe(false);
+    expect(fetched.indexOf("https://practitioner.example.net/guide")).toBeLessThan(3);
+    expect(mocks.fetch.mock.calls.length).toBeLessThanOrEqual(6);
+  });
   it("plans with a small metered model and excludes private business facts from search planning", async () => {
     mocks.create.mockResolvedValue({ model: "cheap", stop_reason: "end_turn",
       content: [{ type: "text", text: JSON.stringify({ primaryQuery: "verify ownership", primaryDomain: "example.org" }) }],
