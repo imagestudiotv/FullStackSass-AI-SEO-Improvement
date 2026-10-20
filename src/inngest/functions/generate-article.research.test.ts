@@ -10,10 +10,13 @@ vi.mock("@/lib/db", () => ({ db: new Proxy({}, { get: (_t, p) => Reflect.get(sta
 const queue = vi.hoisted(() => ({ send: vi.fn(), createFunction: vi.fn((config: unknown, handler: unknown) => ({ config, handler })) }));
 vi.mock("@/inngest/client", () => ({ inngest: queue }));
 const calls = vi.hoisted(() => ({
-  outline: vi.fn(), body: vi.fn(), plan: vi.fn(), collect: vi.fn(), synthesize: vi.fn(), check: vi.fn(),
+  outline: vi.fn(), body: vi.fn(), plan: vi.fn(), collect: vi.fn(), synthesize: vi.fn(), check: vi.fn(), correct: vi.fn(),
 }));
 vi.mock("@/lib/articles/generate", () => ({ generateOutline: calls.outline, generateBody: calls.body, sanitizeHtml: (s: string) => s, countWords: () => 10 }));
 vi.mock("@/lib/articles/research", () => ({ planResearchSearch: calls.plan, collectResearchSources: calls.collect, synthesizeResearch: calls.synthesize, checkResearchEvidence: calls.check }));
+vi.mock("@/lib/articles/evidence-correction", async original => ({
+  ...(await original<object>()), correctResearchDraft: calls.correct,
+}));
 vi.mock("@/lib/images/generate", () => ({ isImageGenerationConfigured: () => false, generateArticleImage: vi.fn() }));
 vi.mock("@/lib/notifications/create", () => ({ notify: vi.fn() }));
 import { generateArticle, queueArticleForCalendarItem } from "./generate-article";
@@ -27,7 +30,7 @@ beforeAll(async () => { test = await createTestDb(); state.db = test.db; });
 afterAll(async () => { await test.client.close(); });
 afterEach(() => { vi.unstubAllEnvs(); });
 beforeEach(() => {
-  vi.clearAllMocks();
+  vi.resetAllMocks();
   vi.stubEnv("ARTICLE_RESEARCH_MODE", "pilot");
   vi.stubEnv("ARTICLE_RESEARCH_WEBSITE_IDS", "*");
   queue.send.mockResolvedValue({ ids: ["test-event"] });
@@ -37,6 +40,7 @@ beforeEach(() => {
   calls.outline.mockResolvedValue({ sections: [{ heading: "Reader question", subheadings: [], points: ["Answer"] }], metaDescription: "Meta", faq: [] });
   calls.body.mockResolvedValue({ bodyHtml: "<h2>Reader question</h2><p>Answer to the reader's question.</p>", metaDescription: "Meta", slug: "test", wordCount: 10 });
   calls.check.mockResolvedValue({ checked: true, issues: [] });
+  calls.correct.mockResolvedValue({ bodyHtml: "<h2>Reader question</h2><p>Corrected, supported advice.</p>", wordCount: 7 });
 });
 async function setup() {
   const f = await seedWebsite(test);
@@ -73,6 +77,41 @@ describe("researched article pipeline", () => {
     expect(calls.collect).toHaveBeenCalledTimes(1);
     expect(calls.plan).toHaveBeenCalledTimes(1);
     expect(calls.body).toHaveBeenCalledTimes(1);
+    expect(calls.correct).not.toHaveBeenCalled();
+  });
+  it("corrects once, checks the actual revision, saves its audit and reuses completed paid steps", async () => {
+    calls.check.mockResolvedValueOnce({ checked: true, issues: ["Overstated business figure"] });
+    const f = await setup();
+    await f.run();
+    const [article] = await test.db.select().from(articles).where(eq(articles.id, f.articleId));
+    expect(article.bodyHtml).toContain("Corrected, supported advice.");
+    expect(article.wordCount).toBe(7);
+    expect(article.research).toMatchObject({ quality: { checked: true, issues: [] },
+      correction: { attempted: true, applied: true, initialIssues: ["Overstated business figure"] } });
+    expect(calls.check.mock.calls[1][0]).toContain("Corrected, supported advice.");
+    // The fresh checker receives evidence, not the earlier verdict.
+    expect(calls.check.mock.calls[1][2]).not.toHaveProperty("quality");
+    await f.run();
+    expect(calls.correct).toHaveBeenCalledTimes(1);
+    expect(calls.check).toHaveBeenCalledTimes(2);
+    expect(article.researchReviewRequired).toBe(true);
+  });
+  it.each(["correction", "recheck", "remaining-issue"] as const)("keeps the hold when %s fails", async failure => {
+    vi.stubEnv("ARTICLE_RESEARCH_MODE", "on");
+    calls.synthesize.mockResolvedValue({ ...research, mode: "on" });
+    calls.check.mockResolvedValueOnce({ checked: true, issues: ["Unsupported feature"] });
+    if (failure === "correction") calls.correct.mockRejectedValueOnce(new Error("Provider unavailable"));
+    if (failure === "recheck") calls.check.mockRejectedValueOnce(new Error("Provider unavailable"));
+    if (failure === "remaining-issue") calls.check.mockResolvedValueOnce({ checked: true, issues: ["Another unsupported claim"] });
+    const f = await setup();
+    await f.run();
+    const [article] = await test.db.select().from(articles).where(eq(articles.id, f.articleId));
+    expect(article.status).toBe("draft");
+    expect(article.researchReviewRequired).toBe(true);
+    expect(calls.correct).toHaveBeenCalledTimes(1);
+    expect(calls.check).toHaveBeenCalledTimes(failure === "correction" ? 1 : 2);
+    expect(article.bodyHtml).toContain(failure === "correction" ? "Answer to the reader" : "Corrected, supported advice.");
+    if (failure === "recheck") expect(article.research).toMatchObject({ quality: { checked: false } });
   });
   it("saves a reviewable draft when research or checking fails instead of claiming success", async () => {
     calls.collect.mockRejectedValue(new Error("Unavailable"));

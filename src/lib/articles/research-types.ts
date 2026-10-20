@@ -17,6 +17,10 @@ export const researchBriefSchema = z.object({
   warnings: z.array(z.string()),
   checkedAt: z.string(),
   quality: z.object({ issues: z.array(z.string()), checked: z.boolean() }).optional(),
+  correction: z.object({
+    attempted: z.literal(true), applied: z.boolean(),
+    initialIssues: z.array(z.string()), failure: z.string().optional(),
+  }).optional(),
 });
 export type ResearchSource = z.infer<typeof researchSourceSchema>;
 export type ResearchBrief = z.infer<typeof researchBriefSchema>;

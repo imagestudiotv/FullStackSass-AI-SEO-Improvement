@@ -21,6 +21,9 @@ export async function ResearchPanel({ websiteId, articleId, locale }: { websiteI
   return <section className="mb-6 rounded-xl border bg-card p-5 text-card-foreground" aria-label={t.sources}>
     <h2 className="font-semibold">{t.sources}</h2>
     <p className="mt-1 text-sm font-medium">{held ? t.held : article.researchApprovedHash ? t.approved : research?.status === "ready" ? t.ready : t.incomplete}</p>
+    {research?.correction && <p className="mt-2 text-sm text-muted-foreground">
+      {research.correction.applied ? t.corrected : t.correctionFailed}
+    </p>}
     {research && <details className="mt-3 text-sm">
       <summary className="cursor-pointer py-2 text-primary">{t.sources} ({research.sources.length})</summary>
       <p className="mt-2"><strong>{t.question}:</strong> {research.question}</p>
@@ -42,6 +45,12 @@ export async function ResearchPanel({ websiteId, articleId, locale }: { websiteI
         </li>)}
       </ul>
       {[...research.warnings, ...(research.quality?.issues ?? [])].map((warning, i) => <p key={i} className="mt-2 text-sm">{warning}</p>)}
+      {research.correction && <details className="mt-3">
+        <summary className="cursor-pointer py-2 text-muted-foreground">{t.initialFindings}</summary>
+        <ul className="list-disc space-y-2 pl-5">
+          {research.correction.initialIssues.map((issue, i) => <li key={i}>{issue}</li>)}
+        </ul>
+      </details>}
       <p className="mt-3 text-xs text-muted-foreground">{t.limitations}</p>
     </details>}
     {held && <p className="mt-3 text-sm text-muted-foreground">{t.reviewHelp}</p>}

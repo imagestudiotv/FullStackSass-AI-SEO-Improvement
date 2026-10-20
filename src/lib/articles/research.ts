@@ -9,6 +9,7 @@ import { articleSearch, isDataForSeoConfigured } from "@/lib/providers/dataforse
 import { normalizeLanguage } from "@/lib/websites/languages";
 import type { ArticleBrief } from "./generate";
 import type { ResearchBrief, ResearchSource } from "./research-types";
+import { researchPageContent } from "./research-page";
 
 const synthesisSchema = z.object({
   question: z.string().min(1).max(500),
@@ -182,10 +183,7 @@ export async function collectResearchSources(
       if (/^(?:just a moment|access denied|attention required|verify (?:you are|you're) human|sign in|log in|iniciar sesi[oó]n)(?:\b|[.!])/i.test(title)) {
         onSource?.({ url: finalUrl, outcome: "access_gate" }); continue;
       }
-      $("script,style,nav,footer,header,aside,form,noscript,dialog,[role=navigation],[role=dialog],[hidden]").remove();
-      const main = $("article").first().length ? $("article").first() : $("main").first();
-      const content = main.length ? main : $("body");
-      const excerpt = normalize(content.text()).slice(0, 6000);
+      const { content, excerpt } = researchPageContent($, title);
       if (excerpt.length < 250) { onSource?.({ url: item.url, outcome: "insufficient_text" }); continue; }
       // Search engines may omit the primary publisher even for a site: query.
       // Follow at most two actual links to it from a readable secondary page;
@@ -237,6 +235,8 @@ export async function synthesizeResearch(
     output_config: { format: zodOutputFormat(synthesisSchema) },
     system: `Prepare a research brief, not an article. Return JSON only with question, intent (informational/commercial/transactional/navigational), businessAngle, subquestions (1-8), claims (1-12 objects: text, sourceId, quote), warnings.
 Write in the customer's language. Select relevant claims supported by verbatim quotes (20-700 characters) from the supplied excerpts. A claim must not be broader than its quote.
+Prefer 4-6 focused claims from the relevant readable sources. Keep each quotation to ONE exact short passage, ideally 40-300 characters; never join separate passages, use ellipses, paraphrase or copy a whole long paragraph. Use multiple sources where they contribute distinct support.
+The requested topic and keyword define the question, not the business's full list of services. Warn about material gaps needed to answer that question, not hypothetical legal, regional or technical subjects the article does not need to cover. A customer's location alone does not make a general planning article a guide to local law.
 Prefer original research, official documentation and first-party sources. Search position does not establish credibility. Reject unsupported, stale, promotional or conflicting claims; explain gaps in warnings. Never invent a URL, statistic, service or quotation. Keep the business angle relevant without pretending sources describe the customer's business.
 State the relevant platform, product, country, date and verification method INSIDE each claim. A Wix or Squarespace help page supports advice for that platform, not universal Google requirements. Do not confuse crawling, indexing and ownership verification. If the sources cannot answer the general question, say so in warnings and narrow the brief.
 ${dataRule("website_page")} ${dataRule("business_profile")}`,
@@ -283,6 +283,7 @@ Check factual specifics, invented services, quotations, numbers, conflicting evi
 Distinguish factual assertions from clearly framed recommendations, questions to ask a supplier and hypothetical examples. Ordinary advice such as "ask who owns the footage" does not require a citation. An embedded factual claim still does: "ask for the required national licence" asserts that such a licence is required. Do not flag a claim merely because the writer did not use it, nor demand that every source be cited. Do not flag absence of general research coverage as a defect in an otherwise supported sentence. For each reported issue identify the actual draft wording and the missing or conflicting support; avoid speculative objections.
 The business profile includes the same saved description, services and differentiators supplied to the writer, as well as the owner's confirmed facts. For descriptions of THIS business, those supplied details are sufficient support: accept locations and working approach explicitly given in the description or differentiators even when the research sources list is empty. Do not demand outside citations for them or flag the absence of independent verification. This check tests consistency with the saved profile; independently verifying that profile is outside its scope. Do flag contradictions or details the writer added beyond the profile. The profile does not establish claims about other businesses, regional markets, industry trends, prices or outcomes.
 Actively check scope: platform-specific advice must not be presented as universal. Compare the source title, publisher, relevant method and caveats with EACH claim. In particular, ownership verification, crawling and indexing are different operations; a restriction on one does not establish a restriction on the others. Flag unsupported universal requirements, guarantees, and timelines even if a sentence resembles a quoted excerpt.
+Review the WHOLE draft in three passes before returning findings: (1) opening and all paragraphs, including causal or outcome claims such as "most delays disappear"; (2) table cells and FAQ answers, including invented definitions, typical lengths or industry practices; (3) business figures, differentiators and every citation. Return all material findings together, not just the first few. Advice can remain advice without an unsupported promise explaining why it works. Do not overlook an assertion because it sounds plausible or appears in an introduction.
 ${dataRule("website_page")} ${dataRule("business_profile")}`,
     messages: [{ role: "user", content:
       dataBlock("business_profile", JSON.stringify({

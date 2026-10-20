@@ -7,6 +7,7 @@ import { NonRetriableError } from "inngest";
 import { inngest } from "@/inngest/client";
 import { articleTask, articleModelExperiment, estimatedAiCost, type MeasureAi } from "@/lib/ai/article-tasks";
 import { planResearchSearch, collectResearchSources, synthesizeResearch, checkResearchEvidence } from "@/lib/articles/research";
+import { correctResearchDraft, needsEvidenceCorrection } from "@/lib/articles/evidence-correction";
 import { articleSearch } from "@/lib/providers/dataforseo";
 import { researchMode, researchNeedsReview, type ResearchBrief } from "@/lib/articles/research-types";
 import { db } from "@/lib/db";
@@ -451,7 +452,7 @@ export const generateArticle = inngest.createFunction(
       return { ...result, modelExperiment };
     });
 
-    const written = await step.run("write-body", async () => {
+    const draft = await step.run("write-body", async () => {
       const startedAt = Date.now();
       const modelExperiment = articleModelExperiment();
       const result = await paidCall(
@@ -485,15 +486,51 @@ export const generateArticle = inngest.createFunction(
       return { ...result, modelExperiment };
     });
 
-    const reviewedResearch = await step.run("check-evidence", async () => {
+    const checkedResearch = await step.run("check-evidence", async () => {
       if (!research) return null;
       await requireEntitledForSpend(brief.websiteId, { freeArticles: true });
       try {
-        const quality = await paidCall(reservations, () => checkResearchEvidence(written.bodyHtml, writingBrief, research, meter),
+        const quality = await paidCall(reservations, () => checkResearchEvidence(draft.bodyHtml, writingBrief, research, meter),
           { beforeSpend: () => requireEntitledForSpend(brief.websiteId, { freeArticles: true }) });
         return { ...research, quality };
       } catch {
         return { ...research, quality: { checked: false, issues: ["The evidence check could not finish. Review before publishing."] } };
+      }
+    });
+
+    // Separately memoized paid steps: a later retry cannot repeat a completed
+    // correction. One edit + one fresh check maximum, never a loop until "pass".
+    const correction = await step.run("correct-evidence", async () => {
+      if (!checkedResearch || !needsEvidenceCorrection(draft.bodyHtml, checkedResearch)) return null;
+      const modelExperiment = articleModelExperiment();
+      await requireEntitledForSpend(brief.websiteId, { freeArticles: true });
+      try {
+        const result = await paidCall(reservations, () => correctResearchDraft(draft.bodyHtml, writingBrief, checkedResearch, meter),
+          { beforeSpend: () => requireEntitledForSpend(brief.websiteId, { freeArticles: true }) });
+        return { result, modelExperiment, audit: {
+          attempted: true as const, applied: true, initialIssues: checkedResearch.quality!.issues,
+        } };
+      } catch {
+        return { result: null, modelExperiment, audit: {
+          attempted: true as const, applied: false, initialIssues: checkedResearch.quality!.issues,
+          failure: "Automatic correction could not finish. Review the original draft.",
+        } };
+      }
+    });
+    const written = { ...draft, ...correction?.result,
+      modelExperiment: draft.modelExperiment || Boolean(correction?.modelExperiment) };
+    const reviewedResearch = await step.run("recheck-evidence", async () => {
+      if (!checkedResearch || !correction) return checkedResearch;
+      const correctedResearch = { ...checkedResearch, correction: correction.audit };
+      if (!correction.result) return correctedResearch;
+      await requireEntitledForSpend(brief.websiteId, { freeArticles: true });
+      try {
+        const quality = await paidCall(reservations, () => checkResearchEvidence(written.bodyHtml, writingBrief, research!, meter),
+          { beforeSpend: () => requireEntitledForSpend(brief.websiteId, { freeArticles: true }) });
+        return { ...correctedResearch, quality };
+      } catch {
+        return { ...correctedResearch, quality: { checked: false,
+          issues: ["The corrected draft could not be checked. Review before publishing."] } };
       }
     });
 

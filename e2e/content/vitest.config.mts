@@ -14,6 +14,6 @@ export default defineConfig({
     include: ["e2e/content/*.live.ts"], testTimeout: 600000, hookTimeout: 60000,
     fileParallelism: false,
     env: { DATABASE_URL: "", DIRECT_URL: "", RESEND_API_KEY: "", STRIPE_SECRET_KEY: "", ARTICLE_MODEL_RESEARCH_PLAN: "", ARTICLE_MODEL_RESEARCH: "",
-      ARTICLE_MODEL_OUTLINE: "", ARTICLE_MODEL_BODY: "", ARTICLE_MODEL_EVIDENCE_CHECK: "" },
+      ARTICLE_MODEL_OUTLINE: "", ARTICLE_MODEL_BODY: "", ARTICLE_MODEL_EVIDENCE_CHECK: "", ARTICLE_MODEL_EVIDENCE_CORRECTION: "" },
   },
 });

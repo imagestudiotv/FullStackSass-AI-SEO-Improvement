@@ -60,7 +60,7 @@ export default async function ContentPerformancePage() {
           <TableCell>{row.failedRequests}</TableCell>
         </TableRow>)}</TableBody>
       </Table> : <p className="p-5 text-sm text-muted-foreground">No task measurements yet. New article runs will populate this table. Older unmetered work is not counted as free.</p>}
-      <p className="border-t p-5 text-xs text-muted-foreground">Includes recorded article planning, research, writing, checking and image descriptions. Excludes image generation, other enrichment, hosting and human editing. Cached searches may make no new paid request. Compare similar topics, lengths and languages before drawing conclusions about savings.</p>
+      <p className="border-t p-5 text-xs text-muted-foreground">Includes recorded article planning, research, writing, checking, automatic corrections and image descriptions. Excludes image generation, other enrichment, hosting and human editing. Cached searches may make no new paid request. Compare similar topics, lengths and languages before drawing conclusions about savings.</p>
     </AdminSection>
     <AdminSection id="recent-articles" title="Recent articles" description="The 20 most recently updated articles in the last 30 days. Findings are review signals, not verified error counts." bodyClassName="p-0">
       {data.recent.length ? <Table>

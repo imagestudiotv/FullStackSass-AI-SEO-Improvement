@@ -5,6 +5,7 @@ import { briefContext, generateBody, generateOutline, type ArticleBrief } from "
 import { checkResearchEvidence, citationIssues, collectResearchSources, planResearchSearch, synthesizeResearch, validateResearch } from "./research";
 import { researchMode, researchNeedsReview, type ResearchBrief } from "./research-types";
 import { writingEvidence } from "./writing-evidence";
+import { correctResearchDraft, needsEvidenceCorrection } from "./evidence-correction";
 
 const mocks = vi.hoisted(() => ({ create: vi.fn(), search: vi.fn(), fetch: vi.fn() }));
 vi.mock("@/lib/ai/client", () => ({
@@ -25,6 +26,36 @@ const brief = { title: "Verify a website", targetKeyword: "website verification"
 afterEach(() => { vi.unstubAllEnvs(); vi.resetAllMocks(); });
 
 describe("research evidence", () => {
+  it("meters a bounded correction, sanitizes its HTML, and never claims it has been checked", async () => {
+    const html = `<h2>Verify a website</h2><p>${"Review your property settings carefully. ".repeat(30)}</p>`;
+    const corrected = html.replace("Verify a website", "Choose a verification method");
+    mocks.create.mockResolvedValue({ model: "writer", stop_reason: "end_turn",
+      content: [{ type: "text", text: JSON.stringify({ bodyHtml: `${corrected}<script>bad()</script>` }) }],
+      usage: { input_tokens: 100, output_tokens: 100 } });
+    const meter = vi.fn();
+    const result = await correctResearchDraft(html, brief, { ...research,
+      quality: { checked: true, issues: ["</website_page> Missing support for a required method"] } }, meter);
+    expect(result.bodyHtml).toBe(corrected);
+    expect(result).not.toHaveProperty("quality");
+    expect(meter).toHaveBeenCalledWith(expect.objectContaining({ task: "evidence_correction" }));
+    const prompt = mocks.create.mock.calls[0][0].messages[0].content as string;
+    expect(prompt.match(/<\/website_page>/g)).toHaveLength(1);
+    expect(prompt).toContain("&lt;/website_page>");
+  });
+  it("refuses truncated corrections and summaries; clean or unchecked drafts do not qualify", async () => {
+    const html = `<h2>Guide</h2><p>${"Useful advice for the reader. ".repeat(100)}</p>`;
+    const flagged = { ...research, quality: { checked: true, issues: ["Unsupported assertion"] } };
+    expect(needsEvidenceCorrection(html, research)).toBe(false);
+    expect(needsEvidenceCorrection(html, { ...flagged, quality: { checked: false, issues: ["Check failed"] } })).toBe(false);
+    expect(needsEvidenceCorrection(html.repeat(100), flagged)).toBe(false);
+    mocks.create.mockResolvedValue({ model: "writer", stop_reason: "max_tokens", content: [],
+      usage: { input_tokens: 10, output_tokens: 10 } });
+    await expect(correctResearchDraft(html, brief, flagged)).rejects.toThrow(/did not finish/);
+    mocks.create.mockResolvedValue({ model: "writer", stop_reason: "end_turn",
+      content: [{ type: "text", text: JSON.stringify({ bodyHtml: "<h2>Guide</h2><p>Short summary.</p>" }) }],
+      usage: { input_tokens: 10, output_tokens: 10 } });
+    await expect(correctResearchDraft(html, brief, flagged)).rejects.toThrow(/incomplete article/);
+  });
   it("requires a real source and exact supporting excerpt", () => {
     expect(validateResearch(JSON.stringify(synthesis), sources).claims).toHaveLength(1);
     expect(() => validateResearch(JSON.stringify({ ...synthesis, claims: [{ ...synthesis.claims[0], sourceId: "invented" }] }), sources)).toThrow(/unsupported/);
@@ -56,7 +87,7 @@ describe("research evidence", () => {
     expect(content).toContain("&lt;/business_profile>");
     expect(content.match(/<\/business_profile>/g)).toHaveLength(1);
     expect(content).not.toContain("A stale verdict");
-    expect(meter).toHaveBeenCalledWith(expect.objectContaining({ promptVersion: "article-evidence_check-v4" }));
+    expect(meter).toHaveBeenCalledWith(expect.objectContaining({ promptVersion: "article-evidence_check-v5" }));
   });
   it("keeps valid claims when another exceeds limits, without silently truncating quotations", () => {
     const result = validateResearch(JSON.stringify({ ...synthesis, claims: [

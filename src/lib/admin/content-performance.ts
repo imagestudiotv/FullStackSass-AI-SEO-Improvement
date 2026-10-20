@@ -13,6 +13,7 @@ export const CONTENT_TASKS = {
   outline: "Article outline",
   body: "Article writing",
   evidence_check: "Evidence checking",
+  evidence_correction: "Evidence correction",
   image_scene: "Cover image description",
   body_scenes: "Article image descriptions",
 } satisfies Record<ArticleTask, string>;

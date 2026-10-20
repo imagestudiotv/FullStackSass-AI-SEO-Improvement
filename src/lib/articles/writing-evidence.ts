@@ -35,6 +35,7 @@ export const RESEARCH_WRITING_RULES = `Research writing rules:
 - The evidence cards pair each candidate claim with its exact quotation and URL. The quotation controls what can be said; narrow or omit a claim that goes beyond it. Use only relevant cards, not every card.
 - External factual specifics (software features, regional differences, industry trends, comparative performance, figures, timelines and universal requirements) need support in a supplied quotation. A related keyword, source title or familiar product name is not support. Omit unsupported comparisons and do not add details from memory.
 - Practical advice may be framed as a recommendation, a question to ask, or an explicitly hypothetical example. Do not disguise a factual assertion as advice. For example, ask each supplier about equipment and timing instead of asserting that a class of supplier lacks equipment or finishes within a fixed time.
+- Apply that boundary to the opening, transitions, table cells and FAQ too. Do not promise results ("most delays disappear"), assert typical practice ("most companies do this"), invent definitions or required sequences, or add an unsupported causal explanation to make advice persuasive. Give the useful action directly.
 - For every citation, identify the quotation supporting the adjacent factual statement. Preserve its product, country, method and date qualifiers. Separate your own advice from the cited statement. Never use a relevant-looking URL to support a different claim.
 - Answer the title's actual question immediately. For a comparison, start with how to compare; avoid a long definition or production-process detour.
 - Use the saved business profile only for that business. Never infer a city's market characteristics, competitors' abilities, or guaranteed results from it.
@@ -49,6 +50,7 @@ Start with the reader's actual decision or question. If the title asks for a com
 Plan 3-6 distinct sections, only as many as the answer needs. Include subheadings only for distinct parts. Respect the requested number of tables and FAQ setting. Keep the meta description a natural sentence, 140-158 characters.
 For EACH outline point, state its basis in square brackets: [advice] for a proposed action or hypothetical example; [profile] for a fact explicitly in the business profile; or a supplied source ID such as [S1] for an external factual claim. A source-backed point must fit its quotation. Omit factual specifics with no matching quotation. Do not disguise assertions about markets, competitors or outcomes as advice.
 In a comparison table where facts about the choices are missing, plan questions or checks the reader can apply to each option; do not invent attributes for the options. Optional related keywords are not required sections.
+Keep comparisons within the title's task. A briefing guide can compare clearly labeled hypothetical vague and specific brief entries; do not insert a studio-versus-freelancer buying guide merely to satisfy the table setting. Plan 3-4 useful FAQ questions when requested, only questions answerable from the evidence or as practical recommendations.
 Avoid a generic background/benefits/workflow outline when the title asks something narrower.
 ${RESEARCH_WRITING_RULES}`;
 
@@ -60,5 +62,7 @@ Use the target keyword naturally in the opening paragraph. No filler, invented e
 Use only URLs in the brief. Cite the exact evidence-card URL next to its supported statement, preserving the scope of its quotation. A source's recommendation must stay attributed to that source, not become a universal rule. Omit irrelevant evidence. Do not invent internal URLs, external URLs or placeholder links.
 Preserve the scope of business figures: total projects or years across the business are not totals for a specific service. Never turn a brand's style or differentiators into proof of better results.
 For tables, provide supported comparisons or comparison QUESTIONS for each option. A table of what to ask a studio versus a freelancer is useful; an uncited table asserting their equipment, staffing, flexibility or performance is not supported.
+Use neutral criteria for both choices. Avoid loaded questions that imply one choice is better, more equipped or less capable. For instructional topics, clearly hypothetical examples of two approaches are acceptable and must stay within the requested topic.
 Respect requested FAQ and table settings, but do not repeat unsupported facts in the FAQ. Use advice or explain what depends on the specific project.
+Paraphrase sources in your own words. Use at most one short direct quotation per publisher; the evidence quotations are for grounding, not text to reproduce at length.
 ${RESEARCH_WRITING_RULES}`;
