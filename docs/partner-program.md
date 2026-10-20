@@ -240,12 +240,17 @@ The base is subscription revenue actually collected, excluding tax (`domain/poli
 ## Stripe Connect
 
 - **Account** (`infrastructure/stripe/connect-onboarding.ts`), created when the partner first clicks "Set up payouts", never on approval. The row is reserved first (one per partner and environment), then the account is created with the stable idempotency key `partner-account:<partnerId>:<environment>`.
-  - `controller.stripe_dashboard.type = express`, so the partner manages their bank in Stripe's Express Dashboard.
-  - `controller.fees.payer = application` and `controller.losses.payments = application`.
-  - `capabilities.transfers.requested = true`, with no card payments.
-  - `settings.payouts.schedule.interval = manual`, so funds wait until RepGet creates the bank payout for a settlement.
-  - `country` = the partner's payout country, which must be in `PARTNER_PAYOUT_COUNTRIES`.
-  - `metadata.repget_partner_id`, which is checked on every read.
+  - **Accounts v2** (`POST /v2/core/accounts`). Stripe refuses `POST /v1/accounts` for platforms that start with Connect now. The sandbox test of 2026-10-20 found this; RepGet's platform enabled Connect that day.
+    - `dashboard = express`, so the partner manages their bank in Stripe's Express Dashboard.
+    - `defaults.responsibilities`: `fees_collector = application` and `losses_collector = application`.
+    - `configuration.recipient`: `stripe_balance.stripe_transfers` requested; the account receives transfers and makes payouts, with no card payments.
+    - `identity.country` = the partner's payout country, which must be in `PARTNER_PAYOUT_COUNTRIES`.
+    - `contact_email`, `defaults.profile.product_description`, and `metadata.repget_partner_id`, which is checked on every read.
+  - **Payout schedule: manual**, set right after creation with the v1 balance settings API (`balanceSettings.update`, on the connected account). Funds wait until RepGet creates the bank payout for a settlement.
+    - A v2 account starts on Stripe's daily schedule, and an account is only `ready` once its schedule is manual.
+    - Whenever an account is read, before its status is stored and before a transfer, a non-manual schedule is set to manual first (`accountReadiness` in `manage-payout-account.ts`).
+    - If Stripe refuses, the account stays not ready, so nothing is sent to an account Stripe would pay out by itself.
+  - **Everything else stays on v1.** Stripe serves it unchanged for v2 accounts, as checked in the sandbox the same day: reading the account (`details_submitted`, `payouts_enabled`, `capabilities.transfers`, requirements, schedule), Account Links, Express login links, transfers, reversals, bank payouts, and the classic Connect events.
 
   If Stripe refuses the configuration for a country, the refusal is shown to the partner as an error, not hidden.
 - **Onboarding** is Stripe-hosted, through `accountLinks.create` (type `account_onboarding`, `collection_options.fields = eventually_due`).
@@ -255,12 +260,13 @@ The base is subscription revenue actually collected, excluding tax (`domain/poli
   - `onboarding`: details not submitted;
   - `restricted`: a disabled reason, past-due requirements, or transfers inactive;
   - `verification_pending`: transfers pending, or payouts not yet enabled;
-  - `ready`: transfers active and payouts enabled.
+  - `ready`: transfers active, payouts enabled, nothing currently due, and the payout schedule manual.
 
   A read for a different partner (metadata), a different environment, or an unknown account changes nothing.
 - **Connect webhook:** `/api/stripe/connect-webhook`, secret `STRIPE_CONNECT_WEBHOOK_SECRET`. Configure it in Stripe as an endpoint for **events on connected accounts**.
   - **Part 2 events:** `account.updated`, `account.application.deauthorized`, `capability.updated`, `account.external_account.created`, `account.external_account.updated`, `account.external_account.deleted`.
   - **Part 4 events:** `payout.created`, `payout.updated`, `payout.paid`, `payout.failed`, `payout.canceled`, `payout.reconciliation_completed`.
+  - Accounts v2 send these same classic events (sandbox, 2026-10-20). They also send `account.application.authorized` and `balance_settings.updated`; the route accepts and ignores them.
   - Events are stored in `webhook_events` with provider `stripe_connect`, and the billing-maintenance recovery job replays them.
 
 ## Commissions from Stripe payments

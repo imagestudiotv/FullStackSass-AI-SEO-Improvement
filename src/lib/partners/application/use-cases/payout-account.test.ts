@@ -23,6 +23,7 @@ vi.mock("@/lib/db", () => ({
 import { readinessFromAccount } from "../../infrastructure/stripe/connect-onboarding";
 import type { PartnerRecord } from "../ports/repositories";
 import {
+  accountReadiness,
   openPayoutDashboard,
   payoutSetupStatus,
   refreshOnboardingLink,
@@ -148,5 +149,45 @@ describe("readiness from a Stripe Account", () => {
     expect(
       readinessFromAccount(account({ requirements: { currently_due: [], past_due: ["individual.id_number"], pending_verification: [], disabled_reason: "requirements.past_due", current_deadline: 1790000000, eventually_due: [], errors: [], alternatives: [] } }), "live"),
     ).toMatchObject({ status: "restricted", livemode: true, disabledReason: "requirements.past_due" });
+  });
+
+  it("is never ready while Stripe would pay the balance out on its own schedule (Accounts v2 start on daily)", () => {
+    expect(readinessFromAccount(account({ settings: { payouts: { schedule: { interval: "daily", delay_days: 7 } } } as Stripe.Account["settings"] }), "test")).toMatchObject({
+      status: "verification_pending",
+      payoutInterval: "daily",
+    });
+    expect(readinessFromAccount(account({ settings: {} as Stripe.Account["settings"] }), "test").status).toBe("verification_pending");
+  });
+});
+
+describe("the payout schedule is made manual whenever an account is read", () => {
+  const readyButDaily = (accountId: string, partnerId: string) =>
+    readiness(accountId, { status: "verification_pending", detailsSubmitted: true, payoutsEnabled: true, transfersCapability: "active", requirementsCurrentlyDue: [], payoutInterval: "daily", metadataPartnerId: partnerId });
+
+  it("repairs a daily schedule before storing the status, so the partner becomes ready", async () => {
+    const connect = fakeConnect();
+    const { deps } = partnerTestDeps(test.db, { connect: connect.gateway });
+    const me = await access();
+    await startPayoutSetup(deps, me);
+    const [row] = await test.db.select().from(partnerStripeAccounts).where(eq(partnerStripeAccounts.partnerId, me.partner.id));
+    connect.accounts.set(row.stripeAccountId!, readyButDaily(row.stripeAccountId!, me.partner.id));
+    expect(await syncPayoutAccount(deps, me.context, { partnerId: me.partner.id })).toMatchObject({ ok: true, value: { state: "ready" } });
+    expect(connect.calls.filter((c) => c.method === "ensureManualPayouts")).toHaveLength(1);
+    const [stored] = await test.db.select().from(partnerStripeAccounts).where(eq(partnerStripeAccounts.id, row.id));
+    expect(stored).toMatchObject({ status: "ready", payoutInterval: "manual" });
+    // Already manual: nothing is written to Stripe again.
+    await syncPayoutAccount(deps, me.context, { partnerId: me.partner.id });
+    expect(connect.calls.filter((c) => c.method === "ensureManualPayouts")).toHaveLength(1);
+  });
+
+  it("when Stripe refuses the change, the account stays not ready, so nothing is sent to it", async () => {
+    const connect = fakeConnect();
+    connect.refuseManualPayouts();
+    const accountId = "acct_daily_refused";
+    connect.accounts.set(accountId, readyButDaily(accountId, "p1"));
+    const read = await accountReadiness(connect.gateway, accountId);
+    expect(read).toMatchObject({ status: "verification_pending", payoutInterval: "daily" });
+    connect.refuseManualPayouts(false);
+    expect(await accountReadiness(connect.gateway, accountId)).toMatchObject({ status: "ready", payoutInterval: "manual" });
   });
 });

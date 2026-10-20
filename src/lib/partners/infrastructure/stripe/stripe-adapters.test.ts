@@ -2,6 +2,7 @@ import type Stripe from "stripe";
 import { describe, expect, it, vi } from "vitest";
 
 import { stripeBillingSource, stripeCouponGateway } from "./billing-source";
+import { connectAccountGateway } from "./connect-onboarding";
 import { classifyStripeError } from "./errors";
 import { partnerWorkFor, PARTNER_PLATFORM_EVENTS } from "./event-normalizer";
 
@@ -156,6 +157,90 @@ describe("stripeBillingSource.loadInvoice", () => {
       refunded: BigInt(4950),
       disputes: [{ id: "dp_1", status: "lost", amount: BigInt(4950), currency: "eur" }],
     });
+  });
+});
+
+describe("connectAccountGateway (Accounts v2)", () => {
+  function connectStripe(options: { create?: () => Promise<unknown>; schedule?: () => Promise<unknown> } = {}) {
+    const calls: { method: string; params: unknown; options: unknown }[] = [];
+    const stripe = {
+      v2: {
+        core: {
+          accounts: {
+            create: vi.fn(async (params: unknown, requestOptions: unknown) => {
+              calls.push({ method: "v2.core.accounts.create", params, options: requestOptions });
+              return options.create ? options.create() : { id: "acct_v2", object: "v2.core.account" };
+            }),
+          },
+        },
+      },
+      balanceSettings: {
+        update: vi.fn(async (params: unknown, requestOptions: unknown) => {
+          calls.push({ method: "balanceSettings.update", params, options: requestOptions });
+          return options.schedule ? options.schedule() : { object: "balance_settings" };
+        }),
+      },
+      accounts: {
+        create: vi.fn(async () => {
+          throw new Error("Accounts v1 creation must not be used");
+        }),
+      },
+    };
+    return { stripe: stripe as unknown as Stripe, calls };
+  }
+  const input = { partnerId: "p1", email: "partner@example.test", country: "IT", idempotencyKey: "partner-account:p1:test" };
+
+  it("creates the partner's account with Accounts v2 (Express, RepGet pays fees and losses, transfers only), then makes payouts manual", async () => {
+    const { stripe, calls } = connectStripe();
+    expect(await connectAccountGateway(stripe, "test").createConnectedAccount(input)).toEqual({ kind: "succeeded", value: { accountId: "acct_v2" } });
+    expect(calls.map((c) => c.method)).toEqual(["v2.core.accounts.create", "balanceSettings.update"]);
+    expect(calls[0].params).toEqual({
+      contact_email: "partner@example.test",
+      identity: { country: "it" },
+      dashboard: "express",
+      defaults: {
+        responsibilities: { fees_collector: "application", losses_collector: "application" },
+        profile: { product_description: "Affiliate partner promoting RepGet" },
+      },
+      configuration: { recipient: { capabilities: { stripe_balance: { stripe_transfers: { requested: true } } } } },
+      metadata: { repget_partner_id: "p1", repget_environment: "test", repget_purpose: "partner_payouts" },
+    });
+    // The same key on every attempt: a lost answer can never make a second account.
+    expect(calls[0].options).toEqual({ idempotencyKey: "partner-account:p1:test" });
+    expect(calls[1]).toMatchObject({ params: { payments: { payouts: { schedule: { interval: "manual" } } } }, options: { stripeAccount: "acct_v2" } });
+  });
+
+  it("keeps a created account when the schedule step fails (it is repaired when the account is read)", async () => {
+    const { stripe } = connectStripe({
+      schedule: async () => {
+        throw Object.assign(new Error("timeout"), { type: "StripeConnectionError" });
+      },
+    });
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    expect(await connectAccountGateway(stripe, "test").createConnectedAccount(input)).toEqual({ kind: "succeeded", value: { accountId: "acct_v2" } });
+    warn.mockRestore();
+  });
+
+  it("reports a refusal and a lost answer as Stripe gave them", async () => {
+    const refused = connectStripe({
+      create: async () => {
+        throw Object.assign(new Error("Invalid country"), { type: "StripeInvalidRequestError", statusCode: 400, code: "parameter_invalid" });
+      },
+    });
+    expect(await connectAccountGateway(refused.stripe, "test").createConnectedAccount(input)).toMatchObject({ kind: "refused", code: "parameter_invalid" });
+    expect(refused.calls.map((c) => c.method)).toEqual(["v2.core.accounts.create"]);
+    const lost = connectStripe({
+      create: async () => {
+        throw Object.assign(new Error("socket hang up"), { type: "StripeConnectionError" });
+      },
+    });
+    expect(await connectAccountGateway(lost.stripe, "test").createConnectedAccount(input)).toMatchObject({ kind: "unknown" });
+  });
+
+  it("makes payouts manual on demand, on the partner's account", async () => {
+    const { stripe, calls } = connectStripe();
+    await connectAccountGateway(stripe, "test").ensureManualPayouts("acct_v2");
+    expect(calls).toMatchObject([{ method: "balanceSettings.update", options: { stripeAccount: "acct_v2" } }]);
   });
 });
 

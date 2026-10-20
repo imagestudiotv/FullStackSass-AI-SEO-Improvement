@@ -2,7 +2,10 @@
 
 For the people who will switch the cash partner program on and support it. Design and business rules: [partner-program.md](partner-program.md). What was built and verified, phase by phase: [partner-program-progress.md](partner-program-progress.md).
 
-**Status.** The code is complete and tested against fakes of Stripe (unit, integration, real-PostgreSQL concurrency and browser end-to-end). It has **not** been verified against Stripe test mode, and live payouts must stay off until the prerequisites at the end of this page are done. Nothing here has been deployed or migrated.
+**Status.**
+- **Code:** complete, and tested against fakes of Stripe (unit, integration, real-PostgreSQL concurrency, browser end-to-end).
+- **Stripe test mode:** verified on 2026-10-20 against a separate Stripe sandbox (section 5). The run found that Stripe now requires Accounts v2 for new Connect platforms; that is fixed.
+- **Production:** migrations 0063-0066 are applied and the program is deployed with every switch off. Live payouts stay off until the remaining prerequisites at the end of this page are done.
 
 ## 1. Rollout order
 
@@ -44,8 +47,11 @@ Names only. Values belong in the host's settings, never in the repository ([cred
 
 ## 3. Stripe Connect enablement
 
-- **Enable Connect** on the platform account and complete the platform profile. Accounts are created by RepGet as **Express** accounts with `controller.fees.payer = application` and `controller.losses.payments = application`: RepGet pays Stripe's Connect fees for them and is responsible for negative balances. Check the current Connect pricing for the per-account and per-payout fees.
-- **Capabilities:** `transfers` only (no card payments). **Payout schedule:** manual - RepGet creates each bank payout after its transfer is confirmed.
+- **Enable Connect** on the platform account and complete the platform profile. RepGet creates **Accounts v2** recipient accounts with the **Express** dashboard. Their responsibilities are `fees_collector = application` and `losses_collector = application`: RepGet pays Stripe's Connect fees for them and is responsible for negative balances. Check the current Connect pricing for the per-account and per-payout fees.
+  - **Business model:** "You collect payments and pay recipients" (marketplace), with Stripe-hosted onboarding, the Express Dashboard, and liability for refunds and chargebacks on the platform. Stripe requires it in a sandbox before live.
+  - **Accounts v1 is refused** for platforms new to Connect. That is why accounts are created with v2 (partner-program.md, "Stripe Connect").
+- **Capabilities:** receiving transfers only (`stripe_balance.stripe_transfers`), no card payments.
+- **Payout schedule:** manual - RepGet creates each bank payout after its transfer is confirmed. It is set right after the account is created and again whenever an account is read.
 - **Countries.** Partners choose a payout country from `PARTNER_PAYOUT_COUNTRIES`. Stripe decides which countries a platform in RepGet's country can create accounts in and transfer to; confirm this in the Dashboard (Connect settings) and keep the variable to the countries Stripe accepts. A country Stripe refuses shows the partner an error when they start payout setup.
 - **Currencies - a launch limitation.** Commissions and payouts are in the currency the customer paid; only EUR has a payout threshold (EUR 25.00), so only EUR balances are paid automatically. A transfer in EUR to an account that settles in another currency (for example a US account in USD) is converted by Stripe on arrival, and the bank-payout step, which pays out in the settlement's currency, then cannot run. It waits and, after 72 hours, opens a `payout_discrepancy` case (the transfer itself is settled; the money is in the partner's Stripe balance). **Recommendation for launch:** limit `PARTNER_PAYOUT_COUNTRIES` to countries whose accounts hold EUR (the euro area), or verify the behaviour for each other country in test mode first.
 - **Branding** of the hosted onboarding (name, icon, colour) in the Connect settings.
@@ -62,9 +68,41 @@ Names only. Values belong in the host's settings, never in the repository ([cred
 
 Both endpoints exist once in test mode and once in live mode, each with its own secret. Events only ever trigger a re-read from Stripe; their payloads are never trusted for amounts or states. A missed event is recovered: the daily reconciliation finds payments without commission facts, and the sweeps poll unknown transfers and pending payouts.
 
-## 5. Stripe test-mode verification (not yet done)
+## 5. Stripe test-mode verification (done 2026-10-20)
 
-Needs a deployment that is NOT production (a preview), its own test-mode secret key, and its own test-mode webhook endpoints pointing at that preview - the existing test key delivers webhooks to the deployed production app, so it must not be used for this. Then, in order:
+### What was run
+
+- **Isolation.** A separate Stripe sandbox ("RepGet partner test", Italy, EUR) with no webhook endpoints of its own.
+  - The isolated app copy ran locally with that sandbox's key and a throwaway local database.
+  - The Stripe CLI (`stripe listen --forward-to … --forward-connect-to …`) delivered the sandbox's events to `/api/stripe/webhook` and `/api/stripe/connect-webhook`.
+  - A local Inngest dev server ran the jobs.
+  - Production, its database and the account's original test environment were not touched.
+- **Results:**
+  1. **Applied and approved.**
+  2. **Payout setup.** It first **failed**: Stripe refuses `POST /v1/accounts` for platforms new to Connect, so accounts are now created with Accounts v2 (partner-program.md, "Stripe Connect"). After the fix, the hosted onboarding with Stripe's test data reached "Payouts are ready". The account was Express, platform-paid fees and losses, transfers active, schedule manual.
+  3. **Commission.** A partner-link signup, then Grow EUR 99.00, gave one commission of **EUR 24.75**.
+     - The free trial's EUR 0 invoice earned nothing; the commission came from the first paid invoice (trial ended with `trial_end=now`, the call RepGet's free-article flow makes).
+     - Stripe's three events for that payment made one commission.
+  4. **Partial refund.** EUR 9.90 refunded reversed **EUR 2.48**, with a ledger correction of -EUR 2.48.
+  5. **Coupon.** `TESTPARTNER10` (10% off the first payment) was created from the partner's admin page, and a second customer redeemed it without the link.
+     - The customer was attributed by **coupon**.
+     - Stripe kept the "once" discount through the EUR 0 trial invoice for the first real payment, EUR 89.10.
+     - The commission was **EUR 22.28**.
+  6. **Payout.** Commissions were backdated (test database only) and the platform test balance funded (`pm_card_bypassPending`). "Prepare now" sent **one transfer** of EUR 44.55.
+     - The first bank payout **failed** (`no_account`, deliberately: test IBAN `IT60X0542811101000000123456`). The money stayed in the partner's Stripe balance.
+     - The partner replaced the bank account in the Express dashboard (login link verified). After "Retry now", the second bank payout was **paid**, with no second transfer.
+     - Ledger: +24.75 -2.48 +22.28 -44.55 = 0 owed. Both commissions "Paid".
+  7. **Events and reconciliation.** Every platform and Connect event was processed (none stuck), and the reconciliation reported **0 findings**.
+- **Test values.** Stripe's test IBAN for a *successful* payout in Italy is `IT40S0542811101000000123456` (list: docs.stripe.com/connect/testing).
+
+### To repeat it
+
+The run needs an isolated environment:
+- its own test-mode secret key, ideally a separate sandbox with no webhook endpoints;
+- event delivery to a non-production app, through the Stripe CLI or its own endpoints;
+- a throwaway database.
+
+The account's original test environment delivers webhooks to the deployed production app, so it must not be used for this. Then, in order:
 
 1. Apply for the program with an existing account; approve it in `/admin/partners/applications`.
 2. Start payout setup; complete the hosted onboarding with Stripe's test data; check the portal shows "Payouts are ready" (and that a restricted test account shows "Stripe needs more information").
@@ -74,7 +112,7 @@ Needs a deployment that is NOT production (a preview), its own test-mode secret 
 6. Create a coupon from the partner's page; redeem it with a new test customer.
 7. Check the Connect events arrive (`webhook_events`, provider `stripe_connect`) and the reconciliation reports nothing unexpected.
 
-Record the outcome in `partner-program-progress.md`.
+Record the outcome in `partner-program-progress.md` (2026-10-20: all seven steps passed, after the Accounts v2 fix).
 
 ## 6. Jobs and schedules (Inngest, UTC)
 
@@ -129,11 +167,13 @@ Record the outcome in `partner-program-progress.md`.
 
 ## 10. Remaining external prerequisites (exact)
 
-1. Production migration of 0063, 0064, 0065 and 0066, before the deploy (owner).
+1. ~~Production migration of 0063, 0064, 0065 and 0066, before the deploy (owner).~~ Done 2026-10-20 (verified read-only: 67 migrations, 21 partner tables with RLS).
 2. Stripe: Connect enabled with the platform profile; Express branding; the countries and currencies RepGet's platform can pay confirmed and `PARTNER_PAYOUT_COUNTRIES` set accordingly (see the currency limitation in section 3).
+   - Done 2026-10-20 in live mode (sandbox first, as Stripe requires): marketplace model ("you collect payments and pay recipients"), identity verified, integration choices and responsibilities confirmed, onboarding branding with the RepGet name and icon.
+   - Still open: setting `PARTNER_PAYOUT_COUNTRIES` (euro area recommended) in production.
 3. Stripe webhooks: the 18 platform events added to the existing endpoint; the Connect endpoint with its 12 events and `STRIPE_CONNECT_WEBHOOK_SECRET`, in test and in live mode.
 4. Inngest resync after the deploy, so the eight partner functions are registered.
-5. A non-production preview with its own Stripe test keys and webhook endpoints, and the test-mode verification in section 5 carried out and recorded.
+5. ~~A non-production environment with its own Stripe test keys and webhook delivery, and the test-mode verification in section 5 carried out and recorded.~~ Done 2026-10-20 (section 5).
 6. Platform balance funding in EUR before the first live run, and a decision on the platform's own payout timing.
 7. Owner review of the partner rules shown on `/partners` and in the portal, the privacy policy's cookie paragraph, and any tax reporting the partners' countries require (outside this implementation).
 8. Only then: the switches in order, and `PARTNER_LIVE_PAYOUTS=enabled` for live money.

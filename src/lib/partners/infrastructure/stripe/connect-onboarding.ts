@@ -8,22 +8,37 @@ import { classifyStripeError } from "./errors";
  * Stripe Connect accounts for partners: Stripe-hosted onboarding, Express
  * Dashboard, and the readiness RepGet needs before paying anyone.
  *
+ * ACCOUNTS V2. Stripe refuses POST /v1/accounts for platforms that start
+ * with Connect now ("Create connected accounts with POST /v2/core/accounts
+ * instead"), which the sandbox test of 2026-10-20 found. Accounts are created
+ * with Accounts v2; everything else stays on v1, which Stripe serves for v2
+ * accounts unchanged (checked in the sandbox the same day): reading the
+ * account (details_submitted, payouts_enabled, capabilities.transfers,
+ * requirements, the payout schedule), Account Links, Express login links,
+ * transfers and payouts, and the classic Connect events (account.updated,
+ * capability.updated, payout.*).
+ *
  * THE CONFIGURATION (docs/partner-program.md, "Stripe Connect"):
  *
- *   controller.stripe_dashboard.type = express  the partner manages their bank
+ *   dashboard = express                         the partner manages their bank
  *                                               details in Stripe's Express
  *                                               Dashboard; the platform may set
  *                                               payout schedules and create
  *                                               manual payouts
- *   controller.fees.payer = application         RepGet pays Stripe's fees
- *   controller.losses.payments = application    RepGet is liable for negative
+ *   defaults.responsibilities
+ *     .fees_collector = application             RepGet pays Stripe's fees
+ *     .losses_collector = application           RepGet is liable for negative
  *                                               balances (required for
  *                                               separate charges and transfers)
- *   capabilities.transfers = requested          receive transfers; no card payments
- *   settings.payouts.schedule.interval = manual funds wait in the partner's
- *                                               balance until RepGet creates the
- *                                               bank payout for a settlement
- *   country                                     the partner's payout country
+ *   configuration.recipient: stripe_balance
+ *     .stripe_transfers requested               receive transfers; no card payments
+ *   identity.country                            the partner's payout country
+ *
+ * Then the payout schedule (v1 balance settings): MANUAL, so funds wait in
+ * the partner's balance until RepGet creates the bank payout for a
+ * settlement. A v2 account starts on Stripe's daily schedule; an account is
+ * only "ready" once its schedule is manual, and the use cases make it so
+ * whenever they read it (accountReadiness in manage-payout-account.ts).
  *
  * Requirement collection stays with Stripe (the default for Express), so
  * identity documents and bank details never touch RepGet.
@@ -48,7 +63,8 @@ export function readinessFromAccount(account: Stripe.Account, environment: Envir
   } else if (disabledReason || pastDue.length > 0 || transfers === "inactive") {
     status = "restricted";
   } else if (transfers === "active" && account.payouts_enabled) {
-    status = currentlyDue.length > 0 ? "verification_pending" : "ready";
+    // Not ready while Stripe would pay the balance out on its own schedule: RepGet's bank payout would find nothing.
+    status = currentlyDue.length > 0 || payoutInterval !== "manual" ? "verification_pending" : "ready";
   } else {
     status = "verification_pending";
   }
@@ -73,30 +89,41 @@ export function readinessFromAccount(account: Stripe.Account, environment: Envir
 }
 
 export function connectAccountGateway(stripe: Stripe, environment: Environment): ConnectAccountGateway {
+  // Idempotent by nature: setting "manual" again changes nothing.
+  const setManualPayouts = async (accountId: string) => {
+    await stripe.balanceSettings.update({ payments: { payouts: { schedule: { interval: "manual" } } } }, { stripeAccount: accountId });
+  };
   return {
     environment: () => environment,
     async createConnectedAccount(input) {
       try {
-        const account = await stripe.accounts.create(
+        const account = await stripe.v2.core.accounts.create(
           {
-            country: input.country,
-            email: input.email,
-            controller: {
-              fees: { payer: "application" },
-              losses: { payments: "application" },
-              stripe_dashboard: { type: "express" },
+            contact_email: input.email,
+            identity: { country: input.country.toLowerCase() },
+            dashboard: "express",
+            defaults: {
+              responsibilities: { fees_collector: "application", losses_collector: "application" },
+              profile: { product_description: "Affiliate partner promoting RepGet" },
             },
-            capabilities: { transfers: { requested: true } },
-            settings: { payouts: { schedule: { interval: "manual" } } },
-            business_profile: { product_description: "Affiliate partner promoting RepGet" },
+            configuration: { recipient: { capabilities: { stripe_balance: { stripe_transfers: { requested: true } } } } },
             metadata: { repget_partner_id: input.partnerId, repget_environment: environment, repget_purpose: "partner_payouts" },
           },
           { idempotencyKey: input.idempotencyKey },
         );
+        try {
+          await setManualPayouts(account.id);
+        } catch (error) {
+          // The account exists and is kept; the schedule is set again whenever the account is read.
+          console.warn("[partners] connected account created, payout schedule not yet manual:", classifyStripeError(error).kind);
+        }
         return { kind: "succeeded", value: { accountId: account.id } };
       } catch (error) {
         return classifyStripeError(error);
       }
+    },
+    async ensureManualPayouts(accountId) {
+      await setManualPayouts(accountId);
     },
     async createOnboardingLink(input) {
       const link = await stripe.accountLinks.create({

@@ -4,6 +4,7 @@ import type { TransferEvidence } from "../ports/payout-gateway";
 import type { SettlementRecord, TransferAttemptRecord } from "../ports/repositories";
 import type { PartnerDeps } from "./deps";
 import { payoutStage } from "./execute-bank-payout";
+import { accountReadiness } from "./manage-payout-account";
 import { rebuildProjection } from "./mature-commissions";
 import { cancelSettlement } from "./prepare-settlement";
 
@@ -125,7 +126,7 @@ async function transferStage(deps: PartnerDeps, settlement: SettlementRecord): P
   if (gateway.environment() !== settlement.environment) return cancel("wrong_environment");
   const partner = await repos.partners.findById(settlement.partnerId);
   if (!partner || !canReceiveAutomaticPayout(partner)) return cancel(partner?.status === "suspended" ? "partner_suspended" : "payout_hold");
-  const readiness = await gateway.retrieveAccount(settlement.stripeAccountId);
+  const readiness = await accountReadiness(gateway, settlement.stripeAccountId);
   if (readiness.status !== "ready" || (readiness.metadataPartnerId !== null && readiness.metadataPartnerId !== settlement.partnerId)) {
     return cancel(`account_${readiness.status}`);
   }

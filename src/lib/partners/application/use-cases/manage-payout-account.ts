@@ -1,5 +1,6 @@
 import type { PartnerContext, SystemContext } from "../contracts/commands";
 import { fail, ok, type Result } from "../contracts/results";
+import type { AccountReadiness, ConnectAccountGateway } from "../ports/payout-gateway";
 import type { PartnerRecord, StripeAccountRecord } from "../ports/repositories";
 import type { PartnerDeps } from "./deps";
 
@@ -17,6 +18,27 @@ import type { PartnerDeps } from "./deps";
  * is always read from the account itself (retrieve, or a verified
  * account.updated event), never inferred from the redirect.
  */
+
+/**
+ * A connected account's readiness, with its bank payouts made manual first
+ * when they are not. Accounts v2 start on Stripe's daily schedule; the
+ * schedule is set at creation, and this repairs a missed or undone step
+ * whenever an account is read - before a status is stored and before a
+ * transfer. If Stripe refuses or cannot be reached, the readiness is returned
+ * as read: an account whose schedule is not manual is never "ready"
+ * (readinessFromAccount), so nothing is sent to it.
+ */
+export async function accountReadiness(connect: ConnectAccountGateway, accountId: string): Promise<AccountReadiness> {
+  const readiness = await connect.retrieveAccount(accountId);
+  if (readiness.payoutInterval === "manual") return readiness;
+  try {
+    await connect.ensureManualPayouts(accountId);
+  } catch {
+    console.warn("[partners] a connected account's payouts could not be made manual yet; it stays not ready");
+    return readiness;
+  }
+  return connect.retrieveAccount(accountId);
+}
 
 export type PayoutSetupState = "not_started" | "setup_required" | "verification_pending" | "restricted" | "ready";
 
@@ -151,7 +173,7 @@ export async function syncPayoutAccount(
   }
   if (!account?.stripeAccountId) return fail("not_found");
 
-  const readiness = await connect.retrieveAccount(account.stripeAccountId);
+  const readiness = await accountReadiness(connect, account.stripeAccountId);
   if ((readiness.livemode ? "live" : "test") !== account.environment) return fail("invalid", "wrong_environment");
   if (readiness.metadataPartnerId && readiness.metadataPartnerId !== account.partnerId) {
     return fail("invalid", "account_owner_mismatch");

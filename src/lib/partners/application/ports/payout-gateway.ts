@@ -82,6 +82,12 @@ export interface ConnectAccountGateway {
   /** Express Dashboard login link for an onboarded account. */
   createDashboardLink(accountId: string): Promise<{ url: string }>;
   retrieveAccount(accountId: string): Promise<AccountReadiness>;
+  /**
+   * Makes the account's bank payouts manual: RepGet creates each one after its
+   * transfer is confirmed. Accounts start on Stripe's daily schedule. Safe to
+   * repeat; throws when Stripe refuses or cannot be reached.
+   */
+  ensureManualPayouts(accountId: string): Promise<void>;
 }
 
 /** Money movement: platform balance, transfers, reversals, bank payouts. */

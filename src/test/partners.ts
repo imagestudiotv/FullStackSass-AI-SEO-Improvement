@@ -42,6 +42,7 @@ export function fakeConnect(environment: "test" | "live" = "test") {
   const accounts = new Map<string, AccountReadiness>();
   const calls: { method: string; args: unknown }[] = [];
   let nextCreate: ProviderOutcome<{ accountId: string }> | null = null;
+  let refuseManual = false;
   const byKey = new Map<string, string>();
   const gateway: ConnectAccountGateway = {
     environment: () => environment,
@@ -75,11 +76,24 @@ export function fakeConnect(environment: "test" | "live" = "test") {
       if (!account) throw Object.assign(new Error("No such account"), { statusCode: 404, code: "resource_missing" });
       return account;
     },
+    async ensureManualPayouts(accountId) {
+      calls.push({ method: "ensureManualPayouts", args: accountId });
+      if (refuseManual) throw Object.assign(new Error("refused"), { statusCode: 400 });
+      const account = accounts.get(accountId);
+      if (!account) throw Object.assign(new Error("No such account"), { statusCode: 404, code: "resource_missing" });
+      // As readinessFromAccount: an otherwise ready account becomes ready once its schedule is manual.
+      const ready = account.status === "verification_pending" && account.transfersCapability === "active" && account.payoutsEnabled && account.requirementsCurrentlyDue.length === 0;
+      accounts.set(accountId, { ...account, payoutInterval: "manual", status: ready ? "ready" : account.status });
+    },
   };
   return {
     gateway,
     accounts,
     calls,
+    /** Stripe refuses to change the payout schedule (until reset). */
+    refuseManualPayouts(refuse = true) {
+      refuseManual = refuse;
+    },
     failNextCreate(outcome: ProviderOutcome<{ accountId: string }>) {
       nextCreate = outcome;
     },
