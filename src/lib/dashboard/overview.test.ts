@@ -30,6 +30,7 @@ const state = vi.hoisted(() => ({ db: null as unknown }));
 vi.mock("@/lib/db", () => ({ db: new Proxy({}, { get: (_t, p) => Reflect.get(state.db as object, p) }) }));
 
 import { getDashboardOverview } from "@/lib/dashboard/overview";
+import { reviewHash } from "@/lib/articles/review";
 import { applyCheck, recordArticlePublication } from "@/lib/backlinks/placements";
 import { backlinkMetrics, resolveWindow } from "@/lib/reporting/backlinks";
 
@@ -167,6 +168,26 @@ describe("achievements", () => {
 });
 
 describe("today's article and search", () => {
+  it("keeps research holds visible before scheduling and invalidates the displayed approval after an edit", async () => {
+    const { orgId, site } = await workspace();
+    await test.db.update(websites).set({ autoPublish: true }).where(eq(websites.id, site.id));
+    const [article] = await test.db.insert(articles).values({
+      websiteId: site.id, title: "Research draft", status: "draft", bodyHtml: "<p>Original</p>",
+      researchReviewRequired: true,
+    }).returning();
+    const displayed = async () => {
+      const o = await overview(orgId, site.id);
+      return o?.todaysArticle.ok && o.todaysArticle.data;
+    };
+    expect(await displayed()).toMatchObject({ state: "awaiting_research_review" });
+    await test.db.update(articles).set({ researchApprovedHash: reviewHash(article) }).where(eq(articles.id, article.id));
+    expect(await displayed()).toMatchObject({ state: "scheduled" });
+    await test.db.update(articles).set({ reviewStatus: "pending" }).where(eq(articles.id, article.id));
+    expect(await displayed()).toMatchObject({ state: "awaiting_review" });
+    await test.db.update(articles).set({ bodyHtml: "<p>Edited</p>", reviewStatus: "approved" }).where(eq(articles.id, article.id));
+    expect(await displayed()).toMatchObject({ state: "awaiting_research_review" });
+  });
+
   it("shows an article held for review as with the RepGet team, never as publishable", async () => {
     const { orgId, site } = await workspace();
     await test.db.insert(articles).values({ websiteId: site.id, title: "Held", status: "draft", bodyHtml: "<p>x</p>", reviewStatus: "pending" });

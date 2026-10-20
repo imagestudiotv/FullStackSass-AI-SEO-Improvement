@@ -2,6 +2,7 @@ import "server-only";
 
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 
+import { reviewHashSql } from "@/lib/articles/review";
 import { readOneAuthority, type AuthorityReading } from "@/lib/authority/metric";
 import { db } from "@/lib/db";
 import { articles, audits, calendarItems, keywords, websites } from "@/lib/db/schema";
@@ -126,11 +127,12 @@ export type TodaysArticle = {
   intent: string | null;
   plannedFor: Date | null;
   /**
-   * published | awaiting_review (held for the RepGet team) | approved (approved,
+   * published | awaiting_research_review (customer checks sources) |
+   * awaiting_review (held for the RepGet team) | approved (approved,
    * waiting for its day or the customer) | scheduled (goes out on its day) |
    * draft (waits for the customer) | writing.
    */
-  state: "published" | "awaiting_review" | "approved" | "scheduled" | "draft" | "writing" | "failed";
+  state: "published" | "awaiting_research_review" | "awaiting_review" | "approved" | "scheduled" | "draft" | "writing" | "failed";
 };
 
 export type Win =
@@ -299,6 +301,7 @@ async function loadTodaysArticle(websiteId: string): Promise<TodaysArticle | nul
       targetKeyword: articles.targetKeyword,
       status: articles.status,
       reviewStatus: articles.reviewStatus,
+      researchHeld: sql<boolean>`${articles.researchReviewRequired} and ${articles.researchApprovedHash} is distinct from ${reviewHashSql}`,
       plannedFor: calendarItems.scheduledFor,
       autoPublish: websites.autoPublish,
     })
@@ -333,6 +336,7 @@ async function loadTodaysArticle(websiteId: string): Promise<TodaysArticle | nul
     article.status === "published" ? "published"
     : article.status === "generating" || article.status === "queued" ? "writing"
     : article.status === "failed" ? "failed"
+    : article.researchHeld ? "awaiting_research_review"
     : article.reviewStatus === "pending" ? "awaiting_review"
     : article.reviewStatus === "approved" ? "approved"
     : article.autoPublish ? "scheduled"

@@ -7,6 +7,7 @@ import { StatusBadge, type StatusTone } from "@/components/ui/status-badge";
 import type { DashboardOverview, TodaysArticle, Win } from "@/lib/dashboard/overview";
 import { format, formatDate, formatNumber, plural } from "@/lib/i18n/format";
 import type { Locale } from "@/lib/i18n/config";
+import { CONTENT_COPY } from "@/lib/i18n/content-improvements";
 import type { Messages } from "@/lib/i18n/messages";
 import { cn } from "@/lib/utils";
 
@@ -120,6 +121,7 @@ export function AuthorityCard({ overview, t, locale }: { overview: DashboardOver
 
 const ARTICLE_STATE: Record<TodaysArticle["state"], { status: string; tone: StatusTone; key: keyof Text }> = {
   published: { status: "published", tone: "positive", key: "stPublished" },
+  awaiting_research_review: { status: "pending", tone: "warning", key: "stAwaitingReview" },
   awaiting_review: { status: "pending", tone: "warning", key: "stAwaitingReview" },
   approved: { status: "completed", tone: "positive", key: "stApproved" },
   scheduled: { status: "scheduled", tone: "neutral", key: "stScheduled" },
@@ -152,7 +154,8 @@ export function TodaysArticleCard({ overview, t, locale }: { overview: Dashboard
   const state = ARTICLE_STATE[article.state];
   const planned = article.plannedFor ? formatDate(article.plannedFor, locale, { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }) : null;
   const stateHelp =
-    article.state === "awaiting_review" ? t.stAwaitingReviewHelp
+    article.state === "awaiting_research_review" ? CONTENT_COPY[locale].reviewHelp
+    : article.state === "awaiting_review" ? t.stAwaitingReviewHelp
     : article.state === "approved" ? (planned ? format(t.stApprovedHelp, { date: planned }) : t.stApprovedNoDate)
     : article.state === "scheduled" && planned ? format(t.stScheduledHelp, { date: planned })
     : article.state === "draft" ? t.stDraftHelp
@@ -168,7 +171,7 @@ export function TodaysArticleCard({ overview, t, locale }: { overview: Dashboard
             </Link>
           </h2>
           <div className="flex flex-wrap items-center gap-2">
-            <StatusBadge status={state.status} tone={state.tone} label={t[state.key] as string} />
+            <StatusBadge status={state.status} tone={state.tone} label={article.state === "awaiting_research_review" ? CONTENT_COPY[locale].held : t[state.key] as string} />
             {article.publishedUrl ? (
               <a href={article.publishedUrl} target="_blank" rel="noopener noreferrer" className="inline-flex max-w-full items-center gap-1 truncate text-xs text-muted-foreground hover:underline">
                 <span className="truncate">{article.publishedUrl}</span>
