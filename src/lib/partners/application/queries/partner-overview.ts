@@ -1,3 +1,4 @@
+import { referralLinkPath } from "../../domain/entities/partner";
 import { tierProgress } from "../../domain/policies/tiers";
 import type { PartnerContext } from "../contracts/commands";
 import { payoutSetupStatus } from "../use-cases/manage-payout-account";
@@ -22,7 +23,7 @@ export async function partnerOverview(deps: PartnerDeps, context: PartnerContext
     partner,
     policy: version.policy,
     progress,
-    referralUrl: `${deps.settings.appUrl()}/go/${partner.referralCode}`,
+    referralUrl: `${deps.settings.appUrl()}${referralLinkPath(partner.referralCode)}`,
     setup,
     coupons: coupons.filter((coupon) => coupon.status === "active"),
   };

@@ -7,6 +7,7 @@ import {
   member,
   partnerClicks,
   partnerCommissions,
+  partnerProfiles,
   partnerReviewCases,
   partnerSignupEligibility,
   partnerStripeAccounts,
@@ -91,7 +92,9 @@ describe("joining the program", () => {
     doc = await applicant.page.goto(`${base}/partner`);
     expect(doc).toEqual({ status: 200, path: "/partner" });
     await applicant.page.waitForText(t.overview.linkTitle);
-    expect(await applicant.page.evaluate(() => [...document.querySelectorAll("input")].some((input) => input.value.includes("/go/")))).toBe(true);
+    // The readable link the approval dialog suggested from the name "Ada Applicant".
+    const shownLink = () => applicant.page.evaluate(() => [...document.querySelectorAll("input")].map((input) => input.value).find((value) => value.includes("?ref=")) ?? "");
+    expect(await shownLink()).toMatch(/^https?:\/\/[^/]+\/\?ref=ada[a-z0-9-]*$/);
     expect(await usersWithEmail(email)).toBe(1);
     expect((await userByEmail(email))!.id).toBe(userId);
     // No subscription anywhere near this account.
@@ -99,6 +102,28 @@ describe("joining the program", () => {
     for (const { organizationId } of memberships) {
       expect(await database.select().from(subscriptions).where(eq(subscriptions.organizationId, organizationId))).toEqual([]);
     }
+
+    // The administrator renames the link in the partner's page; the old link keeps counting for them.
+    const [profile] = await database.select().from(partnerProfiles).where(eq(partnerProfiles.userId, userId));
+    const oldCode = profile.referralCode;
+    const newCode = unique("ada");
+    await admin.page.goto(`${base}/admin/partners/partners/${profile.id}`);
+    await admin.page.clickByText("Change link name…");
+    await admin.page.waitFor(() => Boolean(document.querySelector('[role="dialog"] #partner-field')), { message: "rename dialog" });
+    expect(await admin.page.evaluate(() => (document.querySelector("#partner-field") as HTMLInputElement).value)).toBe(oldCode);
+    await admin.page.fill("#partner-field", newCode.toUpperCase());
+    await admin.page.fill('[role="dialog"] textarea', "Partner asked for another name");
+    await admin.page.clickByText("Change link name", { inDialog: true, selector: 'button[type="submit"]' });
+    await admin.page.waitForText(`The link is now ?ref=${newCode}. The old one keeps working.`);
+    await applicant.page.goto(`${base}/partner`);
+    expect(await shownLink()).toMatch(new RegExp(`/\\?ref=${newCode}$`));
+    for (const code of [oldCode, newCode]) {
+      const visitor = await person(browser);
+      expect(await visitor.page.goto(`${base}/?ref=${code}`)).toEqual({ status: 200, path: "/" });
+      expect((await visitor.context.cookies()).some((cookie) => cookie.name === "repget_partner")).toBe(true);
+      await visitor.context.close();
+    }
+    expect(await database.select().from(partnerClicks).where(eq(partnerClicks.partnerId, profile.id))).toHaveLength(2);
     await applicant.context.close();
   });
 
@@ -139,7 +164,8 @@ describe("who does not qualify", () => {
     const existingEmail = `${unique("existing")}@e2e.test`;
     const existing = await person(browser);
     await signUpInBrowser(existing.page, existingEmail, "Existing User");
-    await existing.page.goto(`${base}/go/${partner.code}`);
+    // ?ref= on another page, in capitals, with a campaign tag: lands there, tag kept, ?ref= gone.
+    expect(await existing.page.goto(`${base}/pricing?ref=${partner.code.toUpperCase()}&utm_source=e2e`)).toEqual({ status: 200, path: "/pricing?utm_source=e2e" });
     expect((await existing.context.cookies()).some((cookie) => cookie.name === "repget_partner")).toBe(true);
     const existingUser = (await userByEmail(existingEmail))!;
     const existingOrg = await foundingWorkspace(existingUser.id);

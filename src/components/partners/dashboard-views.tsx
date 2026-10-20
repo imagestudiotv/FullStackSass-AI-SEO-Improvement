@@ -2,7 +2,7 @@ import { Download } from "lucide-react";
 import Link from "next/link";
 
 import type { PartnerCopy } from "@/lib/partners/presentation/copy";
-import type { balanceView, commissionRowView, couponView, metricsView, payoutRowView, referralRowView } from "@/lib/partners/presentation/views";
+import type { balanceView, commissionRowView, couponView, FigureView, metricsView, payoutRowView, referralRowView } from "@/lib/partners/presentation/views";
 import { cn } from "@/lib/utils";
 
 import { CopyButton } from "./copy-button";
@@ -15,23 +15,44 @@ import { Figure, PortalEmpty, PortalSection, ResponsiveList, StatusPill } from "
 
 type Portal = PartnerCopy["portal"];
 
-export function EarningsPanel({ balances, copy, nextPayout }: { balances: ReturnType<typeof balanceView>[]; copy: Portal; nextPayout: string }) {
+/**
+ * The figures at the top of the overview, as the client's dashboard has
+ * them: Total earned, Pending and Paid (per currency, never converted), then
+ * Referrals and Paying customers. With no earnings yet the counts still show.
+ */
+export function EarningsPanel({
+  balances,
+  totals = [],
+  copy,
+  nextPayout,
+}: {
+  balances: ReturnType<typeof balanceView>[];
+  totals?: FigureView[];
+  copy: Portal;
+  nextPayout: string;
+}) {
   const o = copy.overview;
+  const counts = totals.map((figure) => <Figure key={figure.key} label={figure.label} value={figure.value} definition={figure.definition} />);
   return (
     <PortalSection id="earnings-title" title={o.balancesTitle} description={`${o.currencyNote} ${nextPayout}`}>
       {balances.length === 0 ? (
-        <PortalEmpty>{o.noEarnings}</PortalEmpty>
+        <div className="space-y-3">
+          {counts.length > 0 ? <dl className="grid gap-3 sm:grid-cols-2">{counts}</dl> : null}
+          <PortalEmpty>{o.noEarnings}</PortalEmpty>
+        </div>
       ) : (
         <div className="space-y-6">
-          {balances.map((balance) => (
+          {balances.map((balance, index) => (
             <div key={balance.currency} aria-labelledby={`balance-${balance.currency}`} role="group">
               <h3 id={`balance-${balance.currency}`} className="text-sm font-semibold">
                 {balance.currency}
               </h3>
               <dl className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
                 {balance.figures.map((figure) => (
-                  <Figure key={figure.key} label={figure.label} value={figure.value} definition={figure.definition} />
+                  <Figure key={figure.key} label={figure.label} value={figure.value} definition={figure.definition} details={figure.details} />
                 ))}
+                {/* The counts are not per currency: shown once, beside the first. */}
+                {index === 0 ? counts : null}
               </dl>
               {balance.notes.length > 0 ? (
                 <ul className="mt-3 space-y-1 text-sm text-muted-foreground">
@@ -129,6 +150,7 @@ export function CommissionList({ rows, copy }: { rows: ReturnType<typeof commiss
       columns={[
         { key: "date", label: c.date },
         { key: "customer", label: c.customer },
+        { key: "plan", label: c.plan },
         { key: "base", label: c.base, align: "end" },
         { key: "rate", label: c.rate, align: "end" },
         { key: "amount", label: c.amount, align: "end" },
@@ -139,6 +161,7 @@ export function CommissionList({ rows, copy }: { rows: ReturnType<typeof commiss
         cells: {
           date: row.date,
           customer: <span className="break-all">{row.customer}</span>,
+          plan: row.plan,
           base: row.base,
           rate: row.rate,
           amount: (

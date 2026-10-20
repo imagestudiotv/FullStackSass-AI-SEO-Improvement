@@ -71,8 +71,10 @@ describe("Net 30 and the payout threshold", () => {
     await portal.page.goto(`${base}/partner`);
     await portal.page.waitForText(fill(t.overview.threshold, { amount: "€25.00" }));
     const text = await portal.page.text();
-    expect(text).toMatch(/Pending\s+€24\.75/);
-    expect(text).toMatch(/Available\s+€24\.75/);
+    // Pending is everything not yet sent (EUR 49.50): EUR 24.75 approved for the next payout, EUR 24.75 still waiting the 30 days.
+    expect(text).toMatch(/Pending\s+€49\.50/);
+    expect(text).toContain(fill(t.overview.breakdown.approved, { amount: "€24.75" }));
+    expect(text).toContain(fill(t.overview.breakdown.waiting, { maturity: 30, amount: "€24.75" }));
     await admin.page.goto(`${base}/admin/partners/partners/${waiting.partnerId}`);
     await admin.page.waitForText("Available");
     expect(await admin.page.text()).toMatch(/Available\s+€24\.75/);
@@ -88,7 +90,7 @@ describe("Net 30 and the payout threshold", () => {
     expect(await settle(w, later.partnerId)).toMatchObject({ transferAmount: BigInt(4950), offset: BigInt(0) });
     const laterPortal = await portalFor(later.email);
     await laterPortal.page.goto(`${base}/partner`);
-    await laterPortal.page.waitForText(fill(t.overview.inPayout, { amount: "€49.50" }));
+    await laterPortal.page.waitForText(fill(t.overview.breakdown.sending, { amount: "€49.50" }));
     for (const p of [portal, laterPortal]) await p.context.close();
   });
 });
@@ -112,8 +114,9 @@ describe("transfer, then bank payout", () => {
     expect(text).not.toContain(t.payouts.bankStates.paid);
     await portal.page.goto(`${base}/partner`);
     text = await portal.page.text();
-    expect(text).toMatch(/Transferred\s+€49\.50/);
-    expect(text).toMatch(/Paid to your bank\s+€0\.00/);
+    // Paid = sent through Stripe; none of it in the bank yet.
+    expect(text).toMatch(/Paid\s+€49\.50/);
+    expect(text).toContain(fill(t.overview.breakdown.inBank, { amount: "€0.00" }));
 
     await admin.page.goto(`${base}/admin/partners/payouts/${settlementId}`);
     await admin.page.waitForText(`partner-transfer:${settlementId}:1`);
@@ -123,7 +126,7 @@ describe("transfer, then bank payout", () => {
     await portal.page.goto(`${base}/partner/payouts`);
     await portal.page.waitForText(t.payouts.bankStates.paid);
     await portal.page.goto(`${base}/partner`);
-    expect(await portal.page.text()).toMatch(/Paid to your bank\s+€49\.50/);
+    expect(await portal.page.text()).toContain(fill(t.overview.breakdown.inBank, { amount: "€49.50" }));
     await portal.context.close();
   });
 
@@ -171,7 +174,7 @@ describe("a refund between the transfer and the bank payout", () => {
     const portal = await portalFor(partner.email);
     await portal.page.goto(`${base}/partner`);
     await portal.page.waitForText(fill(t.overview.offset, { amount: "€24.75" }));
-    expect(await portal.page.text()).toMatch(/Paid to your bank\s+€49\.50/);
+    expect(await portal.page.text()).toContain(fill(t.overview.breakdown.inBank, { amount: "€49.50" }));
     await portal.context.close();
   });
 });

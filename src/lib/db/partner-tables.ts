@@ -105,7 +105,11 @@ export const partnerProfiles = pgTable(
     id: pk(),
     /** One profile per user, ever: approval retries cannot make a second. */
     userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
-    /** Random, unique, lower case (lib/partners/domain/entities/partner.ts). */
+    /**
+     * The current link name (?ref=<code>), lower case
+     * (lib/partners/domain/entities/partner.ts). Every name a partner has
+     * had, this one included, is in partner_referral_codes.
+     */
     referralCode: text("referral_code").notNull(),
     /** active | suspended */
     status: text("status").default("active").notNull(),
@@ -134,6 +138,29 @@ export const partnerProfiles = pgTable(
     uniqueIndex("partner_profiles_code_uidx").on(table.referralCode),
     check("partner_profiles_status_check", sql`${table.status} in ('active', 'suspended')`),
   ],
+);
+
+/**
+ * Every link name a partner has had: the current one (also in
+ * partner_profiles.referral_code) and, after a rename, the earlier ones
+ * (retired_at set), which keep attributing clicks to the same partner. The
+ * primary key means a name is never given to two partners, even after a
+ * rename. Claims are serialised by an advisory lock (repositories/partners.ts).
+ */
+export const partnerReferralCodes = pgTable(
+  "partner_referral_codes",
+  {
+    code: text("code").primaryKey(),
+    partnerId: uuid("partner_id")
+      .notNull()
+      .references(() => partnerProfiles.id, { onDelete: "restrict" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    /** The administrator who chose it (null for names that existed before this table). */
+    createdByEmail: text("created_by_email"),
+    /** Set when the partner was given another name; the link still works. */
+    retiredAt: timestamp("retired_at"),
+  },
+  (table) => [index("partner_referral_codes_partner_idx").on(table.partnerId)],
 );
 
 /** Effective-dated tier periods. One open period per partner. */

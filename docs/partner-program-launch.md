@@ -8,7 +8,12 @@ For the people who will switch the cash partner program on and support it. Desig
 
 The order matters: the Stripe webhook already hands partner work to the new tables, so code deployed before the migrations would fail billing webhooks.
 
-1. **Migrate production**: `drizzle/0063_partner_program.sql`, `drizzle/0064_partner_program_guards.sql`, then `drizzle/0065_partner_program_review_fixes.sql` (20 tables, the append-only ledger trigger, the version-1 program policy; then a partial run index, `resumed_at`, and the signup fingerprint hashes). Production was at 0062. Owner action.
+1. **Migrate production**: `drizzle/0063_partner_program.sql`, `drizzle/0064_partner_program_guards.sql`, `drizzle/0065_partner_program_review_fixes.sql`, then `drizzle/0066_partner_link_names.sql`.
+   - 0063 and 0064: 20 tables, the append-only ledger trigger and the version-1 program policy.
+   - 0065: a partial run index, `resumed_at` and the signup fingerprint hashes.
+   - 0066: `partner_referral_codes`, every link name a partner has had.
+
+   Production was at 0062. Owner action.
 2. **Deploy the code.** All three program switches are off (a missing row means off), so nothing changes for customers: the public `/partners` page shows "applications are closed", partner links record nothing, Stripe events are recorded and wait.
 3. **Sync Inngest** so it registers the new functions (section 6). Owner action.
 4. **Set the environment variables** (section 2).
@@ -31,7 +36,7 @@ Names only. Values belong in the host's settings, never in the repository ([cred
 | `PARTNER_LIVE_PAYOUTS` | new | `enabled` allows live transfers and bank payouts. Anything else keeps live money still, whatever the switch says |
 | `PARTNER_PAYOUT_COUNTRIES` | new, optional | ISO countries partners may be paid in. Default: US, CA, GB, CH and the EEA. **See section 3 on currencies before keeping non-EUR countries** |
 | `PARTNER_TRACKING_SECRET` | new, optional | Key for pseudonymous visitor hashes; falls back to `BETTER_AUTH_SECRET` |
-| `NEXT_PUBLIC_APP_URL` | existing | The partner links (`/go/<code>`) and Stripe return URLs are built from it |
+| `NEXT_PUBLIC_APP_URL` | existing | The partner links (`/?ref=<name>`) and Stripe return URLs are built from it |
 | `ADMIN_EMAILS` | existing | Who can open `/admin/partners` |
 | `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY` | existing | The partner jobs (section 6) |
 | `RESEND_API_KEY` | existing | Welcome and payout emails to partners |
@@ -65,7 +70,7 @@ Needs a deployment that is NOT production (a preview), its own test-mode secret 
 2. Start payout setup; complete the hosted onboarding with Stripe's test data; check the portal shows "Payouts are ready" (and that a restricted test account shows "Stripe needs more information").
 3. Open the partner link in a private window, sign up, subscribe with a test card; check one commission of the right amount appears (EUR 99.00 -> EUR 24.75).
 4. Refund it partially in the Dashboard; check the reversal.
-5. With a test clock or backdated test data, let commissions mature; fund the test platform balance (`4000000000000077` card charges go straight to the available balance); run the payout for the partner (`/admin/partners/payouts`, "Prepare now"); check the transfer, then the bank payout, and that "Paid to your bank" changes only when Stripe reports the payout paid.
+5. With a test clock or backdated test data, let commissions mature; fund the test platform balance (`4000000000000077` card charges go straight to the available balance); run the payout for the partner (`/admin/partners/payouts`, "Prepare now"); check the transfer, then the bank payout, and that the "Already in your bank" amount under "Paid" changes only when Stripe reports the payout paid.
 6. Create a coupon from the partner's page; redeem it with a new test customer.
 7. Check the Connect events arrive (`webhook_events`, provider `stripe_connect`) and the reconciliation reports nothing unexpected.
 
@@ -124,7 +129,7 @@ Record the outcome in `partner-program-progress.md`.
 
 ## 10. Remaining external prerequisites (exact)
 
-1. Production migration of 0063, 0064 and 0065, before the deploy (owner).
+1. Production migration of 0063, 0064, 0065 and 0066, before the deploy (owner).
 2. Stripe: Connect enabled with the platform profile; Express branding; the countries and currencies RepGet's platform can pay confirmed and `PARTNER_PAYOUT_COUNTRIES` set accordingly (see the currency limitation in section 3).
 3. Stripe webhooks: the 18 platform events added to the existing endpoint; the Connect endpoint with its 12 events and `STRIPE_CONNECT_WEBHOOK_SECRET`, in test and in live mode.
 4. Inngest resync after the deploy, so the eight partner functions are registered.

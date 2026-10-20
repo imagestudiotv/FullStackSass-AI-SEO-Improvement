@@ -41,12 +41,12 @@ Guards: the runner and the test config refuse a database that is not on localhos
 
 | # | Flow | File |
 |---|---|---|
-| 1 | Existing user applies and is approved, same login | `onboarding.e2e.ts` |
+| 1 | Existing user applies and is approved, same login; the link name suggested from their name; an administrator renames it and both the old and new `?ref=` links count | `onboarding.e2e.ts` |
 | 2 | Portal without a workspace or subscription | `onboarding.e2e.ts` |
 | 3 | Payout setup: incomplete, ready, restricted | `onboarding.e2e.ts` |
-| 4 | Click, signup (real form) and payment give the right commission | `commissions.e2e.ts` |
+| 4 | Click on `repget.com/?ref=<name>` (through the real `next.config.ts` redirect), signup (real form) and payment give the right commission | `commissions.e2e.ts` |
 | 5 | A renewal adds exactly one commission | `commissions.e2e.ts` |
-| 6 | Existing users and invited team members do not qualify | `onboarding.e2e.ts` |
+| 6 | Existing users and invited team members do not qualify (`/pricing?ref=` in capitals with a `utm_` tag lands on /pricing, tag kept; `/go/<name>` still works) | `onboarding.e2e.ts` |
 | 7 | Matching and conflicting coupons | `commissions.e2e.ts` |
 | 8 | Tax, discounts and credit | `commissions.e2e.ts` |
 | 9 | Tier transition to Growth (30%) | `commissions.e2e.ts` |
@@ -60,7 +60,7 @@ Guards: the runner and the test config refuse a database that is not on localhos
 | 17 | Partner isolation and admin authorization | `onboarding.e2e.ts` |
 | 18 | Fraud review (shared network), payout hold, suspension | `onboarding.e2e.ts` |
 | 19 | Legacy credit referrals unchanged; a customer of both is reviewed | `onboarding.e2e.ts` |
-| 20 | Phone / desktop, light / dark: status, overflow, console, placeholders, contrast, keyboard focus, dialogs | `ui.e2e.ts` |
+| 20 | Phone / desktop, light / dark: status, overflow, console, placeholders, contrast, keyboard focus, dialogs; the public `/partners` page in three languages, its earnings estimate (10, 25 and 3 customers) and its FAQ structured data | `ui.e2e.ts` |
 
 ## Why not Playwright
 

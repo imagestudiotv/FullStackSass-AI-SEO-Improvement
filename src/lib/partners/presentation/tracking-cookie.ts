@@ -14,6 +14,8 @@
  * whose choices govern Google's tags only (docs/partner-program.md).
  */
 
+import { PREFIXED_LOCALES } from "@/lib/i18n/config";
+
 export const PARTNER_COOKIE = "repget_partner";
 
 /** The attribution window, in seconds (90 days, program policy v1). */
@@ -39,12 +41,45 @@ export function partnerCookieOptions(expiresAt: Date, now: Date) {
 
 /**
  * Where /go/<code> may send a visitor: a path on this site from an
- * allowlist of public pages, never anywhere else.
+ * allowlist of public pages, in any language (/es/pricing), never anywhere
+ * else. Anything else lands on the home page of that language.
  */
-const LANDING_PATHS = ["/", "/pricing", "/features", "/partners", "/blog", "/tools", "/audit", "/sign-up"];
+const LANDING_PATHS = [
+  "/",
+  "/pricing",
+  "/features",
+  "/partners",
+  "/blog",
+  "/tools",
+  "/audit",
+  "/sign-up",
+  "/about",
+  "/backlinks",
+  "/backlink-exchange",
+  "/rank-on-chatgpt",
+  "/success-stories",
+  "/publishers",
+  "/faq",
+  "/docs",
+  "/contact",
+];
+const LOCALE_PREFIX = new RegExp(`^/(?:${PREFIXED_LOCALES.join("|")})(?=/|$)`);
 
 export function landingPath(raw: string | null): string {
   if (!raw || !raw.startsWith("/") || raw.startsWith("//") || raw.includes("\\")) return "/";
   const path = raw.split(/[?#]/)[0];
-  return LANDING_PATHS.some((allowed) => path === allowed || (allowed !== "/" && path.startsWith(`${allowed}/`))) ? path : "/";
+  const prefix = LOCALE_PREFIX.exec(path)?.[0] ?? "";
+  const rest = path.slice(prefix.length) || "/";
+  const allowed = LANDING_PATHS.some((page) => rest === page || (page !== "/" && rest.startsWith(`${page}/`)));
+  return allowed ? path : prefix || "/";
+}
+
+/** Campaign tags a partner put on their link, carried to the page (for analytics); nothing else is. */
+const CAMPAIGN_PARAMS = ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "utm_id"];
+
+export function campaignParams(query: URLSearchParams): [string, string][] {
+  return CAMPAIGN_PARAMS.flatMap((key) => {
+    const value = query.get(key);
+    return value ? [[key, value.slice(0, 200)] as [string, string]] : [];
+  });
 }

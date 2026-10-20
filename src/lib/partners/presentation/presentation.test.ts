@@ -6,7 +6,7 @@ import { customerReference, maskDomain, sessionAddressForm } from "../infrastruc
 import { partnerCopy } from "./copy";
 import { csvCell, toCsv } from "./csv";
 import { percentToBasisPoints, reportPeriod, utcDateFrom } from "./validation";
-import { balanceView, commissionRowView, couponView, metricsView, pagerView, payoutRowView } from "./views";
+import { balanceView, commissionRowView, couponView, metricsView, pagerView, payoutRowView, planLabel, totalsView } from "./views";
 
 /**
  * Presentation helpers: exports that cannot run formulas, typed input read
@@ -93,6 +93,7 @@ describe("portal view models", () => {
   const figures = {
     currency: "eur",
     earned: BigInt(7425),
+    unpaid: BigInt(7425),
     pending: BigInt(2475),
     available: BigInt(2475),
     inPayout: BigInt(2475),
@@ -108,11 +109,26 @@ describe("portal view models", () => {
   it.each(LOCALES)("%s: every figure, note, metric and row is filled in", (locale) => {
     const copy = partnerCopy(locale).portal;
     const view = balanceView(figures, copy, locale, 30);
-    expect(view.figures.map((f) => f.key)).toEqual(["earned", "pending", "available", "transferred", "bankPaid"]);
-    expect(view.notes).toHaveLength(3);
-    for (const piece of [...view.figures.flatMap((f) => [f.label, f.value, f.definition]), ...view.notes]) expect(piece).not.toMatch(unfilled);
+    // The client's three: Total earned, Pending (everything not yet sent), Paid (sent through Stripe).
+    expect(view.figures.map((f) => f.key)).toEqual(["earned", "pending", "paid"]);
+    expect(view.notes).toHaveLength(2);
+    for (const piece of [...view.figures.flatMap((f) => [f.label, f.value, f.definition, ...(f.details ?? [])]), ...view.notes]) expect(piece).not.toMatch(unfilled);
     expect(view.figures[0].value).toMatch(/74[.,]25/);
+    expect(view.figures[1].value).toMatch(/74[.,]25/);
+    // Approved, waiting and being sent: EUR 24.75 each.
+    expect(view.figures[1].details).toHaveLength(3);
+    for (const detail of view.figures[1].details!) expect(detail).toMatch(/24[.,]75/);
+    expect(view.figures[2].details).toEqual([expect.stringMatching(/0[.,]00/)]);
     expect(view.notes.join(" ")).toMatch(/25[.,]00/);
+
+    const totals = totalsView({ referrals: 24, payingCustomers: 8 }, copy, locale);
+    expect(totals.map((f) => [f.key, f.value])).toEqual([
+      ["referrals", "24"],
+      ["payingCustomers", "8"],
+    ]);
+    expect(planLabel({ name: "Grow", interval: "month", priceCents: 9900, currency: "eur" }, copy, locale)).toMatch(/^Grow · .*99.*\/\S+$/);
+    expect(planLabel({ name: "Grow", interval: "year", priceCents: 99000, currency: "eur" }, copy, locale)).toContain(copy.commissions.perYear.replace("{price}", "").trim());
+    expect(planLabel(null, copy, locale)).toBe("-");
 
     const metrics = metricsView({ clicks: 8, signups: 3, customers: 2, payingCustomers: 1, days: 30, since: new Date("2026-09-19T00:00:00Z"), until: new Date("2026-10-19T00:00:00Z") }, copy, locale);
     expect(metrics.period).not.toMatch(unfilled);
@@ -138,6 +154,7 @@ describe("portal view models", () => {
   it("states an unsupported currency instead of a threshold it does not have", () => {
     const copy = partnerCopy("en").portal;
     const view = balanceView({ ...figures, currency: "usd", threshold: null, belowThreshold: false, offset: ZERO, inPayout: ZERO }, copy, "en", 30);
+    expect(view.figures[1].details).toHaveLength(2);
     expect(view.notes).toEqual([expect.stringContaining("USD")]);
   });
 });

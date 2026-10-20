@@ -9,14 +9,16 @@ import {
   member,
   organization,
   payments,
+  plans,
   session,
+  subscriptions,
   user,
   websiteInvitations,
   websites,
 } from "@/lib/db/schema";
 import type { Executor } from "@/lib/db/types";
 
-import type { UserDirectory } from "../application/ports/directory";
+import type { PlanSummary, UserDirectory } from "../application/ports/directory";
 
 /** The rest of the app's identity tables, read-only, for the partner program. */
 export function userDirectory(db: Executor): UserDirectory {
@@ -162,6 +164,32 @@ export function userDirectory(db: Executor): UserDirectory {
         summaries[id] = { name: byId.get(id) ?? "(workspace removed)", domain: domains.get(id) ?? null, reference: customerReference(id) };
       }
       return summaries;
+    },
+    async plansFor(input) {
+      const summary = (row: { name: string; interval: string; priceCents: number; currency: string }): PlanSummary => ({
+        name: row.name,
+        interval: row.interval === "year" ? "year" : "month",
+        priceCents: row.priceCents,
+        currency: row.currency,
+      });
+      const columns = { name: plans.name, interval: plans.interval, priceCents: plans.priceCents, currency: plans.currency };
+      const [byPriceRows, bySubscriptionRows] = await Promise.all([
+        input.priceIds.length
+          ? db.select({ ...columns, priceId: plans.stripePriceId }).from(plans).where(inArray(plans.stripePriceId, input.priceIds))
+          : Promise.resolve([]),
+        input.subscriptionIds.length
+          ? db
+              .select({ ...columns, subscriptionId: subscriptions.stripeSubscriptionId })
+              .from(subscriptions)
+              .innerJoin(plans, eq(plans.id, subscriptions.planId))
+              .where(inArray(subscriptions.stripeSubscriptionId, input.subscriptionIds))
+          : Promise.resolve([]),
+      ]);
+      const byPrice: Record<string, PlanSummary> = {};
+      for (const row of byPriceRows) if (row.priceId) byPrice[row.priceId] = summary(row);
+      const bySubscription: Record<string, PlanSummary> = {};
+      for (const row of bySubscriptionRows) if (row.subscriptionId) bySubscription[row.subscriptionId] = summary(row);
+      return { byPrice, bySubscription };
     },
   };
 }

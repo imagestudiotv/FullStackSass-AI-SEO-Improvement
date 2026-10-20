@@ -6,6 +6,7 @@ import {
   partnerAttributions,
   partnerPaymentFacts,
   partnerProfiles,
+  partnerReferralCodes,
   partnerTierHistory,
   subscriptions,
 } from "@/lib/db/schema";
@@ -148,8 +149,65 @@ export function partnerRepository(db: Executor): PartnerRepository {
       return row ? toPartner(row) : null;
     },
     async findByReferralCode(code) {
-      const [row] = await db.select().from(partnerProfiles).where(eq(partnerProfiles.referralCode, code)).limit(1);
-      return row ? toPartner(row) : null;
+      const [row] = await db
+        .select({ profile: partnerProfiles })
+        .from(partnerReferralCodes)
+        .innerJoin(partnerProfiles, eq(partnerProfiles.id, partnerReferralCodes.partnerId))
+        .where(eq(partnerReferralCodes.code, code))
+        .limit(1);
+      return row ? toPartner(row.profile) : null;
+    },
+    async lockReferralCodes() {
+      await db.execute(sql`select pg_advisory_xact_lock(hashtext('partner_referral_codes'))`);
+    },
+    async referralCodeOwner(code) {
+      const [row] = await db
+        .select({ partnerId: partnerReferralCodes.partnerId, retiredAt: partnerReferralCodes.retiredAt })
+        .from(partnerReferralCodes)
+        .where(eq(partnerReferralCodes.code, code))
+        .limit(1);
+      if (row) return row;
+      // A profile whose name predates the table (the migration copies them all; this is a guard).
+      const [profile] = await db
+        .select({ partnerId: partnerProfiles.id })
+        .from(partnerProfiles)
+        .where(eq(partnerProfiles.referralCode, code))
+        .limit(1);
+      return profile ? { partnerId: profile.partnerId, retiredAt: null } : null;
+    },
+    async referralCodes(partnerId) {
+      const rows = await db
+        .select()
+        .from(partnerReferralCodes)
+        .where(eq(partnerReferralCodes.partnerId, partnerId))
+        .orderBy(sql`${partnerReferralCodes.retiredAt} is not null`, desc(partnerReferralCodes.retiredAt));
+      return rows.map((row) => ({
+        code: row.code,
+        createdAt: row.createdAt,
+        createdByEmail: row.createdByEmail,
+        retiredAt: row.retiredAt,
+      }));
+    },
+    async renameReferralCode(partnerId, change) {
+      await db
+        .update(partnerReferralCodes)
+        .set({ retiredAt: change.at })
+        .where(and(eq(partnerReferralCodes.code, change.from), eq(partnerReferralCodes.partnerId, partnerId)));
+      // A new name, or one of this partner's own earlier names taken back. Never another partner's.
+      const claimed = await db
+        .insert(partnerReferralCodes)
+        .values({ code: change.to, partnerId, createdAt: change.at, createdByEmail: change.byEmail })
+        .onConflictDoUpdate({
+          target: partnerReferralCodes.code,
+          set: { retiredAt: null },
+          setWhere: eq(partnerReferralCodes.partnerId, partnerId),
+        })
+        .returning({ code: partnerReferralCodes.code });
+      if (claimed.length === 0) throw new Error("Link name belongs to another partner");
+      await db
+        .update(partnerProfiles)
+        .set({ referralCode: change.to, updatedAt: change.at })
+        .where(eq(partnerProfiles.id, partnerId));
     },
     async lock(id) {
       /*
@@ -169,8 +227,22 @@ export function partnerRepository(db: Executor): PartnerRepository {
         ON CONFLICT DO NOTHING on ANY unique key - never a caught unique
         violation, which would abort the caller's whole transaction. No row
         back means either this user already has a profile (return it) or the
-        random referral code collided (null: the caller draws another).
+        referral code collided (null: the caller picks another). A name
+        another partner HAD (retired) is only in partner_referral_codes, so
+        it is checked first; the caller holds lockReferralCodes().
       */
+      const [existingProfile] = await db
+        .select()
+        .from(partnerProfiles)
+        .where(eq(partnerProfiles.userId, input.userId))
+        .limit(1);
+      if (existingProfile) return { partner: toPartner(existingProfile), created: false };
+      const [codeTaken] = await db
+        .select({ code: partnerReferralCodes.code })
+        .from(partnerReferralCodes)
+        .where(eq(partnerReferralCodes.code, input.referralCode))
+        .limit(1);
+      if (codeTaken) return null;
       const [row] = await db
         .insert(partnerProfiles)
         .values({
@@ -189,7 +261,16 @@ export function partnerRepository(db: Executor): PartnerRepository {
         })
         .onConflictDoNothing()
         .returning();
-      if (row) return { partner: toPartner(row), created: true };
+      if (row) {
+        const claimed = await db
+          .insert(partnerReferralCodes)
+          .values({ code: row.referralCode, partnerId: row.id, createdAt: input.approvedAt, createdByEmail: input.approvedByEmail })
+          .onConflictDoNothing()
+          .returning({ code: partnerReferralCodes.code });
+        // Checked above under the caller's lock; reaching this means the lock was not held.
+        if (claimed.length === 0) throw new Error("Link name was claimed concurrently");
+        return { partner: toPartner(row), created: true };
+      }
       const [existing] = await db
         .select()
         .from(partnerProfiles)

@@ -3,6 +3,7 @@ import type { NextConfig } from "next";
 
 import { isPreviewDeployment, PREVIEW_ROBOTS_HEADER } from "./src/lib/deployment";
 import { cspIntegrations, cspMode, securityHeaders } from "./src/lib/security-headers";
+import { partnerLinkRedirects } from "./src/lib/partners/presentation/link-redirect";
 import { legacyHostRedirects } from "./src/lib/site-url";
 
 /*
@@ -61,7 +62,8 @@ const nextConfig: NextConfig = {
    * its reasons live beside the address in src/lib/site-url.ts.
    */
   async redirects() {
-    return legacyHostRedirects();
+    // Partner links (?ref=<name> on any public page): src/lib/partners/presentation/link-redirect.ts.
+    return [...legacyHostRedirects(), ...partnerLinkRedirects()];
   },
 
   /**

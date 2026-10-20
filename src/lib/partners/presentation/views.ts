@@ -1,6 +1,7 @@
 import type { Locale } from "@/lib/i18n/config";
 import { formatDate, intlTag } from "@/lib/i18n/format";
 
+import type { PlanSummary } from "../application/ports/directory";
 import type { CouponRecord } from "../application/ports/repositories";
 import type { CommissionDisplayStatus } from "../domain/entities/commission";
 import type { BankDisplayState, TransferDisplayState } from "../domain/entities/settlement";
@@ -20,11 +21,19 @@ type Portal = PartnerCopy["portal"];
 const day = (value: Date | null | undefined, locale: Locale) =>
   value ? formatDate(value, locale, { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }) : "-";
 
-export type FigureView = { key: "earned" | "pending" | "available" | "transferred" | "bankPaid"; label: string; value: string; definition: string };
+export type FigureView = {
+  key: "earned" | "pending" | "paid" | "referrals" | "payingCustomers";
+  label: string;
+  value: string;
+  definition: string;
+  /** What the figure is made of, in words ("Approved, paid at the next payout: EUR 24.75"). */
+  details?: string[];
+};
 
 export type DashboardFigures = {
   currency: string;
   earned: bigint;
+  unpaid: bigint;
   pending: bigint;
   available: bigint;
   inPayout: bigint;
@@ -38,22 +47,59 @@ export type DashboardFigures = {
 
 const ZERO = BigInt(0);
 
+/**
+ * The client's three money figures - Total earned, Pending, Paid - with what
+ * Pending and Paid are made of underneath. Pending is everything earned and
+ * not yet sent (waiting the maturity days, approved for the next payout, or
+ * being sent now); Paid is what was sent through Stripe, of which the part
+ * already in the bank is shown too.
+ */
 export function balanceView(balance: DashboardFigures, copy: Portal, locale: Locale, maturityDays: number) {
   const money = (amount: bigint) => moneyView(amount, balance.currency, locale).display;
   const o = copy.overview;
+  const b = o.breakdown;
+  const pendingDetails = [
+    fill(b.approved, { amount: money(balance.available) }),
+    fill(b.waiting, { maturity: maturityDays, amount: money(balance.pending) }),
+    ...(balance.inPayout > ZERO ? [fill(b.sending, { amount: money(balance.inPayout) })] : []),
+  ];
   const figures: FigureView[] = [
     { key: "earned", label: o.cards.earned, value: money(balance.earned), definition: o.definitions.earned },
-    { key: "pending", label: o.cards.pending, value: money(balance.pending), definition: fill(o.definitions.pending, { maturity: maturityDays }) },
-    { key: "available", label: o.cards.available, value: money(balance.available), definition: o.definitions.available },
-    { key: "transferred", label: o.cards.transferred, value: money(balance.transferred), definition: o.definitions.transferred },
-    { key: "bankPaid", label: o.cards.bankPaid, value: money(balance.bankPaid), definition: o.definitions.bankPaid },
+    { key: "pending", label: o.cards.pending, value: money(balance.unpaid), definition: o.definitions.pending, details: pendingDetails },
+    {
+      key: "paid",
+      label: o.cards.paid,
+      value: money(balance.transferred),
+      definition: o.definitions.paid,
+      details: [fill(b.inBank, { amount: money(balance.bankPaid) })],
+    },
   ];
   const notes: string[] = [];
-  if (balance.inPayout > ZERO) notes.push(fill(o.inPayout, { amount: money(balance.inPayout) }));
   if (balance.offset > ZERO) notes.push(fill(o.offset, { amount: money(balance.offset) }));
   if (balance.threshold === null) notes.push(fill(o.noThreshold, { currency: balance.currency.toUpperCase() }));
   else if (balance.belowThreshold) notes.push(fill(o.threshold, { amount: money(balance.threshold) }));
   return { currency: balance.currency.toUpperCase(), figures, notes };
+}
+
+/** The client's two counts beside the money: referrals (all time) and the paying customers that set the tier. */
+export function totalsView(totals: { referrals: number; payingCustomers: number }, copy: Portal, locale: Locale): FigureView[] {
+  const number = new Intl.NumberFormat(intlTag(locale));
+  const o = copy.overview;
+  return [
+    { key: "referrals", label: o.cards.referrals, value: number.format(totals.referrals), definition: o.definitions.referrals },
+    { key: "payingCustomers", label: o.cards.payingCustomers, value: number.format(totals.payingCustomers), definition: o.definitions.payingCustomers },
+  ];
+}
+
+/** "Grow · €99/month": the plan's name and list price, in the partner's language. */
+export function planLabel(plan: PlanSummary | null, copy: Portal, locale: Locale): string {
+  if (!plan) return "-";
+  const price = new Intl.NumberFormat(intlTag(locale), {
+    style: "currency",
+    currency: plan.currency.toUpperCase(),
+    minimumFractionDigits: plan.priceCents % 100 === 0 ? 0 : 2,
+  }).format(plan.priceCents / 100);
+  return `${plan.name} · ${fill(plan.interval === "year" ? copy.commissions.perYear : copy.commissions.perMonth, { price })}`;
 }
 
 export function metricsView(
@@ -103,7 +149,19 @@ const COMMISSION_TONE: Record<CommissionDisplayStatus, Tone> = {
 export type Tone = "success" | "warning" | "danger" | "info" | "neutral";
 
 export function commissionRowView(
-  row: { id: string; paidAt: Date; customer: string | undefined; currency: string; base: bigint; rateBasisPoints: number; amount: bigint; reversed: bigint; status: CommissionDisplayStatus; maturesAt: Date },
+  row: {
+    id: string;
+    paidAt: Date;
+    customer: string | undefined;
+    plan?: PlanSummary | null;
+    currency: string;
+    base: bigint;
+    rateBasisPoints: number;
+    amount: bigint;
+    reversed: bigint;
+    status: CommissionDisplayStatus;
+    maturesAt: Date;
+  },
   copy: Portal,
   locale: Locale,
 ) {
@@ -112,6 +170,7 @@ export function commissionRowView(
     id: row.id,
     date: day(row.paidAt, locale),
     customer: row.customer ?? "-",
+    plan: planLabel(row.plan ?? null, copy, locale),
     base: money(row.base),
     rate: rateLabel(row.rateBasisPoints),
     amount: money(row.amount),

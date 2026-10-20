@@ -133,7 +133,14 @@ export function stripeBillingSource(stripe: Stripe, environment: Environment): B
           taxes: (invoice.total_taxes ?? []).map((t) => ({ amount: t.amount, behavior: t.tax_behavior })),
           discounts: (invoice.total_discount_amounts ?? []).map((d) => ({ amount: d.amount, discount: id(d.discount as string | { id: string }) })),
           promotionCodes: promotionCodeIds,
-          lines: lines.map((line) => ({ id: line.id, amount: line.amount, parent: line.parent?.type ?? null, proration: line.parent?.subscription_item_details?.proration ?? null })),
+          // `price`: which RepGet plan was charged, shown to the partner beside the commission ("Grow, EUR 99/month").
+          lines: lines.map((line) => ({
+            id: line.id,
+            amount: line.amount,
+            parent: line.parent?.type ?? null,
+            proration: line.parent?.subscription_item_details?.proration ?? null,
+            price: id(line.pricing?.price_details?.price as string | { id: string } | undefined),
+          })),
           payments: collections.map((c) => ({ id: c.invoicePaymentId, status: c.status, cash: c.cash.toString(), verified: c.verified, outOfBand: c.outOfBand })),
         },
       };

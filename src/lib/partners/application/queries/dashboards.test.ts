@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
-import { adminAuditLog, partnerCommissions, partnerLedgerEntries, partnerSettlements, partnerStripeAccounts } from "@/lib/db/schema";
+import { adminAuditLog, partnerAttributions, partnerCommissions, partnerLedgerEntries, partnerProfiles, partnerSettlements, partnerStripeAccounts, plans, subscriptions } from "@/lib/db/schema";
 import { createTestDb, type TestDb } from "@/test/db";
 import {
   fakeBilling,
@@ -48,7 +48,7 @@ import { processChargeAdjustments } from "../use-cases/process-adjustment";
 import { processInvoice } from "../use-cases/process-payment";
 import { recordReferralClick } from "../use-cases/record-referral-click";
 import { adminCommissions, adminExport, adminPartnerFinance, adminPayoutPreview, adminSettlementDetail } from "./admin-reports";
-import { partnerCommissionHistory, partnerDashboard, partnerPayoutHistory, partnerReferrals } from "./partner-dashboard";
+import { LATEST_COMMISSIONS, partnerCommissionHistory, partnerDashboard, partnerPayoutHistory, partnerReferrals } from "./partner-dashboard";
 
 let test: TestDb;
 const DAY = 86_400_000;
@@ -70,7 +70,7 @@ function world() {
 type World = ReturnType<typeof world>;
 
 /** A partner with a ready Stripe account and one referred, paying customer per amount (paid `daysAgo` days ago). */
-async function partnerWithCommissions(w: World, amounts: number[], daysAgo = 40, domain?: string) {
+async function partnerWithCommissions(w: World, amounts: number[], daysAgo = 40, domain?: string, invoiceExtras: { priceId?: string; subscriptionId?: string } = {}) {
   const partner = await seedPartner(test.db);
   const accountId = `acct_${randomUUID().replace(/-/g, "").slice(0, 14)}`;
   await test.db.insert(partnerStripeAccounts).values({ partnerId: partner.partnerId, environment: "test", stripeAccountId: accountId, status: "ready", detailsSubmitted: true, payoutsEnabled: true, transfersCapability: "active", payoutInterval: "manual", creationKey: `k-${randomUUID()}` });
@@ -88,7 +88,7 @@ async function partnerWithCommissions(w: World, amounts: number[], daysAgo = 40,
     await captureSignupEligibility(w.deps, { userId: person.id, email: person.email, createdAt, method: "email", trackingToken: click.setCookie!.token, ipAddress: null, userAgent: null });
     const customerId = await seedStripeCustomer(test.db, orgId);
     w.clock.set(now);
-    const invoice = w.billing.invoice({ customerId, total: amount, collections: [{ cash: amount, paidAt: new Date(now.getTime() - daysAgo * DAY) }] });
+    const invoice = w.billing.invoice({ customerId, total: amount, collections: [{ cash: amount, paidAt: new Date(now.getTime() - daysAgo * DAY) }], ...invoiceExtras });
     await processInvoice(w.deps, invoice.invoiceId, "test");
     charges.push(invoice.collections[0].chargeId!);
     organizations.push(orgId);
@@ -178,6 +178,51 @@ describe("the partner dashboard", () => {
     expect((await partnerCommissionHistory(w.deps, forged, { page: 1 })).rows).toEqual([]);
     expect((await partnerPayoutHistory(w.deps, forged, { page: 1 })).rows).toEqual([]);
     expect((await partnerReferrals(w.deps, forged, { page: 1 })).rows).toEqual([]);
+  });
+
+  it("names each commission's plan from the price its invoice charged, else the subscription's plan", async () => {
+    const w = world();
+    const suffix = randomUUID().replace(/-/g, "").slice(0, 10);
+    const [grow] = await test.db
+      .insert(plans)
+      .values({ name: "Grow", tier: `grow-${suffix}`, interval: "month", currency: "eur", stripePriceId: `price_grow_${suffix}`, priceCents: 9900, articleLimit: 1, keywordLimit: 1, siteLimit: 1, monthlyCredits: 0 })
+      .returning();
+    const [scale] = await test.db
+      .insert(plans)
+      .values({ name: "Scale", tier: `scale-${suffix}`, interval: "year", currency: "eur", stripePriceId: `price_scale_${suffix}`, priceCents: 299000, articleLimit: 1, keywordLimit: 1, siteLimit: 1, monthlyCredits: 0 })
+      .returning();
+    const byPrice = await partnerWithCommissions(w, [9900], 40, undefined, { priceId: grow.stripePriceId! });
+    expect((await partnerCommissionHistory(w.deps, byPrice.context, { page: 1 })).rows[0].plan).toEqual({ name: "Grow", interval: "month", priceCents: 9900, currency: "eur" });
+
+    // Recorded without a price: the subscription's plan; with neither, none (never a guess).
+    const subscriptionId = `sub_${suffix}`;
+    const bySubscription = await partnerWithCommissions(w, [9900], 40, undefined, { subscriptionId });
+    await test.db.insert(subscriptions).values({ organizationId: bySubscription.organizations[0], provider: "stripe", stripeSubscriptionId: subscriptionId, status: "active", planId: scale.id });
+    expect((await partnerCommissionHistory(w.deps, bySubscription.context, { page: 1 })).rows[0].plan).toMatchObject({ name: "Scale", interval: "year" });
+    const unknown = await partnerWithCommissions(w, [9900], 40, undefined, { priceId: "price_not_a_repget_plan" });
+    expect((await partnerCommissionHistory(w.deps, unknown.context, { page: 1 })).rows[0].plan).toBeNull();
+  });
+
+  it("counts referrals for all time without disqualified ones, and paying customers as the tier does", async () => {
+    const w = world();
+    const partner = await partnerWithCommissions(w, [9900, 9900, 9900], 5);
+    await test.db.update(partnerAttributions).set({ status: "disqualified" }).where(eq(partnerAttributions.organizationId, partner.organizations[0]));
+    await test.db.update(partnerProfiles).set({ qualifyingCustomers: 2 }).where(eq(partnerProfiles.id, partner.partnerId));
+    const dashboard = (await partnerDashboard(w.deps, partner.context, { days: 30 }))!;
+    expect(dashboard.totals).toEqual({ referrals: 2, payingCustomers: 2 });
+    // The client's identity: Total earned = Pending + Paid, while nothing was refunded after a payout.
+    const figures = dashboard.balances[0];
+    expect(figures.unpaid + figures.transferred).toBe(figures.earned);
+  });
+
+  it("lists the newest commissions first, five at a time for the overview", async () => {
+    const w = world();
+    const partner = await partnerWithCommissions(w, [9900, 9900, 9900, 9900, 9900, 9900], 5);
+    const latest = await partnerCommissionHistory(w.deps, partner.context, { page: 1, pageSize: LATEST_COMMISSIONS });
+    expect(latest.rows).toHaveLength(5);
+    expect(latest.total).toBe(6);
+    const dates = latest.rows.map((row) => row.paidAt.getTime());
+    expect(dates).toEqual([...dates].sort((a, b) => b - a));
   });
 
   it("refuses the admin reports without an administrator context", async () => {

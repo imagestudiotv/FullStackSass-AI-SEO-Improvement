@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { and, eq } from "drizzle-orm";
 
 import { db } from "@/lib/db";
-import { member, partnerAttributions, partnerCommissions, partnerProfiles, partnerSignupEligibility, partnerStripeAccounts, user, websites } from "@/lib/db/schema";
+import { member, partnerAttributions, partnerCommissions, partnerProfiles, partnerSignupEligibility, partnerStripeAccounts, plans, user, websites } from "@/lib/db/schema";
 import type { Database } from "@/lib/db/types";
 import type { CouponGateway } from "@/lib/partners/application/ports/billing-source";
 import { captureSignupEligibility } from "@/lib/partners/application/use-cases/attribute-new-customer";
@@ -203,8 +203,19 @@ export async function signedUpCustomer(w: World, code: string | null, daysAgo = 
 }
 
 /** A paid invoice at the fake Stripe, processed by the real commission use case (as the worker would). `cash` below `amount` = the rest paid from credit. */
+/** The plan the simulated payments charge (seeded by ensureE2ePlan), shown beside each commission. */
+export const E2E_PLAN = { name: "Grow", priceId: "price_e2e_grow", priceCents: 9900 };
+
+/** A monthly plan in the throwaway database, as production has: the /partners estimate and the commission "Plan" column use it. */
+export async function ensureE2ePlan() {
+  await database
+    .insert(plans)
+    .values({ name: E2E_PLAN.name, tier: "e2e-grow", interval: "month", currency: "eur", stripePriceId: E2E_PLAN.priceId, priceCents: E2E_PLAN.priceCents, articleLimit: 30, keywordLimit: 100, siteLimit: 1, monthlyCredits: 0 })
+    .onConflictDoNothing();
+}
+
 export async function pay(w: World, customerId: string, amount: number, paidDaysAgo: number, options: { tax?: number; discount?: number; promotionCodeIds?: string[]; cash?: number } = {}) {
-  const invoice = w.billing.invoice({ customerId, total: amount, tax: options.tax, discount: options.discount, promotionCodeIds: options.promotionCodeIds, collections: [{ cash: options.cash ?? amount, paidAt: w.ago(paidDaysAgo) }] });
+  const invoice = w.billing.invoice({ customerId, total: amount, tax: options.tax, discount: options.discount, promotionCodeIds: options.promotionCodeIds, priceId: E2E_PLAN.priceId, collections: [{ cash: options.cash ?? amount, paidAt: w.ago(paidDaysAgo) }] });
   const result = await processInvoice(w.deps, invoice.invoiceId, "test");
   return { ...invoice, result };
 }

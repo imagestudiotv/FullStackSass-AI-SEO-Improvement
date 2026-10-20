@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, isNotNull, lt, notInArray, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, gte, isNotNull, lt, ne, notInArray, sql, type SQL } from "drizzle-orm";
 
 import {
   partnerAttributions,
@@ -88,6 +88,14 @@ export function reportingRepository(db: Executor): ReportingRepository {
       return { clicks: Number(clicks?.n ?? 0), signups: Number(signups?.n ?? 0), customers: Number(customers?.n ?? 0), payingCustomers: Number(paying?.n ?? 0) };
     },
 
+    async referralTotal(partnerId) {
+      const [row] = await db
+        .select({ n: count })
+        .from(partnerAttributions)
+        .where(and(eq(partnerAttributions.partnerId, partnerId), ne(partnerAttributions.status, "disqualified")));
+      return Number(row?.n ?? 0);
+    },
+
     async commissions(filter) {
       const conditions: SQL[] = [eq(partnerCommissions.environment, filter.environment)];
       if (filter.partnerId) conditions.push(eq(partnerCommissions.partnerId, filter.partnerId));
@@ -115,6 +123,15 @@ export function reportingRepository(db: Executor): ReportingRepository {
             holdReason: partnerCommissions.holdReason,
             maturesAt: partnerCommissions.maturesAt,
             settlementId: partnerCommissions.paidSettlementId,
+            // The first invoice line with a price, from the evidence recorded with the payment (billing-source.ts).
+            priceId: sql<string | null>`(
+              select line->>'price' from jsonb_array_elements(
+                case when jsonb_typeof(${partnerPaymentFacts.evidence}->'lines') = 'array' then ${partnerPaymentFacts.evidence}->'lines' else '[]'::jsonb end
+              ) as line
+              where line->>'price' is not null
+              limit 1
+            )`,
+            stripeSubscriptionId: partnerPaymentFacts.stripeSubscriptionId,
           })
           .from(partnerCommissions)
           .innerJoin(partnerPaymentFacts, eq(partnerPaymentFacts.id, partnerCommissions.paymentFactId))

@@ -86,15 +86,38 @@ export type PartnerRecord = {
   welcomeEmailSentAt: Date | null;
 };
 
+export type ReferralCodeRecord = {
+  code: string;
+  createdAt: Date;
+  createdByEmail: string | null;
+  /** Set once the partner was given another name; the link still works. */
+  retiredAt: Date | null;
+};
+
 export interface PartnerRepository {
   findById(id: string): Promise<PartnerRecord | null>;
   findByUserId(userId: string): Promise<PartnerRecord | null>;
+  /** By the current link name or an earlier one (a renamed partner's old links keep working). */
   findByReferralCode(code: string): Promise<PartnerRecord | null>;
   lock(id: string): Promise<PartnerRecord | null>;
+  /** Serialises link-name claims (approval, rename) until the transaction ends. */
+  lockReferralCodes(): Promise<void>;
+  /** Who has, or had, this link name. */
+  referralCodeOwner(code: string): Promise<{ partnerId: string; retiredAt: Date | null } | null>;
+  /** Every name the partner has had, the current one first. */
+  referralCodes(partnerId: string): Promise<ReferralCodeRecord[]>;
+  /**
+   * Gives the partner a new current link name; the old one is retired and
+   * keeps working. Taking back one of the partner's own earlier names is
+   * allowed. Call under lockReferralCodes() after referralCodeOwner().
+   */
+  renameReferralCode(partnerId: string, change: { from: string; to: string; at: Date; byEmail: string }): Promise<void>;
   /**
    * Creates the user's profile, or returns the existing one (ON CONFLICT on
    * user_id): an approval retried or raced never makes a second profile.
-   * `created` says which happened. Null if the referral code collided.
+   * `created` says which happened. Null if the referral code is taken (now
+   * or earlier, by another partner); a new profile's name is recorded in
+   * partner_referral_codes.
    */
   createOrGet(input: {
     userId: string;
@@ -697,6 +720,9 @@ export type CommissionView = {
   holdReason: string | null;
   maturesAt: Date;
   settlementId: string | null;
+  /** The Stripe price the payment's invoice charged (first subscription line), when recorded. */
+  priceId: string | null;
+  stripeSubscriptionId: string | null;
 };
 
 export type SettlementView = SettlementRecord & {
@@ -755,6 +781,8 @@ export interface ReportingRepository {
   /** Every currency the partner has ledger entries in (each commission writes one when earned). */
   currencies(partnerId: string, environment: Environment): Promise<string[]>;
   metrics(partnerId: string, environment: Environment, since: Date): Promise<{ clicks: number; signups: number; customers: number; payingCustomers: number }>;
+  /** All time: customers attributed to the partner (link or coupon), disqualified ones not counted. */
+  referralTotal(partnerId: string): Promise<number>;
   /** `from` inclusive, `to` exclusive (UTC), on the payment date. */
   commissions(filter: { environment: Environment; partnerId?: string; status?: string; review?: string; held?: boolean; from?: Date; to?: Date; offset: number; limit: number }): Promise<{ rows: CommissionView[]; total: number }>;
   /** `from` inclusive, `to` exclusive (UTC), on the creation date. */

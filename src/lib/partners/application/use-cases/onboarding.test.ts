@@ -95,14 +95,15 @@ describe("approval", () => {
     return { me, applicationId: result.value.applicationId };
   }
 
-  it("creates one profile with a random code, the base tier and one welcome job, audited", async () => {
+  it("creates one profile with a link name from the applicant's name, the base tier and one welcome job, audited", async () => {
     const { deps } = partnerTestDeps(test.db);
     const { me, applicationId } = await submitted();
     const result = await approveApplication(deps, admin, applicationId);
     if (!result.ok) throw new Error(result.reason);
     expect(result.value.created).toBe(true);
     expect(result.value.partner).toMatchObject({ userId: me.userId, status: "active", tierKey: "base", country: "IT" });
-    expect(result.value.partner.referralCode).toMatch(/^[abcdefghjkmnpqrstuvwxyz23456789]{10}$/);
+    // "Test User": "test" is reserved, so the whole name.
+    expect(result.value.partner.referralCode).toMatch(/^test-user\d*$/);
 
     const tiers = await test.db.select().from(partnerTierHistory).where(eq(partnerTierHistory.partnerId, result.value.partner.id));
     expect(tiers).toMatchObject([{ tierKey: "base", rateBasisPoints: 2500, effectiveTo: null }]);

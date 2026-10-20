@@ -5,7 +5,7 @@ import { NextRequest } from "next/server";
 import Stripe from "stripe";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { partnerSignupEligibility, partnerStripeAccounts, webhookEvents } from "@/lib/db/schema";
+import { partnerClicks, partnerSignupEligibility, partnerStripeAccounts, webhookEvents } from "@/lib/db/schema";
 import { createTestDb, type TestDb } from "@/test/db";
 import { fakeConnect, partnerTestDeps, readiness, seedPartner, seedUser, seedWorkspace, setControl } from "@/test/partners";
 
@@ -77,6 +77,18 @@ describe("/go/<code>", () => {
     expect((await openLink(partner.code, "?to=//evil.example")).headers.get("location")).toBe("https://repget.test/");
     expect((await openLink(partner.code, "?to=https://evil.example")).headers.get("location")).toBe("https://repget.test/");
     expect((await openLink(partner.code, "?to=/admin")).headers.get("location")).toBe("https://repget.test/");
+  });
+
+  it("arriving from ?ref= on a page: lands on that page in its language, keeping utm_ tags only", async () => {
+    const env = partnerTestDeps(test.db);
+    state.deps = env.deps;
+    const partner = await seedPartner(test.db, { code: "dami-link" });
+    // What next.config.ts sends repget.com/es/pricing?ref=Dami-Link&utm_source=youtube&x=1 to.
+    const response = await openLink("Dami-Link", "?to=/es/pricing&ref=Dami-Link&utm_source=youtube&x=1");
+    expect(response.headers.get("location")).toBe("https://repget.test/es/pricing?utm_source=youtube");
+    expect(response.cookies.get(PARTNER_COOKIE)?.value).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    const [click] = await test.db.select().from(partnerClicks).where(eq(partnerClicks.partnerId, partner.partnerId));
+    expect(click).toMatchObject({ landingPath: "/es/pricing" });
   });
 
   it("still lands the visitor on the site for an unknown code or a failure", async () => {

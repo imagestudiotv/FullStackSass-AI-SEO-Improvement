@@ -17,6 +17,7 @@ import { retryFailedProviderEvents } from "../application/use-cases/process-prov
 import { requestTransferReversal } from "../application/use-cases/reconcile-settlement";
 import {
   approveApplication,
+  changeReferralCode,
   rejectApplication,
   setPartnerStatus,
   setPayoutHold,
@@ -78,6 +79,9 @@ const MESSAGES: Record<string, string> = {
   code_taken: "That code already exists.",
   stripe_refused: "Stripe refused the coupon. Nothing was created.",
   partner_suspended: "The partner is suspended.",
+  link_format: "Use 3-30 letters or digits for the link name, with single hyphens between them (for example dami or dami-olu).",
+  link_reserved: "That link name is reserved (RepGet's own words, or a source other sites use). Choose another.",
+  link_taken: "Another partner has, or had, that link name. Choose another.",
 };
 
 /** Why a payout could not be prepared, in words. */
@@ -124,12 +128,31 @@ function refresh() {
   revalidatePath("/admin/partners", "layout");
 }
 
-export async function approvePartnerApplicationAction(applicationId: string, note?: string): Promise<AdminAnswer<{ partnerId: string }>> {
+export async function approvePartnerApplicationAction(
+  applicationId: string,
+  note?: string,
+  linkName?: string,
+): Promise<AdminAnswer<{ partnerId: string }>> {
   const who = await admin();
   if (!idSchema.safeParse(applicationId).success) return { ok: false, error: MESSAGES.invalid };
-  const result = await approveApplication(partnerDeps(), who, applicationId, note?.trim() || null);
+  if (typeof linkName === "string" && linkName.length > 100) return invalid("link_format");
+  const result = await approveApplication(partnerDeps(), who, applicationId, note?.trim() || null, linkName?.trim() || null);
   refresh();
   return result.ok ? { ok: true, data: { partnerId: result.value.partner.id } } : answer(result);
+}
+
+export async function changePartnerLinkNameAction(partnerId: string, reason: string, linkName: string): Promise<AdminAnswer<{ message: string }>> {
+  const who = await admin();
+  if (!idSchema.safeParse(partnerId).success) return { ok: false, error: MESSAGES.invalid };
+  if (!reasonSchema.safeParse(reason).success) return { ok: false, error: MESSAGES.reason };
+  if (typeof linkName !== "string" || linkName.length > 100) return invalid("link_format");
+  const result = await changeReferralCode(partnerDeps(), who, partnerId, linkName, reason);
+  refresh();
+  if (!result.ok) return answer(result);
+  return {
+    ok: true,
+    data: { message: result.value.changed ? `The link is now ?ref=${result.value.code}. The old one keeps working.` : "That is already the partner's link name." },
+  };
 }
 
 export async function rejectPartnerApplicationAction(applicationId: string, reason: string): Promise<AdminAnswer> {

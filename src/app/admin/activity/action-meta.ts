@@ -113,6 +113,7 @@ export const ACTION_META: Record<AdminAction, ActionMeta> = {
   "partner.transfer_reversal_requested": { label: "Partner transfer reversal requested", icon: Handshake },
   "partner.reconciliation_run": { label: "Partner reconciliation run", icon: Handshake },
   "partner.provider_events_retried": { label: "Partner Stripe work retried", icon: Handshake },
+  "partner.referral_code_changed": { label: "Partner link name changed", icon: Handshake },
 };
 
 /** Every code, labelled, for the Action filter. */

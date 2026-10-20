@@ -78,10 +78,10 @@ describe("from a click to a commission", () => {
     const w = stripeWorld();
     const partner = await approvedPartner(w);
 
-    // A visitor opens the link: the first-party cookie is set, httpOnly.
+    // A visitor opens the partner's link, repget.com/?ref=<name>: the first-party cookie is set, httpOnly.
     const visitor = await person(browser);
-    const landed = await visitor.page.goto(`${base}/go/${partner.code}`);
-    expect(landed.status).toBe(200);
+    const landed = await visitor.page.goto(`${base}/?ref=${partner.code}`);
+    expect(landed).toEqual({ status: 200, path: "/" });
     const cookie = (await visitor.context.cookies()).find((c) => c.name === "repget_partner");
     expect(cookie).toMatchObject({ httpOnly: true });
     expect(cookie!.value).toHaveLength(43);

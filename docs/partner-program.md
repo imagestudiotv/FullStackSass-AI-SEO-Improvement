@@ -45,7 +45,7 @@ Partner access belongs to the user. It needs no paid plan, no website and no cus
 
 ## Data and financial records
 
-Tables are defined in `src/lib/db/partner-tables.ts`, migrations `0063_partner_program` and `0064_partner_program_guards`. Every table is created through the RLS-enabling `pgTable` wrapper (`src/lib/db/table.ts`) and has no policies. The server role bypasses RLS, so authorization lives in the guards and use cases.
+Tables are defined in `src/lib/db/partner-tables.ts`, migrations `0063_partner_program` and `0064_partner_program_guards` (then `0065_partner_program_review_fixes` and `0066_partner_link_names`). Every table is created through the RLS-enabling `pgTable` wrapper (`src/lib/db/table.ts`) and has no policies. The server role bypasses RLS, so authorization lives in the guards and use cases.
 
 - **Money** is integer minor units in `bigint` columns, always with an explicit currency column. Amounts are never `numeric` and never floats. The domain `Money` type uses `bigint`, and the browser receives amounts as decimal strings.
 - **Financial history outlives accounts.** Financial rows reference customer organizations and users by text id with no foreign key, like `admin_audit_log`. They reference each other with `ON DELETE RESTRICT`. Deleting a workspace or user never cascades into them.
@@ -199,7 +199,7 @@ The base is subscription revenue actually collected, excluding tax (`domain/poli
   - Applications are rate-limited: 3 per user per day and 60 per hour overall.
   - A user can have one open application at a time.
 - **Approval** (Admin → Affiliate partners → Partner applications) runs in one transaction under the application's row lock. It:
-  - creates the user's single profile (ON CONFLICT on `user_id`) with a random 10-character code from an unambiguous alphabet;
+  - creates the user's single profile (ON CONFLICT on `user_id`) with its link name (see Tracking: chosen in the dialog, suggested from the name, else a random 10-character code);
   - opens the base tier;
   - records ONE welcome email in the outbox (`partners/welcome:<partnerId>`).
 
@@ -213,7 +213,14 @@ The base is subscription revenue actually collected, excluding tax (`domain/poli
 
 ## Tracking and signup attribution
 
-- **Links.** A partner link is `/go/<code>`. It records a click and redirects to the home page, or to an allowlisted page given in `?to=`.
+- **Links.** A partner shares `repget.com/?ref=<name>`, for example `repget.com/?ref=dami`. `?ref=<name>` also works on any other public page (`repget.com/pricing?ref=dami`), in any language.
+  - **How it works.** A redirect in `next.config.ts` (`presentation/link-redirect.ts`) sends such a request to `/go/<name>?to=<page>`. That route records the click, sets the cookie and redirects back to the page without `?ref=`, keeping `utm_` tags. It runs before any page or cache, so prerendered pages work too. `/go/<name>` itself still works, and older links keep working.
+  - **Landing pages** are an allowlist of public pages, with or without a language prefix (`tracking-cookie.ts`). Anything else lands on the home page of that language.
+  - **Link names** are 3-30 lower-case letters or digits, with single hyphens between them. Case is ignored in links.
+    - At approval, the dialog is pre-filled from the applicant's name: the first name (`dami`), then the whole name (`dami-olu`), then numbered (`dami2`). The administrator can edit it or leave it empty for a random code.
+    - Reserved: RepGet's own words, anything containing "repget", and sources other sites put in `?ref=` themselves (Product Hunt adds `?ref=producthunt`), so a partner is never credited with visits they did not send.
+    - **Renaming** (partner page, with a reason, audited). Every name a partner has had is kept in `partner_referral_codes` (migration 0066). An old name keeps attributing to the same partner and can never be given to anyone else. A partner may take back one of their own earlier names.
+    - Approvals and renames claim names under one advisory lock, so two of them can never take the same name. This is tested with four racing connections on real PostgreSQL.
   - **Rate limits:** 30 per visitor per minute, 3,000 per minute overall.
   - **Never fails a visitor.** An unknown code, a suspended partner, the closed program or a database error still lands the visitor on the site.
 - **Cookie.** It is `repget_partner`: httpOnly, SameSite=Lax, 90 days. Its value is a random 256-bit token, and the click row stores only its SHA-256.
@@ -390,21 +397,45 @@ Lock order everywhere: partner, balance projection, attribution, payment fact, c
 
 Dedicated read queries (`application/queries/partner-dashboard.ts`, `admin-reports.ts`, `infrastructure/persistence/repositories/reporting.ts`). Partner and admin pages read the same records with the same status mapping (`commissionDisplayStatus`, `transferDisplayState`, `bankDisplayState` in the domain). Nothing is recomputed in React.
 
-**The five figures**, per currency (never converted), computed from the ledger and the commissions by the function that maintains the balance projection, so they are current rather than as of the last rebuild:
+**The overview's top figures** follow the client's dashboard: Total earned, Pending, Paid, Referrals, Paying customers. Money is per currency, never converted. It is computed from the ledger and the commissions by the function that maintains the balance projection, so it is current rather than as of the last rebuild:
 
-| Figure | Definition |
-|---|---|
-| Total earned | Commission earned minus refunds, chargebacks and corrections, all time |
-| Pending | Unpaid and not payable yet: maturing (Net 30), held or under review |
-| Available | Unpaid and payable at the next monthly run |
-| Transferred | Net amount sent to the partner's Stripe balance |
-| Paid to your bank | The part of Transferred that Stripe confirmed paid to the bank |
+| Figure | Definition | Shown underneath |
+|---|---|---|
+| Total earned | Commission earned minus refunds, chargebacks and corrections, all time | - |
+| Pending | Earned and not yet sent: waiting the 30 days, held or under review; approved for the next payout; or in a payout being sent | Each of the three amounts |
+| Paid | Net amount sent to the partner through Stripe (the transfers) | The part Stripe confirmed paid to the bank |
+| Referrals | Customers attributed to the partner, all time, by link or coupon; disqualified ones not counted | - |
+| Paying customers | Referred customers paying now: the count the tier uses (`qualifying_customers`) | - |
 
-They never count money twice: earned = pending + available + in a payout (shown as "being sent now") + transferred − corrections still to deduct. `dashboards.test.ts` checks this against the raw ledger after a payout and a refund.
+Money is never counted twice: earned = pending + paid − corrections still to deduct. `dashboards.test.ts` checks this against the raw ledger after a payout and a refund, and checks Total earned = Pending + Paid when nothing was refunded after a payout.
+
+**Under the figures**, in the client's order:
+- the partner's link;
+- the latest five commissions, with a link to all of them;
+- the level card: "Your partner level", the level and "30% recurring commission", "17 / 25 paying customers", the progress bar, "8 more customers to reach Premier Partner.", and the next level with its rate;
+- payout setup;
+- then the metrics for a chosen period.
+
+**Commission statuses** as the partner sees them: Pending (waiting the 30 days), Approved (payable at the next monthly run; `available` in the code), In payout, Paid, Reversed, On hold, Under review.
+
+**The commissions table**: payment date, customer, plan, paid (excluding tax: the commissionable base), rate, commission, status.
+- The plan is the RepGet plan whose Stripe price the invoice charged, for example "Grow · €99/month". `billing-source.ts` records each invoice line's price in the payment's evidence.
+- A payment recorded without a price shows the subscription's current plan. Neither gives "-", never a guess.
 
 **Metrics** for a chosen range (last 30, 90 or 365 days, UTC, both ends shown): link opens recorded; new accounts the link rule attributed; customers attributed (link or coupon); attributed customers with a commissionable payment in the range; and conversion = paying customers ÷ clicks ("-" without clicks).
 
-**Privacy.** A partner sees a referred customer as a shortened website address (`ex•••.com`) or an opaque reference (`Customer 3FA2C1`), never a name, an email or a full address. Administrators see the workspace name, the website and the same reference.
+**Privacy.** A partner sees a referred customer as a shortened website address (`ex•••.com`) or an opaque reference (`Customer 3FA2C1`), never a name, an email or a full address. The client's example showed "Company A"; a real company name is not shown because it would tell a third party (the partner) who bought RepGet, and the terms and privacy policy do not say so. Administrators see the workspace name, the website and the same reference.
+
+**The public page** (`/partners` and its translations) follows the competitors' funnels:
+- the offer;
+- an earnings estimate (`components/partners/earnings-calculator.tsx`):
+  - a monthly plan from the plans table and a number of paying customers give the level, the commission per month and over the 12 months;
+  - it rounds exactly like the real calculation, and `earnings-calculator.test.ts` compares the two;
+- how it works, the levels, who the program is for, the rules;
+- the questions and answers, published as FAQPage structured data;
+- a closing call to apply.
+
+Every figure comes from the program policy and the plans table. There are no partner counts, payout totals or testimonials: RepGet has none yet, and an invented figure would mislead.
 
 **Exports** (`/admin/partners/export/{commissions,settlements,ledger}`, optionally `?partner=<id>`): administrators only (404 to anyone else), CSV with exact decimal amounts in their own currency, the customer as reference and internal workspace id only, no secret and no bank detail. Cells that could run as spreadsheet formulas are neutralised. At most 20,000 rows; a cut export says so in the `x-export-truncated` header.
 
@@ -415,8 +446,8 @@ Every action calls `requireAdmin()` itself and is recorded in the activity log i
 | Page | Actions |
 |---|---|
 | `/admin/partners` | The three switches; readiness; counts of what needs attention; queue failed Stripe work again; exports (optionally for a period) |
-| `/admin/partners/applications`, `/admin/partners/partners` | Approve, reject, suspend, reactivate, hold or release payouts |
-| `/admin/partners/partners/[id]` | Balances per currency, recent payouts, the ledger, coupons (create, deactivate), balance adjustment |
+| `/admin/partners/applications`, `/admin/partners/partners` | Approve (with the link name, pre-filled from the applicant's name), reject, suspend, reactivate, hold or release payouts |
+| `/admin/partners/partners/[id]` | The partner's link and earlier link names; change the link name (old links keep working); balances per currency, recent payouts, the ledger, coupons (create, deactivate), balance adjustment |
 | `/admin/partners/attribution` | Attribution history; confirm a referral held for review; disqualify (unpaid commissions rejected) |
 | `/admin/partners/commissions` | Filter by status and payment period; approve (held for review), reject (a reversing ledger entry; final - later refunds and disputes no longer touch it), hold, release (a dispute's hold can be neither replaced nor released) |
 | `/admin/partners/payouts` | Next-run preview with blockers; run this month's payouts now; prepare one partner now (still one payout per currency per month); reconcile now; every settlement |

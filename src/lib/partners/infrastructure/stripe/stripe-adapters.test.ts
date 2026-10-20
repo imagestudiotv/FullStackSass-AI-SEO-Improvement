@@ -130,6 +130,16 @@ describe("stripeBillingSource.loadInvoice", () => {
     expect(invoice.allLinesSubscription).toBe(false);
   });
 
+  it("records the price each line charged, so the partner sees which plan a commission came from", async () => {
+    const priced = (price: unknown) => ({ ...subscriptionLine(9900), pricing: { type: "price_details", price_details: { price, product: "prod_1" } } }) as unknown as Stripe.InvoiceLineItem;
+    const { stripe } = fakeStripe({
+      invoice: { ...baseInvoice, lines: { data: [priced("price_grow"), priced({ id: "price_expanded" }), subscriptionLine(100)], has_more: false } as unknown as Stripe.ApiList<Stripe.InvoiceLineItem> },
+      payments: [],
+    });
+    const invoice = await stripeBillingSource(stripe, "test").loadInvoice("in_1");
+    expect((invoice.evidence.lines as { price: string | null }[]).map((line) => line.price)).toEqual(["price_grow", "price_expanded", null]);
+  });
+
   it("reads a charge's cumulative refunds and every dispute", async () => {
     const { stripe } = fakeStripe({
       invoice: baseInvoice,

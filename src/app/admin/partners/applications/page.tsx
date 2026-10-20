@@ -6,6 +6,7 @@ import { pageFrom } from "@/lib/admin/shared";
 import { formatDate } from "@/lib/i18n/format";
 import type { ApplicationStatus } from "@/lib/partners/domain/entities/application";
 import { adminApplications } from "@/lib/partners/application/queries/admin-overview";
+import { suggestReferralCode } from "@/lib/partners/application/use-cases/review-application";
 import { approvePartnerApplicationAction, rejectPartnerApplicationAction } from "@/lib/partners/presentation/admin-actions";
 import { partnerDeps } from "@/lib/partners/server";
 
@@ -40,7 +41,8 @@ const when = (date: Date) => formatDate(date, "en", { day: "numeric", month: "sh
 /**
  * Admin -> Partner applications. Approval creates the applicant's single
  * partner profile (idempotently) and queues one welcome email; rejection
- * needs a reason. Both are audited.
+ * needs a reason. Both are audited. The approval dialog is pre-filled with
+ * the link name the applicant's name suggests (repget.com/?ref=<name>).
  */
 export default async function PartnerApplicationsPage({ searchParams }: PageProps<"/admin/partners/applications">) {
   const who = await requireAdmin();
@@ -53,6 +55,12 @@ export default async function PartnerApplicationsPage({ searchParams }: PageProp
     search,
     page: pageFrom(params.page),
   });
+  const deps = partnerDeps();
+  const suggested = new Map(
+    await Promise.all(
+      rows.filter((row) => row.status === "submitted").map(async (row) => [row.id, (await suggestReferralCode(deps, row.applicantName)) ?? ""] as const),
+    ),
+  );
 
   return (
     <AdminPage width="wide">
@@ -99,10 +107,17 @@ export default async function PartnerApplicationsPage({ searchParams }: PageProp
                           action={approvePartnerApplicationAction.bind(null, row.id)}
                           label="Approve…"
                           title={`Approve ${row.applicantName}?`}
-                          description="Creates their partner profile with a random referral code on the base tier and sends one welcome email. They keep their existing login."
+                          description="Creates their partner profile on the base tier with the link below and sends one welcome email. They keep their existing login."
                           confirmLabel="Approve"
                           success="Approved"
                           reasonRequired={false}
+                          field={{
+                            label: "Link name",
+                            prefix: "repget.com/?ref=",
+                            initial: suggested.get(row.id) ?? "",
+                            hint: "3-30 letters or digits, single hyphens allowed. Leave empty to pick one from their name automatically. You can change it later; old links keep working.",
+                            maxLength: 30,
+                          }}
                         />
                         <ReasonAction
                           action={rejectPartnerApplicationAction.bind(null, row.id)}

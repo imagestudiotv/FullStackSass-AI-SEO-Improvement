@@ -11,6 +11,7 @@ import { adminPartnerFinance } from "@/lib/partners/application/queries/admin-re
 import { rateLabel } from "@/lib/partners/presentation/format";
 import {
   adjustPartnerBalanceAction,
+  changePartnerLinkNameAction,
   createPartnerCouponAction,
   deactivatePartnerCouponAction,
   setPartnerPayoutHoldAction,
@@ -54,6 +55,8 @@ export default async function PartnerDetailPage({ params, searchParams }: PagePr
   const currencies = [...new Set(["eur", ...(finance?.balances.map((balance) => balance.currency) ?? [])])];
   const { partner, account, tiers } = detail;
   const [setupTone, setupLabel] = SETUP_LABEL[detail.setup];
+  // A renamed partner's earlier names still attribute to them.
+  const earlierNames = detail.linkNames.filter((name) => name.retiredAt !== null);
 
   return (
     <AdminPage>
@@ -97,6 +100,22 @@ export default async function PartnerDetailPage({ params, searchParams }: PagePr
               success={partner.payoutHoldReason ? "Hold released" : "Payouts held"}
               tone={partner.payoutHoldReason ? "default" : "danger"}
             />
+            <ReasonAction
+              action={changePartnerLinkNameAction.bind(null, partner.id)}
+              label="Change link name…"
+              title="Change this partner's link name?"
+              description="Their link becomes repget.com/?ref=<new name>. Links they already shared keep working and stay theirs; no one else can ever get the old name."
+              confirmLabel="Change link name"
+              success="Link name changed"
+              field={{
+                label: "New link name",
+                prefix: "repget.com/?ref=",
+                initial: partner.referralCode,
+                hint: "3-30 letters or digits, single hyphens allowed.",
+                required: true,
+                maxLength: 30,
+              }}
+            />
           </div>
         }
       />
@@ -104,7 +123,15 @@ export default async function PartnerDetailPage({ params, searchParams }: PagePr
       <AdminSection title="Profile">
         <AdminFacts
           items={[
-            { label: "Referral code", value: <span className="font-mono">{partner.referralCode}</span> },
+            { label: "Partner link", value: <span className="font-mono break-all">{detail.link}</span> },
+            {
+              label: "Earlier link names",
+              value: earlierNames.length ? (
+                <span className="font-mono break-all">{earlierNames.map((name) => name.code).join(", ")}</span>
+              ) : (
+                "None"
+              ),
+            },
             { label: "Tier", value: `${partner.tierKey} (${partner.qualifyingCustomers} qualifying customers)` },
             { label: "Payout country", value: partner.country ?? "-" },
             { label: "Approved", value: `${when(partner.approvedAt)} by ${partner.approvedByEmail}` },

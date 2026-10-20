@@ -48,12 +48,21 @@ export function PortalSection({ id, title, description, children, actions }: { i
 }
 
 /** One dashboard figure with its definition right under it. */
-export function Figure({ label, value, definition }: { label: string; value: string; definition: string }) {
+export function Figure({ label, value, definition, details }: { label: string; value: string; definition: string; details?: string[] }) {
   return (
     <div className="min-w-0 rounded-lg border bg-background p-4">
       <dt className="text-sm text-muted-foreground">{label}</dt>
-      <dd className="mt-1 break-words text-xl font-semibold tabular-nums">{value}</dd>
+      <dd className="mt-1 wrap-break-word text-xl font-semibold tabular-nums">{value}</dd>
       <dd className="mt-1 text-xs text-muted-foreground">{definition}</dd>
+      {details && details.length > 0 ? (
+        <dd className="mt-2 border-t pt-2">
+          <ul className="space-y-1 text-xs text-muted-foreground tabular-nums">
+            {details.map((detail) => (
+              <li key={detail}>{detail}</li>
+            ))}
+          </ul>
+        </dd>
+      ) : null}
     </div>
   );
 }

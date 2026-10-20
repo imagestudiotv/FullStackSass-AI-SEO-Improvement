@@ -15,6 +15,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -34,6 +35,9 @@ const DANGER_CONFIRM = "bg-danger text-background hover:bg-danger/90";
  * requires (optional only where `reasonRequired` is false). The action is a
  * server action bound to its target on the server; it re-checks admin
  * access and validates everything itself.
+ *
+ * `field` adds one text input before the reason (a partner's link name),
+ * passed to the action as its second argument.
  */
 export function ReasonAction({
   action,
@@ -45,8 +49,9 @@ export function ReasonAction({
   tone = "default",
   size = "sm",
   reasonRequired = true,
+  field,
 }: {
-  action: (reason: string) => Promise<Answer>;
+  action: (reason: string, value: string) => Promise<Answer>;
   label: string;
   title: string;
   description: string;
@@ -55,15 +60,25 @@ export function ReasonAction({
   tone?: "default" | "danger";
   size?: "sm" | "default";
   reasonRequired?: boolean;
+  field?: { label: string; hint: string; initial: string; prefix?: string; required?: boolean; maxLength?: number };
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
+  const [value, setValue] = useState(field?.initial ?? "");
   const [pending, start] = useTransition();
-  const ready = !reasonRequired || reason.trim().length >= 5;
+  const ready = (!reasonRequired || reason.trim().length >= 5) && (!field?.required || value.trim().length > 0);
 
   return (
-    <Dialog open={open} onOpenChange={(next) => !pending && setOpen(next)}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (pending) return;
+        // Opened again after a change: start from the current value (a renamed partner's new name).
+        if (next) setValue(field?.initial ?? "");
+        setOpen(next);
+      }}
+    >
       <DialogTrigger asChild>
         <Button type="button" size={size} variant="outline" className={tone === "danger" ? DANGER_TRIGGER : undefined}>
           {label}
@@ -76,13 +91,14 @@ export function ReasonAction({
             event.preventDefault();
             if (!ready) return;
             start(async () => {
-              const result = await action(reason.trim()).catch(() => null);
+              const result = await action(reason.trim(), value.trim()).catch(() => null);
               if (!result) return void toast.error("The request failed. Try again.");
               if (!result.ok) return void toast.error(result.error);
               // A server-written summary (e.g. what a run did) replaces the generic confirmation.
               const data = result.data as { message?: unknown } | null;
               toast.success(typeof data?.message === "string" ? data.message : success);
               setReason("");
+              setValue(field?.initial ?? "");
               setOpen(false);
               router.refresh();
             });
@@ -92,6 +108,28 @@ export function ReasonAction({
             <DialogTitle>{title}</DialogTitle>
             <DialogDescription>{description}</DialogDescription>
           </DialogHeader>
+          {field ? (
+            <div className="grid gap-1.5">
+              <Label htmlFor="partner-field">{field.label}</Label>
+              <div className="flex min-w-0 items-center gap-1.5">
+                {field.prefix ? <span className="shrink-0 text-sm text-muted-foreground">{field.prefix}</span> : null}
+                <Input
+                  id="partner-field"
+                  value={value}
+                  onChange={(event) => setValue(event.target.value)}
+                  disabled={pending}
+                  maxLength={field.maxLength ?? 60}
+                  autoComplete="off"
+                  spellCheck={false}
+                  aria-describedby="partner-field-hint"
+                  className="min-w-0"
+                />
+              </div>
+              <p id="partner-field-hint" className="text-xs text-muted-foreground">
+                {field.hint}
+              </p>
+            </div>
+          ) : null}
           <div className="grid gap-1.5">
             <Label htmlFor="partner-reason">{reasonRequired ? "Reason (recorded in the activity log)" : "Note (optional)"}</Label>
             <Textarea

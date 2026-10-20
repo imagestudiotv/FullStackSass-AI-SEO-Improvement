@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 import { eq, sql } from "drizzle-orm";
 import { beforeAll, describe, expect, it, vi } from "vitest";
@@ -10,6 +12,7 @@ import {
   partnerLedgerEntries,
   partnerPaymentFacts,
   partnerProgramVersions,
+  partnerReferralCodes,
   partnerSettlementItems,
   partnerSettlements,
   partnerTransferAttempts,
@@ -159,7 +162,8 @@ describe("migrations 0063 and 0064", () => {
       from pg_class c join pg_namespace n on n.oid = c.relnamespace
       where n.nspname = 'public' and c.relkind = 'r' and c.relname like 'partner\\_%'`);
     const rows = (result as unknown as { rows: { name: string; rls: boolean }[] }).rows;
-    expect(rows.length).toBe(20);
+    // 20 from 0063, partner_referral_codes from 0066.
+    expect(rows.length).toBe(21);
     expect(rows.filter((row) => !row.rls)).toEqual([]);
   });
 
@@ -232,6 +236,45 @@ describe("uniqueness guarantees", () => {
       approvedByEmail: "admin@repget.test",
     });
     expect(result).toBeNull();
+  });
+
+  it("a link name belongs to one partner forever: the profile insert refuses another partner's old name (migration 0066)", async () => {
+    const first = await seedPartner(test.db, { code: "kept-forever" });
+    const repos = repositoriesFor(test.db);
+    await repos.partners.renameReferralCode(first.partnerId, { from: "kept-forever", to: "kept-later", at: new Date(), byEmail: "admin@repget.test" });
+    expect((await repos.partners.findByReferralCode("kept-forever"))?.id).toBe(first.partnerId);
+    expect((await repos.partners.findByReferralCode("kept-later"))?.id).toBe(first.partnerId);
+    expect(await repos.partners.referralCodeOwner("kept-forever")).toMatchObject({ partnerId: first.partnerId });
+    const owner = await seedUser(test.db);
+    const taken = await repos.partners.createOrGet({
+      userId: owner.id,
+      referralCode: "kept-forever",
+      displayName: "Owner",
+      contactEmail: owner.email,
+      country: null,
+      applicationId: first.applicationId,
+      approvedAt: new Date(),
+      approvedByEmail: "admin@repget.test",
+    });
+    expect(taken).toBeNull();
+    // A rename onto another partner's name is refused by the table itself, whatever the caller checked.
+    const second = await seedPartner(test.db);
+    await expect(
+      test.db.transaction((tx) =>
+        repositoriesFor(tx).partners.renameReferralCode(second.partnerId, { from: second.code, to: "kept-forever", at: new Date(), byEmail: "admin@repget.test" }),
+      ),
+    ).rejects.toThrow(/another partner/);
+    expect((await repos.partners.findById(second.partnerId))?.referralCode).toBe(second.code);
+  });
+
+  it("migration 0066 copies every existing partner's name", async () => {
+    const partner = await seedPartner(test.db, { code: "before-0066" });
+    await test.db.delete(partnerReferralCodes).where(eq(partnerReferralCodes.partnerId, partner.partnerId));
+    const migration = readFileSync(join(process.cwd(), "drizzle", "0066_partner_link_names.sql"), "utf8");
+    const backfill = migration.split("--> statement-breakpoint").map((part) => part.trim()).find((part) => part.includes("INSERT INTO"));
+    await test.db.execute(sql.raw(backfill!));
+    const rows = await test.db.select().from(partnerReferralCodes).where(eq(partnerReferralCodes.partnerId, partner.partnerId));
+    expect(rows).toMatchObject([{ code: "before-0066", retiredAt: null }]);
   });
 
   it("one open application per user", async () => {

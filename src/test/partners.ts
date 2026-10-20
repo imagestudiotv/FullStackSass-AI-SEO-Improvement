@@ -6,6 +6,7 @@ import {
   organization,
   partnerApplications,
   partnerProfiles,
+  partnerReferralCodes,
   partnerTierHistory,
   platformControls,
   subscriptions,
@@ -112,7 +113,7 @@ export function readiness(accountId: string, overrides: Partial<AccountReadiness
  */
 export function partnerTestDeps(db: Database, overrides: Partial<PartnerDeps> = {}) {
   const clock = fixedClock(new Date("2026-10-01T09:00:00Z"));
-  const mail: { to: string; kind: string }[] = [];
+  const mail: { to: string; kind: string; link?: string }[] = [];
   let mailFails = false;
   const admitted = { quota: true, burst: true };
   const deps: PartnerDeps = {
@@ -132,7 +133,7 @@ export function partnerTestDeps(db: Database, overrides: Partial<PartnerDeps> = 
     mailer: {
       async sendPartnerWelcome(input) {
         if (mailFails) return { ok: false, error: "mail down" };
-        mail.push({ to: input.to, kind: "welcome" });
+        mail.push({ to: input.to, kind: "welcome", link: input.referralUrl });
         return { ok: true };
       },
       async sendPartnerNotice(input) {
@@ -229,6 +230,7 @@ export async function seedPartner(
       updatedAt: approvedAt,
     })
     .returning({ id: partnerProfiles.id });
+  await db.insert(partnerReferralCodes).values({ code, partnerId: partner.id, createdAt: approvedAt, createdByEmail: "admin@repget.test" });
   await db.insert(partnerTierHistory).values({
     partnerId: partner.id,
     tierKey: "base",
@@ -284,6 +286,8 @@ export function fakeBilling(environment: "test" | "live" = "test") {
       promotionCodeIds?: string[];
       postPaymentCreditNotes?: number;
       subscriptionId?: string | null;
+      /** The Stripe price its subscription line charged (recorded in the evidence, as billing-source.ts does). */
+      priceId?: string;
     }) {
       const id = input.id ?? `in_${randomUUID().replace(/-/g, "").slice(0, 16)}`;
       const currency = input.currency ?? "eur";
@@ -325,7 +329,7 @@ export function fakeBilling(environment: "test" | "live" = "test") {
         linesComplete: true,
         promotionCodeIds: input.promotionCodeIds ?? [],
         collections,
-        evidence: { test: true },
+        evidence: input.priceId ? { test: true, lines: [{ id: `il_${id}`, amount: input.total, price: input.priceId }] } : { test: true },
       };
       invoices.set(id, invoice);
       return invoice;

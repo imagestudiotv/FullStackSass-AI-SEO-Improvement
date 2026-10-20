@@ -4,7 +4,7 @@ import { executeSettlement } from "@/lib/partners/application/use-cases/execute-
 import { prepareSettlement } from "@/lib/partners/application/use-cases/prepare-settlement";
 
 import { Browser, DESKTOP, PHONE, type Page } from "./browser";
-import { approvedPartner, openProgram, person, referredPayment, signedInAdmin, signIn, STATE, stripeWorld, unique } from "./driver";
+import { approvedPartner, ensureE2ePlan, openProgram, person, referredPayment, signedInAdmin, signIn, STATE, stripeWorld, unique } from "./driver";
 
 /**
  * Flow 20: every partner-portal page and every admin partner page, on a
@@ -23,6 +23,7 @@ let settlementId: string;
 
 beforeAll(async () => {
   await openProgram();
+  await ensureE2ePlan();
   browser = await Browser.launch();
   admin = await signedInAdmin(browser);
   const w = stripeWorld();
@@ -130,6 +131,35 @@ describe("20: mobile and dark-mode usability", () => {
     },
   );
 
+  it.each(["/partners", "/es/partners", "/de/partners"])("public page %s", async (path) => {
+    expect(await check(partnerPage, path)).toEqual([]);
+  });
+
+  it("the /partners estimate follows the customer count and the plan, at the levels the program pays", async () => {
+    await partnerPage.setViewport(PHONE);
+    await partnerPage.setTheme("light");
+    await partnerPage.goto(`${base}/partners`);
+    await partnerPage.waitForText("Estimate your earnings");
+    // 10 paying customers on Grow (EUR 99): Growth Partner, 30%: EUR 297 a month, EUR 3,564 over 12 months.
+    await partnerPage.waitForText("€297");
+    await partnerPage.waitForText("€3,564");
+    await partnerPage.fill('input[type="number"]', "25");
+    await partnerPage.waitForText("Premier Partner");
+    // 25 x 35% of EUR 99 = 25 x EUR 34.65.
+    await partnerPage.waitForText("€866.25");
+    await partnerPage.fill('input[type="number"]', "3");
+    await partnerPage.waitForText("€74.25");
+    // The questions are in the page, with their structured data.
+    const faq = await partnerPage.evaluate(() => {
+      const script = document.querySelector('script[type="application/ld+json"]');
+      const schema = script ? (JSON.parse(script.textContent ?? "{}") as { "@type"?: string; mainEntity?: unknown[] }) : {};
+      // The FAQ's own questions (the site menu uses <details> too).
+      return { type: schema["@type"], questions: schema.mainEntity?.length ?? 0, details: document.querySelectorAll('[aria-labelledby="partners-faq"] details').length };
+    });
+    expect(faq).toEqual({ type: "FAQPage", questions: faq.details, details: faq.details });
+    expect(faq.details).toBeGreaterThanOrEqual(6);
+  });
+
   it.each([
     "/admin/partners",
     "/admin/partners/applications",
@@ -172,6 +202,7 @@ describe("20: mobile and dark-mode usability", () => {
       [`/admin/partners/partners/${partnerId}`, "Adjust balance…"],
       [`/admin/partners/partners/${partnerId}`, "Create coupon…"],
       [`/admin/partners/partners/${partnerId}`, "Suspend…"],
+      [`/admin/partners/partners/${partnerId}`, "Change link name…"],
     ] as const) {
       await admin.page.goto(`${base}${path}`);
       await admin.page.clickByText(button);

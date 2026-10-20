@@ -1,5 +1,5 @@
 import type { ApplicationStatus } from "../../domain/entities/application";
-import type { PartnerStatus } from "../../domain/entities/partner";
+import { referralLinkPath, type PartnerStatus } from "../../domain/entities/partner";
 import type { AdminContext } from "../contracts/commands";
 import { programReadiness } from "../use-cases/manage-program";
 import { setupState } from "../use-cases/manage-payout-account";
@@ -89,11 +89,13 @@ export async function adminPartnerDetail(deps: PartnerDeps, admin: AdminContext,
   const partner = await repos.partners.findById(partnerId);
   if (!partner) return null;
   const environment = deps.settings.environment();
-  const [tiers, account, coupons, cases] = await Promise.all([
+  const [tiers, account, coupons, cases, linkNames] = await Promise.all([
     repos.tiers.periods(partnerId),
     environment ? repos.stripeAccounts.find(partnerId, environment) : Promise.resolve(null),
     environment ? repos.coupons.forPartner(partnerId, environment) : Promise.resolve([]),
     repos.reviews.list({ partnerId, offset: 0, limit: 20 }),
+    repos.partners.referralCodes(partnerId),
   ]);
-  return { partner, tiers, account, setup: setupState(account), coupons, cases: cases.rows, environment };
+  const link = `${deps.settings.appUrl()}${referralLinkPath(partner.referralCode)}`;
+  return { partner, link, linkNames, tiers, account, setup: setupState(account), coupons, cases: cases.rows, environment };
 }

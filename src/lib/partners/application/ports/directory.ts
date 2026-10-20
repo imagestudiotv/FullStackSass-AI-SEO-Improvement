@@ -51,7 +51,16 @@ export interface UserDirectory {
   customerLabels(organizationIds: string[]): Promise<Record<string, string>>;
   /** For administrators only: the workspace name and first website, with the same reference. */
   organizationSummaries(organizationIds: string[]): Promise<Record<string, { name: string; domain: string | null; reference: string }>>;
+  /**
+   * The RepGet plan behind Stripe prices (what a payment's invoice lines
+   * charged) and, for payments recorded without a price, behind Stripe
+   * subscriptions (their current plan). Unknown ids are left out.
+   */
+  plansFor(input: { priceIds: string[]; subscriptionIds: string[] }): Promise<{ byPrice: Record<string, PlanSummary>; bySubscription: Record<string, PlanSummary> }>;
 }
+
+/** A RepGet plan as a partner sees it in their commission history: "Grow, EUR 99/month". */
+export type PlanSummary = { name: string; interval: "month" | "year"; priceCents: number; currency: string };
 
 export interface Mailer {
   sendPartnerWelcome(input: { to: string; name: string; referralUrl: string; portalUrl: string }): Promise<{ ok: boolean; error?: string }>;

@@ -1,10 +1,12 @@
+import { listPlans } from "@/lib/billing";
 import { localePath } from "@/lib/i18n/config";
+import { intlTag } from "@/lib/i18n/format";
 import { publicProgramSummary } from "@/lib/partners/application/use-cases/manage-program";
 import { partnerCopy } from "@/lib/partners/presentation/copy";
 import { partnerDeps } from "@/lib/partners/server";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
 
-import { PartnersContent } from "../partners-content";
+import { calculatorPlans, PartnersContent } from "../partners-content";
 
 const copy = partnerCopy("en");
 
@@ -22,13 +24,15 @@ export const metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function Page() {
-  const summary = await publicProgramSummary(partnerDeps());
+  const [summary, plans] = await Promise.all([publicProgramSummary(partnerDeps()), listPlans()]);
   return (
     <PartnersContent
       copy={copy.page}
       policy={summary.policy}
       open={summary.open}
       locale="en"
+      intlLocale={intlTag("en")}
+      plans={calculatorPlans(plans)}
       href={(path) => localePath("en", path)}
     />
   );

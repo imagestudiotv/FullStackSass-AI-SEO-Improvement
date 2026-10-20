@@ -21,7 +21,7 @@ import { LOCALES, localePath } from "@/lib/i18n/config";
 import { DEFAULT_PROGRAM_POLICY } from "@/lib/partners/domain/policies/program";
 import { partnerCopy } from "@/lib/partners/presentation/copy";
 
-import { balanceView, commissionRowView, metricsView, payoutRowView, referralRowView } from "@/lib/partners/presentation/views";
+import { balanceView, commissionRowView, metricsView, payoutRowView, referralRowView, totalsView } from "@/lib/partners/presentation/views";
 
 import { ApplicationForm } from "./application-form";
 import { CommissionList, EarningsPanel, MetricsPanel, PayoutList, ReferralList, ResourcesView } from "./dashboard-views";
@@ -59,6 +59,48 @@ describe("the public /partners page", () => {
     expect(html).toContain('href="/partner/apply"');
     expect(html).toContain(`href="${localePath(locale, "/affiliate")}"`);
     expect(html.match(/<h1/g)).toHaveLength(1);
+  });
+
+  it.each(LOCALES)("%s: the full funnel - estimate, who it is for, questions with their schema, a closing call", (locale) => {
+    const copy = partnerCopy(locale).page;
+    const html = renderToStaticMarkup(
+      createElement(PartnersContent, {
+        copy,
+        policy: DEFAULT_PROGRAM_POLICY,
+        open: true,
+        locale,
+        href: (path: string) => localePath(locale, path),
+        plans: [{ id: "grow", name: "Grow", priceCents: 9900, currency: "eur" }],
+        intlLocale: "en-IE",
+      }),
+    );
+    const words = text(html).replace(/&#x27;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, "&");
+    expect(words).not.toMatch(/\{\w+\}/);
+    // The estimate opens at 10 paying customers on Grow: Growth Partner, 30% of EUR 99 = EUR 29.70 each.
+    expect(words).toContain(copy.calculator.title);
+    expect(words).toContain("€297");
+    expect(words).toContain("€3,564");
+    expect(words).toContain("Growth Partner");
+    for (const group of copy.audience) expect(words).toContain(group.title);
+    for (const item of copy.faq) expect(words).toContain(item.question);
+    // The higher levels, in the earnings answer.
+    expect(words).toMatch(/30%[^.]*10[^.]*35%[^.]*25/);
+    expect(words).toContain(copy.ctaTitle);
+    // Apply in the hero and again at the end.
+    expect(html.match(/href="\/partner\/apply"/g)).toHaveLength(2);
+    const schema = JSON.parse(html.match(/<script type="application\/ld\+json">(.*?)<\/script>/)![1]) as { "@type": string; mainEntity: { name: string; acceptedAnswer: { text: string } }[] };
+    expect(schema["@type"]).toBe("FAQPage");
+    expect(schema.mainEntity.map((entry) => entry.name)).toEqual(copy.faq.map((item) => item.question));
+    for (const entry of schema.mainEntity) expect(entry.acceptedAnswer.text).not.toMatch(/\{\w+\}/);
+    // Nothing invented: no partner counts or testimonials.
+    expect(words).not.toMatch(/\d+\+\s*(partners|affiliates)/i);
+  });
+
+  it("shows no estimate without a plan to estimate on", () => {
+    const copy = partnerCopy("en").page;
+    const html = renderToStaticMarkup(createElement(PartnersContent, { copy, policy: DEFAULT_PROGRAM_POLICY, open: true, locale: "en", href: (p: string) => p, plans: [] }));
+    expect(text(html)).not.toContain(copy.calculator.title);
+    expect(text(html)).toContain(copy.faqTitle);
   });
 
   it("offers no application while the program is closed", () => {
@@ -103,11 +145,28 @@ describe("portal components", () => {
     const nav = renderToStaticMarkup(createElement(PartnerNavigation, { label: "Partner portal", items: [{ href: "/partner", label: "Overview" }, { href: "/partner/settings", label: "Settings" }] }));
     expect(nav).toMatch(/aria-current="page"[^>]*>Overview|href="\/partner"[^>]*aria-current="page"/);
     const tier = renderToStaticMarkup(
-      createElement(TierProgress, { title: "Your tier", tierName: "Growth Partner", rate: "30%", progressLabel: "17 / 25 paying customers", remainingLabel: "8 more customers to reach Premier Partner - 35%", current: 17, target: 25 }),
+      createElement(TierProgress, {
+        title: "Your partner level",
+        tierName: "Growth Partner",
+        rateLine: "30% recurring commission",
+        progressLabel: "17 / 25 paying customers",
+        remainingLabel: "8 more customers to reach Premier Partner.",
+        current: 17,
+        target: 25,
+        next: { label: "Next level", name: "Premier Partner", rate: "35% commission" },
+      }),
     );
     expect(tier).toContain('role="progressbar"');
     expect(tier).toContain('aria-valuenow="17"');
-    expect(text(tier)).toContain("8 more customers to reach Premier Partner - 35%");
+    // The client's wording, in its order.
+    const words = text(tier);
+    const order = ["Your partner level", "Growth Partner", "30% recurring commission", "17 / 25 paying customers", "8 more customers to reach Premier Partner.", "Premier Partner", "35% commission"];
+    expect(order.map((piece) => words.indexOf(piece))).toEqual([...order.map((piece) => words.indexOf(piece))].sort((a, b) => a - b));
+    for (const piece of order) expect(words).toContain(piece);
+    const top = renderToStaticMarkup(
+      createElement(TierProgress, { title: "Your partner level", tierName: "Premier Partner", rateLine: "35% recurring commission", progressLabel: "30 / 30 paying customers", remainingLabel: "You are on the top level.", current: 30, target: null, next: null }),
+    );
+    expect(text(top)).not.toContain("Next level");
   });
 });
 
@@ -115,6 +174,7 @@ describe("the partner dashboard and histories", () => {
   const figures = {
     currency: "eur",
     earned: BigInt(4950),
+    unpaid: BigInt(4950),
     pending: BigInt(2475),
     available: BigInt(2475),
     inPayout: BigInt(0),
@@ -129,7 +189,9 @@ describe("the partner dashboard and histories", () => {
 
   it.each(LOCALES)("%s: earnings, metrics and every history render filled in, as tables and as phone cards", (locale) => {
     const copy = partnerCopy(locale).portal;
-    const earnings = renderToStaticMarkup(createElement(EarningsPanel, { copy, balances: [balanceView(figures, copy, locale, 30)], nextPayout: "1 Nov 2026" }));
+    const earnings = renderToStaticMarkup(
+      createElement(EarningsPanel, { copy, balances: [balanceView(figures, copy, locale, 30)], totals: totalsView({ referrals: 24, payingCustomers: 8 }, copy, locale), nextPayout: "1 Nov 2026" }),
+    );
     const metrics = renderToStaticMarkup(
       createElement(MetricsPanel, {
         copy,
@@ -140,7 +202,26 @@ describe("the partner dashboard and histories", () => {
     const commissions = renderToStaticMarkup(
       createElement(CommissionList, {
         copy,
-        rows: [commissionRowView({ id: "c1", paidAt: new Date("2026-09-01T00:00:00Z"), customer: "ex\u2022\u2022\u2022.com", currency: "eur", base: BigInt(9900), rateBasisPoints: 2500, amount: BigInt(2475), reversed: BigInt(0), status: "review", maturesAt: new Date("2026-10-01T00:00:00Z") }, copy, locale)],
+        rows: [
+          commissionRowView(
+            {
+              id: "c1",
+              paidAt: new Date("2026-09-01T00:00:00Z"),
+              customer: "ex\u2022\u2022\u2022.com",
+              plan: { name: "Grow", interval: "month", priceCents: 9900, currency: "eur" },
+              currency: "eur",
+              base: BigInt(9900),
+              rateBasisPoints: 2500,
+              amount: BigInt(2475),
+              reversed: BigInt(0),
+              status: "available",
+              maturesAt: new Date("2026-10-01T00:00:00Z"),
+            },
+            copy,
+            locale,
+          ),
+          commissionRowView({ id: "c2", paidAt: new Date("2026-09-02T00:00:00Z"), customer: "Customer 3FA2C1", plan: null, currency: "eur", base: BigInt(9900), rateBasisPoints: 2500, amount: BigInt(2475), reversed: BigInt(0), status: "review", maturesAt: new Date("2026-10-02T00:00:00Z") }, copy, locale),
+        ],
       }),
     );
     const payouts = renderToStaticMarkup(
@@ -152,8 +233,12 @@ describe("the partner dashboard and histories", () => {
     const referrals = renderToStaticMarkup(createElement(ReferralList, { copy, rows: [referralRowView({ id: "a1", customer: "Customer 3FA2C1", source: "coupon", status: "active", since: new Date("2026-09-01T00:00:00Z") }, copy, locale)] }));
 
     for (const html of [earnings, metrics, commissions, payouts, referrals]) expect(text(html)).not.toMatch(/\{\w+\}/);
-    expect(text(earnings)).toContain(copy.overview.cards.bankPaid);
-    expect(text(earnings)).toContain(copy.overview.definitions.bankPaid);
+    // The client's five figures, in its order.
+    const cards = [copy.overview.cards.earned, copy.overview.cards.pending, copy.overview.cards.paid, copy.overview.cards.referrals, copy.overview.cards.payingCustomers];
+    const shown = text(earnings);
+    for (const label of cards) expect(shown).toContain(label);
+    expect(cards.map((label) => shown.indexOf(label))).toEqual([...cards.map((label) => shown.indexOf(label))].sort((a, b) => a - b));
+    expect(shown).toContain(copy.overview.definitions.paid);
     expect(metrics).toMatch(/aria-current="true"[^>]*>90|href="\/partner\?range=90"[^>]*aria-current="true"/);
     // A table for wide screens and stacked cards for phones, both labelled.
     for (const html of [commissions, payouts, referrals]) {
@@ -161,6 +246,10 @@ describe("the partner dashboard and histories", () => {
       expect(html).toContain('class="space-y-3 md:hidden"');
     }
     expect(text(commissions)).toContain(copy.commissions.statuses.review);
+    // Customer, plan, commission, status - with "Approved" where the client has it.
+    expect(text(commissions)).toContain(copy.commissions.statuses.available);
+    expect(text(commissions)).toContain(copy.commissions.plan);
+    expect(text(commissions)).toMatch(/Grow · .*99/);
     expect(text(payouts)).toContain(copy.payouts.transferStates.confirmed);
     expect(text(payouts)).toContain(copy.payouts.bankStates.pending);
     expect(text(referrals)).toContain("Customer 3FA2C1");
@@ -176,7 +265,7 @@ describe("the partner dashboard and histories", () => {
 
   it.each(LOCALES)("%s: resources offer downloads, banners and texts with the partner's own link", (locale) => {
     const copy = partnerCopy(locale).portal;
-    const link = "https://repget.test/go/abcdefghjk";
+    const link = "https://repget.test/?ref=dami";
     const html = renderToStaticMarkup(
       createElement(ResourcesView, {
         copy,

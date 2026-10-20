@@ -7,8 +7,9 @@ vi.mock("@/inngest/client", () => ({ inngest: { send: vi.fn() } }));
 
 import type { Database } from "@/lib/db/types";
 import { createPostgresTestDb, testPostgresUrl } from "@/test/postgres";
-import { seedPartner, seedUser } from "@/test/partners";
+import { partnerTestDeps, seedPartner, seedUser } from "@/test/partners";
 
+import { approveApplication } from "../../application/use-cases/review-application";
 import { repositoriesFor } from "./unit-of-work";
 
 /**
@@ -61,6 +62,29 @@ describe.skipIf(!available)("partner persistence under concurrency (real Postgre
     expect(results.filter((r) => r?.created)).toHaveLength(1);
     expect(new Set(results.map((r) => r?.partner.id)).size).toBe(1);
     const [count] = await env.sql<{ n: number }[]>`select count(*)::int as n from partner_profiles where user_id = ${owner.id}`;
+    expect(count.n).toBe(1);
+  });
+
+  it("four approvals racing for one link name: one gets it, the others are told it is taken", async () => {
+    const admin = { kind: "admin" as const, userId: "admin-user", email: "admin@repget.test" };
+    const applications = await Promise.all(
+      dbs.map(async (db) => {
+        const person = await seedUser(db);
+        const application = await repositoriesFor(db).applications.create({
+          userId: person.id,
+          answers: { website: "https://race.example", audience: "Agencies", promotion: "Newsletter", country: "IT" },
+          applicantEmail: person.email,
+          applicantName: person.name,
+          submittedAt: new Date(),
+        });
+        return application!.id;
+      }),
+    );
+    const name = `race-${randomUUID().slice(0, 8)}`;
+    const results = await Promise.all(dbs.map((db, index) => approveApplication(partnerTestDeps(db).deps, admin, applications[index], null, name)));
+    expect(results.filter((result) => result.ok)).toHaveLength(1);
+    expect(results.filter((result) => !result.ok).map((result) => (result.ok ? null : result.detail))).toEqual(["link_taken", "link_taken", "link_taken"]);
+    const [count] = await env.sql<{ n: number }[]>`select count(*)::int as n from partner_referral_codes where code = ${name}`;
     expect(count.n).toBe(1);
   });
 
