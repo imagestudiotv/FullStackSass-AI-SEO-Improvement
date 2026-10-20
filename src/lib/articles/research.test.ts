@@ -397,6 +397,32 @@ describe("research evidence", () => {
     expect(mocks.search).toHaveBeenCalledTimes(1);
     expect(mocks.fetch).toHaveBeenCalledTimes(6);
   });
+  it("recovers a timed-out primary page once after an independent source", async () => {
+    const primary = "https://docs.example.org/guide";
+    const secondary = "https://expert.example.net/guide";
+    mocks.search.mockResolvedValueOnce({ items: [{ url: primary }] })
+      .mockResolvedValueOnce({ items: [{ url: secondary }] });
+    mocks.fetch.mockRejectedValueOnce(Object.assign(new Error("Deadline exceeded"), { name: "TimeoutError" }))
+      .mockImplementation(async () => new Response(`<main>${quote.repeat(8)}</main>`, { headers: { "content-type": "text/html" } }));
+    const diagnostic = vi.fn();
+    const result = await collectResearchSources(brief, vi.fn(), diagnostic, {
+      primaryQuery: "site:docs.example.org question", primaryDomain: "docs.example.org",
+    });
+    expect(mocks.fetch.mock.calls.map(call => call[0])).toEqual([primary, secondary, primary]);
+    expect(result.map(source => source.url)).toEqual([primary, secondary]);
+    expect(diagnostic).toHaveBeenCalledWith({ url: primary, outcome: "primary_timeout_retry_queued" });
+  });
+  it.each(["TimeoutError", "UnsafeUrlError", "ResponseTooLargeError"])("bounds repeated primary failures without retrying unsafe or oversized pages: %s", async name => {
+    const primary = "https://docs.example.org/guide";
+    mocks.search.mockResolvedValueOnce({ items: [{ url: primary }] })
+      .mockResolvedValueOnce({ items: Array.from({ length: 8 }, (_, i) => ({ url: `https://source${i}.example.net/guide` })) });
+    mocks.fetch.mockRejectedValue(Object.assign(new Error("Request failed"), { name }));
+    expect(await collectResearchSources(brief, vi.fn(), undefined, {
+      primaryQuery: "site:docs.example.org question", primaryDomain: "docs.example.org",
+    })).toEqual([]);
+    expect(mocks.fetch).toHaveBeenCalledTimes(6);
+    expect(mocks.fetch.mock.calls.filter(call => call[0] === primary)).toHaveLength(name === "TimeoutError" ? 2 : 1);
+  });
   it("limits attempts against an unreadable publisher and still tries fallback publishers", async () => {
     mocks.search.mockResolvedValueOnce({ items: Array.from({ length: 10 }, (_, n) => ({ url: `https://docs.example.org/${n}` })) })
       .mockResolvedValueOnce({ items: [{ url: "https://other.example.org/guide" }] });

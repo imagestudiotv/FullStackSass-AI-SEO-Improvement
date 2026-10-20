@@ -203,6 +203,7 @@ export async function collectResearchSources(
   const hostAttempts = new Map<string, number>();
   const fetchedUrls = new Set<string>();
   const attemptedUrls = new Set<string>();
+  const retriedUrls = new Set<string>();
   const sources: ResearchSource[] = [];
   // Six fetches maximum and two pages per publisher. Synthesis selects up to
   // four relevant pages; do not discard a useful late fallback before it reads it.
@@ -292,6 +293,15 @@ export async function collectResearchSources(
       onSource?.({ url: finalUrl, outcome: "read" });
     } catch (error) {
       onSource?.({ url: item.url, outcome: error instanceof Error ? error.name : "fetch_failed" });
+      // A slow official page deserves one more bounded attempt, after an
+      // independent candidate. Reuse the six-fetch/two-per-host limits; never
+      // retry access denials, unsafe destinations or arbitrary failures.
+      if (error instanceof Error && error.name === "TimeoutError" && isPrimary(item.url) &&
+        !retriedUrls.has(item.url) && fetches < 6) {
+        retriedUrls.add(item.url);
+        candidates.splice(Math.min(1, candidates.length), 0, item);
+        onSource?.({ url: item.url, outcome: "primary_timeout_retry_queued" });
+      }
     }
   }
   return sources.sort((a, b) => Number(isPrimary(b.url)) - Number(isPrimary(a.url)))
