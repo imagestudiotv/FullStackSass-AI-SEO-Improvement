@@ -62,6 +62,7 @@ export function FeaturedImage({
   canEdit,
   lockedReason,
   reviewApproved,
+  reviewNote,
   locale,
   onAltUnsavedChange,
   t,
@@ -87,6 +88,7 @@ export function FeaturedImage({
    * writeImage calls syncApproval), so the panel says so before it happens.
    */
   reviewApproved: boolean;
+  reviewNote?: string;
   locale: Locale;
   /**
    * Told whether a typed description is still waiting to be saved (it saves
@@ -218,7 +220,7 @@ export function FeaturedImage({
         <>
           {lockedReason ? <p className="text-xs leading-5 text-muted-foreground">{lockedReason}</p> : null}
           {reviewApproved && !lockedReason ? (
-            <p className="text-xs leading-5 text-muted-foreground">{t.imageReviewNote}</p>
+            <p className="text-xs leading-5 text-muted-foreground">{reviewNote ?? t.imageReviewNote}</p>
           ) : null}
 
           {imageUrl ? (

@@ -57,8 +57,8 @@ function currentLine(input: {
   const { facts, plan, t } = input;
   if (input.working) return { icon: Loader2, tone: "progress", text: t.stateWriting };
   if (facts.frozen) return { icon: AlertTriangle, tone: "warning", text: t.stateFrozen };
-  if (facts.review === "pending") return { icon: AlertTriangle, tone: "warning", text: t.stateReviewPending };
-  if (facts.review === "changed") return { icon: AlertTriangle, tone: "warning", text: t.stateReviewChanged };
+  if (facts.review === "pending") return { icon: AlertTriangle, tone: "warning", text: facts.reviewSource === "research" ? t.stateResearchPending : t.stateReviewPending };
+  if (facts.review === "changed") return { icon: AlertTriangle, tone: "warning", text: facts.reviewSource === "research" ? t.stateResearchChanged : t.stateReviewChanged };
   if (facts.delivering) return { icon: Loader2, tone: "progress", text: t.stateDelivering };
   if (input.awaiting && !input.pressExpired) {
     return { icon: Loader2, tone: "progress", text: format(t.stateQueued, { time: input.pressTime ?? "" }) };

@@ -155,6 +155,20 @@ describe("the article workspace", () => {
     expect(html).toContain(en.app.editor.stateReviewPending);
   });
 
+  it.each(["pending", "changed"] as const)("directs %s research review to the sources instead of the Partner Network", review => {
+    const html = render({ facts: { ...FACTS, review, reviewSource: "research" } });
+    expect(button(html, en.app.editor.publish)).toContain('disabled=""');
+    expect(html).toContain(review === "pending" ? en.app.editor.stateResearchPending : en.app.editor.stateResearchChanged);
+    expect(html).not.toContain(en.app.editor.stateReviewPending);
+    expect(html).not.toContain(en.app.editor.stateReviewChanged);
+  });
+
+  it("explains research approval invalidation on image changes without assigning it to the team", () => {
+    const html = render({ facts: { ...FACTS, review: "approved", reviewSource: "research" } });
+    expect(html).toContain(en.app.editor.researchEditNote);
+    expect(html).not.toContain(en.app.editor.imageReviewNote);
+  });
+
   it("explains a post the WordPress plugin created, instead of offering buttons that cannot update it", () => {
     const html = render({
       facts: { ...FACTS, destination: { kind: "plugin" } },

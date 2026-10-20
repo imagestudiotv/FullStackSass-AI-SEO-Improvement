@@ -24,7 +24,7 @@ export type Destination =
   /** Only the WordPress plugin, which pulls articles. */
   | { kind: "plugin" };
 
-/** The managed Partner Network review gate (lib/articles/review.ts). */
+/** The combined research and Partner Network publication gate. */
 export type ReviewState = "none" | "pending" | "changed" | "approved";
 
 /** The most recent recorded result of sending this article. */
@@ -37,6 +37,8 @@ export type LastOutcome =
 export type PublishFacts = {
   destination: Destination;
   review: ReviewState;
+  /** Which outstanding review needs action; research approval never clears team review. */
+  reviewSource?: "research" | "team";
   /** platform_controls.publication_freeze: nothing is sent while on. */
   frozen: boolean;
   /** The latest direct send got no answer (lib/publishing/dispatch.ts). */

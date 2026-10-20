@@ -192,6 +192,7 @@ export async function loadPublishing(input: {
   const facts: PublishFacts = {
     destination: input.destination,
     review,
+    reviewSource: extra?.researchReviewRequired && (extra.researchApprovedHash !== revision || extra.reviewStatus === null) ? "research" : "team",
     frozen,
     uncertain: input.uncertain,
     delivering: Boolean(

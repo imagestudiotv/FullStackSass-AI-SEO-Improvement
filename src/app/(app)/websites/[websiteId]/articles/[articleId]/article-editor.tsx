@@ -217,7 +217,7 @@ export function ArticleEditor({
           : { kind: "clean" };
   const saveNote =
     saveHeldNote ??
-    (lastSaveOk && dirty ? tWorkspace.editsKept : facts.review === "approved" && dirty ? t.saveNoteReview : undefined);
+    (lastSaveOk && dirty ? tWorkspace.editsKept : facts.review === "approved" && dirty ? facts.reviewSource === "research" ? t.researchEditNote : t.saveNoteReview : undefined);
 
   /* ---------------------------------------------------------------- tabs */
   const [tab, setTab] = useState<"preview" | "edit">("preview");
@@ -347,7 +347,7 @@ export function ArticleEditor({
       <>
         <p>{t.rewriteConfirmBody}</p>
         {article.publishedUrl ? <p>{t.rewriteConfirmPublished}</p> : null}
-        {facts.review !== "none" ? <p>{t.rewriteConfirmReview}</p> : null}
+        {facts.review !== "none" ? <p>{facts.reviewSource === "research" ? t.researchEditNote : t.rewriteConfirmReview}</p> : null}
         {dirty ? <p>{t.rewriteConfirmUnsaved}</p> : null}
       </>
     );
@@ -702,6 +702,7 @@ export function ArticleEditor({
               canEdit={canEdit}
               lockedReason={working ? t.imageLockedWorking : delivering ? t.imageLockedDelivering : null}
               reviewApproved={facts.review === "approved"}
+              reviewNote={facts.reviewSource === "research" ? t.researchEditNote : undefined}
               locale={locale}
               onAltUnsavedChange={setAltUnsaved}
               t={t}

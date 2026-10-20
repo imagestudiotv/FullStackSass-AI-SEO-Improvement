@@ -1344,6 +1344,9 @@ export type Messages = {
       stateFrozen: string;
       stateReviewPending: string;
       stateReviewChanged: string;
+      stateResearchPending: string;
+      stateResearchChanged: string;
+      researchEditNote: string;
       stateDelivering: string;
       /** {time} */
       stateQueued: string;
@@ -4477,6 +4480,9 @@ const en: Messages = {
       stateFrozen: "Publishing is paused by the RepGet team. Nothing is sent to websites until it resumes.",
       stateReviewPending: "The RepGet team is preparing this article for the Partner Network. It goes out as soon as they approve it.",
       stateReviewChanged: "This article changed after the RepGet team approved it, so it is back in their review.",
+      stateResearchPending: "Review the article and its sources in Research and sources before publishing.",
+      stateResearchChanged: "This article changed after research approval. Review and approve the saved version again.",
+      researchEditNote: "Changing the saved article or its image requires another research review before publishing.",
       stateDelivering: "Being delivered to your website now…",
       stateQueued: "Queued at {time}. The result appears here when your website answers.",
       stateQueuedLong: "Still no result. Delivery can be held back, for example while an earlier attempt is unresolved. Check again in a few minutes.",
@@ -7488,6 +7494,9 @@ const es: Messages = {
       stateFrozen: "El equipo de RepGet ha pausado la publicación. No se envía nada a los sitios web hasta que se reanude.",
       stateReviewPending: "El equipo de RepGet está preparando este artículo para la red de socios. Se publicará en cuanto lo aprueben.",
       stateReviewChanged: "Este artículo cambió después de que el equipo de RepGet lo aprobara, así que ha vuelto a su revisión.",
+      stateResearchPending: "Revise el artículo y sus fuentes en Investigación y fuentes antes de publicar.",
+      stateResearchChanged: "Este artículo cambió después de aprobar la investigación. Revise y apruebe de nuevo la versión guardada.",
+      researchEditNote: "Cambiar el artículo guardado o su imagen requiere otra revisión de la investigación antes de publicar.",
       stateDelivering: "Entregándose a su sitio web ahora…",
       stateQueued: "En cola desde las {time}. El resultado aparecerá aquí cuando responda su sitio web.",
       stateQueuedLong: "Aún no hay resultado. La entrega puede quedar retenida, por ejemplo mientras un intento anterior está sin resolver. Vuelva a comprobarlo en unos minutos.",
@@ -10500,6 +10509,9 @@ const fr: Messages = {
       stateFrozen: "La publication est suspendue par l’équipe RepGet. Rien n’est envoyé aux sites tant qu’elle n’a pas repris.",
       stateReviewPending: "L’équipe RepGet prépare cet article pour le réseau de partenaires. Il sera publié dès qu’elle l’aura approuvé.",
       stateReviewChanged: "Cet article a changé après l’approbation de l’équipe RepGet ; il est donc de nouveau en relecture.",
+      stateResearchPending: "Vérifiez l’article et ses sources dans Recherches et sources avant de publier.",
+      stateResearchChanged: "Cet article a changé après la validation des recherches. Vérifiez et approuvez à nouveau la version enregistrée.",
+      researchEditNote: "Modifier l’article enregistré ou son image nécessite une nouvelle vérification des recherches avant publication.",
       stateDelivering: "Envoi à votre site en cours…",
       stateQueued: "En file d’attente depuis {time}. Le résultat s’affichera ici quand votre site répondra.",
       stateQueuedLong: "Toujours aucun résultat. L’envoi peut être retenu, par exemple tant qu’une tentative précédente n’est pas résolue. Vérifiez de nouveau dans quelques minutes.",
@@ -13511,6 +13523,9 @@ const it: Messages = {
       stateFrozen: "La pubblicazione è sospesa dal team RepGet. Non viene inviato nulla ai siti finché non riprende.",
       stateReviewPending: "Il team RepGet sta preparando questo articolo per la rete di partner. Verrà pubblicato non appena lo approverà.",
       stateReviewChanged: "Questo articolo è cambiato dopo l’approvazione del team RepGet, quindi è tornato in revisione.",
+      stateResearchPending: "Controlli l’articolo e le fonti in Ricerca e fonti prima di pubblicare.",
+      stateResearchChanged: "Questo articolo è cambiato dopo l’approvazione della ricerca. Controlli e approvi di nuovo la versione salvata.",
+      researchEditNote: "Modificare l’articolo salvato o la sua immagine richiede una nuova revisione della ricerca prima di pubblicare.",
       stateDelivering: "Consegna al suo sito in corso…",
       stateQueued: "In coda dalle {time}. Il risultato comparirà qui quando il suo sito risponderà.",
       stateQueuedLong: "Ancora nessun risultato. La consegna può essere trattenuta, per esempio finché un tentativo precedente non è risolto. Ricontrolli tra qualche minuto.",
@@ -16521,6 +16536,9 @@ const de: Messages = {
       stateFrozen: "Das RepGet-Team hat das Veröffentlichen pausiert. Bis es weitergeht, wird nichts an Websites gesendet.",
       stateReviewPending: "Das RepGet-Team bereitet diesen Artikel für das Partnernetzwerk vor. Er geht hinaus, sobald das Team ihn freigibt.",
       stateReviewChanged: "Dieser Artikel wurde nach der Freigabe durch das RepGet-Team geändert und ist deshalb wieder in der Prüfung.",
+      stateResearchPending: "Prüfen Sie den Artikel und seine Quellen unter Recherche und Quellen vor der Veröffentlichung.",
+      stateResearchChanged: "Dieser Artikel wurde nach der Recherchefreigabe geändert. Prüfen Sie die gespeicherte Version und geben Sie sie erneut frei.",
+      researchEditNote: "Änderungen am gespeicherten Artikel oder seinem Bild erfordern vor der Veröffentlichung eine erneute Rechercheprüfung.",
       stateDelivering: "Wird gerade an Ihre Website übermittelt…",
       stateQueued: "Seit {time} in der Warteschlange. Das Ergebnis erscheint hier, sobald Ihre Website antwortet.",
       stateQueuedLong: "Noch kein Ergebnis. Die Übermittlung kann zurückgehalten werden, zum Beispiel solange ein früherer Versuch ungeklärt ist. Prüfen Sie es in ein paar Minuten erneut.",

@@ -174,6 +174,17 @@ describe("loadPublishing", () => {
     expect((await load(websiteId, { ...approvedRow, bodyHtml: "<p>Changed after approval.</p>" })).facts.review).toBe("changed");
   });
 
+  it("identifies research review before and after approval, without hiding independent team review", async () => {
+    const { websiteId } = await seedWebsite(test);
+    const row = await seedArticle(websiteId, { researchReviewRequired: true });
+    expect((await load(websiteId, row)).facts).toMatchObject({ review: "pending", reviewSource: "research" });
+    await test.db.update(articles).set({ researchApprovedHash: reviewHash(row) }).where(eq(articles.id, row.id));
+    expect((await load(websiteId, row)).facts).toMatchObject({ review: "approved", reviewSource: "research" });
+    expect((await load(websiteId, { ...row, title: "Changed" })).facts).toMatchObject({ review: "changed", reviewSource: "research" });
+    await test.db.update(articles).set({ reviewStatus: "pending" }).where(eq(articles.id, row.id));
+    expect((await load(websiteId, row)).facts).toMatchObject({ review: "pending", reviewSource: "team" });
+  });
+
   it("history is newest first, at most ten, failures classified and never quoted", async () => {
     const { websiteId } = await seedWebsite(test);
     const row = await seedArticle(websiteId);
