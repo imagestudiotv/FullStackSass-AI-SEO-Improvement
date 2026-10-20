@@ -574,6 +574,16 @@ export const websites = pgTable("websites", {
    */
   bodyImages: integer("body_images").default(3).notNull(),
   /**
+   * Where articles' pictures come from (client, 2026-10-20, Image Studio:
+   * "searching for images from our current images ... the same for feature
+   * image ... and not generating new one"): "generate" (new ones, as always)
+   * or "library" - chosen from the site's own media library
+   * (lib/sites/pictures.ts, read by lib/sites/inventory.ts). With "library"
+   * a cover is generated only when the library has nothing usable, and a
+   * section gets a picture only when one fits.
+   */
+  pictureSource: text("picture_source").default("generate").notNull(),
+  /**
    * A "Frequently asked questions" section at the end of each article (client,
    * 2026-10-13). On by default, for existing websites too.
    */

@@ -50,6 +50,7 @@ import { bodyImageCount, tableCount } from "@/lib/articles/article-shape";
 import { imageSlots, placeBodyImages, type PlacedImage } from "@/lib/articles/body-images";
 import { nudgePluginIfDue } from "@/lib/plugin/sync";
 import { isImageStorageConfigured, storeArticleImage } from "@/lib/images/storage";
+import { chooseLibraryPictures } from "@/lib/sites/pictures";
 import { notify } from "@/lib/notifications/create";
 import {
   paidCall,
@@ -347,6 +348,8 @@ export const generateArticle = inngest.createFunction(
         } satisfies ArticleBrief,
         /** Pictures inside the article, besides the cover (0-3). */
         bodyImages: bodyImageCount(site.bodyImages),
+        /** "library": pictures from the site's own media library, not made (lib/sites/pictures.ts). */
+        pictureSource: site.pictureSource === "library" ? ("library" as const) : ("generate" as const),
         placementId: pending?.placementId ?? null,
       };
     });
@@ -552,6 +555,42 @@ export const generateArticle = inngest.createFunction(
      * replace a picture the customer chose or uploaded. A failure never fails
      * the article - the writing is what they paid for.
      */
+    /**
+     * Pictures from the website's own media library, when its settings say so
+     * (client, 2026-10-20, Image Studio: "it should get from our images and
+     * not generating new one"): the cover and the sections' pictures chosen
+     * from the library the site inventory read (lib/sites/pictures.ts). Null
+     * for "generate", or when the library has nothing usable - then the cover
+     * is made as before, and the sections get none.
+     */
+    const library = await step.run("choose-library-pictures", async () => {
+      if (brief.pictureSource !== "library") return null;
+      const slots = imageSlots(written.bodyHtml, brief.bodyImages, { faq: Boolean(brief.brief.faqSection) });
+      try {
+        const chosen = await chooseLibraryPictures(
+          {
+            websiteId: brief.websiteId,
+            title: brief.brief.title,
+            keyword: brief.brief.targetKeyword ?? null,
+            language: brief.brief.language ?? "English",
+            sections: slots.map((slot) => ({ h2: slot.h2, heading: slot.heading, text: slot.text })),
+          },
+          meter,
+        );
+        logger.info(
+          { step: "choose-library-pictures", articleId, websiteId: brief.websiteId, cover: Boolean(chosen?.cover), sections: chosen?.sections.length ?? 0, wanted: slots.length },
+          chosen ? "Pictures chosen from the site's library" : "The site's library has no usable pictures - a cover will be made",
+        );
+        return chosen;
+      } catch (error) {
+        logger.warn(
+          { step: "choose-library-pictures", articleId, websiteId: brief.websiteId, reason: error instanceof Error ? error.message : "unknown" },
+          "Pictures could not be chosen from the site's library - a cover will be made",
+        );
+        return null;
+      }
+    });
+
     const image = await step.run("generate-image", async () => {
       const [current] = await db
         .select({ imageUrl: articles.imageUrl, imageAlt: articles.imageAlt })
@@ -564,6 +603,10 @@ export const generateArticle = inngest.createFunction(
           "Article already has an image - keeping it",
         );
         return { url: current.imageUrl, alt: current.imageAlt ?? brief.brief.title, scene: null };
+      }
+      // The site's own photograph: nothing to make or store.
+      if (library?.cover) {
+        return { url: library.cover.url, alt: library.cover.alt, scene: null };
       }
 
       if (!isImageGenerationConfigured() || !isImageStorageConfigured()) {
@@ -678,6 +721,8 @@ export const generateArticle = inngest.createFunction(
      */
     const bodyPlan = await step.run("describe-body-images", async () => {
       if (brief.bodyImages === 0) return null;
+      // From the site's library, or none: in "library" mode no picture is made for a section.
+      if (brief.pictureSource === "library") return null;
       if (!isImageGenerationConfigured() || !isImageStorageConfigured()) return null;
       const slots = imageSlots(written.bodyHtml, brief.bodyImages, { faq: Boolean(brief.brief.faqSection) });
       if (slots.length === 0) return null;
@@ -710,7 +755,10 @@ export const generateArticle = inngest.createFunction(
       }
     });
 
-    const placedImages: PlacedImage[] = [];
+    // The site's own photographs chosen for sections; one whose size the library does not give is left out (its frame would be guessed).
+    const placedImages: PlacedImage[] = (library?.sections ?? []).flatMap((picture) =>
+      picture.width && picture.height ? [{ h2: picture.h2, url: picture.url, alt: picture.alt, width: picture.width, height: picture.height }] : [],
+    );
     for (const [n, planned] of (bodyPlan ?? []).entries()) {
       const placed = await step.run(`body-image-${n + 1}`, async (): Promise<PlacedImage | null> => {
         const startedAt = Date.now();

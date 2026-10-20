@@ -1,0 +1,1 @@
+ALTER TABLE "websites" ADD COLUMN "picture_source" text DEFAULT 'generate' NOT NULL;
