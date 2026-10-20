@@ -9,6 +9,7 @@ import { reviewHashSql } from "@/lib/articles/review";
 
 export const CONTENT_TASKS = {
   research_plan: "Search planning",
+  source_selection: "Source selection",
   research: "Research brief",
   outline: "Article outline",
   body: "Article writing",

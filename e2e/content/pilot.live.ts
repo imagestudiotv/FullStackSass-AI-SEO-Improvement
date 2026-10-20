@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { afterAll, beforeAll, expect, it, vi } from "vitest";
 import { createTestDb, type TestDb } from "@/test/db";
 import { generateOutline, generateBody, type ArticleBrief } from "@/lib/articles/generate";
-import { planResearchSearch, collectResearchSources, synthesizeResearch, checkResearchEvidence } from "@/lib/articles/research";
+import { planResearchSearch, rankResearchSources, collectResearchSources, synthesizeResearch, checkResearchEvidence } from "@/lib/articles/research";
 import { estimatedAiCost, type AiMeasurement } from "@/lib/ai/article-tasks";
 import { MODELS } from "@/lib/ai/client";
 import { PRICING } from "@/lib/usage";
@@ -73,7 +73,9 @@ it(`compares private content pilot drafts: ${caseId}`, async () => {
     const sources = await collectResearchSources(brief, async c => {
       if (c === undefined) unknownSearchCosts++;
       else { searchCost += c; cost += c; }
-    }, result => retrieval.push(result), { ...searchPlan, search: async (...args) => {
+    }, result => retrieval.push(result), { ...searchPlan,
+      rank: async candidates => { guard(); return rankResearchSources(brief, candidates, meter); },
+      search: async (...args) => {
       guard();
       const { articleSearch } = await import("@/lib/providers/dataforseo");
       const result = await articleSearch(...args);

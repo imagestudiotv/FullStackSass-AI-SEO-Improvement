@@ -51,6 +51,13 @@ export async function ResearchPanel({ websiteId, articleId, locale }: { websiteI
           {research.correction.initialIssues.map((issue, i) => <li key={i}>{issue}</li>)}
         </ul>
       </details>}
+      {research.correction?.followUp && <details className="mt-3">
+        <summary className="cursor-pointer py-2 text-muted-foreground">{t.followUpFindings}</summary>
+        {!research.correction.followUp.applied && <p className="mb-2">{t.followUpFailed}</p>}
+        <ul className="list-disc space-y-2 pl-5">
+          {research.correction.followUp.issues.map((issue, i) => <li key={i}>{issue}</li>)}
+        </ul>
+      </details>}
       <p className="mt-3 text-xs text-muted-foreground">{t.limitations}</p>
     </details>}
     {held && <p className="mt-3 text-sm text-muted-foreground">{t.reviewHelp}</p>}

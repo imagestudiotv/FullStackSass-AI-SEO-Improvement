@@ -10,10 +10,10 @@ vi.mock("@/lib/db", () => ({ db: new Proxy({}, { get: (_t, p) => Reflect.get(sta
 const queue = vi.hoisted(() => ({ send: vi.fn(), createFunction: vi.fn((config: unknown, handler: unknown) => ({ config, handler })) }));
 vi.mock("@/inngest/client", () => ({ inngest: queue }));
 const calls = vi.hoisted(() => ({
-  outline: vi.fn(), body: vi.fn(), plan: vi.fn(), collect: vi.fn(), synthesize: vi.fn(), check: vi.fn(), correct: vi.fn(),
+  outline: vi.fn(), body: vi.fn(), plan: vi.fn(), rank: vi.fn(), collect: vi.fn(), synthesize: vi.fn(), check: vi.fn(), correct: vi.fn(),
 }));
 vi.mock("@/lib/articles/generate", () => ({ generateOutline: calls.outline, generateBody: calls.body, sanitizeHtml: (s: string) => s, countWords: () => 10 }));
-vi.mock("@/lib/articles/research", () => ({ planResearchSearch: calls.plan, collectResearchSources: calls.collect, synthesizeResearch: calls.synthesize, checkResearchEvidence: calls.check }));
+vi.mock("@/lib/articles/research", () => ({ planResearchSearch: calls.plan, rankResearchSources: calls.rank, collectResearchSources: calls.collect, synthesizeResearch: calls.synthesize, checkResearchEvidence: calls.check }));
 vi.mock("@/lib/articles/evidence-correction", async original => ({
   ...(await original<object>()), correctResearchDraft: calls.correct,
 }));
@@ -35,7 +35,11 @@ beforeEach(() => {
   vi.stubEnv("ARTICLE_RESEARCH_WEBSITE_IDS", "*");
   queue.send.mockResolvedValue({ ids: ["test-event"] });
   calls.plan.mockResolvedValue({ primaryQuery: "site:example.org reader question" });
-  calls.collect.mockResolvedValue([]);
+  calls.rank.mockResolvedValue([]);
+  calls.collect.mockImplementation(async (_brief, _cost, _diagnostic, options) => {
+    await options.rank([{ url: "https://example.org/guide" }, { url: "https://example.net/guide" }]);
+    return [];
+  });
   calls.synthesize.mockResolvedValue(research);
   calls.outline.mockResolvedValue({ sections: [{ heading: "Reader question", subheadings: [], points: ["Answer"] }], metaDescription: "Meta", faq: [] });
   calls.body.mockResolvedValue({ bodyHtml: "<h2>Reader question</h2><p>Answer to the reader's question.</p>", metaDescription: "Meta", slug: "test", wordCount: 10 });
@@ -75,6 +79,7 @@ describe("researched article pipeline", () => {
     expect(await checkReleasable(article.id)).toEqual({ ok: false, reason: "pending_review" });
     await f.run();
     expect(calls.collect).toHaveBeenCalledTimes(1);
+    expect(calls.rank).toHaveBeenCalledTimes(1);
     expect(calls.plan).toHaveBeenCalledTimes(1);
     expect(calls.body).toHaveBeenCalledTimes(1);
     expect(calls.correct).not.toHaveBeenCalled();
@@ -102,16 +107,35 @@ describe("researched article pipeline", () => {
     calls.check.mockResolvedValueOnce({ checked: true, issues: ["Unsupported feature"] });
     if (failure === "correction") calls.correct.mockRejectedValueOnce(new Error("Provider unavailable"));
     if (failure === "recheck") calls.check.mockRejectedValueOnce(new Error("Provider unavailable"));
-    if (failure === "remaining-issue") calls.check.mockResolvedValueOnce({ checked: true, issues: ["Another unsupported claim"] });
+    if (failure === "remaining-issue") calls.check.mockResolvedValue({ checked: true, issues: ["Another unsupported claim"] });
     const f = await setup();
     await f.run();
     const [article] = await test.db.select().from(articles).where(eq(articles.id, f.articleId));
     expect(article.status).toBe("draft");
     expect(article.researchReviewRequired).toBe(true);
-    expect(calls.correct).toHaveBeenCalledTimes(1);
-    expect(calls.check).toHaveBeenCalledTimes(failure === "correction" ? 1 : 2);
+    expect(calls.correct).toHaveBeenCalledTimes(failure === "remaining-issue" ? 2 : 1);
+    expect(calls.check).toHaveBeenCalledTimes(failure === "correction" ? 1 : failure === "remaining-issue" ? 3 : 2);
     expect(article.bodyHtml).toContain(failure === "correction" ? "Answer to the reader" : "Corrected, supported advice.");
     if (failure === "recheck") expect(article.research).toMatchObject({ quality: { checked: false } });
+  });
+  it.each(["success", "edit-failure", "check-failure"] as const)("memoizes a bounded final correction and preserves the last usable draft: %s", async outcome => {
+    calls.check.mockResolvedValueOnce({ checked: true, issues: ["First issue"] })
+      .mockResolvedValueOnce({ checked: true, issues: ["Missed source descriptor"] });
+    calls.correct.mockResolvedValueOnce({ bodyHtml: "<h2>First revision</h2><p>First corrected draft.</p>", wordCount: 7 });
+    if (outcome === "edit-failure") calls.correct.mockRejectedValueOnce(new Error("Edit unavailable"));
+    else calls.correct.mockResolvedValueOnce({ bodyHtml: "<h2>Final revision</h2><p>Fully supported advice.</p>", wordCount: 7 });
+    if (outcome === "check-failure") calls.check.mockRejectedValueOnce(new Error("Check unavailable"));
+    const f = await setup(); await f.run(); await f.run();
+    const [article] = await test.db.select().from(articles).where(eq(articles.id, f.articleId));
+    expect(calls.correct).toHaveBeenCalledTimes(2);
+    expect(calls.check).toHaveBeenCalledTimes(outcome === "edit-failure" ? 2 : 3);
+    expect(calls.correct.mock.calls[1][0]).toContain("First corrected draft");
+    expect(calls.correct.mock.calls[1][2].quality.issues).toEqual(["Missed source descriptor"]);
+    expect(article.bodyHtml).toContain(outcome === "edit-failure" ? "First corrected draft" : "Fully supported advice");
+    expect(article.research).toMatchObject({ correction: { initialIssues: ["First issue"],
+      followUp: { applied: outcome !== "edit-failure", issues: ["Missed source descriptor"] } } });
+    expect(article.research).toMatchObject({ quality: { checked: outcome !== "check-failure" } });
+    expect(article.researchReviewRequired).toBe(true);
   });
   it("saves a reviewable draft when research or checking fails instead of claiming success", async () => {
     calls.collect.mockRejectedValue(new Error("Unavailable"));
@@ -124,6 +148,18 @@ describe("researched article pipeline", () => {
     expect(article.research).toMatchObject({ status: "unavailable", quality: { checked: false } });
     expect(article.researchReviewRequired).toBe(true);
     expect(calls.body).toHaveBeenCalledTimes(1);
+  });
+  it("holds a draft when source ranking fails and records incomplete research", async () => {
+    calls.rank.mockRejectedValue(new Error("Selection unavailable"));
+    calls.synthesize.mockResolvedValue({ ...research, status: "incomplete", warnings: ["No selected evidence"] });
+    const f = await setup();
+    await f.run();
+    const [article] = await test.db.select().from(articles).where(eq(articles.id, f.articleId));
+    expect(calls.synthesize.mock.calls[0][1]).toEqual([]);
+    expect(calls.rank).toHaveBeenCalledTimes(1);
+    expect(article.status).toBe("draft");
+    expect(article.researchReviewRequired).toBe(true);
+    expect(await checkReleasable(article.id)).toEqual({ ok: false, reason: "pending_review" });
   });
   it("keeps research disabled for websites outside the pilot", async () => {
     vi.stubEnv("ARTICLE_RESEARCH_WEBSITE_IDS", "another-site");

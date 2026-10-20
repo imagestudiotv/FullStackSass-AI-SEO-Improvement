@@ -2,8 +2,50 @@ import type { CheerioAPI } from "cheerio";
 
 const normalize = (text: string) => text.replace(/\s+/g, " ").trim();
 
+/** Keep one contiguous passage: never stitch separated text into a quotation. */
+function relevantExcerpt(text: string, topic?: string) {
+  const limit = 12000;
+  if (text.length <= limit || !topic) return text.slice(0, limit);
+  const stop = new Set(["the", "and", "for", "with", "from", "how", "what", "your", "this", "that", "into", "are"]);
+  const terms = new Set([...new Set((topic.toLocaleLowerCase().match(/[\p{L}\p{N}]{3,}/gu) ?? [])
+    .filter(term => !stop.has(term)))].slice(0, 64));
+  const positions = new Map<string, number[]>();
+  for (const match of text.toLocaleLowerCase().matchAll(/[\p{L}\p{N}]{3,}/gu)) {
+    if (!terms.has(match[0])) continue;
+    const offsets = positions.get(match[0]) ?? [];
+    offsets.push(match.index);
+    positions.set(match[0], offsets);
+  }
+  if (!positions.size) return text.slice(0, limit);
+  const countBefore = (offsets: number[], point: number) => {
+    let low = 0, high = offsets.length;
+    while (low < high) {
+      const middle = (low + high) >>> 1;
+      if (offsets[middle] < point) low = middle + 1;
+      else high = middle;
+    }
+    return low;
+  };
+  // Rare topic terms distinguish the requested method from repeated product
+  // names. Diminishing returns keep repetition from dominating the score.
+  const score = (start: number) => [...positions.values()].reduce((total, offsets) =>
+    total + Math.log1p(countBefore(offsets, start + limit) - countBefore(offsets, start)) / Math.sqrt(offsets.length), 0);
+  let best = 0, bestScore = score(0);
+  for (let offset = 500; offset < text.length - limit + 500; offset += 500) {
+    const candidate = Math.min(offset, text.length - limit);
+    const value = score(candidate);
+    if (value > bestScore) { best = candidate; bestScore = value; }
+  }
+  if (!best) return text.slice(0, limit);
+  // Prefer a nearby sentence start, preserving the original text exactly.
+  const sentence = text.lastIndexOf(". ", best) + 2;
+  const start = sentence > 1 && best - sentence <= 500 ? sentence : text.indexOf(" ", best) + 1;
+  const end = text.lastIndexOf(" ", Math.min(start + limit, text.length));
+  return text.slice(start, end > start ? end : start + limit);
+}
+
 /** Prefer the page's actual headline to the first article (often a related-post card). */
-export function researchPageContent($: CheerioAPI, title: string) {
+export function researchPageContent($: CheerioAPI, title: string, topic?: string) {
   $("script,style,nav,footer,aside,form,noscript,dialog,[role=navigation],[role=dialog],[hidden]").remove();
   $("header").each((_, node) => {
     if (!$(node).closest("article,main,[role=main]").length && !$(node).find("h1").length) $(node).remove();
@@ -38,5 +80,5 @@ export function researchPageContent($: CheerioAPI, title: string) {
   content.find("p,h1,h2,h3,h4,h5,h6,li,tr,div,section,br").each((_, node) => {
     $(node).before(" ").after(" ");
   });
-  return { content, excerpt: normalize(content.text()).slice(0, 12000) };
+  return { content, excerpt: relevantExcerpt(normalize(content.text()), topic) };
 }

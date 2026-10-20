@@ -6,7 +6,7 @@ import { NonRetriableError } from "inngest";
 
 import { inngest } from "@/inngest/client";
 import { articleTask, articleModelExperiment, estimatedAiCost, type MeasureAi } from "@/lib/ai/article-tasks";
-import { planResearchSearch, collectResearchSources, synthesizeResearch, checkResearchEvidence } from "@/lib/articles/research";
+import { planResearchSearch, rankResearchSources, collectResearchSources, synthesizeResearch, checkResearchEvidence } from "@/lib/articles/research";
 import { correctResearchDraft, needsEvidenceCorrection } from "@/lib/articles/evidence-correction";
 import { articleSearch } from "@/lib/providers/dataforseo";
 import { researchMode, researchNeedsReview, type ResearchBrief } from "@/lib/articles/research-types";
@@ -389,6 +389,10 @@ export const generateArticle = inngest.createFunction(
           }), undefined, {
           primaryQuery: searchPlan?.primaryQuery,
           primaryDomain: searchPlan?.primaryDomain,
+          primaryPath: searchPlan?.primaryPath,
+          supportingQuery: searchPlan?.supportingQuery,
+          rank: candidates => paidCall(reservations, () => rankResearchSources(brief.brief, candidates, meter),
+            { beforeSpend: () => requireEntitledForSpend(brief.websiteId, { freeArticles: true }) }),
           // Each search rechecks entitlement and records spend independently.
           search: (...args) => paidCall(reservations, () => articleSearch(...args),
             { beforeSpend: () => requireEntitledForSpend(brief.websiteId, { freeArticles: true }) }),
@@ -446,7 +450,7 @@ export const generateArticle = inngest.createFunction(
           websiteId: brief.websiteId,
           sections: result.sections.length,
           metaDescriptionChars: result.metaDescription.length,
-          model: articleTask("outline").model,
+          model: articleTask("outline", writingBrief.research?.status === "ready").model,
           durationMs: Date.now() - startedAt,
         },
         "Outline written",
@@ -480,7 +484,7 @@ export const generateArticle = inngest.createFunction(
           htmlBytes: result.bodyHtml.length,
           slug: result.slug,
           sections: outline.sections.length,
-          model: articleTask("body").model,
+          model: articleTask("body", writingBrief.research?.status === "ready").model,
           durationMs: Date.now() - startedAt,
         },
         "Article body written",
@@ -502,7 +506,8 @@ export const generateArticle = inngest.createFunction(
     });
 
     // Separately memoized paid steps: a later retry cannot repeat a completed
-    // correction. One edit + one fresh check maximum, never a loop until "pass".
+    // correction. At most two edits, each independently checked; never an
+    // unbounded loop until "pass". A failed call or check keeps the review hold.
     const correction = await step.run("correct-evidence", async () => {
       if (!checkedResearch || !needsEvidenceCorrection(draft.bodyHtml, checkedResearch)) return null;
       const modelExperiment = articleModelExperiment();
@@ -520,12 +525,44 @@ export const generateArticle = inngest.createFunction(
         } };
       }
     });
-    const written = { ...draft, ...correction?.result,
+    const firstRevision = { ...draft, ...correction?.result,
       modelExperiment: draft.modelExperiment || Boolean(correction?.modelExperiment) };
-    const reviewedResearch = await step.run("recheck-evidence", async () => {
+    const firstReview = await step.run("recheck-evidence", async () => {
       if (!checkedResearch || !correction) return checkedResearch;
       const correctedResearch = { ...checkedResearch, correction: correction.audit };
       if (!correction.result) return correctedResearch;
+      await requireEntitledForSpend(brief.websiteId, { freeArticles: true });
+      try {
+        const quality = await paidCall(reservations, () => checkResearchEvidence(firstRevision.bodyHtml, writingBrief, research!, meter),
+          { beforeSpend: () => requireEntitledForSpend(brief.websiteId, { freeArticles: true }) });
+        return { ...correctedResearch, quality };
+      } catch {
+        return { ...correctedResearch, quality: { checked: false,
+          issues: ["The corrected draft could not be checked. Review before publishing."] } };
+      }
+    });
+
+    // The independent recheck can find a problem missed by the first check.
+    // Give those concrete findings one final edit, without retrying a failure.
+    const followUp = await step.run("correct-remaining-evidence", async () => {
+      if (!correction?.result || !firstReview || !needsEvidenceCorrection(firstRevision.bodyHtml, firstReview)) return null;
+      const modelExperiment = articleModelExperiment();
+      await requireEntitledForSpend(brief.websiteId, { freeArticles: true });
+      try {
+        const result = await paidCall(reservations, () => correctResearchDraft(firstRevision.bodyHtml, writingBrief, firstReview, meter),
+          { beforeSpend: () => requireEntitledForSpend(brief.websiteId, { freeArticles: true }) });
+        return { result, modelExperiment, audit: { applied: true, issues: firstReview.quality!.issues } };
+      } catch {
+        return { result: null, modelExperiment, audit: { applied: false, issues: firstReview.quality!.issues,
+          failure: "The final automatic correction could not finish. Review the saved draft." } };
+      }
+    });
+    const written = { ...firstRevision, ...followUp?.result,
+      modelExperiment: firstRevision.modelExperiment || Boolean(followUp?.modelExperiment) };
+    const reviewedResearch = await step.run("check-final-evidence", async () => {
+      if (!firstReview || !followUp) return firstReview;
+      const correctedResearch = { ...firstReview, correction: { ...correction!.audit, followUp: followUp.audit } };
+      if (!followUp.result) return correctedResearch;
       await requireEntitledForSpend(brief.websiteId, { freeArticles: true });
       try {
         const quality = await paidCall(reservations, () => checkResearchEvidence(written.bodyHtml, writingBrief, research!, meter),
@@ -533,7 +570,7 @@ export const generateArticle = inngest.createFunction(
         return { ...correctedResearch, quality };
       } catch {
         return { ...correctedResearch, quality: { checked: false,
-          issues: ["The corrected draft could not be checked. Review before publishing."] } };
+          issues: ["The final corrected draft could not be checked. Review before publishing."] } };
       }
     });
 

@@ -21,13 +21,17 @@ describe("automatic correction disclosure", () => {
       research: { version: 1, mode: "pilot", status: "ready", question: "Question", intent: "informational",
         businessAngle: "", subquestions: [], sources: [], claims: [], warnings: [], checkedAt: "2026-10-20",
         quality: { checked: true, issues: ["Latest issue"] },
-        correction: { attempted: true, applied, initialIssues: ["Earlier issue <script>bad()</script>"] } },
+        correction: { attempted: true, applied, initialIssues: ["Earlier issue <script>bad()</script>"],
+          followUp: { applied, issues: ["Finding after the first revision"] } } },
     }).returning();
     for (const locale of Object.keys(CONTENT_COPY) as (keyof typeof CONTENT_COPY)[]) {
       const html = renderToStaticMarkup(await ResearchPanel({ websiteId: site.websiteId, articleId: article.id, locale }));
       expect(html).toContain(CONTENT_COPY[locale][applied ? "corrected" : "correctionFailed"]);
       expect(html).toContain("Latest issue");
       expect(html).toContain("Earlier issue &lt;script&gt;");
+      expect(html).toContain(CONTENT_COPY[locale].followUpFindings);
+      expect(html).toContain("Finding after the first revision");
+      if (!applied) expect(html).toContain(CONTENT_COPY[locale].followUpFailed);
       expect(html).not.toContain("<script>");
       expect(html).toContain(CONTENT_COPY[locale].held);
     }

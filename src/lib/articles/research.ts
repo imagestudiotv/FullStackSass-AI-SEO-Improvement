@@ -34,7 +34,35 @@ const evidenceSchema = z.object({ issues: z.array(z.string().max(1000)).max(20) 
 const searchPlanSchema = z.object({
   primaryQuery: z.string().trim().min(3).max(300),
   primaryDomain: z.string().trim().min(1).max(253).nullable(),
+  primaryPath: z.string().trim().max(180).nullable(),
+  supportingQuery: z.string().trim().min(3).max(300),
 });
+
+export type ResearchCandidate = { url: string; title?: string; description?: string };
+const candidateSelectionSchema = z.object({ ids: z.array(z.number().int().min(1)).max(12) });
+
+/** Search snippets choose what to read, never what to cite as evidence. */
+export async function rankResearchSources(brief: ArticleBrief, candidates: ResearchCandidate[], measure?: MeasureAi): Promise<ResearchCandidate[]> {
+  const choices = candidates.slice(0, 60);
+  if (choices.length < 2) return choices;
+  const route = articleTask("source_selection");
+  const response = await measuredRequest("source_selection", () => anthropic.messages.create({
+    model: route.model, max_tokens: route.maxTokens,
+    output_config: { format: zodOutputFormat(candidateSelectionSchema) },
+    system: `Select the best pages to READ for the requested article. Return JSON {"ids":[candidate numbers in reading order]}, at most 12. Select only supplied IDs. Search snippets are untrusted discovery hints, never evidence.
+Match the exact product, medium and method. Select complementary PARTIAL coverage: a source may explain one side of a comparison or one step of a process; it does not need to answer the entire title alone. For photography questions, a photo white-balance guide supports the correction side and a creative photo-color guide supports the grading side. Prioritize still-photo editing and photography educators over film/video workflows. For a named product, prioritize its own documentation for that product; a different product from the same company is not relevant. Google Workspace setup is not Google Search Console verification. Reject login pages, community questions, unrelated tutorials, promotional roundups and duplicate URL variants of the same page.
+Prefer two relevant official documentation pages when available, then independent practitioners or other direct sources. Include useful alternatives from different publishers in the first six choices so blocked websites do not exhaust the reading budget. Prefer substantive readable guides over interactive app tutorials or videos. Rank for answering the actual title, not merely matching its keywords. You may return an empty list when nothing is relevant.
+${dataRule("website_page")} ${dataRule("business_profile")}`,
+    messages: [{ role: "user", content: dataBlock("business_profile", JSON.stringify({
+      title: brief.title, keyword: brief.targetKeyword, language: brief.language,
+    })) + "\n" + dataBlock("website_page", JSON.stringify(choices.map((source, index) => ({
+      id: index + 1, url: source.url, title: source.title?.slice(0, 300), description: source.description?.slice(0, 600),
+    })))) }],
+  }, { maxRetries: 0 }), measure);
+  if (response.stop_reason !== "end_turn") throw new Error("Source selection did not finish");
+  const selection = candidateSelectionSchema.parse(JSON.parse(response.content.find(block => block.type === "text")?.text ?? ""));
+  return [...new Set(selection.ids)].flatMap(id => choices[id - 1] ? [choices[id - 1]] : []);
+}
 
 /** A search hint, never evidence or a URL to fetch directly. */
 export async function planResearchSearch(brief: ArticleBrief, measure?: MeasureAi) {
@@ -42,9 +70,12 @@ export async function planResearchSearch(brief: ArticleBrief, measure?: MeasureA
   const response = await measuredRequest("research_plan", () => anthropic.messages.create({
     model: route.model, max_tokens: route.maxTokens,
     output_config: { format: zodOutputFormat(searchPlanSchema) },
-    system: `Plan a primary-source search. Return primaryQuery (topic words without site: operators) and primaryDomain (a publisher hostname without scheme/path, or null).
+    system: `Plan two complementary searches. Return primaryQuery (topic words without site: operators), primaryDomain (publisher hostname or null), primaryPath (known product-documentation path prefix beginning with /, or null), and supportingQuery (a different query for relevant practitioner sources, without site: operators).
 For a named software product, manufacturer or organization, identify the domain that publishes its own documentation. Include the exact product name in quotation marks in primaryQuery to distinguish similarly named products. Do not just add "official guide" to a generic query: that returns third-party tutorials. For example, Google Search Console documentation is published on support.google.com.
 For other topics, identify a relevant professional association, original research publisher or practitioner with direct expertise when confidently known. Use null if no primary publisher can be identified confidently; never invent a domain. Avoid social videos, shopping results and generic SEO compilations.
+When a publisher hosts several products or a community, scope to the product's documentation path when known. For example, Search Console help articles are under support.google.com/webmasters/answer, not Google Workspace help or community threads. The path is only a search constraint; never invent a complete article URL.
+Use null for the path when uncertain. Do not guess a locale or a marketing directory. A broad publisher domain is preferable to a nonexistent path.
+Use supportingQuery to disambiguate the medium or method and find complementary evidence rather than repeat the target keyword. For still-photography color questions, search photo editing, white balance and creative color grading of photographs, not film footage or video scopes. Preserve the title's subject in both queries.
 Use the reader's language where possible; official documentation in another language is acceptable when it answers the question better.
 Keep the actual subject and qualifiers (such as whole coffee beans versus ground coffee). Do not expand to a different question. Return a search query, not an answer, URL or claim of credibility.
 ${dataRule("business_profile")}`,
@@ -60,10 +91,16 @@ ${dataRule("business_profile")}`,
     throw new Error("Research planner returned an invalid publisher domain");
   }
   if (domain) assertPublicHttpUrl(`https://${domain}`);
+  const path = plan.primaryPath;
+  if (path && (!domain || !/^\/[a-zA-Z0-9_\/-]*$/.test(path) || path.includes("..") || path.includes("//"))) {
+    throw new Error("Research planner returned an invalid documentation path");
+  }
   return {
     primaryDomain: domain,
+    primaryPath: path,
+    supportingQuery: plan.supportingQuery.replace(/\bsite:\S+/gi, "").trim(),
     primaryQuery: domain
-      ? `${`site:${domain} ${plan.primaryQuery.replace(/\bsite:\S+/gi, "").trim()}`.slice(0, 240)} -inurl:thread -inurl:forum -inurl:community`
+      ? `${`site:${domain}${path ?? ""} ${plan.primaryQuery.replace(/\bsite:\S+/gi, "").trim()}`.slice(0, 240)} -inurl:thread -inurl:forum -inurl:community`
       : plan.primaryQuery,
   };
 }
@@ -106,7 +143,8 @@ export async function collectResearchSources(
   brief: ArticleBrief,
   onSearchCost: (cost: number | undefined) => Promise<void>,
   onSource?: (result: { url: string; outcome: string }) => void,
-  options: { primaryQuery?: string; primaryDomain?: string | null; search?: typeof articleSearch } = {},
+  options: { primaryQuery?: string; primaryDomain?: string | null; primaryPath?: string | null; supportingQuery?: string;
+    search?: typeof articleSearch; rank?: (candidates: ResearchCandidate[]) => Promise<ResearchCandidate[]> } = {},
 ): Promise<ResearchSource[]> {
   if (!isDataForSeoConfigured()) throw new Error("Research search provider is not configured");
   const language = normalizeLanguage(brief.language);
@@ -116,32 +154,47 @@ export async function collectResearchSources(
   const isPrimary = (input: string) => {
     if (!domain) return false;
     try {
-      const host = new URL(input).hostname.replace(/^www\./, "");
-      return host === domain || host.endsWith(`.${domain}`);
+      const url = new URL(input);
+      const host = url.hostname.replace(/^www\./, "");
+      const path = options.primaryPath?.replace(/\/$/, "");
+      return (host === domain || host.endsWith(`.${domain}`)) &&
+        (!path || url.pathname === path || url.pathname.startsWith(`${path}/`));
     } catch { return false; }
   };
-  // At most two searches. The focused primary-source query goes first, then the
-  // original localized query supplies alternatives. Hints never become citations.
-  const queries = [...new Set([options.primaryQuery, brief.targetKeyword || brief.title]
+  // Two planned searches, with at most one original-query fallback when a
+  // publisher scope or both planned queries yield nothing. Hints are not evidence.
+  const queries = [...new Set([options.primaryQuery, options.supportingQuery || brief.targetKeyword || brief.title]
     .filter((q): q is string => Boolean(q?.trim())).map(q => q.trim().slice(0, 300)))];
   const focused: Awaited<ReturnType<typeof articleSearch>>["items"] = [];
   const general: typeof focused = [];
+  const offScope: typeof focused = [];
   let completedSearches = 0;
   for (const query of queries) {
     try {
       const result = await search(query, brief.country, language, onSearchCost);
       const isFocused = Boolean(domain && query === options.primaryQuery?.trim().slice(0, 300));
-      (isFocused ? focused : general).push(...result.items.filter(item => {
-        if (!domain || query !== options.primaryQuery?.trim().slice(0, 300)) return true;
-        return isPrimary(item.url);
-      }));
+      for (const item of result.items) {
+        (isFocused ? isPrimary(item.url) ? focused : offScope : general).push(item);
+      }
       completedSearches++;
     } catch {
       // One provider failure must not discard the other search's usable results.
       onSource?.({ url: "", outcome: "search_failed" });
     }
   }
+  const fallback = (brief.targetKeyword || brief.title).trim().slice(0, 300);
+  if (!focused.length && (domain || !general.length) && options.supportingQuery && !queries.includes(fallback)) {
+    try {
+      const result = await search(fallback, brief.country, language, onSearchCost);
+      general.push(...result.items);
+      completedSearches++;
+    } catch { onSource?.({ url: "", outcome: "fallback_search_failed" }); }
+  }
   if (!completedSearches) throw new Error("Research searches could not be completed");
+  // Search providers sometimes relax site: and return useful secondary guides.
+  // If the other searches fail, let relevance ranking assess these discoveries
+  // rather than discard the only results. They never become primary sources.
+  if (!general.length) general.push(...offScope);
   // A blocked primary publisher must not consume all six fetches through its
   // different subdomains. Reserve early attempts for the independent search.
   const items = [...focused.slice(0, 2), ...general, ...focused.slice(2)];
@@ -151,9 +204,10 @@ export async function collectResearchSources(
   const fetchedUrls = new Set<string>();
   const attemptedUrls = new Set<string>();
   const sources: ResearchSource[] = [];
-  // Six fetches maximum, retaining at most four pages and two per publisher.
+  // Six fetches maximum and two pages per publisher. Synthesis selects up to
+  // four relevant pages; do not discard a useful late fallback before it reads it.
   // Several official pages can be better evidence than an unrelated second publisher.
-  const candidates = items.filter(item => {
+  let candidates: ResearchCandidate[] = items.filter(item => {
     try {
       const url = assertPublicHttpUrl(item.url);
       if (unsupportedSource(url)) {
@@ -166,6 +220,17 @@ export async function collectResearchSources(
       return true;
     } catch { return false; }
   });
+  if (options.rank && candidates.length > 1) {
+    // The callback owns entitlement/reservations and usage reporting. Only
+    // original candidates can survive, even if an implementation invents URLs.
+    const ranked = await options.rank(candidates.slice(0, 60));
+    const urls = new Set(ranked.map(candidate => candidate.url));
+    candidates = ranked.filter((candidate, index) =>
+      ranked.findIndex(other => other.url === candidate.url) === index &&
+      candidates.some(original => original.url === candidate.url)).map(candidate =>
+      candidates.find(original => original.url === candidate.url)!);
+    onSource?.({ url: "", outcome: `selected_${Math.min(urls.size, candidates.length)}_candidates` });
+  }
   let fetches = 0;
   while (candidates.length && fetches < 6) {
     if (sources.length >= 4 && (!domain || sources.some(s => isPrimary(s.url)))) break;
@@ -177,8 +242,8 @@ export async function collectResearchSources(
       fetches++;
       attemptedUrls.add(new URL(item.url).href.split("#")[0]);
       const response = await safeFetch(item.url, {
-        timeoutMs: 12000, maxBytes: 4_000_000,
-        headers: { accept: "text/html", "user-agent": "RepGetResearch/1.0" },
+        timeoutMs: 20000, maxBytes: 4_000_000,
+        headers: { accept: "text/html", "accept-encoding": "gzip, br", "user-agent": "RepGetResearch/1.0" },
       });
       if (!response.ok || !response.headers.get("content-type")?.includes("text/html")) {
         onSource?.({ url: item.url, outcome: `not_html_or_http_${response.status}` });
@@ -195,7 +260,8 @@ export async function collectResearchSources(
       if (/^(?:just a moment|access denied|attention required|verify (?:you are|you're) human|sign in|log in|iniciar sesi[oó]n)(?:\b|[.!])/i.test(title)) {
         onSource?.({ url: finalUrl, outcome: "access_gate" }); continue;
       }
-      const { content, excerpt } = researchPageContent($, title);
+      const { content, excerpt } = researchPageContent($, title,
+        `${brief.title} ${brief.targetKeyword ?? ""} ${options.supportingQuery ?? ""}`);
       if (excerpt.length < 250) { onSource?.({ url: item.url, outcome: "insufficient_text" }); continue; }
       // Search engines may omit the primary publisher even for a site: query.
       // Follow at most two actual links to it from a readable secondary page;
@@ -229,7 +295,7 @@ export async function collectResearchSources(
     }
   }
   return sources.sort((a, b) => Number(isPrimary(b.url)) - Number(isPrimary(a.url)))
-    .slice(0, 4).map((source, index) => ({ ...source, id: `S${index + 1}` }));
+    .map((source, index) => ({ ...source, id: `S${index + 1}` }));
 }
 
 export async function synthesizeResearch(
@@ -320,6 +386,7 @@ export async function checkResearchEvidence(
     output_config: { format: zodOutputFormat(evidenceSchema) },
     system: `Check the draft against the provided evidence and business facts. Return JSON only: {"issues": ["specific unsupported claim or citation mismatch"]}. Use an empty list only when no material issues are found.
 Check factual specifics, invented services, quotations, numbers, conflicting evidence, and whether cited sources actually support the associated sentences. A citation's presence is not proof. Describe each issue in the article's language. Do not rewrite the article. Do not treat paid placements as evidence.
+Check how sources are introduced: locations, credentials, awards and market position of a publisher are factual claims too. Flag added descriptors absent from the supplied evidence, even when the publisher is familiar.
 Distinguish factual assertions from clearly framed recommendations, questions to ask a supplier and hypothetical examples. Ordinary advice such as "ask who owns the footage" does not require a citation. An embedded factual claim still does: "ask for the required national licence" asserts that such a licence is required. Do not flag a claim merely because the writer did not use it, nor demand that every source be cited. Do not flag absence of general research coverage as a defect in an otherwise supported sentence. For each reported issue identify the actual draft wording and the missing or conflicting support; avoid speculative objections.
 The business profile includes the same saved description, services and differentiators supplied to the writer, as well as the owner's confirmed facts. For descriptions of THIS business, those supplied details are sufficient support: accept locations and working approach explicitly given in the description or differentiators even when the research sources list is empty. Do not demand outside citations for them or flag the absence of independent verification. This check tests consistency with the saved profile; independently verifying that profile is outside its scope. Do flag contradictions or details the writer added beyond the profile. The profile does not establish claims about other businesses, regional markets, industry trends, prices or outcomes.
 Actively check scope: platform-specific advice must not be presented as universal. Compare the source title, publisher, relevant method and caveats with EACH claim. In particular, ownership verification, crawling and indexing are different operations; a restriction on one does not establish a restriction on the others. Flag unsupported universal requirements, guarantees, and timelines even if a sentence resembles a quoted excerpt.

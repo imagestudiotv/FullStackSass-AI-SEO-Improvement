@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "
 import { afterAll, beforeAll, expect, it, vi } from "vitest";
 import { createTestDb, type TestDb } from "@/test/db";
 import { generateOutline, generateBody, type ArticleBrief } from "@/lib/articles/generate";
-import { planResearchSearch, collectResearchSources, synthesizeResearch, checkResearchEvidence } from "@/lib/articles/research";
+import { planResearchSearch, rankResearchSources, collectResearchSources, synthesizeResearch, checkResearchEvidence } from "@/lib/articles/research";
 import { correctResearchDraft, needsEvidenceCorrection } from "@/lib/articles/evidence-correction";
 import { estimatedAiCost, type AiMeasurement } from "@/lib/ai/article-tasks";
 import { PRICING } from "@/lib/usage";
@@ -75,7 +75,7 @@ runCase(`fresh automatic accuracy: ${sample.id}`, async () => {
   if (existsSync(output)) throw new Error("Preserve prior results: choose a new accuracy run name");
   const records: (AiMeasurement & { estimatedCostUsd?: number })[] = [];
   let cost = 0, unknownCosts = 0, searchCost = 0;
-  const guard = () => { if (cost >= 1.25 || records.length >= 8) throw new Error("Per-article spending/call limit reached"); };
+  const guard = () => { if (cost >= 1.25 || records.length >= 10) throw new Error("Per-article spending/call limit reached"); };
   const meter = async (measurement: AiMeasurement) => {
     const estimate = estimatedAiCost(measurement, PRICING.llm);
     records.push({ ...measurement, estimatedCostUsd: estimate });
@@ -89,20 +89,34 @@ runCase(`fresh automatic accuracy: ${sample.id}`, async () => {
   const report: Record<string, unknown> = {
     startedAt: new Date().toISOString(), brief: sample.brief, records,
     candidate: process.env.REPGET_ACCURACY_CANDIDATE ?? "default",
-    note: "Fresh automatic generation and at most one correction. No manual edits. Private local evaluation; no customer quota, publication or database writes.",
+    note: "Fresh automatic generation and at most two independently checked corrections. No manual edits. Private local evaluation; no customer quota, publication or database writes.",
   };
   try {
     guard();
-    const plan = await planResearchSearch(sample.brief, meter);
+    // Match the job's existing original-query fallback when planning fails.
+    // Preserve the failed request and cost; the article still has to satisfy
+    // every source-coverage and final-quality assertion below.
+    const plan = await planResearchSearch(sample.brief, meter).catch(error => {
+      report.searchPlanningFailure = error instanceof Error ? error.message : "Search planning failed";
+      return {};
+    });
     report.searchPlan = plan;
     const retrieval: unknown[] = []; report.retrieval = retrieval;
     const sources = await collectResearchSources(sample.brief, async amount => {
       if (amount === undefined) unknownCosts++;
       else { cost += amount; searchCost += amount; }
-    }, result => retrieval.push(result), { ...plan, search: async (...args) => {
+    }, result => retrieval.push(result), { ...plan,
+      rank: async candidates => { guard(); return rankResearchSources(sample.brief, candidates, meter); },
+      search: async (...args) => {
       guard();
       const { articleSearch } = await import("@/lib/providers/dataforseo");
-      return articleSearch(...args);
+      const result = await articleSearch(...args).catch(error => {
+        ((report.searchErrors ??= []) as unknown[]).push({ query: args[0],
+          message: error instanceof Error ? error.message : "Search failed" });
+        throw error;
+      });
+      ((report.searches ??= []) as unknown[]).push({ query: args[0], cached: result.cached, items: result.items });
+      return result;
     } });
     report.sources = sources;
     guard();
@@ -124,6 +138,14 @@ runCase(`fresh automatic accuracy: ${sample.id}`, async () => {
       report.correction = { attempted: true, applied: true, initialIssues: initial.issues };
       report.final = final; // Save the revision even if the next call fails.
       guard(); quality = await checkResearchEvidence(final.bodyHtml, brief, research, meter);
+      if (needsEvidenceCorrection(final.bodyHtml, { ...research, quality })) {
+        const remainingIssues = quality.issues;
+        guard(); const followUp = await correctResearchDraft(final.bodyHtml, brief, { ...research, quality }, meter);
+        final = { ...final, ...followUp }; report.final = final;
+        report.correction = { attempted: true, applied: true, initialIssues: initial.issues,
+          followUp: { applied: true, issues: remainingIssues } };
+        guard(); quality = await checkResearchEvidence(final.bodyHtml, brief, research, meter);
+      }
     }
     report.final = final;
     report.finalCheck = quality;

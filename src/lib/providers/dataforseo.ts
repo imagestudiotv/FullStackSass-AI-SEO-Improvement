@@ -39,7 +39,9 @@ export class DataForSeoError extends Error {
    */
   get notBilled(): boolean {
     if (this.statusCode === 401) return true;
-    return typeof this.apiStatusCode === "number" && this.apiStatusCode >= 40000 && this.apiStatusCode < 50000;
+    // 40106 is completed, paid work with fewer results than requested.
+    return typeof this.apiStatusCode === "number" && this.apiStatusCode !== 40106 &&
+      this.apiStatusCode >= 40000 && this.apiStatusCode < 50000;
   }
 }
 
@@ -78,6 +80,7 @@ async function post<T>(
   endpoint: string,
   payload: Record<string, unknown>,
   onCost?: (cost: number | undefined) => Promise<void>,
+  allowPartialResults = false,
 ): Promise<T[]> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -131,7 +134,9 @@ async function post<T>(
 
   const task = body.tasks?.[0];
   if (!task) return [];
-  if (task.status_code !== 20000) {
+  // SERP depth can exceed what Google returns. 40106 still contains usable,
+  // paid results: accept those only where the caller supports partial data.
+  if (task.status_code !== 20000 && !(allowPartialResults && task.status_code === 40106 && Array.isArray(task.result))) {
     throw new DataForSeoError(
       `DataForSEO task error ${task.status_code}: ${task.status_message}`,
       undefined,
@@ -149,7 +154,7 @@ export async function articleSearch(
   languageName: string,
   onCost: (cost: number | undefined) => Promise<void>,
 ) {
-  const params = { keyword: keyword.slice(0, 300), location_name: locationName, language_name: languageName, depth: 10 };
+  const params = { keyword: keyword.slice(0, 300), location_name: locationName, language_name: languageName, depth: 30 };
   type Item = { type?: string; url?: string; title?: string; description?: string };
   let recorded = false;
   const result = await withCache(
@@ -159,7 +164,7 @@ export async function articleSearch(
         return await post<{ items?: Item[] }>("/serp/google/organic/live/advanced", params, async cost => {
           recorded = true;
           await onCost(cost);
-        });
+        }, true);
       } catch (error) {
         if (!recorded) await onCost(undefined);
         throw error;
@@ -171,7 +176,7 @@ export async function articleSearch(
     cached: result.cached,
     items: result.data.flatMap(row => row.items ?? [])
       .filter((item): item is Item & { url: string } => item.type === "organic" && typeof item.url === "string")
-      .slice(0, 10),
+      .slice(0, 30),
   };
 }
 

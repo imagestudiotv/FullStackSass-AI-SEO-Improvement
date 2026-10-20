@@ -20,6 +20,7 @@ export const researchBriefSchema = z.object({
   correction: z.object({
     attempted: z.literal(true), applied: z.boolean(),
     initialIssues: z.array(z.string()), failure: z.string().optional(),
+    followUp: z.object({ applied: z.boolean(), issues: z.array(z.string()), failure: z.string().optional() }).optional(),
   }).optional(),
 });
 export type ResearchSource = z.infer<typeof researchSourceSchema>;

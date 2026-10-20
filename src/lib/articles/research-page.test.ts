@@ -38,4 +38,21 @@ describe("research page extraction", () => {
     expect(result.excerpt).not.toContain("menu");
     expect(result.excerpt).toContain("First paragraph. Useful text.");
   });
+  it("finds a later verification method without merging distant passages into a quote", () => {
+    const intro = "Verify your site ownership. HTML tags and HTML files verify a URL-prefix property. ".repeat(180);
+    const dns = "Domain property DNS verification requires the TXT or CNAME record supplied for your domain. Keep this record after verification. ".repeat(35);
+    const ending = "Other methods include Google Analytics. ".repeat(300);
+    const full = `Verify your site ownership ${intro}${dns}${ending}`.replace(/\s+/g, " ").trim();
+    const $ = load(`<main><h1>Verify your site ownership</h1><p>${intro}${dns}${ending}</p></main>`);
+    const { excerpt } = researchPageContent($, "Verify your site ownership", "Google Search Console verify domain property DNS TXT CNAME");
+    expect(excerpt).toContain("Domain property DNS verification requires the TXT or CNAME record");
+    expect(excerpt.length).toBeLessThanOrEqual(12000);
+    expect(full).toContain(excerpt);
+    expect(excerpt).not.toContain("Verify your site ownership Verify your site ownership");
+  });
+  it("keeps the beginning when no topic terms occur in a long page", () => {
+    const text = "An unrelated passage. ".repeat(800);
+    const $ = load(`<article>${text}</article>`);
+    expect(researchPageContent($, "Page", "domain DNS verification").excerpt).toBe(text.trim().slice(0, 12000));
+  });
 });
