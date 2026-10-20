@@ -2,6 +2,8 @@ import { inngest } from "@/inngest/client";
 import { processCancellations } from "@/lib/billing/cancellations";
 import { cancellationOps, checkoutProviderOps } from "@/lib/billing/checkout-providers";
 import { reconcileCheckouts } from "@/lib/billing/checkouts";
+import { endPayPalCancellations } from "@/lib/billing/paypal-events";
+import { isPayPalConfigured } from "@/lib/paypal/client";
 import { sweepAbandonedReservations } from "@/lib/billing/spend-quota";
 import { recoverWebhookEvents } from "@/lib/billing/webhook-recovery";
 import { db } from "@/lib/db";
@@ -50,6 +52,13 @@ export const billingMaintenance = inngest.createFunction(
       reconcileCheckouts(db, checkoutProviderOps),
     );
 
+    /*
+      PayPal subscriptions cancelled in PayPal whose paid time is over: read
+      again, and recorded canceled (lib/billing/paypal-events.ts). PayPal
+      sends nothing on that day.
+    */
+    const paypalEnded = isPayPalConfigured() ? await step.run("end-paypal-cancellations", () => endPayPalCancellations()) : 0;
+
     // Reservations abandoned mid-request (spent ones are consumed, not freed).
     await step.run("sweep-reservations", () => sweepAbandonedReservations());
 
@@ -59,6 +68,7 @@ export const billingMaintenance = inngest.createFunction(
       cancellationsCompleted: cancellations.completed.length,
       cancellationsAbandoned: cancellations.abandoned.length,
       checkoutsSettled: checkouts,
+      paypalCancellationsEnded: paypalEnded,
     };
   },
 );

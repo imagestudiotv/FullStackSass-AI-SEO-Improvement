@@ -13,11 +13,15 @@ What the code now does for you (2026-10-10):
 - Subscriptions made by other tools on the same PayPal account are ignored. They are never recorded and never cancelled.
 - The setup script shows which database it writes to. It stops if the stored plan ids belong to the other PayPal mode.
 
+Added on 2026-10-20:
+- **Cancelling in PayPal keeps the time paid for** (review M1), as a card cancellation does. The plan stays active and shows "Access ends on <date>" until the last payment's month (or year) is over. The 5-minute maintenance job then ends it. If that last payment was refunded in full, or nothing was paid, it ends at once. While it runs out, the website can't change plan or start another subscription; the billing page says from which day it can.
+- **`PAYPAL_CHECKOUT=off` pauses new PayPal checkouts only** (review L9): the button, new subscriptions and plan changes. Webhooks, the return from PayPal and the maintenance job keep working, so existing PayPal subscribers are still billed, recorded and cancelled. Leave it unset normally.
+- **A PayPal payment started and never finished can be cancelled by the customer** (review H1). If someone closes PayPal's tab instead of paying or using "Cancel and return", the billing page and the plan step show a notice after 10 minutes, with a button "Cancel the PayPal payment". It does what "Cancel and return" does: an approval PayPal still has waiting is released, so the website can pay by card again; one PayPal reports paid is recorded instead.
+
 ## Decisions still open
 
 1. **PayPal has no free articles.** The free articles are a card trial. PayPal charges the first month straight away. The plan step already tells the customer. Recommended: keep it this way.
-2. **A PayPal cancellation ends access straight away.** The customer loses the rest of the month they paid for. Card customers keep access to the end of the period. Changing this is review item M1. Until then, say it in your support answers if asked.
-3. Still open from the review: price changes do not reach PayPal (M3), plan changes through PayPal are unverified and do not charge the difference on an upgrade (M5), old PayPal plan ids are forgotten (M8), and there is no switch to pause PayPal for new customers only (L9).
+2. Still open from the review: price changes do not reach PayPal (M3), plan changes through PayPal are unverified and do not charge the difference on an upgrade (M5), and old PayPal plan ids are forgotten (M8). (M1, cancelling keeps the time paid for, and L9, a pause switch, were done on 2026-10-20: see above.)
 
 ## 1. Check the PayPal business account
 
@@ -58,6 +62,7 @@ What the code now does for you (2026-10-10):
    - `PAYPAL_CLIENT_SECRET` = the live Secret. Mark it **Sensitive**.
    - `PAYPAL_WEBHOOK_ID` = the live Webhook ID
    - `PAYPAL_ENV` = `live` (lower case, nothing else)
+   - Do not add `PAYPAL_CHECKOUT`. Set it to `off` only when you want to pause new PayPal checkouts (see "Other rules").
 3. Check that `NEXT_PUBLIC_APP_URL` is `https://www.repget.com`.
 4. Leave Preview and Development on sandbox values, or empty. Never put live credentials in `.env.local`.
 5. **Do not redeploy yet.**
@@ -148,11 +153,11 @@ Every day:
 
 Other rules:
 - PayPal refunds are made in PayPal, not in the RepGet admin. Cancel the subscription separately if the customer is leaving.
-- To stop PayPal for new customers today you must remove the variables, which also stops webhooks for existing PayPal customers (L9). Ask for a checkout-only switch before you need it.
+- To stop PayPal for new customers, set `PAYPAL_CHECKOUT` = `off` in Vercel (Production) and redeploy. Existing PayPal customers are not affected: their webhooks keep working. Remove it and redeploy to offer PayPal again. Never remove the PayPal credentials for this: that would also refuse every webhook for existing PayPal customers.
 
 ## Not verified without a sandbox test
 
 These come from PayPal's documentation, not a test. The code takes the safe path for each.
-- How long an unfinished approval link keeps working, and whether PayPal ever ends an approval left pending. If a customer just closes the PayPal tab (no "Cancel and return"), the approval still blocks card payment and deletion for that website. If PayPal still shows the approval page, Pay with PayPal for the same plan and then "Cancel and return" clears it. If not, there is no button for it yet: it needs a developer (review H1, admin action).
+- How long an unfinished approval link keeps working, and whether PayPal ever ends an approval left pending. If a customer just closes the PayPal tab (no "Cancel and return"), the approval still blocks card payment and deletion for that website. Since 2026-10-20 the billing page and the plan step show such an approval after 10 minutes, with a "Cancel the PayPal payment" button that releases it (review H1).
 - Whether PayPal accepts a plan change to another tier or interval, and when it charges for it (M5).
 - How long webhooks take in live. The app no longer depends on them for the first activation.

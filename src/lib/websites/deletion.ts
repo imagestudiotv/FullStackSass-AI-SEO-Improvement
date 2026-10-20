@@ -86,6 +86,8 @@ export function billingBlockReason(
 
     // Checked before the active case: it IS active, but the customer has
     // already asked to cancel, and telling them to cancel again is wrong.
+    // A PayPal one cancelled in PayPal (running out its paid time) is the
+    // same: the maintenance job records it ended on that day.
     if (row.cancelAtPeriodEnd) {
       const until = row.currentPeriodEnd
         ? ` until ${row.currentPeriodEnd.toISOString().slice(0, 10)}`

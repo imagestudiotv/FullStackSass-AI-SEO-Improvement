@@ -639,6 +639,19 @@ export async function beginCheckout(
 
     const currentId = current?.stripeSubscriptionId ?? current?.paypalSubscriptionId ?? null;
     if (current && currentId && !ENDED.has(current.status)) {
+      /*
+        Cancelled in PayPal and running out the time paid for (review M1):
+        PayPal can neither revise nor resume a cancelled subscription, and a
+        second one now would bill the website twice. A new plan, by card or
+        PayPal, can start once that time is over.
+      */
+      if (current.provider === "paypal" && current.cancelAtPeriodEnd) {
+        const until = current.currentPeriodEnd ? ` until ${current.currentPeriodEnd.toISOString().slice(0, 10)}` : "";
+        return {
+          kind: "refuse",
+          error: `This website's PayPal subscription is cancelled and its plan runs${until}. You can choose a plan again, by card or PayPal, once it has ended.`,
+        };
+      }
       if (current.provider !== input.provider) {
         const name = current.provider === "paypal" ? "PayPal" : "card (Stripe)";
         return {
@@ -963,6 +976,40 @@ export async function settlePayPalReturn(
     }
   }
   return settled;
+}
+
+/** How old an unfinished PayPal approval is before the billing page offers to cancel it: PayPal finishes a real approval in seconds. */
+export const UNFINISHED_APPROVAL_MS = 10 * 60 * 1000;
+
+/**
+ * Whether this website has a PayPal approval that was started and never
+ * finished - not paid, not cancelled with "Cancel and return", not ended -
+ * for at least UNFINISHED_APPROVAL_MS. It blocks card checkout, other plans
+ * and deletion (beginCheckout). Closing PayPal's tab leaves one, so the
+ * billing and plan pages offer to cancel it (review H1, 2026-10-20) through
+ * the same release as "Cancel and return" (settlePayPalReturn), which only
+ * releases what PayPal still reports unapproved.
+ */
+export async function hasUnfinishedPayPalApproval(
+  database: Pick<Database, "select">,
+  scope: { organizationId: string; websiteId: string },
+  now: Date = new Date(),
+): Promise<boolean> {
+  const [row] = await database
+    .select({ id: billingCheckouts.id })
+    .from(billingCheckouts)
+    .where(
+      and(
+        eq(billingCheckouts.organizationId, scope.organizationId),
+        eq(billingCheckouts.websiteId, scope.websiteId),
+        eq(billingCheckouts.provider, "paypal"),
+        eq(billingCheckouts.status, "open"),
+        isNotNull(billingCheckouts.providerSubscriptionId),
+        sql`${billingCheckouts.createdAt} < ${new Date(now.getTime() - UNFINISHED_APPROVAL_MS).toISOString()}::timestamp`,
+      ),
+    )
+    .limit(1);
+  return Boolean(row);
 }
 
 /**

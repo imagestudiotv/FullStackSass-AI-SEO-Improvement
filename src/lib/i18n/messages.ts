@@ -1051,6 +1051,8 @@ export type Messages = {
       billedByCard: string;
       /** billedByCard once the card subscription is set to end: {date} is its period end. */
       billedByCardEnding: string;
+      /** billedByPayPal once it was cancelled in PayPal and its paid time still runs: {date} is the day it ends. */
+      billedByPayPalEnding: string;
       noPlanChange: string;
       /** Return from PayPal (?paypal=success|cancelled). */
       paypalApproved: string;
@@ -4206,6 +4208,7 @@ const en: Messages = {
       billedByPayPal: "This website is billed through PayPal, so plan changes go through PayPal too.",
       billedByCard: "This website is billed by card, so plan changes go through card checkout. To pay with PayPal instead, cancel the card subscription first.",
       billedByCardEnding: "This website's card subscription ends on {date}. You can choose PayPal once it has ended.",
+      billedByPayPalEnding: "This website's PayPal subscription is cancelled and its plan runs until {date}. You can choose a plan again, by card or PayPal, once it has ended.",
       noPlanChange: "Plan changes are not available for this website right now.",
       paypalApproved: "PayPal approval received - confirming your subscription…",
       paypalCancelled: "PayPal checkout cancelled.",
@@ -7220,6 +7223,7 @@ const es: Messages = {
       billedByPayPal: "Este sitio web se factura a través de PayPal, así que los cambios de plan también se hacen con PayPal.",
       billedByCard: "Este sitio web se factura con tarjeta, así que los cambios de plan se hacen con tarjeta. Para pagar con PayPal, cancele primero la suscripción con tarjeta.",
       billedByCardEnding: "La suscripción con tarjeta de este sitio web finaliza el {date}. Podrá elegir PayPal cuando haya finalizado.",
+      billedByPayPalEnding: "La suscripción de PayPal de este sitio web está cancelada y su plan sigue activo hasta el {date}. Podrá elegir un plan de nuevo, con tarjeta o PayPal, cuando haya finalizado.",
       noPlanChange: "Ahora mismo no se puede cambiar el plan de este sitio web.",
       paypalApproved: "Aprobación de PayPal recibida - confirmando su suscripción…",
       paypalCancelled: "Pago con PayPal cancelado.",
@@ -10237,6 +10241,7 @@ const fr: Messages = {
       billedByPayPal: "Ce site est facturé via PayPal : les changements de forfait passent donc aussi par PayPal.",
       billedByCard: "Ce site est facturé par carte : les changements de forfait passent donc par le paiement par carte. Pour payer avec PayPal, résiliez d’abord l’abonnement par carte.",
       billedByCardEnding: "L’abonnement par carte de ce site prend fin le {date}. Vous pourrez choisir PayPal une fois qu’il aura pris fin.",
+      billedByPayPalEnding: "L’abonnement PayPal de ce site est annulé et son forfait reste actif jusqu’au {date}. Vous pourrez de nouveau choisir un forfait, par carte ou PayPal, une fois qu’il aura pris fin.",
       noPlanChange: "Le changement de forfait n’est pas disponible pour ce site pour le moment.",
       paypalApproved: "Autorisation PayPal reçue - confirmation de votre abonnement…",
       paypalCancelled: "Paiement PayPal annulé.",
@@ -13251,6 +13256,7 @@ const it: Messages = {
       billedByPayPal: "Questo sito web viene fatturato tramite PayPal, quindi anche i cambi di piano passano da PayPal.",
       billedByCard: "Questo sito web viene fatturato con carta, quindi i cambi di piano passano dal pagamento con carta. Per pagare con PayPal, disdica prima l’abbonamento con carta.",
       billedByCardEnding: "L’abbonamento con carta di questo sito web termina il {date}. Potrà scegliere PayPal quando sarà terminato.",
+      billedByPayPalEnding: "L’abbonamento PayPal di questo sito web è annullato e il suo piano resta attivo fino al {date}. Potrà scegliere di nuovo un piano, con carta o PayPal, quando sarà terminato.",
       noPlanChange: "Al momento non è possibile cambiare il piano di questo sito web.",
       paypalApproved: "Approvazione PayPal ricevuta - stiamo confermando il suo abbonamento…",
       paypalCancelled: "Pagamento PayPal annullato.",
@@ -16264,6 +16270,7 @@ const de: Messages = {
       billedByPayPal: "Diese Website wird über PayPal abgerechnet, daher laufen auch Tarifwechsel über PayPal.",
       billedByCard: "Diese Website wird per Karte abgerechnet, daher laufen Tarifwechsel über die Kartenzahlung. Um stattdessen mit PayPal zu zahlen, kündigen Sie zuerst das Kartenabonnement.",
       billedByCardEnding: "Das Kartenabonnement dieser Website endet am {date}. Sobald es beendet ist, können Sie PayPal wählen.",
+      billedByPayPalEnding: "Das PayPal-Abonnement dieser Website ist gekündigt, ihr Tarif läuft noch bis zum {date}. Sobald er beendet ist, können Sie wieder einen Tarif wählen, per Karte oder PayPal.",
       noPlanChange: "Ein Tarifwechsel ist für diese Website derzeit nicht möglich.",
       paypalApproved: "PayPal-Freigabe erhalten - Ihr Abonnement wird bestätigt…",
       paypalCancelled: "PayPal-Bezahlvorgang abgebrochen.",

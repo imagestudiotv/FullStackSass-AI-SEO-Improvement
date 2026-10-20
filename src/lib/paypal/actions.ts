@@ -16,7 +16,7 @@ import { syncPayPalSubscription } from "@/lib/billing/paypal-events";
 import { rememberPayer } from "@/lib/conversions/conversions";
 import { db } from "@/lib/db";
 import { plans, subscriptions, websites } from "@/lib/db/schema";
-import { isPayPalConfigured, PayPalError } from "@/lib/paypal/client";
+import { isPayPalConfigured, PayPalError, payPalCheckoutPaused } from "@/lib/paypal/client";
 import {
   cancelSubscription,
   createSubscription,
@@ -46,17 +46,20 @@ function appUrl(): string {
 
 /**
  * Whether to offer PayPal at all: only where a PayPal checkout can complete
- * (credentials, PAYPAL_WEBHOOK_ID and a valid PAYPAL_ENV - client.ts). A
- * plan without a PayPal plan id gets no PayPal button either; the pages
- * decide that per plan.
+ * (credentials, PAYPAL_WEBHOOK_ID and a valid PAYPAL_ENV - client.ts), and
+ * while PAYPAL_CHECKOUT is not "off" (payPalCheckoutPaused). A plan without
+ * a PayPal plan id gets no PayPal button either; the pages decide that per
+ * plan.
  */
 export async function isPayPalAvailable(): Promise<boolean> {
-  return isPayPalConfigured();
+  return isPayPalConfigured() && !payPalCheckoutPaused();
 }
 
 export type PayPalReturnResult = {
   /** Something was recorded or released: the page should read its state again. */
   changed: boolean;
+  /** PayPal reported a checkout paid (live), so it was recorded rather than released. */
+  paid: boolean;
   /** PayPal has not finished yet (approval or activation pending): worth asking again shortly. */
   waiting: boolean;
 };
@@ -76,7 +79,7 @@ export async function confirmPayPalReturn(
   websiteId: string,
   outcome: "success" | "cancelled",
 ): Promise<PayPalReturnResult> {
-  const nothing: PayPalReturnResult = { changed: false, waiting: false };
+  const nothing: PayPalReturnResult = { changed: false, paid: false, waiting: false };
   const { orgId } = await requireOrg();
   if ((outcome !== "success" && outcome !== "cancelled") || !isPayPalConfigured()) return nothing;
 
@@ -104,7 +107,7 @@ export async function confirmPayPalReturn(
       .limit(1);
     waiting = !isEntitled(current?.status);
   }
-  return { changed: settled.synced.length > 0 || settled.released.length > 0, waiting };
+  return { changed: settled.synced.length > 0 || settled.released.length > 0, paid: settled.synced.length > 0, waiting };
 }
 
 /**
@@ -139,6 +142,10 @@ export async function createPayPalCheckout(
   // Before credentials exist this is the expected path, not an outage.
   if (!isPayPalConfigured()) {
     return { error: "PayPal is not available yet. Please pay by card." };
+  }
+  // Paused by the owner (PAYPAL_CHECKOUT=off): no new subscription and no plan change; existing ones carry on.
+  if (payPalCheckoutPaused()) {
+    return { error: "Paying with PayPal is paused for now. Please pay by card, or try again later." };
   }
 
   const [plan] = await db
@@ -268,6 +275,7 @@ export async function cancelPayPalSubscription(websiteId: string): Promise<Cance
     .select({
       provider: subscriptions.provider,
       status: subscriptions.status,
+      cancelAtPeriodEnd: subscriptions.cancelAtPeriodEnd,
       paypalSubscriptionId: subscriptions.paypalSubscriptionId,
     })
     .from(subscriptions)
@@ -284,7 +292,8 @@ export async function cancelPayPalSubscription(websiteId: string): Promise<Cance
   if (!row || row.provider !== "paypal" || !row.paypalSubscriptionId) {
     return { ok: false, error: "This website has no PayPal subscription to cancel." };
   }
-  if (row.status === "canceled") {
+  // Cancelled already: ended, or running out the time paid for (review M1).
+  if (row.status === "canceled" || row.cancelAtPeriodEnd) {
     return { ok: false, error: "This website's PayPal subscription is already cancelled." };
   }
 

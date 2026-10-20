@@ -3,12 +3,14 @@ import { redirect } from "next/navigation";
 import { OnboardingAside } from "@/components/onboarding/onboarding-aside";
 import { TestimonialRail } from "@/components/onboarding/testimonial-rail";
 import { listPublishedTestimonials } from "@/lib/marketing/testimonials-db";
+import { PayPalPendingNotice } from "@/components/paypal-pending-notice";
 import { PayPalReturn } from "@/components/paypal-return";
 import { WizardProgress } from "@/components/wizard-progress";
 import { requireSession } from "@/lib/auth-guard";
 import { getAppMessages } from "@/lib/i18n/app-locale";
+import { PAYPAL_PENDING_COPY } from "@/lib/i18n/paypal-pending";
 import { listPlans } from "@/lib/billing";
-import { isTrialEligible } from "@/lib/billing/checkouts";
+import { hasUnfinishedPayPalApproval, isTrialEligible } from "@/lib/billing/checkouts";
 import { db } from "@/lib/db";
 import { getOnboardingState } from "@/lib/onboarding/steps";
 import { isPayPalAvailable } from "@/lib/paypal/actions";
@@ -37,7 +39,7 @@ export default async function OnboardingPlanPage({
   searchParams,
 }: PageProps<"/onboarding/plan">) {
   const session = await requireSession();
-  const { t } = await getAppMessages(session.user.id);
+  const { t, locale } = await getAppMessages(session.user.id);
   const { orgId } = await requireOrg();
   // Whether checkout will really give the free articles the page offers.
   const trialEligible = await isTrialEligible(db, orgId);
@@ -119,6 +121,8 @@ export default async function OnboardingPlanPage({
     .map(toPickerPlan);
   // The plans a PayPal subscription can be started for: mirrored into PayPal.
   const paypalPlanIds = allPlans.filter((plan) => plan.paypalPlanId).map((plan) => plan.id);
+  // A PayPal payment started and never finished blocks paying by card (review H1): offer to cancel it.
+  const unfinishedPayPal = await hasUnfinishedPayPalApproval(db, { organizationId: orgId, websiteId: state.websiteId });
 
   return (
     <div>
@@ -128,6 +132,11 @@ export default async function OnboardingPlanPage({
         released, so it does not block paying by card. Renders nothing.
       */}
       <PayPalReturn outcome={paypalResult} websiteId={state.websiteId} />
+      {unfinishedPayPal ? (
+        <div className="mx-auto max-w-6xl px-4 pt-6">
+          <PayPalPendingNotice websiteId={state.websiteId} copy={PAYPAL_PENDING_COPY[locale]} />
+        </div>
+      ) : null}
       {/*
           Less headroom than the other steps. The client: "move the part a
           little up because the button start free trial is not visible in the

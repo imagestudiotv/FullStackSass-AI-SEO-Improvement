@@ -314,6 +314,19 @@ describe("BillingClient", () => {
     expect(noDate).not.toContain("card subscription ends on");
   });
 
+  it("a PayPal subscription cancelled in PayPal says until when it runs, and offers no plan change (review M1)", () => {
+    const ending = sub({ provider: "paypal", hasCustomer: false, cancelAtPeriodEnd: true });
+    const out = renderClient({ subscription: ending, websiteSubscriptions: [{ ...ending, websiteId: "site_a", domain: "alpha.example" }] });
+    expect(out).toContain("PayPal subscription is cancelled and its plan runs until 3 Nov 2026. You can choose a plan again, by card or PayPal, once it has ended.");
+    expect(out).not.toContain(en.billing.billedByPayPal);
+    expect(out).not.toContain(en.common.payWithPayPal);
+    expect(out).not.toContain(en.billing.payByCard);
+    expect(out).toContain(en.common.manageInPayPal);
+
+    const german = plain(renderClient({ subscription: ending, websiteSubscriptions: [{ ...ending, websiteId: "site_a", domain: "alpha.example" }], t: de.billing, tCommon: de.common, locale: "de" }));
+    expect(german).toContain("Das PayPal-Abonnement dieser Website ist gekündigt, ihr Tarif läuft noch bis zum 3. Nov. 2026.");
+  });
+
   it("a PayPal subscriber sees PayPal's route and no card or Stripe buttons", () => {
     const paypal = sub({ provider: "paypal", hasCustomer: true });
     const out = renderClient({

@@ -69,6 +69,18 @@ export function isPayPalConfigured(): boolean {
 }
 
 /**
+ * PAYPAL_CHECKOUT=off pauses NEW PayPal checkouts - the button, a new
+ * subscription, a plan change - and nothing else (review L9, 2026-10-20).
+ * The webhook, the return from PayPal and the maintenance job keep working,
+ * so existing PayPal subscribers are still billed, recorded and cancelled.
+ * Before it, pausing PayPal meant removing the credentials, which also
+ * refused every webhook for the customers already paying through it.
+ */
+export function payPalCheckoutPaused(): boolean {
+  return process.env.PAYPAL_CHECKOUT?.trim().toLowerCase() === "off";
+}
+
+/**
  * Live only when explicitly asked for. Defaulting to sandbox means a missing
  * variable cannot accidentally take real money; an invalid one refuses
  * rather than guessing.

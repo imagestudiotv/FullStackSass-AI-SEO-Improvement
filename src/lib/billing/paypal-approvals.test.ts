@@ -92,7 +92,7 @@ vi.mock("@/lib/tenant", () => {
 });
 
 import { checkoutProviderOps } from "@/lib/billing/checkout-providers";
-import { reconcileCheckouts } from "@/lib/billing/checkouts";
+import { hasUnfinishedPayPalApproval, reconcileCheckouts, UNFINISHED_APPROVAL_MS } from "@/lib/billing/checkouts";
 import { processPayPalEvent } from "@/lib/billing/paypal-events";
 import { runReconciliation } from "@/lib/billing/reconciliation";
 import { confirmPayPalReturn, createPayPalCheckout } from "@/lib/paypal/actions";
@@ -203,6 +203,46 @@ async function paypalRow() {
   return row;
 }
 
+describe("a PayPal approval left unfinished - PayPal's tab closed (H1, 2026-10-20)", () => {
+  const age = (checkoutId: string, minutes: number) =>
+    test.db.update(billingCheckouts).set({ createdAt: new Date(Date.now() - minutes * 60_000) }).where(eq(billingCheckouts.id, checkoutId));
+
+  it("is offered for cancelling once it is ten minutes old, for its own website only", async () => {
+    const site = await addSite();
+    const other = await addSite("org_a", "other.test");
+    const checkout = await startPayPal(site);
+    // Just started: the customer may be approving it right now.
+    expect(await hasUnfinishedPayPalApproval(test.db, { organizationId: "org_a", websiteId: site.id })).toBe(false);
+    await age(checkout.id, UNFINISHED_APPROVAL_MS / 60_000 + 1);
+    expect(await hasUnfinishedPayPalApproval(test.db, { organizationId: "org_a", websiteId: site.id })).toBe(true);
+    expect(await hasUnfinishedPayPalApproval(test.db, { organizationId: "org_a", websiteId: other.id })).toBe(false);
+    expect(await hasUnfinishedPayPalApproval(test.db, { organizationId: "org_b", websiteId: site.id })).toBe(false);
+  });
+
+  it("once cancelled from the page, is gone and the website can pay by card", async () => {
+    const site = await addSite();
+    const checkout = await startPayPal(site);
+    await age(checkout.id, 30);
+    payPalReports("APPROVAL_PENDING", site, checkout);
+    expect(await createCheckoutSession(planId, site.id)).toEqual({ error: expect.stringMatching(/PayPal approval/) });
+
+    // The notice's button: the same release as PayPal's "Cancel and return".
+    expect(await confirmPayPalReturn(site.id, "cancelled")).toEqual({ changed: true, paid: false, waiting: false });
+    expect(await hasUnfinishedPayPalApproval(test.db, { organizationId: "org_a", websiteId: site.id })).toBe(false);
+    expect(await createCheckoutSession(planId, site.id)).toEqual({ url: "https://checkout.stripe.test/cs_card" });
+  });
+
+  it("says it was paid, and records it, when PayPal reports it approved after all", async () => {
+    const site = await addSite();
+    const checkout = await startPayPal(site);
+    await age(checkout.id, 30);
+    payPalReports("ACTIVE", site, checkout);
+    expect(await confirmPayPalReturn(site.id, "cancelled")).toEqual({ changed: true, paid: true, waiting: false });
+    expect(await paypalRow()).toMatchObject({ websiteId: site.id, status: "active" });
+    expect(await hasUnfinishedPayPalApproval(test.db, { organizationId: "org_a", websiteId: site.id })).toBe(false);
+  });
+});
+
 describe("coming back through PayPal's Cancel and return (H1)", () => {
   it("releases an approval PayPal still reports pending, so card checkout and deletion work", async () => {
     const site = await addSite();
@@ -214,7 +254,7 @@ describe("coming back through PayPal's Cancel and return (H1)", () => {
       error: expect.stringMatching(/PayPal approval/),
     });
 
-    expect(await confirmPayPalReturn(site.id, "cancelled")).toEqual({ changed: true, waiting: false });
+    expect(await confirmPayPalReturn(site.id, "cancelled")).toEqual({ changed: true, paid: false, waiting: false });
     expect(await checkoutRow()).toMatchObject({ status: "released", providerState: "approval_pending" });
     // Nothing recorded, nothing cancelled: PayPal has nothing to cancel yet.
     expect(await test.db.select().from(subscriptions)).toHaveLength(0);
@@ -259,7 +299,7 @@ describe("coming back through PayPal's Cancel and return (H1)", () => {
     payPalReports("APPROVAL_PENDING", site, checkout);
 
     state.orgId = "org_b";
-    expect(await confirmPayPalReturn(site.id, "cancelled")).toEqual({ changed: false, waiting: false });
+    expect(await confirmPayPalReturn(site.id, "cancelled")).toEqual({ changed: false, paid: false, waiting: false });
     expect(paypalMock.getSubscription).not.toHaveBeenCalled();
     expect(await checkoutRow()).toMatchObject({ status: "open" });
   });
@@ -269,7 +309,7 @@ describe("coming back through PayPal's Cancel and return (H1)", () => {
     await startPayPal(site);
     paypalMock.getSubscription.mockRejectedValueOnce(new Error("ECONNRESET"));
 
-    expect(await confirmPayPalReturn(site.id, "cancelled")).toEqual({ changed: false, waiting: false });
+    expect(await confirmPayPalReturn(site.id, "cancelled")).toEqual({ changed: false, paid: false, waiting: false });
     expect(await checkoutRow()).toMatchObject({ status: "open" });
   });
 });
@@ -280,7 +320,7 @@ describe("coming back from PayPal approved (M4)", () => {
     const checkout = await startPayPal(site);
     payPalReports("ACTIVE", site, checkout);
 
-    expect(await confirmPayPalReturn(site.id, "success")).toEqual({ changed: true, waiting: false });
+    expect(await confirmPayPalReturn(site.id, "success")).toEqual({ changed: true, paid: true, waiting: false });
     expect(await paypalRow()).toMatchObject({ websiteId: site.id, status: "active", planId, provider: "paypal" });
     expect(await checkoutRow()).toMatchObject({ status: "completed", providerSubscriptionId: "I-APPROVAL" });
 
@@ -294,16 +334,16 @@ describe("coming back from PayPal approved (M4)", () => {
     const checkout = await startPayPal(site);
     payPalReports("APPROVED", site, checkout);
 
-    expect(await confirmPayPalReturn(site.id, "success")).toEqual({ changed: true, waiting: true });
+    expect(await confirmPayPalReturn(site.id, "success")).toEqual({ changed: true, paid: true, waiting: true });
     expect(await paypalRow()).toMatchObject({ status: "incomplete" });
 
     payPalReports("ACTIVE", site, checkout);
-    expect(await confirmPayPalReturn(site.id, "success")).toEqual({ changed: true, waiting: false });
+    expect(await confirmPayPalReturn(site.id, "success")).toEqual({ changed: true, paid: true, waiting: false });
     expect(await paypalRow()).toMatchObject({ status: "active" });
 
     // Recorded and active: a later return has nothing left to read.
     paypalMock.getSubscription.mockClear();
-    expect(await confirmPayPalReturn(site.id, "success")).toEqual({ changed: false, waiting: false });
+    expect(await confirmPayPalReturn(site.id, "success")).toEqual({ changed: false, paid: false, waiting: false });
     expect(paypalMock.getSubscription).not.toHaveBeenCalled();
   });
 
@@ -312,7 +352,7 @@ describe("coming back from PayPal approved (M4)", () => {
     const checkout = await startPayPal(site);
     payPalReports("APPROVAL_PENDING", site, checkout);
 
-    expect(await confirmPayPalReturn(site.id, "success")).toEqual({ changed: false, waiting: true });
+    expect(await confirmPayPalReturn(site.id, "success")).toEqual({ changed: false, paid: false, waiting: true });
     expect(await test.db.select().from(subscriptions)).toHaveLength(0);
     expect(await checkoutRow()).toMatchObject({ status: "open", providerState: "approval_pending" });
   });
@@ -324,7 +364,7 @@ describe("coming back from PayPal approved (M4)", () => {
     payPalReports("ACTIVE", theirs, checkout);
 
     state.orgId = "org_a";
-    expect(await confirmPayPalReturn(theirs.id, "success")).toEqual({ changed: false, waiting: false });
+    expect(await confirmPayPalReturn(theirs.id, "success")).toEqual({ changed: false, paid: false, waiting: false });
     expect(await test.db.select().from(subscriptions)).toHaveLength(0);
   });
 });

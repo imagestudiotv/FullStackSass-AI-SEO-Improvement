@@ -151,11 +151,18 @@ export function paymentOptions(
   const manageInPayPal = subscription !== null && provider === "paypal";
   const manageInStripe = subscription !== null && !manageInPayPal && subscription.hasCustomer;
 
+  /*
+    Cancelled in PayPal, its paid time still running (review M1): nothing to
+    change - PayPal cannot revise a cancelled subscription - and nothing to
+    start until it ends (beginCheckout says the date).
+  */
+  const paypalEnding = billedBy === "paypal" && Boolean(subscription?.cancelAtPeriodEnd);
+
   return {
     billedBy,
     unsettled,
     card: !unsettled && billedBy !== "paypal",
-    paypal: paypalAvailable && !unsettled && billedBy !== "stripe",
+    paypal: paypalAvailable && !unsettled && billedBy !== "stripe" && !paypalEnding,
     manageInStripe,
     cancelInStripe: manageInStripe && billedBy === "stripe" && !subscription?.cancelAtPeriodEnd,
     manageInPayPal,

@@ -3,6 +3,7 @@ import { Users } from "lucide-react";
 import type { Metadata } from "next";
 import { cache } from "react";
 
+import { PayPalPendingNotice } from "@/components/paypal-pending-notice";
 import { SettingsNav } from "@/components/settings-nav";
 import { PageHeader, PageShell } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/states";
@@ -16,9 +17,11 @@ import {
   listWebsiteSubscriptions,
   type PaymentRow,
 } from "@/lib/billing";
+import { hasUnfinishedPayPalApproval } from "@/lib/billing/checkouts";
 import { db } from "@/lib/db";
 import { billingCustomers, websites } from "@/lib/db/schema";
 import { getAppMessages } from "@/lib/i18n/app-locale";
+import { PAYPAL_PENDING_COPY } from "@/lib/i18n/paypal-pending";
 import { isPayPalAvailable } from "@/lib/paypal/actions";
 import { requireOrg } from "@/lib/tenant";
 import { hasOnlySharedWork, listAccessibleWebsites } from "@/lib/websites/accessible";
@@ -156,13 +159,15 @@ export default async function BillingPage({ searchParams }: PageProps<"/billing"
     );
   }
 
-  const [plans, subscription, paypalAvailable, addons, purchases, paymentRows] = await Promise.all([
+  const [plans, subscription, paypalAvailable, addons, purchases, paymentRows, unfinishedPayPal] = await Promise.all([
     listPlans(),
     getSubscription(orgId),
     isPayPalAvailable(),
     listAddons(),
     listPurchases(),
     listPayments(orgId),
+    // A PayPal payment started and never finished blocks this website (review H1): offer to cancel it.
+    websiteId ? hasUnfinishedPayPalApproval(db, { organizationId: orgId, websiteId }) : false,
   ]);
 
   /*
@@ -195,6 +200,8 @@ export default async function BillingPage({ searchParams }: PageProps<"/billing"
         always one this workspace owns.
       */}
       {websiteId ? <SettingsNav websiteId={websiteId} t={t.app.nav} /> : null}
+
+      {websiteId && unfinishedPayPal ? <PayPalPendingNotice websiteId={websiteId} copy={PAYPAL_PENDING_COPY[locale]} /> : null}
 
       <BillingClient
         plans={plans}

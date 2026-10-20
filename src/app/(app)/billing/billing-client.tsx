@@ -187,7 +187,10 @@ export function BillingClient({
   */
   const processorNote =
     options.billedBy === "paypal"
-      ? t.billedByPayPal
+      ? subscription?.cancelAtPeriodEnd && subscription.currentPeriodEnd
+        ? // Cancelled in PayPal, its paid time still running (review M1): when a plan can be chosen again.
+          format(t.billedByPayPalEnding, { date: date(subscription.currentPeriodEnd) })
+        : t.billedByPayPal
       : options.billedBy === "stripe" && options.card && paypalAvailable
         ? subscription?.cancelAtPeriodEnd
           ? subscription.currentPeriodEnd

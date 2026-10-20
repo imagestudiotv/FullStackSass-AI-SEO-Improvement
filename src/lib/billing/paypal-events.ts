@@ -1,6 +1,7 @@
-import { and, eq, inArray, ne } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, lte, ne } from "drizzle-orm";
 
 import { cancellationOps } from "@/lib/billing/checkout-providers";
+import { addMonthsClamped } from "@/lib/billing/entitlement-period";
 import { reportFirstPayment } from "@/lib/conversions/conversions";
 import {
   syncProviderSubscription,
@@ -126,19 +127,55 @@ async function createdOrRecorded(reader: Pick<Executor, "select">, subscriptionI
   return Boolean(recorded);
 }
 
+/**
+ * The day a cancelled PayPal subscription is paid up to: its last payment
+ * plus one billing interval of its plan (or, for a plan that is not ours,
+ * the end of the period we last recorded). Null when nothing was paid, or
+ * when the last payment was refunded in full - then there is no paid time
+ * left to keep.
+ */
+async function paidThrough(
+  reader: Pick<Executor, "select">,
+  subscriptionId: string,
+  live: PayPalSubscription,
+  interval: string | null,
+): Promise<Date | null> {
+  const lastPaid = live.billing_info?.last_payment?.time;
+  if (!lastPaid) return null;
+  const [latest] = await reader
+    .select({ status: payments.status })
+    .from(payments)
+    .where(and(eq(payments.provider, "paypal"), eq(payments.providerSubscriptionId, subscriptionId)))
+    .orderBy(desc(payments.createdAt))
+    .limit(1);
+  if (latest?.status === "refunded") return null;
+  if (interval === "month" || interval === "year") {
+    return addMonthsClamped(new Date(lastPaid), interval === "year" ? 12 : 1);
+  }
+  const [recorded] = await reader
+    .select({ currentPeriodEnd: subscriptions.currentPeriodEnd })
+    .from(subscriptions)
+    .where(eq(subscriptions.paypalSubscriptionId, subscriptionId))
+    .limit(1);
+  return recorded?.currentPeriodEnd ?? null;
+}
+
 async function snapshotOf(
   reader: Pick<Executor, "select">,
   subscriptionId: string,
   live: PayPalSubscription,
+  now: Date = new Date(),
 ): Promise<SubscriptionSnapshot> {
   let planId: string | null = null;
+  let interval: string | null = null;
   if (live.plan_id) {
     const [plan] = await reader
-      .select({ id: plans.id })
+      .select({ id: plans.id, interval: plans.interval })
       .from(plans)
       .where(eq(plans.paypalPlanId, live.plan_id))
       .limit(1);
     planId = plan?.id ?? null;
+    interval = plan?.interval ?? null;
   }
 
   const custom = await ownIds(reader, subscriptionId, live, planId !== null);
@@ -164,15 +201,34 @@ async function snapshotOf(
   const start = live.billing_info?.last_payment?.time ?? live.start_time ?? null;
   const nextBilling = live.billing_info?.next_billing_time ?? null;
 
+  /*
+    Cancelled in PayPal: the customer keeps what they paid for (review M1,
+    2026-10-20), as a card customer does - active, set to end, until the
+    last payment's period is over; then canceled (the maintenance job reads
+    it again on that day: endPayPalCancellations). It used to end that very
+    day, paid time lost, and the paid-through date overwritten with null.
+  */
+  let ending: Pick<SubscriptionSnapshot["values"], "status" | "currentPeriodEnd" | "cancelAtPeriodEnd"> = {
+    status,
+    currentPeriodEnd: nextBilling ? new Date(nextBilling) : null,
+    cancelAtPeriodEnd: false,
+  };
+  if (live.status === "CANCELLED") {
+    const until = await paidThrough(reader, subscriptionId, live, interval);
+    ending =
+      until && until.getTime() > now.getTime()
+        ? { status: "active", currentPeriodEnd: until, cancelAtPeriodEnd: true }
+        : { status, currentPeriodEnd: until, cancelAtPeriodEnd: false };
+  }
+
   return {
     organizationId: await existingOrganization(reader, custom.organizationId),
     claimedOrganizationId: custom.organizationId,
     claimedWebsiteId: custom.websiteId,
     checkoutId: custom.checkoutId,
     values: {
-      status,
+      ...ending,
       ...(start ? { currentPeriodStart: new Date(start) } : {}),
-      currentPeriodEnd: nextBilling ? new Date(nextBilling) : null,
       // Keep the existing plan if this PayPal plan is not one of ours.
       ...(planId ? { planId } : {}),
     },
@@ -210,6 +266,40 @@ export async function syncPayPalSubscription(subscriptionId: string): Promise<Sy
     );
   }
   return result;
+}
+
+/**
+ * Ends the PayPal subscriptions cancelled in PayPal once the time they paid
+ * for is over (review M1). PayPal sends nothing on that day - it reported
+ * the cancellation weeks before - so each is read from PayPal again, and the
+ * snapshot, finding its paid-through day passed, records it canceled. Run by
+ * the maintenance job every few minutes; a PayPal error leaves one for the
+ * next run.
+ */
+export async function endPayPalCancellations(now: Date = new Date(), limit = 25): Promise<number> {
+  const due = await db
+    .select({ id: subscriptions.paypalSubscriptionId })
+    .from(subscriptions)
+    .where(
+      and(
+        eq(subscriptions.provider, "paypal"),
+        eq(subscriptions.cancelAtPeriodEnd, true),
+        ne(subscriptions.status, "canceled"),
+        isNotNull(subscriptions.paypalSubscriptionId),
+        lte(subscriptions.currentPeriodEnd, now),
+      ),
+    )
+    .limit(limit);
+  let ended = 0;
+  for (const row of due) {
+    try {
+      await syncPayPalSubscription(row.id!);
+      ended += 1;
+    } catch (error) {
+      console.error(`[paypal] could not end the cancelled subscription ${row.id}; the next run tries again`, error);
+    }
+  }
+  return ended;
 }
 
 /** Handles one verified PayPal event. Throws when it should be retried. */
