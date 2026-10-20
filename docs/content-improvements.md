@@ -240,3 +240,38 @@ At 2026-10-20T16:21:49Z, canonical health and sign-in returned 200, anonymous da
 Cleanup completed: deleted the disposable user, workspace, website, article, sessions and signup-eligibility row, then verified zero remaining rows for those exact fixture IDs. Removed its credentials file, closed the temporary browser tab, stopped the localhost server and removed the isolated worktree after removing its dependency junction safely. The three real ImageStudio drafts remain held; the final snapshot at 16:27 UTC showed zero publish logs. The isolated credential scan passed across 1,577 tracked files. No Git push was performed.
 
 **Remaining acceptance work:** improve source relevance and the writer's preservation of factual scope, then test fresh untouched articles across more than one business/topic family. Compare editing required, relevance, factual accuracy, total generation cost and completion time against the existing workflow. The current sample supports continued review-required pilot operation; it does not establish readiness for a platform-wide automatic rollout or reduced human editing.
+
+## Accuracy improvements and release — 2026-10-20, 18:45 UTC
+
+Implemented and released:
+
+- Extract the actual page article instead of related-story cards, preserving headings and block boundaries. Exclude community/login shells and reserve fetch attempts for independent sources when official pages fail.
+- Split fetched text into bounded, exact passages. The research model selects passage IDs; application code attaches the original quotation. Invalid selections cannot invent a quotation. Relevant sources are selected explicitly, and insufficient topic coverage produces incomplete research with a publication hold.
+- Run at most one automatic correction after an evidence check, then independently check the revised article. Separate durable job steps prevent completed edits and checks from repeating on retry. Preserve original findings and correction failures in the review panel.
+- Use Sonnet 5.5 for research synthesis, researched outlines/bodies and correction; use Opus 5.5 for evidence review. Retain Haiku 4.5 for search planning and image descriptions. Writing without ready research keeps its existing Sonnet 5 route. Record actual models, failed-request uncertainty, correction costs and model-specific cache pricing. The admin report distinguishes ordinary and researched writing routes.
+- Increase the evidence check's output allowance after a real truncated response, and preserve useful longer research warnings after a real validation failure. Existing review and publication gates remain enforced.
+
+Ran 25 private live test attempts across eight preserved batches, including unsuccessful attempts. The provider/search calls were real; drafts and usage for these evaluations were stored locally with PGlite, without customer quotas or publication. Total recorded text/search estimates for these attempts were $6.0593. These figures exclude images, enrichment, hosting and human review. No generated sample was manually edited to turn a failed test into a pass.
+
+The last six topics used the final model selection and relevance checks (the final two used defaults without experiment overrides):
+
+| Fresh topic | Result | Initial → final findings | Text/search estimate | Elapsed |
+| --- | --- | --- | --- | --- |
+| Commercial video production brief | Completed after one automatic correction | 3 → 0 | $0.4042 | 154 s |
+| Wedding audio questions | Completed after one automatic correction | 2 → 0 | $0.3255 | 148 s |
+| Photography color correction vs grading | Incomplete research; quality trial failed | Not written | $0.0611 | 42 s |
+| Search Console domain verification | Incomplete research; quality trial failed | Not written | $0.0460 | 46 s |
+| Product photography brief | Completed after one automatic correction | 1 → 0 | $0.3279 | 141 s |
+| Whole-bean coffee storage | Completed after one automatic correction | 1 → 0 | $0.3349 | 140 s |
+
+The two incomplete cases are meaningful failures to meet the quality acceptance criterion, not successful article generations. The photography results mostly described video workflows. The verification results included Google Workspace documentation and an inconsistent third-party Search Console tutorial. Earlier, a weaker check cleared a draft based on this unsuitable material; the final research logic instead rejects it. Four zero-finding results demonstrate improved consistency with the supplied evidence, not independent proof that every source or sentence is true. Editorial review still matters, including for overly broad wording and promotional sources. No savings or reduction in editing time has been established by these trials.
+
+Validation: 116 tests in 11 focused suites passed; TypeScript and changed-file ESLint passed. The isolated release passed the credential scan across 1,599 files and the Vercel production build. The upload manifest excluded real environment files, private evaluation data and temporary preview files. Browser checks covered source disclosure, original findings after correction, review holds, dashboard links, admin model reporting and light/dark desktop plus a 390px mobile preview. A disposable production account verified the released dashboard-to-review flow; no approval or publication was performed. Screenshots and raw results remain in ignored `test-results/content-accuracy/`.
+
+Main commits: `e9965b3`, `cd18a4d`, `9724177`. Isolated release head: `fcd2144`, based on the then-current production commit `8574a91` to preserve the existing billing release. Deployment `dpl_aCxpBRir1MG2GXzte9wYzVzht76i` (`full-stack-sass-ai-seo-improvement-4wa8xkw8q-ai-seo-sass.vercel.app`) was promoted only after verifying the canonical deployment had not changed. At 18:45 UTC, canonical database health and sign-in returned 200, anonymous dashboard access redirected to sign-in, the admin report returned 404 anonymously, and unsigned Inngest access returned 401. Immediate rollback: `dpl_92Yv6qZDRsWva6T56pBW7m2LxrS4`.
+
+Production remains `ARTICLE_RESEARCH_MODE=pilot`, limited to ImageStudio (`4aec4382-f158-4deb-b7a3-b4968aac6b41`). No model experiment overrides were present. Existing customer drafts remain held. No Git push was performed.
+
+**Rollout decision:** the accuracy fixes and their release validation are complete, but a platform-wide automatic rollout is not accepted. Improve retrieval of relevant photography and official product documentation, rerun those failed topics with fresh drafts, and measure editorial effort on a broader representative sample before expanding scope or removing review. The application safely holds inadequate research; the live evaluation deliberately fails rather than counting those holds as article-quality passes.
+
+Cleanup verified: the disposable user, organization, website, article, sessions and signup-eligibility record all have zero remaining rows. Its credentials file was removed. The temporary browser tab was closed, no local preview listener remained on port 3320, and the isolated worktree was removed after detaching its dependency junction. Shared dependencies and real customer articles were retained.
