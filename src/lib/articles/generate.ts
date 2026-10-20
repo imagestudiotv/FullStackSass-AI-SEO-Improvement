@@ -435,7 +435,7 @@ export async function generateOutline(
     throw new Error("ANTHROPIC_API_KEY is not set");
   }
 
-  const route = articleTask("outline");
+  const route = articleTask("outline", brief.research?.status === "ready");
   const response = await measuredRequest("outline", () => anthropic.messages.create({
     model: route.model,
     /**
@@ -457,7 +457,7 @@ export async function generateOutline(
       : OUTLINE_SYSTEM,
     output_config: { format: { type: "json_schema", schema: OUTLINE_SCHEMA } },
     messages: [{ role: "user", content: briefContext(brief) }],
-  }, { maxRetries: 0 }), measure);
+  }, { maxRetries: 0 }), measure, route.model);
 
   if (response.stop_reason === "refusal") {
     throw new Error("The model declined to plan this article");
@@ -609,7 +609,7 @@ export async function generateBody(
 
   const structure = structureFor(outline);
 
-  const route = articleTask("body");
+  const route = articleTask("body", brief.research?.status === "ready");
   const response = await measuredRequest("body", () => anthropic.messages.create({
     model: route.model,
     /*
@@ -634,7 +634,7 @@ export async function generateBody(
         content: `${briefContext(brief)}\n\nFollow this structure:\n\n${structure}`,
       },
     ],
-  }, { maxRetries: 0 }), measure);
+  }, { maxRetries: 0 }), measure, route.model);
 
   if (response.stop_reason === "refusal") {
     throw new Error("The model declined to write this article");

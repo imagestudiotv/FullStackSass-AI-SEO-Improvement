@@ -10,6 +10,7 @@ import { normalizeLanguage } from "@/lib/websites/languages";
 import type { ArticleBrief } from "./generate";
 import type { ResearchBrief, ResearchSource } from "./research-types";
 import { researchPageContent } from "./research-page";
+import { researchPassages } from "./research-passages";
 
 const synthesisSchema = z.object({
   question: z.string().min(1).max(500),
@@ -20,7 +21,13 @@ const synthesisSchema = z.object({
     text: z.string().max(600), sourceId: z.string(),
     quote: z.string().min(20).max(700),
   })).min(1).max(12),
-  warnings: z.array(z.string().max(400)).max(8),
+  warnings: z.array(z.string().max(1500)).max(16),
+});
+const selectionSchema = synthesisSchema.omit({ claims: true }).extend({
+  warnings: z.array(z.string().max(1500)).max(8),
+  relevantSourceIds: z.array(z.string()).max(4),
+  canAnswerQuestion: z.boolean(),
+  claims: z.array(z.object({ text: z.string().max(600), passageId: z.string() })).max(12),
 });
 const normalize = (text: string) => text.normalize("NFKC").replace(/\p{Cf}/gu, "").replace(/\s+/g, " ").trim();
 const evidenceSchema = z.object({ issues: z.array(z.string().max(1000)).max(20) });
@@ -36,7 +43,7 @@ export async function planResearchSearch(brief: ArticleBrief, measure?: MeasureA
     model: route.model, max_tokens: route.maxTokens,
     output_config: { format: zodOutputFormat(searchPlanSchema) },
     system: `Plan a primary-source search. Return primaryQuery (topic words without site: operators) and primaryDomain (a publisher hostname without scheme/path, or null).
-For a named software product, manufacturer or organization, identify the domain that publishes its own documentation. Do not just add "official guide" to a generic query: that returns third-party tutorials. For example, Google Search Console documentation is published on support.google.com.
+For a named software product, manufacturer or organization, identify the domain that publishes its own documentation. Include the exact product name in quotation marks in primaryQuery to distinguish similarly named products. Do not just add "official guide" to a generic query: that returns third-party tutorials. For example, Google Search Console documentation is published on support.google.com.
 For other topics, identify a relevant professional association, original research publisher or practitioner with direct expertise when confidently known. Use null if no primary publisher can be identified confidently; never invent a domain. Avoid social videos, shopping results and generic SEO compilations.
 Use the reader's language where possible; official documentation in another language is acceptable when it answers the question better.
 Keep the actual subject and qualifiers (such as whole coffee beans versus ground coffee). Do not expand to a different question. Return a search query, not an answer, URL or claim of credibility.
@@ -55,7 +62,9 @@ ${dataRule("business_profile")}`,
   if (domain) assertPublicHttpUrl(`https://${domain}`);
   return {
     primaryDomain: domain,
-    primaryQuery: domain ? `site:${domain} ${plan.primaryQuery.replace(/\bsite:\S+/gi, "").trim()}`.slice(0, 300) : plan.primaryQuery,
+    primaryQuery: domain
+      ? `${`site:${domain} ${plan.primaryQuery.replace(/\bsite:\S+/gi, "").trim()}`.slice(0, 240)} -inurl:thread -inurl:forum -inurl:community`
+      : plan.primaryQuery,
   };
 }
 
@@ -232,13 +241,16 @@ export async function synthesizeResearch(
     subquestions: [] as string[], claims: [] as ResearchBrief["claims"], warnings: [] as string[],
   };
   if (sources.length < 2) return { ...base, status: "incomplete", warnings: ["Not enough readable source material. Review the article before publishing."] };
+  const passages = researchPassages(sources);
+  if (!passages.length) return { ...base, status: "incomplete", warnings: ["No usable source passages. Review before publishing."] };
   const route = articleTask("research");
   const response = await measuredRequest("research", () => anthropic.messages.create({
     model: route.model, max_tokens: route.maxTokens,
-    output_config: { format: zodOutputFormat(synthesisSchema) },
-    system: `Prepare a research brief, not an article. Return JSON only with question, intent (informational/commercial/transactional/navigational), businessAngle, subquestions (1-8), claims (1-12 objects: text, sourceId, quote), warnings.
-Write in the customer's language. Select relevant claims supported by verbatim quotes (20-700 characters) from the supplied excerpts. A claim must not be broader than its quote.
-Prefer 4-6 focused claims from the relevant readable sources. Keep each quotation to ONE exact short passage, ideally 40-300 characters; never join separate passages, use ellipses, paraphrase or copy a whole long paragraph. Use multiple sources where they contribute distinct support.
+    output_config: { format: zodOutputFormat(selectionSchema) },
+    system: `Prepare a research brief, not an article. Return JSON only with question, intent (informational/commercial/transactional/navigational), businessAngle, subquestions (1-8), relevantSourceIds, canAnswerQuestion, claims (0-12 objects: text, passageId), warnings.
+First decide which sources actually answer the requested topic. Put only their source IDs in relevantSourceIds. A page about another product, medium or method is not relevant just because it shares a publisher or keyword: Google Workspace domain setup is not Google Search Console verification; video-specific color workflow is not evidence for photography-specific technical claims. Exclude those pages and all their claims. Mark canAnswerQuestion false when the remaining evidence cannot support the core answer or requested steps. Return no claims if nothing relevant remains.
+Write in the customer's language. Each claim must select ONE provided passageId, such as S1:P3, whose text supports the complete claim. Do not write or reconstruct quotations: the application attaches the selected passage verbatim. Never invent a passage ID or combine unrelated passages into a broader claim.
+Prefer 4-6 focused claims from the relevant readable sources. Use multiple sources where they contribute distinct support. Preserve context and qualifiers; adjacent passages can help interpret a sentence, but the selected passage must contain the claim's supporting words.
 The requested topic and keyword define the question, not the business's full list of services. Warn about material gaps needed to answer that question, not hypothetical legal, regional or technical subjects the article does not need to cover. A customer's location alone does not make a general planning article a guide to local law.
 Prefer original research, official documentation and first-party sources. Search position does not establish credibility. Reject unsupported, stale, promotional or conflicting claims; explain gaps in warnings. Never invent a URL, statistic, service or quotation. Keep the business angle relevant without pretending sources describe the customer's business.
 State the relevant platform, product, country, date and verification method INSIDE each claim. A Wix or Squarespace help page supports advice for that platform, not universal Google requirements. Do not confuse crawling, indexing and ownership verification. If the sources cannot answer the general question, say so in warnings and narrow the brief.
@@ -248,12 +260,37 @@ ${dataRule("website_page")} ${dataRule("business_profile")}`,
         topic: brief.title, keyword: brief.targetKeyword, intent: brief.intent,
         language: brief.language, country: brief.country, business: brief.brandName,
         services: brief.services, audience: brief.targetAudience, facts: brief.facts,
-      })) + "\n" + dataBlock("website_page", JSON.stringify(sources)),
+      })) + "\n" + dataBlock("website_page", JSON.stringify(sources.map(source => ({
+        id: source.id, title: source.title, url: source.url, retrievedAt: source.retrievedAt,
+        passages: passages.filter(passage => passage.sourceId === source.id),
+      })))),
     }],
   }, { maxRetries: 0 }), measure);
   if (response.stop_reason !== "end_turn") throw new Error("Research did not finish");
   const text = response.content.find(b => b.type === "text")?.text ?? "";
-  return { ...base, ...validateResearch(text, sources), status: "ready" };
+  const selected = selectionSchema.omit({ claims: true }).extend({
+    claims: z.array(z.unknown()).max(100),
+  }).parse(JSON.parse(text));
+  const relevantIds = new Set(selected.relevantSourceIds);
+  const relevantSources = sources.filter(source => relevantIds.has(source.id));
+  const claims = selected.claims.flatMap(claim => {
+    const parsed = selectionSchema.shape.claims.element.safeParse(claim);
+    if (!parsed.success) return [];
+    const passage = passages.find(passage => passage.id === parsed.data.passageId);
+    return passage && relevantIds.has(passage.sourceId)
+      ? [{ text: parsed.data.text, sourceId: passage.sourceId, quote: passage.quote }] : [];
+  }).slice(0, 12);
+  if (!selected.canAnswerQuestion || relevantSources.length < 2 || !claims.length) {
+    return { ...base, sources: relevantSources, status: "incomplete", warnings: [
+      ...selected.warnings,
+      "The readable sources do not provide enough relevant evidence for this question. Review before publishing.",
+    ] };
+  }
+  const omitted = claims.length < selected.claims.length;
+  const warnings = [...selected.warnings, ...(omitted
+    ? ["Some research claims were malformed or selected an unknown source passage and were omitted."] : [])];
+  return { ...base, sources: relevantSources,
+    ...validateResearch(JSON.stringify({ ...selected, claims, warnings }), relevantSources), status: "ready" };
 }
 
 export function citationIssues(html: string, research: ResearchBrief, brief: ArticleBrief): string[] {
@@ -287,6 +324,7 @@ Distinguish factual assertions from clearly framed recommendations, questions to
 The business profile includes the same saved description, services and differentiators supplied to the writer, as well as the owner's confirmed facts. For descriptions of THIS business, those supplied details are sufficient support: accept locations and working approach explicitly given in the description or differentiators even when the research sources list is empty. Do not demand outside citations for them or flag the absence of independent verification. This check tests consistency with the saved profile; independently verifying that profile is outside its scope. Do flag contradictions or details the writer added beyond the profile. The profile does not establish claims about other businesses, regional markets, industry trends, prices or outcomes.
 Actively check scope: platform-specific advice must not be presented as universal. Compare the source title, publisher, relevant method and caveats with EACH claim. In particular, ownership verification, crawling and indexing are different operations; a restriction on one does not establish a restriction on the others. Flag unsupported universal requirements, guarantees, and timelines even if a sentence resembles a quoted excerpt.
 Review the WHOLE draft in three passes before returning findings: (1) opening and all paragraphs, including causal or outcome claims such as "most delays disappear"; (2) table cells and FAQ answers, including invented definitions, typical lengths or industry practices; (3) business figures, differentiators and every citation. Return all material findings together, not just the first few. Advice can remain advice without an unsupported promise explaining why it works. Do not overlook an assertion because it sounds plausible or appears in an introduction.
+Judge the exact wording and modality. An optional example or suggestion in a source does not establish a mandatory standard; distinguish "can", "may" and "recommended" from "must", "always" and "standard". Applying a saved business-wide working approach to one of its listed services is not itself a contradiction; inventing service-specific totals, exclusivity or outcomes is. Report material factual problems, not alternative stylistic preferences.
 ${dataRule("website_page")} ${dataRule("business_profile")}`,
     messages: [{ role: "user", content:
       dataBlock("business_profile", JSON.stringify({

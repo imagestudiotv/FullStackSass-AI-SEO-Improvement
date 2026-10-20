@@ -72,7 +72,10 @@ export async function getContentPerformance(now = new Date()) {
   ]);
   return {
     since, until: now, rollout, selectedSites, usage: usage as ContentTaskUsage[],
-    routes: (Object.keys(CONTENT_TASKS) as ArticleTask[]).map(task => ({ task, label: CONTENT_TASKS[task], ...articleTask(task) })),
+    routes: (Object.keys(CONTENT_TASKS) as ArticleTask[]).map(task => ({
+      task, label: CONTENT_TASKS[task], ...articleTask(task),
+      researchModel: articleTask(task, true).model,
+    })),
     recent: recent.map(({ research: value, ...article }) => {
       const research = readResearch(value);
       return { ...article, researchStatus: research?.status ?? null,

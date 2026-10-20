@@ -26,6 +26,39 @@ const brief = { title: "Verify a website", targetKeyword: "website verification"
 afterEach(() => { vi.unstubAllEnvs(); vi.resetAllMocks(); });
 
 describe("research evidence", () => {
+  it("attaches the fetched passage itself and discards invented passage IDs", async () => {
+    mocks.create.mockResolvedValue({ model: "cheap", stop_reason: "end_turn",
+      content: [{ type: "text", text: JSON.stringify({ ...synthesis,
+        relevantSourceIds: ["S1", "S2"], canAnswerQuestion: true, claims: [
+        { text: quote, passageId: "S1:P1" }, { text: "Invented source", passageId: "S9:P9" },
+        { text: "Oversized ".repeat(100), passageId: "S1:P1" },
+      ] }) }], usage: { input_tokens: 100, output_tokens: 30 } });
+    const result = await synthesizeResearch(brief, [...sources, { ...sources[0], id: "S2" }], "pilot");
+    expect(result.claims).toEqual([{ text: quote, sourceId: "S1", quote }]);
+    expect(result.warnings).toEqual(["Some research claims were malformed or selected an unknown source passage and were omitted."]);
+  });
+  it("does not count unrelated pages toward sufficient evidence or keep their claims", async () => {
+    mocks.create.mockResolvedValue({ model: "cheap", stop_reason: "end_turn",
+      content: [{ type: "text", text: JSON.stringify({ ...synthesis,
+        relevantSourceIds: ["S1", "invented"], canAnswerQuestion: true,
+        claims: [{ text: quote, passageId: "S1:P1" }, { text: quote, passageId: "S2:P1" }],
+      }) }], usage: { input_tokens: 100, output_tokens: 30 } });
+    const result = await synthesizeResearch(brief, [...sources, { ...sources[0], id: "S2" }], "on");
+    expect(result.status).toBe("incomplete");
+    expect(result.sources).toEqual(sources);
+    expect(result.claims).toEqual([]);
+    expect(researchNeedsReview(result)).toBe(true);
+  });
+  it("holds insufficient coverage and preserves a useful longer warning without a parsing failure", async () => {
+    const warning = "The available sources do not cover the requested verification method. ".repeat(8);
+    mocks.create.mockResolvedValue({ model: "cheap", stop_reason: "end_turn",
+      content: [{ type: "text", text: JSON.stringify({ ...synthesis, warnings: [warning],
+        relevantSourceIds: ["S1", "S2"], canAnswerQuestion: false, claims: [],
+      }) }], usage: { input_tokens: 100, output_tokens: 30 } });
+    const result = await synthesizeResearch(brief, [...sources, { ...sources[0], id: "S2" }], "on");
+    expect(result.status).toBe("incomplete");
+    expect(result.warnings).toContain(warning);
+  });
   it("meters a bounded correction, sanitizes its HTML, and never claims it has been checked", async () => {
     const html = `<h2>Verify a website</h2><p>${"Review your property settings carefully. ".repeat(30)}</p>`;
     const corrected = html.replace("Verify a website", "Choose a verification method");
@@ -87,7 +120,7 @@ describe("research evidence", () => {
     expect(content).toContain("&lt;/business_profile>");
     expect(content.match(/<\/business_profile>/g)).toHaveLength(1);
     expect(content).not.toContain("A stale verdict");
-    expect(meter).toHaveBeenCalledWith(expect.objectContaining({ promptVersion: "article-evidence_check-v5" }));
+    expect(meter).toHaveBeenCalledWith(expect.objectContaining({ promptVersion: "article-evidence_check-v6" }));
   });
   it("keeps valid claims when another exceeds limits, without silently truncating quotations", () => {
     const result = validateResearch(JSON.stringify({ ...synthesis, claims: [
@@ -139,10 +172,12 @@ describe("research evidence", () => {
     await generateBody({ ...brief, research }, outline);
     await generateOutline(brief);
     for (const call of mocks.create.mock.calls.slice(0, 2)) {
+      expect(call[0].model).toBe("claude-sonnet-5-5");
       expect(call[0].system).toContain("Research writing rules:");
       expect(call[0].messages[0].content).toContain('"url":"https://example.org/guide"');
     }
     expect(mocks.create.mock.calls[2][0].system).not.toContain("Research writing rules:");
+    expect(mocks.create.mock.calls[2][0].model).toBe("writer");
   });
   it.each([
     "## A Markdown article\n\nPlain text",
@@ -287,7 +322,7 @@ describe("research evidence", () => {
       content: [{ type: "text", text: JSON.stringify({ primaryQuery: "verify ownership", primaryDomain: "example.org" }) }],
       usage: { input_tokens: 100, output_tokens: 20 } });
     const meter = vi.fn();
-    expect(await planResearchSearch({ ...brief, facts: ["Private customer fact"] }, meter)).toEqual({ primaryQuery: "site:example.org verify ownership", primaryDomain: "example.org" });
+    expect(await planResearchSearch({ ...brief, facts: ["Private customer fact"] }, meter)).toEqual({ primaryQuery: "site:example.org verify ownership -inurl:thread -inurl:forum -inurl:community", primaryDomain: "example.org" });
     expect(meter).toHaveBeenCalledWith(expect.objectContaining({ task: "research_plan", model: "cheap" }));
     expect(JSON.stringify(mocks.create.mock.calls[0][0])).not.toContain("Private customer fact");
     expect(mocks.create.mock.calls[0][0]).toMatchObject({ model: "cheap", max_tokens: 1000 });
@@ -302,20 +337,34 @@ describe("research evidence", () => {
 });
 
 describe("article task routing and metering", () => {
+  it("reserves stronger reasoning for researched content while preserving cheap preparation and legacy writing", () => {
+    expect(articleTask("research_plan").model).toBe("cheap");
+    expect(articleTask("image_scene").model).toBe("cheap");
+    expect(articleTask("research").model).toBe("claude-sonnet-5-5");
+    expect(articleTask("evidence_check").model).toBe("claude-opus-5-5");
+    expect(articleTask("evidence_correction").model).toBe("claude-sonnet-5-5");
+    expect(articleTask("body").model).toBe("writer");
+    expect(articleTask("body", true).model).toBe("claude-sonnet-5-5");
+    vi.stubEnv("ARTICLE_MODEL_BODY", "experiment");
+    expect(articleTask("body", true).model).toBe("experiment");
+  });
   it("isolates task overrides and scopes rollout to selected websites", () => {
     vi.stubEnv("ARTICLE_MODEL_RESEARCH", "candidate");
     vi.stubEnv("ARTICLE_RESEARCH_MODE", "pilot");
     vi.stubEnv("ARTICLE_RESEARCH_WEBSITE_IDS", "site-a, site-b");
     expect(articleTask("research").model).toBe("candidate");
     expect(articleTask("body").model).toBe("writer");
+    expect(articleTask("body", true).model).toBe("claude-sonnet-5-5");
     expect(researchMode("site-a")).toBe("pilot");
     expect(researchMode("other")).toBe("off");
+    expect(articleTask("evidence_check").maxTokens).toBe(16000);
   });
   it("prices read/write cache tokens separately and leaves unknown costs unknown", () => {
     const usage = { task: "body", model: "writer", promptVersion: "v1", durationMs: 1,
       inputTokens: 1000, outputTokens: 1000, cacheReadTokens: 1000, cacheWriteTokens: 2000,
       cacheWrite1hTokens: 1000, outcome: "end_turn" } as const;
     expect(estimatedAiCost(usage, { writer: { inputPer1k: 1, outputPer1k: 5 } })).toBe(9.35);
+    expect(estimatedAiCost(usage, { writer: { inputPer1k: 1, outputPer1k: 5, cacheReadPer1k: 0.05 } })).toBe(9.3);
     expect(estimatedAiCost({ ...usage, model: "writer-20251001" }, { writer: { inputPer1k: 1, outputPer1k: 5 } })).toBe(9.35);
     expect(estimatedAiCost(usage, {})).toBeUndefined();
     expect(estimatedAiCost({ ...usage, usageKnown: false }, { writer: { inputPer1k: 1, outputPer1k: 5 } })).toBeUndefined();
@@ -345,6 +394,8 @@ describe("article task routing and metering", () => {
     const meter = vi.fn();
     await expect(measuredRequest("body", async () => { throw new Error("timeout"); }, meter)).rejects.toThrow("timeout");
     expect(meter).toHaveBeenCalledWith(expect.objectContaining({ usageKnown: false, outcome: "request_failed_usage_unknown" }));
+    await expect(measuredRequest("body", async () => { throw new Error("timeout"); }, meter, "scoped-model")).rejects.toThrow("timeout");
+    expect(meter).toHaveBeenLastCalledWith(expect.objectContaining({ model: "scoped-model", usageKnown: false }));
   });
   it("records actual response usage", async () => {
     const response = { model: "writer", stop_reason: "end_turn", usage: { input_tokens: 10, output_tokens: 20 } } as Anthropic.Message;

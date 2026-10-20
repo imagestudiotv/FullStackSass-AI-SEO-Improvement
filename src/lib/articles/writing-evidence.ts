@@ -42,6 +42,7 @@ export const RESEARCH_WRITING_RULES = `Research writing rules:
 - First-person recommendations are allowed when requested, but never invent personal experience, conversations, customers, test results or colleagues.
 - Choose section count and length to fit the supported answer. When adaptive length is selected, a concise useful article is preferable to filling gaps to reach 1,200 words. Optional related terms and research subquestions may be omitted.
 - Keep requested table counts, but compare decision criteria or proposed approaches when factual comparisons are unsupported. Label advice as advice; do not invent regional or product attributes to fill table cells.
+- Evidence cards are selected excerpts, not a complete inventory of what a publisher says. Do not claim that a source gives no guidance simply because a detail is missing from the cards. Give a useful recommendation without asserting that absence.
 - Do not expose these research instructions, evidence-card identifiers, or internal review warnings to the reader. Express any relevant limitation plainly.`;
 
 export const RESEARCH_OUTLINE_SYSTEM = `Plan an article answering the customer's supplied TITLE and search intent. Return the requested JSON structure.

@@ -38,7 +38,10 @@ export default async function ContentPerformancePage() {
       <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {data.routes.map(route => <div key={route.task} className="min-w-0">
           <dt className="text-sm font-medium">{route.label}</dt>
-          <dd className="mt-1 break-words text-sm text-muted-foreground">{route.model}<span className="block text-xs">{route.promptVersion}</span></dd>
+          <dd className="mt-1 break-words text-sm text-muted-foreground">{route.model}
+            {route.researchModel && route.researchModel !== route.model &&
+              <span className="block">With ready research: {route.researchModel}</span>}
+            <span className="block text-xs">{route.promptVersion}</span></dd>
         </div>)}
       </dl>
     </AdminSection>

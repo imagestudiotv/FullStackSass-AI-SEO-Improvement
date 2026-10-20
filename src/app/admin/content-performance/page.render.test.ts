@@ -14,7 +14,7 @@ const sample = () => ({
   since: new Date("2026-09-20"), until: new Date("2026-10-20"),
   rollout: { mode: "pilot", websiteIds: ["site"], allWebsites: false },
   selectedSites: [{ id: "site", domain: "example.test" }],
-  routes: [{ task: "body", label: "Article writing", model: "writer-example", promptVersion: "article-body-v4" }],
+  routes: [{ task: "body", label: "Article writing", model: "writer-example", researchModel: "researched-writer", promptVersion: "article-body-v4" }],
   usage: [{ task: "body", model: "writer-example", promptVersion: "article-body-v4", requests: 3,
     knownCostUsd: 0.3, unknownCosts: 1, averageDurationMs: 2000, measuredDurations: 2, failedRequests: 1 }],
   recent: [{ id: "article", title: "How to compare production companies", domain: "example.test",
@@ -31,6 +31,7 @@ describe("content rollout UI", () => {
     expect(html).toContain("2 of 3 measured");
     expect(html).toContain("Review required");
     expect(html).toContain("example.test");
+    expect(html).toContain("With ready research: researched-writer");
     expect(html).toContain('href="/admin/articles/article"');
     if (process.env.REPGET_RENDER_CONTENT_PREVIEW === "1") {
       mkdirSync("test-results/content-rollout", { recursive: true });

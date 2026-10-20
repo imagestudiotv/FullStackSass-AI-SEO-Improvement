@@ -61,6 +61,10 @@ export const PRICING = {
      * during onboarding. Opus is listed for jobs that justify it.
      */
     "claude-sonnet-5": { inputPer1k: 0.002, outputPer1k: 0.01 },
+    // Verified against Anthropic's pricing page on 2026-10-20.
+    // 5.5 cache hits cost 0.05x input, rather than the older 0.1x.
+    "claude-sonnet-5-5": { inputPer1k: 0.002, outputPer1k: 0.01, cacheReadPer1k: 0.0001 },
+    "claude-opus-5-5": { inputPer1k: 0.004, outputPer1k: 0.02, cacheReadPer1k: 0.0002 },
     "claude-haiku-4-5": { inputPer1k: 0.001, outputPer1k: 0.005 },
     "claude-opus-5": { inputPer1k: 0.005, outputPer1k: 0.025 },
   },

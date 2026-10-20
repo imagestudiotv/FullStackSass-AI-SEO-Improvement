@@ -10,8 +10,19 @@ import { PRICING } from "@/lib/usage";
 const state = vi.hoisted(() => ({ db: null as unknown }));
 vi.mock("@/lib/db", () => ({ db: new Proxy({}, { get: (_t, p) => Reflect.get(state.db as object, p) }) }));
 let test: TestDb;
-beforeAll(async () => { test = await createTestDb(); state.db = test.db; });
-afterAll(async () => { await test.client.close(); });
+beforeAll(async () => {
+  test = await createTestDb(); state.db = test.db;
+  const candidate = process.env.REPGET_ACCURACY_CANDIDATE;
+  if (candidate && !["sonnet55", "review55"].includes(candidate)) throw new Error("Unknown model candidate");
+  if (candidate === "sonnet55" || candidate === "review55") {
+    for (const task of ["OUTLINE", "BODY", "EVIDENCE_CORRECTION"]) vi.stubEnv(`ARTICLE_MODEL_${task}`, "claude-sonnet-5-5");
+  }
+  if (candidate === "review55") {
+    vi.stubEnv("ARTICLE_MODEL_RESEARCH", "claude-sonnet-5-5");
+    vi.stubEnv("ARTICLE_MODEL_EVIDENCE_CHECK", "claude-opus-5-5");
+  }
+});
+afterAll(async () => { await test.client.close(); vi.unstubAllEnvs(); });
 
 // Explicit file opt-in in addition to the live config: ordinary pilot runs do
 // not accidentally spend on this batch. Never write drafts to a real database.
@@ -30,6 +41,18 @@ const cases = [
   { id: "wedding-audio", brief: { ...profile,
     title: "Wedding Video Audio: Questions to Ask Your Videographer",
     targetKeyword: "wedding video audio recording", relatedKeywords: [], intent: "informational" } },
+  { id: "product-photo-brief", brief: { ...profile,
+    title: "How to Prepare a Product Photography Brief",
+    targetKeyword: "product photography brief", relatedKeywords: [], intent: "informational" } },
+  { id: "coffee-storage", brief: { ...profile,
+    title: "How to Store Whole Coffee Beans at Home",
+    targetKeyword: "how to store whole coffee beans", relatedKeywords: [], intent: "informational",
+    brandName: "Example Coffee Roasters", industry: "Coffee", country: "United States",
+    description: "A synthetic coffee retailer used exclusively for testing.",
+    targetAudience: "Home coffee drinkers", services: ["Whole bean coffee"], usps: [], facts: [],
+    customInstructions: null, articleInstructions: null, tone: "Clear and practical",
+    avoid: null, vocabulary: null, articleStyle: "expert", authorPerspective: false,
+    comparisonTable: false, tableOfContents: false, targetWordCount: 700 } },
   { id: "domain-verification", brief: { ...profile,
     title: "How to Verify a Domain Property in Google Search Console",
     targetKeyword: "Google Search Console verify domain property", relatedKeywords: [], intent: "informational",
@@ -43,7 +66,9 @@ const cases = [
 
 const requested = process.env.REPGET_ACCURACY_CASES?.split(",").filter(Boolean);
 if (requested?.some(id => !cases.some(sample => sample.id === id))) throw new Error("Unknown accuracy case");
-for (const sample of cases) it.skipIf(!run || Boolean(requested && !requested.includes(sample.id)))(`fresh automatic accuracy: ${sample.id}`, async () => {
+for (const sample of cases) {
+const runCase = run && (!requested || requested.includes(sample.id)) ? it.concurrent : it.skip;
+runCase(`fresh automatic accuracy: ${sample.id}`, async () => {
   const folder = `test-results/content-accuracy/${run}`;
   mkdirSync(folder, { recursive: true });
   const output = `${folder}/${sample.id}.json`;
@@ -63,6 +88,7 @@ for (const sample of cases) it.skipIf(!run || Boolean(requested && !requested.in
   };
   const report: Record<string, unknown> = {
     startedAt: new Date().toISOString(), brief: sample.brief, records,
+    candidate: process.env.REPGET_ACCURACY_CANDIDATE ?? "default",
     note: "Fresh automatic generation and at most one correction. No manual edits. Private local evaluation; no customer quota, publication or database writes.",
   };
   try {
@@ -115,3 +141,4 @@ for (const sample of cases) it.skipIf(!run || Boolean(requested && !requested.in
     if (existsSync(progress)) unlinkSync(progress);
   }
 });
+}
