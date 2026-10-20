@@ -53,6 +53,27 @@ describe("research publishing gate", () => {
     f.form.delete("reviewed");
     await expect(approveArticleResearch(f.websiteId, f.article.id, f.form)).rejects.toThrow(/Review/);
   });
+  it("lets an editor review a changed published article before updating its existing remote post", async () => {
+    const f = await fixture();
+    await approveArticleResearch(f.websiteId, f.article.id, f.form);
+    const [changed] = await test.db.update(articles).set({ status: "published", publishedUrl: "https://example.test/existing", title: "Revised published article" })
+      .where(eq(articles.id, f.article.id)).returning();
+    expect(await checkReleasable(f.article.id)).toEqual({ ok: false, reason: "changed_since_approval" });
+    expect((await getNextActions(f.websiteId, f.orgId, true)).some(a => a.kind === "research")).toBe(true);
+    await expect(approveArticleResearch(f.websiteId, f.article.id, f.form)).rejects.toThrow(/changed/);
+    f.form.set("revision", reviewHash(changed));
+    await approveArticleResearch(f.websiteId, f.article.id, f.form);
+    expect(await checkReleasable(f.article.id)).toEqual({ ok: true });
+    const [saved] = await test.db.select().from(articles).where(eq(articles.id, f.article.id));
+    expect(saved).toMatchObject({ status: "published", publishedUrl: "https://example.test/existing", researchApprovedBy: "reviewer" });
+    expect((await getNextActions(f.websiteId, f.orgId, true)).some(a => a.kind === "research")).toBe(false);
+  });
+  it.each(["queued", "generating", "failed"])("does not approve an unfinished %s article", async status => {
+    const f = await fixture();
+    await test.db.update(articles).set({ status }).where(eq(articles.id, f.article.id));
+    await expect(approveArticleResearch(f.websiteId, f.article.id, f.form)).rejects.toThrow(/changed/);
+    expect(await checkReleasable(f.article.id)).toEqual({ ok: false, reason: "pending_review" });
+  });
   it("does not bypass the independent Partner Network review", async () => {
     const f = await fixture();
     await test.db.update(articles).set({ reviewStatus: "pending" }).where(eq(articles.id, f.article.id));

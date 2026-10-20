@@ -42,7 +42,7 @@ export async function getNextActions(
         and p.id = (select last.id from publish_logs last where last.article_id = a.id order by last.created_at desc, last.id desc limit 1)
       order by p.created_at desc, p.id desc limit 1)`,
     research: sql<ArticleTask>`(select json_build_object('id', articles.id, 'title', articles.title)
-      from articles where articles.website_id = ${websiteId} and articles.status = 'draft'
+      from articles where articles.website_id = ${websiteId} and articles.status in ('draft', 'published')
       and articles.research_review_required and articles.research_approved_hash is distinct from ${reviewHashSql}
       order by articles.updated_at desc, articles.id limit 1)`,
     draft: sql<ArticleTask>`(select json_build_object('id', articles.id, 'title', articles.title) from articles

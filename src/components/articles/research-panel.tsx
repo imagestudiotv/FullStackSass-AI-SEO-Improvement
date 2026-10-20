@@ -61,7 +61,7 @@ export async function ResearchPanel({ websiteId, articleId, locale }: { websiteI
       <p className="mt-3 text-xs text-muted-foreground">{t.limitations}</p>
     </details>}
     {held && <p className="mt-3 text-sm text-muted-foreground">{t.reviewHelp}</p>}
-    {held && article.status === "draft" && access !== "viewer" &&
+    {held && ["draft", "published"].includes(article.status) && access !== "viewer" &&
       <ResearchApproval websiteId={site.id} articleId={articleId} revision={revision} locale={locale} />}
   </section>;
 }

@@ -1,5 +1,5 @@
 "use server";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -22,7 +22,7 @@ export async function approveArticleResearch(websiteId: string, articleId: strin
     const saved = await tx.update(articles).set({
       researchApprovedHash: expectedHash, researchApprovedBy: guard.context.userId, researchApprovedAt: new Date(),
     }).where(and(eq(articles.id, articleId), eq(articles.websiteId, websiteId),
-      eq(articles.status, "draft"), eq(articles.researchReviewRequired, true),
+      inArray(articles.status, ["draft", "published"]), eq(articles.researchReviewRequired, true),
       sql`${reviewHashSql} = ${expectedHash}`)).returning({ id: articles.id });
     if (!saved.length) throw new Error("The article changed. Refresh and review the latest saved version.");
   });
