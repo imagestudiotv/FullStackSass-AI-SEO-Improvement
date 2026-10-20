@@ -65,6 +65,17 @@ async function setup() {
 }
 
 describe("researched article pipeline", () => {
+  it.each([false, true])("allows the full-rollout policy only after a clean final check (follow-up=%s)", async followUp => {
+    vi.stubEnv("ARTICLE_RESEARCH_MODE", "on");
+    calls.synthesize.mockResolvedValue({ ...research, mode: "on" });
+    if (followUp) calls.check.mockResolvedValueOnce({ checked: true, issues: ["First problem"] })
+      .mockResolvedValueOnce({ checked: true, issues: ["Remaining problem"] });
+    const f = await setup(); await f.run();
+    const [article] = await test.db.select().from(articles).where(eq(articles.id, f.articleId));
+    expect(article.research).toMatchObject({ mode: "on", quality: { checked: true, issues: [] } });
+    expect(article.researchReviewRequired).toBe(false);
+    expect(calls.correct).toHaveBeenCalledTimes(followUp ? 2 : 0);
+  });
   it("researches before writing, persists evidence, holds even automatic publishing, and reuses completed steps", async () => {
     const f = await setup();
     await f.run();
