@@ -34,6 +34,7 @@ const STORED: StoredArticleSettings = {
   mentionSimilarProducts: true,
   comparisonTable: true,
   bodyImages: 3,
+  pictureSource: "generate",
   faqSection: true,
   poweredByLink: true,
   authorName: "",

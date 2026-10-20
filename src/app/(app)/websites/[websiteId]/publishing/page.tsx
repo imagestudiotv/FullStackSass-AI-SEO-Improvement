@@ -1,4 +1,4 @@
-import { and, eq, isNotNull, isNull } from "drizzle-orm";
+import { and, count, eq, isNotNull, isNull } from "drizzle-orm";
 import type { Metadata } from "next";
 import { cache } from "react";
 
@@ -9,8 +9,9 @@ import { inManagedNetwork } from "@/lib/articles/review";
 import { requireWebsitePlan } from "@/lib/billing/require-plan";
 import { getBrandVoice } from "@/lib/brand/actions";
 import { db } from "@/lib/db";
-import { integrationKeys } from "@/lib/db/schema";
+import { integrationKeys, siteImages } from "@/lib/db/schema";
 import { getAppMessages } from "@/lib/i18n/app-locale";
+import { formatDate } from "@/lib/i18n/format";
 import { listIntegrations } from "@/lib/publishing/actions";
 import { finishedModeOf } from "@/lib/publishing/policy";
 import { requireWebsitePage } from "@/lib/tenant";
@@ -69,7 +70,7 @@ export default async function WebsitePublishingPage({
     and the plugin key are limit(1), the managed-network check is one row,
     and integrations is this website's connections.
   */
-  const [integrations, voice, plugin, managedNetwork] = await Promise.all([
+  const [integrations, voice, plugin, managedNetwork, [library]] = await Promise.all([
     listIntegrations(site.id),
     getBrandVoice(site.id),
     // A WordPress plugin that has checked in is a connection too; it keeps
@@ -88,6 +89,8 @@ export default async function WebsitePublishingPage({
     // Whether every article is held for the RepGet team's review, which the
     // first-article note has to mention (and must not mention otherwise).
     inManagedNetwork(site.id),
+    // The photos the site inventory found in its media library, for "Use photos from my website".
+    db.select({ photos: count() }).from(siteImages).where(eq(siteImages.websiteId, site.id)),
   ]);
 
   // Viewers see every setting, read-only; the save actions refuse them anyway.
@@ -154,6 +157,7 @@ export default async function WebsitePublishingPage({
               mentionSimilarProducts: site.mentionSimilarProducts,
               comparisonTable: site.comparisonTable,
               bodyImages: bodyImageCount(site.bodyImages),
+              pictureSource: site.pictureSource === "library" ? "library" : "generate",
               faqSection: site.faqSection,
               poweredByLink: site.poweredByLink,
 
@@ -173,6 +177,11 @@ export default async function WebsitePublishingPage({
               usps: voice.usps.join(NEWLINE),
               facts: voice.facts.join(NEWLINE),
               articleInstructions: voice.articleInstructions ?? "",
+            }}
+            library={{
+              photos: library?.photos ?? 0,
+              readOn: site.inventoryCheckedAt ? formatDate(site.inventoryCheckedAt, locale, { day: "numeric", month: "long", year: "numeric" }) : null,
+              status: site.inventoryStatus === "ok" || site.inventoryStatus === "not_wordpress" ? site.inventoryStatus : site.inventoryStatus ? "failed" : null,
             }}
             t={t.app.article}
             tCommon={t.app.common}

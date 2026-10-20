@@ -42,6 +42,7 @@ const STORED: StoredArticleSettings = {
   mentionSimilarProducts: true,
   comparisonTable: true,
   bodyImages: 3,
+  pictureSource: "generate",
   faqSection: true,
   poweredByLink: true,
   authorName: "",
@@ -284,5 +285,27 @@ describe("every language", () => {
         expect(article.coverImageStyles[id]?.label, `${locale} cover ${id}`).toBeTruthy();
       }
     }
+  });
+});
+
+describe("where pictures come from (client, 2026-10-20)", () => {
+  it("offers new pictures or the website's own photos, new ones by default", () => {
+    const html = form();
+    expect(html).toContain(t.article.pictureSourceLabel);
+    // React writes value and checked last, so the attributes are matched in any order.
+    expect(html).toMatch(/<input(?=[^>]*name="picture-source")(?=[^>]*value="generate")(?=[^>]*checked="")[^>]*>/);
+    expect(html).toMatch(/<input(?=[^>]*name="picture-source")(?=[^>]*value="library")(?![^>]*checked="")[^>]*>/);
+    expect(html).toContain(t.article.pictureSourceLibraryHint);
+    // Nothing about the library while new pictures are chosen.
+    expect(html).not.toContain("found in your media library");
+  });
+
+  it("says what was found in the site's library, or why it could not be read", () => {
+    const library = (status: "ok" | "not_wordpress" | "failed" | null, readOn: string | null = "20 October 2026") =>
+      form({ initial: { ...STORED, pictureSource: "library" }, library: { photos: 863, readOn, status } });
+    expect(library("ok")).toContain("863 photos found in your media library, read on 20 October 2026.");
+    expect(library("not_wordpress")).toContain("this works with WordPress sites whose public REST API is on");
+    expect(library("failed")).toContain("did not let us read its media library on 20 October 2026");
+    expect(library(null, null)).toContain(t.article.libraryNotRead);
   });
 });

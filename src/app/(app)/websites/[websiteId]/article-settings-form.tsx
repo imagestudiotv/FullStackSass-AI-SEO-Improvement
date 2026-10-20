@@ -69,12 +69,19 @@ export function ArticleSettingsForm({
   initial,
   reviewed,
   canEdit,
+  library = { photos: 0, readOn: null, status: null },
   t,
   tCommon,
   tWorkspace,
 }: {
   websiteId: string;
   initial: StoredArticleSettings;
+  /**
+   * What the site inventory found in the site's media library, for "Use
+   * photos from my website" (lib/sites/inventory.ts): how many photos, the
+   * day it was read (formatted), and how the last read went.
+   */
+  library?: { photos: number; readOn: string | null; status: "ok" | "not_wordpress" | "failed" | null };
   /**
    * Whether these settings have ever been saved. False shows the "keep the
    * defaults" bar, which closes the launch checklist's preferences step.
@@ -431,6 +438,49 @@ export function ArticleSettingsForm({
         />
 
         <div className="space-y-6 border-t pt-5">
+          {/* Where pictures come from (client, 2026-10-20): made new, or the site's own photos. */}
+          <fieldset className="space-y-2">
+            <legend className="text-sm font-medium">{t.pictureSourceLabel}</legend>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {(["generate", "library"] as const).map((option) => (
+                <label
+                  key={option}
+                  className={cn(
+                    "flex cursor-pointer gap-3 rounded-lg border p-3 text-sm transition-colors has-focus-visible:ring-[3px] has-focus-visible:ring-ring/50",
+                    values.pictureSource === option ? "border-primary bg-primary/5" : "hover:bg-muted/50",
+                    readOnly && "cursor-not-allowed opacity-70",
+                  )}
+                >
+                  <input
+                    type="radio"
+                    name="picture-source"
+                    value={option}
+                    checked={values.pictureSource === option}
+                    onChange={() => set("pictureSource", option)}
+                    disabled={readOnly}
+                    className="mt-0.5 size-4 accent-primary"
+                  />
+                  <span className="space-y-0.5">
+                    <span className="block font-medium">{option === "generate" ? t.pictureSourceGenerate : t.pictureSourceLibrary}</span>
+                    <span className="block text-xs leading-5 text-muted-foreground">
+                      {option === "generate" ? t.pictureSourceGenerateHint : t.pictureSourceLibraryHint}
+                    </span>
+                  </span>
+                </label>
+              ))}
+            </div>
+            {values.pictureSource === "library" ? (
+              <p className="text-xs leading-5 text-muted-foreground" role="status">
+                {library.status === "ok" && library.readOn
+                  ? format(t.libraryRead, { count: String(library.photos), date: library.readOn })
+                  : library.status === "not_wordpress"
+                    ? t.libraryNotWordPress
+                    : library.status === "failed" && library.readOn
+                      ? format(t.libraryBlocked, { date: library.readOn })
+                      : t.libraryNotRead}
+              </p>
+            ) : null}
+          </fieldset>
           <StylePicker
             id="image-style"
             label={t.imageStyleLabel}

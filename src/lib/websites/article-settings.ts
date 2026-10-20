@@ -3,6 +3,7 @@
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
+import { queueJob } from "@/inngest/send";
 import { db } from "@/lib/db";
 import { websites } from "@/lib/db/schema";
 import { updateBrandVoice } from "@/lib/brand/actions";
@@ -49,6 +50,8 @@ export type ArticleSettingsInput = {
   comparisonTable?: boolean;
   /** Pictures inside the article, besides the cover: 0-3. */
   bodyImages?: number;
+  /** "generate" (new pictures) or "library" (the site's own media library; lib/sites/pictures.ts). */
+  pictureSource?: string;
   /** A "Frequently asked questions" section at the end. */
   faqSection?: boolean;
   poweredByLink?: boolean;
@@ -153,6 +156,9 @@ export async function saveArticleSettings(
       ? undefined
       : Math.min(Math.max(Math.round(input.bodyImages), 0), 3);
 
+  // Anything else is ignored rather than stored: the writer reads only these two.
+  const pictureSource = input.pictureSource === "library" || input.pictureSource === "generate" ? input.pictureSource : undefined;
+
   /**
    * Brand voice first, because it is the half that can REFUSE.
    *
@@ -211,6 +217,7 @@ export async function saveArticleSettings(
       mentionSimilarProducts: input.mentionSimilarProducts,
       comparisonTable: input.comparisonTable,
       bodyImages: pictures,
+      pictureSource,
       faqSection: input.faqSection,
       poweredByLink: input.poweredByLink,
       authorName: text(input.authorName),
@@ -218,6 +225,16 @@ export async function saveArticleSettings(
       updatedAt: new Date(),
     })
     .where(eq(websites.id, site.id));
+
+  /*
+    Pictures from the site's library need the library read: the first time,
+    it is read now rather than at the next daily run, so the next article
+    already has it (lib/sites/inventory.ts).
+  */
+  if (pictureSource === "library") {
+    const [row] = await db.select({ checkedAt: websites.inventoryCheckedAt }).from(websites).where(eq(websites.id, site.id)).limit(1);
+    if (!row?.checkedAt) await queueJob({ name: "sites/inventory.requested", data: { websiteId: site.id } });
+  }
 
   revalidatePath(`/websites/${site.id}/publishing`);
   return { ok: true, data: null };

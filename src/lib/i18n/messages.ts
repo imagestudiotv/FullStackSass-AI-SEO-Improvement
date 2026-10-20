@@ -1195,6 +1195,18 @@ export type Messages = {
       bodyImagesHint: string;
       /** The four choices, in order: 0, 1, 2, 3 pictures. */
       bodyImagesOptions: string[];
+      /** Where pictures come from (client, 2026-10-20): made new, or the site's own media library. */
+      pictureSourceLabel: string;
+      pictureSourceGenerate: string;
+      pictureSourceGenerateHint: string;
+      pictureSourceLibrary: string;
+      pictureSourceLibraryHint: string;
+      /** {count} photos, {date} read. */
+      libraryRead: string;
+      libraryNotRead: string;
+      libraryNotWordPress: string;
+      /** {date}: the last try. */
+      libraryBlocked: string;
       poweredByHint: string;
       factsPlaceholder: string;
       uspsPlaceholder: string;
@@ -4335,6 +4347,15 @@ const en: Messages = {
       bodyImagesLabel: "Pictures inside the article",
       bodyImagesHint: "Besides the cover image. Each one shows what its section is about, in the image style above, spread through the text.",
       bodyImagesOptions: ["None - cover image only", "1 picture", "2 pictures", "3 pictures"],
+      pictureSourceLabel: "Where pictures come from",
+      pictureSourceGenerate: "Make new pictures",
+      pictureSourceGenerateHint: "Made for each article, in the styles below.",
+      pictureSourceLibrary: "Use photos from my website",
+      pictureSourceLibraryHint: "Chosen from your WordPress media library by what each photo shows. The cover is always one of your photos; a section gets one only when it fits. No pictures are made.",
+      libraryRead: "{count} photos found in your media library, read on {date}.",
+      libraryNotRead: "Your media library is read when you save this, then every day.",
+      libraryNotWordPress: "Your media library could not be read: this works with WordPress sites whose public REST API is on. Until then, pictures are made new.",
+      libraryBlocked: "Your site did not let us read its media library on {date}. We try again every day; meanwhile the photos read before are used.",
       poweredByHint: "A small credit at the end of each article. Turning it off applies to articles not yet published.",
       factsPlaceholder: "Open since 2004\nFive dentists on the team\nFree parking on site",
       uspsPlaceholder: "Same-day emergency appointments\nWe see nervous patients",
@@ -7350,6 +7371,15 @@ const es: Messages = {
       bodyImagesLabel: "Imágenes dentro del artículo",
       bodyImagesHint: "Además de la imagen de portada. Cada una muestra el tema de su sección, con el estilo de imagen indicado arriba, repartidas por el texto.",
       bodyImagesOptions: ["Ninguna, solo la portada", "1 imagen", "2 imágenes", "3 imágenes"],
+      pictureSourceLabel: "De dónde salen las imágenes",
+      pictureSourceGenerate: "Crear imágenes nuevas",
+      pictureSourceGenerateHint: "Creadas para cada artículo, con los estilos de abajo.",
+      pictureSourceLibrary: "Usar fotos de mi sitio web",
+      pictureSourceLibraryHint: "Elegidas de su biblioteca de medios de WordPress según lo que muestra cada foto. La portada siempre es una de sus fotos; una sección solo recibe una cuando encaja. No se crea ninguna imagen.",
+      libraryRead: "{count} fotos encontradas en su biblioteca de medios, leída el {date}.",
+      libraryNotRead: "Su biblioteca de medios se lee al guardar esto y después cada día.",
+      libraryNotWordPress: "No se pudo leer su biblioteca de medios: funciona con sitios WordPress que tienen activa su API REST pública. Mientras tanto, se crean imágenes nuevas.",
+      libraryBlocked: "Su sitio no nos dejó leer su biblioteca de medios el {date}. Lo intentamos cada día; mientras tanto se usan las fotos leídas antes.",
       poweredByHint: "Un pequeño crédito al final de cada artículo. Desactivarlo se aplica a los artículos aún no publicados.",
       factsPlaceholder: "Abierto desde 2004\nCinco dentistas en el equipo\nAparcamiento gratuito",
       uspsPlaceholder: "Citas de urgencia el mismo día\nAtendemos a pacientes nerviosos",
@@ -10368,6 +10398,15 @@ const fr: Messages = {
       bodyImagesLabel: "Images dans l’article",
       bodyImagesHint: "En plus de l’image de couverture. Chacune montre le sujet de sa section, dans le style d’image choisi ci-dessus, réparties dans le texte.",
       bodyImagesOptions: ["Aucune, couverture seulement", "1 image", "2 images", "3 images"],
+      pictureSourceLabel: "D’où viennent les images",
+      pictureSourceGenerate: "Créer de nouvelles images",
+      pictureSourceGenerateHint: "Créées pour chaque article, dans les styles ci-dessous.",
+      pictureSourceLibrary: "Utiliser les photos de mon site",
+      pictureSourceLibraryHint: "Choisies dans votre médiathèque WordPress selon ce que montre chaque photo. La couverture est toujours l’une de vos photos ; une section n’en reçoit une que si elle convient. Aucune image n’est créée.",
+      libraryRead: "{count} photos trouvées dans votre médiathèque, lue le {date}.",
+      libraryNotRead: "Votre médiathèque est lue à l’enregistrement, puis chaque jour.",
+      libraryNotWordPress: "Votre médiathèque n’a pas pu être lue : cela fonctionne avec les sites WordPress dont l’API REST publique est active. En attendant, de nouvelles images sont créées.",
+      libraryBlocked: "Votre site ne nous a pas laissé lire sa médiathèque le {date}. Nous réessayons chaque jour ; en attendant, les photos lues auparavant sont utilisées.",
       poweredByHint: "Une petite mention à la fin de chaque article. La désactiver s’applique aux articles pas encore publiés.",
       factsPlaceholder: "Ouvert depuis 2004\nCinq dentistes dans l’équipe\nParking gratuit sur place",
       uspsPlaceholder: "Rendez-vous d’urgence le jour même\nNous recevons les patients anxieux",
@@ -13383,6 +13422,15 @@ const it: Messages = {
       bodyImagesLabel: "Immagini nell’articolo",
       bodyImagesHint: "Oltre all’immagine di copertina. Ognuna mostra l’argomento della sua sezione, nello stile di immagine scelto sopra, distribuite nel testo.",
       bodyImagesOptions: ["Nessuna, solo la copertina", "1 immagine", "2 immagini", "3 immagini"],
+      pictureSourceLabel: "Da dove vengono le immagini",
+      pictureSourceGenerate: "Creare immagini nuove",
+      pictureSourceGenerateHint: "Create per ogni articolo, negli stili qui sotto.",
+      pictureSourceLibrary: "Usare le foto del mio sito",
+      pictureSourceLibraryHint: "Scelte dalla sua libreria media di WordPress in base a ciò che mostra ogni foto. La copertina è sempre una delle sue foto; una sezione ne riceve una solo quando è adatta. Non viene creata nessuna immagine.",
+      libraryRead: "{count} foto trovate nella sua libreria media, letta il {date}.",
+      libraryNotRead: "La sua libreria media viene letta al salvataggio, poi ogni giorno.",
+      libraryNotWordPress: "Non è stato possibile leggere la sua libreria media: funziona con i siti WordPress che hanno attiva l’API REST pubblica. Nel frattempo si creano immagini nuove.",
+      libraryBlocked: "Il suo sito non ci ha permesso di leggere la libreria media il {date}. Riproviamo ogni giorno; nel frattempo si usano le foto lette in precedenza.",
       poweredByHint: "Una piccola menzione alla fine di ogni articolo. Disattivarla vale per gli articoli non ancora pubblicati.",
       factsPlaceholder: "Aperti dal 2004\nCinque dentisti nel team\nParcheggio gratuito",
       uspsPlaceholder: "Appuntamenti urgenti in giornata\nAccogliamo pazienti ansiosi",
@@ -16397,6 +16445,15 @@ const de: Messages = {
       bodyImagesLabel: "Bilder im Artikel",
       bodyImagesHint: "Zusätzlich zum Titelbild. Jedes zeigt das Thema seines Abschnitts, im oben gewählten Bildstil, über den Text verteilt.",
       bodyImagesOptions: ["Keine, nur das Titelbild", "1 Bild", "2 Bilder", "3 Bilder"],
+      pictureSourceLabel: "Woher die Bilder kommen",
+      pictureSourceGenerate: "Neue Bilder erstellen",
+      pictureSourceGenerateHint: "Für jeden Artikel erstellt, in den Stilen unten.",
+      pictureSourceLibrary: "Fotos meiner Website verwenden",
+      pictureSourceLibraryHint: "Aus Ihrer WordPress-Mediathek ausgewählt, je nachdem, was jedes Foto zeigt. Das Titelbild ist immer eines Ihrer Fotos; ein Abschnitt erhält nur dann eines, wenn es passt. Es werden keine Bilder erstellt.",
+      libraryRead: "{count} Fotos in Ihrer Mediathek gefunden, gelesen am {date}.",
+      libraryNotRead: "Ihre Mediathek wird beim Speichern gelesen, danach jeden Tag.",
+      libraryNotWordPress: "Ihre Mediathek konnte nicht gelesen werden: Das funktioniert mit WordPress-Websites, deren öffentliche REST-API aktiv ist. Bis dahin werden neue Bilder erstellt.",
+      libraryBlocked: "Ihre Website hat uns am {date} nicht in ihre Mediathek gelassen. Wir versuchen es täglich erneut; bis dahin werden die zuvor gelesenen Fotos verwendet.",
       poweredByHint: "Ein kleiner Hinweis am Ende jedes Artikels. Das Ausschalten gilt für noch nicht veröffentlichte Artikel.",
       factsPlaceholder: "Seit 2004 geöffnet\nFünf Zahnärzte im Team\nKostenlose Parkplätze vor Ort",
       uspsPlaceholder: "Notfalltermine am selben Tag\nWir behandeln ängstliche Patienten",
