@@ -64,6 +64,25 @@ const cases = [
     comparisonTable: false, tableOfContents: false, targetWordCount: 700 } },
 ];
 
+// Exercise localized retrieval and writing through the same correction path.
+// Synthetic copies keep customer-specific instructions out of new languages.
+cases.push({ id: "photo-color-it", brief: { ...cases[1].brief,
+  title: "Correzione colore e color grading nella fotografia: le differenze",
+  targetKeyword: "correzione colore color grading fotografia differenze",
+  language: "Italian", country: "Italy", brandName: "Studio Fotografico Esempio",
+  description: "Studio fotografico fittizio utilizzato esclusivamente per prove.",
+  targetAudience: "Piccole imprese che commissionano fotografie", services: ["Fotografia commerciale"],
+  facts: [], usps: [], customInstructions: null, articleInstructions: null,
+  targetWordCount: 700, authorPerspective: false, comparisonTable: false,
+} });
+cases.push({ id: "domain-verification-es", brief: { ...cases[5].brief,
+  title: "Cómo verificar una propiedad de dominio en Google Search Console",
+  targetKeyword: "verificar propiedad dominio Google Search Console",
+  language: "Spanish", country: "Spain", brandName: "Estudio Web Ejemplo",
+  description: "Estudio web ficticio utilizado exclusivamente para pruebas.",
+  targetAudience: "Propietarios de pequeñas empresas", services: ["Configuración de sitios web"],
+} });
+
 const requested = process.env.REPGET_ACCURACY_CASES?.split(",").filter(Boolean);
 if (requested?.some(id => !cases.some(sample => sample.id === id))) throw new Error("Unknown accuracy case");
 for (const sample of cases) {

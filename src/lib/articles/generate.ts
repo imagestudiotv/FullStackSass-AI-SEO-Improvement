@@ -421,6 +421,11 @@ Writing rules:
   or confuse ownership verification with crawling or indexing. If research
   warns of missing coverage, explain the limitation instead of filling it
   with unsupported steps. Match every citation to the scope of its source.
+- Simplify wording without changing what a feature covers. An identifier,
+  address or example can represent a collection, not just one item. For
+  example, a Search Console URL-prefix property covers matching URLs, not
+  only the single address entered. If coverage is not established by the
+  evidence, omit that comparison instead of inventing a simpler definition.
 - No filler openings ("In today's fast-paced world"), no restating the title,
   no concluding summary that repeats the article back.
 - Do not claim the business offers something not listed in its services.

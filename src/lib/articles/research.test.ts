@@ -239,7 +239,7 @@ describe("research evidence", () => {
     expect(content).toContain("&lt;/business_profile>");
     expect(content.match(/<\/business_profile>/g)).toHaveLength(1);
     expect(content).not.toContain("A stale verdict");
-    expect(meter).toHaveBeenCalledWith(expect.objectContaining({ promptVersion: "article-evidence_check-v7" }));
+    expect(meter).toHaveBeenCalledWith(expect.objectContaining({ promptVersion: "article-evidence_check-v8" }));
   });
   it("keeps valid claims when another exceeds limits, without silently truncating quotations", () => {
     const result = validateResearch(JSON.stringify({ ...synthesis, claims: [
