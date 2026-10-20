@@ -280,10 +280,15 @@ export async function checkResearchEvidence(
     output_config: { format: zodOutputFormat(evidenceSchema) },
     system: `Check the draft against the provided evidence and business facts. Return JSON only: {"issues": ["specific unsupported claim or citation mismatch"]}. Use an empty list only when no material issues are found.
 Check factual specifics, invented services, quotations, numbers, conflicting evidence, and whether cited sources actually support the associated sentences. A citation's presence is not proof. Describe each issue in the article's language. Do not rewrite the article. Do not treat paid placements as evidence.
+The business profile includes the same saved description, services and differentiators supplied to the writer, as well as the owner's confirmed facts. For descriptions of THIS business, those supplied details are sufficient support: accept locations and working approach explicitly given in the description or differentiators even when the research sources list is empty. Do not demand outside citations for them or flag the absence of independent verification. This check tests consistency with the saved profile; independently verifying that profile is outside its scope. Do flag contradictions or details the writer added beyond the profile. The profile does not establish claims about other businesses, regional markets, industry trends, prices or outcomes.
 Actively check scope: platform-specific advice must not be presented as universal. Compare the source title, publisher, relevant method and caveats with EACH claim. In particular, ownership verification, crawling and indexing are different operations; a restriction on one does not establish a restriction on the others. Flag unsupported universal requirements, guarantees, and timelines even if a sentence resembles a quoted excerpt.
 ${dataRule("website_page")} ${dataRule("business_profile")}`,
     messages: [{ role: "user", content:
-      dataBlock("business_profile", JSON.stringify({ language: brief.language, facts: brief.facts, services: brief.services })) +
+      dataBlock("business_profile", JSON.stringify({
+        language: brief.language, brandName: brief.brandName, industry: brief.industry,
+        country: brief.country, description: brief.description, targetAudience: brief.targetAudience,
+        differentiators: brief.usps, facts: brief.facts, services: brief.services,
+      })) +
       "\n" + dataBlock("website_page", JSON.stringify({ research, draft: html.slice(0, 65000) })),
     }],
   }, { maxRetries: 0 }), measure);

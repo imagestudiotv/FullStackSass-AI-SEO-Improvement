@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { afterAll, beforeAll, expect, it, vi } from "vitest";
 import { createTestDb, type TestDb } from "@/test/db";
 import { generateOutline, generateBody, type ArticleBrief } from "@/lib/articles/generate";
@@ -6,6 +6,7 @@ import { planResearchSearch, collectResearchSources, synthesizeResearch, checkRe
 import { estimatedAiCost, type AiMeasurement } from "@/lib/ai/article-tasks";
 import { MODELS } from "@/lib/ai/client";
 import { PRICING } from "@/lib/usage";
+import { loadCustomerPilot } from "./pilot-input";
 
 const state = vi.hoisted(() => ({ db: null as unknown }));
 vi.mock("@/lib/db", () => ({ db: new Proxy({}, { get: (_t, p) => Reflect.get(state.db as object, p) }) }));
@@ -13,12 +14,18 @@ let test: TestDb;
 beforeAll(async () => { test = await createTestDb(); state.db = test.db; });
 afterAll(async () => { await test.client.close(); vi.unstubAllEnvs(); });
 
-const caseId = process.env.REPGET_CONTENT_PILOT_CASE || "search-console-en";
-if (!["search-console-en", "coffee-es"].includes(caseId)) throw new Error("Unknown content pilot case");
+const customer = process.env.REPGET_CONTENT_PILOT_INPUT
+  ? loadCustomerPilot(process.env.REPGET_CONTENT_PILOT_INPUT) : null;
+const caseId = customer?.caseId ?? (process.env.REPGET_CONTENT_PILOT_CASE || "search-console-en");
+if (!customer && !["search-console-en", "coffee-es"].includes(caseId)) throw new Error("Unknown content pilot case");
 const sourcesOnly = process.env.REPGET_CONTENT_PILOT_STAGE === "sources";
+const filename = sourcesOnly ? `${caseId}-sources.json` : caseId === "search-console-en" ? "report.json" : `${caseId}.json`;
+if (customer && existsSync(`test-results/content-pilot/${filename}`)) {
+  throw new Error("Customer pilot report already exists. Use a new case name to preserve the original comparison.");
+}
 
-it(`compares baseline, researched writing, and a cheaper outline: ${caseId}`, async () => {
-  const brief: ArticleBrief = {
+it(`compares private content pilot drafts: ${caseId}`, async () => {
+  const brief: ArticleBrief = customer?.brief ?? {
     title: "How a small business can verify its website in Google Search Console",
     targetKeyword: "verify website Google Search Console", intent: "informational",
     relatedKeywords: [], brandName: "Example Web Studio", industry: "Website services",
@@ -50,7 +57,10 @@ it(`compares baseline, researched writing, and a cheaper outline: ${caseId}`, as
     if (estimatedCostUsd !== undefined) cost += estimatedCostUsd;
   };
   const report: Record<string, unknown> = { startedAt: new Date().toISOString(), caseId, topic: brief.title, records,
-    note: "One synthetic brief; automated checks are not a human quality benchmark. No articles are saved or published." };
+    brief, customerSnapshot: customer ? { websiteId: customer.websiteId, calendarItemId: customer.calendarItemId, capturedAt: customer.capturedAt } : null,
+    note: customer
+      ? "A read-only business-profile snapshot. Private local drafts only; no customer database writes, quota use or publishing. Both variants receive the same evidence check. Baseline audit cost is evaluation overhead, not its normal generation cost. Human review and editing time remain pending."
+      : "One synthetic brief; automated checks are not a human quality benchmark. No articles are saved or published." };
   mkdirSync("test-results/content-pilot", { recursive: true });
   try {
     guard();
@@ -80,7 +90,7 @@ it(`compares baseline, researched writing, and a cheaper outline: ${caseId}`, as
     const research = await synthesizeResearch(brief, sources, "pilot", meter);
     report.research = research;
     expect(research.status).toBe("ready");
-    for (const name of ["A-baseline", "B-research", "C-cheaper-outline"]) {
+    for (const name of customer ? ["A-baseline", "B-research"] : ["A-baseline", "B-research", "C-cheaper-outline"]) {
       variant = name;
       if (name === "C-cheaper-outline") vi.stubEnv("ARTICLE_MODEL_OUTLINE", MODELS.EXTRACTION);
       const input = name === "A-baseline" ? brief : { ...brief, research };
@@ -89,7 +99,7 @@ it(`compares baseline, researched writing, and a cheaper outline: ${caseId}`, as
       guard();
       const article = await generateBody(input, outline, meter);
       report[name] = { outline, ...article };
-      if (name !== "A-baseline") {
+      if (customer || name !== "A-baseline") {
         guard();
         const evidence = await checkResearchEvidence(article.bodyHtml, input, research, meter);
         report[`${name}-evidence`] = evidence;
@@ -103,7 +113,19 @@ it(`compares baseline, researched writing, and a cheaper outline: ${caseId}`, as
     report.searchCostUsd = searchCost;
     report.estimatedKnownCostUsd = cost;
     report.unknownCostRequests = unknownSearchCosts + records.filter(r => r.estimatedCostUsd === undefined).length;
-    const filename = sourcesOnly ? `${caseId}-sources.json` : caseId === "search-console-en" ? "report.json" : `${caseId}.json`;
+    report.finishedAt = new Date().toISOString();
+    const preparation = searchCost + records.filter(r => r.variant === "research").reduce((sum, r) => sum + (r.estimatedCostUsd ?? 0), 0);
+    report.comparison = ["A-baseline", "B-research", ...(!customer ? ["C-cheaper-outline"] : [])].map(name => {
+      const calls = records.filter(r => r.variant === name);
+      const writing = calls.filter(r => r.task !== "evidence_check");
+      return {
+        variant: name, estimatedGenerationCostUsd: writing.reduce((sum, r) => sum + (r.estimatedCostUsd ?? 0), 0),
+        estimatedEvidenceCheckCostUsd: calls.filter(r => r.task === "evidence_check").reduce((sum, r) => sum + (r.estimatedCostUsd ?? 0), 0),
+        estimatedPreparationCostUsd: name === "A-baseline" ? 0 : preparation,
+        modelTimeMs: calls.reduce((sum, r) => sum + r.durationMs, 0),
+        status: report[`${name}-evidence`] ? "awaiting-human-review" : report[name] ? "draft-created" : "incomplete",
+      };
+    });
     writeFileSync(`test-results/content-pilot/${filename}`, JSON.stringify(report, null, 2));
   }
 });

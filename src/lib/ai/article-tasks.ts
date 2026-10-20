@@ -32,7 +32,7 @@ export function articleTask(task: ArticleTask) {
   return {
     model: process.env[`ARTICLE_MODEL_${task.toUpperCase()}`]?.trim() || defaults[task],
     maxTokens: task === "research_plan" ? 1000 : task === "outline" || task === "body" ? 16000 : task === "evidence_check" ? 8000 : 4000,
-    promptVersion: `article-${task}-v1`,
+    promptVersion: `article-${task}-${task === "evidence_check" ? "v3" : "v1"}`,
   };
 }
 
