@@ -25,8 +25,8 @@ import {
  * Driven by the index-articles job (inngest/functions/index-articles.ts) in
  * three steps, each safe to repeat:
  *   1. queueNewlyLive - articles first live in the last NEWLY_LIVE_HOURS,
- *      whatever published them (the plugin, a direct connection), get a row.
- *      Articles live before this shipped are not sent: no backlog bill.
+ *      whatever published them (the plugin, a direct connection), get a row,
+ *      once per address. Older articles are not sent: no backlog bill.
  *   2. submitQueued   - queued rows go out as one task, within the platform's
  *      daily limit, for websites with a plan (free articles included: being
  *      told "Google indexed it" is part of what those should show off).
@@ -35,8 +35,14 @@ import {
  *      recorded (SpeedyIndex charges only for indexed URLs).
  */
 
-/** How recently an article must have gone live to be sent. */
-export const NEWLY_LIVE_HOURS = 72;
+/**
+ * How recently an article must have gone live to be sent: 30 days. It was
+ * 72 hours until 2026-10-20, which left the articles that went live in the
+ * days before indexing shipped (Image Studio's of 1 and 6 October) never
+ * sent - the client saw no indexing at all. A month also covers the job
+ * being down for days; each address is still sent only once.
+ */
+export const NEWLY_LIVE_HOURS = 30 * 24;
 /** A queued row not sent in this long (an empty balance, say) is given up. */
 export const QUEUE_DAYS = 7;
 /** SpeedyIndex finishes a task in about a week; past this, no result is the result. */

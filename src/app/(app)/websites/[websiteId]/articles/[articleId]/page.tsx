@@ -17,6 +17,7 @@ import { latestUncertain } from "@/lib/publishing/dispatch";
 import { requireWebsitePage, WebsiteNotFoundError } from "@/lib/tenant";
 
 import { ArticleEditor } from "./article-editor";
+import { ArticleIndexingStatus } from "@/components/articles/indexing-status";
 import { ResearchPanel } from "@/components/articles/research-panel";
 import { formatWhen, HISTORY_LIMIT, loadPublishing, pickDestination } from "./article-data";
 import { generationFailureKind } from "./failure-copy";
@@ -117,6 +118,7 @@ export default async function ArticlePage({
   return (
     <>
     <ResearchPanel websiteId={websiteId} articleId={articleId} locale={locale} />
+    <ArticleIndexingStatus websiteId={gate.site.id} articleId={article.id} locale={locale} />
     <ArticleEditor
       websiteId={websiteId}
       // The stored error is written for logs (internal names, raw provider

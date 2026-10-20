@@ -57,18 +57,21 @@ async function article(websiteId: string, over: Partial<typeof articles.$inferIn
 const rows = () => test.db.select().from(articleIndexing);
 
 describe("which articles are sent", () => {
-  it("those that went live in the last three days, once per address; not older ones, drafts or articles without an address", async () => {
+  it("those that went live in the last 30 days, once per address; not older ones, drafts or articles without an address", async () => {
     const { websiteId } = await seedWebsite(test);
     const fresh = await article(websiteId);
-    await article(websiteId, { firstLiveAt: new Date(Date.now() - 5 * DAY) });
+    // Live for 19 days (Image Studio's, 2026-10-20): sent too, since the window is a month, not three days.
+    const earlier = await article(websiteId, { firstLiveAt: new Date(Date.now() - 19 * DAY) });
+    await article(websiteId, { firstLiveAt: new Date(Date.now() - 31 * DAY) });
     await article(websiteId, { status: "draft", firstLiveAt: null });
     await article(websiteId, { publishedUrl: null });
     await article(websiteId, { publishedUrl: "javascript:alert(1)" });
 
-    expect(await queueNewlyLive()).toBe(1);
+    expect(await queueNewlyLive()).toBe(2);
     expect(await queueNewlyLive()).toBe(0);
-    const [row] = await rows();
-    expect(row).toMatchObject({ articleId: fresh.id, url: fresh.publishedUrl, status: "queued", attempts: 0 });
+    const queued = await rows();
+    expect(queued.map((row) => row.articleId).sort()).toEqual([fresh.id, earlier.id].sort());
+    expect(queued.find((row) => row.articleId === fresh.id)).toMatchObject({ url: fresh.publishedUrl, status: "queued", attempts: 0 });
 
     // The post moved to a new address: that address is sent too.
     await test.db.update(articles).set({ publishedUrl: "https://site.test/moved/" }).where(eq(articles.id, fresh.id));
