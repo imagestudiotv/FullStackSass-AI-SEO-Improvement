@@ -176,7 +176,7 @@ function toPayload(
       slug: input.slug,
       excerpt: input.excerpt,
       status: input.status,
-      imageUrl: input.featuredMediaId ?? null,
+    imageUrl: input.featuredImageUrl ?? input.featuredMediaId ?? null,
     },
     timestamp: Math.floor(Date.now() / 1000),
   };

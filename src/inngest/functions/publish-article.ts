@@ -326,6 +326,11 @@ export const publishArticleJob = inngest.createFunction(
       const now = await checkReleasable(articleId);
       if (!now.ok) return null;
 
+      // URL-based destinations receive the saved image in the final, claimed
+      // post. Do not download or generate bytes that this provider cannot use.
+      const provider = getProvider(prepared.providerId);
+      if (!provider?.uploadMedia) return null;
+
       /*
         One of the site's own photographs ("Use photos from my website"): it
         is already in this site's media library, so the post is pointed at it
@@ -415,26 +420,6 @@ export const publishArticleJob = inngest.createFunction(
             { scene: scene?.scene, alt: scene?.alt },
           );
         }
-        const provider = getProvider(prepared.providerId);
-        // Not every CMS takes uploads. Shopify and the webhook adapter both
-        // reference an image by URL instead, so publishing continues without
-        // one rather than failing on a step that is optional by design.
-        if (!provider?.uploadMedia) {
-          // Expected for these providers, so info rather than warn — but it
-          // does mean an image was generated and paid for, then discarded.
-          logger.info(
-            {
-              step: "upload-image",
-              articleId,
-              websiteId,
-              providerId: prepared.providerId,
-              imageBytes: generated.data.length,
-            },
-            "Provider does not support media upload - publishing without a header image",
-          );
-          return null;
-        }
-
         /*
           Loaded here, inside the step that sends it, rather than carried in
           from the previous step's persisted result. Re-read on every attempt,
@@ -772,6 +757,7 @@ export const publishArticleJob = inngest.createFunction(
         // Decided at the claim from the settings now, not when this was queued.
         status: claim.status,
         featuredMediaId: featuredMedia?.id ?? null,
+        featuredImageUrl: featuredMedia?.url ?? claim.article.imageUrl ?? null,
       };
 
       const startedAt = Date.now();
@@ -970,7 +956,7 @@ export const publishArticleJob = inngest.createFunction(
         requestedStatus: status,
         finalStatus: result.status,
         remoteUrl: result.remoteUrl,
-        hasImage: Boolean(featuredMedia),
+        hasImage: Boolean(featuredMedia || (!getProvider(prepared.providerId)?.uploadMedia && prepared.image)),
       },
       "Publish complete",
     );

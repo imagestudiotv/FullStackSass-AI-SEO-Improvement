@@ -60,6 +60,8 @@ export type PublishInput = {
   status: "publish" | "draft";
   /** Provider-specific id of an uploaded image, when one was uploaded. */
   featuredMediaId?: string | null;
+  /** Saved image URL for providers that reference pictures instead of uploading them. */
+  featuredImageUrl?: string | null;
 };
 
 export type PublishResult = {
@@ -146,8 +148,7 @@ export type CmsProvider = {
   /**
    * Uploads an image, when the platform supports it.
    *
-   * Optional: a provider that cannot take media simply omits this, and
-   * publishing proceeds without a header image rather than failing.
+   * Optional: URL-based providers use PublishInput.featuredImageUrl instead.
    */
   /**
    * Posts whose content may carry RepGet's ownership marker for one dispatch

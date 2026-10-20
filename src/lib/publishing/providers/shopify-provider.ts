@@ -175,8 +175,8 @@ function articleBody(input: PublishInput) {
        * publish makes it live immediately rather than at some default time.
        */
       published: input.status === "publish",
-      ...(input.featuredMediaId
-        ? { image: { src: input.featuredMediaId } }
+      ...(input.featuredImageUrl || input.featuredMediaId
+        ? { image: { src: input.featuredImageUrl || input.featuredMediaId } }
         : {}),
     },
   };
@@ -315,7 +315,7 @@ export const shopifyProvider: CmsProvider = {
   /**
    * No uploadMedia. Shopify's article image takes a URL rather than an upload,
    * and the files API needs scopes a content-only token does not have.
-   * Omitting it means publishing proceeds without a header image rather than
-   * failing on one — which the pipeline already handles.
+   * The job supplies the saved image through featuredImageUrl without a
+   * redundant download, generation or upload.
    */
 };
