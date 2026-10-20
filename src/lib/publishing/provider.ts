@@ -166,4 +166,12 @@ export type CmsProvider = {
     credentials: Credentials,
     file: { data: Buffer; contentType: string; filename: string; alt: string },
   ): Promise<UploadedMedia>;
+
+  /**
+   * A picture already in the platform's media library, by its id; null when
+   * there is none. Used before a post is pointed at one of the site's own
+   * photographs (lib/sites/library-media.ts): an id the platform does not
+   * have would make it refuse the whole post.
+   */
+  findMedia?(credentials: Credentials, id: string): Promise<UploadedMedia | null>;
 };

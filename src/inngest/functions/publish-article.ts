@@ -36,6 +36,7 @@ import {
 import { storedImagePrefix } from "@/lib/images/storage";
 import { ProviderError } from "@/lib/publishing/provider";
 import { getProvider } from "@/lib/publishing/registry";
+import { libraryMediaIds, ownCopies, pictureAddresses, sameAddress } from "@/lib/sites/library-media";
 
 /**
  * Publishes an article to the connected WordPress site.
@@ -324,6 +325,35 @@ export const publishArticleJob = inngest.createFunction(
       */
       const now = await checkReleasable(articleId);
       if (!now.ok) return null;
+
+      /*
+        One of the site's own photographs ("Use photos from my website"): it
+        is already in this site's media library, so the post is pointed at it
+        rather than given a second copy. Asked of the connected site first - a
+        media id it does not have would make WordPress refuse the whole post -
+        and anything unexpected falls through to the upload below.
+      */
+      if (prepared.image && prepared.providerId === "wordpress") {
+        try {
+          const id = (await libraryMediaIds(websiteId, [prepared.image.url])).get(prepared.image.url);
+          const provider = id ? getProvider(prepared.providerId) : null;
+          const integration = provider?.findMedia ? await loadCredentialsById(prepared.integrationId) : null;
+          const media = integration && provider?.findMedia ? await provider.findMedia(integration.credentials, String(id)) : null;
+          if (media && sameAddress(media.url, prepared.image.url)) {
+            logger.info(
+              { step: "upload-image", articleId, websiteId, providerId: prepared.providerId, mediaId: media.id },
+              "Header image is the site's own photograph - nothing uploaded",
+            );
+            return { id: media.id, url: media.url };
+          }
+        } catch (error) {
+          logger.warn(
+            { step: "upload-image", articleId, websiteId, reason: error instanceof Error ? error.message : "unknown" },
+            "Could not check the site's own photograph - uploading it instead",
+          );
+        }
+      }
+
       // Nothing to upload only when there is no saved image AND none can be
       // generated; a saved image needs no provider.
       if (!prepared.image && !isImageGenerationConfigured()) {
@@ -711,6 +741,16 @@ export const publishArticleJob = inngest.createFunction(
         .from(websites)
         .where(eq(websites.id, websiteId))
         .limit(1);
+      const delivered = prepareForDelivery(claim.article.bodyHtml, {
+        poweredBy: site?.poweredByLink ?? false,
+        siteHosts: site ? siteScope(site).hosts : undefined,
+        followUrls: await placementUrlsForArticle(articleId),
+      });
+      // The site's own photographs carry their attachment's class (lib/sites/library-media.ts).
+      const own =
+        prepared.providerId === "wordpress"
+          ? ownCopies(delivered, await libraryMediaIds(websiteId, pictureAddresses(delivered)))
+          : {};
       const post = {
         title: claim.article.title,
         /*
@@ -721,12 +761,8 @@ export const publishArticleJob = inngest.createFunction(
         contentHtml: withOwnershipMarker(
           // The pictures uploaded above, in place of RepGet's addresses.
           pointAtCopies(
-            prepareForDelivery(claim.article.bodyHtml, {
-              poweredBy: site?.poweredByLink ?? false,
-              siteHosts: site ? siteScope(site).hosts : undefined,
-              followUrls: await placementUrlsForArticle(articleId),
-            }),
-            pictureCopies,
+            delivered,
+            { ...own, ...pictureCopies },
             { wordpress: prepared.providerId === "wordpress" },
           ),
           { articleId, websiteId, dispatchId: claim.dispatchId },

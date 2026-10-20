@@ -374,3 +374,26 @@ export async function uploadMedia(
 
   return { id: media.id, url: media.source_url };
 }
+
+/**
+ * A picture in the site's media library, by id: its public URL, or null when
+ * the site has no such picture (a 404, or an item that is not an image).
+ * Any other failure throws, as every request here does.
+ */
+export async function findMedia(
+  credentials: WordPressCredentials,
+  id: number,
+): Promise<{ id: number; url: string } | null> {
+  if (!Number.isInteger(id) || id <= 0) return null;
+  try {
+    const media = await request<{ id?: number; source_url?: string; media_type?: string }>(
+      credentials,
+      `/media/${id}?_fields=id,source_url,media_type`,
+    );
+    if (!media || media.media_type !== "image" || typeof media.source_url !== "string") return null;
+    return { id: media.id ?? id, url: media.source_url };
+  } catch (error) {
+    if (error instanceof WordPressError && error.status === 404) return null;
+    throw error;
+  }
+}

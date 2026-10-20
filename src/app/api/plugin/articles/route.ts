@@ -14,7 +14,9 @@ import { dueArticlesForPlugin, pluginPostsForWebsite } from "@/lib/plugin/due";
 import { recordSyncUrl } from "@/lib/plugin/sync";
 import { recordInstall, recordPluginVersion, resolveIntegrationKey } from "@/lib/plugin/keys";
 import { claimDispatch } from "@/lib/publishing/dispatch";
+import { pointAtCopies } from "@/lib/publishing/picture-copies";
 import { pluginProtocol } from "@/lib/plugin/protocol";
+import { libraryMediaIds, ownCopies, pictureAddresses } from "@/lib/sites/library-media";
 
 /**
  * Articles waiting to be published: GET /api/plugin/articles
@@ -162,6 +164,11 @@ export async function GET(request: NextRequest) {
   }
 
   const pictures = storedImagePrefix();
+  // The site's own photographs: their attachment ids (lib/sites/library-media.ts).
+  const own = await libraryMediaIds(
+    resolved.websiteId,
+    rows.flatMap((row) => [...(row.imageUrl ? [row.imageUrl] : []), ...pictureAddresses(row.bodyHtml ?? "")]),
+  );
 
   return NextResponse.json(
     {
@@ -185,10 +192,20 @@ export async function GET(request: NextRequest) {
           id: row.id,
           title: row.title,
           slug: row.slug,
-          html: row.bodyHtml,
+          // The site's own photographs carry their attachment's class; the rest is as delivered.
+          html: pointAtCopies(row.bodyHtml ?? "", ownCopies(row.bodyHtml ?? "", own), { wordpress: true }),
           excerpt: row.metaDescription,
           image: row.imageUrl
-            ? { url: row.imageUrl, alt: row.imageAlt ?? row.title }
+            ? {
+                url: row.imageUrl,
+                alt: row.imageAlt ?? row.title,
+                /*
+                  One of the site's own photographs: the attachment it already
+                  is. 1.9.0+ sets the featured image from it, once it has checked
+                  it is that picture, instead of copying it; older plugins ignore it.
+                */
+                ...(own.get(row.imageUrl) ? { attachmentId: own.get(row.imageUrl) } : {}),
+              }
             : null,
           // Decided at the claim: a Publish press, the first-article rule,
           // or the website's setting now. See lib/publishing/dispatch.ts.

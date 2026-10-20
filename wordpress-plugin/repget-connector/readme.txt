@@ -2,7 +2,7 @@
 Requires at least: 5.6
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 1.8.0
+Stable tag: 1.9.0
 License: GPLv2 or later
 
 Publishes articles written by RepGet straight to your WordPress site.
@@ -93,6 +93,13 @@ screen, so RepGet can bring you back to it. Nothing else is sent. The plugin
 only fetches articles and reports whether each one published.
 
 == Changelog ==
+
+= 1.9.0 =
+* When RepGet uses your website's own photos for an article (Article
+  Settings, "Use photos from my website"), the featured image is that photo
+  from your media library. Nothing is copied: your media library does not get
+  a second copy of a photo it already has, and the photo itself is not
+  changed.
 
 = 1.8.0 =
 * The pictures inside an article are now saved in your media library, like

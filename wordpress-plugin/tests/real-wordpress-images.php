@@ -1,6 +1,6 @@
 <?php
 /**
- * Pictures (1.8.0) against a REAL WordPress and a REAL MySQL.
+ * Pictures (1.8.0, 1.9.0) against a REAL WordPress and a REAL MySQL.
  *
  *   php wordpress-plugin/tests/real-wordpress-images.php <wordpress dir> <plugin file>
  *
@@ -22,7 +22,11 @@
  *    overwritten;
  *  - a picture that keeps failing is tried once per check, given up after
  *    three, and its post is not looked at again until it changes;
- *  - what the time budget does not allow waits for the next check.
+ *  - what the time budget does not allow waits for the next check;
+ *  - 1.9.0: the site's own photographs (RepGet's "Use photos from my
+ *    website") are used where they are - the featured image is the
+ *    attachment, found by the id RepGet sends or by its address - and never
+ *    copied or changed.
  */
 
 if ($argc < 3) {
@@ -292,6 +296,53 @@ reset_state();
 $g = STORE . 'site/y/1790000000003-late44.jpg';
 $late = repget_localize_images('<img src="' . $g . '" alt="Late">', array(STORE), 0, 'late', time() - 1);
 check('nothing downloaded, the text unchanged, one left', downloads($g) === 0 && $late['left'] === 1 && $late['html'] === '<img src="' . $g . '" alt="Late">');
+
+echo "\nTHE SITE'S OWN PHOTOGRAPHS (1.9.0) are used where they are, never copied\n";
+/** A photograph the site owner uploaded themselves. */
+function own_photo($name, $alt) {
+    require_once ABSPATH . 'wp-admin/includes/media.php';
+    require_once ABSPATH . 'wp-admin/includes/file.php';
+    require_once ABSPATH . 'wp-admin/includes/image.php';
+    $tmp = wp_tempnam($name);
+    file_put_contents($tmp, $GLOBALS['jpeg']);
+    $id = media_handle_sideload(array('name' => $name, 'tmp_name' => $tmp), 0, $alt);
+    update_post_meta($id, '_wp_attachment_image_alt', $alt);
+    return (int) $id;
+}
+reset_state();
+$boat = own_photo('couple-boat-lake-como.jpg', 'Couple on a boat');
+$villa = own_photo('villa-ceremony.jpg', 'Villa ceremony');
+$boat_url = wp_get_attachment_url($boat);
+$villa_url = wp_get_attachment_url($villa);
+$media = count(attachments());
+$body = '<p>Villas.</p><img src="' . $villa_url . '" alt="Cerimonia in villa" class="wp-image-' . $villa . '" width="32" height="18">';
+$GLOBALS['queue']['o1'] = article('o1', $body, array('slug' => 'lake-como', 'image' => array('url' => $boat_url, 'alt' => 'Coppia in barca', 'attachmentId' => $boat)));
+repget_sync_locked();
+$post = post_for('o1');
+check('the featured image is the attachment RepGet named', $post && (int) get_post_thumbnail_id($post->ID) === $boat);
+check('...no copy made, nothing downloaded', count(attachments()) === $media && !$GLOBALS['downloads']);
+check('...and the photograph is as the owner left it: its alt text, belonging to no post', get_post_meta($boat, '_wp_attachment_image_alt', true) === 'Couple on a boat' && (int) get_post_field('post_parent', $boat) === 0);
+check('the photograph in the text is left as RepGet sent it', $post && strpos($post->post_content, 'src="' . $villa_url . '"') !== false && classed($post->post_content, $villa) === 1);
+$shown = apply_filters('the_content', $post ? $post->post_content : '');
+check('...and WordPress recognises it when it shows the post', classed($shown, $villa) > 0);
+
+$GLOBALS['queue']['o2'] = article('o2', '<p>x</p>', array('slug' => 'wrong-id', 'image' => array('url' => $boat_url, 'alt' => 'x', 'attachmentId' => $villa)));
+repget_sync_locked();
+check('a named attachment that is another picture is not used: the address decides', (int) get_post_thumbnail_id(post_for('o2')->ID) === $boat && count(attachments()) === $media);
+
+$GLOBALS['queue']['o3'] = article('o3', '<p>x</p>', array('slug' => 'no-id', 'image' => array('url' => $boat_url, 'alt' => 'x')));
+repget_sync_locked();
+check('with no attachment named (an older RepGet), it is found by its address in this site\'s uploads', (int) get_post_thumbnail_id(post_for('o3')->ID) === $boat && count(attachments()) === $media);
+
+$other_scheme = preg_replace('#^https?:#', strpos($boat_url, 'https:') === 0 ? 'http:' : 'https:', $boat_url);
+$GLOBALS['queue']['o4'] = article('o4', '<p>x</p>', array('slug' => 'scheme', 'image' => array('url' => $other_scheme, 'alt' => 'x', 'attachmentId' => $boat)));
+repget_sync_locked();
+check('...the same picture whatever the scheme', (int) get_post_thumbnail_id(post_for('o4')->ID) === $boat && count(attachments()) === $media);
+
+$GLOBALS['queue']['o5'] = article('o5', '<p>x</p>', array('slug' => 'repget-picture', 'image' => array('url' => $h, 'alt' => 'A film crew', 'attachmentId' => $boat)));
+repget_sync_locked();
+$thumb = (int) get_post_thumbnail_id(post_for('o5')->ID);
+check('RepGet\'s own picture is copied as before, whatever id comes with it', $thumb !== $boat && $thumb > 0 && file_of($thumb) === 'repget-picture.jpg' && downloads($h) === 1, file_of($thumb));
 
 reset_state();
 echo "\n" . ($failures === 0 ? "ALL PASSED" : "{$failures} FAILURE(S)") . "\n";

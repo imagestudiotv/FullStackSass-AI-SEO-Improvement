@@ -2,7 +2,7 @@
 /**
  * Plugin Name: RepGet Connector
  * Description: Publishes articles written by RepGet straight to this site. Press Connect to RepGet to connect.
- * Version: 1.8.0
+ * Version: 1.9.0
  * Requires at least: 5.6
  * Requires PHP: 7.4
  * License: GPLv2 or later
@@ -42,7 +42,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('REPGET_VERSION', '1.8.0');
+define('REPGET_VERSION', '1.9.0');
 define('REPGET_OPTION_KEY', 'repget_integration_key');
 define('REPGET_OPTION_STATUS', 'repget_status');
 define('REPGET_OPTION_ENDPOINT', 'repget_endpoint');
@@ -1859,7 +1859,8 @@ function repget_sync($token = null) {
                 $article['image']['url'],
                 isset($article['image']['alt']) ? $article['image']['alt'] : '',
                 $slug,
-                $article['title']
+                $article['title'],
+                isset($article['image']['attachmentId']) ? $article['image']['attachmentId'] : 0
             );
         }
 
@@ -2205,9 +2206,15 @@ function repget_report($article_id, $dispatch_id, $url, $remote_id, $error, $sta
  * The header picture: copied into the media library - or found, when it was
  * copied before - and set as the post's featured image. Named after the
  * article (its slug, else its title).
+ *
+ * 1.9.0: one of this site's own photographs (RepGet's "Use photos from my
+ * website") is used where it is, never copied - see repget_own_attachment.
  */
-function repget_attach_image($post_id, $url, $alt, $slug = '', $title = '') {
-    $attachment_id = repget_find_image($url);
+function repget_attach_image($post_id, $url, $alt, $slug = '', $title = '', $attachment_hint = 0) {
+    $attachment_id = repget_own_attachment($url, $attachment_hint);
+    if ($attachment_id === 0) {
+        $attachment_id = repget_find_image($url);
+    }
     if ($attachment_id === 0) {
         $attachment_id = repget_copy_image(
             $url,
@@ -2221,6 +2228,36 @@ function repget_attach_image($post_id, $url, $alt, $slug = '', $title = '') {
         }
     }
     set_post_thumbnail($post_id, $attachment_id);
+}
+
+/**
+ * A picture that is already one of this site's own attachments: the
+ * attachment RepGet named (`$hint`, from the inventory RepGet keeps of this
+ * media library) when it holds that very picture, else the attachment whose
+ * file is at `$url` in this site's uploads. 0 for neither - the picture is
+ * RepGet's, or from somewhere else, and is copied as before. The attachment
+ * itself is not changed: not its alt text, not the post it belongs to.
+ */
+function repget_own_attachment($url, $hint) {
+    $hint = (int) $hint;
+    if ($hint > 0 && get_post_type($hint) === 'attachment' && wp_attachment_is_image($hint)
+        && repget_same_address(wp_get_attachment_url($hint), $url)) {
+        return $hint;
+    }
+    // Only an address in this site's uploads can match; anything else costs one meta query and finds nothing.
+    $found = (int) attachment_url_to_postid((string) $url);
+    return $found > 0 && wp_attachment_is_image($found) ? $found : 0;
+}
+
+/** Two addresses of one picture: the same but for http/https and letter case. */
+function repget_same_address($a, $b) {
+    if (!is_string($a) || trim($a) === '') {
+        return false;
+    }
+    $bare = function ($url) {
+        return strtolower(preg_replace('#^https?:#i', '', trim((string) $url)));
+    };
+    return $bare($a) === $bare($b);
 }
 
 /* -------------------------------------------------------------------------- */

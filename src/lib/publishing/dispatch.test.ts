@@ -13,6 +13,7 @@ import {
   platformControls,
   publicationDispatches,
   publishLogs,
+  siteImages,
   websites,
 } from "@/lib/db/schema";
 import { createTestDb, type TestDb } from "@/test/db";
@@ -76,6 +77,8 @@ const cms = vi.hoisted(() => ({
   media: null as null | ((file: { filename: string }) => { id: string; url: string }),
   /** Uploads this refuses fail. */
   refuseUpload: null as null | ((file: { filename: string; alt: string }) => boolean),
+  /** The site's media library, for findMedia: id -> address. */
+  library: new Map<string, string>(),
 }));
 vi.mock("@/lib/publishing/registry", async () => {
   const { ProviderError } = await import("@/lib/publishing/provider");
@@ -87,6 +90,11 @@ vi.mock("@/lib/publishing/registry", async () => {
       if (cms.onUpload) await cms.onUpload();
       if (cms.refuseUpload?.(file)) throw new Error("The site refused the upload");
       return cms.media ? cms.media(file) : { id: "m1", url: "https://site.test/m1.jpg" };
+    }),
+    findMedia: vi.fn(async (_c: unknown, id: string) => {
+      cms.calls.push(`find:${id}`);
+      const url = cms.library.get(id);
+      return url ? { id, url } : null;
     }),
     createPost: vi.fn(async (_c: unknown, input: { title: string; contentHtml: string; slug: string | null; status: string }) => {
       cms.calls.push("create");
@@ -150,6 +158,7 @@ beforeEach(() => {
   cms.uploads.length = 0;
   cms.media = null;
   cms.refuseUpload = null;
+  cms.library.clear();
   inngestMock.send.mockClear();
 });
 
@@ -661,5 +670,87 @@ describe("pictures inside the article (client, 2026-10-16)", () => {
     keyMock.websiteId = s.websiteId;
     const feed = await (await pluginArticles(new NextRequest("https://app.test/api/plugin/articles", { headers: { "x-integration-key": "seo_k" } }))).json();
     expect(feed.storage).toEqual([STORAGE]);
+  });
+});
+
+describe("the site's own photographs (client, 2026-10-20)", () => {
+  /*
+    "Use photos from my website": the article points at photographs already
+    in the site's media library (lib/sites/library-media.ts). Nothing is
+    uploaded again; the cover is set from its attachment and the pictures in
+    the text carry the attachment's class.
+  */
+  const COVER = "https://site.test/wp-content/uploads/2024/05/couple-boat-lake-como.jpg";
+  const INSIDE = "https://site.test/wp-content/uploads/2023/09/villa-ceremony.jpg";
+
+  async function ownPictured(s: { websiteId: string; post: { id: string } }) {
+    await test.db.insert(siteImages).values([
+      { websiteId: s.websiteId, remoteId: 512, url: COVER, alt: "Couple on a boat", width: 1600, height: 1067 },
+      { websiteId: s.websiteId, remoteId: 733, url: INSIDE, alt: "Villa ceremony", width: 1600, height: 1067 },
+    ]);
+    await test.db
+      .update(articles)
+      .set({
+        imageUrl: COVER,
+        imageAlt: "Coppia in barca sul lago",
+        bodyHtml: `<h2>Villas</h2><p>Where to marry.</p><img src="${INSIDE}" alt="Cerimonia in villa" width="1600" height="1067"><p>Elsewhere:</p><img src="https://elsewhere.test/own.jpg" alt="Other">`,
+      })
+      .where(eq(articles.id, s.post.id));
+  }
+
+  it("the plugin is told which attachment the cover is, and the text's photograph carries its class", async () => {
+    const s = await scene({ plannedFor: new Date(Date.now() - 86_400_000) });
+    await test.db.delete(integrations).where(eq(integrations.websiteId, s.websiteId));
+    await test.db.insert(integrationKeys).values({ websiteId: s.websiteId, keyHash: randomUUID(), keyPrefix: "seo_x" });
+    keyMock.websiteId = s.websiteId;
+    await ownPictured(s);
+
+    const feed = (await (await pluginArticles(new NextRequest("https://app.test/api/plugin/articles", { headers: { "x-integration-key": "seo_k" } }))).json()) as {
+      articles: Array<{ id: string; html: string; image: { url: string; alt: string; attachmentId?: number } | null }>;
+    };
+    const [sent] = feed.articles;
+    expect(sent.image).toEqual({ url: COVER, alt: "Coppia in barca sul lago", attachmentId: 512 });
+    expect(sent.html).toMatch(new RegExp(`<img src="${INSIDE}"[^>]*class="wp-image-733"`));
+    // A picture that is not in the site's library is left as it is.
+    expect(sent.html).toMatch(/<img src="https:\/\/elsewhere\.test\/own\.jpg"(?![^>]*wp-image-)[^>]*>/);
+  });
+
+  it("a cover that is not one of the site's photographs carries no attachment", async () => {
+    const s = await scene({ plannedFor: new Date(Date.now() - 86_400_000), image: true });
+    await test.db.delete(integrations).where(eq(integrations.websiteId, s.websiteId));
+    await test.db.insert(integrationKeys).values({ websiteId: s.websiteId, keyHash: randomUUID(), keyPrefix: "seo_x" });
+    keyMock.websiteId = s.websiteId;
+    const feed = (await (await pluginArticles(new NextRequest("https://app.test/api/plugin/articles", { headers: { "x-integration-key": "seo_k" } }))).json()) as {
+      articles: Array<{ image: Record<string, unknown> | null }>;
+    };
+    expect(feed.articles[0].image).toEqual({ url: "https://storage.test/header.jpg", alt: "A couple" });
+  });
+
+  it("a direct send sets the cover from the site's own photograph, once the site confirms it has it - nothing is uploaded", async () => {
+    const s = await scene();
+    await ownPictured(s);
+    // WordPress may answer with the other scheme: still the same picture.
+    cms.library.set("512", COVER.replace("https:", "http:"));
+    await expect(run(s)).resolves.toMatchObject({ status: "publish" });
+
+    expect(cms.uploads).toEqual([]);
+    expect(cms.calls).toContain("find:512");
+    const [post] = [...cms.posts.values()] as Array<{ contentHtml: string; featuredMediaId?: string | null }>;
+    expect(post.featuredMediaId).toBe("512");
+    expect(post.contentHtml).toMatch(new RegExp(`<img src="${INSIDE}"[^>]*class="wp-image-733"`));
+    // Only uploads are kept with the send: the site's own photographs are not copies.
+    const [d] = await dispatches(s.post.id);
+    expect((d.requestSnapshot as { pictures?: object }).pictures ?? {}).toEqual({});
+  });
+
+  it("a photograph the site no longer has is uploaded as before, so the post is never refused", async () => {
+    const s = await scene();
+    await ownPictured(s);
+    await expect(run(s)).resolves.toMatchObject({ status: "publish" });
+
+    expect(cms.calls).toContain("find:512");
+    expect(cms.uploads).toHaveLength(1);
+    const [post] = [...cms.posts.values()] as Array<{ featuredMediaId?: string | null }>;
+    expect(post.featuredMediaId).toBe("m1");
   });
 });

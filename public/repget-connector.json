@@ -1,9 +1,9 @@
 {
-  "version": "1.8.0",
+  "version": "1.9.0",
   "package": "/repget-connector.zip",
-  "sha256": "d1b7e1d94c6784e5ed07d1ac0a046ea38523bdc698531a410efa60339a8daac1",
+  "sha256": "2b22f27448ea6588c36b2f61a1ef13e80ef7c2b1ac8cee24a4855642f68ca9d5",
   "requires": "5.6",
   "requires_php": "7.4",
   "tested": "6.8",
-  "changelog": "* The pictures inside an article are now saved in your media library, like\n  the featured image, and the article shows them from your site instead of\n  from RepGet.\n* Pictures get readable file names, taken from what they show - for example\n  director-coordinating-a-music-video-shoot.jpg instead of\n  1791986572090-96wum8.jpg. The featured image is named after the article.\n* Articles published with an earlier version are brought up to date too, a\n  few at each check: their pictures are copied and the articles point at the\n  copies. Nothing else in them changes, and an article you are editing is\n  left for the next check.\n* A picture is never saved twice: an updated article uses the copy already in\n  your media library."
+  "changelog": "* When RepGet uses your website's own photos for an article (Article\n  Settings, \"Use photos from my website\"), the featured image is that photo\n  from your media library. Nothing is copied: your media library does not get\n  a second copy of a photo it already has, and the photo itself is not\n  changed."
 }

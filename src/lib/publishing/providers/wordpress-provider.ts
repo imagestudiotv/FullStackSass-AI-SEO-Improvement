@@ -1,4 +1,5 @@
 import {
+  findMedia as findWordPressMedia,
   publishPost,
   searchPostsByMarker as searchWordPressPosts,
   testConnection as testWordPress,
@@ -121,6 +122,15 @@ export const wordpressProvider: CmsProvider = {
     try {
       const media = await uploadWordPressMedia(toWordPress(credentials), file);
       return { id: String(media.id), url: media.url };
+    } catch (error) {
+      rethrow(error);
+    }
+  },
+
+  async findMedia(credentials, id) {
+    try {
+      const media = await findWordPressMedia(toWordPress(credentials), Number(id));
+      return media ? { id: String(media.id), url: media.url } : null;
     } catch (error) {
       rethrow(error);
     }

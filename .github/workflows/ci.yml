@@ -178,6 +178,7 @@ jobs:
       # 1.8.0: an article's pictures copied into the media library under
       # readable names, older posts brought up to date in place, an edit
       # saved meanwhile never overwritten, failing pictures given up.
+      # 1.9.0: the site's own photographs used where they are, never copied.
       - name: Plugin pictures against real WordPress + MySQL
         run: php wordpress-plugin/tests/real-wordpress-images.php "$RUNNER_TEMP/wordpress" wordpress-plugin/repget-connector/repget-connector.php
 
