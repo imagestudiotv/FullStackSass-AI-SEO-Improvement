@@ -76,6 +76,7 @@ function wpml_install() {
         }
     }, 10, 2);
     add_filter('wpml_current_language', function () { return $GLOBALS['wpml']['current']; });
+    add_filter('wpml_default_language', function () { return $GLOBALS['wpml']['default']; });
     add_action('wpml_switch_language', function ($lang) {
         $GLOBALS['wpml']['current'] = $lang ? $lang : $GLOBALS['wpml']['default'];
     });
@@ -114,7 +115,7 @@ function wpml_install() {
     }, 10, 4);
 }
 function wpml_uninstall() {
-    foreach (array('wpml_current_language', 'wpml_active_languages', 'wpml_element_trid', 'wpml_element_language_code', 'wpml_object_id') as $hook) remove_all_filters($hook);
+    foreach (array('wpml_current_language', 'wpml_default_language', 'wpml_active_languages', 'wpml_element_trid', 'wpml_element_language_code', 'wpml_object_id') as $hook) remove_all_filters($hook);
     foreach (array('wpml_switch_language', 'wpml_set_element_language_details') as $hook) remove_all_actions($hook);
 }
 wpml_install();
@@ -129,6 +130,7 @@ add_filter('pre_http_request', function ($pre, $args, $url) {
     };
     $path = parse_url($url, PHP_URL_PATH);
     if ($path === '/api/plugin/articles') {
+        $GLOBALS['sent_languages'] = isset($args['headers']['X-RepGet-Languages']) ? $args['headers']['X-RepGet-Languages'] : null;
         return $reply(wp_json_encode(array('ok' => true, 'storage' => array(), 'articles' => array_values($GLOBALS['queue']))));
     }
     if ($path === '/api/plugin/published') {
@@ -219,6 +221,7 @@ check('...a link to a post with an Italian version points at it', $it && strpos(
 check('...a link to a post without one is kept as it was', $it && strpos($it->post_content, 'href="' . $link_carlotta . '#garden"') !== false);
 check('RepGet is told it is live, at its address', last_report() && last_report()['articleId'] === 'it1' && last_report()['url'] === get_permalink($it->ID) && empty(last_report()['error']));
 check('WPML is working in the site\'s language again', apply_filters('wpml_current_language', null) === 'en');
+check('each check tells RepGet the site\'s WPML languages, its default first', $GLOBALS['sent_languages'] === 'en,it,es', var_export($GLOBALS['sent_languages'], true));
 check('the original is untouched', get_post($original->ID)->post_title === 'Getting married on Lake Como' && language_of($original->ID) === 'en');
 
 $GLOBALS['wpml']['languages'][] = 'pt-br';
@@ -262,6 +265,7 @@ wpml_uninstall();
 $GLOBALS['queue']['es2'] = article('es2', 'Casarse', '<p>x</p>', array('translationOf' => 'en1', 'language' => 'es'));
 repget_sync_locked();
 check('without WPML', $count() === $before && strpos((string) last_report()['error'], 'no WPML') !== false, wp_json_encode(last_report()));
+check('...whose check then names no languages', $GLOBALS['sent_languages'] === null);
 $GLOBALS['queue']['plain'] = article('plain', 'An ordinary article', '<p>Plain.</p>');
 repget_sync_locked();
 check('...while an ordinary article still is', post_for('plain') && post_for('plain')->post_status === 'publish' && empty(last_report()['error']));

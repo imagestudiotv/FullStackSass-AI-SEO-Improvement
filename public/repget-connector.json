@@ -1,7 +1,7 @@
 {
   "version": "1.9.0",
   "package": "/repget-connector.zip",
-  "sha256": "6d4789b5a1564a67bb47b416df339e6699f7d0251c8f8cd2f50d72cdb006063e",
+  "sha256": "242cff16c9a07e9a5aa8769dad96777a802512f6c9276890729d4f0d8c81da00",
   "requires": "5.6",
   "requires_php": "7.4",
   "tested": "6.8",

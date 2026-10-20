@@ -593,6 +593,13 @@ export const websites = pgTable("websites", {
   extraLanguages: jsonb("extra_languages").$type<string[]>().default([]).notNull(),
   extraLanguagesSince: timestamp("extra_languages_since"),
   /**
+   * The site's WPML languages as its RepGet plugin (1.9.0+) reports them on
+   * each check, default first - including one with no page of its own yet,
+   * which the site's language links (site_languages) do not name: Image
+   * Studio's Spanish. Read with site_languages for "Also publish in".
+   */
+  pluginLanguages: jsonb("plugin_languages").$type<string[]>().default([]).notNull(),
+  /**
    * A "Frequently asked questions" section at the end of each article (client,
    * 2026-10-13). On by default, for existing websites too.
    */

@@ -505,6 +505,13 @@
       "when": 1792523953375,
       "tag": "0071_article_translations",
       "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1792525951993,
+      "tag": "0072_plugin_languages",
+      "breakpoints": true
     }
   ]
 }

@@ -806,6 +806,14 @@ describe("translations (client, 2026-10-20)", () => {
     expect(feed.articles.map((a) => a.id)).not.toContain(translation.id);
   });
 
+  it("the plugin's WPML languages are kept for the website, to offer each in Article Settings", async () => {
+    const { s } = await translated();
+    await asPluginSite(s.websiteId);
+    await pluginArticles(new NextRequest("https://app.test/api/plugin/articles", { headers: { "x-integration-key": "seo_k", "x-repget-plugin-version": "1.9.0", "x-repget-languages": "en,it,es" } }));
+    const [site] = await test.db.select({ languages: websites.pluginLanguages }).from(websites).where(eq(websites.id, s.websiteId));
+    expect(site.languages).toEqual(["en", "it", "es"]);
+  });
+
   it("a direct connection holds it: nothing is created on the site", async () => {
     const { s, translation } = await translated();
     await expect(run({ ...s, post: translation })).resolves.toMatchObject({ held: "translation_needs_plugin" });

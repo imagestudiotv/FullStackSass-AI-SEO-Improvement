@@ -108,6 +108,9 @@ function get_file_data($file, $headers) {
 }
 function wp_schedule_single_event($t, $hook, $args = array()) { $GLOBALS['scheduled'][] = $hook; return true; }
 function add_filter() {}
+// No WPML on this stubbed site: nothing hooks its filters.
+function has_filter() { return false; }
+function has_action() { return false; }
 function register_activation_hook() {}
 function register_deactivation_hook() {}
 function get_current_screen() { return null; }

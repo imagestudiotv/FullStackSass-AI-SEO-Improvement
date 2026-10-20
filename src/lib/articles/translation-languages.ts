@@ -22,8 +22,20 @@ export function mainLanguageCode(language: string | null): string {
   return CODES[normalizeLanguage(language) ?? "English"] ?? "en";
 }
 
-/** The languages a website can also publish in: its site's others that RepGet writes. */
-export function extraLanguageChoices(site: { language: string | null; siteLanguages: string[] }): string[] {
+/**
+ * The languages a website can also publish in: its site's others that
+ * RepGet writes - the WPML languages its plugin reported (pluginLanguages,
+ * which include a language with no page yet) and those its language links
+ * name, each once.
+ */
+export function extraLanguageChoices(site: { language: string | null; siteLanguages: string[]; pluginLanguages?: string[] }): string[] {
   const main = mainLanguageCode(site.language);
-  return site.siteLanguages.filter((code) => code.split("-")[0] !== main && languageName(code) !== null);
+  const all = [...(site.pluginLanguages ?? []), ...site.siteLanguages];
+  const seen = new Set<string>();
+  return all.filter((code) => {
+    const first = code.split("-")[0];
+    if (first === main || languageName(code) === null || seen.has(first)) return false;
+    seen.add(first);
+    return true;
+  });
 }

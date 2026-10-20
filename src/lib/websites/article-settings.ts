@@ -167,7 +167,7 @@ export async function saveArticleSettings(
     writes. A language newly chosen starts now: articles that went live
     before are not translated (lib/articles/translations.ts).
   */
-  const choices = extraLanguageChoices({ language: site.language, siteLanguages: site.siteLanguages ?? [] });
+  const choices = extraLanguageChoices({ language: site.language, siteLanguages: site.siteLanguages ?? [], pluginLanguages: site.pluginLanguages ?? [] });
   const extraLanguages = input.extraLanguages === undefined ? undefined : [...new Set(input.extraLanguages)].filter((code) => choices.includes(code));
   const languageAdded = extraLanguages?.some((code) => !(site.extraLanguages ?? []).includes(code)) ?? false;
 

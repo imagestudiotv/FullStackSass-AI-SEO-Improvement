@@ -264,6 +264,9 @@ function repget_request($path, $args = array()) {
 
 function add_action() {}
 function add_filter() {}
+// No WPML on this stubbed site: nothing hooks its filters.
+function has_filter() { return false; }
+function has_action() { return false; }
 function register_activation_hook() {}
 function register_deactivation_hook() {}
 function wp_clear_scheduled_hook($h) {}

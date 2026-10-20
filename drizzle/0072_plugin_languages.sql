@@ -1,0 +1,1 @@
+ALTER TABLE "websites" ADD COLUMN "plugin_languages" jsonb DEFAULT '[]'::jsonb NOT NULL;

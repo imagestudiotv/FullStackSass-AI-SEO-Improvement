@@ -236,6 +236,15 @@ function repget_request($path, $args = array()) {
             'X-RepGet-Plugin-Version' => REPGET_VERSION,
         ),
     );
+    /*
+      1.9.0: the site's WPML languages, its default first ("en,it,es"), so
+      RepGet can offer each for translations - also one with no page of its
+      own yet, which the site's language links do not name.
+    */
+    $languages = repget_wpml_language_codes();
+    if ($languages) {
+        $defaults['headers']['X-RepGet-Languages'] = implode(',', $languages);
+    }
 
     $response = wp_remote_request(
         repget_endpoint() . $path,
@@ -2323,6 +2332,29 @@ function repget_same_address($a, $b) {
 /** True when WPML is active, with the calls translations use. */
 function repget_wpml_ready() {
     return has_filter('wpml_object_id') && has_filter('wpml_element_trid') && has_action('wpml_set_element_language_details');
+}
+
+/** WPML's active languages, the site's default first; empty without WPML. */
+function repget_wpml_language_codes() {
+    if (!repget_wpml_ready()) {
+        return array();
+    }
+    $active = apply_filters('wpml_active_languages', null, array('skip_missing' => 0));
+    if (!is_array($active)) {
+        return array();
+    }
+    $codes = array();
+    foreach ($active as $code => $language) {
+        $code = is_array($language) && !empty($language['code']) ? (string) $language['code'] : (string) $code;
+        if (preg_match('/^[a-z]{2,3}(-[a-z0-9]{2,8})?$/', $code)) {
+            $codes[] = $code;
+        }
+    }
+    $default = apply_filters('wpml_default_language', null);
+    if (is_string($default) && in_array($default, $codes, true)) {
+        $codes = array_merge(array($default), array_values(array_diff($codes, array($default))));
+    }
+    return array_slice(array_values(array_unique($codes)), 0, 20);
 }
 
 /** The translation an article is - array('of' => the original's article id, 'language' => code) - or null for an ordinary article. */

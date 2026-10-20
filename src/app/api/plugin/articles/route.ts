@@ -11,6 +11,7 @@ import { db } from "@/lib/db";
 import { websites } from "@/lib/db/schema";
 import { storedImagePrefix } from "@/lib/images/storage";
 import { dueArticlesForPlugin, pluginPostsForWebsite } from "@/lib/plugin/due";
+import { recordPluginLanguages } from "@/lib/plugin/languages";
 import { recordSyncUrl } from "@/lib/plugin/sync";
 import { recordInstall, recordPluginVersion, resolveIntegrationKey } from "@/lib/plugin/keys";
 import { claimDispatch } from "@/lib/publishing/dispatch";
@@ -34,7 +35,7 @@ export const dynamic = "force-dynamic";
 
 const CORS = {
   "access-control-allow-origin": "*",
-  "access-control-allow-headers": "content-type, x-integration-key, x-repget-plugin-version, x-repget-sync-url",
+  "access-control-allow-headers": "content-type, x-integration-key, x-repget-plugin-version, x-repget-sync-url, x-repget-languages",
   "access-control-allow-methods": "GET, OPTIONS",
 };
 
@@ -90,6 +91,8 @@ export async function GET(request: NextRequest) {
   const protocol = pluginProtocol(pluginVersion);
   // So the card stops offering an update this site has installed (see recordPluginVersion).
   await recordPluginVersion(resolved.keyId, pluginVersion).catch(() => undefined);
+  // 1.9.0+: the site's WPML languages, for "Also publish in" (lib/plugin/languages.ts).
+  await recordPluginLanguages(resolved.websiteId, request.headers.get("x-repget-languages")).catch(() => undefined);
 
   const [due, sent] = await Promise.all([
     // Translations only to 1.9.0+, which files them under their language in WPML.

@@ -101,7 +101,7 @@ export default async function WebsitePublishingPage({
 
   // "Also publish in": the site's other languages, named in the page's language.
   const names = new Intl.DisplayNames([locale], { type: "language" });
-  const languageChoices = extraLanguageChoices({ language: site.language, siteLanguages: site.siteLanguages ?? [] }).map((code) => ({
+  const languageChoices = extraLanguageChoices({ language: site.language, siteLanguages: site.siteLanguages ?? [], pluginLanguages: site.pluginLanguages ?? [] }).map((code) => ({
     code,
     name: names.of(code) ?? code,
   }));
