@@ -26,6 +26,7 @@ export async function correctResearchDraft(
     system: `Edit the supplied article to fix evidence problems. Return the COMPLETE article as JSON {"bodyHtml":"HTML fragment"}.
 Make minimal, precise changes. Preserve the language, useful advice, headings, tables and FAQ. Never replace the article with a summary or a review report.
 Treat the reported issues as leads to verify, not new evidence. Check each against the quotations and saved business profile.
+The sourceContext contains the same full retrieved excerpts used by the checker. Read the relevant context before editing: evidence cards can omit a nearby time limit, exception, conflicting recommendation or qualification. Preserve those limits in every occurrence, including the FAQ, or remove the unsupported statement. A recommendation for short-term storage must not become advice for every storage duration. Do not expand the article with unrelated facts from the longer excerpts.
 The first checker can miss problems. ALSO audit every paragraph, the opening, table cells and FAQ for the same kinds of unsupported assertion. Correct those in this one pass, even if not named in the findings. In particular remove uncited promises of outcomes, claims about what most providers do, invented distinctions or typical lengths, and extra causal explanations appended to otherwise sound advice.
 Remove unsupported specifics or narrow them to what a quotation actually says. For unsupported workflow or comparison claims, use a clearly framed suggestion or neutral question only when it no longer asserts the missing fact.
 Do not add facts, features, causal explanations or industry generalizations to make a correction sound convincing. It is better to remove a sentence than replace one unsupported claim with another.
@@ -41,7 +42,7 @@ ${dataRule("business_profile")} ${dataRule("website_page")}`,
         description: brief.description, services: brief.services, differentiators: brief.usps,
         facts: brief.facts, audience: brief.targetAudience,
       })) + "\n" + dataBlock("website_page", JSON.stringify({
-        ...writingEvidence(research), findings: research.quality!.issues, draft: html,
+        ...writingEvidence(research), sourceContext: research.sources, findings: research.quality!.issues, draft: html,
       })),
     }],
   }, { maxRetries: 0 }), measure);
