@@ -28,6 +28,7 @@ describe("content performance", () => {
       { ...base, costUsd: "0.200000", metadata: { ...meta, durationMs: "invalid" } },
       { ...base, costUsd: "0.050000", metadata: { ...meta, promptVersion: "article-body-v3", durationMs: 2000 } },
       { ...base, kind: "seo_api", model: null, provider: "dataforseo", metadata: { purpose: "article_research_search" } },
+      { ...base, costUsd: "0.070000", metadata: { purpose: "article_outline" } },
       { ...base, costUsd: "999", metadata: { purpose: "blog_body" } },
       { ...base, costUsd: "999", metadata: meta, createdAt: new Date("2026-09-01") },
       { ...base, costUsd: "999", metadata: meta, createdAt: new Date("2026-10-21") },
@@ -35,12 +36,15 @@ describe("content performance", () => {
     vi.stubEnv("ARTICLE_RESEARCH_MODE", "pilot");
     vi.stubEnv("ARTICLE_RESEARCH_WEBSITE_IDS", f.websiteId);
     const report = await getContentPerformance(now);
-    expect(report.usage).toHaveLength(3);
+    expect(report.usage).toHaveLength(4);
     expect(report.usage.find(row => row.promptVersion === "article-body-v4")).toEqual({
       task: "body", model: "writer", promptVersion: "article-body-v4",
       requests: 3, knownCostUsd: 0.3, unknownCosts: 1, averageDurationMs: 2000, measuredDurations: 2, failedRequests: 1,
     });
     expect(report.usage.find(row => row.task === "research_search")).toMatchObject({ knownCostUsd: null, unknownCosts: 1, averageDurationMs: null });
+    expect(report.usage.find(row => row.task === "outline")).toMatchObject({
+      model: "writer", promptVersion: "Not recorded", requests: 1, knownCostUsd: 0.07,
+    });
     expect(report.selectedSites.map(site => site.id)).toEqual([f.websiteId]);
     expect(report.rollout.mode).toBe("pilot");
   });

@@ -33,7 +33,9 @@ export type ContentTaskUsage = {
 export async function getContentPerformance(now = new Date()) {
   await requireAdmin();
   const since = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-  const task = sql<string>`coalesce(${usageEvents.metadata}->>'task', 'research_search')`;
+  // Legacy article requests recorded purpose but not task. Preserve that
+  // purpose instead of incorrectly presenting every legacy call as a search.
+  const task = sql<string>`coalesce(${usageEvents.metadata}->>'task', substring(${usageEvents.metadata}->>'purpose' from 9))`;
   const model = sql<string>`coalesce(${usageEvents.model}, ${usageEvents.provider}, 'Unknown')`;
   const version = sql<string>`coalesce(${usageEvents.metadata}->>'promptVersion', 'Not recorded')`;
   const duration = sql`case when jsonb_typeof(${usageEvents.metadata}->'durationMs') = 'number'
