@@ -82,6 +82,9 @@ cases.push({ id: "domain-verification-es", brief: { ...cases[5].brief,
   description: "Estudio web ficticio utilizado exclusivamente para pruebas.",
   targetAudience: "Propietarios de pequeñas empresas", services: ["Configuración de sitios web"],
 } });
+cases.push({ id: "domain-checklist", brief: { ...cases[5].brief,
+  comparisonTable: true,
+} });
 
 const requested = process.env.REPGET_ACCURACY_CASES?.split(",").filter(Boolean);
 if (requested?.some(id => !cases.some(sample => sample.id === id))) throw new Error("Unknown accuracy case");
