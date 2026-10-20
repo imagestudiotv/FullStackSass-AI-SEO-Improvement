@@ -47,12 +47,11 @@ export function renderPilotReview(reports) {
       <div class="drafts">${cases}</div>
       <details><summary>Research evidence and limitations</summary>
         <h3>Warnings</h3>${list(report.research?.warnings)}
-        <h3>Source excerpts</h3>${(report.sources ?? []).map(source => `<section>
+        <h3>Sources used</h3><p>Open the original pages to check wording and context.</p>${(report.sources ?? []).map(source => `<section>
           <h4>${escape(source.id)} · ${escape(source.title)}</h4>
-          <p>${articleHtml(`<a href="${escape(source.url)}">${escape(source.url)}</a>`)}</p>
-          <blockquote>${escape(source.excerpt)}</blockquote></section>`).join("")}
+          <p>${articleHtml(`<a href="${escape(source.url)}">${escape(source.url)}</a>`)}</p></section>`).join("")}
         <h3>Claims retained in the brief</h3>${(report.research?.claims ?? []).map(claim =>
-          `<p><strong>${escape(claim.sourceId)}:</strong> ${escape(claim.text)}</p><blockquote>${escape(claim.quote)}</blockquote>`).join("")}
+          `<p><strong>${escape(claim.sourceId)}:</strong> ${escape(claim.text)}</p>`).join("")}
       </details><p class="muted">Calls included in this report: ${dollars(report.estimatedKnownCostUsd)} known estimate;
       ${escape(report.unknownCostRequests ?? "unknown")} requests with unknown cost. Generated ${escape(report.finishedAt ?? "not recorded")}.
       ${report.evidenceReplay ? `Evidence rechecked ${escape(report.evidenceReplay.checkedAt)}.` : ""}</p></section>`;
