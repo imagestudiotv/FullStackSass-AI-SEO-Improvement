@@ -473,6 +473,60 @@ describe("the daily schedule", () => {
     expect((await tick("2026-10-17T09:05:00Z")).written).toBe(true);
   });
 
+  describe("with more than one article a day (client, 2026-10-20)", () => {
+    const turnOnFor = (articlesPerDay: number) => test.db.insert(blogAutopilot).values({ key: "blog", enabled: true, runHour: 6, articlesPerDay, languages: [] });
+    // The article being written finishes.
+    const finish = async () => {
+      await test.db.update(blogAutopilotRuns).set({ status: "done" }).where(eq(blogAutopilotRuns.status, "running"));
+      await test.db.update(blogAutopilotTopics).set({ status: "written" }).where(eq(blogAutopilotTopics.status, "writing"));
+    };
+    const topic = async (name: string) => (await test.db.select().from(blogAutopilotTopics).where(eq(blogAutopilotTopics.topic, name)))[0].status;
+
+    it("writes them one an hour from the chosen hour, one at a time, each in its own slot", async () => {
+      await turnOnFor(3);
+      await test.db.insert(blogAutopilotTopics).values(["A", "B", "C", "D"].map((name, index) => ({ topic: name, sortOrder: index + 1 })));
+      expect((await tick("2026-10-17T06:05:00Z")).written).toBe(true);
+      // The first is still being written at the next hour: the second waits.
+      expect(await tick("2026-10-17T07:05:00Z")).toEqual({ written: false, reason: "busy" });
+      await finish();
+      expect(await tick("2026-10-17T08:05:00Z")).toMatchObject({ written: true, slot: 2 });
+      await finish();
+      expect(await tick("2026-10-17T09:05:00Z")).toMatchObject({ written: true, slot: 3 });
+      await finish();
+      // Three is the day's number.
+      expect(await tick("2026-10-17T10:05:00Z")).toEqual({ written: false, reason: "done-today" });
+      expect((await scheduled()).map((run) => run.slot).sort()).toEqual([1, 2, 3]);
+      expect([await topic("A"), await topic("B"), await topic("C"), await topic("D")]).toEqual(["written", "written", "written", "queued"]);
+      // The next day starts again at the first slot.
+      expect(await tick("2026-10-18T06:05:00Z")).toMatchObject({ written: true, slot: 1 });
+      expect(await topic("D")).toBe("writing");
+    });
+
+    it("stops for the day when the list runs out part-way, saying how many were written", async () => {
+      await turnOnFor(2);
+      await test.db.insert(blogAutopilotTopics).values({ topic: "Only one", sortOrder: 1 });
+      expect((await tick("2026-10-17T06:05:00Z")).written).toBe(true);
+      await finish();
+      expect(await tick("2026-10-17T07:05:00Z")).toEqual({ written: false, reason: "empty" });
+      const day = (await scheduled()).find((run) => run.slot === 2);
+      expect(day?.error).toBe(
+        "Only 1 of today's 2 articles were written: the topic list is empty. Search data is not set up on this server, so RepGet cannot choose topics. Add topics to the list instead.",
+      );
+      expect(await tick("2026-10-17T08:05:00Z")).toEqual({ written: false, reason: "done-today" });
+      expect(await scheduled()).toHaveLength(2);
+    });
+
+    it("never writes the same slot twice, even when the schedule is doubled", async () => {
+      await test.db.insert(blogAutopilotTopics).values(["A", "B"].map((name, index) => ({ topic: name, sortOrder: index + 1 })));
+      const at = new Date("2026-10-17T06:05:00Z");
+      expect("claimed" in (await startAutopilotRun({ trigger: "schedule", now: at, slot: 1 }))).toBe(true);
+      await finish();
+      expect(await startAutopilotRun({ trigger: "schedule", now: at, slot: 1 })).toEqual({ skipped: "done-today" });
+      expect(await topic("B")).toBe("queued");
+      expect("claimed" in (await startAutopilotRun({ trigger: "schedule", now: at, slot: 2 }))).toBe(true);
+    });
+  });
+
   it("records a day with nothing to write, with the reason, and does not try again every hour", async () => {
     await turnOn(6);
     // An empty list and no search data to choose topics from.

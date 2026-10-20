@@ -10,6 +10,7 @@ import { startAutopilotRun } from "@/lib/blog/autopilot/run";
 import { SuggestError, suggestTopics } from "@/lib/blog/autopilot/suggest";
 import {
   AUTOPILOT_KEY,
+  AUTOPILOT_MAX_PER_DAY,
   autopilotLanguages,
   readAutopilotSettings,
   TOPIC_LIMITS,
@@ -193,11 +194,17 @@ export async function getBlogAutopilotAdmin(): Promise<AdminAutopilot> {
 export async function saveBlogAutopilotSettings(input: {
   enabled: boolean;
   runHour: number;
+  /** 1 when not given (a form from before 2026-10-20). */
+  articlesPerDay?: number;
   languages: string[];
 }): Promise<ActionResult<AutopilotSettings>> {
   const admin = await requireAdmin();
   const runHour = Number(input.runHour);
   if (!Number.isInteger(runHour) || runHour < 0 || runHour > 23) return { ok: false, error: "Choose the hour to write at" };
+  const articlesPerDay = input.articlesPerDay === undefined ? 1 : Number(input.articlesPerDay);
+  if (!Number.isInteger(articlesPerDay) || articlesPerDay < 1 || articlesPerDay > AUTOPILOT_MAX_PER_DAY) {
+    return { ok: false, error: `Choose 1 to ${AUTOPILOT_MAX_PER_DAY} articles a day` };
+  }
   const languages: AutopilotLanguage[] = autopilotLanguages(input.languages);
   const enabled = input.enabled === true;
   const before = await readAutopilotSettings();
@@ -205,8 +212,8 @@ export async function saveBlogAutopilotSettings(input: {
   await db.transaction(async (tx) => {
     await tx
       .insert(blogAutopilot)
-      .values({ key: AUTOPILOT_KEY, enabled, runHour, languages, updatedBy: admin.email, createdAt: now, updatedAt: now })
-      .onConflictDoUpdate({ target: blogAutopilot.key, set: { enabled, runHour, languages, updatedBy: admin.email, updatedAt: now } });
+      .values({ key: AUTOPILOT_KEY, enabled, runHour, articlesPerDay, languages, updatedBy: admin.email, createdAt: now, updatedAt: now })
+      .onConflictDoUpdate({ target: blogAutopilot.key, set: { enabled, runHour, articlesPerDay, languages, updatedBy: admin.email, updatedAt: now } });
     await recordAdminAction(
       {
         actorEmail: admin.email,
@@ -216,7 +223,7 @@ export async function saveBlogAutopilotSettings(input: {
           before.enabled !== enabled
             ? `Turned the blog autopilot ${enabled ? "on" : "off"}`
             : "Changed the blog autopilot's settings",
-        detail: { enabled, runHour, languages },
+        detail: { enabled, runHour, articlesPerDay, languages },
       },
       tx,
     );

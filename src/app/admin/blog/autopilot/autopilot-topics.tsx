@@ -145,7 +145,7 @@ export function AutopilotTopics({
             Topics
           </h2>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            Written from the top, one a day: yours first, then the ones RepGet chooses from search data, skipping what the blog already covers.
+            Written from the top, in order: yours first, then the ones RepGet chooses from search data, skipping what the blog already covers.
             When the list runs out, RepGet adds more itself.
           </p>
         </div>

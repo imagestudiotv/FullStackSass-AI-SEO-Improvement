@@ -36,18 +36,24 @@ export type AutopilotLanguage = (typeof AUTOPILOT_LANGUAGES)[number];
 
 export type AutopilotSettings = {
   enabled: boolean;
-  /** The UTC hour the day's article is written. */
+  /** The UTC hour the day's (first) article is written. */
   runHour: number;
+  /** Articles a day: the first at runHour, then one an hour (client, 2026-10-20: "not just one daily"). */
+  articlesPerDay: number;
   /** Also written in these, besides English. */
   languages: AutopilotLanguage[];
   updatedBy: string | null;
   updatedAt: Date | null;
 };
 
-/** Until an administrator saves the settings: off, 06:00 UTC (08:00 in Rome in summer), every language. */
+/** The most articles a day: one an hour, one at a time, each about $0.90 in five languages. */
+export const AUTOPILOT_MAX_PER_DAY = 5;
+
+/** Until an administrator saves the settings: off, one a day at 06:00 UTC (08:00 in Rome in summer), every language. */
 export const DEFAULT_AUTOPILOT: AutopilotSettings = {
   enabled: false,
   runHour: 6,
+  articlesPerDay: 1,
   languages: [...AUTOPILOT_LANGUAGES],
   updatedBy: null,
   updatedAt: null,
@@ -83,6 +89,7 @@ export async function readAutopilotSettings(executor: Executor = db): Promise<Au
   return {
     enabled: row.enabled,
     runHour: Math.min(Math.max(Math.trunc(row.runHour), 0), 23),
+    articlesPerDay: Math.min(Math.max(Math.trunc(row.articlesPerDay), 1), AUTOPILOT_MAX_PER_DAY),
     languages: autopilotLanguages(row.languages),
     updatedBy: row.updatedBy,
     updatedAt: row.updatedAt,

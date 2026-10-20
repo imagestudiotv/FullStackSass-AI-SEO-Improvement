@@ -13,6 +13,7 @@ The client chose:
 
 - **The daily article** is the switch on the page. It is off until turned on. Also set there:
   - the hour, in UTC (Rome time is shown next to it);
+  - **articles a day**, 1 to 5 (client, 2026-10-20). The first is written at the hour, then one an hour after it;
   - the languages.
 - **Topics** are written top first:
   - Add one with its search phrase and notes, or paste a list (one per line, `topic | search phrase`).
@@ -56,8 +57,8 @@ Every model call and every picture is its own Inngest step:
 `blog-autopilot-schedule` runs every hour at five past (`5 * * * *`):
 
 - **Every hour,** even while the autopilot is off, a run still "running" after 3 hours is failed with "The writing stopped without finishing", so its topic can be tried again.
-- **When it is on,** once the day's hour has come (UTC), it starts the next topic as the day's run. It runs at most once a day: a partial unique index allows one `schedule` run per `run_date`. Because it runs on or after the hour, a missed tick or a manual run in progress only moves the article later that day.
-- **If the list is empty,** it first lets RepGet choose topics. If there is still nothing to write, it records the day with the reason, shown on the page, and doesn't try again that day.
+- **When it is on,** once the day's hour has come (UTC), it starts the next topic in the day's next slot (1, 2... up to **articles a day**), one each hourly tick, one at a time. A partial unique index allows one `schedule` run per `run_date` and `slot`, so no slot is ever written twice. Because it runs on or after the hour, a missed tick or an article still being written only moves the next one an hour later.
+- **If the list is empty,** it first lets RepGet choose topics. If there is still nothing to write, it records the day with the reason ("Nothing was written today", or "Only 1 of today's 2 articles were written"), shown on the page, and doesn't try again that day.
 
 ## Topics from search data (`lib/blog/autopilot/suggest.ts`)
 
@@ -80,7 +81,7 @@ Everything uses keys the platform already has. Without one, that part is skipped
 | Topics from search data | the DataForSEO login and password |
 | The email | `RESEND_API_KEY`, `ADMIN_EMAILS` |
 
-Migration `0060_blog_autopilot` creates the three tables. **Apply it before deploying the code.**
+Migration `0060_blog_autopilot` creates the three tables. Migration `0068_blog_autopilot_articles_per_day` adds the articles-a-day setting (1 by default) and the run's slot (1 for every existing run). **Apply each before deploying the code that uses it.**
 
 **Rough cost of one article** in five languages with ten pictures is about $0.90. Each run shows its real cost. Earlier: about $1.60 until 2026-10-20 (translations on Sonnet 5: $0.73 of it), about $4.30 before 2026-10-18 (Opus 5.5 and high-quality pictures).
 

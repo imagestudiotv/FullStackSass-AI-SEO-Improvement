@@ -1,4 +1,4 @@
-import { asc, eq } from "drizzle-orm";
+import { asc, desc, eq } from "drizzle-orm";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { adminAuditLog, blogAutopilotRuns, blogAutopilotTopics, blogCategories, blogPosts, jobOutbox } from "@/lib/db/schema";
@@ -71,6 +71,19 @@ describe("settings", () => {
     expect(log).toMatchObject({ actorEmail: ADMIN, summary: "Turned the blog autopilot on" });
     expect(await saveBlogAutopilotSettings({ enabled: true, runHour: 24, languages: [] })).toEqual({ ok: false, error: "Choose the hour to write at" });
     expect(await saveBlogAutopilotSettings({ enabled: true, runHour: 6.5, languages: [] })).toEqual({ ok: false, error: "Choose the hour to write at" });
+  });
+
+  it("can ask for up to five articles a day (client, 2026-10-20: not just one)", async () => {
+    expect(DEFAULT_AUTOPILOT.articlesPerDay).toBe(1);
+    expect(await saveBlogAutopilotSettings({ enabled: true, runHour: 5, articlesPerDay: 3, languages: ["es"] })).toMatchObject({ ok: true, data: { articlesPerDay: 3 } });
+    expect((await readAutopilotSettings()).articlesPerDay).toBe(3);
+    const [log] = await test.db.select().from(adminAuditLog).where(eq(adminAuditLog.action, "blog.autopilot_settings_saved")).orderBy(desc(adminAuditLog.createdAt)).limit(1);
+    expect(log.detail).toMatchObject({ articlesPerDay: 3 });
+    for (const wrong of [0, 6, 2.5, Number.NaN]) {
+      expect(await saveBlogAutopilotSettings({ enabled: true, runHour: 5, articlesPerDay: wrong, languages: [] })).toEqual({ ok: false, error: "Choose 1 to 5 articles a day" });
+    }
+    // A form that does not send it (from before the setting): one a day.
+    expect(await saveBlogAutopilotSettings({ enabled: true, runHour: 5, languages: [] })).toMatchObject({ ok: true, data: { articlesPerDay: 1 } });
   });
 
   it("are for administrators only", async () => {

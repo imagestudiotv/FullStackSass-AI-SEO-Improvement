@@ -2613,6 +2613,8 @@ export const blogAutopilot = pgTable("blog_autopilot", {
   enabled: boolean("enabled").default(false).notNull(),
   /** The UTC hour the day's article is written (0-23). */
   runHour: integer("run_hour").default(6).notNull(),
+  /** Articles written a day, one an hour from runHour (1-5; client, 2026-10-20: "not just one daily"). */
+  articlesPerDay: integer("articles_per_day").default(1).notNull(),
   /** The languages each article is also written in, besides English (lib/i18n/config.ts LOCALES). */
   languages: jsonb("languages").$type<string[]>().default(["es", "fr", "it", "de"]).notNull(),
   updatedBy: text("updated_by"),
@@ -2654,10 +2656,10 @@ export const blogAutopilotTopics = pgTable(
 );
 
 /**
- * Each autopilot run: the daily one ("schedule") and any an administrator
- * starts by hand ("manual"). At most ONE scheduled run per UTC day - the
- * partial unique index is what stops a retried or doubled schedule from
- * writing the day's article twice.
+ * Each autopilot run: the daily ones ("schedule") and any an administrator
+ * starts by hand ("manual"). At most one scheduled run per UTC day and slot
+ * (1, 2... up to the day's articles) - the partial unique index is what
+ * stops a retried or doubled schedule from writing an article twice.
  */
 export const blogAutopilotRuns = pgTable(
   "blog_autopilot_runs",
@@ -2667,6 +2669,8 @@ export const blogAutopilotRuns = pgTable(
     runDate: date("run_date").notNull(),
     /** "schedule" | "manual". */
     trigger: text("trigger").notNull(),
+    /** Which of the day's scheduled articles: 1, 2... (blog_autopilot.articles_per_day). 1 for a manual run. */
+    slot: integer("slot").default(1).notNull(),
     topicId: uuid("topic_id").references(() => blogAutopilotTopics.id, { onDelete: "set null" }),
     /** "running" | "done" | "failed". */
     status: text("status").default("running").notNull(),
@@ -2679,7 +2683,7 @@ export const blogAutopilotRuns = pgTable(
     finishedAt: timestamp("finished_at"),
   },
   (table) => [
-    uniqueIndex("blog_autopilot_runs_scheduled_day_uidx").on(table.runDate).where(sql`${table.trigger} = 'schedule'`),
+    uniqueIndex("blog_autopilot_runs_scheduled_slot_uidx").on(table.runDate, table.slot).where(sql`${table.trigger} = 'schedule'`),
     index("blog_autopilot_runs_started_idx").on(table.startedAt),
   ],
 );

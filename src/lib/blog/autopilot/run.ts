@@ -43,7 +43,7 @@ export type AutopilotClaim = {
 
 export type ClaimOutcome =
   | { claimed: AutopilotClaim }
-  /** busy: an article is being written; empty: no topic waits; done-today: the day's scheduled run exists. */
+  /** busy: an article is being written; empty: no topic waits; done-today: that scheduled slot already ran today. */
   | { skipped: "busy" | "empty" | "done-today" };
 
 /** Serialises the topic list: the same lock lib/admin/blog-autopilot.ts takes. */
@@ -61,6 +61,8 @@ export function utcDay(at: Date): string {
  */
 export async function startAutopilotRun(input: {
   trigger: RunTrigger;
+  /** Which of the day's scheduled articles (1 when not given; a manual run is always 1). */
+  slot?: number;
   /** The administrator who pressed "Write one now". */
   requestedBy?: string | null;
   /** Written in the same transaction, once the topic is taken: the admin log entry. */
@@ -80,12 +82,13 @@ export async function startAutopilotRun(input: {
       .limit(1)
       .for("update");
     if (!next) return { skipped: "empty" };
-    // A second scheduled run for the same day stops here (the partial unique index); a manual one never clashes.
+    // A second scheduled run for the same day and slot stops here (the partial unique index); a manual one never clashes.
     const [run] = await tx
       .insert(blogAutopilotRuns)
       .values({
         runDate: utcDay(now),
         trigger: input.trigger,
+        slot: input.trigger === "schedule" ? (input.slot ?? 1) : 1,
         topicId: next.id,
         status: "running",
         detail: input.requestedBy ? { requestedBy: input.requestedBy } : {},
@@ -384,24 +387,27 @@ export async function failStaleRuns(now: Date = new Date()): Promise<number> {
   return stale.length;
 }
 
-/** True when the day's scheduled run exists (written, failed or skipped). */
-export async function scheduledRunExists(runDate: string): Promise<boolean> {
-  const [run] = await db
-    .select({ id: blogAutopilotRuns.id })
+/**
+ * The day's scheduled runs so far (written, failed or skipped), and whether
+ * the schedule stopped for the day because there was nothing to write.
+ */
+export async function scheduledRunsToday(runDate: string): Promise<{ count: number; stopped: boolean }> {
+  const runs = await db
+    .select({ topicId: blogAutopilotRuns.topicId })
     .from(blogAutopilotRuns)
-    .where(and(eq(blogAutopilotRuns.runDate, runDate), eq(blogAutopilotRuns.trigger, "schedule")))
-    .limit(1);
-  return Boolean(run);
+    .where(and(eq(blogAutopilotRuns.runDate, runDate), eq(blogAutopilotRuns.trigger, "schedule")));
+  // A day recorded with nothing to write (recordEmptyDay) has a run without a topic.
+  return { count: runs.length, stopped: runs.some((run) => run.topicId === null) };
 }
 
 /**
- * Records a day the schedule had nothing to write, once: it shows on the
- * autopilot page with the reason, and the schedule does not try again every
- * hour that day.
+ * Records that the schedule had nothing (more) to write today, once, in the
+ * day's next slot: it shows on the autopilot page with the reason, and the
+ * schedule does not try again every hour that day.
  */
-export async function recordEmptyDay(runDate: string, reason: string, now: Date = new Date()): Promise<void> {
+export async function recordEmptyDay(runDate: string, reason: string, now: Date = new Date(), slot = 1): Promise<void> {
   await db
     .insert(blogAutopilotRuns)
-    .values({ runDate, trigger: "schedule", status: "failed", error: reason.slice(0, 500), startedAt: now, finishedAt: now })
+    .values({ runDate, trigger: "schedule", slot, status: "failed", error: reason.slice(0, 500), startedAt: now, finishedAt: now })
     .onConflictDoNothing();
 }

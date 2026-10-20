@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { getBlogAutopilotAdmin } from "@/lib/admin/blog-autopilot";
-import { AUTOPILOT_LANGUAGES, romeHourLabel, utcHourLabel } from "@/lib/blog/autopilot/settings";
+import { AUTOPILOT_LANGUAGES, AUTOPILOT_MAX_PER_DAY, romeHourLabel, utcHourLabel } from "@/lib/blog/autopilot/settings";
 import { LANGUAGE_NAMES_EN } from "@/lib/blog/locale";
 import { formatDate } from "@/lib/i18n/format";
 
@@ -43,11 +43,11 @@ export default async function BlogAutopilotPage() {
     <AdminPage width="default">
       <AdminPageHeader
         title="Blog autopilot"
-        description="Writes one article a day for RepGet's blog, in the blog's own style with every field filled in, and the same article in each language you choose. Each one is saved as a draft for you to read and publish - nothing goes live by itself."
+        description="Writes RepGet's blog articles every day (one, or up to five) in the blog's own style with every field filled in, and the same article in each language you choose. Each one is saved as a draft for you to read and publish - nothing goes live by itself."
       />
 
       <div className="space-y-6">
-        <AutopilotSettingsForm settings={data.settings} hours={hours} languages={languages} />
+        <AutopilotSettingsForm settings={data.settings} hours={hours} maxPerDay={AUTOPILOT_MAX_PER_DAY} languages={languages} />
 
         <AutopilotTopics queued={data.queued} writing={data.writing} failed={data.failed} written={data.written} />
 

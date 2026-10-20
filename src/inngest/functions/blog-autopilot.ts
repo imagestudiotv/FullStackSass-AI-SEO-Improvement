@@ -18,7 +18,7 @@ import {
   runCost,
   saveAutopilotDraft,
   saveAutopilotTranslation,
-  scheduledRunExists,
+  scheduledRunsToday,
   startAutopilotRun,
   utcDay,
 } from "@/lib/blog/autopilot/run";
@@ -275,13 +275,15 @@ export const blogAutopilotRun = inngest.createFunction(
 );
 
 /**
- * The daily article (client's choice 1), when the autopilot is switched on.
+ * The daily articles (client's choice 1; more than one a day since
+ * 2026-10-20), when the autopilot is switched on.
  *
  * Every hour at five past: once the day's hour (settings, UTC) has come, the
- * next topic is taken and written - once a day, kept by the runs table's
- * one-scheduled-run-per-day index. On or AFTER the hour, so a tick that
- * Inngest delays or skips, or a manual run still going at the hour, only
- * moves the article later that day.
+ * next topic is taken and written - one article an hour until the day has
+ * its settings.articlesPerDay, each in its own slot, kept by the runs
+ * table's one-run-per-day-and-slot index. On or AFTER the hour, so a tick
+ * that Inngest delays or skips, or an article still being written, only
+ * moves the next one an hour later.
  *
  * When the list is empty RepGet chooses topics first (client's choice 3);
  * when there is still nothing to write, the day is recorded with the reason
@@ -306,10 +308,14 @@ export const blogAutopilotSchedule = inngest.createFunction(
     const now = new Date(await step.run("now", () => new Date().toISOString()));
     if (now.getUTCHours() < settings.runHour) return { written: false, reason: "before-the-hour" };
     const day = utcDay(now);
-    if (await step.run("ran-today", () => scheduledRunExists(day))) return { written: false, reason: "done-today" };
+    const today = await step.run("ran-today", () => scheduledRunsToday(day));
+    if (today.stopped || today.count >= settings.articlesPerDay) return { written: false, reason: "done-today" };
+    // The day's next article: 1 at the hour, then one an hour while it has more to write.
+    const slot = today.count + 1;
+    const nothing = slot === 1 ? "Nothing was written today" : `Only ${slot - 1} of today's ${settings.articlesPerDay} articles were written`;
 
     if (!isAiConfigured()) {
-      await step.run("no-ai", () => recordEmptyDay(day, "Nothing was written today: the AI is not set up on this server (ANTHROPIC_API_KEY).", now));
+      await step.run("no-ai", () => recordEmptyDay(day, `${nothing}: the AI is not set up on this server (ANTHROPIC_API_KEY).`, now, slot));
       return { written: false, reason: "no-ai" };
     }
 
@@ -322,23 +328,23 @@ export const blogAutopilotSchedule = inngest.createFunction(
         }
       });
       if ("error" in suggested) {
-        await step.run("empty-day", () => recordEmptyDay(day, `Nothing was written today: the topic list is empty. ${suggested.error}`, now));
+        await step.run("empty-day", () => recordEmptyDay(day, `${nothing}: the topic list is empty. ${suggested.error}`, now, slot));
         return { written: false, reason: "empty" };
       }
       logger.info({ step: "suggest-topics", added: suggested.added.length }, "Blog autopilot chose topics for an empty list");
     }
 
-    const outcome = await step.run("start-run", () => startAutopilotRun({ trigger: "schedule", now }));
+    const outcome = await step.run("start-run", () => startAutopilotRun({ trigger: "schedule", now, slot }));
     if ("skipped" in outcome) {
       if (outcome.skipped === "empty") {
         await step.run("empty-day", () =>
-          recordEmptyDay(day, "Nothing was written today: the topic list is empty and RepGet found no new topics. Add topics to the list.", now),
+          recordEmptyDay(day, `${nothing}: the topic list is empty and RepGet found no new topics. Add topics to the list.`, now, slot),
         );
       }
       // "busy": an article is being written; the next hour tries again.
       return { written: false, reason: outcome.skipped };
     }
-    logger.info({ step: "start-run", runId: outcome.claimed.runId }, "Blog autopilot started the day's article");
-    return { written: true, runId: outcome.claimed.runId };
+    logger.info({ step: "start-run", runId: outcome.claimed.runId, slot }, "Blog autopilot started one of the day's articles");
+    return { written: true, runId: outcome.claimed.runId, slot };
   },
 );
