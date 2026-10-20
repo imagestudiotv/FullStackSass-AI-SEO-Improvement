@@ -115,6 +115,13 @@ export const ADMIN_NAV: AdminNavGroup[] = [
         description: "Customer articles across all websites",
       },
       {
+        href: "/admin/content-performance",
+        label: "Content performance",
+        icon: Gauge,
+        keywords: ["research", "models", "cost", "generation", "pilot"],
+        description: "Article research rollout, model costs and review findings",
+      },
+      {
         href: "/admin/network",
         label: "Partner Network",
         icon: Network,

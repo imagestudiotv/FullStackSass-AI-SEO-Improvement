@@ -14,6 +14,9 @@ export const CONTENT_COPY = {
     approve: "Approve this saved version", approving: "Saving…", question: "Reader's question", angle: "Business relevance",
     limitations: "Automated evidence checks help find problems but do not guarantee every statement is correct.",
     researchStep: "Researching the topic",
+    researchEnabled: "Research before writing is enabled",
+    pilotHelp: "New articles include topic research and source links. During this pilot, every new article needs your review before it can be published, including scheduled articles.",
+    enabledHelp: "New articles include topic research and source links. Articles with incomplete research or evidence warnings need your review before publishing.",
   },
   es: {
     position: "Posición media",
@@ -30,6 +33,9 @@ export const CONTENT_COPY = {
     approve: "Aprobar esta versión guardada", approving: "Guardando…", question: "Pregunta del lector", angle: "Relevancia para el negocio",
     limitations: "Las comprobaciones automáticas ayudan a encontrar problemas, pero no garantizan que todas las afirmaciones sean correctas.",
     researchStep: "Investigando el tema",
+    researchEnabled: "La investigación previa está activada",
+    pilotHelp: "Los nuevos artículos incluyen investigación y enlaces a fuentes. Durante esta prueba, debe revisar cada artículo nuevo antes de publicarlo, incluidos los programados.",
+    enabledHelp: "Los nuevos artículos incluyen investigación y enlaces a fuentes. La investigación incompleta o las advertencias requieren su revisión antes de publicar.",
   },
   fr: {
     position: "Position moyenne",
@@ -46,6 +52,9 @@ export const CONTENT_COPY = {
     approve: "Approuver cette version enregistrée", approving: "Enregistrement…", question: "Question du lecteur", angle: "Pertinence pour l’entreprise",
     limitations: "Les vérifications automatiques aident à détecter les problèmes mais ne garantissent pas l’exactitude de chaque affirmation.",
     researchStep: "Recherche sur le sujet",
+    researchEnabled: "La recherche avant rédaction est activée",
+    pilotHelp: "Les nouveaux articles incluent des recherches et des liens vers les sources. Pendant cet essai, chaque nouvel article doit être vérifié avant publication, y compris les articles programmés.",
+    enabledHelp: "Les nouveaux articles incluent des recherches et des liens vers les sources. Une recherche incomplète ou des alertes nécessitent une vérification avant publication.",
   },
   it: {
     position: "Posizione media",
@@ -62,6 +71,9 @@ export const CONTENT_COPY = {
     approve: "Approva questa versione salvata", approving: "Salvataggio…", question: "Domanda del lettore", angle: "Rilevanza per l’attività",
     limitations: "I controlli automatici aiutano a trovare problemi, ma non garantiscono la correttezza di ogni affermazione.",
     researchStep: "Ricerca sull’argomento",
+    researchEnabled: "La ricerca prima della scrittura è attiva",
+    pilotHelp: "I nuovi articoli includono ricerche e collegamenti alle fonti. Durante questa prova, ogni nuovo articolo richiede la sua revisione prima della pubblicazione, inclusi quelli programmati.",
+    enabledHelp: "I nuovi articoli includono ricerche e collegamenti alle fonti. Ricerche incomplete o avvisi sulle prove richiedono una revisione prima della pubblicazione.",
   },
   de: {
     position: "Durchschnittliche Position",
@@ -78,5 +90,8 @@ export const CONTENT_COPY = {
     approve: "Diese gespeicherte Version freigeben", approving: "Wird gespeichert…", question: "Frage des Lesers", angle: "Relevanz für das Unternehmen",
     limitations: "Automatische Prüfungen helfen, Probleme zu finden, garantieren aber nicht die Richtigkeit jeder Aussage.",
     researchStep: "Thema wird recherchiert",
+    researchEnabled: "Recherche vor dem Schreiben ist aktiviert",
+    pilotHelp: "Neue Artikel enthalten Recherchen und Quellenlinks. Während dieses Tests müssen Sie jeden neuen Artikel vor der Veröffentlichung prüfen, auch geplante Artikel.",
+    enabledHelp: "Neue Artikel enthalten Recherchen und Quellenlinks. Unvollständige Recherchen oder Hinweise zur Beleglage erfordern Ihre Prüfung vor der Veröffentlichung.",
   },
 } as const;

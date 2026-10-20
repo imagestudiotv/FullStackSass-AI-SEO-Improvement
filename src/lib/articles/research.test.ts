@@ -269,6 +269,20 @@ describe("article task routing and metering", () => {
     expect(estimatedAiCost(usage, {})).toBeUndefined();
     expect(estimatedAiCost({ ...usage, usageKnown: false }, { writer: { inputPer1k: 1, outputPer1k: 5 } })).toBeUndefined();
   });
+  it("requires explicit scope, including for an all-website rollout", () => {
+    for (const mode of ["pilot", "on"]) {
+      vi.stubEnv("ARTICLE_RESEARCH_MODE", mode);
+      vi.stubEnv("ARTICLE_RESEARCH_WEBSITE_IDS", " , ");
+      expect(researchMode("site-a")).toBe("off");
+      vi.stubEnv("ARTICLE_RESEARCH_WEBSITE_IDS", "*");
+      expect(researchMode("site-a")).toBe(mode);
+      vi.stubEnv("ARTICLE_RESEARCH_WEBSITE_IDS", "site-b,*");
+      expect(researchMode("site-a")).toBe("off");
+      expect(researchMode("site-b")).toBe(mode);
+    }
+    vi.stubEnv("ARTICLE_RESEARCH_MODE", "unexpected");
+    expect(researchMode("site-b")).toBe("off");
+  });
   it("meters truncated output before validation throws", async () => {
     mocks.create.mockResolvedValue({ model: "writer", stop_reason: "max_tokens", content: [],
       usage: { input_tokens: 100, output_tokens: 90 } });

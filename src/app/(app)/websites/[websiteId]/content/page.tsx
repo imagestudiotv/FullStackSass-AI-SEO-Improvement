@@ -6,6 +6,8 @@ import { articlesToPlan } from "@/lib/keywords/replan";
 import { researchInFlight } from "@/lib/keywords/research-state";
 import { ResearchTabs } from "../research-tabs";
 import { requireWebsitePlan } from "@/lib/billing/require-plan";
+import { ResearchStatus } from "@/components/articles/research-status";
+import { researchMode } from "@/lib/articles/research-types";
 
 export const metadata = { title: "Planned articles" };
 
@@ -17,7 +19,7 @@ export default async function WebsiteContentPage({
   const { websiteId } = await params;
   const ctx = await requireWebsitePage(websiteId);
   const { site, userId } = ctx;
-  const { t } = await getAppMessages(userId);
+  const { t, locale } = await getAppMessages(userId);
 
   // Paywall. See lib/billing/require-plan.ts. An owner gets requirePlan on
   // the workspace that pays for this site, exactly as before. A guest is
@@ -32,17 +34,20 @@ export default async function WebsiteContentPage({
   ]);
 
   return (
-    <ResearchTabs
-      websiteId={site.id}
-      keywords={keywords}
-      calendar={calendar}
-      articles={articles}
-      researching={researchInFlight(site)}
-      monthUsedUp={allowance.usedUp}
-      t={t.app.research}
-      tCalendar={t.app.calendar}
-      tCommon={t.app.common}
-      tStatus={t.app.status}
-    />
+    <>
+      <ResearchStatus mode={researchMode(site.id)} locale={locale} />
+      <ResearchTabs
+        websiteId={site.id}
+        keywords={keywords}
+        calendar={calendar}
+        articles={articles}
+        researching={researchInFlight(site)}
+        monthUsedUp={allowance.usedUp}
+        t={t.app.research}
+        tCalendar={t.app.calendar}
+        tCommon={t.app.common}
+        tStatus={t.app.status}
+      />
+    </>
   );
 }

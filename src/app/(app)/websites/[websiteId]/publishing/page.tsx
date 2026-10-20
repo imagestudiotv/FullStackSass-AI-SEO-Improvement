@@ -16,6 +16,8 @@ import { finishedModeOf } from "@/lib/publishing/policy";
 import { requireWebsitePage } from "@/lib/tenant";
 
 import { bodyImageCount } from "@/lib/articles/article-shape";
+import { ResearchStatus } from "@/components/articles/research-status";
+import { researchMode } from "@/lib/articles/research-types";
 import { ArticleSettingsForm } from "../article-settings-form";
 import { GenerationPanel } from "../generation-panel";
 import { ArticleSettingsSectionNav } from "./settings-section-nav";
@@ -54,7 +56,7 @@ export default async function WebsitePublishingPage({
   const { websiteId } = await params;
   const ctx = await requireWebsitePage(websiteId);
   const { site, userId, access } = ctx;
-  const { t } = await messagesFor(userId);
+  const { t, locale } = await messagesFor(userId);
 
   // Paywall. See lib/billing/require-plan.ts. An owner gets requirePlan on
   // the workspace that pays for this site, exactly as before. A guest is
@@ -96,6 +98,7 @@ export default async function WebsitePublishingPage({
       <PageHeader title={t.app.article.pageTitle} description={t.app.article.pageDescription} />
 
       {canEdit ? null : <Notice>{t.app.workspace.viewOnly}</Notice>}
+      <ResearchStatus mode={researchMode(site.id)} locale={locale} />
 
       <div className="lg:grid lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-8">
         <aside className="hidden lg:block">

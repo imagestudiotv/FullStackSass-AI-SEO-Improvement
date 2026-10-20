@@ -29,7 +29,7 @@ afterEach(() => { vi.unstubAllEnvs(); });
 beforeEach(() => {
   vi.clearAllMocks();
   vi.stubEnv("ARTICLE_RESEARCH_MODE", "pilot");
-  vi.stubEnv("ARTICLE_RESEARCH_WEBSITE_IDS", "");
+  vi.stubEnv("ARTICLE_RESEARCH_WEBSITE_IDS", "*");
   queue.send.mockResolvedValue({ ids: ["test-event"] });
   calls.plan.mockResolvedValue({ primaryQuery: "site:example.org reader question" });
   calls.collect.mockResolvedValue([]);
@@ -94,6 +94,16 @@ describe("researched article pipeline", () => {
     expect(calls.collect).not.toHaveBeenCalled();
     expect(calls.synthesize).not.toHaveBeenCalled();
     expect(calls.check).not.toHaveBeenCalled();
+  });
+  it("does not start paid research when the rollout scope is missing", async () => {
+    vi.stubEnv("ARTICLE_RESEARCH_WEBSITE_IDS", "");
+    const f = await setup();
+    await f.run();
+    expect(calls.plan).not.toHaveBeenCalled();
+    expect(calls.collect).not.toHaveBeenCalled();
+    expect(calls.synthesize).not.toHaveBeenCalled();
+    const [article] = await test.db.select().from(articles).where(eq(articles.id, f.articleId));
+    expect(article.research).toBeNull();
   });
   it("falls back to the original search and keeps the review hold if planning fails", async () => {
     calls.plan.mockRejectedValueOnce(new Error("Planner unavailable"));

@@ -21,12 +21,23 @@ export const researchBriefSchema = z.object({
 export type ResearchSource = z.infer<typeof researchSourceSchema>;
 export type ResearchBrief = z.infer<typeof researchBriefSchema>;
 
+/** Empty scope must never turn a selected-site experiment into a global rollout. */
+export function researchRollout(): { mode: "off" | "pilot" | "on"; websiteIds: string[]; allWebsites: boolean } {
+  const mode = process.env.ARTICLE_RESEARCH_MODE;
+  const websiteIds = [...new Set((process.env.ARTICLE_RESEARCH_WEBSITE_IDS ?? "")
+    .split(",").map(x => x.trim()).filter(Boolean))];
+  const allWebsites = websiteIds.length === 1 && websiteIds[0] === "*";
+  return {
+    mode: (mode === "pilot" || mode === "on") && websiteIds.length > 0 ? mode : "off",
+    websiteIds: websiteIds.filter(id => id !== "*"),
+    allWebsites,
+  };
+}
+
 /** Rollout is explicit; existing customers keep their workflow until selected. */
 export function researchMode(websiteId: string): "off" | "pilot" | "on" {
-  const mode = process.env.ARTICLE_RESEARCH_MODE;
-  if (mode !== "pilot" && mode !== "on") return "off";
-  const sites = process.env.ARTICLE_RESEARCH_WEBSITE_IDS?.split(",").map(x => x.trim()).filter(Boolean);
-  return sites?.length && !sites.includes(websiteId) ? "off" : mode;
+  const rollout = researchRollout();
+  return rollout.allWebsites || rollout.websiteIds.includes(websiteId) ? rollout.mode : "off";
 }
 
 export function readResearch(value: unknown): ResearchBrief | null {

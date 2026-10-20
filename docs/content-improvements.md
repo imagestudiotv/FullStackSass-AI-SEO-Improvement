@@ -14,16 +14,27 @@ Source ranking, a suggested publisher domain and readable text are not proof of 
 
 ## Deployment and rollout
 
-Migration `0067` was applied and verified on the shared database on 2026-10-20. The local production build now passes. Research remains off for customer sites while the private pilot results are reviewed; deployment verification is recorded below.
+Migration `0067` was applied and verified on the shared database on 2026-10-20. Research is deployed through an explicit website scope, with a review-required pilot before broader use. Historical trial and release results are recorded below.
 
 1. Apply `0067_article_research_and_next_actions` through the existing migration process before serving this build. It adds private evidence/review fields, reminder preferences, and Search Console import coverage. New tables have RLS enabled. Existing article review flags default to false.
 2. Deploy with `ARTICLE_RESEARCH_MODE=off` initially. Task routing, actual-usage metering and next actions are available independently.
 3. Run a normal Search Console import. Older imports do not have completeness records, so traffic recommendations wait for the first successful new import. A property change, disconnect, partial write, missing page, stale data or row-limit truncation must not be presented as measured traffic loss.
-4. Set `ARTICLE_RESEARCH_MODE=pilot` and `ARTICLE_RESEARCH_WEBSITE_IDS` to selected website UUIDs. With an empty allowlist, the selected mode applies to every site. Configure the existing Anthropic and DataForSEO credentials.
+4. Set `ARTICLE_RESEARCH_MODE=pilot` and `ARTICLE_RESEARCH_WEBSITE_IDS` to selected website UUIDs. An empty scope disables research. Exactly `*` explicitly selects all websites; a wildcard mixed with IDs does not widen their scope. Configure the existing Anthropic and DataForSEO credentials.
 5. Review a small representative set across customer industries and languages. Check factual support, relevance, editing time, retries, generation time and total cost. Keep human review enabled until results are acceptable.
 6. Use `ARTICLE_RESEARCH_MODE=on` only after the pilot. Incomplete research, research warnings and failed/flagged evidence checks continue to hold publication. Setting the mode back to `off` affects new runs; it does not release existing held drafts.
 
 Every publication path uses the shared research gate: first-article automatic release, scheduling, CMS connection, direct dispatch and plugin pickup. A website editor can approve the saved article through the research panel. Approval records the actor and a hash of the delivered fields. Subsequent changes invalidate that approval. Research approval never bypasses the independent Partner Network review.
+
+## Using the improvements
+
+1. Confirm the business profile, services, audience, language and factual details in Business Settings and Article Settings.
+2. Open Planned Articles. Selected websites show a notice explaining research and the publication hold. Generate a small set of representative topics through the normal article controls and allowance.
+3. Open each completed article, expand **Research and sources**, inspect its source links and findings, and edit as needed. Save edits before using **Approve this saved version**. Approval clears the research hold for the saved revision; it does not itself deliver an article or bypass other publishing checks. Existing automatic publishing rules can release it after approval.
+4. Use the dashboard's prioritized next actions. Open a task to resolve the underlying issue, or postpone it for seven days. A recent complete Search Console import is required for traffic comparisons.
+5. Administrators can open **Content → Content performance** (`/admin/content-performance`) to see deployment rollout status, current task models, 30-day request costs/latency by model and prompt version, and recent article research findings. Access is checked before every report read. This page makes no provider calls.
+6. Review the first articles for factual accuracy, usefulness and actual editing minutes. The report excludes image generation, other enrichment, hosting and human work; request latency is not end-to-end generation time. Unknown costs remain unknown. Do not claim savings or automatic factual correctness from these figures alone.
+
+The report includes recorded retries and failures, limits the recent-article list to 20, and separates model/prompt versions. Earlier unmetered runs do not become zero-cost observations. Pilot notices are translated into the application's five supported languages.
 
 ## Model experiments
 
