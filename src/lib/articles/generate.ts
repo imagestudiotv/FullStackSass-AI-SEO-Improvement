@@ -5,6 +5,8 @@ import { dataBlock, dataRule } from "@/lib/ai/untrusted";
 import { sanitizeHtml } from "@/lib/articles/sanitize";
 import { styleHint } from "@/lib/websites/article-options";
 import { isSupportedLanguage } from "@/lib/websites/languages";
+import { RESEARCH_BODY_SYSTEM, RESEARCH_OUTLINE_SYSTEM, writingEvidence } from "./writing-evidence";
+import { load } from "cheerio";
 
 /**
  * Article generation.
@@ -210,6 +212,9 @@ const TABLE_SHAPE = `Structure: <table><thead><tr><th>Attribute</th><th>Option A
 export function tablesInstruction(brief: ArticleBrief): string {
   if (!brief.comparisonTable) return `Do not use tables.`;
   const count = Math.max(1, Math.min(3, Math.trunc(brief.tableCount ?? 1)));
+  if (brief.research?.status === "ready") {
+    return `Include exactly ${count} comparison table(s), each in a different relevant section, not at the start or end. Use <table><thead><tr><th>...</th></tr></thead><tbody><tr><td>...</td></tr></tbody></table>. Only compare factual attributes established by the supplied quotations. When evidence about the alternatives is missing, use a comparison checklist: Criterion / Ask option A / Ask option B, with questions in both option columns. Do not invent capabilities, availability, costs, outcomes or risks to fill cells. Each table needs a specific H2 or H3 and 5-8 concise rows. No links, lists or headings inside cells.`;
+  }
   if (count === 1) {
     return `Include exactly ONE comparison table, the way a good guide does ("Videography vs Cinematography at a Glance"). Compare the two or three options, approaches or types this topic is really about - what the reader is choosing between. Give it its own <h2> or <h3> heading in the form "<Option A> vs <Option B> at a Glance" and place it where that comparison is discussed, not at the very start or the very end. ${TABLE_SHAPE} If the topic has no natural "A vs B", compare the alternatives the reader is weighing (for example doing it themselves vs hiring a professional).`;
   }
@@ -241,7 +246,7 @@ export function briefContext(brief: ArticleBrief): string {
     `Target keyword: ${brief.targetKeyword}`,
     brief.intent ? `Search intent: ${brief.intent}` : null,
     brief.relatedKeywords.length
-      ? `Related terms to cover: ${brief.relatedKeywords.join(", ")}`
+      ? `${brief.research?.status === "ready" ? "Optional related terms, only when relevant and supported" : "Related terms to cover"}: ${brief.relatedKeywords.join(", ")}`
       : null,
     /*
       Who the business is, as material rather than instructions (lib/ai/
@@ -252,7 +257,7 @@ export function briefContext(brief: ArticleBrief): string {
     */
     profileBlock(brief),
     brief.research?.status === "ready"
-      ? dataBlock("website_page", JSON.stringify(brief.research))
+      ? dataBlock("website_page", JSON.stringify(writingEvidence(brief.research)))
       : null,
     /*
       The chosen register, expanded into the instruction it stands for. The
@@ -287,7 +292,9 @@ export function briefContext(brief: ArticleBrief): string {
       ? `Write with a point of view - first person, willing to recommend.`
       : `Stay impersonal. No first person, no personal anecdotes.`,
     brief.mentionSimilarProducts
-      ? `Where it genuinely helps the reader, mention well-known similar products, tools or alternatives by name, in general terms. Do not state features, prices, ratings or claims about them that are not common knowledge, do not invent products, and skip this entirely when nothing relevant exists.`
+      ? brief.research?.status === "ready"
+        ? `Mention products or tools only where the supplied evidence cards support the exact description you will give. Do not introduce alternatives from memory, assume comparable capabilities, or add a software comparison just to name more products. Omit this option when the evidence does not support it.`
+        : `Where it genuinely helps the reader, mention well-known similar products, tools or alternatives by name, in general terms. Do not state features, prices, ratings or claims about them that are not common knowledge, do not invent products, and skip this entirely when nothing relevant exists.`
       : null,
     /*
       Stated both ways, like the perspective above: left unsaid, a model
@@ -445,7 +452,9 @@ export async function generateOutline(
      * every outline so far was planned.
      */
     max_tokens: route.maxTokens,
-    system: OUTLINE_SYSTEM,
+    system: brief.research?.status === "ready"
+      ? `${RESEARCH_OUTLINE_SYSTEM}\n${dataRule("business_profile")}\n${dataRule("website_page")}`
+      : OUTLINE_SYSTEM,
     output_config: { format: { type: "json_schema", schema: OUTLINE_SCHEMA } },
     messages: [{ role: "user", content: briefContext(brief) }],
   }, { maxRetries: 0 }), measure);
@@ -609,7 +618,16 @@ export async function generateBody(
       allowance costs nothing.
     */
     max_tokens: route.maxTokens,
-    system: BODY_SYSTEM,
+    system: brief.research?.status === "ready"
+      ? `${RESEARCH_BODY_SYSTEM}\n${dataRule("business_profile")}\n${dataRule("website_page")}`
+      : BODY_SYSTEM,
+    ...(brief.research?.status === "ready" ? {
+      output_config: { format: { type: "json_schema" as const, schema: {
+        type: "object", properties: { bodyHtml: {
+          type: "string", description: "The complete HTML article fragment with real <h2>, <p>, <a> and table tags. Never Markdown.",
+        } }, required: ["bodyHtml"], additionalProperties: false,
+      } } },
+    } : {}),
     messages: [
       {
         role: "user",
@@ -632,9 +650,26 @@ export async function generateBody(
     throw new Error("No article body returned");
   }
 
-  const bodyHtml = sanitizeHtml(block.text);
+  let body = block.text;
+  if (brief.research?.status === "ready") {
+    try {
+      const parsed = JSON.parse(body) as { bodyHtml?: unknown };
+      if (typeof parsed.bodyHtml !== "string") throw new Error("Missing HTML");
+      body = parsed.bodyHtml;
+    } catch {
+      throw new Error("The researched article did not return a valid HTML response");
+    }
+  }
+  const bodyHtml = sanitizeHtml(body);
   if (!bodyHtml) {
     throw new Error("Generated article was empty");
+  }
+  if (brief.research?.status === "ready") {
+    const $ = load(bodyHtml, null, false);
+    const looseText = $.root().contents().toArray().some(node => node.type === "text" && node.data.trim());
+    if (!$("h2").length || !$("p").length || looseText) {
+      throw new Error("The researched article must contain HTML headings and paragraphs, not Markdown or plain text");
+    }
   }
 
   return {

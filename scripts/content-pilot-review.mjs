@@ -22,8 +22,8 @@ export function renderPilotReview(reports) {
       const generationCost = row.estimatedGenerationCostUsd + row.estimatedPreparationCostUsd +
         (row.variant === "A-baseline" ? 0 : row.estimatedEvidenceCheckCostUsd);
       const costLabel = !draft ? "Not completed" : report.unknownCostRequests ? `${dollars(generationCost)} known portion` : dollars(generationCost);
-      return `<section class="draft"><h3>${escape(row.variant === "A-baseline" ? "A · Existing writing method" :
-        row.variant === "B-research" ? "B · Research-assisted writing" : "C · Cheaper outline experiment")}</h3>
+      return `<section class="draft"><h3>${escape(row.label ?? (row.variant === "A-baseline" ? "A · Existing writing method" :
+        row.variant === "B-research" ? "B · Research-assisted writing" : "C · Cheaper outline experiment"))}</h3>
         <p class="metrics">Text/search estimate: <strong>${costLabel}</strong> · ${escape(draft?.wordCount ?? "Unknown")} words
         · Writing and checking: ${Math.round((row.modelTimeMs ?? 0) / 1000)} seconds (excludes source retrieval)</p>
         ${row.variant === "A-baseline" ? `<p class="muted">Additional evaluation-only evidence check: ${dollars(row.estimatedEvidenceCheckCostUsd)}. This is excluded from the existing method's generation cost.</p>` : ""}
@@ -38,6 +38,9 @@ export function renderPilotReview(reports) {
       ${report.failure || report.reviewFailure ? `<p class="alert">Trial incomplete: ${escape(report.failure ?? report.reviewFailure)}</p>` : ""}
       <p>Private drafts using the saved business profile and planned topic. Nothing has been published.
       Both versions receive the same evidence check. Human review is still pending.</p>
+      ${report.revision ? `<p>Before/after writing comparison using identical saved research. Per-article estimates include
+        the original research preparation cost in both versions, even though it was reused for this experiment.
+        Additional calls for this revision: ${dollars(report.revisionCostUsd)}.</p>` : ""}
       ${report.assistantReview ? `<div class="alert"><strong>Preliminary editorial assessment</strong>
         ${list(report.assistantReview.findings)}<p>${escape(report.assistantReview.recommendation)}</p>
         <p class="muted">AI-assisted inspection; this is not the business owner's approval.</p></div>` : ""}
@@ -45,6 +48,19 @@ export function renderPilotReview(reports) {
         <p>${escape(report.brief?.description)}</p><p>${escape(report.brief?.tone)}</p>
         ${list(report.brief?.facts)}<p>${escape(report.brief?.articleInstructions)}</p></details>
       <div class="drafts">${cases}</div>
+      ${report.editorialDraft ? `<section class="draft">
+        <h3>Corrected sample · AI-assisted editorial edit</h3>
+        <p>This sample was edited after inspecting the generated draft. It is not an untouched model output.
+        Human approval and actual human editing minutes are still pending.</p>
+        ${list(report.editorialDraft.changes)}
+        <details><summary>Read the corrected sample (${escape(report.editorialDraft.wordCount)} words)</summary>
+        <article>${articleHtml(report.editorialDraft.bodyHtml)}</article></details>
+        <p>Additional evaluation-only check: ${dollars(report.editorialDraft.extraReviewCostUsd)}.
+        The automated writing costs above exclude this edit and its extra check.</p>
+        <p>Evidence review: ${report.editorialDraft.evidence?.checked
+          ? `${escape(report.editorialDraft.evidence.issues.length)} findings; human review still required.`
+          : "Not checked."}</p>${list(report.editorialDraft.evidence?.issues)}
+      </section>` : ""}
       <details><summary>Research evidence and limitations</summary>
         <h3>Warnings</h3>${list(report.research?.warnings)}
         <h3>Sources used</h3><p>Open the original pages to check wording and context.</p>${(report.sources ?? []).map(source => `<section>
