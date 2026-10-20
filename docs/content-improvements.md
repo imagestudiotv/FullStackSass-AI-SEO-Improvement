@@ -2,11 +2,15 @@
 
 ## Implemented behavior
 
-1. **Research before writing:** one cached, localized DataForSEO organic search; up to six bounded, SSRF-safe page fetches, retaining up to four readable pages (at most two per publisher). A structured brief identifies intent, questions, business relevance, claims and exact supporting excerpts. Unsupported quotations are discarded, with a review warning; no usable claims means incomplete research. The outline and writer receive the brief. An additional evidence check looks for unsupported claims and citation mismatches. Sources and warnings appear beside the saved article.
-2. **Models by task:** separate article-only routes for research, outline, body, evidence checking and image descriptions. The existing stronger outline/writer remain defaults; extraction-class models handle research and image descriptions. Evidence checking uses the stronger model: the live pilot found that the cheaper reviewer missed platform-specific advice presented as universal. Overrides do not change GEO, keywords or the marketing blog. Model experiments always require human review. Provider usage, cache tokens, latency, stop reason, prompt version and run/article IDs are recorded before parsing. Unknown usage/prices remain unknown rather than zero. Dated model IDs match their base model's price.
+1. **Research before writing:** a small, metered planning call proposes one focused search for primary evidence using only the topic, keyword, language and country. Up to two cached, localized DataForSEO searches combine that query with the original keyword. Only returned URLs are fetched; the plan is not evidence. Up to six bounded, SSRF-safe page fetches retain at most four readable pages (at most two per hostname). Social/video pages without a supported text reader, sign-in destinations and recognizable access challenges are excluded. Article text is preferred over surrounding page chrome. A structured brief identifies intent, questions, business relevance, claims and exact supporting excerpts. Unsupported quotations are discarded, with a review warning; no usable claims means incomplete research. The outline and writer receive the brief. An additional evidence check looks for unsupported claims and citation mismatches. Sources and warnings appear beside the saved article.
+2. **Models by task:** separate article-only routes for search planning, research, outline, body, evidence checking and image descriptions. The existing stronger outline/writer remain defaults; extraction-class models handle planning, research and image descriptions. Evidence checking uses the stronger model: the live pilot found that the cheaper reviewer missed platform-specific advice presented as universal. Overrides do not change GEO, keywords or the marketing blog. Model experiments always require human review. Provider usage, cache tokens, latency, stop reason, prompt version and run/article IDs are recorded before parsing. Unknown usage/prices remain unknown rather than zero. Dated model IDs match their base model's price.
 3. **Next actions:** prioritized connection problems, publishing failures, failed articles, research review, audit errors, traffic changes, manual drafts and search appearance opportunities. Tasks show evidence and direct destinations, can be postponed for seven days, and disappear when the underlying issue clears. Actions are tenant-scoped and editor-only. No AI requests occur when loading the dashboard.
 
 Research and model experiments use the existing article allowance and entitlement checks. Completed Inngest steps are reused on normal retries. SDK retries are disabled for the article calls so the job owns visible retries. An ambiguous timeout can still have incurred provider charges; this is recorded as unknown usage, not promised to be exactly-once.
+
+Planning failure falls back to the original query. One search failure preserves the other search's results; both failing produces unavailable research. Each search independently rechecks entitlement and records spend. Planning adds at most one AI request, with a 1,000-token output limit, and one extra search. A known primary publisher becomes a `site:` query, with domain validation on the returned results. Readable secondary pages can also supply up to two actual links to that publisher; these share the same six-fetch limit, and primary pages are retained first. Community threads are deprioritized. Each hostname gets at most two attempts, and each page is limited to 4 MB after decompression and 12 seconds. The retained excerpt remains limited to 6,000 characters. The system never constructs article URLs from model memory.
+
+Source ranking, a suggested publisher domain and readable text are not proof of credibility or factual correctness. DataForSEO charges more for search operators such as `site:`; its [documented multiplier](https://docs.dataforseo.com/v3/serp/google/organic/live/advanced/) is five times the ordinary task price. Actual provider-reported charges are recorded, including the targeted query, instead of assuming both searches cost the same.
 
 ## Deployment and rollout
 
@@ -26,6 +30,7 @@ Every publication path uses the shared research gate: first-article automatic re
 Optional variables:
 
 ```text
+ARTICLE_MODEL_RESEARCH_PLAN=
 ARTICLE_MODEL_RESEARCH=
 ARTICLE_MODEL_OUTLINE=
 ARTICLE_MODEL_BODY=
@@ -59,6 +64,8 @@ The report is written to ignored `test-results/content-pilot/report.json`. The p
 
 Set `REPGET_CONTENT_PILOT_CASE=coffee-es` to repeat the comparison for a synthetic Spanish coffee business. That report is saved separately as `coffee-es.json`. No customer records or publishing integrations are used by either case.
 
+Set `REPGET_CONTENT_PILOT_STAGE=sources` to stop after planning and retrieval, before synthesis or writing. These smaller checks write `<case>-sources.json`; the English case requires a readable Google help source. Full trials also apply that retrieval requirement before paying for article generation. The reports include search queries/results and retrieval outcomes so missing coverage can be investigated without guessing.
+
 ## Scope
 
 Additional AI visibility engines are a separate feature. Article task routing does not claim to measure the consumer interfaces of ChatGPT, Gemini, or Perplexity.
@@ -91,4 +98,13 @@ Additional AI visibility engines are a separate feature. Article task routing do
 
 ### Remaining rollout work
 
-Improve source selection so primary documentation and usable text evidence are preferred over thin social pages and platform-specific tutorials. Then compare representative customer briefs with human review, editing time and full generation costs. Keep research off for customer sites until a deliberately selected pilot is ready; keep the stronger default outline and writer until the cheaper alternative meets the quality bar.
+Compare representative customer briefs with human review, editing time and full generation costs. Keep research off for customer sites until a deliberately selected pilot is ready; keep the stronger default outline and writer until the cheaper alternative meets the quality bar.
+
+## Source-selection follow-up — 2026-10-20
+
+- Added bounded primary-source planning, hostname-filtered search results and discovery through actual links on readable pages. Excluded unsupported social/video shells, sign-in pages and recognizable access challenges; retained article text ahead of unrelated page chrome.
+- The first repeated English trial showed that adding “official guide” to a query was insufficient. A focused retrieval probe also caught results outside the requested domain. Those results are now excluded from that query; the original localized query remains an independent fallback.
+- A subsequent probe found the correct Google documentation but exposed the old 1.5 MB page limit. The normal safe fetcher could read it at a 4 MB limit. Two-attempt hostname limits prevent an inaccessible publisher from consuming all six fetches. The final retrieval probe successfully retained Google's own verification documentation ahead of supporting tutorials.
+- Added a retrieval-only pilot stage and per-query diagnostics. It stops before synthesis/writing when the selected test requires a primary source but none was obtained. The direct public-document fetch check makes oversized/inaccessible pages easier to distinguish from search failures.
+- Live structured output exceeded local quotation and claim-count limits. Validation now discards malformed or oversized claims, retains at most 12 claims with exact supporting quotations, and adds a review warning; it does not truncate quotations. No surviving verified claims still fails the brief. Regression tests cover both partial recovery and complete rejection.
+- The Spanish trial completed with four readable text sources and no social-video shell. Estimated costs, including preparation for each research comparison: $0.0636 baseline, $0.2188 researched, $0.1705 cheaper-outline experiment. The evidence checker flagged three issues in each researched draft, including a business recommendation absent from the supplied company facts and mismatched citations. The intended primary publisher was not obtained, and one retained source focuses on ground coffee. Source relevance and business-fact fidelity still need human evaluation; this is not evidence for a broad rollout or guaranteed savings.

@@ -6,7 +6,8 @@ import { NonRetriableError } from "inngest";
 
 import { inngest } from "@/inngest/client";
 import { articleTask, articleModelExperiment, estimatedAiCost, type MeasureAi } from "@/lib/ai/article-tasks";
-import { collectResearchSources, synthesizeResearch, checkResearchEvidence } from "@/lib/articles/research";
+import { planResearchSearch, collectResearchSources, synthesizeResearch, checkResearchEvidence } from "@/lib/articles/research";
+import { articleSearch } from "@/lib/providers/dataforseo";
 import { researchMode, researchNeedsReview, type ResearchBrief } from "@/lib/articles/research-types";
 import { db } from "@/lib/db";
 import {
@@ -360,16 +361,34 @@ export const generateArticle = inngest.createFunction(
     };
     // Memoized before paid steps: one run keeps its rollout decision on retry.
     const mode = await step.run("research-policy", async () => researchMode(brief.websiteId));
+    const searchPlan = await step.run("research-search-plan", async () => {
+      if (mode === "off") return null;
+      await db.update(articles).set({ generationStep: "research", updatedAt: new Date() }).where(eq(articles.id, articleId));
+      await requireEntitledForSpend(brief.websiteId, { freeArticles: true });
+      try {
+        return await paidCall(reservations, () => planResearchSearch(brief.brief, meter),
+          { beforeSpend: () => requireEntitledForSpend(brief.websiteId, { freeArticles: true }) });
+      } catch {
+        logger.warn({ articleId, step: "research-search-plan" }, "Research planning unavailable; using the original query");
+        return null;
+      }
+    });
     const sources = await step.run("research-sources", async () => {
       if (mode === "off") return [];
       await db.update(articles).set({ generationStep: "research", updatedAt: new Date() }).where(eq(articles.id, articleId));
       await requireEntitledForSpend(brief.websiteId, { freeArticles: true });
       try {
-        return await paidCall(reservations, () => collectResearchSources(brief.brief, costUsd =>
+        return await collectResearchSources(brief.brief, costUsd =>
           track(organizationId, {
             kind: "seo_api", provider: "dataforseo", websiteId: brief.websiteId, costUsd,
             metadata: { purpose: "article_research_search", articleId, costBasis: costUsd === undefined ? "unknown" : "provider_reported" },
-          })), { beforeSpend: () => requireEntitledForSpend(brief.websiteId, { freeArticles: true }) });
+          }), undefined, {
+          primaryQuery: searchPlan?.primaryQuery,
+          primaryDomain: searchPlan?.primaryDomain,
+          // Each search rechecks entitlement and records spend independently.
+          search: (...args) => paidCall(reservations, () => articleSearch(...args),
+            { beforeSpend: () => requireEntitledForSpend(brief.websiteId, { freeArticles: true }) }),
+        });
       } catch {
         logger.warn({ articleId, step: "research-sources" }, "Research unavailable; article will require review");
         return [];

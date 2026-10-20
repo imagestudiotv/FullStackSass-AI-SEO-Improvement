@@ -23,18 +23,70 @@ const synthesisSchema = z.object({
 });
 const normalize = (text: string) => text.normalize("NFKC").replace(/\p{Cf}/gu, "").replace(/\s+/g, " ").trim();
 const evidenceSchema = z.object({ issues: z.array(z.string().max(1000)).max(20) });
+const searchPlanSchema = z.object({
+  primaryQuery: z.string().trim().min(3).max(300),
+  primaryDomain: z.string().trim().min(1).max(253).nullable(),
+});
+
+/** A search hint, never evidence or a URL to fetch directly. */
+export async function planResearchSearch(brief: ArticleBrief, measure?: MeasureAi) {
+  const route = articleTask("research_plan");
+  const response = await measuredRequest("research_plan", () => anthropic.messages.create({
+    model: route.model, max_tokens: route.maxTokens,
+    output_config: { format: zodOutputFormat(searchPlanSchema) },
+    system: `Plan a primary-source search. Return primaryQuery (topic words without site: operators) and primaryDomain (a publisher hostname without scheme/path, or null).
+For a named software product, manufacturer or organization, identify the domain that publishes its own documentation. Do not just add "official guide" to a generic query: that returns third-party tutorials. For example, Google Search Console documentation is published on support.google.com.
+For other topics, identify a relevant professional association, original research publisher or practitioner with direct expertise when confidently known. Use null if no primary publisher can be identified confidently; never invent a domain. Avoid social videos, shopping results and generic SEO compilations.
+Use the reader's language where possible; official documentation in another language is acceptable when it answers the question better.
+Keep the actual subject and qualifiers (such as whole coffee beans versus ground coffee). Do not expand to a different question. Return a search query, not an answer, URL or claim of credibility.
+${dataRule("business_profile")}`,
+    // Private customer facts/services are not needed for a public search plan.
+    messages: [{ role: "user", content: dataBlock("business_profile", JSON.stringify({
+      topic: brief.title, keyword: brief.targetKeyword, language: brief.language, country: brief.country,
+    })) }],
+  }, { maxRetries: 0 }), measure);
+  if (response.stop_reason !== "end_turn") throw new Error("Research search planning did not finish");
+  const plan = searchPlanSchema.parse(JSON.parse(response.content.find(b => b.type === "text")?.text ?? ""));
+  const domain = plan.primaryDomain?.toLowerCase() ?? null;
+  if (domain && !/^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,63}$/.test(domain)) {
+    throw new Error("Research planner returned an invalid publisher domain");
+  }
+  if (domain) assertPublicHttpUrl(`https://${domain}`);
+  return {
+    primaryDomain: domain,
+    primaryQuery: domain ? `site:${domain} ${plan.primaryQuery.replace(/\bsite:\S+/gi, "").trim()}`.slice(0, 300) : plan.primaryQuery,
+  };
+}
+
+// These pages need platform-specific transcript/post readers. Their public HTML
+// commonly contains only login/navigation text, even when it exceeds 250 chars.
+const unreadablePublishers = [
+  "instagram.com", "facebook.com", "fb.com", "youtube.com", "youtu.be",
+  "tiktok.com", "pinterest.com", "x.com", "twitter.com", "threads.net", "threads.com",
+];
+function unsupportedSource(url: URL) {
+  return unreadablePublishers.some(host => url.hostname === host || url.hostname.endsWith(`.${host}`)) ||
+    /\/(?:login|log-in|signin|sign-in|signup|sign-up)(?:\/|$)/i.test(url.pathname);
+}
 
 /** Evidence must really occur in the fetched page. This is provenance, not proof of truth. */
 export function validateResearch(text: string, sources: ResearchSource[]) {
-  const result = synthesisSchema.parse(JSON.parse(text));
-  const verified = result.claims.filter(claim => {
+  // Provider structured output does not guarantee every local length rule.
+  // Discard an invalid claim, never truncate a quote or lose other valid evidence.
+  const result = synthesisSchema.omit({ claims: true }).extend({
+    claims: z.array(z.unknown()).min(1).max(100),
+  }).parse(JSON.parse(text));
+  const verified = result.claims.flatMap(candidate => {
+    const parsed = synthesisSchema.shape.claims.element.safeParse(candidate);
+    if (!parsed.success) return [];
+    const claim = parsed.data;
     const source = sources.find(s => s.id === claim.sourceId);
-    return source && normalize(source.excerpt).includes(normalize(claim.quote));
-  });
+    return source && normalize(source.excerpt).includes(normalize(claim.quote)) ? [claim] : [];
+  }).slice(0, 12);
   if (!verified.length) throw new Error("Research contains only unsupported source quotations");
   return { ...result, claims: verified, warnings: [
     ...result.warnings,
-    ...(verified.length < result.claims.length ? ["Some research claims were omitted because their quotations could not be verified."] : []),
+    ...(verified.length < result.claims.length ? ["Some research claims were omitted because they exceeded limits or their supporting quotations could not be verified."] : []),
   ] };
 }
 
@@ -42,48 +94,119 @@ export async function collectResearchSources(
   brief: ArticleBrief,
   onSearchCost: (cost: number | undefined) => Promise<void>,
   onSource?: (result: { url: string; outcome: string }) => void,
+  options: { primaryQuery?: string; primaryDomain?: string | null; search?: typeof articleSearch } = {},
 ): Promise<ResearchSource[]> {
   if (!isDataForSeoConfigured()) throw new Error("Research search provider is not configured");
   const language = normalizeLanguage(brief.language);
   if (!language || !brief.country) throw new Error("Research requires a supported language and target country");
-  const search = await articleSearch(brief.targetKeyword || brief.title, brief.country, language, onSearchCost);
+  const search = options.search ?? articleSearch;
+  const domain = options.primaryDomain?.replace(/^www\./, "").toLowerCase();
+  const isPrimary = (input: string) => {
+    if (!domain) return false;
+    try {
+      const host = new URL(input).hostname.replace(/^www\./, "");
+      return host === domain || host.endsWith(`.${domain}`);
+    } catch { return false; }
+  };
+  // At most two searches. The focused primary-source query goes first, then the
+  // original localized query supplies alternatives. Hints never become citations.
+  const queries = [...new Set([options.primaryQuery, brief.targetKeyword || brief.title]
+    .filter((q): q is string => Boolean(q?.trim())).map(q => q.trim().slice(0, 300)))];
+  const items: Awaited<ReturnType<typeof articleSearch>>["items"] = [];
+  let completedSearches = 0;
+  for (const query of queries) {
+    try {
+      const result = await search(query, brief.country, language, onSearchCost);
+      items.push(...result.items.filter(item => {
+        if (!domain || query !== options.primaryQuery?.trim().slice(0, 300)) return true;
+        return isPrimary(item.url);
+      }));
+      completedSearches++;
+    } catch {
+      // One provider failure must not discard the other search's usable results.
+      onSource?.({ url: "", outcome: "search_failed" });
+    }
+  }
+  if (!completedSearches) throw new Error("Research searches could not be completed");
   const seen = new Set<string>();
   const hosts = new Map<string, number>();
+  const hostAttempts = new Map<string, number>();
   const fetchedUrls = new Set<string>();
+  const attemptedUrls = new Set<string>();
   const sources: ResearchSource[] = [];
   // Six fetches maximum, retaining at most four pages and two per publisher.
   // Several official pages can be better evidence than an unrelated second publisher.
-  const candidates = search.items.filter(item => {
+  const candidates = items.filter(item => {
     try {
       const url = assertPublicHttpUrl(item.url);
-      const host = url.hostname.replace(/^www\./, "");
-      if (seen.has(url.href) || (hosts.get(host) ?? 0) >= 2) return false;
+      if (unsupportedSource(url)) {
+        onSource?.({ url: item.url, outcome: "unsupported_page" });
+        return false;
+      }
+      url.hash = "";
+      if (seen.has(url.href)) return false;
       seen.add(url.href);
-      hosts.set(host, (hosts.get(host) ?? 0) + 1);
       return true;
     } catch { return false; }
-  }).slice(0, 6);
-  hosts.clear();
-  for (const item of candidates) {
-    if (sources.length >= 4) break;
+  }).sort((a, b) => {
+    // A publisher's community forum is not its own product documentation.
+    const community = (url: string) => /\/(?:forum|forums|thread|threads|community)(?:\/|$)/i.test(new URL(url).pathname);
+    return Number(community(a.url)) - Number(community(b.url));
+  });
+  let fetches = 0;
+  while (candidates.length && fetches < 6) {
+    if (sources.length >= 4 && (!domain || sources.some(s => isPrimary(s.url)))) break;
+    const item = candidates.shift()!;
     try {
+      const host = assertPublicHttpUrl(item.url).hostname.replace(/^www\./, "");
+      if ((hosts.get(host) ?? 0) >= 2 || (hostAttempts.get(host) ?? 0) >= 2) continue;
+      hostAttempts.set(host, (hostAttempts.get(host) ?? 0) + 1);
+      fetches++;
+      attemptedUrls.add(new URL(item.url).href.split("#")[0]);
       const response = await safeFetch(item.url, {
-        timeoutMs: 12000, maxBytes: 1_500_000,
+        timeoutMs: 12000, maxBytes: 4_000_000,
         headers: { accept: "text/html", "user-agent": "RepGetResearch/1.0" },
       });
       if (!response.ok || !response.headers.get("content-type")?.includes("text/html")) {
         onSource?.({ url: item.url, outcome: `not_html_or_http_${response.status}` });
         continue;
       }
-      const finalUrl = response.url || item.url;
-      const finalHost = assertPublicHttpUrl(finalUrl).hostname.replace(/^www\./, "");
+      const parsedUrl = assertPublicHttpUrl(response.url || item.url);
+      parsedUrl.hash = "";
+      const finalUrl = parsedUrl.href;
+      if (unsupportedSource(parsedUrl)) { onSource?.({ url: finalUrl, outcome: "unsupported_page" }); continue; }
+      const finalHost = parsedUrl.hostname.replace(/^www\./, "");
       if (fetchedUrls.has(finalUrl) || (hosts.get(finalHost) ?? 0) >= 2) continue;
       const $ = load(await response.text());
       const title = $("title").first().text().trim().slice(0, 250) || item.title || item.url;
-      $("script,style,nav,footer,header,aside,form,noscript").remove();
-      const main = $("main,article").first();
-      const excerpt = normalize((main.length ? main : $("body")).text()).slice(0, 6000);
+      if (/^(?:just a moment|access denied|attention required|verify (?:you are|you're) human|sign in|log in|iniciar sesi[oó]n)(?:\b|[.!])/i.test(title)) {
+        onSource?.({ url: finalUrl, outcome: "access_gate" }); continue;
+      }
+      $("script,style,nav,footer,header,aside,form,noscript,dialog,[role=navigation],[role=dialog],[hidden]").remove();
+      const main = $("article").first().length ? $("article").first() : $("main").first();
+      const content = main.length ? main : $("body");
+      const excerpt = normalize(content.text()).slice(0, 6000);
       if (excerpt.length < 250) { onSource?.({ url: item.url, outcome: "insufficient_text" }); continue; }
+      // Search engines may omit the primary publisher even for a site: query.
+      // Follow at most two actual links to it from a readable secondary page;
+      // these share the SAME six-fetch budget, with no guessed destination.
+      if (domain && !isPrimary(finalUrl)) {
+        const discovered: typeof candidates = [];
+        for (const link of content.find("a[href]").toArray()) {
+          if (discovered.length >= 2) break;
+          try {
+            const url = assertPublicHttpUrl(new URL($(link).attr("href")!, finalUrl));
+            url.hash = "";
+            if (!isPrimary(url.href) || attemptedUrls.has(url.href) || discovered.some(d => d.url === url.href)) continue;
+            const pending = candidates.findIndex(c => new URL(c.url).href.split("#")[0] === url.href);
+            if (pending >= 0) candidates.splice(pending, 1);
+            else if (seen.has(url.href)) continue;
+            seen.add(url.href);
+            discovered.push({ url: url.href, title: $(link).text().slice(0, 250) });
+          } catch { /* Only public URLs on the intended publisher are eligible. */ }
+        }
+        candidates.unshift(...discovered);
+      }
       fetchedUrls.add(finalUrl);
       hosts.set(finalHost, (hosts.get(finalHost) ?? 0) + 1);
       sources.push({
@@ -95,7 +218,8 @@ export async function collectResearchSources(
       onSource?.({ url: item.url, outcome: error instanceof Error ? error.name : "fetch_failed" });
     }
   }
-  return sources;
+  return sources.sort((a, b) => Number(isPrimary(b.url)) - Number(isPrimary(a.url)))
+    .slice(0, 4).map((source, index) => ({ ...source, id: `S${index + 1}` }));
 }
 
 export async function synthesizeResearch(

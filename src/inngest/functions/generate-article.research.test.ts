@@ -10,10 +10,10 @@ vi.mock("@/lib/db", () => ({ db: new Proxy({}, { get: (_t, p) => Reflect.get(sta
 const queue = vi.hoisted(() => ({ send: vi.fn(), createFunction: vi.fn((config: unknown, handler: unknown) => ({ config, handler })) }));
 vi.mock("@/inngest/client", () => ({ inngest: queue }));
 const calls = vi.hoisted(() => ({
-  outline: vi.fn(), body: vi.fn(), collect: vi.fn(), synthesize: vi.fn(), check: vi.fn(),
+  outline: vi.fn(), body: vi.fn(), plan: vi.fn(), collect: vi.fn(), synthesize: vi.fn(), check: vi.fn(),
 }));
 vi.mock("@/lib/articles/generate", () => ({ generateOutline: calls.outline, generateBody: calls.body, sanitizeHtml: (s: string) => s, countWords: () => 10 }));
-vi.mock("@/lib/articles/research", () => ({ collectResearchSources: calls.collect, synthesizeResearch: calls.synthesize, checkResearchEvidence: calls.check }));
+vi.mock("@/lib/articles/research", () => ({ planResearchSearch: calls.plan, collectResearchSources: calls.collect, synthesizeResearch: calls.synthesize, checkResearchEvidence: calls.check }));
 vi.mock("@/lib/images/generate", () => ({ isImageGenerationConfigured: () => false, generateArticleImage: vi.fn() }));
 vi.mock("@/lib/notifications/create", () => ({ notify: vi.fn() }));
 import { generateArticle, queueArticleForCalendarItem } from "./generate-article";
@@ -31,6 +31,7 @@ beforeEach(() => {
   vi.stubEnv("ARTICLE_RESEARCH_MODE", "pilot");
   vi.stubEnv("ARTICLE_RESEARCH_WEBSITE_IDS", "");
   queue.send.mockResolvedValue({ ids: ["test-event"] });
+  calls.plan.mockResolvedValue({ primaryQuery: "site:example.org reader question" });
   calls.collect.mockResolvedValue([]);
   calls.synthesize.mockResolvedValue(research);
   calls.outline.mockResolvedValue({ sections: [{ heading: "Reader question", subheadings: [], points: ["Answer"] }], metaDescription: "Meta", faq: [] });
@@ -61,6 +62,8 @@ describe("researched article pipeline", () => {
     await f.run();
     const [article] = await test.db.select().from(articles).where(eq(articles.id, f.articleId));
     expect(calls.collect.mock.invocationCallOrder[0]).toBeLessThan(calls.outline.mock.invocationCallOrder[0]);
+    expect(calls.plan.mock.invocationCallOrder[0]).toBeLessThan(calls.collect.mock.invocationCallOrder[0]);
+    expect(calls.collect.mock.calls[0][3]).toMatchObject({ primaryQuery: "site:example.org reader question" });
     expect(calls.outline.mock.calls[0][0]).toMatchObject({ research, intent: "commercial" });
     expect(calls.body.mock.calls[0][0]).toMatchObject({ research });
     expect(article.research).toMatchObject({ status: "ready", quality: { checked: true } });
@@ -68,6 +71,7 @@ describe("researched article pipeline", () => {
     expect(await checkReleasable(article.id)).toEqual({ ok: false, reason: "pending_review" });
     await f.run();
     expect(calls.collect).toHaveBeenCalledTimes(1);
+    expect(calls.plan).toHaveBeenCalledTimes(1);
     expect(calls.body).toHaveBeenCalledTimes(1);
   });
   it("saves a reviewable draft when research or checking fails instead of claiming success", async () => {
@@ -86,9 +90,18 @@ describe("researched article pipeline", () => {
     vi.stubEnv("ARTICLE_RESEARCH_WEBSITE_IDS", "another-site");
     const f = await setup();
     await f.run();
+    expect(calls.plan).not.toHaveBeenCalled();
     expect(calls.collect).not.toHaveBeenCalled();
     expect(calls.synthesize).not.toHaveBeenCalled();
     expect(calls.check).not.toHaveBeenCalled();
+  });
+  it("falls back to the original search and keeps the review hold if planning fails", async () => {
+    calls.plan.mockRejectedValueOnce(new Error("Planner unavailable"));
+    const f = await setup();
+    await f.run();
+    expect(calls.collect.mock.calls[0][3].primaryQuery).toBeUndefined();
+    expect(calls.body).toHaveBeenCalledTimes(1);
+    expect(await checkReleasable(f.articleId)).toEqual({ ok: false, reason: "pending_review" });
   });
   it("remembers a writing experiment even if its override is removed before saving", async () => {
     vi.stubEnv("ARTICLE_RESEARCH_MODE", "off");

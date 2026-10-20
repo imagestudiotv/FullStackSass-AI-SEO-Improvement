@@ -1,7 +1,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { MODELS } from "./client";
 
-export type ArticleTask = "research" | "outline" | "body" | "evidence_check" | "image_scene" | "body_scenes";
+export type ArticleTask = "research_plan" | "research" | "outline" | "body" | "evidence_check" | "image_scene" | "body_scenes";
 export type AiMeasurement = {
   task: ArticleTask;
   model: string;
@@ -20,6 +20,7 @@ export type MeasureAi = (measurement: AiMeasurement) => Promise<void>;
 /** Article experiments never change keyword research, GEO, or the marketing blog. */
 export function articleTask(task: ArticleTask) {
   const defaults = {
+    research_plan: MODELS.EXTRACTION,
     research: MODELS.EXTRACTION,
     outline: MODELS.GENERATION,
     body: MODELS.GENERATION,
@@ -30,13 +31,13 @@ export function articleTask(task: ArticleTask) {
   };
   return {
     model: process.env[`ARTICLE_MODEL_${task.toUpperCase()}`]?.trim() || defaults[task],
-    maxTokens: task === "outline" || task === "body" ? 16000 : task === "evidence_check" ? 8000 : 4000,
+    maxTokens: task === "research_plan" ? 1000 : task === "outline" || task === "body" ? 16000 : task === "evidence_check" ? 8000 : 4000,
     promptVersion: `article-${task}-v1`,
   };
 }
 
 export function articleModelExperiment(): boolean {
-  return (["research", "outline", "body", "evidence_check", "image_scene", "body_scenes"] as const)
+  return (["research_plan", "research", "outline", "body", "evidence_check", "image_scene", "body_scenes"] as const)
     .some(task => Boolean(process.env[`ARTICLE_MODEL_${task.toUpperCase()}`]?.trim()));
 }
 

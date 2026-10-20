@@ -2,7 +2,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { afterAll, beforeAll, expect, it, vi } from "vitest";
 import { createTestDb, type TestDb } from "@/test/db";
 import { generateOutline, generateBody, type ArticleBrief } from "@/lib/articles/generate";
-import { collectResearchSources, synthesizeResearch, checkResearchEvidence } from "@/lib/articles/research";
+import { planResearchSearch, collectResearchSources, synthesizeResearch, checkResearchEvidence } from "@/lib/articles/research";
 import { estimatedAiCost, type AiMeasurement } from "@/lib/ai/article-tasks";
 import { MODELS } from "@/lib/ai/client";
 import { PRICING } from "@/lib/usage";
@@ -15,6 +15,7 @@ afterAll(async () => { await test.client.close(); vi.unstubAllEnvs(); });
 
 const caseId = process.env.REPGET_CONTENT_PILOT_CASE || "search-console-en";
 if (!["search-console-en", "coffee-es"].includes(caseId)) throw new Error("Unknown content pilot case");
+const sourcesOnly = process.env.REPGET_CONTENT_PILOT_STAGE === "sources";
 
 it(`compares baseline, researched writing, and a cheaper outline: ${caseId}`, async () => {
   const brief: ArticleBrief = {
@@ -38,7 +39,8 @@ it(`compares baseline, researched writing, and a cheaper outline: ${caseId}`, as
     services: ["Venta de café en grano"], tone: "Claro y práctico",
   });
   const records: (AiMeasurement & { variant: string; estimatedCostUsd?: number })[] = [];
-  let searchCost: number | undefined;
+  let searchCost = 0;
+  let unknownSearchCosts = 0;
   let variant = "research";
   let cost = 0;
   const guard = () => { if (cost > 1.5 || records.length >= 10) throw new Error("Pilot spending/call limit reached"); };
@@ -52,10 +54,28 @@ it(`compares baseline, researched writing, and a cheaper outline: ${caseId}`, as
   mkdirSync("test-results/content-pilot", { recursive: true });
   try {
     guard();
+    const searchPlan = await planResearchSearch(brief, meter);
+    report.searchPlan = searchPlan;
+    const searches: unknown[] = [];
+    report.searches = searches;
     const retrieval: { url: string; outcome: string }[] = [];
     report.retrieval = retrieval;
-    const sources = await collectResearchSources(brief, async c => { searchCost = c; cost += c ?? 0; }, result => retrieval.push(result));
+    const sources = await collectResearchSources(brief, async c => {
+      if (c === undefined) unknownSearchCosts++;
+      else { searchCost += c; cost += c; }
+    }, result => retrieval.push(result), { ...searchPlan, search: async (...args) => {
+      guard();
+      const { articleSearch } = await import("@/lib/providers/dataforseo");
+      const result = await articleSearch(...args);
+      searches.push({ query: args[0], cached: result.cached, items: result.items });
+      return result;
+    } });
     report.sources = sources;
+    expect(sources.length).toBeGreaterThanOrEqual(2);
+    if (caseId === "search-console-en") {
+      expect(sources.some(s => new URL(s.url).hostname === "support.google.com")).toBe(true);
+    }
+    if (sourcesOnly) return;
     guard();
     const research = await synthesizeResearch(brief, sources, "pilot", meter);
     report.research = research;
@@ -82,8 +102,8 @@ it(`compares baseline, researched writing, and a cheaper outline: ${caseId}`, as
   } finally {
     report.searchCostUsd = searchCost;
     report.estimatedKnownCostUsd = cost;
-    report.unknownCostRequests = records.filter(r => r.estimatedCostUsd === undefined).length;
-    const filename = caseId === "search-console-en" ? "report.json" : `${caseId}.json`;
+    report.unknownCostRequests = unknownSearchCosts + records.filter(r => r.estimatedCostUsd === undefined).length;
+    const filename = sourcesOnly ? `${caseId}-sources.json` : caseId === "search-console-en" ? "report.json" : `${caseId}.json`;
     writeFileSync(`test-results/content-pilot/${filename}`, JSON.stringify(report, null, 2));
   }
 });
