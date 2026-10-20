@@ -29,6 +29,8 @@ export type ArticleRow = {
   id: string;
   /** Lets the calendar show "Open" instead of a second "Write" button. */
   calendarItemId: string | null;
+  /** A translation's language (lib/articles/translations.ts); null for an original. */
+  languageCode?: string | null;
   title: string;
   slug: string | null;
   targetKeyword: string | null;
@@ -45,6 +47,7 @@ export async function listArticles(websiteId: string): Promise<ArticleRow[]> {
     .select({
       id: articles.id,
       calendarItemId: articles.calendarItemId,
+      languageCode: articles.languageCode,
       title: articles.title,
       slug: articles.slug,
       targetKeyword: articles.targetKeyword,

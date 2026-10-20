@@ -584,6 +584,15 @@ export const websites = pgTable("websites", {
    */
   pictureSource: text("picture_source").default("generate").notNull(),
   /**
+   * The website's other languages its articles are also published in
+   * (Article Settings, "Also publish in"): codes from its inventory's
+   * site_languages ("it", "es"). Each article that goes live is translated
+   * into each (lib/articles/translations.ts) - articles that went live from
+   * extra_languages_since, so switching it on does not translate the past.
+   */
+  extraLanguages: jsonb("extra_languages").$type<string[]>().default([]).notNull(),
+  extraLanguagesSince: timestamp("extra_languages_since"),
+  /**
    * A "Frequently asked questions" section at the end of each article (client,
    * 2026-10-13). On by default, for existing websites too.
    */
@@ -824,10 +833,24 @@ export const articles = pgTable(
     reviewApprovedBy: text("review_approved_by"),
     /** SHA-256 of the approved title, body and image. See reviewHashSql. */
     reviewApprovedHash: text("review_approved_hash"),
+    /**
+     * A translation (client, 2026-10-20, Image Studio: "we have other 2
+     * additional languages: italian and spanish"): the live article this is
+     * in another of the website's languages (websites.extra_languages), made
+     * by lib/articles/translations.ts once the original is live. Delivered
+     * only by the WordPress plugin (1.9.0+), which links it to the original
+     * in WPML. It takes no article from the plan.
+     */
+    translationOf: uuid("translation_of").references((): AnyPgColumn => articles.id, { onDelete: "cascade" }),
+    /** The translation's language, as the site's WPML names it ("it", "es"); null for an original. */
+    languageCode: text("language_code"),
     ...timestamps,
   },
   (table) => [
     index("articles_website_status_idx").on(table.websiteId, table.status),
+    uniqueIndex("articles_translation_uidx")
+      .on(table.translationOf, table.languageCode)
+      .where(sql`${table.translationOf} is not null`),
   ],
 );
 
@@ -2840,4 +2863,26 @@ export const siteImages = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [uniqueIndex("site_images_website_remote_uidx").on(table.websiteId, table.remoteId)],
+);
+
+/**
+ * Each try at translating a live article into one of its website's extra
+ * languages (lib/articles/translations.ts). Counted BEFORE the paid call, so
+ * a translation that keeps failing - or a job that dies mid-call - is paid
+ * for a bounded number of times (TRANSLATION_MAX_TRIES), never once per run.
+ */
+export const articleTranslationAttempts = pgTable(
+  "article_translation_attempts",
+  {
+    id: pk(),
+    articleId: uuid("article_id")
+      .references(() => articles.id, { onDelete: "cascade" })
+      .notNull(),
+    language: text("language").notNull(),
+    attempts: integer("attempts").default(0).notNull(),
+    lastError: text("last_error"),
+    lastTriedAt: timestamp("last_tried_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [uniqueIndex("article_translation_attempts_uidx").on(table.articleId, table.language)],
 );

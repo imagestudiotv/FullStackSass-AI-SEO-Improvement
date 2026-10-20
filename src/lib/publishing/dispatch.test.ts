@@ -754,3 +754,61 @@ describe("the site's own photographs (client, 2026-10-20)", () => {
     expect(post.featuredMediaId).toBe("m1");
   });
 });
+
+describe("translations (client, 2026-10-20)", () => {
+  /*
+    The article in another of the website's languages (lib/articles/
+    translations.ts): delivered by the plugin 1.9.0+ only, once the original
+    is live, and never by a direct connection, which would make it one more
+    post in the site's main language.
+  */
+  async function translated(options: { originalLive?: boolean } = {}) {
+    const s = await scene();
+    if (options.originalLive !== false) {
+      await test.db.update(articles).set({ status: "published", publishedUrl: "https://site.test/wedding-films/" }).where(eq(articles.id, s.post.id));
+    }
+    const [translation] = await test.db
+      .insert(articles)
+      .values({ websiteId: s.websiteId, translationOf: s.post.id, languageCode: "it", title: "Film di matrimonio", slug: "film-di-matrimonio", status: "draft", bodyHtml: "<p>I film di matrimonio durano decenni.</p>" })
+      .returning();
+    return { s, translation };
+  }
+  async function asPluginSite(websiteId: string) {
+    await test.db.delete(integrations).where(eq(integrations.websiteId, websiteId));
+    await test.db.insert(integrationKeys).values({ websiteId, keyHash: randomUUID(), keyPrefix: "seo_x" });
+    keyMock.websiteId = websiteId;
+  }
+  const poll = async (version: string) =>
+    (await (await pluginArticles(new NextRequest("https://app.test/api/plugin/articles", { headers: { "x-integration-key": "seo_k", "x-repget-plugin-version": version } }))).json()) as {
+      articles: Array<{ id: string; translationOf?: string; language?: string }>;
+    };
+
+  it("the plugin 1.9.0 is handed it once the original is live, with the original and the language", async () => {
+    const { s, translation } = await translated();
+    await asPluginSite(s.websiteId);
+    const feed = await poll("1.9.0");
+    expect(feed.articles).toEqual([expect.objectContaining({ id: translation.id, translationOf: s.post.id, language: "it" })]);
+  });
+
+  it("an older plugin never is: it would publish it in the site's main language", async () => {
+    const { s } = await translated();
+    await asPluginSite(s.websiteId);
+    expect((await poll("1.8.0")).articles).toEqual([]);
+    expect(await dispatches(s.post.id)).toEqual([]);
+  });
+
+  it("not before the original is live", async () => {
+    const { s, translation } = await translated({ originalLive: false });
+    await asPluginSite(s.websiteId);
+    const feed = await poll("1.9.0");
+    // The original goes; its translation waits for it.
+    expect(feed.articles.map((a) => a.id)).toEqual([s.post.id]);
+    expect(feed.articles.map((a) => a.id)).not.toContain(translation.id);
+  });
+
+  it("a direct connection holds it: nothing is created on the site", async () => {
+    const { s, translation } = await translated();
+    await expect(run({ ...s, post: translation })).resolves.toMatchObject({ held: "translation_needs_plugin" });
+    expect(cms.posts.size).toBe(0);
+  });
+});

@@ -24,12 +24,16 @@ import Anthropic from "@anthropic-ai/sdk";
  *    four translations on Sonnet 5; Haiku 5.5 is a twentieth of the price per
  *    token). Each translation is a draft a native speaker reviews before it
  *    is published.
+ *  - ARTICLE_TRANSLATION: a customer's live article in the website's other
+ *    languages (lib/articles/translate-article.ts). Claude Haiku 5.5, as the
+ *    blog's: about $0.01-0.03 an article and language.
  */
 export const MODELS = {
   EXTRACTION: "claude-haiku-4-5",
   GENERATION: "claude-sonnet-5",
   BLOG: "claude-sonnet-5",
   BLOG_TRANSLATION: "claude-haiku-5-5",
+  ARTICLE_TRANSLATION: "claude-haiku-5-5",
 } as const;
 
 let client: Anthropic | null = null;

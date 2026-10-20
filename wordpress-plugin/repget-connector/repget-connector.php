@@ -1754,6 +1754,22 @@ function repget_sync($token = null) {
         $existing = repget_find_post($article_id);
         $slug = isset($article['slug']) ? sanitize_title($article['slug']) : '';
 
+        /*
+          A translation (1.9.0): the article in another of this site's WPML
+          languages, linked to the post RepGet published for the original.
+          Not written without WPML, or before the original is on this site: a
+          translation filed under the site's main language would be a second
+          copy of the article there.
+        */
+        $translation = repget_translation_of($article);
+        if ($translation !== null) {
+            $translation = repget_translation_place($translation, $existing);
+            if (is_wp_error($translation)) {
+                repget_report($article_id, $dispatch_id, null, null, $translation->get_error_message(), $status);
+                continue;
+            }
+        }
+
         /**
          * wp_kses_post rather than raw HTML. The body comes from an API,
          * and while we generate it ourselves, a plugin that injects
@@ -1762,6 +1778,10 @@ function repget_sync($token = null) {
          * exactly the right filter here.
          */
         $content = wp_kses_post($article['html']);
+        if ($translation !== null) {
+            // Its links to this site's posts, to their versions in its language.
+            $content = repget_localize_links($content, $translation['language']);
+        }
         /*
           The pictures before the post (1.8.0), so it is written once, already
           showing this site's copies. Nothing here can stop the article: a
@@ -1789,6 +1809,13 @@ function repget_sync($token = null) {
             'post_name'    => $slug,
         );
 
+        // WPML files what is saved under the language it is working in.
+        $previous_language = null;
+        if ($translation !== null) {
+            $previous_language = apply_filters('wpml_current_language', null);
+            do_action('wpml_switch_language', $translation['language']);
+        }
+
         if ($existing > 0) {
             $fields['ID'] = $existing;
 
@@ -1804,7 +1831,8 @@ function repget_sync($token = null) {
             $post_id = wp_update_post($fields, true);
         } else {
             $fields['post_status'] = $status;
-            $fields['post_type']   = repget_post_type();
+            // A translation is the same content type as its original: WPML links only those.
+            $fields['post_type']   = $translation !== null ? $translation['post_type'] : repget_post_type();
 
             /*
               The identity goes INTO THE ROW as its guid, which wp_insert_post
@@ -1824,6 +1852,14 @@ function repget_sync($token = null) {
             if (!is_wp_error($inserted) && $post_id !== (int) $inserted) {
                 $existing = $post_id;
             }
+        }
+
+        if ($translation !== null && !is_wp_error($post_id)) {
+            // Its categories only when it is created: after that they are the site owner's.
+            repget_link_translation((int) $post_id, $translation, $existing === 0);
+        }
+        if ($translation !== null) {
+            do_action('wpml_switch_language', $previous_language);
         }
 
         if (is_wp_error($post_id)) {
@@ -2258,6 +2294,167 @@ function repget_same_address($a, $b) {
         return strtolower(preg_replace('#^https?:#i', '', trim((string) $url)));
     };
     return $bare($a) === $bare($b);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Translations (1.9.0)                                                       */
+/* -------------------------------------------------------------------------- */
+
+/*
+  A website that publishes in more than one language (WPML) can have RepGet
+  write each article in its other languages too (Article Settings, "Also
+  publish in"). RepGet translates an article once it is live here and sends
+  each translation as an article of its own, naming the original
+  ("translationOf") and the language ("language", WPML's code: "it").
+
+  The translation becomes a post of the original's content type, filed by
+  WPML under its language and linked to the original's translation group -
+  the language switcher then offers it - with the original's categories in
+  that language where WPML has them. Its links to this site's posts point at
+  their versions in its language when those are published. Pictures are the
+  original's: the copies already in the media library are reused.
+
+  Nothing is written without WPML, before the original is on this site, or
+  when the original already has a version in that language that RepGet did
+  not write (one made by hand, or by a translation plugin): RepGet is told
+  why, and the site's own translation is never replaced.
+*/
+
+/** True when WPML is active, with the calls translations use. */
+function repget_wpml_ready() {
+    return has_filter('wpml_object_id') && has_filter('wpml_element_trid') && has_action('wpml_set_element_language_details');
+}
+
+/** The translation an article is - array('of' => the original's article id, 'language' => code) - or null for an ordinary article. */
+function repget_translation_of($article) {
+    if (empty($article['translationOf'])) {
+        return null;
+    }
+    return array(
+        'of'       => sanitize_text_field((string) $article['translationOf']),
+        'language' => isset($article['language']) ? strtolower(sanitize_text_field((string) $article['language'])) : '',
+    );
+}
+
+/**
+ * Where a translation goes: its original's post, content type, WPML
+ * translation group and language. A WP_Error says why it cannot go.
+ * `$existing` is the translation's own post, when it was written before.
+ */
+function repget_translation_place($translation, $existing) {
+    if (!repget_wpml_ready()) {
+        return new WP_Error('repget_wpml', __('This site has no WPML: a translation cannot be linked to its article.', 'repget'));
+    }
+    $language = $translation['language'];
+    $active = apply_filters('wpml_active_languages', null, array('skip_missing' => 0));
+    // RepGet names a language by its first part ("pt"): the site's one regional code for it ("pt-br") is the same.
+    if (is_array($active) && $language !== '' && !isset($active[$language])) {
+        $regional = array_values(array_filter(array_map('strval', array_keys($active)), function ($code) use ($language) {
+            return strpos($code, $language . '-') === 0;
+        }));
+        if (count($regional) === 1) {
+            $language = $regional[0];
+        }
+    }
+    if ($language === '' || !is_array($active) || !isset($active[$language])) {
+        return new WP_Error('repget_language', sprintf(__('"%s" is not one of this site\'s WPML languages.', 'repget'), $language));
+    }
+    $original = repget_find_post($translation['of']);
+    if ($original === 0) {
+        return new WP_Error('repget_original', __('The article this translates is not on this site.', 'repget'));
+    }
+    $post_type = get_post_type($original);
+    $element_type = 'post_' . $post_type;
+    $trid = (int) apply_filters('wpml_element_trid', null, $original, $element_type);
+    if ($trid <= 0) {
+        return new WP_Error('repget_trid', __('WPML has no translation group for the article this translates.', 'repget'));
+    }
+    $source = apply_filters('wpml_element_language_code', null, array('element_id' => $original, 'element_type' => $post_type));
+    if ($source === $language) {
+        return new WP_Error('repget_same_language', sprintf(__('The article this translates is already in "%s".', 'repget'), $language));
+    }
+    $current = (int) apply_filters('wpml_object_id', $original, $post_type, false, $language);
+    if ($current > 0 && $current !== $original && $current !== (int) $existing) {
+        return new WP_Error('repget_translated', sprintf(__('The article already has a "%1$s" version on this site (post %2$d): RepGet\'s translation was not added.', 'repget'), $language, $current));
+    }
+    return array(
+        'of'           => $translation['of'],
+        'language'     => $language,
+        'original'     => $original,
+        'post_type'    => $post_type,
+        'element_type' => $element_type,
+        'trid'         => $trid,
+        'source'       => is_string($source) && $source !== '' ? $source : null,
+    );
+}
+
+/**
+ * Files `$post_id` under its language, in its original's translation group,
+ * and - when it was just created - gives it the original's categories (and
+ * other terms) in that language. A term WPML has no version of is left out.
+ */
+function repget_link_translation($post_id, $translation, $created) {
+    do_action('wpml_set_element_language_details', array(
+        'element_id'           => (int) $post_id,
+        'element_type'         => $translation['element_type'],
+        'trid'                 => $translation['trid'],
+        'language_code'        => $translation['language'],
+        'source_language_code' => $translation['source'],
+    ));
+    if (!$created) {
+        return;
+    }
+    foreach (get_object_taxonomies($translation['post_type']) as $taxonomy) {
+        $ids = wp_get_object_terms($translation['original'], $taxonomy, array('fields' => 'ids'));
+        if (is_wp_error($ids) || !$ids) {
+            continue;
+        }
+        $terms = array();
+        foreach ($ids as $term_id) {
+            // For a taxonomy WPML does not translate, this is the term itself.
+            $translated = (int) apply_filters('wpml_object_id', (int) $term_id, $taxonomy, false, $translation['language']);
+            if ($translated > 0) {
+                $terms[] = $translated;
+            }
+        }
+        if ($terms) {
+            wp_set_object_terms((int) $post_id, $terms, $taxonomy);
+        }
+    }
+}
+
+/**
+ * `$html` with each link to a post on this site pointing at that post's
+ * version in `$language`, when one is published; every other link is kept
+ * as it is. (The text was translated from the original, so its links name
+ * the original's language.)
+ */
+function repget_localize_links($html, $language) {
+    $host = wp_parse_url(home_url(), PHP_URL_HOST);
+    if (!$host || stripos((string) $html, 'href') === false) {
+        return $html;
+    }
+    $port = wp_parse_url(home_url(), PHP_URL_PORT);
+    $pattern = '~href=(["\'])(https?://(?:www\.)?' . preg_quote(preg_replace('~^www\.~', '', $host) . ($port ? ':' . $port : ''), '~') . '(?:/[^"\'#]*)?)(#[^"\']*)?\1~i';
+    $found = array();
+    $out = preg_replace_callback($pattern, function ($match) use (&$found, $language) {
+        $url = $match[2];
+        if (!array_key_exists($url, $found)) {
+            $found[$url] = '';
+            $id = url_to_postid($url);
+            if ($id) {
+                $translated = (int) apply_filters('wpml_object_id', $id, get_post_type($id), false, $language);
+                if ($translated && $translated !== $id && get_post_status($translated) === 'publish') {
+                    $found[$url] = (string) get_permalink($translated);
+                }
+            }
+        }
+        if ($found[$url] === '') {
+            return $match[0];
+        }
+        return 'href=' . $match[1] . esc_url($found[$url]) . (isset($match[3]) ? $match[3] : '') . $match[1];
+    }, (string) $html);
+    return is_string($out) ? $out : $html;
 }
 
 /* -------------------------------------------------------------------------- */

@@ -113,7 +113,8 @@ export type HoldReason =
   | "in_flight"
   | "already_sent"
   | "uncertain_previous"
-  | "awaiting_plugin";
+  | "awaiting_plugin"
+  | "translation_needs_plugin";
 
 export type ClaimedArticle = {
   id: string;
@@ -347,6 +348,7 @@ export async function claimDispatch(input: {
         researchReviewRequired: articles.researchReviewRequired,
         researchApprovedHash: articles.researchApprovedHash,
         publishRequested: articles.publishRequested,
+        translationOf: articles.translationOf,
         autoPublish: websites.autoPublish,
         publishAs: websites.publishAs,
         scheduledFor: calendarItems.scheduledFor,
@@ -363,6 +365,13 @@ export async function claimDispatch(input: {
     if (await isControlEnabled("publication_freeze", tx)) return { ok: false, reason: "frozen" } as const;
     if (dispatchTestHooks.afterFreezeCheck) await dispatchTestHooks.afterFreezeCheck(row.id);
     if (!row.bodyHtml) return { ok: false, reason: "no_content" } as const;
+    /*
+      A translation (lib/articles/translations.ts) goes out only through the
+      WordPress plugin, which files it under its language and links it to the
+      original in WPML. Sent any other way it would be one more post in the
+      site's main language - a second copy of the article there.
+    */
+    if (row.translationOf && input.channel !== "plugin") return { ok: false, reason: "translation_needs_plugin" } as const;
 
     const gate = releaseCheckFor(row);
     if (!gate.ok) return { ok: false, reason: gate.reason === "not_found" ? "not_found" : gate.reason } as const;
@@ -643,4 +652,6 @@ export const HOLD_MESSAGES: Record<HoldReason, string> = {
     "An earlier attempt got no answer from the site, so the post may already exist. Check the site before publishing again.",
   awaiting_plugin:
     "The WordPress plugin has not reported the previous delivery yet. Updating the plugin to 1.6.0 or later removes this wait.",
+  translation_needs_plugin:
+    "A translation is published by the RepGet plugin for WordPress (1.9.0 or later), which links it to the original article in WPML.",
 };

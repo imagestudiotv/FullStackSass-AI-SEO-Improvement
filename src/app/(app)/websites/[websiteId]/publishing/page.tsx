@@ -6,12 +6,14 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Notice } from "@/components/workspace/notice";
 import { SaveBarSpacer } from "@/components/workspace/save-bar";
 import { inManagedNetwork } from "@/lib/articles/review";
+import { extraLanguageChoices } from "@/lib/articles/translation-languages";
 import { requireWebsitePlan } from "@/lib/billing/require-plan";
 import { getBrandVoice } from "@/lib/brand/actions";
 import { db } from "@/lib/db";
 import { integrationKeys, siteImages } from "@/lib/db/schema";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import { formatDate } from "@/lib/i18n/format";
+import { pluginTranslates } from "@/lib/plugin/protocol";
 import { listIntegrations } from "@/lib/publishing/actions";
 import { finishedModeOf } from "@/lib/publishing/policy";
 import { requireWebsitePage } from "@/lib/tenant";
@@ -20,6 +22,7 @@ import { bodyImageCount } from "@/lib/articles/article-shape";
 import { ResearchStatus } from "@/components/articles/research-status";
 import { researchMode } from "@/lib/articles/research-types";
 import { ArticleSettingsForm } from "../article-settings-form";
+import { languageList } from "./settings-model";
 import { GenerationPanel } from "../generation-panel";
 import { ArticleSettingsSectionNav } from "./settings-section-nav";
 
@@ -76,7 +79,7 @@ export default async function WebsitePublishingPage({
     // A WordPress plugin that has checked in is a connection too; it keeps
     // no integrations row, so it is looked up on its own.
     db
-      .select({ id: integrationKeys.id })
+      .select({ id: integrationKeys.id, siteInfo: integrationKeys.siteInfo })
       .from(integrationKeys)
       .where(
         and(
@@ -95,6 +98,14 @@ export default async function WebsitePublishingPage({
 
   // Viewers see every setting, read-only; the save actions refuse them anyway.
   const canEdit = access !== "viewer";
+
+  // "Also publish in": the site's other languages, named in the page's language.
+  const names = new Intl.DisplayNames([locale], { type: "language" });
+  const languageChoices = extraLanguageChoices({ language: site.language, siteLanguages: site.siteLanguages ?? [] }).map((code) => ({
+    code,
+    name: names.of(code) ?? code,
+  }));
+  const pluginVersion = /plugin ([0-9]+[.][0-9]+[.][0-9]+)/.exec(plugin[0]?.siteInfo ?? "")?.[1] ?? null;
 
   return (
     <>
@@ -158,6 +169,7 @@ export default async function WebsitePublishingPage({
               comparisonTable: site.comparisonTable,
               bodyImages: bodyImageCount(site.bodyImages),
               pictureSource: site.pictureSource === "library" ? "library" : "generate",
+              extraLanguages: languageList(site.extraLanguages ?? []),
               faqSection: site.faqSection,
               poweredByLink: site.poweredByLink,
 
@@ -178,6 +190,7 @@ export default async function WebsitePublishingPage({
               facts: voice.facts.join(NEWLINE),
               articleInstructions: voice.articleInstructions ?? "",
             }}
+            languages={{ choices: languageChoices, pluginReady: pluginTranslates(pluginVersion) }}
             library={{
               photos: library?.photos ?? 0,
               readOn: site.inventoryCheckedAt ? formatDate(site.inventoryCheckedAt, locale, { day: "numeric", month: "long", year: "numeric" }) : null,

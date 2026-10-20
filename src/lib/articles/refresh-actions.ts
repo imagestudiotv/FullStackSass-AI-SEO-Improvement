@@ -68,7 +68,7 @@ export async function refreshArticle(
   const { site } = guard.context;
 
   const [article] = await db
-    .select({ id: articles.id })
+    .select({ id: articles.id, translationOf: articles.translationOf })
     .from(articles)
     .where(and(eq(articles.id, articleId), eq(articles.websiteId, site.id)))
     .limit(1);
@@ -76,6 +76,14 @@ export async function refreshArticle(
   // Scoped by website, so an id from another tenant is simply not found.
   if (!article) {
     return { ok: false, error: "That article no longer exists" };
+  }
+  /*
+    A translation (lib/articles/translations.ts) is the original in another
+    language: rewriting it would write a new article in the website's main
+    language over it.
+  */
+  if (article.translationOf) {
+    return { ok: false, error: "This is a translation. Refresh the original article instead." };
   }
 
   /**

@@ -43,6 +43,7 @@ const STORED: StoredArticleSettings = {
   comparisonTable: true,
   bodyImages: 3,
   pictureSource: "generate",
+  extraLanguages: "",
   faqSection: true,
   poweredByLink: true,
   authorName: "",
@@ -307,5 +308,25 @@ describe("where pictures come from (client, 2026-10-20)", () => {
     expect(library("not_wordpress")).toContain("this works with WordPress sites whose public REST API is on");
     expect(library("failed")).toContain("did not let us read its media library on 20 October 2026");
     expect(library(null, null)).toContain(t.article.libraryNotRead);
+  });
+});
+
+describe("also publish in (client, 2026-10-20)", () => {
+  const CHOICES = [{ code: "it", name: "Italian" }, { code: "es", name: "Spanish" }];
+
+  it("is offered only when the site publishes in more than one language", () => {
+    expect(form()).not.toContain(t.article.extraLanguagesLabel);
+    const html = form({ languages: { choices: CHOICES, pluginReady: true } });
+    expect(html).toContain(t.article.extraLanguagesLabel);
+    // React escapes the apostrophe in "plan's": the sentence up to it.
+    expect(html).toContain(t.article.extraLanguagesHint.split("'")[0]);
+    expect(html).toMatch(/<input(?=[^>]*name="extra-languages")(?=[^>]*value="it")(?![^>]*checked="")[^>]*>/);
+  });
+
+  it("shows what is ticked, and says when the plugin must be updated first", () => {
+    const ticked = (pluginReady: boolean) => form({ initial: { ...STORED, extraLanguages: "es,it" }, languages: { choices: CHOICES, pluginReady } });
+    expect(ticked(true)).toMatch(/<input(?=[^>]*name="extra-languages")(?=[^>]*value="es")(?=[^>]*checked="")[^>]*>/);
+    expect(ticked(true)).not.toContain(t.article.extraLanguagesNeedPlugin);
+    expect(ticked(false)).toContain(t.article.extraLanguagesNeedPlugin);
   });
 });

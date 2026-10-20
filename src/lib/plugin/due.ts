@@ -35,11 +35,18 @@ const approvedOnOrAfterPlannedDaySql = raw`(
  * The status comes from the Publish press, or else the site's "Publish as"
  * setting. Plugins before 1.3.2 ignore it and always publish live; they
  * still only receive due articles.
+ *
+ * A translation (lib/articles/translations.ts) is due by the same rules once
+ * its original is live, and only to a plugin that files it under its
+ * language (`translations`: 1.9.0+, pluginTranslates) - an older one would
+ * publish it as one more post in the site's main language. Left out of the
+ * query, not skipped after it, so it never takes a batch place it cannot use.
  */
 export function dueArticlesForPlugin(
   websiteId: string,
   limit: number,
   now: Date = new Date(),
+  options: { translations?: boolean } = {},
 ) {
   return db
     .select({
@@ -50,6 +57,8 @@ export function dueArticlesForPlugin(
       metaDescription: articles.metaDescription,
       imageUrl: articles.imageUrl,
       imageAlt: articles.imageAlt,
+      translationOf: articles.translationOf,
+      languageCode: articles.languageCode,
       publishRequested: articles.publishRequested,
       publishAs: websites.publishAs,
       autoPublish: websites.autoPublish,
@@ -76,6 +85,12 @@ export function dueArticlesForPlugin(
         */
         notFrozenSql,
         notInFlightSql,
+        options.translations
+          ? raw`(${articles.translationOf} is null or exists (
+              select 1 from ${articles} original
+              where original.id = ${articles.translationOf} and original.published_url is not null
+            ))`
+          : isNull(articles.translationOf),
         or(
           // The first article: nothing sent for this site yet, and this is
           // its earliest article. Same rule as pendingFirstArticle - which

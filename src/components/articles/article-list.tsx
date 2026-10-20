@@ -15,6 +15,16 @@ import { TablePager } from "@/components/table-pager";
 
 const PAGE_SIZES = [25, 50, 100] as const;
 
+/** "Translation (IT)": the article in another of the website's languages (lib/articles/translations.ts). */
+function TranslationLabel({ article, t }: { article: ArticleRow; t: Messages["app"]["research"] }) {
+  if (!article.languageCode) return null;
+  return (
+    <span className="inline-block whitespace-nowrap rounded-md border px-1.5 py-0.5 align-middle text-xs text-muted-foreground">
+      {format(t.translationOf, { language: article.languageCode.toUpperCase() })}
+    </span>
+  );
+}
+
 export function ArticleList({ websiteId, articles, pending, busyId, onDelete, t, tStatus }: {
   websiteId: string;
   articles: ArticleRow[];
@@ -78,7 +88,10 @@ export function ArticleList({ websiteId, articles, pending, busyId, onDelete, t,
               <li key={article.id} className="flex items-start gap-2 p-3">
                 <div className="min-w-0 flex-1 space-y-2">
                   <Link className="block break-words text-sm font-medium hover:underline" href={`/websites/${websiteId}/articles/${article.id}`}>{article.title}</Link>
-                  <StatusBadge status={article.status} t={tStatus} />
+                  <div className="flex flex-wrap items-center gap-2">
+                    <StatusBadge status={article.status} t={tStatus} />
+                    <TranslationLabel article={article} t={t} />
+                  </div>
                 </div>
                 {removeButton(article)}
               </li>
@@ -92,7 +105,7 @@ export function ArticleList({ websiteId, articles, pending, busyId, onDelete, t,
               </TableRow></TableHeader>
               <TableBody>{visible.map(article => (
                 <TableRow key={article.id}>
-                  <TableCell className="whitespace-normal break-words"><Link className="font-medium hover:underline" href={`/websites/${websiteId}/articles/${article.id}`}>{article.title}</Link></TableCell>
+                  <TableCell className="whitespace-normal break-words"><Link className="font-medium hover:underline" href={`/websites/${websiteId}/articles/${article.id}`}>{article.title}</Link> <TranslationLabel article={article} t={t} /></TableCell>
                   <TableCell><StatusBadge status={article.status} t={tStatus} /></TableCell>
                   <TableCell className="text-muted-foreground">{article.wordCount?.toLocaleString() ?? "-"}</TableCell>
                   <TableCell>{removeButton(article)}</TableCell>

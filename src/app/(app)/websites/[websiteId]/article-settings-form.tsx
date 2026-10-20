@@ -31,6 +31,7 @@ import {
   saveBarState,
   SECTION_IDS,
   toFormValues,
+  toggleLanguage,
   toInput,
   validate,
   type ArticleSettingsValues,
@@ -70,12 +71,20 @@ export function ArticleSettingsForm({
   reviewed,
   canEdit,
   library = { photos: 0, readOn: null, status: null },
+  languages = { choices: [], pluginReady: false },
   t,
   tCommon,
   tWorkspace,
 }: {
   websiteId: string;
   initial: StoredArticleSettings;
+  /**
+   * "Also publish in": the languages the site itself publishes in besides
+   * its main one (lib/articles/translations.ts), with their names in the
+   * page's language, and whether its RepGet plugin can publish translations
+   * (1.9.0+).
+   */
+  languages?: { choices: { code: string; name: string }[]; pluginReady: boolean };
   /**
    * What the site inventory found in the site's media library, for "Use
    * photos from my website" (lib/sites/inventory.ts): how many photos, the
@@ -373,6 +382,45 @@ export function ArticleSettingsForm({
               )}
             </Field>
           )}
+
+          {languages.choices.length > 0 ? (
+            /* Also publish in (client, 2026-10-20): the site's other languages (lib/articles/translations.ts). */
+            <fieldset className="space-y-2 border-t pt-5">
+              <legend className="text-sm font-medium">{t.extraLanguagesLabel}</legend>
+              <p className="text-xs leading-5 text-muted-foreground">{t.extraLanguagesHint}</p>
+              <div className="flex flex-wrap gap-3">
+                {languages.choices.map((language) => {
+                  const ticked = values.extraLanguages.split(",").includes(language.code);
+                  return (
+                    <label
+                      key={language.code}
+                      className={cn(
+                        "flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border px-3 text-sm transition-colors has-focus-visible:ring-[3px] has-focus-visible:ring-ring/50",
+                        ticked ? "border-primary bg-primary/5" : "hover:bg-muted/50",
+                        readOnly && "cursor-not-allowed opacity-70",
+                      )}
+                    >
+                      <input
+                        type="checkbox"
+                        name="extra-languages"
+                        value={language.code}
+                        checked={ticked}
+                        onChange={() => set("extraLanguages", toggleLanguage(values.extraLanguages, language.code))}
+                        disabled={readOnly}
+                        className="size-4 accent-primary"
+                      />
+                      {language.name}
+                    </label>
+                  );
+                })}
+              </div>
+              {values.extraLanguages && !languages.pluginReady ? (
+                <p className="text-xs font-medium leading-5 text-muted-foreground" role="status">
+                  {t.extraLanguagesNeedPlugin}
+                </p>
+              ) : null}
+            </fieldset>
+          ) : null}
         </div>
       </WorkspaceSection>
 

@@ -498,6 +498,13 @@
       "when": 1792519434147,
       "tag": "0070_picture_source",
       "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1792523953375,
+      "tag": "0071_article_translations",
+      "breakpoints": true
     }
   ]
 }

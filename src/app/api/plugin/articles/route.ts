@@ -15,7 +15,7 @@ import { recordSyncUrl } from "@/lib/plugin/sync";
 import { recordInstall, recordPluginVersion, resolveIntegrationKey } from "@/lib/plugin/keys";
 import { claimDispatch } from "@/lib/publishing/dispatch";
 import { pointAtCopies } from "@/lib/publishing/picture-copies";
-import { pluginProtocol } from "@/lib/plugin/protocol";
+import { pluginProtocol, pluginTranslates } from "@/lib/plugin/protocol";
 import { libraryMediaIds, ownCopies, pictureAddresses } from "@/lib/sites/library-media";
 
 /**
@@ -92,7 +92,8 @@ export async function GET(request: NextRequest) {
   await recordPluginVersion(resolved.keyId, pluginVersion).catch(() => undefined);
 
   const [due, sent] = await Promise.all([
-    dueArticlesForPlugin(resolved.websiteId, BATCH_SIZE),
+    // Translations only to 1.9.0+, which files them under their language in WPML.
+    dueArticlesForPlugin(resolved.websiteId, BATCH_SIZE, new Date(), { translations: pluginTranslates(pluginVersion) }),
     pluginPostsForWebsite(resolved.websiteId),
   ]);
 
@@ -212,6 +213,12 @@ export async function GET(request: NextRequest) {
           status: row.status,
           // Echoed back by 1.6.0+ in its report; ignored by older plugins.
           dispatch: row.dispatch,
+          /*
+            A translation (lib/articles/translations.ts): the original's id and
+            the language, as WPML names it. Sent only to 1.9.0+ (see the due
+            query), which links it to the original's post.
+          */
+          ...(row.translationOf ? { translationOf: row.translationOf, language: row.languageCode } : {}),
         })),
     },
     { headers: CORS },

@@ -1207,6 +1207,11 @@ export type Messages = {
       libraryNotWordPress: string;
       /** {date}: the last try. */
       libraryBlocked: string;
+      /** "Also publish in" (client, 2026-10-20): the site's other languages (lib/articles/translations.ts). */
+      extraLanguagesLabel: string;
+      extraLanguagesHint: string;
+      /** Shown while a language is ticked and the site's RepGet plugin is older than 1.9.0. */
+      extraLanguagesNeedPlugin: string;
       poweredByHint: string;
       factsPlaceholder: string;
       uspsPlaceholder: string;
@@ -1625,6 +1630,8 @@ export type Messages = {
       noArticleMatch: string;
       clearFilters: string;
       articlePages: string;
+      /** A translation's label in the list (lib/articles/translations.ts); {language} is its code, "IT". */
+      translationOf: string;
       deleteArticleLabel: string;
       articlesHelp: string;
       nothingWritten: string;
@@ -4356,6 +4363,9 @@ const en: Messages = {
       libraryNotRead: "Your media library is read when you save this, then every day.",
       libraryNotWordPress: "Your media library could not be read: this works with WordPress sites whose public REST API is on. Until then, pictures are made new.",
       libraryBlocked: "Your site did not let us read its media library on {date}. We try again every day; meanwhile the photos read before are used.",
+      extraLanguagesLabel: "Also publish in",
+      extraLanguagesHint: "Your website is in more than one language. Each article that goes live from now on is also translated into the languages you tick and published in each, linked to the original. Translations do not count toward your plan's articles.",
+      extraLanguagesNeedPlugin: "Translations are published by the RepGet plugin for WordPress, version 1.9.0 or later, with WPML. Update the plugin on your site to start.",
       poweredByHint: "A small credit at the end of each article. Turning it off applies to articles not yet published.",
       factsPlaceholder: "Open since 2004\nFive dentists on the team\nFree parking on site",
       uspsPlaceholder: "Same-day emergency appointments\nWe see nervous patients",
@@ -4743,6 +4753,7 @@ const en: Messages = {
       noArticleMatch: "No articles match these filters.",
       clearFilters: "Clear filters",
       articlePages: "Article pages",
+      translationOf: "Translation ({language})",
       deleteArticleLabel: "Delete {title}",
       articlesHelp: "Written from your content plan. Open one to read, edit or rewrite it.",
       nothingWritten: "Nothing written yet. Use",
@@ -7380,6 +7391,9 @@ const es: Messages = {
       libraryNotRead: "Su biblioteca de medios se lee al guardar esto y después cada día.",
       libraryNotWordPress: "No se pudo leer su biblioteca de medios: funciona con sitios WordPress que tienen activa su API REST pública. Mientras tanto, se crean imágenes nuevas.",
       libraryBlocked: "Su sitio no nos dejó leer su biblioteca de medios el {date}. Lo intentamos cada día; mientras tanto se usan las fotos leídas antes.",
+      extraLanguagesLabel: "Publicar también en",
+      extraLanguagesHint: "Su sitio web está en más de un idioma. Cada artículo que se publique a partir de ahora también se traducirá a los idiomas que marque y se publicará en cada uno, enlazado con el original. Las traducciones no cuentan para los artículos de su plan.",
+      extraLanguagesNeedPlugin: "Las traducciones las publica el plugin de RepGet para WordPress, versión 1.9.0 o posterior, con WPML. Actualice el plugin en su sitio para empezar.",
       poweredByHint: "Un pequeño crédito al final de cada artículo. Desactivarlo se aplica a los artículos aún no publicados.",
       factsPlaceholder: "Abierto desde 2004\nCinco dentistas en el equipo\nAparcamiento gratuito",
       uspsPlaceholder: "Citas de urgencia el mismo día\nAtendemos a pacientes nerviosos",
@@ -7767,6 +7781,7 @@ const es: Messages = {
       noArticleMatch: "Ningún artículo coincide con estos filtros.",
       clearFilters: "Borrar filtros",
       articlePages: "Páginas de artículos",
+      translationOf: "Traducción ({language})",
       deleteArticleLabel: "Eliminar {title}",
       articlesHelp: "Escritos a partir de su plan de contenidos. Abra uno para leerlo, editarlo o reescribirlo.",
       nothingWritten: "Todavía no hay nada escrito. Use",
@@ -10407,6 +10422,9 @@ const fr: Messages = {
       libraryNotRead: "Votre médiathèque est lue à l’enregistrement, puis chaque jour.",
       libraryNotWordPress: "Votre médiathèque n’a pas pu être lue : cela fonctionne avec les sites WordPress dont l’API REST publique est active. En attendant, de nouvelles images sont créées.",
       libraryBlocked: "Votre site ne nous a pas laissé lire sa médiathèque le {date}. Nous réessayons chaque jour ; en attendant, les photos lues auparavant sont utilisées.",
+      extraLanguagesLabel: "Publier aussi en",
+      extraLanguagesHint: "Votre site est en plusieurs langues. Chaque article mis en ligne à partir de maintenant est aussi traduit dans les langues que vous cochez et publié dans chacune, relié à l'original. Les traductions ne comptent pas dans les articles de votre forfait.",
+      extraLanguagesNeedPlugin: "Les traductions sont publiées par l'extension RepGet pour WordPress, version 1.9.0 ou ultérieure, avec WPML. Mettez à jour l'extension sur votre site pour commencer.",
       poweredByHint: "Une petite mention à la fin de chaque article. La désactiver s’applique aux articles pas encore publiés.",
       factsPlaceholder: "Ouvert depuis 2004\nCinq dentistes dans l’équipe\nParking gratuit sur place",
       uspsPlaceholder: "Rendez-vous d’urgence le jour même\nNous recevons les patients anxieux",
@@ -10794,6 +10812,7 @@ const fr: Messages = {
       noArticleMatch: "Aucun article ne correspond à ces filtres.",
       clearFilters: "Effacer les filtres",
       articlePages: "Pages des articles",
+      translationOf: "Traduction ({language})",
       deleteArticleLabel: "Supprimer {title}",
       articlesHelp: "Rédigés à partir de votre plan de contenu. Ouvrez-en un pour le lire, le modifier ou le réécrire.",
       nothingWritten: "Rien de rédigé pour l\u2019instant. Utilisez",
@@ -13431,6 +13450,9 @@ const it: Messages = {
       libraryNotRead: "La sua libreria media viene letta al salvataggio, poi ogni giorno.",
       libraryNotWordPress: "Non è stato possibile leggere la sua libreria media: funziona con i siti WordPress che hanno attiva l’API REST pubblica. Nel frattempo si creano immagini nuove.",
       libraryBlocked: "Il suo sito non ci ha permesso di leggere la libreria media il {date}. Riproviamo ogni giorno; nel frattempo si usano le foto lette in precedenza.",
+      extraLanguagesLabel: "Pubblica anche in",
+      extraLanguagesHint: "Il suo sito è in più lingue. Ogni articolo pubblicato da ora in poi viene anche tradotto nelle lingue selezionate e pubblicato in ciascuna, collegato all'originale. Le traduzioni non contano negli articoli del suo piano.",
+      extraLanguagesNeedPlugin: "Le traduzioni sono pubblicate dal plugin RepGet per WordPress, versione 1.9.0 o successiva, con WPML. Aggiorni il plugin sul suo sito per iniziare.",
       poweredByHint: "Una piccola menzione alla fine di ogni articolo. Disattivarla vale per gli articoli non ancora pubblicati.",
       factsPlaceholder: "Aperti dal 2004\nCinque dentisti nel team\nParcheggio gratuito",
       uspsPlaceholder: "Appuntamenti urgenti in giornata\nAccogliamo pazienti ansiosi",
@@ -13818,6 +13840,7 @@ const it: Messages = {
       noArticleMatch: "Nessun articolo corrisponde a questi filtri.",
       clearFilters: "Cancella filtri",
       articlePages: "Pagine degli articoli",
+      translationOf: "Traduzione ({language})",
       deleteArticleLabel: "Elimina {title}",
       articlesHelp: "Scritti a partire dal suo piano dei contenuti. Ne apra uno per leggerlo, modificarlo o riscriverlo.",
       nothingWritten: "Ancora nulla di scritto. Usi",
@@ -16454,6 +16477,9 @@ const de: Messages = {
       libraryNotRead: "Ihre Mediathek wird beim Speichern gelesen, danach jeden Tag.",
       libraryNotWordPress: "Ihre Mediathek konnte nicht gelesen werden: Das funktioniert mit WordPress-Websites, deren öffentliche REST-API aktiv ist. Bis dahin werden neue Bilder erstellt.",
       libraryBlocked: "Ihre Website hat uns am {date} nicht in ihre Mediathek gelassen. Wir versuchen es täglich erneut; bis dahin werden die zuvor gelesenen Fotos verwendet.",
+      extraLanguagesLabel: "Auch veröffentlichen auf",
+      extraLanguagesHint: "Ihre Website ist mehrsprachig. Jeder Artikel, der ab jetzt live geht, wird zusätzlich in die angekreuzten Sprachen übersetzt und dort veröffentlicht, verknüpft mit dem Original. Übersetzungen zählen nicht zu den Artikeln Ihres Tarifs.",
+      extraLanguagesNeedPlugin: "Übersetzungen veröffentlicht das RepGet-Plugin für WordPress ab Version 1.9.0, zusammen mit WPML. Aktualisieren Sie das Plugin auf Ihrer Website, um zu beginnen.",
       poweredByHint: "Ein kleiner Hinweis am Ende jedes Artikels. Das Ausschalten gilt für noch nicht veröffentlichte Artikel.",
       factsPlaceholder: "Seit 2004 geöffnet\nFünf Zahnärzte im Team\nKostenlose Parkplätze vor Ort",
       uspsPlaceholder: "Notfalltermine am selben Tag\nWir behandeln ängstliche Patienten",
@@ -16841,6 +16867,7 @@ const de: Messages = {
       noArticleMatch: "Keine Artikel entsprechen diesen Filtern.",
       clearFilters: "Filter zurücksetzen",
       articlePages: "Artikelseiten",
+      translationOf: "Übersetzung ({language})",
       deleteArticleLabel: "{title} löschen",
       articlesHelp: "Aus Ihrem Contentplan geschrieben. Öffnen Sie einen, um ihn zu lesen, zu bearbeiten oder neu schreiben zu lassen.",
       nothingWritten: "Noch nichts geschrieben. Nutzen Sie",

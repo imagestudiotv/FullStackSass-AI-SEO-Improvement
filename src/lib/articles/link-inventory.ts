@@ -1,4 +1,4 @@
-import { and, eq, isNotNull } from "drizzle-orm";
+import { and, eq, isNotNull, isNull } from "drizzle-orm";
 
 import { inScope, type LinkTarget, type SiteScope } from "@/lib/articles/link-guard";
 import { keyWords, overlap, pathWords } from "@/lib/articles/link-words";
@@ -152,7 +152,8 @@ export async function findVerifiedTargets(input: InventoryInput, options: Verify
   const published = await db
     .select({ url: articles.publishedUrl, title: articles.title })
     .from(articles)
-    .where(and(eq(articles.websiteId, websiteId), eq(articles.status, "published"), isNotNull(articles.publishedUrl)));
+    // Not translations (lib/articles/translations.ts): an article links pages in its own language.
+    .where(and(eq(articles.websiteId, websiteId), eq(articles.status, "published"), isNotNull(articles.publishedUrl), isNull(articles.translationOf)));
   const verified = await cachedPages(websiteId, now);
 
   const candidates: Candidate[] = [

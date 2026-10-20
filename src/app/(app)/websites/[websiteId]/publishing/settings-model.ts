@@ -36,6 +36,11 @@ export type StoredArticleSettings = {
   bodyImages: number;
   /** "generate" or "library": the site's own media library (lib/sites/pictures.ts). */
   pictureSource: string;
+  /**
+   * "Also publish in": the site's other languages, as sorted codes joined by
+   * commas ("es,it"; "" for none) - a string, so the shallow dirty check holds.
+   */
+  extraLanguages: string;
   /** A "Frequently asked questions" section at the end. */
   faqSection: boolean;
   poweredByLink: boolean;
@@ -253,7 +258,19 @@ export function toInput(values: ArticleSettingsValues): ArticleSettingsInput {
     ...values,
     internalLinkTarget: Number(values.internalLinkTarget),
     targetWordCount: values.targetWordCount === null ? null : Number(values.targetWordCount),
+    extraLanguages: values.extraLanguages ? values.extraLanguages.split(",") : [],
   };
+}
+
+/** The languages as the form holds them: sorted codes joined by commas. */
+export function languageList(codes: readonly string[]): string {
+  return [...new Set(codes)].filter(Boolean).sort().join(",");
+}
+
+/** The languages after one is ticked or unticked. */
+export function toggleLanguage(current: string, code: string): string {
+  const codes = current ? current.split(",") : [];
+  return languageList(codes.includes(code) ? codes.filter((value) => value !== code) : [...codes, code]);
 }
 
 /** How many fields differ - the save bar's "n unsaved changes". */

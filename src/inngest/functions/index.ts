@@ -28,6 +28,7 @@ import { renewalReplan } from "./renewal-replan";
 import { researchKeywords } from "./research-keywords";
 import { scheduledArticles } from "./scheduled-articles";
 import { refreshSiteInventories } from "./site-inventory";
+import { translateLiveArticles } from "./article-translations";
 import { verifyBacklinks } from "./verify-backlinks";
 
 export const functions = [
@@ -50,6 +51,7 @@ export const functions = [
   blogAutopilotRun,
   blogAutopilotSchedule,
   refreshSiteInventories,
+  translateLiveArticles,
   partnerWelcome,
   partnerProviderEvent,
   partnerCommissionsSweep,

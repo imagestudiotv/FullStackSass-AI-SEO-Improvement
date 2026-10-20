@@ -1,9 +1,9 @@
 {
   "version": "1.9.0",
   "package": "/repget-connector.zip",
-  "sha256": "2b22f27448ea6588c36b2f61a1ef13e80ef7c2b1ac8cee24a4855642f68ca9d5",
+  "sha256": "6d4789b5a1564a67bb47b416df339e6699f7d0251c8f8cd2f50d72cdb006063e",
   "requires": "5.6",
   "requires_php": "7.4",
   "tested": "6.8",
-  "changelog": "* When RepGet uses your website's own photos for an article (Article\n  Settings, \"Use photos from my website\"), the featured image is that photo\n  from your media library. Nothing is copied: your media library does not get\n  a second copy of a photo it already has, and the photo itself is not\n  changed."
+  "changelog": "* When RepGet uses your website's own photos for an article (Article\n  Settings, \"Use photos from my website\"), the featured image is that photo\n  from your media library. Nothing is copied: your media library does not get\n  a second copy of a photo it already has, and the photo itself is not\n  changed.\n* Articles in your site's other languages (Article Settings, \"Also publish\n  in\"): with WPML, each translation RepGet writes is published in its\n  language and linked to the original article, so the language switcher\n  offers it. It gets the original's categories in that language, and its\n  links to your posts lead to their versions in that language where you\n  have them. A version you already made yourself is never replaced."
 }

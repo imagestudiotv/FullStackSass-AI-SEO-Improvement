@@ -28,7 +28,7 @@ import {
 } from "@/lib/publishing/policy";
 import type { IntegrationView, ProviderInfo } from "@/lib/publishing/shared";
 import { triggerPluginSync } from "@/lib/plugin/sync";
-import { latestUncertain, reconcileUncertain } from "@/lib/publishing/dispatch";
+import { HOLD_MESSAGES, latestUncertain, reconcileUncertain } from "@/lib/publishing/dispatch";
 import { isPublishingConnection } from "@/lib/publishing/kinds";
 import { requireWebsite } from "@/lib/tenant";
 import { requireEditor } from "@/lib/websites/require-editor";
@@ -370,7 +370,7 @@ export async function publishArticle(
   const { site, ownerOrgId } = guard.context;
 
   const [article] = await db
-    .select({ id: articles.id, bodyHtml: articles.bodyHtml })
+    .select({ id: articles.id, bodyHtml: articles.bodyHtml, translationOf: articles.translationOf })
     .from(articles)
     .where(and(eq(articles.id, articleId), eq(articles.websiteId, site.id)))
     .limit(1);
@@ -394,7 +394,8 @@ export async function publishArticle(
     .where(and(eq(integrations.websiteId, site.id), isPublishingConnection()))
     .limit(1);
 
-  if (!connected) {
+  // A translation goes only through the plugin, which links it in WPML (claimDispatch holds it elsewhere).
+  if (!connected || article.translationOf) {
     /*
       Connected through the WordPress plugin instead? It pulls, so the press
       is recorded and the plugin collects it on its next check - which the
@@ -414,7 +415,7 @@ export async function publishArticle(
       .limit(1);
 
     if (!plugin) {
-      return { ok: false, error: "Connect somewhere to publish to first" };
+      return { ok: false, error: article.translationOf ? HOLD_MESSAGES.translation_needs_plugin : "Connect somewhere to publish to first" };
     }
 
     await db

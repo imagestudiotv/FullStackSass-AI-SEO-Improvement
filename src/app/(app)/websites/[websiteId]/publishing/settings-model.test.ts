@@ -5,11 +5,13 @@ import {
   colourState,
   countChanges,
   firstInvalid,
+  languageList,
   mergeAfterSave,
   nextDays,
   normalise,
   saveBarState,
   toFormValues,
+  toggleLanguage,
   toInput,
   validate,
   type ArticleSettingsValues,
@@ -35,6 +37,7 @@ const STORED: StoredArticleSettings = {
   comparisonTable: true,
   bodyImages: 3,
   pictureSource: "generate",
+  extraLanguages: "",
   faqSection: true,
   poweredByLink: true,
   authorName: "",
@@ -216,5 +219,16 @@ describe("writing days", () => {
 
   it("turns the last day off into 'any day' rather than never", () => {
     expect(nextDays([2], 2)).toEqual([]);
+  });
+});
+
+describe("also publish in", () => {
+  it("is held as sorted codes, ticked and unticked one at a time, and sent as a list", () => {
+    expect(languageList(["it", "es", "it"])).toBe("es,it");
+    expect(toggleLanguage("", "it")).toBe("it");
+    expect(toggleLanguage("it", "es")).toBe("es,it");
+    expect(toggleLanguage("es,it", "it")).toBe("es");
+    expect(toInput(toFormValues({ ...STORED, extraLanguages: "es,it" })).extraLanguages).toEqual(["es", "it"]);
+    expect(toInput(toFormValues({ ...STORED, extraLanguages: "" })).extraLanguages).toEqual([]);
   });
 });

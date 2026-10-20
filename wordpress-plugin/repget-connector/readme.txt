@@ -100,6 +100,12 @@ only fetches articles and reports whether each one published.
   from your media library. Nothing is copied: your media library does not get
   a second copy of a photo it already has, and the photo itself is not
   changed.
+* Articles in your site's other languages (Article Settings, "Also publish
+  in"): with WPML, each translation RepGet writes is published in its
+  language and linked to the original article, so the language switcher
+  offers it. It gets the original's categories in that language, and its
+  links to your posts lead to their versions in that language where you
+  have them. A version you already made yourself is never replaced.
 
 = 1.8.0 =
 * The pictures inside an article are now saved in your media library, like

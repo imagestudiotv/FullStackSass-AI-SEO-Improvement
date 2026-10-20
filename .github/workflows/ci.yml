@@ -182,6 +182,11 @@ jobs:
       - name: Plugin pictures against real WordPress + MySQL
         run: php wordpress-plugin/tests/real-wordpress-images.php "$RUNNER_TEMP/wordpress" wordpress-plugin/repget-connector/repget-connector.php
 
+      # 1.9.0: translations filed under their language in WPML, linked to the
+      # original (WPML stood in for by the calls the plugin makes).
+      - name: Plugin translations against real WordPress + MySQL
+        run: php wordpress-plugin/tests/real-wordpress-translations.php "$RUNNER_TEMP/wordpress" wordpress-plugin/repget-connector/repget-connector.php
+
       # Separate PHP processes released together at a barrier: lock races,
       # lease takeover, a process killed mid-insert, failed acknowledgements,
       # overlapping entry points, and the upgrade from 1.5.0.

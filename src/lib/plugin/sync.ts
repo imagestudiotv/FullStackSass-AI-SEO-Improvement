@@ -153,7 +153,8 @@ export async function signalRevokedKey(endpoint: { keyHash: string; syncUrl: str
 export async function nudgePluginIfDue(
   websiteId: string,
 ): Promise<SyncOutcome | "nothing-due"> {
-  const [due] = await dueArticlesForPlugin(websiteId, 1);
+  // Translations too: a plugin too old for them checks and finds nothing, which costs nothing.
+  const [due] = await dueArticlesForPlugin(websiteId, 1, new Date(), { translations: true });
   if (!due) return "nothing-due";
   return triggerPluginSync(websiteId);
 }

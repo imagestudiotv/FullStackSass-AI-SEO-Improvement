@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { queueJob } from "@/inngest/send";
 import { db } from "@/lib/db";
 import { websites } from "@/lib/db/schema";
+import { extraLanguageChoices } from "@/lib/articles/translation-languages";
 import { updateBrandVoice } from "@/lib/brand/actions";
 import { requireEditor } from "@/lib/websites/require-editor";
 import type { ActionResult } from "@/lib/websites/actions";
@@ -55,6 +56,8 @@ export type ArticleSettingsInput = {
   /** A "Frequently asked questions" section at the end. */
   faqSection?: boolean;
   poweredByLink?: boolean;
+  /** "Also publish in": the site's other languages, as codes ("it", "es"; lib/articles/translations.ts). */
+  extraLanguages?: string[];
 
   authorName?: string | null;
   authorBio?: string | null;
@@ -159,6 +162,15 @@ export async function saveArticleSettings(
   // Anything else is ignored rather than stored: the writer reads only these two.
   const pictureSource = input.pictureSource === "library" || input.pictureSource === "generate" ? input.pictureSource : undefined;
 
+  /*
+    Only languages the site itself publishes in (its inventory) and RepGet
+    writes. A language newly chosen starts now: articles that went live
+    before are not translated (lib/articles/translations.ts).
+  */
+  const choices = extraLanguageChoices({ language: site.language, siteLanguages: site.siteLanguages ?? [] });
+  const extraLanguages = input.extraLanguages === undefined ? undefined : [...new Set(input.extraLanguages)].filter((code) => choices.includes(code));
+  const languageAdded = extraLanguages?.some((code) => !(site.extraLanguages ?? []).includes(code)) ?? false;
+
   /**
    * Brand voice first, because it is the half that can REFUSE.
    *
@@ -220,6 +232,8 @@ export async function saveArticleSettings(
       pictureSource,
       faqSection: input.faqSection,
       poweredByLink: input.poweredByLink,
+      extraLanguages,
+      ...(languageAdded ? { extraLanguagesSince: new Date() } : {}),
       authorName: text(input.authorName),
       authorBio: text(input.authorBio),
       updatedAt: new Date(),
