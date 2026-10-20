@@ -18,6 +18,7 @@ import {
   gaMetrics,
   gscMetrics,
   gscPageMetrics,
+  searchImportCoverage,
   integrations,
   siteDailyMetrics,
   websites,
@@ -177,6 +178,13 @@ export const importAnalytics = inngest.createFunction(
         throw error;
       }
 
+      // Invalidate coverage before writing: a partial import must never look complete.
+      await db.delete(searchImportCoverage).where(eq(searchImportCoverage.websiteId, websiteId));
+      // Replace the covered interval, including pages no longer returned by Google.
+      // Otherwise old page rows survive a property switch or revised import.
+      await db.delete(gscPageMetrics).where(and(eq(gscPageMetrics.websiteId, websiteId),
+        raw`${gscPageMetrics.date} between ${range.startDate}::date and ${range.endDate}::date`));
+
       // The site-wide totals the headline numbers read. See siteDailyMetrics.
       if (totals.length > 0) {
         await db
@@ -227,6 +235,13 @@ export const importAnalytics = inngest.createFunction(
             },
           });
       }
+
+      await db.insert(searchImportCoverage).values({
+        websiteId, startDate: range.startDate, endDate: range.endDate, completedAt: new Date(),
+      }).onConflictDoUpdate({
+        target: searchImportCoverage.websiteId,
+        set: { startDate: range.startDate, endDate: range.endDate, completedAt: new Date() },
+      });
 
       // Chunked: a busy site returns thousands of rows and one statement with
       // that many parameters exceeds Postgres' limit.

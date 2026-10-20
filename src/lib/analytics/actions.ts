@@ -39,6 +39,7 @@ import { db } from "@/lib/db";
 import {
   gscMetrics,
   gscPageMetrics,
+  searchImportCoverage,
   integrations,
   siteDailyMetrics,
 } from "@/lib/db/schema";
@@ -169,6 +170,7 @@ export async function disconnectGoogle(
     return { ok: false, error: CANNOT_REPLACE };
   }
   await disconnect(site.id);
+  await db.delete(searchImportCoverage).where(eq(searchImportCoverage.websiteId, site.id));
   revalidatePath(`/websites/${site.id}/google`);
   return { ok: true, data: null };
 }
@@ -276,6 +278,9 @@ export async function selectProperties(
     approvedAt: new Date().toISOString(),
     connection: connection.meta.connectedBy?.userId ?? null,
   };
+  if (connection.meta.searchConsoleSite !== searchConsoleSite) {
+    await db.delete(searchImportCoverage).where(eq(searchImportCoverage.websiteId, site.id));
+  }
   await db
     .update(integrations)
     .set({

@@ -227,6 +227,7 @@ export async function fetchSearchPageDaily(
           startDate,
           endDate,
           dimensions: ["date", "page"],
+          dataState: "final",
           rowLimit: PAGE,
           startRow: start,
         }),
@@ -246,10 +247,10 @@ export async function fetchSearchPageDaily(
       });
     }
 
-    if (batch.length < PAGE) break;
+    if (batch.length < PAGE) return rows;
   }
 
-  return rows;
+  throw new GoogleApiError("Search Console page import reached its row limit; comparison data is incomplete", "unknown");
 }
 
 export type DailySearchTotal = {

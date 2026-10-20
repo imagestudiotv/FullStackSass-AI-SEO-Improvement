@@ -745,6 +745,12 @@ export const articles = pgTable(
     wordCount: integer("word_count"),
     status: text("status").default("draft").notNull(),
     generationStep: text("generation_step"),
+    /** Private evidence brief and quality result for the current generation. */
+    research: jsonb("research"),
+    researchReviewRequired: boolean("research_review_required").default(false).notNull(),
+    researchApprovedHash: text("research_approved_hash"),
+    researchApprovedBy: text("research_approved_by"),
+    researchApprovedAt: timestamp("research_approved_at"),
     publishedUrl: text("published_url"),
     /**
      * When RepGet first saw this article LIVE on the customer's site (a
@@ -814,6 +820,21 @@ export const articleVersions = pgTable("article_versions", {
   createdBy: userId(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+export const nextActionPreferences = pgTable("next_action_preferences", {
+  websiteId: websiteId(),
+  taskKey: text("task_key").notNull(),
+  snoozedUntil: timestamp("snoozed_until").notNull(),
+  actorId: text("actor_id").notNull(),
+}, table => [uniqueIndex("next_action_preferences_key").on(table.websiteId, table.taskKey)]);
+
+/** Only successful, untruncated page imports may produce traffic recommendations. */
+export const searchImportCoverage = pgTable("search_import_coverage", {
+  websiteId: websiteId(),
+  startDate: text("start_date").notNull(),
+  endDate: text("end_date").notNull(),
+  completedAt: timestamp("completed_at").defaultNow().notNull(),
+}, table => [uniqueIndex("search_import_coverage_site").on(table.websiteId)]);
 
 /**
  * Asking Google to index a published article, through SpeedyIndex (client,

@@ -110,6 +110,8 @@ export async function loadPublishing(input: {
       .select({
         reviewStatus: articles.reviewStatus,
         reviewApprovedHash: articles.reviewApprovedHash,
+        researchReviewRequired: articles.researchReviewRequired,
+        researchApprovedHash: articles.researchApprovedHash,
         scheduledFor: calendarItems.scheduledFor,
       })
       .from(articles)
@@ -173,8 +175,8 @@ export async function loadPublishing(input: {
   };
 
   let review: ReviewState = "none";
-  if (extra && extra.reviewStatus !== null) {
-    const check = releaseCheckFor({ ...fields, reviewStatus: extra.reviewStatus, reviewApprovedHash: extra.reviewApprovedHash });
+  if (extra && (extra.reviewStatus !== null || extra.researchReviewRequired)) {
+    const check = releaseCheckFor({ ...fields, ...extra });
     review = check.ok ? "approved" : check.reason === "changed_since_approval" ? "changed" : "pending";
   }
 

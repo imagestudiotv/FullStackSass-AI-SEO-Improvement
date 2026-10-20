@@ -470,6 +470,13 @@
       "when": 1792463060137,
       "tag": "0066_partner_link_names",
       "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1792494893787,
+      "tag": "0067_article_research_and_next_actions",
+      "breakpoints": true
     }
   ]
 }

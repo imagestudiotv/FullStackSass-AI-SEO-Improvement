@@ -344,6 +344,8 @@ export async function claimDispatch(input: {
         imageAlt: articles.imageAlt,
         reviewStatus: articles.reviewStatus,
         reviewApprovedHash: articles.reviewApprovedHash,
+        researchReviewRequired: articles.researchReviewRequired,
+        researchApprovedHash: articles.researchApprovedHash,
         publishRequested: articles.publishRequested,
         autoPublish: websites.autoPublish,
         publishAs: websites.publishAs,

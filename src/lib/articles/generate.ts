@@ -1,4 +1,6 @@
-import { anthropic, isAiConfigured, MODELS } from "@/lib/ai/client";
+import { anthropic, isAiConfigured } from "@/lib/ai/client";
+import { articleTask, measuredRequest, type MeasureAi } from "@/lib/ai/article-tasks";
+import type { ResearchBrief } from "./research-types";
 import { dataBlock, dataRule } from "@/lib/ai/untrusted";
 import { sanitizeHtml } from "@/lib/articles/sanitize";
 import { styleHint } from "@/lib/websites/article-options";
@@ -19,6 +21,7 @@ import { isSupportedLanguage } from "@/lib/websites/languages";
  */
 
 export type ArticleBrief = {
+  research?: ResearchBrief | null;
   title: string;
   targetKeyword: string;
   intent: string | null;
@@ -248,6 +251,9 @@ export function briefContext(brief: ArticleBrief): string {
       those ARE instructions.
     */
     profileBlock(brief),
+    brief.research?.status === "ready"
+      ? dataBlock("website_page", JSON.stringify(brief.research))
+      : null,
     /*
       The chosen register, expanded into the instruction it stands for. The
       dropdown stores "expert"; the model needs to be told what that means,
@@ -352,9 +358,15 @@ Rules:
 - Do NOT invent statistics, prices, dates, studies or quotes. If a point needs
   a specific figure the business has not supplied, phrase it so the writer
   describes the factors instead of stating a number. Verified facts given in
-  the brief are the exception and may be used.
+  the brief and claims backed by the supplied research quotations are the
+  exceptions and may be used. Plan around the research question and relevant
+  subquestions. Do not treat an unrelated source or a paid backlink as evidence.
+- Respect research warnings and source scope: a platform's own help page
+  supports that platform's workflow, not a universal rule. Narrow sections
+  to the supported platform or method when the sources cannot answer generally.
 - The meta description must read as a sentence, not a list of keywords.
-- ${dataRule("business_profile")}`;
+- ${dataRule("business_profile")}
+- ${dataRule("website_page")}`;
 
 const BODY_SYSTEM = `You write the final SEO article body as HTML.
 
@@ -379,7 +391,10 @@ Link rules:
 - Do NOT link to pages of the business's own website. Those links are added
   afterwards, only to pages checked to exist. Never guess one of its URLs.
 - Only link to an address given in the brief (a required link, a social
-  profile) or to a "#id" of a heading in this article.
+  profile, or a research source) or to a "#id" of a heading in this article.
+- Cite research sources next to the claims they support using their exact
+  supplied URLs. Use only relevant evidence, paraphrase rather than copy,
+  and never cite a source for something its excerpt does not establish.
 - Never write a link without a real destination: no href="#", no empty or
   placeholder addresses. If there is nothing real to link to, write plain
   text.
@@ -391,23 +406,31 @@ Writing rules:
 - Write for someone deciding what to do, not for a search engine.
 - NEVER invent statistics, prices, dates, studies, quotes or customer names.
   Describe the factors that determine a price rather than stating one.
-- The ONLY exception is the verified facts listed in the brief. Those were
-  supplied by the business owner, so you may state them directly. Everything
-  not listed there is still off limits.
+- Exceptions are the owner-confirmed facts and the claims supported by
+  research quotations in the brief. Preserve qualifiers, dates and context.
+  Research sources do not establish facts about this business unless stated.
+- Preserve platform, method, country and time qualifications. Never turn
+  Wix/Squarespace-specific setup advice into a universal Google requirement,
+  or confuse ownership verification with crawling or indexing. If research
+  warns of missing coverage, explain the limitation instead of filling it
+  with unsupported steps. Match every citation to the scope of its source.
 - No filler openings ("In today's fast-paced world"), no restating the title,
   no concluding summary that repeats the article back.
 - Do not claim the business offers something not listed in its services.
-- ${dataRule("business_profile")}`;
+- ${dataRule("business_profile")}
+- ${dataRule("website_page")}`;
 
 export async function generateOutline(
   brief: ArticleBrief,
+  measure?: MeasureAi,
 ): Promise<ArticleOutline> {
   if (!isAiConfigured()) {
     throw new Error("ANTHROPIC_API_KEY is not set");
   }
 
-  const response = await anthropic.messages.create({
-    model: MODELS.GENERATION,
+  const route = articleTask("outline");
+  const response = await measuredRequest("outline", () => anthropic.messages.create({
+    model: route.model,
     /**
      * Generous because a truncated response is unrecoverable: structured
      * output stops mid-JSON and JSON.parse throws on content that was
@@ -421,11 +444,11 @@ export async function generateOutline(
      * "image studios santa monica", 2026-10-16. The thinking stays: it is how
      * every outline so far was planned.
      */
-    max_tokens: 16000,
+    max_tokens: route.maxTokens,
     system: OUTLINE_SYSTEM,
     output_config: { format: { type: "json_schema", schema: OUTLINE_SCHEMA } },
     messages: [{ role: "user", content: briefContext(brief) }],
-  });
+  }, { maxRetries: 0 }), measure);
 
   if (response.stop_reason === "refusal") {
     throw new Error("The model declined to plan this article");
@@ -569,6 +592,7 @@ export { sanitizeHtml };
 export async function generateBody(
   brief: ArticleBrief,
   outline: ArticleOutline,
+  measure?: MeasureAi,
 ): Promise<GeneratedArticle> {
   if (!isAiConfigured()) {
     throw new Error("ANTHROPIC_API_KEY is not set");
@@ -576,14 +600,15 @@ export async function generateBody(
 
   const structure = structureFor(outline);
 
-  const response = await anthropic.messages.create({
-    model: MODELS.GENERATION,
+  const route = articleTask("body");
+  const response = await measuredRequest("body", () => anthropic.messages.create({
+    model: route.model,
     /*
       Room for 2,000 words with sub-headings, up to three tables and an FAQ:
       truncation is unrecoverable (it is refused below), and the unused
       allowance costs nothing.
     */
-    max_tokens: 16000,
+    max_tokens: route.maxTokens,
     system: BODY_SYSTEM,
     messages: [
       {
@@ -591,7 +616,7 @@ export async function generateBody(
         content: `${briefContext(brief)}\n\nFollow this structure:\n\n${structure}`,
       },
     ],
-  });
+  }, { maxRetries: 0 }), measure);
 
   if (response.stop_reason === "refusal") {
     throw new Error("The model declined to write this article");

@@ -17,6 +17,7 @@ import { latestUncertain } from "@/lib/publishing/dispatch";
 import { requireWebsitePage, WebsiteNotFoundError } from "@/lib/tenant";
 
 import { ArticleEditor } from "./article-editor";
+import { ResearchPanel } from "@/components/articles/research-panel";
 import { formatWhen, HISTORY_LIMIT, loadPublishing, pickDestination } from "./article-data";
 import { generationFailureKind } from "./failure-copy";
 import { previewSiteOrigin } from "./site-origin";
@@ -114,6 +115,8 @@ export default async function ArticlePage({
   });
 
   return (
+    <>
+    <ResearchPanel websiteId={websiteId} articleId={articleId} locale={locale} />
     <ArticleEditor
       websiteId={websiteId}
       // The stored error is written for logs (internal names, raw provider
@@ -147,5 +150,6 @@ export default async function ArticlePage({
       tEditorUi={t.app.editorUi}
       tWorkspace={t.app.workspace}
     />
+    </>
   );
 }

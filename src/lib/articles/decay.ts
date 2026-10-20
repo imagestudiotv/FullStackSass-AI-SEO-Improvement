@@ -1,7 +1,7 @@
 import { and, eq, gte, lte, sql as raw } from "drizzle-orm";
 
 import { db } from "@/lib/db";
-import { articles, gscPageMetrics, siteDailyMetrics } from "@/lib/db/schema";
+import { articles, gscPageMetrics, siteDailyMetrics, searchImportCoverage } from "@/lib/db/schema";
 
 /**
  * Finding pages that are losing ground.
@@ -74,6 +74,7 @@ export type TrafficReport = {
   watch: PageChange[];
   /** Last day of the recent window, or null before any import. */
   windowEnd: string | null;
+  dataStatus?: "ready" | "incomplete" | "stale";
 };
 
 /** An ISO date shifted by whole days. */
@@ -149,10 +150,18 @@ async function byPage(
  */
 export async function findTrafficChanges(
   websiteId: string,
+  now: Date = new Date(),
 ): Promise<TrafficReport> {
   const span = await windows(websiteId);
   if (!span) {
     return { losingClicks: [], losingVisibility: [], watch: [], windowEnd: null };
+  }
+  const [coverage] = await db.select().from(searchImportCoverage)
+    .where(eq(searchImportCoverage.websiteId, websiteId)).limit(1);
+  const stale = now.getTime() - new Date(`${span.end}T00:00:00Z`).getTime() > 7 * 86400000;
+  if (!coverage || coverage.startDate > span.priorStart || coverage.endDate < span.end || stale) {
+    return { losingClicks: [], losingVisibility: [], watch: [], windowEnd: span.end,
+      dataStatus: stale ? "stale" : "incomplete" };
   }
 
   const [recent, prior, generated] = await Promise.all([
@@ -184,11 +193,9 @@ export async function findTrafficChanges(
   const watch: PageChange[] = [];
 
   for (const [pageUrl, before] of prior) {
-    const after = recent.get(pageUrl) ?? {
-      clicks: 0,
-      impressions: 0,
-      position: null,
-    };
+    // Google does not guarantee every page is returned. An absent row is not zero.
+    const after = recent.get(pageUrl);
+    if (!after) continue;
     const article = articleByUrl.get(pageUrl);
     const change: PageChange = {
       pageUrl,
@@ -251,6 +258,7 @@ export async function findTrafficChanges(
     losingVisibility: losingVisibility.slice(0, LIST_LIMIT),
     watch: watch.slice(0, LIST_LIMIT),
     windowEnd: span.end,
+    dataStatus: "ready",
   };
 }
 

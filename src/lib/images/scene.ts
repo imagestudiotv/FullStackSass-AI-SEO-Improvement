@@ -1,4 +1,5 @@
 import { anthropic, isAiConfigured, MODELS } from "@/lib/ai/client";
+import { articleTask, measuredRequest, type MeasureAi } from "@/lib/ai/article-tasks";
 
 /**
  * What the header image should SHOW, read from the article itself.
@@ -92,7 +93,7 @@ export async function describeArticleScene(article: {
   industry?: string | null;
   country?: string | null;
   bodyHtml: string | null;
-}): Promise<ArticleScene | null> {
+}, measure?: MeasureAi): Promise<ArticleScene | null> {
   if (!isAiConfigured()) return null;
 
   const content = [
@@ -106,13 +107,13 @@ export async function describeArticleScene(article: {
     .join("\n\n");
 
   try {
-    const response = await anthropic.messages.create({
-      model: MODELS.EXTRACTION,
+    const response = await measuredRequest("image_scene", () => anthropic.messages.create({
+      model: measure ? articleTask("image_scene").model : MODELS.EXTRACTION,
       max_tokens: 600,
       system: SYSTEM,
       output_config: { format: { type: "json_schema", schema: SCHEMA } },
       messages: [{ role: "user", content }],
-    });
+    }, { maxRetries: measure ? 0 : 2 }), measure);
     const block = response.content.find((item) => item.type === "text");
     if (!block || block.type !== "text" || response.stop_reason !== "end_turn") {
       return null;
@@ -171,7 +172,7 @@ export async function describeBodyScenes(article: {
   /** The header photograph, so the body pictures do not repeat it. */
   coverScene?: string | null;
   sections: { heading: string; text: string }[];
-}): Promise<(ArticleScene | null)[] | null> {
+}, measure?: MeasureAi): Promise<(ArticleScene | null)[] | null> {
   if (!isAiConfigured() || article.sections.length === 0) return null;
 
   const content = [
@@ -188,13 +189,13 @@ export async function describeBodyScenes(article: {
     .join("\n\n");
 
   try {
-    const response = await anthropic.messages.create({
-      model: MODELS.EXTRACTION,
+    const response = await measuredRequest("body_scenes", () => anthropic.messages.create({
+      model: measure ? articleTask("body_scenes").model : MODELS.EXTRACTION,
       max_tokens: 400 + 300 * article.sections.length,
       system: BODY_SYSTEM,
       output_config: { format: { type: "json_schema", schema: BODY_SCHEMA } },
       messages: [{ role: "user", content }],
-    });
+    }, { maxRetries: measure ? 0 : 2 }), measure);
     const block = response.content.find((item) => item.type === "text");
     if (!block || block.type !== "text" || response.stop_reason !== "end_turn") return null;
     return parseBodyScenes(block.text, article.sections);

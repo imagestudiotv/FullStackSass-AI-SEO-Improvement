@@ -1,0 +1,32 @@
+# The CLI upload does not inherit every .gitignore rule.
+# Production receives credentials from the project's environment settings.
+.env*
+!.env.example
+*.bak
+*.backup
+*.orig
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+id_ecdsa*
+*credentials*.json
+service-account*.json
+stripe-ids-backup.json
+env data.txt
+db-backups/
+*.dump
+*.sql.gz
+
+.git/
+.vercel/
+.next/
+node_modules/
+test-results/
+coverage/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

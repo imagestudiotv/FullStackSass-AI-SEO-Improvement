@@ -30,6 +30,7 @@ import { regenerateArticle, updateArticle, type ArticleDetail } from "@/lib/arti
 import { listReusableImages, uploadInlineImage } from "@/lib/articles/image-actions";
 import { articleStats } from "@/lib/articles/stats";
 import type { Locale } from "@/lib/i18n/config";
+import { CONTENT_COPY } from "@/lib/i18n/content-improvements";
 import { format, formatNumber, intlTag, plural } from "@/lib/i18n/format";
 import type { Messages } from "@/lib/i18n/messages";
 import { publishArticle } from "@/lib/publishing/actions";
@@ -510,7 +511,7 @@ export function ArticleEditor({
           <div role="status" className="flex items-start gap-3 rounded-lg border bg-muted/40 px-4 py-3 text-sm">
             <Loader2 className="mt-0.5 size-4 shrink-0 animate-spin text-primary motion-reduce:animate-none" aria-hidden="true" />
             <div className="min-w-0 space-y-1">
-              <p className="font-medium">{stepLabel(article.generationStep, t)}</p>
+              <p className="font-medium">{article.generationStep === "research" ? CONTENT_COPY[locale].researchStep : stepLabel(article.generationStep, t)}</p>
               <p className="text-foreground/80">
                 {t.takesAMinute}
                 {hasBody && canEdit ? ` ${t.workingPaused}` : ""}

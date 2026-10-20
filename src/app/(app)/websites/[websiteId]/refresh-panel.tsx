@@ -31,6 +31,8 @@ import type {
 import { format, formatDate, formatNumber } from "@/lib/i18n/format";
 import type { Locale } from "@/lib/i18n/config";
 import { TrafficChart } from "@/components/traffic-chart";
+import Link from "next/link";
+import { CONTENT_COPY } from "@/lib/i18n/content-improvements";
 
 /**
  * Pages losing traffic.
@@ -225,6 +227,14 @@ export function RefreshPanel({
     losingClicks.length === 0 &&
     losingVisibility.length === 0 &&
     watch.length === 0;
+
+  if (report.dataStatus && report.dataStatus !== "ready") {
+    const copy = CONTENT_COPY[locale];
+    return <Card>
+      <CardHeader><CardTitle>{copy.searchData}</CardTitle><CardDescription>{copy.searchDataHelp}</CardDescription></CardHeader>
+      <CardContent><Link href={`/websites/${websiteId}/google`} className="text-sm text-primary underline">{copy.searchData}</Link></CardContent>
+    </Card>;
+  }
 
   return (
     <Card>

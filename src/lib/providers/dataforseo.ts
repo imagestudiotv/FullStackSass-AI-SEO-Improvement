@@ -64,6 +64,7 @@ function authHeader(): string {
  * would silently produce empty keyword sets instead of a visible failure.
  */
 type TaskResponse<T> = {
+  cost?: number;
   status_code: number;
   status_message: string;
   tasks?: Array<{
@@ -76,6 +77,7 @@ type TaskResponse<T> = {
 async function post<T>(
   endpoint: string,
   payload: Record<string, unknown>,
+  onCost?: (cost: number | undefined) => Promise<void>,
 ): Promise<T[]> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -116,6 +118,7 @@ async function post<T>(
   }
 
   const body = (await response.json()) as TaskResponse<T>;
+  await onCost?.(typeof body.cost === "number" && Number.isFinite(body.cost) ? body.cost : undefined);
 
   // 20000 is DataForSEO's "Ok" code; anything else is a failure in a 200.
   if (body.status_code !== 20000) {
@@ -137,6 +140,39 @@ async function post<T>(
   }
 
   return task.result ?? [];
+}
+
+/** One bounded public search; cached separately from private customer briefs. */
+export async function articleSearch(
+  keyword: string,
+  locationName: string,
+  languageName: string,
+  onCost: (cost: number | undefined) => Promise<void>,
+) {
+  const params = { keyword: keyword.slice(0, 300), location_name: locationName, language_name: languageName, depth: 10 };
+  type Item = { type?: string; url?: string; title?: string; description?: string };
+  let recorded = false;
+  const result = await withCache(
+    "dataforseo", "/serp/google/organic/live/advanced", params,
+    async () => {
+      try {
+        return await post<{ items?: Item[] }>("/serp/google/organic/live/advanced", params, async cost => {
+          recorded = true;
+          await onCost(cost);
+        });
+      } catch (error) {
+        if (!recorded) await onCost(undefined);
+        throw error;
+      }
+    },
+    3,
+  );
+  return {
+    cached: result.cached,
+    items: result.data.flatMap(row => row.items ?? [])
+      .filter((item): item is Item & { url: string } => item.type === "organic" && typeof item.url === "string")
+      .slice(0, 10),
+  };
 }
 
 export type KeywordMetrics = {

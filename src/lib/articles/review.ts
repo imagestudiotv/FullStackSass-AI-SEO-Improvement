@@ -65,8 +65,9 @@ export const reviewHashSql: SQL<string> = sql<string>`encode(sha256(convert_to(
 
 /** True for an article any publishing path may deliver (rules 1 and 2). */
 export const releasableSql: SQL = sql`(
-  ${articles.reviewStatus} is null
-  or (${articles.reviewStatus} = 'approved' and ${articles.reviewApprovedHash} = ${reviewHashSql})
+  (${articles.reviewStatus} is null
+  or (${articles.reviewStatus} = 'approved' and ${articles.reviewApprovedHash} = ${reviewHashSql}))
+  and (not ${articles.researchReviewRequired} or ${articles.researchApprovedHash} = ${reviewHashSql})
 )`;
 
 /**
@@ -112,6 +113,8 @@ export async function checkReleasable(articleId: string, executor: Executor = db
       imageAlt: articles.imageAlt,
       reviewStatus: articles.reviewStatus,
       reviewApprovedHash: articles.reviewApprovedHash,
+      researchReviewRequired: articles.researchReviewRequired,
+      researchApprovedHash: articles.researchApprovedHash,
     })
     .from(articles)
     .where(eq(articles.id, articleId))
@@ -120,7 +123,13 @@ export async function checkReleasable(articleId: string, executor: Executor = db
   return releaseCheckFor(row);
 }
 
-export function releaseCheckFor(row: ReviewFields & { reviewStatus: string | null; reviewApprovedHash: string | null }): ReleaseCheck {
+export function releaseCheckFor(row: ReviewFields & {
+  reviewStatus: string | null; reviewApprovedHash: string | null;
+  researchReviewRequired?: boolean; researchApprovedHash?: string | null;
+}): ReleaseCheck {
+  if (row.researchReviewRequired && row.researchApprovedHash !== reviewHash(row)) {
+    return { ok: false, reason: row.researchApprovedHash ? "changed_since_approval" : "pending_review" };
+  }
   if (row.reviewStatus === null) return { ok: true };
   if (row.reviewStatus !== "approved") return { ok: false, reason: "pending_review" };
   if (row.reviewApprovedHash !== reviewHash(row)) return { ok: false, reason: "changed_since_approval" };
@@ -140,7 +149,7 @@ export function underReview(row: { reviewStatus: string | null; status: string; 
 
 /** What the customer is told when a Publish press meets the gate. */
 export const HELD_MESSAGE =
-  "This article is being prepared by the RepGet team for the Partner Network. It goes out as soon as they approve it.";
+  "This article needs review before publishing. Open the article to check its research or pending review by the RepGet team.";
 
 /**
  * True when new drafts for this website enter the review gate: the website

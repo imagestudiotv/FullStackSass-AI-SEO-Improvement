@@ -1,10 +1,13 @@
 import { randomUUID } from "node:crypto";
+import { load } from "cheerio";
 
 import { and, eq, lt, notInArray, or, sql } from "drizzle-orm";
 import { NonRetriableError } from "inngest";
 
 import { inngest } from "@/inngest/client";
-import { MODELS } from "@/lib/ai/client";
+import { articleTask, articleModelExperiment, estimatedAiCost, type MeasureAi } from "@/lib/ai/article-tasks";
+import { collectResearchSources, synthesizeResearch, checkResearchEvidence } from "@/lib/articles/research";
+import { researchMode, researchNeedsReview, type ResearchBrief } from "@/lib/articles/research-types";
 import { db } from "@/lib/db";
 import {
   articles,
@@ -186,9 +189,10 @@ export const generateArticle = inngest.createFunction(
        * whole point of clustering in the first place.
        */
       let relatedKeywords: string[] = [];
+      let intent: string | null = null;
       if (article.targetKeyword) {
         const [pillar] = await db
-          .select({ clusterId: keywords.clusterId })
+          .select({ clusterId: keywords.clusterId, intent: keywords.intent })
           .from(keywords)
           .where(
             and(
@@ -197,6 +201,7 @@ export const generateArticle = inngest.createFunction(
             ),
           )
           .limit(1);
+        intent = pillar?.intent ?? null;
 
         if (pillar?.clusterId) {
           const siblings = await db
@@ -289,7 +294,7 @@ export const generateArticle = inngest.createFunction(
         brief: {
           title: article.title,
           targetKeyword: article.targetKeyword ?? article.title,
-          intent: null,
+          intent,
           relatedKeywords,
           brandName: site.brandName,
           industry: site.industry,
@@ -344,25 +349,61 @@ export const generateArticle = inngest.createFunction(
       };
     });
 
+    const meter: MeasureAi = async measurement => {
+      await track(organizationId, {
+        kind: "llm", websiteId: brief.websiteId, provider: "anthropic", model: measurement.model,
+        quantity: measurement.inputTokens + measurement.outputTokens + measurement.cacheReadTokens + measurement.cacheWriteTokens,
+        costUsd: estimatedAiCost(measurement, PRICING.llm),
+        metadata: { ...measurement, purpose: `article_${measurement.task}`, articleId, runId: event.id ?? null,
+          costBasis: measurement.usageKnown === false ? "unknown" : "usage_estimate", priceVersion: "2026-10-20" },
+      });
+    };
+    // Memoized before paid steps: one run keeps its rollout decision on retry.
+    const mode = await step.run("research-policy", async () => researchMode(brief.websiteId));
+    const sources = await step.run("research-sources", async () => {
+      if (mode === "off") return [];
+      await db.update(articles).set({ generationStep: "research", updatedAt: new Date() }).where(eq(articles.id, articleId));
+      await requireEntitledForSpend(brief.websiteId, { freeArticles: true });
+      try {
+        return await paidCall(reservations, () => collectResearchSources(brief.brief, costUsd =>
+          track(organizationId, {
+            kind: "seo_api", provider: "dataforseo", websiteId: brief.websiteId, costUsd,
+            metadata: { purpose: "article_research_search", articleId, costBasis: costUsd === undefined ? "unknown" : "provider_reported" },
+          })), { beforeSpend: () => requireEntitledForSpend(brief.websiteId, { freeArticles: true }) });
+      } catch {
+        logger.warn({ articleId, step: "research-sources" }, "Research unavailable; article will require review");
+        return [];
+      }
+    });
+    const research = await step.run("research-brief", async (): Promise<ResearchBrief | null> => {
+      if (mode === "off") return null;
+      await requireEntitledForSpend(brief.websiteId, { freeArticles: true });
+      let result: ResearchBrief;
+      try {
+        result = await paidCall(reservations, () => synthesizeResearch(brief.brief, sources, mode, meter),
+          { beforeSpend: () => requireEntitledForSpend(brief.websiteId, { freeArticles: true }) });
+      } catch {
+        result = { version: 1, mode, status: "unavailable", question: brief.brief.title,
+          intent: brief.brief.intent ?? "informational", businessAngle: "", subquestions: [], claims: [],
+          sources, checkedAt: new Date().toISOString(), warnings: ["Research could not be completed. Check the facts before publishing."] };
+      }
+      await db.update(articles).set({ research: result, researchReviewRequired: true, researchApprovedHash: null,
+        researchApprovedAt: null, researchApprovedBy: null, generationStep: "outline", updatedAt: new Date() })
+        .where(eq(articles.id, articleId));
+      return result;
+    });
+    const writingBrief: ArticleBrief = { ...brief.brief, research, intent: brief.brief.intent ?? research?.intent ?? null };
+
     const outline = await step.run("write-outline", async () => {
       const startedAt = Date.now();
+      const modelExperiment = articleModelExperiment();
       // Entitlement and allowance re-checked HERE, inside the paid step, so a
       // retry after cancellation cannot replay build-brief's cached answer.
       const result = await paidCall(
         reservations,
-        () => generateOutline(brief.brief),
+        () => generateOutline(writingBrief, meter),
         { beforeSpend: () => requireEntitledForSpend(brief.websiteId, { freeArticles: true }) },
       );
-
-      const price = PRICING.llm[MODELS.GENERATION];
-      await track(organizationId, {
-        kind: "llm",
-        websiteId: brief.websiteId,
-        provider: "anthropic",
-        model: MODELS.GENERATION,
-        costUsd: 1 * price.inputPer1k + 1.2 * price.outputPer1k,
-        metadata: { purpose: "article_outline", articleId },
-      });
 
       await db
         .update(articles)
@@ -382,37 +423,23 @@ export const generateArticle = inngest.createFunction(
           websiteId: brief.websiteId,
           sections: result.sections.length,
           metaDescriptionChars: result.metaDescription.length,
-          model: MODELS.GENERATION,
+          model: articleTask("outline").model,
           durationMs: Date.now() - startedAt,
         },
         "Outline written",
       );
 
-      return result;
+      return { ...result, modelExperiment };
     });
 
     const written = await step.run("write-body", async () => {
       const startedAt = Date.now();
+      const modelExperiment = articleModelExperiment();
       const result = await paidCall(
         reservations,
-        () => generateBody(brief.brief, outline),
+        () => generateBody(writingBrief, outline, meter),
         { beforeSpend: () => requireEntitledForSpend(brief.websiteId, { freeArticles: true }) },
       );
-
-      const price = PRICING.llm[MODELS.GENERATION];
-      // Roughly 2k in / 2.5k out for a 1,000-word article.
-      await track(organizationId, {
-        kind: "llm",
-        websiteId: brief.websiteId,
-        provider: "anthropic",
-        model: MODELS.GENERATION,
-        costUsd: 2 * price.inputPer1k + 2.5 * price.outputPer1k,
-        metadata: {
-          purpose: "article_body",
-          articleId,
-          words: result.wordCount,
-        },
-      });
 
       /**
        * Length, not text. The body is the customer's content and never belongs
@@ -430,13 +457,25 @@ export const generateArticle = inngest.createFunction(
           htmlBytes: result.bodyHtml.length,
           slug: result.slug,
           sections: outline.sections.length,
-          model: MODELS.GENERATION,
+          model: articleTask("body").model,
           durationMs: Date.now() - startedAt,
         },
         "Article body written",
       );
 
-      return result;
+      return { ...result, modelExperiment };
+    });
+
+    const reviewedResearch = await step.run("check-evidence", async () => {
+      if (!research) return null;
+      await requireEntitledForSpend(brief.websiteId, { freeArticles: true });
+      try {
+        const quality = await paidCall(reservations, () => checkResearchEvidence(written.bodyHtml, writingBrief, research, meter),
+          { beforeSpend: () => requireEntitledForSpend(brief.websiteId, { freeArticles: true }) });
+        return { ...research, quality };
+      } catch {
+        return { ...research, quality: { checked: false, issues: ["The evidence check could not finish. Review before publishing."] } };
+      }
     });
 
     /**
@@ -503,7 +542,7 @@ export const generateArticle = inngest.createFunction(
               industry: brief.brief.industry,
               country: brief.brief.country,
               bodyHtml: written.bodyHtml,
-            }),
+            }, meter),
           { beforeSpend },
         );
 
@@ -597,7 +636,7 @@ export const generateArticle = inngest.createFunction(
               country: brief.brief.country,
               coverScene: image?.scene ?? null,
               sections: slots.map((slot) => ({ heading: slot.heading, text: slot.text })),
-            }),
+            }, meter),
           { beforeSpend: () => requireEntitledForSpend(brief.websiteId, { freeArticles: true }) },
         );
         const planned = slots.flatMap((slot, i) => (scenes?.[i] ? [{ h2: slot.h2, scene: scenes[i].scene, alt: scenes[i].alt }] : []));
@@ -751,6 +790,17 @@ export const generateArticle = inngest.createFunction(
     });
 
     await step.run("save-article", async () => {
+      let finalResearch = reviewedResearch;
+      if (finalResearch?.claims.length) {
+        const $ = load(linkedHtml.html);
+        const links = new Set($("a[href]").map((_, node) => $(node).attr("href")).get());
+        if (!finalResearch.sources.some(source => links.has(source.url))) {
+          finalResearch = { ...finalResearch, quality: {
+            checked: finalResearch.quality?.checked ?? false,
+            issues: [...(finalResearch.quality?.issues ?? []), "Research citations were removed during formatting. Review the saved article."],
+          } };
+        }
+      }
       /*
         The managed Partner Network's review gate: a website accepting network
         links has every new draft held for the RepGet team, who place links
@@ -765,6 +815,11 @@ export const generateArticle = inngest.createFunction(
           .update(articles)
           .set({
             reviewStatus,
+            research: finalResearch,
+            researchReviewRequired: researchNeedsReview(finalResearch) || outline.modelExperiment || written.modelExperiment || articleModelExperiment(),
+            researchApprovedHash: null,
+            researchApprovedAt: null,
+            researchApprovedBy: null,
             reviewApprovedAt: null,
             reviewApprovedBy: null,
             reviewApprovedHash: null,
