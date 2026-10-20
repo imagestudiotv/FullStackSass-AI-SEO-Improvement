@@ -514,6 +514,16 @@ export const websites = pgTable("websites", {
 
   /** Where the sitemap lives, for finding pages worth linking to. */
   sitemapUrl: text("sitemap_url"),
+  /**
+   * The site's own posts and pictures, read from its public WordPress REST
+   * API (lib/sites/inventory.ts, site_posts and site_images): when last
+   * read, and how it went - "ok", "not_wordpress" (no public API), or why
+   * it failed.
+   */
+  inventoryCheckedAt: timestamp("inventory_checked_at"),
+  inventoryStatus: text("inventory_status"),
+  /** The languages the site publishes in, from its hreflang links ("en", "it", "es"); empty for one language. */
+  siteLanguages: jsonb("site_languages").$type<string[]>().default([]).notNull(),
   /** The blog's own index, so new articles are filed alongside the others. */
   blogUrl: text("blog_url"),
   /** An article the customer is happy with, as a style reference. */
@@ -2766,4 +2776,58 @@ export const feedbackScreenshots = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [uniqueIndex("feedback_screenshots_feedback_position_uidx").on(table.feedbackId, table.position)],
+);
+
+/**
+ * The articles a customer's WordPress site already has, in every language,
+ * read from its public REST API (lib/sites/inventory.ts; client 2026-10-20,
+ * Image Studio: "it should search for the actual blog posts first, and come
+ * with a new article idea"). Planning skips topics they cover; translations
+ * link to the post in their own language. Replaced whole on every read.
+ */
+export const sitePosts = pgTable(
+  "site_posts",
+  {
+    id: pk(),
+    websiteId: websiteId(),
+    /** WordPress's REST base for its type: "posts", or a custom type such as "custom_post". */
+    postType: text("post_type").notNull(),
+    remoteId: integer("remote_id").notNull(),
+    title: text("title").notNull(),
+    url: text("url").notNull(),
+    /** Its language on a multilingual (WPML) site, "it"; null on a single-language one. */
+    language: text("language"),
+    publishedAt: timestamp("published_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("site_posts_website_url_uidx").on(table.websiteId, table.url),
+    index("site_posts_website_language_idx").on(table.websiteId, table.language),
+  ],
+);
+
+/**
+ * The pictures in a customer's WordPress media library, read from its public
+ * REST API (lib/sites/inventory.ts; client 2026-10-20, Image Studio: "it
+ * should searching for images from our current images and place inside the
+ * article, the same for feature image"). Their alt text and title say what
+ * each shows. Replaced whole on every read.
+ */
+export const siteImages = pgTable(
+  "site_images",
+  {
+    id: pk(),
+    websiteId: websiteId(),
+    /** The attachment's id in WordPress. */
+    remoteId: integer("remote_id").notNull(),
+    url: text("url").notNull(),
+    alt: text("alt"),
+    title: text("title"),
+    caption: text("caption"),
+    width: integer("width"),
+    height: integer("height"),
+    uploadedAt: timestamp("uploaded_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [uniqueIndex("site_images_website_remote_uidx").on(table.websiteId, table.remoteId)],
 );

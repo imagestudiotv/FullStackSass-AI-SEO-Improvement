@@ -484,6 +484,13 @@
       "when": 1792510680876,
       "tag": "0068_blog_autopilot_articles_per_day",
       "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1792517533353,
+      "tag": "0069_site_inventory",
+      "breakpoints": true
     }
   ]
 }

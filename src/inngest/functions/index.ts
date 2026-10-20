@@ -27,6 +27,7 @@ import { publishArticleJob } from "./publish-article";
 import { renewalReplan } from "./renewal-replan";
 import { researchKeywords } from "./research-keywords";
 import { scheduledArticles } from "./scheduled-articles";
+import { refreshSiteInventories } from "./site-inventory";
 import { verifyBacklinks } from "./verify-backlinks";
 
 export const functions = [
@@ -48,6 +49,7 @@ export const functions = [
   indexArticles,
   blogAutopilotRun,
   blogAutopilotSchedule,
+  refreshSiteInventories,
   partnerWelcome,
   partnerProviderEvent,
   partnerCommissionsSweep,
