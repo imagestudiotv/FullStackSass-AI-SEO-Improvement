@@ -154,6 +154,34 @@ describe("starting a translation", () => {
     expect((await row(second.ok ? second.data.id : "")).slug).toBe("farsi-citare-da-chatgpt-it");
   });
 
+  it("points its links at that language's pages, and drops a link to a post it does not have (client, 2026-10-20)", async () => {
+    const local = await create("published", { slug: "local-seo-guide" });
+    const spanish = await createBlogTranslation({ sourceId: local.id, locale: "es", mode: "copy" });
+    await test.db.update(blogPosts).set({ status: "published", slug: "guia-seo-local", needsReview: false, publishedAt: new Date() }).where(eq(blogPosts.id, spanish.ok ? spanish.data.id : ""));
+    await create("published", { slug: "keyword-guide" });
+    const source = await create("published", {
+      bodyHtml: [
+        '<h2>Start here</h2><p>Run the <a href="https://repget.test/audit">free audit</a>,',
+        ' try the <a href="https://www.repget.test/tools/keyword-density/">density checker</a>,',
+        ' read the <a href="https://repget.test/blog/local-seo-guide#maps">local SEO guide</a>',
+        ' and the <a href="https://repget.test/blog/keyword-guide">keyword guide</a>,',
+        ' then see <a href="https://developers.google.com/search/docs">Google\'s own docs</a>.</p>',
+      ].join(""),
+      faqs: [{ question: "What does it cost?", answer: '<p>See <a href="https://repget.test/pricing">pricing</a>.</p>' }],
+    });
+
+    const result = await createBlogTranslation({ sourceId: source.id, locale: "es", mode: "copy" });
+    const copy = await row(result.ok ? result.data.id : "");
+    expect(copy.bodyHtml).toContain('<a href="https://repget.test/es/audit">free audit</a>');
+    expect(copy.bodyHtml).toContain('<a href="https://repget.test/es/tools/keyword-density">density checker</a>');
+    expect(copy.bodyHtml).toContain('<a href="https://repget.test/es/blog/guia-seo-local#maps">local SEO guide</a>');
+    // No Spanish version of the keyword guide: its words stay, the link to the English one goes.
+    expect(copy.bodyHtml).toContain(" and the keyword guide,");
+    expect(copy.bodyHtml).not.toContain("keyword-guide");
+    expect(copy.bodyHtml).toContain('href="https://developers.google.com/search/docs"');
+    expect(copy.faqs[0].answer).toContain('<a href="https://repget.test/es/pricing">pricing</a>');
+  });
+
   it("explains a failed AI draft and saves nothing", async () => {
     const source = await create("draft");
     ai.translate.mockRejectedValue(new Error("The post is too long to translate in one go"));

@@ -17,6 +17,7 @@ import {
   type BlogSource,
 } from "@/lib/blog/shared";
 import { translateBlogPost, type TranslatableFields } from "@/lib/blog/translate";
+import { blogLinkTargets, localizeLinks } from "@/lib/blog/translation-links";
 import { db } from "@/lib/db";
 import { blogCategories, blogPosts } from "@/lib/db/schema";
 import { DEFAULT_LOCALE, LOCALES, type Locale } from "@/lib/i18n/config";
@@ -512,6 +513,13 @@ export async function createBlogTranslation(input: {
   } else {
     content = { ...translatable(source), slug: `${source.slug}-${locale}` };
   }
+  // Its links lead to that language's pages, not the English ones (client, 2026-10-20; lib/blog/translation-links.ts).
+  const links = await blogLinkTargets(locale);
+  content = {
+    ...content,
+    bodyHtml: localizeLinks(content.bodyHtml, locale, links),
+    faqs: content.faqs.map((faq) => ({ ...faq, answer: localizeLinks(faq.answer, locale, links) })),
+  };
 
   let fields: Clean;
   try {

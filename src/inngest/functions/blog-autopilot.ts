@@ -28,6 +28,7 @@ import { bodySlices, swapPictures, translateBodyPart, translateFields, type Tran
 import { bodyParts, finishDraft, loadWriterContext, planArticle, writePart, type WrittenPart } from "@/lib/blog/autopilot/write";
 import { LANGUAGE_NAMES_EN } from "@/lib/blog/locale";
 import { BlogPostError } from "@/lib/blog/post-fields";
+import { blogLinkTargets, localizeLinks } from "@/lib/blog/translation-links";
 
 /**
  * The blog autopilot writes one article (lib/blog/autopilot): the run and
@@ -35,7 +36,7 @@ import { BlogPostError } from "@/lib/blog/post-fields";
  * writes and saves.
  *
  *   plan -> body, part by part -> links and checks -> pictures -> English draft
- *   -> for each chosen language: fields, body part by part, pictures, draft
+ *   -> for each chosen language: fields, its links, body part by part, pictures, draft
  *   -> run closed -> email to the administrators
  *
  * Each model call and each picture is its own step, kept once it succeeds:
@@ -199,13 +200,16 @@ export const blogAutopilotRun = inngest.createFunction(
         continue;
       }
 
+      // Its links lead to that language's pages, set before translating so the translator keeps them (client, 2026-10-20).
+      const links = await step.run(`links-${locale}`, () => blogLinkTargets(locale));
+
       const body: string[] = [];
       let failed: string | null = null;
       for (const [index, slice] of source!.slices.entries()) {
         const id = `translate-${locale}-part-${index + 1}`;
         const part = await step.run(id, () =>
           settle(id, async () => {
-            const result = await translateBodyPart(slice, locale, fields.value);
+            const result = await translateBodyPart(localizeLinks(slice, locale, links), locale, fields.value);
             await noteCost(runId, id, result.usage.costUsd);
             return result.html;
           }),
@@ -242,7 +246,8 @@ export const blogAutopilotRun = inngest.createFunction(
 
       const savedTranslation = await step.run(`save-${locale}`, async () => {
         try {
-          const { title, slug, seoTitle, description, shortAnswer, breadcrumbLabel, primaryKeyword, secondaryKeywords, faqs } = fields.value;
+          const { title, slug, seoTitle, description, shortAnswer, breadcrumbLabel, primaryKeyword, secondaryKeywords } = fields.value;
+          const faqs = fields.value.faqs.map((faq) => ({ ...faq, answer: localizeLinks(faq.answer, locale, links) }));
           const bodyHtml = swapPictures(body.join(""), swaps);
           const post = { title, slug, seoTitle, description, shortAnswer, breadcrumbLabel, primaryKeyword, secondaryKeywords, faqs, bodyHtml };
           return { value: await saveAutopilotTranslation(saved.postId, locale, post) };

@@ -118,6 +118,19 @@ describe("the body", () => {
       await expect(translateBodyPart(PART, "it", glossary)).rejects.toThrow("changed the article's headings, tables, pictures or links");
     }
   });
+
+  it("accepts a link written in another form, and gives it back exactly as it was", async () => {
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://www.repget.com");
+    try {
+      const glossary = { title: "T", primaryKeyword: "", secondaryKeywords: [] };
+      answer({ bodyHtml: PART.replace("https://www.repget.com/audit", "/audit/").replace("See the", "Vedi") });
+      const result = await translateBodyPart(PART, "it", glossary);
+      expect(result.html).toContain('<a href="https://www.repget.com/audit">audit</a>');
+      expect(result.html).toContain("Vedi");
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
 });
 
 describe("a translation's pictures", () => {

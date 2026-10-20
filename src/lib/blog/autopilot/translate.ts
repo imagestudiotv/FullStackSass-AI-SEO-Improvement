@@ -3,8 +3,10 @@ import "server-only";
 import * as cheerio from "cheerio";
 
 import { LANGUAGE_NAMES_EN } from "@/lib/blog/locale";
+import { blogSiteHosts } from "@/lib/blog/post-fields";
 import type { BlogFaq } from "@/lib/blog/shared";
 import type { Locale } from "@/lib/i18n/config";
+import { siteUrl } from "@/lib/site-url";
 
 import { askClaude, type CallUsage } from "./model";
 import { bodyParts } from "./write";
@@ -26,6 +28,10 @@ import { bodyParts } from "./write";
  * was written in, each given the translated title and keywords so the
  * headings use the same phrases. A part that loses a heading, a table, a
  * picture or a link is refused and asked again.
+ *
+ * Its links lead to the language's own pages (client, 2026-10-20): the run
+ * points them there before a part is translated, and at the FAQ answers
+ * when it saves (lib/blog/translation-links.ts).
  */
 
 /** The English post's words that are not its body, and the pictures' words. */
@@ -158,15 +164,51 @@ export function bodySlices(html: string): string[] {
   return bodyParts(starts.length).map(({ from, to }, index) => html.slice(index === 0 ? 0 : starts[from], to < starts.length ? starts[to] : html.length));
 }
 
+/**
+ * One address however it is written - relative or full, with or without
+ * www, with or without a trailing slash - so a translator that only rewrites
+ * an address's form is not refused for it.
+ */
+function sameAddress(href: string): string {
+  try {
+    const origin = new URL(siteUrl()).origin;
+    const url = new URL(href, origin);
+    if (!blogSiteHosts().has(url.hostname.toLowerCase())) return href;
+    return `${origin}${url.pathname.replace(/(.)\/+$/, "$1")}${url.search}${url.hash}`;
+  } catch {
+    return href;
+  }
+}
+
 /** What a translation must keep: its headings, tables, pictures, and every link and picture address. */
 function skeleton(html: string): { counts: string; addresses: string[] } {
   const $ = cheerio.load(html, null, false);
   const counts = ["h2", "h3", "table", "img", "a", "ul", "ol"].map((tag) => `${tag}:${$(tag).length}`).join(" ");
-  const addresses = [...$("a").toArray().map((el) => $(el).attr("href") ?? ""), ...$("img").toArray().map((el) => $(el).attr("src") ?? "")].sort();
+  const addresses = [...$("a").toArray().map((el) => sameAddress($(el).attr("href") ?? "")), ...$("img").toArray().map((el) => $(el).attr("src") ?? "")].sort();
   return { counts, addresses };
 }
 
-/** Translates one part of the body. One that loses or changes a heading, table, picture or link is refused. */
+/** The translation's links written exactly as the English part wrote them (they may differ only in form; see sameAddress). */
+function restoreAddresses(original: string, translated: string): string {
+  const $original = cheerio.load(original, null, false);
+  const written = new Map($original("a").toArray().map((el) => [sameAddress($original(el).attr("href") ?? ""), $original(el).attr("href") ?? ""]));
+  const $ = cheerio.load(translated, null, false);
+  let changed = false;
+  for (const el of $("a").toArray()) {
+    const href = $(el).attr("href") ?? "";
+    const exact = written.get(sameAddress(href));
+    if (exact === undefined || exact === href) continue;
+    $(el).attr("href", exact);
+    changed = true;
+  }
+  return changed ? $.html() : translated;
+}
+
+/**
+ * Translates one part of the body. One that loses or changes a heading,
+ * table, picture or link is refused. The part's links already lead to the
+ * language's own pages (lib/blog/translation-links.ts, called by the run).
+ */
 export async function translateBodyPart(html: string, locale: Locale, glossary: Glossary): Promise<{ html: string; usage: CallUsage }> {
   const target = LANGUAGE_NAMES_EN[locale];
   const { value, usage } = await askClaude({
@@ -191,7 +233,7 @@ export async function translateBodyPart(html: string, locale: Locale, glossary: 
   if (before.counts !== after.counts || before.addresses.join("\n") !== after.addresses.join("\n")) {
     throw new Error(`The ${target} translation changed the article's headings, tables, pictures or links. Try again.`);
   }
-  return { html: translated, usage };
+  return { html: restoreAddresses(html, translated), usage };
 }
 
 /**

@@ -359,7 +359,10 @@ describe("the blog autopilot's job", () => {
     });
     expect(italian.faqs).toHaveLength(6);
     expect((italian.bodyHtml.match(/<h2>/g) ?? []).length).toBe(10);
-    expect(italian.bodyHtml).toContain('<a href="https://www.repget.com/audit">[it] free website audit</a>');
+    // Its links lead to the Italian pages (client, 2026-10-20), not the English ones.
+    expect(italian.bodyHtml).toContain('<a href="https://www.repget.com/it/audit">[it] free website audit</a>');
+    expect(italian.bodyHtml).not.toContain('href="https://www.repget.com/audit"');
+    expect(step.ran).toContain("links-it");
     // Its own pictures, with its own words; no English picture left in it.
     expect(
       images.generate.mock.calls.some(([prompt]) => String(prompt).includes('"[it] From search to call"') && String(prompt).includes("All text is in Italian")),
