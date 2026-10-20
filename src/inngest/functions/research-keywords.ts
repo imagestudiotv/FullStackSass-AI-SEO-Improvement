@@ -27,6 +27,9 @@ import {
 } from "@/lib/providers/dataforseo";
 import { checkLimit, PRICING, track, UNLIMITED } from "@/lib/usage";
 import { notify } from "@/lib/notifications/create";
+import { coveredTopics } from "@/lib/sites/covered";
+import { withoutCovered } from "@/lib/sites/covered-match";
+import { inventoryDue, refreshSiteInventory } from "@/lib/sites/inventory";
 
 /**
  * Keyword research and content planning.
@@ -631,6 +634,22 @@ export const researchKeywords = inngest.createFunction(
       }
     });
 
+    /*
+      What the site's own blog already has (lib/sites/inventory.ts), read
+      when the daily copy is missing or old: the plan below moves on to new
+      ideas (client, 2026-10-20, Image Studio). A site without a public
+      WordPress API answers in one request and is asked again weekly.
+    */
+    await step.run("site-inventory", async () => {
+      const [row] = await db
+        .select({ inventoryCheckedAt: websites.inventoryCheckedAt, inventoryStatus: websites.inventoryStatus })
+        .from(websites)
+        .where(eq(websites.id, websiteId))
+        .limit(1);
+      if (!row || !inventoryDue(row)) return { read: false };
+      return { read: true, ...(await refreshSiteInventory(websiteId)) };
+    });
+
     const planned = await step.run("plan-calendar", async () => {
       /**
        * Only what is left of this month, around what is kept.
@@ -656,10 +675,24 @@ export const researchKeywords = inngest.createFunction(
           .map((keyword) => [keyword.term, keyword.intent as string]),
       );
 
+      /*
+        Not what is already covered (client, 2026-10-20: "it should search
+        for the actual blog posts first, and come with a new article idea"):
+        keywords the site's own articles or RepGet's earlier ones are about
+        are left out, and the titles the blog has go to the planner so the new
+        ones take another angle (lib/sites/covered.ts).
+      */
+      const covered = await coveredTopics(websiteId);
+      const fresh = withoutCovered(grouped, covered);
+      if (fresh.dropped.length > 0) {
+        logger.info({ step: "plan-calendar", websiteId, covered: fresh.dropped.length, examples: fresh.dropped.slice(0, 5) }, "Keywords the site already covers were left out of the plan");
+      }
+
       const articles = await spend(() =>
-        planCalendar(grouped, allowance.count, intents, {
+        planCalendar(fresh.clusters, allowance.count, intents, {
           perDay: allowance.perDay,
           occupied,
+          existingTitles: [...covered.siteTitles, ...covered.writtenTitles],
         }),
       );
 

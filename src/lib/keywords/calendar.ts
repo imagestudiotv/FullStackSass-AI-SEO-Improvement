@@ -156,12 +156,36 @@ export function scheduleDates(
   return dates;
 }
 
+/** The most existing titles shown to the planner: the newest first, enough to know the blog. */
+export const EXISTING_TITLES_SHOWN = 80;
+
+/**
+ * The articles the site already has, for the planner (client, 2026-10-20:
+ * "come with a new article idea"): a new title must not be one of them, or
+ * the same article in other words. Wrapped, so text in a title is never read
+ * as an instruction.
+ */
+export function existingSection(titles: string[]): string {
+  const unique = [...new Set(titles.map((title) => title.replace(/\s+/g, " ").trim()).filter(Boolean))].slice(0, EXISTING_TITLES_SHOWN);
+  if (unique.length === 0) return "";
+  return [
+    "The website already has these articles. Do not plan any of them again, nor the same article in other words: give each keyword an angle these do not cover.",
+    "<existing_articles>",
+    ...unique.map((title) => `- ${title.replace(/<\/?existing_articles>/gi, "")}`),
+    "</existing_articles>",
+  ].join("\n");
+}
+
 export async function planCalendar(
   clusters: KeywordCluster[],
   limit: number,
   intentByTerm: Map<string, string> = new Map(),
-  /** The plan's daily rate and the kept items' dates. See scheduleDates. */
-  schedule: { perDay?: number; occupied?: Date[] } = {},
+  /**
+   * The plan's daily rate and the kept items' dates (see scheduleDates), and
+   * the titles the site and RepGet already have, which the new ones must not
+   * repeat (lib/sites/covered.ts).
+   */
+  schedule: { perDay?: number; occupied?: Date[]; existingTitles?: string[] } = {},
 ): Promise<PlannedArticle[]> {
   if (!isAiConfigured()) {
     throw new Error("ANTHROPIC_API_KEY is not set");
@@ -288,9 +312,12 @@ export async function planCalendar(
       messages: [
         {
           role: "user",
-          content: slots
-            .map((slot) => `${slot.keyword} (topic: ${slot.cluster.name})`)
-            .join("\n"),
+          content: [
+            slots.map((slot) => `${slot.keyword} (topic: ${slot.cluster.name})`).join("\n"),
+            existingSection(schedule.existingTitles ?? []),
+          ]
+            .filter(Boolean)
+            .join("\n\n"),
         },
       ],
     })
