@@ -16,14 +16,20 @@ import Anthropic from "@anthropic-ai/sdk";
  *  - GENERATION: the article itself, which IS the product. At roughly $0.08 per
  *    article Sonnet is under 3% of revenue on every plan, so quality wins.
  *  - BLOG: RepGet's own blog, written by the blog autopilot (lib/blog/autopilot):
- *    the article, its translations and its topics. Claude Sonnet 5 since
- *    2026-10-18 (client: Sonnet 5 instead of Opus 5.5, for the cost - half the
- *    price per token). About $0.50 to write an article, $0.15 a translation.
+ *    the article and its topics. Claude Sonnet 5 since 2026-10-18 (client:
+ *    Sonnet 5 instead of Opus 5.5, for the cost - half the price per token).
+ *    About $0.50 to write an article.
+ *  - BLOG_TRANSLATION: the blog autopilot's translations. Claude Haiku 5.5
+ *    since 2026-10-20 (client: the article cost $1.60, of which $0.73 was the
+ *    four translations on Sonnet 5; Haiku 5.5 is a twentieth of the price per
+ *    token). Each translation is a draft a native speaker reviews before it
+ *    is published.
  */
 export const MODELS = {
   EXTRACTION: "claude-haiku-4-5",
   GENERATION: "claude-sonnet-5",
   BLOG: "claude-sonnet-5",
+  BLOG_TRANSLATION: "claude-haiku-5-5",
 } as const;
 
 let client: Anthropic | null = null;

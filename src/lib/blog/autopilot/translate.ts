@@ -2,6 +2,7 @@ import "server-only";
 
 import * as cheerio from "cheerio";
 
+import { MODELS } from "@/lib/ai/client";
 import { LANGUAGE_NAMES_EN } from "@/lib/blog/locale";
 import { blogSiteHosts } from "@/lib/blog/post-fields";
 import type { BlogFaq } from "@/lib/blog/shared";
@@ -21,6 +22,9 @@ import { bodyParts } from "./write";
  * Adapted, not word for word, by the same rules as the editor's AI
  * translation (lib/blog/translate.ts): searched-for phrases in the title,
  * headings and keywords; every fact, number, link and picture kept.
+ *
+ * Claude Haiku 5.5 (MODELS.BLOG_TRANSLATION, client 2026-10-20: about a
+ * cent a language instead of $0.18 on Sonnet 5), at medium effort.
  *
  * In several calls, like the writing, so none runs into the function time
  * limit: first the fields (title, address, search fields, short answer,
@@ -121,6 +125,7 @@ export async function translateFields(source: TranslationSource, locale: Locale)
     ].join("\n"),
     schema: FIELDS_SCHEMA,
     effort: "medium",
+    model: MODELS.BLOG_TRANSLATION,
   });
 
   const title = text(value.title, 200);
@@ -226,6 +231,7 @@ export async function translateBodyPart(html: string, locale: Locale, glossary: 
       .join("\n"),
     schema: { type: "object", additionalProperties: false, properties: { bodyHtml: STRING }, required: ["bodyHtml"] },
     effort: "medium",
+    model: MODELS.BLOG_TRANSLATION,
   });
   const translated = String(value.bodyHtml ?? "").trim();
   const before = skeleton(html);

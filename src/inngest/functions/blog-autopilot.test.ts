@@ -28,7 +28,7 @@ vi.mock("@/inngest/client", () => ({ inngest: inngestMock }));
 const ai = vi.hoisted(() => ({ stream: vi.fn() }));
 vi.mock("@/lib/ai/client", () => ({
   anthropic: { messages: { stream: ai.stream } },
-  MODELS: { EXTRACTION: "claude-haiku-4-5", GENERATION: "claude-sonnet-5", BLOG: "claude-sonnet-5" },
+  MODELS: { EXTRACTION: "claude-haiku-4-5", GENERATION: "claude-sonnet-5", BLOG: "claude-sonnet-5", BLOG_TRANSLATION: "claude-haiku-5-5" },
   isAiConfigured: () => true,
 }));
 // The pictures: OpenAI images and storage, mocked (a blank PNG; an address per stored file).
@@ -234,6 +234,7 @@ describe("the blog autopilot's job", () => {
       warnings: string[];
     };
     expect(detail.model).toBe("claude-sonnet-5");
+    expect((detail as unknown as { translationModel: string }).translationModel).toBe("claude-haiku-5-5");
     expect(detail.usage.calls).toBe(4);
     // At Sonnet 5's prices: the plan writes the cache ($2.50/M); the parts read it ($0.20/M).
     expect(detail.usage.costUsd).toBeCloseTo((4_000 * 2 + 8_000 * 10 + 20_000 * 2.5 + 60_000 * 0.2) / 1_000_000, 4);
@@ -343,6 +344,10 @@ describe("the blog autopilot's job", () => {
     ]);
     // 4 to write it, then 4 per language (the fields and the body's three parts).
     expect(ai.stream).toHaveBeenCalledTimes(20);
+    // Written by Sonnet 5, translated by Haiku 5.5 (client, 2026-10-20: for the cost).
+    const models = ai.stream.mock.calls.map(([request]) => (request as { model: string }).model);
+    expect(models.slice(0, 4)).toEqual(Array(4).fill("claude-sonnet-5"));
+    expect(new Set(models.slice(4))).toEqual(new Set(["claude-haiku-5-5"]));
     expect(images.stored).toEqual(["posts/en", "posts/en", "posts/es", "posts/es", "posts/fr", "posts/fr", "posts/it", "posts/it", "posts/de", "posts/de"]);
 
     const posts = await test.db.select().from(blogPosts);

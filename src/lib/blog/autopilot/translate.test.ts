@@ -11,7 +11,7 @@ import { message } from "@/test/blog-autopilot";
 const ai = vi.hoisted(() => ({ stream: vi.fn() }));
 vi.mock("@/lib/ai/client", () => ({
   anthropic: { messages: { stream: ai.stream } },
-  MODELS: { EXTRACTION: "claude-haiku-4-5", GENERATION: "claude-sonnet-5", BLOG: "claude-sonnet-5" },
+  MODELS: { EXTRACTION: "claude-haiku-4-5", GENERATION: "claude-sonnet-5", BLOG: "claude-sonnet-5", BLOG_TRANSLATION: "claude-haiku-5-5" },
   isAiConfigured: () => true,
 }));
 
@@ -54,11 +54,12 @@ const ITALIAN = {
 beforeEach(() => ai.stream.mockReset());
 
 describe("the fields", () => {
-  it("are translated by Claude Sonnet 5 with the editor's rules, the pictures' words included", async () => {
+  it("are translated by Claude Haiku 5.5 with the editor's rules, the pictures' words included", async () => {
     answer(ITALIAN);
     const { fields, usage } = await translateFields(SOURCE, "it");
     const request = asked();
-    expect(request.model).toBe("claude-sonnet-5");
+    // Haiku 5.5 since 2026-10-20 (client: the translations were half an article's cost on Sonnet 5).
+    expect(request.model).toBe("claude-haiku-5-5");
     expect(request.output_config).toMatchObject({ effort: "medium" });
     expect(request.system[0].text).toContain("from English into Italian");
     expect(request.system[0].text).toContain("Keep every fact, number, date, price and claim exactly as it is.");
@@ -67,7 +68,15 @@ describe("the fields", () => {
     expect(request.messages[0].content).toContain("it has to fit in the picture");
     // An empty field stays empty.
     expect(fields).toEqual({ ...ITALIAN, breadcrumbLabel: "" });
-    expect(usage.costUsd).toBeGreaterThan(0);
+    // Haiku 5.5's prices: 1,000 tokens in at $0.10, 2,000 out at $0.50, 20,000 written to the cache at $0.125 a million.
+    expect(usage.costUsd).toBeCloseTo(0.0036, 6);
+  });
+
+  it("are priced at Haiku 5.5's higher rate when the prompt is over 100K tokens", async () => {
+    ai.stream.mockImplementationOnce(() => ({ finalMessage: async () => message(ITALIAN, { usage: { input_tokens: 150_000 } }) }));
+    const { usage } = await translateFields(SOURCE, "it");
+    // 150,000 in at $0.50, 2,000 out at $2.50, 20,000 written to the cache at $0.625 a million.
+    expect(usage.costUsd).toBeCloseTo(0.0925, 6);
   });
 
   it("are refused when a FAQ or a picture's words are lost", async () => {

@@ -117,7 +117,7 @@ export const blogAutopilotRun = inngest.createFunction(
       const result = await finishDraft(await loadWriterContext(asOf), planned.plan, parts, planned.warnings);
       const usage = addUsage([planned.usage, ...parts.map((part) => part.usage)]);
       // Kept with the run: the tokens, what fell short, and the picture ideas.
-      await noteRun(runId, { model: MODELS.BLOG, usage, ...result.report });
+      await noteRun(runId, { model: MODELS.BLOG, translationModel: MODELS.BLOG_TRANSLATION, usage, ...result.report });
       logger.info(
         { step: "check-article", runId, words: result.report.words, linksRemoved: result.report.links.removed.length, warnings: result.report.warnings.length },
         "Blog article checked",

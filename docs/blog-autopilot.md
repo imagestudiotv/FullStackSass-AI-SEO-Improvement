@@ -36,7 +36,7 @@ The client chose:
 | Checks | `write.ts`, `links.ts` | Internal links stay only if they point to pages the writer was given. External links stay only if they go to official documentation (`SOURCE_HOSTS`) and the page loads. Anything else is unwrapped, keeping the words. Shortfalls against the house style are listed on the run: length, tables, dashes, FAQs, keyword placement. |
 | Pictures | `pictures.ts` | Two diagrams in the blog's look, every word spelled out. Made with OpenAI's image model at medium quality (high until 2026-10-18), saved as WebP in `blog/posts/<locale>/`, and placed in the section they illustrate. |
 | English draft | `run.ts` | Saved by the same field rules as an administrator's save (`lib/blog/post-fields.ts`). Author: "RepGet team". Logged as "Blog autopilot". |
-| Translations | `translate.ts` | For each chosen language, Sonnet 5 at medium effort, using the editor's translation rules. It translates the fields and the words in the pictures, then the body in the same parts. A part that loses a heading, table, picture or link is refused and asked again. Each language gets its own pictures. Each translation is saved linked to the English draft and marked "needs review". |
+| Translations | `translate.ts` | For each chosen language, Claude Haiku 5.5 (`MODELS.BLOG_TRANSLATION`, since 2026-10-20; Sonnet 5 before) at medium effort, using the editor's translation rules. Its links lead to that language's pages (`lib/blog/translation-links.ts`). It translates the fields and the words in the pictures, then the body in the same parts. A part that loses a heading, table, picture or link is refused and asked again. Each language gets its own pictures. Each translation is saved linked to the English draft and marked "needs review". |
 | Close | `run.ts`, `notify.ts` | The topic is marked written, the run done, and the email is sent. |
 
 Every model call and every picture is its own Inngest step:
@@ -82,11 +82,11 @@ Everything uses keys the platform already has. Without one, that part is skipped
 
 Migration `0060_blog_autopilot` creates the three tables. **Apply it before deploying the code.**
 
-**Rough cost of one article** in five languages with ten pictures is about $1.60 (about $4.30 before 2026-10-18, with Opus 5.5 and high-quality pictures). Each run shows its real cost.
+**Rough cost of one article** in five languages with ten pictures is about $0.90. Each run shows its real cost. Earlier: about $1.60 until 2026-10-20 (translations on Sonnet 5: $0.73 of it), about $4.30 before 2026-10-18 (Opus 5.5 and high-quality pictures).
 
 | Part | Cost |
 |---|---|
 | Writing (Sonnet 5) | ~$0.50 |
-| Each translation | ~$0.15 |
-| Each picture (gpt-image, medium quality) | ~$0.05 |
+| Each translation (Haiku 5.5, since 2026-10-20) | ~$0.01 |
+| Each picture (gpt-image, medium quality) | ~$0.04 |
 | Choosing topics | a few cents |
