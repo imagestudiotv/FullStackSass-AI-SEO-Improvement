@@ -87,6 +87,8 @@ describe("admin activity page", () => {
     expect(html).toContain("2 Oct 2026");
     expect(html).toContain("14:05:09 UTC");
     expect(html).toContain('dateTime="2026-10-02T14:05:09.000Z"');
+    // The date and the time each stay on one line, however narrow the column gets (2026-10-21).
+    expect(html).toMatch(/<time(?=[^>]*whitespace-nowrap)[^>]*dateTime="2026-10-02T14:05:09.000Z"|<time[^>]*dateTime="2026-10-02T14:05:09.000Z"(?=[^>]*whitespace-nowrap)/);
     expect(html).toContain("Payment refunded");
     expect(html).toContain("&lt;b&gt;customer asked&lt;/b&gt;");
     expect(html).not.toContain("<b>customer asked</b>");

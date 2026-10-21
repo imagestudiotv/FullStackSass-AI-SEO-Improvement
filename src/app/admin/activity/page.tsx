@@ -185,7 +185,7 @@ export default async function AdminActivityPage({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>When</TableHead>
+                <TableHead className="w-px whitespace-nowrap">When</TableHead>
                 <TableHead className="hidden md:table-cell">Who</TableHead>
                 <TableHead>What happened</TableHead>
                 <TableHead className="hidden xl:table-cell">Target</TableHead>
@@ -211,16 +211,27 @@ function ActivityRow({ row }: { row: AuditRow }) {
 
   return (
     <TableRow>
-      <TableCell>
-        <time dateTime={row.createdAt.toISOString()} className="block tabular-nums">
+      {/*
+        The date on one line and the time on the next, never broken further:
+        the admin tables let cells wrap ([&_td]:whitespace-normal, which a class
+        on the cell cannot override), and beside the full-width summary this
+        column was squeezed to "21 Oct / 2026 / 01:21:41 / UTC" (2026-10-21).
+        The time element keeps its own lines; w-px sizes the column to them.
+      */}
+      <TableCell className="w-px">
+        <time dateTime={row.createdAt.toISOString()} className="block whitespace-nowrap tabular-nums">
           <span className="block">{day(row.createdAt)}</span>
           <span className="block text-xs text-muted-foreground">{clock(row.createdAt)} UTC</span>
         </time>
       </TableCell>
 
       <TableCell className="hidden text-muted-foreground md:table-cell">
-        {/* A floor, so an expanded long address wraps in a readable column rather than one letter per line. */}
-        <div className="min-w-40">
+        {/*
+          A floor, so an expanded long address wraps in a readable column rather than one letter per line.
+          On wide screens it fits an address shown in full (up to the 26 characters before "show in full"),
+          which otherwise broke as "imagestudiotv@gmail.co / m" (2026-10-21).
+        */}
+        <div className="min-w-40 lg:min-w-52">
           <ExpandableText text={row.actorEmail} threshold={26} className="max-w-52" />
         </div>
       </TableCell>
