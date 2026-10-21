@@ -25,13 +25,15 @@ import { cleanBlogPost } from "@/lib/blog/post-fields";
 import { TEAM_AUTHOR } from "@/lib/blog/shared";
 
 import { SOURCE_HOSTS } from "./links";
-import { addUsage } from "./model";
+import { addUsage, SpentError } from "./model";
 import {
   bodyParts,
   finishDraft,
   loadWriterContext,
+  nextPart,
   planArticle,
   readPlan,
+  sameHeading,
   writePart,
   writerInstructions,
   type WriterContext,
@@ -78,6 +80,18 @@ describe("the body is written in parts of at most four sections", () => {
     expect(bodyParts(10)).toEqual([{ from: 0, to: 4 }, { from: 4, to: 7 }, { from: 7, to: 10 }]);
     expect(bodyParts(12).map((part) => part.to - part.from)).toEqual([4, 4, 4]);
     expect(bodyParts(13).map((part) => part.to - part.from)).toEqual([4, 3, 3, 3]);
+    // Part after part from the first section not written: the same cut while nothing falls short.
+    for (const total of [4, 6, 9, 10, 12, 13, 16]) {
+      const steps: { from: number; to: number }[] = [];
+      for (let from = 0; from < total; ) {
+        const { to } = nextPart(total, from);
+        steps.push({ from, to });
+        from = to;
+      }
+      expect(steps).toEqual(bodyParts(total));
+    }
+    // After a part that stopped at section 2 of 10, the rest in as even parts.
+    expect(nextPart(10, 2)).toEqual({ from: 2, to: 6, partsLeft: 2 });
   });
 });
 
@@ -213,6 +227,11 @@ describe("the plan", () => {
     await expect(planArticle(TOPIC, context())).rejects.toThrow("ran out of room");
     answers(message("not json"));
     await expect(planArticle(TOPIC, context())).rejects.toThrow("not in the expected form");
+    // Answered, so paid for: the refusal says what it cost.
+    answers(message(planReply({ sections: [] })));
+    const refused = await planArticle(TOPIC, context()).catch((error: unknown) => error);
+    expect(refused).toBeInstanceOf(SpentError);
+    expect((refused as SpentError).usage.costUsd).toBeGreaterThan(0);
     await expect(planArticle(TOPIC, context({ categories: [] }))).rejects.toThrow("no categories");
   });
 });
@@ -223,7 +242,7 @@ describe("the body", () => {
   it("starts with the opening, then the first sections, with nothing written before it", async () => {
     const [first] = partReplies(bodyParts(10));
     answers(message({ bodyHtml: `<h1>The title again</h1>${first.bodyHtml}<img src="https://example.com/x.png" alt="">` }));
-    const part = await writePart(TOPIC, context(), plan(), 0, []);
+    const part = await writePart(TOPIC, context(), plan(), { number: 1, from: 0 }, []);
     const request = asked().messages[0].content;
     expect(request).toContain("Write part 1 of 3");
     expect(request).toContain("Begin with the opening");
@@ -236,15 +255,58 @@ describe("the body", () => {
     expect(part.faqs).toEqual([]);
   });
 
-  it("is refused when a part leaves out a section", async () => {
+  it("is refused when a part leaves out a section, with what the answer cost", async () => {
     answers(message({ bodyHtml: "<p>Only an opening.</p><h2>One section</h2>" }));
-    await expect(writePart(TOPIC, context(), plan(), 0, [])).rejects.toThrow("Part 1 has 1 of its 4 sections");
+    const refused = await writePart(TOPIC, context(), plan(), { number: 1, from: 0 }, []).catch((error: unknown) => error);
+    expect(refused).toBeInstanceOf(SpentError);
+    expect((refused as SpentError).message).toContain("Part 1 has 1 of its 4 sections");
+    expect((refused as SpentError).usage.costUsd).toBeGreaterThan(0);
+  });
+
+  it("keeps a part that stopped early with the plan's first sections, for the next part to go on from (2026-10-20)", async () => {
+    // Sections 1 and 2 of the four asked for, in the plan's order.
+    const [short] = partReplies([{ from: 0, to: 2 }, { from: 2, to: 10 }]);
+    answers(message(short));
+    const part = await writePart(TOPIC, context(), plan(), { number: 1, from: 0 }, []);
+    expect(part.sections).toBe(2);
+    expect(part.html).toContain(SECTION_HEADINGS[1]);
+
+    // The next part starts at section 3, and the rest is cut again.
+    const [next] = partReplies([{ from: 2, to: 6 }, { from: 6, to: 10 }]);
+    answers(message(next));
+    const second = await writePart(TOPIC, context(), plan(), { number: 2, from: 2 }, [part.html]);
+    const request = asked().messages[0].content;
+    expect(request).toContain("Write part 2 of 3");
+    expect(request).toContain(`3. ${SECTION_HEADINGS[2]}`);
+    expect(request).toContain(`6. ${SECTION_HEADINGS[5]}`);
+    expect(request).not.toContain(`7. ${SECTION_HEADINGS[6]}`);
+    expect(request).not.toContain("Begin with the opening");
+    expect(second.sections).toBe(4);
+  });
+
+  it("refuses a short part whose sections are not the plan's next ones, naming nothing it cannot be sure of", async () => {
+    answers(message({ bodyHtml: `<h2>${SECTION_HEADINGS[1]}</h2><p>x</p><h2>${SECTION_HEADINGS[0]}</h2><p>y</p>` }));
+    await expect(writePart(TOPIC, context(), plan(), { number: 1, from: 0 }, [])).rejects.toThrow(/^Part 1 has 2 of its 4 sections\. Try again\.$/);
+  });
+
+  it("refuses a short last part, naming what is missing: it ends the article and answers the FAQs", async () => {
+    const replies = partReplies(bodyParts(10));
+    answers(message({ ...replies[2], bodyHtml: `<h2>${SECTION_HEADINGS[7]}</h2><p>x</p>` }));
+    await expect(writePart(TOPIC, context(), plan(), { number: 3, from: 7 }, [])).rejects.toThrow(
+      `Part 3 has 1 of its 3 sections (missing "${SECTION_HEADINGS[8]}", "${SECTION_HEADINGS[9]}")`,
+    );
+  });
+
+  it("reads a heading as the plan's when it has the same words, or most of them", () => {
+    expect(sameHeading("How Local SEO Works on Google", "How local SEO works on Google")).toBe(true);
+    expect(sameHeading("How local SEO works in Google Maps", "How local SEO works on Google")).toBe(true);
+    expect(sameHeading("Build trust with reviews", "Check whether your business is eligible")).toBe(false);
   });
 
   it("ends with the FAQ answers, reading what came before it", async () => {
     const replies = partReplies(bodyParts(10));
     answers(message(replies[2]));
-    const part = await writePart(TOPIC, context(), plan(), 2, ["<p>part one</p>", "<p>part two</p>"]);
+    const part = await writePart(TOPIC, context(), plan(), { number: 3, from: 7 }, ["<p>part one</p>", "<p>part two</p>"]);
     const request = asked();
     expect(request.messages[0].content).toContain("<written_so_far>\n<p>part one</p>\n<p>part two</p>\n</written_so_far>");
     expect(request.messages[0].content).toContain('This is the last part: it ends with "The bottom line"');
@@ -254,7 +316,7 @@ describe("the body", () => {
     expect(part.faqs[1].answer).toBe("<p>Usually weeks to months, depending on your area &amp; competition.</p>");
 
     answers(message({ ...replies[2], faqs: [] }));
-    await expect(writePart(TOPIC, context(), plan(), 2, [])).rejects.toThrow("FAQ answers are missing");
+    await expect(writePart(TOPIC, context(), plan(), { number: 3, from: 7 }, [])).rejects.toThrow("FAQ answers are missing");
   });
 });
 

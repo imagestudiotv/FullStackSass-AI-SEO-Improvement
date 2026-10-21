@@ -52,6 +52,19 @@ function priced(usage: Anthropic.Usage, model: string): CallUsage {
   return { inputTokens: usage.input_tokens, outputTokens: usage.output_tokens, cacheReadTokens: cacheRead, cacheWriteTokens: cacheWrite, costUsd };
 }
 
+/**
+ * A call that was answered - and paid for - but whose answer could not be
+ * used: cut off, refused, not the expected shape, or refused by a check
+ * after it (a part with missing sections, a translation that changed the
+ * links). Carries what the call cost, so the run still counts it.
+ */
+export class SpentError extends Error {
+  constructor(message: string, readonly usage: CallUsage) {
+    super(message);
+    this.name = "SpentError";
+  }
+}
+
 export function addUsage(usages: CallUsage[]): CallUsage & { calls: number } {
   const sum = (key: keyof CallUsage) => usages.reduce((total, usage) => total + usage[key], 0);
   return {
@@ -89,8 +102,9 @@ export async function askClaude(options: {
     })
     .finalMessage();
 
-  if (message.stop_reason === "refusal") throw new Error("The AI declined to write about this topic. Reword the topic, then try again.");
-  if (message.stop_reason === "max_tokens") throw new Error("The AI ran out of room while writing. Try again.");
+  const usage = priced(message.usage, model);
+  if (message.stop_reason === "refusal") throw new SpentError("The AI declined to write about this topic. Reword the topic, then try again.", usage);
+  if (message.stop_reason === "max_tokens") throw new SpentError("The AI ran out of room while writing. Try again.", usage);
   const text = message.content
     .filter((block): block is Anthropic.TextBlock => block.type === "text")
     .map((block) => block.text)
@@ -99,8 +113,8 @@ export async function askClaude(options: {
   try {
     value = JSON.parse(text);
   } catch {
-    throw new Error("The AI's answer was not in the expected form. Try again.");
+    throw new SpentError("The AI's answer was not in the expected form. Try again.", usage);
   }
-  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("The AI's answer was not in the expected form. Try again.");
-  return { value: value as Record<string, unknown>, usage: priced(message.usage, model) };
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new SpentError("The AI's answer was not in the expected form. Try again.", usage);
+  return { value: value as Record<string, unknown>, usage };
 }

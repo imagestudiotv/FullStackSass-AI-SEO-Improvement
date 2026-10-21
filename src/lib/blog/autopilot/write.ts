@@ -14,7 +14,7 @@ import { siteUrl } from "@/lib/site-url";
 import { TOOLS } from "@/lib/tools/registry";
 
 import { checkLinks, pagePath, type LinkRules, type RemovedLink } from "./links";
-import { askClaude, type CallUsage } from "./model";
+import { askClaude, SpentError, type CallUsage } from "./model";
 import type { AutopilotClaim } from "./run";
 
 /**
@@ -91,7 +91,8 @@ export type ArticlePlan = {
 
 export type { CallUsage };
 
-export type WrittenPart = { html: string; faqs: BlogFaq[]; usage: CallUsage };
+/** A part of the body: its HTML, the FAQs (last part only), what it cost, and how many of the plan's sections it holds. */
+export type WrittenPart = { html: string; faqs: BlogFaq[]; usage: CallUsage; sections: number };
 
 /** Counts words in the text, not the markup. */
 export function countWords(html: string): number {
@@ -413,12 +414,28 @@ export async function planArticle(
     effort: "high",
     cache: true,
   });
-  return { ...readPlan(value, context), usage };
+  try {
+    return { ...readPlan(value, context), usage };
+  } catch (error) {
+    // Refused by the checks, but answered: the run still counts what it cost.
+    throw new SpentError(error instanceof Error ? error.message : "The plan could not be used. Try again.", usage);
+  }
 }
 
 /* ------------------------------------------------------------------ */
 /* 2. The body, part by part                                           */
 /* ------------------------------------------------------------------ */
+
+/**
+ * The next part to write, from the first section not written yet: what is
+ * left, cut as evenly as bodyParts cuts the whole (so with nothing falling
+ * short, the parts are bodyParts'), and how many parts that still makes.
+ */
+export function nextPart(sections: number, from: number): { from: number; to: number; partsLeft: number } {
+  const remaining = Math.max(0, sections - from);
+  const partsLeft = Math.max(1, Math.ceil(remaining / SECTIONS_PER_PART));
+  return { from, to: from + Math.ceil(remaining / partsLeft), partsLeft };
+}
 
 /** The sections each part writes: as even as possible, at most SECTIONS_PER_PART each. */
 export function bodyParts(sections: number): { from: number; to: number }[] {
@@ -453,15 +470,14 @@ const LAST_PART_SCHEMA = {
   required: ["bodyHtml", "faqs"],
 };
 
-function partRequest(plan: ArticlePlan, index: number): string {
-  const parts = bodyParts(plan.sections.length);
-  const { from, to } = parts[index];
-  const first = index === 0;
-  const last = index === parts.length - 1;
+function partRequest(plan: ArticlePlan, number: number, from: number): string {
+  const { to, partsLeft } = nextPart(plan.sections.length, from);
+  const first = from === 0;
+  const last = to === plan.sections.length;
   const words = Math.round((TARGET_WORDS * (to - from)) / plan.sections.length / 50) * 50;
   const headings = plan.sections.slice(from, to).map((section, offset) => `${from + offset + 1}. ${section.heading}`);
   return [
-    `Write part ${index + 1} of ${parts.length} of the article's body, following the plan in <plan_json>.`,
+    `Write part ${number} of ${number - 1 + partsLeft} of the article's body, following the plan in <plan_json>.`,
     "",
     first
       ? "Begin with the opening: no heading, the situation the plan describes, in a few very short paragraphs, leading into the article. Then write these sections:"
@@ -486,30 +502,73 @@ function tidyPart(html: string): string {
   return $.html().trim();
 }
 
+/** A heading as compared: letters and digits only, lower case, without accents. */
+function headingWords(text: string): string[] {
+  return text
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .split(" ")
+    .filter(Boolean);
+}
+
+/** The plan's heading, as written: the same words, or most of them (the writer may adjust one or two). */
+export function sameHeading(written: string, planned: string): boolean {
+  const have = headingWords(written);
+  const want = headingWords(planned);
+  if (have.join(" ") === want.join(" ")) return true;
+  const meaningful = want.filter((word) => word.length > 2);
+  if (meaningful.length === 0) return false;
+  const found = new Set(have);
+  return meaningful.filter((word) => found.has(word)).length / meaningful.length >= 0.6;
+}
+
+/**
+ * Writes one part of the body; `part.from` is the first section not written
+ * yet. A part may come back SHORT - its first sections, in the plan's order,
+ * but not all it was asked for (2026-10-20: "Part 1 has 2 of its 4
+ * sections", on every try, and the run failed). That is kept: the next part
+ * goes on from the first missing section, so nothing written and paid for
+ * is thrown away. The last part, which ends the article and answers the
+ * FAQs, must be whole. Anything else is refused, with what it cost.
+ */
 export async function writePart(
   claim: Pick<AutopilotClaim, "topic" | "keyword" | "notes">,
   context: WriterContext,
   plan: ArticlePlan,
-  index: number,
+  part: { number: number; from: number },
   written: string[],
 ): Promise<WrittenPart> {
-  const parts = bodyParts(plan.sections.length);
-  if (index < 0 || index >= parts.length) throw new Error(`There is no part ${index + 1}`);
-  const last = index === parts.length - 1;
+  const total = plan.sections.length;
+  if (part.from < 0 || part.from >= total) throw new Error(`There is no section ${part.from + 1} to write`);
+  const { from, to } = nextPart(total, part.from);
+  const last = to === total;
   const request = [
     topicBlock(claim),
     `<plan_json>\n${JSON.stringify(plan)}\n</plan_json>`,
     written.length ? `<written_so_far>\n${written.join("\n")}\n</written_so_far>` : "",
-    partRequest(plan, index),
+    partRequest(plan, part.number, from),
   ]
     .filter(Boolean)
     .join("\n\n");
   const { value, usage } = await askClaude({ system: writerInstructions(context), request, schema: last ? LAST_PART_SCHEMA : PART_SCHEMA, effort: "high", cache: true });
 
   const html = tidyPart(String(value.bodyHtml ?? ""));
-  const expected = parts[index].to - parts[index].from;
-  const h2 = (html.match(/<h2[\s>]/gi) ?? []).length;
-  if (h2 !== expected) throw new Error(`Part ${index + 1} has ${h2} of its ${expected} sections. Try again.`);
+  const expected = to - from;
+  const $ = cheerio.load(html, null, false);
+  const headings = $("h2").toArray().map((el) => $(el).text());
+  const planned = plan.sections.slice(from, to).map((section) => section.heading);
+  const inOrder = headings.every((heading, offset) => offset < planned.length && sameHeading(heading, planned[offset]));
+  if (headings.length !== expected) {
+    const short = !last && headings.length > 0 && headings.length < expected && inOrder;
+    if (!short) {
+      const missing = headings.length < expected && inOrder ? ` (missing ${planned.slice(headings.length).map((heading) => `"${heading}"`).join(", ")})` : "";
+      throw new SpentError(`Part ${part.number} has ${headings.length} of its ${expected} sections${missing}. Try again.`, usage);
+    }
+  }
+  const sections = headings.length;
 
   const faqs: BlogFaq[] = [];
   if (last) {
@@ -521,9 +580,9 @@ export async function writePart(
       // An answer is HTML, as the editor stores it.
       faqs.push({ question, answer: answer.startsWith("<") ? answer : `<p>${answer.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>` });
     }
-    if (faqs.length < 4) throw new Error("The FAQ answers are missing. Try again.");
+    if (faqs.length < 4) throw new SpentError("The FAQ answers are missing. Try again.", usage);
   }
-  return { html, faqs, usage };
+  return { html, faqs, usage, sections };
 }
 
 /* ------------------------------------------------------------------ */

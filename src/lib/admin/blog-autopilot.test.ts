@@ -141,6 +141,12 @@ describe("the topic list", () => {
       notes: "Mention prices",
     });
     expect(await saveBlogAutopilotTopic({ id, topic: "other TOPIC" })).toEqual({ ok: false, error: "Another topic already says that" });
+    // A description in the search phrase box (2026-10-20) is refused, saying where it goes; a question is a phrase.
+    const description = "Turn customer questions and search opportunities into a realistic publishing schedule.";
+    expect(await saveBlogAutopilotTopic({ id, topic: "Better topic", keyword: description })).toMatchObject({ ok: false, error: expect.stringContaining("put the description in the notes") });
+    expect(await saveBlogAutopilotTopic({ id, topic: "Better topic", keyword: "one two three four five six seven eight nine ten eleven" })).toMatchObject({ ok: false });
+    expect(await saveBlogAutopilotTopic({ id, topic: "Better topic", keyword: "how do I check where my website ranks?" })).toEqual({ ok: true, data: null });
+    expect(await addBlogAutopilotTopics({ topics: [{ topic: "SEO content calendar", keyword: description }] })).toMatchObject({ ok: false, error: expect.stringContaining("not a search phrase") });
     const busy = await topicId("Busy topic");
     await test.db.update(blogAutopilotTopics).set({ status: "writing" }).where(eq(blogAutopilotTopics.id, busy));
     expect(await saveBlogAutopilotTopic({ id: busy, topic: "Changed" })).toMatchObject({ ok: false, error: expect.stringContaining("being written") });

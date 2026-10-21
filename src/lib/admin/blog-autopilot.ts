@@ -105,6 +105,15 @@ function cleanTopic(input: TopicInput): CleanTopic | string {
   if (topic.length > TOPIC_LIMITS.topic) return `Keep the topic under ${TOPIC_LIMITS.topic} characters - add the details as notes`;
   const keyword = oneLine(input.keyword);
   if (keyword.length > TOPIC_LIMITS.keyword) return `Keep the search phrase under ${TOPIC_LIMITS.keyword} characters`;
+  /*
+    A description is not a search phrase (2026-10-20: nine topics were added
+    with their description as the search phrase and "Category - phrase" as
+    the notes, so the writer was told to rank for a sentence). A sentence
+    ends with a full stop or runs long; a phrase people search for does not.
+  */
+  if (keyword && (/[.!]$/.test(keyword) || keyword.split(" ").length > TOPIC_LIMITS.keywordWords)) {
+    return 'That looks like a description, not a search phrase. A search phrase is the few words people type into Google, like "SEO content calendar" - put the description in the notes';
+  }
   const notes = String(input.notes ?? "").trim();
   if (notes.length > TOPIC_LIMITS.notes) return `Keep the notes under ${TOPIC_LIMITS.notes} characters`;
   return { topic, keyword: keyword || null, notes: notes || null };

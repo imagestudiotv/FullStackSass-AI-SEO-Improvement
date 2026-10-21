@@ -2,7 +2,7 @@ import { NonRetriableError } from "inngest";
 
 import { inngest } from "@/inngest/client";
 import { isAiConfigured, MODELS } from "@/lib/ai/client";
-import { addUsage } from "@/lib/blog/autopilot/model";
+import { addUsage, SpentError } from "@/lib/blog/autopilot/model";
 import { emailDraftsReady } from "@/lib/blog/autopilot/notify";
 import { canMakePictures, makePicture, placePictures } from "@/lib/blog/autopilot/pictures";
 import {
@@ -81,6 +81,22 @@ export const blogAutopilotRun = inngest.createFunction(
       }
     }
 
+    /**
+     * A call that was answered - and paid for - but refused (cut off, the
+     * wrong shape, a part missing sections, a translation that changed the
+     * links) is noted on the run as "<step>-refused-<try>" before the failure
+     * goes on, so the run's AI cost includes every try (2026-10-20: a failed
+     * run showed $0.21, the plan alone, though three parts were paid for).
+     */
+    async function counted<T>(id: string, work: () => Promise<T>): Promise<T> {
+      try {
+        return await work();
+      } catch (error) {
+        if (error instanceof SpentError) await noteCost(runId, `${id}-refused-${attempt + 1}`, error.usage.costUsd).catch(() => undefined);
+        throw error;
+      }
+    }
+
     const claim = await step.run("load-run", () => loadClaim(runId));
     if (!claim) {
       logger.info({ step: "load-run", runId }, "Blog autopilot run is not waiting to be written; nothing to do");
@@ -91,7 +107,7 @@ export const blogAutopilotRun = inngest.createFunction(
     /* --- The English article -------------------------------------------- */
 
     const planned = await step.run("plan-article", async () => {
-      const result = await planArticle(claim, await loadWriterContext(asOf));
+      const result = await counted("plan-article", async () => planArticle(claim, await loadWriterContext(asOf)));
       await noteCost(runId, "plan-article", result.usage.costUsd);
       logger.info(
         { step: "plan-article", runId, sections: result.plan.sections.length, warnings: result.warnings.length, costUsd: result.usage.costUsd },
@@ -100,17 +116,29 @@ export const blogAutopilotRun = inngest.createFunction(
       return result;
     });
 
+    /*
+      The body, part after part from the first section not written yet. A part
+      that came back short (its first sections, in order) is kept and the next
+      one goes on from there (lib/blog/autopilot/write.ts writePart), so the
+      number of parts can grow - bounded, in case a writer keeps stopping
+      early. With nothing short, the parts and their step ids are as before.
+    */
     const parts: WrittenPart[] = [];
-    for (const [index] of bodyParts(planned.plan.sections.length).entries()) {
+    const total = planned.plan.sections.length;
+    const maxParts = bodyParts(total).length + 4;
+    for (let from = 0, number = 1; from < total; number += 1) {
+      if (number > maxParts) throw new NonRetriableError(`The article stopped short in every part: ${from} of its ${total} sections were written. Try again.`);
       const written = parts.map((part) => part.html);
-      const id = `write-part-${index + 1}`;
+      const id = `write-part-${number}`;
+      const start = from;
       const part = await step.run(id, async () => {
-        const result = await writePart(claim, await loadWriterContext(asOf), planned.plan, index, written);
+        const result = await counted(id, async () => writePart(claim, await loadWriterContext(asOf), planned.plan, { number, from: start }, written));
         await noteCost(runId, id, result.usage.costUsd);
-        logger.info({ step: id, runId, htmlBytes: result.html.length, costUsd: result.usage.costUsd }, "Blog article part written");
+        logger.info({ step: id, runId, htmlBytes: result.html.length, sections: result.sections, from: start, costUsd: result.usage.costUsd }, "Blog article part written");
         return result;
       });
       parts.push(part);
+      from += part.sections;
     }
 
     const finished = await step.run("check-article", async () => {
@@ -190,7 +218,7 @@ export const blogAutopilotRun = inngest.createFunction(
       const fieldsId = `translate-${locale}-fields`;
       const fields = await step.run(fieldsId, () =>
         settle(fieldsId, async () => {
-          const result = await translateFields(source!.fields, locale);
+          const result = await counted(fieldsId, () => translateFields(source!.fields, locale));
           await noteCost(runId, fieldsId, result.usage.costUsd);
           return result.fields;
         }),
@@ -209,7 +237,7 @@ export const blogAutopilotRun = inngest.createFunction(
         const id = `translate-${locale}-part-${index + 1}`;
         const part = await step.run(id, () =>
           settle(id, async () => {
-            const result = await translateBodyPart(localizeLinks(slice, locale, links), locale, fields.value);
+            const result = await counted(id, () => translateBodyPart(localizeLinks(slice, locale, links), locale, fields.value));
             await noteCost(runId, id, result.usage.costUsd);
             return result.html;
           }),

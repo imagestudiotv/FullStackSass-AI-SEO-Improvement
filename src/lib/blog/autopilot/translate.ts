@@ -9,7 +9,7 @@ import type { BlogFaq } from "@/lib/blog/shared";
 import type { Locale } from "@/lib/i18n/config";
 import { siteUrl } from "@/lib/site-url";
 
-import { askClaude, type CallUsage } from "./model";
+import { askClaude, SpentError, type CallUsage } from "./model";
 import { bodyParts } from "./write";
 
 /**
@@ -129,7 +129,7 @@ export async function translateFields(source: TranslationSource, locale: Locale)
   });
 
   const title = text(value.title, 200);
-  if (!title) throw new Error(`The ${target} translation came back without a title. Try again.`);
+  if (!title) throw new SpentError(`The ${target} translation came back without a title. Try again.`, usage);
   const keep = (key: keyof TranslationSource, max: number) => (source[key] ? text(value[key], max) : "");
   const faqs = (Array.isArray(value.faqs) ? value.faqs : [])
     .map((raw) => {
@@ -137,13 +137,13 @@ export async function translateFields(source: TranslationSource, locale: Locale)
       return { question: text(faq.question, 300), answer: typeof faq.answer === "string" ? faq.answer.trim() : "" };
     })
     .filter((faq) => faq.question && faq.answer);
-  if (faqs.length !== source.faqs.length) throw new Error(`The ${target} translation has ${faqs.length} of the ${source.faqs.length} FAQs. Try again.`);
+  if (faqs.length !== source.faqs.length) throw new SpentError(`The ${target} translation has ${faqs.length} of the ${source.faqs.length} FAQs. Try again.`, usage);
   const pictures = (Array.isArray(value.pictures) ? value.pictures : []).map((raw) => {
     const picture = (raw ?? {}) as Record<string, unknown>;
     return { title: text(picture.title, 80), labels: list(picture.labels, 120), alt: text(picture.alt, 200) };
   });
   if (pictures.length !== source.pictures.length || pictures.some((picture) => !picture.title || !picture.alt)) {
-    throw new Error(`The ${target} translation lost the words of a picture. Try again.`);
+    throw new SpentError(`The ${target} translation lost the words of a picture. Try again.`, usage);
   }
   return {
     fields: {
@@ -237,7 +237,7 @@ export async function translateBodyPart(html: string, locale: Locale, glossary: 
   const before = skeleton(html);
   const after = skeleton(translated);
   if (before.counts !== after.counts || before.addresses.join("\n") !== after.addresses.join("\n")) {
-    throw new Error(`The ${target} translation changed the article's headings, tables, pictures or links. Try again.`);
+    throw new SpentError(`The ${target} translation changed the article's headings, tables, pictures or links. Try again.`, usage);
   }
   return { html: restoreAddresses(html, translated), usage };
 }

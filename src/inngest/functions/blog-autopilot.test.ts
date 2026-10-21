@@ -3,7 +3,7 @@ import sharp from "sharp";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { blogAutopilot, blogAutopilotRuns, blogAutopilotTopics, blogPosts, jobOutbox } from "@/lib/db/schema";
-import { message, partReplies, planReply } from "@/test/blog-autopilot";
+import { message, partReplies, planReply, SECTION_HEADINGS } from "@/test/blog-autopilot";
 import { createTestDb, type TestDb } from "@/test/db";
 
 /**
@@ -261,6 +261,37 @@ describe("the blog autopilot's job", () => {
     expect(ai.stream).toHaveBeenCalledTimes(5);
     expect(step.ran.filter((id) => id === "plan-article")).toHaveLength(1);
     expect(await test.db.select().from(blogPosts)).toHaveLength(1);
+  });
+
+  it("goes on from a part that stopped early, so the article is still written whole (2026-10-20)", async () => {
+    await languages();
+    const claim = await queuedRun();
+    // Part 1 writes sections 1-2 of the 4 asked for; then 3-6 and 7-10.
+    const parts = partReplies([{ from: 0, to: 2 }, { from: 2, to: 6 }, { from: 6, to: 10 }]);
+    modelWrites(message(planReply()), ...parts.map((part) => message(part)));
+    const step = memoisedStep();
+    const result = (await invoke(claim.runId, step)) as { written: boolean; postId: string };
+
+    expect(result.written).toBe(true);
+    expect(step.ran.filter((id) => id.startsWith("write-part"))).toEqual(["write-part-1", "write-part-2", "write-part-3"]);
+    const second = (ai.stream.mock.calls[2][0] as { messages: { content: string }[] }).messages[0].content;
+    expect(second).toContain("Write part 2 of 3");
+    expect(second).toContain(`3. ${SECTION_HEADINGS[2]}`);
+    const [post] = await test.db.select().from(blogPosts).where(eq(blogPosts.id, result.postId));
+    expect((post.bodyHtml.match(/<h2>/g) ?? []).length).toBe(10);
+    expect(SECTION_HEADINGS.every((heading) => post.bodyHtml.includes(`<h2>${heading}</h2>`))).toBe(true);
+  });
+
+  it("counts a refused answer in the run's AI cost: every try was paid for", async () => {
+    await languages();
+    const claim = await queuedRun();
+    modelWrites(message(planReply()), message({ bodyHtml: "<p>Only an opening.</p>" }));
+    const step = memoisedStep();
+    await expect(invoke(claim.runId, step)).rejects.toThrow("Part 1 has 0 of its 4 sections");
+    const [run] = await test.db.select().from(blogAutopilotRuns).where(eq(blogAutopilotRuns.id, claim.runId));
+    const costs = (run.detail as { costs: Record<string, number> }).costs;
+    expect(Object.keys(costs).sort()).toEqual(["plan-article", "write-part-1-refused-1"]);
+    expect(costs["write-part-1-refused-1"]).toBeGreaterThan(0);
   });
 
   it("tries a picture again, and saves the article without it when its last try fails, saying which one to add by hand", async () => {

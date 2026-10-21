@@ -64,6 +64,8 @@ export const TOPIC_LIMITS = {
   topicMin: 3,
   topic: 200,
   keyword: 150,
+  /** A search phrase is a few words; a longer one is a description in the wrong box. */
+  keywordWords: 10,
   notes: 1000,
   /** Topics added in one paste. */
   bulk: 100,
