@@ -1,4 +1,5 @@
-import { withSentryConfig } from "@sentry/nextjs";
+// The build-time wrapper, from its own entry point since @sentry/nextjs 10.76 (the root export goes in v11).
+import { withSentryConfig } from "@sentry/nextjs/config";
 import type { NextConfig } from "next";
 
 import { isPreviewDeployment, PREVIEW_ROBOTS_HEADER } from "./src/lib/deployment";

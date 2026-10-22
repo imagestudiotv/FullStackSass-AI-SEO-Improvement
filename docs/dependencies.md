@@ -1,6 +1,6 @@
 # Dependencies: security status and how to change them
 
-Status as of 2026-09-26, from `npm audit` after the changes below. Run `npm audit` again after any dependency change; this file is not a substitute for that.
+Status as of 2026-09-26, from `npm audit` after the changes below (the Next.js, Sentry and sanitize-html rows added on 2026-10-22). Run `npm audit` again after any dependency change; this file is not a substitute for that.
 
 ## Resolved
 
@@ -8,6 +8,9 @@ Status as of 2026-09-26, from `npm audit` after the changes below. Run `npm audi
 |---|---|---|
 | `qs` (through `inngest` → `express`) | the `qs` advisories reported against 6.15.3 | `overrides.qs: ^6.16.0` in package.json (6.16.0 installed) |
 | `vitest`, `@vitest/mocker` | GHSA-82fw-gwwq-j7x9 (path traversal through redirect mocks, < 4.1.11) | `vitest ^4.1.11` (4.1.11 installed), plus `vite ^7.3.6` as a direct devDependency |
+| `next`, `eslint-config-next` | GHSA-p3m5-59mp-jv5r (high: Server Actions denial of service) and GHSA-2464-fhr4-w9xw (critical: Image Optimization through `sharp` before 0.35.5), both up to 16.4.0 | 16.4.2 (2026-10-22). `sharp` was already 0.35.5. |
+| `@sentry/nextjs` | GHSA-mchm-gjx6-7h55 (critical: middleware skipped under `tunnelRoute`, which RepGet does not set), before 10.75.2 | `^10.76.2` (2026-10-22); `withSentryConfig` now imported from `@sentry/nextjs/config` |
+| `sanitize-html` | GHSA-c9rx-x947-fp3h (moderate: unbounded recursion), 2.18.0 | `^2.18.1` (2026-10-22) |
 
 Vitest 4 needed no test or config changes. On 2026-09-26 all 440 tests passed in a clean `npm ci` copy, with the real-Postgres suites against pgvector PostgreSQL 17 (`TEST_POSTGRES_URL`, with `REQUIRE_TEST_POSTGRES=1` and `REQUIRE_PGVECTOR=1` so they cannot skip silently).
 
@@ -78,5 +81,8 @@ Plan the move as its own change once both 1.0 releases are stable. That change i
 
   The lockfile committed here was produced that way.
 - **Installing needs only npm 10.** `npm ci` on npm 10.9.8 installs this lockfile cleanly, so CI and Vercel need no change.
+- **Targeted updates work on npm 10** (2026-10-22). Starting from the committed lockfile, `npm install --package-lock-only <package>@<version>` updated next, eslint-config-next, `@sentry/nextjs` and sanitize-html without the crash, which happens only on a full regeneration. Two traps:
+  - Run each update from the committed lockfile. A second resolution on top of a first can leave the first one's packages behind.
+  - Take a Sentry version whose build plugins move with the SDK (10.76.2, not 10.75.3). Otherwise the build plugin keeps the old `@sentry/core`, and every SDK package gets its own nested copy of the new one.
 - **Differences between npm 10 and npm 11 output.** A lockfile re-written by npm 10 differs from npm 11's only in `dev` flags on about 113 platform-binary entries. No version changes.
 - **Do not use `--force` or `--legacy-peer-deps` to get past a resolution error.** Both install a tree that npm itself considers invalid.
