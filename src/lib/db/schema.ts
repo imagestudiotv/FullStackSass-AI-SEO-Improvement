@@ -71,6 +71,14 @@ export const plans = pgTable(
     currency: text("currency").notNull().default("eur"),
     stripePriceId: text("stripe_price_id"),
     paypalPlanId: text("paypal_plan_id"),
+    /**
+     * The same plan in PayPal with the free articles first (client,
+     * 2026-10-22: PayPal "as same as the case of Stripe"): FREE_ARTICLES_DAYS
+     * free, then this plan's price. A first-time workspace paying with
+     * PayPal subscribes to this one; anyone else to paypal_plan_id. Created
+     * by scripts/paypal-setup.mjs.
+     */
+    paypalTrialPlanId: text("paypal_trial_plan_id"),
     priceCents: integer("price_cents").notNull(),
     articleLimit: integer("article_limit").notNull(),
     keywordLimit: integer("keyword_limit").notNull(),

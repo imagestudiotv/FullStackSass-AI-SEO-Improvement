@@ -1,6 +1,9 @@
 /**
  * Creates PayPal products and plans from the seeded plans, then writes each
- * plan id back to plans.paypal_plan_id.
+ * plan id back to plans.paypal_plan_id - and, for each, the same plan with
+ * the free articles first to plans.paypal_trial_plan_id (2026-10-22; the
+ * bodies are in scripts/paypal-plans.mjs). A database that has its plans
+ * already gets only the missing free-articles plans: no --switch-mode.
  *
  * RUN THIS AFTER `npm run db:seed`, once PAYPAL_CLIENT_ID and
  * PAYPAL_CLIENT_SECRET are set. Mirrors scripts/stripe-setup.mjs.
@@ -31,6 +34,8 @@
  */
 import nextEnv from "@next/env";
 import postgres from "postgres";
+
+import { planBody } from "./paypal-plans.mjs";
 
 nextEnv.loadEnvConfig(process.cwd());
 
@@ -127,9 +132,18 @@ async function api(path, init = {}) {
 const sql = postgres(DIRECT_URL, { connect_timeout: 30 });
 
 const rows = await sql`
-  select id, name, tier, interval, currency, price_cents, paypal_plan_id
+  select id, name, tier, interval, currency, price_cents, paypal_plan_id, paypal_trial_plan_id
   from plans where is_active = true order by sort_order, price_cents
 `;
+
+/*
+  Two PayPal plans per RepGet plan (scripts/paypal-plans.mjs): the plan
+  itself, and the same plan with the free articles first (2026-10-22).
+*/
+const KINDS = [
+  { key: "regular", column: "paypal_plan_id", label: "plan", freeArticles: false },
+  { key: "trial", column: "paypal_trial_plan_id", label: "free-articles plan", freeArticles: true },
+];
 
 if (rows.length === 0) {
   console.error("No active plans. Run `npm run db:seed` first.");
@@ -146,19 +160,22 @@ if (rows.length === 0) {
 const storedState = new Map();
 const otherMode = [];
 for (const plan of rows) {
-  if (!plan.paypal_plan_id) continue;
-  try {
-    const existing = await api(`/v1/billing/plans/${plan.paypal_plan_id}`);
-    storedState.set(plan.id, existing.status === "ACTIVE" ? "active" : "inactive");
-  } catch (error) {
-    if (error.status === 404 || SWITCH_MODE) {
-      storedState.set(plan.id, "missing");
-      otherMode.push(plan);
-    } else {
-      console.error(`Could not look up ${plan.name}'s PayPal plan ${plan.paypal_plan_id}: ${error.message}`);
-      console.error("Nothing was changed. Try again later.");
-      await sql.end();
-      process.exit(1);
+  for (const kind of KINDS) {
+    const storedId = plan[kind.column];
+    if (!storedId) continue;
+    try {
+      const existing = await api(`/v1/billing/plans/${storedId}`);
+      storedState.set(`${plan.id}:${kind.key}`, existing.status === "ACTIVE" ? "active" : "inactive");
+    } catch (error) {
+      if (error.status === 404 || SWITCH_MODE) {
+        storedState.set(`${plan.id}:${kind.key}`, "missing");
+        otherMode.push({ name: `${plan.name} (${kind.label})`, id: storedId });
+      } else {
+        console.error(`Could not look up ${plan.name}'s PayPal ${kind.label} ${storedId}: ${error.message}`);
+        console.error("Nothing was changed. Try again later.");
+        await sql.end();
+        process.exit(1);
+      }
     }
   }
 }
@@ -166,7 +183,7 @@ if (otherMode.length > 0 && !SWITCH_MODE) {
   console.error(
     `${otherMode.length} stored PayPal plan id(s) do not exist in ${LIVE ? "LIVE" : "SANDBOX"} PayPal:`,
   );
-  for (const plan of otherMode) console.error(`  ${plan.name}: ${plan.paypal_plan_id}`);
+  for (const stored of otherMode) console.error(`  ${stored.name}: ${stored.id}`);
   console.error(
     `\nThey most likely belong to the other PayPal mode. Replacing them would switch the database above\n` +
       `to ${LIVE ? "LIVE" : "SANDBOX"} PayPal and break checkout for the other mode. Nothing was changed.\n` +
@@ -208,68 +225,46 @@ async function productFor(tier, displayName) {
 for (const plan of rows) {
   console.log(`${plan.name} (${plan.tier}/${plan.interval})`);
 
-  // A stored plan that still resolves is left alone.
-  const stored = storedState.get(plan.id);
-  if (stored === "active") {
-    console.log(`  plan unchanged: ${plan.paypal_plan_id}\n`);
-    continue;
+  for (const kind of KINDS) {
+    // A stored plan that still resolves is left alone.
+    const stored = storedState.get(`${plan.id}:${kind.key}`);
+    if (stored === "active") {
+      console.log(`  ${kind.label} unchanged: ${plan[kind.column]}`);
+      continue;
+    }
+    if (stored === "missing") {
+      console.log(`  stored ${kind.label} id not found in this mode - recreating (--switch-mode)`);
+    } else if (stored === "inactive") {
+      console.log(`  stored ${kind.label} is not active - recreating`);
+    }
+
+    const product = await productFor(plan.tier, plan.name);
+    const created = await api("/v1/billing/plans", {
+      method: "POST",
+      body: JSON.stringify(planBody(plan, product.id, { freeArticles: kind.freeArticles })),
+    });
+
+    if (kind.key === "trial") {
+      await sql`update plans set paypal_trial_plan_id = ${created.id}, updated_at = now() where id = ${plan.id}`;
+    } else {
+      await sql`update plans set paypal_plan_id = ${created.id}, updated_at = now() where id = ${plan.id}`;
+    }
+    console.log(`  ${kind.label} created: ${created.id}`);
   }
-  if (stored === "missing") {
-    console.log("  stored plan id not found in this mode - recreating (--switch-mode)");
-  } else if (stored === "inactive") {
-    console.log("  stored plan is not active - recreating");
-  }
-
-  const product = await productFor(plan.tier, plan.name);
-
-  const created = await api("/v1/billing/plans", {
-    method: "POST",
-    body: JSON.stringify({
-      product_id: product.id,
-      name: plan.name,
-      status: "ACTIVE",
-      billing_cycles: [
-        {
-          frequency: {
-            interval_unit: plan.interval === "year" ? "YEAR" : "MONTH",
-            interval_count: 1,
-          },
-          tenure_type: "REGULAR",
-          sequence: 1,
-          total_cycles: 0,
-          pricing_scheme: {
-            fixed_price: {
-              value: (plan.price_cents / 100).toFixed(2),
-              currency_code: plan.currency.toUpperCase(),
-            },
-          },
-        },
-      ],
-      payment_preferences: {
-        auto_bill_outstanding: true,
-        // Applies only to a setup fee, and these plans have none.
-        setup_fee_failure_action: "CANCEL",
-        // After three failed payments PayPal SUSPENDS it (stored as "unpaid").
-        payment_failure_threshold: 3,
-      },
-    }),
-  });
-
-  await sql`update plans set paypal_plan_id = ${created.id}, updated_at = now() where id = ${plan.id}`;
-  console.log(`  plan created: ${created.id}\n`);
+  console.log("");
 }
 
 const final = await sql`
-  select name, interval, currency, price_cents, paypal_plan_id
+  select name, interval, currency, price_cents, paypal_plan_id, paypal_trial_plan_id
   from plans where is_active = true order by sort_order, price_cents
 `;
 console.table(final.map((r) => ({ ...r })));
 
-const missing = final.filter((r) => !r.paypal_plan_id);
+const missing = final.filter((r) => !r.paypal_plan_id || !r.paypal_trial_plan_id);
 console.log(
   missing.length === 0
-    ? "\nAll plans have a PayPal plan. PayPal checkout is ready."
-    : `\n${missing.length} plan(s) still missing a PayPal plan id.`,
+    ? "\nAll plans have a PayPal plan and a free-articles plan. PayPal checkout is ready."
+    : `\n${missing.length} plan(s) still missing a PayPal plan or free-articles plan id.`,
 );
 
 await sql.end();

@@ -512,6 +512,13 @@
       "when": 1792525951993,
       "tag": "0072_plugin_languages",
       "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1792686915260,
+      "tag": "0073_paypal_trial_plans",
+      "breakpoints": true
     }
   ]
 }

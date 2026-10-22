@@ -1,0 +1,1 @@
+ALTER TABLE "plans" ADD COLUMN "paypal_trial_plan_id" text;
