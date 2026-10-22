@@ -187,6 +187,26 @@ describe("writing the free articles", () => {
     expect(endTrial.endFreeTrialIfUsed).toHaveBeenCalledWith(websiteId);
   });
 
+  it("through PayPal, says the plan now waits for the customer, and when PayPal starts it anyway", async () => {
+    const { websiteId } = await onTrial(30);
+    await test.db
+      .update(subscriptions)
+      .set({ provider: "paypal", paypalSubscriptionId: `I-${websiteId.slice(0, 8)}` })
+      .where(eq(subscriptions.websiteId, websiteId));
+    for (let i = 0; i < FREE_ARTICLES; i++) {
+      expect(await queueNew(websiteId)).toMatchObject({ ok: true });
+    }
+    // PayPal cannot cut the free days short (end-free-trial.ts).
+    endTrial.endFreeTrialIfUsed.mockResolvedValue("waits_for_customer");
+    const [sub] = await test.db.select().from(subscriptions).where(eq(subscriptions.websiteId, websiteId));
+    const date = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(sub.currentPeriodEnd!);
+
+    expect(await queueNew(websiteId)).toEqual({
+      ok: false,
+      error: `Your ${FREE_ARTICLES} free articles have been used. To write more now, start your plan in Billing - otherwise PayPal starts it on ${date}.`,
+    });
+  });
+
   it("takes one of the day's free articles with each, settled with the article's own", async () => {
     const { websiteId } = await onTrial(30);
     await queueNew(websiteId);

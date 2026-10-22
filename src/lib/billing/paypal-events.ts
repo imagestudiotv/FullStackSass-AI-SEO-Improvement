@@ -270,6 +270,12 @@ export async function syncPayPalSubscription(subscriptionId: string): Promise<Sy
     console.warn(
       `[paypal-webhook] subscription ${subscriptionId} names no RepGet workspace (another integration on the PayPal account?) - left alone`,
     );
+  } else if (result.outcome === "replaced_free_articles") {
+    console.warn(
+      `[paypal-webhook] subscription ${subscriptionId} started its website's plan in place of the free articles of ${result.replacedSubscriptionId}${
+        result.replacedCancelled ? " (cancelled)" : " (cancellation owed)"
+      }`,
+    );
   } else if (!["updated", "attached", "replaced"].includes(result.outcome)) {
     console.warn(
       `[paypal-webhook] subscription ${subscriptionId}: ${result.outcome}${

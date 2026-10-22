@@ -3,9 +3,11 @@ import "server-only";
 import { and, count, eq, gte, isNotNull } from "drizzle-orm";
 
 import { isFreeArticlesTrial } from "@/lib/billing/entitlement-period";
+import { payPalPlanWaits } from "@/lib/billing/free-articles";
 import { syncStripeSubscription } from "@/lib/billing/stripe-events";
 import { db } from "@/lib/db";
-import { articles, subscriptions } from "@/lib/db/schema";
+import { articles, notifications, subscriptions } from "@/lib/db/schema";
+import { notify } from "@/lib/notifications/create";
 import { FREE_ARTICLES } from "@/lib/plans/features";
 import { stripe } from "@/lib/stripe/client";
 
@@ -31,7 +33,13 @@ async function writtenSince(websiteId: string, since: Date): Promise<number> {
   return row?.n ?? 0;
 }
 
-export type EndTrialOutcome = "ended" | "not_on_free_articles" | "not_yet" | "failed";
+export type EndTrialOutcome =
+  | "ended"
+  | "not_on_free_articles"
+  | "not_yet"
+  | "failed"
+  /** Through PayPal: all written, and the plan waits for "Start your plan now" or the end of the free days. */
+  | "waits_for_customer";
 
 /**
  * Starts the plan now if the website's free articles have all been written.
@@ -44,11 +52,15 @@ export type EndTrialOutcome = "ended" | "not_on_free_articles" | "not_yet" | "fa
  * Asks Stripe for the subscription first: only a trial still running there
  * is ended, so a repeat (two articles finishing together, a retry) does
  * nothing. The idempotency key makes two simultaneous calls one request.
+ *
+ * Through PayPal nothing can be ended: PayPal cannot cut the free days
+ * short. The customer is told once that the plan now waits for them.
  */
 export async function endFreeTrialIfUsed(websiteId: string): Promise<EndTrialOutcome> {
   try {
     const [sub] = await db
       .select({
+        organizationId: subscriptions.organizationId,
         provider: subscriptions.provider,
         stripeSubscriptionId: subscriptions.stripeSubscriptionId,
         status: subscriptions.status,
@@ -58,6 +70,11 @@ export async function endFreeTrialIfUsed(websiteId: string): Promise<EndTrialOut
       .from(subscriptions)
       .where(and(eq(subscriptions.websiteId, websiteId), eq(subscriptions.status, "trialing")))
       .limit(1);
+    if (sub?.provider === "paypal" && isFreeArticlesTrial(sub)) {
+      if ((await writtenSince(websiteId, sub.currentPeriodStart!)) < FREE_ARTICLES) return "not_yet";
+      await tellOnce(websiteId, sub.organizationId, sub.currentPeriodStart!, sub.currentPeriodEnd);
+      return "waits_for_customer";
+    }
     if (!sub || sub.provider !== "stripe" || !sub.stripeSubscriptionId || !isFreeArticlesTrial(sub)) {
       return "not_on_free_articles";
     }
@@ -78,4 +95,33 @@ export async function endFreeTrialIfUsed(websiteId: string): Promise<EndTrialOut
     console.error("[billing] could not start the plan after the free articles", { websiteId, error });
     return "failed";
   }
+}
+
+/**
+ * Tells a PayPal customer, once per free-articles period, that their free
+ * articles are written and the plan now waits for them. A later article run
+ * or a refused fourth article finds the notification and says nothing more.
+ */
+async function tellOnce(websiteId: string, organizationId: string, since: Date, startsOn: Date | null) {
+  const href = `/billing?site=${websiteId}#plan`;
+  const [told] = await db
+    .select({ id: notifications.id })
+    .from(notifications)
+    .where(
+      and(
+        eq(notifications.organizationId, organizationId),
+        eq(notifications.type, "billing.free_articles_written"),
+        eq(notifications.href, href),
+        gte(notifications.createdAt, since),
+      ),
+    )
+    .limit(1);
+  if (told) return;
+  await notify({
+    organizationId,
+    type: "billing.free_articles_written",
+    title: `Your ${FREE_ARTICLES} free articles are written`,
+    body: payPalPlanWaits(startsOn),
+    href,
+  });
 }

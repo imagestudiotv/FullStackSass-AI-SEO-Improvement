@@ -25,6 +25,8 @@ export type NotificationType =
   | "article.indexed"
   /** Scheduled writing stopped because the plan's articles are used up. */
   | "articles.limit_reached"
+  /** Free articles through PayPal all written: the plan waits for "Start your plan now" (lib/billing/end-free-trial.ts). */
+  | "billing.free_articles_written"
   | "audit.ready"
   | "audit.failed"
   | "keywords.ready"

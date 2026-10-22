@@ -100,8 +100,9 @@ export async function confirmPayPalReturn(
     checkoutProviderOps,
   );
 
-  let waiting = false;
-  if (outcome === "success" && (settled.pending.length > 0 || settled.synced.length > 0)) {
+  // A plan started now that PayPal is still activating (awaitsActivation): the free articles show until it has.
+  let waiting = settled.awaiting.length > 0;
+  if (!waiting && outcome === "success" && (settled.pending.length > 0 || settled.synced.length > 0)) {
     // Approved but not yet active at PayPal: the plan is not there yet.
     const [current] = await db
       .select({ status: subscriptions.status })
@@ -115,7 +116,9 @@ export async function confirmPayPalReturn(
 
 /**
  * Starts a PayPal subscription for a website - or revises the plan of the
- * one it already has.
+ * one it already has. A website on its free articles through PayPal starts
+ * the chosen plan NOW ("Start my plan now" on Billing): a new subscription,
+ * charged on approval, that takes over from the free one (beginCheckout).
  *
  * Returns the approval URL. Nothing is charged until the customer approves on
  * PayPal, and nothing is granted until the webhook confirms activation.
@@ -236,7 +239,8 @@ export async function createPayPalCheckout(
   /*
     The free articles (2026-10-22): the checkout granted them, so the plan
     with its free days first (scripts/paypal-plans.mjs); otherwise the plan
-    itself, charged at once.
+    itself, charged at once - as when a plan is started now, in place of
+    the free articles.
   */
   const paypalPlanId = trialDays > 0 && plan.paypalTrialPlanId ? plan.paypalTrialPlanId : plan.paypalPlanId;
   // The payer's GA identity, for the purchase reported when the money arrives.

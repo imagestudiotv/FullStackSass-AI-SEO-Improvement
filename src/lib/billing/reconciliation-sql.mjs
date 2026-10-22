@@ -160,6 +160,24 @@ export const RECONCILIATION_SQL = {
     where c.reason = 'detached_released_approval' and p.status = 'paid'
     order by p.created_at`,
 
+  /**
+   * Free articles through PayPal replaced by "Start your plan now"
+   * (subscription-sync.ts, replaced_free_articles): cancelled once the plan
+   * started, and never meant to move money. Only a race leaves a payment on
+   * one - its free days ran out, and PayPal billed it, before the new plan
+   * took over. Each paid sale listed here is to be refunded IN PAYPAL; the
+   * refund webhook marks it refunded and it drops off this list.
+   */
+  replacedFreeArticlesToRefund: `
+    select c.provider_subscription_id, c.status as cancellation_status, c.created_at as cancelled_at,
+           p.organization_id, p.external_id as sale_id, p.amount_cents, p.currency,
+           p.created_at as paid_at
+    from provider_cancellations c
+    join payments p
+      on p.provider = c.provider and p.provider_subscription_id = c.provider_subscription_id
+    where c.reason = 'replaced_free_articles' and p.status = 'paid' and p.amount_cents > 0
+    order by p.created_at`,
+
   /** Issues 3/9: provider cancellations still owed, or given up on. */
   owedCancellations: `
     select provider, provider_subscription_id, reason, status, attempts,

@@ -2,6 +2,7 @@ import { sql, type AnyColumn, type SQL } from "drizzle-orm";
 
 import type { QuotaRule } from "@/lib/billing/spend-quota";
 import { subscriptions } from "@/lib/db/schema";
+import { FREE_ARTICLES } from "@/lib/plans/features";
 
 /**
  * A new account's free articles (client, 2026-10-09: "Create 3 Articles for
@@ -28,12 +29,37 @@ import { subscriptions } from "@/lib/db/schema";
  * the plan's free-articles PayPal plan - FREE_ARTICLES_DAYS free, then the
  * price (scripts/paypal-plans.mjs, plans.paypal_trial_plan_id). Its free
  * days are recorded as "trialing" (lib/billing/paypal-events.ts), so
- * everything here applies unchanged. PayPal cannot end free days early: its
- * first charge comes when they end.
+ * everything here applies unchanged. One difference: PayPal cannot cut free
+ * days short, so the plan does not start by itself after the last free
+ * article. The customer is told (end-free-trial.ts) and starts it with
+ * "Start your plan now" on Billing - a new PayPal subscription, charged at
+ * once, that takes over from the free one and has it cancelled
+ * (lib/billing/subscription-sync.ts, "replaced_free_articles"). Otherwise
+ * PayPal's first charge starts it when the free days end.
  */
 
 /** Free articles written per rolling day across every account. */
 export const FREE_ARTICLES_PER_DAY = 100;
+
+/** Stored dates read the same for every reader of these English lines. */
+const LONG_DATE = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+
+/**
+ * Why a new article is refused once the free articles are used up
+ * (generate-article.ts). By card the plan starts by itself straight after
+ * the last one; through PayPal it waits for the customer (payPalPlanWaits).
+ */
+export function freeArticlesUsedMessage(paypal?: { startsOn: Date | null }): string {
+  return paypal
+    ? `Your ${FREE_ARTICLES} free articles have been used. ${payPalPlanWaits(paypal.startsOn)}`
+    : `Your ${FREE_ARTICLES} free articles have been used. Your plan starts once the last of them is written, and then you can write more.`;
+}
+
+/** Through PayPal, what starts the plan once the free articles are written: the customer, or the end of the free days. */
+export function payPalPlanWaits(startsOn: Date | null): string {
+  const when = startsOn ? `on ${LONG_DATE.format(startsOn)}` : "when its free days end";
+  return `To write more now, start your plan in Billing - otherwise PayPal starts it ${when}.`;
+}
 
 /** The site-wide day's free articles, reserved with each one (generate-article.ts). */
 export function freeArticlesDailyRule(): QuotaRule {

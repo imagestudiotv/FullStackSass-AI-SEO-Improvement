@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { articles, subscriptions } from "@/lib/db/schema";
+import { articles, notifications, subscriptions } from "@/lib/db/schema";
 import { createTestDb, type TestDb } from "@/test/db";
 import { seedWebsite } from "@/test/fixtures";
 
@@ -118,5 +118,50 @@ describe("starting the plan after the free articles", () => {
     expect(await endFreeTrialIfUsed(websiteId)).toBe("failed");
     expect(log).toHaveBeenCalled();
     log.mockRestore();
+  });
+});
+
+describe("through PayPal, which cannot cut the free days short", () => {
+  /** A website on its free articles through PayPal, started a day ago. */
+  async function onPayPalFreeArticles() {
+    const site = await seedWebsite(test, { status: "trialing" });
+    const start = new Date(Date.now() - DAY);
+    await test.db
+      .update(subscriptions)
+      .set({
+        provider: "paypal",
+        paypalSubscriptionId: `I-${site.websiteId.slice(0, 8)}`,
+        currentPeriodStart: start,
+        currentPeriodEnd: new Date(start.getTime() + 30 * DAY),
+      })
+      .where(eq(subscriptions.websiteId, site.websiteId));
+    return site;
+  }
+
+  const told = (organizationId: string) =>
+    test.db.select().from(notifications).where(eq(notifications.organizationId, organizationId));
+
+  it("waits for all of them, then tells the customer once that the plan now waits for them", async () => {
+    const { orgId, websiteId } = await onPayPalFreeArticles();
+    await written(websiteId, FREE_ARTICLES - 1);
+    expect(await endFreeTrialIfUsed(websiteId)).toBe("not_yet");
+    expect(await told(orgId)).toEqual([]);
+
+    await written(websiteId, 1);
+    expect(await endFreeTrialIfUsed(websiteId)).toBe("waits_for_customer");
+    expect(await told(orgId)).toEqual([
+      expect.objectContaining({
+        type: "billing.free_articles_written",
+        title: `Your ${FREE_ARTICLES} free articles are written`,
+        body: expect.stringMatching(/^To write more now, start your plan in Billing - otherwise PayPal starts it on \d{1,2} [A-Z][a-z]+ \d{4}\.$/),
+        href: `/billing?site=${websiteId}#plan`,
+      }),
+    ]);
+
+    // A later run, or a refused fourth article, says nothing more.
+    expect(await endFreeTrialIfUsed(websiteId)).toBe("waits_for_customer");
+    expect(await told(orgId)).toHaveLength(1);
+    expect(stripeMock.retrieve).not.toHaveBeenCalled();
+    expect(stripeMock.update).not.toHaveBeenCalled();
   });
 });

@@ -252,6 +252,14 @@ export const billingCheckouts = pgTable(
     /** Trial days this checkout offered; 0 when not eligible. */
     trialDays: integer("trial_days").default(0).notNull(),
     /**
+     * "Start your plan now" (PayPal, 2026-10-22): the provider subscription
+     * this checkout's subscription takes over from - the website's
+     * free-articles PayPal subscription, cancelled once the new one is live
+     * (lib/billing/subscription-sync.ts, "replaced_free_articles"). Null for
+     * every other checkout.
+     */
+    replacesSubscriptionId: text("replaces_subscription_id"),
+    /**
      * The provider idempotency key the create call used, and the exact
      * request, so a process that died before recording the provider's answer
      * can replay the same call and learn what was created.

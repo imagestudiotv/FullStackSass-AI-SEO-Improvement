@@ -568,6 +568,9 @@ export type BeginCheckoutResult =
  *  - A website already paying is sent to a plan CHANGE on its existing
  *    subscription (same provider), never a second subscription. Switching
  *    provider while one is live is refused: cancel first.
+ *  - The one exception: a website on its free articles through PayPal
+ *    starts the plan it picks NOW, with a second PayPal subscription that
+ *    takes over from the free one and has it cancelled (replacesSubscriptionId).
  *  - An open checkout for the same provider and plan is REUSED rather than a
  *    second one being made.
  *  - Any other open checkout is settled with its provider first (a Stripe
@@ -639,6 +642,8 @@ export async function beginCheckout(
       .for("update");
 
     const currentId = current?.stripeSubscriptionId ?? current?.paypalSubscriptionId ?? null;
+    /** Set when this checkout starts the plan now, in place of the website's PayPal free articles. */
+    let replaces: string | null = null;
     if (current && currentId && !ENDED.has(current.status)) {
       /*
         Cancelled in PayPal and running out the time paid for (review M1):
@@ -653,18 +658,6 @@ export async function beginCheckout(
           error: `This website's PayPal subscription is cancelled and its plan runs${until}. You can choose a plan again, by card or PayPal, once it has ended.`,
         };
       }
-      /*
-        On its free articles through PayPal (a free-articles plan in its free
-        days): PayPal can only move such a subscription to another plan from
-        its next billing cycle, after the customer approves again - the free
-        days would run on regardless. Refused rather than half-done.
-      */
-      if (current.provider === "paypal" && current.status === "trialing") {
-        return {
-          kind: "refuse",
-          error: "This website is on its free articles through PayPal. Its plan can be changed once it has started.",
-        };
-      }
       if (current.provider !== input.provider) {
         const name = current.provider === "paypal" ? "PayPal" : "card (Stripe)";
         return {
@@ -672,7 +665,19 @@ export async function beginCheckout(
           error: `This website is already billed by ${name}. Change its plan there, or cancel that subscription first.`,
         };
       }
-      if (ENTITLED.has(current.status) || current.cancelAtPeriodEnd) {
+      if (current.provider === "paypal" && current.status === "trialing") {
+        /*
+          On its free articles through PayPal (2026-10-22). PayPal moves a
+          subscription to another plan only from its next billing cycle, so
+          the free days cannot be cut short: choosing a plan - the same one
+          or another - STARTS it now instead. A new PayPal subscription to
+          that plan, charged on approval, which takes over from the free one
+          once PayPal has activated it; the free one is then cancelled,
+          nothing ever charged on it (subscription-sync.ts,
+          "replaced_free_articles"). Opened below like any checkout.
+        */
+        replaces = currentId;
+      } else if (ENTITLED.has(current.status) || current.cancelAtPeriodEnd) {
         return {
           kind: "change_plan",
           current: {
@@ -682,11 +687,12 @@ export async function beginCheckout(
             planId: current.planId,
           },
         };
+      } else {
+        return {
+          kind: "refuse",
+          error: `This website's subscription is ${current.status.replace(/_/g, " ")}. Settle or cancel it before starting another.`,
+        };
       }
-      return {
-        kind: "refuse",
-        error: `This website's subscription is ${current.status.replace(/_/g, " ")}. Settle or cancel it before starting another.`,
-      };
     }
 
     /*
@@ -782,13 +788,15 @@ export async function beginCheckout(
       two sites' simultaneous checkouts cannot both be offered a trial. A
       PayPal checkout offers it too when the plan has its free-articles
       PayPal plan (plans.paypal_trial_plan_id, 2026-10-22); the caller then
-      subscribes to that one.
+      subscribes to that one. Never when starting the plan now: that is the
+      end of the free articles.
     */
     await tx.execute(
       sql`select pg_advisory_xact_lock(hashtextextended(${`trial:${org.id}`}, 0))`,
     );
     const freeArticlesPossible =
-      input.provider === "stripe" || (input.provider === "paypal" && (await hasPayPalFreeArticles(tx, input.planId)));
+      replaces === null &&
+      (input.provider === "stripe" || (input.provider === "paypal" && (await hasPayPalFreeArticles(tx, input.planId))));
     const trialDays = freeArticlesPossible && (await isTrialEligible(tx, org.id)) ? FREE_ARTICLES_DAYS : 0;
 
     const [row] = await tx
@@ -800,6 +808,7 @@ export async function beginCheckout(
         planId: input.planId,
         status: "open",
         trialDays,
+        replacesSubscriptionId: replaces,
         /*
           From the app clock, not the column default: settleOpenCheckouts
           compares it with the app clock, and a database session in another
@@ -892,7 +901,17 @@ export async function reconcileCheckouts(
           fails leaves the row as it was, to be asked again next run.
         */
         if (next.status === "completed" && checkout.provider === "paypal" && next.providerSubscriptionId) {
-          await ops.syncPayPalSubscription?.(next.providerSubscriptionId);
+          const synced = await ops.syncPayPalSubscription?.(next.providerSubscriptionId);
+          /*
+            Approved, but not yet active at PayPal, and waiting to take over
+            from the website's free articles: the sync records it only once
+            it is (awaitsActivation), so the checkout stays open and is asked
+            about again next run.
+          */
+          if (awaitsActivation(synced)) {
+            await applyTransition(database, checkout, { providerState: "approved" }, now);
+            continue;
+          }
         }
         await applyTransition(database, checkout, next, now);
         if (next.status && next.status !== checkout.status) settled += 1;
@@ -910,6 +929,8 @@ const RETURN_RESYNC_MS = 24 * 60 * 60 * 1000;
 export type PayPalReturnSettled = {
   /** Subscriptions read back from PayPal and recorded. */
   synced: string[];
+  /** Approved plans started now, recorded once PayPal activates them (awaitsActivation). */
+  awaiting: string[];
   /** Approvals released because the customer walked away from them. */
   released: string[];
   /** Approvals PayPal still reports awaiting the buyer. */
@@ -944,7 +965,7 @@ export async function settlePayPalReturn(
   ops: CheckoutProviderOps,
   now: Date = new Date(),
 ): Promise<PayPalReturnSettled> {
-  const settled: PayPalReturnSettled = { synced: [], released: [], pending: [] };
+  const settled: PayPalReturnSettled = { synced: [], awaiting: [], released: [], pending: [] };
   const rows = await database
     .select({ checkout: billingCheckouts, recordedStatus: subscriptions.status })
     .from(billingCheckouts)
@@ -980,8 +1001,8 @@ export async function settlePayPalReturn(
       const state = await ops.payPalApprovalState(subscriptionId);
       if (state === "live") {
         if (ops.syncPayPalSubscription) {
-          await ops.syncPayPalSubscription(subscriptionId);
-          settled.synced.push(subscriptionId);
+          const synced = await ops.syncPayPalSubscription(subscriptionId);
+          (awaitsActivation(synced) ? settled.awaiting : settled.synced).push(subscriptionId);
         }
         continue;
       }
@@ -1065,4 +1086,52 @@ export async function isReleasedApproval(
     )
     .limit(1);
   return Boolean(row);
+}
+
+/**
+ * The subscription a "Start your plan now" checkout was opened to take over
+ * from (replacesSubscriptionId), for the subscription that checkout made -
+ * matched by our checkout id or the PayPal subscription id, and only within
+ * the workspace and website the sync resolved. Null for any other
+ * subscription. Read by the sync (subscription-sync.ts).
+ */
+export async function replacedSubscription(
+  tx: Executor,
+  match: {
+    provider: CheckoutProvider;
+    providerSubscriptionId: string;
+    checkoutId: string | null;
+    organizationId: string;
+    websiteId: string;
+  },
+): Promise<string | null> {
+  const [row] = await tx
+    .select({ replaces: billingCheckouts.replacesSubscriptionId })
+    .from(billingCheckouts)
+    .where(
+      and(
+        eq(billingCheckouts.provider, match.provider),
+        eq(billingCheckouts.organizationId, match.organizationId),
+        eq(billingCheckouts.websiteId, match.websiteId),
+        isNotNull(billingCheckouts.replacesSubscriptionId),
+        match.checkoutId
+          ? or(
+              eq(billingCheckouts.id, match.checkoutId),
+              eq(billingCheckouts.providerSubscriptionId, match.providerSubscriptionId),
+            )
+          : eq(billingCheckouts.providerSubscriptionId, match.providerSubscriptionId),
+      ),
+    )
+    .limit(1);
+  return row?.replaces ?? null;
+}
+
+/**
+ * Whether a sync (syncProviderSubscription's result, through
+ * CheckoutProviderOps.syncPayPalSubscription) recorded nothing yet because
+ * the plan started now is approved but not yet active at PayPal. Its
+ * checkout stays open until it is.
+ */
+export function awaitsActivation(synced: unknown): boolean {
+  return (synced as { outcome?: unknown } | null | undefined)?.outcome === "awaiting_activation";
 }

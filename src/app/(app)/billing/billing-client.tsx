@@ -176,6 +176,13 @@ export function BillingClient({
   const domain = selected?.domain ?? null;
   const status = subscription ? subscriptionStatus(subscription.status, t) : null;
   const date = (value: Date) => formatDate(value, locale, DATE);
+  /*
+    On its free articles through PayPal (2026-10-22). PayPal cannot cut the
+    free days short, so "Start my plan now" starts the plan with a new PayPal
+    subscription, charged at once, that takes over from the free one; any
+    plan chosen below does the same (beginCheckout, subscription-sync.ts).
+  */
+  const paypalFree = subscription?.provider === "paypal" && subscription.status === "trialing";
 
   /*
     Says why one processor's button is missing: a website paying through one
@@ -186,18 +193,21 @@ export function BillingClient({
     so it gets the date PayPal opens rather than "cancel it first".
   */
   const processorNote =
-    options.billedBy === "paypal"
-      ? subscription?.cancelAtPeriodEnd && subscription.currentPeriodEnd
-        ? // Cancelled in PayPal, its paid time still running (review M1): when a plan can be chosen again.
-          format(t.billedByPayPalEnding, { date: date(subscription.currentPeriodEnd) })
-        : t.billedByPayPal
-      : options.billedBy === "stripe" && options.card && paypalAvailable
-        ? subscription?.cancelAtPeriodEnd
-          ? subscription.currentPeriodEnd
-            ? format(t.billedByCardEnding, { date: date(subscription.currentPeriodEnd) })
-            : null
-          : t.billedByCard
-        : null;
+    paypalFree && options.paypal
+      ? // On its free articles through PayPal: a plan chosen below starts at once.
+        t.paypalFreePlans
+      : options.billedBy === "paypal"
+        ? subscription?.cancelAtPeriodEnd && subscription.currentPeriodEnd
+          ? // Cancelled in PayPal, its paid time still running (review M1): when a plan can be chosen again.
+            format(t.billedByPayPalEnding, { date: date(subscription.currentPeriodEnd) })
+          : t.billedByPayPal
+        : options.billedBy === "stripe" && options.card && paypalAvailable
+          ? subscription?.cancelAtPeriodEnd
+            ? subscription.currentPeriodEnd
+              ? format(t.billedByCardEnding, { date: date(subscription.currentPeriodEnd) })
+              : null
+            : t.billedByCard
+          : null;
 
   async function handleCard(planId: string) {
     setPending({ planId, provider: "stripe" });
@@ -666,6 +676,40 @@ export function BillingClient({
                 <Notice tone="warning">{t.unsettledNotice}</Notice>
               ) : subscription.status === "canceled" || subscription.status === "incomplete_expired" ? (
                 <Notice tone="info">{t.endedNotice}</Notice>
+              ) : paypalFree && options.paypal && subscription.planId ? (
+                <Notice
+                  tone="info"
+                  title={
+                    subscription.planName && subscription.currentPeriodEnd
+                      ? format(t.paypalFreeTitle, {
+                          plan: subscription.planName,
+                          date: date(subscription.currentPeriodEnd),
+                        })
+                      : undefined
+                  }
+                  action={
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={pending !== null}
+                      onClick={() => handlePayPal(subscription.planId!)}
+                    >
+                      {pending?.planId === subscription.planId && pending?.provider === "paypal" ? (
+                        <>
+                          <Loader2 className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+                          {t.redirecting}
+                        </>
+                      ) : (
+                        <>
+                          <PayPalMark className="size-5" />
+                          {t.startPlanNow}
+                        </>
+                      )}
+                    </Button>
+                  }
+                >
+                  {t.paypalFreeBody}
+                </Notice>
               ) : null}
 
               {upgradeTarget ? (

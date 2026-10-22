@@ -5,9 +5,11 @@ import {
   processCancellations,
   type CancellationOps,
 } from "@/lib/billing/cancellations";
+import { isEntitled } from "@/lib/billing-shared";
 import {
   isReleasedApproval,
   markCheckoutCompleted,
+  replacedSubscription,
   type CheckoutProvider,
 } from "@/lib/billing/checkouts";
 import { organization, subscriptions, websites } from "@/lib/db/schema";
@@ -54,6 +56,16 @@ import { isSubscriptionEnded } from "@/lib/websites/deletion";
  * let go, so it is the one owed a cancellation. PayPal takes the first
  * payment on activation; that payment is refunded by a person, in PayPal
  * (docs/paypal-go-live.md, reconciliation report releasedApprovalsToRefund).
+ *
+ * "START YOUR PLAN NOW" (2026-10-22). A website on its free articles through
+ * PayPal starts its plan early with a second PayPal subscription, opened to
+ * take over from the free one (billing_checkouts.replaces_subscription_id;
+ * PayPal cannot cut a subscription's free days short). Once PayPal has
+ * activated it, it is attached and the free one detached and owed a
+ * cancellation - nothing was ever charged on it. Until then it is not
+ * recorded at all, and its checkout stays open: a row written while it was
+ * only approved would be detached for good, and the free articles must not
+ * end before the plan has started.
  *
  * Lock order matches deletion: (subscription advisory lock), organization,
  * website, subscriptions, checkouts.
@@ -110,6 +122,16 @@ export type SyncOutcome =
   | "attached"
   /** New subscription attached; the site's ended one kept, detached. */
   | "replaced"
+  /**
+   * A plan started now: attached in place of the site's free-articles
+   * subscription, which is kept detached and owed a cancellation.
+   */
+  | "replaced_free_articles"
+  /**
+   * A plan started now, approved but not yet active at the provider: nothing
+   * recorded until it is, so the free articles carry on meanwhile.
+   */
+  | "awaiting_activation"
   /** An older subscription we had lost track of: recorded, not attached. */
   | "detached_stale"
   /** A second live subscription for a site that already has one. */
@@ -142,6 +164,21 @@ export type SyncResult = {
   subscriptionRowId: string | null;
   /** The workspace it was recorded against, when there is one. */
   organizationId: string | null;
+  /** The free-articles subscription this one took over from ("replaced_free_articles"), owed a cancellation. */
+  replacedSubscriptionId: string | null;
+  /** ...and the provider has already confirmed that cancellation. */
+  replacedCancelled: boolean;
+};
+
+/** What the transaction decided; worked off once it has committed. */
+type Decision = {
+  outcome: SyncOutcome;
+  /** This subscription is owed a cancellation. */
+  owe: boolean;
+  rowId: string | null;
+  orgId: string | null;
+  /** Another subscription is owed one: the free articles this one took over from. */
+  replaced?: string | null;
 };
 
 function identityColumn(provider: CheckoutProvider) {
@@ -198,7 +235,7 @@ export async function syncProviderSubscription(
 ): Promise<SyncResult> {
   const { provider, providerSubscriptionId } = input;
 
-  const decided = await database.transaction(async (tx) => {
+  const decided = await database.transaction(async (tx): Promise<Decision> => {
     await lockProviderSubscription(tx, provider, providerSubscriptionId);
 
     // Read from the provider now that no other sync of it can interleave.
@@ -329,6 +366,7 @@ export async function syncProviderSubscription(
     const [current] = await tx
       .select({
         id: subscriptions.id,
+        provider: subscriptions.provider,
         status: subscriptions.status,
         stripeSubscriptionId: subscriptions.stripeSubscriptionId,
         paypalSubscriptionId: subscriptions.paypalSubscriptionId,
@@ -337,9 +375,28 @@ export async function syncProviderSubscription(
       .where(eq(subscriptions.websiteId, site.id))
       .for("update");
 
+    /*
+      "Start your plan now": opened to take over from exactly the site's
+      current subscription, which is still live (its free articles).
+    */
+    const currentProviderId = current?.paypalSubscriptionId ?? current?.stripeSubscriptionId ?? null;
+    const takesOver =
+      current !== undefined &&
+      currentProviderId !== null &&
+      !ended &&
+      !isSubscriptionEnded(current.status) &&
+      (await replacedSubscription(tx, {
+        provider,
+        providerSubscriptionId,
+        checkoutId: asUuid(snapshot.checkoutId),
+        organizationId: org.id,
+        websiteId: site.id,
+      })) === currentProviderId;
+
     let outcome: SyncOutcome;
     let rowId: string;
     let cancel = false;
+    let replaced: string | null = null;
     if (!current) {
       const [row] = await tx
         .insert(subscriptions)
@@ -372,6 +429,38 @@ export async function syncProviderSubscription(
         .returning({ id: subscriptions.id });
       rowId = row.id;
       outcome = "replaced";
+    } else if (takesOver && snapshot.values.status === "incomplete") {
+      /*
+        Approved, not yet active: PayPal activates it within seconds, and
+        its webhook, the PayPal return and the checkout reconciler all sync
+        it again. Nothing is written - not even the checkout's completion -
+        so the free articles carry on until the plan has really started.
+      */
+      return { outcome: "awaiting_activation", owe: false, rowId: null, orgId: org.id };
+    } else if (takesOver && isEntitled(snapshot.values.status)) {
+      /*
+        The plan has started: it takes the site, and the free articles step
+        aside, kept detached with their ids, and are cancelled. Their free
+        days never moved money; should PayPal have billed them anyway (the
+        free days ran out first), reconciliation lists that payment to
+        refund (replacedFreeArticlesToRefund).
+      */
+      await tx
+        .update(subscriptions)
+        .set({ websiteId: null, claimedWebsiteId: site.id, updatedAt: new Date() })
+        .where(eq(subscriptions.id, current.id));
+      const [row] = await tx
+        .insert(subscriptions)
+        .values({ organizationId: org.id, websiteId: site.id, claimedWebsiteId, ...values })
+        .returning({ id: subscriptions.id });
+      rowId = row.id;
+      outcome = "replaced_free_articles";
+      replaced = currentProviderId;
+      await oweCancellation(tx, {
+        provider: current.provider === "stripe" ? "stripe" : "paypal",
+        providerSubscriptionId: currentProviderId!,
+        reason: outcome,
+      });
     } else if (
       provider === "paypal" &&
       (await isReleasedApproval(tx, {
@@ -408,23 +497,23 @@ export async function syncProviderSubscription(
     }
 
     await complete();
-    return { outcome, owe: cancel, rowId, orgId: org.id };
+    return { outcome, owe: cancel, rowId, orgId: org.id, replaced };
   });
 
-  let cancelled = false;
-  if (decided.owe) {
-    // Straight away where possible; the maintenance job retries otherwise.
-    const result = await processCancellations(database, cancellationOps, {
-      only: [providerSubscriptionId],
-    });
-    cancelled = result.completed.includes(providerSubscriptionId);
-  }
+  // Straight away where possible; the maintenance job retries otherwise.
+  const owed = [
+    ...(decided.owe ? [providerSubscriptionId] : []),
+    ...(decided.replaced ? [decided.replaced] : []),
+  ];
+  const completed = owed.length > 0 ? (await processCancellations(database, cancellationOps, { only: owed })).completed : [];
 
   return {
     outcome: decided.outcome,
     cancellationOwed: decided.owe,
-    cancelled,
+    cancelled: decided.owe && completed.includes(providerSubscriptionId),
     subscriptionRowId: decided.rowId,
     organizationId: decided.orgId,
+    replacedSubscriptionId: decided.replaced ?? null,
+    replacedCancelled: Boolean(decided.replaced) && completed.includes(decided.replaced!),
   };
 }

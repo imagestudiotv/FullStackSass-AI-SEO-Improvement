@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { organization, plans, subscriptions, websites } from "@/lib/db/schema";
+import { billingCheckouts, organization, plans, subscriptions, websites } from "@/lib/db/schema";
 import { createTestDb, type TestDb } from "@/test/db";
 
 /**
@@ -166,8 +166,10 @@ describe("a PayPal checkout", () => {
     expect(await begin()).toMatchObject({ kind: "create", trialDays: 0 });
   });
 
-  it("refuses a plan change while the website is on its free articles through PayPal", async () => {
+  it("on its free articles through PayPal, starts the plan now rather than changing it: a checkout to take over from them", async () => {
     await test.db.insert(subscriptions).values({ organizationId: "org_a", websiteId: siteId, provider: "paypal", paypalSubscriptionId: "I-FREE", status: "trialing", planId });
-    expect(await begin()).toEqual({ kind: "refuse", error: "This website is on its free articles through PayPal. Its plan can be changed once it has started." });
+    expect(await begin()).toMatchObject({ kind: "create", trialDays: 0 });
+    const [checkout] = await test.db.select().from(billingCheckouts).where(eq(billingCheckouts.websiteId, siteId));
+    expect(checkout).toMatchObject({ provider: "paypal", replacesSubscriptionId: "I-FREE", trialDays: 0 });
   });
 });

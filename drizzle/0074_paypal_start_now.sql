@@ -1,0 +1,1 @@
+ALTER TABLE "billing_checkouts" ADD COLUMN "replaces_subscription_id" text;

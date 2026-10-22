@@ -17,6 +17,7 @@ import {
   brandVoice,
   calendarItems,
   keywords,
+  subscriptions,
   websites,
 } from "@/lib/db/schema";
 import {
@@ -61,8 +62,8 @@ import {
 } from "@/lib/billing/spend-quota";
 import { requireEntitledForSpend } from "@/lib/billing/entitled";
 import { endFreeTrialIfUsed } from "@/lib/billing/end-free-trial";
-import { freeArticlesDailyRule } from "@/lib/billing/free-articles";
-import { FREE_ARTICLES, FREE_ARTICLES_ONLY } from "@/lib/plans/features";
+import { freeArticlesDailyRule, freeArticlesUsedMessage } from "@/lib/billing/free-articles";
+import { FREE_ARTICLES_ONLY } from "@/lib/plans/features";
 import { deliverNow, enqueueJob } from "@/lib/jobs/outbox";
 
 /**
@@ -1252,9 +1253,10 @@ export const generateArticle = inngest.createFunction(
 
     /*
       A new account's last free article starts its plan (lib/billing/
-      free-articles.ts). After the notification, and never failing the run:
-      the article is written whatever billing says, and the trial ends by
-      itself if this cannot reach Stripe.
+      free-articles.ts) - by card; through PayPal the customer is told the
+      plan now waits for them. After the notification, and never failing the
+      run: the article is written whatever billing says, and the trial ends
+      by itself if this cannot reach Stripe.
     */
     await step.run("end-free-trial", () => endFreeTrialIfUsed(brief.websiteId));
 
@@ -1457,7 +1459,7 @@ export async function queueArticleForCalendarItem(
       return {
         ok: false as const,
         error: allowance.freeArticles
-          ? `Your ${FREE_ARTICLES} free articles have been used. Your plan starts once the last of them is written, and then you can write more.`
+          ? freeArticlesUsedMessage()
           : `Your plan includes ${allowance.rule.limit} articles per month, and they have all been used.`,
         freeArticlesUsed: allowance.freeArticles,
       };
@@ -1496,7 +1498,15 @@ export async function queueArticleForCalendarItem(
       either way - the press that found them used up is not charged for.
     */
     if ("freeArticlesUsed" in created && created.freeArticlesUsed) {
-      await endFreeTrialIfUsed(websiteId);
+      // Through PayPal the plan waits for the customer: what starts it, and when it starts anyway.
+      if ((await endFreeTrialIfUsed(websiteId)) === "waits_for_customer") {
+        const [sub] = await db
+          .select({ end: subscriptions.currentPeriodEnd })
+          .from(subscriptions)
+          .where(eq(subscriptions.websiteId, websiteId))
+          .limit(1);
+        return { ok: false, error: freeArticlesUsedMessage({ startsOn: sub?.end ?? null }) };
+      }
     }
     return { ok: false, error: created.error };
   }

@@ -1053,6 +1053,16 @@ export type Messages = {
       billedByCardEnding: string;
       /** billedByPayPal once it was cancelled in PayPal and its paid time still runs: {date} is the day it ends. */
       billedByPayPalEnding: string;
+      /**
+       * On its free articles through PayPal, which cannot cut free days short:
+       * the plan section's notice and its button. {plan} and {date}: the plan,
+       * and the day PayPal starts it anyway.
+       */
+      paypalFreeTitle: string;
+      paypalFreeBody: string;
+      startPlanNow: string;
+      /** Why the plans below then start at once (in place of billedByPayPal). */
+      paypalFreePlans: string;
       noPlanChange: string;
       /** Return from PayPal (?paypal=success|cancelled). */
       paypalApproved: string;
@@ -4230,6 +4240,10 @@ const en: Messages = {
       billedByCard: "This website is billed by card, so plan changes go through card checkout. To pay with PayPal instead, cancel the card subscription first.",
       billedByCardEnding: "This website's card subscription ends on {date}. You can choose PayPal once it has ended.",
       billedByPayPalEnding: "This website's PayPal subscription is cancelled and its plan runs until {date}. You can choose a plan again, by card or PayPal, once it has ended.",
+      paypalFreeTitle: "Your {plan} plan starts on {date}",
+      paypalFreeBody: "Until then, this website is on its free articles. To write more articles and use every feature now, start the plan today: PayPal charges it now, and the free subscription is cancelled with nothing charged on it.",
+      startPlanNow: "Start my plan now",
+      paypalFreePlans: "Choosing a plan below starts it today with PayPal, in place of the free articles.",
       noPlanChange: "Plan changes are not available for this website right now.",
       paypalApproved: "PayPal approval received - confirming your subscription…",
       paypalCancelled: "PayPal checkout cancelled.",
@@ -7259,6 +7273,10 @@ const es: Messages = {
       billedByCard: "Este sitio web se factura con tarjeta, así que los cambios de plan se hacen con tarjeta. Para pagar con PayPal, cancele primero la suscripción con tarjeta.",
       billedByCardEnding: "La suscripción con tarjeta de este sitio web finaliza el {date}. Podrá elegir PayPal cuando haya finalizado.",
       billedByPayPalEnding: "La suscripción de PayPal de este sitio web está cancelada y su plan sigue activo hasta el {date}. Podrá elegir un plan de nuevo, con tarjeta o PayPal, cuando haya finalizado.",
+      paypalFreeTitle: "Su plan {plan} empieza el {date}",
+      paypalFreeBody: "Hasta entonces, este sitio web está con sus artículos gratis. Para escribir más artículos y usar todas las funciones ya, inicie el plan hoy: PayPal lo cobra ahora y la suscripción gratuita se cancela sin ningún cargo.",
+      startPlanNow: "Iniciar mi plan ahora",
+      paypalFreePlans: "Si elige un plan abajo, empieza hoy con PayPal, en lugar de los artículos gratis.",
       noPlanChange: "Ahora mismo no se puede cambiar el plan de este sitio web.",
       paypalApproved: "Aprobación de PayPal recibida - confirmando su suscripción…",
       paypalCancelled: "Pago con PayPal cancelado.",
@@ -10291,6 +10309,10 @@ const fr: Messages = {
       billedByCard: "Ce site est facturé par carte : les changements de forfait passent donc par le paiement par carte. Pour payer avec PayPal, résiliez d’abord l’abonnement par carte.",
       billedByCardEnding: "L’abonnement par carte de ce site prend fin le {date}. Vous pourrez choisir PayPal une fois qu’il aura pris fin.",
       billedByPayPalEnding: "L’abonnement PayPal de ce site est annulé et son forfait reste actif jusqu’au {date}. Vous pourrez de nouveau choisir un forfait, par carte ou PayPal, une fois qu’il aura pris fin.",
+      paypalFreeTitle: "Votre forfait {plan} démarre le {date}",
+      paypalFreeBody: "D’ici là, ce site profite de ses articles gratuits. Pour écrire plus d’articles et utiliser toutes les fonctionnalités dès maintenant, démarrez le forfait aujourd’hui : PayPal le débite maintenant, et l’abonnement gratuit est annulé sans aucun débit.",
+      startPlanNow: "Démarrer mon forfait maintenant",
+      paypalFreePlans: "Choisir un forfait ci-dessous le démarre aujourd’hui avec PayPal, à la place des articles gratuits.",
       noPlanChange: "Le changement de forfait n’est pas disponible pour ce site pour le moment.",
       paypalApproved: "Autorisation PayPal reçue - confirmation de votre abonnement…",
       paypalCancelled: "Paiement PayPal annulé.",
@@ -13320,6 +13342,10 @@ const it: Messages = {
       billedByCard: "Questo sito web viene fatturato con carta, quindi i cambi di piano passano dal pagamento con carta. Per pagare con PayPal, disdica prima l’abbonamento con carta.",
       billedByCardEnding: "L’abbonamento con carta di questo sito web termina il {date}. Potrà scegliere PayPal quando sarà terminato.",
       billedByPayPalEnding: "L’abbonamento PayPal di questo sito web è annullato e il suo piano resta attivo fino al {date}. Potrà scegliere di nuovo un piano, con carta o PayPal, quando sarà terminato.",
+      paypalFreeTitle: "Il suo piano {plan} parte il {date}",
+      paypalFreeBody: "Fino ad allora, questo sito web usa i suoi articoli gratuiti. Per scrivere altri articoli e usare subito tutte le funzioni, avvii il piano oggi: PayPal lo addebita ora e l’abbonamento gratuito viene annullato senza alcun addebito.",
+      startPlanNow: "Avvia ora il mio piano",
+      paypalFreePlans: "Scegliendo un piano qui sotto, parte oggi con PayPal, al posto degli articoli gratuiti.",
       noPlanChange: "Al momento non è possibile cambiare il piano di questo sito web.",
       paypalApproved: "Approvazione PayPal ricevuta - stiamo confermando il suo abbonamento…",
       paypalCancelled: "Pagamento PayPal annullato.",
@@ -16348,6 +16374,10 @@ const de: Messages = {
       billedByCard: "Diese Website wird per Karte abgerechnet, daher laufen Tarifwechsel über die Kartenzahlung. Um stattdessen mit PayPal zu zahlen, kündigen Sie zuerst das Kartenabonnement.",
       billedByCardEnding: "Das Kartenabonnement dieser Website endet am {date}. Sobald es beendet ist, können Sie PayPal wählen.",
       billedByPayPalEnding: "Das PayPal-Abonnement dieser Website ist gekündigt, ihr Tarif läuft noch bis zum {date}. Sobald er beendet ist, können Sie wieder einen Tarif wählen, per Karte oder PayPal.",
+      paypalFreeTitle: "Ihr Tarif {plan} beginnt am {date}",
+      paypalFreeBody: "Bis dahin nutzt diese Website ihre kostenlosen Artikel. Um weitere Artikel zu schreiben und alle Funktionen sofort zu nutzen, starten Sie den Tarif heute: PayPal bucht ihn jetzt ab, und das kostenlose Abonnement wird ohne Abbuchung gekündigt.",
+      startPlanNow: "Meinen Tarif jetzt starten",
+      paypalFreePlans: "Ein Tarif, den Sie unten wählen, beginnt heute mit PayPal - anstelle der kostenlosen Artikel.",
       noPlanChange: "Ein Tarifwechsel ist für diese Website derzeit nicht möglich.",
       paypalApproved: "PayPal-Freigabe erhalten - Ihr Abonnement wird bestätigt…",
       paypalCancelled: "PayPal-Bezahlvorgang abgebrochen.",
