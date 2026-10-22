@@ -37,7 +37,7 @@ import { grantMonthlyCredits } from "@/lib/backlinks/credits";
 import { isEntitledToSpend } from "@/lib/billing/entitled";
 import { FREE_ARTICLES_PER_DAY } from "@/lib/billing/free-articles";
 import { getOnboardingState } from "@/lib/onboarding/steps";
-import { FREE_ARTICLES, FREE_ARTICLES_ONLY } from "@/lib/plans/features";
+import { FREE_ARTICLES, FREE_ARTICLES_ONLY, FREE_ARTICLES_ONLY_PAYPAL } from "@/lib/plans/features";
 import { checkLimit } from "@/lib/usage";
 import {
   queueArticleForCalendarItem,
@@ -87,6 +87,7 @@ describe("what the free articles allow", () => {
       used: 0,
       allowed: true,
       freeArticles: true,
+      paypalFreeArticles: false,
     });
   });
 
@@ -128,6 +129,26 @@ describe("what waits for the plan", () => {
     const { websiteId } = await onTrial(30);
     expect(await isEntitledToSpend(websiteId)).toEqual({ ok: false, error: FREE_ARTICLES_ONLY });
     expect(await isEntitledToSpend(websiteId, { freeArticles: true })).toEqual({ ok: true });
+  });
+
+  it("through PayPal, says the plan is started in Billing - it does not start by itself after the last article", async () => {
+    const { websiteId } = await onTrial(30);
+    await test.db
+      .update(subscriptions)
+      .set({ provider: "paypal", paypalSubscriptionId: `I-${websiteId.slice(0, 8)}` })
+      .where(eq(subscriptions.websiteId, websiteId));
+    expect(await checkLimit(websiteId, "articles")).toMatchObject({ freeArticles: true, paypalFreeArticles: true });
+    expect(await isEntitledToSpend(websiteId)).toEqual({ ok: false, error: FREE_ARTICLES_ONLY_PAYPAL });
+    expect(await isEntitledToSpend(websiteId, { freeArticles: true })).toEqual({ ok: true });
+
+    const [written] = await test.db
+      .insert(articles)
+      .values({ websiteId, title: "Written", status: "draft", bodyHtml: "<p>hi</p>" })
+      .returning({ id: articles.id });
+    expect(await requeueArticle({ websiteId, articleId: written.id, status: "generating" })).toEqual({
+      ok: false,
+      error: FREE_ARTICLES_ONLY_PAYPAL,
+    });
   });
 
   it("asks nothing extra of a paying website", async () => {

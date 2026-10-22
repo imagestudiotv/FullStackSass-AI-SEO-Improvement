@@ -4,6 +4,7 @@ import { explainCrawlError } from "@/lib/audit/explain";
 import { ISSUE_LABELS } from "@/lib/audit/rules";
 import { LOCALES } from "@/lib/i18n/config";
 import { getMessages } from "@/lib/i18n/messages";
+import { FREE_ARTICLES_ONLY, FREE_ARTICLES_ONLY_PAYPAL } from "@/lib/plans/features";
 
 import {
   QUEUED_STALE_MS,
@@ -349,6 +350,9 @@ describe("refusals and the quote email", () => {
     expect(localiseStartError("Choose a plan for this website first", de, tw)).toBe(de.errNoPlan);
     expect(localiseStartError("This website's subscription is not active. Update billing to continue.", de, tw)).toBe(de.errPlanInactive);
     expect(localiseStartError("You have run this many times in the last hour. Please try again shortly.", de, tw)).toBe(de.errQuota);
+    expect(localiseStartError(FREE_ARTICLES_ONLY, de, tw)).toBe(tw.freeArticlesOnly);
+    // Through PayPal the customer starts the plan in Billing (2026-10-22).
+    expect(localiseStartError(FREE_ARTICLES_ONLY_PAYPAL, de, tw)).toBe(tw.freeArticlesOnlyPayPal);
     expect(localiseStartError("Something new", de, tw)).toBe("Something new");
   });
 

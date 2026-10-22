@@ -48,6 +48,15 @@ export const FREE_ARTICLES_ONLY =
   "This is included once your plan starts - right after your free articles are written.";
 
 /**
+ * FREE_ARTICLES_ONLY for free articles through PayPal, whose plan does not
+ * start by itself after the last of them (lib/billing/free-articles.ts):
+ * the customer starts it in Billing, or PayPal does when the free days end
+ * (app.workspace.freeArticlesOnlyPayPal).
+ */
+export const FREE_ARTICLES_ONLY_PAYPAL =
+  "This is included once your plan starts. Start it now in Billing, or it starts by itself when your free days end.";
+
+/**
  * Card checkout's refusal while the free articles would be given to an
  * address nobody has confirmed (lib/stripe/actions.ts). The plan step asks
  * for the code first, so this is only seen by a request that skipped it.

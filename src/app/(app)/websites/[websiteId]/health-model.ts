@@ -4,7 +4,7 @@ import type { AuditSummary } from "@/lib/audit/rules";
 import type { Locale } from "@/lib/i18n/config";
 import { format, formatDate, formatNumber } from "@/lib/i18n/format";
 import type { Messages } from "@/lib/i18n/messages";
-import { FREE_ARTICLES_ONLY } from "@/lib/plans/features";
+import { FREE_ARTICLES_ONLY, FREE_ARTICLES_ONLY_PAYPAL } from "@/lib/plans/features";
 
 /**
  * Website health: everything the report derives from the stored audit, kept
@@ -527,6 +527,8 @@ export function localiseStartError(error: string, t: HealthText, tw: WorkspaceTe
       return t.errPlanInactive;
     case FREE_ARTICLES_ONLY:
       return tw.freeArticlesOnly;
+    case FREE_ARTICLES_ONLY_PAYPAL:
+      return tw.freeArticlesOnlyPayPal;
     case "You have run this many times in the last hour. Please try again shortly.":
       return t.errQuota;
   }

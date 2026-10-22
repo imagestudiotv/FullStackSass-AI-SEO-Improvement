@@ -1,6 +1,6 @@
 import { NonRetriableError } from "inngest";
 
-import { FREE_ARTICLES_ONLY } from "@/lib/plans/features";
+import { FREE_ARTICLES_ONLY, FREE_ARTICLES_ONLY_PAYPAL } from "@/lib/plans/features";
 import { checkLimit } from "@/lib/usage";
 
 /**
@@ -49,7 +49,8 @@ export async function isEntitledToSpend(
   }
 
   if (limit.freeArticles && !options.freeArticles) {
-    return { ok: false, error: FREE_ARTICLES_ONLY };
+    // Through PayPal the plan waits for the customer: say how to start it.
+    return { ok: false, error: limit.paypalFreeArticles ? FREE_ARTICLES_ONLY_PAYPAL : FREE_ARTICLES_ONLY };
   }
 
   return { ok: true };

@@ -86,7 +86,7 @@ Added 2026-10-10 for the client's request to measure sign-ups, free trials and p
 |---|---|---|---|
 | `sign_up` | The first signed-in page in the hour after an account is created | the browser | `method`: `email` or `google` |
 | `start_trial` | The first signed-in page in the hour after a checkout with free articles completes | the browser | `plan` |
-| `purchase` | A subscription's **first** payment for money, by Stripe or PayPal: at once for a checkout paid at once, otherwise when the free articles end (all three written, or after 30 days) | the server (GA4 Measurement Protocol) | `value`, `currency`, `transaction_id`, `items` (the plan), `payment_type` |
+| `purchase` | A subscription's **first** payment for money, by Stripe or PayPal: at once for a checkout paid at once, otherwise when the free articles end (by card: all three written, or after 30 days; through PayPal: "Start my plan now", or after 30 days) | the server (GA4 Measurement Protocol) | `value`, `currency`, `transaction_id`, `items` (the plan), `payment_type` |
 
 Renewals are not reported as new conversions. The browser remembers which conversions it has sent, so a reload does not count one twice. Signed-in pages send them with the title "RepGet" and a cleaned address, then silence GA again.
 

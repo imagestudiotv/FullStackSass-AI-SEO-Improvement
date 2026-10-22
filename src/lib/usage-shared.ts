@@ -22,4 +22,10 @@ export type LimitCheck = {
    * for the plan to start.
    */
   freeArticles?: boolean;
+  /**
+   * ...through PayPal, which cannot start the plan by itself after the last
+   * free article: the customer starts it in Billing, or PayPal does when the
+   * free days end.
+   */
+  paypalFreeArticles?: boolean;
 };

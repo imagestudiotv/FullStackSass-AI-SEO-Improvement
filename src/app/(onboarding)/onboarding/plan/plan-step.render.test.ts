@@ -45,7 +45,9 @@ function paypalButton(html: string): string {
 describe("PayPal on the plan step", () => {
   it("offers the free articles with PayPal too, when the plan has its free-articles PayPal plan", () => {
     const html = render();
-    expect(html).toContain("With PayPal too, your 3 free articles come first: nothing is charged today, and your plan starts after 30 days.");
+    expect(html).toContain(
+      "With PayPal too, your 3 free articles come first and nothing is charged today. Your plan starts after 30 days, or sooner if you start it in Billing.",
+    );
     expect(html).not.toContain(t.paypalNoTrial);
     expect(paypalButton(html)).not.toMatch(/disabled=""/);
   });

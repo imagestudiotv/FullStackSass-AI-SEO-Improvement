@@ -18,10 +18,39 @@ Added on 2026-10-20:
 - **`PAYPAL_CHECKOUT=off` pauses new PayPal checkouts only** (review L9): the button, new subscriptions and plan changes. Webhooks, the return from PayPal and the maintenance job keep working, so existing PayPal subscribers are still billed, recorded and cancelled. Leave it unset normally.
 - **A PayPal payment started and never finished can be cancelled by the customer** (review H1). If someone closes PayPal's tab instead of paying or using "Cancel and return", the billing page and the plan step show a notice after 10 minutes, with a button "Cancel the PayPal payment". It does what "Cancel and return" does: an approval PayPal still has waiting is released, so the website can pay by card again; one PayPal reports paid is recorded instead.
 
+Added on 2026-10-22 (the client: PayPal "as same as the case of Stripe"):
+- **The 3 free articles with PayPal too.** Each plan has a second PayPal plan, "<plan> - free articles first": 30 free days, then the plan's price. A workspace that has never had a plan, with a confirmed email, gets it when it pays with PayPal. Nothing is charged that day. RepGet records the free days as "Free articles", like a card trial. The same 3 articles are free, and audits, AI visibility and the Partner Network wait for the plan. A plan without its free-articles PayPal plan charges at once, as before.
+- **PayPal cannot start the plan early by itself.** By card, the plan starts right after the 3rd article. Through PayPal, it starts when the 30 days end, or earlier when the customer presses **Start my plan now** on Billing. Choosing any plan there does the same. After the 3rd article the customer gets a notification saying so, and a 4th article is refused with the same words.
+- **Start my plan now** opens a second PayPal subscription to the plan itself, charged on approval. Once PayPal has activated it, RepGet moves the website to it and cancels the free subscription by itself. Nothing was charged on the free one. Until PayPal has activated the new one, nothing changes, and the free articles carry on.
+- **Cancelling during the free days** ends it at once. Nothing was paid, so there is no time left to keep.
+- During the free days the website cannot switch to card. The customer cancels the PayPal free subscription first; the workspace has then had its free articles, so card charges at once.
+
+## Releasing the free articles with PayPal (owner steps, in order)
+
+Steps 1 to 7 below were done before this. These four steps add the free articles:
+
+1. **Migrate production** before the new code goes out. The code reads these columns:
+   - `0073_paypal_trial_plans`
+   - `0074_paypal_start_now`
+2. **Create the 4 free-articles PayPal plans.** Run step 5's script again, with the live values in the window, **without** `--switch-mode`:
+
+   ```powershell
+   $env:PAYPAL_ENV = "live"
+   $env:PAYPAL_CLIENT_ID = "<live client id>"
+   $env:PAYPAL_CLIENT_SECRET = "<live secret>"
+   node scripts/paypal-setup.mjs --live
+   Remove-Item Env:PAYPAL_ENV, Env:PAYPAL_CLIENT_ID, Env:PAYPAL_CLIENT_SECRET
+   ```
+
+   Expected: for each of the 4 plans, "plan unchanged" and then "free-articles plan created". The Grow and Scale products are reused ("product exists"). Then a table in which every plan has both ids, and the last line "All plans have a PayPal plan and a free-articles plan. PayPal checkout is ready." If it stops with "do not exist in LIVE PayPal", stop and ask: the live plan ids have changed.
+3. **Deploy** (push `main`). No new Inngest function, so no resync.
+4. **Test** with step 8, "Free articles with PayPal".
+
+Steps 2 and 3 can come in either order. Before the script, PayPal simply charges at once, as it did. Before the deploy, the old code ignores the new plans.
+
 ## Decisions still open
 
-1. **PayPal has no free articles.** The free articles are a card trial. PayPal charges the first month straight away. The plan step already tells the customer. Recommended: keep it this way.
-2. Still open from the review: price changes do not reach PayPal (M3), plan changes through PayPal are unverified and do not charge the difference on an upgrade (M5), and old PayPal plan ids are forgotten (M8). (M1, cancelling keeps the time paid for, and L9, a pause switch, were done on 2026-10-20: see above.)
+1. Still open from the review: price changes do not reach PayPal (M3), plan changes through PayPal are unverified and do not charge the difference on an upgrade (M5), and old PayPal plan ids are forgotten (M8). (M1, cancelling keeps the time paid for, and L9, a pause switch, were done on 2026-10-20: see above. The free articles with PayPal were done on 2026-10-22. Their "Start my plan now" does not use PayPal's plan change: it is a new subscription, charged in full on approval.)
 
 ## 1. Check the PayPal business account
 
@@ -86,7 +115,7 @@ node scripts/paypal-setup.mjs --live
    node scripts/paypal-setup.mjs --live --switch-mode
    ```
 
-   Expected: "recreating (--switch-mode)" for each of the 4 plans, 2 products created, a table with 4 ids, then "All plans have a PayPal plan. PayPal checkout is ready." Keep the output.
+   Expected: "recreating (--switch-mode)" for each of the 4 plans, each followed by "free-articles plan created", 2 products created, a table in which every plan has both ids, then "All plans have a PayPal plan and a free-articles plan. PayPal checkout is ready." Keep the output. (Before 2026-10-22 there were only the 4 plans and the line said "All plans have a PayPal plan.")
 4. Clear the variables from the window:
 
    ```powershell
@@ -125,6 +154,8 @@ Old sandbox approvals in `billing_checkouts` need nothing. The maintenance job a
 
 There is no cheap plan. Pay one Grow monthly (EUR 99) and refund it. The cost is about PayPal's fixed fee.
 
+A workspace that has never had a plan gets the free articles instead of paying at once (2026-10-22). For the EUR 99 payment, use either "Start my plan now" in the free-articles test below, or a workspace that has had a plan before.
+
 1. Use a personal PayPal account that is **not** the business account. PayPal refuses payments to yourself.
 2. On www.repget.com, use a test workspace and website. Billing (or onboarding), Pay with PayPal, approve.
 3. Within a minute, check:
@@ -137,6 +168,19 @@ There is no cheap plan. Pay one Grow monthly (EUR 99) and refund it. The cost is
 6. Check "Cancel and return": on a second test website, click Pay with PayPal, then "Cancel and return" on PayPal's page. Pay by card must now be possible for that website (you can stop at Stripe's page).
 7. Delete the test websites and workspace.
 
+**Free articles with PayPal** (after the release steps above):
+
+1. Sign up with a **new** email address, so the workspace has never had a plan, and enter the code from the email. Add a test website and choose Grow.
+2. The line under "Pay with PayPal" says the 3 free articles come first and nothing is charged today. Press it and approve with the personal PayPal account. PayPal's page should show nothing to pay for 30 days, then EUR 99 a month (the wording is PayPal's).
+3. Back on RepGet, within a minute, Billing shows:
+   - the status "Free articles";
+   - "Your Grow plan starts on <30 days later>", with a **Start my plan now** button;
+   - nothing paid in Admin, Payments (at most a "No charge" line).
+4. Then do one of these:
+   - **Start my plan now** (EUR 99, refunded afterwards): approve in PayPal. Within a minute, Billing shows Grow, active, and Admin, Payments shows EUR 99.00 paid. In the personal PayPal account, under Automatic payments, the free subscription is cancelled and a new one is active. Refund and cancel the new one as in steps 4-5 above.
+   - **Spend nothing:** cancel the free subscription in PayPal. RepGet shows the plan ended at once.
+5. Delete the test website and workspace.
+
 ## 9. The first week
 
 Every day:
@@ -145,11 +189,14 @@ Every day:
 3. Admin: the past-due count.
 4. Run the read-only report from `platform/`: `npm run reconcile:report`. Look at:
    - `releasedApprovalsToRefund` - see below;
+   - `replacedFreeArticlesToRefund` - see below;
    - `owedCancellations` - cancellations the app could not finish yet;
    - `duplicateLiveSubscriptions` - a website paying twice;
    - `unsettledCheckouts` - checkouts that never settled.
 
 **Refunds you must make by hand.** A customer can walk away from PayPal ("Cancel and return"), pay by card, and later approve the old PayPal page anyway. The app then cancels the PayPal subscription by itself. But PayPal takes the first payment when it activates. You will see it in `releasedApprovalsToRefund`, and in the logs as `REFUND its first payment in PayPal`. Refund that sale in full in PayPal (Activity, the payment, Refund). It then drops off the report.
+
+The same goes for `replacedFreeArticlesToRefund`, which should stay empty. It lists a payment PayPal took on a free-articles subscription that "Start my plan now" replaced. That happens only if the customer starts the plan at the very end of the 30 days, and PayPal bills the free subscription before the new one is active. The customer then paid twice: refund the sale listed there, in full, in PayPal.
 
 Other rules:
 - PayPal refunds are made in PayPal, not in the RepGet admin. Cancel the subscription separately if the customer is leaving.
@@ -161,3 +208,10 @@ These come from PayPal's documentation, not a test. The code takes the safe path
 - How long an unfinished approval link keeps working, and whether PayPal ever ends an approval left pending. If a customer just closes the PayPal tab (no "Cancel and return"), the approval still blocks card payment and deletion for that website. Since 2026-10-20 the billing page and the plan step show such an approval after 10 minutes, with a "Cancel the PayPal payment" button that releases it (review H1).
 - Whether PayPal accepts a plan change to another tier or interval, and when it charges for it (M5).
 - How long webhooks take in live. The app no longer depends on them for the first activation.
+- The free-articles plans (2026-10-22). These are taken from PayPal's documentation and examples, and checked only against stubbed PayPal answers:
+  - a trial cycle priced 0, then the regular cycle;
+  - PayPal reporting the trial cycle as completed from its first day;
+  - the first charge coming when the 30 days end.
+
+  The free-articles test in step 8 is the first real check: Billing must say "Free articles" on day 1.
+- How long PayPal takes from approving "Start my plan now" to activating it. RepGet waits for activation, keeps asking, and the free articles carry on meanwhile.

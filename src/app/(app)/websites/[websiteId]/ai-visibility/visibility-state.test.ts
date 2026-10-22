@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import { CHECK_WAIT_LIMIT_MS, checkBaseline } from "@/lib/geo/progress";
 import type { GeoPromptView } from "@/lib/geo/shared";
 import { getMessages } from "@/lib/i18n/messages";
+import { FREE_ARTICLES_ONLY, FREE_ARTICLES_ONLY_PAYPAL } from "@/lib/plans/features";
 
 import {
   checkProgress,
@@ -352,6 +353,9 @@ describe("localiseGeoError", () => {
     for (const literal of literals) {
       expect(localiseGeoError(literal, de.geo, de.workspace), literal).not.toBe(literal);
     }
+    // The free articles' refusals are constants, by card and through PayPal (2026-10-22).
+    expect(localiseGeoError(FREE_ARTICLES_ONLY, de.geo, de.workspace)).toBe(de.workspace.freeArticlesOnly);
+    expect(localiseGeoError(FREE_ARTICLES_ONLY_PAYPAL, de.geo, de.workspace)).toBe(de.workspace.freeArticlesOnlyPayPal);
     expect(localiseGeoError("Your plan tracks up to 50 questions. Remove one to add another.", de.geo, de.workspace)).toBe(
       "Ihr Tarif verfolgt bis zu 50 Fragen. Entfernen Sie eine, um eine andere hinzuzufügen.",
     );

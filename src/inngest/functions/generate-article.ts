@@ -63,7 +63,7 @@ import {
 import { requireEntitledForSpend } from "@/lib/billing/entitled";
 import { endFreeTrialIfUsed } from "@/lib/billing/end-free-trial";
 import { freeArticlesDailyRule, freeArticlesUsedMessage } from "@/lib/billing/free-articles";
-import { FREE_ARTICLES_ONLY } from "@/lib/plans/features";
+import { FREE_ARTICLES_ONLY, FREE_ARTICLES_ONLY_PAYPAL } from "@/lib/plans/features";
 import { deliverNow, enqueueJob } from "@/lib/jobs/outbox";
 
 /**
@@ -1564,7 +1564,7 @@ export async function requeueArticle(input: {
     written article waits for the plan.
   */
   if (entitlement.freeArticles && !["failed", "queued", "generating"].includes(current.status)) {
-    return { ok: false, error: FREE_ARTICLES_ONLY };
+    return { ok: false, error: entitlement.paypalFreeArticles ? FREE_ARTICLES_ONLY_PAYPAL : FREE_ARTICLES_ONLY };
   }
 
   const slot = await reserveAll(

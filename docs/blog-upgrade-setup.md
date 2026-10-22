@@ -19,7 +19,7 @@ For whoever deploys this work: the client's requests of 8 October 2026 (RepGet b
 - Their first 3 articles are free: the research that plans them, the writing, the pictures and publishing. Audits, AI visibility, backlink credits and the Partner Network start with the plan.
 - The plan starts, and is charged, right after the 3rd article is written, or 30 days after sign-up if they did not use all three. Cancelling before then costs nothing.
 - One offer per workspace, ever. At most 100 free articles a day are written across all customers; past that, new ones wait.
-- PayPal still starts the plan at once, without the free articles.
+- PayPal gives the same free articles since 2026-10-22 (docs/paypal-go-live.md). The plan then starts after 30 days, or when the customer presses "Start my plan now" on Billing: PayPal cannot start it by itself after the 3rd article.
 - Rules behind this are in `lib/billing/free-articles.ts`. A trial now earns no backlink credits, and the paid month starts with its full allowance. This replaces the 5 October rule that the trial was part of the first month.
 
 ## What changes for administrators

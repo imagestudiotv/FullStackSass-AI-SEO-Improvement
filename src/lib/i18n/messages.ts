@@ -545,6 +545,8 @@ export type Messages = {
       viewOnly: string;
       /** A paid feature during a new account's free articles (lib/billing/entitled.ts). */
       freeArticlesOnly: string;
+      /** ...during free articles through PayPal, whose plan the customer starts in Billing. */
+      freeArticlesOnlyPayPal: string;
       /** Marks a control that saves the moment it changes. */
       savesImmediately: string;
       /** Marks a group saved by the Save button. */
@@ -3058,7 +3060,7 @@ export type Messages = {
       plan: string;
       payYearly: string;
       paypalNoTrial: string;
-      /** PayPal with the free articles (a plan with its free-articles PayPal plan): {n} articles, {days} free days. */
+      /** PayPal with the free articles (a plan with its free-articles PayPal plan): {n} articles, {days} free days, or sooner from Billing. */
       paypalFreeArticles: string;
       cancelAnyTime: string;
       whatsIncluded: string;
@@ -3738,6 +3740,7 @@ const en: Messages = {
       overLimit: "1 character over the limit|{count} characters over the limit",
       viewOnly: "You have view-only access to this website. Only an owner or an editor can make changes.",
       freeArticlesOnly: "Included once your plan starts - right after your free articles are written.",
+      freeArticlesOnlyPayPal: "Included once your plan starts. Start it now in Billing, or it starts by itself when your free days end.",
       savesImmediately: "Saves as soon as you change it",
       savedWithButton: "Saved with the Save button",
       editsKept: "Your newer edits are kept and still need saving.",
@@ -6074,7 +6077,7 @@ const en: Messages = {
       plan: "Plan",
       payYearly: "Pay yearly",
       paypalNoTrial: "PayPal starts your plan straight away, without the free articles.",
-      paypalFreeArticles: "With PayPal too, your {n} free articles come first: nothing is charged today, and your plan starts after {days} days.",
+      paypalFreeArticles: "With PayPal too, your {n} free articles come first and nothing is charged today. Your plan starts after {days} days, or sooner if you start it in Billing.",
       cancelAnyTime: "Cancel any time. A promotion code can be entered at checkout.",
       whatsIncluded: "What\u2019s included",
       secureByStripe: "Secure checkout by Stripe. Your card details never reach us.",
@@ -6771,6 +6774,7 @@ const es: Messages = {
       overLimit: "1 carácter por encima del límite|{count} caracteres por encima del límite",
       viewOnly: "Tiene acceso de solo lectura a este sitio web. Solo un propietario o un editor puede hacer cambios.",
       freeArticlesOnly: "Incluido en cuanto empiece su plan, justo después de escribir sus artículos gratis.",
+      freeArticlesOnlyPayPal: "Incluido en cuanto empiece su plan. Inícielo ya en Facturación, o empezará solo cuando terminen sus días gratis.",
       savesImmediately: "Se guarda en cuanto lo cambia",
       savedWithButton: "Se guarda con el botón Guardar",
       editsKept: "Sus cambios más recientes se conservan y aún deben guardarse.",
@@ -9108,7 +9112,7 @@ const es: Messages = {
       plan: "Plan",
       payYearly: "Pago anual",
       paypalNoTrial: "PayPal inicia su plan de inmediato, sin los artículos gratis.",
-      paypalFreeArticles: "Con PayPal también, primero sus {n} artículos gratis: hoy no se cobra nada y su plan empieza a los {days} días.",
+      paypalFreeArticles: "Con PayPal también, primero sus {n} artículos gratis y hoy no se cobra nada. Su plan empieza a los {days} días, o antes si lo inicia en Facturación.",
       cancelAnyTime: "Cancele cuando quiera. Puede introducir un código promocional al pagar.",
       whatsIncluded: "Qué incluye",
       secureByStripe: "Pago seguro con Stripe. Los datos de su tarjeta nunca llegan a nosotros.",
@@ -9807,6 +9811,7 @@ const fr: Messages = {
       overLimit: "1 caractère de trop|{count} caractères de trop",
       viewOnly: "Vous avez un accès en lecture seule à ce site. Seul un propriétaire ou un éditeur peut apporter des modifications.",
       freeArticlesOnly: "Inclus dès que votre forfait démarre, juste après la rédaction de vos articles gratuits.",
+      freeArticlesOnlyPayPal: "Inclus dès que votre forfait démarre. Démarrez-le maintenant dans Facturation, ou il démarrera de lui-même à la fin de vos jours gratuits.",
       savesImmediately: "Enregistré dès que vous le modifiez",
       savedWithButton: "Enregistré avec le bouton Enregistrer",
       editsKept: "Vos modifications plus récentes sont conservées et doivent encore être enregistrées.",
@@ -12143,7 +12148,7 @@ const fr: Messages = {
       plan: "Forfait",
       payYearly: "Paiement annuel",
       paypalNoTrial: "PayPal démarre votre forfait immédiatement, sans les articles gratuits.",
-      paypalFreeArticles: "Avec PayPal aussi, vos {n} articles gratuits d’abord : rien n’est débité aujourd’hui, et votre forfait démarre au bout de {days} jours.",
+      paypalFreeArticles: "Avec PayPal aussi, vos {n} articles gratuits d’abord, et rien n’est débité aujourd’hui. Votre forfait démarre au bout de {days} jours, ou plus tôt si vous le démarrez dans Facturation.",
       cancelAnyTime: "Annulez à tout moment. Un code promo peut être saisi au paiement.",
       whatsIncluded: "Ce qui est inclus",
       secureByStripe: "Paiement sécurisé par Stripe. Vos données bancaires ne nous parviennent jamais.",
@@ -12840,6 +12845,7 @@ const it: Messages = {
       overLimit: "1 carattere oltre il limite|{count} caratteri oltre il limite",
       viewOnly: "Ha accesso in sola lettura a questo sito web. Solo un proprietario o un editor può apportare modifiche.",
       freeArticlesOnly: "Incluso non appena inizia il Suo piano, subito dopo la scrittura dei Suoi articoli gratuiti.",
+      freeArticlesOnlyPayPal: "Incluso non appena inizia il suo piano. Lo avvii ora in Fatturazione, oppure partirà da solo alla fine dei giorni gratuiti.",
       savesImmediately: "Si salva appena lo modifica",
       savedWithButton: "Si salva con il pulsante Salva",
       editsKept: "Le modifiche più recenti sono state mantenute e devono ancora essere salvate.",
@@ -15177,7 +15183,7 @@ const it: Messages = {
       plan: "Piano",
       payYearly: "Pagamento annuale",
       paypalNoTrial: "PayPal avvia subito il suo piano, senza gli articoli gratuiti.",
-      paypalFreeArticles: "Anche con PayPal, prima i suoi {n} articoli gratuiti: oggi non viene addebitato nulla e il suo piano parte dopo {days} giorni.",
+      paypalFreeArticles: "Anche con PayPal, prima i suoi {n} articoli gratuiti e oggi non viene addebitato nulla. Il suo piano parte dopo {days} giorni, o prima se lo avvia in Fatturazione.",
       cancelAnyTime: "Disdica quando vuole. Al pagamento può inserire un codice promozionale.",
       whatsIncluded: "Che cosa include",
       secureByStripe: "Pagamento sicuro con Stripe. I dati della sua carta non arrivano mai a noi.",
@@ -15871,6 +15877,7 @@ const de: Messages = {
       overLimit: "1 Zeichen zu viel|{count} Zeichen zu viel",
       viewOnly: "Sie haben für diese Website nur Lesezugriff. Änderungen können nur Inhaber oder Bearbeiter vornehmen.",
       freeArticlesOnly: "Enthalten, sobald Ihr Tarif beginnt - direkt nachdem Ihre kostenlosen Artikel geschrieben sind.",
+      freeArticlesOnlyPayPal: "Enthalten, sobald Ihr Tarif beginnt. Starten Sie ihn jetzt unter Abrechnung, oder er beginnt von selbst, wenn Ihre kostenlosen Tage enden.",
       savesImmediately: "Wird sofort gespeichert, wenn Sie es ändern",
       savedWithButton: "Wird mit der Schaltfläche Speichern gespeichert",
       editsKept: "Ihre neueren Änderungen bleiben erhalten und müssen noch gespeichert werden.",
@@ -18208,7 +18215,7 @@ const de: Messages = {
       plan: "Tarif",
       payYearly: "Jährlich zahlen",
       paypalNoTrial: "PayPal startet Ihren Tarif sofort, ohne die kostenlosen Artikel.",
-      paypalFreeArticles: "Auch mit PayPal zuerst Ihre {n} kostenlosen Artikel: Heute wird nichts abgebucht, und Ihr Tarif beginnt nach {days} Tagen.",
+      paypalFreeArticles: "Auch mit PayPal zuerst Ihre {n} kostenlosen Artikel, und heute wird nichts abgebucht. Ihr Tarif beginnt nach {days} Tagen oder früher, wenn Sie ihn unter Abrechnung starten.",
       cancelAnyTime: "Jederzeit kündbar. Einen Gutscheincode können Sie beim Bezahlen eingeben.",
       whatsIncluded: "Was enthalten ist",
       secureByStripe: "Sichere Zahlung über Stripe. Ihre Kartendaten erreichen uns nie.",

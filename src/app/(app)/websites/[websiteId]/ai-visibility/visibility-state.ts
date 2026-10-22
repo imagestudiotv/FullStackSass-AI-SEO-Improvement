@@ -7,7 +7,7 @@ import {
 import type { GeoPromptView } from "@/lib/geo/shared";
 import { format } from "@/lib/i18n/format";
 import type { Messages } from "@/lib/i18n/messages";
-import { FREE_ARTICLES_ONLY } from "@/lib/plans/features";
+import { FREE_ARTICLES_ONLY, FREE_ARTICLES_ONLY_PAYPAL } from "@/lib/plans/features";
 
 /**
  * What the AI Visibility page derives from stored data, kept apart from the
@@ -455,6 +455,8 @@ export function localiseGeoError(error: string, t: GeoText, tw: WorkspaceText): 
       return t.errPlanInactive;
     case FREE_ARTICLES_ONLY:
       return tw.freeArticlesOnly;
+    case FREE_ARTICLES_ONLY_PAYPAL:
+      return tw.freeArticlesOnlyPayPal;
     case "You have checked AI visibility several times in the last hour. Please try again shortly.":
       return t.errCheckQuota;
     case "You have asked for suggestions many times this hour. Please try again shortly.":
