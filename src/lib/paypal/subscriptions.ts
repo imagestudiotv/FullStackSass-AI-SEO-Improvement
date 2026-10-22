@@ -105,9 +105,21 @@ export type PayPalSubscription = {
   links?: { href: string; rel: string; method: string }[];
   billing_info?: {
     next_billing_time?: string;
-    last_payment?: { time?: string };
+    last_payment?: { time?: string; amount?: { value?: string; currency_code?: string } };
     /** Payments failed since the last one that succeeded; PayPal resets it to 0 on success. */
     failed_payments_count?: number;
+    /**
+     * One entry per billing cycle of the plan: on a free-articles plan the
+     * free days (TRIAL) and the paid cycle (REGULAR), each with how many
+     * times PayPal has run it.
+     */
+    cycle_executions?: {
+      tenure_type?: string;
+      sequence?: number;
+      cycles_completed?: number;
+      cycles_remaining?: number;
+      total_cycles?: number;
+    }[];
   };
   /** When the subscription started billing (after approval). */
   start_time?: string;
@@ -275,6 +287,38 @@ export async function reviseSubscription(input: {
     },
   );
   return { approveUrl: revised.links?.find((link) => link.rel === "approve")?.href ?? null };
+}
+
+/**
+ * Whether a payment PayPal reports moved money. A free cycle reports none, or
+ * 0; a report without an amount (older answers) is taken as a payment.
+ */
+export function movedMoney(payment?: { amount?: { value?: string } }): boolean {
+  if (!payment) return false;
+  if (payment.amount?.value === undefined) return true;
+  return Number(payment.amount.value) > 0;
+}
+
+/**
+ * Whether a subscription to a free-articles plan (scripts/paypal-plans.mjs)
+ * is still in its free days: active, nothing failed, no paid cycle billed
+ * yet, and the first charge still ahead. Stored as "trialing", as a card
+ * trial is, so the free articles and everything that waits for the plan
+ * follow the same rules (lib/billing/free-articles.ts).
+ *
+ * The paid cycle's count decides, not the free one's: PayPal counts the free
+ * cycle as run from its first day.
+ */
+export function inFreeDays(live: PayPalSubscription, now: Date = new Date()): boolean {
+  if (live.status !== "ACTIVE") return false;
+  const info = live.billing_info;
+  if ((info?.failed_payments_count ?? 0) > 0) return false;
+  const next = info?.next_billing_time ? Date.parse(info.next_billing_time) : Number.NaN;
+  if (!Number.isFinite(next) || next <= now.getTime()) return false;
+  const regular = info?.cycle_executions?.find((cycle) => cycle.tenure_type === "REGULAR");
+  if (regular) return (regular.cycles_completed ?? 0) === 0;
+  // No cycle report: free while nothing has been paid.
+  return !movedMoney(info?.last_payment);
 }
 
 /**

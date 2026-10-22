@@ -3,10 +3,12 @@
 import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
+import { requireSession } from "@/lib/auth-guard";
 import { isEntitled } from "@/lib/billing-shared";
 import { checkoutProviderOps } from "@/lib/billing/checkout-providers";
 import {
   beginCheckout,
+  isTrialEligible,
   markCheckoutFailed,
   recordCheckoutRequest,
   recordCheckoutStarted,
@@ -17,6 +19,7 @@ import { rememberPayer } from "@/lib/conversions/conversions";
 import { db } from "@/lib/db";
 import { plans, subscriptions, websites } from "@/lib/db/schema";
 import { isPayPalConfigured, PayPalError, payPalCheckoutPaused } from "@/lib/paypal/client";
+import { CONFIRM_EMAIL_FIRST } from "@/lib/plans/features";
 import {
   cancelSubscription,
   createSubscription,
@@ -153,6 +156,7 @@ export async function createPayPalCheckout(
       id: plans.id,
       name: plans.name,
       paypalPlanId: plans.paypalPlanId,
+      paypalTrialPlanId: plans.paypalTrialPlanId,
       isActive: plans.isActive,
     })
     .from(plans)
@@ -170,6 +174,19 @@ export async function createPayPalCheckout(
     return {
       error: `"${plan.name}" is not available through PayPal yet. Please pay by card.`,
     };
+  }
+
+  /*
+    The free articles go to a PROVEN address, as with card (lib/stripe/
+    actions.ts): a workspace that would be given them cannot check out until
+    its email is confirmed. Only where PayPal can give them - a plan without
+    its free-articles PayPal plan charges at once, and needs nothing.
+  */
+  if (plan.paypalTrialPlanId) {
+    const session = await requireSession();
+    if (session.user.emailVerified !== true && (await isTrialEligible(db, orgId))) {
+      return { error: CONFIRM_EMAIL_FIRST };
+    }
   }
 
   const base = appUrl();
@@ -215,17 +232,23 @@ export async function createPayPalCheckout(
     }
   }
 
-  const { checkoutId } = begun;
+  const { checkoutId, trialDays } = begun;
+  /*
+    The free articles (2026-10-22): the checkout granted them, so the plan
+    with its free days first (scripts/paypal-plans.mjs); otherwise the plan
+    itself, charged at once.
+  */
+  const paypalPlanId = trialDays > 0 && plan.paypalTrialPlanId ? plan.paypalTrialPlanId : plan.paypalPlanId;
   // The payer's GA identity, for the purchase reported when the money arrives.
   await rememberPayer(db, checkoutId);
   const idempotencyKey = `checkout:${checkoutId}`;
   try {
     await recordCheckoutRequest(db, checkoutId, {
       idempotencyKey,
-      params: { plan: plan.paypalPlanId },
+      params: { plan: paypalPlanId },
     });
     const result = await createSubscription({
-      planId: plan.paypalPlanId,
+      planId: paypalPlanId,
       organizationId: orgId,
       websiteId,
       checkoutId,

@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNotNull, lte, ne } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, lte, ne, or } from "drizzle-orm";
 
 import { cancellationOps } from "@/lib/billing/checkout-providers";
 import { addMonthsClamped } from "@/lib/billing/entitlement-period";
@@ -15,7 +15,9 @@ import { PayPalError } from "@/lib/paypal/client";
 import { convertReferral, reverseReferralReward } from "@/lib/referrals/core";
 import {
   getSubscription,
+  inFreeDays,
   mapStatus,
+  movedMoney,
   parseCustomId,
   parseExactCustomId,
   type PayPalSubscription,
@@ -132,7 +134,8 @@ async function createdOrRecorded(reader: Pick<Executor, "select">, subscriptionI
  * plus one billing interval of its plan (or, for a plan that is not ours,
  * the end of the period we last recorded). Null when nothing was paid, or
  * when the last payment was refunded in full - then there is no paid time
- * left to keep.
+ * left to keep. A free-articles plan's free cycle moved no money: cancelled
+ * during its free days, it ends at once.
  */
 async function paidThrough(
   reader: Pick<Executor, "select">,
@@ -141,7 +144,7 @@ async function paidThrough(
   interval: string | null,
 ): Promise<Date | null> {
   const lastPaid = live.billing_info?.last_payment?.time;
-  if (!lastPaid) return null;
+  if (!lastPaid || !movedMoney(live.billing_info?.last_payment)) return null;
   const [latest] = await reader
     .select({ status: payments.status })
     .from(payments)
@@ -168,18 +171,26 @@ async function snapshotOf(
 ): Promise<SubscriptionSnapshot> {
   let planId: string | null = null;
   let interval: string | null = null;
+  let freeArticlesPlan = false;
   if (live.plan_id) {
+    // Either of a plan's two PayPal plans: with or without the free articles first.
     const [plan] = await reader
-      .select({ id: plans.id, interval: plans.interval })
+      .select({ id: plans.id, interval: plans.interval, paypalTrialPlanId: plans.paypalTrialPlanId })
       .from(plans)
-      .where(eq(plans.paypalPlanId, live.plan_id))
+      .where(or(eq(plans.paypalPlanId, live.plan_id), eq(plans.paypalTrialPlanId, live.plan_id)))
       .limit(1);
     planId = plan?.id ?? null;
     interval = plan?.interval ?? null;
+    freeArticlesPlan = plan?.paypalTrialPlanId === live.plan_id;
   }
 
   const custom = await ownIds(reader, subscriptionId, live, planId !== null);
-  const status = mapStatus(live.status, live.billing_info);
+  /*
+    In its free days, a free-articles plan is "trialing", as a card trial is
+    (2026-10-22): the free articles, the features that wait for the plan and
+    the managed network's wait all read that status.
+  */
+  const status = freeArticlesPlan && inFreeDays(live, now) ? "trialing" : mapStatus(live.status, live.billing_info);
   if (!custom) {
     // Not ours: no workspace and none claimed, which the sync leaves alone.
     return {
@@ -198,7 +209,8 @@ async function snapshotOf(
     without it, an annual PayPal plan's start was guessed as one MONTH before
     its next billing date.
   */
-  const start = live.billing_info?.last_payment?.time ?? live.start_time ?? null;
+  const lastPayment = live.billing_info?.last_payment;
+  const start = (movedMoney(lastPayment) ? lastPayment?.time : null) ?? live.start_time ?? null;
   const nextBilling = live.billing_info?.next_billing_time ?? null;
 
   /*

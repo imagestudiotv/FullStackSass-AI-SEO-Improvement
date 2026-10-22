@@ -24,7 +24,12 @@ import { subscriptions } from "@/lib/db/schema";
  *    articles a day across all accounts, so a wave of sign-ups cannot run up
  *    the writing bill.
  *
- * PayPal starts the plan at once and has no free articles.
+ * PAYPAL (2026-10-22, "as same as the case of Stripe"): the same offer, on
+ * the plan's free-articles PayPal plan - FREE_ARTICLES_DAYS free, then the
+ * price (scripts/paypal-plans.mjs, plans.paypal_trial_plan_id). Its free
+ * days are recorded as "trialing" (lib/billing/paypal-events.ts), so
+ * everything here applies unchanged. PayPal cannot end free days early: its
+ * first charge comes when they end.
  */
 
 /** Free articles written per rolling day across every account. */

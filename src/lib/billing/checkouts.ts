@@ -3,6 +3,7 @@ import { and, eq, inArray, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
 import {
   billingCheckouts,
   organization,
+  plans,
   subscriptions,
   websites,
 } from "@/lib/db/schema";
@@ -652,6 +653,18 @@ export async function beginCheckout(
           error: `This website's PayPal subscription is cancelled and its plan runs${until}. You can choose a plan again, by card or PayPal, once it has ended.`,
         };
       }
+      /*
+        On its free articles through PayPal (a free-articles plan in its free
+        days): PayPal can only move such a subscription to another plan from
+        its next billing cycle, after the customer approves again - the free
+        days would run on regardless. Refused rather than half-done.
+      */
+      if (current.provider === "paypal" && current.status === "trialing") {
+        return {
+          kind: "refuse",
+          error: "This website is on its free articles through PayPal. Its plan can be changed once it has started.",
+        };
+      }
       if (current.provider !== input.provider) {
         const name = current.provider === "paypal" ? "PayPal" : "card (Stripe)";
         return {
@@ -766,14 +779,17 @@ export async function beginCheckout(
 
     /*
       Trial eligibility from durable history, under a per-workspace lock so
-      two sites' simultaneous checkouts cannot both be offered a trial.
-      PayPal plans carry no trial cycle, so a PayPal checkout offers none.
+      two sites' simultaneous checkouts cannot both be offered a trial. A
+      PayPal checkout offers it too when the plan has its free-articles
+      PayPal plan (plans.paypal_trial_plan_id, 2026-10-22); the caller then
+      subscribes to that one.
     */
     await tx.execute(
       sql`select pg_advisory_xact_lock(hashtextextended(${`trial:${org.id}`}, 0))`,
     );
-    const trialDays =
-      input.provider === "stripe" && (await isTrialEligible(tx, org.id)) ? FREE_ARTICLES_DAYS : 0;
+    const freeArticlesPossible =
+      input.provider === "stripe" || (input.provider === "paypal" && (await hasPayPalFreeArticles(tx, input.planId)));
+    const trialDays = freeArticlesPossible && (await isTrialEligible(tx, org.id)) ? FREE_ARTICLES_DAYS : 0;
 
     const [row] = await tx
       .insert(billingCheckouts)
@@ -794,6 +810,16 @@ export async function beginCheckout(
       .returning({ id: billingCheckouts.id });
     return { kind: "create", checkoutId: row.id, trialDays };
   });
+}
+
+/** Whether a plan has its free-articles PayPal plan (scripts/paypal-setup.mjs). */
+async function hasPayPalFreeArticles(executor: Pick<Executor, "select">, planId: string): Promise<boolean> {
+  const [plan] = await executor
+    .select({ trial: plans.paypalTrialPlanId })
+    .from(plans)
+    .where(eq(plans.id, planId))
+    .limit(1);
+  return Boolean(plan?.trial);
 }
 
 /** How long a released PayPal approval is still asked about, in case it is approved after all. */

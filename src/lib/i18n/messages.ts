@@ -3048,6 +3048,8 @@ export type Messages = {
       plan: string;
       payYearly: string;
       paypalNoTrial: string;
+      /** PayPal with the free articles (a plan with its free-articles PayPal plan): {n} articles, {days} free days. */
+      paypalFreeArticles: string;
       cancelAnyTime: string;
       whatsIncluded: string;
       secureByStripe: string;
@@ -6058,6 +6060,7 @@ const en: Messages = {
       plan: "Plan",
       payYearly: "Pay yearly",
       paypalNoTrial: "PayPal starts your plan straight away, without the free articles.",
+      paypalFreeArticles: "With PayPal too, your {n} free articles come first: nothing is charged today, and your plan starts after {days} days.",
       cancelAnyTime: "Cancel any time. A promotion code can be entered at checkout.",
       whatsIncluded: "What\u2019s included",
       secureByStripe: "Secure checkout by Stripe. Your card details never reach us.",
@@ -9087,6 +9090,7 @@ const es: Messages = {
       plan: "Plan",
       payYearly: "Pago anual",
       paypalNoTrial: "PayPal inicia su plan de inmediato, sin los artículos gratis.",
+      paypalFreeArticles: "Con PayPal también, primero sus {n} artículos gratis: hoy no se cobra nada y su plan empieza a los {days} días.",
       cancelAnyTime: "Cancele cuando quiera. Puede introducir un código promocional al pagar.",
       whatsIncluded: "Qué incluye",
       secureByStripe: "Pago seguro con Stripe. Los datos de su tarjeta nunca llegan a nosotros.",
@@ -12117,6 +12121,7 @@ const fr: Messages = {
       plan: "Forfait",
       payYearly: "Paiement annuel",
       paypalNoTrial: "PayPal démarre votre forfait immédiatement, sans les articles gratuits.",
+      paypalFreeArticles: "Avec PayPal aussi, vos {n} articles gratuits d’abord : rien n’est débité aujourd’hui, et votre forfait démarre au bout de {days} jours.",
       cancelAnyTime: "Annulez à tout moment. Un code promo peut être saisi au paiement.",
       whatsIncluded: "Ce qui est inclus",
       secureByStripe: "Paiement sécurisé par Stripe. Vos données bancaires ne nous parviennent jamais.",
@@ -15146,6 +15151,7 @@ const it: Messages = {
       plan: "Piano",
       payYearly: "Pagamento annuale",
       paypalNoTrial: "PayPal avvia subito il suo piano, senza gli articoli gratuiti.",
+      paypalFreeArticles: "Anche con PayPal, prima i suoi {n} articoli gratuiti: oggi non viene addebitato nulla e il suo piano parte dopo {days} giorni.",
       cancelAnyTime: "Disdica quando vuole. Al pagamento può inserire un codice promozionale.",
       whatsIncluded: "Che cosa include",
       secureByStripe: "Pagamento sicuro con Stripe. I dati della sua carta non arrivano mai a noi.",
@@ -18172,6 +18178,7 @@ const de: Messages = {
       plan: "Tarif",
       payYearly: "Jährlich zahlen",
       paypalNoTrial: "PayPal startet Ihren Tarif sofort, ohne die kostenlosen Artikel.",
+      paypalFreeArticles: "Auch mit PayPal zuerst Ihre {n} kostenlosen Artikel: Heute wird nichts abgebucht, und Ihr Tarif beginnt nach {days} Tagen.",
       cancelAnyTime: "Jederzeit kündbar. Einen Gutscheincode können Sie beim Bezahlen eingeben.",
       whatsIncluded: "Was enthalten ist",
       secureByStripe: "Sichere Zahlung über Stripe. Ihre Kartendaten erreichen uns nie.",

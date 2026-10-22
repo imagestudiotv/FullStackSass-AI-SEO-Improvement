@@ -121,6 +121,8 @@ export default async function OnboardingPlanPage({
     .map(toPickerPlan);
   // The plans a PayPal subscription can be started for: mirrored into PayPal.
   const paypalPlanIds = allPlans.filter((plan) => plan.paypalPlanId).map((plan) => plan.id);
+  // ...and those whose PayPal checkout gives the free articles too (2026-10-22).
+  const paypalFreeArticlePlanIds = allPlans.filter((plan) => plan.paypalPlanId && plan.paypalTrialPlanId).map((plan) => plan.id);
   // A PayPal payment started and never finished blocks paying by card (review H1): offer to cancel it.
   const unfinishedPayPal = await hasUnfinishedPayPalApproval(db, { organizationId: orgId, websiteId: state.websiteId });
 
@@ -170,6 +172,7 @@ export default async function OnboardingPlanPage({
               annualPlans={annualPlans}
               paypalAvailable={paypalAvailable}
               paypalPlanIds={paypalPlanIds}
+              paypalFreeArticlePlanIds={paypalFreeArticlePlanIds}
               websiteId={state.websiteId}
               trialEligible={trialEligible}
               emailVerified={session.user.emailVerified === true}

@@ -11,6 +11,7 @@ import { PayPalMark } from "@/components/paypal-mark";
 import { authClient } from "@/lib/auth-client";
 import { confirmEmail, type ConfirmEmailResult } from "@/lib/auth/confirm-email-actions";
 import { formatPrice } from "@/lib/billing-shared";
+import { format } from "@/lib/i18n/format";
 import {
   FREE_ARTICLES,
   FREE_ARTICLES_DAYS,
@@ -62,6 +63,7 @@ export function PlanStep({
   annualPlans,
   paypalAvailable,
   paypalPlanIds,
+  paypalFreeArticlePlanIds = [],
   websiteId,
   trialEligible = true,
   emailVerified = true,
@@ -74,6 +76,11 @@ export function PlanStep({
   paypalAvailable: boolean;
   /** The plans that exist in PayPal; any other gets no PayPal button. */
   paypalPlanIds: string[];
+  /**
+   * The plans whose PayPal checkout can give the free articles: those with
+   * their free-articles PayPal plan (plans.paypal_trial_plan_id, 2026-10-22).
+   */
+  paypalFreeArticlePlanIds?: string[];
   /**
    * Whether checkout will actually give the free articles: only a workspace
    * that has never subscribed (lib/billing/checkouts.ts isTrialEligible).
@@ -251,6 +258,12 @@ export function PlanStep({
     click with an error.
   */
   const paypal = paypalAvailable && paypalPlanIds.includes(plan.id);
+  /*
+    PayPal gives the free articles too when this plan has its free-articles
+    PayPal plan - the same offer, so the same confirmed address first
+    (createPayPalCheckout refuses without it, as card checkout does).
+  */
+  const paypalFree = paypal && trialEligible && paypalFreeArticlePlanIds.includes(plan.id);
 
   /**
    * The badge on the card, per the design.
@@ -541,7 +554,7 @@ export function PlanStep({
           <Button
             variant="outline"
             onClick={() => handleCheckout("paypal")}
-            disabled={pending !== null}
+            disabled={pending !== null || (paypalFree && needsEmail)}
             className="mt-2 h-12 w-full rounded-full"
           >
             {pending === "paypal" ? (
@@ -564,14 +577,18 @@ export function PlanStep({
         ) : null}
 
         {/*
-          PayPal is charged immediately — the free articles are a Stripe
-          trial and are not applied to the PayPal plan. Saying so is the
-          difference between a caveat and a false promise.
+          What PayPal does with the free articles, said plainly: the same
+          offer when this plan has its free-articles PayPal plan (its first
+          charge comes when its free days end), otherwise charged at once.
+          Nothing to add for a workspace that has had its free articles:
+          card and PayPal both charge today, as the line above says.
         */}
-        {paypal ? (
+        {paypal && trialEligible ? (
           <p className="mt-2 text-center text-xs text-muted-foreground">
-            {t.paypalNoTrial}
-            </p>
+            {paypalFree
+              ? format(t.paypalFreeArticles, { n: FREE_ARTICLES, days: FREE_ARTICLES_DAYS })
+              : t.paypalNoTrial}
+          </p>
         ) : null}
 
         <p className="mt-3 text-center text-xs text-muted-foreground">

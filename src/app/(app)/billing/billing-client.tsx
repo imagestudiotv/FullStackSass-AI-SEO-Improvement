@@ -244,6 +244,11 @@ export function BillingClient({
         return;
       }
       const result = await createPayPalCheckout(planId, websiteId);
+      // PayPal gives the free articles too (2026-10-22): the same confirmed address first, on the same screen as card.
+      if ("error" in result && result.error === CONFIRM_EMAIL_FIRST) {
+        router.push(`/onboarding/plan?site=${encodeURIComponent(websiteId)}`);
+        return;
+      }
       if ("error" in result) {
         toast.error(result.error);
         setPending(null);
