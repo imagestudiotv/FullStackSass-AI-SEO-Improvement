@@ -162,10 +162,10 @@ export type PartnerCopy = {
 
 const en: PartnerCopy = {
   page: {
-    metaTitle: "Partner program: recurring commission",
+    metaTitle: "Affiliate Program: recurring commission",
     metaDescription:
-      "Join the RepGet partner program: share your link, earn a recurring cash commission on what your referrals pay, paid monthly through Stripe.",
-    eyebrow: "Partner program",
+      "Join the RepGet Affiliate Program: share your link, earn a recurring cash commission on what your referrals pay, paid monthly through Stripe.",
+    eyebrow: "Affiliate Program",
     title: "Earn a recurring commission for every customer you refer",
     intro:
       "Recommend RepGet to the businesses and agencies you work with. When someone you refer opens a new account and pays for a subscription, you earn part of every payment they make.",
@@ -239,7 +239,7 @@ const en: PartnerCopy = {
     testMode: "Test mode: no real money moves.",
     verify: {
       title: "Confirm your email address first",
-      body: "The partner program pays real money, so we need to know this address is yours. We will send a six-digit code.",
+      body: "The Affiliate Program pays real money, so we need to know this address is yours. We will send a six-digit code.",
       send: "Send the code",
       sent: "We sent a code to {email}.",
       code: "Six-digit code",
@@ -247,7 +247,7 @@ const en: PartnerCopy = {
       errors: { INVALID: "That code is not right.", EXPIRED: "That code has expired. Send a new one.", TOO_MANY: "Too many attempts. Send a new code.", FAILED: "We could not confirm the code. Try again." },
     },
     apply: {
-      title: "Apply to the partner program",
+      title: "Apply to the Affiliate Program",
       intro: "Tell us where you will recommend RepGet. We read every application and reply by email.",
       website: "Website or channel",
       websiteHint: "Where you will share RepGet - a site, newsletter or channel URL.",
@@ -257,7 +257,7 @@ const en: PartnerCopy = {
       promotionHint: "For example reviews, tutorials, a newsletter or client recommendations.",
       country: "Payout country",
       countryHint: "The country your payouts will be made in. Stripe supports the countries listed.",
-      terms: "I agree to the partner program rules shown on the partner page.",
+      terms: "I agree to the Affiliate Program rules shown on the program page.",
       submit: "Send application",
       submitting: "Sending…",
       closed: "Applications are closed at the moment.",
@@ -427,10 +427,10 @@ const en: PartnerCopy = {
 
 const es: PartnerCopy = {
   page: {
-    metaTitle: "Programa de socios: comisión recurrente",
+    metaTitle: "Programa de afiliados: comisión recurrente",
     metaDescription:
-      "Únase al programa de socios de RepGet: comparta su enlace y gane una comisión recurrente sobre lo que pagan sus referidos, abonada cada mes con Stripe.",
-    eyebrow: "Programa de socios",
+      "Únase al programa de afiliados de RepGet: comparta su enlace y gane una comisión recurrente sobre lo que pagan sus referidos, abonada cada mes con Stripe.",
+    eyebrow: "Programa de afiliados",
     title: "Gane una comisión recurrente por cada cliente que recomiende",
     intro:
       "Recomiende RepGet a las empresas y agencias con las que trabaja. Cuando alguien que usted recomienda abre una cuenta nueva y paga una suscripción, usted recibe una parte de cada pago.",
@@ -504,7 +504,7 @@ const es: PartnerCopy = {
     testMode: "Modo de prueba: no se mueve dinero real.",
     verify: {
       title: "Confirme primero su dirección de correo",
-      body: "El programa de socios paga dinero real, por lo que necesitamos saber que esta dirección es suya. Le enviaremos un código de seis dígitos.",
+      body: "El programa de afiliados paga dinero real, por lo que necesitamos saber que esta dirección es suya. Le enviaremos un código de seis dígitos.",
       send: "Enviar el código",
       sent: "Hemos enviado un código a {email}.",
       code: "Código de seis dígitos",
@@ -512,7 +512,7 @@ const es: PartnerCopy = {
       errors: { INVALID: "Ese código no es correcto.", EXPIRED: "El código ha caducado. Solicite uno nuevo.", TOO_MANY: "Demasiados intentos. Solicite un código nuevo.", FAILED: "No pudimos confirmar el código. Inténtelo de nuevo." },
     },
     apply: {
-      title: "Solicitar el programa de socios",
+      title: "Solicitar el programa de afiliados",
       intro: "Díganos dónde recomendará RepGet. Leemos cada solicitud y respondemos por correo.",
       website: "Sitio web o canal",
       websiteHint: "Dónde compartirá RepGet: la URL de un sitio, boletín o canal.",
@@ -522,7 +522,7 @@ const es: PartnerCopy = {
       promotionHint: "Por ejemplo, reseñas, tutoriales, un boletín o recomendaciones a clientes.",
       country: "País de cobro",
       countryHint: "El país en el que recibirá los pagos. Stripe admite los países de la lista.",
-      terms: "Acepto las reglas del programa de socios que figuran en la página de socios.",
+      terms: "Acepto las reglas del programa de afiliados que figuran en la página del programa.",
       submit: "Enviar solicitud",
       submitting: "Enviando…",
       closed: "Las solicitudes están cerradas en este momento.",
@@ -692,10 +692,10 @@ const es: PartnerCopy = {
 
 const fr: PartnerCopy = {
   page: {
-    metaTitle: "Programme partenaires : commission récurrente",
+    metaTitle: "Programme d'affiliation : commission récurrente",
     metaDescription:
-      "Rejoignez le programme partenaires RepGet : partagez votre lien et touchez une commission récurrente sur les paiements de vos filleuls, versée via Stripe.",
-    eyebrow: "Programme partenaires",
+      "Rejoignez le programme d'affiliation RepGet : partagez votre lien et touchez une commission récurrente sur les paiements de vos filleuls, versée via Stripe.",
+    eyebrow: "Programme d'affiliation",
     title: "Touchez une commission récurrente pour chaque client recommandé",
     intro:
       "Recommandez RepGet aux entreprises et agences avec lesquelles vous travaillez. Lorsqu'une personne que vous recommandez ouvre un nouveau compte et paie un abonnement, vous touchez une part de chacun de ses paiements.",
@@ -769,7 +769,7 @@ const fr: PartnerCopy = {
     testMode: "Mode test : aucun argent réel ne circule.",
     verify: {
       title: "Confirmez d'abord votre adresse e-mail",
-      body: "Le programme partenaires verse de l'argent réel : nous devons savoir que cette adresse est bien la vôtre. Nous allons vous envoyer un code à six chiffres.",
+      body: "Le programme d'affiliation verse de l'argent réel : nous devons savoir que cette adresse est bien la vôtre. Nous allons vous envoyer un code à six chiffres.",
       send: "Envoyer le code",
       sent: "Nous avons envoyé un code à {email}.",
       code: "Code à six chiffres",
@@ -777,7 +777,7 @@ const fr: PartnerCopy = {
       errors: { INVALID: "Ce code n'est pas correct.", EXPIRED: "Ce code a expiré. Demandez-en un nouveau.", TOO_MANY: "Trop de tentatives. Demandez un nouveau code.", FAILED: "Nous n'avons pas pu confirmer le code. Réessayez." },
     },
     apply: {
-      title: "Postuler au programme partenaires",
+      title: "Postuler au programme d'affiliation",
       intro: "Dites-nous où vous recommanderez RepGet. Nous lisons chaque candidature et répondons par e-mail.",
       website: "Site ou chaîne",
       websiteHint: "Là où vous partagerez RepGet : l'URL d'un site, d'une newsletter ou d'une chaîne.",
@@ -787,7 +787,7 @@ const fr: PartnerCopy = {
       promotionHint: "Par exemple des avis, des tutoriels, une newsletter ou des recommandations à vos clients.",
       country: "Pays de versement",
       countryHint: "Le pays dans lequel vos versements seront effectués. Stripe prend en charge les pays listés.",
-      terms: "J'accepte les règles du programme partenaires présentées sur la page partenaires.",
+      terms: "J'accepte les règles du programme d'affiliation présentées sur la page du programme.",
       submit: "Envoyer la candidature",
       submitting: "Envoi…",
       closed: "Les candidatures sont fermées pour le moment.",
@@ -957,10 +957,10 @@ const fr: PartnerCopy = {
 
 const it: PartnerCopy = {
   page: {
-    metaTitle: "Programma partner: commissione ricorrente",
+    metaTitle: "Programma di affiliazione: commissione ricorrente",
     metaDescription:
-      "Entri nel programma partner di RepGet: condivida il suo link e guadagni una commissione ricorrente su quanto pagano i suoi referral, versata con Stripe.",
-    eyebrow: "Programma partner",
+      "Entri nel programma di affiliazione di RepGet: condivida il suo link e guadagni una commissione ricorrente su quanto pagano i suoi referral, versata con Stripe.",
+    eyebrow: "Programma di affiliazione",
     title: "Guadagni una commissione ricorrente per ogni cliente che segnala",
     intro:
       "Consigli RepGet alle aziende e alle agenzie con cui lavora. Quando una persona che lei segnala apre un nuovo account e paga un abbonamento, lei riceve una parte di ogni pagamento.",
@@ -1034,7 +1034,7 @@ const it: PartnerCopy = {
     testMode: "Modalità test: non si muove denaro reale.",
     verify: {
       title: "Confermi prima il suo indirizzo email",
-      body: "Il programma partner paga denaro reale, quindi dobbiamo sapere che questo indirizzo è suo. Le invieremo un codice di sei cifre.",
+      body: "Il programma di affiliazione paga denaro reale, quindi dobbiamo sapere che questo indirizzo è suo. Le invieremo un codice di sei cifre.",
       send: "Invia il codice",
       sent: "Abbiamo inviato un codice a {email}.",
       code: "Codice di sei cifre",
@@ -1042,7 +1042,7 @@ const it: PartnerCopy = {
       errors: { INVALID: "Il codice non è corretto.", EXPIRED: "Il codice è scaduto. Ne richieda uno nuovo.", TOO_MANY: "Troppi tentativi. Richieda un nuovo codice.", FAILED: "Non siamo riusciti a confermare il codice. Riprovi." },
     },
     apply: {
-      title: "Candidarsi al programma partner",
+      title: "Candidarsi al programma di affiliazione",
       intro: "Ci dica dove consiglierà RepGet. Leggiamo ogni candidatura e rispondiamo via email.",
       website: "Sito o canale",
       websiteHint: "Dove condividerà RepGet: l'URL di un sito, una newsletter o un canale.",
@@ -1052,7 +1052,7 @@ const it: PartnerCopy = {
       promotionHint: "Ad esempio recensioni, tutorial, una newsletter o consigli ai clienti.",
       country: "Paese di pagamento",
       countryHint: "Il paese in cui riceverà i pagamenti. Stripe supporta i paesi elencati.",
-      terms: "Accetto le regole del programma partner indicate nella pagina partner.",
+      terms: "Accetto le regole del programma di affiliazione indicate nella pagina del programma.",
       submit: "Invia candidatura",
       submitting: "Invio…",
       closed: "Le candidature sono chiuse al momento.",
@@ -1222,10 +1222,10 @@ const it: PartnerCopy = {
 
 const de: PartnerCopy = {
   page: {
-    metaTitle: "Partnerprogramm: wiederkehrende Provision",
+    metaTitle: "Affiliate-Programm: wiederkehrende Provision",
     metaDescription:
       "Werden Sie RepGet-Partner: Teilen Sie Ihren Link und erhalten Sie eine wiederkehrende Provision auf die Zahlungen Ihrer Empfehlungen, monatlich über Stripe.",
-    eyebrow: "Partnerprogramm",
+    eyebrow: "Affiliate-Programm",
     title: "Erhalten Sie für jeden empfohlenen Kunden eine wiederkehrende Provision",
     intro:
       "Empfehlen Sie RepGet den Unternehmen und Agenturen, mit denen Sie arbeiten. Wenn eine von Ihnen empfohlene Person ein neues Konto eröffnet und ein Abonnement bezahlt, erhalten Sie einen Anteil an jeder Zahlung.",
@@ -1299,7 +1299,7 @@ const de: PartnerCopy = {
     testMode: "Testmodus: Es fließt kein echtes Geld.",
     verify: {
       title: "Bestätigen Sie zuerst Ihre E-Mail-Adresse",
-      body: "Das Partnerprogramm zahlt echtes Geld, daher müssen wir wissen, dass diese Adresse Ihnen gehört. Wir senden Ihnen einen sechsstelligen Code.",
+      body: "Das Affiliate-Programm zahlt echtes Geld, daher müssen wir wissen, dass diese Adresse Ihnen gehört. Wir senden Ihnen einen sechsstelligen Code.",
       send: "Code senden",
       sent: "Wir haben einen Code an {email} gesendet.",
       code: "Sechsstelliger Code",
@@ -1307,7 +1307,7 @@ const de: PartnerCopy = {
       errors: { INVALID: "Dieser Code ist nicht richtig.", EXPIRED: "Der Code ist abgelaufen. Fordern Sie einen neuen an.", TOO_MANY: "Zu viele Versuche. Fordern Sie einen neuen Code an.", FAILED: "Wir konnten den Code nicht bestätigen. Versuchen Sie es erneut." },
     },
     apply: {
-      title: "Für das Partnerprogramm bewerben",
+      title: "Für das Affiliate-Programm bewerben",
       intro: "Sagen Sie uns, wo Sie RepGet empfehlen werden. Wir lesen jede Bewerbung und antworten per E-Mail.",
       website: "Website oder Kanal",
       websiteHint: "Wo Sie RepGet teilen werden: die URL einer Website, eines Newsletters oder Kanals.",
@@ -1317,7 +1317,7 @@ const de: PartnerCopy = {
       promotionHint: "Zum Beispiel Testberichte, Anleitungen, ein Newsletter oder Empfehlungen an Kunden.",
       country: "Auszahlungsland",
       countryHint: "Das Land, in dem Ihre Auszahlungen erfolgen. Stripe unterstützt die aufgeführten Länder.",
-      terms: "Ich akzeptiere die Regeln des Partnerprogramms auf der Partnerseite.",
+      terms: "Ich akzeptiere die Regeln des Affiliate-Programms auf der Programmseite.",
       submit: "Bewerbung senden",
       submitting: "Wird gesendet…",
       closed: "Bewerbungen sind derzeit geschlossen.",

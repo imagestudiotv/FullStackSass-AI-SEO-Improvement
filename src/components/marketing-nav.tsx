@@ -429,7 +429,12 @@ export function MarketingFooterLinks({ chrome }: { chrome: SiteChrome }) {
         { href: href("/rank-on-chatgpt"), label: t.footer.rankOnChatgpt },
         { href: href("/backlink-exchange"), label: t.footer.backlinkExchange },
         { href: href("/publishers"), label: t.footer.publishers },
-        { href: href("/affiliate"), label: t.footer.affiliate },
+        /*
+          The cash Affiliate Program only (client, 2026-10-23: two
+          "partner" links side by side confused visitors). The credit
+          referral page, /affiliate, is still linked from /partners and
+          customers keep their referral link in Settings.
+        */
         { href: href("/partners"), label: t.footer.partners },
       ],
     },

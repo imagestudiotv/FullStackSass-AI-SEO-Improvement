@@ -15,7 +15,7 @@ import type { Mailer } from "../application/ports/directory";
 export const partnerMailer: Mailer = {
   async sendPartnerWelcome(input) {
     const html = emailLayout({
-      heading: "Welcome to the RepGet partner program",
+      heading: "Welcome to the RepGet Affiliate Program",
       preheader: "Your partner link is ready.",
       body: [
         emailText(`Hi ${escapeHtml(input.name)}, your application was approved.`),
@@ -31,7 +31,7 @@ export const partnerMailer: Mailer = {
       ].join(""),
     });
     const text = [
-      `Hi ${input.name}, your application to the RepGet partner program was approved.`,
+      `Hi ${input.name}, your application to the RepGet Affiliate Program was approved.`,
       ``,
       `Your partner link: ${input.referralUrl}`,
       ``,
@@ -39,7 +39,7 @@ export const partnerMailer: Mailer = {
       ``,
       `To be paid, set up payouts with Stripe in the portal.`,
     ].join("\n");
-    const result = await sendEmail({ to: input.to, subject: "Welcome to the RepGet partner program", html, text });
+    const result = await sendEmail({ to: input.to, subject: "Welcome to the RepGet Affiliate Program", html, text });
     return result.ok ? { ok: true } : { ok: false, error: result.error };
   },
   async sendPartnerNotice(input) {

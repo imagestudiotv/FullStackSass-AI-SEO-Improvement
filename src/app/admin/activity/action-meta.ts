@@ -96,7 +96,7 @@ export const ACTION_META: Record<AdminAction, ActionMeta> = {
   "partner.reactivated": { label: "Partner reactivated", icon: Handshake },
   "partner.payout_hold_set": { label: "Partner payouts held", icon: Handshake },
   "partner.payout_hold_released": { label: "Partner payout hold released", icon: Handshake },
-  "partner.control_changed": { label: "Partner program switch changed", icon: Handshake },
+  "partner.control_changed": { label: "Affiliate program switch changed", icon: Handshake },
   "partner.attribution_disqualified": { label: "Partner referral disqualified", icon: Handshake },
   "partner.attribution_confirmed": { label: "Partner referral confirmed", icon: Handshake },
   "partner.commission_adjusted": { label: "Partner commission adjusted", icon: Handshake },
@@ -154,7 +154,7 @@ const TARGET_LABELS: Record<string, string> = {
   partner_coupon: "Partner coupon",
   partner_review_case: "Partner review case",
   partner_settlement: "Partner payout",
-  partner_program: "Partner program",
+  partner_program: "Affiliate program",
 };
 
 /** What kind of thing the entry acted on, in words. */
@@ -209,7 +209,7 @@ export function targetLink(row: Pick<AuditRow, "action" | "targetType" | "target
     case "partner_settlement":
       return id ? { href: `/admin/partners/payouts/${id}`, destination: "the partner payout" } : { href: "/admin/partners/payouts", destination: "partner payouts" };
     case "partner_program":
-      return { href: "/admin/partners", destination: "the partner program" };
+      return { href: "/admin/partners", destination: "the affiliate program" };
     default:
       return null;
   }

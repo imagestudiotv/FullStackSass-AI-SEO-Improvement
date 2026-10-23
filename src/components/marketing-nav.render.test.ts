@@ -78,6 +78,27 @@ describe("the header logo", () => {
 });
 
 /**
+ * One program in the footer (client, 2026-10-23): the cash Affiliate Program,
+ * under that name in each language. The credit referral page (/affiliate) is
+ * no longer listed there; /partners still links to it.
+ */
+describe("the footer's program link", () => {
+  it.each([
+    ["/", "/partners", "Affiliate Program"],
+    ["/es", "/es/partners", "Programa de afiliados"],
+    ["/fr", "/fr/partners", "Programme d’affiliation"],
+    ["/it", "/it/partners", "Programma di affiliazione"],
+    ["/de", "/de/partners", "Affiliate-Programm"],
+  ])("on %s is the Affiliate Program (%s), and the credit referral page is not listed", (pathname, partners, label) => {
+    nav.pathname = pathname;
+    const html = renderToStaticMarkup(createElement(MarketingFooterLinks, { chrome: siteChrome() }));
+    expect(hrefs(html)).toContain(partners);
+    expect(hrefs(html).filter((href) => href.endsWith("/affiliate"))).toEqual([]);
+    expect(html).toContain(`>${label}</a>`);
+  });
+});
+
+/**
  * The page's language. The root layout's <html lang="en"> is shared by every
  * route, so the frame around the public pages says which language the
  * address is in - from the same source as the menu's words.

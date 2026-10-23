@@ -85,8 +85,7 @@ export type Messages = {
     rankOnChatgpt: string;
     backlinkExchange: string;
     publishers: string;
-    affiliate: string;
-    /** The cash partner program (/partners). */
+    /** The cash Affiliate Program (/partners); the credit referral (/affiliate) is not in the footer. */
     partners: string;
     privacy: string;
     terms: string;
@@ -3141,8 +3140,7 @@ const en: Messages = {
     rankOnChatgpt: "Rank on ChatGPT",
     backlinkExchange: "Backlink exchange",
     publishers: "Monetize your blog",
-    affiliate: "Refer a business",
-    partners: "Partner program",
+    partners: "Affiliate Program",
     privacy: "Privacy",
     terms: "Terms",
     refunds: "Refunds",
@@ -6159,8 +6157,7 @@ const es: Messages = {
     rankOnChatgpt: "Aparecer en ChatGPT",
     backlinkExchange: "Intercambio de enlaces",
     publishers: "Rentabilice su blog",
-    affiliate: "Recomiende una empresa",
-    partners: "Programa de socios",
+    partners: "Programa de afiliados",
     privacy: "Privacidad",
     terms: "Términos",
     refunds: "Reembolsos",
@@ -9195,8 +9192,7 @@ const fr: Messages = {
     rankOnChatgpt: "Apparaître dans ChatGPT",
     backlinkExchange: "Échange de liens",
     publishers: "Monétisez votre blog",
-    affiliate: "Recommander une entreprise",
-    partners: "Programme partenaires",
+    partners: "Programme d’affiliation",
     privacy: "Confidentialité",
     terms: "Conditions",
     refunds: "Remboursements",
@@ -12231,8 +12227,7 @@ const it: Messages = {
     rankOnChatgpt: "Comparire su ChatGPT",
     backlinkExchange: "Scambio di link",
     publishers: "Monetizzi il suo blog",
-    affiliate: "Segnali un'azienda",
-    partners: "Programma partner",
+    partners: "Programma di affiliazione",
     privacy: "Privacy",
     terms: "Termini",
     refunds: "Rimborsi",
@@ -15267,8 +15262,7 @@ const de: Messages = {
     rankOnChatgpt: "In ChatGPT erscheinen",
     backlinkExchange: "Linktausch",
     publishers: "Monetarisieren Sie Ihren Blog",
-    affiliate: "Unternehmen empfehlen",
-    partners: "Partnerprogramm",
+    partners: "Affiliate-Programm",
     privacy: "Datenschutz",
     terms: "AGB",
     refunds: "Rückerstattungen",
