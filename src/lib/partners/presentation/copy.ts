@@ -959,7 +959,7 @@ const it: PartnerCopy = {
   page: {
     metaTitle: "Programma di affiliazione: commissione ricorrente",
     metaDescription:
-      "Entri nel programma di affiliazione di RepGet: condivida il suo link e guadagni una commissione ricorrente su quanto pagano i suoi referral, versata con Stripe.",
+      "Entri nel programma di affiliazione di RepGet: condivida il suo link e guadagni una commissione ricorrente su quanto pagano i suoi referral, via Stripe.",
     eyebrow: "Programma di affiliazione",
     title: "Guadagni una commissione ricorrente per ogni cliente che segnala",
     intro:
