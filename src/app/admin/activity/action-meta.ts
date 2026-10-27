@@ -40,6 +40,7 @@ export type ActionMeta = {
 export const ACTION_META: Record<AdminAction, ActionMeta> = {
   "payment.refunded": { label: "Payment refunded", icon: Receipt },
   "credits.adjusted": { label: "Credits adjusted", icon: Coins },
+  "credits.settings_saved": { label: "Credit prices changed", icon: Coins },
 
   "organization.limits_changed": { label: "Workspace limits changed", icon: Building2 },
   "organization.deactivated": { label: "Workspace deactivated", icon: Building2 },

@@ -19,7 +19,7 @@ vi.mock("sonner", () => ({ toast: Object.assign(vi.fn(), { success: vi.fn(), err
 vi.mock("@/lib/stripe/actions", () => ({ createCheckoutSession: vi.fn() }));
 vi.mock("@/lib/paypal/actions", () => ({ createPayPalCheckout: vi.fn(), confirmPayPalReturn: vi.fn() }));
 vi.mock("@/lib/stripe/portal", () => ({ createPortalSession: vi.fn() }));
-vi.mock("@/lib/addons/actions", () => ({ buyAddon: vi.fn() }));
+vi.mock("@/lib/addons/actions", () => ({ buyAddon: vi.fn(), buyAddonWithCredits: vi.fn() }));
 
 import type { AddonRow, PurchaseRow } from "@/lib/addons/shared";
 import type { PaymentRow } from "@/lib/billing";
@@ -445,6 +445,7 @@ describe("PaymentsPanel", () => {
       html(createElement(PaymentsPanel, { payments: [], portal: "page", t: en.common, tBilling: en.billing, tStatus: en.status, locale: "en" })),
     ).toBe("");
   });
+
 });
 
 describe("AddonsPanel", () => {
@@ -457,6 +458,20 @@ describe("AddonsPanel", () => {
     currency: "eur",
     creditsGranted: credits,
     kind: "credits",
+    creditPrice: null,
+    purchasable: true,
+  });
+  const service = (kind: "service" | "quote", creditPrice: number | null): AddonRow => ({
+    id: kind,
+    slug: kind,
+    name: kind === "service" ? "Top 250 live USA Local Citations" : "We fix the errors for you",
+    description: null,
+    priceCents: 19900,
+    currency: "eur",
+    creditsGranted: 0,
+    kind,
+    creditPrice,
+    // A service may still carry a Stripe price from when it was sold by card; it is not used.
     purchasable: true,
   });
   const purchase: PurchaseRow = {
@@ -465,6 +480,7 @@ describe("AddonsPanel", () => {
     kind: "credits",
     pricePaidCents: 4900,
     currency: "eur",
+    creditsPaid: null,
     status: "paid",
     fulfilledAt: null,
     createdAt: new Date(Date.UTC(2026, 8, 1)),
@@ -479,6 +495,7 @@ describe("AddonsPanel", () => {
           canBuy: true,
           locale: "de",
           t: de.addons,
+          tCredits: de.credits,
           tCommon: de.common,
         }),
       ),
@@ -496,6 +513,7 @@ describe("AddonsPanel", () => {
         canBuy: false,
         locale: "en",
         t: en.addons,
+        tCredits: en.credits,
         tCommon: en.common,
       }),
     );
@@ -503,7 +521,45 @@ describe("AddonsPanel", () => {
     expect(out).toContain(en.addons.yourPurchases);
     expect(out).toContain("1 Sept 2026");
     expect(
-      html(createElement(AddonsPanel, { addons: [pack("a", 10, 4900)], purchases: [], canBuy: false, locale: "en", t: en.addons, tCommon: en.common })),
+      html(createElement(AddonsPanel, { addons: [pack("a", 10, 4900)], purchases: [], canBuy: false, locale: "en", t: en.addons, tCredits: en.credits, tCommon: en.common })),
     ).toBe("");
+  });
+  it("sells services for credits, not money, and a quote from a price in credits", () => {
+    const out = plain(
+      html(
+        createElement(AddonsPanel, {
+          addons: [service("service", 250), service("quote", 190)],
+          purchases: [{ ...purchase, name: "Top 250 live USA Local Citations", kind: "service", pricePaidCents: 0, creditsPaid: 250 }],
+          canBuy: true,
+          locale: "en",
+          t: en.addons,
+          tCredits: en.credits,
+          tCommon: en.common,
+        }),
+      ),
+    );
+    expect(out).toContain(en.addons.servicesHelp);
+    // The service's price is in credits; its old card price is nowhere.
+    expect(out).toContain("250 credits");
+    expect(out).not.toContain("199");
+    expect(out).toContain("From 190 credits.");
+    // The purchase paid with credits says so.
+    expect(out).toMatch(/<span class="tabular-nums">250 credits<\/span>/);
+    expect(out).not.toContain("0,00");
+  });
+
+  it("offers no Buy button for a service without a price in credits", () => {
+    const out = html(
+      createElement(AddonsPanel, {
+        addons: [service("service", null)],
+        purchases: [],
+        canBuy: true,
+        locale: "it",
+        t: getMessages("it").app.addons,
+        tCredits: getMessages("it").app.credits,
+        tCommon: getMessages("it").app.common,
+      }),
+    );
+    expect(out).toMatch(/<button[^>]*disabled[^>]*>Non disponibile<\/button>/);
   });
 });

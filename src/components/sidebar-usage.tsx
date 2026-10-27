@@ -1,7 +1,8 @@
-import { Gift, Link2, PenLine } from "lucide-react";
+import { Coins, Gift, PenLine } from "lucide-react";
 import Link from "next/link";
 
-import { ensureMonthlyCredits, getAvailable } from "@/lib/backlinks/credits";
+import { creditOverview } from "@/lib/credits/overview";
+import { format, plural } from "@/lib/i18n/format";
 import { checkLimit } from "@/lib/usage";
 import { UNLIMITED } from "@/lib/usage-shared";
 import type { Messages } from "@/lib/i18n/messages";
@@ -10,9 +11,11 @@ import type { Messages } from "@/lib/i18n/messages";
  * What the plan allows, at the bottom of the sidebar.
  *
  * The brief asks for an articles-per-month figure linking to the content plan
- * and a backlink-credits figure linking to the exchange. Both are the numbers
- * a customer checks most often — "how much have I got left" — and both used to
- * require opening Billing to find.
+ * and a credits figure. Both are the numbers a customer checks most often -
+ * "how much have I got left" - and both used to require opening Billing to
+ * find. Credits are spent across RepGet now, not only on backlinks (client,
+ * 2026-10-26), so the figure says "credits" and opens the Credits page, with
+ * the day's daily credits beside it once they have been given.
  *
  * Server component: it reads the org's subscription and ledger, and neither
  * belongs in a client bundle.
@@ -22,6 +25,7 @@ export async function SidebarUsage({
   websiteId,
   showCredits = true,
   t,
+  tc,
 }: {
   organizationId: string;
   /**
@@ -29,13 +33,13 @@ export async function SidebarUsage({
    *
    * `organizationId` is the reader's OWN workspace, and the credit figure is
    * its balance. Beside an owned site that is the right number. Beside a site
-   * someone else owns it is not: link credits there are spent from the
-   * owner's ledger, so showing the reader's own balance - with a link to the
-   * owner's exchange - says they have credits to use on a site where they
-   * have none. Skipping it also skips ensureMonthlyCredits: it settles the
-   * reader's own monthly grant, which is pointless work on a render that
-   * does not show the balance (the next page that does will grant it - the
-   * grant is lazy and keyed, see its comment).
+   * someone else owns it is not: credits there are spent from the owner's
+   * ledger, so showing the reader's own balance says they have credits to
+   * use on a site where they have none. Skipping it also skips the monthly
+   * grant (creditOverview -> ensureMonthlyCredits): it settles the reader's
+   * own grant, which is pointless work on a render that does not show the
+   * balance (the next page that does will grant it - the grant is lazy and
+   * keyed, see its comment).
    */
   showCredits?: boolean;
   /**
@@ -43,6 +47,8 @@ export async function SidebarUsage({
    * the language preference belongs to the person, not the workspace.
    */
   t: Messages["app"]["nav"];
+  /** The two credit phrases, from the Credits page's words. */
+  tc: Pick<Messages["app"]["credits"], "creditsCount" | "sidebarDaily">;
   /**
    * The website currently selected.
    *
@@ -53,8 +59,6 @@ export async function SidebarUsage({
    */
   websiteId: string | null;
 }) {
-  // This month's plan credits first, so the count includes them.
-  if (showCredits) await ensureMonthlyCredits(organizationId);
   const [articles, credits] = await Promise.all([
     /*
       Per website, and resolved from the website's own subscription
@@ -66,7 +70,7 @@ export async function SidebarUsage({
       ? checkLimit(websiteId, "articles").catch(() => null)
       : Promise.resolve(null),
     showCredits
-      ? getAvailable(organizationId).catch(() => null)
+      ? creditOverview(organizationId).catch(() => null)
       : Promise.resolve(null),
   ]);
 
@@ -74,11 +78,15 @@ export async function SidebarUsage({
     articles === null
       ? null
       : articles.limit === UNLIMITED
-        ? "Unlimited articles"
-        : articles.freeArticles
-          // A new account's free articles (lib/billing/free-articles.ts), named as such.
-          ? `${Math.max(articles.limit - articles.used, 0)} of ${articles.limit} free articles left`
-          : `${Math.max(articles.limit - articles.used, 0)} of ${articles.limit} articles left`;
+        ? t.articlesUnlimited
+        : format(
+            // A new account's free articles (lib/billing/free-articles.ts), named as such.
+            articles.freeArticles ? t.freeArticlesLeft : t.articlesLeft,
+            { left: Math.max(articles.limit - articles.used, 0), limit: articles.limit },
+          );
+  const creditLabel = credits ? plural(tc.creditsCount, credits.available) : null;
+  // Today's daily credits (lib/credits/daily.ts), given by this very render on the first page of the day.
+  const dailyToday = credits && credits.daily.today > 0 ? format(tc.sidebarDaily, { count: credits.daily.today }) : null;
 
   return (
     <div className="mt-4 space-y-1 border-t px-3 pt-3">
@@ -96,18 +104,18 @@ export async function SidebarUsage({
 
       {/*
         Both figures on one line, divided.
-        
+
         They were stacked as two rows, which spent two lines of a sidebar on
         two short numbers that answer the same question — what is left. Side
         by side they read as one allowance strip, and the divider only appears
         when there is something on each side of it.
 
         Each half still links where it did: articles to the content plan,
-        credits to the exchange. min-w-0 with truncate on both, so a long
+        credits to the Credits page. min-w-0 with truncate on both, so a long
         figure shortens its own half instead of pushing the other out of the
         sidebar.
       */}
-      {articleLabel || credits ? (
+      {articleLabel || creditLabel ? (
         <div className="flex items-center px-3 py-1.5 text-xs text-muted-foreground">
           {articleLabel ? (
             <Link
@@ -120,28 +128,36 @@ export async function SidebarUsage({
             </Link>
           ) : null}
 
-          {articleLabel && credits ? (
+          {articleLabel && creditLabel ? (
             <span
               className="mx-2 h-3 w-px shrink-0 bg-border"
               role="presentation"
             />
           ) : null}
 
-          {credits ? (
+          {creditLabel ? (
             <Link
-              href={
-                websiteId ? `/websites/${websiteId}/backlinks` : "/websites"
-              }
-              title={`${credits.available} backlink credits`}
-              className="flex min-w-0 items-center gap-1.5 rounded-md transition-colors hover:text-accent-foreground"
+              href="/credits"
+              title={dailyToday ? `${creditLabel} (${dailyToday})` : creditLabel}
+              // Never shortened: "47 cre…" hides the one word that says what the number is. The article half gives way instead.
+              className="flex shrink-0 items-center gap-1.5 rounded-md transition-colors hover:text-accent-foreground"
             >
-              <Link2 className="size-3.5 shrink-0" aria-hidden="true" />
-              <span className="truncate">
-                {credits.available} backlink credits
-              </span>
+              <Coins className="size-3.5 shrink-0" aria-hidden="true" />
+              <span className="whitespace-nowrap">{creditLabel}</span>
             </Link>
           ) : null}
         </div>
+      ) : null}
+
+      {/* Today's daily credits: the reason to come back tomorrow too. */}
+      {dailyToday ? (
+        <Link
+          href="/credits"
+          className="flex items-center gap-1.5 rounded-md px-3 pb-1.5 text-xs font-medium text-primary transition-colors hover:text-primary/80"
+        >
+          <Gift className="size-3.5 shrink-0" aria-hidden="true" />
+          <span className="truncate">{dailyToday}</span>
+        </Link>
       ) : null}
     </div>
   );

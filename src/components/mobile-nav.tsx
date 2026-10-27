@@ -22,6 +22,7 @@ export function MobileNav({
   selectedWebsiteId = null,
   addons = [],
   hideAddons = false,
+  hideCredits = false,
   websites = [],
   currentWebsite,
   switcherText,
@@ -39,6 +40,8 @@ export function MobileNav({
    * what the desktop never offered them.
    */
   hideAddons?: boolean;
+  /** Forwarded to SidebarNav, like hideAddons. */
+  hideCredits?: boolean;
   /** Forwarded to SidebarNav: the phone menu shows the same labels. */
   t: Messages["app"]["nav"];
   /** Forwarded to SidebarNav, so the phone menu shows the same progress. */
@@ -85,6 +88,7 @@ export function MobileNav({
           selectedWebsiteId={selectedWebsiteId}
           addons={addons}
           hideAddons={hideAddons}
+          hideCredits={hideCredits}
           t={t}
         />
       </SheetContent>

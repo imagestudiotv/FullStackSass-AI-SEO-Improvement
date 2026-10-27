@@ -12,6 +12,7 @@ import {
   type Reservation,
   type ReserveContext,
 } from "@/lib/billing/spend-quota";
+import { refundSpend } from "@/lib/credits/spend";
 import { db } from "@/lib/db";
 import { articles, blogAutopilotRuns, blogAutopilotTopics, jobOutbox, websites } from "@/lib/db/schema";
 import type { Database, Executor } from "@/lib/db/types";
@@ -298,6 +299,8 @@ async function giveUpOn(tx: Executor, row: typeof jobOutbox.$inferSelect): Promi
     ? (data.reservations as Reservation[])
     : [];
   if (reservations.length > 0) await releaseUnspent(reservations, "dispatch_failed", tx);
+  // Credits the work was paid with (lib/credits/spend.ts): it will never run.
+  if (typeof data.creditSpendKey === "string") await refundSpend(data.creditSpendKey, tx);
 
   const newerJobFor = (field: string, id: string) => sql`not exists (
     select 1 from ${jobOutbox} newer

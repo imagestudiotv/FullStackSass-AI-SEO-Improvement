@@ -79,15 +79,15 @@ describe.skipIf(!available)("managed network locks on real Postgres", () => {
   }
 
   it("two administrators placing links on separate connections cannot spend one credit twice", async () => {
-    const s = await scene(1);
+    const s = await scene(10);
     const [a, b] = [await s.post(), await s.post()];
     const results = await Promise.allSettled([
-      on(1, () => placeManagedLink({ articleId: a.id, expectedVersion: a.reviewVersion, beneficiaryWebsiteId: s.ben.id, targetUrl: `https://${s.ben.domain}/a/`, anchor: "wedding videography", credits: 1, actorEmail: "a@x" })),
-      on(2, () => placeManagedLink({ articleId: b.id, expectedVersion: b.reviewVersion, beneficiaryWebsiteId: s.ben.id, targetUrl: `https://${s.ben.domain}/b/`, anchor: "wedding videography", credits: 1, actorEmail: "b@x" })),
+      on(1, () => placeManagedLink({ articleId: a.id, expectedVersion: a.reviewVersion, beneficiaryWebsiteId: s.ben.id, targetUrl: `https://${s.ben.domain}/a/`, anchor: "wedding videography", credits: 10, actorEmail: "a@x" })),
+      on(2, () => placeManagedLink({ articleId: b.id, expectedVersion: b.reviewVersion, beneficiaryWebsiteId: s.ben.id, targetUrl: `https://${s.ben.domain}/b/`, anchor: "wedding videography", credits: 10, actorEmail: "b@x" })),
     ]);
     expect(results.map((r) => r.status).sort()).toEqual(["fulfilled", "rejected"]);
     const reserved = await dbs[0].select().from(backlinkRequests).where(eq(backlinkRequests.websiteId, s.ben.id));
-    expect(reserved.reduce((sum, r) => sum + r.creditsReserved, 0)).toBe(1);
+    expect(reserved.reduce((sum, r) => sum + r.creditsReserved, 0)).toBe(10);
   });
 
   it("first-time key provisioning from two connections creates exactly one key", async () => {
@@ -148,15 +148,15 @@ describe.skipIf(!available)("managed network locks on real Postgres", () => {
   });
 
   it("two verifier runs seeing the link live on separate connections settle it once", async () => {
-    const s = await scene(3);
+    const s = await scene(30);
     const a = await s.post();
     const placed = await on(0, () =>
-      placeManagedLink({ articleId: a.id, expectedVersion: a.reviewVersion, beneficiaryWebsiteId: s.ben.id, targetUrl: `https://${s.ben.domain}/p/`, anchor: "wedding videography", credits: 2, actorEmail: "a@x" }),
+      placeManagedLink({ articleId: a.id, expectedVersion: a.reviewVersion, beneficiaryWebsiteId: s.ben.id, targetUrl: `https://${s.ben.domain}/p/`, anchor: "wedding videography", credits: 20, actorEmail: "a@x" }),
     );
     await on(0, () => recordArticlePublication(a.id, `https://${s.host.domain}/post/`, "publish"));
     await Promise.all([on(1, () => applyCheck(placed.placementId, "alive", 200)), on(2, () => applyCheck(placed.placementId, "alive", 200))]);
     const moves = await dbs[0].select().from(creditLedger).where(eq(creditLedger.referenceId, placed.placementId));
-    expect(moves.map((m) => [m.organizationId, m.amount]).sort()).toEqual([[s.benOrg, -2], [s.hostOrg, 2]].sort());
+    expect(moves.map((m) => [m.organizationId, m.amount]).sort()).toEqual([[s.benOrg, -20], [s.hostOrg, 20]].sort());
     const [p] = await dbs[0].select().from(placements).where(eq(placements.id, placed.placementId));
     expect(p.status).toBe("live");
   });

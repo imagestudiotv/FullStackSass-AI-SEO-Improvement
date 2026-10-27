@@ -15,6 +15,7 @@ import { relations, sql } from "drizzle-orm";
 import {
   type AnyPgColumn,
   boolean,
+  check,
   customType,
   date,
   index,
@@ -1366,6 +1367,62 @@ export const creditLedger = pgTable(
   ],
 );
 
+/**
+ * What credits buy, set by an administrator (Admin -> Credits; client,
+ * 2026-10-26: "a credit system ... you can purchase separately and spend for
+ * almost everything on the website").
+ *
+ * One row per setting: "daily_free" (credits a paying workspace is given on
+ * each day it uses RepGet, lib/credits/daily.ts) and "price:<action>" (what
+ * one action costs, see lib/credits/prices.ts). A missing row means the
+ * default in code, which is 0 for everything - nothing costs credits until
+ * an administrator says so.
+ */
+export const creditSettings = pgTable(
+  "credit_settings",
+  {
+    key: text("key").primaryKey(),
+    value: integer("value").notNull(),
+    /** The administrator's email. */
+    updatedBy: text("updated_by"),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [check("credit_settings_value_check", sql`${table.value} >= 0`)],
+);
+
+/**
+ * Every time credits were spent on something (lib/credits/spend.ts): an
+ * action, or a service bought with credits. The money itself is the
+ * credit_ledger "spend" row (reference_id = this id); this row says what it
+ * paid for, makes a retried request charge once, and lets a failed action
+ * be refunded exactly once.
+ */
+export const creditSpends = pgTable(
+  "credit_spends",
+  {
+    id: pk(),
+    organizationId: organizationId(),
+    /** The website the action was for; null for workspace-wide actions. */
+    websiteId: uuid("website_id").references(() => websites.id, { onDelete: "set null" }),
+    /** A key of CREDIT_ACTIONS (lib/credits/prices.ts), or "addon:<slug>" for a service bought with credits. */
+    action: text("action").notNull(),
+    /**
+     * The caller's stable id for this one action, e.g. "audit:<reservation>".
+     * Unique, so a retried request is charged once.
+     */
+    idempotencyKey: text("idempotency_key").notNull(),
+    /** The price at the time. */
+    credits: integer("credits").notNull(),
+    refundedAt: timestamp("refunded_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("credit_spends_idempotency_uidx").on(table.idempotencyKey),
+    index("credit_spends_org_created_idx").on(table.organizationId, table.createdAt),
+    check("credit_spends_credits_check", sql`${table.credits} > 0`),
+  ],
+);
+
 export const backlinkRequests = pgTable("backlink_requests", {
   id: pk(),
   websiteId: websiteId(),
@@ -2187,8 +2244,17 @@ export const addons = pgTable(
      * automatically — a manual service must not silently do nothing.
      */
     creditsGranted: integer("credits_granted").default(0).notNull(),
-    /** "credits" | "service". Decides what happens after payment. */
+    /** "credits" | "service" | "quote". Decides what happens after payment. */
     kind: text("kind").default("credits").notNull(),
+    /**
+     * What a service costs in credits (client, 2026-10-26: "everything can be
+     * purchased by credits now ... All this will still exists but will be
+     * possible to purchase and use with credits"). Only credit packs are paid
+     * by card; a service is bought with credits (lib/addons/actions.ts
+     * buyAddonWithCredits), and null means it is not for sale. For a quote it
+     * is the guide figure shown as "from". Set in Admin -> Credits.
+     */
+    creditPrice: integer("credit_price"),
     sortOrder: integer("sort_order").default(0).notNull(),
     isActive: boolean("is_active").default(true).notNull(),
     ...timestamps,
@@ -2273,10 +2339,15 @@ export const addonPurchases = pgTable(
     addonId: uuid("addon_id")
       .notNull()
       .references(() => addons.id, { onDelete: "restrict" }),
-    /** Stripe checkout session id. Unique, so a replayed webhook cannot double. */
-    stripeSessionId: text("stripe_session_id").notNull(),
-    /** What was actually charged, in case the price changes later. */
+    /**
+     * Stripe checkout session id, for a purchase paid by card. Unique, so a
+     * replayed webhook cannot double. Null for one paid with credits.
+     */
+    stripeSessionId: text("stripe_session_id"),
+    /** What was actually charged, in case the price changes later. 0 when paid with credits. */
     pricePaidCents: integer("price_paid_cents").notNull(),
+    /** Credits paid, for a service bought with credits (the credit_spends row is keyed "addon:<this id>"). */
+    creditsPaid: integer("credits_paid"),
     currency: text("currency").notNull(),
     /** "paid" for credits; "paid" then "fulfilled" for a manual service. */
     status: text("status").default("paid").notNull(),
@@ -2287,6 +2358,11 @@ export const addonPurchases = pgTable(
     // The idempotency guarantee: one purchase per Stripe session, ever.
     uniqueIndex("addon_purchases_session_key").on(table.stripeSessionId),
     index("addon_purchases_org_idx").on(table.organizationId),
+    // Paid one way or the other: by card (a session) or with credits.
+    check(
+      "addon_purchases_paid_check",
+      sql`${table.stripeSessionId} is not null or ${table.creditsPaid} > 0`,
+    ),
   ],
 );
 

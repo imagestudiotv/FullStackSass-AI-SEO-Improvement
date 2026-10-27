@@ -18,6 +18,7 @@ const state = vi.hoisted(() => ({
   entitled: { ok: true } as { ok: true } | { ok: false; error: string },
   realEmail: true,
   planThrows: false,
+  auditPrice: 0,
   order: [] as string[],
 }));
 
@@ -54,6 +55,10 @@ vi.mock("./health-data", () => ({
     return { audit: null, crawl: null, requestedAt: null };
   },
 }));
+// What running the check again costs (lib/credits/prices.ts).
+vi.mock("@/lib/credits/prices", () => ({
+  readCreditSettings: async () => ({ dailyFree: 0, prices: { audit_rerun: state.auditPrice }, updatedAt: null, updatedBy: null }),
+}));
 vi.mock("./audit-panel", () => ({ AuditPanel: () => null }));
 
 import { AuditPanel, type AuditPanelProps } from "./audit-panel";
@@ -78,6 +83,7 @@ beforeEach(() => {
   state.entitled = { ok: true };
   state.realEmail = true;
   state.planThrows = false;
+  state.auditPrice = 0;
   state.order = [];
 });
 
@@ -127,6 +133,14 @@ describe("Website health page", () => {
     expect(props.locale).toBe("de");
     expect(props.t).toEqual(de);
     expect((await panelProps({ severity: "bogus" })).initialSeverity).toBe("all");
+  });
+
+  it("shows what running the check again costs, in the reader's language, once it is not free", async () => {
+    expect((await panelProps()).rerunCost).toBeNull();
+    state.auditPrice = 5;
+    expect((await panelProps()).rerunCost).toBe("5 Credits");
+    state.auditPrice = 1;
+    expect((await panelProps()).rerunCost).toBe("1 Credit");
   });
 
   it("offers the quote email only to a real support address", async () => {

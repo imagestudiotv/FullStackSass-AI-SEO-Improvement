@@ -73,10 +73,18 @@ import { sameSiteDomain } from "@/lib/websites/ownership";
  * automatic exchange reads it, and that is switched off (MANAGED_NETWORK).
  */
 
-/** The existing price of one link (lib/backlinks/actions.ts). The default. */
-export const DEFAULT_PLACEMENT_CREDITS = 1;
+/**
+ * What one link costs, in credits. 10 to 100 since credits moved to ten
+ * times the scale (client, 2026-10-26: plans give 250 / 700 a month where
+ * they gave 25 / 60, and a link costs ten times what it did, 1 to 10).
+ * The administrator who places a link sets its price within these bounds;
+ * the host earns the same amount once it is verified live.
+ */
+export const DEFAULT_PLACEMENT_CREDITS = 10;
+/** The least a link can cost. */
+export const MIN_PLACEMENT_CREDITS = 10;
 /** An administrator may set more for one placement, never more than this. */
-export const MAX_PLACEMENT_CREDITS = 10;
+export const MAX_PLACEMENT_CREDITS = 100;
 /**
  * Network links in one article, at most - a ceiling, not a target: an
  * article may carry none. The client's figure (2026-09-28): "approx 15 max,
@@ -115,8 +123,8 @@ export async function creditsFor(tx: Executor, organizationId: string) {
 }
 
 function validCredits(credits: number): number {
-  if (!Number.isInteger(credits) || credits < 1 || credits > MAX_PLACEMENT_CREDITS) {
-    throw new PlacementError(`Credits must be a whole number from 1 to ${MAX_PLACEMENT_CREDITS}`);
+  if (!Number.isInteger(credits) || credits < MIN_PLACEMENT_CREDITS || credits > MAX_PLACEMENT_CREDITS) {
+    throw new PlacementError(`Credits must be a whole number from ${MIN_PLACEMENT_CREDITS} to ${MAX_PLACEMENT_CREDITS}`);
   }
   return credits;
 }

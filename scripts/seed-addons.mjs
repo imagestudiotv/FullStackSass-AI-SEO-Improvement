@@ -5,11 +5,15 @@
  *   npm run db:seed-addons
  *
  * THE CREDIT PACK PRICES ARE THE CLIENT'S, taken from the pricing screen he
- * sent: 79 / 149 / 299 EUR for 10 / 25 / 50 credits. They were placeholders
- * at 19 / 39 / 69 until then.
+ * sent: 79 / 149 / 299 EUR. They were placeholders at 19 / 39 / 69 until
+ * then. The packs held 10 / 25 / 50 credits until credits moved to ten times
+ * the scale (client, 2026-10-26; drizzle/0076_credit_scale.sql) - the slugs
+ * keep the old numbers because Stripe products are found by them.
  *
- * The two service add-ons below are still guide figures - the brief shows
- * their prices only in a screenshot.
+ * ONLY CREDIT PACKS ARE PAID BY CARD. The services are bought with credits
+ * (creditPrice; client, 2026-10-26: "everything can be purchased by credits
+ * now"), so they have no Stripe price; priceCents is kept as the figure
+ * their credit price was set from.
  *
  * CHANGING A PRICE IS TWO STEPS. Stripe prices are IMMUTABLE: editing this
  * file and re-running it updates what the card SHOWS while checkout still
@@ -35,28 +39,28 @@ const ADDONS = [
    */
   {
     slug: "credits_10",
-    name: "10 link credits",
-    description: "Request ten more backlinks from the network.",
+    name: "100 credits",
+    description: "One hundred credits to spend on anything in RepGet.",
     priceCents: 7900,
-    creditsGranted: 10,
+    creditsGranted: 100,
     kind: "credits",
     sortOrder: 1,
   },
   {
     slug: "credits_25",
-    name: "25 link credits",
-    description: "Request twenty-five more backlinks. Better value per credit.",
+    name: "250 credits",
+    description: "Two hundred and fifty credits. Better value per credit.",
     priceCents: 14900,
-    creditsGranted: 25,
+    creditsGranted: 250,
     kind: "credits",
     sortOrder: 2,
   },
   {
     slug: "credits_50",
-    name: "50 link credits",
-    description: "Request fifty more backlinks. Best value per credit.",
+    name: "500 credits",
+    description: "Five hundred credits. Best value per credit.",
     priceCents: 29900,
-    creditsGranted: 50,
+    creditsGranted: 500,
     kind: "credits",
     sortOrder: 3,
   },
@@ -71,6 +75,7 @@ const ADDONS = [
     description:
       "We submit your business to 250 US directories and citation sites by hand, then send you the full list. Delivered within 14 days.",
     priceCents: 19900,
+    creditPrice: 250,
     creditsGranted: 0,
     kind: "service",
     sortOrder: 10,
@@ -92,6 +97,8 @@ const ADDONS = [
     description:
       "Your audit lists what is holding the site back. Send it to us and we will tell you what it takes to fix, quote a price, and do the work once you agree.",
     priceCents: 14900,
+    // "From": the quote itself is agreed per website.
+    creditPrice: 190,
     creditsGranted: 0,
     kind: "quote",
     sortOrder: 20,
@@ -102,17 +109,18 @@ for (const addon of ADDONS) {
   await sql`
     insert into addons
       (slug, name, description, price_cents, currency, credits_granted,
-       kind, sort_order, is_active)
+       credit_price, kind, sort_order, is_active)
     values
       (${addon.slug}, ${addon.name}, ${addon.description}, ${addon.priceCents},
-       ${CURRENCY}, ${addon.creditsGranted}, ${addon.kind}, ${addon.sortOrder},
-       true)
+       ${CURRENCY}, ${addon.creditsGranted}, ${addon.creditPrice ?? null},
+       ${addon.kind}, ${addon.sortOrder}, true)
     on conflict (slug) do update set
       name = excluded.name,
       description = excluded.description,
       price_cents = excluded.price_cents,
       currency = excluded.currency,
       credits_granted = excluded.credits_granted,
+      credit_price = excluded.credit_price,
       kind = excluded.kind,
       sort_order = excluded.sort_order,
       is_active = true,
@@ -122,13 +130,13 @@ for (const addon of ADDONS) {
 }
 
 const rows = await sql`
-  select slug, name, price_cents, credits_granted, kind, stripe_price_id
+  select slug, name, price_cents, credits_granted, credit_price, kind, stripe_price_id
   from addons where is_active = true order by sort_order
 `;
 console.table(rows.map((r) => ({ ...r })));
 
-// A quoted service has no Stripe price on purpose, so it is not "missing" one.
-const missing = rows.filter((r) => !r.stripe_price_id && r.kind !== "quote");
+// Only credit packs are paid by card; a service is bought with credits and has no Stripe price on purpose.
+const missing = rows.filter((r) => !r.stripe_price_id && r.kind === "credits");
 console.log(
   missing.length === 0
     ? "\nAll add-ons have a Stripe price."

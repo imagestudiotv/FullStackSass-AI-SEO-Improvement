@@ -1,6 +1,7 @@
 import {
   BarChart3,
   Bot,
+  Coins,
   FileText,
   LayoutDashboard,
   Link2,
@@ -102,11 +103,19 @@ export const navItems: NavItem[] = [
   { title: "losingTraffic", segment: "traffic", icon: TrendingDown },
 
   /**
-   * Settings last, behind a divider: it is where the things you configure
-   * once live — publishing, billing, the website profile — as opposed to the
-   * things you check.
+   * The workspace's credits, behind a divider with Settings: they belong to
+   * the account, not to the selected website (client, 2026-10-26: one credit
+   * balance spent across RepGet). Hidden for someone who owns no website -
+   * see sidebar-nav's hideCredits.
    */
-  { title: "settings", href: "/settings", icon: Settings, separatorBefore: true },
+  { title: "credits", href: "/credits", icon: Coins, separatorBefore: true },
+
+  /**
+   * Settings last: it is where the things you configure once live —
+   * publishing, billing, the website profile — as opposed to the things you
+   * check.
+   */
+  { title: "settings", href: "/settings", icon: Settings },
 
   /**
    * Add-ons, after Settings.

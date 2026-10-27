@@ -161,14 +161,28 @@ console.log(
  * immutable. Anyone who already paid is unaffected - they bought once.
  */
 /**
- * kind "quote" is excluded: its price depends on what we find, so it is sold
- * by conversation rather than checkout. Creating a Stripe price would let
- * someone pay a flat fee for work we have not scoped.
+ * Credit packs only. Services are bought with credits (client, 2026-10-26:
+ * "everything can be purchased by credits now"; lib/addons/actions.ts
+ * buyAddonWithCredits), so a Stripe price for one would only be a second,
+ * unused way to pay. A quote never had one: its price depends on what we
+ * find.
  */
 const addons = await sql`
   select id, slug, name, price_cents, currency, stripe_price_id
-  from addons where is_active = true and kind <> 'quote' order by sort_order
+  from addons where is_active = true and kind = 'credits' order by sort_order
 `;
+
+/**
+ * The product name is what the checkout page shows. A pack renamed in the
+ * database ("10 link credits" -> "100 credits") is renamed in Stripe too,
+ * or the customer pays for one thing and is shown another.
+ */
+async function nameProduct(productId, name) {
+  const product = await stripe.products.retrieve(productId);
+  if (product.name === name) return;
+  await stripe.products.update(productId, { name });
+  console.log(`  product renamed: "${product.name}" -> "${name}"`);
+}
 
 if (addons.length > 0) console.log("\nAdd-ons\n");
 
@@ -176,6 +190,7 @@ for (const addon of addons) {
   console.log(`${addon.name} (${addon.slug})`);
 
   if (addon.stripe_price_id) {
+    let unchanged = null;
     try {
       const price = await stripe.prices.retrieve(addon.stripe_price_id);
       const matches =
@@ -186,13 +201,19 @@ for (const addon of addons) {
         !price.recurring;
 
       if (matches) {
-        console.log(`  price unchanged: ${price.id}\n`);
-        continue;
+        unchanged = price;
+      } else {
+        console.log(`  price changed - creating a replacement`);
+        await stripe.prices.update(price.id, { active: false });
       }
-      console.log(`  price changed - creating a replacement`);
-      await stripe.prices.update(price.id, { active: false });
     } catch {
       console.log(`  stored price id not found in this mode - recreating`);
+    }
+    if (unchanged) {
+      console.log(`  price unchanged: ${unchanged.id}`);
+      await nameProduct(String(unchanged.product), addon.name);
+      console.log("");
+      continue;
     }
   }
 
@@ -210,6 +231,7 @@ for (const addon of addons) {
   }
   if (product) {
     console.log(`  product exists: ${product.id}`);
+    await nameProduct(product.id, addon.name);
   } else {
     product = await stripe.products.create({
       name: addon.name,

@@ -44,6 +44,7 @@ export function SidebarNav({
   selectedWebsiteId = null,
   addons = [],
   hideAddons = false,
+  hideCredits = false,
   setupProgress = null,
   t,
 }: {
@@ -57,6 +58,12 @@ export function SidebarNav({
    * the item is unchanged; this only stops the sidebar advertising it.
    */
   hideAddons?: boolean;
+  /**
+   * Hides the Credits item for someone who owns no website: the websites
+   * shared with them spend their owner's credits, and their own workspace has
+   * nothing to spend credits on.
+   */
+  hideCredits?: boolean;
   /** "2/7" beside the Set up item. Null when there is nothing to report. */
   setupProgress?: { done: number; total: number } | null;
   onNavigate?: () => void;
@@ -144,6 +151,7 @@ export function SidebarNav({
     if (item.expands === "addons" && addons.length === 0) return false;
     // Not this person's to buy for the site they are on; see hideAddons.
     if (item.expands === "addons" && hideAddons) return false;
+    if (item.href === "/credits" && hideCredits) return false;
     return true;
   });
 

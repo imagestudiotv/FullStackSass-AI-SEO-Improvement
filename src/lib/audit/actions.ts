@@ -10,6 +10,9 @@ import { requireEditor } from "@/lib/websites/require-editor";
 import type { AuditSummary, Severity } from "@/lib/audit/rules";
 import type { ActionResult } from "@/lib/websites/actions";
 import { isEntitledToSpend } from "@/lib/billing/entitled";
+import { spendCredits } from "@/lib/credits/spend";
+import { getAppMessages } from "@/lib/i18n/app-locale";
+import { format } from "@/lib/i18n/format";
 import { reserveAndQueue } from "@/lib/jobs/outbox";
 
 /**
@@ -139,9 +142,25 @@ export async function startAudit(
     this says how fast.
   */
   /*
-    The slot and the job are recorded together (lib/jobs/outbox.ts): if the
-    queue is down the audit is accepted and delivered when it recovers, and
-    if it never can be the slot is handed back.
+    Running the check AGAIN costs credits, when an administrator has priced
+    it (lib/credits/prices.ts "audit_rerun"; client, 2026-10-26). The first
+    check of a website is always free: it is part of setting the site up.
+  */
+  const [previous] = await db
+    .select({ id: audits.id })
+    .from(audits)
+    .where(eq(audits.websiteId, site.id))
+    .limit(1);
+  // Widened with `as`: it is set inside the callback, which narrowing cannot see.
+  let shortfall = null as { price: number; available: number } | null;
+  let creditSpendKey: string | null = null;
+
+  /*
+    The slot, the credits and the job are recorded together (lib/jobs/
+    outbox.ts): if the queue is down the audit is accepted and delivered when
+    it recovers, and if it never can be, the slot and the credits are handed
+    back (giveUpOn). Credits the workspace does not have roll the whole
+    request back.
   */
   const slot = await reserveAndQueue(
     [
@@ -152,9 +171,26 @@ export async function startAudit(
     (reservations) => ({
       id: `website-audit:${reservations[0].id}`,
       name: "website/audit.requested",
-      data: { websiteId: site.id, organizationId: ownerOrgId, reservations },
+      data: { websiteId: site.id, organizationId: ownerOrgId, reservations, ...(creditSpendKey ? { creditSpendKey } : {}) },
     }),
+    previous
+      ? async (tx, reservations) => {
+          const key = `audit:${reservations[0].id}`;
+          const spent = await spendCredits(tx, { organizationId: ownerOrgId, action: "audit_rerun", key, websiteId: site.id });
+          if (!spent.ok) {
+            shortfall = { price: spent.price, available: spent.available };
+            return false;
+          }
+          if (spent.spendId) creditSpendKey = key;
+          return true;
+        }
+      : undefined,
   );
+  if (!slot.ok && shortfall) {
+    const { price, available } = shortfall;
+    const { t } = await getAppMessages(guard.context.userId);
+    return { ok: false, error: format(t.app.credits.notEnough, { price, available }) };
+  }
   if (!slot.ok) {
     return {
       ok: false,

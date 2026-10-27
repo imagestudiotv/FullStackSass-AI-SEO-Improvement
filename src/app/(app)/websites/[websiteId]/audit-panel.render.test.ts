@@ -114,6 +114,12 @@ describe("never checked", () => {
     expect(html).not.toContain(esc(tw.viewOnly));
   });
 
+  it("the first check never shows a price; running it again shows what it costs (credits, 2026-10-26)", () => {
+    expect(render({ audit: null, discovered: null, rerunCost: "5 credits" })).not.toContain("5 credits");
+    expect(textOf(render({ rerunCost: "5 credits" }))).toContain(`${en.checkAgain} · 5 credits`);
+    expect(textOf(render({ rerunCost: null }))).not.toContain(`${en.checkAgain} ·`);
+  });
+
   it("a viewer is told it is read-only and is offered no button the server would refuse", () => {
     const html = render({ audit: null, discovered: null, canEdit: false });
     expect(html).toContain(esc(tw.viewOnly));

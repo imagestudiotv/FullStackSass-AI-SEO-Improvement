@@ -12,11 +12,13 @@ export type AddonRow = {
   description: string | null;
   priceCents: number;
   currency: string;
-  /** Link credits granted on purchase; 0 for a service we fulfil by hand. */
+  /** Credits granted on purchase; 0 for a service we fulfil by hand. */
   creditsGranted: number;
-  /** "credits" | "service". */
+  /** "credits" | "service" | "quote". */
   kind: string;
-  /** False until a Stripe price exists, so the UI can say so. */
+  /** A service's price in credits (a quote's "from" figure); null when it is not for sale. */
+  creditPrice: number | null;
+  /** A credit pack: false until a Stripe price exists, so the UI can say so. */
   purchasable: boolean;
 };
 
@@ -26,6 +28,8 @@ export type PurchaseRow = {
   kind: string;
   pricePaidCents: number;
   currency: string;
+  /** Set when it was paid with credits rather than by card. */
+  creditsPaid: number | null;
   /** "paid" | "fulfilled". */
   status: string;
   fulfilledAt: Date | null;

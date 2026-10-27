@@ -1,8 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { eq } from "drizzle-orm";
-import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { articles, websites } from "@/lib/db/schema";
+import { articles, audits, creditLedger, creditSettings, websites } from "@/lib/db/schema";
 import { createTestDb, type TestDb } from "@/test/db";
 import { seedCalendarItem, seedWebsite } from "@/test/fixtures";
 
@@ -30,6 +30,11 @@ vi.mock("@/lib/websites/require-editor", () => ({
   requireEditor: vi.fn(async (id: string) => ({ ok: true, context: await contextFor(id) })),
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+// The reader's language, outside a request: English.
+vi.mock("@/lib/i18n/app-locale", async () => {
+  const { getMessages } = await import("@/lib/i18n/messages");
+  return { getAppMessages: async () => ({ t: getMessages("en"), locale: "en" }) };
+});
 // The queue: jobs go through the real outbox (lib/jobs/outbox.ts) to this send.
 const inngestMock = vi.hoisted(() => ({
   send: vi.fn(),
@@ -134,6 +139,71 @@ describe("audits", () => {
       }),
     ).rejects.toThrow(/subscription is not active/);
     expect(crawler.crawlSite).not.toHaveBeenCalled();
+  });
+});
+
+describe("audits run again (credits, client 2026-10-26)", () => {
+  const PRICE = 5;
+  const balance = async (orgId: string) =>
+    Number((await test.client.query<{ n: number }>("select coalesce(sum(amount), 0)::int as n from credit_ledger where organization_id = $1", [orgId])).rows[0].n);
+  async function siteWithAudit(credits: number) {
+    const site = await seedWebsite(test);
+    await test.db.insert(audits).values({ websiteId: site.websiteId, score: 80 });
+    if (credits) await test.db.insert(creditLedger).values({ organizationId: site.orgId, type: "purchase", amount: credits });
+    return site;
+  }
+
+  beforeEach(async () => {
+    await test.db.delete(creditSettings);
+    await test.db.insert(creditSettings).values({ key: "price:audit_rerun", value: PRICE });
+  });
+  afterEach(async () => {
+    await test.db.delete(creditSettings);
+  });
+
+  it("never charge the first check of a website", async () => {
+    const { orgId, websiteId } = await seedWebsite(test);
+    expect((await startAudit(websiteId)).ok).toBe(true);
+    expect(await balance(orgId)).toBe(0);
+    expect(inngestMock.send.mock.calls[0][0].data.creditSpendKey).toBeUndefined();
+  });
+
+  it("charge the price, recorded with the job, and refuse - queuing nothing - when the credits are short", async () => {
+    const short = await siteWithAudit(3);
+    expect(await startAudit(short.websiteId)).toEqual({
+      ok: false,
+      error: "This costs 5 credits and you have 3. Buy credits to continue.",
+    });
+    expect(inngestMock.send).not.toHaveBeenCalled();
+    expect(await balance(short.orgId)).toBe(3);
+    expect((await test.client.query("select 1 from spend_reservations where website_id = $1", [short.websiteId])).rows).toHaveLength(0);
+
+    const { orgId, websiteId } = await siteWithAudit(12);
+    expect((await startAudit(websiteId)).ok).toBe(true);
+    expect(await balance(orgId)).toBe(7);
+    expect(inngestMock.send.mock.calls[0][0].data.creditSpendKey).toMatch(/^audit:/);
+  });
+
+  it("give the credits back when the check fails", async () => {
+    const { orgId, websiteId } = await siteWithAudit(10);
+    expect((await startAudit(websiteId)).ok).toBe(true);
+    const data = inngestMock.send.mock.calls[0][0].data;
+    const job = auditWebsite as unknown as { config: { onFailure: (ctx: unknown) => Promise<void> } };
+    await job.config.onFailure({
+      event: { data: { event: { data } } },
+      error: new Error("crawl failed"),
+      logger: { error: vi.fn() },
+    });
+    expect(await balance(orgId)).toBe(10);
+  });
+
+  it("give the credits back when the job can never be delivered", async () => {
+    const { orgId, websiteId } = await siteWithAudit(10);
+    inngestMock.send.mockRejectedValue(new Error("queue down"));
+    expect((await startAudit(websiteId)).ok).toBe(true);
+    expect(await balance(orgId)).toBe(5);
+    await giveUpDelivery();
+    expect(await balance(orgId)).toBe(10);
   });
 });
 

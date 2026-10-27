@@ -1,22 +1,35 @@
 "use server";
 
-import { asc, desc, eq } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
 
+import { asc, desc, eq } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
+
+import { emailServiceOrdered } from "@/lib/addons/notify";
+import { chargeCredits } from "@/lib/credits/spend";
 import { db } from "@/lib/db";
 import { addonPurchases, addons } from "@/lib/db/schema";
+import { getAppMessages } from "@/lib/i18n/app-locale";
+import { format } from "@/lib/i18n/format";
+import { notify } from "@/lib/notifications/create";
 import { getOrCreateCustomer } from "@/lib/stripe/customer";
 import { isStripeConfigured, stripe } from "@/lib/stripe/client";
 import { stripeErrorMessage } from "@/lib/stripe/errors";
 import { requireOrg } from "@/lib/tenant";
+import { hasOnlySharedWork } from "@/lib/websites/accessible";
 import type { AddonRow, PurchaseRow } from "@/lib/addons/shared";
 
 /**
  * Add-on purchases.
  *
- * One-off payments, separate from the subscription: extra link credits, and
- * services we deliver by hand. Nothing here grants anything — the Stripe
- * webhook does that, because a customer can close the tab before the success
- * redirect loads, or visit the success URL by hand.
+ * Money buys two things only: the plan, and credit packs (client, 2026-10-26:
+ * "everything can be purchased by credits now ... All this will still exists
+ * but will be possible to purchase and use with credits"). So a credit pack
+ * is paid by card - and nothing here grants it: the Stripe webhook does,
+ * because a customer can close the tab before the success redirect loads, or
+ * visit the success URL by hand - while a service delivered by hand is bought
+ * with credits (buyAddonWithCredits), and a quote is agreed first and then
+ * paid with credits too.
  */
 
 function appUrl(): string {
@@ -44,6 +57,7 @@ export async function listAddons(): Promise<AddonRow[]> {
       currency: addons.currency,
       creditsGranted: addons.creditsGranted,
       kind: addons.kind,
+      creditPrice: addons.creditPrice,
       // Checkout refuses an add-on without a price, so the UI needs to know
       // rather than offering a button that always errors.
       purchasable: addons.stripePriceId,
@@ -69,6 +83,7 @@ export async function listPurchases(): Promise<PurchaseRow[]> {
       kind: addons.kind,
       pricePaidCents: addonPurchases.pricePaidCents,
       currency: addonPurchases.currency,
+      creditsPaid: addonPurchases.creditsPaid,
       status: addonPurchases.status,
       fulfilledAt: addonPurchases.fulfilledAt,
       createdAt: addonPurchases.createdAt,
@@ -100,6 +115,7 @@ export async function buyAddon(addonId: string): Promise<CheckoutResult> {
     .select({
       id: addons.id,
       name: addons.name,
+      kind: addons.kind,
       stripePriceId: addons.stripePriceId,
       isActive: addons.isActive,
     })
@@ -109,6 +125,10 @@ export async function buyAddon(addonId: string): Promise<CheckoutResult> {
 
   if (!addon || !addon.isActive) {
     return { error: "That add-on is not available" };
+  }
+  // Only credit packs are paid by card. A service may still have a Stripe price from before; it is not used.
+  if (addon.kind !== "credits") {
+    return { error: `"${addon.name}" is bought with credits` };
   }
   if (!addon.stripePriceId) {
     return { error: `"${addon.name}" has no price configured yet` };
@@ -156,4 +176,89 @@ export async function buyAddon(addonId: string): Promise<CheckoutResult> {
     console.error("[addons] checkout session failed", error);
     return { error: stripeErrorMessage(error) };
   }
+}
+
+export type CreditPurchaseResult = { ok: true; credits: number } | { ok: false; error: string; needsCredits?: boolean };
+
+/**
+ * Buys a service with the workspace's credits.
+ *
+ * The credits are taken and the purchase recorded in ONE transaction, so
+ * neither exists without the other. Each click is a new purchase (a random
+ * key): buying the same service twice is allowed, as it was by card, and the
+ * button is disabled while one is in flight. The service is delivered by
+ * hand, so the administrators are emailed, and the purchase reads "in
+ * progress" on Billing until it is delivered.
+ */
+export async function buyAddonWithCredits(addonId: string): Promise<CreditPurchaseResult> {
+  const { orgId, userId } = await requireOrg();
+  const { t } = await getAppMessages(userId);
+
+  // Credits are the reader's own workspace's; someone here only for another's website has none to spend.
+  if (await hasOnlySharedWork()) return { ok: false, error: t.app.credits.guestOnly };
+
+  const [addon] = await db
+    .select({
+      id: addons.id,
+      slug: addons.slug,
+      name: addons.name,
+      kind: addons.kind,
+      creditPrice: addons.creditPrice,
+      currency: addons.currency,
+      isActive: addons.isActive,
+    })
+    .from(addons)
+    .where(eq(addons.id, addonId))
+    .limit(1);
+  // A quote is not bought from a list price: it is agreed first.
+  if (!addon || !addon.isActive || addon.kind !== "service" || !addon.creditPrice || addon.creditPrice <= 0) {
+    return { ok: false, error: t.app.addons.unavailable };
+  }
+  const price = addon.creditPrice;
+
+  const purchaseId = randomUUID();
+  const outcome = await db.transaction(async (tx) => {
+    const spend = await chargeCredits(tx, {
+      organizationId: orgId,
+      action: `addon:${addon.slug}`,
+      credits: price,
+      key: `addon:${purchaseId}`,
+      note: `Bought ${addon.name}`,
+    });
+    if (!spend.ok) return spend;
+    await tx.insert(addonPurchases).values({
+      id: purchaseId,
+      organizationId: orgId,
+      addonId: addon.id,
+      stripeSessionId: null,
+      pricePaidCents: 0,
+      currency: addon.currency,
+      creditsPaid: price,
+      status: "paid",
+    });
+    return spend;
+  });
+  if (!outcome.ok) {
+    return {
+      ok: false,
+      needsCredits: true,
+      error: format(t.app.credits.notEnough, { price: outcome.price, available: outcome.available }),
+    };
+  }
+
+  /* After commit, and never able to undo the purchase. */
+  await notify({
+    organizationId: orgId,
+    type: "addon.purchased",
+    title: `${addon.name} - order received`,
+    body: "We will start work and email you when it is done.",
+    href: "/billing",
+  });
+  await emailServiceOrdered({ organizationId: orgId, service: addon.name, credits: price });
+
+  revalidatePath("/billing");
+  revalidatePath("/credits");
+  // The sidebar shows the balance on every page.
+  revalidatePath("/", "layout");
+  return { ok: true, credits: price };
 }

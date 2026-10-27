@@ -164,7 +164,7 @@ export const BACKLINKS_PAGE: FeaturePage = {
     },
     {
       title: "Credits come with your plan",
-      body: "Every plan includes link credits each month, and hosting articles for others earns more. A link uses its credits only once it is verified live.",
+      body: "Every plan includes credits each month, and hosting articles for others earns more. A link uses its credits only once it is verified live.",
     },
   ],
   compare: {
@@ -221,7 +221,7 @@ export const BACKLINKS_PAGE: FeaturePage = {
       { label: "How you pay", cells: ["Per link, or with your time", "A monthly fee", "Credits included in your plan"] },
     ],
   },
-  related: { label: "How link credits work", href: "/backlink-exchange" },
+  related: { label: "How credits work for links", href: "/backlink-exchange" },
   faqTitle: "Questions about backlinks",
   faq: [
     {

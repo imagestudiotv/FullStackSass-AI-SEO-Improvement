@@ -10,6 +10,7 @@ import { audits, crawls, issues, pages, websites } from "@/lib/db/schema";
 import { PRICING, track } from "@/lib/usage";
 import { notify } from "@/lib/notifications/create";
 import { requireEntitledForSpend } from "@/lib/billing/entitled";
+import { refundSpend } from "@/lib/credits/spend";
 import {
   paidCall,
   releaseUnspent,
@@ -64,6 +65,13 @@ export const auditWebsite = inngest.createFunction(
         event.data.event.data.reservations as Reservation[] | undefined,
         "job_failed_before_spend",
       );
+
+      /*
+        Credits paid for running it again (lib/audit/actions.ts) come back
+        whenever the check fails: the customer got no report for them.
+      */
+      const creditSpendKey = event.data.event.data.creditSpendKey;
+      if (typeof creditSpendKey === "string") await refundSpend(creditSpendKey);
 
       await notify({
         organizationId: event.data.event.data.organizationId as string,

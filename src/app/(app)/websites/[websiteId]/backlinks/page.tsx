@@ -217,7 +217,7 @@ export default async function BacklinksOverviewPage({
               {r.creditsCardTitle}
             </h2>
             {owner ? (
-              <Link href={`${base}/credits`} className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">
+              <Link href="/credits" className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">
                 {r.creditActivity} →
               </Link>
             ) : null}

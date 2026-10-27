@@ -489,11 +489,13 @@ export async function adjustCredits(
     return { ok: false, error: "Enter a whole number of credits, not zero." };
   }
   /**
-   * A cap, because the only realistic way to type 5000 here is by accident
-   * and the ledger has no undo beyond another entry.
+   * A cap, because the only realistic way to type 50000 here is by accident
+   * and the ledger has no undo beyond another entry. 10,000 since credits
+   * moved to ten times the scale (2026-10-26): a Scale plan alone is given
+   * 700 a month.
    */
-  if (Math.abs(amount) > 1000) {
-    return { ok: false, error: "That is more than 1000 credits. Split it up." };
+  if (Math.abs(amount) > 10_000) {
+    return { ok: false, error: "That is more than 10,000 credits. Split it up." };
   }
   const note = reason.trim();
   if (note.length < 3) {
