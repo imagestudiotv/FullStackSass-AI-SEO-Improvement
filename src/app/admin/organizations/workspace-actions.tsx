@@ -288,7 +288,7 @@ export function WorkspaceDialogs({
    * the obvious typo is caught before a round trip; the server still decides.
    */
   const creditsValid =
-    Number.isInteger(Number(amount)) && Number(amount) !== 0 && Math.abs(Number(amount)) <= 1000;
+    Number.isInteger(Number(amount)) && Number(amount) !== 0 && Math.abs(Number(amount)) <= 10_000;
   const reasonValid = reasonOk(reason);
 
   return (
@@ -312,7 +312,7 @@ export function WorkspaceDialogs({
                 inputMode="numeric"
                 value={amount}
                 onChange={(event) => setAmount(event.target.value)}
-                placeholder="5"
+                placeholder="50"
                 disabled={pending}
                 aria-describedby="credit-amount-hint"
                 className="tabular-nums"
@@ -321,7 +321,7 @@ export function WorkspaceDialogs({
                 id="credit-amount-hint"
                 className={amount !== "" && !creditsValid ? "text-xs text-foreground" : "text-xs text-muted-foreground"}
               >
-                A whole number from -1000 to 1000, not 0.
+                A whole number from -10,000 to 10,000, not 0.
               </p>
             </div>
             <ReasonField

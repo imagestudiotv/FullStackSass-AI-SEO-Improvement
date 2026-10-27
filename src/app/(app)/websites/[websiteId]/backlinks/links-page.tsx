@@ -96,7 +96,7 @@ export async function LinksPage({
         currency={page.policy && page.policy.backlinkRates.length > 0 ? page.policy.currency : null}
         canEdit={ctx.access !== "viewer"}
         recoverable={received ? 0 : issues.hostedArticlesMissingLink}
-        creditsHref={ctx.access === "owner" ? `${base}/credits` : null}
+        creditsHref={ctx.access === "owner" ? "/credits" : null}
         t={r}
         locale={locale}
       />

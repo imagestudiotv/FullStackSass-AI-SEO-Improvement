@@ -28,6 +28,7 @@ import {
   lessThanAMonthApart,
 } from "@/lib/billing/entitlement-period";
 import { db } from "@/lib/db";
+import type { Executor } from "@/lib/db/types";
 import { backlinkRequests, creditLedger, plans, subscriptions } from "@/lib/db/schema";
 
 /**
@@ -55,7 +56,13 @@ export type CreditType =
   /** Earned because someone you referred started paying. */
   | "referral"
   /** Manual adjustment by an admin. */
-  | "adjustment";
+  | "adjustment"
+  /** Given for using RepGet that day (lib/credits/daily.ts). */
+  | "daily_grant"
+  /** Spent on an action (lib/credits/spend.ts); reference_id is the credit_spends row. */
+  | "spend"
+  /** A spend given back because its action could not be completed. */
+  | "spend_refund";
 
 export type CreditEntry = {
   type: CreditType;
@@ -71,7 +78,8 @@ export type CreditEntry = {
   idempotencyKey?: string | null;
 };
 
-type Writer = Pick<typeof db, "insert">;
+/** Anything that can insert: the shared client, an open transaction, or a test database. */
+type Writer = Pick<Executor, "insert">;
 
 /**
  * Records one movement. The only way credits ever change.

@@ -72,6 +72,8 @@ export type AdminAction =
   | "publication.dispatch_resolved"
   | "authority.collection_requested"
   | "valuation.policy_published"
+  /* What credits buy (lib/admin/credits.ts). */
+  | "credits.settings_saved"
   /* The cash partner program (lib/partners). */
   | PartnerAuditAction;
 

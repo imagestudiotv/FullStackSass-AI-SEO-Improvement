@@ -145,6 +145,7 @@ export default async function BillingPage({ searchParams }: PageProps<"/billing"
           canBuy={false}
           locale={locale}
           t={t.app.addons}
+          tCredits={t.app.credits}
           tCommon={t.app.common}
         />
         <PaymentsPanel
@@ -230,6 +231,7 @@ export default async function BillingPage({ searchParams }: PageProps<"/billing"
         canBuy
         locale={locale}
         t={t.app.addons}
+        tCredits={t.app.credits}
         tCommon={t.app.common}
       />
 

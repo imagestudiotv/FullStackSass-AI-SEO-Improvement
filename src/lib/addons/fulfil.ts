@@ -148,7 +148,7 @@ export async function fulfilAddonPurchase(
         ? {
             organizationId: input.organizationId,
             type: "addon.purchased",
-            title: `${addon.creditsGranted} link credits added`,
+            title: `${addon.creditsGranted} credits added`,
             body: `Your purchase of ${addon.name} is ready to use.`,
             href: "/billing",
           }

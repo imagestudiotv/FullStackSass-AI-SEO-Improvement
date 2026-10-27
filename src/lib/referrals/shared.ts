@@ -33,5 +33,9 @@ export type ReferralSummary = {
  * Declared here rather than in core.ts so a page can show the figure without
  * importing the database client — the public affiliate page needs the number,
  * not the machinery.
+ *
+ * 200, ten times the 20 it was, when every credit figure moved to ten times
+ * the scale (client, 2026-10-26: Grow 250 credits a month where it was 25).
+ * Rewards already given are not changed.
  */
-export const REFERRAL_REWARD_CREDITS = 20;
+export const REFERRAL_REWARD_CREDITS = 200;

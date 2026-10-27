@@ -59,7 +59,8 @@ const TIERS = [
     articleLimit: 30,
     keywordLimit: 300,
     siteLimit: 3,
-    monthlyCredits: 25,
+    // Ten times the old 25 (client, 2026-10-26: "for grow plan we are giving 250 credits").
+    monthlyCredits: 250,
     sortOrder: 0,
   },
   {
@@ -71,12 +72,12 @@ const TIERS = [
     keywordLimit: 1500,
     siteLimit: 10,
     /*
-      60, not 100. The client cut it - "For scale we offering 60 link
-      credits, 100 is a huge" - and the live rows were updated then. This
-      file still said 100, so the next `npm run db:seed` would have silently
-      put it back.
+      700: ten times the 60 the client cut it to from 100 ("For scale we
+      offering 60 link credits, 100 is a huge"), when credits moved to ten
+      times the scale (2026-10-26: "for scale plan we are giving 700
+      credits"; drizzle/0076_credit_scale.sql updated the live rows).
     */
-    monthlyCredits: 60,
+    monthlyCredits: 700,
     sortOrder: 1,
   },
 ];

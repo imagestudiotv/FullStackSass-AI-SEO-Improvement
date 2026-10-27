@@ -2035,6 +2035,14 @@ export type Messages = {
       servicesTitle: string;
       /** {count}. */
       showingRecent: string;
+      /** Under the services: they are paid with credits. */
+      servicesHelp: string;
+      /** {price}, e.g. "250 credits": the second click before a service is bought. */
+      confirmPay: string;
+      confirm: string;
+      cancel: string;
+      ordered: string;
+      buyCreditsAction: string;
     };
     referral: {
       referSomeone: string;
@@ -2801,6 +2809,63 @@ export type Messages = {
       account: string;
       billing: string;
       settingsSections: string;
+      credits: string;
+      creditPacks: string;
+      articlesUnlimited: string;
+      articlesLeft: string;
+      freeArticlesLeft: string;
+    };
+    credits: {
+      title: string;
+      intro: string;
+      buy: string;
+      summary: string;
+      available: string;
+      availableHelp: string;
+      /** Daily credits (lib/credits/daily.ts): given on each day a paying workspace uses RepGet. {count} in dailyValue and dailyPlan. */
+      daily: string;
+      dailyValue: string;
+      dailyHelp: string;
+      dailyPlan: string;
+      reserved: string;
+      reservedHelp: string;
+      balance: string;
+      pricesTitle: string;
+      pricesIntro: string;
+      backlink: string;
+      backlinkPrice: string;
+      backlinkNote: string;
+      free: string;
+      creditsCount: string;
+      actions: {
+        audit_rerun: string;
+      };
+      actionHelp: {
+        audit_rerun: string;
+      };
+      /** Services bought with credits (addons.credit_price); {price} in servicePriceFrom. */
+      serviceHelp: string;
+      quoteHelp: string;
+      servicePriceFrom: string;
+      sourcesTitle: string;
+      sourcePlan: string;
+      sourcePacks: string;
+      sourceDaily: string;
+      sourceReferral: string;
+      historyTitle: string;
+      colDate: string;
+      colEntry: string;
+      colWebsite: string;
+      colCredits: string;
+      empty: string;
+      ledgerSpend: string;
+      ledgerSpendRefund: string;
+      ledgerDaily: string;
+      /** {name}: the service bought. */
+      ledgerAddon: string;
+      guestOnly: string;
+      notEnough: string;
+      sidebarDaily: string;
     };
     status: {
       pending: string;
@@ -3379,7 +3444,7 @@ const en: Messages = {
       "Every customer both gives and receives links",
       "Links come from businesses in a related field, never unrelated ones",
       "Placed inside real articles, not a page of links",
-      "Checked daily - if a link is removed, tell us and your credit comes back",
+      "Checked daily - if a link is removed, tell us and your credits come back",
     ],
     networkHowLink: "How the exchange works",
     networkCard: {
@@ -3389,7 +3454,7 @@ const en: Messages = {
       mention: "Your business, mentioned in the body of the article",
       placement: "In context, not on a page of links",
       status: "Checked daily",
-      credit: "1 link credit",
+      credit: "10 credits",
     },
     testimonialsEyebrow: "Testimonials",
     testimonialsTitle: "The results companies see with RepGet",
@@ -3494,7 +3559,7 @@ const en: Messages = {
       },
       {
         label: "Backlinks earned",
-        body: "Real links inside real articles on other businesses' sites, checked daily. If one is removed, tell us and your credit comes back.",
+        body: "Real links inside real articles on other businesses' sites, checked daily. If one is removed, tell us and your credits come back.",
       },
     ],
     timelineTitle: "What the first three months look like",
@@ -3523,13 +3588,13 @@ const en: Messages = {
   publishers: {
     metaTitle: "Monetize your blog",
     metaDescription:
-      "Host one article a month for a related business and earn link credits you can spend on backlinks to your own site.",
+      "Host one article a month for a related business and earn credits you can spend on backlinks to your own site.",
     title: "Monetize your blog",
     intro:
       "Host one article a month for a business in a related field, and earn credits you can spend on links back to your own site.",
     creditsTitle: "Credits, not cash",
     creditsBody:
-      "You are paid in link credits rather than money. One hosted article earns one credit, and one credit buys you a link from another business's site. If you want cash for guest posts, this is not that - and there are marketplaces that do it.",
+      "You are paid in credits rather than money. Each hosted article earns credits, and credits buy you links from other businesses' sites. If you want cash for guest posts, this is not that - and there are marketplaces that do it.",
     steps: [
       {
         title: "Tell us what your site is about",
@@ -3544,8 +3609,8 @@ const en: Messages = {
         body: "A real article on a topic your readers care about, written for your site, with one natural link in it.",
       },
       {
-        title: "You earn a credit",
-        body: "One credit per article hosted, spendable on a link back to your own site from someone else's.",
+        title: "You earn credits",
+        body: "Credits for every article hosted, spendable on links back to your own site from other businesses' sites.",
       },
     ],
     controlTitle: "What you control",
@@ -3574,7 +3639,7 @@ const en: Messages = {
   affiliate: {
     metaTitle: "Refer a business",
     metaDescription:
-      "Share your link and earn link credits when someone you refer pays for their first month.",
+      "Share your link and earn credits when someone you refer pays for their first month.",
     title: "Refer a business, earn credits",
     intro:
       "Share your link. When someone you refer pays for their first month, credits land in your account.",
@@ -3616,12 +3681,12 @@ const en: Messages = {
         body: "We write an article for another business in a related field and publish it on your site. It is a real article on a topic your readers care about, not a page of links.",
       },
       {
-        title: "You earn a credit",
-        body: "Hosting one article earns one credit. Your plan also includes credits every month, so you can start before you have hosted anything.",
+        title: "You earn credits",
+        body: "Each hosted article earns credits. Your plan also includes credits every month, so you can start before you have hosted anything.",
       },
       {
-        title: "You spend it on a link",
-        body: "One credit buys one link to your site, written naturally into an article on someone else's website in a related field.",
+        title: "You spend them on links",
+        body: "Credits buy links to your site, written naturally into articles on other websites in a related field.",
       },
     ],
     rulesTitle: "The rules that make it worth having",
@@ -3636,7 +3701,7 @@ const en: Messages = {
       },
       {
         title: "Credits refunded if a link goes",
-        body: "If a link is removed, tell us: once we confirm it is gone, you get the credit back and it disappears from your dashboard. A site that is only offline for a while, for maintenance say, keeps its links.",
+        body: "If a link is removed, tell us: once we confirm it is gone, you get the credits back and it disappears from your dashboard. A site that is only offline for a while, for maintenance say, keeps its links.",
       },
     ],
     notTitle: "What this is not",
@@ -3649,7 +3714,7 @@ const en: Messages = {
   },
   faq: {
     metaTitle: "FAQ",
-    metaDescription: "Common questions about how RepGet works - how long results take, ranking guarantees, AI-written articles, link credits and cancelling - answered straight.",
+    metaDescription: "Common questions about how RepGet works - how long results take, ranking guarantees, AI-written articles, credits and cancelling - answered straight.",
     title: "Frequently asked questions",
     subtitle: "Straight answers, including where the limits are.",
     items: [
@@ -3679,9 +3744,9 @@ const en: Messages = {
           "Only if you connect your website and choose to publish. We support WordPress, Ghost and Shopify, plus a webhook for anything else. Otherwise they stay as drafts for you to review, edit, or copy elsewhere.",
       },
       {
-        question: "What are link credits?",
+        question: "What are credits?",
         answer:
-          "Google trusts a website more when other sites link to it. When one of your articles mentions another member's business, you earn a credit. Spend a credit and a different member's article links to you. You never link to whoever linked to you, so the links look natural.",
+          "Credits are what you spend in RepGet: on backlinks, services and more. Your plan adds credits every month, and you can buy more. For backlinks: Google trusts a website more when other sites link to it. When one of your articles mentions another member's business, you earn credits. Spend credits and a different member's article links to you. You never link to whoever linked to you, so the links look natural.",
       },
       {
         question: "Why do you suggest smaller search terms?",
@@ -4198,7 +4263,7 @@ const en: Messages = {
       articlesEachMonth: "{n} article written each month|{n} articles written each month",
       searchTermsTracked: "{n} search term tracked|{n} search terms tracked",
       oneWebsite: "One website per subscription",
-      creditsEachMonth: "{n} link credit each month|{n} link credits each month",
+      creditsEachMonth: "{n} credit each month|{n} credits each month",
       paymentReceived: "Payment received - confirming your subscription…",
       checkoutCancelled: "Checkout cancelled.",
       purchaseReceived: "Payment received - your purchase will appear shortly.",
@@ -4995,7 +5060,7 @@ const en: Messages = {
     },
     backlinks: {
       title: "Links from other websites",
-      joinHelp: "Google trusts a website more when other sites link to it. Mention another business in your articles to earn a credit, then spend it to get a mention on someone else\u2019s site.",
+      joinHelp: "Google trusts a website more when other sites link to it. Mention another business in your articles to earn credits, then spend them to get a mention on someone else’s site.",
       capLabel: "Mentions you will include each month",
       capHelp: "Keep this low. A page full of links to other businesses looks suspicious to Google.",
       join: "Join",
@@ -5078,7 +5143,7 @@ const en: Messages = {
       writingStarted: "Writing started - it takes a few minutes",
     },
     addons: {
-      moreCredits: "More link credits",
+      moreCredits: "More credits",
       moreCreditsHelp: "Your plan includes credits each month. Buy more if you run out - these do not expire.",
       termsPill: "One-time purchase · Credits never expire",
       oneTime: "One-time purchase",
@@ -5093,13 +5158,19 @@ const en: Messages = {
       delivered: "Delivered",
       inProgress: "In progress",
       requestQuote: "Request a quote",
-      quoteHelp: "We quote for the work after reviewing your audit.",
+      quoteHelp: "We quote for the work in credits after reviewing your audit.",
       title: "Add-ons",
       subtitle: "One-off purchases on top of your plan.",
       perCredit: "{price} per credit",
-      quoteFrom: "From {price}. We quote for the work after reviewing your audit.",
+      quoteFrom: "From {price}. We quote for the work after reviewing your audit, and once you agree it is paid with your credits.",
       servicesTitle: "Services",
       showingRecent: "Showing your {count} most recent purchases.",
+      servicesHelp: "Paid with your credits and delivered by our team.",
+      confirmPay: "Pay {price}?",
+      confirm: "Confirm",
+      cancel: "Cancel",
+      ordered: "Order received. We will email you when it is done.",
+      buyCreditsAction: "Buy credits",
     },
     referral: {
       referSomeone: "Refer someone",
@@ -5115,7 +5186,7 @@ const en: Messages = {
       someoneReferred: "Someone you referred",
       notEligible: "Not eligible",
       waiting: "Waiting",
-      cardDescription: "Share your link. When someone you refer pays for their first month, you get {credits} link credits.",
+      cardDescription: "Share your link. When someone you refer pays for their first month, you get {credits} credits.",
       joinedWithName: "{name} · joined {date}",
       joined: "Joined {date}",
       noWebsiteJoined: "No website yet · joined {date}",
@@ -5270,11 +5341,11 @@ const en: Messages = {
       noVerifiedYet: "No verified links yet. They appear here once the verifier sees them live.",
       pipeline: "{publication} awaiting publication · {verification} awaiting verification",
       seeAllBacklinks: "See all backlinks",
-      creditsCardTitle: "Backlink credits",
+      creditsCardTitle: "Credits",
       creditActivity: "Credit activity",
       creditsAvailableLine: "available · {reserved} reserved for links being placed · balance {balance}",
       recoverFromArticles: "Recover credits from {count} article|Recover credits from {count} articles",
-      buyCredits: "Buy link credits",
+      buyCredits: "Buy credits",
       creditsHowItWorks: "You earn credits when a partner's link in your article is verified live, and spend them when a link to your site is verified live. While a link is being placed its credits are reserved; if a verified link is later removed, they are returned.",
       creditsScopeNote: "Credits belong to your workspace and are shared by all its websites.",
       creditsOwnerOnly: "Credits belong to the workspace that owns this website and are shown to its members only.",
@@ -5830,6 +5901,60 @@ const en: Messages = {
       account: "Account",
       billing: "Billing",
       settingsSections: "Settings sections",
+      credits: "Credits",
+      creditPacks: "Credit packs",
+      articlesUnlimited: "Unlimited articles",
+      articlesLeft: "{left} of {limit} articles left",
+      freeArticlesLeft: "{left} of {limit} free articles left",
+    },
+    credits: {
+      title: "Credits",
+      intro: "One credit balance for your whole workspace, shared by all your websites. Spend it on backlinks, services and everything else in RepGet.",
+      buy: "Buy credits",
+      summary: "Summary",
+      available: "Available",
+      availableHelp: "Credits you can spend now.",
+      daily: "Daily credits",
+      dailyValue: "+{count} today",
+      dailyHelp: "Added on each day you use RepGet. They never expire.",
+      dailyPlan: "With a paid plan you get {count} credits on each day you use RepGet.",
+      reserved: "Reserved for links",
+      reservedHelp: "Held for links being placed; spent only once a link is verified live.",
+      balance: "Balance",
+      pricesTitle: "What credits are for",
+      pricesIntro: "What each thing costs in credits.",
+      backlink: "A backlink from the Partner Network",
+      backlinkPrice: "{min} to {max} credits per link",
+      backlinkNote: "Set for each link when it is placed, and charged only once the link is seen live.",
+      free: "Free",
+      creditsCount: "{count} credit|{count} credits",
+      actions: {
+        audit_rerun: "Running the website check again",
+      },
+      actionHelp: {
+        audit_rerun: "The first check of each website is free.",
+      },
+      serviceHelp: "Bought on Billing and delivered by our team.",
+      quoteHelp: "Quoted after we review your audit, then paid with credits.",
+      servicePriceFrom: "From {price}",
+      sourcesTitle: "Where credits come from",
+      sourcePlan: "Your plan adds credits every month. They never expire.",
+      sourcePacks: "Credit packs, whenever you need more. Bought credits never expire.",
+      sourceDaily: "{count} credits on each day you use RepGet, with a paid plan. They never expire.",
+      sourceReferral: "{count} credits for each business you refer that starts paying.",
+      historyTitle: "History",
+      colDate: "Date",
+      colEntry: "Entry",
+      colWebsite: "Website",
+      colCredits: "Credits",
+      empty: "No credit activity yet.",
+      ledgerSpend: "Spent: {action}",
+      ledgerSpendRefund: "Returned: {action} could not be completed",
+      ledgerDaily: "Daily credits",
+      ledgerAddon: "Bought: {name}",
+      guestOnly: "Credits belong to a workspace that owns a website. The websites shared with you use their owner's credits.",
+      notEnough: "This costs {price} credits and you have {available}. Buy credits to continue.",
+      sidebarDaily: "+{count} today",
     },
     status: {
       pending: "Waiting to start",
@@ -6410,7 +6535,7 @@ const es: Messages = {
       "Cada cliente da y recibe enlaces",
       "Los enlaces vienen de empresas de sectores afines, nunca ajenos",
       "Colocados dentro de artículos reales, no en una página de enlaces",
-      "Comprobados a diario: si se retira un enlace, avísenos y recupera su crédito",
+      "Comprobados a diario: si se retira un enlace, avísenos y recupera sus créditos",
     ],
     networkHowLink: "Cómo funciona el intercambio",
     networkCard: {
@@ -6420,7 +6545,7 @@ const es: Messages = {
       mention: "Su negocio, mencionado en el cuerpo del artículo",
       placement: "En contexto, no en una página de enlaces",
       status: "Comprobado a diario",
-      credit: "1 crédito de enlace",
+      credit: "10 créditos",
     },
     testimonialsEyebrow: "Testimonios",
     testimonialsTitle: "Los resultados que las empresas obtienen con RepGet",
@@ -6526,7 +6651,7 @@ const es: Messages = {
       },
       {
         label: "Enlaces conseguidos",
-        body: "Enlaces reales dentro de artículos reales en webs de otros negocios, comprobados a diario. Si se elimina uno, avísenos y recupera su crédito.",
+        body: "Enlaces reales dentro de artículos reales en webs de otros negocios, comprobados a diario. Si se elimina uno, avísenos y recupera sus créditos.",
       },
     ],
     timelineTitle: "Cómo son los tres primeros meses",
@@ -6561,7 +6686,7 @@ const es: Messages = {
       "Aloje un artículo al mes de un negocio de un sector relacionado y gane créditos para conseguir enlaces hacia su propia web.",
     creditsTitle: "Créditos, no dinero",
     creditsBody:
-      "El pago es en créditos de enlace, no en dinero. Un artículo alojado da un crédito, y un crédito le consigue un enlace desde la web de otro negocio. Si busca cobrar por artículos patrocinados, esto no es eso, y existen mercados que sí lo hacen.",
+      "El pago es en créditos, no en dinero. Cada artículo alojado le da créditos, y los créditos le consiguen enlaces desde las webs de otros negocios. Si busca cobrar por artículos patrocinados, esto no es eso, y existen mercados que sí lo hacen.",
     steps: [
       {
         title: "Díganos de qué trata su web",
@@ -6576,8 +6701,8 @@ const es: Messages = {
         body: "Un artículo real sobre un tema que interesa a sus lectores, escrito para su web, con un enlace natural dentro.",
       },
       {
-        title: "Usted gana un crédito",
-        body: "Un crédito por artículo alojado, que puede gastar en un enlace hacia su web desde la de otro.",
+        title: "Usted gana créditos",
+        body: "Créditos por cada artículo alojado, que puede gastar en enlaces hacia su web desde las de otros negocios.",
       },
     ],
     controlTitle: "Lo que usted controla",
@@ -6648,12 +6773,12 @@ const es: Messages = {
         body: "Escribimos un artículo para otro negocio de un sector relacionado y lo publicamos en su web. Es un artículo real sobre un tema que interesa a sus lectores, no una página de enlaces.",
       },
       {
-        title: "Usted gana un crédito",
-        body: "Alojar un artículo da un crédito. Su plan también incluye créditos cada mes, así que puede empezar antes de haber alojado nada.",
+        title: "Usted gana créditos",
+        body: "Cada artículo alojado le da créditos. Su plan también incluye créditos cada mes, así que puede empezar antes de haber alojado nada.",
       },
       {
-        title: "Lo gasta en un enlace",
-        body: "Un crédito compra un enlace hacia su web, escrito con naturalidad dentro de un artículo en la web de otro negocio relacionado.",
+        title: "Los gasta en enlaces",
+        body: "Los créditos compran enlaces hacia su web, escritos con naturalidad dentro de artículos en webs de otros negocios relacionados.",
       },
     ],
     rulesTitle: "Las reglas que hacen que valga la pena",
@@ -6668,7 +6793,7 @@ const es: Messages = {
       },
       {
         title: "Créditos devueltos si un enlace cae",
-        body: "Si se elimina un enlace, avísenos: cuando confirmemos que ha desaparecido, recupera el crédito y desaparece de su panel. Una web que solo está sin conexión un tiempo, por mantenimiento por ejemplo, conserva sus enlaces.",
+        body: "Si se elimina un enlace, avísenos: cuando confirmemos que ha desaparecido, recupera los créditos y desaparece de su panel. Una web que solo está sin conexión un tiempo, por mantenimiento por ejemplo, conserva sus enlaces.",
       },
     ],
     notTitle: "Lo que esto no es",
@@ -6682,7 +6807,7 @@ const es: Messages = {
   faq: {
     metaTitle: "Preguntas frecuentes",
     metaDescription:
-      "Preguntas habituales sobre cómo funciona RepGet: plazos de resultados, garantías de posicionamiento, artículos con IA, créditos de enlaces y cancelación.",
+      "Preguntas habituales sobre cómo funciona RepGet: plazos de resultados, garantías de posicionamiento, artículos con IA, créditos y cancelación.",
     title: "Preguntas frecuentes",
     subtitle: "Respuestas claras, incluidos los límites.",
     items: [
@@ -6712,9 +6837,9 @@ const es: Messages = {
           "Solo si conecta su web y elige publicar. Admitimos WordPress, Ghost y Shopify, además de un webhook para cualquier otra cosa. Si no, quedan como borradores para que los revise, edite o copie donde quiera.",
       },
       {
-        question: "¿Qué son los créditos de enlaces?",
+        question: "¿Qué son los créditos?",
         answer:
-          "Google confía más en una web cuando otras webs la enlazan. Cuando uno de sus artículos menciona el negocio de otro miembro, usted gana un crédito. Al gastar un crédito, el artículo de otro miembro distinto le enlaza a usted. Nunca enlaza a quien le enlazó, así que los enlaces resultan naturales.",
+          "Los créditos son lo que gasta en RepGet: en backlinks, servicios y más. Su plan añade créditos cada mes y puede comprar más. En cuanto a los backlinks: Google confía más en una web cuando otras webs la enlazan. Cuando uno de sus artículos menciona el negocio de otro miembro, usted gana créditos. Al gastar créditos, el artículo de otro miembro distinto le enlaza a usted. Nunca enlaza a quien le enlazó, así que los enlaces resultan naturales.",
       },
       {
         question: "¿Por qué proponen búsquedas más pequeñas?",
@@ -7231,7 +7356,7 @@ const es: Messages = {
       articlesEachMonth: "{n} artículo escrito al mes|{n} artículos escritos al mes",
       searchTermsTracked: "{n} término de búsqueda monitorizado|{n} términos de búsqueda monitorizados",
       oneWebsite: "Un sitio web por suscripción",
-      creditsEachMonth: "{n} crédito de enlace al mes|{n} créditos de enlace al mes",
+      creditsEachMonth: "{n} crédito al mes|{n} créditos al mes",
       paymentReceived: "Pago recibido - confirmando su suscripción…",
       checkoutCancelled: "Pago cancelado.",
       purchaseReceived: "Pago recibido - su compra aparecerá en breve.",
@@ -8028,7 +8153,7 @@ const es: Messages = {
     },
     backlinks: {
       title: "Enlaces desde otros sitios web",
-      joinHelp: "Google confía más en un sitio web cuando otros enlazan a él. Mencione otro negocio en sus artículos para ganar un crédito y gástelo para conseguir una mención en el sitio de otra persona.",
+      joinHelp: "Google confía más en un sitio web cuando otros enlazan a él. Mencione otro negocio en sus artículos para ganar créditos y gástelos para conseguir una mención en el sitio de otra persona.",
       capLabel: "Menciones que incluirá cada mes",
       capHelp: "Mantenga este número bajo. Una página llena de enlaces a otros negocios resulta sospechosa para Google.",
       join: "Unirse",
@@ -8111,7 +8236,7 @@ const es: Messages = {
       writingStarted: "Redacción iniciada - tarda unos minutos",
     },
     addons: {
-      moreCredits: "Más créditos de enlace",
+      moreCredits: "Más créditos",
       moreCreditsHelp: "Su plan incluye créditos cada mes. Compre más si se le acaban - estos no caducan.",
       termsPill: "Compra única · Los créditos no caducan",
       oneTime: "Compra única",
@@ -8126,13 +8251,19 @@ const es: Messages = {
       delivered: "Entregado",
       inProgress: "En curso",
       requestQuote: "Solicitar presupuesto",
-      quoteHelp: "Le damos un presupuesto tras revisar su auditoría.",
+      quoteHelp: "Le damos un presupuesto en créditos tras revisar su auditoría.",
       title: "Complementos",
       subtitle: "Compras puntuales además de su plan.",
       perCredit: "{price} por crédito",
-      quoteFrom: "Desde {price}. Le damos un presupuesto tras revisar su auditoría.",
+      quoteFrom: "Desde {price}. Le damos un presupuesto tras revisar su auditoría y, cuando lo acepte, se paga con sus créditos.",
       servicesTitle: "Servicios",
       showingRecent: "Se muestran sus {count} compras más recientes.",
+      servicesHelp: "Se pagan con sus créditos y los realiza nuestro equipo.",
+      confirmPay: "¿Pagar {price}?",
+      confirm: "Confirmar",
+      cancel: "Cancelar",
+      ordered: "Pedido recibido. Le enviaremos un correo cuando esté listo.",
+      buyCreditsAction: "Comprar créditos",
     },
     referral: {
       referSomeone: "Recomiende a alguien",
@@ -8148,7 +8279,7 @@ const es: Messages = {
       someoneReferred: "Alguien a quien recomendó",
       notEligible: "No elegible",
       waiting: "En espera",
-      cardDescription: "Comparta su enlace. Cuando alguien a quien recomiende pague su primer mes, recibirá {credits} créditos de enlaces.",
+      cardDescription: "Comparta su enlace. Cuando alguien a quien recomiende pague su primer mes, recibirá {credits} créditos.",
       joinedWithName: "{name} · se unió el {date}",
       joined: "Se unió el {date}",
       noWebsiteJoined: "Aún sin sitio web · se unió el {date}",
@@ -8303,11 +8434,11 @@ const es: Messages = {
       noVerifiedYet: "Aún no hay enlaces verificados. Aparecerán aquí cuando el verificador los vea activos.",
       pipeline: "{publication} pendientes de publicar · {verification} pendientes de verificar",
       seeAllBacklinks: "Ver todos los backlinks",
-      creditsCardTitle: "Créditos de backlinks",
+      creditsCardTitle: "Créditos",
       creditActivity: "Actividad de créditos",
       creditsAvailableLine: "disponibles · {reserved} reservados para enlaces en curso · saldo {balance}",
       recoverFromArticles: "Recuperar créditos de {count} artículo|Recuperar créditos de {count} artículos",
-      buyCredits: "Comprar créditos de enlaces",
+      buyCredits: "Comprar créditos",
       creditsHowItWorks: "Ganas créditos cuando se verifica que el enlace de un socio en tu artículo está activo, y los gastas cuando se verifica un enlace a tu sitio. Mientras se coloca un enlace, sus créditos quedan reservados; si después se retira un enlace verificado, se devuelven.",
       creditsScopeNote: "Los créditos pertenecen a tu espacio de trabajo y los comparten todos sus sitios.",
       creditsOwnerOnly: "Los créditos pertenecen al espacio de trabajo propietario de este sitio y solo los ven sus miembros.",
@@ -8864,6 +8995,60 @@ const es: Messages = {
       account: "Cuenta",
       billing: "Facturación",
       settingsSections: "Secciones de ajustes",
+      credits: "Créditos",
+      creditPacks: "Paquetes de créditos",
+      articlesUnlimited: "Artículos ilimitados",
+      articlesLeft: "Quedan {left} de {limit} artículos",
+      freeArticlesLeft: "Quedan {left} de {limit} artículos gratuitos",
+    },
+    credits: {
+      title: "Créditos",
+      intro: "Un único saldo de créditos para todo su espacio de trabajo, compartido por todas sus webs. Úselo en backlinks, servicios y todo lo demás en RepGet.",
+      buy: "Comprar créditos",
+      summary: "Resumen",
+      available: "Disponibles",
+      availableHelp: "Créditos que puede gastar ahora.",
+      daily: "Créditos diarios",
+      dailyValue: "+{count} hoy",
+      dailyHelp: "Se añaden cada día que usa RepGet. No caducan nunca.",
+      dailyPlan: "Con un plan de pago recibe {count} créditos cada día que usa RepGet.",
+      reserved: "Reservados para enlaces",
+      reservedHelp: "Retenidos para enlaces en curso; solo se gastan cuando el enlace se verifica activo.",
+      balance: "Saldo",
+      pricesTitle: "Para qué sirven los créditos",
+      pricesIntro: "Lo que cuesta cada cosa en créditos.",
+      backlink: "Un backlink de la Red de socios",
+      backlinkPrice: "De {min} a {max} créditos por enlace",
+      backlinkNote: "Se fija para cada enlace al colocarlo y solo se cobra cuando el enlace se ve publicado.",
+      free: "Gratis",
+      creditsCount: "{count} crédito|{count} créditos",
+      actions: {
+        audit_rerun: "Volver a revisar el sitio web",
+      },
+      actionHelp: {
+        audit_rerun: "La primera revisión de cada sitio web es gratuita.",
+      },
+      serviceHelp: "Se compra en Facturación y lo realiza nuestro equipo.",
+      quoteHelp: "Le damos un presupuesto tras revisar su auditoría y se paga con créditos.",
+      servicePriceFrom: "Desde {price}",
+      sourcesTitle: "De dónde vienen los créditos",
+      sourcePlan: "Su plan añade créditos cada mes. No caducan.",
+      sourcePacks: "Paquetes de créditos, siempre que necesite más. Los créditos comprados no caducan.",
+      sourceDaily: "{count} créditos cada día que usa RepGet, con un plan de pago. No caducan nunca.",
+      sourceReferral: "{count} créditos por cada empresa que recomiende y empiece a pagar.",
+      historyTitle: "Historial",
+      colDate: "Fecha",
+      colEntry: "Movimiento",
+      colWebsite: "Sitio web",
+      colCredits: "Créditos",
+      empty: "Todavía no hay movimientos de créditos.",
+      ledgerSpend: "Gastado: {action}",
+      ledgerSpendRefund: "Devuelto: no se pudo completar «{action}»",
+      ledgerDaily: "Créditos diarios",
+      ledgerAddon: "Comprado: {name}",
+      guestOnly: "Los créditos pertenecen al espacio de trabajo propietario de un sitio web. Los sitios web compartidos con usted usan los créditos de su propietario.",
+      notEnough: "Esto cuesta {price} créditos y usted tiene {available}. Compre créditos para continuar.",
+      sidebarDaily: "+{count} hoy",
     },
     status: {
       pending: "Pendiente de empezar",
@@ -9445,7 +9630,7 @@ const fr: Messages = {
       "Chaque client donne et reçoit des liens",
       "Les liens viennent d'entreprises d'un secteur proche, jamais sans rapport",
       "Placés dans de vrais articles, pas sur une page de liens",
-      "Vérifiés chaque jour : si un lien disparaît, prévenez-nous et votre crédit revient",
+      "Vérifiés chaque jour : si un lien disparaît, prévenez-nous et vos crédits reviennent",
     ],
     networkHowLink: "Comment fonctionne l'échange",
     networkCard: {
@@ -9455,7 +9640,7 @@ const fr: Messages = {
       mention: "Votre entreprise, citée dans le corps de l’article",
       placement: "En contexte, pas sur une page de liens",
       status: "Vérifié chaque jour",
-      credit: "1 crédit de lien",
+      credit: "10 crédits",
     },
     testimonialsEyebrow: "Témoignages",
     testimonialsTitle: "Les résultats que les entreprises obtiennent avec RepGet",
@@ -9560,7 +9745,7 @@ const fr: Messages = {
       },
       {
         label: "Backlinks obtenus",
-        body: "De vrais liens dans de vrais articles sur les sites d'autres entreprises, vérifiés chaque jour. Si un lien disparaît, prévenez-nous et votre crédit vous est rendu.",
+        body: "De vrais liens dans de vrais articles sur les sites d'autres entreprises, vérifiés chaque jour. Si un lien disparaît, prévenez-nous et vos crédits vous sont rendus.",
       },
     ],
     timelineTitle: "À quoi ressemblent les trois premiers mois",
@@ -9595,7 +9780,7 @@ const fr: Messages = {
       "Hébergez un article par mois pour une entreprise d'un secteur proche et gagnez des crédits à dépenser en liens vers votre propre site.",
     creditsTitle: "Des crédits, pas de l'argent",
     creditsBody:
-      "Vous êtes rémunéré en crédits de liens, pas en argent. Un article hébergé rapporte un crédit, et un crédit vous obtient un lien depuis le site d'une autre entreprise. Si vous cherchez à être payé pour des articles invités, ce n'est pas cela - et il existe des places de marché pour ça.",
+      "Vous êtes rémunéré en crédits, pas en argent. Chaque article hébergé vous rapporte des crédits, et les crédits vous obtiennent des liens depuis les sites d'autres entreprises. Si vous cherchez à être payé pour des articles invités, ce n'est pas cela - et il existe des places de marché pour ça.",
     steps: [
       {
         title: "Dites-nous de quoi parle votre site",
@@ -9610,8 +9795,8 @@ const fr: Messages = {
         body: "Un vrai article sur un sujet qui intéresse vos lecteurs, écrit pour votre site, avec un lien naturel dedans.",
       },
       {
-        title: "Vous gagnez un crédit",
-        body: "Un crédit par article hébergé, à dépenser en lien vers votre site depuis celui d'une autre entreprise.",
+        title: "Vous gagnez des crédits",
+        body: "Des crédits pour chaque article hébergé, à dépenser en liens vers votre site depuis ceux d'autres entreprises.",
       },
     ],
     controlTitle: "Ce que vous contrôlez",
@@ -9682,12 +9867,12 @@ const fr: Messages = {
         body: "Nous rédigeons un article pour une autre entreprise d'un secteur proche et le publions sur votre site. C'est un vrai article sur un sujet qui intéresse vos lecteurs, pas une page de liens.",
       },
       {
-        title: "Vous gagnez un crédit",
-        body: "Héberger un article rapporte un crédit. Votre forfait inclut aussi des crédits chaque mois, vous pouvez donc commencer avant d'avoir hébergé quoi que ce soit.",
+        title: "Vous gagnez des crédits",
+        body: "Chaque article hébergé rapporte des crédits. Votre forfait inclut aussi des crédits chaque mois, vous pouvez donc commencer avant d'avoir hébergé quoi que ce soit.",
       },
       {
-        title: "Vous le dépensez en lien",
-        body: "Un crédit achète un lien vers votre site, intégré naturellement dans un article sur le site d'une autre entreprise d'un secteur proche.",
+        title: "Vous les dépensez en liens",
+        body: "Les crédits achètent des liens vers votre site, intégrés naturellement dans des articles sur les sites d'autres entreprises d'un secteur proche.",
       },
     ],
     rulesTitle: "Les règles qui en font quelque chose d'utile",
@@ -9702,7 +9887,7 @@ const fr: Messages = {
       },
       {
         title: "Crédits remboursés si un lien tombe",
-        body: "Si un lien est retiré, prévenez-nous : une fois sa disparition confirmée, le crédit vous est rendu et le lien disparaît de votre tableau de bord. Un site simplement hors ligne un moment, pour maintenance par exemple, garde ses liens.",
+        body: "Si un lien est retiré, prévenez-nous : une fois sa disparition confirmée, les crédits vous sont rendus et le lien disparaît de votre tableau de bord. Un site simplement hors ligne un moment, pour maintenance par exemple, garde ses liens.",
       },
     ],
     notTitle: "Ce que ce n'est pas",
@@ -9717,7 +9902,7 @@ const fr: Messages = {
   faq: {
     metaTitle: "FAQ",
     metaDescription:
-      "Questions fréquentes sur le fonctionnement de RepGet : délais, garanties de classement, articles rédigés par IA, crédits de liens et résiliation.",
+      "Questions fréquentes sur le fonctionnement de RepGet : délais, garanties de classement, articles rédigés par IA, crédits et résiliation.",
     title: "Questions fréquentes",
     subtitle: "Des réponses franches, y compris sur les limites.",
     items: [
@@ -9748,9 +9933,9 @@ const fr: Messages = {
           "Uniquement si vous connectez votre site et choisissez de publier. Nous prenons en charge WordPress, Ghost et Shopify, ainsi qu'un webhook pour le reste. Sinon, ils restent en brouillon pour que vous puissiez les relire, les modifier ou les copier ailleurs.",
       },
       {
-        question: "Que sont les crédits de liens ?",
+        question: "Que sont les crédits ?",
         answer:
-          "Google fait davantage confiance à un site quand d'autres sites pointent vers lui. Quand l'un de vos articles mentionne l'entreprise d'un autre membre, vous gagnez un crédit. En dépensant un crédit, l'article d'un membre différent pointe vers vous. Vous ne créez jamais de lien vers celui qui vous a cité, ce qui rend les liens naturels.",
+          "Les crédits sont ce que vous dépensez dans RepGet : backlinks, services et plus encore. Votre forfait ajoute des crédits chaque mois, et vous pouvez en acheter d'autres. Pour les backlinks : Google fait davantage confiance à un site quand d'autres sites pointent vers lui. Quand l'un de vos articles mentionne l'entreprise d'un autre membre, vous gagnez des crédits. En dépensant des crédits, l'article d'un membre différent pointe vers vous. Vous ne créez jamais de lien vers celui qui vous a cité, ce qui rend les liens naturels.",
       },
       {
         question: "Pourquoi proposez-vous des recherches plus modestes ?",
@@ -10267,7 +10452,7 @@ const fr: Messages = {
       articlesEachMonth: "{n} article rédigé par mois|{n} articles rédigés par mois",
       searchTermsTracked: "{n} terme de recherche suivi|{n} termes de recherche suivis",
       oneWebsite: "Un site par abonnement",
-      creditsEachMonth: "{n} crédit de lien par mois|{n} crédits de lien par mois",
+      creditsEachMonth: "{n} crédit par mois|{n} crédits par mois",
       paymentReceived: "Paiement reçu - confirmation de votre abonnement…",
       checkoutCancelled: "Paiement annulé.",
       purchaseReceived: "Paiement reçu - votre achat apparaîtra sous peu.",
@@ -11064,7 +11249,7 @@ const fr: Messages = {
     },
     backlinks: {
       title: "Liens depuis d\u2019autres sites",
-      joinHelp: "Google fait davantage confiance à un site quand d\u2019autres sites pointent vers lui. Mentionnez une autre entreprise dans vos articles pour gagner un crédit, puis dépensez-le pour être mentionné sur le site de quelqu\u2019un d\u2019autre.",
+      joinHelp: "Google fait davantage confiance à un site quand d’autres sites pointent vers lui. Mentionnez une autre entreprise dans vos articles pour gagner des crédits, puis dépensez-les pour être mentionné sur le site de quelqu’un d’autre.",
       capLabel: "Mentions que vous inclurez chaque mois",
       capHelp: "Gardez ce nombre bas. Une page remplie de liens vers d\u2019autres entreprises paraît suspecte à Google.",
       join: "Rejoindre",
@@ -11147,7 +11332,7 @@ const fr: Messages = {
       writingStarted: "Rédaction lancée - cela prend quelques minutes",
     },
     addons: {
-      moreCredits: "Plus de crédits de lien",
+      moreCredits: "Plus de crédits",
       moreCreditsHelp: "Votre forfait inclut des crédits chaque mois. Achetez-en si vous en manquez - ils n\u2019expirent pas.",
       termsPill: "Achat unique · Les crédits n\u2019expirent pas",
       oneTime: "Achat unique",
@@ -11162,13 +11347,19 @@ const fr: Messages = {
       delivered: "Livré",
       inProgress: "En cours",
       requestQuote: "Demander un devis",
-      quoteHelp: "Nous établissons un devis après avoir examiné votre audit.",
+      quoteHelp: "Nous établissons un devis en crédits après avoir examiné votre audit.",
       title: "Modules",
       subtitle: "Achats ponctuels en plus de votre forfait.",
       perCredit: "{price} par crédit",
-      quoteFrom: "À partir de {price}. Nous établissons un devis après avoir examiné votre audit.",
+      quoteFrom: "À partir de {price}. Nous établissons un devis après avoir examiné votre audit et, une fois accepté, il est réglé avec vos crédits.",
       servicesTitle: "Services",
       showingRecent: "Affichage de vos {count} achats les plus récents.",
+      servicesHelp: "Réglés avec vos crédits et réalisés par notre équipe.",
+      confirmPay: "Payer {price} ?",
+      confirm: "Confirmer",
+      cancel: "Annuler",
+      ordered: "Commande reçue. Nous vous écrirons quand ce sera fait.",
+      buyCreditsAction: "Acheter des crédits",
     },
     referral: {
       referSomeone: "Parrainer quelqu\u2019un",
@@ -11184,7 +11375,7 @@ const fr: Messages = {
       someoneReferred: "Une personne que vous avez parrainée",
       notEligible: "Non éligible",
       waiting: "En attente",
-      cardDescription: "Partagez votre lien. Quand une personne que vous parrainez paie son premier mois, vous recevez {credits} crédits de liens.",
+      cardDescription: "Partagez votre lien. Quand une personne que vous parrainez paie son premier mois, vous recevez {credits} crédits.",
       joinedWithName: "{name} · inscrit le {date}",
       joined: "Inscrit le {date}",
       noWebsiteJoined: "Pas encore de site · inscrit le {date}",
@@ -11339,11 +11530,11 @@ const fr: Messages = {
       noVerifiedYet: "Aucun lien vérifié pour l'instant. Ils apparaissent ici dès que la vérification les voit en ligne.",
       pipeline: "{publication} en attente de publication · {verification} en attente de vérification",
       seeAllBacklinks: "Voir tous les backlinks",
-      creditsCardTitle: "Crédits de backlinks",
+      creditsCardTitle: "Crédits",
       creditActivity: "Activité des crédits",
       creditsAvailableLine: "disponibles · {reserved} réservés pour des liens en cours · solde {balance}",
       recoverFromArticles: "Récupérer les crédits de {count} article|Récupérer les crédits de {count} articles",
-      buyCredits: "Acheter des crédits de liens",
+      buyCredits: "Acheter des crédits",
       creditsHowItWorks: "Vous gagnez des crédits quand le lien d'un partenaire dans votre article est vérifié en ligne, et vous en dépensez quand un lien vers votre site est vérifié. Pendant le placement, les crédits sont réservés ; si un lien vérifié est ensuite retiré, ils sont restitués.",
       creditsScopeNote: "Les crédits appartiennent à votre espace de travail et sont partagés par tous ses sites.",
       creditsOwnerOnly: "Les crédits appartiennent à l'espace de travail propriétaire de ce site et ne sont visibles que par ses membres.",
@@ -11899,6 +12090,60 @@ const fr: Messages = {
       account: "Compte",
       billing: "Facturation",
       settingsSections: "Sections des paramètres",
+      credits: "Crédits",
+      creditPacks: "Packs de crédits",
+      articlesUnlimited: "Articles illimités",
+      articlesLeft: "{left} articles restants sur {limit}",
+      freeArticlesLeft: "{left} articles gratuits restants sur {limit}",
+    },
+    credits: {
+      title: "Crédits",
+      intro: "Un seul solde de crédits pour tout votre espace de travail, partagé par tous vos sites. Utilisez-le pour les backlinks, les services et tout le reste dans RepGet.",
+      buy: "Acheter des crédits",
+      summary: "Résumé",
+      available: "Disponibles",
+      availableHelp: "Les crédits que vous pouvez dépenser maintenant.",
+      daily: "Crédits quotidiens",
+      dailyValue: "+{count} aujourd’hui",
+      dailyHelp: "Ajoutés chaque jour où vous utilisez RepGet. Ils n’expirent jamais.",
+      dailyPlan: "Avec un forfait payant, vous recevez {count} crédits chaque jour où vous utilisez RepGet.",
+      reserved: "Réservés pour des liens",
+      reservedHelp: "Retenus pour des liens en cours ; dépensés seulement une fois le lien vérifié.",
+      balance: "Solde",
+      pricesTitle: "À quoi servent les crédits",
+      pricesIntro: "Ce que coûte chaque chose en crédits.",
+      backlink: "Un backlink du Réseau partenaire",
+      backlinkPrice: "De {min} à {max} crédits par lien",
+      backlinkNote: "Fixé pour chaque lien lors de son placement, et prélevé seulement quand le lien est vu en ligne.",
+      free: "Gratuit",
+      creditsCount: "{count} crédit|{count} crédits",
+      actions: {
+        audit_rerun: "Relancer l'analyse du site",
+      },
+      actionHelp: {
+        audit_rerun: "La première analyse de chaque site est gratuite.",
+      },
+      serviceHelp: "S’achète dans Facturation et est réalisé par notre équipe.",
+      quoteHelp: "Devis établi après examen de votre audit, puis réglé en crédits.",
+      servicePriceFrom: "À partir de {price}",
+      sourcesTitle: "D'où viennent les crédits",
+      sourcePlan: "Votre offre ajoute des crédits chaque mois. Ils n'expirent pas.",
+      sourcePacks: "Des packs de crédits, dès que vous en avez besoin. Les crédits achetés n'expirent pas.",
+      sourceDaily: "{count} crédits chaque jour où vous utilisez RepGet, avec un forfait payant. Ils n’expirent jamais.",
+      sourceReferral: "{count} crédits pour chaque entreprise que vous recommandez et qui commence à payer.",
+      historyTitle: "Historique",
+      colDate: "Date",
+      colEntry: "Opération",
+      colWebsite: "Site",
+      colCredits: "Crédits",
+      empty: "Aucune opération sur les crédits pour l'instant.",
+      ledgerSpend: "Dépensé : {action}",
+      ledgerSpendRefund: "Rendu : « {action} » n'a pas pu aboutir",
+      ledgerDaily: "Crédits quotidiens",
+      ledgerAddon: "Acheté : {name}",
+      guestOnly: "Les crédits appartiennent à l'espace de travail propriétaire d'un site. Les sites partagés avec vous utilisent les crédits de leur propriétaire.",
+      notEnough: "Cette action coûte {price} crédits et vous en avez {available}. Achetez des crédits pour continuer.",
+      sidebarDaily: "+{count} aujourd’hui",
     },
     status: {
       pending: "En attente de démarrage",
@@ -12481,7 +12726,7 @@ const it: Messages = {
       "Ogni cliente dà e riceve link",
       "I link arrivano da aziende di settori affini, mai estranei",
       "Inseriti dentro articoli veri, non in una pagina di link",
-      "Verificati ogni giorno: se un link sparisce, ce lo segnali e il credito torna indietro",
+      "Verificati ogni giorno: se un link sparisce, ce lo segnali e i crediti tornano indietro",
     ],
     networkHowLink: "Come funziona lo scambio",
     networkCard: {
@@ -12491,7 +12736,7 @@ const it: Messages = {
       mention: "La sua attività, citata nel testo dell’articolo",
       placement: "Nel contesto, non in una pagina di link",
       status: "Verificato ogni giorno",
-      credit: "1 credito link",
+      credit: "10 crediti",
     },
     testimonialsEyebrow: "Testimonianze",
     testimonialsTitle: "I risultati che le aziende ottengono con RepGet",
@@ -12596,7 +12841,7 @@ const it: Messages = {
       },
       {
         label: "Backlink ottenuti",
-        body: "Link veri dentro articoli veri su siti di altre aziende, controllati ogni giorno. Se un link viene rimosso, ce lo segnali e il credito le torna.",
+        body: "Link veri dentro articoli veri su siti di altre aziende, controllati ogni giorno. Se un link viene rimosso, ce lo segnali e i crediti le tornano.",
       },
     ],
     timelineTitle: "Come sono i primi tre mesi",
@@ -12631,7 +12876,7 @@ const it: Messages = {
       "Ospiti un articolo al mese per un'azienda di un settore affine e guadagni crediti da spendere in link verso il suo sito.",
     creditsTitle: "Crediti, non denaro",
     creditsBody:
-      "Il compenso è in crediti per link, non in denaro. Un articolo ospitato vale un credito, e un credito le procura un link dal sito di un'altra azienda. Se cerca un pagamento in denaro per articoli ospiti, questo non lo è: esistono marketplace che lo fanno.",
+      "Il compenso è in crediti, non in denaro. Ogni articolo ospitato le fa guadagnare crediti, e i crediti le procurano link dai siti di altre aziende. Se cerca un pagamento in denaro per articoli ospiti, questo non lo è: esistono marketplace che lo fanno.",
     steps: [
       {
         title: "Ci dica di cosa parla il suo sito",
@@ -12646,8 +12891,8 @@ const it: Messages = {
         body: "Un articolo vero su un tema che interessa ai suoi lettori, scritto per il suo sito, con un link naturale all'interno.",
       },
       {
-        title: "Lei guadagna un credito",
-        body: "Un credito per articolo ospitato, spendibile in un link verso il suo sito da quello di un altro.",
+        title: "Lei guadagna crediti",
+        body: "Crediti per ogni articolo ospitato, spendibili in link verso il suo sito da quelli di altre aziende.",
       },
     ],
     controlTitle: "Cosa controlla lei",
@@ -12718,12 +12963,12 @@ const it: Messages = {
         body: "Scriviamo un articolo per un'altra azienda di un settore affine e lo pubblichiamo sul suo sito. È un articolo vero su un tema che interessa ai suoi lettori, non una pagina di link.",
       },
       {
-        title: "Lei guadagna un credito",
-        body: "Ospitare un articolo vale un credito. Il suo piano include anche crediti ogni mese, quindi può iniziare prima di aver ospitato qualcosa.",
+        title: "Lei guadagna crediti",
+        body: "Ogni articolo ospitato fa guadagnare crediti. Il suo piano include anche crediti ogni mese, quindi può iniziare prima di aver ospitato qualcosa.",
       },
       {
-        title: "Lo spende in un link",
-        body: "Un credito compra un link verso il suo sito, inserito con naturalezza in un articolo sul sito di un'altra azienda affine.",
+        title: "Li spende in link",
+        body: "I crediti comprano link verso il suo sito, inseriti con naturalezza in articoli sui siti di altre aziende affini.",
       },
     ],
     rulesTitle: "Le regole che lo rendono utile",
@@ -12738,7 +12983,7 @@ const it: Messages = {
       },
       {
         title: "Crediti rimborsati se un link cade",
-        body: "Se un link viene rimosso, ce lo segnali: una volta confermato che è sparito, il credito le torna e il link sparisce dalla dashboard. Un sito offline solo per un po', per manutenzione ad esempio, mantiene i suoi link.",
+        body: "Se un link viene rimosso, ce lo segnali: una volta confermato che è sparito, i crediti le tornano e il link sparisce dalla dashboard. Un sito offline solo per un po', per manutenzione ad esempio, mantiene i suoi link.",
       },
     ],
     notTitle: "Cosa non è",
@@ -12751,7 +12996,7 @@ const it: Messages = {
   },
   faq: {
     metaTitle: "Domande frequenti",
-    metaDescription: "Domande comuni sul funzionamento di RepGet: tempi dei risultati, garanzie di posizionamento, articoli scritti con l'AI, crediti link e disdetta.",
+    metaDescription: "Domande comuni sul funzionamento di RepGet: tempi dei risultati, garanzie di posizionamento, articoli scritti con l'AI, crediti e disdetta.",
     title: "Domande frequenti",
     subtitle: "Risposte chiare, limiti compresi.",
     items: [
@@ -12781,9 +13026,9 @@ const it: Messages = {
           "Solo se collega il suo sito e sceglie di pubblicare. Supportiamo WordPress, Ghost e Shopify, oltre a un webhook per tutto il resto. Altrimenti restano come bozze da rivedere, modificare o copiare altrove.",
       },
       {
-        question: "Che cosa sono i crediti per i link?",
+        question: "Che cosa sono i crediti?",
         answer:
-          "Google si fida di più di un sito quando altri siti lo collegano. Quando un suo articolo cita l'attività di un altro membro, lei guadagna un credito. Spendendo un credito, l'articolo di un membro diverso rimanda a lei. Non collega mai chi ha collegato lei, così i link risultano naturali.",
+          "I crediti sono ciò che spende in RepGet: backlink, servizi e altro. Il suo piano aggiunge crediti ogni mese e può acquistarne altri. Per i backlink: Google si fida di più di un sito quando altri siti lo collegano. Quando un suo articolo cita l'attività di un altro membro, lei guadagna crediti. Spendendo crediti, l'articolo di un membro diverso rimanda a lei. Non collega mai chi ha collegato lei, così i link risultano naturali.",
       },
       {
         question: "Perché proponete ricerche più piccole?",
@@ -13300,7 +13545,7 @@ const it: Messages = {
       articlesEachMonth: "{n} articolo scritto al mese|{n} articoli scritti al mese",
       searchTermsTracked: "{n} termine di ricerca monitorato|{n} termini di ricerca monitorati",
       oneWebsite: "Un sito web per abbonamento",
-      creditsEachMonth: "{n} credito per link al mese|{n} crediti per link al mese",
+      creditsEachMonth: "{n} credito al mese|{n} crediti al mese",
       paymentReceived: "Pagamento ricevuto - stiamo confermando il suo abbonamento…",
       checkoutCancelled: "Pagamento annullato.",
       purchaseReceived: "Pagamento ricevuto - il suo acquisto comparirà a breve.",
@@ -14097,7 +14342,7 @@ const it: Messages = {
     },
     backlinks: {
       title: "Link da altri siti web",
-      joinHelp: "Google si fida di più di un sito quando altri siti lo collegano. Citi un\u2019altra attività nei suoi articoli per guadagnare un credito, poi lo spenda per ottenere una citazione sul sito di qualcun altro.",
+      joinHelp: "Google si fida di più di un sito quando altri siti lo collegano. Citi un’altra attività nei suoi articoli per guadagnare crediti, poi li spenda per ottenere una citazione sul sito di qualcun altro.",
       capLabel: "Citazioni che includerà ogni mese",
       capHelp: "Tenga questo numero basso. Una pagina piena di link ad altre attività risulta sospetta a Google.",
       join: "Partecipa",
@@ -14180,7 +14425,7 @@ const it: Messages = {
       writingStarted: "Scrittura avviata - ci vogliono alcuni minuti",
     },
     addons: {
-      moreCredits: "Altri crediti per i link",
+      moreCredits: "Altri crediti",
       moreCreditsHelp: "Il suo piano include crediti ogni mese. Ne acquisti altri se finiscono - questi non scadono.",
       termsPill: "Acquisto singolo · I crediti non scadono",
       oneTime: "Acquisto singolo",
@@ -14195,13 +14440,19 @@ const it: Messages = {
       delivered: "Consegnato",
       inProgress: "In corso",
       requestQuote: "Richiedi un preventivo",
-      quoteHelp: "Le forniamo un preventivo dopo aver esaminato il suo audit.",
+      quoteHelp: "Le forniamo un preventivo in crediti dopo aver esaminato il suo audit.",
       title: "Componenti aggiuntivi",
       subtitle: "Acquisti singoli in aggiunta al suo piano.",
       perCredit: "{price} per credito",
-      quoteFrom: "Da {price}. Le forniamo un preventivo dopo aver esaminato il suo audit.",
+      quoteFrom: "Da {price}. Le forniamo un preventivo dopo aver esaminato il suo audit e, una volta accettato, si paga con i suoi crediti.",
       servicesTitle: "Servizi",
       showingRecent: "Sono mostrati i suoi {count} acquisti più recenti.",
+      servicesHelp: "Si pagano con i suoi crediti e li realizza il nostro team.",
+      confirmPay: "Pagare {price}?",
+      confirm: "Conferma",
+      cancel: "Annulla",
+      ordered: "Ordine ricevuto. Le scriveremo quando sarà pronto.",
+      buyCreditsAction: "Acquista crediti",
     },
     referral: {
       referSomeone: "Inviti qualcuno",
@@ -14217,7 +14468,7 @@ const it: Messages = {
       someoneReferred: "Una persona che ha invitato",
       notEligible: "Non idoneo",
       waiting: "In attesa",
-      cardDescription: "Condivida il suo link. Quando una persona che ha invitato paga il primo mese, riceve {credits} crediti per i link.",
+      cardDescription: "Condivida il suo link. Quando una persona che ha invitato paga il primo mese, riceve {credits} crediti.",
       joinedWithName: "{name} · iscritto il {date}",
       joined: "Iscritto il {date}",
       noWebsiteJoined: "Nessun sito ancora · iscritto il {date}",
@@ -14372,11 +14623,11 @@ const it: Messages = {
       noVerifiedYet: "Ancora nessun link verificato. Compariranno qui quando il controllo li vedrà online.",
       pipeline: "{publication} in attesa di pubblicazione · {verification} in attesa di verifica",
       seeAllBacklinks: "Vedi tutti i backlink",
-      creditsCardTitle: "Crediti backlink",
+      creditsCardTitle: "Crediti",
       creditActivity: "Attività dei crediti",
       creditsAvailableLine: "disponibili · {reserved} riservati per link in corso · saldo {balance}",
       recoverFromArticles: "Recupera i crediti da {count} articolo|Recupera i crediti da {count} articoli",
-      buyCredits: "Acquista crediti link",
+      buyCredits: "Acquista crediti",
       creditsHowItWorks: "Guadagni crediti quando il link di un partner nel tuo articolo è verificato online e li spendi quando viene verificato un link al tuo sito. Durante l'inserimento i crediti restano riservati; se un link verificato viene poi rimosso, vengono restituiti.",
       creditsScopeNote: "I crediti appartengono al tuo spazio di lavoro e sono condivisi da tutti i suoi siti.",
       creditsOwnerOnly: "I crediti appartengono allo spazio di lavoro proprietario di questo sito e sono visibili solo ai suoi membri.",
@@ -14933,6 +15184,60 @@ const it: Messages = {
       account: "Account",
       billing: "Fatturazione",
       settingsSections: "Sezioni delle impostazioni",
+      credits: "Crediti",
+      creditPacks: "Pacchetti di crediti",
+      articlesUnlimited: "Articoli illimitati",
+      articlesLeft: "{left} articoli su {limit} rimasti",
+      freeArticlesLeft: "{left} articoli gratuiti su {limit} rimasti",
+    },
+    credits: {
+      title: "Crediti",
+      intro: "Un unico saldo di crediti per tutto il Suo spazio di lavoro, condiviso da tutti i Suoi siti. Lo usi per backlink, servizi e tutto il resto in RepGet.",
+      buy: "Acquista crediti",
+      summary: "Riepilogo",
+      available: "Disponibili",
+      availableHelp: "I crediti che può spendere ora.",
+      daily: "Crediti giornalieri",
+      dailyValue: "+{count} oggi",
+      dailyHelp: "Aggiunti ogni giorno in cui usa RepGet. Non scadono mai.",
+      dailyPlan: "Con un piano a pagamento riceve {count} crediti ogni giorno in cui usa RepGet.",
+      reserved: "Riservati ai link",
+      reservedHelp: "Trattenuti per link in corso; spesi solo quando il link è verificato online.",
+      balance: "Saldo",
+      pricesTitle: "A cosa servono i crediti",
+      pricesIntro: "Quanto costa ogni cosa in crediti.",
+      backlink: "Un backlink dalla Rete partner",
+      backlinkPrice: "Da {min} a {max} crediti per link",
+      backlinkNote: "Stabilito per ogni link al momento dell'inserimento, e addebitato solo quando il link risulta online.",
+      free: "Gratis",
+      creditsCount: "{count} credito|{count} crediti",
+      actions: {
+        audit_rerun: "Ripetere il controllo del sito",
+      },
+      actionHelp: {
+        audit_rerun: "Il primo controllo di ogni sito è gratuito.",
+      },
+      serviceHelp: "Si acquista in Fatturazione e lo realizza il nostro team.",
+      quoteHelp: "Preventivo dopo aver esaminato il Suo audit, poi pagato in crediti.",
+      servicePriceFrom: "Da {price}",
+      sourcesTitle: "Da dove arrivano i crediti",
+      sourcePlan: "Il Suo piano aggiunge crediti ogni mese. Non scadono.",
+      sourcePacks: "Pacchetti di crediti, quando ne ha bisogno. I crediti acquistati non scadono.",
+      sourceDaily: "{count} crediti ogni giorno in cui usa RepGet, con un piano a pagamento. Non scadono mai.",
+      sourceReferral: "{count} crediti per ogni attività che invita e che inizia a pagare.",
+      historyTitle: "Cronologia",
+      colDate: "Data",
+      colEntry: "Movimento",
+      colWebsite: "Sito",
+      colCredits: "Crediti",
+      empty: "Ancora nessun movimento di crediti.",
+      ledgerSpend: "Speso: {action}",
+      ledgerSpendRefund: "Restituito: non è stato possibile completare «{action}»",
+      ledgerDaily: "Crediti giornalieri",
+      ledgerAddon: "Acquistato: {name}",
+      guestOnly: "I crediti appartengono allo spazio di lavoro che possiede un sito. I siti condivisi con Lei usano i crediti del loro proprietario.",
+      notEnough: "Costa {price} crediti e Lei ne ha {available}. Acquisti crediti per continuare.",
+      sidebarDaily: "+{count} oggi",
     },
     status: {
       pending: "In attesa di iniziare",
@@ -15519,7 +15824,7 @@ const de: Messages = {
       mention: "Ihr Unternehmen, im Text des Artikels erwähnt",
       placement: "Im Kontext, nicht auf einer Linkseite",
       status: "Täglich geprüft",
-      credit: "1 Link-Guthaben",
+      credit: "10 Credits",
     },
     testimonialsEyebrow: "Stimmen",
     testimonialsTitle: "Die Ergebnisse, die Unternehmen mit RepGet erzielen",
@@ -15655,13 +15960,13 @@ const de: Messages = {
   publishers: {
     metaTitle: "Monetarisieren Sie Ihren Blog",
     metaDescription:
-      "Veröffentlichen Sie einen Artikel pro Monat für ein Unternehmen einer verwandten Branche und verdienen Sie Link-Guthaben für Backlinks auf Ihre Website.",
+      "Veröffentlichen Sie einen Artikel pro Monat für ein Unternehmen einer verwandten Branche und verdienen Sie Guthaben für Backlinks auf Ihre Website.",
     title: "Monetarisieren Sie Ihren Blog",
     intro:
       "Veröffentlichen Sie einen Artikel pro Monat für ein Unternehmen aus einer verwandten Branche und verdienen Sie Guthaben für Links auf Ihre eigene Website.",
     creditsTitle: "Guthaben, kein Geld",
     creditsBody:
-      "Sie werden in Link-Guthaben vergütet, nicht in Geld. Ein veröffentlichter Artikel bringt ein Guthaben, und ein Guthaben verschafft Ihnen einen Link von der Website eines anderen Unternehmens. Wenn Sie Geld für Gastbeiträge suchen, ist das hier nicht das Richtige - dafür gibt es Marktplätze.",
+      "Sie werden in Guthaben vergütet, nicht in Geld. Jeder veröffentlichte Artikel bringt Ihnen Guthaben, und mit Guthaben erhalten Sie Links von den Websites anderer Unternehmen. Wenn Sie Geld für Gastbeiträge suchen, ist das hier nicht das Richtige - dafür gibt es Marktplätze.",
     steps: [
       {
         title: "Sagen Sie uns, worum es auf Ihrer Website geht",
@@ -15676,8 +15981,8 @@ const de: Messages = {
         body: "Ein echter Artikel zu einem Thema, das Ihre Leser interessiert, für Ihre Website geschrieben, mit einem natürlichen Link darin.",
       },
       {
-        title: "Sie verdienen ein Guthaben",
-        body: "Ein Guthaben pro veröffentlichtem Artikel, einsetzbar für einen Link auf Ihre Website von der eines anderen.",
+        title: "Sie verdienen Guthaben",
+        body: "Guthaben für jeden veröffentlichten Artikel, einsetzbar für Links auf Ihre Website von den Websites anderer Unternehmen.",
       },
     ],
     controlTitle: "Was Sie bestimmen",
@@ -15748,12 +16053,12 @@ const de: Messages = {
         body: "Wir schreiben einen Artikel für ein anderes Unternehmen aus einer verwandten Branche und veröffentlichen ihn auf Ihrer Website. Ein echter Artikel zu einem Thema, das Ihre Leser interessiert - keine Linkliste.",
       },
       {
-        title: "Sie verdienen ein Guthaben",
-        body: "Ein veröffentlichter Artikel bringt ein Guthaben. Ihr Tarif enthält zusätzlich monatliches Guthaben, Sie können also starten, bevor Sie etwas veröffentlicht haben.",
+        title: "Sie verdienen Guthaben",
+        body: "Jeder veröffentlichte Artikel bringt Guthaben. Ihr Tarif enthält zusätzlich monatliches Guthaben, Sie können also starten, bevor Sie etwas veröffentlicht haben.",
       },
       {
-        title: "Sie setzen es für einen Link ein",
-        body: "Ein Guthaben kauft einen Link auf Ihre Website, natürlich eingebunden in einen Artikel auf der Website eines anderen Unternehmens aus einer verwandten Branche.",
+        title: "Sie setzen es für Links ein",
+        body: "Mit Guthaben kaufen Sie Links auf Ihre Website, natürlich eingebunden in Artikel auf Websites anderer Unternehmen aus einer verwandten Branche.",
       },
     ],
     rulesTitle: "Die Regeln, die es wertvoll machen",
@@ -15782,7 +16087,7 @@ const de: Messages = {
   },
   faq: {
     metaTitle: "Häufige Fragen",
-    metaDescription: "Häufige Fragen dazu, wie RepGet funktioniert: Zeit bis zu Ergebnissen, Ranking-Garantien, KI-Artikel, Link-Guthaben und Kündigung - klar beantwortet.",
+    metaDescription: "Häufige Fragen dazu, wie RepGet funktioniert: Zeit bis zu Ergebnissen, Ranking-Garantien, KI-Artikel, Guthaben und Kündigung - klar beantwortet.",
     title: "Häufige Fragen",
     subtitle: "Klare Antworten, auch zu den Grenzen.",
     items: [
@@ -15812,9 +16117,9 @@ const de: Messages = {
           "Nur wenn Sie Ihre Website verbinden und sich für die Veröffentlichung entscheiden. Wir unterstützen WordPress, Ghost und Shopify sowie einen Webhook für alles andere. Andernfalls bleiben sie Entwürfe, die Sie prüfen, bearbeiten oder anderswo einfügen können.",
       },
       {
-        question: "Was sind Link-Guthaben?",
+        question: "Was ist das Guthaben?",
         answer:
-          "Google vertraut einer Website mehr, wenn andere Seiten auf sie verlinken. Erwähnt einer Ihrer Artikel das Unternehmen eines anderen Mitglieds, erhalten Sie ein Guthaben. Geben Sie eines aus, verlinkt der Artikel eines anderen Mitglieds auf Sie. Sie verlinken nie zurück auf denjenigen, der auf Sie verlinkt hat - so wirken die Links natürlich.",
+          "Guthaben ist das, was Sie in RepGet ausgeben: für Backlinks, Leistungen und mehr. Ihr Tarif fügt jeden Monat Guthaben hinzu, und Sie können mehr kaufen. Zu Backlinks: Google vertraut einer Website mehr, wenn andere Seiten auf sie verlinken. Erwähnt einer Ihrer Artikel das Unternehmen eines anderen Mitglieds, erhalten Sie Guthaben. Geben Sie es aus, verlinkt der Artikel eines anderen Mitglieds auf Sie. Sie verlinken nie zurück auf denjenigen, der auf Sie verlinkt hat - so wirken die Links natürlich.",
       },
       {
         question: "Warum schlagen Sie kleinere Suchbegriffe vor?",
@@ -16332,7 +16637,7 @@ const de: Messages = {
       articlesEachMonth: "{n} Artikel pro Monat geschrieben|{n} Artikel pro Monat geschrieben",
       searchTermsTracked: "{n} Suchbegriff überwacht|{n} Suchbegriffe überwacht",
       oneWebsite: "Eine Website pro Abonnement",
-      creditsEachMonth: "{n} Link-Guthaben pro Monat|{n} Link-Guthaben pro Monat",
+      creditsEachMonth: "{n} Credit pro Monat|{n} Credits pro Monat",
       paymentReceived: "Zahlung erhalten - Ihr Abonnement wird bestätigt…",
       checkoutCancelled: "Bezahlvorgang abgebrochen.",
       purchaseReceived: "Zahlung erhalten - Ihr Kauf erscheint in Kürze.",
@@ -17129,7 +17434,7 @@ const de: Messages = {
     },
     backlinks: {
       title: "Links von anderen Websites",
-      joinHelp: "Google vertraut einer Website mehr, wenn andere Seiten auf sie verlinken. Erwähnen Sie ein anderes Unternehmen in Ihren Artikeln, um ein Credit zu verdienen, und geben Sie es aus, um selbst erwähnt zu werden.",
+      joinHelp: "Google vertraut einer Website mehr, wenn andere Seiten auf sie verlinken. Erwähnen Sie ein anderes Unternehmen in Ihren Artikeln, um Credits zu verdienen, und geben Sie sie aus, um selbst erwähnt zu werden.",
       capLabel: "Erwähnungen, die Sie pro Monat aufnehmen",
       capHelp: "Halten Sie diese Zahl niedrig. Eine Seite voller Links zu anderen Unternehmen wirkt auf Google verdächtig.",
       join: "Beitreten",
@@ -17212,7 +17517,7 @@ const de: Messages = {
       writingStarted: "Schreiben gestartet - das dauert einige Minuten",
     },
     addons: {
-      moreCredits: "Mehr Link-Credits",
+      moreCredits: "Mehr Credits",
       moreCreditsHelp: "Ihr Tarif enthält monatlich Credits. Kaufen Sie mehr, wenn sie ausgehen - diese verfallen nicht.",
       termsPill: "Einmaliger Kauf · Credits verfallen nicht",
       oneTime: "Einmaliger Kauf",
@@ -17227,13 +17532,19 @@ const de: Messages = {
       delivered: "Geliefert",
       inProgress: "In Bearbeitung",
       requestQuote: "Angebot anfordern",
-      quoteHelp: "Wir erstellen ein Angebot, nachdem wir Ihr Audit geprüft haben.",
+      quoteHelp: "Wir erstellen ein Angebot in Credits, nachdem wir Ihr Audit geprüft haben.",
       title: "Add-ons",
       subtitle: "Einmalige Käufe zusätzlich zu Ihrem Tarif.",
       perCredit: "{price} pro Credit",
-      quoteFrom: "Ab {price}. Wir erstellen ein Angebot, nachdem wir Ihr Audit geprüft haben.",
+      quoteFrom: "Ab {price}. Wir erstellen ein Angebot, nachdem wir Ihr Audit geprüft haben, und nach Ihrer Zustimmung wird es mit Ihren Credits bezahlt.",
       servicesTitle: "Leistungen",
       showingRecent: "Angezeigt werden Ihre {count} neuesten Käufe.",
+      servicesHelp: "Mit Ihren Credits bezahlt und von unserem Team umgesetzt.",
+      confirmPay: "{price} bezahlen?",
+      confirm: "Bestätigen",
+      cancel: "Abbrechen",
+      ordered: "Bestellung erhalten. Wir schreiben Ihnen, sobald sie erledigt ist.",
+      buyCreditsAction: "Credits kaufen",
     },
     referral: {
       referSomeone: "Jemanden empfehlen",
@@ -17249,7 +17560,7 @@ const de: Messages = {
       someoneReferred: "Eine von Ihnen empfohlene Person",
       notEligible: "Nicht berechtigt",
       waiting: "Wartet",
-      cardDescription: "Teilen Sie Ihren Link. Wenn jemand, den Sie empfohlen haben, den ersten Monat bezahlt, erhalten Sie {credits} Link-Credits.",
+      cardDescription: "Teilen Sie Ihren Link. Wenn jemand, den Sie empfohlen haben, den ersten Monat bezahlt, erhalten Sie {credits} Credits.",
       joinedWithName: "{name} · beigetreten am {date}",
       joined: "Beigetreten am {date}",
       noWebsiteJoined: "Noch keine Website · beigetreten am {date}",
@@ -17404,11 +17715,11 @@ const de: Messages = {
       noVerifiedYet: "Noch keine bestätigten Links. Sie erscheinen hier, sobald die Prüfung sie live sieht.",
       pipeline: "{publication} warten auf Veröffentlichung · {verification} warten auf Prüfung",
       seeAllBacklinks: "Alle Backlinks ansehen",
-      creditsCardTitle: "Backlink-Credits",
+      creditsCardTitle: "Credits",
       creditActivity: "Credit-Aktivität",
       creditsAvailableLine: "verfügbar · {reserved} reserviert für Links in Arbeit · Guthaben {balance}",
       recoverFromArticles: "Credits aus {count} Artikel zurückholen|Credits aus {count} Artikeln zurückholen",
-      buyCredits: "Link-Credits kaufen",
+      buyCredits: "Credits kaufen",
       creditsHowItWorks: "Sie verdienen Credits, wenn der Link eines Partners in Ihrem Artikel als live bestätigt ist, und verbrauchen sie, wenn ein Link zu Ihrer Website bestätigt ist. Während ein Link platziert wird, sind die Credits reserviert; wird ein bestätigter Link später entfernt, werden sie zurückgebucht.",
       creditsScopeNote: "Credits gehören zu Ihrem Arbeitsbereich und werden von allen seinen Websites geteilt.",
       creditsOwnerOnly: "Credits gehören dem Arbeitsbereich, dem diese Website gehört, und sind nur für dessen Mitglieder sichtbar.",
@@ -17964,6 +18275,60 @@ const de: Messages = {
       account: "Konto",
       billing: "Abrechnung",
       settingsSections: "Einstellungsbereiche",
+      credits: "Credits",
+      creditPacks: "Credit-Pakete",
+      articlesUnlimited: "Unbegrenzte Artikel",
+      articlesLeft: "{left} von {limit} Artikeln übrig",
+      freeArticlesLeft: "{left} von {limit} kostenlosen Artikeln übrig",
+    },
+    credits: {
+      title: "Credits",
+      intro: "Ein Credit-Guthaben für Ihren gesamten Arbeitsbereich, das alle Ihre Websites teilen. Setzen Sie es für Backlinks, Leistungen und alles andere in RepGet ein.",
+      buy: "Credits kaufen",
+      summary: "Übersicht",
+      available: "Verfügbar",
+      availableHelp: "Credits, die Sie jetzt ausgeben können.",
+      daily: "Tägliche Credits",
+      dailyValue: "+{count} heute",
+      dailyHelp: "An jedem Tag hinzugefügt, an dem Sie RepGet nutzen. Sie verfallen nie.",
+      dailyPlan: "Mit einem kostenpflichtigen Tarif erhalten Sie an jedem Tag, an dem Sie RepGet nutzen, {count} Credits.",
+      reserved: "Für Links reserviert",
+      reservedHelp: "Für Links in Arbeit zurückgehalten; erst bei bestätigtem Link verbraucht.",
+      balance: "Guthaben",
+      pricesTitle: "Wofür Credits verwendet werden",
+      pricesIntro: "Was alles in Credits kostet.",
+      backlink: "Ein Backlink aus dem Partnernetzwerk",
+      backlinkPrice: "{min} bis {max} Credits pro Link",
+      backlinkNote: "Wird für jeden Link bei der Platzierung festgelegt und erst berechnet, wenn der Link live zu sehen ist.",
+      free: "Kostenlos",
+      creditsCount: "{count} Credit|{count} Credits",
+      actions: {
+        audit_rerun: "Die Website-Prüfung erneut ausführen",
+      },
+      actionHelp: {
+        audit_rerun: "Die erste Prüfung jeder Website ist kostenlos.",
+      },
+      serviceHelp: "Unter Abrechnung gekauft und von unserem Team umgesetzt.",
+      quoteHelp: "Angebot nach Prüfung Ihres Audits, dann mit Credits bezahlt.",
+      servicePriceFrom: "Ab {price}",
+      sourcesTitle: "Woher Credits kommen",
+      sourcePlan: "Ihr Tarif fügt jeden Monat Credits hinzu. Sie verfallen nicht.",
+      sourcePacks: "Credit-Pakete, wann immer Sie mehr brauchen. Gekaufte Credits verfallen nicht.",
+      sourceDaily: "{count} Credits an jedem Tag, an dem Sie RepGet nutzen, mit einem kostenpflichtigen Tarif. Sie verfallen nie.",
+      sourceReferral: "{count} Credits für jedes empfohlene Unternehmen, das zu zahlen beginnt.",
+      historyTitle: "Verlauf",
+      colDate: "Datum",
+      colEntry: "Buchung",
+      colWebsite: "Website",
+      colCredits: "Credits",
+      empty: "Noch keine Credit-Buchungen.",
+      ledgerSpend: "Ausgegeben: {action}",
+      ledgerSpendRefund: "Erstattet: „{action}“ konnte nicht abgeschlossen werden",
+      ledgerDaily: "Tägliche Credits",
+      ledgerAddon: "Gekauft: {name}",
+      guestOnly: "Credits gehören zu dem Arbeitsbereich, dem eine Website gehört. Für die mit Ihnen geteilten Websites werden die Credits ihres Inhabers verwendet.",
+      notEnough: "Das kostet {price} Credits, und Sie haben {available}. Kaufen Sie Credits, um fortzufahren.",
+      sidebarDaily: "+{count} heute",
     },
     status: {
       pending: "Wartet auf Start",

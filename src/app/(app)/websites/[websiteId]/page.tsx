@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import { isEntitledToSpend } from "@/lib/billing/entitled";
 import { requireWebsitePlan } from "@/lib/billing/require-plan";
 import { SUPPORT_EMAIL, hasRealSupportEmail } from "@/lib/config/site";
+import { readCreditSettings } from "@/lib/credits/prices";
+import { plural } from "@/lib/i18n/format";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import { requireWebsitePage } from "@/lib/tenant";
 
@@ -54,7 +56,7 @@ export default async function WebsiteHealthPage({
   // startAudit refuses a site still being onboarded; say so instead of offering the button.
   const siteNotReady = site.status === "pending" || site.status === "crawling";
 
-  const [data, entitlement, { t, locale }, query] = await Promise.all([
+  const [data, entitlement, { t, locale }, query, credits] = await Promise.all([
     loadHealthData(site.id),
     // Asked per WEBSITE, as startAudit asks it: an owner can open an unpaid
     // second site because the workspace gate passed, and a check would then
@@ -62,6 +64,7 @@ export default async function WebsiteHealthPage({
     canEdit && !siteNotReady ? isEntitledToSpend(site.id) : Promise.resolve(null),
     getAppMessages(userId),
     searchParams,
+    readCreditSettings(),
   ]);
 
   const health = t.app.health;
@@ -86,6 +89,8 @@ export default async function WebsiteHealthPage({
       discovered={discoveredFor(data.audit, data.crawl)}
       canEdit={canEdit}
       blockedReason={blockedReason}
+      /* What running it again costs (lib/credits/prices.ts); nothing shown while it is free. */
+      rerunCost={credits.prices.audit_rerun > 0 ? plural(t.app.credits.creditsCount, credits.prices.audit_rerun) : null}
       supportEmail={hasRealSupportEmail() ? SUPPORT_EMAIL : null}
       initialSeverity={parseSeverityFilter(query.severity)}
       initialQuery={parseQuery(query.q)}

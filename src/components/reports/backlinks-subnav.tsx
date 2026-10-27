@@ -23,7 +23,8 @@ export function BacklinksSubnav({
     { href: base, label: labels.overview, exact: true },
     { href: `${base}/links`, label: labels.earned },
     { href: `${base}/hosted`, label: labels.hosted },
-    { href: `${base}/credits`, label: labels.credits },
+    // The workspace's credits have their own page (/credits); the tab still leads there.
+    { href: "/credits", label: labels.credits },
   ];
   return (
     <nav aria-label={labels.nav} className="-mx-1 overflow-x-auto">

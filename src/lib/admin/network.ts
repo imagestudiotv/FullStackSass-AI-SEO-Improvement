@@ -16,6 +16,7 @@ import {
   managedPlacementsFor,
   MAX_PER_ARTICLE,
   MAX_PLACEMENT_CREDITS,
+  MIN_PLACEMENT_CREDITS,
   placeManagedLink,
   PlacementError,
   removeManagedPlacement,
@@ -161,7 +162,7 @@ export async function getReviewQueue(): Promise<{
   sites: QueueSite[];
   articles: QueueArticle[];
   credits: OrgCredits[];
-  limits: { maxPerArticle: number; defaultCredits: number; maxCredits: number };
+  limits: { maxPerArticle: number; defaultCredits: number; minCredits: number; maxCredits: number };
 }> {
   await requireAdmin();
 
@@ -257,7 +258,12 @@ export async function getReviewQueue(): Promise<{
       connected: connection.get(row.websiteId) ?? "none",
     })),
     credits,
-    limits: { maxPerArticle: MAX_PER_ARTICLE, defaultCredits: DEFAULT_PLACEMENT_CREDITS, maxCredits: MAX_PLACEMENT_CREDITS },
+    limits: {
+      maxPerArticle: MAX_PER_ARTICLE,
+      defaultCredits: DEFAULT_PLACEMENT_CREDITS,
+      minCredits: MIN_PLACEMENT_CREDITS,
+      maxCredits: MAX_PLACEMENT_CREDITS,
+    },
   };
 }
 
@@ -426,7 +432,12 @@ export async function getReviewArticle(articleId: string) {
     candidates,
     hostAuthority,
     hostUsage,
-    limits: { maxPerArticle: MAX_PER_ARTICLE, defaultCredits: DEFAULT_PLACEMENT_CREDITS, maxCredits: MAX_PLACEMENT_CREDITS },
+    limits: {
+      maxPerArticle: MAX_PER_ARTICLE,
+      defaultCredits: DEFAULT_PLACEMENT_CREDITS,
+      minCredits: MIN_PLACEMENT_CREDITS,
+      maxCredits: MAX_PLACEMENT_CREDITS,
+    },
   };
 }
 

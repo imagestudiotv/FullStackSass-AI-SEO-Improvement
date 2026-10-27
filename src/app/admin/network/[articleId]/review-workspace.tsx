@@ -529,6 +529,7 @@ export function ReviewWorkspace({ review }: { review: Review }) {
                     key={`${placement.id}:${placement.credits}`}
                     placement={placement}
                     hostOrg={article.organizationName}
+                    minCredits={limits.minCredits}
                     maxCredits={limits.maxCredits}
                     disabled={busy || !editable}
                     approved={article.approvedCurrent}
@@ -694,7 +695,7 @@ export function ReviewWorkspace({ review }: { review: Review }) {
                     <Input
                       id="credits"
                       type="number"
-                      min={1}
+                      min={limits.minCredits}
                       max={limits.maxCredits}
                       step={1}
                       value={credits}
@@ -981,6 +982,7 @@ function FeaturedImage({ url, alt }: { url: string | null; alt: string | null })
 function PlacementRow({
   placement,
   hostOrg,
+  minCredits,
   maxCredits,
   disabled,
   approved,
@@ -991,7 +993,8 @@ function PlacementRow({
 }: {
   placement: Placement;
   hostOrg: string;
-  /** MAX_PLACEMENT_CREDITS, from the server - the same bound the server enforces. */
+  /** MIN_ and MAX_PLACEMENT_CREDITS, from the server - the same bounds the server enforces. */
+  minCredits: number;
   maxCredits: number;
   disabled: boolean;
   /** The article is approved: a change here sends it back to review. */
@@ -1035,7 +1038,7 @@ function PlacementRow({
             aria-label="Credits for this link"
             className="h-8 w-20 tabular-nums"
             type="number"
-            min={1}
+            min={minCredits}
             max={maxCredits}
             value={value}
             onChange={(e) => setValue(e.target.value)}

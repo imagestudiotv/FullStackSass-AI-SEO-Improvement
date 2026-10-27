@@ -70,3 +70,6 @@ db-backups/
 # The template stays tracked. This must come AFTER every .env* rule: a later
 # ".env*" re-ignored it before, and a fresh copy would have been dropped.
 !.env.example
+
+# `vercel env pull` output saved under another name (production values).
+env.download

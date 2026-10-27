@@ -61,6 +61,8 @@ export type AuditPanelProps = {
   canEdit: boolean;
   /** Why an editor cannot start a check right now, already translated; null when they can. */
   blockedReason: string | null;
+  /** What running the check again costs, already translated ("5 credits"); null while it is free. */
+  rerunCost?: string | null;
   /** Null while the support address is the placeholder. */
   supportEmail: string | null;
   initialSeverity: SeverityFilter;
@@ -78,6 +80,7 @@ export function AuditPanel({
   discovered,
   canEdit,
   blockedReason,
+  rerunCost = null,
   supportEmail,
   initialSeverity,
   initialQuery,
@@ -138,7 +141,7 @@ export function AuditPanel({
       ) : (
         <RefreshCw aria-hidden="true" />
       )}
-      {pending ? t.starting : inFlight ? t.checking : audit ? t.checkAgain : t.checkNow}
+      {pending ? t.starting : inFlight ? t.checking : audit ? (rerunCost ? `${t.checkAgain} · ${rerunCost}` : t.checkAgain) : t.checkNow}
     </Button>
   ) : null;
 

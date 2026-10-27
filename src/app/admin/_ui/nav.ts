@@ -220,6 +220,13 @@ export const ADMIN_NAV: AdminNavGroup[] = [
         description: "Publication freeze, review gate and deliveries",
       },
       {
+        href: "/admin/credits",
+        label: "Credits",
+        icon: Coins,
+        keywords: ["prices", "credit prices", "daily credits", "free credits", "wallet", "spend"],
+        description: "What actions cost in credits, and the free daily credits",
+      },
+      {
         href: "/admin/payments",
         label: "Payments",
         icon: Receipt,

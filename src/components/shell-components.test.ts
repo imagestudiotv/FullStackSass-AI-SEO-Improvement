@@ -35,9 +35,10 @@ vi.mock("@/app/(app)/dashboard/invitation-actions", () => ({
 }));
 vi.mock("sonner", () => ({ toast: { error: () => {} } }));
 
-vi.mock("@/lib/backlinks/credits", () => ({
-  ensureMonthlyCredits: vi.fn(async () => {}),
-  getAvailable: vi.fn(async () => ({ available: 7 })),
+// The sidebar's credit figure: the balance, and today's daily credits (lib/credits/overview.ts).
+const overview = vi.hoisted(() => ({ daily: { eligible: true, perDay: 0, today: 0 } }));
+vi.mock("@/lib/credits/overview", () => ({
+  creditOverview: vi.fn(async () => ({ balance: 7, reserved: 0, available: 7, daily: overview.daily })),
 }));
 vi.mock("@/lib/usage", () => ({
   checkLimit: vi.fn(async () => ({
@@ -53,7 +54,7 @@ import { WebsiteSwitcher } from "@/components/dashboard/website-switcher";
 import { SettingsNav } from "@/components/settings-nav";
 import { SidebarNav } from "@/components/sidebar-nav";
 import { SidebarUsage } from "@/components/sidebar-usage";
-import { ensureMonthlyCredits, getAvailable } from "@/lib/backlinks/credits";
+import { creditOverview } from "@/lib/credits/overview";
 import { getMessages } from "@/lib/i18n/messages";
 
 const en = getMessages("en");
@@ -123,23 +124,41 @@ describe("SidebarUsage", () => {
         websiteId: SITE,
         showCredits,
         t: en.app.nav,
+        tc: en.app.credits,
       }),
     );
 
-  it("shows the reader's credits beside their own site", async () => {
+  it("shows the reader's credits beside their own site, linking to the Credits page", async () => {
+    overview.daily = { eligible: true, perDay: 0, today: 0 };
     const html = await render();
-    expect(ensureMonthlyCredits).toHaveBeenCalledWith("org_own");
-    expect(getAvailable).toHaveBeenCalledWith("org_own");
-    expect(html).toContain("7 backlink credits");
+    expect(creditOverview).toHaveBeenCalledWith("org_own");
+    expect(html).toContain("7 credits");
+    expect(html).toContain('href="/credits"');
     expect(html).toContain("8 of 10 articles left");
+    expect(html).not.toContain("today");
+  });
+
+  it("shows the daily credits given today", async () => {
+    overview.daily = { eligible: true, perDay: 3, today: 3 };
+    expect(await render()).toContain("+3 today");
   });
 
   it("on a shared site: no credit figure, no grant, the article allowance kept", async () => {
     const html = await render(false);
-    expect(ensureMonthlyCredits).not.toHaveBeenCalled();
-    expect(getAvailable).not.toHaveBeenCalled();
-    expect(html).not.toContain("backlink credits");
+    expect(creditOverview).not.toHaveBeenCalled();
+    expect(html).not.toContain("credits");
     expect(html).toContain("8 of 10 articles left");
+  });
+
+  it("speaks the reader's language", async () => {
+    const it_ = getMessages("it");
+    overview.daily = { eligible: true, perDay: 3, today: 3 };
+    const html = renderToStaticMarkup(
+      await SidebarUsage({ organizationId: "org_own", websiteId: SITE, t: it_.app.nav, tc: it_.app.credits }),
+    );
+    expect(html).toContain("7 crediti");
+    expect(html).toContain("8 articoli su 10 rimasti");
+    expect(html).toContain("+3 oggi");
   });
 });
 

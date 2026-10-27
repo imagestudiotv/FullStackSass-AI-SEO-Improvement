@@ -235,7 +235,7 @@ async function scene(options: { credits?: number; hostCms?: boolean } = {}) {
   const benWs = await workspace("ben");
   const host = await site(hostWs.orgId, `host-${randomUUID().slice(0, 6)}.test`, { cms: options.hostCms ?? true });
   const beneficiary = await site(benWs.orgId, `ben-${randomUUID().slice(0, 6)}.test`);
-  await grant(benWs.orgId, options.credits ?? 5);
+  await grant(benWs.orgId, options.credits ?? 50);
   const post = await article(host);
   const [ben] = await test.db.select({ domain: websites.domain }).from(websites).where(eq(websites.id, beneficiary));
   return { hostWs, benWs, host, beneficiary, benDomain: ben.domain, post };
@@ -249,7 +249,7 @@ async function place(s: Awaited<ReturnType<typeof scene>>, overrides: Partial<Pa
     beneficiaryWebsiteId: s.beneficiary,
     targetUrl: `https://${s.benDomain}/wedding-videography/`,
     anchor: "wedding videography",
-    credits: 1,
+    credits: 10,
     reason: "Same field, same language",
     ...overrides,
   });
@@ -429,7 +429,7 @@ describe("approval, edits and races", () => {
       beneficiaryWebsiteId: s.beneficiary,
       targetUrl: `https://${s.benDomain}/x/`,
       anchor: "engagement portraits",
-      credits: 1,
+      credits: 10,
       reason: "",
     });
     expect(stale).toMatchObject({ ok: false, error: expect.stringMatching(/changed/) });
@@ -458,43 +458,43 @@ describe("approval, edits and races", () => {
 
 describe("administrator placements", () => {
   it("commit a structured placement: link in the draft, credits reserved, audit row written", async () => {
-    const s = await scene({ credits: 5 });
-    const placed = await place(s, { credits: 2 });
+    const s = await scene({ credits: 50 });
+    const placed = await place(s, { credits: 20 });
     expect(placed).toMatchObject({ ok: true });
 
     const body = (await row(s.post.id)).bodyHtml!;
     expect(body).toContain(`<a href="https://${s.benDomain}/wedding-videography/" target="_blank" rel="noopener nofollow">wedding videography</a>`);
     const [p] = await test.db.select().from(placements).where(eq(placements.articleId, s.post.id));
-    expect(p).toMatchObject({ status: "drafted", managed: true, credits: 2, createdBy: ADMIN, reason: "Same field, same language" });
-    expect(await reserved(s.benWs.orgId)).toBe(2);
-    expect(await balance(s.benWs.orgId)).toBe(5); // reserved, not spent
+    expect(p).toMatchObject({ status: "drafted", managed: true, credits: 20, createdBy: ADMIN, reason: "Same field, same language" });
+    expect(await reserved(s.benWs.orgId)).toBe(20);
+    expect(await balance(s.benWs.orgId)).toBe(50); // reserved, not spent
     const audit = await test.db.select().from(adminAuditLog).where(eq(adminAuditLog.targetId, p.id));
     expect(audit[0]).toMatchObject({ actorEmail: ADMIN, action: "network.placement_added" });
   });
 
   it("refuses when the workspace cannot cover it, and writes nothing", async () => {
-    const s = await scene({ credits: 1 });
+    const s = await scene({ credits: 10 });
     const before = (await row(s.post.id)).bodyHtml;
-    expect(await place(s, { credits: 2 })).toMatchObject({ ok: false, error: expect.stringMatching(/Not enough credits: 1 available/) });
+    expect(await place(s, { credits: 20 })).toMatchObject({ ok: false, error: expect.stringMatching(/Not enough credits: 10 available/) });
     expect((await row(s.post.id)).bodyHtml).toBe(before);
     expect(await test.db.select().from(placements).where(eq(placements.articleId, s.post.id))).toHaveLength(0);
     expect(await reserved(s.benWs.orgId)).toBe(0);
   });
 
   it("two administrators cannot spend the same available credit", async () => {
-    const s = await scene({ credits: 1 });
+    const s = await scene({ credits: 10 });
     const other = await article(s.host);
     const [v1, v2] = [(await row(s.post.id)).reviewVersion, (await row(other.id)).reviewVersion];
     const results = await Promise.allSettled([
-      placeManagedLink({ articleId: s.post.id, expectedVersion: v1, beneficiaryWebsiteId: s.beneficiary, targetUrl: `https://${s.benDomain}/a/`, anchor: "wedding videography", credits: 1, actorEmail: ADMIN }),
-      placeManagedLink({ articleId: other.id, expectedVersion: v2, beneficiaryWebsiteId: s.beneficiary, targetUrl: `https://${s.benDomain}/b/`, anchor: "wedding videography", credits: 1, actorEmail: ADMIN }),
+      placeManagedLink({ articleId: s.post.id, expectedVersion: v1, beneficiaryWebsiteId: s.beneficiary, targetUrl: `https://${s.benDomain}/a/`, anchor: "wedding videography", credits: 10, actorEmail: ADMIN }),
+      placeManagedLink({ articleId: other.id, expectedVersion: v2, beneficiaryWebsiteId: s.beneficiary, targetUrl: `https://${s.benDomain}/b/`, anchor: "wedding videography", credits: 10, actorEmail: ADMIN }),
     ]);
     expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
-    expect(await reserved(s.benWs.orgId)).toBe(1);
+    expect(await reserved(s.benWs.orgId)).toBe(10);
   });
 
   it("credits are the workspace's: two of its websites share one balance", async () => {
-    const s = await scene({ credits: 1 });
+    const s = await scene({ credits: 10 });
     const secondSite = await site(s.benWs.orgId, `ben2-${randomUUID().slice(0, 6)}.test`);
     const [second] = await test.db.select({ domain: websites.domain }).from(websites).where(eq(websites.id, secondSite));
     const otherHostWs = await workspace("host2");
@@ -508,7 +508,7 @@ describe("administrator placements", () => {
       beneficiaryWebsiteId: secondSite,
       targetUrl: `https://${second.domain}/page/`,
       anchor: "wedding videography",
-      credits: 1,
+      credits: 10,
       reason: "",
     });
     expect(refused).toMatchObject({ ok: false, error: expect.stringMatching(/Not enough credits: 0 available/) });
@@ -525,7 +525,7 @@ describe("administrator placements", () => {
     // A second, different website: allowed.
     const ws2 = await workspace("ben-b");
     const b2 = await site(ws2.orgId, `benb-${randomUUID().slice(0, 6)}.test`);
-    await grant(ws2.orgId, 3);
+    await grant(ws2.orgId, 30);
     const [d2] = await test.db.select({ domain: websites.domain }).from(websites).where(eq(websites.id, b2));
     expect(await place(s, { beneficiaryWebsiteId: b2, targetUrl: `https://${d2.domain}/films/`, anchor: "destination wedding films" })).toMatchObject({ ok: true });
     expect(await test.db.select().from(placements).where(eq(placements.articleId, s.post.id))).toHaveLength(2);
@@ -539,7 +539,8 @@ describe("administrator placements", () => {
     }, /could not be confirmed/],
     ["words not in the article", () => ({ anchor: "crypto trading tips" }), /not in a paragraph/],
     ["words only inside a heading", () => ({ anchor: "Planning" }), /not in a paragraph/],
-    ["an out-of-range credit amount", () => ({ credits: 11 }), /whole number from 1 to 10/],
+    ["a credit amount above the range", () => ({ credits: 101 }), /whole number from 10 to 100/],
+    ["a credit amount below the range (a link costs 10 to 100 since 2026-10-26)", () => ({ credits: 9 }), /whole number from 10 to 100/],
   ])("refuses %s", async (_label, overrides, error) => {
     const s = await scene();
     expect(await place(s, overrides(s))).toMatchObject({ ok: false, error: expect.stringMatching(error) });
@@ -561,7 +562,7 @@ describe("administrator placements", () => {
     // Unrelated field.
     const crypto = await workspace("crypto");
     const cryptoSite = await site(crypto.orgId, `c-${randomUUID().slice(0, 6)}.test`, { industry: "software saas" });
-    await grant(crypto.orgId, 3);
+    await grant(crypto.orgId, 30);
     expect(await place(s, { beneficiaryWebsiteId: cryptoSite, targetUrl: `https://${await domainOf(cryptoSite)}/x/` })).toMatchObject({
       ok: false,
       error: expect.stringMatching(/not in related fields/),
@@ -569,7 +570,7 @@ describe("administrator placements", () => {
     // Different language.
     const it1 = await workspace("it");
     const itSite = await site(it1.orgId, `it-${randomUUID().slice(0, 6)}.test`, { language: "Italian" });
-    await grant(it1.orgId, 3);
+    await grant(it1.orgId, 30);
     const [itDomain] = await test.db.select({ d: websites.domain }).from(websites).where(eq(websites.id, itSite));
     expect(await place(s, { beneficiaryWebsiteId: itSite, targetUrl: `https://${itDomain.d}/x/` })).toMatchObject({ ok: false, error: expect.stringMatching(/different languages/) });
     // Reciprocal: the beneficiary once hosted a link to the host.
@@ -608,47 +609,47 @@ describe("administrator placements", () => {
   });
 
   it("the amount can change before publication (increase reserved), never after settlement", async () => {
-    const s = await scene({ credits: 2 });
+    const s = await scene({ credits: 20 });
     await place(s);
     const [p] = await test.db.select().from(placements).where(eq(placements.articleId, s.post.id));
     const v = async () => (await row(s.post.id)).reviewVersion;
-    expect(await changePlacementCredits({ articleId: s.post.id, placementId: p.id, expectedVersion: await v(), credits: 3, reason: "" })).toMatchObject({ ok: false, error: expect.stringMatching(/Not enough credits/) });
-    expect(await changePlacementCredits({ articleId: s.post.id, placementId: p.id, expectedVersion: await v(), credits: 2, reason: "Better slot" })).toMatchObject({ ok: true });
-    expect(await reserved(s.benWs.orgId)).toBe(2);
+    expect(await changePlacementCredits({ articleId: s.post.id, placementId: p.id, expectedVersion: await v(), credits: 30, reason: "" })).toMatchObject({ ok: false, error: expect.stringMatching(/Not enough credits/) });
+    expect(await changePlacementCredits({ articleId: s.post.id, placementId: p.id, expectedVersion: await v(), credits: 20, reason: "Better slot" })).toMatchObject({ ok: true });
+    expect(await reserved(s.benWs.orgId)).toBe(20);
     await test.db.update(placements).set({ status: "live" }).where(eq(placements.id, p.id));
-    expect(await changePlacementCredits({ articleId: s.post.id, placementId: p.id, expectedVersion: await v(), credits: 1, reason: "" })).toMatchObject({ ok: false, error: expect.stringMatching(/not yet published/) });
+    expect(await changePlacementCredits({ articleId: s.post.id, placementId: p.id, expectedVersion: await v(), credits: 10, reason: "" })).toMatchObject({ ok: false, error: expect.stringMatching(/not yet published/) });
   });
 });
 
 describe("settlement: only after the link is seen live, exactly once", () => {
   it("no credits for a draft, an approval, a CMS draft or a failed publication; charged and rewarded once when seen live", async () => {
-    const s = await scene({ credits: 5 });
-    await place(s, { credits: 2 });
+    const s = await scene({ credits: 50 });
+    await place(s, { credits: 20 });
     await approve(s.post.id);
     const [p] = await test.db.select().from(placements).where(eq(placements.articleId, s.post.id));
 
     // A CMS draft, and a publish with no URL, are not publication.
     expect(await recordArticlePublication(s.post.id, "https://host/post", "draft")).toBe(0);
     expect(await recordArticlePublication(s.post.id, null, "publish")).toBe(0);
-    expect(await balance(s.benWs.orgId)).toBe(5);
+    expect(await balance(s.benWs.orgId)).toBe(50);
     expect(await balance(s.hostWs.orgId)).toBe(0);
 
     expect(await recordArticlePublication(s.post.id, "https://host.test/post/", "publish")).toBe(1);
     // A check that could not reach the page moves nothing.
     expect(await applyCheck(p.id, "error", null)).toBeNull();
-    expect(await balance(s.benWs.orgId)).toBe(5);
+    expect(await balance(s.benWs.orgId)).toBe(50);
 
     // Seen live, twice at once: exactly one charge and one reward.
     await Promise.all([applyCheck(p.id, "alive", 200), applyCheck(p.id, "alive", 200)]);
     await applyCheck(p.id, "alive", 200);
-    expect(await balance(s.benWs.orgId)).toBe(3);
-    expect(await balance(s.hostWs.orgId)).toBe(2);
+    expect(await balance(s.benWs.orgId)).toBe(30);
+    expect(await balance(s.hostWs.orgId)).toBe(20);
     expect(await reserved(s.benWs.orgId)).toBe(0);
 
     // Missing on repeated checks: nothing moves by itself (a host in maintenance comes back).
     for (let i = 0; i < 4; i++) await applyCheck(p.id, "missing", 200);
-    expect(await balance(s.benWs.orgId)).toBe(3);
-    expect(await balance(s.hostWs.orgId)).toBe(2);
+    expect(await balance(s.benWs.orgId)).toBe(30);
+    expect(await balance(s.hostWs.orgId)).toBe(20);
     // Listed for administrators - and only for them.
     asMember(s.benWs.userId, s.benWs.orgId);
     await expect(listMissingLinks()).rejects.toThrow();
@@ -657,13 +658,13 @@ describe("settlement: only after the link is seen live, exactly once", () => {
     expect((await listMissingLinks()).map((m) => m.id)).toContain(p.id);
     // An administrator removes it, with a reason: refunded and reversed, once, and logged.
     expect(await removeMissingLink({ placementId: p.id, reason: "" })).toMatchObject({ ok: false });
-    expect(await removeMissingLink({ placementId: p.id, reason: "customer reported it" })).toEqual({ ok: true, data: { credits: 2 } });
+    expect(await removeMissingLink({ placementId: p.id, reason: "customer reported it" })).toEqual({ ok: true, data: { credits: 20 } });
     expect(await removeMissingLink({ placementId: p.id, reason: "customer reported it" })).toMatchObject({ ok: false });
     const removalLog = await test.db.select().from(adminAuditLog).where(and(eq(adminAuditLog.targetId, p.id), eq(adminAuditLog.action, "network.placement_removed")));
     expect(removalLog).toHaveLength(1);
     expect(removalLog[0]).toMatchObject({ actorEmail: ADMIN, organizationId: s.benWs.orgId });
     expect((await listMissingLinks()).map((m) => m.id)).not.toContain(p.id);
-    expect(await balance(s.benWs.orgId)).toBe(5);
+    expect(await balance(s.benWs.orgId)).toBe(50);
     expect(await balance(s.hostWs.orgId)).toBe(0);
     // ...and the refund is spendable: the managed request is closed, not held
     // as a reservation that nothing would ever match again.
@@ -703,13 +704,13 @@ describe("who may do what", () => {
     expect(await requestBacklink(s.beneficiary, { targetUrl: `https://${s.benDomain}/x/` })).toMatchObject({ ok: false, error: expect.stringMatching(/RepGet team/) });
     const [req] = await test.db.select().from(backlinkRequests).where(eq(backlinkRequests.websiteId, s.beneficiary));
     expect(await cancelRequest(s.beneficiary, req.id)).toMatchObject({ ok: false, error: expect.stringMatching(/arranged by the RepGet team/) });
-    expect(await reserved(s.benWs.orgId)).toBe(1);
+    expect(await reserved(s.benWs.orgId)).toBe(10);
 
     // What the panels are given: a managed, still-unsettled link on both sides
     // (shown as credits held / earned once live, with no cancel control).
-    expect(await listRequests(s.beneficiary)).toEqual([expect.objectContaining({ status: "matched", managed: true, creditsUsed: 1 })]);
+    expect(await listRequests(s.beneficiary)).toEqual([expect.objectContaining({ status: "matched", managed: true, creditsUsed: 10 })]);
     asMember(s.hostWs.userId, s.hostWs.orgId);
-    expect(await listGiven(s.host)).toEqual([expect.objectContaining({ status: "drafted", credits: 1 })]);
+    expect(await listGiven(s.host)).toEqual([expect.objectContaining({ status: "drafted", credits: 10 })]);
   });
 });
 
@@ -770,7 +771,7 @@ describe("the customer's Partner Network preferences", () => {
         beneficiaryWebsiteId: s.host,
         targetUrl: `https://${(await test.db.select({ d: websites.domain }).from(websites).where(eq(websites.id, s.host)))[0].d}/x/`,
         anchor: "wedding videography",
-        credits: 1,
+        credits: 10,
         reason: "",
       }),
     ).toMatchObject({ ok: false, error: expect.stringMatching(/not taking part/) });
@@ -831,7 +832,7 @@ describe("monthly plan credits", () => {
 
   it("an administrator can place a link for a customer whose only credits are this month's plan credits", async () => {
     const s = await scene({ credits: 0 });
-    await subscribe(s.benWs.orgId, s.beneficiary, 10);
+    await subscribe(s.benWs.orgId, s.beneficiary, 100);
     const current = await row(s.post.id);
     await expect(
       placeManagedLink({
@@ -840,12 +841,12 @@ describe("monthly plan credits", () => {
         beneficiaryWebsiteId: s.beneficiary,
         targetUrl: `https://${s.benDomain}/wedding-videography/`,
         anchor: "wedding videography",
-        credits: 1,
+        credits: 10,
         actorEmail: ADMIN,
       }),
     ).resolves.toMatchObject({ placementId: expect.any(String) });
-    expect(await balance(s.benWs.orgId)).toBe(10);
-    expect(await reserved(s.benWs.orgId)).toBe(1);
+    expect(await balance(s.benWs.orgId)).toBe(100);
+    expect(await reserved(s.benWs.orgId)).toBe(10);
   });
 });
 
@@ -864,7 +865,7 @@ const MANY = PHRASES.map((p) => `<p>Our guide covers ${p} in detail for every co
 async function beneficiary(tag: string) {
   const ws = await workspace(`b-${tag}`);
   const id = await site(ws.orgId, `${tag}-${randomUUID().slice(0, 6)}.test`);
-  await grant(ws.orgId, 5);
+  await grant(ws.orgId, 50);
   return { id, domain: await domainOf(id) };
 }
 
@@ -876,7 +877,7 @@ async function placeOn(articleId: string, websiteId: string, domain: string, anc
     beneficiaryWebsiteId: websiteId,
     targetUrl: `https://${domain}/page/`,
     anchor,
-    credits: 1,
+    credits: 10,
     reason: "Relevant mention",
   });
 }
@@ -1113,7 +1114,7 @@ describe("editing an article in review", () => {
     expect(await saveFrom(s.post.id, { bodyHtml: reworded })).toMatchObject({ ok: true, data: { changed: true } });
     const [placement] = await test.db.select().from(placements).where(eq(placements.articleId, s.post.id));
     expect(placement).toMatchObject({ status: "drafted", anchor: "professional wedding videography" });
-    expect(await reserved(s.benWs.orgId)).toBe(1);
+    expect(await reserved(s.benWs.orgId)).toBe(10);
     expect(await approve(s.post.id)).toMatchObject({ ok: true, data: { placements: 1 } });
   });
 
@@ -1246,7 +1247,7 @@ describe("the same site in two workspaces", () => {
         beneficiaryWebsiteId: twin,
         targetUrl: `https://www.${name}/wedding-videography/`,
         anchor: "wedding videography",
-        credits: 1,
+        credits: 10,
         reason: "Test",
       }),
     ).toMatchObject({ ok: false, error: expect.stringMatching(/same site/) });

@@ -240,7 +240,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
    */
   const creditPack = addonRows.find((row) => row.kind === "credits");
   const sidebarAddons = [
-    ...(creditPack ? [{ id: creditPack.id, name: "Link credits" }] : []),
+    ...(creditPack ? [{ id: creditPack.id, name: t.app.nav.creditPacks }] : []),
     ...addonRows
       .filter((row) => row.kind !== "credits")
       .map((row) => ({ id: row.id, name: row.name })),
@@ -260,6 +260,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           selectedWebsiteId={fallbackWebsiteId}
           addons={sidebarAddons}
           hideAddons={hideAddons}
+          hideCredits={sharedWorkOnly}
         />
         <Link
           href="/dashboard"
@@ -334,6 +335,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             selectedWebsiteId={fallbackWebsiteId}
             addons={sidebarAddons}
             hideAddons={hideAddons}
+            hideCredits={sharedWorkOnly}
           />
           {/*
             Plan usage under the navigation: what is left this month, and
@@ -353,6 +355,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             websiteId={fallbackWebsiteId}
             showCredits={!selectedShared && !sharedWorkOnly}
             t={t.app.nav}
+            tc={t.app.credits}
           />
         </AppSidebar>
         {/*

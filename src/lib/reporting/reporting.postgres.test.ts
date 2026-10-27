@@ -22,7 +22,6 @@ import { applyCheck, recordArticlePublication } from "@/lib/backlinks/placements
 import {
   backlinkIssues,
   backlinkMetrics,
-  creditActivity,
   linkDetail,
   listLinks,
   parseListQuery,
@@ -32,6 +31,8 @@ import {
   workspaceCredits,
 } from "@/lib/reporting/backlinks";
 import { requestRecheck } from "@/lib/reporting/recheck";
+// The workspace's credit history moved to the Credits page (lib/credits/overview.ts).
+import { creditHistory } from "@/lib/credits/overview";
 
 const available = Boolean(testPostgresUrl());
 
@@ -103,7 +104,9 @@ describe.skipIf(!available)("reporting on real Postgres (postgres-js)", () => {
     expect(history.points.at(-1)).toMatchObject({ active: 1, cumulative: 1 });
     expect(await backlinkIssues(subject)).toMatchObject({ hostedArticlesMissingLink: 0 });
     expect(await workspaceCredits(subject.orgId)).toMatchObject({ balance: 9, reserved: 2, spent: 1 });
-    expect((await creditActivity(subject.orgId, { page: 1, pageSize: 25 })).total).toBe(2);
+    const credits = await creditHistory(subject.orgId, { page: 1, pageSize: 25 });
+    expect(credits.total).toBe(2);
+    expect(credits.rows.find((row) => row.type === "link_received")?.websiteDomain).toBe("ours.test");
     const pending = (await listLinks("received", subject, parseListQuery({ tab: "pending" }))).rows.find((r) => r.lifecycle === "awaiting_verification")!;
     expect(await requestRecheck("received", subject.websiteId, pending.id)).toEqual({ ok: true, revived: false });
   });
