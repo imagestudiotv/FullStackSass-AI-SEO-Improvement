@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { getCreditsAdmin } from "@/lib/admin/credits";
 import { MAX_PLACEMENT_CREDITS, MIN_PLACEMENT_CREDITS } from "@/lib/backlinks/managed";
 import { ACTION_ADMIN, isCreditAction, MAX_ACTION_PRICE, MAX_ADDON_PRICE, MAX_DAILY_FREE } from "@/lib/credits/prices";
-import { formatDate } from "@/lib/i18n/format";
+import { formatDate, formatNumber } from "@/lib/i18n/format";
 
 import { AdminPage, AdminPageHeader, AdminSection } from "../_ui/page";
 import { CreditsForm } from "./credits-form";
@@ -76,8 +76,8 @@ export default async function AdminCreditsPage() {
               {usage.map((row) => (
                 <tr key={row.action} className="border-b last:border-b-0">
                   <td className="px-5 py-2.5">{label(row.action)}</td>
-                  <td className="px-5 py-2.5 text-right tabular-nums">{row.spends}</td>
-                  <td className="px-5 py-2.5 text-right tabular-nums">{row.credits}</td>
+                  <td className="px-5 py-2.5 text-right tabular-nums">{formatNumber(row.spends, "en")}</td>
+                  <td className="px-5 py-2.5 text-right tabular-nums">{formatNumber(row.credits, "en")}</td>
                 </tr>
               ))}
             </tbody>
