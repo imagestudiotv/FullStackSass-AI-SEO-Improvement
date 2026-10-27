@@ -4,6 +4,12 @@
  * Generated with @better-auth/cli, with `account.issuer` added by hand: the
  * CLI's latest release (1.4.21) predates better-auth 1.7.2 and omits it.
  *
+ * `account.issuer` is OPTIONAL since better-auth 1.7.3, which went back to
+ * the 1.6 account schema and no longer writes it. Kept as a nullable column
+ * rather than dropped, as better-auth's 1.7 upgrade guide advises ("Account
+ * identity keeps the provider key"): dropping NOT NULL is enough and can be
+ * undone. Migration 0077 relaxes it.
+ *
  * IMPORTANT: organization.id and user.id are TEXT, not uuid. Every foreign
  * key pointing at them must also be text.
  */
@@ -83,7 +89,7 @@ export const account = pgTable(
     id: text("id").primaryKey(),
     accountId: text("account_id").notNull(),
     providerId: text("provider_id").notNull(),
-    issuer: text("issuer").notNull(),
+    issuer: text("issuer"),
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
