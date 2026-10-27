@@ -5,7 +5,7 @@ import { publicPageMetadata } from "@/lib/seo/page-metadata";
 export const metadata = {
   title: "Refund Policy",
   description:
-    "Our 3-day money-back guarantee and how refunds work at RepGet: annual plans, link credits, how to request a refund and cancelling.",
+    "Our 3-day money-back guarantee and how refunds work at RepGet: annual plans, credits, how to request a refund and cancelling.",
   ...publicPageMetadata("/refunds"),
 };
 
@@ -21,7 +21,7 @@ export const metadata = {
  */
 export default function RefundsPage() {
   return (
-    <LegalPage title="Refund Policy" updated="9 October 2026">
+    <LegalPage title="Refund Policy" updated="27 October 2026">
       <h2 id="guarantee">3-day money-back guarantee</h2>
       <p>
         If you are not happy with the service, email us within{" "}
@@ -63,11 +63,14 @@ export default function RefundsPage() {
         months on request.
       </p>
 
-      <h2>Link credits</h2>
+      <h2>Credits</h2>
       <p>
-        Unused link credits are not refunded for cash - they are part of your
-        plan rather than a separate purchase. If a link you paid for is removed
-        by the other website, the credit is returned to your balance
+        Buy credits whenever you need them and use them anytime, anywhere in
+        RepGet. Credits do not expire.
+      </p>
+      <p>
+        Unused credits are not refunded for cash. If a link you paid for is
+        removed by the other website, its credits are returned to your balance
         automatically.
       </p>
 

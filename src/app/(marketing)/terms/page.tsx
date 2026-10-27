@@ -19,7 +19,7 @@ export const metadata = {
  */
 export default function TermsPage() {
   return (
-    <LegalPage title="Terms of Service" updated="31 August 2026">
+    <LegalPage title="Terms of Service" updated="27 October 2026">
       <p>
         These terms apply when you use RepGet (&quot;the
         service&quot;). By creating an account you agree to them.
@@ -80,8 +80,8 @@ export default function TermsPage() {
         relevance, and you can leave at any time.
       </p>
       <p>
-        If a link you paid for is removed by the other site, we return the
-        credit to you.
+        If a link you paid for is removed by the other site, we return its
+        credits to you.
       </p>
 
       <h2>Acceptable use</h2>
@@ -98,7 +98,12 @@ export default function TermsPage() {
       <p>
         Plans are billed monthly or annually in advance through Stripe. Prices
         are shown on the pricing page. Your plan sets limits on websites,
-        articles, tracked search terms and link credits.
+        articles and tracked search terms, and includes credits each month.
+      </p>
+      <p>
+        Buy credits whenever you need them and use them anytime, anywhere in
+        RepGet. Credits do not expire, and unused credits are not refunded for
+        cash.
       </p>
       <p>
         You can cancel at any time from the billing page. Cancelling stops the
