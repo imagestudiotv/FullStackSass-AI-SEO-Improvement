@@ -409,7 +409,7 @@ export async function requestBacklink(
       error:
         credits.reserved > 0
           ? `No credits available (${credits.reserved} reserved by pending requests)`
-          : "You have no backlink credits left this month",
+          : "You do not have enough credits for a link",
     };
   }
 

@@ -46,7 +46,7 @@ export const PAGE_NOTES = {
     "Guides, comparisons and playbooks for getting found on Google and cited by AI assistants - written for people who run a business, not marketers.",
   "/privacy": "What data RepGet collects, why, how it is stored and protected, who we share it with, how long we keep it and your rights.",
   "/terms": "The terms that apply when you use RepGet - your account, the content we generate, the link network, payment, and why results are not guaranteed.",
-  "/refunds": "Our 3-day money-back guarantee and how refunds work at RepGet: annual plans, link credits, how to request a refund and cancelling.",
+  "/refunds": "Our 3-day money-back guarantee and how refunds work at RepGet: annual plans, credits, how to request a refund and cancelling.",
 } as const;
 
 /** Square brackets would end a Markdown link label early. */

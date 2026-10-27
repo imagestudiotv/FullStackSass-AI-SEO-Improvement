@@ -68,7 +68,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
         },
         {
           title: "Créditos incluidos en su plan",
-          body: "Todos los planes incluyen créditos de enlace cada mes, y alojar artículos para otros le hace ganar más. Un enlace solo gasta sus créditos cuando se verifica que está publicado.",
+          body: "Todos los planes incluyen créditos cada mes, y alojar artículos para otros le hace ganar más. Un enlace solo gasta sus créditos cuando se verifica que está publicado.",
         },
       ],
       compare: {
@@ -125,7 +125,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
           { label: "Cómo paga", cells: ["Por enlace, o con su tiempo", "Una cuota mensual", "Créditos incluidos en su plan"] },
         ],
       },
-      related: { label: "Cómo funcionan los créditos de enlace", href: "/backlink-exchange" },
+      related: { label: "Cómo funcionan los créditos para enlaces", href: "/backlink-exchange" },
       faqTitle: "Preguntas sobre backlinks",
       faq: [
         {
@@ -313,7 +313,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
         },
         {
           title: "Des crédits inclus dans votre formule",
-          body: "Chaque formule inclut des crédits de liens chaque mois, et héberger des articles pour d’autres vous en fait gagner davantage. Un lien n’utilise ses crédits qu’une fois vérifié en ligne.",
+          body: "Chaque formule inclut des crédits chaque mois, et héberger des articles pour d’autres vous en fait gagner davantage. Un lien n’utilise ses crédits qu’une fois vérifié en ligne.",
         },
       ],
       compare: {
@@ -370,7 +370,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
           { label: "Comment vous payez", cells: ["Au lien, ou avec votre temps", "Un forfait mensuel", "Des crédits inclus dans votre formule"] },
         ],
       },
-      related: { label: "Comment fonctionnent les crédits de liens", href: "/backlink-exchange" },
+      related: { label: "Comment fonctionnent les crédits pour les liens", href: "/backlink-exchange" },
       faqTitle: "Questions sur les backlinks",
       faq: [
         {
@@ -558,7 +558,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
         },
         {
           title: "Crediti inclusi nel piano",
-          body: "Ogni piano include ogni mese crediti per i link, e ospitare articoli per altri gliene fa guadagnare altri. Un link usa i suoi crediti solo quando è verificato online.",
+          body: "Ogni piano include crediti ogni mese, e ospitare articoli per altri gliene fa guadagnare altri. Un link usa i suoi crediti solo quando è verificato online.",
         },
       ],
       compare: {
@@ -803,7 +803,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
         },
         {
           title: "Credits sind im Tarif enthalten",
-          body: "Jeder Tarif enthält jeden Monat Link-Credits, und wer Artikel für andere hostet, verdient weitere. Ein Link verbraucht seine Credits erst, wenn er live bestätigt ist.",
+          body: "Jeder Tarif enthält jeden Monat Credits, und wer Artikel für andere hostet, verdient weitere. Ein Link verbraucht seine Credits erst, wenn er live bestätigt ist.",
         },
       ],
       compare: {
@@ -860,7 +860,7 @@ export const FEATURE_TRANSLATIONS: Record<Translated, FeatureTranslation> = {
           { label: "Wie Sie bezahlen", cells: ["Pro Link oder mit Ihrer Zeit", "Eine monatliche Gebühr", "Credits in Ihrem Tarif enthalten"] },
         ],
       },
-      related: { label: "So funktionieren Link-Credits", href: "/backlink-exchange" },
+      related: { label: "So funktionieren Credits für Links", href: "/backlink-exchange" },
       faqTitle: "Fragen zu Backlinks",
       faq: [
         {
