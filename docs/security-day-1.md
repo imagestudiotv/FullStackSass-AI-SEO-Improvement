@@ -95,6 +95,11 @@ the same result.
 
 ### Accepted exception: braces, review by 2026-11-06
 
+**Removed 2026-10-27.** GitHub withdrew GHSA-vfj7-8cjw-p6xm on 2026-10-23
+(braces 3.0.3 unchanged), so the entry matched nothing and
+`.github/audit-allowlist.json` is back to `"advisories": []`. The mechanism
+below stays for the next exception.
+
 On **2026-10-06** the owner accepted a narrowly scoped, expiring exception for
 this one advisory. Until then the complete-dependency CI audit was
 intentionally red. Its exact scope:
@@ -169,6 +174,28 @@ back in the step, in both `ci.yml` and `audit-weekly.yml`.
 
 ### Resolved
 
+- **2026-10-27: zod, undici, body-parser (high); fast-uri, vitest, ip-address
+  (moderate).** New since 2026-10-23, they made both CI audit steps fail.
+  - zod ([GHSA-mrhx-c7xc-m3w5](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5),
+    memory exhaustion on oversized constrained collections) has no fixed 3.x
+    release. The app moves to zod `^4.6.7`; our schemas use only APIs zod 4
+    keeps, and `src/lib/articles/research.ts` already used `zod/v4`. inngest
+    (4.26.0 still lists zod `^3.25.0`, but accepts `^3.25.0 || ^4.0.0` as a
+    peer and imports only `zod/v3`, which zod 4 ships) is pinned to the app's
+    zod by a scoped override: `"inngest": { "zod": "$zod" }`. better-auth
+    1.7.2 → 1.7.14 brings its own zod to 4.6.x. That upgrade also needs
+    migration 0077 (account.issuer optional; see `src/lib/db/auth-tables.ts`),
+    applied before the code. Applied to production on 2026-10-27, ahead of the
+    code (verified read-only: 78 migrations, `account.issuer` nullable).
+  - undici ([GHSA-xjj6-f33q-929c](https://github.com/advisories/GHSA-xjj6-f33q-929c) and
+    two moderate) 7.30.0 → 7.30.1, body-parser
+    ([GHSA-27r3-jxmh-p828](https://github.com/advisories/GHSA-27r3-jxmh-p828))
+    2.3.0 → 2.4.0, fast-uri 3.1.8 → 3.1.9, ip-address 10.7.3 → 10.7.5: all
+    inside their parents' ranges. None was reached by our code (cheerio is
+    only used with `load`, inngest is served through `inngest/next`, the ajv
+    resolver is unused, ip-address is shadcn CLI only).
+  - vitest 4.1.11 → 4.1.12 (@vitest/mocker), and shadcn 4.22 (zod 4,
+    @shadcn/registry 0.2.1).
 - **proxy-addr, critical** ([GHSA-jqcg-44mw-7w3h](https://github.com/advisories/GHSA-jqcg-44mw-7w3h),
   IP spoofing via IPv4-mapped IPv6 trust subnets): new on 2026-10-06, it made
   the production audit fail. It reached production dependencies only through
