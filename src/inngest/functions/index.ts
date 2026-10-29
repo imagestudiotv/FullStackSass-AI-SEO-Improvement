@@ -30,6 +30,7 @@ import { scheduledArticles } from "./scheduled-articles";
 import { refreshSiteInventories } from "./site-inventory";
 import { translateLiveArticles } from "./article-translations";
 import { verifyBacklinks } from "./verify-backlinks";
+import { publishSocialPost, socialSuggestionsDaily, suggestSocial } from "./social-media";
 
 export const functions = [
   activateExchange,
@@ -60,4 +61,7 @@ export const functions = [
   partnerPayoutsMonthly,
   partnerSettlementExecute,
   partnerPayoutsSweep,
+  socialSuggestionsDaily,
+  suggestSocial,
+  publishSocialPost,
 ];

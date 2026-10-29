@@ -2819,6 +2819,7 @@ export type Messages = {
       googleResults: string;
       googleConnect: string;
       aiVisibility: string;
+      socialMedia: string;
       losingTraffic: string;
       settings: string;
       addons: string;
@@ -2835,6 +2836,84 @@ export type Messages = {
       articlesUnlimited: string;
       articlesLeft: string;
       freeArticlesLeft: string;
+    };
+    /** The Social page (client, 2026-10-27; lib/social): {platform}, {date}, {time}, {price}, {count}, {max}, {name}, {reason}. errors: lib/social/actions.ts SocialError. */
+    social: {
+      title: string;
+      intro: string;
+      accountsTitle: string;
+      connect: string;
+      connecting: string;
+      disconnect: string;
+      usernameLabel: string;
+      usernamePlaceholder: string;
+      save: string;
+      connectedAs: string;
+      warmup: string;
+      warmupBadge: string;
+      autoPost: string;
+      autoPostHelp: string;
+      oneClick: string;
+      paused: string;
+      resume: string;
+      boardLabel: string;
+      boardSave: string;
+      lockedTrial: string;
+      quoraNote: string;
+      pinterestNote: string;
+      /** Under Connect: bundle.social signs in on Bluesky's own page, which refuses app passwords (tested 2026-10-29). */
+      blueskyNote: string;
+      todayTitle: string;
+      todayCount: string;
+      findNow: string;
+      finding: string;
+      findQueued: string;
+      empty: string;
+      emptyToday: string;
+      replyOn: string;
+      postOn: string;
+      openThread: string;
+      titleLabel: string;
+      textLabel: string;
+      characters: string;
+      post: string;
+      posting: string;
+      copied: string;
+      popupBlocked: string;
+      skip: string;
+      scheduled: string;
+      postNow: string;
+      saveEdit: string;
+      saved: string;
+      publishing: string;
+      posted: string;
+      viewPost: string;
+      failed: string;
+      failedCredits: string;
+      historyTitle: string;
+      price: string;
+      free: string;
+      connectedNotice: string;
+      notConnectedNotice: string;
+      errors: {
+        view_only: string;
+        not_included: string;
+        no_plan: string;
+        bad_username: string;
+        use_connect: string;
+        not_configured: string;
+        connect_failed: string;
+        not_found: string;
+        already_handled: string;
+        empty: string;
+        too_long: string;
+        warmup_link: string;
+        warmup_brand: string;
+        bad_link: string;
+        not_enough_credits: string;
+        no_board: string;
+        generic: string;
+      };
     };
     credits: {
       title: string;
@@ -2863,9 +2942,11 @@ export type Messages = {
       creditsCount: string;
       actions: {
         audit_rerun: string;
+        social_post: string;
       };
       actionHelp: {
         audit_rerun: string;
+        social_post: string;
       };
       /** Services bought with credits (addons.credit_price); {price} in servicePriceFrom. */
       serviceHelp: string;
@@ -5930,6 +6011,7 @@ const en: Messages = {
       googleResults: "Google Results",
       googleConnect: "Google Search & Analytics",
       aiVisibility: "AI Visibility",
+      socialMedia: "Social media",
       losingTraffic: "Losing Traffic",
       settings: "Settings",
       addons: "Add-ons",
@@ -5946,6 +6028,82 @@ const en: Messages = {
       articlesUnlimited: "Unlimited articles",
       articlesLeft: "{left} of {limit} articles left",
       freeArticlesLeft: "{left} of {limit} free articles left",
+    },
+    social: {
+      title: "Social media",
+      intro: "RepGet finds conversations about your field and writes posts and replies for you. Your own posts are published for you; replies you post yourself, with one click.",
+      accountsTitle: "Your accounts",
+      connect: "Connect",
+      connecting: "Opening…",
+      disconnect: "Disconnect",
+      usernameLabel: "Your username on {platform}",
+      usernamePlaceholder: "Username",
+      save: "Save",
+      connectedAs: "Connected as {name}",
+      warmup: "Warm-up until {date}: no links or product names yet, so the account looks like a real person.",
+      warmupBadge: "Warm-up",
+      autoPost: "Publish my posts automatically",
+      autoPostHelp: "One post a day, at a different time each day.",
+      oneClick: "You post with one click.",
+      paused: "Automatic posting is paused: {platform} refused a post ({reason}). Check the account, then resume.",
+      resume: "Resume",
+      boardLabel: "Pinterest board",
+      boardSave: "Use this board",
+      lockedTrial: "Included once your plan starts.",
+      quoraNote: "Quora cannot post for you, so you post your answers with one click.",
+      pinterestNote: "Pins use the pictures of your published articles.",
+      blueskyNote: "Bluesky asks you to sign in with your normal Bluesky password. App passwords do not work here.",
+      todayTitle: "Suggestions",
+      todayCount: "{count} of {max} today",
+      findNow: "Find suggestions",
+      finding: "Looking…",
+      findQueued: "Looking for new suggestions. They appear here in a minute or two.",
+      empty: "Connect an account and RepGet writes your first suggestions.",
+      emptyToday: "Nothing waiting. New suggestions arrive every morning.",
+      replyOn: "Reply on {platform}",
+      postOn: "Your post on {platform}",
+      openThread: "Open the discussion",
+      titleLabel: "Title",
+      textLabel: "Text",
+      characters: "{count}/{max}",
+      post: "Post · {price}",
+      posting: "Opening…",
+      copied: "Text copied. Paste it on {platform} and post it.",
+      popupBlocked: "Your browser blocked the new tab. The text is copied: open {platform} and paste it.",
+      skip: "Skip",
+      scheduled: "RepGet publishes this at {time}. Edit or skip it before then.",
+      postNow: "Publish now",
+      saveEdit: "Save changes",
+      saved: "Saved",
+      publishing: "Publishing…",
+      posted: "Posted {date}",
+      viewPost: "View post",
+      failed: "Not published: {reason}",
+      failedCredits: "Not published: not enough credits. Buy credits, then post it with one click.",
+      historyTitle: "Posted",
+      price: "Each post or reply costs {price}.",
+      free: "Free",
+      connectedNotice: "{platform} is connected. Your first suggestions are on their way.",
+      notConnectedNotice: "{platform} was not connected. Please try again.",
+      errors: {
+        view_only: "You have view-only access to this website.",
+        not_included: "This platform is included once your plan starts.",
+        no_plan: "Choose a plan for this website first.",
+        bad_username: "That does not look like a username. Enter it without spaces.",
+        use_connect: "Use Connect to link this account.",
+        not_configured: "Connecting accounts is not available yet.",
+        connect_failed: "The connection could not be started. Please try again.",
+        not_found: "This suggestion is no longer available.",
+        already_handled: "This suggestion has already been handled.",
+        empty: "Write something first.",
+        too_long: "This is too long for the platform.",
+        warmup_link: "No links during the warm-up.",
+        warmup_brand: "No product or brand names during the warm-up.",
+        bad_link: "Only one link, to your own website.",
+        not_enough_credits: "Not enough credits: this costs {price} and you have {available}.",
+        no_board: "Choose a board.",
+        generic: "Something went wrong. Please try again.",
+      },
     },
     credits: {
       title: "Credits",
@@ -5972,9 +6130,11 @@ const en: Messages = {
       creditsCount: "{count} credit|{count} credits",
       actions: {
         audit_rerun: "Running the website check again",
+        social_post: "A social media post or reply",
       },
       actionHelp: {
         audit_rerun: "The first check of each website is free.",
+        social_post: "Each reply you post with one click, and each of your own posts RepGet publishes.",
       },
       serviceHelp: "Bought on Billing and delivered by our team.",
       quoteHelp: "Quoted after we review your audit, then paid with credits.",
@@ -9041,6 +9201,7 @@ const es: Messages = {
       googleResults: "Resultados de Google",
       googleConnect: "Google Search y Analytics",
       aiVisibility: "Visibilidad en IA",
+      socialMedia: "Redes sociales",
       losingTraffic: "Tráfico en caída",
       settings: "Ajustes",
       addons: "Complementos",
@@ -9057,6 +9218,82 @@ const es: Messages = {
       articlesUnlimited: "Artículos ilimitados",
       articlesLeft: "Quedan {left} de {limit} artículos",
       freeArticlesLeft: "Quedan {left} de {limit} artículos gratuitos",
+    },
+    social: {
+      title: "Redes sociales",
+      intro: "RepGet encuentra conversaciones sobre su sector y le escribe publicaciones y respuestas. Sus propias publicaciones se publican por usted; las respuestas las publica usted con un clic.",
+      accountsTitle: "Sus cuentas",
+      connect: "Conectar",
+      connecting: "Abriendo…",
+      disconnect: "Desconectar",
+      usernameLabel: "Su nombre de usuario en {platform}",
+      usernamePlaceholder: "Nombre de usuario",
+      save: "Guardar",
+      connectedAs: "Conectado como {name}",
+      warmup: "Calentamiento hasta el {date}: todavía sin enlaces ni nombres de productos, para que la cuenta parezca una persona real.",
+      warmupBadge: "Calentamiento",
+      autoPost: "Publicar mis publicaciones automáticamente",
+      autoPostHelp: "Una publicación al día, a una hora distinta cada día.",
+      oneClick: "Usted publica con un clic.",
+      paused: "La publicación automática está en pausa: {platform} rechazó una publicación ({reason}). Revise la cuenta y reanude.",
+      resume: "Reanudar",
+      boardLabel: "Tablero de Pinterest",
+      boardSave: "Usar este tablero",
+      lockedTrial: "Incluido cuando empiece su plan.",
+      quoraNote: "Quora no permite publicar por usted, así que publica sus respuestas con un clic.",
+      pinterestNote: "Los pines usan las imágenes de sus artículos publicados.",
+      blueskyNote: "Bluesky le pedirá que inicie sesión con su contraseña habitual de Bluesky. Las contraseñas de aplicación no funcionan aquí.",
+      todayTitle: "Sugerencias",
+      todayCount: "{count} de {max} hoy",
+      findNow: "Buscar sugerencias",
+      finding: "Buscando…",
+      findQueued: "Buscando nuevas sugerencias. Aparecerán aquí en un minuto o dos.",
+      empty: "Conecte una cuenta y RepGet escribirá sus primeras sugerencias.",
+      emptyToday: "Nada pendiente. Cada mañana llegan nuevas sugerencias.",
+      replyOn: "Respuesta en {platform}",
+      postOn: "Su publicación en {platform}",
+      openThread: "Abrir la conversación",
+      titleLabel: "Título",
+      textLabel: "Texto",
+      characters: "{count}/{max}",
+      post: "Publicar · {price}",
+      posting: "Abriendo…",
+      copied: "Texto copiado. Péguelo en {platform} y publíquelo.",
+      popupBlocked: "Su navegador bloqueó la nueva pestaña. El texto está copiado: abra {platform} y péguelo.",
+      skip: "Omitir",
+      scheduled: "RepGet lo publicará a las {time}. Puede editarlo u omitirlo antes.",
+      postNow: "Publicar ahora",
+      saveEdit: "Guardar cambios",
+      saved: "Guardado",
+      publishing: "Publicando…",
+      posted: "Publicado el {date}",
+      viewPost: "Ver publicación",
+      failed: "No publicado: {reason}",
+      failedCredits: "No publicado: créditos insuficientes. Compre créditos y publíquelo con un clic.",
+      historyTitle: "Publicado",
+      price: "Cada publicación o respuesta cuesta {price}.",
+      free: "Gratis",
+      connectedNotice: "{platform} está conectado. Sus primeras sugerencias están en camino.",
+      notConnectedNotice: "No se conectó {platform}. Inténtelo de nuevo.",
+      errors: {
+        view_only: "Solo tiene acceso de lectura a este sitio web.",
+        not_included: "Esta plataforma se incluye cuando empiece su plan.",
+        no_plan: "Elija primero un plan para este sitio web.",
+        bad_username: "Eso no parece un nombre de usuario. Escríbalo sin espacios.",
+        use_connect: "Use Conectar para vincular esta cuenta.",
+        not_configured: "La conexión de cuentas todavía no está disponible.",
+        connect_failed: "No se pudo iniciar la conexión. Inténtelo de nuevo.",
+        not_found: "Esta sugerencia ya no está disponible.",
+        already_handled: "Esta sugerencia ya se ha gestionado.",
+        empty: "Escriba algo primero.",
+        too_long: "Es demasiado largo para la plataforma.",
+        warmup_link: "Sin enlaces durante el calentamiento.",
+        warmup_brand: "Sin nombres de productos ni de marca durante el calentamiento.",
+        bad_link: "Solo un enlace, a su propio sitio web.",
+        not_enough_credits: "Créditos insuficientes: cuesta {price} y tiene {available}.",
+        no_board: "Elija un tablero.",
+        generic: "Algo salió mal. Inténtelo de nuevo.",
+      },
     },
     credits: {
       title: "Créditos",
@@ -9083,9 +9320,11 @@ const es: Messages = {
       creditsCount: "{count} crédito|{count} créditos",
       actions: {
         audit_rerun: "Volver a revisar el sitio web",
+        social_post: "Una publicación o respuesta en redes sociales",
       },
       actionHelp: {
         audit_rerun: "La primera revisión de cada sitio web es gratuita.",
+        social_post: "Cada respuesta que publica con un clic, y cada publicación propia que RepGet publica.",
       },
       serviceHelp: "Se compra en Facturación y lo realiza nuestro equipo.",
       quoteHelp: "Le damos un presupuesto tras revisar su auditoría y se paga con créditos.",
@@ -12153,6 +12392,7 @@ const fr: Messages = {
       googleResults: "Résultats Google",
       googleConnect: "Google Search et Analytics",
       aiVisibility: "Visibilité dans l\u2019IA",
+      socialMedia: "Réseaux sociaux",
       losingTraffic: "Perte de trafic",
       settings: "Paramètres",
       addons: "Modules",
@@ -12169,6 +12409,82 @@ const fr: Messages = {
       articlesUnlimited: "Articles illimités",
       articlesLeft: "{left} articles restants sur {limit}",
       freeArticlesLeft: "{left} articles gratuits restants sur {limit}",
+    },
+    social: {
+      title: "Réseaux sociaux",
+      intro: "RepGet trouve des conversations sur votre domaine et rédige vos publications et vos réponses. Vos propres publications sont publiées pour vous ; les réponses, vous les publiez vous-même en un clic.",
+      accountsTitle: "Vos comptes",
+      connect: "Connecter",
+      connecting: "Ouverture…",
+      disconnect: "Déconnecter",
+      usernameLabel: "Votre nom d’utilisateur sur {platform}",
+      usernamePlaceholder: "Nom d’utilisateur",
+      save: "Enregistrer",
+      connectedAs: "Connecté en tant que {name}",
+      warmup: "Mise en route jusqu’au {date} : pas encore de liens ni de noms de produits, pour que le compte ressemble à une vraie personne.",
+      warmupBadge: "Mise en route",
+      autoPost: "Publier mes publications automatiquement",
+      autoPostHelp: "Une publication par jour, à une heure différente chaque jour.",
+      oneClick: "Vous publiez en un clic.",
+      paused: "La publication automatique est en pause : {platform} a refusé une publication ({reason}). Vérifiez le compte, puis reprenez.",
+      resume: "Reprendre",
+      boardLabel: "Tableau Pinterest",
+      boardSave: "Utiliser ce tableau",
+      lockedTrial: "Inclus dès que votre forfait commence.",
+      quoraNote: "Quora ne permet pas de publier pour vous : vous publiez vos réponses en un clic.",
+      pinterestNote: "Les épingles utilisent les images de vos articles publiés.",
+      blueskyNote: "Bluesky vous demande de vous connecter avec votre mot de passe Bluesky habituel. Les mots de passe d’application ne fonctionnent pas ici.",
+      todayTitle: "Suggestions",
+      todayCount: "{count} sur {max} aujourd’hui",
+      findNow: "Trouver des suggestions",
+      finding: "Recherche…",
+      findQueued: "Recherche de nouvelles suggestions. Elles apparaîtront ici d’ici une ou deux minutes.",
+      empty: "Connectez un compte et RepGet rédigera vos premières suggestions.",
+      emptyToday: "Rien en attente. De nouvelles suggestions arrivent chaque matin.",
+      replyOn: "Réponse sur {platform}",
+      postOn: "Votre publication sur {platform}",
+      openThread: "Ouvrir la discussion",
+      titleLabel: "Titre",
+      textLabel: "Texte",
+      characters: "{count}/{max}",
+      post: "Publier · {price}",
+      posting: "Ouverture…",
+      copied: "Texte copié. Collez-le sur {platform} et publiez-le.",
+      popupBlocked: "Votre navigateur a bloqué le nouvel onglet. Le texte est copié : ouvrez {platform} et collez-le.",
+      skip: "Ignorer",
+      scheduled: "RepGet le publiera à {time}. Vous pouvez le modifier ou l’ignorer d’ici là.",
+      postNow: "Publier maintenant",
+      saveEdit: "Enregistrer les modifications",
+      saved: "Enregistré",
+      publishing: "Publication…",
+      posted: "Publié le {date}",
+      viewPost: "Voir la publication",
+      failed: "Non publié : {reason}",
+      failedCredits: "Non publié : crédits insuffisants. Achetez des crédits, puis publiez-le en un clic.",
+      historyTitle: "Publié",
+      price: "Chaque publication ou réponse coûte {price}.",
+      free: "Gratuit",
+      connectedNotice: "{platform} est connecté. Vos premières suggestions arrivent.",
+      notConnectedNotice: "{platform} n’a pas été connecté. Veuillez réessayer.",
+      errors: {
+        view_only: "Vous avez un accès en lecture seule à ce site.",
+        not_included: "Cette plateforme est incluse dès que votre forfait commence.",
+        no_plan: "Choisissez d’abord un forfait pour ce site.",
+        bad_username: "Ce n’est pas un nom d’utilisateur valide. Saisissez-le sans espaces.",
+        use_connect: "Utilisez Connecter pour lier ce compte.",
+        not_configured: "La connexion des comptes n’est pas encore disponible.",
+        connect_failed: "La connexion n’a pas pu démarrer. Veuillez réessayer.",
+        not_found: "Cette suggestion n’est plus disponible.",
+        already_handled: "Cette suggestion a déjà été traitée.",
+        empty: "Écrivez d’abord quelque chose.",
+        too_long: "C’est trop long pour la plateforme.",
+        warmup_link: "Pas de liens pendant la mise en route.",
+        warmup_brand: "Pas de noms de produits ni de marque pendant la mise en route.",
+        bad_link: "Un seul lien, vers votre propre site.",
+        not_enough_credits: "Crédits insuffisants : cela coûte {price} et vous en avez {available}.",
+        no_board: "Choisissez un tableau.",
+        generic: "Une erreur s’est produite. Veuillez réessayer.",
+      },
     },
     credits: {
       title: "Crédits",
@@ -12195,9 +12511,11 @@ const fr: Messages = {
       creditsCount: "{count} crédit|{count} crédits",
       actions: {
         audit_rerun: "Relancer l'analyse du site",
+        social_post: "Une publication ou réponse sur les réseaux sociaux",
       },
       actionHelp: {
         audit_rerun: "La première analyse de chaque site est gratuite.",
+        social_post: "Chaque réponse publiée en un clic, et chaque publication que RepGet publie pour vous.",
       },
       serviceHelp: "S’achète dans Facturation et est réalisé par notre équipe.",
       quoteHelp: "Devis établi après examen de votre audit, puis réglé en crédits.",
@@ -15264,6 +15582,7 @@ const it: Messages = {
       googleResults: "Risultati Google",
       googleConnect: "Google Search e Analytics",
       aiVisibility: "Visibilità nell\u2019IA",
+      socialMedia: "Social media",
       losingTraffic: "Traffico in calo",
       settings: "Impostazioni",
       addons: "Componenti aggiuntivi",
@@ -15280,6 +15599,82 @@ const it: Messages = {
       articlesUnlimited: "Articoli illimitati",
       articlesLeft: "{left} articoli su {limit} rimasti",
       freeArticlesLeft: "{left} articoli gratuiti su {limit} rimasti",
+    },
+    social: {
+      title: "Social media",
+      intro: "RepGet trova conversazioni sul suo settore e le scrive post e risposte. I suoi post vengono pubblicati per lei; le risposte le pubblica lei con un clic.",
+      accountsTitle: "I suoi account",
+      connect: "Collega",
+      connecting: "Apertura…",
+      disconnect: "Scollega",
+      usernameLabel: "Il suo nome utente su {platform}",
+      usernamePlaceholder: "Nome utente",
+      save: "Salva",
+      connectedAs: "Collegato come {name}",
+      warmup: "Riscaldamento fino al {date}: ancora niente link né nomi di prodotti, così l’account sembra una persona reale.",
+      warmupBadge: "Riscaldamento",
+      autoPost: "Pubblica i miei post automaticamente",
+      autoPostHelp: "Un post al giorno, a un orario diverso ogni giorno.",
+      oneClick: "Pubblica lei con un clic.",
+      paused: "La pubblicazione automatica è in pausa: {platform} ha rifiutato un post ({reason}). Controlli l’account, poi riprenda.",
+      resume: "Riprendi",
+      boardLabel: "Bacheca Pinterest",
+      boardSave: "Usa questa bacheca",
+      lockedTrial: "Incluso quando inizia il suo piano.",
+      quoraNote: "Quora non permette di pubblicare per lei, quindi pubblica le sue risposte con un clic.",
+      pinterestNote: "I Pin usano le immagini dei suoi articoli pubblicati.",
+      blueskyNote: "Bluesky le chiederà di accedere con la sua normale password di Bluesky. Le password per app qui non funzionano.",
+      todayTitle: "Suggerimenti",
+      todayCount: "{count} di {max} oggi",
+      findNow: "Trova suggerimenti",
+      finding: "Ricerca…",
+      findQueued: "Cerco nuovi suggerimenti. Appariranno qui fra un minuto o due.",
+      empty: "Colleghi un account e RepGet scriverà i suoi primi suggerimenti.",
+      emptyToday: "Niente in attesa. Nuovi suggerimenti arrivano ogni mattina.",
+      replyOn: "Risposta su {platform}",
+      postOn: "Il suo post su {platform}",
+      openThread: "Apri la discussione",
+      titleLabel: "Titolo",
+      textLabel: "Testo",
+      characters: "{count}/{max}",
+      post: "Pubblica · {price}",
+      posting: "Apertura…",
+      copied: "Testo copiato. Lo incolli su {platform} e lo pubblichi.",
+      popupBlocked: "Il browser ha bloccato la nuova scheda. Il testo è copiato: apra {platform} e lo incolli.",
+      skip: "Salta",
+      scheduled: "RepGet lo pubblicherà alle {time}. Può modificarlo o saltarlo prima.",
+      postNow: "Pubblica ora",
+      saveEdit: "Salva le modifiche",
+      saved: "Salvato",
+      publishing: "Pubblicazione…",
+      posted: "Pubblicato il {date}",
+      viewPost: "Vedi il post",
+      failed: "Non pubblicato: {reason}",
+      failedCredits: "Non pubblicato: crediti insufficienti. Acquisti crediti, poi lo pubblichi con un clic.",
+      historyTitle: "Pubblicati",
+      price: "Ogni post o risposta costa {price}.",
+      free: "Gratis",
+      connectedNotice: "{platform} è collegato. I primi suggerimenti stanno arrivando.",
+      notConnectedNotice: "{platform} non è stato collegato. Riprovi.",
+      errors: {
+        view_only: "Ha accesso in sola lettura a questo sito.",
+        not_included: "Questa piattaforma è inclusa quando inizia il suo piano.",
+        no_plan: "Scelga prima un piano per questo sito.",
+        bad_username: "Non sembra un nome utente. Lo scriva senza spazi.",
+        use_connect: "Usi Collega per collegare questo account.",
+        not_configured: "Il collegamento degli account non è ancora disponibile.",
+        connect_failed: "Non è stato possibile avviare il collegamento. Riprovi.",
+        not_found: "Questo suggerimento non è più disponibile.",
+        already_handled: "Questo suggerimento è già stato gestito.",
+        empty: "Scriva prima qualcosa.",
+        too_long: "È troppo lungo per la piattaforma.",
+        warmup_link: "Niente link durante il riscaldamento.",
+        warmup_brand: "Niente nomi di prodotti o del marchio durante il riscaldamento.",
+        bad_link: "Un solo link, al suo sito.",
+        not_enough_credits: "Crediti insufficienti: costa {price} e ne ha {available}.",
+        no_board: "Scelga una bacheca.",
+        generic: "Qualcosa è andato storto. Riprovi.",
+      },
     },
     credits: {
       title: "Crediti",
@@ -15306,9 +15701,11 @@ const it: Messages = {
       creditsCount: "{count} credito|{count} crediti",
       actions: {
         audit_rerun: "Ripetere il controllo del sito",
+        social_post: "Un post o una risposta sui social",
       },
       actionHelp: {
         audit_rerun: "Il primo controllo di ogni sito è gratuito.",
+        social_post: "Ogni risposta pubblicata con un clic, e ogni suo post che RepGet pubblica.",
       },
       serviceHelp: "Si acquista in Fatturazione e lo realizza il nostro team.",
       quoteHelp: "Preventivo dopo aver esaminato il Suo audit, poi pagato in crediti.",
@@ -18372,6 +18769,7 @@ const de: Messages = {
       googleResults: "Google-Ergebnisse",
       googleConnect: "Google Search & Analytics",
       aiVisibility: "KI-Sichtbarkeit",
+      socialMedia: "Social Media",
       losingTraffic: "Traffic-Verlust",
       settings: "Einstellungen",
       addons: "Add-ons",
@@ -18388,6 +18786,82 @@ const de: Messages = {
       articlesUnlimited: "Unbegrenzte Artikel",
       articlesLeft: "{left} von {limit} Artikeln übrig",
       freeArticlesLeft: "{left} von {limit} kostenlosen Artikeln übrig",
+    },
+    social: {
+      title: "Social Media",
+      intro: "RepGet findet Unterhaltungen zu Ihrem Fachgebiet und schreibt Beiträge und Antworten für Sie. Ihre eigenen Beiträge werden für Sie veröffentlicht; Antworten posten Sie selbst mit einem Klick.",
+      accountsTitle: "Ihre Konten",
+      connect: "Verbinden",
+      connecting: "Wird geöffnet…",
+      disconnect: "Trennen",
+      usernameLabel: "Ihr Benutzername auf {platform}",
+      usernamePlaceholder: "Benutzername",
+      save: "Speichern",
+      connectedAs: "Verbunden als {name}",
+      warmup: "Aufwärmphase bis {date}: noch keine Links und keine Produktnamen, damit das Konto wie eine echte Person wirkt.",
+      warmupBadge: "Aufwärmphase",
+      autoPost: "Meine Beiträge automatisch veröffentlichen",
+      autoPostHelp: "Ein Beitrag pro Tag, jeden Tag zu einer anderen Uhrzeit.",
+      oneClick: "Sie posten mit einem Klick.",
+      paused: "Das automatische Veröffentlichen ist pausiert: {platform} hat einen Beitrag abgelehnt ({reason}). Prüfen Sie das Konto und setzen Sie dann fort.",
+      resume: "Fortsetzen",
+      boardLabel: "Pinterest-Pinnwand",
+      boardSave: "Diese Pinnwand verwenden",
+      lockedTrial: "Enthalten, sobald Ihr Tarif beginnt.",
+      quoraNote: "Quora erlaubt kein Posten für Sie, daher posten Sie Ihre Antworten mit einem Klick.",
+      pinterestNote: "Pins verwenden die Bilder Ihrer veröffentlichten Artikel.",
+      blueskyNote: "Bluesky fragt nach Ihrem normalen Bluesky-Passwort. App-Passwörter funktionieren hier nicht.",
+      todayTitle: "Vorschläge",
+      todayCount: "{count} von {max} heute",
+      findNow: "Vorschläge finden",
+      finding: "Suche läuft…",
+      findQueued: "Neue Vorschläge werden gesucht. Sie erscheinen hier in ein bis zwei Minuten.",
+      empty: "Verbinden Sie ein Konto, und RepGet schreibt Ihre ersten Vorschläge.",
+      emptyToday: "Nichts offen. Jeden Morgen kommen neue Vorschläge.",
+      replyOn: "Antwort auf {platform}",
+      postOn: "Ihr Beitrag auf {platform}",
+      openThread: "Diskussion öffnen",
+      titleLabel: "Titel",
+      textLabel: "Text",
+      characters: "{count}/{max}",
+      post: "Posten · {price}",
+      posting: "Wird geöffnet…",
+      copied: "Text kopiert. Fügen Sie ihn auf {platform} ein und posten Sie ihn.",
+      popupBlocked: "Ihr Browser hat den neuen Tab blockiert. Der Text ist kopiert: Öffnen Sie {platform} und fügen Sie ihn ein.",
+      skip: "Überspringen",
+      scheduled: "RepGet veröffentlicht dies um {time}. Bis dahin können Sie es bearbeiten oder überspringen.",
+      postNow: "Jetzt veröffentlichen",
+      saveEdit: "Änderungen speichern",
+      saved: "Gespeichert",
+      publishing: "Wird veröffentlicht…",
+      posted: "Gepostet am {date}",
+      viewPost: "Beitrag ansehen",
+      failed: "Nicht veröffentlicht: {reason}",
+      failedCredits: "Nicht veröffentlicht: nicht genug Credits. Kaufen Sie Credits und posten Sie ihn dann mit einem Klick.",
+      historyTitle: "Gepostet",
+      price: "Jeder Beitrag und jede Antwort kostet {price}.",
+      free: "Kostenlos",
+      connectedNotice: "{platform} ist verbunden. Ihre ersten Vorschläge sind unterwegs.",
+      notConnectedNotice: "{platform} wurde nicht verbunden. Bitte versuchen Sie es erneut.",
+      errors: {
+        view_only: "Sie haben für diese Website nur Lesezugriff.",
+        not_included: "Diese Plattform ist enthalten, sobald Ihr Tarif beginnt.",
+        no_plan: "Wählen Sie zuerst einen Tarif für diese Website.",
+        bad_username: "Das sieht nicht wie ein Benutzername aus. Geben Sie ihn ohne Leerzeichen ein.",
+        use_connect: "Verwenden Sie Verbinden, um dieses Konto zu verknüpfen.",
+        not_configured: "Das Verbinden von Konten ist noch nicht verfügbar.",
+        connect_failed: "Die Verbindung konnte nicht gestartet werden. Bitte versuchen Sie es erneut.",
+        not_found: "Dieser Vorschlag ist nicht mehr verfügbar.",
+        already_handled: "Dieser Vorschlag wurde bereits bearbeitet.",
+        empty: "Schreiben Sie zuerst etwas.",
+        too_long: "Das ist zu lang für die Plattform.",
+        warmup_link: "Keine Links während der Aufwärmphase.",
+        warmup_brand: "Keine Produkt- oder Markennamen während der Aufwärmphase.",
+        bad_link: "Nur ein Link, zu Ihrer eigenen Website.",
+        not_enough_credits: "Nicht genug Credits: Das kostet {price}, und Sie haben {available}.",
+        no_board: "Wählen Sie eine Pinnwand.",
+        generic: "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
+      },
     },
     credits: {
       title: "Credits",
@@ -18414,9 +18888,11 @@ const de: Messages = {
       creditsCount: "{count} Credit|{count} Credits",
       actions: {
         audit_rerun: "Die Website-Prüfung erneut ausführen",
+        social_post: "Ein Social-Media-Beitrag oder eine Antwort",
       },
       actionHelp: {
         audit_rerun: "Die erste Prüfung jeder Website ist kostenlos.",
+        social_post: "Jede Antwort, die Sie mit einem Klick posten, und jeder eigene Beitrag, den RepGet veröffentlicht.",
       },
       serviceHelp: "Unter Abrechnung gekauft und von unserem Team umgesetzt.",
       quoteHelp: "Angebot nach Prüfung Ihres Audits, dann mit Credits bezahlt.",
