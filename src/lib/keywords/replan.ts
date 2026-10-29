@@ -3,6 +3,7 @@ import { and, eq, gte, isNotNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { articles, calendarItems, clusters } from "@/lib/db/schema";
 import type { PlannedArticle } from "@/lib/keywords/calendar";
+import { DAYS_PER_MONTH } from "@/lib/keywords/cadence";
 import { checkLimit, UNLIMITED } from "@/lib/usage";
 
 /**
@@ -45,14 +46,15 @@ const unstarted = sql`(${calendarItems.status} = 'planned' and not exists (
  * allowance ledger, so an article deleted this month still counts - exactly
  * as it does when the scheduler decides whether to write another.
  *
- * `perDay` is the PLAN's rate, not the remainder's: see scheduleDates.
+ * `perMonth` is the PLAN's allowance, not the remainder: the calendar spreads
+ * at the plan's own rate (scheduleDates, lib/keywords/cadence.ts).
  */
 export async function articlesToPlan(
   websiteId: string,
   executor: Executor = db,
 ): Promise<{
   count: number;
-  perDay: number;
+  perMonth: number;
   /** The month's allowance is all used: nothing new can be planned until it renews. */
   usedUp: boolean;
   limit: number | "unlimited";
@@ -62,7 +64,8 @@ export async function articlesToPlan(
   if (allowance.limit === UNLIMITED) {
     return {
       count: UNLIMITED_PLAN_SIZE,
-      perDay: 1,
+      // One a day, as before.
+      perMonth: DAYS_PER_MONTH,
       usedUp: false,
       limit: "unlimited",
       used: allowance.used,
@@ -72,7 +75,7 @@ export async function articlesToPlan(
   const count = Math.max(allowance.limit - allowance.used, 0);
   return {
     count,
-    perDay: Math.max(1, Math.ceil(allowance.limit / 30)),
+    perMonth: allowance.limit,
     // A site with no plan has a limit of 0; that is not "used up".
     usedUp: allowance.limit > 0 && count === 0,
     limit: allowance.limit,

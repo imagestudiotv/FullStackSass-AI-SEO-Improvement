@@ -110,8 +110,8 @@ function count(n: number, singular: string, plural = `${singular}s`): string {
  *
  * The cadence is the point of these numbers, not the total: the client set
  * them as "1 daily" and "3 daily" rather than as round figures, and it is what
- * the scheduler actually does — see scheduled-articles.ts, which queues
- * ceil(limit / 30) each day.
+ * the calendar actually does — see lib/keywords/cadence.ts, which spreads the
+ * month's allowance over 30 days (100 is 3 or 4 a day, 3.3 on average).
  *
  * Derived rather than written per tier, so the phrase cannot claim a rhythm
  * the limit does not produce. Only stated when the arithmetic is clean: 30 is

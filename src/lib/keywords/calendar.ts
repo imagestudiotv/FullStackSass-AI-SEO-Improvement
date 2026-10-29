@@ -1,4 +1,5 @@
 import { anthropic, isAiConfigured, MODELS } from "@/lib/ai/client";
+import { articlesOnDay } from "@/lib/keywords/cadence";
 import type { KeywordCluster } from "@/lib/keywords/cluster";
 
 /**
@@ -69,7 +70,9 @@ Rules:
  * product on, and a mostly empty month reads as a product that is not working.
  *
  * So: start TODAY, fill every day in order, and put more than one on a day
- * only when the monthly allowance is larger than a month. A plan with fewer
+ * only when the monthly allowance is larger than a month - then spread so the
+ * month's articles last all 30 days (lib/keywords/cadence.ts: Scale's 100 is
+ * 4, 3, 3, 4, ... rather than four a day until day 25). A plan with fewer
  * articles than days simply runs out partway through the month rather than
  * rationing itself across it — an article a day for a fortnight is a better
  * start than one a week forever, and the next month's research refills it.
@@ -92,25 +95,22 @@ Rules:
  * item that already has an article, and plans only the month's remaining
  * allowance (lib/keywords/replan.ts). Two things follow:
  *
- *  - `perDay` is the plan's own rate, passed in. Derived from `count` it
- *    would be the remainder's rate instead, so a Scale site with 40 of its
- *    100 left would drop from four a day to two.
- *  - `occupied` holds the dates of the kept items. A day already holding
- *    `perDay` of them is skipped, so today's published article and the
- *    drafts written ahead are not doubled up with new topics.
+ *  - `perMonth` is the plan's own monthly allowance, passed in. Derived from
+ *    `count` it would be the remainder's rate instead, so a Scale site with
+ *    40 of its 100 left would drop from three or four a day to one or two.
+ *  - `occupied` holds the dates of the kept items. A day already holding its
+ *    share of them is skipped, so today's published article and the drafts
+ *    written ahead are not doubled up with new topics.
  */
 export function scheduleDates(
   count: number,
   from: Date = new Date(),
-  options: { perDay?: number; occupied?: Date[] } = {},
+  options: { perMonth?: number; occupied?: Date[] } = {},
 ): Date[] {
   if (count <= 0) return [];
 
-  /**
-   * Articles per day. Ceiling against a 30-day month, so 60 becomes 2 and 90
-   * becomes 3, while anything at or below 30 stays at one a day.
-   */
-  const perDay = Math.max(1, options.perDay ?? Math.ceil(count / 30));
+  // Without the plan's allowance, `count` is taken to be the whole month.
+  const perMonth = options.perMonth ?? count;
 
   // Kept items per day, keyed the same local way the dates below are built.
   const dayKey = (date: Date) =>
@@ -125,10 +125,11 @@ export function scheduleDates(
   for (let day = 0; dates.length < count; day += 1) {
     const base = new Date(from);
     base.setDate(base.getDate() + day);
+    const share = articlesOnDay(perMonth, day);
 
     for (
       let position = taken.get(dayKey(base)) ?? 0;
-      position < perDay && dates.length < count;
+      position < share && dates.length < count;
       position += 1
     ) {
       const date = new Date(base);
@@ -181,11 +182,11 @@ export async function planCalendar(
   limit: number,
   intentByTerm: Map<string, string> = new Map(),
   /**
-   * The plan's daily rate and the kept items' dates (see scheduleDates), and
-   * the titles the site and RepGet already have, which the new ones must not
-   * repeat (lib/sites/covered.ts).
+   * The plan's monthly allowance and the kept items' dates (see
+   * scheduleDates), and the titles the site and RepGet already have, which
+   * the new ones must not repeat (lib/sites/covered.ts).
    */
-  schedule: { perDay?: number; occupied?: Date[]; existingTitles?: string[] } = {},
+  schedule: { perMonth?: number; occupied?: Date[]; existingTitles?: string[] } = {},
 ): Promise<PlannedArticle[]> {
   if (!isAiConfigured()) {
     throw new Error("ANTHROPIC_API_KEY is not set");
