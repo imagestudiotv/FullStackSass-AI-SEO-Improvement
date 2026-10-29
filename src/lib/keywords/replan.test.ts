@@ -140,12 +140,12 @@ describe("articlesToPlan", () => {
   it("is the month's allowance less what it has used", async () => {
     const { websiteId } = await midMonthSite();
     // Eleven published, one draft and one being written: 13 of 30.
-    expect(await articlesToPlan(websiteId)).toMatchObject({ count: 17, perDay: 1, usedUp: false, limit: 30, used: 13 });
+    expect(await articlesToPlan(websiteId)).toMatchObject({ count: 17, perMonth: 30, usedUp: false, limit: 30, used: 13 });
   });
 
-  it("keeps the plan's own daily rate", async () => {
+  it("keeps the plan's own monthly allowance as the rate", async () => {
     const { websiteId } = await seedWebsite(test, { articleLimit: 100 });
-    expect(await articlesToPlan(websiteId)).toMatchObject({ count: 100, perDay: 4 });
+    expect(await articlesToPlan(websiteId)).toMatchObject({ count: 100, perMonth: 100 });
   });
 
   it("is used up when every article this month is spent, deleted ones included", async () => {
@@ -223,7 +223,7 @@ describe("re-planning through the research job", () => {
 
     // 30 a month, 13 used: 17 new, not another 30.
     expect(result.articles).toBe(17);
-    expect(calendar.planCalendar).toHaveBeenCalledWith(expect.anything(), 17, expect.anything(), expect.objectContaining({ perDay: 1 }));
+    expect(calendar.planCalendar).toHaveBeenCalledWith(expect.anything(), 17, expect.anything(), expect.objectContaining({ perMonth: 30 }));
 
     const items = await itemsOf(websiteId);
     const fresh = items.filter((item) => item.title.startsWith("New topic"));

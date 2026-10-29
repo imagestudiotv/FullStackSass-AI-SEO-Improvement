@@ -4,6 +4,7 @@ import { inngest } from "@/inngest/client";
 import { queueArticleForCalendarItem } from "@/inngest/functions/generate-article";
 import { db } from "@/lib/db";
 import { articles, calendarItems, integrationKeys, websites } from "@/lib/db/schema";
+import { articlesInDays } from "@/lib/keywords/cadence";
 import { notify } from "@/lib/notifications/create";
 import { nudgePluginIfDue } from "@/lib/plugin/sync";
 import { PUBLISHING_KINDS } from "@/lib/publishing/kinds";
@@ -381,15 +382,16 @@ export const scheduledArticles = inngest.createFunction(
             : Math.max(limit.limit - limit.used, 0);
 
         /**
-         * Articles per day this plan pays for, derived the same way the
-         * calendar spaces them: a monthly allowance over a 30-day month. A
+         * One batch: what BATCH_DAYS days of this plan hold, by the same rule
+         * the calendar spreads them with (lib/keywords/cadence.ts). A
          * customer on three a day needs three times as many in flight to
-         * stay the same number of days ahead.
+         * stay the same number of days ahead; Scale's 100 a month is at most
+         * 7 over two days (4 + 3).
          */
-        const perDay =
+        const batch =
           limit.limit === UNLIMITED
-            ? 1
-            : Math.max(1, Math.ceil(limit.limit / 30));
+            ? BATCH_DAYS
+            : articlesInDays(limit.limit, BATCH_DAYS);
 
         /**
          * ONE article on a website's very first run, whatever the plan size.
@@ -415,7 +417,9 @@ export const scheduledArticles = inngest.createFunction(
         /*
           One batch at a time when publishing is automatic: nothing new is
           written while any article from the previous batch is still waiting
-          for its date. Due articles do not count - this same run releases
+          for its date. Only articles dated inside the window count: one written
+          by hand for a later day is not part of a batch (see batchStillAhead).
+          Due articles do not count - this same run releases
           them - so the next batch starts on the day the last one goes out.
 
           Not applied when the customer reviews articles themselves: those are
@@ -423,7 +427,7 @@ export const scheduledArticles = inngest.createFunction(
           writing would stop for good. They get the plain two-day window.
         */
         if (site.autoPublish && !firstRun) {
-          const ahead = await batchStillAhead(site.websiteId);
+          const ahead = await batchStillAhead(site.websiteId, horizon);
           if (ahead > 0) {
             logger.info(
               {
@@ -438,7 +442,7 @@ export const scheduledArticles = inngest.createFunction(
         }
         const take = firstRun
           ? Math.min(1, remaining)
-          : Math.min(BATCH_DAYS * perDay, remaining);
+          : Math.min(batch, remaining);
         if (take === 0) {
           // Allowed by the plan check above but with no headroom left, which
           // is the same outcome for the customer and needs the same record.

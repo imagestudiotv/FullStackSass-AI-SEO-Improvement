@@ -690,7 +690,7 @@ export const researchKeywords = inngest.createFunction(
 
       const articles = await spend(() =>
         planCalendar(fresh.clusters, allowance.count, intents, {
-          perDay: allowance.perDay,
+          perMonth: allowance.perMonth,
           occupied,
           existingTitles: [...covered.siteTitles, ...covered.writtenTitles],
         }),
@@ -712,7 +712,7 @@ export const researchKeywords = inngest.createFunction(
           websiteId,
           clusterCount: grouped.length,
           remaining: allowance.count,
-          perDay: allowance.perDay,
+          perMonth: allowance.perMonth,
           keptFromToday: occupied.length,
           planLimit: allowance.limit,
           planUsed: allowance.used,
