@@ -12,7 +12,8 @@ All of these are rows in `credit_ledger` (`lib/backlinks/credits.ts`). The balan
 |---|---|---|
 | The plan, every month | `plan_grant` | Grow 250, Scale 700 (`scripts/seed-plans.mjs`). Granted lazily on the first page that shows the balance. |
 | Daily credits | `daily_grant` | Admin → Credits, suggested 3. See below. |
-| Credit packs | `purchase` | 100 / 250 / 500 credits for EUR 79 / 149 / 299, paid by card on Billing. |
+| Trial daily credits | `daily_grant` | Admin → Credits, 15 (client, 2026-10-27), on a trial's first 3 days only. See below. |
+| Credit packs | `purchase` | 100 / 250 / 500 credits for EUR 79 / 149 / 279, paid by card on Billing. |
 | Referrals | `referral` | 200 credits when a referred business starts paying (`lib/referrals`). |
 | Hosting a Partner Network link | `link_given` | The link's price, once it is verified live. |
 | An administrator | `adjustment` | Admin → Organizations, up to ±10,000 at a time. |
@@ -21,7 +22,11 @@ All of these are rows in `credit_ledger` (`lib/backlinks/credits.ts`). The balan
 
 A workspace with an active paid plan is given the `daily_free` setting's credits on each UTC day it **uses** RepGet: the first page that shows its credits that day (the sidebar is on every page) grants them, keyed `daily:<org>:<YYYY-MM-DD>` so a day is granted once however many pages load at once. A day without a visit gives nothing, which is the reason to come back. Once given they are ordinary credits: they never expire and pay for anything, backlinks included (client: "they are not expire at midnight, but stays forever").
 
-Trials, failed payments and workspaces without a plan get none, as for the monthly credits. 0 turns them off.
+Failed payments and workspaces without a plan get none, as for the monthly credits. 0 turns them off.
+
+**On a trial** (the free articles, client 2026-10-27: "15 a day... the 4th day the free credit is not given") the workspace gets the `trial_daily_free` setting instead, on each of the trial's first `TRIAL_CREDIT_DAYS` (3) days it uses RepGet, keyed `daily:<org>:trial-<1..3>`. The days are whole 24-hour days from the trial's start (the subscription's `current_period_start`), so a trial started at 23:00 still gets three grants, never four. From day 4 nothing is given until the plan starts; the free articles carry on for their 30 days as before. Once the plan is active the paid `daily_free` applies. A trial may also run the website check (the first is free; running it again costs its price) - AI visibility and backlinks still wait for the plan.
+
+The pricing pages and the plan step show the difference side by side (`components/trial-comparison.tsx`), with the numbers read from these settings.
 
 ## What credits buy
 
@@ -58,15 +63,14 @@ Every spend takes the workspace's credit lock (`pg_advisory_xact_lock(hashtext('
 - **/credits** (sidebar → Credits): available credits, today's daily credits, credits reserved for links, the balance, what credits are for (actions and services), where they come from, and the history (every ledger row). The workspace's own; someone who owns no website is told that shared websites use their owner's credits. The old Backlinks → Credit activity page redirects here.
 - **Sidebar**: the available credits, and "+3 today" once today's daily credits are given.
 - **Billing → Add-ons**: credit packs by card; services for credits, with a second click that names the price; quotes with their "from" price in credits; purchases show what they cost in credits or money.
-- **Admin → Credits**: daily credits (0–100), each action's price (0–1,000) and each service's price (0–100,000; 0 takes it off sale), saved together and recorded in the audit log as `credits.settings_saved`; and what each action and service earned in the last 30 days.
+- **Admin → Credits**: daily credits and trial daily credits (0–100 each), each action's price (0–1,000) and each service's price (0–100,000; 0 takes it off sale), saved together and recorded in the audit log as `credits.settings_saved`; and what each action and service earned in the last 30 days.
 
 ## Setup
 
 1. Apply the migrations before deploying the code: `0075_credit_spends` (the `credit_settings` and `credit_spends` tables, `addons.credit_price`, `addon_purchases.credits_paid`) and `0076_credit_scale` (plans 250 / 700, packs 100 / 250 / 500, the services' credit prices).
 2. Run `npm run stripe:setup` so the packs' Stripe products are renamed to "100 credits" etc. (their prices do not change).
-3. In Admin → Credits set the daily credits (3) and the price of running the check again (5). Until then both are off.
+3. In Admin → Credits set the daily credits (3), the trial daily credits (15) and the price of running the check again (5). Until then they are off.
 
 ## Waiting for the client
 
-- Whether trial accounts (the free articles) also get daily credits. Today only an active paid plan does, like the monthly credits.
 - The Refunds and Terms pages still speak of "link credits" ("Unused link credits are not refunded for cash - they are part of your plan rather than a separate purchase"). They are legal text, so the wording is the client's to change.

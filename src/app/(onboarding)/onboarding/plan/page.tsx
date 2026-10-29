@@ -5,16 +5,19 @@ import { TestimonialRail } from "@/components/onboarding/testimonial-rail";
 import { listPublishedTestimonials } from "@/lib/marketing/testimonials-db";
 import { PayPalPendingNotice } from "@/components/paypal-pending-notice";
 import { PayPalReturn } from "@/components/paypal-return";
+import { TrialComparison } from "@/components/trial-comparison";
 import { WizardProgress } from "@/components/wizard-progress";
 import { requireSession } from "@/lib/auth-guard";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import { PAYPAL_PENDING_COPY } from "@/lib/i18n/paypal-pending";
 import { listPlans } from "@/lib/billing";
+import { readCreditSettings, TRIAL_CREDIT_DAYS } from "@/lib/credits/prices";
+import { getMessages } from "@/lib/i18n/messages";
 import { hasUnfinishedPayPalApproval, isTrialEligible } from "@/lib/billing/checkouts";
 import { db } from "@/lib/db";
 import { getOnboardingState } from "@/lib/onboarding/steps";
 import { isPayPalAvailable } from "@/lib/paypal/actions";
-import { toPickerPlan } from "@/lib/plans/features";
+import { FREE_ARTICLES, FREE_ARTICLES_DAYS, toPickerPlan } from "@/lib/plans/features";
 import { requireOrg } from "@/lib/tenant";
 import { CheckoutPending } from "./checkout-pending";
 import { PlanStep } from "./plan-step";
@@ -48,10 +51,11 @@ export default async function OnboardingPlanPage({
   const siteParam = typeof params.site === "string" ? params.site : undefined;
   const paypalResult = typeof params.paypal === "string" ? params.paypal : undefined;
 
-  const [state, paypalAvailable, allPlans] = await Promise.all([
+  const [state, paypalAvailable, allPlans, credits] = await Promise.all([
     getOnboardingState(orgId, siteParam),
     isPayPalAvailable(),
     listPlans(),
+    readCreditSettings(),
   ]);
 
   if (!state.websiteId) redirect("/onboarding/website");
@@ -178,6 +182,20 @@ export default async function OnboardingPlanPage({
               emailVerified={session.user.emailVerified === true}
               email={session.user.email}
             />
+            {/*
+              What the free trial gives and what the plan adds (client,
+              2026-10-27), for a workspace that will get the trial.
+            */}
+            {trialEligible ? (
+              <TrialComparison
+                t={getMessages(locale).pricing.trial}
+                freeArticles={FREE_ARTICLES}
+                freeDays={FREE_ARTICLES_DAYS}
+                trialDailyCredits={credits.trialDailyFree}
+                trialCreditDays={TRIAL_CREDIT_DAYS}
+                className="mt-6"
+              />
+            ) : null}
           </div>
 
           <OnboardingAside

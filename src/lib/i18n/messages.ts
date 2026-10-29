@@ -361,6 +361,27 @@ export type Messages = {
     unavailable: string;
     annualNote: string;
     refundPolicy: string;
+    /**
+     * Free trial vs paid plan (client, 2026-10-27: "this difference must be
+     * represented"), under the plans and on the plan step. {articles} and
+     * {days} are FREE_ARTICLES and FREE_ARTICLES_DAYS; {count}/{days} in
+     * creditsTrial the trial's daily credits and TRIAL_CREDIT_DAYS.
+     */
+    trial: {
+      title: string;
+      intro: string;
+      trialName: string;
+      paidName: string;
+      articlesTrial: string;
+      articlesPaid: string;
+      check: string;
+      creditsTrial: string;
+      creditsPaid: string;
+      aiVisibility: string;
+      backlinks: string;
+      /** Screen-reader label for a crossed-out line. */
+      notIncluded: string;
+    };
     features: {
       articles: string;
       keywords: string;
@@ -2827,6 +2848,9 @@ export type Messages = {
       dailyValue: string;
       dailyHelp: string;
       dailyPlan: string;
+      /** A trial's daily credits (its first days only): {count}, {days}, {date} - and once they have ended, the paid plan's {count}. */
+      dailyTrialHelp: string;
+      dailyTrialOver: string;
       reserved: string;
       reservedHelp: string;
       balance: string;
@@ -2851,6 +2875,8 @@ export type Messages = {
       sourcePlan: string;
       sourcePacks: string;
       sourceDaily: string;
+      /** {count} credits on each of a trial's first {days} days. */
+      sourceTrial: string;
       sourceReferral: string;
       historyTitle: string;
       colDate: string;
@@ -3506,6 +3532,20 @@ const en: Messages = {
     annualNote:
       "Annual plans are available once you sign up, at two months free. Cancel any time - see our",
     refundPolicy: "refund policy",
+    trial: {
+      title: "Free trial or paid plan",
+      intro: "Nothing is charged today. Your plan starts after your {articles} free articles are written, or after {days} days at the latest.",
+      trialName: "Free trial",
+      paidName: "Paid plan",
+      articlesTrial: "{articles} free articles, researched, illustrated and published",
+      articlesPaid: "All your plan's articles, every month",
+      check: "Website check",
+      creditsTrial: "{count} credits a day for your first {days} days",
+      creditsPaid: "Credits every month, plus more on each day you use RepGet",
+      aiVisibility: "AI visibility in ChatGPT, Claude, Gemini and Perplexity",
+      backlinks: "Backlinks from our partner network",
+      notIncluded: "Not included",
+    },
     features: {
       articles: "{n} article written each month|{n} articles written each month",
       keywords: "{n} search terms tracked",
@@ -5918,6 +5958,8 @@ const en: Messages = {
       dailyValue: "+{count} today",
       dailyHelp: "Added on each day you use RepGet. They never expire.",
       dailyPlan: "With a paid plan you get {count} credits on each day you use RepGet.",
+      dailyTrialHelp: "On your trial: {count} credits on each of your first {days} days you use RepGet, until {date}. They never expire.",
+      dailyTrialOver: "Your trial's daily credits have ended. With a paid plan you get {count} credits on each day you use RepGet.",
       reserved: "Reserved for links",
       reservedHelp: "Held for links being placed; spent only once a link is verified live.",
       balance: "Balance",
@@ -5941,6 +5983,7 @@ const en: Messages = {
       sourcePlan: "Your plan adds credits every month. They never expire.",
       sourcePacks: "Credit packs, whenever you need more. Bought credits never expire.",
       sourceDaily: "{count} credits on each day you use RepGet, with a paid plan. They never expire.",
+      sourceTrial: "{count} credits on each of the first {days} days of your trial. They never expire.",
       sourceReferral: "{count} credits for each business you refer that starts paying.",
       historyTitle: "History",
       colDate: "Date",
@@ -6597,6 +6640,20 @@ const es: Messages = {
     annualNote:
       "Los planes anuales están disponibles al registrarse, con dos meses gratis. Cancele cuando quiera: consulte nuestra",
     refundPolicy: "política de reembolsos",
+    trial: {
+      title: "Prueba gratuita o plan de pago",
+      intro: "Hoy no se cobra nada. Su plan empieza cuando se hayan escrito sus {articles} artículos gratis, o a los {days} días como máximo.",
+      trialName: "Prueba gratuita",
+      paidName: "Plan de pago",
+      articlesTrial: "{articles} artículos gratis, investigados, ilustrados y publicados",
+      articlesPaid: "Todos los artículos de su plan, cada mes",
+      check: "Revisión del sitio web",
+      creditsTrial: "{count} créditos al día durante sus primeros {days} días",
+      creditsPaid: "Créditos cada mes, y más cada día que usa RepGet",
+      aiVisibility: "Visibilidad en IA en ChatGPT, Claude, Gemini y Perplexity",
+      backlinks: "Backlinks de nuestra red de socios",
+      notIncluded: "No incluido",
+    },
     features: {
       articles: "{n} artículo escrito al mes|{n} artículos escritos al mes",
       keywords: "{n} términos de búsqueda monitorizados",
@@ -9012,6 +9069,8 @@ const es: Messages = {
       dailyValue: "+{count} hoy",
       dailyHelp: "Se añaden cada día que usa RepGet. No caducan nunca.",
       dailyPlan: "Con un plan de pago recibe {count} créditos cada día que usa RepGet.",
+      dailyTrialHelp: "Durante su prueba: {count} créditos en cada uno de sus primeros {days} días en que usa RepGet, hasta el {date}. No caducan nunca.",
+      dailyTrialOver: "Los créditos diarios de su prueba han terminado. Con un plan de pago recibe {count} créditos cada día que usa RepGet.",
       reserved: "Reservados para enlaces",
       reservedHelp: "Retenidos para enlaces en curso; solo se gastan cuando el enlace se verifica activo.",
       balance: "Saldo",
@@ -9035,6 +9094,7 @@ const es: Messages = {
       sourcePlan: "Su plan añade créditos cada mes. No caducan.",
       sourcePacks: "Paquetes de créditos, siempre que necesite más. Los créditos comprados no caducan.",
       sourceDaily: "{count} créditos cada día que usa RepGet, con un plan de pago. No caducan nunca.",
+      sourceTrial: "{count} créditos en cada uno de los primeros {days} días de su prueba. No caducan nunca.",
       sourceReferral: "{count} créditos por cada empresa que recomiende y empiece a pagar.",
       historyTitle: "Historial",
       colDate: "Fecha",
@@ -9692,6 +9752,20 @@ const fr: Messages = {
     annualNote:
       "Les formules annuelles sont proposées après votre inscription, avec deux mois offerts. Annulez à tout moment : consultez notre",
     refundPolicy: "politique de remboursement",
+    trial: {
+      title: "Essai gratuit ou forfait payant",
+      intro: "Rien n’est facturé aujourd’hui. Votre forfait commence une fois vos {articles} articles gratuits rédigés, ou au plus tard après {days} jours.",
+      trialName: "Essai gratuit",
+      paidName: "Forfait payant",
+      articlesTrial: "{articles} articles gratuits, documentés, illustrés et publiés",
+      articlesPaid: "Tous les articles de votre forfait, chaque mois",
+      check: "Vérification du site",
+      creditsTrial: "{count} crédits par jour pendant vos {days} premiers jours",
+      creditsPaid: "Des crédits chaque mois, et d’autres chaque jour où vous utilisez RepGet",
+      aiVisibility: "Visibilité IA dans ChatGPT, Claude, Gemini et Perplexity",
+      backlinks: "Backlinks de notre réseau de partenaires",
+      notIncluded: "Non inclus",
+    },
     features: {
       articles: "{n} article rédigé par mois|{n} articles rédigés par mois",
       keywords: "{n} termes de recherche suivis",
@@ -12107,6 +12181,8 @@ const fr: Messages = {
       dailyValue: "+{count} aujourd’hui",
       dailyHelp: "Ajoutés chaque jour où vous utilisez RepGet. Ils n’expirent jamais.",
       dailyPlan: "Avec un forfait payant, vous recevez {count} crédits chaque jour où vous utilisez RepGet.",
+      dailyTrialHelp: "Pendant votre essai : {count} crédits chacun de vos {days} premiers jours d’utilisation de RepGet, jusqu’au {date}. Ils n’expirent jamais.",
+      dailyTrialOver: "Les crédits quotidiens de votre essai sont terminés. Avec un forfait payant, vous recevez {count} crédits chaque jour où vous utilisez RepGet.",
       reserved: "Réservés pour des liens",
       reservedHelp: "Retenus pour des liens en cours ; dépensés seulement une fois le lien vérifié.",
       balance: "Solde",
@@ -12130,6 +12206,7 @@ const fr: Messages = {
       sourcePlan: "Votre offre ajoute des crédits chaque mois. Ils n'expirent pas.",
       sourcePacks: "Des packs de crédits, dès que vous en avez besoin. Les crédits achetés n'expirent pas.",
       sourceDaily: "{count} crédits chaque jour où vous utilisez RepGet, avec un forfait payant. Ils n’expirent jamais.",
+      sourceTrial: "{count} crédits chacun des {days} premiers jours de votre essai. Ils n’expirent jamais.",
       sourceReferral: "{count} crédits pour chaque entreprise que vous recommandez et qui commence à payer.",
       historyTitle: "Historique",
       colDate: "Date",
@@ -12788,6 +12865,20 @@ const it: Messages = {
     annualNote:
       "I piani annuali sono disponibili dopo la registrazione, con due mesi gratis. Può disdire quando vuole: consulti la nostra",
     refundPolicy: "politica di rimborso",
+    trial: {
+      title: "Prova gratuita o piano a pagamento",
+      intro: "Oggi non viene addebitato nulla. Il piano inizia dopo che i suoi {articles} articoli gratuiti sono stati scritti, o al più tardi dopo {days} giorni.",
+      trialName: "Prova gratuita",
+      paidName: "Piano a pagamento",
+      articlesTrial: "{articles} articoli gratuiti, documentati, illustrati e pubblicati",
+      articlesPaid: "Tutti gli articoli del suo piano, ogni mese",
+      check: "Controllo del sito",
+      creditsTrial: "{count} crediti al giorno per i primi {days} giorni",
+      creditsPaid: "Crediti ogni mese, e altri ogni giorno in cui usa RepGet",
+      aiVisibility: "Visibilità nelle IA su ChatGPT, Claude, Gemini e Perplexity",
+      backlinks: "Backlink dalla nostra rete di partner",
+      notIncluded: "Non incluso",
+    },
     features: {
       articles: "{n} articolo scritto al mese|{n} articoli scritti al mese",
       keywords: "{n} termini di ricerca monitorati",
@@ -15201,6 +15292,8 @@ const it: Messages = {
       dailyValue: "+{count} oggi",
       dailyHelp: "Aggiunti ogni giorno in cui usa RepGet. Non scadono mai.",
       dailyPlan: "Con un piano a pagamento riceve {count} crediti ogni giorno in cui usa RepGet.",
+      dailyTrialHelp: "Durante la prova: {count} crediti in ciascuno dei primi {days} giorni in cui usa RepGet, fino al {date}. Non scadono mai.",
+      dailyTrialOver: "I crediti giornalieri della prova sono terminati. Con un piano a pagamento riceve {count} crediti ogni giorno in cui usa RepGet.",
       reserved: "Riservati ai link",
       reservedHelp: "Trattenuti per link in corso; spesi solo quando il link è verificato online.",
       balance: "Saldo",
@@ -15224,6 +15317,7 @@ const it: Messages = {
       sourcePlan: "Il Suo piano aggiunge crediti ogni mese. Non scadono.",
       sourcePacks: "Pacchetti di crediti, quando ne ha bisogno. I crediti acquistati non scadono.",
       sourceDaily: "{count} crediti ogni giorno in cui usa RepGet, con un piano a pagamento. Non scadono mai.",
+      sourceTrial: "{count} crediti in ciascuno dei primi {days} giorni della prova. Non scadono mai.",
       sourceReferral: "{count} crediti per ogni attività che invita e che inizia a pagare.",
       historyTitle: "Cronologia",
       colDate: "Data",
@@ -15877,6 +15971,20 @@ const de: Messages = {
     annualNote:
       "Jahrestarife sind nach der Anmeldung verfügbar, mit zwei Freimonaten. Jederzeit kündbar - siehe unsere",
     refundPolicy: "Rückerstattungsrichtlinie",
+    trial: {
+      title: "Kostenloser Test oder kostenpflichtiger Tarif",
+      intro: "Heute wird nichts berechnet. Ihr Tarif beginnt, sobald Ihre {articles} kostenlosen Artikel geschrieben sind, spätestens nach {days} Tagen.",
+      trialName: "Kostenloser Test",
+      paidName: "Kostenpflichtiger Tarif",
+      articlesTrial: "{articles} kostenlose Artikel, recherchiert, bebildert und veröffentlicht",
+      articlesPaid: "Alle Artikel Ihres Tarifs, jeden Monat",
+      check: "Website-Prüfung",
+      creditsTrial: "{count} Credits pro Tag in Ihren ersten {days} Tagen",
+      creditsPaid: "Credits jeden Monat, dazu weitere an jedem Tag, an dem Sie RepGet nutzen",
+      aiVisibility: "KI-Sichtbarkeit in ChatGPT, Claude, Gemini und Perplexity",
+      backlinks: "Backlinks aus unserem Partnernetzwerk",
+      notIncluded: "Nicht enthalten",
+    },
     features: {
       articles: "{n} Artikel pro Monat geschrieben|{n} Artikel pro Monat geschrieben",
       keywords: "{n} Suchbegriffe überwacht",
@@ -18292,6 +18400,8 @@ const de: Messages = {
       dailyValue: "+{count} heute",
       dailyHelp: "An jedem Tag hinzugefügt, an dem Sie RepGet nutzen. Sie verfallen nie.",
       dailyPlan: "Mit einem kostenpflichtigen Tarif erhalten Sie an jedem Tag, an dem Sie RepGet nutzen, {count} Credits.",
+      dailyTrialHelp: "In Ihrer Testphase: {count} Credits an jedem Ihrer ersten {days} Tage, an denen Sie RepGet nutzen, bis zum {date}. Sie verfallen nie.",
+      dailyTrialOver: "Die täglichen Credits Ihrer Testphase sind vorbei. Mit einem kostenpflichtigen Tarif erhalten Sie an jedem Tag, an dem Sie RepGet nutzen, {count} Credits.",
       reserved: "Für Links reserviert",
       reservedHelp: "Für Links in Arbeit zurückgehalten; erst bei bestätigtem Link verbraucht.",
       balance: "Guthaben",
@@ -18315,6 +18425,7 @@ const de: Messages = {
       sourcePlan: "Ihr Tarif fügt jeden Monat Credits hinzu. Sie verfallen nicht.",
       sourcePacks: "Credit-Pakete, wann immer Sie mehr brauchen. Gekaufte Credits verfallen nicht.",
       sourceDaily: "{count} Credits an jedem Tag, an dem Sie RepGet nutzen, mit einem kostenpflichtigen Tarif. Sie verfallen nie.",
+      sourceTrial: "{count} Credits an jedem der ersten {days} Tage Ihrer Testphase. Sie verfallen nie.",
       sourceReferral: "{count} Credits für jedes empfohlene Unternehmen, das zu zahlen beginnt.",
       historyTitle: "Verlauf",
       colDate: "Datum",

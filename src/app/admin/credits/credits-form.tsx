@@ -24,6 +24,8 @@ export type PriceField = {
  */
 export function CreditsForm({
   dailyFree,
+  trialDailyFree,
+  trialDays,
   prices,
   services,
   maxDaily,
@@ -31,6 +33,9 @@ export function CreditsForm({
   maxServicePrice,
 }: {
   dailyFree: number;
+  trialDailyFree: number;
+  /** How many of a trial's first days get trialDailyFree (TRIAL_CREDIT_DAYS). */
+  trialDays: number;
   prices: PriceField[];
   services: PriceField[];
   maxDaily: number;
@@ -41,16 +46,20 @@ export function CreditsForm({
   const id = useId();
   const [pending, start] = useTransition();
   const [daily, setDaily] = useState(String(dailyFree));
+  const [trialDaily, setTrialDaily] = useState(String(trialDailyFree));
   const [values, setValues] = useState<Record<string, string>>(
     Object.fromEntries([...prices, ...services].map((field) => [field.key, String(field.value)])),
   );
   const changed =
-    daily !== String(dailyFree) || [...prices, ...services].some((field) => values[field.key] !== String(field.value));
+    daily !== String(dailyFree) ||
+    trialDaily !== String(trialDailyFree) ||
+    [...prices, ...services].some((field) => values[field.key] !== String(field.value));
 
   function save() {
     start(async () => {
       const result = await saveCreditSettings({
         dailyFree: Number(daily),
+        trialDailyFree: Number(trialDaily),
         prices: Object.fromEntries(prices.map((field) => [field.key, Number(values[field.key])])),
         addonPrices: Object.fromEntries(services.map((field) => [field.key, Number(values[field.key])])),
       }).catch(() => null);
@@ -123,6 +132,29 @@ export function CreditsForm({
             value={daily}
             onChange={(event) => setDaily(event.target.value)}
             aria-describedby={`${id}-daily-help`}
+          />
+        </div>
+
+        <div className="grid gap-2 px-4 py-4 sm:grid-cols-[1fr_9rem] sm:items-center sm:px-5">
+          <div className="min-w-0">
+            <label htmlFor={`${id}-trial-daily`} className="text-sm font-medium">
+              Trial daily credits
+            </label>
+            <p id={`${id}-trial-daily-help`} className="text-xs text-muted-foreground">
+              Given to a workspace on its free articles on each of its first {trialDays} days it opens RepGet - nothing from
+              day {trialDays + 1} until its plan starts. They never expire. 0 turns them off.
+            </p>
+          </div>
+          <Input
+            id={`${id}-trial-daily`}
+            type="number"
+            inputMode="numeric"
+            min={0}
+            max={maxDaily}
+            step={1}
+            value={trialDaily}
+            onChange={(event) => setTrialDaily(event.target.value)}
+            aria-describedby={`${id}-trial-daily-help`}
           />
         </div>
 

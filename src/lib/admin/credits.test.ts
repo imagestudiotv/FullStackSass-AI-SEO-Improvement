@@ -58,6 +58,16 @@ describe("credit settings", () => {
     });
   });
 
+  it("save the trial's daily credits, and keep them when left out", async () => {
+    const result = await saveCreditSettings({ dailyFree: 3, trialDailyFree: 15, prices: {} });
+    expect(result).toMatchObject({ ok: true, data: { dailyFree: 3, trialDailyFree: 15 } });
+    const [entry] = await test.db.select().from(adminAuditLog);
+    expect(entry.summary).toBe("Changed credit prices: daily credits 0 -> 3, trial daily credits 0 -> 15");
+
+    await saveCreditSettings({ dailyFree: 4, prices: {} });
+    expect(await readCreditSettings()).toMatchObject({ dailyFree: 4, trialDailyFree: 15 });
+  });
+
   it("change nothing, and log nothing, when nothing changed", async () => {
     const ids = await catalogue();
     await saveCreditSettings({ dailyFree: 2, prices: { audit_rerun: 1 }, addonPrices: { [ids.usa_local_citations]: 250 } });
@@ -70,6 +80,8 @@ describe("credit settings", () => {
     [{ dailyFree: -1, prices: {} }, "Daily credits must be a whole number from 0 to 100"],
     [{ dailyFree: 1.5, prices: {} }, "Daily credits must be a whole number from 0 to 100"],
     [{ dailyFree: 101, prices: {} }, "Daily credits must be a whole number from 0 to 100"],
+    [{ dailyFree: 0, trialDailyFree: 101, prices: {} }, "Trial daily credits must be a whole number from 0 to 100"],
+    [{ dailyFree: 0, trialDailyFree: -1, prices: {} }, "Trial daily credits must be a whole number from 0 to 100"],
     [{ dailyFree: 0, prices: { audit_rerun: 1001 } }, "Prices must be whole numbers from 0 to 1000 credits"],
     [{ dailyFree: 0, prices: { audit_rerun: Number.NaN } }, "Prices must be whole numbers from 0 to 1000 credits"],
     [{ dailyFree: 0, prices: { made_up: 1 } }, "That action no longer exists - reload the page"],

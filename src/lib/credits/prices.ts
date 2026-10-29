@@ -57,11 +57,20 @@ export const MAX_DAILY_FREE = 100;
 export const MAX_ADDON_PRICE = 100_000;
 
 export const DAILY_FREE_KEY = "daily_free";
+/**
+ * Daily credits during the free-articles trial (client, 2026-10-27: 15 a day,
+ * so a trial can try what credits buy), on its first TRIAL_CREDIT_DAYS days
+ * only - "the 4th day the free credit is not given" (lib/credits/daily.ts).
+ */
+export const TRIAL_DAILY_FREE_KEY = "trial_daily_free";
+export const TRIAL_CREDIT_DAYS = 3;
 export const priceKey = (action: CreditAction) => `price:${action}`;
 
 export type CreditSettings = {
   /** Credits a paying workspace is given on each UTC day it uses RepGet (lib/credits/daily.ts). 0 = off. */
   dailyFree: number;
+  /** Credits a trial is given on each of its first TRIAL_CREDIT_DAYS days it uses RepGet. 0 = off. */
+  trialDailyFree: number;
   prices: Record<CreditAction, number>;
   /** The latest change, for the admin page. */
   updatedAt: Date | null;
@@ -84,6 +93,7 @@ export async function readCreditSettings(executor: Executor = db): Promise<Credi
   );
   return {
     dailyFree: values.get(DAILY_FREE_KEY) ?? 0,
+    trialDailyFree: values.get(TRIAL_DAILY_FREE_KEY) ?? 0,
     prices,
     updatedAt: latest?.updatedAt ?? null,
     updatedBy: latest?.updatedBy ?? null,

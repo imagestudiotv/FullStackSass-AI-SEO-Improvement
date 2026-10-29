@@ -1,6 +1,7 @@
 import { Check } from "lucide-react";
 import Link from "next/link";
 
+import { TrialComparison } from "@/components/trial-comparison";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,7 +13,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { formatPrice, listPlans } from "@/lib/billing";
-import { planFeatures, planTagline, STARTER_TIER } from "@/lib/plans/features";
+import { readCreditSettings, TRIAL_CREDIT_DAYS } from "@/lib/credits/prices";
+import { getMessages } from "@/lib/i18n/messages";
+import { FREE_ARTICLES, FREE_ARTICLES_DAYS, planFeatures, planTagline, STARTER_TIER } from "@/lib/plans/features";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
 
 export const metadata = {
@@ -32,7 +35,7 @@ export const metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function PricingPage() {
-  const plans = await listPlans();
+  const [plans, credits] = await Promise.all([listPlans(), readCreditSettings()]);
   const monthly = plans.filter((plan) => plan.interval === "month");
 
   return (
@@ -160,6 +163,17 @@ export default async function PricingPage() {
           })}
         </div>
       )}
+
+      {monthly.length > 0 ? (
+        <TrialComparison
+          t={getMessages("en").pricing.trial}
+          freeArticles={FREE_ARTICLES}
+          freeDays={FREE_ARTICLES_DAYS}
+          trialDailyCredits={credits.trialDailyFree}
+          trialCreditDays={TRIAL_CREDIT_DAYS}
+          className="mx-auto mt-10 max-w-3xl"
+        />
+      ) : null}
 
       <p className="mt-10 text-center text-sm text-muted-foreground">
         Annual plans are available once you sign up, at two months free. Cancel

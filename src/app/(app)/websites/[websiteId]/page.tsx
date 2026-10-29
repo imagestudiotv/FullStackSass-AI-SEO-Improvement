@@ -60,8 +60,8 @@ export default async function WebsiteHealthPage({
     loadHealthData(site.id),
     // Asked per WEBSITE, as startAudit asks it: an owner can open an unpaid
     // second site because the workspace gate passed, and a check would then
-    // be refused.
-    canEdit && !siteNotReady ? isEntitledToSpend(site.id) : Promise.resolve(null),
+    // be refused. A trial may run it (client, 2026-10-27).
+    canEdit && !siteNotReady ? isEntitledToSpend(site.id, { freeArticles: true }) : Promise.resolve(null),
     getAppMessages(userId),
     searchParams,
     readCreditSettings(),

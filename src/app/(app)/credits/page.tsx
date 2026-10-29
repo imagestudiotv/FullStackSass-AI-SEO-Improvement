@@ -10,7 +10,7 @@ import { requireSession } from "@/lib/auth-guard";
 import { MAX_PLACEMENT_CREDITS, MIN_PLACEMENT_CREDITS } from "@/lib/backlinks/managed";
 import { creditAddons } from "@/lib/credits/addons";
 import { creditHistory, creditOverview, type CreditHistoryRow } from "@/lib/credits/overview";
-import { CREDIT_ACTIONS, isCreditAction } from "@/lib/credits/prices";
+import { CREDIT_ACTIONS, isCreditAction, TRIAL_CREDIT_DAYS } from "@/lib/credits/prices";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import { format, formatDate, plural } from "@/lib/i18n/format";
 import type { Messages } from "@/lib/i18n/messages";
@@ -62,6 +62,19 @@ export default async function CreditsPage({ searchParams }: PageProps<"/credits"
   ]);
   const { daily, settings } = overview;
   const credits = (count: number) => plural(c.creditsCount, count);
+  /*
+    A trial's daily credits come on its first days only (lib/credits/daily.ts),
+    so say until when - or that they have ended - rather than the paid plan's
+    "each day".
+  */
+  const trialEnds = daily.trialEndsAt ? formatDate(daily.trialEndsAt, locale, { day: "numeric", month: "long" }) : null;
+  const dailyHelp = !trialEnds
+    ? daily.eligible
+      ? c.dailyHelp
+      : format(c.dailyPlan, { count: settings.dailyFree })
+    : daily.eligible
+      ? format(c.dailyTrialHelp, { count: daily.perDay, days: TRIAL_CREDIT_DAYS, date: trialEnds })
+      : format(c.dailyTrialOver, { count: settings.dailyFree });
 
   return (
     <PageShell>
@@ -84,11 +97,11 @@ export default async function CreditsPage({ searchParams }: PageProps<"/credits"
         </h2>
         <dl className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           <Figure label={c.available} value={overview.available} help={c.availableHelp} strong />
-          {settings.dailyFree > 0 ? (
+          {settings.dailyFree > 0 || trialEnds ? (
             <Figure
               label={c.daily}
               value={daily.eligible ? format(c.dailyValue, { count: daily.today }) : "-"}
-              help={daily.eligible ? c.dailyHelp : format(c.dailyPlan, { count: settings.dailyFree })}
+              help={dailyHelp}
             />
           ) : null}
           <Figure label={c.reserved} value={overview.reserved} help={c.reservedHelp} />
@@ -148,6 +161,9 @@ export default async function CreditsPage({ searchParams }: PageProps<"/credits"
               </Link>
             </li>
             {settings.dailyFree > 0 ? <li>{format(c.sourceDaily, { count: settings.dailyFree })}</li> : null}
+            {settings.trialDailyFree > 0 ? (
+              <li>{format(c.sourceTrial, { count: settings.trialDailyFree, days: TRIAL_CREDIT_DAYS })}</li>
+            ) : null}
             <li>
               <Link href="/settings#referral" className="font-medium underline-offset-4 hover:underline">
                 {format(c.sourceReferral, { count: REFERRAL_REWARD_CREDITS })}
