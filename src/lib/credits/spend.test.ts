@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
 import { backlinkRequests, creditLedger, creditSettings, creditSpends, subscriptions } from "@/lib/db/schema";
@@ -321,6 +321,19 @@ describe("refunds", () => {
     expect((await ledgerOf(orgId)).find((row) => row.type === "spend_refund")?.note).toBe(
       "Bought Citations: returned, it could not be completed",
     );
+    // The test database's clock can give all three rows the same millisecond,
+    // which leaves their order to the random id: a second apart each, they are
+    // in the order they happened.
+    for (const [type, at] of [
+      ["adjustment", "2026-10-26T12:00:00Z"],
+      ["spend", "2026-10-26T12:00:01Z"],
+      ["spend_refund", "2026-10-26T12:00:02Z"],
+    ] as const) {
+      await test.db
+        .update(creditLedger)
+        .set({ createdAt: new Date(at) })
+        .where(and(eq(creditLedger.organizationId, orgId), eq(creditLedger.type, type)));
+    }
     const history = await creditHistory(orgId, { page: 1, pageSize: 25 });
     expect(history.rows.map((row) => [row.type, row.amount, row.action])).toEqual([
       ["spend_refund", 250, "addon:x"],
