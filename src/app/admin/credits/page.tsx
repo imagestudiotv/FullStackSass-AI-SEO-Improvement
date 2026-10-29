@@ -2,7 +2,14 @@ import type { Metadata } from "next";
 
 import { getCreditsAdmin } from "@/lib/admin/credits";
 import { MAX_PLACEMENT_CREDITS, MIN_PLACEMENT_CREDITS } from "@/lib/backlinks/managed";
-import { ACTION_ADMIN, isCreditAction, MAX_ACTION_PRICE, MAX_ADDON_PRICE, MAX_DAILY_FREE } from "@/lib/credits/prices";
+import {
+  ACTION_ADMIN,
+  isCreditAction,
+  MAX_ACTION_PRICE,
+  MAX_ADDON_PRICE,
+  MAX_DAILY_FREE,
+  TRIAL_CREDIT_DAYS,
+} from "@/lib/credits/prices";
 import { formatDate, formatNumber } from "@/lib/i18n/format";
 
 import { AdminPage, AdminPageHeader, AdminSection } from "../_ui/page";
@@ -12,7 +19,8 @@ export const metadata: Metadata = { title: "Credits" };
 
 /**
  * Admin -> Credits (client, 2026-10-26): what each action and each service
- * costs in credits, and the daily credits a paying workspace is given. How
+ * costs in credits, and the daily credits a paying workspace (and a trial,
+ * on its first days) is given. How
  * spending works: lib/credits/spend.ts.
  */
 export default async function AdminCreditsPage() {
@@ -42,6 +50,8 @@ export default async function AdminCreditsPage() {
 
       <CreditsForm
         dailyFree={settings.dailyFree}
+        trialDailyFree={settings.trialDailyFree}
+        trialDays={TRIAL_CREDIT_DAYS}
         prices={usage.filter(({ action }) => isCreditAction(action)).map(({ action }) => ({
           key: action,
           label: ACTION_ADMIN[action as keyof typeof ACTION_ADMIN].label,

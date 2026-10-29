@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
-import { backlinkRequests, creditLedger, creditSettings, creditSpends } from "@/lib/db/schema";
+import { backlinkRequests, creditLedger, creditSettings, creditSpends, subscriptions } from "@/lib/db/schema";
 import { createTestDb, type TestDb } from "@/test/db";
 import { seedWebsite } from "@/test/fixtures";
 
@@ -37,10 +37,11 @@ const EVENING = new Date("2026-10-26T23:30:00Z");
 const NEXT_DAY = new Date("2026-10-27T09:00:00Z");
 const A_WEEK_LATER = new Date("2026-11-02T09:00:00Z");
 
-async function settings(values: { dailyFree?: number; audit?: number }) {
+async function settings(values: { dailyFree?: number; trialDailyFree?: number; audit?: number }) {
   await test.db.delete(creditSettings);
   const rows = [
     ...(values.dailyFree !== undefined ? [{ key: "daily_free", value: values.dailyFree }] : []),
+    ...(values.trialDailyFree !== undefined ? [{ key: "trial_daily_free", value: values.trialDailyFree }] : []),
     ...(values.audit !== undefined ? [{ key: "price:audit_rerun", value: values.audit }] : []),
   ];
   if (rows.length) await test.db.insert(creditSettings).values(rows);
@@ -161,7 +162,7 @@ describe("daily credits", () => {
   it("are given once on each day the workspace uses RepGet, and never expire", async () => {
     await settings({ dailyFree: 3 });
     const { orgId } = await seedWebsite(test);
-    expect((await creditOverview(orgId, NOON)).daily).toEqual({ eligible: true, perDay: 3, today: 3 });
+    expect((await creditOverview(orgId, NOON)).daily).toEqual({ eligible: true, perDay: 3, today: 3, trialEndsAt: null });
     // The same day, however many pages: once.
     await creditOverview(orgId, EVENING);
     await Promise.all([ensureDailyCredits(orgId, EVENING), ensureDailyCredits(orgId, EVENING)]);
@@ -191,7 +192,7 @@ describe("daily credits", () => {
     await settings({ dailyFree: 3 });
     for (const status of ["trialing", "past_due", null]) {
       const { orgId } = await seedWebsite(test, { status });
-      expect((await creditOverview(orgId, NOON)).daily).toEqual({ eligible: false, perDay: 3, today: 0 });
+      expect((await creditOverview(orgId, NOON)).daily).toEqual({ eligible: false, perDay: 3, today: 0, trialEndsAt: null });
       expect((await ledgerOf(orgId)).filter((row) => row.type === "daily_grant")).toHaveLength(0);
     }
   });
@@ -199,8 +200,75 @@ describe("daily credits", () => {
   it("are off at 0", async () => {
     await settings({ dailyFree: 0 });
     const { orgId } = await seedWebsite(test);
-    expect((await creditOverview(orgId, NOON)).daily).toEqual({ eligible: true, perDay: 0, today: 0 });
+    expect((await creditOverview(orgId, NOON)).daily).toEqual({ eligible: true, perDay: 0, today: 0, trialEndsAt: null });
     expect(await ledgerOf(orgId)).toHaveLength(0);
+  });
+
+  /*
+    A trial (client, 2026-10-27): 15 a day, on its first 3 days only - "the
+    4th day the free credit is not given". Its 30-day free articles go on.
+  */
+  describe("on a trial", () => {
+    const HOUR = 60 * 60 * 1000;
+    // A trial started late in a UTC day: its days are 24 hours from here, not calendar days.
+    const START = new Date("2026-10-26T23:00:00Z");
+    const at = (hours: number) => new Date(START.getTime() + hours * HOUR);
+
+    async function seedTrial() {
+      const seeded = await seedWebsite(test, { status: "trialing" });
+      await test.db
+        .update(subscriptions)
+        .set({ currentPeriodStart: START, currentPeriodEnd: new Date(START.getTime() + 30 * 24 * HOUR) })
+        .where(eq(subscriptions.organizationId, seeded.orgId));
+      return seeded;
+    }
+
+    it("are the trial's amount on each of its first 3 days, then stop", async () => {
+      await settings({ dailyFree: 3, trialDailyFree: 15 });
+      const { orgId } = await seedTrial();
+      const endsAt = at(72);
+
+      expect((await creditOverview(orgId, at(1))).daily).toEqual({ eligible: true, perDay: 15, today: 15, trialEndsAt: endsAt });
+      // A new UTC day, but the same first 24 hours: nothing more.
+      expect((await creditOverview(orgId, at(20))).balance).toBe(15);
+      expect((await creditOverview(orgId, at(25))).balance).toBe(30);
+      expect((await creditOverview(orgId, at(71))).balance).toBe(45);
+      // Day 4: none, and the page is told they have ended.
+      const dayFour = await creditOverview(orgId, at(73));
+      expect(dayFour.balance).toBe(45);
+      expect(dayFour.daily).toEqual({ eligible: false, perDay: 3, today: 0, trialEndsAt: endsAt });
+      expect((await creditOverview(orgId, at(24 * 10))).balance).toBe(45);
+
+      const grants = (await ledgerOf(orgId)).filter((row) => row.type === "daily_grant");
+      expect(grants.map((row) => row.idempotencyKey).sort()).toEqual([
+        `daily:${orgId}:trial-1`,
+        `daily:${orgId}:trial-2`,
+        `daily:${orgId}:trial-3`,
+      ]);
+    });
+
+    it("grant once however many pages open at once", async () => {
+      await settings({ trialDailyFree: 15 });
+      const { orgId } = await seedTrial();
+      await Promise.all([ensureDailyCredits(orgId, at(2)), ensureDailyCredits(orgId, at(2)), ensureDailyCredits(orgId, at(3))]);
+      expect((await creditOverview(orgId, at(4))).balance).toBe(15);
+    });
+
+    it("give the paid plan's amount once the plan starts", async () => {
+      await settings({ dailyFree: 3, trialDailyFree: 15 });
+      const { orgId } = await seedTrial();
+      await creditOverview(orgId, at(1));
+      await test.db.update(subscriptions).set({ status: "active" }).where(eq(subscriptions.organizationId, orgId));
+      expect((await creditOverview(orgId, at(30))).daily).toEqual({ eligible: true, perDay: 3, today: 3, trialEndsAt: null });
+      expect((await creditOverview(orgId, at(30))).balance).toBe(18);
+    });
+
+    it("are off at 0, and say nothing about the trial", async () => {
+      await settings({ dailyFree: 3, trialDailyFree: 0 });
+      const { orgId } = await seedTrial();
+      expect((await creditOverview(orgId, at(1))).daily).toEqual({ eligible: false, perDay: 3, today: 0, trialEndsAt: null });
+      expect(await ledgerOf(orgId)).toHaveLength(0);
+    });
   });
 
   it("show in the history", async () => {

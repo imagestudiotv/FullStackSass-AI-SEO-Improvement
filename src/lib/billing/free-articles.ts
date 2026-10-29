@@ -11,8 +11,10 @@ import { FREE_ARTICLES } from "@/lib/plans/features";
  *  - THE OFFER. A workspace that has never subscribed confirms its email,
  *    picks a plan and adds a card at Stripe; nothing is charged. Its first
  *    FREE_ARTICLES articles are free - the research that plans them, the
- *    writing, their pictures and publishing. Audits, AI visibility, backlinks
- *    and the Partner Network wait for the plan (lib/billing/entitled.ts).
+ *    writing, their pictures and publishing. The website check is open too,
+ *    and the first TRIAL_CREDIT_DAYS days bring daily credits (client,
+ *    2026-10-27; lib/credits/daily.ts). AI visibility, backlinks and the
+ *    Partner Network wait for the plan (lib/billing/entitled.ts).
  *  - THE MECHANISM. A Stripe trial of FREE_ARTICLES_DAYS
  *    (lib/billing/checkouts.ts). While it runs, the website's article
  *    allowance is FREE_ARTICLES (usage.ts), counted from the trial's start.

@@ -3,7 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { Badge } from "@/components/ui/badge";
-import { STARTER_TIER } from "@/lib/plans/features";
+import { TrialComparison } from "@/components/trial-comparison";
+import { FREE_ARTICLES, FREE_ARTICLES_DAYS, STARTER_TIER } from "@/lib/plans/features";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -14,6 +15,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { formatPrice, listPlans } from "@/lib/billing";
+import { readCreditSettings, TRIAL_CREDIT_DAYS } from "@/lib/credits/prices";
 import { format, plural } from "@/lib/i18n/format";
 import { isLocale } from "@/lib/i18n/config";
 import { getMessages } from "@/lib/i18n/messages";
@@ -54,7 +56,7 @@ export default async function LocalisedPricingPage({
   if (!isLocale(locale) || locale === "en") notFound();
 
   const t = getMessages(locale);
-  const plans = await listPlans();
+  const [plans, credits] = await Promise.all([listPlans(), readCreditSettings()]);
   const monthly = plans.filter((plan) => plan.interval === "month");
 
   return (
@@ -174,6 +176,17 @@ export default async function LocalisedPricingPage({
           })}
         </div>
       )}
+
+      {monthly.length > 0 ? (
+        <TrialComparison
+          t={t.pricing.trial}
+          freeArticles={FREE_ARTICLES}
+          freeDays={FREE_ARTICLES_DAYS}
+          trialDailyCredits={credits.trialDailyFree}
+          trialCreditDays={TRIAL_CREDIT_DAYS}
+          className="mx-auto mt-10 max-w-3xl"
+        />
+      ) : null}
 
       <p className="mt-10 text-center text-sm text-muted-foreground">
         {t.pricing.annualNote}{" "}
