@@ -8,6 +8,7 @@ import {
   Puzzle,
   Rocket,
   Settings,
+  Share2,
   Stethoscope,
   TrendingDown,
   type LucideIcon,
@@ -100,6 +101,8 @@ export const navItems: NavItem[] = [
   { title: "googleConnect", segment: "google", icon: BarChart3 },
 
   { title: "aiVisibility", segment: "ai-visibility", icon: Bot },
+  /** Social media (client, 2026-10-27): suggestions to post, accounts, and what RepGet published. */
+  { title: "socialMedia", segment: "social", icon: Share2 },
   { title: "losingTraffic", segment: "traffic", icon: TrendingDown },
 
   /**

@@ -116,6 +116,7 @@ describe("credit settings", () => {
     const admin = await getCreditsAdmin();
     expect(admin.usage).toEqual([
       { action: "audit_rerun", spends: 0, credits: 0 },
+      { action: "social_post", spends: 0, credits: 0 },
       { action: "addon:usa_local_citations", spends: 0, credits: 0 },
       { action: "addon:audit_fix", spends: 0, credits: 0 },
     ]);

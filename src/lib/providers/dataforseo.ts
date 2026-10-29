@@ -180,6 +180,48 @@ export async function articleSearch(
   };
 }
 
+/**
+ * Public discussions about a keyword on one site - `site:reddit.com <keyword>`
+ * (lib/social/discover.ts). Like articleSearch, but keeps Google's
+ * "Discussions and forums" block as well as the organic results, since that
+ * is where these threads are shown, and is cached for a day only: the point
+ * is fresh conversations.
+ */
+export async function discussionSearch(
+  query: string,
+  locationName: string,
+  languageName: string,
+  onCost: (cost: number | undefined) => Promise<void>,
+) {
+  const params = { keyword: query.slice(0, 300), location_name: locationName, language_name: languageName, depth: 20 };
+  type Item = { type?: string; url?: string; title?: string; description?: string; items?: Item[] };
+  let recorded = false;
+  const result = await withCache(
+    "dataforseo", "/serp/google/organic/live/advanced", params,
+    async () => {
+      try {
+        return await post<{ items?: Item[] }>("/serp/google/organic/live/advanced", params, async cost => {
+          recorded = true;
+          await onCost(cost);
+        }, true);
+      } catch (error) {
+        if (!recorded) await onCost(undefined);
+        throw error;
+      }
+    },
+    1,
+  );
+  const items = result.data.flatMap(row => row.items ?? []).flatMap(item =>
+    item.type === "discussions_and_forums" ? (item.items ?? []) : item.type === "organic" ? [item] : []);
+  return {
+    cached: result.cached,
+    items: items
+      .filter((item): item is Item & { url: string } => typeof item.url === "string")
+      .map(item => ({ url: item.url, title: item.title ?? "", description: item.description ?? "" }))
+      .slice(0, 30),
+  };
+}
+
 export type KeywordMetrics = {
   term: string;
   volume: number | null;

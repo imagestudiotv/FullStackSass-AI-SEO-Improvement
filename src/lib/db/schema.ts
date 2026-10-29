@@ -2985,3 +2985,111 @@ export const articleTranslationAttempts = pgTable(
   },
   (table) => [uniqueIndex("article_translation_attempts_uidx").on(table.articleId, table.language)],
 );
+
+/**
+ * Social media (client, 2026-10-27; docs/social-media.md): a website's
+ * accounts on Reddit, Quora, X, Threads, Pinterest and Bluesky, one per
+ * platform.
+ *
+ * Quora is a username only - it has no API, so everything there is posted by
+ * the customer with one click. The others are connected through bundle.social
+ * when it is configured (bundleAccountId set), which lets RepGet publish the
+ * customer's OWN posts itself; without it they are a username too, and own
+ * posts are one-click like replies.
+ */
+export const socialAccounts = pgTable(
+  "social_accounts",
+  {
+    id: pk(),
+    websiteId: websiteId(),
+    /** SOCIAL_PLATFORMS (lib/social/platforms.ts): reddit | quora | x | threads. */
+    platform: text("platform").notNull(),
+    /** Without the @ or u/. */
+    username: text("username").notNull(),
+    /** bundle.social's id for the connected account; null for a username only. */
+    bundleAccountId: text("bundle_account_id"),
+    /** RepGet publishes the own posts itself (bundle.social accounts only). */
+    autoPost: boolean("auto_post").default(true).notNull(),
+    /** Where own posts go: the Pinterest board's name. Reddit posts go to the profile (u/username). */
+    target: text("target"),
+    /**
+     * Automatic posting stopped after the platform refused a post or limited
+     * the account (lib/social/publish.ts) - so a problem is never repeated
+     * daily into a ban. The customer resumes it.
+     */
+    pausedAt: timestamp("paused_at"),
+    pausedReason: text("paused_reason"),
+    /**
+     * The end of the account's warm-up: no links or product names before it
+     * (client: the first 7 days). Set when the account is connected.
+     */
+    warmupEndsAt: timestamp("warmup_ends_at").notNull(),
+    ...timestamps,
+  },
+  (table) => [uniqueIndex("social_accounts_website_platform_uidx").on(table.websiteId, table.platform)],
+);
+
+/**
+ * The bundle.social team that holds a website's connected accounts - one per
+ * website, as bundle.social recommends ("one team per brand"), created on the
+ * first connection.
+ */
+export const socialTeams = pgTable("social_teams", {
+  websiteId: uuid("website_id")
+    .primaryKey()
+    .references(() => websites.id, { onDelete: "cascade" }),
+  teamId: text("team_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+/**
+ * The suggestions: up to SUGGESTIONS_PER_DAY a website a day.
+ *
+ * kind "reply" answers someone else's discussion (threadUrl) and is always
+ * posted by the customer with one click. kind "post" is the customer's own
+ * post: published by RepGet at scheduledFor when the account is connected
+ * through bundle.social, otherwise one-click as well.
+ *
+ * status: new -> posted (one click), or scheduled -> posting -> posted |
+ * failed (published by RepGet); dismissed when the customer skips it. A
+ * post's credit is charged under creditSpendKey, once.
+ */
+export const socialSuggestions = pgTable(
+  "social_suggestions",
+  {
+    id: pk(),
+    websiteId: websiteId(),
+    platform: text("platform").notNull(),
+    kind: text("kind").notNull(),
+    /** The UTC day it was suggested on, for the daily count. */
+    day: date("day").notNull(),
+    /** The discussion a reply answers. Unique per website, so one is never suggested twice. */
+    threadUrl: text("thread_url"),
+    threadTitle: text("thread_title"),
+    threadSnippet: text("thread_snippet"),
+    /** A Reddit post's title, a Pin's title. */
+    title: text("title"),
+    body: text("body").notNull(),
+    /** A Pin's image (the article's own picture). */
+    imageUrl: text("image_url"),
+    /** Where a Pin links to, or a Bluesky post's link card: never during the warm-up. */
+    link: text("link"),
+    /** Written during the account's warm-up: no links or product names. */
+    warmup: boolean("warmup").default(false).notNull(),
+    status: text("status").default("new").notNull(),
+    scheduledFor: timestamp("scheduled_for"),
+    creditSpendKey: text("credit_spend_key"),
+    bundlePostId: text("bundle_post_id"),
+    /** Where the published post can be seen, when the platform says. */
+    postedUrl: text("posted_url"),
+    error: text("error"),
+    postedAt: timestamp("posted_at"),
+    ...timestamps,
+  },
+  (table) => [
+    index("social_suggestions_website_day_idx").on(table.websiteId, table.day),
+    uniqueIndex("social_suggestions_thread_uidx")
+      .on(table.websiteId, table.threadUrl)
+      .where(sql`${table.threadUrl} is not null`),
+  ],
+);

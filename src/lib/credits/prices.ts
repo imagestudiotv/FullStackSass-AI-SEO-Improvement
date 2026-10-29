@@ -30,7 +30,7 @@ import type { Executor } from "@/lib/db/types";
  * charging, and give it a name in `app.credits.actions` (every language) and
  * in ACTION_NOTES below.
  */
-export const CREDIT_ACTIONS = ["audit_rerun"] as const;
+export const CREDIT_ACTIONS = ["audit_rerun", "social_post"] as const;
 export type CreditAction = (typeof CREDIT_ACTIONS)[number];
 
 export function isCreditAction(value: string): value is CreditAction {
@@ -43,11 +43,16 @@ export const ACTION_ADMIN: Record<CreditAction, { label: string; help: string }>
     label: "Run the website check again",
     help: "Website Health -> Check again. The first check of a website is always free.",
   },
+  social_post: {
+    label: "Social media post or reply",
+    help: "Social media: each reply the customer posts with one click, and each own post RepGet publishes (client: 1 credit).",
+  },
 };
 
 /** The ledger note for a spend, for support; the customer sees the translated name. */
 export const ACTION_NOTES: Record<CreditAction, string> = {
   audit_rerun: "Website check run again",
+  social_post: "Social media post",
 };
 
 /** Limits on what an administrator can set, so a typo cannot price an action at 100,000. */
