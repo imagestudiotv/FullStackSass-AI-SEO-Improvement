@@ -140,6 +140,28 @@ describe("audits", () => {
     ).rejects.toThrow(/subscription is not active/);
     expect(crawler.crawlSite).not.toHaveBeenCalled();
   });
+
+  it("are open to a website on its free articles, job included (client, 2026-10-27)", async () => {
+    const { websiteId } = await seedWebsite(test, { status: "trialing" });
+    // The free-articles trial: trialing, with a period longer than a week.
+    await test.client.query(
+      "update subscriptions set current_period_start = now(), current_period_end = now() + interval '30 days' where website_id = $1",
+      [websiteId],
+    );
+    expect(await startAudit(websiteId)).toEqual({ ok: true, data: null });
+
+    // The job's paid step lets it crawl: stopped there, past the entitlement check.
+    crawler.crawlSite.mockRejectedValue(new Error("crawl reached"));
+    const job = auditWebsite as unknown as { handler: (ctx: unknown) => Promise<unknown> };
+    await expect(
+      job.handler({
+        event: { data: inngestMock.send.mock.calls[0][0].data },
+        step: { run: (_: string, fn: () => unknown) => fn() },
+        logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+      }),
+    ).rejects.toThrow("crawl reached");
+    expect(crawler.crawlSite).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("audits run again (credits, client 2026-10-26)", () => {

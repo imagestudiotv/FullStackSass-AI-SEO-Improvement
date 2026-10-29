@@ -20,7 +20,8 @@ export const STARTER_TIER = "starter";
  *
  * A new workspace picks its plan and adds a card at Stripe; nothing is
  * charged. It may write FREE_ARTICLES articles (with research, images and
- * publishing - not audits, AI visibility or backlinks), and its plan starts,
+ * publishing), check its website and spend the trial's daily credits - not
+ * AI visibility or backlinks (client, 2026-10-27) - and its plan starts,
  * and is charged, once the last of them is written - or after
  * FREE_ARTICLES_DAYS if they were not all used. The paid month then starts
  * with its full allowance (lib/billing/free-articles.ts).
@@ -40,7 +41,7 @@ export const FREE_ARTICLES = 3;
 export const FREE_ARTICLES_DAYS = 30;
 
 /**
- * Why a paid feature (an audit, AI visibility) is refused during the free
+ * Why a paid feature (AI visibility, backlinks) is refused during the free
  * articles (lib/billing/entitled.ts). The pages match it to show the
  * reader's language (app.workspace.freeArticlesOnly).
  */

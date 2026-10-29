@@ -5,8 +5,10 @@
  *   npm run db:seed-addons
  *
  * THE CREDIT PACK PRICES ARE THE CLIENT'S, taken from the pricing screen he
- * sent: 79 / 149 / 299 EUR. They were placeholders at 19 / 39 / 69 until
- * then. The packs held 10 / 25 / 50 credits until credits moved to ten times
+ * sent: 79 / 149 / 279 EUR. They were placeholders at 19 / 39 / 69 until
+ * then. The 500 pack was 299 until the client lowered it (2026-10-27): at 299
+ * it cost more per credit than the 250 pack while being sold as the best
+ * value. The packs held 10 / 25 / 50 credits until credits moved to ten times
  * the scale (client, 2026-10-26; drizzle/0076_credit_scale.sql) - the slugs
  * keep the old numbers because Stripe products are found by them.
  *
@@ -59,7 +61,7 @@ const ADDONS = [
     slug: "credits_50",
     name: "500 credits",
     description: "Five hundred credits. Best value per credit.",
-    priceCents: 29900,
+    priceCents: 27900,
     creditsGranted: 500,
     kind: "credits",
     sortOrder: 3,

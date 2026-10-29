@@ -24,9 +24,10 @@ import { checkLimit } from "@/lib/usage";
  *
  * A new account on its free articles (lib/billing/free-articles.ts) is
  * entitled only to what writing them takes - research, the articles, their
- * pictures, publishing - which those paths ask for with
- * `{ freeArticles: true }`. Everything else (audits, AI visibility) waits for
- * the plan to start.
+ * pictures, publishing - and the website check (client, 2026-10-27: "trials
+ * can check the website"), which those paths ask for with
+ * `{ freeArticles: true }`. Everything else (AI visibility, backlinks) waits
+ * for the plan to start.
  */
 export async function isEntitledToSpend(
   websiteId: string,

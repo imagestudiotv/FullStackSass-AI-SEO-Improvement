@@ -13,6 +13,7 @@ import {
   MAX_DAILY_FREE,
   priceKey,
   readCreditSettings,
+  TRIAL_DAILY_FREE_KEY,
   type CreditAction,
   type CreditSettings,
 } from "@/lib/credits/prices";
@@ -103,6 +104,8 @@ function wholeNumber(value: unknown, max: number): number | null {
  */
 export async function saveCreditSettings(input: {
   dailyFree: number;
+  /** A trial's daily credits on its first days; left out, it keeps its value. */
+  trialDailyFree?: number;
   prices: Partial<Record<string, number>>;
   /** By add-on id. */
   addonPrices?: Partial<Record<string, number>>;
@@ -112,6 +115,11 @@ export async function saveCreditSettings(input: {
   if (dailyFree === null) return { ok: false, error: `Daily credits must be a whole number from 0 to ${MAX_DAILY_FREE}` };
 
   const before = await readCreditSettings();
+  const trialDailyFree =
+    input.trialDailyFree === undefined ? before.trialDailyFree : wholeNumber(input.trialDailyFree, MAX_DAILY_FREE);
+  if (trialDailyFree === null) {
+    return { ok: false, error: `Trial daily credits must be a whole number from 0 to ${MAX_DAILY_FREE}` };
+  }
   const prices = { ...before.prices };
   for (const [action, value] of Object.entries(input.prices ?? {})) {
     if (!(CREDIT_ACTIONS as readonly string[]).includes(action)) return { ok: false, error: "That action no longer exists - reload the page" };
@@ -134,6 +142,9 @@ export async function saveCreditSettings(input: {
 
   const changes = [
     ...(before.dailyFree !== dailyFree ? [`daily credits ${before.dailyFree} -> ${dailyFree}`] : []),
+    ...(before.trialDailyFree !== trialDailyFree
+      ? [`trial daily credits ${before.trialDailyFree} -> ${trialDailyFree}`]
+      : []),
     ...CREDIT_ACTIONS.filter((action) => before.prices[action] !== prices[action]).map(
       (action) => `${action} ${before.prices[action]} -> ${prices[action]}`,
     ),
@@ -144,6 +155,7 @@ export async function saveCreditSettings(input: {
   const now = new Date();
   const rows = [
     { key: DAILY_FREE_KEY, value: dailyFree },
+    { key: TRIAL_DAILY_FREE_KEY, value: trialDailyFree },
     ...CREDIT_ACTIONS.map((action) => ({ key: priceKey(action), value: prices[action] })),
   ];
   await db.transaction(async (tx) => {
@@ -166,8 +178,8 @@ export async function saveCreditSettings(input: {
         targetType: "credit_settings",
         summary: `Changed credit prices: ${changes.join(", ")}`,
         detail: {
-          before: { dailyFree: before.dailyFree, prices: before.prices },
-          after: { dailyFree, prices },
+          before: { dailyFree: before.dailyFree, trialDailyFree: before.trialDailyFree, prices: before.prices },
+          after: { dailyFree, trialDailyFree, prices },
           addons: addonChanges,
         },
       },
