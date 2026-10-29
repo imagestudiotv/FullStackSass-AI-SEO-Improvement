@@ -20,7 +20,8 @@ export const STARTER_TIER = "starter";
  *
  * A new workspace picks its plan and adds a card at Stripe; nothing is
  * charged. It may write FREE_ARTICLES articles (with research, images and
- * publishing - not audits, AI visibility or backlinks), and its plan starts,
+ * publishing), check its website and spend the trial's daily credits - not
+ * AI visibility or backlinks (client, 2026-10-27) - and its plan starts,
  * and is charged, once the last of them is written - or after
  * FREE_ARTICLES_DAYS if they were not all used. The paid month then starts
  * with its full allowance (lib/billing/free-articles.ts).
@@ -40,7 +41,7 @@ export const FREE_ARTICLES = 3;
 export const FREE_ARTICLES_DAYS = 30;
 
 /**
- * Why a paid feature (an audit, AI visibility) is refused during the free
+ * Why a paid feature (AI visibility, backlinks) is refused during the free
  * articles (lib/billing/entitled.ts). The pages match it to show the
  * reader's language (app.workspace.freeArticlesOnly).
  */
@@ -109,8 +110,8 @@ function count(n: number, singular: string, plural = `${singular}s`): string {
  *
  * The cadence is the point of these numbers, not the total: the client set
  * them as "1 daily" and "3 daily" rather than as round figures, and it is what
- * the scheduler actually does — see scheduled-articles.ts, which queues
- * ceil(limit / 30) each day.
+ * the calendar actually does — see lib/keywords/cadence.ts, which spreads the
+ * month's allowance over 30 days (100 is 3 or 4 a day, 3.3 on average).
  *
  * Derived rather than written per tier, so the phrase cannot claim a rhythm
  * the limit does not produce. Only stated when the arithmetic is clean: 30 is

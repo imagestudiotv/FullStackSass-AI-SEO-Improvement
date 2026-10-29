@@ -1,4 +1,4 @@
-import { and, eq, isNotNull, isNull, or, sql as raw } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, lte, or, sql as raw } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { deliverNow, enqueueJob } from "@/lib/jobs/outbox";
@@ -198,14 +198,22 @@ export async function websitesAwaitingFirstArticle() {
  * whose planned time is still in the future. A draft whose time has come is
  * being released, and a failed article is not waiting for anything, so
  * neither holds up the next batch.
+ *
+ * ONLY INSIDE THE BATCH WINDOW (`horizon`, the scheduler's look-ahead end).
+ * The scheduler only ever writes items dated up to its horizon, and the
+ * horizon only moves forward, so an article dated beyond it cannot be part
+ * of a batch: it was written by hand ("Write" on a later topic), or its date
+ * was moved out by a re-plan. Counting it stopped the calendar for days -
+ * imagestudio.com, October 2026: a draft written by hand on the 20th for the
+ * 31st held every run until the 31st, and 26-30 October were never written.
  */
-export async function batchStillAhead(websiteId: string): Promise<number> {
-  const [row] = await batchStillAheadQuery(websiteId);
+export async function batchStillAhead(websiteId: string, horizon: Date): Promise<number> {
+  const [row] = await batchStillAheadQuery(websiteId, horizon);
   return row?.n ?? 0;
 }
 
 /** The query behind batchStillAhead; separate so it can be tested. */
-export function batchStillAheadQuery(websiteId: string) {
+export function batchStillAheadQuery(websiteId: string, horizon: Date) {
   return db
     .select({ n: raw<number>`count(*)::int` })
     .from(articles)
@@ -213,6 +221,8 @@ export function batchStillAheadQuery(websiteId: string) {
     .where(
       and(
         eq(articles.websiteId, websiteId),
+        // An undated article (no calendar item, or an undated topic) is kept as before.
+        or(isNull(calendarItems.scheduledFor), lte(calendarItems.scheduledFor, horizon)),
         or(
           raw`${articles.status} in ('queued', 'generating')`,
           and(
