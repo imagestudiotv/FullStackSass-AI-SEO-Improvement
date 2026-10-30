@@ -89,10 +89,11 @@ export function threadFromUrl(platform: SocialPlatform, raw: string): Thread | n
       return match ? { platform, url: `https://www.reddit.com/r/${match[1]}/comments/${match[2].toLowerCase()}/` } : null;
     }
     case "quora": {
-      // A question is one hyphenated segment; an answer adds /answer/<name>. Quora's other
+      // A question is one hyphenated segment; an answer adds /answer/<name>, and Google often
+      // links a question nobody has answered yet as /unanswered/<question>. Quora's other
       // languages are two-letter subdomains (it.quora.com); any other subdomain is a Space.
       const language = host === "quora.com" ? "en" : host.match(/^([a-z]{2})\.quora\.com$/)?.[1];
-      const match = language && path.match(/^\/([A-Za-z0-9][^/]*-[^/]+)(?:\/answers?\/[^/]+)?\/?$/);
+      const match = language && path.match(/^(?:\/unanswered)?\/([A-Za-z0-9][^/]*-[^/]+)(?:\/answers?\/[^/]+)?\/?$/);
       if (!match) return null;
       const slug = match[1];
       if (/^(profile|topic|q|spaces?|search|about|unanswered|answer)$/i.test(slug)) return null;

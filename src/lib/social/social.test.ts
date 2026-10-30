@@ -330,7 +330,7 @@ describe("the one-click post", () => {
     const first = await postSocialSuggestion(websiteId, row.id, { body: "Shoot a test session first!" });
     expect(first).toEqual({
       ok: true,
-      data: { url: "https://x.com/intent/post?in_reply_to=1234567890&text=Shoot%20a%20test%20session%20first!" },
+      data: { url: "https://x.com/intent/post?in_reply_to=1234567890&text=Shoot%20a%20test%20session%20first!", filled: true },
     });
     // Clicking again (a closed tab) costs nothing more.
     expect((await postSocialSuggestion(websiteId, row.id, { body: "Shoot a test session first!" })).ok).toBe(true);
@@ -362,7 +362,8 @@ describe("the one-click post", () => {
     const quora = await suggestion(websiteId, { platform: "quora", threadUrl: "https://www.quora.com/How-do-I-choose-a-wedding-photographer" });
     expect(await postSocialSuggestion(websiteId, quora.id, { body: quora.body })).toEqual({
       ok: true,
-      data: { url: "https://www.quora.com/How-do-I-choose-a-wedding-photographer" },
+      // Quora has no reply link: the customer pastes the copied text, and the page must know it.
+      data: { url: "https://www.quora.com/How-do-I-choose-a-wedding-photographer", filled: false },
     });
     state.access = "viewer";
     expect(await postSocialSuggestion(websiteId, quora.id, { body: quora.body })).toEqual({ ok: false, error: "view_only" });

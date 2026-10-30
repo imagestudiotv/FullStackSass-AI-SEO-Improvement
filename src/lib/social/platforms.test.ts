@@ -8,6 +8,7 @@ describe("threadFromUrl", () => {
     ["reddit", "https://old.reddit.com/r/Photography/comments/1ABC23/best_lens/?share=1", "https://www.reddit.com/r/Photography/comments/1abc23/"],
     ["quora", "https://www.quora.com/How-do-I-choose-a-wedding-photographer/answer/Jane-Doe", "https://www.quora.com/How-do-I-choose-a-wedding-photographer"],
     ["quora", "https://it.quora.com/Come-scegliere-un-fotografo-di-matrimonio", "https://it.quora.com/Come-scegliere-un-fotografo-di-matrimonio"],
+    ["quora", "https://www.quora.com/unanswered/How-much-does-product-photography-cost", "https://www.quora.com/How-much-does-product-photography-cost"],
     ["x", "https://twitter.com/someone/status/1849000000000000000?s=20", "https://x.com/someone/status/1849000000000000000"],
     ["threads", "https://www.threads.net/@someone/post/C9abcDEF12x", "https://www.threads.com/@someone/post/C9abcDEF12x"],
     ["bluesky", "https://bsky.app/profile/someone.bsky.social/post/3kabcdefg2x", "https://bsky.app/profile/someone.bsky.social/post/3kabcdefg2x"],
