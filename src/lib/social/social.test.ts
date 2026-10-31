@@ -99,7 +99,9 @@ async function account(websiteId: string, platform: string, options: { warm?: bo
     platform,
     username: `${platform}_user`,
     bundleAccountId: options.bundle ? `acc_${platform}` : null,
-    warmupEndsAt: options.warm ? new Date(NOW.getTime() + 3 * DAY) : new Date(NOW.getTime() - DAY),
+    // A warm account is still in its warm-up both at NOW and on the real clock, which the
+    // one-click post checks against (from NOW alone it ended on 2026-10-31 07:00).
+    warmupEndsAt: options.warm ? new Date(Math.max(NOW.getTime(), Date.now()) + 3 * DAY) : new Date(NOW.getTime() - DAY),
   });
 }
 
