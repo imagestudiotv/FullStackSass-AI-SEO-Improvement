@@ -3,6 +3,8 @@ import "server-only";
 import { existsSync } from "node:fs";
 import path from "node:path";
 
+import type { Sandbox } from "@vercel/sandbox";
+
 import type { ReelProps } from "./formats";
 
 /**
@@ -31,6 +33,8 @@ import type { ReelProps } from "./formats";
 
 export const REMOTION_BUNDLE_DIR = ".remotion-bundle";
 const OUTPUT_FILE = "/tmp/reel.mp4";
+/** Where @remotion/vercel puts the templates on the sandbox (its serveUrl below). */
+const SANDBOX_BUNDLE_DIR = "remotion-bundle";
 
 function bundleDir(): string {
   return path.join(process.cwd(), REMOTION_BUNDLE_DIR);
@@ -106,12 +110,25 @@ function renderConfig(props: ReelProps) {
   };
 }
 
+/**
+ * Copies the templates onto a new sandbox. @remotion/vercel (4.0.539, the
+ * latest) creates the bundle's sub-folders (remotion-bundle/public, ...) but
+ * not remotion-bundle itself, and the sandbox does not create missing parent
+ * folders - every render failed with "cannot create directory
+ * '/vercel/sandbox/remotion-bundle/public'" (2026-10-31). So it is made first.
+ */
+export async function addBundle(sandbox: Pick<Sandbox, "mkDir" | "writeFiles">): Promise<void> {
+  const { addBundleToSandbox } = await import("@remotion/vercel");
+  await sandbox.mkDir(SANDBOX_BUNDLE_DIR);
+  await addBundleToSandbox({ sandbox: sandbox as Sandbox, bundleDir: bundleDir() });
+}
+
 /** Starts a reel's render on a new sandbox. */
 export async function startReelRender(props: ReelProps): Promise<RenderHandle> {
-  const { addBundleToSandbox, createSandbox } = await import("@remotion/vercel");
+  const { createSandbox } = await import("@remotion/vercel");
   const sandbox = await createSandbox({ resources: { vcpus: 4 } });
   try {
-    await addBundleToSandbox({ sandbox, bundleDir: bundleDir() });
+    await addBundle(sandbox);
     const command = await sandbox.runCommand({
       cmd: "node",
       args: ["render-video.mjs", JSON.stringify(renderConfig(props))],
@@ -158,10 +175,10 @@ export async function stopRender(handle: RenderHandle): Promise<void> {
 
 /** A carousel's slides as PNGs, in order, on one sandbox (each takes seconds). */
 async function slidesOnVercel(props: ReelProps, count: number): Promise<Buffer[]> {
-  const { addBundleToSandbox, createSandbox, renderStillOnVercel } = await import("@remotion/vercel");
+  const { createSandbox, renderStillOnVercel } = await import("@remotion/vercel");
   const sandbox = await createSandbox({ resources: { vcpus: 4 } });
   try {
-    await addBundleToSandbox({ sandbox, bundleDir: bundleDir() });
+    await addBundle(sandbox);
     const slides: Buffer[] = [];
     for (let index = 0; index < count; index += 1) {
       const { sandboxFilePath } = await renderStillOnVercel({
