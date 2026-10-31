@@ -14,7 +14,7 @@ Client decisions of 2026-10-27. Every day RepGet suggests up to 10 posts and rep
 - **Without `BUNDLE_SOCIAL_API_KEY`**, every platform is connected by username, and own posts are one-click like replies.
 - **Trials** (the free articles) can use Quora only. The other five platforms are shown but locked.
 - **Cost:** each post or reply costs `social_post` credits. The client set this at 1; it is in Admin → Credits and is free until set.
-  - **One-click:** the credit is charged when the customer clicks Post, which copies the text and opens the platform. A second click on the same suggestion costs nothing.
+  - **One-click:** the credit is charged when the customer clicks Post, which copies the text and opens the platform. A second click on the same suggestion costs nothing. The text is copied inside the click, before the new tab opens: copied a moment later, the browser refuses it because the page has lost the focus, and Quora (and replies on Reddit and Bluesky, which have no prefilled reply link) would open with nothing to paste. If copying fails the page says so. **Copy** on every suggestion and every posted item copies the text without posting or charging.
   - **Automatic:** the credit is charged when RepGet hands the post to bundle.social, and refunded if the platform refuses it.
 
 ## Not getting accounts banned

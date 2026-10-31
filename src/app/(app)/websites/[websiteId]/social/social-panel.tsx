@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLink, Lock, RefreshCw, Send, SkipForward } from "lucide-react";
+import { Check, Copy, ExternalLink, Lock, RefreshCw, Send, SkipForward } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useId, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -12,6 +12,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Notice } from "@/components/workspace/notice";
+import { copyTextNow } from "@/lib/copy-text";
 import type { Locale } from "@/lib/i18n/config";
 import { format, formatDate } from "@/lib/i18n/format";
 import type { Messages } from "@/lib/i18n/messages";
@@ -66,6 +67,25 @@ export type SuggestionView = {
 };
 
 const name = (platform: string) => (isSocialPlatform(platform) ? PLATFORMS[platform].name : platform);
+
+/** The text as it is pasted: a title (Reddit, Pinterest posts) on top of the body. */
+const pasteText = (title: string | null, body: string) => (title?.trim() ? `${title.trim()}\n\n${body}` : body);
+
+/** Copies a suggestion's text without posting it, or a posted one's again (client, 2026-10-29: "a copy button"). */
+function CopyTextButton({ text, variant = "outline", t }: { text: string; variant?: "outline" | "ghost"; t: T }) {
+  const [done, setDone] = useState(false);
+  async function copy() {
+    if (!(await copyTextNow(text))) return void toast.error(t.errors.generic);
+    setDone(true);
+    window.setTimeout(() => setDone(false), 2000);
+  }
+  return (
+    <Button type="button" size="sm" variant={variant} onClick={copy}>
+      {done ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
+      {done ? t.copyDone : t.copy}
+    </Button>
+  );
+}
 
 function errorText(t: T, result: Extract<SocialResult<unknown>, { ok: false }>, price: string): string {
   const key: SocialError = result.error;
@@ -205,7 +225,7 @@ export function SocialPanel(props: {
             {props.posted.map((row) => (
               <li
                 key={row.id}
-                className="grid gap-1.5 px-4 py-3 text-sm sm:grid-cols-[auto_minmax(0,1fr)_auto_auto] sm:items-start sm:gap-3"
+                className="grid gap-1.5 px-4 py-3 text-sm sm:grid-cols-[auto_minmax(0,1fr)_auto_auto_auto] sm:items-start sm:gap-3"
               >
                 <Badge variant="secondary" className="justify-self-start">
                   {name(row.platform)}
@@ -225,6 +245,9 @@ export function SocialPanel(props: {
                     <ExternalLink className="size-3" aria-hidden="true" />
                   </a>
                 ) : null}
+                <div className="justify-self-start sm:-my-1">
+                  <CopyTextButton text={pasteText(row.title, row.body)} variant="ghost" t={t} />
+                </div>
               </li>
             ))}
           </ul>
@@ -432,26 +455,27 @@ function SuggestionCard({
     toast.error(result ? errorText(t, result, priceLabel) : t.errors.generic);
   }
 
+  const text = pasteText(hasTitle ? title : null, body);
+
   function postNow() {
-    const text = hasTitle && title.trim() ? `${title.trim()}\n\n${body}` : body;
-    // Both in the click itself: browsers allow neither once the click has passed.
-    const copying = navigator.clipboard?.writeText(text).catch(() => undefined);
+    // Both in the click itself: browsers allow neither once the click has passed. The copy goes
+    // first, while this page still has the focus the new tab is about to take (lib/copy-text.ts).
+    const copying = copyTextNow(text);
     const win = window.open("about:blank", "_blank");
     if (win) win.opener = null;
     start(async () => {
-      await copying;
+      const copied = await copying;
       const result = await postSocialSuggestion(websiteId, suggestion.id, { body, title: hasTitle ? title : undefined }).catch(() => null);
       if (!result?.ok) {
         win?.close();
         refuse(result && !result.ok ? result : null);
         return;
       }
-      if (win) {
-        win.location.href = result.data.url;
-        toast.success(format(t.copied, { platform: platformName }));
-      } else {
-        toast.message(format(t.popupBlocked, { platform: platformName }));
-      }
+      if (win) win.location.href = result.data.url;
+      // Quora and replies on Reddit and Bluesky only have the clipboard: never say "copied" when it is not.
+      if (!copied && (!win || !result.data.filled)) toast.error(format(t.copyFailed, { platform: platformName }));
+      else if (!win) toast.message(format(t.popupBlocked, { platform: platformName }));
+      else if (copied) toast.success(format(t.copied, { platform: platformName }));
       router.refresh();
     });
   }
@@ -558,6 +582,7 @@ function SuggestionCard({
               {pending ? t.posting : format(t.post, { price: priceLabel })}
             </Button>
           )}
+          <CopyTextButton text={text} t={t} />
           <Button size="sm" variant="ghost" disabled={pending} onClick={() => act(() => skipSocialSuggestion(websiteId, suggestion.id))}>
             <SkipForward aria-hidden="true" />
             {t.skip}

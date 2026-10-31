@@ -99,7 +99,9 @@ async function account(websiteId: string, platform: string, options: { warm?: bo
     platform,
     username: `${platform}_user`,
     bundleAccountId: options.bundle ? `acc_${platform}` : null,
-    warmupEndsAt: options.warm ? new Date(NOW.getTime() + 3 * DAY) : new Date(NOW.getTime() - DAY),
+    // A warm account is still in its warm-up both at NOW and on the real clock, which the
+    // one-click post checks against (from NOW alone it ended on 2026-10-31 07:00).
+    warmupEndsAt: options.warm ? new Date(Math.max(NOW.getTime(), Date.now()) + 3 * DAY) : new Date(NOW.getTime() - DAY),
   });
 }
 
@@ -330,7 +332,7 @@ describe("the one-click post", () => {
     const first = await postSocialSuggestion(websiteId, row.id, { body: "Shoot a test session first!" });
     expect(first).toEqual({
       ok: true,
-      data: { url: "https://x.com/intent/post?in_reply_to=1234567890&text=Shoot%20a%20test%20session%20first!" },
+      data: { url: "https://x.com/intent/post?in_reply_to=1234567890&text=Shoot%20a%20test%20session%20first!", filled: true },
     });
     // Clicking again (a closed tab) costs nothing more.
     expect((await postSocialSuggestion(websiteId, row.id, { body: "Shoot a test session first!" })).ok).toBe(true);
@@ -362,7 +364,8 @@ describe("the one-click post", () => {
     const quora = await suggestion(websiteId, { platform: "quora", threadUrl: "https://www.quora.com/How-do-I-choose-a-wedding-photographer" });
     expect(await postSocialSuggestion(websiteId, quora.id, { body: quora.body })).toEqual({
       ok: true,
-      data: { url: "https://www.quora.com/How-do-I-choose-a-wedding-photographer" },
+      // Quora has no reply link: the customer pastes the copied text, and the page must know it.
+      data: { url: "https://www.quora.com/How-do-I-choose-a-wedding-photographer", filled: false },
     });
     state.access = "viewer";
     expect(await postSocialSuggestion(websiteId, quora.id, { body: quora.body })).toEqual({ ok: false, error: "view_only" });

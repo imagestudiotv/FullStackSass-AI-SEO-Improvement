@@ -219,10 +219,16 @@ async function checkEdit(
 
 /**
  * The one-click post: charges its credit (once - a second click on the same
- * suggestion is free) and returns where to post it. The page has already
- * copied the text and opened a window; it sends that window here.
+ * suggestion is free) and returns where to post it, and whether that page
+ * has the text filled in (X, Threads) or the customer pastes it (Quora, and
+ * replies on Reddit and Bluesky). The page has already copied the text and
+ * opened a window; it sends that window here.
  */
-export async function postSocialSuggestion(websiteId: string, id: string, edit: Edit): Promise<SocialResult<{ url: string }>> {
+export async function postSocialSuggestion(
+  websiteId: string,
+  id: string,
+  edit: Edit,
+): Promise<SocialResult<{ url: string; filled: boolean }>> {
   const row = await suggestionFor(websiteId, id);
   if (!row) return fail("not_found");
   const platform = row.platform as SocialPlatform;
@@ -235,6 +241,8 @@ export async function postSocialSuggestion(websiteId: string, id: string, edit: 
   const { body, title } = text.data;
   const thread = row.threadUrl ? threadFromUrl(platform, row.threadUrl) : null;
   const url = thread ? replyUrl(thread, body) : composeUrl(platform, { title, body, link: row.link, imageUrl: row.imageUrl });
+  // replyUrl falls back to the discussion itself, and Quora has no compose link: there the text is pasted.
+  const filled = thread ? url !== thread.url : platform !== "quora";
 
   const result = await db.transaction(async (tx) => {
     const [locked] = await tx.select().from(socialSuggestions).where(eq(socialSuggestions.id, id)).for("update");
@@ -258,7 +266,7 @@ export async function postSocialSuggestion(websiteId: string, id: string, edit: 
         updatedAt: new Date(),
       })
       .where(eq(socialSuggestions.id, id));
-    return { ok: true as const, data: { url } };
+    return { ok: true as const, data: { url, filled } };
   });
   revalidatePath(pagePath(websiteId));
   return result;
