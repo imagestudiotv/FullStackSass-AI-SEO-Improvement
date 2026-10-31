@@ -28,6 +28,22 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
 
   /*
+    Videos (lib/video/render.ts): the templates bundled at build
+    (scripts/remotion-bundle.mjs) ship with the background jobs' function,
+    which hands them to the render machine. Remotion's renderer and bundler
+    are for local renders only - on Vercel the video is made on a Vercel
+    Sandbox - so their native binaries and webpack stay out of the function.
+    Not bundled: they load native code and files at run time.
+  */
+  serverExternalPackages: ["@remotion/renderer", "@remotion/bundler", "@remotion/vercel", "@vercel/sandbox"],
+  outputFileTracingIncludes: {
+    "/api/inngest": ["./.remotion-bundle/**/*"],
+  },
+  outputFileTracingExcludes: {
+    "/api/inngest": ["node_modules/@remotion/bundler/**", "node_modules/@remotion/compositor-*/**", "node_modules/@remotion/studio/**", "node_modules/@remotion/studio-*/**"],
+  },
+
+  /*
     Search engines and link previews get a page's title, description,
     canonical and Open Graph tags in the initial HTML <head> (client,
     2026-10-08). Next already waits for the metadata, instead of streaming

@@ -3093,3 +3093,113 @@ export const socialSuggestions = pgTable(
       .where(sql`${table.threadUrl} is not null`),
   ],
 );
+
+/**
+ * Videos (client, 2026-10-29; docs/videos.md): a website's video settings.
+ * One row per website, written when the customer first changes something;
+ * no row means the defaults (lib/video/settings.ts).
+ *
+ * The accounts videos are published to (Instagram, TikTok, YouTube, Facebook)
+ * are social_accounts rows like the other platforms', in the same
+ * bundle.social team.
+ */
+export const videoSettings = pgTable("video_settings", {
+  websiteId: uuid("website_id")
+    .primaryKey()
+    .references(() => websites.id, { onDelete: "cascade" }),
+  /** VIDEO_STYLES (lib/video/formats.ts): the style new ideas use. */
+  style: text("style").default("bold").notNull(),
+  /** The AI voice (VOICES); null = no voice. */
+  voice: text("voice").default("coral"),
+  music: boolean("music").default(true).notNull(),
+  captions: boolean("captions").default(true).notNull(),
+  /** manual: the customer presses Publish; auto: RepGet publishes each ready video at the next good time. */
+  publishMode: text("publish_mode").default("manual").notNull(),
+  /** VIDEO_PLATFORMS a video goes to, of those connected. */
+  platforms: jsonb("platforms").$type<string[]>().default(["instagram", "tiktok", "youtube", "facebook"]).notNull(),
+  /** The customer's logo for the closing card; null uses the website's icon. */
+  logoUrl: text("logo_url"),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+/** The customer's own pictures and clips, used in the videos' scenes. */
+export const videoMedia = pgTable(
+  "video_media",
+  {
+    id: pk(),
+    websiteId: websiteId(),
+    url: text("url").notNull(),
+    /** image | video */
+    kind: text("kind").notNull(),
+    name: text("name"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [index("video_media_website_idx").on(table.websiteId)],
+);
+
+/**
+ * The ideas: IDEAS_PER_DAY a website a day, each a script the customer swipes.
+ *
+ * status: new -> approved (charged one credit, creditSpendKey) -> making ->
+ * ready -> scheduled -> posting -> posted | failed; skipped when the customer
+ * swipes it away. A video that could not be made gives its credit back.
+ */
+export const videoIdeas = pgTable(
+  "video_ideas",
+  {
+    id: pk(),
+    websiteId: websiteId(),
+    /** The UTC day it was suggested on, for the daily count. */
+    day: date("day").notNull(),
+    /** reel | carousel */
+    format: text("format").default("reel").notNull(),
+    style: text("style").notNull(),
+    /** The website's language the script is written in (ISO code). */
+    language: text("language").notNull(),
+    /** A short name for the idea, shown on its card. */
+    title: text("title").notNull(),
+    /** VideoScript (lib/video/formats.ts). */
+    script: jsonb("script").notNull(),
+    /** The text posted with the video, hashtags included. */
+    caption: text("caption").notNull(),
+    /** The article the idea comes from, for its pictures; null for a general idea. */
+    articleId: uuid("article_id"),
+    /** Pictures and clips for its scenes (MediaItem[]). */
+    media: jsonb("media").$type<{ url: string; kind: string }[]>().default([]).notNull(),
+    /** Chosen when it is approved: the voice (null = none), music track id (null = none), captions. */
+    voice: text("voice"),
+    musicTrack: text("music_track"),
+    captions: boolean("captions").default(true).notNull(),
+    status: text("status").default("new").notNull(),
+    approvedAt: timestamp("approved_at"),
+    creditSpendKey: text("credit_spend_key"),
+    /** The voice track and its timing (CaptionWord[] and scene starts). */
+    voiceUrl: text("voice_url"),
+    timing: jsonb("timing"),
+    durationMs: integer("duration_ms"),
+    /** The finished reel, or the carousel's slides. */
+    videoUrl: text("video_url"),
+    slideUrls: jsonb("slide_urls").$type<string[]>(),
+    coverUrl: text("cover_url"),
+    /** The platforms it goes to, and when. */
+    platforms: jsonb("platforms").$type<string[]>(),
+    scheduledFor: timestamp("scheduled_for"),
+    bundlePostId: text("bundle_post_id"),
+    /** Per platform: where it can be seen. */
+    postedUrls: jsonb("posted_urls").$type<Record<string, string>>(),
+    /** Per platform: views, likes, comments and shares, read daily. */
+    stats: jsonb("stats").$type<Record<string, { views: number; likes: number; comments: number; shares: number }>>(),
+    statsAt: timestamp("stats_at"),
+    /** When the "1,000 views" email went out, so it goes once. */
+    milestoneAt: timestamp("milestone_at"),
+    /** When its files were deleted from storage (FILE_DAYS after posting). */
+    filesDeletedAt: timestamp("files_deleted_at"),
+    error: text("error"),
+    postedAt: timestamp("posted_at"),
+    ...timestamps,
+  },
+  (table) => [
+    index("video_ideas_website_day_idx").on(table.websiteId, table.day),
+    index("video_ideas_status_idx").on(table.status),
+  ],
+);

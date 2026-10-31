@@ -1,6 +1,7 @@
 import {
   BarChart3,
   Bot,
+  Clapperboard,
   Coins,
   FileText,
   LayoutDashboard,
@@ -103,6 +104,8 @@ export const navItems: NavItem[] = [
   { title: "aiVisibility", segment: "ai-visibility", icon: Bot },
   /** Social media (client, 2026-10-27): suggestions to post, accounts, and what RepGet published. */
   { title: "socialMedia", segment: "social", icon: Share2 },
+  /** Videos (client, 2026-10-29): today's ideas to swipe, the videos made, and what was posted. */
+  { title: "videos", segment: "videos", icon: Clapperboard },
   { title: "losingTraffic", segment: "traffic", icon: TrendingDown },
 
   /**

@@ -1,5 +1,7 @@
 import "server-only";
 
+import type { VideoBundleType } from "@/lib/video/formats";
+
 import type { BundleType } from "./platforms";
 
 /**
@@ -76,7 +78,7 @@ export async function createTeam(name: string): Promise<string> {
 /** The hosted page where the customer connects one platform's account; returns its URL. */
 export async function portalLink(input: {
   teamId: string;
-  type: BundleType;
+  type: BundleType | VideoBundleType;
   redirectUrl: string;
   language: string;
   userName?: string;
@@ -126,7 +128,7 @@ export async function teamAccounts(teamId: string): Promise<BundleAccount[]> {
     }));
 }
 
-export async function disconnectAccount(teamId: string, type: BundleType): Promise<void> {
+export async function disconnectAccount(teamId: string, type: BundleType | VideoBundleType): Promise<void> {
   await call("DELETE", "/social-account/disconnect", { teamId, type });
 }
 
@@ -172,4 +174,58 @@ export async function createPost(input: {
 
 export async function getPost(id: string): Promise<BundlePost> {
   return call<BundlePost>("GET", `/post/${encodeURIComponent(id)}`);
+}
+
+/**
+ * Publishes one post to several platforms at once (videos: the same reel to
+ * Instagram, TikTok, YouTube and Facebook), each with its own settings in
+ * `data`. bundle.social reports each platform's result separately.
+ */
+export async function createMultiPost(input: {
+  teamId: string;
+  data: Partial<Record<string, Record<string, unknown>>>;
+  title: string;
+  referenceKey: string;
+  now?: Date;
+}): Promise<BundlePost> {
+  const types = Object.keys(input.data);
+  return call<BundlePost>("POST", "/post/", {
+    teamId: input.teamId,
+    title: input.title.slice(0, 200) || "RepGet video",
+    postDate: (input.now ?? new Date()).toISOString(),
+    status: "SCHEDULED",
+    socialAccountTypes: types,
+    data: input.data,
+    referenceKey: input.referenceKey.slice(0, 128),
+  });
+}
+
+/** What the connected TikTok account accepts: TikTok refuses a post whose privacy or interactions it does not allow. */
+export async function tiktokPostSettings(teamId: string): Promise<{
+  privacyLevelOptions: string[];
+  commentDisabled: boolean;
+  duetDisabled: boolean;
+  stitchDisabled: boolean;
+  maxVideoPostDurationSec?: number | null;
+}> {
+  return call("GET", `/misc/tiktok/post-settings?teamId=${encodeURIComponent(teamId)}`);
+}
+
+export type PostStats = { views: number; likes: number; comments: number; shares: number };
+
+/** A published post's latest numbers on one platform, or null before the platform has any. */
+export async function postStats(postId: string, type: string): Promise<PostStats | null> {
+  const result = await call<{ items?: { views?: number; impressions?: number; likes?: number; comments?: number; shares?: number; createdAt?: string | null }[] | null }>(
+    "GET",
+    `/analytics/post?postId=${encodeURIComponent(postId)}&platformType=${encodeURIComponent(type)}`,
+  );
+  const items = [...(result.items ?? [])].sort((a, b) => String(b.createdAt ?? "").localeCompare(String(a.createdAt ?? "")));
+  const latest = items[0];
+  if (!latest) return null;
+  return {
+    views: Math.max(latest.views ?? 0, latest.impressions ?? 0),
+    likes: latest.likes ?? 0,
+    comments: latest.comments ?? 0,
+    shares: latest.shares ?? 0,
+  };
 }

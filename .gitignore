@@ -73,3 +73,12 @@ db-backups/
 
 # `vercel env pull` output saved under another name (production values).
 env.download
+
+# Videos made on a developer machine without Supabase (lib/video/storage.ts)
+/public/dev-video-files/
+# The video templates, bundled at build (scripts/remotion-bundle.mjs)
+/.remotion-bundle/
+
+# Local test scripts (not committed)
+/.local/
+/.remotion-public/

@@ -157,7 +157,7 @@ describe("contentSecurityPolicy", () => {
 
   it("covers the chat's fonts, sounds and workers", () => {
     expect(csp["font-src"]).toEqual(["'self'", "data:", "https://client.crisp.chat"]);
-    expect(csp["media-src"]).toEqual(["'self'", "https://client.crisp.chat"]);
+    expect(csp["media-src"]).toEqual(["'self'", "blob:", "https://client.crisp.chat"]);
     expect(csp["worker-src"]).toEqual(["'self'", "blob:"]);
   });
 
