@@ -9,7 +9,7 @@ import { getAppMessages } from "@/lib/i18n/app-locale";
 import { plural } from "@/lib/i18n/format";
 import { inWarmup, listAccounts, pinterestBoards, socialAccess } from "@/lib/social/accounts";
 import { isBundleConfigured } from "@/lib/social/bundle";
-import { SUGGESTIONS_PER_DAY } from "@/lib/social/platforms";
+import { isSocialPlatform, SUGGESTIONS_PER_DAY } from "@/lib/social/platforms";
 import { requireWebsitePage } from "@/lib/tenant";
 
 import { SocialPanel, type AccountView, type SuggestionView } from "./social-panel";
@@ -74,7 +74,8 @@ export default async function WebsiteSocialPage({ params, searchParams }: PagePr
   // Best effort: a slow bundle.social must not keep the page from opening.
   const boards = bundle && pinterest ? await pinterestBoards(site.id).catch(() => []) : [];
 
-  const accountViews: AccountView[] = accounts.map((account) => ({
+  // The video platforms' accounts are on the Videos page.
+  const accountViews: AccountView[] = accounts.filter((account) => isSocialPlatform(account.platform)).map((account) => ({
     platform: account.platform,
     username: account.username,
     connected: Boolean(account.bundleAccountId),

@@ -94,6 +94,8 @@ export type CspIntegrations = {
   googleTag: boolean;
   /** NEXT_PUBLIC_GTM_ID: the container's Google Ads tags (client, 2026-10-09). */
   ads: boolean;
+  /** NEXT_PUBLIC_SUPABASE_URL's origin: the videos' voice, reels and clips, played and uploaded there (lib/video/storage.ts). */
+  storage?: string;
 };
 
 /** Mirrors measurementId()/tagManagerId() in lib/google-analytics.ts, which loads the tags (no imports here). */
@@ -105,7 +107,17 @@ export function cspIntegrations(env: Record<string, string | undefined>): CspInt
     crisp: Boolean(env.NEXT_PUBLIC_CRISP_WEBSITE_ID?.trim()),
     googleTag: ga || ads,
     ads,
+    storage: originOf(env.NEXT_PUBLIC_SUPABASE_URL),
   };
+}
+
+function originOf(url: string | undefined): string | undefined {
+  try {
+    const parsed = new URL(url?.trim() ?? "");
+    return parsed.protocol === "https:" ? parsed.origin : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /** Every integration on: for tests and for checking the widest policy. */
@@ -157,6 +169,11 @@ export const ALL_INTEGRATIONS = (sentryDsn?: string): CspIntegrations => ({ sent
  *    pagead2.googlesyndication.com, and frame td.doubleclick.net and
  *    www.googletagmanager.com; GTM's preview (Tag Assistant) needs
  *    tagassistant.google.com. Without a container none of these is allowed.
+ *  - Videos (lib/video, the Videos page): the swipe previews play the
+ *    templates in the page (Remotion's player), with the voice, music and
+ *    the customer's clips from the Supabase storage origin (media-src), and
+ *    clips are uploaded straight to it (connect-src). Their font is RepGet's
+ *    own (public/video-fonts).
  *  - Nothing else. Payments (Stripe Checkout, PayPal), Google sign-in and
  *    the Google Analytics connection are full-page navigations started by
  *    script (window.location), which CSP does not restrict; no payment or
@@ -197,6 +214,7 @@ export function contentSecurityPolicy(integrations: CspIntegrations, nonce?: str
     : [];
   const adsFrame = ads ? ["https://td.doubleclick.net", tagHost, assistant] : [];
   const sentry = sentryOrigin(integrations.sentryDsn);
+  const storage = integrations.storage ? [integrations.storage] : [];
   const report = cspReportUri(integrations.sentryDsn);
 
   const directives: [string, string[]][] = [
@@ -211,8 +229,8 @@ export function contentSecurityPolicy(integrations: CspIntegrations, nonce?: str
     ["style-src", ["'self'", "'unsafe-inline'", ...crispScript]],
     ["img-src", ["'self'", "data:", "blob:", "https:"]],
     ["font-src", ["'self'", "data:", ...crispScript]],
-    ["connect-src", ["'self'", ...crispConnect, ...gaConnect, ...adsConnect, ...(sentry ? [sentry] : [])]],
-    ["media-src", ["'self'", ...crispScript]],
+    ["connect-src", ["'self'", ...crispConnect, ...gaConnect, ...adsConnect, ...(sentry ? [sentry] : []), ...storage]],
+    ["media-src", ["'self'", "blob:", ...storage, ...crispScript]],
     ["frame-src", ["'self'", youtube, ...adsFrame]],
     ["worker-src", ["'self'", "blob:"]],
     ["manifest-src", ["'self'"]],

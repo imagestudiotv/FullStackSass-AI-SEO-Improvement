@@ -4,12 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node scripts/remotion-bundle.mjs && next build",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
     "test:e2e:partners": "vitest run --config e2e/partners/vitest.config.mts",
     "db:generate": "drizzle-kit generate",
+    "video:bundle": "node scripts/remotion-bundle.mjs",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "check:images": "node scripts/check-image-provider.mjs",
@@ -33,6 +34,10 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.122.0",
     "@hookform/resolvers": "^5.9.1",
+    "@remotion/bundler": "4.0.539",
+    "@remotion/player": "4.0.539",
+    "@remotion/renderer": "4.0.539",
+    "@remotion/vercel": "4.0.539",
     "@sentry/nextjs": "^10.76.2",
     "@supabase/supabase-js": "^2.116.0",
     "@tiptap/core": "^3.31.3",
@@ -43,6 +48,7 @@
     "@tiptap/react": "^3.31.3",
     "@tiptap/starter-kit": "^3.31.3",
     "@vercel/analytics": "^2.0.1",
+    "@vercel/sandbox": "1.10.2",
     "better-auth": "^1.7.14",
     "cheerio": "^1.2.0",
     "class-variance-authority": "^0.7.1",
@@ -57,6 +63,7 @@
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-hook-form": "^7.86.0",
+    "remotion": "4.0.539",
     "resend": "^6.28.1",
     "sanitize-html": "^2.18.1",
     "sharp": "^0.35.5",
@@ -85,6 +92,7 @@
   },
   "overrides": {
     "qs": "^6.16.0",
+    "zod": "$zod",
     "inngest": {
       "zod": "$zod"
     },

@@ -31,6 +31,7 @@ import { refreshSiteInventories } from "./site-inventory";
 import { translateLiveArticles } from "./article-translations";
 import { verifyBacklinks } from "./verify-backlinks";
 import { publishSocialPost, socialSuggestionsDaily, suggestSocial } from "./social-media";
+import { makeVideo, publishVideoJob, suggestVideoIdeasJob, videoFollowupDaily, videoIdeasDaily } from "./videos";
 
 export const functions = [
   activateExchange,
@@ -64,4 +65,9 @@ export const functions = [
   socialSuggestionsDaily,
   suggestSocial,
   publishSocialPost,
+  videoIdeasDaily,
+  suggestVideoIdeasJob,
+  makeVideo,
+  publishVideoJob,
+  videoFollowupDaily,
 ];

@@ -6,6 +6,7 @@ import { isEntitledToSpend } from "@/lib/billing/entitled";
 import { db } from "@/lib/db";
 import { socialAccounts, socialSuggestions, socialTeams, websites } from "@/lib/db/schema";
 import type { Executor } from "@/lib/db/types";
+import { VIDEO_PLATFORM_SPECS, VIDEO_PLATFORMS } from "@/lib/video/formats";
 
 import { createTeam, teamAccounts } from "./bundle";
 import { PLATFORMS, SOCIAL_PLATFORMS, TRIAL_PLATFORMS, WARMUP_DAYS, type SocialPlatform } from "./platforms";
@@ -85,7 +86,7 @@ export async function connectUsername(
  * Removes a platform: its account, and the own posts still waiting to be
  * published there. What was posted stays in the history.
  */
-export async function removeAccount(websiteId: string, platform: SocialPlatform): Promise<void> {
+export async function removeAccount(websiteId: string, platform: string): Promise<void> {
   await db.transaction(async (tx) => {
     await tx
       .delete(socialAccounts)
@@ -123,12 +124,14 @@ export async function ensureTeam(websiteId: string): Promise<string> {
   return winner.teamId;
 }
 
-const PLATFORM_BY_BUNDLE_TYPE = new Map(
-  SOCIAL_PLATFORMS.flatMap((platform) => {
+/** bundle.social's account types to RepGet's platforms: the social ones, and the video ones (lib/video). */
+const PLATFORM_BY_BUNDLE_TYPE = new Map<string, string>([
+  ...SOCIAL_PLATFORMS.flatMap((platform) => {
     const type = PLATFORMS[platform].bundleType;
     return type ? [[type, platform] as const] : [];
   }),
-);
+  ...VIDEO_PLATFORMS.map((platform) => [VIDEO_PLATFORM_SPECS[platform].bundleType, platform] as const),
+]);
 
 /**
  * Reads the accounts connected on bundle.social back into RepGet: a new one
@@ -147,7 +150,7 @@ export async function syncBundleAccounts(websiteId: string, now: Date = new Date
     const seen = new Set<string>();
 
     for (const account of remote) {
-      const platform = PLATFORM_BY_BUNDLE_TYPE.get(account.type as never);
+      const platform = PLATFORM_BY_BUNDLE_TYPE.get(account.type);
       if (!platform) continue;
       seen.add(platform);
       const username = account.username || account.displayName || platform;
