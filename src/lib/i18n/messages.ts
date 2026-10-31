@@ -2881,6 +2881,10 @@ export type Messages = {
       posting: string;
       copied: string;
       popupBlocked: string;
+      /** When the text could not be copied: the customer copies it with the Copy button. */
+      copyFailed: string;
+      copy: string;
+      copyDone: string;
       skip: string;
       scheduled: string;
       postNow: string;
@@ -6074,6 +6078,9 @@ const en: Messages = {
       posting: "Opening…",
       copied: "Text copied. Paste it on {platform} and post it.",
       popupBlocked: "Your browser blocked the new tab. The text is copied: open {platform} and paste it.",
+      copyFailed: "The text could not be copied. Use Copy, then paste it on {platform}.",
+      copy: "Copy",
+      copyDone: "Copied",
       skip: "Skip",
       scheduled: "RepGet publishes this at {time}. Edit or skip it before then.",
       postNow: "Publish now",
@@ -9267,6 +9274,9 @@ const es: Messages = {
       posting: "Abriendo…",
       copied: "Texto copiado. Péguelo en {platform} y publíquelo.",
       popupBlocked: "Su navegador bloqueó la nueva pestaña. El texto está copiado: abra {platform} y péguelo.",
+      copyFailed: "No se pudo copiar el texto. Use Copiar y péguelo en {platform}.",
+      copy: "Copiar",
+      copyDone: "Copiado",
       skip: "Omitir",
       scheduled: "RepGet lo publicará a las {time}. Puede editarlo u omitirlo antes.",
       postNow: "Publicar ahora",
@@ -12461,6 +12471,9 @@ const fr: Messages = {
       posting: "Ouverture…",
       copied: "Texte copié. Collez-le sur {platform} et publiez-le.",
       popupBlocked: "Votre navigateur a bloqué le nouvel onglet. Le texte est copié : ouvrez {platform} et collez-le.",
+      copyFailed: "Le texte n’a pas pu être copié. Utilisez Copier, puis collez-le sur {platform}.",
+      copy: "Copier",
+      copyDone: "Copié",
       skip: "Ignorer",
       scheduled: "RepGet le publiera à {time}. Vous pouvez le modifier ou l’ignorer d’ici là.",
       postNow: "Publier maintenant",
@@ -15654,6 +15667,9 @@ const it: Messages = {
       posting: "Apertura…",
       copied: "Testo copiato. Lo incolli su {platform} e lo pubblichi.",
       popupBlocked: "Il browser ha bloccato la nuova scheda. Il testo è copiato: apra {platform} e lo incolli.",
+      copyFailed: "Non è stato possibile copiare il testo. Usi Copia, poi lo incolli su {platform}.",
+      copy: "Copia",
+      copyDone: "Copiato",
       skip: "Salta",
       scheduled: "RepGet lo pubblicherà alle {time}. Può modificarlo o saltarlo prima.",
       postNow: "Pubblica ora",
@@ -18844,6 +18860,9 @@ const de: Messages = {
       posting: "Wird geöffnet…",
       copied: "Text kopiert. Fügen Sie ihn auf {platform} ein und posten Sie ihn.",
       popupBlocked: "Ihr Browser hat den neuen Tab blockiert. Der Text ist kopiert: Öffnen Sie {platform} und fügen Sie ihn ein.",
+      copyFailed: "Der Text konnte nicht kopiert werden. Nutzen Sie Kopieren und fügen Sie ihn auf {platform} ein.",
+      copy: "Kopieren",
+      copyDone: "Kopiert",
       skip: "Überspringen",
       scheduled: "RepGet veröffentlicht dies um {time}. Bis dahin können Sie es bearbeiten oder überspringen.",
       postNow: "Jetzt veröffentlichen",
