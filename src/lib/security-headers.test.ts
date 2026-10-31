@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
@@ -274,5 +276,15 @@ describe("cspReportUri", () => {
     expect(cspReportUri("not a url")).toBeNull();
     expect(cspReportUri("https://o1.ingest.sentry.io/")).toBeNull(); // no key, no project
     expect(cspReportUri("")).toBeNull();
+  });
+});
+
+describe("the pages' policy (src/proxy.ts)", () => {
+  it("is given every variable cspIntegrations reads (2026-10-31: the videos' storage was missing, so no reel played)", () => {
+    const read = (file: string) => readFileSync(path.join(process.cwd(), "src", file), "utf8");
+    const used = new Set(read("lib/security-headers.ts").match(/env\.NEXT_PUBLIC_[A-Z0-9_]+/g)?.map((name) => name.slice(4)));
+    expect(used).toContain("NEXT_PUBLIC_SUPABASE_URL");
+    const proxy = read("proxy.ts");
+    for (const name of used) expect(proxy, name).toContain(`${name}: process.env.${name}`);
   });
 });
