@@ -101,7 +101,7 @@ export const ACTION_SPECS: Record<ChatActionKind, ActionSpec> = {
       return { ok: true, input: { ideaId: id }, details: idea.title };
     },
     run: async (websiteId, input) => {
-      const result = await approveVideoIdea(websiteId, input.ideaId as string);
+      const result = await approveVideoIdea(websiteId, input.ideaId as string, {}, "chat");
       return result.ok ? { ok: true, note: null } : { ok: false, error: result.error };
     },
   },

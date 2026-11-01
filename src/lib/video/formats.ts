@@ -42,6 +42,22 @@ export const VIDEO_PLATFORM_SPECS: Record<VideoPlatform, VideoPlatformSpec> = {
 export const IDEAS_PER_DAY = 20;
 /** Approvals after which the day shows complete (client: 3 a day). */
 export const COMPLETE_AFTER = 3;
+/** How a video was made: Make it, a swipe (phone), the → key, Try again, or the AI chat's Confirm. */
+export const MAKE_VIA = ["button", "swipe", "key", "retry", "chat"] as const;
+export type MakeVia = (typeof MAKE_VIA)[number];
+
+export function isMakeVia(value: unknown): value is MakeVia {
+  return typeof value === "string" && (MAKE_VIA as readonly string[]).includes(value);
+}
+
+/**
+ * Seconds a make from today's ideas can be undone (a press or swipe by
+ * mistake), the credit returned. The make-video job waits MAKE_WAIT first,
+ * so an undone idea is never started.
+ */
+export const UNDO_SECONDS = 10;
+export const MAKE_WAIT = "15s";
+
 /** Videos RepGet publishes on one platform a day at most, so an account never floods (anti-ban). */
 export const MAX_POSTS_PER_DAY = 3;
 /** Days the video files are kept after posting (they are on the platforms by then). */
