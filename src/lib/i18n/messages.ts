@@ -2949,11 +2949,13 @@ export type Messages = {
         audit_rerun: string;
         social_post: string;
         video_post: string;
+        chat_message: string;
       };
       actionHelp: {
         audit_rerun: string;
         social_post: string;
         video_post: string;
+        chat_message: string;
       };
       /** Services bought with credits (addons.credit_price); {price} in servicePriceFrom. */
       serviceHelp: string;
@@ -6143,11 +6145,13 @@ const en: Messages = {
         audit_rerun: "Running the website check again",
         social_post: "A social media post or reply",
         video_post: "A video or carousel",
+        chat_message: "A message to the AI assistant",
       },
       actionHelp: {
         audit_rerun: "The first check of each website is free.",
         social_post: "Each reply you post with one click, and each of your own posts RepGet publishes.",
         video_post: "Each video or photo carousel RepGet makes for you (the ideas are free).",
+        chat_message: "Each message after the 5 free messages of the day.",
       },
       serviceHelp: "Bought on Billing and delivered by our team.",
       quoteHelp: "Quoted after we review your audit, then paid with credits.",
@@ -9339,11 +9343,13 @@ const es: Messages = {
         audit_rerun: "Volver a revisar el sitio web",
         social_post: "Una publicación o respuesta en redes sociales",
         video_post: "Un vídeo o carrusel",
+        chat_message: "Un mensaje al asistente de IA",
       },
       actionHelp: {
         audit_rerun: "La primera revisión de cada sitio web es gratuita.",
         social_post: "Cada respuesta que publica con un clic, y cada publicación propia que RepGet publica.",
         video_post: "Cada vídeo o carrusel de fotos que RepGet crea para usted (las ideas son gratis).",
+        chat_message: "Cada mensaje después de los 5 mensajes gratis del día.",
       },
       serviceHelp: "Se compra en Facturación y lo realiza nuestro equipo.",
       quoteHelp: "Le damos un presupuesto tras revisar su auditoría y se paga con créditos.",
@@ -12536,11 +12542,13 @@ const fr: Messages = {
         audit_rerun: "Relancer l'analyse du site",
         social_post: "Une publication ou réponse sur les réseaux sociaux",
         video_post: "Une vidéo ou un carrousel",
+        chat_message: "Un message à l'assistant IA",
       },
       actionHelp: {
         audit_rerun: "La première analyse de chaque site est gratuite.",
         social_post: "Chaque réponse publiée en un clic, et chaque publication que RepGet publie pour vous.",
         video_post: "Chaque vidéo ou carrousel de photos que RepGet crée pour vous (les idées sont gratuites).",
+        chat_message: "Chaque message après les 5 messages gratuits du jour.",
       },
       serviceHelp: "S’achète dans Facturation et est réalisé par notre équipe.",
       quoteHelp: "Devis établi après examen de votre audit, puis réglé en crédits.",
@@ -15732,11 +15740,13 @@ const it: Messages = {
         audit_rerun: "Ripetere il controllo del sito",
         social_post: "Un post o una risposta sui social",
         video_post: "Un video o un carosello",
+        chat_message: "Un messaggio all'assistente IA",
       },
       actionHelp: {
         audit_rerun: "Il primo controllo di ogni sito è gratuito.",
         social_post: "Ogni risposta pubblicata con un clic, e ogni suo post che RepGet pubblica.",
         video_post: "Ogni video o carosello di foto che RepGet crea per lei (le idee sono gratuite).",
+        chat_message: "Ogni messaggio dopo i 5 messaggi gratuiti del giorno.",
       },
       serviceHelp: "Si acquista in Fatturazione e lo realizza il nostro team.",
       quoteHelp: "Preventivo dopo aver esaminato il Suo audit, poi pagato in crediti.",
@@ -18925,11 +18935,13 @@ const de: Messages = {
         audit_rerun: "Die Website-Prüfung erneut ausführen",
         social_post: "Ein Social-Media-Beitrag oder eine Antwort",
         video_post: "Ein Video oder Karussell",
+        chat_message: "Eine Nachricht an den KI-Assistenten",
       },
       actionHelp: {
         audit_rerun: "Die erste Prüfung jeder Website ist kostenlos.",
         social_post: "Jede Antwort, die Sie mit einem Klick posten, und jeder eigene Beitrag, den RepGet veröffentlicht.",
         video_post: "Jedes Video oder Fotokarussell, das RepGet für Sie erstellt (die Ideen sind kostenlos).",
+        chat_message: "Jede Nachricht nach den 5 kostenlosen Nachrichten des Tages.",
       },
       serviceHelp: "Unter Abrechnung gekauft und von unserem Team umgesetzt.",
       quoteHelp: "Angebot nach Prüfung Ihres Audits, dann mit Credits bezahlt.",

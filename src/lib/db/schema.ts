@@ -3203,3 +3203,86 @@ export const videoIdeas = pgTable(
     index("video_ideas_status_idx").on(table.status),
   ],
 );
+
+/* ------------------------------------------------------------------------- */
+/* AI chat (docs/ai-chat.md)                                                  */
+/* ------------------------------------------------------------------------- */
+
+/**
+ * A conversation with the assistant on the Home page, about one website. Kept
+ * CHAT_KEEP_DAYS after its last message (lib/chat/cleanup), then deleted.
+ */
+export const chatThreads = pgTable(
+  "chat_threads",
+  {
+    id: pk(),
+    organizationId: organizationId(),
+    websiteId: websiteId(),
+    userId: userId(),
+    /** The first question, shortened: the history list shows it. */
+    title: text("title").notNull(),
+    ...timestamps,
+  },
+  (table) => [index("chat_threads_website_idx").on(table.websiteId, table.updatedAt)],
+);
+
+/**
+ * One message. A user message is free (one of the workspace's free messages of
+ * the day) or charged one credit (creditSpendKey). An assistant message keeps
+ * its text and the RepGet pages it points to.
+ */
+export const chatMessages = pgTable(
+  "chat_messages",
+  {
+    id: pk(),
+    threadId: uuid("thread_id")
+      .notNull()
+      .references(() => chatThreads.id, { onDelete: "cascade" }),
+    organizationId: organizationId(),
+    userId: userId(),
+    /** user | assistant */
+    role: text("role").notNull(),
+    text: text("text").notNull(),
+    /** Assistant: the pages linked under the answer ({ label, href }). */
+    links: jsonb("links").$type<{ label: string; href: string }[]>().default([]).notNull(),
+    /** User: true when it was one of the day's free messages. */
+    free: boolean("free").default(false).notNull(),
+    creditSpendKey: text("credit_spend_key"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("chat_messages_thread_idx").on(table.threadId, table.createdAt),
+    index("chat_messages_org_day_idx").on(table.organizationId, table.role, table.createdAt),
+  ],
+);
+
+/**
+ * Something the assistant offers to do. Nothing runs until a person presses
+ * Confirm: proposed -> done | failed, or cancelled. The action runs through the
+ * same server action as its own page, with that page's checks and price.
+ */
+export const chatActions = pgTable(
+  "chat_actions",
+  {
+    id: pk(),
+    threadId: uuid("thread_id")
+      .notNull()
+      .references(() => chatThreads.id, { onDelete: "cascade" }),
+    messageId: uuid("message_id")
+      .notNull()
+      .references(() => chatMessages.id, { onDelete: "cascade" }),
+    websiteId: websiteId(),
+    /** CHAT_ACTION_KINDS (lib/chat/actions-catalog.ts) */
+    kind: text("kind").notNull(),
+    input: jsonb("input").$type<Record<string, unknown>>().default({}).notNull(),
+    /** What the card says it will do: the topics, the article or video title, the address. */
+    details: text("details").default("").notNull(),
+    status: text("status").default("proposed").notNull(),
+    /** What happened, for the card: a short note or an error. */
+    outcome: text("outcome"),
+    decidedBy: text("decided_by").references(() => user.id, { onDelete: "set null" }),
+    decidedAt: timestamp("decided_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [index("chat_actions_message_idx").on(table.messageId)],
+);

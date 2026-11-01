@@ -32,6 +32,7 @@ import { translateLiveArticles } from "./article-translations";
 import { verifyBacklinks } from "./verify-backlinks";
 import { publishSocialPost, socialSuggestionsDaily, suggestSocial } from "./social-media";
 import { makeVideo, publishVideoJob, suggestVideoIdeasJob, videoFollowupDaily, videoIdeasDaily } from "./videos";
+import { chatCleanupDaily } from "./chat";
 
 export const functions = [
   activateExchange,
@@ -70,4 +71,5 @@ export const functions = [
   makeVideo,
   publishVideoJob,
   videoFollowupDaily,
+  chatCleanupDaily,
 ];
