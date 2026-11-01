@@ -42,7 +42,7 @@ vi.mock("@/lib/ai/client", () => ({
 }));
 
 import { recordCredit } from "@/lib/backlinks/credits";
-import { approveVideoIdea, editVideoIdea, publishVideoIdea, restoreVideoIdea, skipVideoIdea } from "./actions";
+import { approveVideoIdea, editVideoIdea, publishVideoIdea, restoreVideoIdea, skipVideoIdea, undoVideoIdea } from "./actions";
 import { captionText, cleanScript, formatFor, styleFor, suggestVideoIdeas, type IdeaInput } from "./ideas";
 import { failMaking, finishMaking, spendKey } from "./make";
 import { checkVideoPublished, publishVideo } from "./publish";
@@ -242,6 +242,51 @@ describe("approving an idea", () => {
     await restoreVideoIdea(websiteId, row.id);
     expect((await test.db.select().from(videoIdeas).where(eq(videoIdeas.id, row.id)))[0].status).toBe("new");
     expect(await test.db.select().from(creditSpends).where(eq(creditSpends.organizationId, orgId))).toHaveLength(0);
+  });
+});
+
+describe("a make by mistake", () => {
+  it("records who made it and how", async () => {
+    const { orgId, websiteId } = await site();
+    await recordCredit(orgId, { type: "adjustment", amount: 3, note: "test" });
+    const row = await idea(websiteId);
+    await approveVideoIdea(websiteId, row.id, {}, "key");
+    const [saved] = await test.db.select().from(videoIdeas).where(eq(videoIdeas.id, row.id));
+    expect(saved).toMatchObject({ approvedBy: "user_1", approvedVia: "key" });
+  });
+
+  it("can be undone at once: the idea is back and the credit returned, and making it again charges again", async () => {
+    const { orgId, websiteId } = await site();
+    await recordCredit(orgId, { type: "adjustment", amount: 3, note: "test" });
+    const row = await idea(websiteId);
+    await approveVideoIdea(websiteId, row.id, {}, "swipe");
+    expect(await balance(orgId)).toBe(2);
+    expect(await undoVideoIdea(websiteId, row.id)).toEqual({ ok: true, data: null });
+    expect(await balance(orgId)).toBe(3);
+    const [saved] = await test.db.select().from(videoIdeas).where(eq(videoIdeas.id, row.id));
+    expect(saved).toMatchObject({ status: "new", approvedAt: null, approvedBy: null, approvedVia: null });
+    expect(await undoVideoIdea(websiteId, row.id)).toEqual({ ok: false, error: "already_handled" });
+    expect(await balance(orgId)).toBe(3);
+
+    expect(await approveVideoIdea(websiteId, row.id)).toEqual({ ok: true, data: null });
+    expect(await balance(orgId)).toBe(2);
+  });
+
+  it("cannot be undone once it is being made, after the window, or for a retry or the chat", async () => {
+    const { orgId, websiteId } = await site();
+    await recordCredit(orgId, { type: "adjustment", amount: 5, note: "test" });
+    const started = await idea(websiteId);
+    await approveVideoIdea(websiteId, started.id);
+    await test.db.update(videoIdeas).set({ status: "making" }).where(eq(videoIdeas.id, started.id));
+    const late = await idea(websiteId);
+    await approveVideoIdea(websiteId, late.id);
+    await test.db.update(videoIdeas).set({ approvedAt: new Date(Date.now() - 20_000) }).where(eq(videoIdeas.id, late.id));
+    const chat = await idea(websiteId);
+    await approveVideoIdea(websiteId, chat.id, {}, "chat");
+    for (const row of [started, late, chat]) expect(await undoVideoIdea(websiteId, row.id)).toEqual({ ok: false, error: "already_handled" });
+    expect(await balance(orgId)).toBe(2);
+    state.access = "viewer";
+    expect(await undoVideoIdea(websiteId, chat.id)).toEqual({ ok: false, error: "view_only" });
   });
 });
 

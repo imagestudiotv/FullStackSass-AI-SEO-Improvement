@@ -32,6 +32,7 @@ import {
   resumeVideoPlatform,
   saveVideoSettingsAction,
   skipVideoIdea,
+  undoVideoIdea,
   unscheduleVideoIdea,
   type IdeaEdit,
   type VideoError,
@@ -39,11 +40,13 @@ import {
 } from "@/lib/video/actions";
 import {
   isVideoPlatform,
+  UNDO_SECONDS,
   VIDEO_PLATFORM_SPECS,
   VIDEO_PLATFORMS,
   VIDEO_STYLES,
   VOICES,
   type BrandLook,
+  type MakeVia,
   type ReelProps,
   type VideoPlatform,
   type VideoScript,
@@ -276,37 +279,61 @@ function IdeasDeck(props: {
   const [drag, setDrag] = useState(0);
   const [dragging, setDragging] = useState(false);
   const startX = useRef<number | null>(null);
+  // The card with the preview, and whether the last press was on it: arrows then scroll its slides.
+  const card = useRef<HTMLDivElement | null>(null);
+  const pressedCard = useRef(false);
 
   const deck = props.ideas.filter((idea) => !gone.has(idea.id));
   const current = deck[0];
   const total = props.ideas.length;
   const position = total - deck.length + 1;
 
+  const back = useCallback((id: string) => {
+    setGone((set) => {
+      const next = new Set(set);
+      next.delete(id);
+      return next;
+    });
+  }, []);
+
   const settle = useCallback(
-    async (idea: IdeaView, action: Promise<VideoResult<unknown>>, success?: string) => {
+    async (idea: IdeaView, action: Promise<VideoResult<unknown>>, success?: string, onUndo?: () => void) => {
       setGone((set) => new Set(set).add(idea.id));
       const result = await action.catch(() => null);
       if (!result || !result.ok) {
-        setGone((set) => {
-          const next = new Set(set);
-          next.delete(idea.id);
-          return next;
-        });
+        back(idea.id);
         toast.error(result ? errorText(t, result, props.priceLabel) : t.errors.generic);
         return;
       }
-      if (success) toast.success(success);
+      if (success) {
+        toast.success(success, onUndo ? { duration: UNDO_SECONDS * 1000, action: { label: t.undo, onClick: onUndo } } : undefined);
+      }
       router.refresh();
     },
-    [router, t, props.priceLabel],
+    [router, t, props.priceLabel, back],
+  );
+
+  // A make by mistake: taken back within UNDO_SECONDS, the credit returned.
+  const undoMake = useCallback(
+    async (idea: IdeaView) => {
+      const result = await undoVideoIdea(websiteId, idea.id).catch(() => null);
+      if (!result || !result.ok) {
+        toast.error(result ? errorText(t, result, props.priceLabel) : t.errors.generic);
+        return;
+      }
+      back(idea.id);
+      toast.success(t.undone);
+      router.refresh();
+    },
+    [websiteId, t, props.priceLabel, back, router],
   );
 
   const approve = useCallback(
-    (idea: IdeaView, edit: IdeaEdit = {}) => {
-      void settle(idea, approveVideoIdea(websiteId, idea.id, edit), t.approved);
+    (idea: IdeaView, edit: IdeaEdit = {}, via: MakeVia = "button") => {
+      void settle(idea, approveVideoIdea(websiteId, idea.id, edit, via), t.approved, () => void undoMake(idea));
       setLastSkipped(null);
     },
-    [settle, websiteId, t.approved],
+    [settle, websiteId, t.approved, undoMake],
   );
   const skip = useCallback(
     (idea: IdeaView) => {
@@ -318,14 +345,24 @@ function IdeasDeck(props: {
 
   useEffect(() => {
     if (!current || !props.canEdit || editing) return;
+    const onPress = (event: PointerEvent) => {
+      pressedCard.current = Boolean(card.current?.contains(event.target as Node));
+    };
     const onKey = (event: KeyboardEvent) => {
+      // Not Alt+→ (the browser's Forward), a held key, a field or button, or after a press on the preview.
+      if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.repeat || event.defaultPrevented) return;
       const target = event.target as HTMLElement | null;
-      if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
-      if (event.key === "ArrowRight") approve(current);
+      if (target?.closest("input, textarea, select, button, a, [role=slider], [contenteditable=true]")) return;
+      if (pressedCard.current) return;
+      if (event.key === "ArrowRight") approve(current, {}, "key");
       if (event.key === "ArrowLeft") skip(current);
     };
+    window.addEventListener("pointerdown", onPress, true);
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("pointerdown", onPress, true);
+      window.removeEventListener("keydown", onKey);
+    };
   }, [current, props.canEdit, editing, approve, skip]);
 
   if (props.writing && total === 0) {
@@ -339,7 +376,7 @@ function IdeasDeck(props: {
     if (startX.current === null) return;
     startX.current = null;
     setDragging(false);
-    if (drag > 120) approve(current);
+    if (drag > 120) approve(current, {}, "swipe");
     else if (drag < -120) skip(current);
     setDrag(0);
   };
@@ -348,10 +385,14 @@ function IdeasDeck(props: {
     <div className="grid gap-6 lg:grid-cols-[minmax(0,380px)_1fr]">
       <div className="mx-auto w-full max-w-[380px]">
         <div
+          ref={card}
           className="relative touch-pan-y select-none"
           style={{ transform: `translateX(${drag}px) rotate(${drag / 30}deg)`, transition: dragging ? "none" : "transform 200ms ease" }}
           onPointerDown={(event) => {
-            if (!props.canEdit || (event.target as HTMLElement).closest("button, input, [role=slider]")) return;
+            // Only a finger swipes: a mouse drag (a carousel's scroll bar) or sliding through its slides never makes a video.
+            if (!props.canEdit || event.pointerType !== "touch") return;
+            const target = event.target as HTMLElement;
+            if (target.closest("button, input, [role=slider]") || scrollsSideways(target, event.currentTarget)) return;
             startX.current = event.clientX;
             setDragging(true);
           }}
@@ -478,6 +519,14 @@ function ScriptSummary({ script, t }: { script: VideoScript; t: T }) {
       </li>
     </ol>
   );
+}
+
+/** Whether a press is on something that scrolls sideways (a carousel's slides): dragging it scrolls, it is no swipe. */
+function scrollsSideways(target: HTMLElement, stop: HTMLElement): boolean {
+  for (let el: HTMLElement | null = target; el && el !== stop; el = el.parentElement) {
+    if (el.scrollWidth > el.clientWidth + 1 && /(auto|scroll)/.test(getComputedStyle(el).overflowX)) return true;
+  }
+  return false;
 }
 
 function EmptyState({ icon, title, body }: { icon: React.ReactNode; title: string; body: string }) {
@@ -831,7 +880,7 @@ function MadeCard(props: {
           </Button>
         ))}
         {props.canEdit && idea.status === "failed" && !idea.videoUrl && !idea.slideUrls.length ? (
-          <Button size="sm" disabled={props.pending} onClick={() => props.run(() => approveVideoIdea(websiteId, idea.id), t.approved)}>
+          <Button size="sm" disabled={props.pending} onClick={() => props.run(() => approveVideoIdea(websiteId, idea.id, {}, "retry"), t.approved)}>
             <RefreshCw aria-hidden="true" />
             {t.retry} · {props.priceLabel}
           </Button>

@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { videoIdeas, websites } from "@/lib/db/schema";
 import { deleteOldFiles, refreshStats, videosToFollow } from "@/lib/video/followup";
 import { suggestVideoIdeas } from "@/lib/video/ideas";
+import { MAKE_WAIT } from "@/lib/video/formats";
 import { chooseMusic, failMaking, finishMaking, makeCarousel, makeReelLocally, prepareVoice, reelProps } from "@/lib/video/make";
 import { abandonVideoPublishing, checkVideoPublished, publishVideo } from "@/lib/video/publish";
 import { collectReel, onVercel, reelRenderProgress, startReelRender, stopRender, type RenderHandle } from "@/lib/video/render";
@@ -76,6 +77,8 @@ export const makeVideo = inngest.createFunction(
   },
   async ({ event, step, logger }) => {
     const id = String(event.data.ideaId);
+    // Time for Undo (a make by mistake): an idea taken back is "new" again, and the claim skips it.
+    await step.sleep("undo-window", MAKE_WAIT);
     const started = await step.run("claim", async () => {
       const [row] = await db
         .update(videoIdeas)

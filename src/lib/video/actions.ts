@@ -4,7 +4,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { queueJob } from "@/inngest/send";
-import { spendCredits } from "@/lib/credits/spend";
+import { refundSpend, spendCredits } from "@/lib/credits/spend";
 import { db } from "@/lib/db";
 import { socialAccounts, socialTeams, videoIdeas, videoMedia } from "@/lib/db/schema";
 import { ensureTeam, removeAccount } from "@/lib/social/accounts";
@@ -13,10 +13,13 @@ import { siteUrl } from "@/lib/site-url";
 import { requireEditor } from "@/lib/websites/require-editor";
 
 import {
+  isMakeVia,
   isVideoPlatform,
   isVideoStyle,
   isVoice,
+  UNDO_SECONDS,
   VIDEO_PLATFORM_SPECS,
+  type MakeVia,
   type VideoScript,
 } from "./formats";
 import { nextPublishTime, spendKey } from "./make";
@@ -57,7 +60,7 @@ async function guard(websiteId: string) {
   const editor = await requireEditor(websiteId);
   if (!editor.ok) return { ok: false as const, error: "view_only" as const };
   if ((await videoAccess(websiteId)) === "none") return { ok: false as const, error: "no_plan" as const };
-  return { ok: true as const, site: editor.context.site };
+  return { ok: true as const, site: editor.context.site, userId: editor.context.userId };
 }
 
 async function ideaFor(websiteId: string, id: string) {
@@ -157,7 +160,7 @@ export async function editVideoIdea(websiteId: string, id: string, edit: IdeaEdi
  * it made into its video. An edit sent along is saved first. A failed idea
  * can be approved again - its credit was given back when it failed.
  */
-export async function approveVideoIdea(websiteId: string, id: string, edit: IdeaEdit = {}): Promise<VideoResult> {
+export async function approveVideoIdea(websiteId: string, id: string, edit: IdeaEdit = {}, via: MakeVia = "button"): Promise<VideoResult> {
   const checked = await guard(websiteId);
   if (!checked.ok) return fail(checked.error);
   const changes = cleanEdit(edit);
@@ -172,8 +175,8 @@ export async function approveVideoIdea(websiteId: string, id: string, edit: Idea
       .for("update");
     if (!row) return fail("not_found");
     if (!["new", "failed"].includes(row.status)) return fail("already_handled");
-    // A retry is a new charge: the failed attempt's credit was returned.
-    const key = row.status === "failed" ? `${spendKey(id)}:${Date.now()}` : spendKey(id);
+    // A retry, or a make after an Undo, is a new charge: the earlier credit was returned.
+    const key = row.status === "failed" || row.creditSpendKey ? `${spendKey(id)}:${Date.now()}` : spendKey(id);
     const spent = await spendCredits(tx, { organizationId: checked.site.organizationId, action: "video_post", key, websiteId });
     if (!spent.ok) return { ok: false as const, error: "not_enough_credits" as const, price: spent.price, available: spent.available };
     const now = new Date();
@@ -183,6 +186,8 @@ export async function approveVideoIdea(websiteId: string, id: string, edit: Idea
         ...changes,
         status: "approved",
         approvedAt: now,
+        approvedBy: checked.userId,
+        approvedVia: isMakeVia(via) ? via : "button",
         creditSpendKey: spent.spendId ? key : null,
         platforms: settings.platforms,
         // A script changed after a failed attempt is voiced again.
@@ -194,6 +199,36 @@ export async function approveVideoIdea(websiteId: string, id: string, edit: Idea
     return { ok: true as const, data: null };
   });
   if (result.ok) await queueJob({ name: "video/make.requested", data: { ideaId: id } });
+  revalidatePath(pagePath(websiteId));
+  return result;
+}
+
+/**
+ * Takes back a make from today's ideas within UNDO_SECONDS (a press or swipe
+ * by mistake): the idea is back in the deck and its credit returned. Too late
+ * once the video is being made.
+ */
+export async function undoVideoIdea(websiteId: string, id: string): Promise<VideoResult> {
+  const editor = await requireEditor(websiteId);
+  if (!editor.ok) return fail("view_only");
+  const now = new Date();
+  const result = await db.transaction(async (tx) => {
+    const [row] = await tx
+      .select()
+      .from(videoIdeas)
+      .where(and(eq(videoIdeas.id, id), eq(videoIdeas.websiteId, websiteId)))
+      .for("update");
+    if (!row) return fail("not_found");
+    // A few seconds' grace past the toast, still inside the job's wait.
+    const late = !row.approvedAt || now.getTime() - row.approvedAt.getTime() > (UNDO_SECONDS + 3) * 1000;
+    if (row.status !== "approved" || late || !["button", "swipe", "key"].includes(row.approvedVia ?? "")) return fail("already_handled");
+    if (row.creditSpendKey) await refundSpend(row.creditSpendKey, tx, now);
+    await tx
+      .update(videoIdeas)
+      .set({ status: "new", approvedAt: null, approvedBy: null, approvedVia: null, updatedAt: now })
+      .where(eq(videoIdeas.id, id));
+    return { ok: true as const, data: null };
+  });
   revalidatePath(pagePath(websiteId));
   return result;
 }

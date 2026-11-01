@@ -26,6 +26,8 @@ export type VideosCopy = {
   styleHelp: { bold: string; numbers: string; story: string };
   skip: string;
   undo: string;
+  /** After Undo on a make: not made, credit back. */
+  undone: string;
   edit: string;
   /** "Make it · {price}" */
   approve: string;
@@ -176,10 +178,11 @@ const en: VideosCopy = {
   },
   skip: "Skip",
   undo: "Undo",
+  undone: "Taken back: it will not be made, and the credit is returned.",
   edit: "Edit",
   approve: "Make it · {price}",
   approved: "Being made. You will find it under Your videos.",
-  swipeHint: "Swipe right or press → to make it, left or ← to skip.",
+  swipeHint: "Swipe right (on a phone) or press → to make it, left or ← to skip. Made one by mistake? Press Undo within 10 seconds.",
   previewNote: "Preview without the voice. The finished video has the AI voice, captions and music.",
   slide: "Slide {index}",
   editTitle: "Edit the idea",
@@ -331,10 +334,11 @@ const es: VideosCopy = {
   },
   skip: "Omitir",
   undo: "Deshacer",
+  undone: "Deshecho: no se creará y se le devuelve el crédito.",
   edit: "Editar",
   approve: "Crear · {price}",
   approved: "Se está creando. Lo encontrará en Sus vídeos.",
-  swipeHint: "Deslice a la derecha o pulse → para crearlo, a la izquierda o ← para omitirlo.",
+  swipeHint: "Deslice a la derecha (en el móvil) o pulse → para crearlo, a la izquierda o ← para omitirlo. ¿Lo creó por error? Pulse Deshacer en 10 segundos.",
   previewNote: "Vista previa sin la voz. El vídeo final tiene la voz de IA, subtítulos y música.",
   slide: "Diapositiva {index}",
   editTitle: "Editar la idea",
@@ -486,10 +490,11 @@ const fr: VideosCopy = {
   },
   skip: "Ignorer",
   undo: "Annuler",
+  undone: "Annulé : elle ne sera pas créée et le crédit vous est rendu.",
   edit: "Modifier",
   approve: "Créer · {price}",
   approved: "En cours de création. Vous la trouverez dans Vos vidéos.",
-  swipeHint: "Balayez vers la droite ou appuyez sur → pour la créer, vers la gauche ou ← pour l’ignorer.",
+  swipeHint: "Balayez vers la droite (sur mobile) ou appuyez sur → pour la créer, vers la gauche ou ← pour l’ignorer. Créée par erreur ? Appuyez sur Annuler dans les 10 secondes.",
   previewNote: "Aperçu sans la voix. La vidéo finale comporte la voix IA, les sous-titres et la musique.",
   slide: "Diapositive {index}",
   editTitle: "Modifier l’idée",
@@ -641,10 +646,11 @@ const it: VideosCopy = {
   },
   skip: "Salta",
   undo: "Annulla",
+  undone: "Annullato: non verrà creato e il credito le viene restituito.",
   edit: "Modifica",
   approve: "Crea · {price}",
   approved: "In creazione. Lo troverà in I suoi video.",
-  swipeHint: "Scorra a destra o prema → per crearlo, a sinistra o ← per saltarlo.",
+  swipeHint: "Scorra a destra (sul telefono) o prema → per crearlo, a sinistra o ← per saltarlo. Creato per errore? Prema Annulla entro 10 secondi.",
   previewNote: "Anteprima senza voce. Il video finito ha la voce IA, i sottotitoli e la musica.",
   slide: "Slide {index}",
   editTitle: "Modifica l’idea",
@@ -796,10 +802,11 @@ const de: VideosCopy = {
   },
   skip: "Überspringen",
   undo: "Rückgängig",
+  undone: "Zurückgenommen: Es wird nicht erstellt, und der Credit ist zurück.",
   edit: "Bearbeiten",
   approve: "Erstellen · {price}",
   approved: "Wird erstellt. Sie finden es unter Ihre Videos.",
-  swipeHint: "Nach rechts wischen oder → drücken zum Erstellen, nach links oder ← zum Überspringen.",
+  swipeHint: "Nach rechts wischen (am Handy) oder → drücken zum Erstellen, nach links oder ← zum Überspringen. Versehentlich erstellt? Innerhalb von 10 Sekunden auf Rückgängig tippen.",
   previewNote: "Vorschau ohne Stimme. Das fertige Video hat KI-Stimme, Untertitel und Musik.",
   slide: "Folie {index}",
   editTitle: "Idee bearbeiten",

@@ -3172,6 +3172,9 @@ export const videoIdeas = pgTable(
     captions: boolean("captions").default(true).notNull(),
     status: text("status").default("new").notNull(),
     approvedAt: timestamp("approved_at"),
+    /** Who made it (a user id, kept for the record) and how: MakeVia (button, swipe, key, retry, chat). */
+    approvedBy: text("approved_by"),
+    approvedVia: text("approved_via"),
     creditSpendKey: text("credit_spend_key"),
     /** The voice track and its timing (CaptionWord[] and scene starts). */
     voiceUrl: text("voice_url"),
