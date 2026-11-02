@@ -68,6 +68,8 @@ export const config = {
     "/sign-in",
     "/sign-up",
     "/invite/:path*",
+    // The lifecycle emails' unsubscribe page: per person, never prerendered.
+    "/unsubscribe/:path*",
     "/connect/:path*",
     // The partner portal: per-user, never prerendered.
     "/partner/:path*",

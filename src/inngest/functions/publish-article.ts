@@ -24,6 +24,7 @@ import { imageExtension, imageFileName } from "@/lib/publishing/image-names";
 import { withOwnershipMarker } from "@/lib/publishing/ownership";
 import { pointAtCopies, storedPictures, type PictureCopies } from "@/lib/publishing/picture-copies";
 import { nextLookupDelayMs, reconcileDirectUncertain } from "@/lib/publishing/reconcile";
+import { emailArticleFailed, emailArticlePublished } from "@/lib/email/lifecycle-triggers";
 import { notify } from "@/lib/notifications/create";
 import { markFirstArticleSentAndContinue } from "@/lib/publishing/policy";
 import { placementUrlsForArticle, recordArticlePublication } from "@/lib/backlinks/placements";
@@ -92,6 +93,16 @@ export const publishArticleJob = inngest.createFunction(
           ? `/websites/${websiteId}/articles/${articleId}`
           : null,
       });
+
+      // And by email, at most once a day per website (lib/email/lifecycle-triggers.ts). Never thrown.
+      if (websiteId) {
+        await emailArticleFailed({
+          organizationId: event.data.event.data.organizationId as string,
+          websiteId,
+          articleId,
+          error: error.message,
+        });
+      }
     },
   },
   async ({ event, step, logger }) => {
@@ -939,6 +950,23 @@ export const publishArticleJob = inngest.createFunction(
         href: `/websites/${websiteId}/articles/${articleId}`,
       });
     });
+
+    /*
+      The same moment by email, with the live address - only when it is
+      live, once per article (lib/email/lifecycle-triggers.ts). Its own step,
+      so a retry of it never repeats the notification; never thrown.
+    */
+    if (result.status === "publish") {
+      await step.run("email-published", async () => {
+        await emailArticlePublished({
+          organizationId: event.data.organizationId as string,
+          websiteId,
+          articleId,
+          title: sentTitle,
+          url: result.remoteUrl ?? null,
+        });
+      });
+    }
 
     /**
      * The one line that answers "is this article actually live".

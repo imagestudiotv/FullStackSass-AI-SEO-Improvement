@@ -342,6 +342,17 @@ async function processBillingEvent(event: Stripe.Event): Promise<void> {
             paidAt: invoice.status_transitions?.paid_at ? new Date(invoice.status_transitions.paid_at * 1000) : null,
           });
         }
+        /*
+          The same moment, the subscription's first payment for money:
+          "Welcome to your plan" (lib/email/lifecycle-triggers.ts). Counted
+          from the payment just recorded, so a renewal never sends it.
+          Imported on demand, like the partner program; never thrown.
+        */
+        await import("@/lib/email/lifecycle-triggers")
+          .then(({ emailFirstPayment }) =>
+            emailFirstPayment({ provider: "stripe", providerSubscriptionId: subscriptionId, amountCents: invoice.amount_paid ?? 0 }),
+          )
+          .catch((error) => console.error(`[stripe-webhook] plan-started email for ${subscriptionId} could not run`, error));
       }
       return;
     }

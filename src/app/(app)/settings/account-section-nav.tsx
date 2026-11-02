@@ -1,6 +1,6 @@
 "use client";
 
-import { Gift, KeyRound, Languages, UserRound, Users, type LucideIcon } from "lucide-react";
+import { Gift, KeyRound, Languages, Mail, UserRound, Users, type LucideIcon } from "lucide-react";
 
 import { SectionNav } from "@/components/workspace/section-nav";
 
@@ -15,6 +15,7 @@ const ICONS = {
   profile: UserRound,
   security: KeyRound,
   language: Languages,
+  emails: Mail,
   members: Users,
   referral: Gift,
 } satisfies Record<string, LucideIcon>;

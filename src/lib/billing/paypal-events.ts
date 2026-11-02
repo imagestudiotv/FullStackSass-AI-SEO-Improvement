@@ -405,6 +405,16 @@ export async function processPayPalEvent(event: PayPalEvent): Promise<void> {
             amountCents: Number.isFinite(total) ? Math.round(total * 100) : 0,
             currency: resource.amount?.currency ?? "EUR",
           });
+          // "Welcome to your plan" on the first payment for money, as on Stripe's (stripe-events.ts).
+          await import("@/lib/email/lifecycle-triggers")
+            .then(({ emailFirstPayment }) =>
+              emailFirstPayment({
+                provider: "paypal",
+                providerSubscriptionId: billingId,
+                amountCents: Number.isFinite(total) ? Math.round(total * 100) : 0,
+              }),
+            )
+            .catch((error) => console.error(`[paypal-webhook] plan-started email for ${billingId} could not run`, error));
         }
       }
       return;

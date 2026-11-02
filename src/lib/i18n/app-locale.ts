@@ -75,6 +75,14 @@ async function localeFromRequest(): Promise<Locale | null> {
     // Called outside a request scope. Fall through to the default.
     return null;
   }
+  return localeFromAcceptLanguage(header);
+}
+
+/**
+ * The same choice from a header value already in hand - the sign-up hook's
+ * request (lib/auth.ts), which remembers it for the account's emails.
+ */
+export function localeFromAcceptLanguage(header: string | null | undefined): Locale | null {
   if (!header) return null;
 
   const tags = header

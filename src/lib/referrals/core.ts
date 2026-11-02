@@ -338,7 +338,7 @@ export async function convertReferral(referredOrgId: string, paidAmountCents: nu
       },
       tx,
     );
-    return updated;
+    return { ...updated, grant };
   });
 
   if (!rewarded) return false;
@@ -354,6 +354,23 @@ export async function convertReferral(referredOrgId: string, paidAmountCents: nu
   } catch (error) {
     console.error("[referrals] reward granted but the notification failed", error);
   }
+
+  /*
+    And by email (lib/email/lifecycle-triggers.ts), once per grant, now that
+    the credits are really on the referrer's balance. Imported on demand so
+    the webhooks that call this do not load the email module graph; never
+    thrown.
+  */
+  await import("@/lib/email/lifecycle-triggers")
+    .then(({ emailReferralReward }) =>
+      emailReferralReward({
+        referrerOrgId: rewarded.referrerOrgId,
+        referralId: rewarded.id,
+        grant: rewarded.grant,
+        credits: REFERRAL_REWARD_CREDITS,
+      }),
+    )
+    .catch((error) => console.error("[referrals] reward granted but the email could not run", error));
 
   return true;
 }

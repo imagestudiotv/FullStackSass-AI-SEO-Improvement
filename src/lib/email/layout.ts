@@ -45,11 +45,13 @@ export function emailLayout(options: {
   heading: string;
   preheader: string;
   body: string;
+  /** The language the body is written in, for screen readers; English by default. */
+  lang?: string;
 }): string {
   const year = new Date().getFullYear();
 
   return `<!doctype html>
-<html lang="en">
+<html lang="${escapeHtml(options.lang ?? "en")}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -109,6 +111,15 @@ export function emailButton(href: string, label: string): string {
 /** A paragraph in the body copy's voice. */
 export function emailText(html: string): string {
   return `<p style="margin:0 0 14px 0;font-size:15px;line-height:1.6;color:#3f3f46;">${html}</p>`;
+}
+
+/**
+ * A small muted line under the body: why the reader is getting this email,
+ * and how to stop the ones that can be stopped. Below the fold on purpose -
+ * it is for the reader who looks for it, not the message.
+ */
+export function emailNote(html: string): string {
+  return `<p style="margin:24px 0 0 0;padding-top:16px;border-top:1px solid #e4e4e7;font-size:12px;line-height:1.6;color:#71717a;">${html}</p>`;
 }
 
 /**

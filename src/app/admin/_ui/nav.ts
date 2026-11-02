@@ -11,6 +11,7 @@ import {
   Inbox,
   LayoutDashboard,
   Link2,
+  Mail,
   MessageSquare,
   Network,
   Newspaper,
@@ -233,6 +234,13 @@ export const ADMIN_NAV: AdminNavGroup[] = [
         icon: Coins,
         keywords: ["prices", "credit prices", "daily credits", "free credits", "wallet", "spend"],
         description: "What actions cost in credits, and the free daily credits",
+      },
+      {
+        href: "/admin/emails",
+        label: "Emails",
+        icon: Mail,
+        keywords: ["lifecycle", "welcome", "reminders", "weekly summary", "unsubscribe", "kill switch", "resend"],
+        description: "The automatic customer emails: on/off, and what they sent",
       },
       {
         href: "/admin/payments",

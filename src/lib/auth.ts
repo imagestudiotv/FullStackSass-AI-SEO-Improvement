@@ -247,6 +247,31 @@ function createAuth() {
             } catch (error) {
               console.error("[auth] partner signup capture could not run", error);
             }
+
+            /*
+              The welcome email, and the setup reminder a few hours later
+              (inngest/functions/lifecycle-emails.ts). Queued through the
+              outbox, not sent here: signing up must not wait on an email
+              provider. The browser's language goes with it, for the emails
+              of someone who never picks one in Settings. Keyed by the user,
+              so a repeated hook is one job; sends nothing while the
+              lifecycle emails are switched off. Never fails signup.
+            */
+            try {
+              const [{ queueJob }, { localeFromAcceptLanguage }] = await Promise.all([
+                import("@/inngest/send"),
+                import("@/lib/i18n/app-locale"),
+              ]);
+              const hook = context as { headers?: HeadersInit | Headers; request?: Request } | null;
+              const headers = new Headers(hook?.headers ?? hook?.request?.headers ?? undefined);
+              await queueJob({
+                id: `lifecycle-signup:${user.id}`,
+                name: "email/user.signed-up",
+                data: { userId: user.id, locale: localeFromAcceptLanguage(headers.get("accept-language")) },
+              });
+            } catch (error) {
+              console.error("[auth] the sign-up emails could not be queued", error);
+            }
           },
         },
       },

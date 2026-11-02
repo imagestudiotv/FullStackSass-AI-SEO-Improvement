@@ -3333,3 +3333,75 @@ export const chatActions = pgTable(
   },
   (table) => [index("chat_actions_message_idx").on(table.messageId)],
 );
+
+/* ------------------------------------------------------------------------- */
+/* Lifecycle emails                                                           */
+/* ------------------------------------------------------------------------- */
+
+/**
+ * Every lifecycle email (lib/email/lifecycle.ts, docs/emails.md): one row per
+ * recipient scope, kind and dedupe key, CLAIMED before the email is sent.
+ *
+ * The unique index is the whole guarantee. The moments these emails follow
+ * are retried - a webhook redelivered, an Inngest step re-run, two syncs of
+ * one subscription - and an email cannot be taken back. So the row is
+ * inserted first ("sending"), and only the caller whose insert won sends;
+ * every other attempt finds the row and stops. Only a "failed" row may be
+ * claimed again, a few times (attempts), so a Resend outage delays an email
+ * rather than losing it.
+ *
+ * scope is "org:<id>" for an email about a workspace (sent to its owner) and
+ * "user:<id>" for one about a person, so the key is unique without two
+ * nullable columns. status: sending -> sent | failed | skipped (reason says
+ * why: unsubscribed, no_recipient, nothing_to_send...). Nothing is written
+ * while the kill switch is off - see lifecycleEmailsEnabled.
+ */
+export const lifecycleEmails = pgTable(
+  "lifecycle_emails",
+  {
+    id: pk(),
+    organizationId: text("organization_id").references(() => organization.id, { onDelete: "cascade" }),
+    userId: userId(),
+    scope: text("scope").notNull(),
+    /** LIFECYCLE_KINDS (lib/email/lifecycle-copy.ts). */
+    kind: text("kind").notNull(),
+    /** What makes this email one of a kind: a subscription, an article, an ISO week. */
+    dedupeKey: text("dedupe_key").notNull(),
+    /** The address it went to; null when nobody could be found. */
+    recipient: text("recipient"),
+    locale: text("locale"),
+    status: text("status").default("sending").notNull(),
+    reason: text("reason"),
+    /** Resend's message id, for looking a delivery up in its dashboard. */
+    providerMessageId: text("provider_message_id"),
+    attempts: integer("attempts").default(1).notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("lifecycle_emails_dedupe_uidx").on(table.scope, table.kind, table.dedupeKey),
+    index("lifecycle_emails_created_idx").on(table.createdAt),
+  ],
+);
+
+/**
+ * A person's email choices. No row means the defaults: every email.
+ *
+ * Only the non-essential emails ("tips and reports": the setup reminder,
+ * article and video updates, the weekly summary) can be turned off - from
+ * Settings, or without signing in from the link in each of them. Emails
+ * about billing, failures and the free period are always sent.
+ */
+export const emailPreferences = pgTable("email_preferences", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => user.id, { onDelete: "cascade" }),
+  tips: boolean("tips").default(true).notNull(),
+  /** "settings" | "link": where tips was last changed. */
+  tipsChangedVia: text("tips_changed_via"),
+  /**
+   * The browser's language at sign-up, for emails to someone who never chose
+   * one in Settings (user.locale stays null, as resolveAppLocale wants).
+   */
+  signupLocale: text("signup_locale"),
+  ...timestamps,
+});

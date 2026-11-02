@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 
+import { emailArticleFailed, emailArticlePublished } from "@/lib/email/lifecycle-triggers";
 import { notify } from "@/lib/notifications/create";
 import { resolveIntegrationKey } from "@/lib/plugin/keys";
 import { markFirstArticleSentAndContinue } from "@/lib/publishing/policy";
@@ -123,6 +124,13 @@ export async function POST(request: NextRequest) {
       body: ack.report.error.slice(0, 200),
       href,
     });
+    // By email too, at most once a day per website (lib/email/lifecycle-triggers.ts); never thrown.
+    await emailArticleFailed({
+      organizationId: resolved.organizationId,
+      websiteId: resolved.websiteId,
+      articleId: ack.article.id,
+      error: ack.report.error,
+    });
     return NextResponse.json({ ok: true, recorded: "failed" }, { headers: CORS });
   }
 
@@ -150,6 +158,17 @@ export async function POST(request: NextRequest) {
     body: ack.live ? ack.report.remoteUrl ?? undefined : "Publish it from WordPress when ready.",
     href,
   });
+
+  // Live, by email: once per article, with its address (lib/email/lifecycle-triggers.ts); never thrown.
+  if (ack.live) {
+    await emailArticlePublished({
+      organizationId: resolved.organizationId,
+      websiteId: resolved.websiteId,
+      articleId: ack.article.id,
+      title: ack.article.title,
+      url: ack.report.remoteUrl ?? null,
+    });
+  }
 
   return NextResponse.json({ ok: true, recorded: ack.live ? "published" : "draft" }, { headers: CORS });
 }

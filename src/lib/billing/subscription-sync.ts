@@ -179,6 +179,8 @@ type Decision = {
   orgId: string | null;
   /** Another subscription is owed one: the free articles this one took over from. */
   replaced?: string | null;
+  /** The row as this sync found it, for the lifecycle emails; absent for a new row. */
+  previous?: { status: string; cancelAtPeriodEnd: boolean } | null;
 };
 
 function identityColumn(provider: CheckoutProvider) {
@@ -290,6 +292,8 @@ export async function syncProviderSubscription(
         id: subscriptions.id,
         websiteId: subscriptions.websiteId,
         claimedWebsiteId: subscriptions.claimedWebsiteId,
+        status: subscriptions.status,
+        cancelAtPeriodEnd: subscriptions.cancelAtPeriodEnd,
       })
       .from(subscriptions)
       .where(eq(identityColumn(provider), providerSubscriptionId))
@@ -319,7 +323,13 @@ export async function syncProviderSubscription(
         !(await websiteExists(tx, (existing.claimedWebsiteId ?? claimedWebsiteId)!));
       const cancel = !ended && siteGone;
       if (cancel) await owe("detached_deleted_website");
-      return { outcome: "updated" as SyncOutcome, owe: cancel, rowId: existing.id, orgId: org.id };
+      return {
+        outcome: "updated" as SyncOutcome,
+        owe: cancel,
+        rowId: existing.id,
+        orgId: org.id,
+        previous: { status: existing.status, cancelAtPeriodEnd: existing.cancelAtPeriodEnd },
+      };
     }
 
     const insertDetached = async () => {
@@ -506,6 +516,23 @@ export async function syncProviderSubscription(
     ...(decided.replaced ? [decided.replaced] : []),
   ];
   const completed = owed.length > 0 ? (await processCancellations(database, cancellationOps, { only: owed })).completed : [];
+
+  /*
+    The lifecycle emails this change calls for - free articles started or
+    ended, a cancellation, a failed payment (lib/email/lifecycle-triggers.ts)
+    - decided from the row before and after, once the change has committed.
+    Here rather than in each webhook so Stripe, PayPal, the recovery job and
+    the in-app PayPal cancel all send the same ones. Imported on demand so
+    billing does not depend on the email module graph; never thrown.
+  */
+  if (decided.rowId) {
+    try {
+      const { emailsAfterSubscriptionSync } = await import("@/lib/email/lifecycle-triggers");
+      await emailsAfterSubscriptionSync(database, decided.rowId, decided.previous ?? null);
+    } catch (error) {
+      console.error(`[billing] lifecycle emails for ${provider} ${providerSubscriptionId} could not run`, error);
+    }
+  }
 
   return {
     outcome: decided.outcome,
