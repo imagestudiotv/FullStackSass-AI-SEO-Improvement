@@ -89,7 +89,7 @@ export function ReferralShare({ code, link, credits, t }: { code: string; link: 
             readOnly
             aria-label={t.copyLink}
             onFocus={(event) => event.currentTarget.select()}
-            className="h-8 border-0 bg-transparent px-0 font-mono text-xs shadow-none focus-visible:ring-0"
+            className="h-8 border-0 bg-transparent px-0 font-mono text-xs shadow-none focus-visible:ring-0 dark:bg-transparent"
           />
         </div>
         <div className="flex gap-2">

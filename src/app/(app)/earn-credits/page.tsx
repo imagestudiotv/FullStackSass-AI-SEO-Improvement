@@ -148,7 +148,7 @@ export default async function EarnCreditsPage() {
             <span className="grid size-10 place-items-center rounded-xl bg-primary/10 text-primary">
               <Sun className="size-5" aria-hidden="true" />
             </span>
-            {overview?.daily.eligible ? (
+            {overview?.daily.eligible && overview.daily.perDay > 0 ? (
               <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
                 <CheckCircle2 className="size-3.5" aria-hidden="true" />
                 {e.dailyActive}
