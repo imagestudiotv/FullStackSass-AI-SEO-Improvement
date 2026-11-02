@@ -13,10 +13,10 @@ import { WorkspaceSection } from "@/components/workspace/section";
 import type { Locale } from "@/lib/i18n/config";
 import { format, formatDate, formatNumber } from "@/lib/i18n/format";
 import type { Messages } from "@/lib/i18n/messages";
+import { referralLine, REFERRALS_LISTED } from "@/lib/referrals/display";
 import type { ReferralRow, ReferralSummary } from "@/lib/referrals/shared";
 
-/** getReferralSummary() lists at most this many referrals (its totals cover all of them). */
-export const REFERRALS_LISTED = 50;
+export { referralLine, REFERRALS_LISTED };
 
 /**
  * The referral program: the link, what it has earned, and who signed up.
@@ -197,24 +197,6 @@ export function ReferralCard({
       </div>
     </WorkspaceSection>
   );
-}
-
-/** "Name · joined 3 Oct 2026 · Credits added 9 Oct 2026", from what is stored. */
-export function referralLine(
-  row: ReferralRow,
-  t: Messages["app"]["referral"],
-  day: (at: Date) => string,
-): string {
-  const joined = day(row.createdAt);
-  const base =
-    row.referredDomain && row.referredName
-      ? format(t.joinedWithName, { name: row.referredName, date: joined })
-      : row.referredDomain
-        ? format(t.joined, { date: joined })
-        : format(t.noWebsiteJoined, { date: joined });
-  return row.status === "rewarded" && row.rewardedAt
-    ? `${base} · ${format(t.rewardedOn, { date: day(row.rewardedAt) })}`
-    : base;
 }
 
 /** Rewarded, not eligible or waiting - in words and an icon, never colour alone. */

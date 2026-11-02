@@ -2068,6 +2068,50 @@ export const referrals = pgTable(
   ],
 );
 
+/**
+ * Earn Credits (client, 2026-11-02): a customer's claim for one of the extra
+ * ways to earn - a story, a post about RepGet, a tutorial, an improvement.
+ *
+ * Nothing is credited on submission. An administrator reads the link or
+ * text and approves (credits added, in the same transaction, with an
+ * idempotency key) or declines with a reason. Each way pays once per
+ * workspace: the partial unique index allows one open-or-approved claim per
+ * kind, so a declined claim can be sent again but an approved one cannot be
+ * repeated. Rows are kept for the audit trail.
+ *
+ * `status`: pending -> approved | declined.
+ */
+export const earnSubmissions = pgTable(
+  "earn_submissions",
+  {
+    id: pk(),
+    organizationId: organizationId(),
+    /** Who sent it. */
+    userId: userId(),
+    /** "story" | "post" | "tutorial" | "feedback" (lib/earn/ways.ts). */
+    kind: text("kind").notNull(),
+    /** The public link to the post, story or tutorial; null for an idea sent as text. */
+    link: text("link"),
+    /** What the customer wrote. */
+    message: text("message").notNull(),
+    status: text("status").default("pending").notNull(),
+    /** The reward at the time of submission, so a later price change does not alter a promise. */
+    rewardCredits: integer("reward_credits").notNull(),
+    /** The administrator's email. */
+    reviewedBy: text("reviewed_by"),
+    reviewedAt: timestamp("reviewed_at"),
+    /** Shown to the customer when declined. */
+    reviewNote: text("review_note"),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("earn_submissions_once_key")
+      .on(table.organizationId, table.kind)
+      .where(sql`${table.status} in ('pending', 'approved')`),
+    index("earn_submissions_status_idx").on(table.status, table.createdAt),
+  ],
+);
+
 export const referralCodesRelations = relations(referralCodes, ({ one }) => ({
   organization: one(organization, {
     fields: [referralCodes.organizationId],

@@ -166,7 +166,7 @@ describe("SidebarUsage", () => {
     expect(html).toContain("7 credits");
     expect(html).toContain('href="/credits"');
     expect(html).toContain("Earn Credits");
-    expect(html).toContain('href="/settings#referral"');
+    expect(html).toContain('href="/earn-credits"');
     expect(html).not.toContain("today");
   });
 
@@ -178,7 +178,9 @@ describe("SidebarUsage", () => {
   it("on a shared site: no credit figure and no grant, Earn Credits kept", async () => {
     const html = await render(false);
     expect(creditOverview).not.toHaveBeenCalled();
-    expect(html).not.toContain("credits");
+    // No balance line ("7 credits"); the Earn Credits link's own address says "credits".
+    expect(html).not.toContain("7 credits");
+    expect(html).not.toContain('href="/credits"');
     expect(html).toContain("Earn Credits");
   });
 
