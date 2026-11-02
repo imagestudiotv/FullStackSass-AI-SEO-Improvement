@@ -220,17 +220,18 @@ async function snapshotOf(
     it again on that day: endPayPalCancellations). It used to end that very
     day, paid time lost, and the paid-through date overwritten with null.
   */
-  let ending: Pick<SubscriptionSnapshot["values"], "status" | "currentPeriodEnd" | "cancelAtPeriodEnd"> = {
+  let ending: Pick<SubscriptionSnapshot["values"], "status" | "currentPeriodEnd" | "cancelAtPeriodEnd" | "cancelAt"> = {
     status,
     currentPeriodEnd: nextBilling ? new Date(nextBilling) : null,
     cancelAtPeriodEnd: false,
+    cancelAt: null,
   };
   if (live.status === "CANCELLED") {
     const until = await paidThrough(reader, subscriptionId, live, interval);
     ending =
       until && until.getTime() > now.getTime()
-        ? { status: "active", currentPeriodEnd: until, cancelAtPeriodEnd: true }
-        : { status, currentPeriodEnd: until, cancelAtPeriodEnd: false };
+        ? { status: "active", currentPeriodEnd: until, cancelAtPeriodEnd: true, cancelAt: until }
+        : { status, currentPeriodEnd: until, cancelAtPeriodEnd: false, cancelAt: null };
   }
 
   return {

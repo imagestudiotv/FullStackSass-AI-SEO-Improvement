@@ -19,10 +19,21 @@ export type CurrentSubscription = {
   interval: string | null;
   currentPeriodEnd: Date | null;
   cancelAtPeriodEnd: boolean;
+  /** When a scheduled cancellation takes effect: the "ends on" date. Null when none is. */
+  cancelAt: Date | null;
   hasCustomer: boolean;
   /** "stripe" | "paypal". Decides where the customer manages billing. */
   provider: string;
 };
+
+/**
+ * The date to show beside a plan: when it ends if it is set to stop - the
+ * scheduled date, which can come before the period's end - otherwise when
+ * it renews.
+ */
+export function planDate(subscription: Pick<CurrentSubscription, "cancelAtPeriodEnd" | "cancelAt" | "currentPeriodEnd">): Date | null {
+  return subscription.cancelAtPeriodEnd ? (subscription.cancelAt ?? subscription.currentPeriodEnd) : subscription.currentPeriodEnd;
+}
 
 /** Statuses that grant access. Mirrors ENTITLED_STATUSES in lib/usage.ts. */
 const ENTITLED = new Set(["active", "trialing", "past_due"]);

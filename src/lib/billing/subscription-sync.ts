@@ -84,6 +84,8 @@ export type SubscriptionValues = {
   currentPeriodStart?: Date | null;
   currentPeriodEnd?: Date | null;
   cancelAtPeriodEnd?: boolean;
+  /** When a scheduled cancellation takes effect; null when none is. Omitted: left as stored. */
+  cancelAt?: Date | null;
   stripeCustomerId?: string | null;
   /** Omitted when the provider's price is not one of ours: keep the old plan. */
   planId?: string | null;
@@ -205,6 +207,7 @@ function rowValues(provider: CheckoutProvider, providerSubscriptionId: string, v
     ...(values.cancelAtPeriodEnd !== undefined
       ? { cancelAtPeriodEnd: values.cancelAtPeriodEnd }
       : {}),
+    ...(values.cancelAt !== undefined ? { cancelAt: values.cancelAt } : {}),
     ...(values.stripeCustomerId ? { stripeCustomerId: values.stripeCustomerId } : {}),
     ...(values.planId ? { planId: values.planId } : {}),
   };

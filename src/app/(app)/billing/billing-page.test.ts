@@ -238,6 +238,7 @@ describe("billing page", () => {
           interval: "month",
           currentPeriodEnd: null,
           cancelAtPeriodEnd: false,
+          cancelAt: null,
           hasCustomer: true,
           provider: "stripe",
         },

@@ -148,7 +148,19 @@ export const subscriptions = pgTable(
      */
     currentPeriodStart: timestamp("current_period_start"),
     currentPeriodEnd: timestamp("current_period_end"),
+    /**
+     * True whenever the subscription is set to stop: at its period's end, or
+     * on a scheduled date (cancelAt). Stripe says the second with cancel_at
+     * alone - the newer customer portal does - so both set it.
+     */
     cancelAtPeriodEnd: boolean("cancel_at_period_end").default(false).notNull(),
+    /**
+     * When a scheduled cancellation takes effect, as the provider gives it
+     * (Stripe cancel_at; PayPal the end of the paid period). Null when nothing
+     * is scheduled. The date shown as "ends on", which is not always the
+     * period's end: a cancellation can be set for a date before it.
+     */
+    cancelAt: timestamp("cancel_at"),
     /**
      * The website this subscription was bought for, per our checkout's
      * provider metadata. Kept when the row is DETACHED (website_id null) - a

@@ -29,6 +29,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Notice } from "@/components/workspace/notice";
 import { WorkspaceSection } from "@/components/workspace/section";
 import {
+  planDate,
   type CurrentSubscription,
   type PlanRow,
   type WebsiteSubscription,
@@ -197,14 +198,14 @@ export function BillingClient({
       ? // On its free articles through PayPal: a plan chosen below starts at once.
         t.paypalFreePlans
       : options.billedBy === "paypal"
-        ? subscription?.cancelAtPeriodEnd && subscription.currentPeriodEnd
+        ? subscription?.cancelAtPeriodEnd && planDate(subscription)
           ? // Cancelled in PayPal, its paid time still running (review M1): when a plan can be chosen again.
-            format(t.billedByPayPalEnding, { date: date(subscription.currentPeriodEnd) })
+            format(t.billedByPayPalEnding, { date: date(planDate(subscription)!) })
           : t.billedByPayPal
         : options.billedBy === "stripe" && options.card && paypalAvailable
           ? subscription?.cancelAtPeriodEnd
-            ? subscription.currentPeriodEnd
-              ? format(t.billedByCardEnding, { date: date(subscription.currentPeriodEnd) })
+            ? planDate(subscription)
+              ? format(t.billedByCardEnding, { date: date(planDate(subscription)!) })
               : null
             : t.billedByCard
           : null;
@@ -545,10 +546,10 @@ export function BillingClient({
                     <p className="text-sm font-medium wrap-anywhere text-foreground">{row.domain}</p>
                     <p className="text-sm text-muted-foreground">
                       {row.planName
-                        ? row.currentPeriodEnd
+                        ? planDate(row)
                           ? format(row.cancelAtPeriodEnd ? t.planEnds : t.planRenews, {
                               plan: row.planName,
-                              date: date(row.currentPeriodEnd),
+                              date: date(planDate(row)!),
                             })
                           : row.planName
                         : t.noPlanYet}
@@ -630,7 +631,7 @@ export function BillingClient({
                     {subscription.cancelAtPeriodEnd ? t.accessEnds : t.nextInvoice}
                   </dt>
                   <dd className="mt-2 text-xl font-semibold tracking-tight tabular-nums wrap-anywhere text-foreground">
-                    {subscription.currentPeriodEnd ? date(subscription.currentPeriodEnd) : "—"}
+                    {planDate(subscription) ? date(planDate(subscription)!) : "—"}
                   </dd>
                 </div>
                 <div className="min-w-0 rounded-lg border bg-muted/20 p-4">
@@ -660,11 +661,11 @@ export function BillingClient({
 
               <p className="text-sm text-muted-foreground">
                 {subscription.planName ? format(t.onPlan, { plan: subscription.planName }) : null}
-                {subscription.currentPeriodEnd ? (
+                {planDate(subscription) ? (
                   <>
                     {subscription.planName ? " " : null}
                     {format(subscription.cancelAtPeriodEnd ? t.accessEndsOn : t.renewsOn, {
-                      date: date(subscription.currentPeriodEnd),
+                      date: date(planDate(subscription)!),
                     })}
                   </>
                 ) : null}

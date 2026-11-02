@@ -1,5 +1,5 @@
 {
-  "id": "97732e59-3cb5-47ef-a23d-57ad77156805",
+  "id": "c1327752-14c5-4f32-b830-a70520dbbf07",
   "prevId": "bfc20590-0e2f-467c-b7cc-9885bb6a38f1",
   "version": "7",
   "dialect": "postgresql",
@@ -9213,6 +9213,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": false
+        },
+        "cancel_at": {
+          "name": "cancel_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
         },
         "claimed_website_id": {
           "name": "claimed_website_id",

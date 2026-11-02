@@ -53,6 +53,7 @@ const onPayPal = (status: string): CurrentSubscription => ({
   interval: "month",
   currentPeriodEnd: new Date("2026-11-21T10:00:00Z"),
   cancelAtPeriodEnd: false,
+  cancelAt: null,
   hasCustomer: false,
   provider: "paypal",
 });

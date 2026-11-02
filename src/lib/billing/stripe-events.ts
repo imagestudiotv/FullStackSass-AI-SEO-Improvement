@@ -43,6 +43,27 @@ function periodFor(subscription: Stripe.Subscription) {
   };
 }
 
+/**
+ * Whether, and when, the subscription is set to stop.
+ *
+ * Stripe has two ways to say it: cancel_at_period_end (the older "at the end
+ * of this period") and cancel_at (a scheduled date). The newer customer
+ * portal can set cancel_at ALONE; reading only the first left such a
+ * subscription "renewing" everywhere - the Billing page, the trial reminder,
+ * the cancellation email. Either one now counts, and the date is kept: from
+ * cancel_at when given, else the period's end.
+ */
+export function cancellationFor(subscription: Pick<Stripe.Subscription, "cancel_at" | "cancel_at_period_end" | "items">) {
+  // A real timestamp only: absent or null is "nothing scheduled".
+  const scheduled = Boolean(subscription.cancel_at_period_end) || Boolean(subscription.cancel_at);
+  const at = subscription.cancel_at
+    ? new Date(subscription.cancel_at * 1000)
+    : subscription.cancel_at_period_end
+      ? periodFor(subscription as Stripe.Subscription).currentPeriodEnd
+      : null;
+  return { cancelAtPeriodEnd: scheduled, cancelAt: scheduled ? at : null };
+}
+
 type Reader = Pick<Executor, "select">;
 
 async function planIdForSubscription(
@@ -147,7 +168,7 @@ export async function syncStripeSubscription(
           values: {
             status: subscription.status,
             ...periodFor(subscription),
-            cancelAtPeriodEnd: subscription.cancel_at_period_end,
+            ...cancellationFor(subscription),
             stripeCustomerId: customerId,
             // Keep the existing plan if the price is not one of ours.
             ...(planId ? { planId } : {}),

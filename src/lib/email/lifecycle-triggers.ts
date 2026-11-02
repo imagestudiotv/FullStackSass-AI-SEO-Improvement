@@ -111,6 +111,7 @@ async function subscriptionFacts(executor: Executor, where: SQL) {
       provider: subscriptions.provider,
       status: subscriptions.status,
       cancelAtPeriodEnd: subscriptions.cancelAtPeriodEnd,
+      cancelAt: subscriptions.cancelAt,
       currentPeriodStart: subscriptions.currentPeriodStart,
       currentPeriodEnd: subscriptions.currentPeriodEnd,
       plan: plans.name,
@@ -191,8 +192,10 @@ export async function emailsAfterSubscriptionSync(
     );
   }
 
-  if (!ended && row.cancelAtPeriodEnd && !previous.cancelAtPeriodEnd && row.currentPeriodEnd) {
-    const endsOn = row.currentPeriodEnd;
+  // The scheduled date when the provider gave one (it can come before the period's end).
+  const scheduledEnd = row.cancelAt ?? row.currentPeriodEnd;
+  if (!ended && row.cancelAtPeriodEnd && !previous.cancelAtPeriodEnd && scheduledEnd) {
+    const endsOn = scheduledEnd;
     await sendLifecycleEmail(
       {
         ...base,

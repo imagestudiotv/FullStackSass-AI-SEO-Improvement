@@ -302,6 +302,18 @@ describe("billing changes", () => {
     expect(sent.sendEmail.mock.calls[2][0].subject).toBe("Your free period has ended");
   });
 
+  it("gives a scheduled cancellation's own date, not the period's end (Stripe cancel_at)", async () => {
+    const { orgId, websiteId } = await account({ website: true });
+    const periodEnd = new Date(Date.UTC(2027, 0, 20, 12));
+    const cancelAt = new Date(Date.UTC(2027, 0, 9, 12));
+    const row = await subscription(orgId, websiteId!, { status: "active", cancelAtPeriodEnd: true, end: periodEnd });
+    await test.db.update(subscriptions).set({ cancelAt }).where(eq(subscriptions.id, row.id));
+    await emailsAfterSubscriptionSync(test.db, row.id, { status: "active", cancelAtPeriodEnd: false });
+    const { text } = sent.sendEmail.mock.calls[0][0];
+    expect(text).toContain("9 January 2027");
+    expect(text).not.toContain("20 January 2027");
+  });
+
   it("emails nobody about a subscription detached from its website", async () => {
     const { orgId, websiteId } = await account({ website: true });
     const row = await subscription(orgId, websiteId!, { status: "past_due" });

@@ -91,6 +91,7 @@ export async function listWebsiteSubscriptions(
         interval: plans.interval,
         currentPeriodEnd: subscriptions.currentPeriodEnd,
         cancelAtPeriodEnd: subscriptions.cancelAtPeriodEnd,
+        cancelAt: subscriptions.cancelAt,
         provider: subscriptions.provider,
       })
       .from(websites)
@@ -122,6 +123,7 @@ export async function listWebsiteSubscriptions(
     interval: row.interval,
     currentPeriodEnd: row.currentPeriodEnd,
     cancelAtPeriodEnd: row.cancelAtPeriodEnd ?? false,
+    cancelAt: row.cancelAt ?? null,
     stripeCustomerId: customer?.stripeCustomerId ?? null,
     // Whether the Stripe portal can be opened for this workspace.
     hasCustomer: Boolean(customer?.stripeCustomerId),
@@ -147,6 +149,7 @@ export const getSubscription = cache(async function getSubscription(
         interval: plans.interval,
         currentPeriodEnd: subscriptions.currentPeriodEnd,
         cancelAtPeriodEnd: subscriptions.cancelAtPeriodEnd,
+        cancelAt: subscriptions.cancelAt,
         provider: subscriptions.provider,
       })
       .from(subscriptions)
@@ -184,6 +187,7 @@ export const getSubscription = cache(async function getSubscription(
     interval: row.interval,
     currentPeriodEnd: row.currentPeriodEnd,
     cancelAtPeriodEnd: row.cancelAtPeriodEnd,
+    cancelAt: row.cancelAt,
     hasCustomer: Boolean(customer?.stripeCustomerId),
     provider: row.provider,
   };
