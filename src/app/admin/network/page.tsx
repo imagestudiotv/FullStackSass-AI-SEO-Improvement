@@ -101,7 +101,7 @@ export default async function AdminNetworkPage() {
         title={`Waiting for review (${capped(pending.length, queueCut)})`}
         description={
           <>
-            Held from every publishing path until approved. Oldest planned date first.
+            Held from every publishing path until approved. New customers&apos; first articles first, then oldest planned date.
             {queueCut ? <CutNote>Only the first {n(QUEUE_LIMIT)} articles in the queue are loaded - more may be waiting.</CutNote> : null}
           </>
         }
@@ -142,11 +142,16 @@ export default async function AdminNetworkPage() {
                     </TableCell>
                     <TableCell className="tabular-nums">{day(article.plannedFor)}</TableCell>
                     <TableCell>
-                      {article.reviewStatus === "approved" ? (
-                        <AdminStatus tone="warning" label="Changed since approval" title="Approved earlier, then changed - held until it is approved again" />
-                      ) : (
-                        <AdminStatus tone="pending" label="Pending" />
-                      )}
+                      <div className="flex flex-wrap gap-1">
+                        {article.reviewStatus === "approved" ? (
+                          <AdminStatus tone="warning" label="Changed since approval" title="Approved earlier, then changed - held until it is approved again" />
+                        ) : (
+                          <AdminStatus tone="pending" label="Pending" />
+                        )}
+                        {/* A new customer's first article: shown first, to be ready quickly. */}
+                        {article.firstArticle ? <AdminStatus tone="info" label="First article" title="Nothing of this website is published yet - a new customer is waiting" /> : null}
+                        {article.researchHeld ? <AdminStatus tone="warning" label="Check sources" title="Its sources are flagged: check them on the review page before approving" /> : null}
+                      </div>
                     </TableCell>
                     <TableCell data-numeric className="hidden sm:table-cell">{n(article.placements)}</TableCell>
                     <TableCell className="hidden xl:table-cell">

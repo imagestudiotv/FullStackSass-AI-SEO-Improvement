@@ -28,7 +28,7 @@ import {
   releaseUnspent,
   reserveAll,
 } from "@/lib/billing/spend-quota";
-import { syncApproval } from "@/lib/articles/review";
+import { followCustomerEdit } from "@/lib/articles/review";
 import { ArticleInFlightError, editArticle, isInFlight } from "@/lib/publishing/dispatch";
 
 /**
@@ -412,8 +412,8 @@ async function writeImage(articleId: string, patch: Parameters<ReturnType<typeof
   try {
     await editArticle(articleId, async (tx) => {
       await tx.update(articles).set(patch).where(eq(articles.id, articleId));
-      // An image change after approval goes back to the review queue.
-      await syncApproval(articleId, tx);
+      // An image change after approval: back to the review queue, or kept under the two-step flow.
+      await followCustomerEdit(articleId, tx);
     });
     return null;
   } catch (error) {

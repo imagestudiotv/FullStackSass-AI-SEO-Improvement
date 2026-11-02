@@ -1,10 +1,11 @@
 import { createHash } from "node:crypto";
 
-import { and, eq, sql, type SQL } from "drizzle-orm";
+import { and, eq, inArray, sql, type SQL } from "drizzle-orm";
 
+import { linksTo } from "@/lib/articles/link-guard";
 import { onFreeArticles } from "@/lib/billing/free-articles";
 import { db } from "@/lib/db";
-import { articles, calendarItems, networkSites } from "@/lib/db/schema";
+import { articles, backlinkRequests, calendarItems, networkSites, placements, platformControls } from "@/lib/db/schema";
 import type { Executor } from "@/lib/db/types";
 
 /**
@@ -179,15 +180,39 @@ export async function inManagedNetwork(websiteId: string, executor: Executor = d
 }
 
 /**
+ * True while the client's two-step article flow is on
+ * (platform_controls.two_step_articles, see lib/publishing/controls.ts):
+ * every new draft comes to the RepGet team first, their one approval makes
+ * it ready - sources included - and the customer only publishes.
+ *
+ * Read here rather than through lib/publishing/controls.ts, which imports
+ * this module.
+ */
+export async function twoStepArticles(executor: Executor = db): Promise<boolean> {
+  const [row] = await executor
+    .select({ enabled: platformControls.enabled })
+    .from(platformControls)
+    .where(eq(platformControls.key, "two_step_articles"))
+    .limit(1);
+  return row?.enabled ?? false;
+}
+
+/**
  * The review state a freshly written draft is saved with, decided INSIDE the
  * saving transaction under REVIEW_LOCK (shared). Switching managed review on
  * takes that lock exclusively and then holds the drafts written while it was
  * off (lib/publishing/controls.ts), so a save that decided "not reviewed"
  * can never land after that sweep: it either commits first (and the sweep
  * holds it) or waits and sees the switch on.
+ *
+ * With the two-step flow on, EVERY new draft comes to the team - every
+ * website, Partner Network or not, and the free articles of a new customer
+ * too: the client's rule is that the team writes the first article quickly
+ * and the customer receives it ready.
  */
 export async function reviewStatusForNewDraft(tx: Executor, websiteId: string): Promise<"pending" | null> {
   await tx.execute(sql`select pg_advisory_xact_lock_shared(hashtext('repget:managed-review'))`);
+  if (await twoStepArticles(tx)) return "pending";
   return (await inManagedNetwork(websiteId, tx)) ? "pending" : null;
 }
 
@@ -234,4 +259,65 @@ export async function syncApproval(articleId: string, executor: Executor = db): 
   if (row?.reviewStatus === "approved" && row.reviewApprovedHash !== reviewHash(row)) {
     await invalidateApproval(articleId, executor);
   }
+}
+
+/**
+ * After the CUSTOMER's own edit (text, title, slug, excerpt, image).
+ *
+ * With the two-step flow off: syncApproval, as before - the article goes
+ * back to the team's queue.
+ *
+ * With it on, the team's approval FOLLOWS the customer's edit: the client's
+ * rule is "the team works on it, the customer gets a ready version to
+ * publish", with no approve-change-approve-again loop. It is the customer's
+ * own article, so their change needs nobody's permission. The one exception
+ * is a placed Partner Network link: its credits are reserved against that
+ * link on this page, so an edit that removes one goes back to the team, who
+ * restore it or withdraw the placement - otherwise the customer would
+ * publish an article without the link another customer is paying for.
+ *
+ * Runs inside the edit's transaction, under the article's row lock
+ * (editArticle in lib/publishing/dispatch.ts).
+ */
+export async function followCustomerEdit(articleId: string, executor: Executor = db): Promise<void> {
+  if (!(await twoStepArticles(executor))) return syncApproval(articleId, executor);
+
+  const [row] = await executor
+    .select({
+      title: articles.title,
+      slug: articles.slug,
+      metaDescription: articles.metaDescription,
+      bodyHtml: articles.bodyHtml,
+      imageUrl: articles.imageUrl,
+      imageAlt: articles.imageAlt,
+      reviewStatus: articles.reviewStatus,
+      reviewApprovedHash: articles.reviewApprovedHash,
+      researchReviewRequired: articles.researchReviewRequired,
+      researchApprovedHash: articles.researchApprovedHash,
+    })
+    .from(articles)
+    .where(eq(articles.id, articleId))
+    .limit(1);
+  if (row?.reviewStatus !== "approved") return;
+  const hash = reviewHash(row);
+  if (row.reviewApprovedHash === hash) return;
+
+  const committed = await executor
+    .select({ targetUrl: backlinkRequests.targetUrl })
+    .from(placements)
+    .innerJoin(backlinkRequests, eq(backlinkRequests.id, placements.requestId))
+    .where(and(eq(placements.articleId, articleId), inArray(placements.status, ["pending", "drafted"])));
+  if (committed.some((placement) => !linksTo(row.bodyHtml ?? "", placement.targetUrl))) {
+    await invalidateApproval(articleId, executor);
+    return;
+  }
+
+  await executor
+    .update(articles)
+    .set({
+      reviewApprovedHash: hash,
+      // The team's approval covered the sources (approveArticle); it covers this revision too.
+      ...(row.researchReviewRequired && row.researchApprovedHash === row.reviewApprovedHash ? { researchApprovedHash: hash } : {}),
+    })
+    .where(and(eq(articles.id, articleId), eq(articles.reviewStatus, "approved")));
 }
