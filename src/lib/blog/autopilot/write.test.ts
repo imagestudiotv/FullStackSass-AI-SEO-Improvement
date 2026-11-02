@@ -289,12 +289,29 @@ describe("the body", () => {
     await expect(writePart(TOPIC, context(), plan(), { number: 1, from: 0 }, [])).rejects.toThrow(/^Part 1 has 2 of its 4 sections\. Try again\.$/);
   });
 
-  it("refuses a short last part, naming what is missing: it ends the article and answers the FAQs", async () => {
+  it("keeps a short last part too, and one more part ends the article with the FAQs (2026-11-03)", async () => {
+    // Asked for sections 8-10 (the last part); only section 8 came back - its FAQ answers are not used.
     const replies = partReplies(bodyParts(10));
     answers(message({ ...replies[2], bodyHtml: `<h2>${SECTION_HEADINGS[7]}</h2><p>x</p>` }));
-    await expect(writePart(TOPIC, context(), plan(), { number: 3, from: 7 }, [])).rejects.toThrow(
-      `Part 3 has 1 of its 3 sections (missing "${SECTION_HEADINGS[8]}", "${SECTION_HEADINGS[9]}")`,
-    );
+    const short = await writePart(TOPIC, context(), plan(), { number: 3, from: 7 }, ["<p>one</p>", "<p>two</p>"]);
+    expect(short.sections).toBe(1);
+    expect(short.faqs).toEqual([]);
+
+    // The next part writes sections 9 and 10, ends the article and answers the FAQs.
+    answers(message({ ...replies[2], bodyHtml: `<h2>${SECTION_HEADINGS[8]}</h2><p>y</p><h2>${SECTION_HEADINGS[9]}</h2><p>z</p>` }));
+    const rest = await writePart(TOPIC, context(), plan(), { number: 4, from: 8 }, ["<p>one</p>", "<p>two</p>", short.html]);
+    const request = asked().messages[0].content;
+    expect(request).toContain("Write part 4 of 4");
+    expect(request).toContain(`9. ${SECTION_HEADINGS[8]}`);
+    expect(request).toContain("This is the last part");
+    expect(rest.sections).toBe(2);
+    expect(rest.faqs.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it("still refuses a last part that is whole but has no FAQ answers", async () => {
+    const replies = partReplies(bodyParts(10));
+    answers(message({ ...replies[2], faqs: [] }));
+    await expect(writePart(TOPIC, context(), plan(), { number: 3, from: 7 }, [])).rejects.toThrow("The FAQ answers are missing");
   });
 
   it("reads a heading as the plan's when it has the same words, or most of them", () => {

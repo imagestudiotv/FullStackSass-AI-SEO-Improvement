@@ -531,8 +531,15 @@ export function sameHeading(written: string, planned: string): boolean {
  * but not all it was asked for (2026-10-20: "Part 1 has 2 of its 4
  * sections", on every try, and the run failed). That is kept: the next part
  * goes on from the first missing section, so nothing written and paid for
- * is thrown away. The last part, which ends the article and answers the
- * FAQs, must be whole. Anything else is refused, with what it cost.
+ * is thrown away. Anything else is refused, with what it cost.
+ *
+ * THE LAST PART TOO (2026-11-03: "Part 4 has 1 of its 3 sections (missing
+ * "Where RepGet fits", "The bottom line")" on every try, and the run
+ * failed). It used to have to be whole because it ends the article and
+ * answers the FAQs; refusing it threw away what was written and asked the
+ * same again. Now a short last part is kept like any other, its FAQ answers
+ * are not used, and one more part writes the rest - ending the article and
+ * answering the FAQs, which are required from the part that completes it.
  */
 export async function writePart(
   claim: Pick<AutopilotClaim, "topic" | "keyword" | "notes">,
@@ -562,16 +569,18 @@ export async function writePart(
   const planned = plan.sections.slice(from, to).map((section) => section.heading);
   const inOrder = headings.every((heading, offset) => offset < planned.length && sameHeading(heading, planned[offset]));
   if (headings.length !== expected) {
-    const short = !last && headings.length > 0 && headings.length < expected && inOrder;
+    const short = headings.length > 0 && headings.length < expected && inOrder;
     if (!short) {
       const missing = headings.length < expected && inOrder ? ` (missing ${planned.slice(headings.length).map((heading) => `"${heading}"`).join(", ")})` : "";
       throw new SpentError(`Part ${part.number} has ${headings.length} of its ${expected} sections${missing}. Try again.`, usage);
     }
   }
   const sections = headings.length;
+  // Only the part that completes the article ends it: a short last part's FAQ answers wait for the next one.
+  const completes = last && sections === expected;
 
   const faqs: BlogFaq[] = [];
-  if (last) {
+  if (completes) {
     for (const raw of Array.isArray(value.faqs) ? value.faqs : []) {
       const faq = (raw ?? {}) as Record<string, unknown>;
       const question = oneLine(faq.question);
