@@ -3,24 +3,25 @@
 import { ChevronDown, Package } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
-import { navItems } from "@/lib/nav-items";
+import { navEntries, type NavEntry, type NavGroup, type NavLink } from "@/lib/nav-items";
 import type { Messages } from "@/lib/i18n/messages";
 import { selectWebsite } from "@/lib/websites/actions";
 import { cn } from "@/lib/utils";
 import { sectionHref } from "@/lib/websites/sections";
 
 /**
- * The main sidebar.
- *
- * One flat list. A website's sections used to nest under a "Websites" parent
- * and appear only while a site was open, which buried the pages a customer
- * opens daily and left the sidebar nearly empty everywhere else.
+ * The main sidebar (client design, 2026-11-02; groups in lib/nav-items.ts).
  *
  * The per-website items resolve against the selected website, so they work
  * from any page — including /dashboard and /settings, which do not name a
  * site in their own URL.
+ *
+ * Groups open and close from their heading and REMEMBER it (in this
+ * browser), so someone who never uses Growth Audit can fold it away once. The
+ * group holding the current page always opens, so the page you are on is
+ * never hidden inside a closed group.
  */
 
 /** The id from /websites/<id>/..., or null anywhere else. */
@@ -38,6 +39,41 @@ function websiteIdFrom(pathname: string): string | null {
 /** One purchasable add-on, as the sidebar needs it. */
 export type SidebarAddon = { id: string; name: string };
 
+const STORAGE_KEY = "repget.sidebar.groups";
+
+type OpenState = Partial<Record<NavGroup["id"], boolean>>;
+
+/** The remembered state as stored (a string, so React can compare snapshots), read like any outside store. */
+function storedSnapshot(): string | null {
+  try {
+    return window.localStorage.getItem(STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function subscribeStored(onChange: () => void) {
+  window.addEventListener("storage", onChange);
+  return () => window.removeEventListener("storage", onChange);
+}
+
+function parseStored(raw: string | null): OpenState {
+  try {
+    const parsed: unknown = raw ? JSON.parse(raw) : null;
+    return parsed && typeof parsed === "object" ? (parsed as OpenState) : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeStored(state: OpenState) {
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    // Private windows and full storage: the menu still works, it just forgets.
+  }
+}
+
 export function SidebarNav({
   onNavigate,
   onboardingComplete = false,
@@ -49,13 +85,12 @@ export function SidebarNav({
   t,
 }: {
   /**
-   * Hides the Add-ons item whatever the catalogue holds.
+   * Hides the Add-ons group whatever the catalogue holds.
    *
    * Set by the layout for someone who owns no website, and while the selected
    * website is one shared with them. Add-ons are bought by - and credited to
    * - the buyer's own workspace, so offering them beside somebody else's site
-   * sells credits that can never be spent there. The /billing route behind
-   * the item is unchanged; this only stops the sidebar advertising it.
+   * sells credits that can never be spent there.
    */
   hideAddons?: boolean;
   /**
@@ -70,28 +105,19 @@ export function SidebarNav({
   /** The sidebar's labels, already in the reader's language. */
   t: Messages["app"]["nav"];
   /**
-   * What can be bought, for the Add-ons item to expand into.
-   *
-   * Passed in rather than fetched here: this is a client component, and the
+   * What can be bought, for the Add-ons group to list. Passed in: the
    * catalogue is rows in a table the server already reads for the layout.
-   * Empty by default, which hides the item — a deployment with no add-ons
-   * configured should not show an empty menu.
+   * Empty hides the group — a deployment with no add-ons should not show an
+   * empty menu.
    */
   addons?: SidebarAddon[];
   /**
    * The website the per-site links point at when the URL does not name one.
-   *
    * Resolved on the server from the address, then the remembered choice, then
-   * the customer's first website. Passed in rather than worked out here
-   * because /dashboard carries the site in a query parameter and /settings
-   * carries it nowhere.
+   * the customer's first website.
    */
   selectedWebsiteId?: string | null;
-  /**
-   * Hides "Get started" once setup is finished. The routes stay — they hold
-   * plan selection and checkout — but a permanent link to a finished
-   * checklist is clutter every customer carries forever.
-   */
+  /** Hides "Set up" once every required launch step is done. */
   onboardingComplete?: boolean;
 }) {
   const pathname = usePathname();
@@ -106,9 +132,6 @@ export function SidebarNav({
    *
    * Done here rather than in the website layout because Next only allows
    * cookies to be written from a server action, and a layout is not one.
-   * Without it, opening a site's page and then going to Settings would fall
-   * back to whichever site was last picked in the switcher.
-   *
    * Skipped when it already matches, so ordinary navigation inside one
    * website does not post on every page change.
    */
@@ -123,176 +146,141 @@ export function SidebarNav({
     });
   }, [fromPath, selectedWebsiteId]);
 
-  /**
-   * Add-ons start open.
-   *
-   * The point of promoting them out of Billing was that nobody found them;
-   * shipping them collapsed by default would hide them again behind one more
-   * click. Collapsing is there for someone who does not want the list.
-   */
-  const [addonsOpen, setAddonsOpen] = useState(true);
+  function hrefOf(item: NavLink): string | null {
+    if (item.segment !== undefined) return websiteId ? sectionHref(websiteId, item.segment) : null;
+    return item.href ?? null;
+  }
 
-  const items = navItems.filter((item) => {
-    /*
-      "Set up" goes once every REQUIRED launch step is done. The flag is named
-      for the old signup checklist it used to hide; it now carries the launch
-      state, which is what the item points at.
-    */
+  /**
+   * The website index ("" segment) and /dashboard match exactly; every other
+   * route also matches its own children, so an article page keeps Planned
+   * Articles lit. usePathname() never carries a hash, so "/billing#addons"
+   * is compared on its path alone.
+   */
+  function isActive(item: NavLink): boolean {
+    if (item.alsoActive?.(pathname)) return true;
+    const href = hrefOf(item);
+    if (!href) return false;
+    const path = href.split("#")[0];
+    const exact = item.segment === "" || item.href === "/dashboard";
+    return exact ? pathname === path : pathname === path || pathname.startsWith(`${path}/`);
+  }
+
+  function visible(item: NavLink): boolean {
+    /* "Set up" goes once every REQUIRED launch step is done. */
     if (item.href === "/setup" && onboardingComplete) return false;
-    /**
-     * No website yet, so every per-site link would 404. Dashboard and
-     * Settings still work, and the dashboard already prompts for a site.
-     */
+    /* No website yet, so every per-site link would 404. */
     if (item.segment !== undefined && !websiteId) return false;
-    /**
-     * Nothing to sell, nothing to show. A deployment that has not configured
-     * add-ons would otherwise carry a menu item that expands into nothing.
-     */
-    if (item.expands === "addons" && addons.length === 0) return false;
-    // Not this person's to buy for the site they are on; see hideAddons.
-    if (item.expands === "addons" && hideAddons) return false;
     if (item.href === "/credits" && hideCredits) return false;
     return true;
-  });
+  }
+
+  function childrenOf(group: NavGroup): NavLink[] | SidebarAddon[] {
+    if (group.children === "addons") return hideAddons ? [] : addons;
+    return group.children.filter(visible);
+  }
+
+  const activeGroup = navEntries.find(
+    (entry): entry is NavEntry & { kind: "group" } =>
+      entry.kind === "group" && entry.children !== "addons" && entry.children.some((child) => visible(child) && isActive(child)),
+  )?.id;
+
+  /**
+   * Open or closed per group: the defaults on the server and the first paint
+   * (so the markup matches), then what this browser remembered.
+   */
+  const storedRaw = useSyncExternalStore(subscribeStored, storedSnapshot, () => null);
+  const stored = useMemo(() => parseStored(storedRaw), [storedRaw]);
+  const [changed, setChanged] = useState<OpenState>({});
+  const open: OpenState = { ...stored, ...changed };
+
+  function toggle(id: NavGroup["id"], isOpen: boolean) {
+    const next = { ...open, [id]: !isOpen };
+    setChanged(next);
+    writeStored(next);
+  }
+
+  const linkClass = (active: boolean, child: boolean) =>
+    cn(
+      "flex items-center gap-3 rounded-md px-3 text-sm transition-colors",
+      child ? "py-1.5 pl-9" : "py-2",
+      active
+        ? "bg-accent font-medium text-accent-foreground"
+        : "text-muted-foreground hover:bg-accent/60 hover:text-accent-foreground",
+    );
+
+  function renderLink(item: NavLink, child: boolean) {
+    const href = hrefOf(item);
+    if (!href) return null;
+    const active = isActive(item);
+    const Icon = item.icon;
+    return (
+      <Link key={item.title} href={href} onClick={onNavigate} aria-current={active ? "page" : undefined} className={linkClass(active, child)}>
+        <Icon className={cn("shrink-0", child ? "size-3.5" : "size-4", active && "text-primary")} aria-hidden="true" />
+        <span className="min-w-0 flex-1 truncate">{t[item.title]}</span>
+        {/* Progress beside "Set up", only while there is progress to report. */}
+        {item.href === "/setup" && setupProgress ? (
+          <span className="shrink-0 rounded-full bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary tabular-nums">
+            {setupProgress.done}/{setupProgress.total}
+          </span>
+        ) : null}
+      </Link>
+    );
+  }
 
   return (
     <nav className="flex flex-col gap-0.5 px-3" aria-label={t.main}>
-      {items.map((item) => {
-        const Icon = item.icon;
-
-        const href =
-          item.segment !== undefined && websiteId
-            ? sectionHref(websiteId, item.segment)
-            : (item.href as string);
-
-        /**
-         * The website index ("" segment) must match exactly. Every other
-         * route also matches its own children, so an article page keeps
-         * Planned Articles lit rather than dimming the whole sidebar.
-         */
-        /**
-         * usePathname() never carries a hash, so an href like
-         * "/billing#addons" must be compared on its path alone — otherwise
-         * the item can never match and never highlights.
-         */
-        const hrefPath = href.split("#")[0];
-
-        const exact = item.segment === "" || item.href === "/dashboard";
-        const active = exact
-          ? pathname === hrefPath
-          : pathname === hrefPath || pathname.startsWith(`${hrefPath}/`);
-
-        /**
-         * An expanding item is two controls in one row: the label navigates,
-         * the chevron opens the list. Kept separate so clicking "Add-ons"
-         * still goes somewhere — a parent that only toggles is a dead end for
-         * anyone who wanted the page.
-         */
-        if (item.expands === "addons") {
+      {navEntries.map((entry) => {
+        if (entry.kind === "link") {
+          if (!visible(entry)) return null;
           return (
-            <div key={item.title}>
-              {item.separatorBefore ? (
-                <div className="my-2 border-t" role="presentation" />
-              ) : null}
-              <div
-                className={cn(
-                  "flex items-center rounded-md transition-colors",
-                  active
-                    ? "bg-accent text-accent-foreground"
-                    : "text-muted-foreground hover:bg-accent/60 hover:text-accent-foreground",
-                )}
-              >
-                <Link
-                  href={href}
-                  onClick={onNavigate}
-                  aria-current={active ? "page" : undefined}
-                  className={cn(
-                    "flex min-w-0 flex-1 items-center gap-3 px-3 py-2 text-sm",
-                    active && "font-medium",
-                  )}
-                >
-                  <Icon className="size-4 shrink-0" aria-hidden="true" />
-                  {t[item.title]}
-                </Link>
-                <button
-                  type="button"
-                  onClick={() => setAddonsOpen((open) => !open)}
-                  aria-expanded={addonsOpen}
-                  aria-controls="sidebar-addons"
-                  aria-label={
-                    addonsOpen ? "Collapse add-ons" : "Expand add-ons"
-                  }
-                  className="shrink-0 rounded-md px-2 py-2"
-                >
-                  <ChevronDown
-                    className={cn(
-                      "size-4 transition-transform",
-                      !addonsOpen && "-rotate-90",
-                    )}
-                    aria-hidden="true"
-                  />
-                </button>
-              </div>
-
-              {addonsOpen ? (
-                <ul id="sidebar-addons" className="mt-0.5 space-y-0.5">
-                  {addons.map((addon) => (
-                    <li key={addon.id}>
-                      {/*
-                        Every add-on links to the same panel rather than to a
-                        page of its own: buying one is a Stripe checkout
-                        started from there, and inventing a route per add-on
-                        would be a page whose only content is a button.
-                      */}
-                      <Link
-                        href="/billing#addons"
-                        onClick={onNavigate}
-                        className="flex items-start gap-3 rounded-md py-1.5 pl-9 pr-3 text-xs text-muted-foreground transition-colors hover:bg-accent/60 hover:text-accent-foreground"
-                      >
-                        <Package
-                          className="mt-0.5 size-3.5 shrink-0"
-                          aria-hidden="true"
-                        />
-                        <span className="min-w-0">{addon.name}</span>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
+            <div key={entry.title}>
+              {entry.separatorBefore ? <div className="my-2 border-t" role="presentation" /> : null}
+              {renderLink(entry, false)}
             </div>
           );
         }
 
+        const children = childrenOf(entry);
+        if (children.length === 0) return null;
+        const isOpen = entry.id === activeGroup || (open[entry.id] ?? entry.defaultOpen);
+        const listId = `sidebar-group-${entry.id}`;
+        const Icon = entry.icon;
+
         return (
-          <div key={item.title}>
-            {item.separatorBefore ? (
-              <div className="my-2 border-t" role="presentation" />
-            ) : null}
-            <Link
-              href={href}
-              onClick={onNavigate}
-              aria-current={active ? "page" : undefined}
-              className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
-                active
-                  ? "bg-accent font-medium text-accent-foreground"
-                  : "text-muted-foreground hover:bg-accent/60 hover:text-accent-foreground",
-              )}
+          <div key={entry.id} className="mt-1 first:mt-0">
+            <button
+              type="button"
+              onClick={() => toggle(entry.id, isOpen)}
+              aria-expanded={isOpen}
+              aria-controls={listId}
+              className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm font-semibold text-foreground transition-colors hover:bg-accent/60"
             >
               <Icon className="size-4 shrink-0" aria-hidden="true" />
-              <span className="min-w-0 flex-1 truncate">{t[item.title]}</span>
-              {/*
-                Progress beside "Set up", as the design shows. Only on that
-                item, and only while there is progress to report — a badge on
-                a finished checklist is a number nobody needs, and the item
-                disappears then anyway.
-              */}
-              {item.href === "/setup" && setupProgress ? (
-                <span className="shrink-0 rounded-full bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary tabular-nums">
-                  {setupProgress.done}/{setupProgress.total}
-                </span>
-              ) : null}
-            </Link>
+              <span className="min-w-0 flex-1 truncate">{t[entry.title]}</span>
+              <ChevronDown className={cn("size-4 shrink-0 text-muted-foreground transition-transform", !isOpen && "-rotate-90")} aria-hidden="true" />
+            </button>
+            {isOpen ? (
+              <div id={listId} className="mt-0.5 mb-1 flex flex-col gap-0.5">
+                {entry.children === "addons"
+                  ? (children as SidebarAddon[]).map((addon) => (
+                      /*
+                        Every add-on links to the same panel: buying one is a
+                        Stripe checkout started from there.
+                      */
+                      <Link
+                        key={addon.id}
+                        href="/billing#addons"
+                        onClick={onNavigate}
+                        className="flex items-start gap-3 rounded-md py-1.5 pr-3 pl-9 text-sm text-muted-foreground transition-colors hover:bg-accent/60 hover:text-accent-foreground"
+                      >
+                        <Package className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+                        <span className="min-w-0">{addon.name}</span>
+                      </Link>
+                    ))
+                  : (children as NavLink[]).map((child) => renderLink(child, true))}
+              </div>
+            ) : null}
           </div>
         );
       })}

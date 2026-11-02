@@ -22,8 +22,8 @@ vi.mock("next/navigation", () => ({
 
 /** A bare anchor: the assertions are about where links go, not prefetching. */
 vi.mock("next/link", () => ({
-  default: ({ href, children }: { href: string; children: ReactNode }) =>
-    createElement("a", { href }, children),
+  default: ({ href, children, "aria-current": current }: { href: string; children: ReactNode; "aria-current"?: string }) =>
+    createElement("a", { href, "aria-current": current }, children),
 }));
 
 /* Server actions the client components import; never called while rendering. */
@@ -67,6 +67,9 @@ beforeEach(() => {
 });
 
 describe("SettingsNav", () => {
+  beforeEach(() => {
+    state.pathname = "/settings";
+  });
   const render = (access?: "owner" | "editor" | "viewer") =>
     renderToStaticMarkup(
       createElement(SettingsNav, { websiteId: SITE, access, t: en.app.nav }),
@@ -88,6 +91,17 @@ describe("SettingsNav", () => {
       expect(html).toContain('href="/settings"');
     },
   );
+
+  it("is only on the settings pages (client, 2026-11-02)", () => {
+    for (const path of [`/websites/${SITE}/profile`, `/websites/${SITE}/publishing`, `/websites/${SITE}/integrations`, "/settings", "/billing"]) {
+      state.pathname = path;
+      expect(render()).toContain(`href="/websites/${SITE}/profile"`);
+    }
+    for (const path of [`/websites/${SITE}`, `/websites/${SITE}/videos`, `/websites/${SITE}/social`, `/websites/${SITE}/content`, "/dashboard"]) {
+      state.pathname = path;
+      expect(render()).toBe("");
+    }
+  });
 });
 
 describe("SidebarNav", () => {
@@ -101,18 +115,36 @@ describe("SidebarNav", () => {
       }),
     );
 
-  it("offers add-ons by default", () => {
+  it("offers add-ons by default, as a group that starts closed", () => {
     const html = render();
-    expect(html).toContain('href="/billing#addons"');
-    expect(html).toContain("Link credits");
+    expect(html).toContain('aria-controls="sidebar-group-addons"');
+    expect(html).toContain("Add-ons");
   });
 
   it("hides add-ons when told to, keeping the per-site sections", () => {
     const html = render(true);
-    expect(html).not.toContain("/billing#addons");
-    expect(html).not.toContain("Link credits");
+    expect(html).not.toContain("sidebar-group-addons");
     expect(html).toContain(`href="/websites/${SITE}/content"`);
     expect(html).toContain('href="/settings"');
+  });
+
+  it("follows the client's menu: groups, Growth Copilot, Tasks and the renamed pages", () => {
+    const html = render();
+    const order = ["Home", "Growth Copilot", "Tasks", "Planned Articles", "Backlink Exchange", "Social Distribution", "Opportunities", "Social Content", "Growth Audit", "Website Health", "Google Search &amp; Analytics", "AI Visibility", "Losing Traffic", "Credits", "Add-ons", "Settings"];
+    const at = order.map((label) => html.indexOf(`>${label}<`));
+    expect(at.every((index) => index >= 0)).toBe(true);
+    expect([...at].sort((a, b) => a - b)).toEqual(at);
+    expect(html).toContain(`href="/websites/${SITE}/copilot"`);
+    expect(html).toContain('href="/dashboard"');
+    expect(html).toContain(`href="/websites/${SITE}/social"`);
+    expect(html).toContain(`href="/websites/${SITE}/videos"`);
+  });
+
+  it("lights the current page, and Settings for every settings tab", () => {
+    state.pathname = `/websites/${SITE}/videos`;
+    expect(render()).toMatch(new RegExp(`aria-current="page"[^>]*href="/websites/${SITE}/videos"|href="/websites/${SITE}/videos"[^>]*aria-current="page"`));
+    state.pathname = `/websites/${SITE}/publishing`;
+    expect(render()).toMatch(/href="\/settings"[^>]*aria-current="page"|aria-current="page"[^>]*href="\/settings"/);
   });
 });
 
@@ -121,7 +153,6 @@ describe("SidebarUsage", () => {
     renderToStaticMarkup(
       await SidebarUsage({
         organizationId: "org_own",
-        websiteId: SITE,
         showCredits,
         t: en.app.nav,
         tc: en.app.credits,
@@ -134,7 +165,8 @@ describe("SidebarUsage", () => {
     expect(creditOverview).toHaveBeenCalledWith("org_own");
     expect(html).toContain("7 credits");
     expect(html).toContain('href="/credits"');
-    expect(html).toContain("8 of 10 articles left");
+    expect(html).toContain("Earn Credits");
+    expect(html).toContain('href="/settings#referral"');
     expect(html).not.toContain("today");
   });
 
@@ -143,21 +175,21 @@ describe("SidebarUsage", () => {
     expect(await render()).toContain("+3 today");
   });
 
-  it("on a shared site: no credit figure, no grant, the article allowance kept", async () => {
+  it("on a shared site: no credit figure and no grant, Earn Credits kept", async () => {
     const html = await render(false);
     expect(creditOverview).not.toHaveBeenCalled();
     expect(html).not.toContain("credits");
-    expect(html).toContain("8 of 10 articles left");
+    expect(html).toContain("Earn Credits");
   });
 
   it("speaks the reader's language", async () => {
     const it_ = getMessages("it");
     overview.daily = { eligible: true, perDay: 3, today: 3 };
     const html = renderToStaticMarkup(
-      await SidebarUsage({ organizationId: "org_own", websiteId: SITE, t: it_.app.nav, tc: it_.app.credits }),
+      await SidebarUsage({ organizationId: "org_own", t: it_.app.nav, tc: it_.app.credits }),
     );
     expect(html).toContain("7 crediti");
-    expect(html).toContain("8 articoli su 10 rimasti");
+    expect(html).toContain("Guadagni crediti");
     expect(html).toContain("+3 oggi");
   });
 });

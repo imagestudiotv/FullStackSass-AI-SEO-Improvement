@@ -29,6 +29,7 @@ import type { ChatMessageView, ChatThreadSummary } from "@/lib/chat/store";
 import type { ChatCopy } from "@/lib/i18n/chat";
 import type { Locale } from "@/lib/i18n/config";
 import { format, formatDate, plural } from "@/lib/i18n/format";
+import { cn } from "@/lib/utils";
 
 import { ChatMarkdown } from "./chat-markdown";
 
@@ -44,6 +45,8 @@ type Props = {
   initialFreeLeft: number;
   prices: Prices;
   initialThreads: ChatThreadSummary[];
+  /** On its own page: the title is the page heading (h1) and the conversation takes the screen's height. */
+  standalone?: boolean;
 };
 
 function errorText(t: ChatCopy, creditsCount: string, result: { error: ChatError; price?: number; available?: number }): string {
@@ -147,10 +150,17 @@ export function ChatPanel(props: Props) {
     <section className="rounded-xl border bg-card p-5" aria-labelledby="chat-title">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
-          <h2 id="chat-title" className="flex items-center gap-2 text-base font-semibold">
-            <Sparkles className="size-4 text-primary" aria-hidden="true" />
-            {t.title}
-          </h2>
+          {props.standalone ? (
+            <h1 id="chat-title" className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
+              <Sparkles className="size-5 text-primary" aria-hidden="true" />
+              {t.title}
+            </h1>
+          ) : (
+            <h2 id="chat-title" className="flex items-center gap-2 text-base font-semibold">
+              <Sparkles className="size-4 text-primary" aria-hidden="true" />
+              {t.title}
+            </h2>
+          )}
           <p className="max-w-2xl text-sm text-muted-foreground">{t.intro}</p>
         </div>
         {props.canUse ? (
@@ -195,7 +205,7 @@ export function ChatPanel(props: Props) {
       ) : (
         <>
           {messages.length > 0 ? (
-            <div className="mt-4 max-h-[32rem] space-y-4 overflow-y-auto pr-1" aria-live="polite">
+            <div className={cn("mt-4 space-y-4 overflow-y-auto pr-1", props.standalone ? "max-h-[calc(100svh-22rem)] min-h-64" : "max-h-[32rem]")} aria-live="polite">
               {messages.map((message) =>
                 message.role === "user" ? (
                   <div key={message.id} className="flex justify-end">

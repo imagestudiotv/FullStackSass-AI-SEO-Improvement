@@ -53,6 +53,7 @@ export function WebsiteSwitcher({
   current,
   compact = false,
   inMenu = false,
+  iconOnly = null,
   onNavigate,
   t = getMessages("en").app.dash,
 }: {
@@ -61,6 +62,12 @@ export function WebsiteSwitcher({
   current: SwitcherWebsite;
   /** Smaller, for the header, where it sits beside the workspace picker. */
   compact?: boolean;
+  /**
+   * Only the up-and-down arrows, beside the credits next to the logo (client
+   * design, 2026-11-02), with this label ("Switch website") read out and shown
+   * on hover after the site's name.
+   */
+  iconOnly?: string | null;
   /** In a narrow navigation drawer, keep the options in its scroll flow. */
   inMenu?: boolean;
   onNavigate?: () => void;
@@ -224,6 +231,21 @@ export function WebsiteSwitcher({
 
   return (
     <div className="relative" ref={rootRef}>
+      {iconOnly ? (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setOpen((previous) => !previous)}
+          aria-expanded={open}
+          aria-haspopup="listbox"
+          disabled={pending}
+          aria-label={`${active.brandName || active.domain}${activeSharedLabel ? ` (${activeSharedLabel})` : ""} - ${iconOnly}`}
+          title={`${active.brandName || active.domain} - ${iconOnly}`}
+          className="size-7 text-muted-foreground"
+        >
+          <ChevronsUpDown className="size-4" aria-hidden="true" />
+        </Button>
+      ) : (
       <Button
         variant="outline"
         onClick={() => setOpen((previous) => !previous)}
@@ -257,6 +279,7 @@ export function WebsiteSwitcher({
           aria-hidden="true"
         />
       </Button>
+      )}
 
       {open ? (
         <div

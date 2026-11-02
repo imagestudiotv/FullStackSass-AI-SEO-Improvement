@@ -1,7 +1,6 @@
 import { CirclePause, Plus, Users } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
-import { Assistant } from "@/components/chat/assistant";
 import { NextActions } from "@/components/dashboard/next-actions";
 
 import { AchievementsSection } from "@/components/dashboard/achievements";
@@ -301,18 +300,7 @@ export default async function DashboardPage({
 
       <PendingInvitations invitations={inviteCards} t={inviteText} />
 
-      {/* The AI chat (client, 2026-10-31): above the task list, which stays. */}
-      <Suspense fallback={<div className="h-40 animate-pulse rounded-xl border bg-card" aria-hidden="true" />}>
-        <Assistant
-          websiteId={ctx.site.id}
-          ownerOrgId={ctx.ownerOrgId}
-          userId={session.user.id}
-          canUse={ctx.access !== "viewer"}
-          locale={locale}
-          creditsCount={t.app.credits.creditsCount}
-        />
-      </Suspense>
-
+      {/* The AI chat moved to its own page, Growth Copilot (client, 2026-11-02). */}
       <Suspense fallback={<div className="h-28 animate-pulse rounded-xl border bg-card" aria-hidden="true" />}>
         <NextActions websiteId={ctx.site.id} ownerOrgId={ctx.ownerOrgId} canManage={ctx.access === "owner"} locale={locale} />
       </Suspense>

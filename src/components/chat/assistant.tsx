@@ -8,7 +8,7 @@ import type { Locale } from "@/lib/i18n/config";
 import { ChatPanel } from "./chat-panel";
 
 /**
- * The AI chat on the Home page (client, 2026-10-31), above the task list.
+ * Growth Copilot, the AI chat, on its own page (client, 2026-11-02; it was on the Home page).
  * What the panel needs to start: today's free messages left in the paying
  * workspace, the prices its cards show, and this person's earlier chats.
  */
@@ -19,7 +19,10 @@ export async function Assistant({
   canUse,
   locale,
   creditsCount,
+  standalone = false,
 }: {
+  /** The whole page: the title is the page's heading and the conversation gets the height. */
+  standalone?: boolean;
   websiteId: string;
   ownerOrgId: string;
   userId: string;
@@ -49,6 +52,7 @@ export async function Assistant({
         video_post: settings.prices.video_post ?? 0,
       }}
       initialThreads={threads}
+      standalone={standalone}
     />
   );
 }

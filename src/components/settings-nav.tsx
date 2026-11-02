@@ -115,6 +115,14 @@ export function SettingsNav({
     (section) => !section.ownerOnly || access === "owner",
   );
 
+  /*
+    Only on the settings pages themselves (client, 2026-11-02: "we need to
+    exclude this bar for all Menus ... having it only on Settings"). The
+    website layout renders it for every page of a site; anywhere that is not
+    one of these tabs, it now renders nothing.
+  */
+  if (!SECTIONS.some((section) => section.match(pathname, websiteId))) return null;
+
   return (
     /*
       Scrolls sideways rather than wrapping. Five labels do not fit a phone,

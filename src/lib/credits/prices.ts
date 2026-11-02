@@ -62,7 +62,7 @@ export const ACTION_NOTES: Record<CreditAction, string> = {
   audit_rerun: "Website check run again",
   social_post: "Social media post",
   video_post: "Video made",
-  chat_message: "AI chat message",
+  chat_message: "Growth Copilot message",
 };
 
 /** Limits on what an administrator can set, so a typo cannot price an action at 100,000. */

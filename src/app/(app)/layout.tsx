@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { and, asc, eq, isNull, sql as raw } from "drizzle-orm";
 import Link from "next/link";
 
-import { AppSidebar } from "@/components/app-sidebar";
+import { AppSidebar, HeaderBrand } from "@/components/app-sidebar";
 import { FeedbackButton } from "@/components/feedback-button";
 import { MobileNav } from "@/components/mobile-nav";
 import { NotificationBell } from "@/components/notification-bell";
@@ -10,7 +10,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { BrandLogo, BrandMark } from "@/components/brand-logo";
 import { LiveChat } from "@/components/live-chat";
 import { SidebarNav } from "@/components/sidebar-nav";
-import { SidebarUsage } from "@/components/sidebar-usage";
+import { SidebarCredits, SidebarUsage } from "@/components/sidebar-usage";
 import { UserMenu } from "@/components/user-menu";
 import { WebsiteSwitcher } from "@/components/dashboard/website-switcher";
 import { isAdmin } from "@/lib/admin/guard";
@@ -246,15 +246,54 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       .map((row) => ({ id: row.id, name: row.name })),
   ];
 
+  /**
+   * Credits are shown beside an owned site only - see SidebarUsage's
+   * showCredits. The same answer decides the pill beside the logo, the phone
+   * header's pill and the line under "Earn Credits".
+   */
+  const showCredits = !selectedShared && !sharedWorkOnly;
+  const creditWords = t.app.credits;
+
   return (
-    <div className="flex min-h-svh flex-col bg-muted/30">
-      <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-        <MobileNav
+    /*
+      The client's layout (2026-11-02): a full-height sidebar with the logo,
+      the credits and the website arrows at its top, and the page beside it
+      under a slim bar with feedback, theme, notifications and the account.
+      On a phone the sidebar is the menu sheet and the bar carries the logo
+      and the credits instead.
+    */
+    <div className="flex min-h-svh bg-muted/30">
+      <AppSidebar
+        header={
+          <div className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
+            <Link href="/dashboard" aria-label="RepGet" className="flex items-center">
+              <BrandLogo height={22} priority />
+            </Link>
+            <div className="ml-auto flex items-center gap-0.5">
+              {showCredits ? <SidebarCredits organizationId={orgId} t={t.app.nav} tc={creditWords} /> : null}
+              {/*
+                The website switcher, as the arrows beside the credits. Hidden
+                with no websites: an empty menu offering nothing to switch to
+                is worse than no menu.
+              */}
+              {switcherCurrent ? (
+                <WebsiteSwitcher websites={switcherWebsites} current={switcherCurrent} iconOnly={t.app.nav.switchWebsite} t={t.app.dash} />
+              ) : null}
+            </div>
+          </div>
+        }
+        footer={
+          /*
+            "Earn Credits" and the balance, pinned under the menu. No credit
+            figure on a shared site or for someone who owns nothing: `orgId`
+            is this person's own workspace, so the number would be THEIR
+            balance beside credits they cannot spend there.
+          */
+          <SidebarUsage organizationId={orgId} showCredits={showCredits} t={t.app.nav} tc={creditWords} />
+        }
+      >
+        <SidebarNav
           t={t.app.nav}
-          websites={switcherWebsites}
-          currentWebsite={switcherCurrent}
-          switcherText={t.app.dash}
-          closeLabel={t.app.common.close}
           onboardingComplete={onboardingComplete}
           setupProgress={setupProgress}
           selectedWebsiteId={fallbackWebsiteId}
@@ -262,125 +301,67 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           hideAddons={hideAddons}
           hideCredits={sharedWorkOnly}
         />
-        <Link
-          href="/dashboard"
-          aria-label="RepGet"
-          className="flex items-center"
-        >
-          <span className="sm:hidden">
-            <BrandMark size={24} />
-          </span>
-          <span className="hidden sm:inline-flex">
-            <BrandLogo height={22} priority />
-          </span>
-        </Link>
+      </AppSidebar>
 
-        {/*
-          The website switcher sits beside the workspace picker, in the header
-          rather than on the dashboard, because the sidebar now shows a
-          website's sections everywhere — and changing site from the sidebar
-          would otherwise mean going back to the dashboard first.
-
-          Hidden with no websites: an empty menu offering nothing to switch to
-          is worse than no menu. Shared sites are in it, after the owned ones
-          and under their own heading, so an invitee can find the site they
-          were invited to without typing its address.
-        */}
-        {switcherCurrent ? (
-          <div className="hidden md:block">
-            <WebsiteSwitcher
-              websites={switcherWebsites}
-              current={switcherCurrent}
-              compact
-              t={t.app.dash}
-            />
-          </div>
-        ) : null}
-
-        <div className="ml-auto flex items-center gap-1">
-          {/*
-            The admin link moved into the account menu.
-
-            It was a header button here and NOWHERE ELSE, so it disappeared
-            the moment an administrator left this route group - including on
-            /onboarding, which is where signing in with a fresh admin account
-            actually lands. The account menu is rendered by both layouts, so
-            one entry covers every authenticated screen.
-          */}
-          {/*
-            Count is rendered on the server so the badge is correct on first
-            paint. The list itself loads when the bell is opened.
-          */}
-          {/* Ideas and problems, straight to RepGet's team (lib/feedback). Only this language's words go to the browser. */}
-          <FeedbackButton copy={FEEDBACK_COPY[locale]} locale={locale} accountEmail={session.user.email} />
-          <ThemeToggle label={t.app.common.darkMode} />
-          <NotificationBell initialUnread={unread} t={t.app.auth} />
-          <UserMenu
-            name={session.user.name}
-            email={session.user.email}
-            image={session.user.image}
-            isAdmin={admin}
-            adminLabel={t.app.common.admin}
-            partnerPortalLabel={partnerPortalLabel}
-          />
-        </div>
-      </header>
-
-      <div className="flex flex-1">
-        <AppSidebar>
-          <SidebarNav
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+          <MobileNav
             t={t.app.nav}
+            websites={switcherWebsites}
+            currentWebsite={switcherCurrent}
+            switcherText={t.app.dash}
+            closeLabel={t.app.common.close}
             onboardingComplete={onboardingComplete}
             setupProgress={setupProgress}
             selectedWebsiteId={fallbackWebsiteId}
             addons={sidebarAddons}
             hideAddons={hideAddons}
             hideCredits={sharedWorkOnly}
+            footer={<SidebarUsage organizationId={orgId} showCredits={showCredits} t={t.app.nav} tc={creditWords} />}
           />
-          {/*
-            Plan usage under the navigation: what is left this month, and
-            where to go when it runs out.
+          <HeaderBrand>
+            <Link href="/dashboard" aria-label="RepGet" className="flex items-center">
+              <span className="sm:hidden">
+                <BrandMark size={24} />
+              </span>
+              <span className="hidden sm:inline-flex">
+                <BrandLogo height={22} priority />
+              </span>
+            </Link>
+          </HeaderBrand>
+          {/* On a phone the credits sit in this bar, where the sidebar's are out of sight. */}
+          {showCredits ? (
+            <div className="md:hidden">
+              <SidebarCredits organizationId={orgId} t={t.app.nav} tc={creditWords} />
+            </div>
+          ) : null}
 
-            No credit figure on a shared site. `orgId` is this person's own
-            workspace, so the number would be THEIR balance shown beside the
-            owner's site - credits that cannot be spent there (spending is
-            charged to the site's owner; see WebsiteContext.ownerOrgId). The
-            article allowance stays: it belongs to the site, and is what an
-            editor actually works against. Nor for someone who owns nothing
-            and has only invitations: "0 backlink credits" there invites a
-            purchase for a site they do not have.
-          */}
-          <SidebarUsage
-            organizationId={orgId}
-            websiteId={fallbackWebsiteId}
-            showCredits={!selectedShared && !sharedWorkOnly}
-            t={t.app.nav}
-            tc={t.app.credits}
-          />
-        </AppSidebar>
-        {/*
-          The page content sits on a slightly tinted ground while cards are
-          plain background, so cards read as raised surfaces without needing
-          heavy shadows.
-        */}
-        {/*
-          A TINTED CONTENT AREA, so the white cards on it have something to
-          sit against.
+          <div className="ml-auto flex items-center gap-1">
+            {/* Ideas and problems, straight to RepGet's team (lib/feedback). Only this language's words go to the browser. */}
+            <FeedbackButton copy={FEEDBACK_COPY[locale]} locale={locale} accountEmail={session.user.email} />
+            <ThemeToggle label={t.app.common.darkMode} />
+            {/* Count rendered on the server so the badge is right on first paint. */}
+            <NotificationBell initialUnread={unread} t={t.app.auth} />
+            {/* The admin link lives in the account menu, which every authenticated layout renders. */}
+            <UserMenu
+              name={session.user.name}
+              email={session.user.email}
+              image={session.user.image}
+              isAdmin={admin}
+              adminLabel={t.app.common.admin}
+              partnerPortalLabel={partnerPortalLabel}
+            />
+          </div>
+        </header>
 
-          --background and --card are both pure white in the light theme, so
-          every panel was white-on-white and the page read as one flat sheet
-          with hairline borders - the client: "the each tabs are too white in
-          UI side". muted/40 is a very light grey: enough for a card to look
-          like a card, not so much that the page looks grey.
-
-          Left on the MAIN element rather than the cards, so every page gains
-          it at once and nothing has to remember to opt in.
-        */}
         {referralPending ? <ReferralClaim /> : null}
         {conversions.length > 0 ? <ConversionEvents events={conversions} /> : null}
-        <main className="min-w-0 flex-1 bg-muted/40 px-4 py-6 md:px-8 md:py-8">
-          {children}
-        </main>
+        {/*
+          A TINTED CONTENT AREA, so the white cards on it read as cards: the
+          client found white-on-white pages "too white". Pages centre
+          themselves (PageShell).
+        */}
+        <main className="min-w-0 flex-1 bg-muted/40 px-4 py-6 md:px-8 md:py-8">{children}</main>
       </div>
 
       {/*

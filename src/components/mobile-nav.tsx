@@ -1,7 +1,7 @@
 "use client";
 
 import { Menu } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import { BrandLogo } from "@/components/brand-logo";
 import { WebsiteSwitcher, type SwitcherWebsite } from "@/components/dashboard/website-switcher";
@@ -27,8 +27,11 @@ export function MobileNav({
   currentWebsite,
   switcherText,
   closeLabel,
+  footer,
   t,
 }: {
+  /** "Earn Credits" and the balance, as at the bottom of the desktop sidebar. */
+  footer?: ReactNode;
   onboardingComplete?: boolean;
   websites?: SwitcherWebsite[];
   currentWebsite?: SwitcherWebsite | null;
@@ -91,6 +94,7 @@ export function MobileNav({
           hideCredits={hideCredits}
           t={t}
         />
+        {footer ? <div className="mt-4">{footer}</div> : null}
       </SheetContent>
     </Sheet>
   );

@@ -55,7 +55,7 @@ export type ChatCopy = {
 };
 
 const en: ChatCopy = {
-  title: "Ask RepGet",
+  title: "Growth Copilot",
   intro: "Ask anything about your website: traffic, articles, website health, AI visibility, backlinks, social media and videos. RepGet answers from your data and can do things for you once you confirm.",
   placeholder: "Ask about your website...",
   send: "Send",
@@ -72,15 +72,15 @@ const en: ChatCopy = {
   starters: ["How is my website doing?", "Why did my traffic drop?", "What should I fix first?", "Which article is doing best?"],
   open: "Open",
   pages: {
-    dashboard: "Dashboard",
+    dashboard: "Tasks",
     planned_articles: "Planned articles",
     website_health: "Website health",
     google: "Google",
     losing_traffic: "Losing traffic",
     ai_visibility: "AI visibility",
     backlinks: "Backlinks",
-    social: "Social media",
-    videos: "Videos",
+    social: "Opportunities",
+    videos: "Social Content",
     profile: "Business profile",
     integrations: "Integrations",
     publishing: "Publishing",
@@ -120,7 +120,7 @@ const en: ChatCopy = {
 };
 
 const es: ChatCopy = {
-  title: "Pregunte a RepGet",
+  title: "Growth Copilot",
   intro: "Pregunte lo que quiera sobre su sitio web: tráfico, artículos, salud del sitio, visibilidad en IA, backlinks, redes sociales y vídeos. RepGet responde con sus datos y puede hacer cosas por usted cuando usted lo confirme.",
   placeholder: "Pregunte sobre su sitio web...",
   send: "Enviar",
@@ -137,15 +137,15 @@ const es: ChatCopy = {
   starters: ["¿Cómo va mi sitio web?", "¿Por qué ha bajado mi tráfico?", "¿Qué debería arreglar primero?", "¿Qué artículo funciona mejor?"],
   open: "Abrir",
   pages: {
-    dashboard: "Panel",
+    dashboard: "Tareas",
     planned_articles: "Artículos planificados",
     website_health: "Salud del sitio",
     google: "Google",
     losing_traffic: "Pérdida de tráfico",
     ai_visibility: "Visibilidad en IA",
     backlinks: "Backlinks",
-    social: "Redes sociales",
-    videos: "Vídeos",
+    social: "Oportunidades",
+    videos: "Contenido social",
     profile: "Perfil del negocio",
     integrations: "Integraciones",
     publishing: "Publicación",
@@ -185,7 +185,7 @@ const es: ChatCopy = {
 };
 
 const fr: ChatCopy = {
-  title: "Demandez à RepGet",
+  title: "Growth Copilot",
   intro: "Posez toutes vos questions sur votre site : trafic, articles, santé du site, visibilité IA, backlinks, réseaux sociaux et vidéos. RepGet répond à partir de vos données et peut agir pour vous une fois que vous avez confirmé.",
   placeholder: "Posez une question sur votre site...",
   send: "Envoyer",
@@ -202,15 +202,15 @@ const fr: ChatCopy = {
   starters: ["Comment se porte mon site ?", "Pourquoi mon trafic a-t-il baissé ?", "Que dois-je corriger en premier ?", "Quel article fonctionne le mieux ?"],
   open: "Ouvrir",
   pages: {
-    dashboard: "Tableau de bord",
+    dashboard: "Tâches",
     planned_articles: "Articles planifiés",
     website_health: "Santé du site",
     google: "Google",
     losing_traffic: "Trafic en baisse",
     ai_visibility: "Visibilité IA",
     backlinks: "Backlinks",
-    social: "Réseaux sociaux",
-    videos: "Vidéos",
+    social: "Opportunités",
+    videos: "Contenu social",
     profile: "Profil de l'entreprise",
     integrations: "Intégrations",
     publishing: "Publication",
@@ -250,7 +250,7 @@ const fr: ChatCopy = {
 };
 
 const it: ChatCopy = {
-  title: "Chieda a RepGet",
+  title: "Growth Copilot",
   intro: "Chieda qualsiasi cosa sul suo sito: traffico, articoli, salute del sito, visibilità nelle IA, backlink, social media e video. RepGet risponde con i suoi dati e può fare cose per lei, dopo la sua conferma.",
   placeholder: "Chieda qualcosa sul suo sito...",
   send: "Invia",
@@ -267,15 +267,15 @@ const it: ChatCopy = {
   starters: ["Come sta andando il mio sito?", "Perché il mio traffico è calato?", "Cosa dovrei sistemare per primo?", "Quale articolo funziona meglio?"],
   open: "Apri",
   pages: {
-    dashboard: "Dashboard",
+    dashboard: "Attività",
     planned_articles: "Articoli pianificati",
     website_health: "Salute del sito",
     google: "Google",
     losing_traffic: "Traffico in calo",
     ai_visibility: "Visibilità nelle IA",
     backlinks: "Backlink",
-    social: "Social media",
-    videos: "Video",
+    social: "Opportunità",
+    videos: "Contenuti social",
     profile: "Profilo aziendale",
     integrations: "Integrazioni",
     publishing: "Pubblicazione",
@@ -315,7 +315,7 @@ const it: ChatCopy = {
 };
 
 const de: ChatCopy = {
-  title: "Fragen Sie RepGet",
+  title: "Growth Copilot",
   intro: "Fragen Sie alles zu Ihrer Website: Traffic, Artikel, Website-Zustand, KI-Sichtbarkeit, Backlinks, Social Media und Videos. RepGet antwortet mit Ihren Daten und kann Dinge für Sie erledigen, sobald Sie bestätigen.",
   placeholder: "Fragen Sie etwas zu Ihrer Website...",
   send: "Senden",
@@ -332,15 +332,15 @@ const de: ChatCopy = {
   starters: ["Wie steht meine Website da?", "Warum ist mein Traffic gesunken?", "Was sollte ich zuerst beheben?", "Welcher Artikel läuft am besten?"],
   open: "Öffnen",
   pages: {
-    dashboard: "Dashboard",
+    dashboard: "Aufgaben",
     planned_articles: "Geplante Artikel",
     website_health: "Website-Zustand",
     google: "Google",
     losing_traffic: "Traffic-Verluste",
     ai_visibility: "KI-Sichtbarkeit",
     backlinks: "Backlinks",
-    social: "Social Media",
-    videos: "Videos",
+    social: "Chancen",
+    videos: "Social Content",
     profile: "Unternehmensprofil",
     integrations: "Integrationen",
     publishing: "Veröffentlichung",
