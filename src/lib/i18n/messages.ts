@@ -2947,8 +2947,6 @@ export type Messages = {
       title: string;
       intro: string;
       buy: string;
-      summary: string;
-      available: string;
       availableHelp: string;
       /** Daily credits (lib/credits/daily.ts): given on each day a paying workspace uses RepGet. {count} in dailyValue and dailyPlan. */
       daily: string;
@@ -2987,9 +2985,6 @@ export type Messages = {
       sourcesTitle: string;
       sourcePlan: string;
       sourcePacks: string;
-      sourceDaily: string;
-      /** {count} credits on each of a trial's first {days} days. */
-      sourceTrial: string;
       sourceReferral: string;
       historyTitle: string;
       colDate: string;
@@ -3005,6 +3000,36 @@ export type Messages = {
       guestOnly: string;
       notEnough: string;
       sidebarDaily: string;
+      /**
+       * The balance hero (client design, 2026-11-02): the big number and its
+       * unit ("credit|credits", for plural()), and what came in and went out today.
+       */
+      availableBalance: string;
+      creditsUnit: string;
+      earnedToday: string;
+      usedToday: string;
+      /** Which day "today" is: the UTC day, as for daily credits (lib/credits/daily.ts). */
+      todayNote: string;
+      /** The prices list's toggle: the most-used actions first, everything else behind it. */
+      pricesAll: string;
+      pricesFewer: string;
+      sourcesIntro: string;
+      sourceReferralTitle: string;
+      /** The link to /earn-credits. */
+      sourceExplore: string;
+      sourceTopUpTitle: string;
+      /** The link to the credit packs (Billing -> Add-ons), as the sidebar's "Buy credits". */
+      sourceTopUp: string;
+      historyIntro: string;
+      /** The activity filter (?kind=): its name and its three choices. */
+      filterLabel: string;
+      filterAll: string;
+      filterEarned: string;
+      filterSpent: string;
+      /** Under "Spent": a spend's refund is listed there, not as credits earned. */
+      spentNote: string;
+      emptyEarned: string;
+      emptySpent: string;
     };
     status: {
       pending: string;
@@ -6158,8 +6183,6 @@ const en: Messages = {
       title: "Credits",
       intro: "One credit balance for your whole workspace, shared by all your websites. Spend it on backlinks, services and everything else in RepGet.",
       buy: "Buy credits",
-      summary: "Summary",
-      available: "Available",
       availableHelp: "Credits you can spend now.",
       daily: "Daily credits",
       dailyValue: "+{count} today",
@@ -6170,7 +6193,7 @@ const en: Messages = {
       reserved: "Reserved for links",
       reservedHelp: "Held for links being placed; spent only once a link is verified live.",
       balance: "Balance",
-      pricesTitle: "What credits are for",
+      pricesTitle: "What credits can do",
       pricesIntro: "What each thing costs in credits.",
       backlink: "A backlink from the Partner Network",
       backlinkPrice: "{min} to {max} credits per link",
@@ -6192,13 +6215,11 @@ const en: Messages = {
       serviceHelp: "Bought on Billing and delivered by our team.",
       quoteHelp: "Quoted after we review your audit, then paid with credits.",
       servicePriceFrom: "From {price}",
-      sourcesTitle: "Where credits come from",
+      sourcesTitle: "Earn more credits",
       sourcePlan: "Your plan adds credits every month. They never expire.",
       sourcePacks: "Credit packs, whenever you need more. Bought credits never expire.",
-      sourceDaily: "{count} credits on each day you use RepGet, with a paid plan. They never expire.",
-      sourceTrial: "{count} credits on each of the first {days} days of your trial. They never expire.",
-      sourceReferral: "{count} credits for each business you refer that starts paying.",
-      historyTitle: "History",
+      sourceReferral: "{count} credits for each business you refer that starts paying, and credits for a story, post, tutorial or feedback our team approves.",
+      historyTitle: "Recent activity",
       colDate: "Date",
       colEntry: "Entry",
       colWebsite: "Website",
@@ -6211,6 +6232,26 @@ const en: Messages = {
       guestOnly: "Credits belong to a workspace that owns a website. The websites shared with you use their owner's credits.",
       notEnough: "This costs {price} credits and you have {available}. Buy credits to continue.",
       sidebarDaily: "+{count} today",
+      availableBalance: "Available balance",
+      creditsUnit: "credit|credits",
+      earnedToday: "Earned today",
+      usedToday: "Used today",
+      todayNote: "Today runs from midnight UTC, the same day as your daily credits.",
+      pricesAll: "See all credit costs",
+      pricesFewer: "Show fewer costs",
+      sourcesIntro: "Ways to add credits to your workspace. None of them expire.",
+      sourceReferralTitle: "Referrals and rewards",
+      sourceExplore: "Explore",
+      sourceTopUpTitle: "Need more now?",
+      sourceTopUp: "Top up",
+      historyIntro: "Every movement of your credits, newest first.",
+      filterLabel: "Filter the activity",
+      filterAll: "All",
+      filterEarned: "Earned",
+      filterSpent: "Spent",
+      spentNote: "Spent also lists credits returned when something could not be completed.",
+      emptyEarned: "No credits earned yet.",
+      emptySpent: "No credits spent yet.",
     },
     status: {
       pending: "Waiting to start",
@@ -9369,8 +9410,6 @@ const es: Messages = {
       title: "Créditos",
       intro: "Un único saldo de créditos para todo su espacio de trabajo, compartido por todas sus webs. Úselo en backlinks, servicios y todo lo demás en RepGet.",
       buy: "Comprar créditos",
-      summary: "Resumen",
-      available: "Disponibles",
       availableHelp: "Créditos que puede gastar ahora.",
       daily: "Créditos diarios",
       dailyValue: "+{count} hoy",
@@ -9381,7 +9420,7 @@ const es: Messages = {
       reserved: "Reservados para enlaces",
       reservedHelp: "Retenidos para enlaces en curso; solo se gastan cuando el enlace se verifica activo.",
       balance: "Saldo",
-      pricesTitle: "Para qué sirven los créditos",
+      pricesTitle: "Qué puede hacer con los créditos",
       pricesIntro: "Lo que cuesta cada cosa en créditos.",
       backlink: "Un backlink de la Red de socios",
       backlinkPrice: "De {min} a {max} créditos por enlace",
@@ -9403,13 +9442,11 @@ const es: Messages = {
       serviceHelp: "Se compra en Facturación y lo realiza nuestro equipo.",
       quoteHelp: "Le damos un presupuesto tras revisar su auditoría y se paga con créditos.",
       servicePriceFrom: "Desde {price}",
-      sourcesTitle: "De dónde vienen los créditos",
+      sourcesTitle: "Gane más créditos",
       sourcePlan: "Su plan añade créditos cada mes. No caducan.",
       sourcePacks: "Paquetes de créditos, siempre que necesite más. Los créditos comprados no caducan.",
-      sourceDaily: "{count} créditos cada día que usa RepGet, con un plan de pago. No caducan nunca.",
-      sourceTrial: "{count} créditos en cada uno de los primeros {days} días de su prueba. No caducan nunca.",
-      sourceReferral: "{count} créditos por cada empresa que recomiende y empiece a pagar.",
-      historyTitle: "Historial",
+      sourceReferral: "{count} créditos por cada empresa que recomiende y empiece a pagar, y créditos por una historia, una publicación, un tutorial o una opinión que nuestro equipo apruebe.",
+      historyTitle: "Actividad reciente",
       colDate: "Fecha",
       colEntry: "Movimiento",
       colWebsite: "Sitio web",
@@ -9422,6 +9459,26 @@ const es: Messages = {
       guestOnly: "Los créditos pertenecen al espacio de trabajo propietario de un sitio web. Los sitios web compartidos con usted usan los créditos de su propietario.",
       notEnough: "Esto cuesta {price} créditos y usted tiene {available}. Compre créditos para continuar.",
       sidebarDaily: "+{count} hoy",
+      availableBalance: "Saldo disponible",
+      creditsUnit: "crédito|créditos",
+      earnedToday: "Ganados hoy",
+      usedToday: "Usados hoy",
+      todayNote: "El día se cuenta desde la medianoche UTC, igual que sus créditos diarios.",
+      pricesAll: "Ver todos los costes",
+      pricesFewer: "Ver menos costes",
+      sourcesIntro: "Formas de añadir créditos a su espacio de trabajo. Ninguno caduca.",
+      sourceReferralTitle: "Recomendaciones y recompensas",
+      sourceExplore: "Explorar",
+      sourceTopUpTitle: "¿Necesita más ahora?",
+      sourceTopUp: "Recargar",
+      historyIntro: "Cada movimiento de sus créditos, del más reciente al más antiguo.",
+      filterLabel: "Filtrar la actividad",
+      filterAll: "Todo",
+      filterEarned: "Ganados",
+      filterSpent: "Gastados",
+      spentNote: "Gastados también incluye los créditos devueltos cuando algo no se pudo completar.",
+      emptyEarned: "Todavía no ha ganado créditos.",
+      emptySpent: "Todavía no ha gastado créditos.",
     },
     status: {
       pending: "Pendiente de empezar",
@@ -12581,8 +12638,6 @@ const fr: Messages = {
       title: "Crédits",
       intro: "Un seul solde de crédits pour tout votre espace de travail, partagé par tous vos sites. Utilisez-le pour les backlinks, les services et tout le reste dans RepGet.",
       buy: "Acheter des crédits",
-      summary: "Résumé",
-      available: "Disponibles",
       availableHelp: "Les crédits que vous pouvez dépenser maintenant.",
       daily: "Crédits quotidiens",
       dailyValue: "+{count} aujourd’hui",
@@ -12593,7 +12648,7 @@ const fr: Messages = {
       reserved: "Réservés pour des liens",
       reservedHelp: "Retenus pour des liens en cours ; dépensés seulement une fois le lien vérifié.",
       balance: "Solde",
-      pricesTitle: "À quoi servent les crédits",
+      pricesTitle: "Ce que permettent les crédits",
       pricesIntro: "Ce que coûte chaque chose en crédits.",
       backlink: "Un backlink du Réseau partenaire",
       backlinkPrice: "De {min} à {max} crédits par lien",
@@ -12615,13 +12670,11 @@ const fr: Messages = {
       serviceHelp: "S’achète dans Facturation et est réalisé par notre équipe.",
       quoteHelp: "Devis établi après examen de votre audit, puis réglé en crédits.",
       servicePriceFrom: "À partir de {price}",
-      sourcesTitle: "D'où viennent les crédits",
+      sourcesTitle: "Gagnez plus de crédits",
       sourcePlan: "Votre offre ajoute des crédits chaque mois. Ils n'expirent pas.",
       sourcePacks: "Des packs de crédits, dès que vous en avez besoin. Les crédits achetés n'expirent pas.",
-      sourceDaily: "{count} crédits chaque jour où vous utilisez RepGet, avec un forfait payant. Ils n’expirent jamais.",
-      sourceTrial: "{count} crédits chacun des {days} premiers jours de votre essai. Ils n’expirent jamais.",
-      sourceReferral: "{count} crédits pour chaque entreprise que vous recommandez et qui commence à payer.",
-      historyTitle: "Historique",
+      sourceReferral: "{count} crédits pour chaque entreprise que vous recommandez et qui commence à payer, et des crédits pour un témoignage, une publication, un tutoriel ou un avis approuvé par notre équipe.",
+      historyTitle: "Activité récente",
       colDate: "Date",
       colEntry: "Opération",
       colWebsite: "Site",
@@ -12634,6 +12687,26 @@ const fr: Messages = {
       guestOnly: "Les crédits appartiennent à l'espace de travail propriétaire d'un site. Les sites partagés avec vous utilisent les crédits de leur propriétaire.",
       notEnough: "Cette action coûte {price} crédits et vous en avez {available}. Achetez des crédits pour continuer.",
       sidebarDaily: "+{count} aujourd’hui",
+      availableBalance: "Solde disponible",
+      creditsUnit: "crédit|crédits",
+      earnedToday: "Gagnés aujourd’hui",
+      usedToday: "Utilisés aujourd’hui",
+      todayNote: "La journée commence à minuit UTC, comme pour vos crédits quotidiens.",
+      pricesAll: "Voir tous les coûts",
+      pricesFewer: "Afficher moins de coûts",
+      sourcesIntro: "Les façons d’ajouter des crédits à votre espace de travail. Aucun n’expire.",
+      sourceReferralTitle: "Parrainages et récompenses",
+      sourceExplore: "Découvrir",
+      sourceTopUpTitle: "Besoin de plus maintenant ?",
+      sourceTopUp: "Recharger",
+      historyIntro: "Chaque mouvement de vos crédits, du plus récent au plus ancien.",
+      filterLabel: "Filtrer l’activité",
+      filterAll: "Tout",
+      filterEarned: "Gagnés",
+      filterSpent: "Dépensés",
+      spentNote: "Dépensés inclut aussi les crédits rendus lorsqu’une action n’a pas pu aboutir.",
+      emptyEarned: "Vous n’avez pas encore gagné de crédits.",
+      emptySpent: "Vous n’avez pas encore dépensé de crédits.",
     },
     status: {
       pending: "En attente de démarrage",
@@ -15792,8 +15865,6 @@ const it: Messages = {
       title: "Crediti",
       intro: "Un unico saldo di crediti per tutto il Suo spazio di lavoro, condiviso da tutti i Suoi siti. Lo usi per backlink, servizi e tutto il resto in RepGet.",
       buy: "Acquista crediti",
-      summary: "Riepilogo",
-      available: "Disponibili",
       availableHelp: "I crediti che può spendere ora.",
       daily: "Crediti giornalieri",
       dailyValue: "+{count} oggi",
@@ -15804,7 +15875,7 @@ const it: Messages = {
       reserved: "Riservati ai link",
       reservedHelp: "Trattenuti per link in corso; spesi solo quando il link è verificato online.",
       balance: "Saldo",
-      pricesTitle: "A cosa servono i crediti",
+      pricesTitle: "Cosa può fare con i crediti",
       pricesIntro: "Quanto costa ogni cosa in crediti.",
       backlink: "Un backlink dalla Rete partner",
       backlinkPrice: "Da {min} a {max} crediti per link",
@@ -15826,13 +15897,11 @@ const it: Messages = {
       serviceHelp: "Si acquista in Fatturazione e lo realizza il nostro team.",
       quoteHelp: "Preventivo dopo aver esaminato il Suo audit, poi pagato in crediti.",
       servicePriceFrom: "Da {price}",
-      sourcesTitle: "Da dove arrivano i crediti",
+      sourcesTitle: "Guadagni più crediti",
       sourcePlan: "Il Suo piano aggiunge crediti ogni mese. Non scadono.",
       sourcePacks: "Pacchetti di crediti, quando ne ha bisogno. I crediti acquistati non scadono.",
-      sourceDaily: "{count} crediti ogni giorno in cui usa RepGet, con un piano a pagamento. Non scadono mai.",
-      sourceTrial: "{count} crediti in ciascuno dei primi {days} giorni della prova. Non scadono mai.",
-      sourceReferral: "{count} crediti per ogni attività che invita e che inizia a pagare.",
-      historyTitle: "Cronologia",
+      sourceReferral: "{count} crediti per ogni attività che invita e che inizia a pagare, e crediti per una storia, un post, un tutorial o un feedback approvati dal nostro team.",
+      historyTitle: "Attività recente",
       colDate: "Data",
       colEntry: "Movimento",
       colWebsite: "Sito",
@@ -15845,6 +15914,26 @@ const it: Messages = {
       guestOnly: "I crediti appartengono allo spazio di lavoro che possiede un sito. I siti condivisi con Lei usano i crediti del loro proprietario.",
       notEnough: "Costa {price} crediti e Lei ne ha {available}. Acquisti crediti per continuare.",
       sidebarDaily: "+{count} oggi",
+      availableBalance: "Saldo disponibile",
+      creditsUnit: "credito|crediti",
+      earnedToday: "Guadagnati oggi",
+      usedToday: "Usati oggi",
+      todayNote: "La giornata inizia a mezzanotte UTC, come per i Suoi crediti giornalieri.",
+      pricesAll: "Vedi tutti i costi",
+      pricesFewer: "Mostra meno costi",
+      sourcesIntro: "I modi per aggiungere crediti al Suo spazio di lavoro. Nessuno scade.",
+      sourceReferralTitle: "Inviti e premi",
+      sourceExplore: "Scopri",
+      sourceTopUpTitle: "Le servono altri crediti ora?",
+      sourceTopUp: "Ricarica",
+      historyIntro: "Ogni movimento dei Suoi crediti, dal più recente.",
+      filterLabel: "Filtra l’attività",
+      filterAll: "Tutto",
+      filterEarned: "Guadagnati",
+      filterSpent: "Spesi",
+      spentNote: "Spesi include anche i crediti restituiti quando qualcosa non è stato completato.",
+      emptyEarned: "Non ha ancora guadagnato crediti.",
+      emptySpent: "Non ha ancora speso crediti.",
     },
     status: {
       pending: "In attesa di iniziare",
@@ -19000,8 +19089,6 @@ const de: Messages = {
       title: "Credits",
       intro: "Ein Credit-Guthaben für Ihren gesamten Arbeitsbereich, das alle Ihre Websites teilen. Setzen Sie es für Backlinks, Leistungen und alles andere in RepGet ein.",
       buy: "Credits kaufen",
-      summary: "Übersicht",
-      available: "Verfügbar",
       availableHelp: "Credits, die Sie jetzt ausgeben können.",
       daily: "Tägliche Credits",
       dailyValue: "+{count} heute",
@@ -19012,7 +19099,7 @@ const de: Messages = {
       reserved: "Für Links reserviert",
       reservedHelp: "Für Links in Arbeit zurückgehalten; erst bei bestätigtem Link verbraucht.",
       balance: "Guthaben",
-      pricesTitle: "Wofür Credits verwendet werden",
+      pricesTitle: "Was Credits ermöglichen",
       pricesIntro: "Was alles in Credits kostet.",
       backlink: "Ein Backlink aus dem Partnernetzwerk",
       backlinkPrice: "{min} bis {max} Credits pro Link",
@@ -19034,13 +19121,11 @@ const de: Messages = {
       serviceHelp: "Unter Abrechnung gekauft und von unserem Team umgesetzt.",
       quoteHelp: "Angebot nach Prüfung Ihres Audits, dann mit Credits bezahlt.",
       servicePriceFrom: "Ab {price}",
-      sourcesTitle: "Woher Credits kommen",
+      sourcesTitle: "Mehr Credits erhalten",
       sourcePlan: "Ihr Tarif fügt jeden Monat Credits hinzu. Sie verfallen nicht.",
       sourcePacks: "Credit-Pakete, wann immer Sie mehr brauchen. Gekaufte Credits verfallen nicht.",
-      sourceDaily: "{count} Credits an jedem Tag, an dem Sie RepGet nutzen, mit einem kostenpflichtigen Tarif. Sie verfallen nie.",
-      sourceTrial: "{count} Credits an jedem der ersten {days} Tage Ihrer Testphase. Sie verfallen nie.",
-      sourceReferral: "{count} Credits für jedes empfohlene Unternehmen, das zu zahlen beginnt.",
-      historyTitle: "Verlauf",
+      sourceReferral: "{count} Credits für jedes empfohlene Unternehmen, das zu zahlen beginnt, und Credits für eine Geschichte, einen Beitrag, ein Tutorial oder Feedback, die unser Team freigibt.",
+      historyTitle: "Letzte Aktivität",
       colDate: "Datum",
       colEntry: "Buchung",
       colWebsite: "Website",
@@ -19053,6 +19138,26 @@ const de: Messages = {
       guestOnly: "Credits gehören zu dem Arbeitsbereich, dem eine Website gehört. Für die mit Ihnen geteilten Websites werden die Credits ihres Inhabers verwendet.",
       notEnough: "Das kostet {price} Credits, und Sie haben {available}. Kaufen Sie Credits, um fortzufahren.",
       sidebarDaily: "+{count} heute",
+      availableBalance: "Verfügbares Guthaben",
+      creditsUnit: "Credit|Credits",
+      earnedToday: "Heute erhalten",
+      usedToday: "Heute verbraucht",
+      todayNote: "Der Tag beginnt um Mitternacht UTC, wie bei Ihren täglichen Credits.",
+      pricesAll: "Alle Kosten anzeigen",
+      pricesFewer: "Weniger Kosten anzeigen",
+      sourcesIntro: "So fügen Sie Ihrem Arbeitsbereich Credits hinzu. Keine davon verfallen.",
+      sourceReferralTitle: "Empfehlungen und Prämien",
+      sourceExplore: "Ansehen",
+      sourceTopUpTitle: "Sie brauchen jetzt mehr?",
+      sourceTopUp: "Aufladen",
+      historyIntro: "Jede Bewegung Ihrer Credits, die neueste zuerst.",
+      filterLabel: "Aktivität filtern",
+      filterAll: "Alle",
+      filterEarned: "Erhalten",
+      filterSpent: "Ausgegeben",
+      spentNote: "Unter „Ausgegeben“ stehen auch Credits, die zurückgegeben wurden, weil etwas nicht abgeschlossen werden konnte.",
+      emptyEarned: "Noch keine Credits erhalten.",
+      emptySpent: "Noch keine Credits ausgegeben.",
     },
     status: {
       pending: "Wartet auf Start",
