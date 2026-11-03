@@ -1,5 +1,6 @@
 "use client";
 
+import { NativeLikeSelect } from "@/components/ui/native-like-select";
 import { ArrowDown, ArrowLeftRight, ArrowUp, HelpCircle, Info, Loader2, Lock, Plus, Users, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -22,10 +23,11 @@ import { format } from "@/lib/i18n/format";
 import type { Messages } from "@/lib/i18n/messages";
 import { cn } from "@/lib/utils";
 
+/** The priority chip keeps its colour on hover too (the dropdown otherwise greys on hover). */
 const PRIORITY_STYLE: Record<string, string> = {
-  high: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
-  medium: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300",
-  low: "bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300",
+  high: "bg-emerald-100 text-emerald-800 hover:bg-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:hover:bg-emerald-900",
+  medium: "bg-amber-100 text-amber-800 hover:bg-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:hover:bg-amber-900",
+  low: "bg-rose-100 text-rose-800 hover:bg-rose-200 dark:bg-rose-950 dark:text-rose-300 dark:hover:bg-rose-900",
 };
 
 /**
@@ -219,12 +221,10 @@ export function PartnerNetworkCard({
                         </p>
                         {target.note ? <p className="truncate text-xs text-muted-foreground">{target.note}</p> : null}
                       </div>
-                      <select
+                      <NativeLikeSelect
                         aria-label={`${t.priorityLabel}: ${path}`}
-                        className={cn(
-                          "rounded-md border-0 px-2 py-1 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                          PRIORITY_STYLE[target.priority] ?? PRIORITY_STYLE.medium,
-                        )}
+                        size="sm"
+                        className={cn("w-fit border-0 text-xs font-medium", PRIORITY_STYLE[target.priority] ?? PRIORITY_STYLE.medium)}
                         value={target.priority}
                         disabled={!canEdit || pending}
                         onChange={(e) => run(() => setTargetPriority(websiteId, target.id, e.target.value), t.saved)}
@@ -232,7 +232,7 @@ export function PartnerNetworkCard({
                         <option value="high">{t.high}</option>
                         <option value="medium">{t.medium}</option>
                         <option value="low">{t.low}</option>
-                      </select>
+                      </NativeLikeSelect>
                       <button
                         type="button"
                         className="rounded p-1 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-30"
@@ -271,16 +271,16 @@ export function PartnerNetworkCard({
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="pn-priority">{t.priorityLabel}</Label>
-                  <select
+                  <NativeLikeSelect
                     id="pn-priority"
-                    className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+                    className="data-[size=default]:h-9"
                     value={priority}
                     onChange={(e) => setPriority(e.target.value)}
                   >
                     <option value="high">{t.high}</option>
                     <option value="medium">{t.medium}</option>
                     <option value="low">{t.low}</option>
-                  </select>
+                  </NativeLikeSelect>
                 </div>
                 <div className="flex gap-2">
                   <Button type="submit" size="sm" disabled={pending || !url.trim()}>

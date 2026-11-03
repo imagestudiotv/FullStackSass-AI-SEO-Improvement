@@ -100,7 +100,8 @@ describe("each language's pictures (client, 2026-10-15)", () => {
   });
 
   it("uploads into the language shown, and asks for one when every language is", async () => {
-    const select = (html: string) => /<select[^>]*id="blog-image-language"[\s\S]*?<\/select>/.exec(html)?.[0] ?? "";
+    // The language dropdown's button, which shows the chosen language or asks for one.
+    const select = (html: string) => /<button[^>]*id="blog-image-language"[\s\S]*?<\/button>/.exec(html)?.[0] ?? "";
     // The Upload button: the last button before its words.
     const uploadButton = (html: string) => {
       const before = html.slice(0, html.indexOf("Upload picture"));
@@ -109,16 +110,15 @@ describe("each language's pictures (client, 2026-10-15)", () => {
 
     const italian = await render({ lang: "it" });
     expect(italian).toMatch(/<label for="blog-image-language"[^>]*>Upload as<\/label>/);
-    expect(select(italian)).toMatch(/<option value="it" selected="">Italian<\/option>/);
+    expect(select(italian)).toMatch(/<span data-slot="select-value"[^>]*>Italian<\/span>/);
     expect(select(italian)).not.toContain("Choose a language");
     expect(uploadButton(italian)).not.toContain('disabled=""');
 
     // No language chosen for it: an Italian picture would be filed as English unnoticed.
     const every = await render();
-    const placeholder = /<option([^>]*)>Choose a language<\/option>/.exec(select(every))?.[1] ?? "";
-    expect(placeholder).toContain('selected=""');
-    expect(placeholder).toContain('disabled=""');
-    expect(select(every)).not.toMatch(/<option value="en" selected="">/);
+    expect(select(every)).toContain('data-placeholder=""');
+    expect(select(every)).toMatch(/<span data-slot="select-value"[^>]*>Choose a language<\/span>/);
+    expect(select(every)).not.toContain(">English<");
     expect(uploadButton(every)).toContain('disabled=""');
     expect(uploadButton(every)).toContain("Choose the picture&#x27;s language first");
   });

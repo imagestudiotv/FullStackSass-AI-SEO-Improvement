@@ -1,5 +1,6 @@
 "use client";
 
+import { NativeLikeSelect } from "@/components/ui/native-like-select";
 import Link from "next/link";
 import { Loader2, Trash2 } from "lucide-react";
 import { useId, useMemo, useRef, useState } from "react";
@@ -69,11 +70,11 @@ export function ArticleList({ websiteId, articles, pending, busyId, onDelete, t,
         </div>
         <div className="space-y-1.5 sm:w-48">
           <label htmlFor={`${id}-status`} className="block text-sm font-medium">{t.status}</label>
-          <select id={`${id}-status`} className="h-11 w-full rounded-md border bg-background px-3 text-sm"
+          <NativeLikeSelect id={`${id}-status`} className="data-[size=default]:h-11"
             value={status} onChange={event => { setStatus(event.target.value); setPage(1); }}>
             <option value="all">{t.allStatuses}</option>
             {statuses.map(value => <option key={value} value={value}>{statusLabel(value, tStatus)}</option>)}
-          </select>
+          </NativeLikeSelect>
         </div>
       </div>
       {matching.length === 0 ? (

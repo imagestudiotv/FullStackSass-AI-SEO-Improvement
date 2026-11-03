@@ -1,5 +1,6 @@
 "use client";
 
+import { NativeLikeSelect } from "@/components/ui/native-like-select";
 import { Check, Copy, ExternalLink, Lock, RefreshCw, Send, SkipForward } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useId, useState, useTransition } from "react";
@@ -364,10 +365,10 @@ function AccountCard({
               <label className="grid gap-1 text-xs font-medium">
                 {t.boardLabel}
                 {boards.length > 0 ? (
-                  <select
+                  <NativeLikeSelect
                     value={board}
                     onChange={(event) => setBoard(event.target.value)}
-                    className="h-8 rounded-lg border bg-background px-2 text-sm"
+                    
                     disabled={!canEdit}
                   >
                     {boards.map((option) => (
@@ -375,7 +376,7 @@ function AccountCard({
                         {option}
                       </option>
                     ))}
-                  </select>
+                  </NativeLikeSelect>
                 ) : (
                   <Input value={board} onChange={(event) => setBoard(event.target.value)} className="h-8" disabled={!canEdit} />
                 )}

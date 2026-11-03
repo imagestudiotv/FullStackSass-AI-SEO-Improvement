@@ -1,5 +1,6 @@
 "use client";
 
+import { NativeLikeSelect } from "@/components/ui/native-like-select";
 import { AlertTriangle, Building2, FileText, MapPinned, RefreshCw, Swords } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -49,10 +50,6 @@ const SECTION_IDS = {
   about: "business-description",
   competitors: "business-competitors",
 } as const;
-
-/** The same box as Input, for the native language picker. */
-const SELECT_CLASS =
-  "h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 motion-reduce:transition-none md:text-sm dark:bg-input/30";
 
 /**
  * Business settings: three sections saved together by the page's Save bar
@@ -331,11 +328,10 @@ export function BusinessSettings({
               </>
             ),
             control: (props) => (
-              <select
+              <NativeLikeSelect
                 {...props}
                 value={values.language}
                 onChange={(event) => set("language", event.target.value)}
-                className={cn(SELECT_CLASS, values.language === "" && "text-muted-foreground")}
               >
                 {language.placeholder ? (
                   <option value="" disabled>
@@ -352,7 +348,7 @@ export function BusinessSettings({
                     {option.label}
                   </option>
                 ))}
-              </select>
+              </NativeLikeSelect>
             ),
           })}
           {field("targetAudience", {

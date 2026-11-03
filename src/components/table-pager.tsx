@@ -1,5 +1,6 @@
 "use client";
 
+import { NativeLikeSelect } from "@/components/ui/native-like-select";
 import {
   ChevronLeft,
   ChevronRight,
@@ -97,18 +98,18 @@ export function TablePager({
           <label htmlFor={sizeId} className="text-xs text-muted-foreground">
             {labels.perPage}
           </label>
-          <select
+          <NativeLikeSelect
             id={sizeId}
             value={pageSize}
             onChange={(event) => onPageSize(Number(event.target.value))}
-            className="h-8 rounded-md border bg-background px-2 text-sm"
+            className="w-fit min-w-16"
           >
             {pageSizes.map((size) => (
               <option key={size} value={size}>
                 {size}
               </option>
             ))}
-          </select>
+          </NativeLikeSelect>
         </div>
       </div>
 

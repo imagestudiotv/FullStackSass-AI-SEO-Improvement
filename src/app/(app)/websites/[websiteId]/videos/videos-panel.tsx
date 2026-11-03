@@ -1,5 +1,6 @@
 "use client";
 
+import { NativeLikeSelect } from "@/components/ui/native-like-select";
 import { Check, Clapperboard, Download, ExternalLink, Loader2, Pencil, RefreshCw, Undo2, Upload, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
@@ -94,8 +95,8 @@ function errorText(t: T, result: Extract<VideoResult<unknown>, { ok: false }>, p
   return t.errors[key] ?? t.errors.generic;
 }
 
-const selectClass =
-  "h-9 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50";
+/** The dropdowns here sit beside h-9 buttons. */
+const selectClass = "data-[size=default]:h-9";
 
 /**
  * The Videos page (client, 2026-10-29). Four tabs:
@@ -635,34 +636,34 @@ function EditDialog(props: {
             </Field>
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label={t.style}>
-                <select className={selectClass} value={style} onChange={(event) => setStyle(event.target.value)}>
+                <NativeLikeSelect className={selectClass} value={style} onChange={(event) => setStyle(event.target.value)}>
                   {VIDEO_STYLES.map((value) => (
                     <option key={value} value={value}>
                       {t.styles[value]}
                     </option>
                   ))}
-                </select>
+                </NativeLikeSelect>
               </Field>
               <Field label={t.format}>
-                <select className={selectClass} value={formatValue} onChange={(event) => setFormat(event.target.value)}>
+                <NativeLikeSelect className={selectClass} value={formatValue} onChange={(event) => setFormat(event.target.value)}>
                   <option value="reel">{t.reel}</option>
                   <option value="carousel">{t.carousel}</option>
-                </select>
+                </NativeLikeSelect>
               </Field>
               {formatValue === "reel" ? (
                 <>
                   <Field label={t.voice}>
-                    <select className={selectClass} value={voice ?? ""} onChange={(event) => setVoice(event.target.value || null)}>
+                    <NativeLikeSelect className={selectClass} value={voice ?? ""} onChange={(event) => setVoice(event.target.value || null)}>
                       <option value="">{t.voiceOff}</option>
                       {VOICES.map((value) => (
                         <option key={value} value={value}>
                           {value[0].toUpperCase() + value.slice(1)}
                         </option>
                       ))}
-                    </select>
+                    </NativeLikeSelect>
                   </Field>
                   <Field label={t.music}>
-                    <select
+                    <NativeLikeSelect
                       className={selectClass}
                       value={music ?? ""}
                       onChange={(event) => setMusic(event.target.value === "" ? null : event.target.value)}
@@ -674,7 +675,7 @@ function EditDialog(props: {
                           {track.title}
                         </option>
                       ))}
-                    </select>
+                    </NativeLikeSelect>
                   </Field>
                 </>
               ) : null}
@@ -1136,14 +1137,14 @@ function SettingsPanel(props: {
           </div>
         </div>
         <Field label={t.defaultVoice}>
-          <select className={selectClass} disabled={disabled} value={settings.voice ?? ""} onChange={(event) => save({ voice: (event.target.value || null) as VideoSettings["voice"] })}>
+          <NativeLikeSelect className={selectClass} disabled={disabled} value={settings.voice ?? ""} onChange={(event) => save({ voice: (event.target.value || null) as VideoSettings["voice"] })}>
             <option value="">{t.voiceOff}</option>
             {VOICES.map((value) => (
               <option key={value} value={value}>
                 {value[0].toUpperCase() + value.slice(1)}
               </option>
             ))}
-          </select>
+          </NativeLikeSelect>
         </Field>
         <label className="flex items-center gap-2 text-sm">
           <Switch checked={settings.music} disabled={disabled} onCheckedChange={(music) => save({ music })} />

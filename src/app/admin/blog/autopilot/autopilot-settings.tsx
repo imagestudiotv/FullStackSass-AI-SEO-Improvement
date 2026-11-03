@@ -1,5 +1,6 @@
 "use client";
 
+import { NativeLikeSelect } from "@/components/ui/native-like-select";
 import { Save } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useId, useState, useTransition } from "react";
@@ -79,36 +80,36 @@ export function AutopilotSettingsForm({
           <label htmlFor={`${id}-hour`} className="text-sm font-medium">
             Write it at
           </label>
-          <select
+          <NativeLikeSelect
             id={`${id}-hour`}
             value={runHour}
             onChange={(event) => setRunHour(Number(event.target.value))}
-            className="h-9 w-full rounded-md border bg-background px-3 text-sm shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            className="data-[size=default]:h-9"
           >
             {hours.map((hour) => (
               <option key={hour.value} value={hour.value}>
                 {hour.label}
               </option>
             ))}
-          </select>
+          </NativeLikeSelect>
           <p className="text-xs text-muted-foreground">The drafts are ready for you within the hour, and the administrators get an email when they are.</p>
 
           <label htmlFor={`${id}-per-day`} className="block pt-3 text-sm font-medium">
             Articles a day
           </label>
-          <select
+          <NativeLikeSelect
             id={`${id}-per-day`}
             value={perDay}
             onChange={(event) => setPerDay(Number(event.target.value))}
             aria-describedby={`${id}-per-day-help`}
-            className="h-9 w-full rounded-md border bg-background px-3 text-sm shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            className="data-[size=default]:h-9"
           >
             {Array.from({ length: maxPerDay }, (_, index) => index + 1).map((count) => (
               <option key={count} value={count}>
                 {count === 1 ? "1 article" : `${count} articles`}
               </option>
             ))}
-          </select>
+          </NativeLikeSelect>
           <p id={`${id}-per-day-help`} className="text-xs text-muted-foreground">
             One an hour from that hour, one at a time, each from the next topic in the list. Each article with every language costs about $0.90. For one
             more right away, use &ldquo;Write the next one now&rdquo;.

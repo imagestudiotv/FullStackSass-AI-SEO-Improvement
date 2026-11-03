@@ -298,7 +298,7 @@ describe("the Business settings page", () => {
     expect(html).toContain('for="profile-brandName"');
     expect(html).toContain('id="profile-brandName"');
     expect(html).toContain('value="Image Studio"');
-    expect(html).toContain('<select id="profile-language"');
+    expect(html).toMatch(/<button[^>]*role="combobox"[^>]*id="profile-language"/);
     expect(html).toContain(en.profile.saveScope);
     expect(html).toContain(en.profile.saveBusinessDetails);
     expect(html).toContain(en.profile.addCompetitor);
@@ -329,14 +329,14 @@ describe("the Business settings page", () => {
 
   it("does not claim English when no language is stored", () => {
     const html = render({ website: { ...website, language: null } });
-    expect(html).toMatch(/<option value="" disabled="" selected="">Choose a language<\/option>/);
-    expect(html).not.toMatch(/<option value="English" selected/);
+    expect(html).toMatch(/<button[^>]*data-placeholder=""[^>]*id="profile-language"[^>]*><span data-slot="select-value"[^>]*>Choose a language<\/span>/);
+    expect(html).not.toMatch(/<span data-slot="select-value"[^>]*>English<\/span>/);
     expect(html).toContain(en.profile.checklistNeedsLanguage);
   });
 
   it("keeps a legacy language as its own option", () => {
     const html = render({ website: { ...website, language: "Catalan" } });
-    expect(html).toContain('<option value="Catalan" class="text-foreground" selected="">Catalan (current value)</option>');
+    expect(html).toMatch(/<span data-slot="select-value"[^>]*>Catalan \(current value\)<\/span>/);
   });
 
   it("groups competitors by who chose them, counting older unlabelled rows as suggestions", () => {
@@ -355,7 +355,7 @@ describe("the Business settings page", () => {
     const html = render({ canEdit: false, isOwner: false });
     expect(html).toContain(en.workspace.viewOnly);
     expect(html).not.toContain("<input");
-    expect(html).not.toContain("<select");
+    expect(html).not.toContain('role="combobox"');
     expect(html).not.toContain("<textarea");
     expect(html).not.toContain("Remove rival-one.com");
     expect(html).not.toContain(en.profile.saveBusinessDetails);

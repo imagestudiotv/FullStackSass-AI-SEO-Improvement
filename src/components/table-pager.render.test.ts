@@ -82,7 +82,8 @@ describe("TablePager", () => {
   it("offers the page sizes, with the current one chosen", () => {
     const html = render(312, 1, 50);
     expect(html).toContain("Per page");
-    expect(html).toMatch(/<option value="50" selected="">50<\/option>/);
+    // The dropdown shows the chosen size on its button.
+    expect(html).toMatch(/<span data-slot="select-value"[^>]*>50<\/span>/);
   });
 
   it("shows only the count and the size when everything fits on one page", () => {

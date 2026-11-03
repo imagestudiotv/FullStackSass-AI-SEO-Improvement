@@ -103,6 +103,19 @@ body:has([role="dialog"][data-state="open"], [role="alertdialog"][data-state="op
   --foreground: oklch(0.145 0 0);
 }
 
+/*
+  The open list of a native <select> in night mode. Chrome on Windows draws it
+  on the system's white while the options inherit the page's light text, so
+  every option but the highlighted one was near-invisible (client screenshot,
+  2026-11-03). Giving the options the popover colours fixes every native
+  select in the app at once.
+*/
+.dark select option,
+.dark select optgroup {
+  background-color: var(--popover);
+  color: var(--popover-foreground);
+}
+
 .dark {
   /* Night mode (lib/theme.ts): the browser's own parts - scrollbars, form
      controls, the date picker - go dark with the page. */

@@ -1,5 +1,6 @@
 "use client";
 
+import { NativeLikeSelect } from "@/components/ui/native-like-select";
 import { Send, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useId, useState, useTransition } from "react";
@@ -134,11 +135,11 @@ export function FeedbackActions({
           <label htmlFor={`${formId}-status`} className="text-sm text-muted-foreground">
             And mark it
           </label>
-          <select
+          <NativeLikeSelect
             id={`${formId}-status`}
             value={replyStatus}
             onChange={(event) => setReplyStatus(event.target.value as FeedbackStatus | "")}
-            className="h-9 rounded-md border bg-background px-3 text-sm shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            className="w-fit min-w-44 data-[size=default]:h-9"
           >
             <option value="">(keep {STATUS_LABEL[status].label})</option>
             {FEEDBACK_STATUSES.filter((option) => option !== status && option !== "new").map((option) => (
@@ -146,7 +147,7 @@ export function FeedbackActions({
                 {STATUS_LABEL[option].label}
               </option>
             ))}
-          </select>
+          </NativeLikeSelect>
           <Button type="submit" size="sm" disabled={pending || reply.trim().length < 2} className="ml-auto">
             <Send aria-hidden />
             {pending ? "Sending…" : "Send reply"}

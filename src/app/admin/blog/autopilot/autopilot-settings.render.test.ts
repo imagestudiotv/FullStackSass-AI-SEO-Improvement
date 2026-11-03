@@ -34,8 +34,8 @@ describe("the autopilot's settings", () => {
   it("offer one to five articles a day, with what that means", () => {
     const html = render(settings({ articlesPerDay: 3 }));
     expect(html).toContain(">Articles a day</label>");
-    expect((html.match(/<option value="\d"(?: selected="")?>\d articles?<\/option>/g) ?? []).length).toBe(5);
-    expect(html).toMatch(/<option value="3" selected="">3 articles<\/option>/);
+    // The dropdown shows the chosen number on its button; its list only opens in the browser.
+    expect(html).toMatch(/<span data-slot="select-value"[^>]*>3 articles<\/span>/);
     expect(html).toContain("On: 3 articles are written every day, one an hour from 05:00 UTC (07:00 in Rome).");
     expect(html).toContain("costs about $0.90");
   });

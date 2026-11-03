@@ -1,5 +1,6 @@
 "use client";
 
+import { NativeLikeSelect } from "@/components/ui/native-like-select";
 import { AlertTriangle, Loader2, PauseCircle, PlayCircle, RefreshCw, ShieldCheck, ShieldOff, Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition, type ReactNode } from "react";
@@ -522,11 +523,11 @@ export function PolicyForm({
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="mode">Traffic valuation</Label>
-          <select id="mode" value={mode} onChange={(e) => setMode(e.target.value as ClickValueMode)} className={cn(fieldClass, "h-8")}>
+          <NativeLikeSelect id="mode" value={mode} onChange={(e) => setMode(e.target.value as ClickValueMode)}>
             <option value="none">{MODE_LABEL.none}</option>
             <option value="keyword_cpc">{MODE_LABEL.keyword_cpc}</option>
             <option value="fixed">{MODE_LABEL.fixed}</option>
-          </select>
+          </NativeLikeSelect>
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="fixedRate">Fixed rate per click</Label>

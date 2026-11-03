@@ -1,5 +1,6 @@
 "use client";
 
+import { NativeLikeSelect } from "@/components/ui/native-like-select";
 import {
   CheckCircle2,
   CircleAlert,
@@ -98,9 +99,6 @@ const plural = (count: number, word: string) => `${n(count)} ${word}${count === 
 
 /** A refusal that only a fresh copy of the article can get past (a version or text conflict). */
 const needsReload = (error: string) => /reload/i.test(error);
-
-const FIELD_CLASS =
-  "h-9 w-full min-w-0 rounded-md border border-input bg-background px-2.5 text-sm shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none";
 
 /**
  * One article's review: its text (everything approval covers), and beside it
@@ -568,9 +566,9 @@ export function ReviewWorkspace({ review }: { review: Review }) {
               <div className="space-y-4">
                 <div className="space-y-1.5">
                   <Label htmlFor="beneficiary">Website that receives the link</Label>
-                  <select
+                  <NativeLikeSelect
                     id="beneficiary"
-                    className={FIELD_CLASS}
+                    className="data-[size=default]:h-9"
                     value={beneficiaryId}
                     onChange={(e) => {
                       setBeneficiaryId(e.target.value);
@@ -588,7 +586,7 @@ export function ReviewWorkspace({ review }: { review: Review }) {
                         {c.minSourceRank !== null ? ` · wants Domain Authority ≥ ${c.minSourceRank}${c.meetsMinimum === false ? " (not met)" : ""}` : ""}
                       </option>
                     ))}
-                  </select>
+                  </NativeLikeSelect>
                   {beneficiary ? (
                     <p className="text-xs text-muted-foreground wrap-anywhere">
                       {beneficiary.organizationName} · {beneficiary.industry ?? "no topic"} · {beneficiary.language ?? "no language"} ·{" "}

@@ -1,5 +1,6 @@
 "use client";
 
+import { NativeLikeSelect } from "@/components/ui/native-like-select";
 import { ArrowDown, ArrowUp, ChevronDown, ChevronsUpDown, ExternalLink, Loader2, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -263,16 +264,16 @@ export function LinksView(props: LinksViewProps) {
         </nav>
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <label className="sr-only" htmlFor="links-type">{t.typeLabel}</label>
-          <select
+          <NativeLikeSelect
             id="links-type"
             value={query.type}
             onChange={(event) => router.push(href({ type: event.target.value === "all" ? undefined : event.target.value }))}
-            className="h-8 rounded-md border bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="w-fit min-w-32"
           >
             <option value="all">{t.typeAll}</option>
             <option value="managed">{t.typeManaged}</option>
             <option value="exchange">{t.typeExchange}</option>
-          </select>
+          </NativeLikeSelect>
           {props.creditsHref ? (
             <Link href={props.creditsHref} className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">
               {t.creditActivity} →
@@ -455,16 +456,16 @@ export function LinksView(props: LinksViewProps) {
         <p className="text-muted-foreground tabular-nums">{format(t.showingRange, { first: firstShown, last: lastShown, total: props.total })}</p>
         <div className="flex items-center gap-2">
           <label htmlFor="links-size" className="text-xs text-muted-foreground">{t.perPage}</label>
-          <select
+          <NativeLikeSelect
             id="links-size"
             value={props.pageSize}
             onChange={(event) => router.push(href({ size: event.target.value }))}
-            className="h-8 rounded-md border bg-background px-2 text-sm"
+            className="w-fit min-w-16"
           >
             {[10, 25, 50].map((size) => (
               <option key={size} value={size}>{size}</option>
             ))}
-          </select>
+          </NativeLikeSelect>
           {props.page > 1 ? (
             <Button asChild size="sm" variant="outline">
               <Link href={href({ page: String(props.page - 1) }, false)} rel="prev">{t.prev}</Link>

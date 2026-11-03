@@ -134,7 +134,7 @@ describe("a viewer", () => {
     expect(html).not.toContain(t.common.keepDefaults);
     expect(html).not.toContain(t.workspace.noChanges);
     // Every text field, select, switch and style card is disabled.
-    expect(html).toMatch(/<select[^>]*disabled=""/);
+    expect(html).toMatch(/<button[^>]*role="combobox"[^>]*disabled=""[^>]*id="article-style"/);
     expect(html).toMatch(/id="tone"[^>]*disabled=""|disabled=""[^>]*id="tone"/);
     expect(html).toMatch(/role="switch"[^>]*disabled=""/);
     expect(html).toMatch(/role="radio"[^>]*disabled=""/);
