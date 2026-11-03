@@ -64,6 +64,12 @@ export const MAX_POSTS_PER_DAY = 3;
 export const FILE_DAYS = 7;
 /** Views that earn the customer a "your video took off" email. */
 export const MILESTONE_VIEWS = 1000;
+/**
+ * The earlier milestone, a lifecycle email (lib/email/lifecycle-triggers.ts):
+ * sent once per video, only while the kill switch is on, and not when a
+ * video jumps straight past MILESTONE_VIEWS - that one says it already.
+ */
+export const EARLY_MILESTONE_VIEWS = 500;
 
 /** The kinds of content: a reel (video) or a carousel (photo slides). */
 export const VIDEO_FORMATS = ["reel", "carousel"] as const;

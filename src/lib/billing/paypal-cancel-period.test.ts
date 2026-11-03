@@ -141,7 +141,7 @@ describe("a PayPal subscription cancelled in PayPal", () => {
       });
     }
     // The billing page offers no PayPal plan change for it, and no card either.
-    const current = { status: "active", planId, planName: "Grow", tier: "grow", interval: "month", currentPeriodEnd: new Date("2026-11-01T10:00:00Z"), cancelAtPeriodEnd: true, hasCustomer: false, provider: "paypal" };
+    const current = { status: "active", planId, planName: "Grow", tier: "grow", interval: "month", currentPeriodEnd: new Date("2026-11-01T10:00:00Z"), cancelAtPeriodEnd: true, cancelAt: new Date("2026-11-01T10:00:00Z"), hasCustomer: false, provider: "paypal" };
     expect(paymentOptions(current, true)).toMatchObject({ billedBy: "paypal", paypal: false, card: false, manageInPayPal: true });
     expect(paymentOptions({ ...current, cancelAtPeriodEnd: false }, true).paypal).toBe(true);
   });

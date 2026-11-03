@@ -5,18 +5,19 @@ import { and, eq, gte, inArray, isNotNull, isNull, lt, or } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { member, user, videoIdeas, websites } from "@/lib/db/schema";
 import { emailButton, emailLayout, emailText, escapeHtml } from "@/lib/email/layout";
+import { emailVideoViews } from "@/lib/email/lifecycle-triggers";
 import { sendEmail } from "@/lib/email/send";
 import { postStats, type PostStats } from "@/lib/social/bundle";
 
-import { FILE_DAYS, isVideoPlatform, MILESTONE_VIEWS, VIDEO_PLATFORM_SPECS } from "./formats";
+import { EARLY_MILESTONE_VIEWS, FILE_DAYS, isVideoPlatform, MILESTONE_VIEWS, VIDEO_PLATFORM_SPECS } from "./formats";
 import { appUrl } from "./make";
 import { deleteVideoFiles } from "./storage";
 
 /**
  * After a video is out: its numbers, read daily from bundle.social, an email
  * when it passes MILESTONE_VIEWS views (client: "receive email updates, such
- * as when a Short hits 1,000 views"), and its files deleted FILE_DAYS after
- * posting.
+ * as when a Short hits 1,000 views") - and, through the lifecycle emails, at
+ * EARLY_MILESTONE_VIEWS - and its files deleted FILE_DAYS after posting.
  */
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -74,6 +75,14 @@ export async function refreshStats(id: string, now: Date = new Date()): Promise<
     .set({ stats, statsAt: now, ...(milestone ? { milestoneAt: now } : {}) })
     .where(eq(videoIdeas.id, id));
   if (milestone) await sendMilestone(idea, views).catch((error) => console.error("[video] milestone email failed", { id, error }));
+  /*
+    The first EARLY_MILESTONE_VIEWS, through the lifecycle emails: their
+    claim makes it once per video, however many daily reads see it there.
+    Never thrown.
+  */
+  if (!idea.milestoneAt && !milestone && views >= EARLY_MILESTONE_VIEWS) {
+    await emailVideoViews({ ideaId: id, milestone: EARLY_MILESTONE_VIEWS });
+  }
   return { views };
 }
 

@@ -55,6 +55,7 @@ function sub(overrides: Partial<CurrentSubscription> = {}): CurrentSubscription 
     interval: "month",
     currentPeriodEnd: new Date(Date.UTC(2026, 10, 3)),
     cancelAtPeriodEnd: false,
+    cancelAt: null,
     hasCustomer: true,
     provider: "stripe",
     ...overrides,

@@ -11,8 +11,10 @@ import { WorkspaceSection } from "@/components/workspace/section";
 import { requireSession } from "@/lib/auth-guard";
 import { db } from "@/lib/db";
 import { account } from "@/lib/db/schema";
+import { wantsTips } from "@/lib/email/lifecycle";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import { EARN_COPY } from "@/lib/i18n/earn";
+import { EMAILS_COPY } from "@/lib/i18n/emails";
 import { format } from "@/lib/i18n/format";
 import { listAccessibleWebsites } from "@/lib/websites/accessible";
 import {
@@ -24,6 +26,7 @@ import {
 import { readSelectedWebsite, resolveWebsiteId } from "@/lib/websites/selected";
 
 import { AccountSectionNav, type AccountSectionId } from "./account-section-nav";
+import { EmailPreferences } from "./email-preferences";
 import { PersonalDetails } from "./personal-details";
 import { WebsiteMembers } from "./website-members";
 
@@ -113,6 +116,10 @@ export default async function SettingsPage() {
       .limit(10),
   ]);
   const hasPassword = Boolean(credential?.password);
+
+  // Tips and reports (docs/emails.md); a failed read shows the default rather than taking the page down.
+  const tipsEmails = await wantsTips(session.user.id).catch(() => true);
+  const emailsCopy = EMAILS_COPY[locale];
   const googleLinked = providers.some((row) => row.providerId === "google");
 
   const guestTeamNote = !selectedSite && viewingShared;
@@ -120,6 +127,7 @@ export default async function SettingsPage() {
     { id: "profile", label: copy.personalTitle },
     { id: "security", label: copy.securityTitle },
     { id: "language", label: copy.languageTitle },
+    { id: "emails", label: emailsCopy.settingsTitle },
     ...(selectedSite || guestTeamNote ? [{ id: "members" as const, label: copy.membersTitle }] : []),
     { id: "referral", label: earn.movedTitle },
   ];
@@ -164,6 +172,8 @@ export default async function SettingsPage() {
             t={copy}
             tWorkspace={t.app.workspace}
           />
+
+          <EmailPreferences initialTips={tipsEmails} t={emailsCopy} />
 
           {/*
             Collaborators are per website: the panel takes every site owned

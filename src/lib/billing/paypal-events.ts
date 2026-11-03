@@ -220,17 +220,18 @@ async function snapshotOf(
     it again on that day: endPayPalCancellations). It used to end that very
     day, paid time lost, and the paid-through date overwritten with null.
   */
-  let ending: Pick<SubscriptionSnapshot["values"], "status" | "currentPeriodEnd" | "cancelAtPeriodEnd"> = {
+  let ending: Pick<SubscriptionSnapshot["values"], "status" | "currentPeriodEnd" | "cancelAtPeriodEnd" | "cancelAt"> = {
     status,
     currentPeriodEnd: nextBilling ? new Date(nextBilling) : null,
     cancelAtPeriodEnd: false,
+    cancelAt: null,
   };
   if (live.status === "CANCELLED") {
     const until = await paidThrough(reader, subscriptionId, live, interval);
     ending =
       until && until.getTime() > now.getTime()
-        ? { status: "active", currentPeriodEnd: until, cancelAtPeriodEnd: true }
-        : { status, currentPeriodEnd: until, cancelAtPeriodEnd: false };
+        ? { status: "active", currentPeriodEnd: until, cancelAtPeriodEnd: true, cancelAt: until }
+        : { status, currentPeriodEnd: until, cancelAtPeriodEnd: false, cancelAt: null };
   }
 
   return {
@@ -405,6 +406,16 @@ export async function processPayPalEvent(event: PayPalEvent): Promise<void> {
             amountCents: Number.isFinite(total) ? Math.round(total * 100) : 0,
             currency: resource.amount?.currency ?? "EUR",
           });
+          // "Welcome to your plan" on the first payment for money, as on Stripe's (stripe-events.ts).
+          await import("@/lib/email/lifecycle-triggers")
+            .then(({ emailFirstPayment }) =>
+              emailFirstPayment({
+                provider: "paypal",
+                providerSubscriptionId: billingId,
+                amountCents: Number.isFinite(total) ? Math.round(total * 100) : 0,
+              }),
+            )
+            .catch((error) => console.error(`[paypal-webhook] plan-started email for ${billingId} could not run`, error));
         }
       }
       return;

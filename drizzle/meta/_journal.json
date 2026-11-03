@@ -582,6 +582,13 @@
       "when": 1793634969542,
       "tag": "0082_earn_credits",
       "breakpoints": true
+    },
+    {
+      "idx": 83,
+      "version": "7",
+      "when": 1793661728692,
+      "tag": "0083_lifecycle_emails",
+      "breakpoints": true
     }
   ]
 }

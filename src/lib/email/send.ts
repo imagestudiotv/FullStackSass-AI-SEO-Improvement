@@ -74,6 +74,18 @@ export async function sendEmail(options: {
   text: string;
   /** Where a reply should go, when it is not the unattended default. */
   replyTo?: string;
+  /**
+   * Extra headers: the lifecycle emails' List-Unsubscribe pair, the
+   * one-click unsubscribe Gmail and Yahoo expect of anything that is not
+   * strictly transactional (lib/email/lifecycle.ts).
+   */
+  headers?: Record<string, string>;
+  /**
+   * Resend's Idempotency-Key: a retried request with the same key is the same
+   * email. The lifecycle emails pass their claim row's id and attempt, so a
+   * send whose answer was lost is not delivered twice when it is retried.
+   */
+  idempotencyKey?: string;
 }): Promise<SendResult> {
   const resend = getClient();
 
@@ -91,14 +103,18 @@ export async function sendEmail(options: {
   }
 
   try {
-    const { data, error } = await resend.emails.send({
-      from: from(),
-      to: options.to,
-      subject: options.subject,
-      html: options.html,
-      text: options.text,
-      replyTo: options.replyTo,
-    });
+    const { data, error } = await resend.emails.send(
+      {
+        from: from(),
+        to: options.to,
+        subject: options.subject,
+        html: options.html,
+        text: options.text,
+        replyTo: options.replyTo,
+        ...(options.headers ? { headers: options.headers } : {}),
+      },
+      options.idempotencyKey ? { idempotencyKey: options.idempotencyKey } : undefined,
+    );
 
     if (error) {
       /*

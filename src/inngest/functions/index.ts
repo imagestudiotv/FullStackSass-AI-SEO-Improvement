@@ -33,6 +33,7 @@ import { verifyBacklinks } from "./verify-backlinks";
 import { publishSocialPost, socialSuggestionsDaily, suggestSocial } from "./social-media";
 import { makeVideo, publishVideoJob, suggestVideoIdeasJob, videoFollowupDaily, videoIdeasDaily } from "./videos";
 import { chatCleanupDaily } from "./chat";
+import { lifecycleHourly, lifecycleSignup, lifecycleWeeklySummary, lifecycleWeeklySummaryOne } from "./lifecycle-emails";
 
 export const functions = [
   activateExchange,
@@ -72,4 +73,9 @@ export const functions = [
   publishVideoJob,
   videoFollowupDaily,
   chatCleanupDaily,
+  // Lifecycle emails (docs/emails.md): nothing is sent until Admin -> Emails is switched on.
+  lifecycleSignup,
+  lifecycleHourly,
+  lifecycleWeeklySummary,
+  lifecycleWeeklySummaryOne,
 ];

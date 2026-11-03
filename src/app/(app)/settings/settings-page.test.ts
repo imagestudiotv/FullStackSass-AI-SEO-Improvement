@@ -204,7 +204,7 @@ describe("account page", () => {
     expect(panel.viewingSharedDomain).toBeNull();
     expect(panel.initialError).toBe(false);
     expect(panel.ownEmail).toBe("owner@example.com");
-    expect(sectionIds(tree)).toEqual(["profile", "security", "language", "members", "referral"]);
+    expect(sectionIds(tree)).toEqual(["profile", "security", "language", "emails", "members", "referral"]);
   });
 
   it("dual-role on a shared site: the panel is for their own site and says the shared one is not theirs to manage", async () => {
