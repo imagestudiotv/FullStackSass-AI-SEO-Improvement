@@ -4,15 +4,15 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { PlanRow } from "@/lib/billing-shared";
 import { LOCALES, localePath, type Locale } from "@/lib/i18n/config";
+import { homeRedesignCopy } from "@/lib/i18n/home-redesign";
 import { getMessages } from "@/lib/i18n/messages";
-import { REAL_ARTICLES } from "@/lib/marketing/real-articles";
 import type { Testimonial } from "@/lib/marketing/testimonials";
 
 /**
- * The homepage as each language first renders it: the section order the
- * client's reference design asks for, one h1, nothing from YouTube until play
- * is pressed, and the honest states (no testimonials while there are none, no
- * prices that are not real).
+ * The redesigned homepage (client's design, 2026-11-03) as each language
+ * first renders it: the design's section order, one h1, nothing from YouTube
+ * on the first paint, and the honest states - no reviews while none is
+ * published, no counter without a real count, no invented figures.
  */
 
 vi.mock("next/link", () => ({
@@ -23,17 +23,17 @@ vi.mock("next/image", () => ({
   default: ({ src, alt, ...rest }: { src: string; alt: string; [key: string]: unknown }) =>
     createElement("img", { src, alt, width: rest.width, height: rest.height }),
 }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }), usePathname: () => "/" }));
 
-import { ANSWER_ENGINES } from "./home-sections";
+import { ClosingCta } from "./home-sections";
 import { HomePageSections } from "./home-page";
 import { PricingPreview } from "./pricing-preview";
 import { Testimonials } from "./testimonials-section";
 
 /** Static markup escapes quotes and apostrophes; compare against the escaped form. */
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/'/g, "&#x27;").replace(/</g, "&lt;");
-/** The escaped form, as a literal inside a RegExp. */
-const escRe = (s: string) => esc(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+/** The copy's `*accent*` / `**bold**` marks removed: what a reader sees. */
+const plain = (s: string) => s.replace(/\*\*([^*]+)\*\*|\*([^*]+)\*/g, (_m, b?: string, a?: string) => b ?? a ?? "");
 
 function plan(over: Partial<PlanRow>): PlanRow {
   return {
@@ -56,10 +56,15 @@ function plan(over: Partial<PlanRow>): PlanRow {
 }
 
 const PLANS = [plan({ tier: "grow", name: "Grow" }), plan({ tier: "scale", name: "Scale", priceCents: 29900, articleLimit: 100 })];
+// A fixture, never shipped: the homepage passes the cards published in Admin -> Testimonials.
+const REVIEW: Testimonial = { name: "Fixture Studio", role: "Fixture role", quote: "Fixture quote.", avatar: null };
 
-function renderHome(locale: Locale, plans: PlanRow[] = PLANS, testimonials: Testimonial[] = []) {
+function renderHome(
+  locale: Locale,
+  { plans = PLANS, testimonials = [], contentCount = null }: { plans?: PlanRow[]; testimonials?: Testimonial[]; contentCount?: number | null } = {},
+) {
   const href = (path: string) => (locale === "en" ? path : localePath(locale, path));
-  return renderToStaticMarkup(createElement(HomePageSections, { locale, href, plans, testimonials }));
+  return renderToStaticMarkup(createElement(HomePageSections, { locale, href, plans, testimonials, contentCount }));
 }
 
 /** Where each marker first appears, so the order can be compared. */
@@ -71,26 +76,25 @@ function positions(html: string, markers: string[]) {
   });
 }
 
+const sectionIds = (html: string) => [...html.matchAll(/<section[^>]*?id="([^"]+)"/g)].map((m) => m[1]);
+
 describe("homepage sections", () => {
-  it.each(LOCALES)("%s: follows the reference order", (locale) => {
-    const t = getMessages(locale).home;
-    const html = renderHome(locale);
+  it.each(LOCALES)("%s: follows the design's order", (locale) => {
+    const c = homeRedesignCopy(locale);
+    const html = renderHome(locale, { testimonials: [REVIEW], contentCount: 1234 });
     const order = positions(html, [
-      esc(t.titleLead),
-      'id="how-it-works-video"',
-      esc(t.auditIntroTitle),
+      "<h1",
+      esc(c.ribbon.counterLabel),
+      'id="features"',
+      'id="growth-engines"',
+      'id="repget-demo-video"',
       'id="how-it-works"',
-      'id="traffic-recovery"',
-      esc(t.stackTitle),
-      esc(t.pillars[0].title),
-      'id="content-engine"',
-      'id="tracking"',
-      'id="authority-network"',
-      esc(t.previewTitle),
+      'id="repget-copilot"',
+      'id="repget-founder"',
+      'id="repget-reviews"',
       'id="pricing"',
       'id="faq"',
-      // The heading is split by its orange words; the line under it is one piece.
-      esc(t.closingSub),
+      esc(plain(c.cta.overline)),
     ]);
     expect(order).toEqual([...order].sort((a, b) => a - b));
   });
@@ -100,121 +104,84 @@ describe("homepage sections", () => {
   });
 
   it("gives every language the same sections", () => {
-    const ids = (html: string) => [...html.matchAll(/<section[^>]*id="([^"]+)"/g)].map((m) => m[1]);
-    const english = ids(renderHome("en"));
-    expect(english).toEqual(["how-it-works-video", "how-it-works", "traffic-recovery", "content-engine", "tracking", "authority-network", "pricing", "faq"]);
-    for (const locale of LOCALES) expect(ids(renderHome(locale))).toEqual(english);
+    const english = sectionIds(renderHome("en"));
+    expect(english).toEqual(["features", "growth-engines", "repget-demo-video", "how-it-works", "repget-copilot", "repget-founder", "pricing", "faq"]);
+    for (const locale of LOCALES) expect(sectionIds(renderHome(locale))).toEqual(english);
   });
 
-  it("loads nothing from YouTube until play is pressed, and links to the video", () => {
+  it("keeps the anchors the header and the hero link to", () => {
+    const html = renderHome("en", { testimonials: [REVIEW] });
+    // Header "How it works" (/#how-it-works), the hero's watch link and reviews pill, the Social tool (/#features).
+    for (const id of ["how-it-works", "repget-demo-video", "repget-reviews", "features"]) expect(html).toContain(`id="${id}"`);
+    expect(html).toContain('href="#repget-demo-video"');
+    expect(html).toContain('href="#repget-reviews"');
+  });
+
+  it("loads nothing from YouTube on the first paint, and still links to the video", () => {
     const html = renderHome("en");
-    const t = getMessages("en").home;
     expect(html).not.toContain("<iframe");
     expect(html).not.toContain("youtube-nocookie");
-    expect(html).toContain(`aria-label="${esc(t.videoPlay)}"`);
-    expect(html).toContain('href="https://www.youtube.com/watch?v=PqNu8DzBlTQ"');
-    // The poster is a lazy, decorative image; the button carries the name.
-    const poster = html.match(/<img[^>]*i\.ytimg\.com\/vi_webp\/PqNu8DzBlTQ[^>]*>/)?.[0] ?? "";
-    expect(poster).toContain('loading="lazy"');
-    expect(poster).toContain('alt=""');
-    expect(html).not.toContain(esc("video is being recorded"));
+    expect(html).toContain("PqNu8DzBlTQ");
   });
 
-  it.each(LOCALES)("%s: shows the three reassurances under the hero buttons", (locale) => {
+  it.each(LOCALES)("%s: shows the reassurances under the hero", (locale) => {
     const html = renderHome(locale);
     for (const item of getMessages(locale).home.heroAssurances) expect(html).toContain(esc(item));
   });
 
-  it("labels every drawing with figures as an example", () => {
-    const t = getMessages("en").home;
+  it("shows the content counter only with a real count", () => {
+    const c = homeRedesignCopy("en");
+    expect(renderHome("en", { contentCount: null })).not.toContain(esc(c.ribbon.counterLabel));
+    const html = renderHome("en", { contentCount: 1234 });
+    expect(html).toContain(esc(c.ribbon.counterLabel));
+    // The true figure is in the first paint; the count-up is motion on top.
+    expect(html).toContain("1,234");
+  });
+
+  it("invents no figures from the design", () => {
+    // The visible words only: icon drawings are full of coordinates like 4.9.
+    const text = renderHome("en", { testimonials: [REVIEW], contentCount: 1234 }).replace(/<[^>]*>/g, " ");
+    for (const made of ["4.9", "12,840", "+200%", "90+"]) expect(text).not.toContain(made);
+  });
+
+  it.each(LOCALES)("%s: names no platform RepGet does not connect to in its copy", (locale) => {
+    const c = homeRedesignCopy(locale);
+    expect(JSON.stringify({ ...c, founder: undefined })).not.toMatch(/linkedin|business profile/i);
+  });
+
+  it("leaves out the reviews and the reviewer pill while none is published", () => {
     const html = renderHome("en");
-    // Audit and Grow steps, four analytics cards, the placement card.
-    expect(html.split(`>${t.exampleLabel}<`).length - 1).toBeGreaterThanOrEqual(7);
-    expect(html).toContain(esc(t.trackedCaption));
-    expect(html).toContain(esc(t.previewCaption));
+    expect(html).not.toContain('id="repget-reviews"');
+    expect(html).not.toContain('href="#repget-reviews"');
+    const withReview = renderHome("it", { testimonials: [REVIEW] });
+    expect(withReview).toContain('id="repget-reviews"');
+    expect(withReview).toContain("Fixture quote.");
   });
 
-  it("shows real, published articles with their picture and a link to the whole article", () => {
-    for (const locale of ["en", "it"] as const) {
-      const t = getMessages(locale).home.articles;
-      const html = renderHome(locale);
-      // The first article renders on the server, in the language it was published in.
-      const [first] = REAL_ARTICLES;
-      expect(html).toContain(esc(first.title));
-      expect(html).toContain(esc(first.heading));
-      expect(html).toContain(`href="${first.href}"`);
-      expect(html).toContain(esc(t.realLabel));
-      expect(html).toContain(esc(t.readFull));
-      // next/image is a plain <img> in this file (see the mock above).
-      expect(html).toContain(`src="${first.image.src}"`);
-      // Every article is offered as a tab.
-      for (const article of REAL_ARTICLES) expect(html).toContain(esc(article.title));
-    }
+  it("marks testimonial quotes as English on a translated homepage", () => {
+    expect(renderHome("it", { testimonials: [REVIEW] })).toMatch(/lang="en"[^>]*>(?:<[^>]+>)*Fixture quote\./);
   });
 
-  it("marks the English articles' own words as English on the Italian homepage, and keeps its labels Italian", () => {
-    const t = getMessages("it").home.articles;
-    const html = renderHome("it");
-    const [first] = REAL_ARTICLES;
-    expect(first.lang).toBe("en");
-    // The preview's heading, and the title in every article's tab.
-    expect(html).toMatch(new RegExp(`<h3 lang="en"[^>]*>${escRe(first.title)}</h3>`));
-    for (const article of REAL_ARTICLES) expect(html).toMatch(new RegExp(`<span lang="en"[^>]*>${escRe(article.title)}</span>`));
-    expect(html).toMatch(new RegExp(`<p lang="en"[^>]*>${escRe(first.description)}</p>`));
-    expect(html).toContain(`<ol lang="en"`);
-    expect(html).toMatch(/<div lang="en"><h4/);
-    // The labels around them are the page's: not inside an English element.
-    expect(html).toMatch(new RegExp(`<p class="mt-4"><a [^>]*>${escRe(t.readFull)}`));
-    expect(html).toMatch(new RegExp(`<p class="font-semibold">${escRe(t.contentsLabel)}</p>`));
-  });
-
-  it("marks testimonial quotes and roles as English on a translated homepage", () => {
-    const html = renderHome("it", PLANS, [{ name: "Fixture Studio", role: "Fixture role", quote: "Fixture quote.", avatar: null }]);
-    expect(html).toMatch(/<blockquote lang="en"[^>]*><p>Fixture quote\.<\/p><\/blockquote>/);
-    expect(html).toMatch(/<span lang="en"[^>]*>Fixture role<\/span>/);
-  });
-
-  it("names only real integrations, each linking to its setup guide", () => {
-    const html = renderHome("de");
-    for (const slug of ["wordpress", "ghost", "shopify", "webflow", "wix", "webhook"]) {
-      // In German where the guide is translated, otherwise the English guide.
-      expect(html).toContain(`href="${localePath("de", `/docs/integrations/${slug}`)}"`);
-    }
-    expect(html.match(/href="[^"]*\/docs\/integrations\//g)).toHaveLength(6);
-  });
-
-  it("keeps the audit field's label, its required check and the locale-aware action", () => {
-    const t = getMessages("es").home;
-    const html = renderHome("es");
-    expect(html).toContain(`>${esc(t.auditFieldLabel)}</label>`);
-    expect(html).toMatch(/<input[^>]*id="audit-quick"[^>]*required/);
-    // The button starts solid: not disabled before anything is typed.
-    expect(html).not.toMatch(/<button[^>]*type="submit"[^>]*disabled/);
+  it("uses the real plan prices, and says so when there is no monthly plan", () => {
+    const html = renderHome("en");
+    expect(html).toContain("€99");
+    expect(html).toContain("€299");
+    expect(renderHome("en", { plans: [plan({ interval: "year" })] })).toContain(esc(getMessages("en").home.unavailable));
   });
 
   it("publishes no FAQ markup of its own - /faq carries it", () => {
     const html = renderHome("en");
     expect(html).toContain(esc(getMessages("en").faq.items[0].question));
     expect(html).not.toContain("FAQPage");
-    expect(html).toMatch(/<h2[^>]*>Frequently asked questions<\/h2>/);
   });
 
-  it("keeps the FAQ's contact link in the reader's language", () => {
+  it("keeps the contact link in the reader's language", () => {
     expect(renderHome("de")).toContain('href="/de/contact"');
     expect(renderHome("en")).toContain('href="/contact"');
   });
-
-  it("leaves out the testimonials while none is published, and shows the published ones the page passes", () => {
-    expect(renderHome("en")).not.toContain(esc(getMessages("en").home.testimonialsTitle));
-    // A fixture, never shipped: the homepage passes the cards published in Admin -> Testimonials.
-    const html = renderHome("it", PLANS, [{ name: "Fixture Studio", role: "Fixture role", quote: "Fixture quote.", avatar: "/images/fixture.webp" }]);
-    expect(html).toContain(esc(getMessages("it").home.testimonialsTitle));
-    expect(html).toContain("Fixture quote.");
-    expect(html).toContain('src="/images/fixture.webp"');
-  });
 });
 
-/** The closing panel on the homepage, the blog and every article (client's design, 7RRq4-suyqqc.jpg). */
+/** The closing panel on the blog and every article (client's design, 7RRq4-suyqqc.jpg). */
 describe("closing panel", () => {
   it("says exactly what the client's design says, in English", () => {
     const t = getMessages("en").home;
@@ -232,10 +199,10 @@ describe("closing panel", () => {
   it.each(LOCALES)("%s: the heading's last words in orange, the free check, free articles at sign-up, two reassurances", (locale) => {
     const t = getMessages(locale).home;
     expect(t.closingTitle.endsWith(t.closingTitleAccent)).toBe(true);
-    const html = renderHome(locale);
+    const html = renderToStaticMarkup(createElement(ClosingCta, { t, href: (path: string) => (locale === "en" ? path : localePath(locale, path)) }));
     const panel = html.slice(html.lastIndexOf("<h2", html.indexOf(esc(t.closingSub))));
     expect(panel).toContain(`<span style="color:#ff5a1f">${esc(t.closingTitleAccent)}</span>`);
-    expect(panel).toMatch(new RegExp(`href="/sign-up"[^>]*>${esc(t.createFreeArticles)}`));
+    expect(panel).toMatch(new RegExp(`href="(?:/[a-z]{2})?/sign-up"[^>]*>${esc(t.createFreeArticles)}`));
     expect(panel).toContain(esc(t.checkFree));
     expect(panel).toContain(esc(t.cancelAnytime));
     expect(panel).toContain(esc(t.setupInMinutes));
@@ -360,19 +327,15 @@ describe("testimonials", () => {
 });
 
 describe("the headline's moving last word (client, 2026-10-13)", () => {
+
   it.each(LOCALES)("%s: the template ends with {engine}, so a short name never leaves a gap", (locale) => {
+
     const template = getMessages(locale).home.titleAccentTemplate;
+
     expect(template.split("{engine}")).toHaveLength(2);
+
     expect(template).toMatch(/\{engine\}[.!?]?$/);
+
   });
 
-  it.each(LOCALES)("%s: one h1, read as a sentence, with every assistant's name shown in turn", (locale) => {
-    const t = getMessages(locale).home;
-    const html = renderHome(locale);
-    const h1 = /<h1[\s\S]*?<\/h1>/.exec(html)?.[0] ?? "";
-    expect(h1).toContain(`<span class="sr-only">${esc(t.titleAccent)}</span>`);
-    expect(h1).toContain('aria-hidden="true"');
-    for (const engine of ANSWER_ENGINES) expect(h1).toContain(engine);
-    expect(h1).not.toContain("{engine}");
-  });
 });

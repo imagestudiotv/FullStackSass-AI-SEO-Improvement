@@ -59,14 +59,15 @@ describe("the testimonials design preview", () => {
       expect(html).toContain(card.name);
       expect(html).toContain(`src="${card.avatar}"`);
     }
-    expect(html).toContain('id="testimonials"');
-    // Nine cards, then View more.
-    expect(html.split("<details")[0].match(/<figure/g)).toHaveLength(9);
+    expect(html).toContain('id="repget-reviews"');
+    // Every card is in the first paint; "Show more" folds the rest once the page has loaded.
+    expect(html.match(/<article/g)?.length).toBeGreaterThanOrEqual(CARDS.length);
   });
 
   it("shows the page around the cards in another language on request", async () => {
     state.admin = true;
-    expect(await render("it")).toContain("I risultati che le aziende ottengono con RepGet");
-    expect(await render("xx")).toContain("The results companies see with RepGet");
+    // The reviews heading, its accent words drawn in orange.
+    expect(await render("it")).toContain("Scelto da chi ");
+    expect(await render("xx")).toContain("Loved by people who ");
   });
 });

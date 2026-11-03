@@ -1,23 +1,20 @@
 "use client";
 
-import {
-  Activity,
-  ArrowRight,
-  BarChart3,
-  ChevronDown,
-  ChevronRight,
-  FileText,
-  Link2,
-  Menu,
-  Sparkles,
-  TrendingDown,
-  type LucideIcon,
-} from "lucide-react";
+import { ArrowRight, Menu } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 
+import { BRAND_NAMES } from "@/components/brand-icons";
 import { CookieSettingsButton } from "@/components/consent-banner";
+import {
+  INTEGRATIONS_HREF,
+  MarketingMegaMenus,
+  SITE_CONNECTIONS,
+  SOCIAL_PLATFORMS,
+  countLabel,
+  featureTool,
+} from "@/components/marketing-mega-menu";
 import { Button } from "@/components/ui/button";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -64,175 +61,18 @@ export function MarketingFrame({ className, children }: { className?: string; ch
 }
 
 /**
- * The Platform dropdown.
- *
- * Icons and destinations live here; the words live in messages.ts, so the
- * menu translates with everything else. The order matches the two arrays,
- * which is why both are kept the same length and why a missing icon falls
- * back rather than throwing.
- *
- * Every destination is a section of the homepage that already exists. None of
- * these are separate pages yet: writing six feature pages to fill a menu
- * would mean six thin pages competing with the homepage for the same terms,
- * and a menu that points at real content is worth more than one that points
- * at placeholders.
- */
-const PLATFORM_ICONS: LucideIcon[] = [
-  FileText,
-  Link2,
-  Activity,
-  BarChart3,
-  Sparkles,
-  TrendingDown,
-];
-
-/**
- * Where each entry goes, in the order the copy lists them.
- *
- * Search Performance and AI Presence share #tracking: that section covers
- * rankings from Search Console and whether assistants name you, so it is
- * genuinely about both. Site Intelligence points at /audit, a real tool that
- * finds exactly what the entry describes.
- */
-const PLATFORM_HREFS = [
-  "/#content-engine",
-  "/#authority-network",
-  "/audit",
-  "/#tracking",
-  "/#tracking",
-  "/#traffic-recovery",
-];
-
-function PlatformMenu({
-  label,
-  heading,
-  items,
-  href,
-}: {
-  label: string;
-  heading: string;
-  items: { title: string; detail: string }[];
-  href: (path: string) => string;
-}) {
-  const [open, setOpen] = useState(false);
-  const wrapper = useRef<HTMLDivElement>(null);
-
-  /**
-   * Close on a click elsewhere or on Escape.
-   *
-   * Opening on hover alone would leave the menu unusable by keyboard and
-   * unreliable on a touchscreen, where there is no hover to leave. It opens
-   * on click, and these two handlers are what let it close again.
-   */
-  useEffect(() => {
-    if (!open) return;
-
-    function onPointerDown(event: MouseEvent) {
-      if (!wrapper.current?.contains(event.target as Node)) setOpen(false);
-    }
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") setOpen(false);
-    }
-
-    document.addEventListener("mousedown", onPointerDown);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", onPointerDown);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [open]);
-
-  return (
-    <div
-      ref={wrapper}
-      className="relative"
-      // Hover opens it as well, for a pointer. The click handlers above stay
-      // authoritative, so a keyboard or touch user is never stranded.
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
-    >
-      <button
-        type="button"
-        onClick={() => setOpen((value) => !value)}
-        aria-expanded={open}
-        aria-haspopup="true"
-        className={cn(
-          "flex items-center gap-1 rounded-md px-3 py-1.5 text-sm transition-colors",
-          open
-            ? "bg-accent text-accent-foreground"
-            : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-        )}
-      >
-        {label}
-        <ChevronDown
-          className={cn("size-3.5 transition-transform", open && "rotate-180")}
-          aria-hidden="true"
-        />
-      </button>
-
-      {open ? (
-        <div
-          className="absolute left-0 top-full z-50 w-[26rem] max-w-[calc(100vw-2rem)] pt-2"
-          role="menu"
-        >
-          <div className="overflow-hidden rounded-2xl border bg-background shadow-lg">
-            <p className="px-5 pt-5 pb-3 text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-              {heading}
-            </p>
-            <ul className="pb-2">
-              {items.map((item, index) => {
-                const Icon = PLATFORM_ICONS[index] ?? FileText;
-                const target = PLATFORM_HREFS[index] ?? "/";
-                return (
-                  <li key={item.title}>
-                    <Link
-                      href={href(target)}
-                      role="menuitem"
-                      onClick={() => setOpen(false)}
-                      className="group flex items-start gap-4 px-5 py-3 transition-colors hover:bg-accent/60"
-                    >
-                      <span className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-                        <Icon
-                          className="size-5 text-primary"
-                          aria-hidden="true"
-                        />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block font-semibold">
-                          {item.title}
-                        </span>
-                        <span className="mt-0.5 block text-sm text-muted-foreground">
-                          {item.detail}
-                        </span>
-                      </span>
-                      <ChevronRight
-                        className="mt-3 size-4 shrink-0 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5"
-                        aria-hidden="true"
-                      />
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-/**
  * The same menu on a narrow screen.
  *
  * The marketing header had no mobile menu at all: below the breakpoint the
  * nav simply vanished and a phone was left with the logo and two buttons.
- * That was survivable while the nav broke at 640px, but the Platform
- * dropdown pushes the row past what a tablet can fit, so the gap would have
- * grown to cover most laptops.
+ * That was survivable while the nav broke at 640px, but the header's menus
+ * push the row past what a tablet can fit, so the gap would have grown to
+ * cover most laptops.
  *
- * A sheet rather than a second dropdown. The platform entries are listed flat
- * inside it, because nesting an accordion in a drawer to save six rows is
- * more machinery than the content justifies.
+ * A sheet rather than a second dropdown. Features and Integrations become
+ * two collapsed sections in it: the desktop panels are too wide for a phone,
+ * and listed flat the integrations alone would push the page links out of
+ * sight.
  *
  * The sheet itself (components/mobile-nav-sheet.tsx) is fetched when the
  * menu is first wanted - the button is hovered, focused or touched, which
@@ -271,11 +111,30 @@ function MobileMarketingNav({
   const button = useRef<HTMLButtonElement>(null);
   const prefetch = () => void loadSheet().catch(() => {});
 
-  const platform = t.nav.platformItems.map((item, index) => ({
-    title: item.title,
-    href: href(PLATFORM_HREFS[index] ?? "/"),
-    icon: PLATFORM_ICONS[index] ?? FileText,
-  }));
+  // The same destinations as the desktop panels (marketing-mega-menu.tsx).
+  const features = {
+    label: t.menu.features,
+    items: t.menu.tools.map((tool, index) => ({
+      title: tool.title,
+      sub: tool.sub,
+      href: href(featureTool(index).href),
+      icon: featureTool(index).icon,
+    })),
+  };
+  const integrations = {
+    label: t.menu.integrations,
+    socialHead: t.menu.socialHead,
+    socialCount: countLabel(t.menu.platforms, SOCIAL_PLATFORMS.length),
+    social: SOCIAL_PLATFORMS.map((icon) => ({ icon, name: BRAND_NAMES[icon] })),
+    siteHead: t.menu.siteHead,
+    siteCount: countLabel(t.menu.connections, SITE_CONNECTIONS.length),
+    sites: SITE_CONNECTIONS.map(({ name, guide }) => ({
+      icon: name,
+      name: BRAND_NAMES[name],
+      href: guide ? href(guide) : undefined,
+    })),
+    explore: { label: t.menu.explore, href: href(INTEGRATIONS_HREF) },
+  };
   const links = [
     { href: "/sign-in", label: t.nav.signIn },
     { href: href("/#how-it-works"), label: t.nav.howItWorks },
@@ -324,8 +183,8 @@ function MobileMarketingNav({
           menuLabel={t.a11y.openMenu}
           lang={locale}
           closeLabel={t.a11y.close}
-          heading={t.nav.platformHeading}
-          platform={platform}
+          features={features}
+          integrations={integrations}
           links={links}
         />
       ) : null}
@@ -361,16 +220,22 @@ export function MarketingNav({ chrome }: { chrome: SiteChrome }) {
         cluster. Centring needs the nav to be the only growing child: it takes
         the free space on both sides with mx-auto, and the button group below
         drops its ml-auto so it no longer competes for the same space.
+
+        Features and Integrations replace the Platform dropdown (client's
+        design, 2026-11-03): Features covers the same ground, tool by tool.
+        The nav must stay unpositioned - the menus' panels hang from the
+        sticky header (see MarketingMegaMenus).
       */}
-      <nav className="mx-auto hidden items-center gap-1 lg:flex">
-        <PlatformMenu
-          label={t.nav.platform}
-          heading={t.nav.platformHeading}
-          items={t.nav.platformItems}
-          href={href}
-        />
+      <nav className="mx-auto hidden items-center gap-0.5 lg:flex xl:gap-1">
+        <MarketingMegaMenus menu={t.menu} href={href} />
         {[
-          { href: href("/#how-it-works"), label: t.nav.howItWorks },
+          /*
+            From xl only: with two menus in the row, French and German labels
+            overran the bar between 1024 and 1280px. The design drops it
+            altogether; it stays in the phone menu, and the homepage it points
+            at is one click away on the logo.
+          */
+          { href: href("/#how-it-works"), label: t.nav.howItWorks, className: "hidden xl:block" },
           { href: href("/success-stories"), label: t.nav.successStories },
           { href: href("/pricing"), label: t.nav.pricing },
           { href: href("/blog"), label: t.nav.blog },
@@ -379,7 +244,10 @@ export function MarketingNav({ chrome }: { chrome: SiteChrome }) {
           <Link
             key={item.href}
             href={item.href}
-            className="rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+            className={cn(
+              "rounded-md px-2.5 py-1.5 text-sm whitespace-nowrap text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground xl:px-3",
+              item.className,
+            )}
           >
             {item.label}
           </Link>

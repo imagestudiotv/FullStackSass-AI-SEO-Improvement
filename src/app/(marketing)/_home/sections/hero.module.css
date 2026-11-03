@@ -1,0 +1,20 @@
+/*
+ * The one shape home.module.css lacks for the logo ribbon (ribbon.tsx): the
+ * small rounded tile each platform's mark sits on. Its colours are the shared
+ * `.b-<name>` classes there; this is only the tile's size and shape, so the
+ * ribbon reads like the clouds around the hero's cards.
+ */
+.brandTile {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+}
+/* Two classes, so it wins over home.module.css's `.brand svg` whichever loads first. */
+.brandTile .brandTileIcon {
+  width: 17px;
+  height: 17px;
+}

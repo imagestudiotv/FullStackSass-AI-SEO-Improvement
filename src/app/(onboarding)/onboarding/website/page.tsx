@@ -31,6 +31,11 @@ export default async function OnboardingWebsitePage({
    * dashboard or the switcher, rather than being walked through their first.
    */
   const addingAnother = params.next === "1";
+  /**
+   * The website typed on the homepage, carried through sign-up (?domain=).
+   * Trimmed and capped; it only pre-fills the field, the step validates it.
+   */
+  const initialUrl = typeof params.domain === "string" ? params.domain.trim().slice(0, 253) : "";
 
   const state = await getOnboardingState(orgId);
 
@@ -90,7 +95,7 @@ export default async function OnboardingWebsitePage({
       shows. Two progress indicators on one screen is one too many.
     */
     <div className="mx-auto max-w-6xl px-4 py-10 sm:py-14">
-      <WebsiteStep t={t.app.onboarding} />
+      <WebsiteStep t={t.app.onboarding} initialUrl={initialUrl} />
     </div>
   );
 }

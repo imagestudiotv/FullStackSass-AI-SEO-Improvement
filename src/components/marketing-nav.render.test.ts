@@ -194,13 +194,119 @@ describe("the header's screen-reader labels", () => {
         menuLabel: chrome.it.a11y.openMenu,
         lang: "it",
         closeLabel: chrome.it.a11y.close,
-        heading: chrome.it.nav.platformHeading,
-        platform: [],
+        features: { label: chrome.it.menu.features, items: [] },
+        integrations: {
+          label: chrome.it.menu.integrations,
+          socialHead: chrome.it.menu.socialHead,
+          socialCount: "",
+          social: [],
+          siteHead: chrome.it.menu.siteHead,
+          siteCount: "",
+          sites: [],
+          explore: { label: chrome.it.menu.explore, href: "/it/docs/integrations" },
+        },
         links: [{ href: "/it/pricing", label: chrome.it.nav.pricing }],
       }),
     );
     expect(html).toContain('<div data-slot="sheet-content" lang="it">');
     expect(html).toContain(`<span class="sr-only">${getMessages("it").app.common.close}</span>`);
     expect(getMessages("it").app.common.close).toBe("Chiudi");
+  });
+});
+
+/**
+ * The Features and Integrations menus (client's design, 2026-11-03), on the
+ * desktop bar and in the phone menu.
+ */
+describe("the header's mega-menus", () => {
+  const chrome = siteChrome();
+  const supported = ["Reddit", "Quora", "X", "Threads", "Pinterest", "Bluesky", "Instagram", "TikTok", "YouTube", "Facebook"];
+  const connections = ["WordPress", "Shopify", "Webflow", "Wix", "Ghost", "Webhooks", "Search Console", "Google Analytics"];
+
+  it.each(LOCALES.map((locale) => [locale === "en" ? "/" : `/${locale}`, locale] as const))(
+    "on %s both triggers are closed disclosure buttons, in the page's language, controlling a panel that exists",
+    (pathname, locale) => {
+      nav.pathname = pathname;
+      const html = renderToStaticMarkup(createElement(MarketingNav, { chrome }));
+      for (const label of [chrome[locale].menu.features, chrome[locale].menu.integrations]) {
+        const trigger = new RegExp(`<button id="([^"]+)" type="button" aria-expanded="false" aria-controls="([^"]+)"[^>]*>${label}<`).exec(html);
+        expect(trigger, label).not.toBeNull();
+        const [, triggerId, panelId] = trigger!;
+        expect(html).toContain(`id="${panelId}" aria-labelledby="${triggerId}"`);
+      }
+    },
+  );
+
+  it("the Integrations panel lists the channels RepGet publishes to, and not LinkedIn or Google Business Profile", () => {
+    nav.pathname = "/";
+    const html = renderToStaticMarkup(createElement(MarketingNav, { chrome }));
+    for (const name of [...supported, ...connections]) expect(html, name).toContain(`>${name}</span>`);
+    expect(html).not.toMatch(/linkedin/i);
+    expect(html).not.toMatch(/business profile/i);
+    expect(html).toContain(">10 platforms<");
+    expect(html).toContain(">8 connections<");
+  });
+
+  it("every tool, guide and the explore link goes to a real page, in the page's language", () => {
+    nav.pathname = "/de";
+    const html = renderToStaticMarkup(createElement(MarketingNav, { chrome }));
+    const links = hrefs(html);
+    for (const path of [
+      "/de/success-stories/image-studio",
+      "/de/docs/integrations",
+      "/de/docs/integrations/wordpress-plugin",
+      "/de/docs/integrations/webhook",
+    ]) {
+      expect(links).toContain(path);
+    }
+    // The first tool is selected, so its "Learn more" is the one rendered.
+    expect(html).toContain(`>${chrome.de.menu.open}<`);
+    for (const tool of chrome.de.menu.tools) expect(html).toContain(`>${tool.title}</span>`);
+    expect(html).toContain('role="tab" aria-selected="true"');
+    expect(html.match(/role="tab"/g)).toHaveLength(6);
+    for (const link of links) {
+      const path = link.replace(/^\/de(?=[/?#]|$)/, "").split(/[?#]/)[0] || "/";
+      if (path === "/sign-in" || path === "/sign-up") continue;
+      expect(TRANSLATED_PATHS.has(path), link).toBe(true);
+    }
+  });
+
+  it("the phone menu has both menus as collapsed sections that list the same things", () => {
+    nav.pathname = "/";
+    const html = renderToStaticMarkup(
+      createElement(MobileNavSheet, {
+        open: true,
+        onOpenChange: () => {},
+        returnFocusTo: { current: null },
+        themeLabel: chrome.en.a11y.darkMode,
+        menuLabel: chrome.en.a11y.openMenu,
+        lang: "en",
+        closeLabel: chrome.en.a11y.close,
+        features: {
+          label: chrome.en.menu.features,
+          items: chrome.en.menu.tools.map((tool) => ({ title: tool.title, sub: tool.sub, href: "/audit", icon: () => null })),
+        },
+        integrations: {
+          label: chrome.en.menu.integrations,
+          socialHead: chrome.en.menu.socialHead,
+          socialCount: "10 platforms",
+          social: [{ icon: "reddit", name: "Reddit" }],
+          siteHead: chrome.en.menu.siteHead,
+          siteCount: "8 connections",
+          sites: [
+            { icon: "wordpress", name: "WordPress", href: "/docs/integrations/wordpress-plugin" },
+            { icon: "searchconsole", name: "Search Console" },
+          ],
+          explore: { label: chrome.en.menu.explore, href: "/docs/integrations" },
+        },
+        links: [],
+      } as unknown as ComponentProps<typeof MobileNavSheet>),
+    );
+    for (const label of [chrome.en.menu.features, chrome.en.menu.integrations]) {
+      expect(html).toMatch(new RegExp(`<button type="button" aria-expanded="false" aria-controls="([^"]+)"[^>]*>${label}<`));
+    }
+    expect(html.match(/hidden=""/g)).toHaveLength(2);
+    expect(hrefs(html)).toEqual(expect.arrayContaining(["/docs/integrations/wordpress-plugin", "/docs/integrations"]));
+    expect(html).toContain(">Search Console</span>");
   });
 });
