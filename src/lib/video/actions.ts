@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { queueJob } from "@/inngest/send";
@@ -13,6 +13,7 @@ import { siteUrl } from "@/lib/site-url";
 import { requireEditor } from "@/lib/websites/require-editor";
 
 import {
+  IDEAS_PER_DAY,
   isMakeVia,
   isVideoPlatform,
   isVideoStyle,
@@ -48,7 +49,9 @@ export type VideoError =
   | "connect_failed"
   | "bad_file"
   | "too_big"
-  | "bad_time";
+  | "bad_time"
+  /** The day already has its IDEAS_PER_DAY ideas, made or skipped: the next ones come tomorrow. */
+  | "day_full";
 
 export type VideoResult<T = null> =
   | { ok: true; data: T }
@@ -76,10 +79,22 @@ function appUrl(): string {
 
 // ---------------------------------------------------------------- ideas
 
-/** Asks for today's ideas, up to the day's twenty (the page does on opening when there are none). */
-export async function requestVideoIdeas(websiteId: string): Promise<VideoResult> {
+/**
+ * Asks for today's ideas, up to the day's twenty (the page does on opening when there are none).
+ *
+ * The twenty are a day's worth however they were used: made, skipped or still
+ * waiting. When they are all written the job writes nothing (lib/video/ideas.ts),
+ * so this says so instead of promising ideas that never come - the "New ideas"
+ * button used to stay active after every idea was skipped, and nothing appeared.
+ */
+export async function requestVideoIdeas(websiteId: string, now: Date = new Date()): Promise<VideoResult> {
   const checked = await guard(websiteId);
   if (!checked.ok) return fail(checked.error);
+  const [{ n }] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(videoIdeas)
+    .where(and(eq(videoIdeas.websiteId, websiteId), eq(videoIdeas.day, now.toISOString().slice(0, 10))));
+  if (Number(n) >= IDEAS_PER_DAY) return fail("day_full");
   await queueJob({ name: "video/ideas.requested", data: { websiteId } });
   return { ok: true, data: null };
 }

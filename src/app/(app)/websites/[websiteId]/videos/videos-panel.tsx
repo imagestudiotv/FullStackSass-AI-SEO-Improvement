@@ -212,6 +212,8 @@ export function VideosPanel(props: {
   approvedToday: number;
   goal: number;
   perDay: number;
+  /** Today's ideas however they were used (made, skipped or waiting): the day is full at perDay. */
+  writtenToday: number;
   priceLabel: string;
   /** The workspace's balance, for its owner only (null for a guest, or when it could not be read). */
   credits: { available: number; label: string } | null;
@@ -281,7 +283,8 @@ export function VideosPanel(props: {
             {editable ? (
               <Button
                 variant="outline"
-                disabled={pending || props.ideas.length + props.approvedToday >= props.perDay}
+                disabled={pending || props.writtenToday >= props.perDay}
+                title={props.writtenToday >= props.perDay ? t.dayFull : undefined}
                 onClick={() => run(() => requestVideoIdeas(websiteId), t.ideasQueued)}
               >
                 <RefreshCw aria-hidden="true" />
