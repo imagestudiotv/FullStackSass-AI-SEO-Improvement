@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { articles } from "@/lib/db/schema";
 import { requireWebsite } from "@/lib/tenant";
 import { readResearch } from "@/lib/articles/research-types";
-import { reviewHash } from "@/lib/articles/review";
+import { reviewHash, twoStepArticles } from "@/lib/articles/review";
 import { CONTENT_COPY } from "@/lib/i18n/content-improvements";
 import type { Locale } from "@/lib/i18n/config";
 import { ResearchApproval } from "./research-approval";
@@ -18,9 +18,18 @@ export async function ResearchPanel({ websiteId, articleId, locale }: { websiteI
   const t = CONTENT_COPY[locale];
   const revision = reviewHash(article);
   const held = article.researchReviewRequired && article.researchApprovedHash !== revision;
+  /*
+    The two-step flow (lib/publishing/controls.ts): an article in the team's
+    review has its sources checked by the team, whose approval covers them.
+    The customer is told so and asked for nothing.
+  */
+  const teamChecks = article.reviewStatus !== null && (await twoStepArticles());
+  const status = held
+    ? teamChecks ? t.teamChecking : t.held
+    : article.researchApprovedHash ? (teamChecks ? t.teamChecked : t.approved) : research?.status === "ready" ? t.ready : t.incomplete;
   return <section className="mb-6 rounded-xl border bg-card p-5 text-card-foreground" aria-label={t.sources}>
     <h2 className="font-semibold">{t.sources}</h2>
-    <p className="mt-1 text-sm font-medium">{held ? t.held : article.researchApprovedHash ? t.approved : research?.status === "ready" ? t.ready : t.incomplete}</p>
+    <p className="mt-1 text-sm font-medium">{status}</p>
     {research?.correction && <p className="mt-2 text-sm text-muted-foreground">
       {research.correction.applied ? t.corrected : t.correctionFailed}
     </p>}
@@ -60,8 +69,8 @@ export async function ResearchPanel({ websiteId, articleId, locale }: { websiteI
       </details>}
       <p className="mt-3 text-xs text-muted-foreground">{t.limitations}</p>
     </details>}
-    {held && <p className="mt-3 text-sm text-muted-foreground">{t.reviewHelp}</p>}
-    {held && ["draft", "published"].includes(article.status) && access !== "viewer" &&
+    {held && !teamChecks && <p className="mt-3 text-sm text-muted-foreground">{t.reviewHelp}</p>}
+    {held && !teamChecks && ["draft", "published"].includes(article.status) && access !== "viewer" &&
       <ResearchApproval websiteId={site.id} articleId={articleId} revision={revision} locale={locale} />}
   </section>;
 }

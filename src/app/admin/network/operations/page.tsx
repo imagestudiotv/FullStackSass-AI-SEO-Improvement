@@ -99,6 +99,7 @@ export default async function NetworkOperationsPage() {
   const control = (key: string) => ops.controls.find((c) => c.key === key)!;
   const freeze = control("publication_freeze");
   const review = control("managed_review");
+  const twoStep = control("two_step_articles");
 
   const { drain, authority, policy, policies, unresolved } = ops;
   const openTotal = drain.inFlight + drain.inFlightStale + drain.uncertain + drain.unacknowledged;
@@ -368,7 +369,7 @@ export default async function NetworkOperationsPage() {
         description="These change what publishing does for every customer. Each change asks for confirmation and a reason, and is recorded in the audit log."
         bodyClassName="p-0"
       >
-        <div className="grid divide-y lg:grid-cols-2 lg:divide-x lg:divide-y-0">
+        <div className="grid divide-y lg:grid-cols-3 lg:divide-x lg:divide-y-0">
           <div className="flex flex-col gap-4 p-5" id="freeze">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 className="text-sm font-semibold">Publication freeze</h3>
@@ -419,6 +420,33 @@ export default async function NetworkOperationsPage() {
             </p>
             <div className="mt-auto">
               <ControlToggle controlKey="managed_review" enabled={review.enabled} title="Managed review" onLabel="on" offLabel="off" />
+            </div>
+          </div>
+          <div className="flex flex-col gap-4 p-5" id="two-step">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-sm font-semibold">Two-step articles</h3>
+              {twoStep.enabled ? (
+                <AdminStatus tone="info" icon={ShieldCheck} label="On" />
+              ) : (
+                <AdminStatus tone="neutral" label="Off" />
+              )}
+            </div>
+            <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground marker:text-muted-foreground/60">
+              <li>
+                Step 1: every new article, on every website and the free articles of new customers too, comes to the{" "}
+                <Link href="/admin/network" className="text-primary underline underline-offset-2">
+                  review queue
+                </Link>
+                . You edit it, add links and check its sources, then approve.
+              </li>
+              <li>Step 2: the customer gets it ready to publish. They approve nothing, and their own edits keep your approval.</li>
+              <li>A customer edit that removes a placed network link sends the article back to the queue.</li>
+            </ul>
+            <p className="text-xs text-muted-foreground">
+              <LastChange control={twoStep} />
+            </p>
+            <div className="mt-auto">
+              <ControlToggle controlKey="two_step_articles" enabled={twoStep.enabled} title="Two-step articles" onLabel="on" offLabel="off" />
             </div>
           </div>
         </div>

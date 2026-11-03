@@ -7,7 +7,8 @@ import { requireAdmin } from "@/lib/admin/guard";
 import { linksTo, siteScope, type LinkVerdict } from "@/lib/articles/link-guard";
 import { verifyUrl } from "@/lib/articles/link-verify";
 import { releaseAfterApproval, type ReleaseOutcome } from "@/lib/articles/release";
-import { reviewHash } from "@/lib/articles/review";
+import { reviewHash, reviewHashSql, twoStepArticles } from "@/lib/articles/review";
+import { notify } from "@/lib/notifications/create";
 import {
   approveArticle,
   creditsFor,
@@ -131,6 +132,10 @@ export type QueueArticle = {
   approvedCurrent: boolean;
   placements: number;
   connected: "cms" | "plugin" | "none";
+  /** Waiting, and nothing of this website's published or approved yet: a new customer's first article. */
+  firstArticle: boolean;
+  /** Its sources are flagged for a check (the team's approval covers them under the two-step flow). */
+  researchHeld: boolean;
 };
 
 export type OrgCredits = {
@@ -202,6 +207,13 @@ export async function getReviewQueue(): Promise<{
         select count(*)::int from ${placements} p
         where p.article_id = ${articles.id} and p.status in ('pending', 'drafted', 'published', 'live')
       )`,
+      // Nothing of this website's published or approved yet: a new customer waiting for their first article.
+      firstArticle: sql<boolean>`not exists (
+        select 1 from ${articles} other
+        where other.website_id = ${articles.websiteId} and other.id <> ${articles.id}
+          and (other.published_url is not null or other.status = 'published' or other.review_status = 'approved')
+      )`,
+      researchHeld: sql<boolean>`${articles.researchReviewRequired} and ${articles.researchApprovedHash} is distinct from ${reviewHashSql}`,
     })
     .from(articles)
     .innerJoin(websites, eq(websites.id, articles.websiteId))
@@ -244,19 +256,28 @@ export async function getReviewQueue(): Promise<{
       targets: targets.filter((t) => t.websiteId === site.websiteId).map(({ url, priority }) => ({ url, priority })),
       hosted: hosted.get(site.websiteId) ?? { today: 0, thisMonth: 0 },
     })),
-    articles: articleRows.map((row) => ({
-      id: row.id,
-      title: row.title,
-      websiteId: row.websiteId,
-      domain: row.domain,
-      organizationName: row.organizationName,
-      language: row.language,
-      plannedFor: row.plannedFor,
-      reviewStatus: row.reviewStatus ?? "pending",
-      approvedCurrent: row.reviewStatus === "approved" && row.reviewApprovedHash === reviewHash(row),
-      placements: row.placements,
-      connected: connection.get(row.websiteId) ?? "none",
-    })),
+    /*
+      A new customer's first article leads the queue (a stable sort keeps the
+      planned-day order within each part): the client's rule is that a new
+      customer receives their first article quickly.
+    */
+    articles: articleRows
+      .map((row) => ({
+        id: row.id,
+        title: row.title,
+        websiteId: row.websiteId,
+        domain: row.domain,
+        organizationName: row.organizationName,
+        language: row.language,
+        plannedFor: row.plannedFor,
+        reviewStatus: row.reviewStatus ?? "pending",
+        approvedCurrent: row.reviewStatus === "approved" && row.reviewApprovedHash === reviewHash(row),
+        placements: row.placements,
+        connected: connection.get(row.websiteId) ?? "none",
+        firstArticle: Boolean(row.firstArticle) && row.reviewStatus !== "approved",
+        researchHeld: Boolean(row.researchHeld),
+      }))
+      .sort((a, b) => Number(b.firstArticle) - Number(a.firstArticle)),
     credits,
     limits: {
       maxPerArticle: MAX_PER_ARTICLE,
@@ -559,6 +580,33 @@ export async function approveForRelease(input: {
   }
   // After the commit: delivery follows the customer's mode and planned day.
   const release = await releaseAfterApproval(input.articleId);
+  /*
+    Step 2 of the two-step flow: the customer is told their article is ready
+    to publish. Only when they are the one who publishes it - an article
+    released automatically tells them when it is live. Never fails the
+    approval.
+  */
+  if (release === "customer_publishes" && (await twoStepArticles())) {
+    try {
+      const [target] = await db
+        .select({ organizationId: websites.organizationId, websiteId: articles.websiteId, title: articles.title })
+        .from(articles)
+        .innerJoin(websites, eq(websites.id, articles.websiteId))
+        .where(eq(articles.id, input.articleId))
+        .limit(1);
+      if (target) {
+        await notify({
+          organizationId: target.organizationId,
+          type: "article.ready",
+          title: "Your article is ready to publish",
+          body: target.title,
+          href: `/websites/${target.websiteId}/articles/${input.articleId}`,
+        });
+      }
+    } catch (error) {
+      console.error("[network] approved, but the ready notification failed", error);
+    }
+  }
   refresh(input.articleId);
   return { ok: true, data: { placements: approved.placements, release } };
 }

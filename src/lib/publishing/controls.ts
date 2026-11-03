@@ -1,5 +1,6 @@
 import { eq, sql, type SQL } from "drizzle-orm";
 
+import { reviewHashSql } from "@/lib/articles/review";
 import { db } from "@/lib/db";
 import { articles, networkSites, platformControls } from "@/lib/db/schema";
 import type { Executor } from "@/lib/db/types";
@@ -24,13 +25,24 @@ import type { Executor } from "@/lib/db/types";
  *     (activateManagedReview), under REVIEW_LOCK, which the generation save
  *     step holds shared while it decides a draft's review state - so no
  *     draft slips between the two.
+ *   two_step_articles  - the client's two-step article flow (2026-11-02):
+ *     1. every new draft, on every website and on the free articles too,
+ *        comes to the RepGet team first - they edit it, place links and
+ *        check its sources; 2. their ONE approval makes it ready, and the
+ *        customer only publishes. No approval is asked of the customer
+ *        (the team's approval covers the sources), and a customer's own
+ *        edit keeps the approval as long as every placed network link is
+ *        still in the text (followCustomerEdit in lib/articles/review.ts).
+ *        Same lock as managed review; switching it on also hands the team
+ *        the unpublished drafts still waiting for a customer's research
+ *        approval (activateTwoStep).
  *
  * A missing row means disabled: a fresh database, or one a previous build
  * migrated, behaves exactly as before until an operator acts.
  */
-export type ControlKey = "publication_freeze" | "managed_review";
+export type ControlKey = "publication_freeze" | "managed_review" | "two_step_articles";
 
-export const CONTROL_KEYS: ControlKey[] = ["publication_freeze", "managed_review"];
+export const CONTROL_KEYS: ControlKey[] = ["publication_freeze", "managed_review", "two_step_articles"];
 
 /** Advisory-lock keys: shared by claims / generation saves, exclusive by the switch. */
 export const FREEZE_LOCK = sql`hashtext('repget:publication-freeze')`;
@@ -95,6 +107,8 @@ export async function writeControl(
  *               (REVIEW_LOCK exclusive); switched on, it then holds for
  *               review the unpublished drafts written since the cutover on
  *               websites taking part in the network, and returns how many.
+ *   two-step  - the same lock; switched on, it hands the team the drafts
+ *               waiting for a customer's research approval.
  */
 export async function switchControl(
   tx: Executor,
@@ -105,12 +119,38 @@ export async function switchControl(
   if (key === "publication_freeze" && enabled) {
     await tx.execute(sql`select pg_advisory_xact_lock(${FREEZE_LOCK})`);
   }
-  if (key === "managed_review") {
+  if (key === "managed_review" || key === "two_step_articles") {
     await tx.execute(sql`select pg_advisory_xact_lock(${REVIEW_LOCK})`);
   }
   await writeControl(key, enabled, meta, tx);
-  if (key !== "managed_review" || !enabled) return { heldForReview: 0 };
-  return { heldForReview: await activateManagedReview(tx) };
+  if (!enabled) return { heldForReview: 0 };
+  if (key === "managed_review") return { heldForReview: await activateManagedReview(tx) };
+  if (key === "two_step_articles") return { heldForReview: await activateTwoStep(tx) };
+  return { heldForReview: 0 };
+}
+
+/**
+ * Switching the two-step flow on: the unpublished drafts outside the team's
+ * review that are held for a CUSTOMER's research approval go to the team
+ * instead, whose approval now covers the sources. Without this they would
+ * keep asking the customer for the approval the new flow no longer asks
+ * for. Drafts already approved by the customer, and everything else, keep
+ * the state they are in.
+ */
+export async function activateTwoStep(tx: Executor): Promise<number> {
+  const rows = await tx
+    .update(articles)
+    .set({ reviewStatus: "pending", reviewVersion: sql`${articles.reviewVersion} + 1` })
+    .where(
+      sql`${articles.reviewStatus} is null
+        and ${articles.researchReviewRequired}
+        and ${articles.researchApprovedHash} is distinct from ${reviewHashSql}
+        and ${articles.status} = 'draft'
+        and ${articles.publishedUrl} is null
+        and not exists (select 1 from publication_dispatches pd where pd.article_id = ${articles.id} and pd.status = 'in_flight')`,
+    )
+    .returning({ id: articles.id });
+  return rows.length;
 }
 
 /**
