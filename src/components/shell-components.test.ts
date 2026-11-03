@@ -135,7 +135,8 @@ describe("SidebarNav", () => {
     expect(at.every((index) => index >= 0)).toBe(true);
     expect([...at].sort((a, b) => a - b)).toEqual(at);
     expect(html).toContain(`href="/websites/${SITE}/copilot"`);
-    expect(html).toContain('href="/dashboard"');
+    // Tasks is the task list now; the overview stays at /dashboard (client, 2026-11-03).
+    expect(html).toContain('href="/tasks"');
     expect(html).toContain(`href="/websites/${SITE}/social"`);
     expect(html).toContain(`href="/websites/${SITE}/videos"`);
   });
