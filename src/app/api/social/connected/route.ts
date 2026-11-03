@@ -17,8 +17,9 @@ import { requireEditor } from "@/lib/websites/require-editor";
  * website's own team - a forged link can at most make RepGet re-read what is
  * already there. A new account gets its first suggestions straight away.
  *
- * The video platforms (Instagram, TikTok, YouTube, Facebook: lib/video) come
- * back here too, and go on to the Videos page.
+ * The video platforms (Instagram, TikTok, YouTube, Facebook, Pinterest:
+ * lib/video) come back here too, and go on to the Videos page. Pinterest is
+ * both, so it goes back to the page it was connected from (`from=videos`).
  */
 
 export const dynamic = "force-dynamic";
@@ -34,8 +35,9 @@ export async function GET(request: Request) {
   const platform = url.searchParams.get("platform") ?? "";
 
   if (!(await getSession())) return back("/sign-in", {});
-  const video = isVideoPlatform(platform);
-  if (!/^[0-9a-f-]{36}$/i.test(websiteId) || (!isSocialPlatform(platform) && !video)) return back("/websites", {});
+  const social = isSocialPlatform(platform);
+  if (!/^[0-9a-f-]{36}$/i.test(websiteId) || (!social && !isVideoPlatform(platform))) return back("/websites", {});
+  const video = isVideoPlatform(platform) && (!social || url.searchParams.get("from") === "videos");
 
   const editor = await requireEditor(websiteId).catch(() => null);
   if (!editor?.ok) return back("/websites", {});
@@ -46,7 +48,8 @@ export async function GET(request: Request) {
     const before = new Set((await listAccounts(websiteId)).filter((row) => row.bundleAccountId).map((row) => row.platform));
     const after = await syncBundleAccounts(websiteId);
     const connected = after.some((row) => row.platform === platform && row.bundleAccountId);
-    if (connected && !before.has(platform) && !video) {
+    // A social platform's first suggestions, wherever it was connected from (Pinterest: either page).
+    if (connected && !before.has(platform) && social) {
       await queueJob({ name: "social/suggest.requested", data: { websiteId } });
     }
     return back(page, { social: connected ? "connected" : "not_connected", platform });

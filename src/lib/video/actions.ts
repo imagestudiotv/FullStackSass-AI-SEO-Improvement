@@ -42,6 +42,8 @@ export type VideoError =
   | "not_enough_credits"
   | "bad_script"
   | "no_accounts"
+  /** Pinterest chosen, and no board for its Pins yet (chosen on Opportunities). */
+  | "no_board"
   | "not_configured"
   | "connect_failed"
   | "bad_file"
@@ -261,7 +263,9 @@ export async function restoreVideoIdea(websiteId: string, id: string): Promise<V
 
 /**
  * Publishes a ready video now, at the next good time ("best"), or at the
- * time the customer chose, to the platforms chosen.
+ * time the customer chose, to the platforms chosen. Pinterest chosen without
+ * a board is refused here, before anything is scheduled: the customer is
+ * told where to choose one (or to untick Pinterest).
  */
 export async function publishVideoIdea(
   websiteId: string,
@@ -276,13 +280,17 @@ export async function publishVideoIdea(
 
   const carousel = row.format === "carousel";
   const connected = await db
-    .select({ platform: socialAccounts.platform, bundle: socialAccounts.bundleAccountId })
+    .select({ platform: socialAccounts.platform, bundle: socialAccounts.bundleAccountId, target: socialAccounts.target })
     .from(socialAccounts)
     .where(eq(socialAccounts.websiteId, websiteId));
   const platforms = [...new Set(options.platforms)]
     .filter(isVideoPlatform)
     .filter((platform) => (!carousel || VIDEO_PLATFORM_SPECS[platform].carousel) && connected.some((row) => row.platform === platform && row.bundle));
   if (platforms.length === 0 || !isBundleConfigured()) return fail("no_accounts");
+  const boardless = platforms.some(
+    (platform) => VIDEO_PLATFORM_SPECS[platform].board && !connected.find((row) => row.platform === platform)?.target?.trim(),
+  );
+  if (boardless) return fail("no_board");
 
   const now = new Date();
   let at: Date;
@@ -344,7 +352,8 @@ export async function connectVideoPlatform(websiteId: string, platform: string, 
   if (!isBundleConfigured()) return fail("not_configured");
   try {
     const teamId = await ensureTeam(websiteId);
-    const back = `${appUrl()}/api/social/connected?website=${encodeURIComponent(websiteId)}&platform=${platform}`;
+    // "from": Pinterest is on both pages, so the way back says which one it left.
+    const back = `${appUrl()}/api/social/connected?website=${encodeURIComponent(websiteId)}&platform=${platform}&from=videos`;
     const url = await portalLink({
       teamId,
       type: VIDEO_PLATFORM_SPECS[platform].bundleType,

@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 
 import { queueJob } from "@/inngest/send";
 import { requireWebsitePlan } from "@/lib/billing/require-plan";
+import { creditOverviewForRequest } from "@/lib/credits/overview-request";
 import { readCreditSettings } from "@/lib/credits/prices";
 import { db } from "@/lib/db";
 import { socialAccounts, videoIdeas, videoMedia } from "@/lib/db/schema";
@@ -33,7 +34,8 @@ const REFRESH_SECONDS = 10;
 
 /**
  * Videos (client, 2026-10-29; docs/videos.md): today's ideas to swipe, the
- * videos made from them, what was posted, and the settings. Only reads - and
+ * videos made from them, what was posted, and the settings, under a strip of
+ * three numbers (ideas ready, made today, credits available). Only reads - and
  * asks for today's ideas when the website has none yet, so the first visit
  * is not an empty page.
  */
@@ -45,7 +47,7 @@ export default async function WebsiteVideosPage({ params, searchParams }: PagePr
 
   const now = new Date();
   const today = now.toISOString().slice(0, 10);
-  const [level, settings, ideas, made, posted, approvedToday, media, accounts, credits, { t, locale }, query] = await Promise.all([
+  const [level, settings, ideas, made, posted, approvedToday, media, accounts, credits, wallet, { t, locale }, query] = await Promise.all([
     videoAccess(site.id),
     readVideoSettings(site.id),
     db
@@ -78,6 +80,9 @@ export default async function WebsiteVideosPage({ params, searchParams }: PagePr
     db.select().from(videoMedia).where(eq(videoMedia.websiteId, site.id)).orderBy(desc(videoMedia.createdAt)),
     db.select().from(socialAccounts).where(eq(socialAccounts.websiteId, site.id)),
     readCreditSettings(),
+    // The balance the sidebar shows (the same cached read), for the owner only: credits belong to the
+    // paying workspace, and a guest would be shown money that is not theirs (dashboard/page.tsx).
+    access === "owner" ? creditOverviewForRequest(ctx.ownerOrgId).catch(() => null) : null,
     getAppMessages(userId),
     searchParams,
   ]);
@@ -138,6 +143,8 @@ export default async function WebsiteVideosPage({ params, searchParams }: PagePr
       username: account.username,
       connected: Boolean(account.bundleAccountId),
       pausedReason: account.pausedAt ? (account.pausedReason ?? "") : null,
+      // Pinterest's board, shared with the social Pins (chosen on Opportunities).
+      board: account.target?.trim() || null,
     }));
 
   const price = credits.prices.video_post;
@@ -160,6 +167,7 @@ export default async function WebsiteVideosPage({ params, searchParams }: PagePr
       goal={COMPLETE_AFTER}
       perDay={IDEAS_PER_DAY}
       priceLabel={price > 0 ? plural(t.app.credits.creditsCount, price) : t.app.social.free}
+      credits={wallet ? { available: wallet.available, label: plural(t.app.credits.creditsCount, wallet.available) } : null}
       settings={settings}
       brand={brand}
       media={media.map((item) => ({ id: item.id, url: item.url, kind: item.kind === "video" ? "video" : "image", name: item.name }))}

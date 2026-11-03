@@ -93,7 +93,7 @@ export type VideosCopy = {
   retry: string;
   failedBody: string;
   connectFirst: string;
-  noCarouselOnYoutube: string;
+  carouselNote: string;
   // Posted
   noPosted: string;
   views: string;
@@ -137,6 +137,42 @@ export type VideosCopy = {
   safetyPoints: string[];
   trialNote: string;
   notice: { connected: string; not_connected: string; connect_failed: string };
+  /** The strip above the tabs (client, 2026-11-02): three real numbers. "one|other" where a count decides. */
+  meta: { ideas: string; ideasLabel: string; madeLabel: string; credits: string };
+  /** Today's ideas by format. */
+  filter: { label: string; all: string; reel: string; carousel: string };
+  /** Focus mode: the preview and Create only. */
+  focus: { on: string; off: string; hint: string };
+  /** The panel beside the preview. */
+  detail: {
+    eyebrow: string;
+    carouselSlides: string;
+    hook: string;
+    concept: string;
+    captionMore: string;
+    captionLess: string;
+    readyFor: string;
+    noPlatforms: string;
+  };
+  /** Your videos: the search, the cards and their dialogs. */
+  list: {
+    search: string;
+    all: string;
+    reels: string;
+    carousels: string;
+    count: string;
+    empty: string;
+    preview: string;
+    publish: string;
+    close: string;
+    seconds: string;
+    slides: string;
+  };
+  postedEmpty: { ideas: string; videos: string };
+  /** The Settings tab's cards (the accounts card keeps accounts/accountsBody). */
+  cards: { style: string; styleBody: string; publishing: string; publishingBody: string; brand: string; brandBody: string };
+  /** Pinterest's board: the one the social Pins use, chosen on Opportunities. */
+  pinterest: { board: string; noBoard: string; chooseBoard: string; shared: string };
   errors: {
     view_only: string;
     no_plan: string;
@@ -145,6 +181,7 @@ export type VideosCopy = {
     not_enough_credits: string;
     bad_script: string;
     no_accounts: string;
+    no_board: string;
     not_configured: string;
     connect_failed: string;
     bad_file: string;
@@ -180,7 +217,7 @@ const en: VideosCopy = {
   undo: "Undo",
   undone: "Taken back: it will not be made, and the credit is returned.",
   edit: "Edit",
-  approve: "Make it · {price}",
+  approve: "Create · {price}",
   approved: "Being made. You will find it under Your videos.",
   swipeHint: "Swipe right (on a phone) or press → to make it, left or ← to skip. Made one by mistake? Press Undo within 10 seconds.",
   previewNote: "Preview without the voice. The finished video has the AI voice, captions and music.",
@@ -240,8 +277,8 @@ const en: VideosCopy = {
   scheduledToast: "Scheduled for {date}.",
   retry: "Try again",
   failedBody: "Your credit was returned.",
-  connectFirst: "Connect Instagram, TikTok, YouTube or Facebook in Settings to publish from here. You can always download the video.",
-  noCarouselOnYoutube: "YouTube takes videos only, so carousels go to the other platforms.",
+  connectFirst: "Connect Instagram, TikTok, YouTube, Facebook or Pinterest in Settings to publish from here. You can always download the video.",
+  carouselNote: "YouTube and Pinterest take videos only here, so carousels go to the other platforms.",
   noPosted: "Nothing posted yet.",
   views: "Views",
   likes: "Likes",
@@ -293,6 +330,47 @@ const en: VideosCopy = {
     not_connected: "{platform} was not connected.",
     connect_failed: "{platform} could not be connected. Please try again.",
   },
+  meta: { ideas: "{count} idea|{count} ideas", ideasLabel: "ready to review|ready to review", madeLabel: "made today", credits: "available|available" },
+  filter: { label: "Format", all: "All formats", reel: "Reels", carousel: "Carousels" },
+  focus: { on: "Focus mode", off: "Show details", hint: "Focus mode: only the preview and Create. Press Esc to leave it." },
+  detail: {
+    eyebrow: "Content idea",
+    carouselSlides: "Carousel · {count} slides",
+    hook: "The opening hook",
+    concept: "The concept",
+    captionMore: "View the full post text",
+    captionLess: "Show less",
+    readyFor: "Goes to",
+    noPlatforms: "No platform is chosen in Settings.",
+  },
+  list: {
+    search: "Search your videos and carousels",
+    all: "All content",
+    reels: "Videos",
+    carousels: "Carousels",
+    count: "{shown} of {total}",
+    empty: "Nothing matches. Try another search or format.",
+    preview: "Preview",
+    publish: "Publish",
+    close: "Close",
+    seconds: "{seconds} s",
+    slides: "{count} slides",
+  },
+  postedEmpty: { ideas: "Discover ideas", videos: "View your videos" },
+  cards: {
+    style: "Video and carousel style",
+    styleBody: "How your content looks and sounds.",
+    publishing: "Publishing",
+    publishingBody: "How, when and where your posts go live.",
+    brand: "Your brand media",
+    brandBody: "Your logo, pictures and clips, so that every post is clearly yours.",
+  },
+  pinterest: {
+    board: "Board: {board}",
+    noBoard: "No board chosen yet. Pins need one.",
+    chooseBoard: "Choose the board on Opportunities",
+    shared: "The same account and board as your Pins on Opportunities. Pinterest takes the videos; carousels go to the other platforms.",
+  },
   errors: {
     view_only: "You can view this website but not change it.",
     no_plan: "Choose a plan for this website to make videos.",
@@ -301,6 +379,7 @@ const en: VideosCopy = {
     not_enough_credits: "This needs {price} and you have {available}. Buy credits on Credits.",
     bad_script: "Fill in the first line and at least two points.",
     no_accounts: "Connect at least one platform for this video in Settings.",
+    no_board: "Choose a Pinterest board first, on Opportunities under Your accounts. Or untick Pinterest to publish to the other platforms.",
     not_configured: "This is not set up on this RepGet yet.",
     connect_failed: "The connection page could not be opened. Please try again.",
     bad_file: "Use a PNG, JPG or WebP picture, or an MP4, MOV or WebM clip.",
@@ -396,8 +475,8 @@ const es: VideosCopy = {
   scheduledToast: "Programado para el {date}.",
   retry: "Reintentar",
   failedBody: "Se le ha devuelto el crédito.",
-  connectFirst: "Conecte Instagram, TikTok, YouTube o Facebook en Ajustes para publicar desde aquí. Siempre puede descargar el vídeo.",
-  noCarouselOnYoutube: "YouTube solo admite vídeos, así que los carruseles van a las demás plataformas.",
+  connectFirst: "Conecte Instagram, TikTok, YouTube, Facebook o Pinterest en Ajustes para publicar desde aquí. Siempre puede descargar el vídeo.",
+  carouselNote: "Aquí YouTube y Pinterest solo reciben vídeos, así que los carruseles van a las demás plataformas.",
   noPosted: "Todavía no hay nada publicado.",
   views: "Visualizaciones",
   likes: "Me gusta",
@@ -449,6 +528,47 @@ const es: VideosCopy = {
     not_connected: "No se conectó {platform}.",
     connect_failed: "No se pudo conectar {platform}. Inténtelo de nuevo.",
   },
+  meta: { ideas: "{count} idea|{count} ideas", ideasLabel: "lista para revisar|listas para revisar", madeLabel: "creados hoy", credits: "disponible|disponibles" },
+  filter: { label: "Formato", all: "Todos los formatos", reel: "Reels", carousel: "Carruseles" },
+  focus: { on: "Modo enfoque", off: "Mostrar detalles", hint: "Modo enfoque: solo la vista previa y Crear. Pulse Esc para salir." },
+  detail: {
+    eyebrow: "Idea de contenido",
+    carouselSlides: "Carrusel · {count} diapositivas",
+    hook: "El gancho inicial",
+    concept: "El concepto",
+    captionMore: "Ver el texto completo",
+    captionLess: "Ver menos",
+    readyFor: "Se publica en",
+    noPlatforms: "No hay ninguna plataforma elegida en Ajustes.",
+  },
+  list: {
+    search: "Buscar en sus vídeos y carruseles",
+    all: "Todo el contenido",
+    reels: "Vídeos",
+    carousels: "Carruseles",
+    count: "{shown} de {total}",
+    empty: "No hay resultados. Pruebe otra búsqueda u otro formato.",
+    preview: "Vista previa",
+    publish: "Publicar",
+    close: "Cerrar",
+    seconds: "{seconds} s",
+    slides: "{count} diapositivas",
+  },
+  postedEmpty: { ideas: "Descubrir ideas", videos: "Ver sus vídeos" },
+  cards: {
+    style: "Estilo de vídeos y carruseles",
+    styleBody: "Cómo se ve y cómo suena su contenido.",
+    publishing: "Publicación",
+    publishingBody: "Cómo, cuándo y dónde se publica su contenido.",
+    brand: "Los medios de su marca",
+    brandBody: "Su logotipo, sus imágenes y sus clips, para que cada publicación sea claramente suya.",
+  },
+  pinterest: {
+    board: "Tablero: {board}",
+    noBoard: "Aún no ha elegido un tablero. Los pines lo necesitan.",
+    chooseBoard: "Elegir el tablero en Oportunidades",
+    shared: "La misma cuenta y el mismo tablero que sus pines en Oportunidades. Pinterest recibe los vídeos; los carruseles van a las demás plataformas.",
+  },
   errors: {
     view_only: "Puede ver este sitio web, pero no modificarlo.",
     no_plan: "Elija un plan para este sitio web para crear vídeos.",
@@ -457,6 +577,7 @@ const es: VideosCopy = {
     not_enough_credits: "Esto cuesta {price} y tiene {available}. Compre créditos en Créditos.",
     bad_script: "Rellene la primera línea y al menos dos puntos.",
     no_accounts: "Conecte al menos una plataforma para este vídeo en Ajustes.",
+    no_board: "Elija primero un tablero de Pinterest, en Oportunidades, en Sus cuentas. O desmarque Pinterest para publicar en las demás plataformas.",
     not_configured: "Esto todavía no está configurado en este RepGet.",
     connect_failed: "No se pudo abrir la página de conexión. Inténtelo de nuevo.",
     bad_file: "Use una imagen PNG, JPG o WebP, o un clip MP4, MOV o WebM.",
@@ -552,8 +673,8 @@ const fr: VideosCopy = {
   scheduledToast: "Programmée pour le {date}.",
   retry: "Réessayer",
   failedBody: "Votre crédit vous a été rendu.",
-  connectFirst: "Connectez Instagram, TikTok, YouTube ou Facebook dans Paramètres pour publier d’ici. Vous pouvez toujours télécharger la vidéo.",
-  noCarouselOnYoutube: "YouTube n’accepte que les vidéos : les carrousels vont donc sur les autres plateformes.",
+  connectFirst: "Connectez Instagram, TikTok, YouTube, Facebook ou Pinterest dans Paramètres pour publier d’ici. Vous pouvez toujours télécharger la vidéo.",
+  carouselNote: "Ici, YouTube et Pinterest n’acceptent que les vidéos : les carrousels vont donc sur les autres plateformes.",
   noPosted: "Rien n’a encore été publié.",
   views: "Vues",
   likes: "J’aime",
@@ -605,6 +726,47 @@ const fr: VideosCopy = {
     not_connected: "{platform} n’a pas été connecté.",
     connect_failed: "{platform} n’a pas pu être connecté. Veuillez réessayer.",
   },
+  meta: { ideas: "{count} idée|{count} idées", ideasLabel: "à examiner|à examiner", madeLabel: "créées aujourd’hui", credits: "disponible|disponibles" },
+  filter: { label: "Format", all: "Tous les formats", reel: "Reels", carousel: "Carrousels" },
+  focus: { on: "Mode concentration", off: "Afficher les détails", hint: "Mode concentration : seulement l’aperçu et Créer. Appuyez sur Échap pour le quitter." },
+  detail: {
+    eyebrow: "Idée de contenu",
+    carouselSlides: "Carrousel · {count} diapositives",
+    hook: "L’accroche d’ouverture",
+    concept: "Le concept",
+    captionMore: "Voir tout le texte",
+    captionLess: "Afficher moins",
+    readyFor: "Publiée sur",
+    noPlatforms: "Aucune plateforme n’est choisie dans Paramètres.",
+  },
+  list: {
+    search: "Rechercher dans vos vidéos et carrousels",
+    all: "Tout le contenu",
+    reels: "Vidéos",
+    carousels: "Carrousels",
+    count: "{shown} sur {total}",
+    empty: "Aucun résultat. Essayez une autre recherche ou un autre format.",
+    preview: "Aperçu",
+    publish: "Publier",
+    close: "Fermer",
+    seconds: "{seconds} s",
+    slides: "{count} diapositives",
+  },
+  postedEmpty: { ideas: "Découvrir des idées", videos: "Voir vos vidéos" },
+  cards: {
+    style: "Style des vidéos et carrousels",
+    styleBody: "L’apparence et le son de votre contenu.",
+    publishing: "Publication",
+    publishingBody: "Comment, quand et où votre contenu est publié.",
+    brand: "Les médias de votre marque",
+    brandBody: "Votre logo, vos images et vos clips, pour que chaque publication soit clairement la vôtre.",
+  },
+  pinterest: {
+    board: "Tableau : {board}",
+    noBoard: "Aucun tableau choisi pour l’instant. Les épingles en ont besoin.",
+    chooseBoard: "Choisir le tableau dans Opportunités",
+    shared: "Le même compte et le même tableau que vos épingles dans Opportunités. Pinterest reçoit les vidéos ; les carrousels vont sur les autres plateformes.",
+  },
   errors: {
     view_only: "Vous pouvez consulter ce site, mais pas le modifier.",
     no_plan: "Choisissez un forfait pour ce site afin de créer des vidéos.",
@@ -613,6 +775,7 @@ const fr: VideosCopy = {
     not_enough_credits: "Cela coûte {price} et vous en avez {available}. Achetez des crédits dans Crédits.",
     bad_script: "Remplissez la première ligne et au moins deux points.",
     no_accounts: "Connectez au moins une plateforme pour cette vidéo dans Paramètres.",
+    no_board: "Choisissez d’abord un tableau Pinterest, dans Opportunités, sous Vos comptes. Ou décochez Pinterest pour publier sur les autres plateformes.",
     not_configured: "Ce n’est pas encore configuré sur ce RepGet.",
     connect_failed: "La page de connexion n’a pas pu s’ouvrir. Veuillez réessayer.",
     bad_file: "Utilisez une image PNG, JPG ou WebP, ou un clip MP4, MOV ou WebM.",
@@ -708,8 +871,8 @@ const it: VideosCopy = {
   scheduledToast: "Programmato per il {date}.",
   retry: "Riprova",
   failedBody: "Il suo credito è stato restituito.",
-  connectFirst: "Colleghi Instagram, TikTok, YouTube o Facebook in Impostazioni per pubblicare da qui. Può sempre scaricare il video.",
-  noCarouselOnYoutube: "YouTube accetta solo video, quindi i caroselli vanno sulle altre piattaforme.",
+  connectFirst: "Colleghi Instagram, TikTok, YouTube, Facebook o Pinterest in Impostazioni per pubblicare da qui. Può sempre scaricare il video.",
+  carouselNote: "Qui YouTube e Pinterest accettano solo video, quindi i caroselli vanno sulle altre piattaforme.",
   noPosted: "Ancora niente di pubblicato.",
   views: "Visualizzazioni",
   likes: "Mi piace",
@@ -761,6 +924,47 @@ const it: VideosCopy = {
     not_connected: "{platform} non è stato collegato.",
     connect_failed: "Non è stato possibile collegare {platform}. Riprovi.",
   },
+  meta: { ideas: "{count} idea|{count} idee", ideasLabel: "da valutare|da valutare", madeLabel: "creati oggi", credits: "disponibile|disponibili" },
+  filter: { label: "Formato", all: "Tutti i formati", reel: "Reel", carousel: "Caroselli" },
+  focus: { on: "Modalità focus", off: "Mostra i dettagli", hint: "Modalità focus: solo l’anteprima e Crea. Prema Esc per uscire." },
+  detail: {
+    eyebrow: "Idea di contenuto",
+    carouselSlides: "Carosello · {count} slide",
+    hook: "Il gancio iniziale",
+    concept: "Il concetto",
+    captionMore: "Veda tutto il testo",
+    captionLess: "Mostra meno",
+    readyFor: "Va su",
+    noPlatforms: "Nessuna piattaforma scelta in Impostazioni.",
+  },
+  list: {
+    search: "Cerchi tra i suoi video e caroselli",
+    all: "Tutti i contenuti",
+    reels: "Video",
+    carousels: "Caroselli",
+    count: "{shown} di {total}",
+    empty: "Nessun risultato. Provi un’altra ricerca o un altro formato.",
+    preview: "Anteprima",
+    publish: "Pubblica",
+    close: "Chiudi",
+    seconds: "{seconds} s",
+    slides: "{count} slide",
+  },
+  postedEmpty: { ideas: "Scopra le idee", videos: "Veda i suoi video" },
+  cards: {
+    style: "Stile di video e caroselli",
+    styleBody: "Come appaiono e come suonano i suoi contenuti.",
+    publishing: "Pubblicazione",
+    publishingBody: "Come, quando e dove vengono pubblicati i suoi contenuti.",
+    brand: "I media del suo marchio",
+    brandBody: "Il suo logo, le sue immagini e le sue clip, perché ogni post sia chiaramente suo.",
+  },
+  pinterest: {
+    board: "Bacheca: {board}",
+    noBoard: "Nessuna bacheca ancora scelta. I Pin ne hanno bisogno.",
+    chooseBoard: "Scelga la bacheca in Opportunità",
+    shared: "Lo stesso account e la stessa bacheca dei suoi Pin in Opportunità. Pinterest riceve i video; i caroselli vanno sulle altre piattaforme.",
+  },
   errors: {
     view_only: "Può vedere questo sito ma non modificarlo.",
     no_plan: "Scelga un piano per questo sito per creare video.",
@@ -769,6 +973,7 @@ const it: VideosCopy = {
     not_enough_credits: "Costa {price} e ne ha {available}. Acquisti crediti in Crediti.",
     bad_script: "Compili la prima riga e almeno due punti.",
     no_accounts: "Colleghi almeno una piattaforma per questo video in Impostazioni.",
+    no_board: "Scelga prima una bacheca Pinterest, in Opportunità, sotto I suoi account. Oppure deselezioni Pinterest per pubblicare sulle altre piattaforme.",
     not_configured: "Non è ancora configurato su questo RepGet.",
     connect_failed: "Non è stato possibile aprire la pagina di collegamento. Riprovi.",
     bad_file: "Usi un’immagine PNG, JPG o WebP, o una clip MP4, MOV o WebM.",
@@ -864,8 +1069,8 @@ const de: VideosCopy = {
   scheduledToast: "Geplant für {date}.",
   retry: "Erneut versuchen",
   failedBody: "Ihr Credit wurde zurückerstattet.",
-  connectFirst: "Verbinden Sie Instagram, TikTok, YouTube oder Facebook in den Einstellungen, um von hier aus zu veröffentlichen. Herunterladen können Sie das Video jederzeit.",
-  noCarouselOnYoutube: "YouTube nimmt nur Videos an, daher gehen Karussells an die anderen Plattformen.",
+  connectFirst: "Verbinden Sie Instagram, TikTok, YouTube, Facebook oder Pinterest in den Einstellungen, um von hier aus zu veröffentlichen. Herunterladen können Sie das Video jederzeit.",
+  carouselNote: "YouTube und Pinterest nehmen hier nur Videos an, daher gehen Karussells an die anderen Plattformen.",
   noPosted: "Noch nichts gepostet.",
   views: "Aufrufe",
   likes: "Likes",
@@ -917,6 +1122,47 @@ const de: VideosCopy = {
     not_connected: "{platform} wurde nicht verbunden.",
     connect_failed: "{platform} konnte nicht verbunden werden. Bitte versuchen Sie es erneut.",
   },
+  meta: { ideas: "{count} Idee|{count} Ideen", ideasLabel: "zum Prüfen|zum Prüfen", madeLabel: "heute erstellt", credits: "verfügbar|verfügbar" },
+  filter: { label: "Format", all: "Alle Formate", reel: "Reels", carousel: "Karussells" },
+  focus: { on: "Fokusmodus", off: "Details anzeigen", hint: "Fokusmodus: nur die Vorschau und Erstellen. Mit Esc verlassen Sie ihn." },
+  detail: {
+    eyebrow: "Inhaltsidee",
+    carouselSlides: "Karussell · {count} Folien",
+    hook: "Der Aufhänger",
+    concept: "Das Konzept",
+    captionMore: "Ganzen Beitragstext anzeigen",
+    captionLess: "Weniger anzeigen",
+    readyFor: "Geht an",
+    noPlatforms: "In den Einstellungen ist keine Plattform gewählt.",
+  },
+  list: {
+    search: "Ihre Videos und Karussells durchsuchen",
+    all: "Alle Inhalte",
+    reels: "Videos",
+    carousels: "Karussells",
+    count: "{shown} von {total}",
+    empty: "Keine Treffer. Versuchen Sie eine andere Suche oder ein anderes Format.",
+    preview: "Vorschau",
+    publish: "Veröffentlichen",
+    close: "Schließen",
+    seconds: "{seconds} s",
+    slides: "{count} Folien",
+  },
+  postedEmpty: { ideas: "Ideen entdecken", videos: "Ihre Videos ansehen" },
+  cards: {
+    style: "Stil von Videos und Karussells",
+    styleBody: "Wie Ihre Inhalte aussehen und klingen.",
+    publishing: "Veröffentlichung",
+    publishingBody: "Wie, wann und wo Ihre Inhalte erscheinen.",
+    brand: "Ihre Markenmedien",
+    brandBody: "Ihr Logo, Ihre Bilder und Clips, damit jeder Beitrag klar als Ihrer erkennbar ist.",
+  },
+  pinterest: {
+    board: "Pinnwand: {board}",
+    noBoard: "Noch keine Pinnwand gewählt. Pins brauchen eine.",
+    chooseBoard: "Pinnwand unter Chancen wählen",
+    shared: "Dasselbe Konto und dieselbe Pinnwand wie Ihre Pins unter Chancen. Pinterest erhält die Videos; Karussells gehen an die anderen Plattformen.",
+  },
   errors: {
     view_only: "Sie können diese Website ansehen, aber nicht ändern.",
     no_plan: "Wählen Sie einen Tarif für diese Website, um Videos zu erstellen.",
@@ -925,6 +1171,7 @@ const de: VideosCopy = {
     not_enough_credits: "Das kostet {price}, und Sie haben {available}. Kaufen Sie Credits unter Credits.",
     bad_script: "Füllen Sie die erste Zeile und mindestens zwei Punkte aus.",
     no_accounts: "Verbinden Sie in den Einstellungen mindestens eine Plattform für dieses Video.",
+    no_board: "Wählen Sie zuerst eine Pinterest-Pinnwand, unter Chancen bei Ihre Konten. Oder entfernen Sie das Häkchen bei Pinterest, um auf den anderen Plattformen zu veröffentlichen.",
     not_configured: "Das ist auf diesem RepGet noch nicht eingerichtet.",
     connect_failed: "Die Verbindungsseite konnte nicht geöffnet werden. Bitte versuchen Sie es erneut.",
     bad_file: "Verwenden Sie ein PNG-, JPG- oder WebP-Bild oder einen MP4-, MOV- oder WebM-Clip.",

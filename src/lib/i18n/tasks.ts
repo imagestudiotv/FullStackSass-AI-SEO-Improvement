@@ -74,7 +74,7 @@ export const TASKS_COPY: Record<Locale, TasksCopy> = {
     },
     account: {
       social: { title: "Connect your social media channels", help: "We suggest posts and replies for every channel you connect." },
-      video: { title: "Connect your video channels", help: "Instagram, TikTok, YouTube and Facebook, so finished videos can be posted." },
+      video: { title: "Connect your video channels", help: "Instagram, TikTok, YouTube, Facebook and Pinterest, so finished videos can be posted." },
     },
   },
   es: {
@@ -115,7 +115,7 @@ export const TASKS_COPY: Record<Locale, TasksCopy> = {
     },
     account: {
       social: { title: "Conecte sus redes sociales", help: "Le sugerimos publicaciones y respuestas para cada canal que conecte." },
-      video: { title: "Conecte sus canales de vídeo", help: "Instagram, TikTok, YouTube y Facebook, para poder publicar los vídeos terminados." },
+      video: { title: "Conecte sus canales de vídeo", help: "Instagram, TikTok, YouTube, Facebook y Pinterest, para poder publicar los vídeos terminados." },
     },
   },
   fr: {
@@ -156,7 +156,7 @@ export const TASKS_COPY: Record<Locale, TasksCopy> = {
     },
     account: {
       social: { title: "Connectez vos réseaux sociaux", help: "Nous suggérons des publications et des réponses pour chaque canal connecté." },
-      video: { title: "Connectez vos canaux vidéo", help: "Instagram, TikTok, YouTube et Facebook, pour publier les vidéos terminées." },
+      video: { title: "Connectez vos canaux vidéo", help: "Instagram, TikTok, YouTube, Facebook et Pinterest, pour publier les vidéos terminées." },
     },
   },
   it: {
@@ -197,7 +197,7 @@ export const TASKS_COPY: Record<Locale, TasksCopy> = {
     },
     account: {
       social: { title: "Colleghi i suoi social", help: "Suggeriamo post e risposte per ogni canale che collega." },
-      video: { title: "Colleghi i suoi canali video", help: "Instagram, TikTok, YouTube e Facebook, per pubblicare i video finiti." },
+      video: { title: "Colleghi i suoi canali video", help: "Instagram, TikTok, YouTube, Facebook e Pinterest, per pubblicare i video finiti." },
     },
   },
   de: {
@@ -238,7 +238,7 @@ export const TASKS_COPY: Record<Locale, TasksCopy> = {
     },
     account: {
       social: { title: "Verbinden Sie Ihre sozialen Netzwerke", help: "Wir schlagen Beiträge und Antworten für jeden verbundenen Kanal vor." },
-      video: { title: "Verbinden Sie Ihre Videokanäle", help: "Instagram, TikTok, YouTube und Facebook, damit fertige Videos veröffentlicht werden können." },
+      video: { title: "Verbinden Sie Ihre Videokanäle", help: "Instagram, TikTok, YouTube, Facebook und Pinterest, damit fertige Videos veröffentlicht werden können." },
     },
   },
 };

@@ -205,7 +205,7 @@ describe("approving an idea", () => {
     expect(await balance(orgId)).toBe(2);
     expect(queue.queueJob).toHaveBeenCalledWith({ name: "video/make.requested", data: { ideaId: row.id } });
     const [saved] = await test.db.select().from(videoIdeas).where(eq(videoIdeas.id, row.id));
-    expect(saved).toMatchObject({ status: "approved", creditSpendKey: spendKey(row.id), platforms: ["instagram", "tiktok", "youtube", "facebook"] });
+    expect(saved).toMatchObject({ status: "approved", creditSpendKey: spendKey(row.id), platforms: ["instagram", "tiktok", "youtube", "facebook", "pinterest"] });
   });
 
   it("is refused without the credit, and nothing changes", async () => {
@@ -323,14 +323,17 @@ describe("making the video", () => {
 });
 
 describe("publishing a video", () => {
-  async function ready(options: { carousel?: boolean } = {}) {
+  /** A ready video, its website's accounts connected; `board` adds Pinterest with that board (null: none chosen). */
+  async function ready(options: { carousel?: boolean; board?: string | null } = {}) {
     const seeded = await site();
-    for (const platform of ["instagram", "tiktok", "youtube", "facebook"]) {
+    const platforms = ["instagram", "tiktok", "youtube", "facebook", ...(options.board !== undefined ? ["pinterest"] : [])];
+    for (const platform of platforms) {
       await test.db.insert(socialAccounts).values({
         websiteId: seeded.websiteId,
         platform,
         username: `${platform}_user`,
         bundleAccountId: `acc_${platform}`,
+        target: platform === "pinterest" ? options.board : null,
         warmupEndsAt: new Date(NOW.getTime() - DAY),
       });
     }
@@ -408,6 +411,61 @@ describe("publishing a video", () => {
     expect(body.data.INSTAGRAM).toMatchObject({ type: "POST" });
     expect(body.data.INSTAGRAM.uploadIds).toHaveLength(2);
     expect(body.data.TIKTOK).toMatchObject({ type: "IMAGE", autoAddMusic: true });
+  });
+
+  it("goes to Pinterest as a video Pin on the board the social Pins use", async () => {
+    const { websiteId, row } = await ready({ board: "Product photography" });
+    await test.db.update(videoIdeas).set({ caption: "c".repeat(900), title: "t".repeat(120) }).where(eq(videoIdeas.id, row.id));
+    expect(await publishVideoIdea(websiteId, row.id, { platforms: ["instagram", "pinterest"], when: "now" })).toMatchObject({ ok: true });
+    const fetch = bundle(
+      { id: "post_p", status: "SCHEDULED", error: null, errors: null, externalData: null },
+      { id: "post_p", status: "POSTED", error: null, errors: null, externalData: { INSTAGRAM: { id: "1" }, PINTEREST: { id: "9", permalink: "https://pinterest.com/pin/9" } } },
+    );
+    await publishVideo(row.id, NOW);
+    const body = postBody(fetch);
+    expect(body.socialAccountTypes.sort()).toEqual(["INSTAGRAM", "PINTEREST"]);
+    expect(body.data.PINTEREST).toEqual({ boardName: "Product photography", text: "t".repeat(100), description: "c".repeat(800), uploadIds: [expect.any(String)] });
+    expect(await checkVideoPublished(row.id, NOW)).toBe("posted");
+    const [saved] = await test.db.select().from(videoIdeas).where(eq(videoIdeas.id, row.id));
+    expect(saved.postedUrls).toMatchObject({ pinterest: "https://pinterest.com/pin/9" });
+  });
+
+  it("is refused for Pinterest without a board, and says so when it was scheduled before", async () => {
+    const { websiteId, row } = await ready({ board: null });
+    expect(await publishVideoIdea(websiteId, row.id, { platforms: ["instagram", "pinterest"], when: "now" })).toEqual({ ok: false, error: "no_board" });
+    const [untouched] = await test.db.select().from(videoIdeas).where(eq(videoIdeas.id, row.id));
+    expect(untouched.status).toBe("ready");
+
+    // Published automatically (or the board removed since): the others go, Pinterest is named as left out.
+    await test.db.update(videoIdeas).set({ status: "scheduled", platforms: ["instagram", "pinterest"], scheduledFor: NOW }).where(eq(videoIdeas.id, row.id));
+    const fetch = bundle(
+      { id: "post_n", status: "SCHEDULED", error: null, errors: null, externalData: null },
+      { id: "post_n", status: "POSTED", error: null, errors: null, externalData: { INSTAGRAM: { id: "1", permalink: "https://instagram.com/reel/1" } } },
+    );
+    expect((await publishVideo(row.id, NOW)).outcome).toBe("posting");
+    expect(postBody(fetch).socialAccountTypes).toEqual(["INSTAGRAM"]);
+    expect(await checkVideoPublished(row.id, NOW)).toBe("partly");
+    const [saved] = await test.db.select().from(videoIdeas).where(eq(videoIdeas.id, row.id));
+    expect(saved).toMatchObject({ status: "posted", platforms: ["instagram"], error: "no_board" });
+    // Not a refusal: Pinterest is not paused.
+    const accounts = await test.db.select().from(socialAccounts).where(eq(socialAccounts.websiteId, websiteId));
+    expect(accounts.find((account) => account.platform === "pinterest")?.pausedAt).toBeNull();
+
+    // Pinterest alone: nothing is sent, and the video waits with the reason.
+    const only = await idea(websiteId, { status: "scheduled", platforms: ["pinterest"], scheduledFor: NOW, videoUrl: "https://files.example/reel.mp4" });
+    const none = bundle();
+    expect((await publishVideo(only.id, NOW)).outcome).toBe("skipped");
+    expect(none).not.toHaveBeenCalled();
+    const [waiting] = await test.db.select().from(videoIdeas).where(eq(videoIdeas.id, only.id));
+    expect(waiting).toMatchObject({ status: "ready", error: "no_board" });
+  });
+
+  it("never sends a carousel to Pinterest", async () => {
+    const { websiteId, row } = await ready({ carousel: true, board: "Product photography" });
+    await publishVideoIdea(websiteId, row.id, { platforms: ["instagram", "pinterest"], when: "now" });
+    const [scheduled] = await test.db.select().from(videoIdeas).where(eq(videoIdeas.id, row.id));
+    expect(scheduled.platforms).toEqual(["instagram"]);
+    expect(await publishVideoIdea(websiteId, row.id, { platforms: ["pinterest"], when: "now" })).toEqual({ ok: false, error: "no_accounts" });
   });
 
   it("pauses only the platform that refused it", async () => {

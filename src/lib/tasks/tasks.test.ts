@@ -76,7 +76,7 @@ describe("tasks page", () => {
     // Quora is a username; a video channel needs a real connection, so the bare Instagram name does not count.
     expect(tasks.accounts).toEqual([
       { id: "social", connected: 1, available: 6, href: `/websites/${a.id}/social` },
-      { id: "video", connected: 1, available: 4, href: `/websites/${a.id}/videos` },
+      { id: "video", connected: 1, available: 5, href: `/websites/${a.id}/videos` },
     ]);
     expect(tasks.total).toBe(tasks.setup.length + 2);
     expect(tasks.done).toBe(tasks.setup.filter((s) => s.done).length + 2);
@@ -85,7 +85,7 @@ describe("tasks page", () => {
   it("offers a trial only the channels it may use, and nothing without a plan", async () => {
     const a = await fixture();
     state.plan = "trial";
-    expect((await getTasks(a.id, a.orgId, true, NOW))!.accounts.map((x) => [x.id, x.available])).toEqual([["social", 1], ["video", 4]]);
+    expect((await getTasks(a.id, a.orgId, true, NOW))!.accounts.map((x) => [x.id, x.available])).toEqual([["social", 1], ["video", 5]]);
     state.plan = "none";
     expect((await getTasks(a.id, a.orgId, true, NOW))!.accounts).toEqual([]);
   });

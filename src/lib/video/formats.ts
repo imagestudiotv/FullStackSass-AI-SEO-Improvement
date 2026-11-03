@@ -13,14 +13,14 @@
  * templates use these too.
  */
 
-export const VIDEO_PLATFORMS = ["instagram", "tiktok", "youtube", "facebook"] as const;
+export const VIDEO_PLATFORMS = ["instagram", "tiktok", "youtube", "facebook", "pinterest"] as const;
 export type VideoPlatform = (typeof VIDEO_PLATFORMS)[number];
 
 export function isVideoPlatform(value: string): value is VideoPlatform {
   return (VIDEO_PLATFORMS as readonly string[]).includes(value);
 }
 
-export type VideoBundleType = "INSTAGRAM" | "TIKTOK" | "YOUTUBE" | "FACEBOOK";
+export type VideoBundleType = "INSTAGRAM" | "TIKTOK" | "YOUTUBE" | "FACEBOOK" | "PINTEREST";
 
 export type VideoPlatformSpec = {
   name: string;
@@ -29,13 +29,32 @@ export type VideoPlatformSpec = {
   carousel: boolean;
   /** The longest caption the platform takes, in characters. */
   captionMax: number;
+  /** The longest title, where a post has one besides its caption (a Short's, a Pin's). */
+  titleMax: number | null;
+  /**
+   * Whether a post there goes to a board (Pinterest): the one the social Pins
+   * use, social_accounts.target, chosen on Opportunities. Without a board
+   * nothing is sent there.
+   */
+  board: boolean;
 };
 
 export const VIDEO_PLATFORM_SPECS: Record<VideoPlatform, VideoPlatformSpec> = {
-  instagram: { name: "Instagram", bundleType: "INSTAGRAM", carousel: true, captionMax: 2200 },
-  tiktok: { name: "TikTok", bundleType: "TIKTOK", carousel: true, captionMax: 2200 },
-  youtube: { name: "YouTube Shorts", bundleType: "YOUTUBE", carousel: false, captionMax: 5000 },
-  facebook: { name: "Facebook", bundleType: "FACEBOOK", carousel: true, captionMax: 5000 },
+  instagram: { name: "Instagram", bundleType: "INSTAGRAM", carousel: true, captionMax: 2200, titleMax: null, board: false },
+  tiktok: { name: "TikTok", bundleType: "TIKTOK", carousel: true, captionMax: 2200, titleMax: null, board: false },
+  youtube: { name: "YouTube Shorts", bundleType: "YOUTUBE", carousel: false, captionMax: 5000, titleMax: 100, board: false },
+  facebook: { name: "Facebook", bundleType: "FACEBOOK", carousel: true, captionMax: 5000, titleMax: null, board: false },
+  /*
+    A video Pin (client, 2026-11-02). bundle.social's PINTEREST data is a
+    single Pin - boardName (required), a title (`text`), a description,
+    uploadIds, an optional link - with no post type and no carousel items,
+    unlike Instagram's POST/REEL or TikTok's IMAGE/VIDEO. Pinterest's own
+    carousel Pins take 2 to 5 images, and a carousel here has 5 to 7 slides:
+    so carousels are not sent there, as on YouTube. A title of 100 characters
+    and a description of 800, as the social Pins (lib/social/platforms.ts); a
+    video of 4 s to 15 min, which a reel of MAX_REEL_SECONDS fits.
+  */
+  pinterest: { name: "Pinterest", bundleType: "PINTEREST", carousel: false, captionMax: 800, titleMax: 100, board: true },
 };
 
 /** Ideas a website gets a day to swipe through (client: 20, like the reference site). */
@@ -101,7 +120,7 @@ export function isVoice(value: string): value is Voice {
 export const PUBLISH_MODES = ["manual", "auto"] as const;
 export type PublishMode = (typeof PUBLISH_MODES)[number];
 
-/** Frame sizes. A reel is 9:16 for all four platforms; a carousel slide 4:5, the feed's tallest. */
+/** Frame sizes. A reel is 9:16 for every platform; a carousel slide 4:5, the feed's tallest. */
 export const REEL = { width: 1080, height: 1920, fps: 30 } as const;
 export const SLIDE = { width: 1080, height: 1350 } as const;
 

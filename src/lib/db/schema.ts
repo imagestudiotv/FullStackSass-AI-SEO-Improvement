@@ -3155,7 +3155,7 @@ export const socialSuggestions = pgTable(
  * One row per website, written when the customer first changes something;
  * no row means the defaults (lib/video/settings.ts).
  *
- * The accounts videos are published to (Instagram, TikTok, YouTube, Facebook)
+ * The accounts videos are published to (Instagram, TikTok, YouTube, Facebook, Pinterest)
  * are social_accounts rows like the other platforms', in the same
  * bundle.social team.
  */
