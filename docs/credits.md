@@ -37,7 +37,7 @@ The pricing pages and the plan step show the difference side by side (`component
 | Top 250 live USA Local Citations | `addons.credit_price`, Admin → Credits (250) | Bought on Billing with credits (`buyAddonWithCredits`); the administrators are emailed and deliver it by hand. |
 | We fix the errors for you | A quote; `credit_price` (190) is the "from" figure | Requested from Billing; the administrator quotes in credits and, once the customer agrees, takes them with an adjustment in Admin → Organizations. |
 
-The customer sees the list on **/credits** ("What credits are for"), the price on the "Check again" button once it is not free, and the services with their credit prices on **Billing**.
+The customer sees the list on **/credits** ("What credits can do": the four actions first, the backlink and the services behind "See all credit costs"), the price on the "Check again" button once it is not free, and the services with their credit prices on **Billing**.
 
 Card checkout (`buyAddon`) sells credit packs only, so a service's old Stripe price is never used again. `npm run stripe:setup` creates prices for credit packs only, and renames a pack's Stripe product when its name changed ("10 link credits" → "100 credits").
 
@@ -60,7 +60,8 @@ Every spend takes the workspace's credit lock (`pg_advisory_xact_lock(hashtext('
 
 ## Screens
 
-- **/credits** (sidebar → Credits): available credits, today's daily credits, credits reserved for links, the balance, what credits are for (actions and services), where they come from, and the history (every ledger row). The workspace's own; someone who owns no website is told that shared websites use their owner's credits. The old Backlinks → Credit activity page redirects here.
+- **/credits** (sidebar → Credits; laid out from the client's design of 2026-11-02): the available credits, with the balance and what backlinks hold, and **today's credits earned and used** (`creditToday` in `lib/credits/overview.ts`); what credits can do; the ways to earn more (daily credits, referrals and rewards → /earn-credits, top up → Billing → Add-ons, the same place as the sidebar's Buy credits); and the recent activity (every ledger row), 25 a page (`?page=`), filtered All / Earned / Spent (`?kind=`). The workspace's own; someone who owns no website is told that shared websites use their owner's credits. The old Backlinks → Credit activity page redirects here.
+  - **Today** is the UTC day, the day daily credits are given on. **Spent** is every credit paid out plus what came back from a payment (`spend_refund`, a removed link's `refund`), so a video that could not be made sits beside its charge; **Earned** is every other credit that came in. "Used today" is the spent rows net of their refunds, never below 0.
 - **Sidebar**: the available credits, and "+3 today" once today's daily credits are given.
 - **Billing → Add-ons**: credit packs by card; services for credits, with a second click that names the price; quotes with their "from" price in credits; purchases show what they cost in credits or money.
 - **Admin → Credits**: daily credits and trial daily credits (0–100 each), each action's price (0–1,000) and each service's price (0–100,000; 0 takes it off sale), saved together and recorded in the audit log as `credits.settings_saved`; and what each action and service earned in the last 30 days.

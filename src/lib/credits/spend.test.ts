@@ -21,7 +21,7 @@ vi.mock("@/lib/db", () => ({
 
 import { recordCredit } from "@/lib/backlinks/credits";
 import { ensureDailyCredits } from "@/lib/credits/daily";
-import { creditHistory, creditOverview } from "@/lib/credits/overview";
+import { creditHistory, creditKindOf, creditOverview, creditToday, type CreditKind } from "@/lib/credits/overview";
 import { readCreditSettings } from "@/lib/credits/prices";
 import { chargeCredits, refundSpend, spendCredits, type SpendInput } from "@/lib/credits/spend";
 
@@ -340,5 +340,87 @@ describe("refunds", () => {
       ["spend", -250, "addon:x"],
       ["adjustment", 300, null],
     ]);
+  });
+});
+
+/**
+ * The Credits page (client design, 2026-11-02): what came in and went out
+ * today, and the history's "All / Earned / Spent" filter. A refund of a spend
+ * is spending given back, so it is under "Spent" and lowers what was used.
+ */
+describe("today and the earned / spent filter", () => {
+  /** Ledger rows at given UTC moments, as they would have been written then. */
+  async function movements(orgId: string, rows: [type: string, amount: number, at: string][]) {
+    await test.db
+      .insert(creditLedger)
+      .values(rows.map(([type, amount, at]) => ({ organizationId: orgId, type, amount, note: "test", createdAt: new Date(at) })));
+  }
+
+  async function seeded() {
+    const { orgId } = await seedWebsite(test);
+    await movements(orgId, [
+      // Yesterday (UTC): counted in the history, not in today's figures.
+      ["purchase", 100, "2026-11-02T23:59:59Z"],
+      ["spend", -4, "2026-11-02T22:00:00Z"],
+      // Today (UTC).
+      ["daily_grant", 3, "2026-11-03T00:00:00Z"],
+      ["spend", -1, "2026-11-03T08:00:00Z"],
+      ["spend", -5, "2026-11-03T09:00:00Z"],
+      ["spend_refund", 5, "2026-11-03T09:05:00Z"],
+      ["link_received", -20, "2026-11-03T10:00:00Z"],
+      ["referral", 100, "2026-11-03T11:00:00Z"],
+      // Tomorrow (UTC): not today, whatever the reader's own clock says.
+      ["reward", 50, "2026-11-04T00:00:00Z"],
+    ]);
+    return orgId;
+  }
+
+  it("today counts the UTC day's credits earned, and its credits used net of their refunds", async () => {
+    const orgId = await seeded();
+    // 3 + 100 earned; 1 + 5 + 20 spent, 5 of it given back.
+    expect(await creditToday(orgId, new Date("2026-11-03T15:00:00Z"))).toEqual({ earned: 103, used: 21 });
+    expect(await creditToday(orgId, new Date("2026-11-02T12:00:00Z"))).toEqual({ earned: 100, used: 4 });
+    expect(await creditToday(orgId, new Date("2026-11-05T12:00:00Z"))).toEqual({ earned: 0, used: 0 });
+  });
+
+  it("today never reports a negative use when only a refund came in", async () => {
+    const { orgId } = await seedWebsite(test);
+    await movements(orgId, [
+      ["spend", -5, "2026-11-02T23:00:00Z"],
+      ["spend_refund", 5, "2026-11-03T01:00:00Z"],
+    ]);
+    expect(await creditToday(orgId, new Date("2026-11-03T12:00:00Z"))).toEqual({ earned: 0, used: 0 });
+  });
+
+  it("filters the history into earned and spent, which together are every row", async () => {
+    const orgId = await seeded();
+    const types = async (kind: CreditKind) =>
+      (await creditHistory(orgId, { page: 1, pageSize: 25, kind })).rows.map((row) => row.type);
+    expect(await types("earned")).toEqual(["reward", "referral", "daily_grant", "purchase"]);
+    expect(await types("spent")).toEqual(["link_received", "spend_refund", "spend", "spend", "spend"]);
+    expect((await types("all")).length).toBe(9);
+    expect(await creditHistory(orgId, { page: 1, pageSize: 25 })).toMatchObject({ total: 9 });
+  });
+
+  it("pages within the filter", async () => {
+    const { orgId } = await seedWebsite(test);
+    await movements(
+      orgId,
+      Array.from({ length: 12 }, (_, i) => ["daily_grant", 3, `2026-11-${String(i + 1).padStart(2, "0")}T06:00:00Z`] as [string, number, string]),
+    );
+    await movements(orgId, [["spend", -1, "2026-11-03T07:00:00Z"]]);
+    const second = await creditHistory(orgId, { page: 2, pageSize: 10, kind: "earned" });
+    expect(second).toMatchObject({ total: 12, page: 2, pageCount: 2 });
+    expect(second.rows.map((row) => row.at.toISOString())).toEqual(["2026-11-02T06:00:00.000Z", "2026-11-01T06:00:00.000Z"]);
+    // A page past the end is the last one; the spent filter has one row, so one page.
+    expect(await creditHistory(orgId, { page: 9, pageSize: 10, kind: "spent" })).toMatchObject({ total: 1, page: 1, pageCount: 1 });
+  });
+
+  it("reads an unknown filter as all", () => {
+    expect(creditKindOf("earned")).toBe("earned");
+    expect(creditKindOf("spent")).toBe("spent");
+    expect(creditKindOf("everything")).toBe("all");
+    expect(creditKindOf(["earned"])).toBe("all");
+    expect(creditKindOf(undefined)).toBe("all");
   });
 });
