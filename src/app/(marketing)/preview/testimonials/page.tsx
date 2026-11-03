@@ -73,6 +73,7 @@ export default async function TestimonialsPreviewPage({
         href={(path) => localePath(locale, path)}
         plans={plans}
         testimonials={cards}
+        contentCount={null}
       />
     </>
   );

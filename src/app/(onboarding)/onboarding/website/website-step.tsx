@@ -52,12 +52,19 @@ import { previewWebsite, type WebsitePreview } from "@/lib/websites/preview";
  */
 export function WebsiteStep({
   t = getMessages("en").app.onboarding,
+  initialUrl = "",
 }: {
   /** This step's copy, defaulting to English. */
   t?: Messages["app"]["onboarding"];
+  /**
+   * The address typed into the homepage's "Start free trial" field
+   * (?domain=), so the visitor does not type it twice. It only fills the
+   * field: nothing is looked up or added until they press the button.
+   */
+  initialUrl?: string;
 } = {}) {
   const router = useRouter();
-  const [value, setValue] = useState("");
+  const [value, setValue] = useState(initialUrl);
   const [preview, setPreview] = useState<WebsitePreview | null>(null);
   const [looking, setLooking] = useState(false);
   const [pending, setPending] = useState(false);

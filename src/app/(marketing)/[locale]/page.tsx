@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { listPlansForPrebuiltPage } from "@/lib/billing";
+import { countContentCreated } from "@/lib/marketing/content-count";
 import { listPublishedTestimonials } from "@/lib/marketing/testimonials-db";
 import { isLocale, localePath } from "@/lib/i18n/config";
 import { getMessages } from "@/lib/i18n/messages";
@@ -49,9 +50,13 @@ export default async function LocalisedHomePage({
   const { locale } = await params;
   if (!isLocale(locale) || locale === "en") notFound();
 
-  const [plans, testimonials] = await Promise.all([listPlansForPrebuiltPage(), listPublishedTestimonials()]);
+  const [plans, testimonials, contentCount] = await Promise.all([
+    listPlansForPrebuiltPage(),
+    listPublishedTestimonials(),
+    countContentCreated(),
+  ]);
   // Keeps every in-page link inside the reader's language.
   const href = (path: string) => localePath(locale, path);
 
-  return <HomePageSections locale={locale} href={href} plans={plans} testimonials={testimonials} />;
+  return <HomePageSections locale={locale} href={href} plans={plans} testimonials={testimonials} contentCount={contentCount} />;
 }

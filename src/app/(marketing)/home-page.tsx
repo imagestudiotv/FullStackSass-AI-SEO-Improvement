@@ -1,74 +1,80 @@
 import type { PlanRow } from "@/lib/billing-shared";
 import type { Locale } from "@/lib/i18n/config";
+import { homeRedesignCopy } from "@/lib/i18n/home-redesign";
 import { getMessages } from "@/lib/i18n/messages";
 import type { Testimonial } from "@/lib/marketing/testimonials";
-import { HomeFaq } from "./home-faq";
-import {
-  AuditBand,
-  BacklinkNetwork,
-  ClosingCta,
-  ContentEngine,
-  DemoVideo,
-  Hero,
-  HowItWorks,
-  Pillars,
-  ProblemSolution,
-  ProductPreview,
-  WhatYouSee,
-} from "./home-sections";
-import { PricingPreview } from "./pricing-preview";
-import { Testimonials } from "./testimonials-section";
+import styles from "./_home/home.module.css";
+import { RevealRoot } from "./_home/reveal";
+import { Copilot } from "./_home/sections/copilot";
+import { Engines } from "./_home/sections/engines";
+import { Faq } from "./_home/sections/faq";
+import { Features } from "./_home/sections/features";
+import { FinalCta } from "./_home/sections/final-cta";
+import { Founder } from "./_home/sections/founder";
+import { Hero } from "./_home/sections/hero";
+import { Pricing } from "./_home/sections/pricing";
+import { Reviews } from "./_home/sections/reviews";
+import { Ribbon } from "./_home/sections/ribbon";
+import { Steps } from "./_home/sections/steps";
+import { VideoSection } from "./_home/sections/video";
+import type { SectionProps } from "./_home/types";
 
 /**
  * The homepage's sections, in order - ONE list for every language.
  *
- * The English page and the localised ones used to compose the sections
- * separately, and two lists of the same fourteen sections are two places to
- * forget a change. Both now render this, so a section moved here moves in
- * every language.
+ * The English page and the localised ones render this same composition, so a
+ * section moved here moves in every language.
  *
- * The order is the client's reference design (2026-10-07): the promise, the
- * two-minute walkthrough straight after it, then the free check it leads
- * into, how it works, the problem it solves, what it writes, what you see,
- * the backlink network, the dashboard, what people say (only when there are
- * approved quotes), pricing, questions, and the closing call.
+ * The order is the client's redesign (2026-11-03,
+ * RepGet_Full_Homepage_CTA_Official_Footer.html): the promise and the free
+ * start, the platforms we publish to with a real count of what RepGet has
+ * made, the top features, the four growth engines, the walkthrough video,
+ * the three steps to start, Growth Copilot, the founder, what customers say
+ * (only when there are published reviews), pricing, questions, and the
+ * closing call. He asked for it to feel as interactive as Outrank's: the
+ * sections reveal as they scroll in, the feature selector moves on by
+ * itself, numbers count up and the video starts muted when it is reached.
+ *
+ * The header (with its new Features and Integrations menus), the footer and
+ * the live chat come from the marketing layout, as on every public page.
  */
 export function HomePageSections({
   locale,
   href,
   plans,
   testimonials,
+  contentCount,
 }: {
   locale: Locale;
   /** Builds locale-aware paths: unchanged on English, prefixed elsewhere. */
   href: (path: string) => string;
   plans: PlanRow[];
   /**
-   * The testimonial cards: the PUBLISHED ones from Admin -> Testimonials on
-   * the homepages (lib/marketing/testimonials-db.ts); drafts too only on the
-   * admin design preview (app/(marketing)/preview/testimonials).
+   * The PUBLISHED testimonials from Admin -> Testimonials
+   * (lib/marketing/testimonials-db.ts): the hero's reviewer avatars and the
+   * reviews section. None published means neither is shown.
    */
   testimonials: Testimonial[];
+  /** Articles, posts and videos really made (lib/marketing/content-count.ts); null hides the counter. */
+  contentCount: number | null;
 }) {
-  const messages = getMessages(locale);
-  const t = messages.home;
+  const props: SectionProps = { c: homeRedesignCopy(locale), m: getMessages(locale), locale, href };
 
   return (
-    <>
-      <Hero t={t} href={href} />
-      <DemoVideo t={t} href={href} lang={locale} />
-      <AuditBand t={t} href={href} intro />
-      <HowItWorks t={t} href={href} />
-      <ProblemSolution t={t} href={href} />
-      <Pillars t={t} href={href} />
-      <ContentEngine t={t} href={href} />
-      <WhatYouSee t={t} href={href} />
-      <BacklinkNetwork t={t} href={href} />
-      <ProductPreview t={t} href={href} />
-      <Testimonials t={t} href={href} testimonials={testimonials} />
-      <PricingPreview t={t} href={href} plans={plans} />
-      <HomeFaq t={t} faq={messages.faq} href={href} />
-      <ClosingCta t={t} href={href} />
-    </>
+    <div className={styles.page}>
+      <RevealRoot />
+      <Hero {...props} testimonials={testimonials} />
+      <Ribbon {...props} contentCount={contentCount} />
+      <Features {...props} />
+      <Engines {...props} />
+      <VideoSection {...props} />
+      <Steps {...props} />
+      <Copilot {...props} />
+      <Founder {...props} />
+      <Reviews {...props} testimonials={testimonials} />
+      <Pricing {...props} plans={plans} />
+      <Faq {...props} />
+      <FinalCta {...props} />
+    </div>
   );
 }

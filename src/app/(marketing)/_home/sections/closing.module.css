@@ -1,0 +1,106 @@
+/*
+ * The few rules the reviews, pricing, FAQ and closing sections need that
+ * home.module.css does not have. Kept apart so that shared file stays the
+ * design's own stylesheet; the colour tokens (--orange, --muted...) are
+ * inherited from home.module.css `.page`, so dark mode follows it here too.
+ */
+
+/*
+ * The reviews as a flowing masonry. The design's three fixed columns hold a
+ * video card in the middle; without one (no testimonial has a video), CSS
+ * columns balance however many cards there are and fall to two, then one,
+ * without a third column dropping under the first. --cols is the card count
+ * capped at three, so one or two reviews are not stranded in a wide row.
+ */
+.flow {
+  --cols: 3;
+  column-count: var(--cols);
+  column-gap: 19px;
+  max-width: calc(var(--cols) * 410px);
+  margin: 0 auto;
+}
+.flow > * {
+  break-inside: avoid;
+  margin-bottom: 18px;
+}
+@media (max-width: 1100px) {
+  .flow {
+    column-count: min(var(--cols), 2);
+  }
+}
+@media (max-width: 700px) {
+  .flow {
+    column-count: 1;
+  }
+}
+
+/* One copy of the ticker pills: the design's gap, tighter than the logo marquee's. */
+.tickerGroup {
+  display: flex;
+  flex: none;
+  gap: 10px;
+  margin: 0;
+  padding: 0 10px 0 0;
+  list-style: none;
+}
+@media (max-width: 640px) {
+  .tickerGroup {
+    gap: 8px;
+    padding-right: 8px;
+  }
+}
+
+/* Under a quote: "Read more" and, for the case-study quote, its link. */
+.cardFoot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0 14px;
+}
+.cardLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 14px;
+  padding: 4px 0;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--muted);
+  text-decoration: none;
+}
+.cardLink:hover {
+  color: var(--orange-deep);
+}
+.cardLink svg,
+.readIcon {
+  width: 13px;
+  height: 13px;
+}
+.inlineLink {
+  font-weight: 720;
+  color: var(--orange-deep);
+  text-underline-offset: 3px;
+}
+
+/*
+ * A focus ring that shows on every surface, the dark closing box included:
+ * the browser's default can disappear against #111.
+ */
+.focusRing:focus-visible {
+  outline: 2px solid var(--orange);
+  outline-offset: 3px;
+}
+
+/* A text link with a small arrow beside it, kept on one line. */
+.withIcon {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* The closing call's arrows, sized to its larger buttons. */
+.arrow {
+  width: 18px;
+  height: 18px;
+}

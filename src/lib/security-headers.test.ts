@@ -4,6 +4,7 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { LANG_SCRIPT } from "./i18n/document-lang";
 import { THEME_SCRIPT } from "./theme";
 import {
   ALL_INTEGRATIONS,
@@ -14,6 +15,7 @@ import {
   cspReportUri,
   hasTagManager,
   securityHeaders,
+  LANG_SCRIPT_HASH,
   THEME_SCRIPT_HASH,
   type CspIntegrations,
 } from "./security-headers";
@@ -255,6 +257,13 @@ describe("contentSecurityPolicy", () => {
     expect(directives(contentSecurityPolicy(ALL, NONCE))["script-src"]).toContain(hash);
     expect(directives(contentSecurityPolicy(NONE, NONCE))["script-src"]).toContain(hash);
     // A hash on the cached pages' policy would switch their 'unsafe-inline' off.
+    expect(csp["script-src"]).not.toContain(hash);
+  });
+
+  it("allows the page-language script by its hash on the nonce pages, and only there", () => {
+    const hash = `'sha256-${createHash("sha256").update(LANG_SCRIPT, "utf8").digest("base64")}'`;
+    expect(LANG_SCRIPT_HASH).toBe(hash);
+    expect(directives(contentSecurityPolicy(ALL, NONCE))["script-src"]).toContain(hash);
     expect(csp["script-src"]).not.toContain(hash);
   });
 

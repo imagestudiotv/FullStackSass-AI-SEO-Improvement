@@ -1,6 +1,7 @@
 import "server-only";
 
 import { LOCALES, type Locale } from "@/lib/i18n/config";
+import { homeMenuCopy, type HomeRedesignCopy } from "@/lib/i18n/home-redesign";
 import { getMessages, type Messages } from "@/lib/i18n/messages";
 
 /**
@@ -24,10 +25,19 @@ import { getMessages, type Messages } from "@/lib/i18n/messages";
  * menu's close button, the language switcher, the logo link and the night
  * mode button (also its hover tip). They were English on every page; the
  * words are the app's own (`app.common`).
+ *
+ * `menu` is the header's Features and Integrations mega-menus (client's
+ * design, 2026-11-03). Its words live with the homepage redesign's copy
+ * (lib/i18n/home-redesign.ts); they are picked out here for the same reason,
+ * so the header never imports that file either - only the menu's slice of it
+ * reaches the browser.
  */
 export type SiteChromeA11y = Pick<Messages["app"]["common"], "openMenu" | "changeLanguage" | "brandHome" | "close" | "darkMode">;
 
-export type SiteChrome = Record<Locale, Pick<Messages, "nav" | "footer" | "consent"> & { a11y: SiteChromeA11y }>;
+export type SiteChrome = Record<
+  Locale,
+  Pick<Messages, "nav" | "footer" | "consent"> & { a11y: SiteChromeA11y; menu: HomeRedesignCopy["menu"] }
+>;
 
 /** The same, plus the "page not found" copy, for the 404 page. */
 export type NotFoundCopy = Record<
@@ -40,7 +50,16 @@ export function siteChrome(): SiteChrome {
     LOCALES.map((locale) => {
       const t = getMessages(locale);
       const { openMenu, changeLanguage, brandHome, close, darkMode } = t.app.common;
-      return [locale, { nav: t.nav, footer: t.footer, consent: t.consent, a11y: { openMenu, changeLanguage, brandHome, close, darkMode } }];
+      return [
+        locale,
+        {
+          nav: t.nav,
+          footer: t.footer,
+          consent: t.consent,
+          a11y: { openMenu, changeLanguage, brandHome, close, darkMode },
+          menu: homeMenuCopy(locale),
+        },
+      ];
     }),
   ) as SiteChrome;
 }
