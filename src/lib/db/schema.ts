@@ -3107,8 +3107,10 @@ export const socialTeams = pgTable("social_teams", {
  * through bundle.social, otherwise one-click as well.
  *
  * status: new -> posted (one click), or scheduled -> posting -> posted |
- * failed (published by RepGet); dismissed when the customer skips it. A
- * post's credit is charged under creditSpendKey, once.
+ * failed (published by RepGet); dismissed when the customer skips it. draft
+ * is a new one the customer edited and saved without posting (the
+ * Opportunities page's Drafts, 2026-11-03): still one-click, never published
+ * by RepGet. A post's credit is charged under creditSpendKey, once.
  */
 export const socialSuggestions = pgTable(
   "social_suggestions",

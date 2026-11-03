@@ -1,110 +1,60 @@
 "use client";
 
-import { NativeLikeSelect } from "@/components/ui/native-like-select";
-import { Check, Copy, ExternalLink, Lock, RefreshCw, Send, SkipForward } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useId, useState, useTransition } from "react";
+import { AlertTriangle, ChevronRight, Clock, Copy, ExternalLink, Lock, MoreHorizontal, RefreshCw, Search, Send, SkipForward } from "lucide-react";
+import { useId, useState } from "react";
 import { toast } from "sonner";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { PageHeader } from "@/components/ui/page-header";
-import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
+import { NativeLikeSelect } from "@/components/ui/native-like-select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Notice } from "@/components/workspace/notice";
 import { copyTextNow } from "@/lib/copy-text";
 import type { Locale } from "@/lib/i18n/config";
-import { format, formatDate } from "@/lib/i18n/format";
-import type { Messages } from "@/lib/i18n/messages";
+import { format, plural } from "@/lib/i18n/format";
+import { findSocialSuggestions, postScheduledNow, setSocialAutoPost, skipSocialSuggestion } from "@/lib/social/actions";
+import { PLATFORMS, SOCIAL_PLATFORMS, type SocialPlatform } from "@/lib/social/platforms";
+import { cn } from "@/lib/utils";
+
+import { AccountsDialog } from "./accounts-dialog";
 import {
-  connectSocialUsername,
-  disconnectSocial,
-  editScheduledPost,
-  findSocialSuggestions,
-  postScheduledNow,
-  postSocialSuggestion,
-  setPinterestBoard,
-  setSocialAutoPost,
-  skipSocialSuggestion,
-  startSocialConnect,
-  type SocialError,
-  type SocialResult,
-} from "@/lib/social/actions";
-import { isSocialPlatform, PLATFORMS, profileUrl, SOCIAL_PLATFORMS, type SocialPlatform } from "@/lib/social/platforms";
+  latest,
+  nextScheduled,
+  pasteText,
+  platformName,
+  SORTS,
+  stageOf,
+  tabCounts,
+  TABS,
+  visibleRows,
+  whereOf,
+  type AccountView,
+  type Sort,
+  type Stage,
+  type SuggestionView,
+  type Tab,
+} from "./opportunities";
+import { headline, ReviewSheet } from "./review-sheet";
+import { Ago, atTime, CopyTextButton, PlatformTile, StageChip, useSocialAction, type T } from "./social-shared";
 
-type T = Messages["app"]["social"];
-
-export type AccountView = {
-  platform: string;
-  username: string;
-  /** Connected through bundle.social: RepGet can publish own posts. */
-  connected: boolean;
-  autoPost: boolean;
-  warmupEndsAt: string;
-  /** Still in the warm-up (decided on the server, as the rules are). */
-  inWarmup: boolean;
-  /** Why automatic posting is paused; null when it is not. */
-  pausedReason: string | null;
-  target: string | null;
-};
-
-export type SuggestionView = {
-  id: string;
-  platform: string;
-  kind: string;
-  status: string;
-  threadUrl: string | null;
-  threadTitle: string | null;
-  threadSnippet: string | null;
-  title: string | null;
-  body: string;
-  warmup: boolean;
-  imageUrl: string | null;
-  scheduledFor: string | null;
-  postedAt: string | null;
-  postedUrl: string | null;
-  error: string | null;
-};
-
-const name = (platform: string) => (isSocialPlatform(platform) ? PLATFORMS[platform].name : platform);
-
-/** The text as it is pasted: a title (Reddit, Pinterest posts) on top of the body. */
-const pasteText = (title: string | null, body: string) => (title?.trim() ? `${title.trim()}\n\n${body}` : body);
-
-/** Copies a suggestion's text without posting it, or a posted one's again (client, 2026-10-29: "a copy button"). */
-function CopyTextButton({ text, variant = "outline", t }: { text: string; variant?: "outline" | "ghost"; t: T }) {
-  const [done, setDone] = useState(false);
-  async function copy() {
-    if (!(await copyTextNow(text))) return void toast.error(t.errors.generic);
-    setDone(true);
-    window.setTimeout(() => setDone(false), 2000);
-  }
-  return (
-    <Button type="button" size="sm" variant={variant} onClick={copy}>
-      {done ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
-      {done ? t.copyDone : t.copy}
-    </Button>
-  );
-}
-
-function errorText(t: T, result: Extract<SocialResult<unknown>, { ok: false }>, price: string): string {
-  const key: SocialError = result.error;
-  if (key === "not_enough_credits") {
-    return format(t.errors.not_enough_credits, { price, available: String(result.available ?? 0) });
-  }
-  return t.errors[key] ?? t.errors.generic;
-}
 
 /**
- * The Social page (client, 2026-10-27). Accounts on top - six platforms, a
- * trial's locked ones shown but disabled - then the suggestions waiting, then
- * what was posted.
+ * The Opportunities page (client, 2026-10-27; redesigned from the client's
+ * design, 2026-11-03). The connected channels in a strip, their settings
+ * behind "Manage"; then every conversation in one panel, from the first
+ * suggestion to the published post, in tabs by stage, with the next post
+ * RepGet publishes on top. A row opens the review drawer, where a reply is
+ * edited and posted with one click.
  *
- * THE ONE-CLICK POST copies the text and opens a window in the same click
- * (browsers allow neither later), then asks the server to charge the credit
- * and sends the window to the platform. Refused - not enough credits - the
- * window closes again and nothing was charged.
+ * RepGet publishes only the customer's OWN posts (scheduled); replies in
+ * other people's discussions are always the customer's click (review-sheet.tsx).
  */
 export function SocialPanel(props: {
   websiteId: string;
@@ -123,473 +73,513 @@ export function SocialPanel(props: {
   locale: Locale;
   t: T;
 }) {
-  const { t, websiteId, canEdit } = props;
-  const router = useRouter();
-  const [pending, start] = useTransition();
+  const { t, websiteId, canEdit, locale } = props;
+  const { pending, run } = useSocialAction(t, props.priceLabel);
+  // Its own transition: "Looking…" is for this button, not for a skip elsewhere on the page.
+  const finder = useSocialAction(t, props.priceLabel);
+  const [manage, setManage] = useState(false);
+  const [tab, setTab] = useState<Tab>("all");
+  const [query, setQuery] = useState("");
+  const [platform, setPlatform] = useState("all");
+  const [sort, setSort] = useState<Sort>("recommended");
+  // Kept after closing, so the drawer still has its content while it slides out.
+  const [selected, setSelected] = useState<string | null>(null);
+  const [reviewing, setReviewing] = useState(false);
 
-  function run(action: () => Promise<SocialResult<unknown>>, success?: string) {
-    start(async () => {
-      const result = await action().catch(() => null);
-      if (!result) return void toast.error(t.errors.generic);
-      if (!result.ok) return void toast.error(errorText(t, result, props.priceLabel));
-      if (success) toast.success(success);
-      router.refresh();
-    });
+  const rows = [...props.open, ...props.posted];
+  const counts = tabCounts(rows);
+  const visible = visibleRows(rows, { tab, platform, query, sort });
+  const next = tab === "all" || tab === "scheduled" ? nextScheduled(rows) : null;
+  const current = rows.find((row) => row.id === selected) ?? null;
+  const editable = (row: SuggestionView) => canEdit && props.platforms.includes(row.platform);
+  const accountFor = (name: string) => props.accounts.find((account) => account.platform === name) ?? null;
+  const paused = props.accounts.filter((account) => account.pausedReason !== null && props.platforms.includes(account.platform));
+  const active = props.accounts.filter((account) => props.platforms.includes(account.platform)).length;
+  const noticePlatform = props.notice?.platform ? platformName(props.notice.platform) : "";
+
+  function review(id: string) {
+    setSelected(id);
+    setReviewing(true);
   }
-
-  const noticePlatform = props.notice?.platform ? name(props.notice.platform) : "";
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={t.title}
-        description={t.intro}
-        actions={
-          canEdit && props.accounts.length > 0 ? (
-            <Button
-              variant="outline"
-              disabled={pending || props.todayCount >= props.perDay}
-              onClick={() => run(() => findSocialSuggestions(websiteId), t.findQueued)}
-            >
-              <RefreshCw aria-hidden="true" />
-              {pending ? t.finding : t.findNow}
-            </Button>
-          ) : null
-        }
-      />
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0 space-y-1.5">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+            {t.title}
+            <span className="text-primary" aria-hidden="true">
+              .
+            </span>
+          </h1>
+          <p className="max-w-2xl text-sm text-muted-foreground">{t.intro}</p>
+        </div>
+        {canEdit && props.accounts.length > 0 ? (
+          <Button
+            variant="outline"
+            className="self-start sm:self-auto"
+            disabled={finder.pending || props.todayCount >= props.perDay}
+            onClick={() => finder.run(() => findSocialSuggestions(websiteId), { success: t.findQueued })}
+          >
+            <RefreshCw aria-hidden="true" className={cn(finder.pending && "motion-safe:animate-spin")} />
+            {finder.pending ? t.finding : t.findNow}
+          </Button>
+        ) : null}
+      </div>
 
       {props.notice ? (
         <Notice tone={props.notice.kind === "connected" ? "success" : "warning"} role="status">
           {format(props.notice.kind === "connected" ? t.connectedNotice : t.notConnectedNotice, { platform: noticePlatform })}
         </Notice>
       ) : null}
+      {/* The accounts moved into a dialog: a paused one must still be seen without opening it. */}
+      {paused.map((account) => (
+        <Notice
+          key={account.platform}
+          tone="warning"
+          action={
+            canEdit ? (
+              <Button size="sm" variant="outline" disabled={pending} onClick={() => run(() => setSocialAutoPost(websiteId, account.platform, true))}>
+                {t.resume}
+              </Button>
+            ) : null
+          }
+        >
+          {format(t.paused, { platform: platformName(account.platform), reason: account.pausedReason || "-" })}
+        </Notice>
+      ))}
 
-      <section aria-labelledby="social-accounts" className="space-y-3">
-        <h2 id="social-accounts" className="font-semibold">
-          {t.accountsTitle}
-        </h2>
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {SOCIAL_PLATFORMS.map((platform) => (
-            <AccountCard
-              key={platform}
-              platform={platform}
-              account={props.accounts.find((account) => account.platform === platform) ?? null}
-              locked={!props.platforms.includes(platform)}
-              bundle={props.bundle}
-              boards={props.boards}
-              canEdit={canEdit}
-              pending={pending}
-              run={run}
-              websiteId={websiteId}
-              locale={props.locale}
+      <section aria-labelledby="social-channels" className="flex flex-wrap items-center gap-x-6 gap-y-3 rounded-xl border bg-card p-4 sm:px-5">
+        <div className="min-w-0 flex-1 md:flex-none">
+          <h2 id="social-channels" className="text-[0.7rem] font-semibold tracking-wider text-muted-foreground uppercase">
+            {t.channelsTitle}
+          </h2>
+          <p className="mt-1 text-sm font-semibold">{format(t.channelsActive, { count: String(active), total: String(SOCIAL_PLATFORMS.length) })}</p>
+        </div>
+        <Button variant="ghost" size="sm" className="text-muted-foreground md:order-last" onClick={() => setManage(true)}>
+          {t.manage}
+          <ChevronRight aria-hidden="true" />
+        </Button>
+        <ul className="flex basis-full flex-wrap gap-2 md:flex-1 md:basis-auto">
+          {SOCIAL_PLATFORMS.map((name) => (
+            <ChannelPill
+              key={name}
+              platform={name}
+              account={accountFor(name)}
+              locked={!props.platforms.includes(name)}
+              onClick={() => setManage(true)}
               t={t}
             />
           ))}
-        </div>
+        </ul>
       </section>
 
-      <section aria-labelledby="social-open" className="space-y-3">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 id="social-open" className="font-semibold">
-            {t.todayTitle}
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            {format(t.todayCount, { count: String(props.todayCount), max: String(props.perDay) })} ·{" "}
-            {format(t.price, { price: props.priceLabel })}
-          </p>
-        </div>
-        {props.open.length === 0 ? (
-          <Notice>{props.accounts.length === 0 ? t.empty : t.emptyToday}</Notice>
-        ) : (
-          <ul className="space-y-3">
-            {props.open.map((suggestion) => (
-              <SuggestionCard
-                key={suggestion.id}
-                suggestion={suggestion}
-                websiteId={websiteId}
-                canEdit={canEdit && props.platforms.includes(suggestion.platform)}
-                priceLabel={props.priceLabel}
-                locale={props.locale}
-                t={t}
-              />
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {props.posted.length > 0 ? (
-        <section aria-labelledby="social-posted" className="space-y-3">
-          <h2 id="social-posted" className="font-semibold">
-            {t.historyTitle}
-          </h2>
-          <ul className="divide-y rounded-xl border bg-card">
-            {props.posted.map((row) => (
-              <li
-                key={row.id}
-                className="grid gap-1.5 px-4 py-3 text-sm sm:grid-cols-[auto_minmax(0,1fr)_auto_auto_auto] sm:items-start sm:gap-3"
-              >
-                <Badge variant="secondary" className="justify-self-start">
-                  {name(row.platform)}
-                </Badge>
-                <p className="line-clamp-2 text-muted-foreground">{row.title ?? row.body}</p>
-                <span className="text-xs text-muted-foreground">
-                  {row.postedAt ? format(t.posted, { date: formatDate(row.postedAt, props.locale, { day: "numeric", month: "short" }) }) : null}
-                </span>
-                {row.postedUrl || row.threadUrl ? (
-                  <a
-                    href={row.postedUrl ?? row.threadUrl ?? "#"}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-xs font-medium underline-offset-4 hover:underline"
+      <section aria-labelledby="social-conversations" className="overflow-hidden rounded-xl border bg-card">
+        <Tabs value={tab} onValueChange={(value) => setTab(value as Tab)} className="flex-col gap-0">
+          <div className="flex flex-col gap-4 border-b px-4 pt-5 sm:px-6 lg:flex-row lg:items-end lg:justify-between">
+            <div className="lg:pb-4">
+              <h2 id="social-conversations" className="text-lg font-semibold tracking-tight">
+                {t.panelTitle}
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">{t.panelIntro}</p>
+            </div>
+            {/* Scrolls on its own on a phone, so the page never scrolls sideways. */}
+            <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+              <TabsList variant="line" aria-label={t.tabsLabel} className="h-auto gap-5 p-0 group-data-horizontal/tabs:h-auto">
+                {TABS.map((value) => (
+                  <TabsTrigger
+                    key={value}
+                    value={value}
+                    className="group/trigger h-auto flex-none px-0 pt-1 pb-3 after:bg-primary group-data-horizontal/tabs:after:bottom-0"
                   >
-                    {row.postedUrl ? t.viewPost : t.openThread}
-                    <ExternalLink className="size-3" aria-hidden="true" />
-                  </a>
-                ) : null}
-                <div className="justify-self-start sm:-my-1">
-                  <CopyTextButton text={pasteText(row.title, row.body)} variant="ghost" t={t} />
+                    {t.tabs[value]}
+                    <span className="rounded-md bg-muted px-1.5 py-0.5 text-[0.7rem] font-semibold text-muted-foreground tabular-nums group-data-[state=active]/trigger:bg-primary/10 group-data-[state=active]/trigger:text-primary-strong">
+                      {counts[value]}
+                    </span>
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+            <div className="relative w-full sm:max-w-xs">
+              <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+              <Input
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder={t.searchPlaceholder}
+                aria-label={t.searchLabel}
+                autoComplete="off"
+                className="pl-8"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:flex">
+              <NativeLikeSelect aria-label={t.platformLabel} value={platform} onChange={(event) => setPlatform(event.target.value)} className="sm:w-40">
+                <option value="all">{t.allPlatforms}</option>
+                {SOCIAL_PLATFORMS.map((name) => (
+                  <option key={name} value={name}>
+                    {PLATFORMS[name].name}
+                  </option>
+                ))}
+              </NativeLikeSelect>
+              <NativeLikeSelect aria-label={t.sortLabel} value={sort} onChange={(event) => setSort(event.target.value as Sort)} className="sm:w-44">
+                {SORTS.map((value) => (
+                  <option key={value} value={value}>
+                    {t.sort[value]}
+                  </option>
+                ))}
+              </NativeLikeSelect>
+            </div>
+          </div>
+
+          {next ? (
+            <NextToPublish
+              row={next}
+              editable={editable(next)}
+              pending={pending}
+              onReview={() => review(next.id)}
+              onPublish={() => run(() => postScheduledNow(websiteId, next.id))}
+              onSkip={() => run(() => skipSocialSuggestion(websiteId, next.id))}
+              locale={locale}
+              t={t}
+            />
+          ) : null}
+
+          <div
+            aria-hidden="true"
+            className="hidden justify-between border-y bg-muted/40 px-6 py-2.5 text-[0.68rem] font-semibold tracking-wider text-muted-foreground uppercase sm:flex"
+          >
+            <span>{t.listHead}</span>
+            <span>{t.listAction}</span>
+          </div>
+
+          {TABS.map((value) => (
+            <TabsContent key={value} value={value} className="border-t sm:border-t-0">
+              {visible.length === 0 ? (
+                <div className="px-6 py-14 text-center">
+                  <p className="font-semibold">{rows.length === 0 ? (props.accounts.length === 0 ? t.empty : t.emptyToday) : t.noMatches}</p>
+                  {rows.length > 0 ? <p className="mt-1 text-sm text-muted-foreground">{t.noMatchesHelp}</p> : null}
+                  {rows.length === 0 && props.accounts.length === 0 && canEdit ? (
+                    <Button className="mt-4" onClick={() => setManage(true)}>
+                      {t.connectAccounts}
+                    </Button>
+                  ) : null}
                 </div>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
+              ) : (
+                <ul className="divide-y">
+                  {visible.map((row) => (
+                    <OpportunityRow
+                      key={row.id}
+                      row={row}
+                      editable={editable(row)}
+                      pending={pending}
+                      onReview={() => review(row.id)}
+                      onSkip={() => run(() => skipSocialSuggestion(websiteId, row.id))}
+                      locale={locale}
+                      t={t}
+                    />
+                  ))}
+                </ul>
+              )}
+            </TabsContent>
+          ))}
+        </Tabs>
+
+        <div className="flex flex-col gap-1 border-t px-4 py-3 text-xs text-muted-foreground sm:flex-row sm:justify-between sm:px-6">
+          <span role="status">{plural(t.inView, visible.length)}</span>
+          <span>
+            {format(t.todayCount, { count: String(props.todayCount), max: String(props.perDay) })} · {format(t.price, { price: props.priceLabel })}
+          </span>
+        </div>
+      </section>
+
+      <AccountsDialog
+        open={manage}
+        onOpenChange={setManage}
+        websiteId={websiteId}
+        accounts={props.accounts}
+        platforms={props.platforms}
+        bundle={props.bundle}
+        boards={props.boards}
+        canEdit={canEdit}
+        pending={pending}
+        run={run}
+        priceLabel={props.priceLabel}
+        locale={locale}
+        t={t}
+      />
+      <ReviewSheet
+        suggestion={current}
+        open={reviewing}
+        onOpenChange={setReviewing}
+        websiteId={websiteId}
+        editable={current ? editable(current) : false}
+        canEdit={canEdit}
+        account={current ? accountFor(current.platform) : null}
+        priceLabel={props.priceLabel}
+        locale={locale}
+        t={t}
+      />
     </div>
   );
 }
 
-function AccountCard({
+function ChannelPill({
   platform,
   account,
   locked,
-  bundle,
-  boards,
-  canEdit,
-  pending,
-  run,
-  websiteId,
-  locale,
+  onClick,
   t,
 }: {
   platform: SocialPlatform;
   account: AccountView | null;
   locked: boolean;
-  bundle: boolean;
-  boards: string[];
-  canEdit: boolean;
+  onClick: () => void;
+  t: T;
+}) {
+  const state: keyof T["channelState"] = locked
+    ? "locked"
+    : !account
+      ? "off"
+      : account.pausedReason !== null
+        ? "paused"
+        : account.inWarmup
+          ? "warmup"
+          : "connected";
+  const name = PLATFORMS[platform].name;
+  const label = format(t.channelLabel, { platform: name, state: t.channelState[state] });
+  const off = state === "off" || state === "locked";
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label={label}
+        title={label}
+        className={cn(
+          "inline-flex h-8 items-center gap-1.5 rounded-lg border bg-card pr-2.5 pl-1 text-xs font-medium transition-colors outline-none hover:bg-muted focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
+          off && "bg-muted/40 text-muted-foreground",
+        )}
+      >
+        <PlatformTile platform={platform} size="sm" muted={off} />
+        {name}
+        {state === "locked" ? (
+          <Lock className="size-3" aria-hidden="true" />
+        ) : state === "paused" ? (
+          <AlertTriangle className="size-3.5 text-amber-600 dark:text-amber-400" aria-hidden="true" />
+        ) : state === "connected" || state === "warmup" ? (
+          <span className={cn("size-1.5 rounded-full", state === "warmup" ? "bg-amber-500" : "bg-emerald-500")} aria-hidden="true" />
+        ) : null}
+      </button>
+    </li>
+  );
+}
+
+function NextToPublish({
+  row,
+  editable,
+  pending,
+  onReview,
+  onPublish,
+  onSkip,
+  locale,
+  t,
+}: {
+  row: SuggestionView;
+  editable: boolean;
   pending: boolean;
-  run: (action: () => Promise<SocialResult<unknown>>, success?: string) => void;
-  websiteId: string;
+  onReview: () => void;
+  onPublish: () => void;
+  onSkip: () => void;
   locale: Locale;
   t: T;
 }) {
   const id = useId();
-  const spec = PLATFORMS[platform];
-  const [username, setUsername] = useState("");
-  const [board, setBoard] = useState(account?.target ?? boards[0] ?? "");
-  const [opening, setOpening] = useState(false);
-  // Through bundle.social when it is set up; Quora (and everything without it) by username.
-  const viaBundle = Boolean(spec.bundleType) && bundle;
-  const warmup = account?.inWarmup ?? false;
-
-  async function connect() {
-    setOpening(true);
-    const result = await startSocialConnect(websiteId, platform, locale).catch(() => null);
-    if (result?.ok) {
-      window.location.href = result.data.url;
-      return;
-    }
-    setOpening(false);
-    toast.error(result && !result.ok ? (t.errors[result.error] ?? t.errors.generic) : t.errors.generic);
-  }
-
+  const at = atTime(row.scheduledFor!, locale);
   return (
-    <div className={`flex flex-col gap-3 rounded-xl border bg-card p-4 ${locked ? "opacity-60" : ""}`}>
-      <div className="flex items-center justify-between gap-2">
-        <h3 className="font-medium">{spec.name}</h3>
-        {locked ? (
-          <Lock className="size-4 text-muted-foreground" aria-hidden="true" />
-        ) : warmup ? (
-          <Badge variant="secondary">{t.warmupBadge}</Badge>
+    <div
+      role="group"
+      aria-labelledby={`${id}-label`}
+      className="grid grid-cols-[2rem_minmax(0,1fr)] gap-x-3 gap-y-3 border-t bg-muted/40 px-4 py-4 sm:px-6 lg:grid-cols-[2rem_minmax(0,1fr)_auto] lg:items-center"
+    >
+      <span className="grid size-8 place-items-center self-start rounded-lg border bg-card text-primary" aria-hidden="true">
+        <Clock className="size-4" />
+      </span>
+      <div className="min-w-0">
+        <p className="flex flex-wrap items-center gap-2 text-[0.7rem] font-semibold tracking-wider text-primary-strong uppercase">
+          <span id={`${id}-label`}>{t.nextTitle}</span>
+          <time
+            dateTime={row.scheduledFor!}
+            className="rounded-md border bg-card px-1.5 py-0.5 tracking-normal text-foreground normal-case"
+            suppressHydrationWarning
+          >
+            {at}
+          </time>
+        </p>
+        <button
+          type="button"
+          onClick={onReview}
+          className="mt-1 block max-w-full truncate rounded-sm text-left text-sm font-semibold outline-none hover:text-primary focus-visible:ring-3 focus-visible:ring-ring/50"
+        >
+          {headline(row, t)}
+        </button>
+        <p className="text-xs text-muted-foreground" suppressHydrationWarning>
+          {format(t.scheduled, { time: at })}
+        </p>
+      </div>
+      <div className="col-start-2 flex flex-wrap items-center gap-2 lg:col-start-auto lg:justify-end">
+        {editable ? (
+          <Button size="sm" disabled={pending} onClick={onPublish}>
+            <Send aria-hidden="true" />
+            {t.postNow}
+          </Button>
+        ) : null}
+        <CopyTextButton text={pasteText(row.title, row.body)} t={t} />
+        {editable ? (
+          <Button size="sm" variant="ghost" disabled={pending} onClick={onSkip}>
+            <SkipForward aria-hidden="true" />
+            {t.skip}
+          </Button>
         ) : null}
       </div>
-
-      {locked ? (
-        <p className="text-sm text-muted-foreground">{t.lockedTrial}</p>
-      ) : account ? (
-        <div className="space-y-2 text-sm">
-          <p>
-            <a href={profileUrl(platform, account.username)} target="_blank" rel="noopener noreferrer" className="font-medium underline-offset-4 hover:underline">
-              {format(t.connectedAs, { name: account.username })}
-            </a>
-          </p>
-          {warmup ? (
-            <p className="text-muted-foreground">
-              {format(t.warmup, { date: formatDate(account.warmupEndsAt, locale, { day: "numeric", month: "long" }) })}
-            </p>
-          ) : null}
-          {account.connected && spec.ownPosts ? (
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p id={`${id}-auto`} className="font-medium">
-                  {t.autoPost}
-                </p>
-                <p className="text-xs text-muted-foreground">{t.autoPostHelp}</p>
-              </div>
-              <Switch
-                aria-labelledby={`${id}-auto`}
-                checked={account.autoPost && account.pausedReason === null}
-                disabled={!canEdit || pending}
-                onCheckedChange={(on) => run(() => setSocialAutoPost(websiteId, platform, on))}
-              />
-            </div>
-          ) : (
-            <p className="text-xs text-muted-foreground">{t.oneClick}</p>
-          )}
-          {account.pausedReason !== null ? (
-            <Notice
-              tone="warning"
-              action={
-                canEdit ? (
-                  <Button size="sm" variant="outline" disabled={pending} onClick={() => run(() => setSocialAutoPost(websiteId, platform, true))}>
-                    {t.resume}
-                  </Button>
-                ) : null
-              }
-            >
-              {format(t.paused, { platform: spec.name, reason: account.pausedReason || "-" })}
-            </Notice>
-          ) : null}
-          {platform === "pinterest" && account.connected ? (
-            <div className="flex flex-wrap items-end gap-2">
-              <label className="grid gap-1 text-xs font-medium">
-                {t.boardLabel}
-                {boards.length > 0 ? (
-                  <NativeLikeSelect
-                    value={board}
-                    onChange={(event) => setBoard(event.target.value)}
-                    
-                    disabled={!canEdit}
-                  >
-                    {boards.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </NativeLikeSelect>
-                ) : (
-                  <Input value={board} onChange={(event) => setBoard(event.target.value)} className="h-8" disabled={!canEdit} />
-                )}
-              </label>
-              {canEdit && board !== (account.target ?? "") ? (
-                <Button size="sm" variant="outline" disabled={pending} onClick={() => run(() => setPinterestBoard(websiteId, board), t.saved)}>
-                  {t.boardSave}
-                </Button>
-              ) : null}
-            </div>
-          ) : null}
-          {platform === "quora" ? <p className="text-xs text-muted-foreground">{t.quoraNote}</p> : null}
-          {platform === "pinterest" ? <p className="text-xs text-muted-foreground">{t.pinterestNote}</p> : null}
-          {canEdit ? (
-            <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => disconnectSocial(websiteId, platform))}>
-              {t.disconnect}
-            </Button>
-          ) : null}
-        </div>
-      ) : !canEdit ? null : viaBundle ? (
-        <>
-          <Button size="sm" onClick={connect} disabled={opening || pending} className="self-start">
-            {opening ? t.connecting : t.connect}
-          </Button>
-          {platform === "bluesky" ? <p className="text-xs text-muted-foreground">{t.blueskyNote}</p> : null}
-        </>
-      ) : (
-        <form
-          className="flex flex-wrap items-end gap-2"
-          onSubmit={(event) => {
-            event.preventDefault();
-            run(() => connectSocialUsername(websiteId, platform, username));
-          }}
-        >
-          <label className="grid min-w-0 flex-1 gap-1 text-xs font-medium">
-            {format(t.usernameLabel, { platform: spec.name })}
-            <Input value={username} onChange={(event) => setUsername(event.target.value)} placeholder={t.usernamePlaceholder} className="h-8" />
-          </label>
-          <Button size="sm" type="submit" disabled={pending || !username.trim()}>
-            {t.save}
-          </Button>
-          {platform === "quora" ? <p className="w-full text-xs text-muted-foreground">{t.quoraNote}</p> : null}
-        </form>
-      )}
     </div>
   );
 }
 
-function SuggestionCard({
-  suggestion,
-  websiteId,
-  canEdit,
-  priceLabel,
+/** "Suggested reply: ...", "Your draft: ...", by stage and kind. */
+function leadOf(stage: Stage, kind: string, t: T): string | null {
+  switch (stage) {
+    case "suggested":
+      return kind === "reply" ? t.lead.suggestedReply : t.lead.suggestedPost;
+    case "draft":
+      return t.lead.draft;
+    case "scheduled":
+    case "publishing":
+      return t.lead.scheduled;
+    case "published":
+      return kind === "reply" ? t.lead.publishedReply : t.lead.publishedPost;
+    case "failed":
+      return null;
+  }
+}
+
+const SKIPPABLE: Stage[] = ["suggested", "draft", "scheduled", "failed"];
+
+function OpportunityRow({
+  row,
+  editable,
+  pending,
+  onReview,
+  onSkip,
   locale,
   t,
 }: {
-  suggestion: SuggestionView;
-  websiteId: string;
-  canEdit: boolean;
-  priceLabel: string;
+  row: SuggestionView;
+  editable: boolean;
+  pending: boolean;
+  onReview: () => void;
+  onSkip: () => void;
   locale: Locale;
   t: T;
 }) {
   const id = useId();
-  const router = useRouter();
-  const [pending, start] = useTransition();
-  const [body, setBody] = useState(suggestion.body);
-  const [title, setTitle] = useState(suggestion.title ?? "");
-  const platform = isSocialPlatform(suggestion.platform) ? suggestion.platform : null;
-  const spec = platform ? PLATFORMS[platform] : null;
-  const hasTitle = Boolean(spec?.titleMax) && suggestion.kind === "post";
-  const scheduled = suggestion.status === "scheduled";
-  const edited = body !== suggestion.body || (hasTitle && title !== (suggestion.title ?? ""));
-  const platformName = name(suggestion.platform);
+  const stage = stageOf(row.status);
+  const lead = leadOf(stage, row.kind, t);
+  const where = whereOf(row);
+  const text = pasteText(row.title, row.body);
+  const action =
+    stage === "suggested" ? t.review : stage === "draft" ? t.continue : stage === "scheduled" ? t.edit : stage === "failed" ? t.retry : t.details;
 
-  function refuse(result: Extract<SocialResult<unknown>, { ok: false }> | null) {
-    toast.error(result ? errorText(t, result, priceLabel) : t.errors.generic);
+  async function copy() {
+    if (await copyTextNow(text)) toast.success(t.copyDone);
+    else toast.error(t.errors.generic);
   }
 
-  const text = pasteText(hasTitle ? title : null, body);
-
-  function postNow() {
-    // Both in the click itself: browsers allow neither once the click has passed. The copy goes
-    // first, while this page still has the focus the new tab is about to take (lib/copy-text.ts).
-    const copying = copyTextNow(text);
-    const win = window.open("about:blank", "_blank");
-    if (win) win.opener = null;
-    start(async () => {
-      const copied = await copying;
-      const result = await postSocialSuggestion(websiteId, suggestion.id, { body, title: hasTitle ? title : undefined }).catch(() => null);
-      if (!result?.ok) {
-        win?.close();
-        refuse(result && !result.ok ? result : null);
-        return;
-      }
-      if (win) win.location.href = result.data.url;
-      // Quora and replies on Reddit and Bluesky only have the clipboard: never say "copied" when it is not.
-      if (!copied && (!win || !result.data.filled)) toast.error(format(t.copyFailed, { platform: platformName }));
-      else if (!win) toast.message(format(t.popupBlocked, { platform: platformName }));
-      else if (copied) toast.success(format(t.copied, { platform: platformName }));
-      router.refresh();
-    });
-  }
-
-  function act(action: () => Promise<SocialResult<unknown>>, success?: string) {
-    start(async () => {
-      const result = await action().catch(() => null);
-      if (!result?.ok) return refuse(result && !result.ok ? result : null);
-      if (success) toast.success(success);
-      router.refresh();
-    });
-  }
-
-  const max = spec?.maxLength ?? 4000;
   return (
-    <li className="space-y-3 rounded-xl border bg-card p-4">
-      <div className="flex flex-wrap items-center gap-2 text-sm">
-        <Badge variant="secondary">{platformName}</Badge>
-        <span className="font-medium">
-          {format(suggestion.kind === "reply" ? t.replyOn : t.postOn, { platform: platformName })}
-        </span>
-        {suggestion.warmup ? <Badge variant="outline">{t.warmupBadge}</Badge> : null}
-      </div>
-
-      {suggestion.threadUrl ? (
-        <div className="rounded-lg bg-muted/40 p-3 text-sm">
-          <a
-            href={suggestion.threadUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 font-medium underline-offset-4 hover:underline"
-          >
-            {suggestion.threadTitle || t.openThread}
-            <ExternalLink className="size-3" aria-hidden="true" />
-          </a>
-          {suggestion.threadSnippet ? <p className="mt-1 line-clamp-3 text-muted-foreground">{suggestion.threadSnippet}</p> : null}
+    <li className="grid grid-cols-[2.25rem_minmax(0,1fr)] gap-x-3 gap-y-3 px-4 py-4 transition-colors hover:bg-muted/30 sm:grid-cols-[2.25rem_minmax(0,1fr)_auto] sm:items-center sm:gap-x-4 sm:px-6">
+      <PlatformTile platform={row.platform} size="lg" className="self-start" />
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+          <span className="font-semibold text-foreground/80">{platformName(row.platform)}</span>
+          <span aria-hidden="true">•</span>
+          <span className="max-w-[14rem] truncate">{where ?? t.ownProfile}</span>
+          <span aria-hidden="true">•</span>
+          <Ago value={latest(row)} locale={locale} />
+          <StageChip stage={stage} t={t} />
+          {stage === "scheduled" && row.scheduledFor ? (
+            <time dateTime={row.scheduledFor} className="font-medium text-sky-700 dark:text-sky-300" suppressHydrationWarning>
+              {atTime(row.scheduledFor, locale)}
+            </time>
+          ) : null}
         </div>
-      ) : null}
-
-      {suggestion.imageUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element -- the article's own picture, on its own host
-        <img src={suggestion.imageUrl} alt="" className="h-32 w-auto rounded-lg border object-cover" />
-      ) : null}
-
-      {hasTitle ? (
-        <label className="grid gap-1 text-xs font-medium">
-          {t.titleLabel}
-          <Input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={spec?.titleMax} disabled={!canEdit} />
-        </label>
-      ) : null}
-      <div className="grid gap-1">
-        <label htmlFor={`${id}-body`} className="text-xs font-medium">
-          {t.textLabel}
-        </label>
-        <Textarea
-          id={`${id}-body`}
-          value={body}
-          onChange={(event) => setBody(event.target.value)}
-          rows={Math.min(10, Math.max(3, Math.ceil(body.length / 90)))}
-          disabled={!canEdit || suggestion.status === "posting"}
-          aria-describedby={`${id}-count`}
-        />
-        <p id={`${id}-count`} className={`text-right text-xs ${body.length > max ? "text-destructive" : "text-muted-foreground"}`}>
-          {format(t.characters, { count: String(body.length), max: String(max) })}
+        <h3 id={`${id}-title`} className="mt-1.5 line-clamp-2 text-sm leading-snug font-semibold">
+          {headline(row, t)}
+        </h3>
+        <p className="mt-1 line-clamp-2 text-sm text-muted-foreground sm:line-clamp-1">
+          {lead ? <span className="font-medium text-foreground/70">{lead}: </span> : null}
+          {row.body}
         </p>
+        {stage === "failed" ? (
+          <p className="mt-1 text-xs text-destructive">
+            {row.error === "not_enough_credits" ? t.failedCredits : format(t.failed, { reason: row.error ?? "-" })}
+          </p>
+        ) : null}
       </div>
-
-      {scheduled && suggestion.scheduledFor ? (
-        <p className="text-sm text-muted-foreground">
-          {format(t.scheduled, {
-            time: formatDate(suggestion.scheduledFor, locale, { weekday: "short", hour: "2-digit", minute: "2-digit" }),
-          })}
-        </p>
-      ) : null}
-      {suggestion.status === "posting" ? <p className="text-sm text-muted-foreground">{t.publishing}</p> : null}
-      {suggestion.status === "failed" ? (
-        <Notice tone="warning">
-          {suggestion.error === "not_enough_credits" ? t.failedCredits : format(t.failed, { reason: suggestion.error ?? "-" })}
-        </Notice>
-      ) : null}
-
-      {canEdit && suggestion.status !== "posting" ? (
-        <div className="flex flex-wrap gap-2">
-          {scheduled ? (
-            <>
-              {edited ? (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={pending}
-                  onClick={() => act(() => editScheduledPost(websiteId, suggestion.id, { body, title: hasTitle ? title : undefined }), t.saved)}
-                >
-                  {t.saveEdit}
-                </Button>
-              ) : null}
-              <Button size="sm" disabled={pending || edited} onClick={() => act(() => postScheduledNow(websiteId, suggestion.id))}>
-                <Send aria-hidden="true" />
-                {t.postNow}
-              </Button>
-            </>
-          ) : (
-            <Button size="sm" disabled={pending || body.trim().length === 0 || body.length > max} onClick={postNow}>
-              <Send aria-hidden="true" />
-              {pending ? t.posting : format(t.post, { price: priceLabel })}
-            </Button>
-          )}
-          <CopyTextButton text={text} t={t} />
-          <Button size="sm" variant="ghost" disabled={pending} onClick={() => act(() => skipSocialSuggestion(websiteId, suggestion.id))}>
-            <SkipForward aria-hidden="true" />
-            {t.skip}
+      <div className="col-start-2 flex items-center gap-1 sm:col-start-auto sm:justify-end">
+        {stage === "published" && row.postedUrl ? (
+          <Button asChild size="sm" variant="outline" className="min-w-20">
+            <a href={row.postedUrl} target="_blank" rel="noopener noreferrer" aria-describedby={`${id}-title`}>
+              {t.viewPost}
+              <ExternalLink aria-hidden="true" />
+            </a>
           </Button>
-        </div>
-      ) : null}
+        ) : (
+          <Button
+            size="sm"
+            variant={stage === "suggested" ? "default" : "outline"}
+            // The design's dark "Review": the one call to action per row, without a page of orange.
+            className={cn("min-w-20", stage === "suggested" && "bg-foreground text-background hover:bg-foreground/85")}
+            onClick={onReview}
+            aria-describedby={`${id}-title`}
+          >
+            {action}
+          </Button>
+        )}
+        {/* Not modal: a modal menu handing the focus back fights the drawer it opens. */}
+        <DropdownMenu modal={false}>
+          <DropdownMenuTrigger asChild>
+            <Button size="icon-sm" variant="ghost" aria-label={t.more} aria-describedby={`${id}-title`}>
+              <MoreHorizontal aria-hidden="true" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-52">
+            <DropdownMenuItem onSelect={copy}>
+              <Copy aria-hidden="true" />
+              {t.copyText}
+            </DropdownMenuItem>
+            {row.threadUrl ? (
+              <DropdownMenuItem asChild>
+                <a href={row.threadUrl} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink aria-hidden="true" />
+                  {t.openThread}
+                </a>
+              </DropdownMenuItem>
+            ) : null}
+            {stage === "published" && row.postedUrl ? <DropdownMenuItem onSelect={onReview}>{t.details}</DropdownMenuItem> : null}
+            {editable && SKIPPABLE.includes(stage) ? (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem disabled={pending} onSelect={onSkip}>
+                  <SkipForward aria-hidden="true" />
+                  {t.skip}
+                </DropdownMenuItem>
+              </>
+            ) : null}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </li>
   );
 }

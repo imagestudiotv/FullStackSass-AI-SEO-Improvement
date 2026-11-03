@@ -25,7 +25,11 @@ function copyBySelection(text: string): boolean {
   area.setAttribute("readonly", "");
   area.setAttribute("aria-hidden", "true");
   Object.assign(area.style, { position: "fixed", top: "0", left: "0", opacity: "0", pointerEvents: "none" });
-  document.body.append(area);
+  // Inside the open drawer, dialog or menu when the click came from one: their focus trap
+  // (Radix) pulls the focus straight back from anything outside, and the copy finds nothing
+  // selected. The Opportunities page posts and copies from its review drawer and row menus.
+  const host = focused?.closest<HTMLElement>('[role="dialog"], [role="alertdialog"], [role="menu"]') ?? document.body;
+  host.append(area);
   area.select();
   // iOS selects nothing with select() alone.
   area.setSelectionRange(0, text.length);

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, eq, gte, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { articles, socialAccounts, socialSuggestions, videoIdeas, websites } from "@/lib/db/schema";
@@ -98,7 +98,8 @@ export async function getTasks(
       .where(
         and(
           eq(socialSuggestions.websiteId, websiteId),
-          eq(socialSuggestions.status, "new"),
+          // A saved draft still waits for the customer's click.
+          inArray(socialSuggestions.status, ["new", "draft"]),
           gte(socialSuggestions.createdAt, new Date(now.getTime() - SOCIAL_WINDOW_MS)),
         ),
       ),

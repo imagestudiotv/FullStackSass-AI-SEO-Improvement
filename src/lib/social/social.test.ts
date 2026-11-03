@@ -51,7 +51,7 @@ vi.mock("@/lib/ai/client", () => ({
 vi.mock("@/lib/providers/dataforseo", () => ({ isDataForSeoConfigured: () => true, discussionSearch: vi.fn() }));
 
 import { recordCredit } from "@/lib/backlinks/credits";
-import { connectSocialUsername, editScheduledPost, postSocialSuggestion } from "./actions";
+import { connectSocialUsername, editScheduledPost, postSocialSuggestion, saveSocialDraft, skipSocialSuggestion } from "./actions";
 import { checkPublished, publishSuggestion } from "./publish";
 import { suggestForWebsite, type SuggestDeps } from "./suggest";
 import type { Drafts } from "./write";
@@ -379,6 +379,91 @@ describe("the one-click post", () => {
     expect(await postSocialSuggestion(websiteId, row.id, { body: "More on my site: imagestudio.io" })).toEqual({ ok: false, error: "warmup_link" });
     expect(await postSocialSuggestion(websiteId, row.id, { body: "At Image Studio we test first." })).toEqual({ ok: false, error: "warmup_brand" });
     expect(await postSocialSuggestion(websiteId, row.id, { body: "x".repeat(281) })).toEqual({ ok: false, error: "too_long" });
+  });
+});
+
+describe("a saved draft", () => {
+  it("keeps the customer's edit without posting or charging, and posts later as saved", async () => {
+    const { orgId, websiteId } = await site();
+    await account(websiteId, "x");
+    await recordCredit(orgId, { type: "adjustment", amount: 5, note: "test" });
+    const row = await suggestion(websiteId);
+
+    expect(await saveSocialDraft(websiteId, row.id, { body: "  Shoot a test session first, always.  " })).toEqual({ ok: true, data: null });
+    let [saved] = await test.db.select().from(socialSuggestions).where(eq(socialSuggestions.id, row.id));
+    expect(saved).toMatchObject({ status: "draft", body: "Shoot a test session first, always." });
+    // Saved again: still a draft, with the newer text.
+    expect(await saveSocialDraft(websiteId, row.id, { body: "Test session first." })).toEqual({ ok: true, data: null });
+    expect(await test.db.select().from(creditSpends).where(eq(creditSpends.organizationId, orgId))).toEqual([]);
+
+    const posted = await postSocialSuggestion(websiteId, row.id, { body: "Test session first." });
+    expect(posted).toEqual({ ok: true, data: { url: "https://x.com/intent/post?in_reply_to=1234567890&text=Test%20session%20first.", filled: true } });
+    [saved] = await test.db.select().from(socialSuggestions).where(eq(socialSuggestions.id, row.id));
+    expect(saved.status).toBe("posted");
+    expect(await test.db.select().from(creditSpends).where(eq(creditSpends.organizationId, orgId))).toHaveLength(1);
+    // Once posted it is not a draft again.
+    expect(await saveSocialDraft(websiteId, row.id, { body: "Too late." })).toEqual({ ok: false, error: "already_handled" });
+  });
+
+  it("is only for a suggestion waiting for the customer", async () => {
+    const { websiteId } = await site();
+    await account(websiteId, "x", { bundle: true });
+    for (const status of ["scheduled", "posting", "failed", "dismissed"]) {
+      const row = await suggestion(websiteId, { kind: "post", threadUrl: null, status });
+      expect(await saveSocialDraft(websiteId, row.id, { body: "An edit." })).toEqual({ ok: false, error: "already_handled" });
+      const [kept] = await test.db.select().from(socialSuggestions).where(eq(socialSuggestions.id, row.id));
+      expect(kept).toMatchObject({ status, body: "Shoot a test session first." });
+    }
+  });
+
+  it("is held to the platform's rules and the warm-up", async () => {
+    const { websiteId } = await site();
+    await account(websiteId, "x", { warm: true });
+    const row = await suggestion(websiteId);
+    expect(await saveSocialDraft(websiteId, row.id, { body: "   " })).toEqual({ ok: false, error: "empty" });
+    expect(await saveSocialDraft(websiteId, row.id, { body: "x".repeat(281) })).toEqual({ ok: false, error: "too_long" });
+    expect(await saveSocialDraft(websiteId, row.id, { body: "More on my site: imagestudio.io" })).toEqual({ ok: false, error: "warmup_link" });
+    expect(await saveSocialDraft(websiteId, row.id, { body: "At Image Studio we test first." })).toEqual({ ok: false, error: "warmup_brand" });
+    const [kept] = await test.db.select().from(socialSuggestions).where(eq(socialSuggestions.id, row.id));
+    expect(kept).toMatchObject({ status: "new", body: "Shoot a test session first." });
+  });
+
+  it("never touches another website's suggestion, a viewer's or a trial's locked platform", async () => {
+    const mine = await site();
+    const theirs = await site();
+    await account(theirs.websiteId, "x");
+    const row = await suggestion(theirs.websiteId);
+    expect(await saveSocialDraft(mine.websiteId, row.id, { body: "Not yours." })).toEqual({ ok: false, error: "not_found" });
+
+    state.access = "viewer";
+    expect(await saveSocialDraft(theirs.websiteId, row.id, { body: "Read only." })).toEqual({ ok: false, error: "view_only" });
+    state.access = "owner";
+
+    const trial = await site({ trial: true });
+    const locked = await suggestion(trial.websiteId);
+    expect(await saveSocialDraft(trial.websiteId, locked.id, { body: "Locked." })).toEqual({ ok: false, error: "not_included" });
+
+    const rows = await test.db.select().from(socialSuggestions).where(eq(socialSuggestions.status, "draft"));
+    expect(rows.filter((r) => r.id === row.id || r.id === locked.id)).toEqual([]);
+  });
+
+  it("can be skipped like a new suggestion", async () => {
+    const { websiteId } = await site();
+    await account(websiteId, "x");
+    const row = await suggestion(websiteId, { status: "draft" });
+    expect(await skipSocialSuggestion(websiteId, row.id)).toEqual({ ok: true, data: null });
+    const [saved] = await test.db.select().from(socialSuggestions).where(eq(socialSuggestions.id, row.id));
+    expect(saved.status).toBe("dismissed");
+  });
+
+  it("is never published by RepGet, even on an account that publishes automatically", async () => {
+    const { websiteId } = await site();
+    await account(websiteId, "x", { bundle: true });
+    await test.db.insert(socialTeams).values({ websiteId, teamId: "team_draft" });
+    const row = await suggestion(websiteId, { kind: "post", threadUrl: null, status: "draft", scheduledFor: NOW });
+    expect(await publishSuggestion(row.id, NOW)).toBe("skipped");
+    const [saved] = await test.db.select().from(socialSuggestions).where(eq(socialSuggestions.id, row.id));
+    expect(saved.status).toBe("draft");
   });
 });
 

@@ -57,7 +57,12 @@ The client asked for this explicitly. Every draft is checked in code (`lib/socia
   1. RepGet creates one bundle.social team per website (`social_teams`).
   2. The customer is sent to bundle.social's hosted connect page.
   3. The customer comes back through `/api/social/connected`. That route re-reads the team's accounts (`syncBundleAccounts`), starts the warm-up for a new account, and queues the first suggestions.
-- **Page:** `/websites/[id]/social`, in the sidebar as **Social media**.
+- **Page:** `/websites/[id]/social`, **Opportunities** (redesigned from the client's design, 2026-11-03).
+  - A channels strip ("N of 6 channels active", a pill per platform); **Manage** opens the account controls: connect, disconnect, automatic posting, Pinterest board. A paused account's notice stays on the page itself.
+  - One panel, **All conversations**, in tabs by stage: Suggested (`new`), Scheduled (`scheduled`, `posting`), Drafts (`draft`), Published (`posted`). A `failed` post is under All only, with its reason and Retry (the one-click post). Search, a platform filter and a sort (recommended, newest, by platform).
+  - **Next to publish:** the soonest scheduled own post, with Publish now, Copy and Skip.
+  - A row opens the **review drawer**: the discussion, the editable text with its length and warm-up hints, and Copy text, Save draft and Post. The Post button copies and opens the window inside the click, as above.
+  - **Drafts:** Save draft (`saveSocialDraft`) keeps an edit of a `new` suggestion without posting or charging, as status `draft`. It is checked against the same rules as a post. A draft stays one-click: RepGet never publishes it. It is shown, counted in Tasks and read by the chat like a new suggestion, for the same week.
 
 ## Setup
 

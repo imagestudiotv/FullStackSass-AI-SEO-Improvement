@@ -2887,7 +2887,6 @@ export type Messages = {
       pinterestNote: string;
       /** Under Connect: bundle.social signs in on Bluesky's own page, which refuses app passwords (tested 2026-10-29). */
       blueskyNote: string;
-      todayTitle: string;
       todayCount: string;
       findNow: string;
       finding: string;
@@ -2898,7 +2897,6 @@ export type Messages = {
       postOn: string;
       openThread: string;
       titleLabel: string;
-      textLabel: string;
       characters: string;
       post: string;
       posting: string;
@@ -2918,11 +2916,64 @@ export type Messages = {
       viewPost: string;
       failed: string;
       failedCredits: string;
-      historyTitle: string;
       price: string;
       free: string;
       connectedNotice: string;
       notConnectedNotice: string;
+      /** Opportunities redesign (client's design, 2026-11-03): the channels strip and its Manage dialog. */
+      channelsTitle: string;
+      /** {count} connected of {total} platforms. */
+      channelsActive: string;
+      manage: string;
+      accountsIntro: string;
+      done: string;
+      close: string;
+      /** A channel pill's label for screen readers: {platform}, {state}. */
+      channelLabel: string;
+      channelState: { connected: string; off: string; paused: string; locked: string; warmup: string };
+      connectAccounts: string;
+      /** The conversations panel: tabs, search, filters and rows. */
+      panelTitle: string;
+      panelIntro: string;
+      tabsLabel: string;
+      tabs: { all: string; suggested: string; scheduled: string; drafts: string; published: string };
+      searchPlaceholder: string;
+      searchLabel: string;
+      platformLabel: string;
+      allPlatforms: string;
+      sortLabel: string;
+      sort: { recommended: string; newest: string; platform: string };
+      listHead: string;
+      listAction: string;
+      /** "one|many" with {count}. */
+      inView: string;
+      noMatches: string;
+      noMatchesHelp: string;
+      nextTitle: string;
+      stage: { suggested: string; draft: string; scheduled: string; publishing: string; failed: string; published: string };
+      /** Before the text in a row: "Suggested reply: ...". */
+      lead: { suggestedReply: string; suggestedPost: string; draft: string; scheduled: string; publishedReply: string; publishedPost: string };
+      review: string;
+      continue: string;
+      edit: string;
+      retry: string;
+      details: string;
+      more: string;
+      /** Where an own post goes, in a row's meta line. */
+      ownProfile: string;
+      /** The review drawer. */
+      eyebrow: { suggested: string; draft: string; scheduled: string; publishing: string; failed: string; published: string };
+      original: string;
+      ownPostNote: string;
+      replyField: string;
+      postField: string;
+      editHelp: string;
+      postedHelp: string;
+      copyText: string;
+      saveDraft: string;
+      draftSaved: string;
+      saveFirst: string;
+      buyCredits: string;
       errors: {
         view_only: string;
         not_included: string;
@@ -6077,7 +6128,7 @@ const en: Messages = {
     },
     social: {
       title: "Opportunities",
-      intro: "RepGet finds conversations about your field and writes posts and replies for you. Your own posts are published for you; replies you post yourself, with one click.",
+      intro: "Find conversations that matter, make RepGet's replies your own and keep everything you publish in one place. RepGet publishes your own posts; replies you post yourself, with one click.",
       accountsTitle: "Your accounts",
       connect: "Connect",
       connecting: "Opening…",
@@ -6099,7 +6150,6 @@ const en: Messages = {
       quoraNote: "Quora cannot post for you, so you post your answers with one click.",
       pinterestNote: "Pins use the pictures of your published articles.",
       blueskyNote: "Bluesky asks you to sign in with your normal Bluesky password. App passwords do not work here.",
-      todayTitle: "Suggestions",
       todayCount: "{count} of {max} today",
       findNow: "Find suggestions",
       finding: "Looking…",
@@ -6110,7 +6160,6 @@ const en: Messages = {
       postOn: "Your post on {platform}",
       openThread: "Open the discussion",
       titleLabel: "Title",
-      textLabel: "Text",
       characters: "{count}/{max}",
       post: "Post · {price}",
       posting: "Opening…",
@@ -6129,11 +6178,56 @@ const en: Messages = {
       viewPost: "View post",
       failed: "Not published: {reason}",
       failedCredits: "Not published: not enough credits. Buy credits, then post it with one click.",
-      historyTitle: "Posted",
       price: "Each post or reply costs {price}.",
       free: "Free",
       connectedNotice: "{platform} is connected. Your first suggestions are on their way.",
       notConnectedNotice: "{platform} was not connected. Please try again.",
+      channelsTitle: "Your connected accounts",
+      channelsActive: "{count} of {total} channels active",
+      manage: "Manage",
+      accountsIntro: "Connect each platform once. RepGet publishes your own posts where it can; replies you post yourself, with one click.",
+      done: "Done",
+      close: "Close",
+      channelLabel: "{platform}: {state}",
+      channelState: { connected: "connected", off: "not connected", paused: "automatic posting paused", locked: "included once your plan starts", warmup: "in its warm-up" },
+      connectAccounts: "Connect accounts",
+      panelTitle: "All conversations",
+      panelIntro: "From the first suggestion to the published post.",
+      tabsLabel: "Stage",
+      tabs: { all: "All", suggested: "Suggested", scheduled: "Scheduled", drafts: "Drafts", published: "Published" },
+      searchPlaceholder: "Search conversations or replies…",
+      searchLabel: "Search conversations",
+      platformLabel: "Platform",
+      allPlatforms: "All platforms",
+      sortLabel: "Sort",
+      sort: { recommended: "Recommended", newest: "Newest first", platform: "By platform" },
+      listHead: "Conversation and suggested reply",
+      listAction: "Action",
+      inView: "{count} conversation in this view|{count} conversations in this view",
+      noMatches: "No matching conversations",
+      noMatchesHelp: "Try another platform, stage or search term.",
+      nextTitle: "Next to publish",
+      stage: { suggested: "Suggested", draft: "Draft", scheduled: "Scheduled", publishing: "Publishing", failed: "Failed", published: "Published" },
+      lead: { suggestedReply: "Suggested reply", suggestedPost: "Suggested post", draft: "Your draft", scheduled: "Scheduled post", publishedReply: "Published reply", publishedPost: "Published post" },
+      review: "Review",
+      continue: "Continue",
+      edit: "Edit",
+      retry: "Retry",
+      details: "Details",
+      more: "More actions",
+      ownProfile: "Your profile",
+      eyebrow: { suggested: "Suggested opportunity", draft: "Saved draft", scheduled: "Scheduled to publish", publishing: "Being published", failed: "Not published", published: "Published" },
+      original: "Original conversation",
+      ownPostNote: "Your own post on {platform}: there is no discussion to answer.",
+      replyField: "Your reply",
+      postField: "Your post",
+      editHelp: "Make it your own: you can edit the text before posting. RepGet checks it against the platform's rules.",
+      postedHelp: "This is the text that was posted.",
+      copyText: "Copy text",
+      saveDraft: "Save draft",
+      draftSaved: "Draft saved. You will find it under Drafts.",
+      saveFirst: "Save your changes first, then publish.",
+      buyCredits: "Buy credits",
       errors: {
         view_only: "You have view-only access to this website.",
         not_included: "This platform is included once your plan starts.",
@@ -9288,7 +9382,7 @@ const es: Messages = {
     },
     social: {
       title: "Oportunidades",
-      intro: "RepGet encuentra conversaciones sobre su sector y le escribe publicaciones y respuestas. Sus propias publicaciones se publican por usted; las respuestas las publica usted con un clic.",
+      intro: "Encuentre las conversaciones que importan, adapte a su estilo las respuestas de RepGet y tenga todo lo que publica en un solo lugar. RepGet publica sus propias publicaciones; las respuestas las publica usted con un clic.",
       accountsTitle: "Sus cuentas",
       connect: "Conectar",
       connecting: "Abriendo…",
@@ -9310,7 +9404,6 @@ const es: Messages = {
       quoraNote: "Quora no permite publicar por usted, así que publica sus respuestas con un clic.",
       pinterestNote: "Los pines usan las imágenes de sus artículos publicados.",
       blueskyNote: "Bluesky le pedirá que inicie sesión con su contraseña habitual de Bluesky. Las contraseñas de aplicación no funcionan aquí.",
-      todayTitle: "Sugerencias",
       todayCount: "{count} de {max} hoy",
       findNow: "Buscar sugerencias",
       finding: "Buscando…",
@@ -9321,7 +9414,6 @@ const es: Messages = {
       postOn: "Su publicación en {platform}",
       openThread: "Abrir la conversación",
       titleLabel: "Título",
-      textLabel: "Texto",
       characters: "{count}/{max}",
       post: "Publicar · {price}",
       posting: "Abriendo…",
@@ -9340,11 +9432,56 @@ const es: Messages = {
       viewPost: "Ver publicación",
       failed: "No publicado: {reason}",
       failedCredits: "No publicado: créditos insuficientes. Compre créditos y publíquelo con un clic.",
-      historyTitle: "Publicado",
       price: "Cada publicación o respuesta cuesta {price}.",
       free: "Gratis",
       connectedNotice: "{platform} está conectado. Sus primeras sugerencias están en camino.",
       notConnectedNotice: "No se conectó {platform}. Inténtelo de nuevo.",
+      channelsTitle: "Sus cuentas conectadas",
+      channelsActive: "{count} de {total} canales activos",
+      manage: "Gestionar",
+      accountsIntro: "Conecte cada plataforma una sola vez. RepGet publica sus propias publicaciones donde puede; las respuestas las publica usted con un clic.",
+      done: "Listo",
+      close: "Cerrar",
+      channelLabel: "{platform}: {state}",
+      channelState: { connected: "conectado", off: "sin conectar", paused: "publicación automática en pausa", locked: "incluido cuando empiece su plan", warmup: "en calentamiento" },
+      connectAccounts: "Conectar cuentas",
+      panelTitle: "Todas las conversaciones",
+      panelIntro: "Desde la primera sugerencia hasta la publicación.",
+      tabsLabel: "Etapa",
+      tabs: { all: "Todas", suggested: "Sugeridas", scheduled: "Programadas", drafts: "Borradores", published: "Publicadas" },
+      searchPlaceholder: "Buscar conversaciones o respuestas…",
+      searchLabel: "Buscar conversaciones",
+      platformLabel: "Plataforma",
+      allPlatforms: "Todas las plataformas",
+      sortLabel: "Ordenar",
+      sort: { recommended: "Recomendado", newest: "Más recientes primero", platform: "Por plataforma" },
+      listHead: "Conversación y respuesta sugerida",
+      listAction: "Acción",
+      inView: "{count} conversación en esta vista|{count} conversaciones en esta vista",
+      noMatches: "Ninguna conversación coincide",
+      noMatchesHelp: "Pruebe con otra plataforma, etapa o término de búsqueda.",
+      nextTitle: "Próxima publicación",
+      stage: { suggested: "Sugerida", draft: "Borrador", scheduled: "Programada", publishing: "Publicando", failed: "Fallida", published: "Publicada" },
+      lead: { suggestedReply: "Respuesta sugerida", suggestedPost: "Publicación sugerida", draft: "Su borrador", scheduled: "Publicación programada", publishedReply: "Respuesta publicada", publishedPost: "Publicación publicada" },
+      review: "Revisar",
+      continue: "Continuar",
+      edit: "Editar",
+      retry: "Reintentar",
+      details: "Detalles",
+      more: "Más acciones",
+      ownProfile: "Su perfil",
+      eyebrow: { suggested: "Oportunidad sugerida", draft: "Borrador guardado", scheduled: "Programada para publicarse", publishing: "Publicándose", failed: "No publicada", published: "Publicada" },
+      original: "Conversación original",
+      ownPostNote: "Su propia publicación en {platform}: no hay ninguna conversación que responder.",
+      replyField: "Su respuesta",
+      postField: "Su publicación",
+      editHelp: "Hágala suya: puede editar el texto antes de publicarlo. RepGet lo comprueba según las reglas de la plataforma.",
+      postedHelp: "Este es el texto que se publicó.",
+      copyText: "Copiar texto",
+      saveDraft: "Guardar borrador",
+      draftSaved: "Borrador guardado. Lo encontrará en Borradores.",
+      saveFirst: "Guarde primero sus cambios y luego publique.",
+      buyCredits: "Comprar créditos",
       errors: {
         view_only: "Solo tiene acceso de lectura a este sitio web.",
         not_included: "Esta plataforma se incluye cuando empiece su plan.",
@@ -12500,7 +12637,7 @@ const fr: Messages = {
     },
     social: {
       title: "Opportunités",
-      intro: "RepGet trouve des conversations sur votre domaine et rédige vos publications et vos réponses. Vos propres publications sont publiées pour vous ; les réponses, vous les publiez vous-même en un clic.",
+      intro: "Trouvez les conversations qui comptent, adaptez les réponses de RepGet à votre manière et retrouvez tout ce que vous publiez au même endroit. RepGet publie vos propres publications ; les réponses, vous les publiez vous-même en un clic.",
       accountsTitle: "Vos comptes",
       connect: "Connecter",
       connecting: "Ouverture…",
@@ -12522,7 +12659,6 @@ const fr: Messages = {
       quoraNote: "Quora ne permet pas de publier pour vous : vous publiez vos réponses en un clic.",
       pinterestNote: "Les épingles utilisent les images de vos articles publiés.",
       blueskyNote: "Bluesky vous demande de vous connecter avec votre mot de passe Bluesky habituel. Les mots de passe d’application ne fonctionnent pas ici.",
-      todayTitle: "Suggestions",
       todayCount: "{count} sur {max} aujourd’hui",
       findNow: "Trouver des suggestions",
       finding: "Recherche…",
@@ -12533,7 +12669,6 @@ const fr: Messages = {
       postOn: "Votre publication sur {platform}",
       openThread: "Ouvrir la discussion",
       titleLabel: "Titre",
-      textLabel: "Texte",
       characters: "{count}/{max}",
       post: "Publier · {price}",
       posting: "Ouverture…",
@@ -12552,11 +12687,56 @@ const fr: Messages = {
       viewPost: "Voir la publication",
       failed: "Non publié : {reason}",
       failedCredits: "Non publié : crédits insuffisants. Achetez des crédits, puis publiez-le en un clic.",
-      historyTitle: "Publié",
       price: "Chaque publication ou réponse coûte {price}.",
       free: "Gratuit",
       connectedNotice: "{platform} est connecté. Vos premières suggestions arrivent.",
       notConnectedNotice: "{platform} n’a pas été connecté. Veuillez réessayer.",
+      channelsTitle: "Vos comptes connectés",
+      channelsActive: "{count} canaux actifs sur {total}",
+      manage: "Gérer",
+      accountsIntro: "Connectez chaque plateforme une seule fois. RepGet publie vos propres publications là où il le peut ; les réponses, vous les publiez vous-même en un clic.",
+      done: "Terminé",
+      close: "Fermer",
+      channelLabel: "{platform} : {state}",
+      channelState: { connected: "connecté", off: "non connecté", paused: "publication automatique en pause", locked: "inclus dès que votre forfait commence", warmup: "en mise en route" },
+      connectAccounts: "Connecter des comptes",
+      panelTitle: "Toutes les conversations",
+      panelIntro: "De la première suggestion à la publication.",
+      tabsLabel: "Étape",
+      tabs: { all: "Toutes", suggested: "Suggérées", scheduled: "Programmées", drafts: "Brouillons", published: "Publiées" },
+      searchPlaceholder: "Rechercher des conversations ou des réponses…",
+      searchLabel: "Rechercher des conversations",
+      platformLabel: "Plateforme",
+      allPlatforms: "Toutes les plateformes",
+      sortLabel: "Trier",
+      sort: { recommended: "Recommandé", newest: "Plus récentes d’abord", platform: "Par plateforme" },
+      listHead: "Conversation et réponse suggérée",
+      listAction: "Action",
+      inView: "{count} conversation dans cette vue|{count} conversations dans cette vue",
+      noMatches: "Aucune conversation ne correspond",
+      noMatchesHelp: "Essayez une autre plateforme, une autre étape ou un autre terme.",
+      nextTitle: "Prochaine publication",
+      stage: { suggested: "Suggérée", draft: "Brouillon", scheduled: "Programmée", publishing: "Publication", failed: "Échec", published: "Publiée" },
+      lead: { suggestedReply: "Réponse suggérée", suggestedPost: "Publication suggérée", draft: "Votre brouillon", scheduled: "Publication programmée", publishedReply: "Réponse publiée", publishedPost: "Publication publiée" },
+      review: "Examiner",
+      continue: "Continuer",
+      edit: "Modifier",
+      retry: "Réessayer",
+      details: "Détails",
+      more: "Plus d’actions",
+      ownProfile: "Votre profil",
+      eyebrow: { suggested: "Opportunité suggérée", draft: "Brouillon enregistré", scheduled: "Programmée", publishing: "En cours de publication", failed: "Non publiée", published: "Publiée" },
+      original: "Conversation d’origine",
+      ownPostNote: "Votre propre publication sur {platform} : il n’y a pas de discussion à laquelle répondre.",
+      replyField: "Votre réponse",
+      postField: "Votre publication",
+      editHelp: "Personnalisez-la : vous pouvez modifier le texte avant de le publier. RepGet le vérifie selon les règles de la plateforme.",
+      postedHelp: "Voici le texte qui a été publié.",
+      copyText: "Copier le texte",
+      saveDraft: "Enregistrer le brouillon",
+      draftSaved: "Brouillon enregistré. Vous le retrouverez dans Brouillons.",
+      saveFirst: "Enregistrez d’abord vos modifications, puis publiez.",
+      buyCredits: "Acheter des crédits",
       errors: {
         view_only: "Vous avez un accès en lecture seule à ce site.",
         not_included: "Cette plateforme est incluse dès que votre forfait commence.",
@@ -15711,7 +15891,7 @@ const it: Messages = {
     },
     social: {
       title: "Opportunità",
-      intro: "RepGet trova conversazioni sul suo settore e le scrive post e risposte. I suoi post vengono pubblicati per lei; le risposte le pubblica lei con un clic.",
+      intro: "Trovi le conversazioni che contano, renda sue le risposte di RepGet e tenga tutto ciò che pubblica in un unico posto. RepGet pubblica i suoi post; le risposte le pubblica lei con un clic.",
       accountsTitle: "I suoi account",
       connect: "Collega",
       connecting: "Apertura…",
@@ -15733,7 +15913,6 @@ const it: Messages = {
       quoraNote: "Quora non permette di pubblicare per lei, quindi pubblica le sue risposte con un clic.",
       pinterestNote: "I Pin usano le immagini dei suoi articoli pubblicati.",
       blueskyNote: "Bluesky le chiederà di accedere con la sua normale password di Bluesky. Le password per app qui non funzionano.",
-      todayTitle: "Suggerimenti",
       todayCount: "{count} di {max} oggi",
       findNow: "Trova suggerimenti",
       finding: "Ricerca…",
@@ -15744,7 +15923,6 @@ const it: Messages = {
       postOn: "Il suo post su {platform}",
       openThread: "Apri la discussione",
       titleLabel: "Titolo",
-      textLabel: "Testo",
       characters: "{count}/{max}",
       post: "Pubblica · {price}",
       posting: "Apertura…",
@@ -15763,11 +15941,56 @@ const it: Messages = {
       viewPost: "Vedi il post",
       failed: "Non pubblicato: {reason}",
       failedCredits: "Non pubblicato: crediti insufficienti. Acquisti crediti, poi lo pubblichi con un clic.",
-      historyTitle: "Pubblicati",
       price: "Ogni post o risposta costa {price}.",
       free: "Gratis",
       connectedNotice: "{platform} è collegato. I primi suggerimenti stanno arrivando.",
       notConnectedNotice: "{platform} non è stato collegato. Riprovi.",
+      channelsTitle: "I suoi account collegati",
+      channelsActive: "{count} di {total} canali attivi",
+      manage: "Gestisci",
+      accountsIntro: "Colleghi ogni piattaforma una sola volta. RepGet pubblica i suoi post dove può; le risposte le pubblica lei con un clic.",
+      done: "Fatto",
+      close: "Chiudi",
+      channelLabel: "{platform}: {state}",
+      channelState: { connected: "collegato", off: "non collegato", paused: "pubblicazione automatica in pausa", locked: "incluso quando inizia il suo piano", warmup: "in riscaldamento" },
+      connectAccounts: "Colleghi gli account",
+      panelTitle: "Tutte le conversazioni",
+      panelIntro: "Dal primo suggerimento al post pubblicato.",
+      tabsLabel: "Fase",
+      tabs: { all: "Tutte", suggested: "Suggerite", scheduled: "Programmate", drafts: "Bozze", published: "Pubblicate" },
+      searchPlaceholder: "Cerchi conversazioni o risposte…",
+      searchLabel: "Cerca conversazioni",
+      platformLabel: "Piattaforma",
+      allPlatforms: "Tutte le piattaforme",
+      sortLabel: "Ordina",
+      sort: { recommended: "Consigliato", newest: "Più recenti prima", platform: "Per piattaforma" },
+      listHead: "Conversazione e risposta suggerita",
+      listAction: "Azione",
+      inView: "{count} conversazione in questa vista|{count} conversazioni in questa vista",
+      noMatches: "Nessuna conversazione corrisponde",
+      noMatchesHelp: "Provi un'altra piattaforma, fase o parola di ricerca.",
+      nextTitle: "Prossima pubblicazione",
+      stage: { suggested: "Suggerita", draft: "Bozza", scheduled: "Programmata", publishing: "In pubblicazione", failed: "Non riuscita", published: "Pubblicata" },
+      lead: { suggestedReply: "Risposta suggerita", suggestedPost: "Post suggerito", draft: "La sua bozza", scheduled: "Post programmato", publishedReply: "Risposta pubblicata", publishedPost: "Post pubblicato" },
+      review: "Rivedi",
+      continue: "Continua",
+      edit: "Modifica",
+      retry: "Riprova",
+      details: "Dettagli",
+      more: "Altre azioni",
+      ownProfile: "Il suo profilo",
+      eyebrow: { suggested: "Opportunità suggerita", draft: "Bozza salvata", scheduled: "Programmata", publishing: "In pubblicazione", failed: "Non pubblicata", published: "Pubblicata" },
+      original: "Conversazione originale",
+      ownPostNote: "Il suo post su {platform}: non c'è una discussione a cui rispondere.",
+      replyField: "La sua risposta",
+      postField: "Il suo post",
+      editHelp: "La renda sua: può modificare il testo prima di pubblicarlo. RepGet lo verifica secondo le regole della piattaforma.",
+      postedHelp: "Questo è il testo pubblicato.",
+      copyText: "Copia il testo",
+      saveDraft: "Salva bozza",
+      draftSaved: "Bozza salvata. La trova in Bozze.",
+      saveFirst: "Salvi prima le modifiche, poi pubblichi.",
+      buyCredits: "Acquista crediti",
       errors: {
         view_only: "Ha accesso in sola lettura a questo sito.",
         not_included: "Questa piattaforma è inclusa quando inizia il suo piano.",
@@ -18919,7 +19142,7 @@ const de: Messages = {
     },
     social: {
       title: "Chancen",
-      intro: "RepGet findet Unterhaltungen zu Ihrem Fachgebiet und schreibt Beiträge und Antworten für Sie. Ihre eigenen Beiträge werden für Sie veröffentlicht; Antworten posten Sie selbst mit einem Klick.",
+      intro: "Finden Sie die Unterhaltungen, die zählen, machen Sie die Antworten von RepGet zu Ihren eigenen und behalten Sie alles, was Sie veröffentlichen, an einem Ort. RepGet veröffentlicht Ihre eigenen Beiträge; Antworten posten Sie selbst mit einem Klick.",
       accountsTitle: "Ihre Konten",
       connect: "Verbinden",
       connecting: "Wird geöffnet…",
@@ -18941,7 +19164,6 @@ const de: Messages = {
       quoraNote: "Quora erlaubt kein Posten für Sie, daher posten Sie Ihre Antworten mit einem Klick.",
       pinterestNote: "Pins verwenden die Bilder Ihrer veröffentlichten Artikel.",
       blueskyNote: "Bluesky fragt nach Ihrem normalen Bluesky-Passwort. App-Passwörter funktionieren hier nicht.",
-      todayTitle: "Vorschläge",
       todayCount: "{count} von {max} heute",
       findNow: "Vorschläge finden",
       finding: "Suche läuft…",
@@ -18952,7 +19174,6 @@ const de: Messages = {
       postOn: "Ihr Beitrag auf {platform}",
       openThread: "Diskussion öffnen",
       titleLabel: "Titel",
-      textLabel: "Text",
       characters: "{count}/{max}",
       post: "Posten · {price}",
       posting: "Wird geöffnet…",
@@ -18971,11 +19192,56 @@ const de: Messages = {
       viewPost: "Beitrag ansehen",
       failed: "Nicht veröffentlicht: {reason}",
       failedCredits: "Nicht veröffentlicht: nicht genug Credits. Kaufen Sie Credits und posten Sie ihn dann mit einem Klick.",
-      historyTitle: "Gepostet",
       price: "Jeder Beitrag und jede Antwort kostet {price}.",
       free: "Kostenlos",
       connectedNotice: "{platform} ist verbunden. Ihre ersten Vorschläge sind unterwegs.",
       notConnectedNotice: "{platform} wurde nicht verbunden. Bitte versuchen Sie es erneut.",
+      channelsTitle: "Ihre verbundenen Konten",
+      channelsActive: "{count} von {total} Kanälen aktiv",
+      manage: "Verwalten",
+      accountsIntro: "Verbinden Sie jede Plattform einmal. RepGet veröffentlicht Ihre eigenen Beiträge, wo es kann; Antworten posten Sie selbst mit einem Klick.",
+      done: "Fertig",
+      close: "Schließen",
+      channelLabel: "{platform}: {state}",
+      channelState: { connected: "verbunden", off: "nicht verbunden", paused: "automatisches Posten pausiert", locked: "enthalten, sobald Ihr Tarif beginnt", warmup: "in der Aufwärmphase" },
+      connectAccounts: "Konten verbinden",
+      panelTitle: "Alle Unterhaltungen",
+      panelIntro: "Vom ersten Vorschlag bis zum veröffentlichten Beitrag.",
+      tabsLabel: "Phase",
+      tabs: { all: "Alle", suggested: "Vorgeschlagen", scheduled: "Geplant", drafts: "Entwürfe", published: "Veröffentlicht" },
+      searchPlaceholder: "Unterhaltungen oder Antworten suchen…",
+      searchLabel: "Unterhaltungen suchen",
+      platformLabel: "Plattform",
+      allPlatforms: "Alle Plattformen",
+      sortLabel: "Sortieren",
+      sort: { recommended: "Empfohlen", newest: "Neueste zuerst", platform: "Nach Plattform" },
+      listHead: "Unterhaltung und vorgeschlagene Antwort",
+      listAction: "Aktion",
+      inView: "{count} Unterhaltung in dieser Ansicht|{count} Unterhaltungen in dieser Ansicht",
+      noMatches: "Keine passenden Unterhaltungen",
+      noMatchesHelp: "Versuchen Sie eine andere Plattform, Phase oder einen anderen Suchbegriff.",
+      nextTitle: "Als Nächstes veröffentlicht",
+      stage: { suggested: "Vorgeschlagen", draft: "Entwurf", scheduled: "Geplant", publishing: "Wird veröffentlicht", failed: "Fehlgeschlagen", published: "Veröffentlicht" },
+      lead: { suggestedReply: "Vorgeschlagene Antwort", suggestedPost: "Vorgeschlagener Beitrag", draft: "Ihr Entwurf", scheduled: "Geplanter Beitrag", publishedReply: "Veröffentlichte Antwort", publishedPost: "Veröffentlichter Beitrag" },
+      review: "Prüfen",
+      continue: "Weiter",
+      edit: "Bearbeiten",
+      retry: "Erneut versuchen",
+      details: "Details",
+      more: "Weitere Aktionen",
+      ownProfile: "Ihr Profil",
+      eyebrow: { suggested: "Vorgeschlagene Chance", draft: "Gespeicherter Entwurf", scheduled: "Zur Veröffentlichung geplant", publishing: "Wird veröffentlicht", failed: "Nicht veröffentlicht", published: "Veröffentlicht" },
+      original: "Ursprüngliche Unterhaltung",
+      ownPostNote: "Ihr eigener Beitrag auf {platform}: Es gibt keine Diskussion zu beantworten.",
+      replyField: "Ihre Antwort",
+      postField: "Ihr Beitrag",
+      editHelp: "Machen Sie ihn zu Ihrem eigenen: Sie können den Text vor dem Posten bearbeiten. RepGet prüft ihn nach den Regeln der Plattform.",
+      postedHelp: "Dies ist der Text, der gepostet wurde.",
+      copyText: "Text kopieren",
+      saveDraft: "Entwurf speichern",
+      draftSaved: "Entwurf gespeichert. Sie finden ihn unter Entwürfe.",
+      saveFirst: "Speichern Sie zuerst Ihre Änderungen und veröffentlichen Sie dann.",
+      buyCredits: "Credits kaufen",
       errors: {
         view_only: "Sie haben für diese Website nur Lesezugriff.",
         not_included: "Diese Plattform ist enthalten, sobald Ihr Tarif beginnt.",

@@ -12,7 +12,8 @@ import { isBundleConfigured } from "@/lib/social/bundle";
 import { isSocialPlatform, SUGGESTIONS_PER_DAY } from "@/lib/social/platforms";
 import { requireWebsitePage } from "@/lib/tenant";
 
-import { SocialPanel, type AccountView, type SuggestionView } from "./social-panel";
+import type { AccountView, SuggestionView } from "./opportunities";
+import { SocialPanel } from "./social-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -26,9 +27,10 @@ export async function generateMetadata({ params }: PageProps<"/websites/[website
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
- * Social media (client, 2026-10-27; docs/social-media.md): the website's
- * accounts, today's suggestions and what was posted. Only reads - the
- * suggestions are written by the daily job (lib/social/suggest.ts).
+ * Opportunities (client, 2026-10-27; redesigned from the client's design
+ * 2026-11-03; docs/social-media.md): the website's accounts, the week's
+ * suggestions and drafts, and what was posted. Only reads - the suggestions
+ * are written by the daily job (lib/social/suggest.ts).
  */
 export default async function WebsiteSocialPage({ params, searchParams }: PageProps<"/websites/[websiteId]/social">) {
   const { websiteId } = await params;
@@ -41,14 +43,14 @@ export default async function WebsiteSocialPage({ params, searchParams }: PagePr
   const [plan, accounts, open, posted, todayCount, credits, { t, locale }, query] = await Promise.all([
     socialAccess(site.id),
     listAccounts(site.id),
-    // Waiting for the customer, or for RepGet: the last week's.
+    // Waiting for the customer (a saved draft too), or for RepGet: the last week's.
     db
       .select()
       .from(socialSuggestions)
       .where(
         and(
           eq(socialSuggestions.websiteId, site.id),
-          inArray(socialSuggestions.status, ["new", "scheduled", "posting", "failed"]),
+          inArray(socialSuggestions.status, ["new", "draft", "scheduled", "posting", "failed"]),
           gte(socialSuggestions.createdAt, new Date(now.getTime() - 7 * DAY_MS)),
         ),
       )
@@ -101,6 +103,7 @@ export default async function WebsiteSocialPage({ params, searchParams }: PagePr
     postedAt: row.postedAt?.toISOString() ?? null,
     postedUrl: row.postedUrl,
     error: row.error,
+    createdAt: row.createdAt.toISOString(),
   });
 
   const price = credits.prices.social_post;
