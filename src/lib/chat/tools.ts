@@ -193,7 +193,7 @@ export const READ_TOOLS: ReadTool[] = [
         db
           .select()
           .from(socialSuggestions)
-          .where(and(eq(socialSuggestions.websiteId, ctx.websiteId), inArray(socialSuggestions.status, ["new", "scheduled", "failed"]), gte(socialSuggestions.createdAt, since)))
+          .where(and(eq(socialSuggestions.websiteId, ctx.websiteId), inArray(socialSuggestions.status, ["new", "draft", "scheduled", "failed"]), gte(socialSuggestions.createdAt, since)))
           .orderBy(desc(socialSuggestions.createdAt))
           .limit(12),
         db

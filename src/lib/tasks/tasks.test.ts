@@ -44,11 +44,13 @@ describe("tasks page", () => {
       { websiteId: a.id, platform: "reddit", kind: "reply", day: "2026-11-02", body: "Fresh", createdAt: new Date("2026-11-02T10:00:00Z") },
       { websiteId: a.id, platform: "reddit", kind: "reply", day: "2026-10-01", body: "Stale", createdAt: new Date("2026-10-01T10:00:00Z") },
       { websiteId: a.id, platform: "reddit", kind: "reply", day: "2026-11-02", body: "Done", status: "posted", createdAt: new Date("2026-11-02T10:00:00Z") },
+      // Edited and saved, not posted yet: still the customer's to do.
+      { websiteId: a.id, platform: "reddit", kind: "reply", day: "2026-11-02", body: "Saved", status: "draft", createdAt: new Date("2026-11-02T10:00:00Z") },
     ]);
     await test.db.insert(videoIdeas).values([idea(a.id, "2026-11-03"), idea(a.id, "2026-11-02"), idea(a.id, "2026-11-03", "approved")]);
 
     const tasks = await getTasks(a.id, a.orgId, true, NOW);
-    expect(Object.fromEntries(tasks!.work.map((w) => [w.id, w.count]))).toEqual({ failed: 2, drafts: 1, social: 1, videos: 1 });
+    expect(Object.fromEntries(tasks!.work.map((w) => [w.id, w.count]))).toEqual({ failed: 2, drafts: 1, social: 2, videos: 1 });
     expect(tasks!.work.find((w) => w.id === "failed")!.href).toBe(`/websites/${a.id}/content`);
     // Another workspace's id never opens this website's tasks.
     expect(await getTasks(a.id, b.orgId, true, NOW)).toBeNull();

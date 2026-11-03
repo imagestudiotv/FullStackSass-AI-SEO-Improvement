@@ -179,6 +179,14 @@ export async function findSocialSuggestions(websiteId: string): Promise<SocialRe
 
 type Edit = { body: string; title?: string | null };
 
+/**
+ * Waiting for the customer's one click: a new suggestion, one they edited and
+ * saved as a draft (client's design, 2026-11-03: the Drafts stage), one
+ * RepGet could not publish, and a posted one clicked again (a closed tab).
+ * Never "scheduled": that one is RepGet's to publish.
+ */
+const ONE_CLICK = ["new", "draft", "failed", "posted"];
+
 async function suggestionFor(websiteId: string, id: string) {
   const [row] = await db
     .select()
@@ -234,7 +242,7 @@ export async function postSocialSuggestion(
   const platform = row.platform as SocialPlatform;
   const checked = await guard(websiteId, platform);
   if (!checked.ok) return fail(checked.error);
-  if (!["new", "failed", "posted"].includes(row.status)) return fail("already_handled");
+  if (!ONE_CLICK.includes(row.status)) return fail("already_handled");
 
   const text = await checkEdit(websiteId, row, edit);
   if (!text.ok) return text;
@@ -246,7 +254,7 @@ export async function postSocialSuggestion(
 
   const result = await db.transaction(async (tx) => {
     const [locked] = await tx.select().from(socialSuggestions).where(eq(socialSuggestions.id, id)).for("update");
-    if (!locked || !["new", "failed", "posted"].includes(locked.status)) return fail("already_handled");
+    if (!locked || !ONE_CLICK.includes(locked.status)) return fail("already_handled");
     const spent = await spendCredits(tx, {
       organizationId: checked.site.organizationId,
       action: "social_post",
@@ -283,9 +291,37 @@ export async function skipSocialSuggestion(websiteId: string, id: string): Promi
       and(
         eq(socialSuggestions.id, id),
         eq(socialSuggestions.websiteId, websiteId),
-        inArray(socialSuggestions.status, ["new", "scheduled", "failed"]),
+        inArray(socialSuggestions.status, ["new", "draft", "scheduled", "failed"]),
       ),
     );
+  revalidatePath(pagePath(websiteId));
+  return { ok: true, data: null };
+}
+
+/**
+ * Keeps the customer's edit without posting it: the suggestion moves to
+ * Drafts (client's design, 2026-11-03: "Save draft"). Held to the same rules
+ * as a post, so a draft can always be posted as saved. A draft stays
+ * one-click: RepGet never publishes it, whatever the account's settings
+ * (publish.ts takes "scheduled" only).
+ */
+export async function saveSocialDraft(websiteId: string, id: string, edit: Edit): Promise<SocialResult> {
+  const row = await suggestionFor(websiteId, id);
+  if (!row) return fail("not_found");
+  const checked = await guard(websiteId, row.platform as SocialPlatform);
+  if (!checked.ok) return fail(checked.error);
+  if (row.status !== "new" && row.status !== "draft") return fail("already_handled");
+  const text = await checkEdit(websiteId, row, edit);
+  if (!text.ok) return text;
+  const saved = await db
+    .update(socialSuggestions)
+    .set({ status: "draft", body: text.data.body, title: text.data.title, updatedAt: new Date() })
+    .where(
+      and(eq(socialSuggestions.id, id), eq(socialSuggestions.websiteId, websiteId), inArray(socialSuggestions.status, ["new", "draft"])),
+    )
+    .returning({ id: socialSuggestions.id });
+  // Posted or skipped in another tab in the meantime.
+  if (saved.length === 0) return fail("already_handled");
   revalidatePath(pagePath(websiteId));
   return { ok: true, data: null };
 }
