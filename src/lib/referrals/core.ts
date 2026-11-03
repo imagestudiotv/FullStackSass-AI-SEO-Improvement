@@ -349,7 +349,7 @@ export async function convertReferral(referredOrgId: string, paidAmountCents: nu
       type: "referral.rewarded",
       title: `You earned ${REFERRAL_REWARD_CREDITS} credits`,
       body: "Someone you referred paid for their first month. Thank you.",
-      href: "/settings#referral",
+      href: "/earn-credits",
     });
   } catch (error) {
     console.error("[referrals] reward granted but the notification failed", error);
@@ -449,7 +449,7 @@ export async function reverseReferralReward(referredOrgId: string): Promise<bool
       type: "referral.reversed",
       title: `A referral reward of ${reversed.credits} credits was reversed`,
       body: "The payment of someone you referred was refunded. The referral counts again if they pay again.",
-      href: "/settings#referral",
+      href: "/earn-credits",
     });
   } catch (error) {
     console.error("[referrals] reward reversed but the notification failed", error);

@@ -74,6 +74,9 @@ export type AdminAction =
   | "valuation.policy_published"
   /* What credits buy (lib/admin/credits.ts). */
   | "credits.settings_saved"
+  /* Earn Credits claims (lib/earn/admin.ts). */
+  | "earn.approved"
+  | "earn.declined"
   /* The cash partner program (lib/partners). */
   | PartnerAuditAction;
 

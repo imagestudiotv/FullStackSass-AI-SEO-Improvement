@@ -8,8 +8,8 @@ import type { Messages } from "@/lib/i18n/messages";
 
 /**
  * The bottom of the sidebar (client design, 2026-11-02): "Earn Credits" (it
- * replaces "Referral program" and still opens the referral card on
- * Settings), then the balance and today's daily credits, to the Credits page.
+ * replaces "Referral program" and opens its own page, /earn-credits), then
+ * the balance and today's daily credits, to the Credits page.
  *
  * Server component: it reads the workspace's ledger, which does not belong
  * in a client bundle.
@@ -42,8 +42,8 @@ export async function SidebarUsage({
   return (
     <div className="space-y-1 border-t px-3 py-3">
       <Link
-        href="/settings#referral"
-        className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-accent/60"
+        href="/earn-credits"
+        className="flex items-center gap-3 rounded-md bg-primary/10 px-3 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary/15"
       >
         <Gift className="size-4 shrink-0 text-primary" aria-hidden="true" />
         {t.earnCredits}

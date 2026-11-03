@@ -41,6 +41,8 @@ export const ACTION_META: Record<AdminAction, ActionMeta> = {
   "payment.refunded": { label: "Payment refunded", icon: Receipt },
   "credits.adjusted": { label: "Credits adjusted", icon: Coins },
   "credits.settings_saved": { label: "Credit prices changed", icon: Coins },
+  "earn.approved": { label: "Earn Credits claim approved", icon: Coins },
+  "earn.declined": { label: "Earn Credits claim declined", icon: Coins },
 
   "organization.limits_changed": { label: "Workspace limits changed", icon: Building2 },
   "organization.deactivated": { label: "Workspace deactivated", icon: Building2 },
@@ -145,6 +147,7 @@ const TARGET_LABELS: Record<string, string> = {
   blog_post: "Blog post",
   blog_category: "Blog category",
   platform_control: "Platform control",
+  earn_submission: "Earn Credits claim",
   publication_dispatch: "Delivery",
   authority: "Domain Authority",
   valuation_policy: "Valuation policy",
@@ -190,6 +193,8 @@ export function targetLink(row: Pick<AuditRow, "action" | "targetType" | "target
         : null;
     case "placement":
       return { href: "/admin/network", destination: "the Partner Network" };
+    case "earn_submission":
+      return { href: "/admin/earn-credits", destination: "Earn Credits claims" };
     case "platform_control":
     case "publication_dispatch":
     case "authority":

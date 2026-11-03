@@ -55,6 +55,8 @@ export type CreditType =
   | "purchase"
   /** Earned because someone you referred started paying. */
   | "referral"
+  /** An approved Earn Credits claim - a story, post, tutorial or idea (lib/earn/admin.ts). */
+  | "reward"
   /** Manual adjustment by an admin. */
   | "adjustment"
   /** Given for using RepGet that day (lib/credits/daily.ts). */

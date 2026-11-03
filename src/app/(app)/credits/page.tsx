@@ -12,6 +12,8 @@ import { creditAddons } from "@/lib/credits/addons";
 import { creditHistory, creditOverview, type CreditHistoryRow } from "@/lib/credits/overview";
 import { CREDIT_ACTIONS, isCreditAction, TRIAL_CREDIT_DAYS } from "@/lib/credits/prices";
 import { getAppMessages } from "@/lib/i18n/app-locale";
+import type { Locale } from "@/lib/i18n/config";
+import { EARN_COPY } from "@/lib/i18n/earn";
 import { format, formatDate, plural } from "@/lib/i18n/format";
 import type { Messages } from "@/lib/i18n/messages";
 import { REFERRAL_REWARD_CREDITS } from "@/lib/referrals/shared";
@@ -165,7 +167,7 @@ export default async function CreditsPage({ searchParams }: PageProps<"/credits"
               <li>{format(c.sourceTrial, { count: settings.trialDailyFree, days: TRIAL_CREDIT_DAYS })}</li>
             ) : null}
             <li>
-              <Link href="/settings#referral" className="font-medium underline-offset-4 hover:underline">
+              <Link href="/earn-credits" className="font-medium underline-offset-4 hover:underline">
                 {format(c.sourceReferral, { count: REFERRAL_REWARD_CREDITS })}
               </Link>
             </li>
@@ -197,7 +199,7 @@ export default async function CreditsPage({ searchParams }: PageProps<"/credits"
                 </tr>
               ) : null}
               {history.rows.map((row) => {
-                const entry = describe(row, t);
+                const entry = describe(row, t, locale);
                 return (
                   <tr key={row.id} className="border-b last:border-b-0">
                     <td className="px-3 py-2.5 tabular-nums text-muted-foreground">
@@ -282,7 +284,7 @@ function PriceRow({ name, help, price }: { name: string; help: string; price: st
 }
 
 /** What a history row says, in the reader's language; the stored note (English) only where nothing else explains it. */
-function describe(row: CreditHistoryRow, t: Messages): { label: string; detail: string | null } {
+function describe(row: CreditHistoryRow, t: Messages, locale: Locale): { label: string; detail: string | null } {
   const c = t.app.credits;
   const r = t.app.reports;
   if (row.type === "spend" || row.type === "spend_refund") {
@@ -293,6 +295,8 @@ function describe(row: CreditHistoryRow, t: Messages): { label: string; detail: 
     return { label: format(c.ledgerSpend, { action }), detail: null };
   }
   if (row.type === "daily_grant") return { label: c.ledgerDaily, detail: null };
+  // An approved Earn Credits claim (lib/earn/admin.ts); its note names the way, in English.
+  if (row.type === "reward") return { label: EARN_COPY[locale].ledgerReward, detail: null };
   const label =
     row.type === "plan_grant" ? r.ledgerPlanGrant
     : row.type === "link_given" ? r.ledgerLinkGiven

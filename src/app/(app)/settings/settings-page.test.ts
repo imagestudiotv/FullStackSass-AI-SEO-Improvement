@@ -226,13 +226,22 @@ describe("account page", () => {
     expect(sectionIds(tree)).toContain("members");
   });
 
-  it("a failing members read or referral summary leaves the rest of the page working", async () => {
+  it("a failing members read leaves the rest of the page working", async () => {
     state.membersFail = true;
-    state.referralFails = true;
     signIn("owner", "org_owner");
     const tree = await SettingsPage();
     expect(findOne(tree, WebsiteMembers).initialError).toBe(true);
-    expect(findOne(tree, ReferralCard).summary).toBeNull();
     expect(findAll(tree, PersonalDetails)).toHaveLength(1);
+  });
+
+  it("the referral program moved to Earn Credits: Settings keeps only a link there (client, 2026-11-02)", async () => {
+    state.referralFails = true;
+    signIn("owner", "org_owner");
+    const tree = await SettingsPage();
+    expect(findAll(tree, ReferralCard)).toHaveLength(0);
+    const pointer = findAll(tree, WorkspaceSection).find((section) => section.id === "referral");
+    // <Button asChild><Link href="/earn-credits">
+    const button = pointer?.children as { props: { children: { props: { href: string } } } } | undefined;
+    expect(button?.props.children.props.href).toBe("/earn-credits");
   });
 });

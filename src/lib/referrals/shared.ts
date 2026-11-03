@@ -34,8 +34,9 @@ export type ReferralSummary = {
  * importing the database client — the public affiliate page needs the number,
  * not the machinery.
  *
- * 200, ten times the 20 it was, when every credit figure moved to ten times
- * the scale (client, 2026-10-26: Grow 250 credits a month where it was 25).
- * Rewards already given are not changed.
+ * 100 (client's Earn Credits design, 2026-11-02: "Share RepGet. Earn 100
+ * credits." after the referred business's first paid month). It was 200
+ * from the ten-times credit scale of 2026-10-26. Rewards already given are
+ * not changed; a referral converted from now on earns 100.
  */
-export const REFERRAL_REWARD_CREDITS = 200;
+export const REFERRAL_REWARD_CREDITS = 100;

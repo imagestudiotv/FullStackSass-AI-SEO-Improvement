@@ -1,20 +1,19 @@
 import { and, eq } from "drizzle-orm";
-import { Users } from "lucide-react";
+import { Gift, Users } from "lucide-react";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { cache } from "react";
 
 import { SettingsNav } from "@/components/settings-nav";
+import { Button } from "@/components/ui/button";
 import { PageHeader, PageShell } from "@/components/ui/page-header";
 import { WorkspaceSection } from "@/components/workspace/section";
 import { requireSession } from "@/lib/auth-guard";
 import { db } from "@/lib/db";
 import { account } from "@/lib/db/schema";
 import { getAppMessages } from "@/lib/i18n/app-locale";
+import { EARN_COPY } from "@/lib/i18n/earn";
 import { format } from "@/lib/i18n/format";
-import { getReferralSummary } from "@/lib/referrals/actions";
-import { REFERRAL_REWARD_CREDITS } from "@/lib/referrals/core";
-import type { ReferralSummary } from "@/lib/referrals/shared";
-import { siteUrl as canonicalSiteUrl } from "@/lib/site-url";
 import { listAccessibleWebsites } from "@/lib/websites/accessible";
 import {
   listWebsiteInvitations,
@@ -26,7 +25,6 @@ import { readSelectedWebsite, resolveWebsiteId } from "@/lib/websites/selected";
 
 import { AccountSectionNav, type AccountSectionId } from "./account-section-nav";
 import { PersonalDetails } from "./personal-details";
-import { ReferralCard } from "./referral-card";
 import { WebsiteMembers } from "./website-members";
 
 /** One read of the reader's language per request, shared by the title and the page. */
@@ -42,18 +40,7 @@ export default async function SettingsPage() {
   const session = await requireSession();
   const { locale, t } = await messagesFor(session.user.id);
   const copy = t.app.settings;
-
-  /*
-    The referral summary also creates the code on a first visit (a write), so
-    it stays in this per-request render. A failure there no longer takes the
-    whole Account page down with it: the referral section says so instead.
-  */
-  let referrals: ReferralSummary | null = null;
-  try {
-    referrals = await getReferralSummary();
-  } catch (error) {
-    console.error("[settings] could not load the referral summary", error);
-  }
+  const earn = EARN_COPY[locale];
 
   /**
    * The website the settings strip points at, resolved as the sidebar does -
@@ -128,19 +115,13 @@ export default async function SettingsPage() {
   const hasPassword = Boolean(credential?.password);
   const googleLinked = providers.some((row) => row.providerId === "google");
 
-  /**
-   * Falls back to the production domain rather than emitting a localhost link
-   * a customer would then share with someone else.
-   */
-  const appUrl = canonicalSiteUrl();
-
   const guestTeamNote = !selectedSite && viewingShared;
   const sections: { id: AccountSectionId; label: string }[] = [
     { id: "profile", label: copy.personalTitle },
     { id: "security", label: copy.securityTitle },
     { id: "language", label: copy.languageTitle },
     ...(selectedSite || guestTeamNote ? [{ id: "members" as const, label: copy.membersTitle }] : []),
-    { id: "referral", label: t.app.nav.referralProgram },
+    { id: "referral", label: earn.movedTitle },
   ];
 
   return (
@@ -214,16 +195,19 @@ export default async function SettingsPage() {
             </WorkspaceSection>
           ) : null}
 
-          {/* Carries id="referral", the target of the sidebar's "Referral program" link. */}
-          <ReferralCard
-            summary={referrals}
-            rewardCredits={REFERRAL_REWARD_CREDITS}
-            appUrl={appUrl}
-            locale={locale}
-            t={t.app.referral}
-            tCommon={t.app.common}
-            tWorkspace={t.app.workspace}
-          />
+          {/*
+            The referral program moved to its own page, Earn Credits (client,
+            2026-11-02). This keeps id="referral" so older links and
+            notifications (/settings#referral) still land on a way there.
+          */}
+          <WorkspaceSection id="referral" icon={Gift} title={earn.movedTitle} description={earn.movedBody}>
+            <Button asChild variant="outline">
+              <Link href="/earn-credits">
+                <Gift aria-hidden="true" />
+                {earn.movedLink}
+              </Link>
+            </Button>
+          </WorkspaceSection>
         </div>
       </div>
     </PageShell>
