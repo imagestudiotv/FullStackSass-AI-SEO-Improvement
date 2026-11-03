@@ -1,5 +1,6 @@
 "use client";
 
+import { NativeLikeSelect } from "@/components/ui/native-like-select";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
@@ -53,13 +54,12 @@ export function ApplicationForm({ copy, countries }: { copy: Copy; countries: { 
         <Textarea id="promotion" name="promotion" required maxLength={1000} rows={3} aria-describedby="promotion-hint" />
       </Field>
       <Field id="country" label={copy.country} hint={copy.countryHint}>
-        <select
+        <NativeLikeSelect
           id="country"
           name="country"
           required
           defaultValue=""
           aria-describedby="country-hint"
-          className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-base focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none md:text-sm dark:bg-input/30"
         >
           <option value="" disabled>
             -
@@ -69,7 +69,7 @@ export function ApplicationForm({ copy, countries }: { copy: Copy; countries: { 
               {country.name}
             </option>
           ))}
-        </select>
+        </NativeLikeSelect>
       </Field>
       <label className="flex items-start gap-3 text-sm">
         <input type="checkbox" name="terms" required className="mt-0.5 size-4 accent-primary" />

@@ -8,6 +8,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Field } from "@/components/workspace/field";
 import { Notice } from "@/components/workspace/notice";
@@ -55,9 +56,14 @@ export async function updatedAccount(fields: Parameters<typeof authClient.update
   }
 }
 
-/** A native select drawn exactly like Input (h-8, rounded-lg, the same focus ring). */
-const SELECT_CLASS =
-  "h-8 w-full max-w-xs min-w-0 rounded-lg border border-input bg-transparent px-2.5 text-base outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none md:text-sm";
+/** The two-letter code beside each language name, so the list scans at a glance. */
+function LanguageCode({ id }: { id: Locale }) {
+  return (
+    <span className="inline-block w-7 shrink-0 rounded bg-muted py-0.5 text-center text-[11px] leading-none font-medium tracking-wide text-muted-foreground uppercase">
+      {id}
+    </span>
+  );
+}
 
 export function PersonalDetails({
   initialName,
@@ -293,19 +299,41 @@ export function PersonalDetails({
           >
             {(props) => (
               <div className="flex flex-wrap items-center gap-2">
-                <select
-                  {...props}
+                {/*
+                  The app's own dropdown, not a native <select>: in night mode
+                  Chrome on Windows drew the native list white while the
+                  options kept the page's light text, so the other languages
+                  were unreadable (client, 2026-11-03).
+                */}
+                <Select
                   value={locale}
-                  onChange={(event) => changeLocale(event.target.value as Locale)}
+                  onValueChange={(value) => changeLocale(value as Locale)}
                   disabled={savingLocale}
-                  className={SELECT_CLASS}
                 >
-                  {LANGUAGES.map((language) => (
-                    <option key={language.id} value={language.id} lang={language.id}>
-                      {language.label}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger
+                    id={props.id}
+                    aria-describedby={props["aria-describedby"]}
+                    className="w-full max-w-xs min-w-0"
+                  >
+                    {/* Written out, so the first paint shows the language before the list mounts. */}
+                    <SelectValue>
+                      <span className="flex items-center gap-2">
+                        <LanguageCode id={locale} />
+                        {LOCALE_NAMES[locale]}
+                      </span>
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent position="popper" className="min-w-(--radix-select-trigger-width)">
+                    {LANGUAGES.map((language) => (
+                      <SelectItem key={language.id} value={language.id} lang={language.id} className="py-1.5">
+                        <span className="flex items-center gap-2">
+                          <LanguageCode id={language.id} />
+                          {language.label}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 {savingLocale ? (
                   <Loader2
                     className="size-4 animate-spin text-muted-foreground motion-reduce:animate-none"

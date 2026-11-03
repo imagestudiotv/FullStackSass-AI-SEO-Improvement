@@ -1,5 +1,6 @@
 "use client";
 
+import { NativeLikeSelect } from "@/components/ui/native-like-select";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useId, useState, useTransition } from "react";
@@ -87,19 +88,19 @@ export function CouponCreateForm({ action, currencies }: { action: (form: Coupon
             </Field>
           </div>
           <Field id={`${id}-type`} label="Discount">
-            <select
+            <NativeLikeSelect
               id={`${id}-type`}
               value={form.discountType}
               onChange={(e) => set({ discountType: e.target.value as CouponForm["discountType"] })}
               disabled={pending}
-              className="h-9 rounded-md border bg-background px-2 text-sm focus-visible:outline-2 focus-visible:outline-ring"
+              className="w-fit min-w-36 data-[size=default]:h-9"
             >
               {TYPES.map((type) => (
                 <option key={type.value} value={type.value}>
                   {type.label}
                 </option>
               ))}
-            </select>
+            </NativeLikeSelect>
           </Field>
           {fixed ? (
             <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
@@ -107,19 +108,19 @@ export function CouponCreateForm({ action, currencies }: { action: (form: Coupon
                 <Input id={`${id}-amount`} inputMode="decimal" value={form.amount} onChange={(e) => set({ amount: e.target.value })} disabled={pending} className="tabular-nums" />
               </Field>
               <Field id={`${id}-currency`} label="Currency">
-                <select
+                <NativeLikeSelect
                   id={`${id}-currency`}
                   value={form.currency}
                   onChange={(e) => set({ currency: e.target.value })}
                   disabled={pending}
-                  className="h-9 rounded-md border bg-background px-2 text-sm uppercase focus-visible:outline-2 focus-visible:outline-ring"
+                  className="w-fit min-w-24 data-[size=default]:h-9"
                 >
                   {currencies.map((code) => (
                     <option key={code} value={code}>
                       {code.toUpperCase()}
                     </option>
                   ))}
-                </select>
+                </NativeLikeSelect>
               </Field>
             </div>
           ) : (

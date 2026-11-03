@@ -1,5 +1,6 @@
 "use client";
 
+import { NativeLikeSelect } from "@/components/ui/native-like-select";
 import { Copy, Loader2, Trash2, Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
@@ -114,7 +115,7 @@ export function UploadBlogImage({ language: shown }: { language: Locale | null }
       <label htmlFor="blog-image-language" className="text-sm text-muted-foreground">
         Upload as
       </label>
-      <select
+      <NativeLikeSelect
         id="blog-image-language"
         value={language ?? ""}
         onChange={(event) => {
@@ -122,7 +123,7 @@ export function UploadBlogImage({ language: shown }: { language: Locale | null }
           setLanguage(isBlogLocale(value) ? value : null);
         }}
         disabled={pending}
-        className="h-9 rounded-md border bg-background px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+        className="w-fit min-w-40 data-[size=default]:h-9"
       >
         {language ? null : (
           <option value="" disabled>
@@ -134,7 +135,7 @@ export function UploadBlogImage({ language: shown }: { language: Locale | null }
             {LANGUAGE_NAMES_EN[locale]}
           </option>
         ))}
-      </select>
+      </NativeLikeSelect>
       <input
         ref={input}
         type="file"

@@ -1,5 +1,6 @@
 "use client";
 
+import { NativeLikeSelect } from "@/components/ui/native-like-select";
 import { BarChart3, ChevronDown, Download, Link2, Loader2, RefreshCw, Search, Settings2, Unplug } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -94,10 +95,6 @@ export function translateServerError(error: string, t: T, tWorkspace: TWorkspace
 /** How often, and how many times, to refresh while an import runs. */
 const IMPORT_POLL_MS = 4000;
 const IMPORT_POLL_TICKS = 15;
-
-/** A native select drawn exactly like the Input primitive. */
-const SELECT_CLASS =
-  "h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 text-base transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive md:text-sm motion-reduce:transition-none";
 
 /**
  * Google Search Console and Analytics for one website: connect, choose the
@@ -558,12 +555,11 @@ function ConnectedPanel({
                   t={tWorkspace}
                 >
                   {(field) => (
-                    <select
+                    <NativeLikeSelect
                       {...field}
                       value={scSite}
                       onChange={(event) => setScSite(event.target.value)}
                       disabled={working || list.kind === "loading"}
-                      className={SELECT_CLASS}
                     >
                       <option value="">{t.noSearchConsoleProperty}</option>
                       {scOptions.map((option) => (
@@ -571,7 +567,7 @@ function ConnectedPanel({
                           {option.label}
                         </option>
                       ))}
-                    </select>
+                    </NativeLikeSelect>
                   )}
                 </Field>
                 <Field
@@ -581,12 +577,11 @@ function ConnectedPanel({
                   t={tWorkspace}
                 >
                   {(field) => (
-                    <select
+                    <NativeLikeSelect
                       {...field}
                       value={gaProperty}
                       onChange={(event) => setGaProperty(event.target.value)}
                       disabled={working || list.kind === "loading"}
-                      className={SELECT_CLASS}
                     >
                       <option value="">{t.noAnalyticsProperty}</option>
                       {gaOptions.map((option) => (
@@ -594,7 +589,7 @@ function ConnectedPanel({
                           {option.label}
                         </option>
                       ))}
-                    </select>
+                    </NativeLikeSelect>
                   )}
                 </Field>
               </div>

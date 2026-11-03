@@ -1,5 +1,6 @@
 "use client";
 
+import { NativeLikeSelect } from "@/components/ui/native-like-select";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useId, useState, useTransition } from "react";
@@ -110,19 +111,19 @@ export function AmountReasonAction({
             {currencies ? (
               <div className="grid content-start gap-1.5">
                 <Label htmlFor={`${id}-currency`}>Currency</Label>
-                <select
+                <NativeLikeSelect
                   id={`${id}-currency`}
                   value={currency}
                   onChange={(event) => setCurrency(event.target.value)}
                   disabled={pending}
-                  className="h-9 rounded-md border bg-background px-2 text-sm uppercase focus-visible:outline-2 focus-visible:outline-ring"
+                  className="w-fit min-w-24 data-[size=default]:h-9"
                 >
                   {currencies.map((code) => (
                     <option key={code} value={code}>
                       {code.toUpperCase()}
                     </option>
                   ))}
-                </select>
+                </NativeLikeSelect>
               </div>
             ) : null}
           </div>

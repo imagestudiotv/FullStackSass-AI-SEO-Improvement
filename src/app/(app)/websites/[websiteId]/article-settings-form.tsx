@@ -1,5 +1,6 @@
 "use client";
 
+import { NativeLikeSelect } from "@/components/ui/native-like-select";
 import { ImageIcon, Link2, MessageSquareQuote, PenLine, Sparkles, UserRound } from "lucide-react";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 
@@ -43,10 +44,6 @@ import {
 import { StylePicker, type StyleCard } from "./publishing/style-picker";
 
 export type { ArticleSettingsValues, StoredArticleSettings };
-
-/** A native select drawn exactly like Input (h-8, rounded-lg, same focus ring). */
-const SELECT_CLASS =
-  "h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 text-base transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive md:text-sm";
 
 /**
  * Article Settings, sections A-F: everything saved by the ONE Save button.
@@ -289,12 +286,11 @@ export function ArticleSettingsForm({
             t={tWorkspace}
           >
             {(props) => (
-              <select
+              <NativeLikeSelect
                 {...props}
                 value={values.articleStyle}
                 onChange={(event) => set("articleStyle", event.target.value)}
                 disabled={readOnly}
-                className={SELECT_CLASS}
               >
                 {articleStyleKnown ? null : (
                   <option value={values.articleStyle}>{format(t.unknownOption, { value: values.articleStyle })}</option>
@@ -304,7 +300,7 @@ export function ArticleSettingsForm({
                     {t.styles[style.id]?.label ?? style.label}
                   </option>
                 ))}
-              </select>
+              </NativeLikeSelect>
             )}
           </Field>
 
@@ -545,19 +541,18 @@ export function ArticleSettingsForm({
           <div className="max-w-sm">
             <Field id="body-images" label={t.bodyImagesLabel} hint={t.bodyImagesHint} t={tWorkspace}>
               {(props) => (
-                <select
+                <NativeLikeSelect
                   {...props}
                   value={String(values.bodyImages)}
                   onChange={(event) => set("bodyImages", Number(event.target.value))}
                   disabled={readOnly}
-                  className={SELECT_CLASS}
                 >
                   {t.bodyImagesOptions.map((label, count) => (
                     <option key={count} value={count}>
                       {label}
                     </option>
                   ))}
-                </select>
+                </NativeLikeSelect>
               )}
             </Field>
           </div>

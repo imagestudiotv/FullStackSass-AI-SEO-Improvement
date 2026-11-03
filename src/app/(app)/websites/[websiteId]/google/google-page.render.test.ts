@@ -146,7 +146,7 @@ describe("connected", () => {
     expect(html).not.toContain(t.importNow);
     expect(html).not.toContain(t.manageConnection);
     expect(html).not.toContain(t.disconnect);
-    expect(html).not.toContain("<select");
+    expect(html).not.toContain('role="combobox"');
     expect(actions.listProperties).not.toHaveBeenCalled();
   });
 
@@ -156,9 +156,10 @@ describe("connected", () => {
     expect(html).toMatch(/aria-expanded="false"[^>]*>.*Manage connection/);
     expect(html).toMatch(/<div id="[^"]+" hidden=""/);
     expect(html).toContain(t.loadingProperties);
-    // The saved property is an option, so the select is never blank while Google answers.
-    expect(html).toMatch(/<option value="sc-domain:example.com" selected="">sc-domain:example.com<\/option>/);
-    expect(html).toContain(t.noAnalyticsProperty);
+    // The saved property is an option, so the dropdown is never blank while Google answers.
+    expect(html).toMatch(/<span data-slot="select-value"[^>]*>sc-domain:example.com<\/span>/);
+    // The saved Analytics property too ("None" is in the list, which only opens in the browser).
+    expect(html).toMatch(/<span data-slot="select-value"[^>]*>Property 123456789<\/span>/);
     // Nothing changed yet, so nothing to save - and the page says why.
     expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Save and import<\/button>/);
     expect(html).toContain(t.noSelectionChange);

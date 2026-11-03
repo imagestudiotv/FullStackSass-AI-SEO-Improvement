@@ -1,5 +1,6 @@
 "use client";
 
+import { NativeLikeSelect } from "@/components/ui/native-like-select";
 import { useId, useState } from "react";
 
 export type CalculatorPlan = { id: string; name: string; priceCents: number; currency: string };
@@ -67,18 +68,18 @@ export function EarningsCalculator({
       <div className="mt-5 grid gap-5 sm:grid-cols-2">
         <div className="grid gap-1.5">
           <label htmlFor={`${id}-plan`} className="text-sm font-medium">{copy.plan}</label>
-          <select
+          <NativeLikeSelect
             id={`${id}-plan`}
             value={plan.id}
             onChange={(event) => setPlanId(event.target.value)}
-            className="h-10 rounded-md border bg-background px-3 text-sm focus-visible:outline-2 focus-visible:outline-ring"
+            className="w-fit min-w-56 data-[size=default]:h-10"
           >
             {plans.map((option) => (
               <option key={option.id} value={option.id}>
                 {option.name} · {fill(copy.perMonth, { price: new Intl.NumberFormat(intlLocale, { style: "currency", currency: option.currency.toUpperCase(), minimumFractionDigits: option.priceCents % 100 === 0 ? 0 : 2 }).format(option.priceCents / 100) })}
               </option>
             ))}
-          </select>
+          </NativeLikeSelect>
         </div>
         <div className="grid gap-1.5">
           <label htmlFor={`${id}-count`} className="text-sm font-medium">{copy.customers}</label>

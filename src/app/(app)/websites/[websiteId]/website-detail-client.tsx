@@ -1,5 +1,6 @@
 "use client";
 
+import { NativeLikeSelect } from "@/components/ui/native-like-select";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -157,13 +158,13 @@ export function WebsiteDetailClient({
               */}
               <div className="space-y-1.5">
                 <Label htmlFor="language">{t.mainLanguage}</Label>
-                <select
+                <NativeLikeSelect
                   id="language"
                   value={form.language}
                   onChange={(e) =>
                     setForm((prev) => ({ ...prev, language: e.target.value }))
                   }
-                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                  className="data-[size=default]:h-9"
                 >
                   {/*
                     An unrecognised stored value is kept as its own option
@@ -177,7 +178,7 @@ export function WebsiteDetailClient({
                       {lang.label}
                     </option>
                   ))}
-                </select>
+                </NativeLikeSelect>
                 <p className="text-xs text-muted-foreground">
                   {tCommon.articleLanguageHelp}
                 </p>
