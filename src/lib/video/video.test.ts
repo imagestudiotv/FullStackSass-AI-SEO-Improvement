@@ -4,7 +4,7 @@ import path from "node:path";
 import { and, eq } from "drizzle-orm";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { creditLedger, creditSettings, creditSpends, socialAccounts, socialTeams, subscriptions, videoIdeas, videoSettings, websites } from "@/lib/db/schema";
+import { articles, creditLedger, creditSettings, creditSpends, socialAccounts, socialTeams, subscriptions, videoIdeas, videoSettings, websites } from "@/lib/db/schema";
 import { createTestDb, type TestDb } from "@/test/db";
 import { seedWebsite } from "@/test/fixtures";
 
@@ -440,10 +440,33 @@ describe("publishing a video", () => {
     await publishVideo(row.id, NOW);
     const body = postBody(fetch);
     expect(body.socialAccountTypes.sort()).toEqual(["INSTAGRAM", "PINTEREST"]);
-    expect(body.data.PINTEREST).toEqual({ boardName: "Product photography", text: "t".repeat(100), description: "c".repeat(800), uploadIds: [expect.any(String)] });
+    // After the warm-up a Pin leads somewhere: a general idea, to the website itself.
+    const [site] = await test.db.select({ url: websites.url }).from(websites).where(eq(websites.id, websiteId));
+    expect(body.data.PINTEREST).toEqual({ boardName: "Product photography", text: "t".repeat(100), description: "c".repeat(800), uploadIds: [expect.any(String)], link: site.url });
     expect(await checkVideoPublished(row.id, NOW)).toBe("posted");
     const [saved] = await test.db.select().from(videoIdeas).where(eq(videoIdeas.id, row.id));
     expect(saved.postedUrls).toMatchObject({ pinterest: "https://pinterest.com/pin/9" });
+  });
+
+  it("links a video Pin to the article it came from, and not during the warm-up (client, 2026-11-03)", async () => {
+    const { websiteId, row } = await ready({ board: "Product photography" });
+    const [article] = await test.db
+      .insert(articles)
+      .values({ websiteId, title: "Golden hour portraits", status: "published", publishedUrl: "https://example.test/blog/golden-hour" })
+      .returning();
+    await test.db.update(videoIdeas).set({ articleId: article.id }).where(eq(videoIdeas.id, row.id));
+    await publishVideoIdea(websiteId, row.id, { platforms: ["pinterest"], when: "now" });
+    let fetch = bundle({ id: "post_a", status: "SCHEDULED", error: null, errors: null, externalData: null });
+    await publishVideo(row.id, NOW);
+    expect(postBody(fetch).data.PINTEREST).toMatchObject({ link: "https://example.test/blog/golden-hour" });
+
+    // A Pinterest account still in its first days: no link yet, as with the social Pins.
+    const other = await ready({ board: "Product photography" });
+    await test.db.update(socialAccounts).set({ warmupEndsAt: new Date(NOW.getTime() + 3 * DAY) }).where(and(eq(socialAccounts.websiteId, other.websiteId), eq(socialAccounts.platform, "pinterest")));
+    await publishVideoIdea(other.websiteId, other.row.id, { platforms: ["pinterest"], when: "now" });
+    fetch = bundle({ id: "post_b", status: "SCHEDULED", error: null, errors: null, externalData: null });
+    await publishVideo(other.row.id, NOW);
+    expect(postBody(fetch).data.PINTEREST).not.toHaveProperty("link");
   });
 
   it("is refused for Pinterest without a board, and says so when it was scheduled before", async () => {

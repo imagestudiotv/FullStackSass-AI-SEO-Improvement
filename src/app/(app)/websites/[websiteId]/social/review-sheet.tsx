@@ -134,7 +134,12 @@ function Review({
     });
   }
 
-  const skip = () => run(() => skipSocialSuggestion(websiteId, suggestion.id), { then: onDone });
+  // A scheduled own post moves to Drafts rather than going away (client, 2026-11-03).
+  const skip = () =>
+    run(() => skipSocialSuggestion(websiteId, suggestion.id), {
+      then: onDone,
+      ...(suggestion.status === "scheduled" ? { success: t.movedToDrafts } : {}),
+    });
 
   return (
     <>

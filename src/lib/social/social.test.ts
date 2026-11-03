@@ -451,9 +451,25 @@ describe("a saved draft", () => {
     const { websiteId } = await site();
     await account(websiteId, "x");
     const row = await suggestion(websiteId, { status: "draft" });
-    expect(await skipSocialSuggestion(websiteId, row.id)).toEqual({ ok: true, data: null });
+    expect(await skipSocialSuggestion(websiteId, row.id)).toEqual({ ok: true, data: { drafted: false } });
     const [saved] = await test.db.select().from(socialSuggestions).where(eq(socialSuggestions.id, row.id));
     expect(saved.status).toBe("dismissed");
+  });
+
+  it("is where a skipped scheduled own post goes, and RepGet no longer publishes it (client, 2026-11-03)", async () => {
+    const { websiteId } = await site();
+    await account(websiteId, "x", { bundle: true });
+    await test.db.insert(socialTeams).values({ websiteId, teamId: "team_skip" });
+    const row = await suggestion(websiteId, { kind: "post", threadUrl: null, status: "scheduled", scheduledFor: NOW });
+    expect(await skipSocialSuggestion(websiteId, row.id)).toEqual({ ok: true, data: { drafted: true } });
+    const [saved] = await test.db.select().from(socialSuggestions).where(eq(socialSuggestions.id, row.id));
+    expect(saved).toMatchObject({ status: "draft", scheduledFor: null, body: row.body });
+    // The job that was waiting for its time finds nothing to publish.
+    expect(await publishSuggestion(row.id, NOW)).toBe("skipped");
+    // Skipped again from Drafts, it goes for good.
+    expect(await skipSocialSuggestion(websiteId, row.id)).toEqual({ ok: true, data: { drafted: false } });
+    const [gone] = await test.db.select().from(socialSuggestions).where(eq(socialSuggestions.id, row.id));
+    expect(gone.status).toBe("dismissed");
   });
 
   it("is never published by RepGet, even on an account that publishes automatically", async () => {

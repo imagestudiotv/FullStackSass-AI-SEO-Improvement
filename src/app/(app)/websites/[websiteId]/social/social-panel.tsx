@@ -241,7 +241,7 @@ export function SocialPanel(props: {
               pending={pending}
               onReview={() => review(next.id)}
               onPublish={() => run(() => postScheduledNow(websiteId, next.id))}
-              onSkip={() => run(() => skipSocialSuggestion(websiteId, next.id))}
+              onSkip={() => run(() => skipSocialSuggestion(websiteId, next.id), { success: t.movedToDrafts })}
               locale={locale}
               t={t}
             />
@@ -276,7 +276,9 @@ export function SocialPanel(props: {
                       editable={editable(row)}
                       pending={pending}
                       onReview={() => review(row.id)}
-                      onSkip={() => run(() => skipSocialSuggestion(websiteId, row.id))}
+                      onSkip={() =>
+                        run(() => skipSocialSuggestion(websiteId, row.id), row.status === "scheduled" ? { success: t.movedToDrafts } : {})
+                      }
                       locale={locale}
                       t={t}
                     />
