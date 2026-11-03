@@ -20,7 +20,7 @@ const taskKey = (kind: NextActionKind, identity: string) =>
 /** Rules only. Completion follows the underlying state, never a paid AI call. */
 export async function getNextActions(
   websiteId: string, ownerOrgId: string, canManage: boolean,
-  options: { now?: Date; includeSnoozed?: boolean } = {},
+  options: { now?: Date; includeSnoozed?: boolean; exclude?: readonly NextActionKind[] } = {},
 ): Promise<NextAction[]> {
   const now = options.now ?? new Date();
   const [row] = await db.select({
@@ -95,9 +95,12 @@ export async function getNextActions(
   if (canManage && !row.google) add("google", websiteId, "medium", `${base}/google`);
   const order = { high: 0, medium: 1, opportunity: 2 };
   actions.sort((a, b) => order[a.priority] - order[b.priority]);
-  if (options.includeSnoozed) return actions;
+  // Before the cut to five, so a page that lists some kinds itself (Tasks) still gets up to five others.
+  const exclude = options.exclude ?? [];
+  if (options.includeSnoozed) return actions.filter(a => !exclude.includes(a.kind));
+  const listed = actions.filter(a => !exclude.includes(a.kind));
   const preferences = await db.select({ key: nextActionPreferences.taskKey }).from(nextActionPreferences)
     .where(and(eq(nextActionPreferences.websiteId, websiteId), gt(nextActionPreferences.snoozedUntil, now)));
   const hidden = new Set(preferences.map(p => p.key));
-  return actions.filter(a => !hidden.has(a.id)).slice(0, 5);
+  return listed.filter(a => !hidden.has(a.id)).slice(0, 5);
 }

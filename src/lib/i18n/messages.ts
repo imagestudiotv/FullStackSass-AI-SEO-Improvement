@@ -2841,7 +2841,7 @@ export type Messages = {
       home: string;
       /** The AI chat, its own page (client, 2026-11-02). */
       growthCopilot: string;
-      /** The overview and task list (/dashboard). */
+      /** The task list (/tasks). */
       tasks: string;
       /** A group: Opportunities and Social Content. */
       socialDistribution: string;
