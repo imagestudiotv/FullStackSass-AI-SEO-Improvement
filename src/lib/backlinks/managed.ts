@@ -5,7 +5,7 @@ import { and, eq, inArray, ne, sql } from "drizzle-orm";
 import { recordAdminAction } from "@/lib/admin/audit";
 import { countWords, normaliseSlug } from "@/lib/articles/generate";
 import { linkPhrase, linksTo, linkTextFor, siteScope, unlinkUrl } from "@/lib/articles/link-guard";
-import { reviewHash } from "@/lib/articles/review";
+import { reviewHash, twoStepArticles } from "@/lib/articles/review";
 import { sanitizeHtml } from "@/lib/articles/sanitize";
 import { readOneAuthority } from "@/lib/authority/metric";
 import { effectiveMinSourceRank, minRankCapFor } from "@/lib/backlinks/authority-cap";
@@ -716,6 +716,13 @@ export async function approveArticle(input: {
       throw new PlacementError("A placed link is missing from the text - remove that placement or restore the link first");
     }
 
+    /*
+      Under the two-step flow the team's approval is the ONLY one: it covers
+      the article's sources too, so the customer is never asked to approve
+      them separately (lib/publishing/controls.ts, two_step_articles). The
+      review page shows the sources and their warnings for that reason.
+    */
+    const coversResearch = article.researchReviewRequired && (await twoStepArticles(tx));
     const [updated] = await tx
       .update(articles)
       .set({
@@ -724,6 +731,9 @@ export async function approveArticle(input: {
         reviewApprovedBy: input.actorEmail,
         reviewApprovedHash: reviewHash(article),
         reviewVersion: sql`${articles.reviewVersion} + 1`,
+        ...(coversResearch
+          ? { researchApprovedHash: reviewHash(article), researchApprovedBy: input.actorEmail, researchApprovedAt: new Date() }
+          : {}),
       })
       .where(and(eq(articles.id, article.id), eq(articles.reviewVersion, input.expectedVersion)))
       .returning({ reviewVersion: articles.reviewVersion });

@@ -18,6 +18,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { publishValuationPolicy, requestAuthorityCollection, resolveDispatch, setControl } from "@/lib/admin/network-operations";
+// Type-only: erased at compile time, so the server module never reaches the browser.
+import type { ControlKey } from "@/lib/publishing/controls";
 import type { BacklinkRate, ClickValueMode } from "@/lib/valuation/policy";
 import { cn } from "@/lib/utils";
 
@@ -64,7 +66,7 @@ function ReasonField({
 }
 
 const SWITCH_COPY: Record<
-  "publication_freeze" | "managed_review",
+  ControlKey,
   { on: { title: string; body: ReactNode; confirm: string }; off: { title: string; body: ReactNode; confirm: string } }
 > = {
   publication_freeze: {
@@ -103,6 +105,30 @@ const SWITCH_COPY: Record<
       confirm: "Turn off review",
     },
   },
+  two_step_articles: {
+    on: {
+      title: "Turn on two-step articles?",
+      body: (
+        <>
+          Every new article, on every website and the free articles of new customers too, comes to the review queue first. Your
+          approval makes it ready: the customer is no longer asked to approve its sources, and their own later edits keep your approval
+          unless they remove a placed network link. Drafts still waiting for a customer&apos;s source approval move to the queue now.
+          Turn on only after a deploy has finished.
+        </>
+      ),
+      confirm: "Turn on two-step",
+    },
+    off: {
+      title: "Turn off two-step articles?",
+      body: (
+        <>
+          New drafts go back to the earlier rules: only Partner Network websites (with managed review on) wait for the team, and customers
+          approve flagged sources themselves. Articles already in the queue stay there.
+        </>
+      ),
+      confirm: "Turn off two-step",
+    },
+  },
 };
 
 /**
@@ -116,7 +142,7 @@ export function ControlToggle({
   onLabel,
   offLabel,
 }: {
-  controlKey: "publication_freeze" | "managed_review";
+  controlKey: ControlKey;
   enabled: boolean;
   title: string;
   onLabel: string;
