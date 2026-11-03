@@ -10,6 +10,9 @@ vi.mock("react", async original => ({
   useEffect: (effect: () => void) => effect(),
   useRef: () => state.remembered,
   useState: (initial: unknown) => [initial, vi.fn()],
+  // The remembered open/closed menu groups (client design, 2026-11-02): the server's answer, as on first paint.
+  useMemo: (make: () => unknown) => make(),
+  useSyncExternalStore: (_subscribe: unknown, _snapshot: unknown, server: () => unknown) => server(),
 }));
 vi.mock("next/navigation", () => ({ usePathname: () => state.path }));
 vi.mock("@/lib/websites/actions", () => ({ selectWebsite: state.select }));

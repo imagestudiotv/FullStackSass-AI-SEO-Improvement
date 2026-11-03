@@ -100,10 +100,11 @@ vi.mock("@/lib/websites/members", () => ({
 /* The rendered pieces, as named stubs the tree search can recognise. */
 vi.mock("@/components/app-sidebar", () => ({
   AppSidebar: ({ children }: { children: ReactNode }) => children,
+  HeaderBrand: ({ children }: { children: ReactNode }) => children,
 }));
 vi.mock("@/components/mobile-nav", () => ({ MobileNav: () => null }));
 vi.mock("@/components/sidebar-nav", () => ({ SidebarNav: () => null }));
-vi.mock("@/components/sidebar-usage", () => ({ SidebarUsage: () => null }));
+vi.mock("@/components/sidebar-usage", () => ({ SidebarUsage: () => null, SidebarCredits: () => null }));
 vi.mock("@/components/dashboard/website-switcher", () => ({
   WebsiteSwitcher: () => null,
 }));
@@ -142,7 +143,7 @@ import { SettingsNav } from "@/components/settings-nav";
 import { SetupTracker } from "@/components/setup-tracker";
 import { ResearchWatcher } from "@/components/research-watcher";
 import { SidebarNav } from "@/components/sidebar-nav";
-import { SidebarUsage } from "@/components/sidebar-usage";
+import { SidebarCredits, SidebarUsage } from "@/components/sidebar-usage";
 import { WebsiteSwitcher } from "@/components/dashboard/website-switcher";
 import { WebsiteMembers } from "@/app/(app)/settings/website-members";
 import { listWebsiteMembers } from "@/lib/websites/members";
@@ -238,7 +239,18 @@ function findAll(node: unknown, type: unknown): Props[] {
   return [
     ...(node.type === type ? [props] : []),
     ...findAll(props.children, type),
+    // The sidebar and the phone menu take their top and bottom as props.
+    ...findAll(props.header, type),
+    ...findAll(props.footer, type),
   ];
+}
+
+/** The bottom of the sidebar, rendered twice (desktop sidebar and phone menu) with the same props. */
+function usageOf(node: unknown): Props {
+  const found = findAll(node, SidebarUsage);
+  expect(found).toHaveLength(2);
+  expect(found[1]).toEqual(found[0]);
+  return found[0];
 }
 
 function findOne(node: unknown, type: unknown): Props {
@@ -273,9 +285,11 @@ describe("app layout - owner", () => {
     expect(nav.setupProgress).toEqual({ done: 1, total: 2 });
     expect(findOne(tree, MobileNav).hideAddons).toBe(false);
 
-    const usage = findOne(tree, SidebarUsage);
+    const usage = usageOf(tree);
     expect(usage.showCredits).toBe(true);
     expect(usage.organizationId).toBe(OWNER_ORG);
+    // The pill beside the logo, and in the phone bar: their own workspace.
+    expect(findAll(tree, SidebarCredits).map((credits) => credits.organizationId)).toEqual([OWNER_ORG, OWNER_ORG]);
 
     expect(findAll(tree, SetupTracker)).toHaveLength(1);
   });
@@ -318,12 +332,12 @@ describe("app layout - invited guest who owns nothing", () => {
     expect(mobile.onboardingComplete).toBe(true);
     expect(mobile.setupProgress).toBeNull();
 
-    const usage = findOne(tree, SidebarUsage);
+    const usage = usageOf(tree);
     expect(usage.showCredits).toBe(false);
-    // The per-site article allowance still follows the shared site.
-    expect(usage.websiteId).toBe(sharedSite);
     // Never the owner's workspace.
     expect(usage.organizationId).toBe(GUEST_ORG);
+    // No balance pill beside somebody else's site.
+    expect(findAll(tree, SidebarCredits)).toHaveLength(0);
 
     expect(findAll(tree, SetupTracker)).toHaveLength(0);
   });
@@ -365,7 +379,7 @@ describe("app layout - dual-role user", () => {
     expect(nav.selectedWebsiteId).toBe(dualSite);
     expect(nav.hideAddons).toBe(false);
     expect(nav.setupProgress).toEqual({ done: 1, total: 2 });
-    expect(findOne(tree, SidebarUsage).showCredits).toBe(true);
+    expect(usageOf(tree).showCredits).toBe(true);
     expect(findAll(tree, SetupTracker)).toHaveLength(1);
   });
 
@@ -379,7 +393,7 @@ describe("app layout - dual-role user", () => {
     expect(nav.hideAddons).toBe(true);
     expect(nav.onboardingComplete).toBe(true);
     expect(nav.setupProgress).toBeNull();
-    expect(findOne(tree, SidebarUsage).showCredits).toBe(false);
+    expect(usageOf(tree).showCredits).toBe(false);
     expect(findAll(tree, SetupTracker)).toHaveLength(0);
     expect((findOne(tree, WebsiteSwitcher).current as Props).access).toBe("viewer");
   });
@@ -396,7 +410,7 @@ describe("app layout - brand-new account", () => {
     expect(nav.selectedWebsiteId).toBeNull();
     // Not guest-only: someone with no sites at all is a new customer.
     expect(nav.hideAddons).toBe(false);
-    expect(findOne(tree, SidebarUsage).showCredits).toBe(true);
+    expect(usageOf(tree).showCredits).toBe(true);
   });
 
   it("hides Add-ons and the credit figure when all they have is an invitation", async () => {
@@ -424,7 +438,7 @@ describe("app layout - brand-new account", () => {
     expect(findAll(tree, WebsiteSwitcher)).toHaveLength(0);
     expect(findOne(tree, SidebarNav).hideAddons).toBe(true);
     expect(findOne(tree, MobileNav).hideAddons).toBe(true);
-    expect(findOne(tree, SidebarUsage).showCredits).toBe(false);
+    expect(usageOf(tree).showCredits).toBe(false);
   });
 });
 

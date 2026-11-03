@@ -184,7 +184,7 @@ export const READ_TOOLS: ReadTool[] = [
   },
   {
     name: "get_social",
-    description: "Social media: the suggestions waiting (posts and replies, with platform) and what was posted recently with its address.",
+    description: "Opportunities page (social media): the suggestions waiting (posts and replies, with platform) and what was posted recently with its address.",
     input_schema: noInput,
     page: "social",
     run: async (ctx) => {
@@ -209,7 +209,7 @@ export const READ_TOOLS: ReadTool[] = [
   },
   {
     name: "get_videos",
-    description: "Videos: today's video ideas not yet made (with their idea ids), videos being made or ready, and videos posted with their views.",
+    description: "Social Content page (videos and carousels): today's video ideas not yet made (with their idea ids), videos being made or ready, and videos posted with their views.",
     input_schema: noInput,
     page: "videos",
     run: async (ctx) => {

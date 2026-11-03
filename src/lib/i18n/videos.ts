@@ -155,7 +155,7 @@ export type VideosCopy = {
 };
 
 const en: VideosCopy = {
-  title: "Videos",
+  title: "Social Content",
   intro: "Short animated videos and photo carousels made from your website, with an AI voice, captions and music. Swipe through today's ideas: the ones you keep are made and published for you.",
   tabs: { ideas: "Today's ideas", videos: "Your videos", posted: "Posted", settings: "Settings" },
   today: "{approved} of {goal} made today",
@@ -311,7 +311,7 @@ const en: VideosCopy = {
 };
 
 const es: VideosCopy = {
-  title: "Vídeos",
+  title: "Contenido social",
   intro: "Vídeos animados cortos y carruseles de fotos creados a partir de su sitio web, con voz de IA, subtítulos y música. Deslice las ideas de hoy: las que conserve se crean y se publican por usted.",
   tabs: { ideas: "Ideas de hoy", videos: "Sus vídeos", posted: "Publicados", settings: "Ajustes" },
   today: "{approved} de {goal} creados hoy",
@@ -467,7 +467,7 @@ const es: VideosCopy = {
 };
 
 const fr: VideosCopy = {
-  title: "Vidéos",
+  title: "Contenu social",
   intro: "De courtes vidéos animées et des carrousels de photos créés à partir de votre site, avec une voix IA, des sous-titres et de la musique. Faites défiler les idées du jour : celles que vous gardez sont créées et publiées pour vous.",
   tabs: { ideas: "Idées du jour", videos: "Vos vidéos", posted: "Publiées", settings: "Paramètres" },
   today: "{approved} sur {goal} créées aujourd’hui",
@@ -623,7 +623,7 @@ const fr: VideosCopy = {
 };
 
 const it: VideosCopy = {
-  title: "Video",
+  title: "Contenuti social",
   intro: "Brevi video animati e caroselli di foto creati dal suo sito, con voce IA, sottotitoli e musica. Scorra le idee di oggi: quelle che tiene vengono create e pubblicate per lei.",
   tabs: { ideas: "Idee di oggi", videos: "I suoi video", posted: "Pubblicati", settings: "Impostazioni" },
   today: "{approved} di {goal} creati oggi",
@@ -779,7 +779,7 @@ const it: VideosCopy = {
 };
 
 const de: VideosCopy = {
-  title: "Videos",
+  title: "Social Content",
   intro: "Kurze animierte Videos und Foto-Karussells aus Ihrer Website, mit KI-Stimme, Untertiteln und Musik. Wischen Sie durch die Ideen von heute: Die, die Sie behalten, werden für Sie erstellt und veröffentlicht.",
   tabs: { ideas: "Ideen von heute", videos: "Ihre Videos", posted: "Gepostet", settings: "Einstellungen" },
   today: "{approved} von {goal} heute erstellt",

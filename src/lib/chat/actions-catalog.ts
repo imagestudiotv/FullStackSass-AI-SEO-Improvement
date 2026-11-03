@@ -79,7 +79,7 @@ export const ACTION_SPECS: Record<ChatActionKind, ActionSpec> = {
     run: async (websiteId) => fromResult(await startAudit(websiteId)),
   },
   find_social_posts: {
-    description: "Offer to look for new social media suggestions now (posts and replies to discussions). Finding them is free; each post costs a credit when posted from the Social media page.",
+    description: "Offer to look for new social media suggestions now (posts and replies to discussions). Finding them is free; each post costs a credit when posted from the Opportunities page.",
     input_schema: { type: "object", properties: {} },
     check: async () => ({ ok: true, input: {}, details: "" }),
     run: async (websiteId) => {

@@ -45,12 +45,12 @@ export async function threadOf(websiteId: string, userId: string, threadId: stri
 
 /**
  * The pages an answer links to, stored as page names; the address is built
- * for the website. Not the Dashboard: the chat is on it.
+ * for the website. Tasks (the Dashboard) too, now that the chat has its own
+ * page (client, 2026-11-02).
  */
 export function linksFor(pages: string[], websiteId: string): ChatLink[] {
   return pages
     .filter(isChatPage)
-    .filter((page) => page !== "dashboard")
     .slice(0, 3)
     .map((page) => ({ label: page, href: chatPageHref(page, websiteId) }));
 }

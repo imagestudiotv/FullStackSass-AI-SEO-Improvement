@@ -2837,6 +2837,29 @@ export type Messages = {
       articlesUnlimited: string;
       articlesLeft: string;
       freeArticlesLeft: string;
+      /** Home (a group: Growth Copilot and Tasks). */
+      home: string;
+      /** The AI chat, its own page (client, 2026-11-02). */
+      growthCopilot: string;
+      /** The overview and task list (/dashboard). */
+      tasks: string;
+      /** A group: Opportunities and Social Content. */
+      socialDistribution: string;
+      /** The social page. */
+      opportunities: string;
+      /** The videos page. */
+      socialContent: string;
+      /** A group: Website Health, Google, AI Visibility, Losing Traffic. */
+      growthAudit: string;
+      /** At the bottom of the sidebar; replaces Referral program. */
+      earnCredits: string;
+      /** The credits menu beside the logo. */
+      yourCredits: string;
+      buyCredits: string;
+      viewHistory: string;
+      creditsNeverExpire: string;
+      /** The arrows beside the credits: the website switcher's label. */
+      switchWebsite: string;
     };
     /** The Social page (client, 2026-10-27; lib/social): {platform}, {date}, {time}, {price}, {count}, {max}, {name}, {reason}. errors: lib/social/actions.ts SocialError. */
     social: {
@@ -6038,9 +6061,22 @@ const en: Messages = {
       articlesUnlimited: "Unlimited articles",
       articlesLeft: "{left} of {limit} articles left",
       freeArticlesLeft: "{left} of {limit} free articles left",
+      home: "Home",
+      growthCopilot: "Growth Copilot",
+      tasks: "Tasks",
+      socialDistribution: "Social Distribution",
+      opportunities: "Opportunities",
+      socialContent: "Social Content",
+      growthAudit: "Growth Audit",
+      earnCredits: "Earn Credits",
+      yourCredits: "Your credits",
+      buyCredits: "Buy credits",
+      viewHistory: "View history",
+      creditsNeverExpire: "Credits never expire. Every paid action shows its price before you confirm.",
+      switchWebsite: "Switch website",
     },
     social: {
-      title: "Social media",
+      title: "Opportunities",
       intro: "RepGet finds conversations about your field and writes posts and replies for you. Your own posts are published for you; replies you post yourself, with one click.",
       accountsTitle: "Your accounts",
       connect: "Connect",
@@ -6145,7 +6181,7 @@ const en: Messages = {
         audit_rerun: "Running the website check again",
         social_post: "A social media post or reply",
         video_post: "A video or carousel",
-        chat_message: "A message to the AI assistant",
+        chat_message: "A Growth Copilot message",
       },
       actionHelp: {
         audit_rerun: "The first check of each website is free.",
@@ -9236,9 +9272,22 @@ const es: Messages = {
       articlesUnlimited: "Artículos ilimitados",
       articlesLeft: "Quedan {left} de {limit} artículos",
       freeArticlesLeft: "Quedan {left} de {limit} artículos gratuitos",
+      home: "Inicio",
+      growthCopilot: "Growth Copilot",
+      tasks: "Tareas",
+      socialDistribution: "Distribución social",
+      opportunities: "Oportunidades",
+      socialContent: "Contenido social",
+      growthAudit: "Auditoría de crecimiento",
+      earnCredits: "Gane créditos",
+      yourCredits: "Sus créditos",
+      buyCredits: "Comprar créditos",
+      viewHistory: "Ver historial",
+      creditsNeverExpire: "Los créditos no caducan. Cada acción de pago muestra su precio antes de confirmar.",
+      switchWebsite: "Cambiar de sitio web",
     },
     social: {
-      title: "Redes sociales",
+      title: "Oportunidades",
       intro: "RepGet encuentra conversaciones sobre su sector y le escribe publicaciones y respuestas. Sus propias publicaciones se publican por usted; las respuestas las publica usted con un clic.",
       accountsTitle: "Sus cuentas",
       connect: "Conectar",
@@ -9343,7 +9392,7 @@ const es: Messages = {
         audit_rerun: "Volver a revisar el sitio web",
         social_post: "Una publicación o respuesta en redes sociales",
         video_post: "Un vídeo o carrusel",
-        chat_message: "Un mensaje al asistente de IA",
+        chat_message: "Un mensaje a Growth Copilot",
       },
       actionHelp: {
         audit_rerun: "La primera revisión de cada sitio web es gratuita.",
@@ -12435,9 +12484,22 @@ const fr: Messages = {
       articlesUnlimited: "Articles illimités",
       articlesLeft: "{left} articles restants sur {limit}",
       freeArticlesLeft: "{left} articles gratuits restants sur {limit}",
+      home: "Accueil",
+      growthCopilot: "Growth Copilot",
+      tasks: "Tâches",
+      socialDistribution: "Diffusion sociale",
+      opportunities: "Opportunités",
+      socialContent: "Contenu social",
+      growthAudit: "Audit de croissance",
+      earnCredits: "Gagner des crédits",
+      yourCredits: "Vos crédits",
+      buyCredits: "Acheter des crédits",
+      viewHistory: "Voir l'historique",
+      creditsNeverExpire: "Les crédits n'expirent jamais. Chaque action payante affiche son prix avant votre confirmation.",
+      switchWebsite: "Changer de site",
     },
     social: {
-      title: "Réseaux sociaux",
+      title: "Opportunités",
       intro: "RepGet trouve des conversations sur votre domaine et rédige vos publications et vos réponses. Vos propres publications sont publiées pour vous ; les réponses, vous les publiez vous-même en un clic.",
       accountsTitle: "Vos comptes",
       connect: "Connecter",
@@ -12542,7 +12604,7 @@ const fr: Messages = {
         audit_rerun: "Relancer l'analyse du site",
         social_post: "Une publication ou réponse sur les réseaux sociaux",
         video_post: "Une vidéo ou un carrousel",
-        chat_message: "Un message à l'assistant IA",
+        chat_message: "Un message à Growth Copilot",
       },
       actionHelp: {
         audit_rerun: "La première analyse de chaque site est gratuite.",
@@ -15633,9 +15695,22 @@ const it: Messages = {
       articlesUnlimited: "Articoli illimitati",
       articlesLeft: "{left} articoli su {limit} rimasti",
       freeArticlesLeft: "{left} articoli gratuiti su {limit} rimasti",
+      home: "Home",
+      growthCopilot: "Growth Copilot",
+      tasks: "Attività",
+      socialDistribution: "Distribuzione social",
+      opportunities: "Opportunità",
+      socialContent: "Contenuti social",
+      growthAudit: "Audit di crescita",
+      earnCredits: "Guadagni crediti",
+      yourCredits: "I suoi crediti",
+      buyCredits: "Acquista crediti",
+      viewHistory: "Vedi cronologia",
+      creditsNeverExpire: "I crediti non scadono mai. Ogni azione a pagamento mostra il prezzo prima della conferma.",
+      switchWebsite: "Cambia sito",
     },
     social: {
-      title: "Social media",
+      title: "Opportunità",
       intro: "RepGet trova conversazioni sul suo settore e le scrive post e risposte. I suoi post vengono pubblicati per lei; le risposte le pubblica lei con un clic.",
       accountsTitle: "I suoi account",
       connect: "Collega",
@@ -15740,7 +15815,7 @@ const it: Messages = {
         audit_rerun: "Ripetere il controllo del sito",
         social_post: "Un post o una risposta sui social",
         video_post: "Un video o un carosello",
-        chat_message: "Un messaggio all'assistente IA",
+        chat_message: "Un messaggio a Growth Copilot",
       },
       actionHelp: {
         audit_rerun: "Il primo controllo di ogni sito è gratuito.",
@@ -18828,9 +18903,22 @@ const de: Messages = {
       articlesUnlimited: "Unbegrenzte Artikel",
       articlesLeft: "{left} von {limit} Artikeln übrig",
       freeArticlesLeft: "{left} von {limit} kostenlosen Artikeln übrig",
+      home: "Start",
+      growthCopilot: "Growth Copilot",
+      tasks: "Aufgaben",
+      socialDistribution: "Social-Verbreitung",
+      opportunities: "Chancen",
+      socialContent: "Social Content",
+      growthAudit: "Wachstums-Audit",
+      earnCredits: "Credits verdienen",
+      yourCredits: "Ihre Credits",
+      buyCredits: "Credits kaufen",
+      viewHistory: "Verlauf ansehen",
+      creditsNeverExpire: "Credits verfallen nie. Jede kostenpflichtige Aktion zeigt ihren Preis, bevor Sie bestätigen.",
+      switchWebsite: "Website wechseln",
     },
     social: {
-      title: "Social Media",
+      title: "Chancen",
       intro: "RepGet findet Unterhaltungen zu Ihrem Fachgebiet und schreibt Beiträge und Antworten für Sie. Ihre eigenen Beiträge werden für Sie veröffentlicht; Antworten posten Sie selbst mit einem Klick.",
       accountsTitle: "Ihre Konten",
       connect: "Verbinden",
@@ -18935,7 +19023,7 @@ const de: Messages = {
         audit_rerun: "Die Website-Prüfung erneut ausführen",
         social_post: "Ein Social-Media-Beitrag oder eine Antwort",
         video_post: "Ein Video oder Karussell",
-        chat_message: "Eine Nachricht an den KI-Assistenten",
+        chat_message: "Eine Nachricht an Growth Copilot",
       },
       actionHelp: {
         audit_rerun: "Die erste Prüfung jeder Website ist kostenlos.",

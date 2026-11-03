@@ -7,7 +7,7 @@ export function websiteSwitchDestination(pathname: string, websiteId: string, de
   if (section === "articles" || section.startsWith("articles/")) return `/websites/${websiteId}/content`;
   const sharedSections = new Set([
     "", "content", "profile", "publishing", "integrations", "google", "ai-visibility", "traffic",
-    "backlinks", "backlinks/links", "backlinks/credits",
+    "backlinks", "backlinks/links", "backlinks/credits", "copilot", "social", "videos",
   ]);
   return `/websites/${websiteId}${sharedSections.has(section) && section ? `/${section}` : ""}`;
 }
