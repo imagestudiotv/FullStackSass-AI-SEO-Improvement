@@ -178,7 +178,7 @@ export async function getPost(id: string): Promise<BundlePost> {
 
 /**
  * Publishes one post to several platforms at once (videos: the same reel to
- * Instagram, TikTok, YouTube and Facebook), each with its own settings in
+ * Instagram, TikTok, YouTube, Facebook and Pinterest), each with its own settings in
  * `data`. bundle.social reports each platform's result separately.
  */
 export async function createMultiPost(input: {

@@ -11,9 +11,14 @@ import { nextPublishTime } from "./make";
 
 /**
  * Publishing a ready video through bundle.social to the website's connected
- * Instagram, TikTok, YouTube and Facebook - one post, each platform in its
- * own format: a Reel, a TikTok video, a YouTube Short, a Facebook Reel; a
- * carousel as a photo post (not on YouTube, which has none).
+ * Instagram, TikTok, YouTube, Facebook and Pinterest - one post, each
+ * platform in its own format: a Reel, a TikTok video, a YouTube Short, a
+ * Facebook Reel, a video Pin on the board the social Pins use; a carousel as
+ * a photo post (not on YouTube or Pinterest: VIDEO_PLATFORM_SPECS).
+ *
+ * A Pin needs its board. Without one, Pinterest is left out (the others still
+ * go) and the video says why - NO_BOARD in its error, which the page shows in
+ * the reader's language with where to choose the board.
  *
  * The anti-ban rules (client, 2026-10-29) are the social ones: at most
  * MAX_POSTS_PER_DAY videos a platform a day (more wait for the next good
@@ -28,13 +33,33 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 const short = (text: string) => text.replace(/\s+/g, " ").trim().slice(0, 300);
 
-/** The platforms a video can go to now: chosen, connected through bundle.social, not paused. */
-export async function publishTargets(websiteId: string, wanted: string[], carousel: boolean): Promise<VideoPlatform[]> {
+/** A video's error when Pinterest was chosen without a board (the code VideoError and the page share). */
+export const NO_BOARD = "no_board";
+
+export type PublishTarget = { platform: VideoPlatform; board: string | null };
+
+/**
+ * The platforms a video can go to now - chosen, connected through
+ * bundle.social, not paused, taking the format - and, apart, the chosen ones
+ * that need a board and have none.
+ */
+export async function publishTargets(
+  websiteId: string,
+  wanted: string[],
+  carousel: boolean,
+): Promise<{ targets: PublishTarget[]; noBoard: VideoPlatform[] }> {
   const accounts = await db.select().from(socialAccounts).where(eq(socialAccounts.websiteId, websiteId));
-  return wanted.filter(isVideoPlatform).filter((platform) => {
+  const targets: PublishTarget[] = [];
+  const noBoard: VideoPlatform[] = [];
+  for (const platform of [...new Set(wanted)].filter(isVideoPlatform)) {
     const account = accounts.find((row) => row.platform === platform);
-    return account?.bundleAccountId && !account.pausedAt && (!carousel || VIDEO_PLATFORM_SPECS[platform].carousel);
-  });
+    const spec = VIDEO_PLATFORM_SPECS[platform];
+    if (!account?.bundleAccountId || account.pausedAt || (carousel && !spec.carousel)) continue;
+    const board = account.target?.trim() || null;
+    if (spec.board && !board) noBoard.push(platform);
+    else targets.push({ platform, board });
+  }
+  return { targets, noBoard };
 }
 
 /** Videos the website published (or is publishing) on a platform in the last day. */
@@ -56,10 +81,18 @@ async function postedToday(websiteId: string, platform: VideoPlatform, now: Date
 /** Each platform's settings for the post (bundle.social's data). */
 async function platformData(
   platform: VideoPlatform,
-  input: { teamId: string; uploadIds: string[]; caption: string; title: string; carousel: boolean; language: string },
+  input: { teamId: string; uploadIds: string[]; caption: string; title: string; carousel: boolean; language: string; board: string | null },
 ): Promise<Record<string, unknown>> {
   const { uploadIds, caption, carousel } = input;
   switch (platform) {
+    case "pinterest":
+      // A video Pin (never a carousel: VIDEO_PLATFORM_SPECS). bundle.social takes the board by its name.
+      return {
+        boardName: input.board,
+        text: input.title.slice(0, VIDEO_PLATFORM_SPECS.pinterest.titleMax ?? 100),
+        description: caption.slice(0, VIDEO_PLATFORM_SPECS.pinterest.captionMax),
+        uploadIds,
+      };
     case "instagram":
       return carousel ? { type: "POST", text: caption, uploadIds } : { type: "REEL", text: caption, uploadIds, shareToFeed: true };
     case "facebook":
@@ -122,11 +155,14 @@ export async function publishVideo(id: string, now: Date = new Date()): Promise<
   const { row, teamId } = claimed;
   const carousel = row.format === "carousel";
 
-  const targets = await publishTargets(row.websiteId, row.platforms ?? [], carousel);
-  const open: VideoPlatform[] = [];
-  for (const platform of targets) if ((await postedToday(row.websiteId, platform, now, id)) < MAX_POSTS_PER_DAY) open.push(platform);
+  const { targets, noBoard } = await publishTargets(row.websiteId, row.platforms ?? [], carousel);
+  const open: PublishTarget[] = [];
+  for (const target of targets) if ((await postedToday(row.websiteId, target.platform, now, id)) < MAX_POSTS_PER_DAY) open.push(target);
+  // Left out for want of a board: said on the video, never dropped in silence.
+  const notes = noBoard.length > 0 ? [NO_BOARD] : [];
   if (targets.length === 0) {
-    await db.update(videoIdeas).set({ status: "ready", scheduledFor: null, error: "no_accounts", updatedAt: now }).where(eq(videoIdeas.id, id));
+    const error = notes[0] ?? "no_accounts";
+    await db.update(videoIdeas).set({ status: "ready", scheduledFor: null, error, updatedAt: now }).where(eq(videoIdeas.id, id));
     return { outcome: "skipped" };
   }
   if (open.length === 0) {
@@ -142,7 +178,7 @@ export async function publishVideo(id: string, now: Date = new Date()): Promise<
     for (const file of files) uploadIds.push(await uploadFromUrl(teamId, file));
     const script = row.script as VideoScript;
     const data: Record<string, Record<string, unknown>> = {};
-    for (const platform of open) {
+    for (const { platform, board } of open) {
       data[VIDEO_PLATFORM_SPECS[platform].bundleType] = await platformData(platform, {
         teamId,
         uploadIds,
@@ -150,16 +186,22 @@ export async function publishVideo(id: string, now: Date = new Date()): Promise<
         title: row.title || script.hook,
         carousel,
         language: row.language,
+        board,
       });
     }
+    const platforms = open.map((target) => target.platform);
     const post = await createMultiPost({ teamId, data, title: row.title, referenceKey: `video:${id}`, now });
-    await db.update(videoIdeas).set({ bundlePostId: post.id, platforms: open, updatedAt: now }).where(eq(videoIdeas.id, id));
-    return { outcome: await settle(id, row.websiteId, open, post, now) };
+    // The note waits on the row for checkVideoPublished, which settles it later.
+    await db
+      .update(videoIdeas)
+      .set({ bundlePostId: post.id, platforms, error: notes[0] ?? null, updatedAt: now })
+      .where(eq(videoIdeas.id, id));
+    return { outcome: await settle(id, row.websiteId, platforms, post, now, notes) };
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
     // A refusal that trying again will not change (not a rate limit): stop posting there.
     if (error instanceof BundleError && error.status && error.status >= 400 && error.status < 500 && error.status !== 429) {
-      for (const platform of open) await pause(row.websiteId, platform, reason, now);
+      for (const { platform } of open) await pause(row.websiteId, platform, reason, now);
     }
     await db.update(videoIdeas).set({ status: "failed", error: short(reason), updatedAt: now }).where(eq(videoIdeas.id, id));
     return { outcome: "failed" };
@@ -170,10 +212,18 @@ export async function publishVideo(id: string, now: Date = new Date()): Promise<
 export async function checkVideoPublished(id: string, now: Date = new Date()): Promise<VideoPublishOutcome> {
   const [row] = await db.select().from(videoIdeas).where(eq(videoIdeas.id, id));
   if (!row || row.status !== "posting" || !row.bundlePostId) return row?.status === "posted" ? "posted" : "skipped";
-  return settle(id, row.websiteId, (row.platforms ?? []).filter(isVideoPlatform), await getPost(row.bundlePostId), now);
+  const notes = row.error === NO_BOARD ? [NO_BOARD] : [];
+  return settle(id, row.websiteId, (row.platforms ?? []).filter(isVideoPlatform), await getPost(row.bundlePostId), now, notes);
 }
 
-async function settle(id: string, websiteId: string, platforms: VideoPlatform[], post: BundlePost, now: Date): Promise<VideoPublishOutcome> {
+async function settle(
+  id: string,
+  websiteId: string,
+  platforms: VideoPlatform[],
+  post: BundlePost,
+  now: Date,
+  notes: string[] = [],
+): Promise<VideoPublishOutcome> {
   if (post.status !== "POSTED" && post.status !== "ERROR" && post.status !== "DELETED") return "posting";
   const urls: Record<string, string> = {};
   const failed: string[] = [];
@@ -191,6 +241,8 @@ async function settle(id: string, websiteId: string, platforms: VideoPlatform[],
     }
   }
   const any = Object.keys(urls).length > 0;
+  // Kept apart from the refusals' text, so the page can still read the code.
+  failed.unshift(...notes);
   await db
     .update(videoIdeas)
     .set({

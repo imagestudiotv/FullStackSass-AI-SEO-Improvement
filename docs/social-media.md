@@ -8,7 +8,7 @@ Client decisions of 2026-10-27. Every day RepGet suggests up to 10 posts and rep
 | Quora | Username only (no API) | None | One click: text copied, question opened |
 | X | bundle.social | Automatic | One click: X's reply box opens with the text filled in |
 | Threads | bundle.social | Automatic | One click: Threads' reply box opens with the text filled in |
-| Pinterest | bundle.social | Automatic Pins on a chosen board, using the website's own article images | None |
+| Pinterest | bundle.social | Automatic Pins on a chosen board, using the website's own article images; the same account and board also take the video Pins (docs/videos.md) | None |
 | Bluesky | bundle.social | Automatic | One click: text copied, post opened |
 
 - **Without `BUNDLE_SOCIAL_API_KEY`**, every platform is connected by username, and own posts are one-click like replies.
