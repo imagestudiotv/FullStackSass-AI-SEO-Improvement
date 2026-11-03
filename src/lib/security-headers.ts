@@ -194,6 +194,14 @@ export const ALL_INTEGRATIONS = (sentryDsn?: string): CspIntegrations => ({ sent
  */
 export const THEME_SCRIPT_HASH = "'sha256-nj7s1qe9iqUW2pzhF6thy8NIIuqyBMAOo+kkJ6bWvmQ='";
 
+/**
+ * The page-language script (lib/i18n/document-lang.ts LANG_SCRIPT), next to
+ * the night mode one in <head> and allowed the same way: by its hash, on the
+ * nonce pages only. /de/blog, /de/audit and the translated tools are nonce
+ * pages, and without it their <html lang> would stay "en".
+ */
+export const LANG_SCRIPT_HASH = "'sha256-RSVad5PIBLsrSFMEOeJmkrypDIoo+qQTWE8bP7irfS8='";
+
 export function contentSecurityPolicy(integrations: CspIntegrations, nonce?: string): string {
   if (nonce !== undefined && !/^[A-Za-z0-9+/=_-]{22,128}$/.test(nonce)) {
     throw new Error("Invalid CSP nonce");
@@ -222,7 +230,7 @@ export function contentSecurityPolicy(integrations: CspIntegrations, nonce?: str
     [
       "script-src",
       nonce
-        ? ["'self'", `'nonce-${nonce}'`, THEME_SCRIPT_HASH, "'strict-dynamic'", ...crispScript, ...gaScript, ...adsScript]
+        ? ["'self'", `'nonce-${nonce}'`, THEME_SCRIPT_HASH, LANG_SCRIPT_HASH, "'strict-dynamic'", ...crispScript, ...gaScript, ...adsScript]
         : ["'self'", "'unsafe-inline'", ...crispScript, ...gaScript, ...adsScript],
     ],
     ["script-src-attr", ["'none'"]],

@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { DeferredToaster } from "@/components/deferred-toaster";
+import { DocumentLang } from "@/components/document-lang";
 import { SiteAnalytics } from "@/components/site-analytics";
 import "./globals.css";
 import { isPreviewDeployment } from "@/lib/deployment";
 import { siteUrl as canonicalSiteUrl } from "@/lib/site-url";
 import { SITE_OPEN_GRAPH } from "@/lib/seo/page-metadata";
 import { THEME_SCRIPT } from "@/lib/theme";
+import { LANG_SCRIPT } from "@/lib/i18n/document-lang";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -121,9 +123,16 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           above is what lets React accept that.
         */}
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+        {/*
+          The page language on /es, /fr, /it, /de, before the first paint
+          (lib/i18n/document-lang.ts): this shared layout cannot read the
+          [locale] segment, so lang="en" above is only the starting value.
+        */}
+        <script dangerouslySetInnerHTML={{ __html: LANG_SCRIPT }} />
       </head>
       <body className="min-h-full flex flex-col">
         {children}
+        <DocumentLang />
         <DeferredToaster />
         <SiteAnalytics />
       </body>
