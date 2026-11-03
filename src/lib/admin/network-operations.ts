@@ -10,7 +10,7 @@ import { AUTHORITY_METRIC } from "@/lib/authority/metric";
 import { db } from "@/lib/db";
 import { articles, domainMetrics, publicationDispatches, publishLogs, websites } from "@/lib/db/schema";
 import { isDataForSeoConfigured } from "@/lib/providers/dataforseo";
-import { readControls, switchControl, type ControlKey, type ControlState } from "@/lib/publishing/controls";
+import { CONTROL_KEYS, readControls, switchControl, type ControlKey, type ControlState } from "@/lib/publishing/controls";
 import { dailyRequestLimit, type DailyRequestLimit } from "@/lib/authority/collect";
 import { IN_FLIGHT_TIMEOUT_MS, reconcileUncertain, UNACKNOWLEDGED } from "@/lib/publishing/dispatch";
 import {
@@ -171,7 +171,7 @@ export async function getOperations(): Promise<Operations> {
 
 export async function setControl(key: ControlKey, enabled: boolean, reason: string): Promise<ActionResult<null>> {
   const admin = await requireAdmin();
-  if (key !== "publication_freeze" && key !== "managed_review") return { ok: false, error: "Unknown control" };
+  if (!CONTROL_KEYS.includes(key)) return { ok: false, error: "Unknown control" };
   const why = reason.trim();
   if (why.length < 3) return { ok: false, error: "Give a short reason - it is kept in the audit log" };
   await db.transaction(async (tx) => {
@@ -183,7 +183,7 @@ export async function setControl(key: ControlKey, enabled: boolean, reason: stri
         action: "platform.control_changed",
         targetType: "platform_control",
         targetId: key,
-        summary: `${enabled ? "Enabled" : "Disabled"} ${key.replace("_", " ")}: ${why}${heldForReview ? ` (${heldForReview} drafts held for review)` : ""}`,
+        summary: `${enabled ? "Enabled" : "Disabled"} ${key.replaceAll("_", " ")}: ${why}${heldForReview ? ` (${heldForReview} drafts held for review)` : ""}`,
         detail: { key, enabled, reason: why, heldForReview },
       },
       tx,

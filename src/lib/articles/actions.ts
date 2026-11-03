@@ -14,7 +14,7 @@ import { requireEditor } from "@/lib/websites/require-editor";
 import { sanitizeHtml, countWords, normaliseSlug } from "@/lib/articles/generate";
 import { siteScope } from "@/lib/articles/link-guard";
 import type { ActionResult } from "@/lib/websites/actions";
-import { syncApproval } from "@/lib/articles/review";
+import { followCustomerEdit } from "@/lib/articles/review";
 import { ArticleInFlightError, editArticle } from "@/lib/publishing/dispatch";
 
 /**
@@ -226,8 +226,9 @@ export async function updateArticle(
         });
       }
       await tx.update(articles).set(patch).where(eq(articles.id, articleId));
-      // Changed after the RepGet team approved it: back to their queue.
-      await syncApproval(articleId, tx);
+      // Changed after the RepGet team approved it: back to their queue, or - under the
+      // two-step flow - the approval follows unless a placed network link was removed.
+      await followCustomerEdit(articleId, tx);
     });
   } catch (error) {
     if (error instanceof ArticleInFlightError) return { ok: false, error: error.message };
