@@ -1,18 +1,20 @@
 import Link from "next/link";
 import { ArrowRight, ListChecks } from "lucide-react";
 import type { Locale } from "@/lib/i18n/config";
-import { getNextActions } from "@/lib/dashboard/next-actions";
+import { getNextActions, type NextActionKind } from "@/lib/dashboard/next-actions";
 import { NEXT_ACTIONS_COPY } from "@/lib/i18n/next-actions";
 import { CONTENT_COPY } from "@/lib/i18n/content-improvements";
 import { snoozeNextAction, restoreNextActions } from "@/lib/dashboard/next-action-actions";
 
-export async function NextActions({ websiteId, ownerOrgId, canManage, locale }: {
+export async function NextActions({ websiteId, ownerOrgId, canManage, locale, exclude }: {
   websiteId: string; ownerOrgId: string; canManage: boolean; locale: Locale;
+  /** Kinds the page lists itself (the Tasks page has its own rows for these). */
+  exclude?: readonly NextActionKind[];
 }) {
   const t = { ...NEXT_ACTIONS_COPY[locale], ...CONTENT_COPY[locale] };
   let actions;
   try {
-    actions = await getNextActions(websiteId, ownerOrgId, canManage);
+    actions = await getNextActions(websiteId, ownerOrgId, canManage, { exclude });
   } catch (error) {
     console.error("[dashboard] next actions failed", error);
     return <section aria-label={t.title} className="rounded-xl border bg-card p-5 text-sm text-muted-foreground">{t.unavailable}</section>;

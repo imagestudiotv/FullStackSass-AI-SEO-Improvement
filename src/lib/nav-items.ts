@@ -88,8 +88,12 @@ export const navEntries: NavEntry[] = [
     children: [
       /** The AI chat, on a page of its own (client: "I prefer an independent section for the chat"). */
       { title: "growthCopilot", segment: "copilot", icon: Sparkles },
-      /** The overview and the task list, which was the Dashboard. */
-      { title: "tasks", href: "/dashboard", icon: ListTodo },
+      /**
+       * The task list (/tasks). This pointed at /dashboard, the SEO overview, and the
+       * client asked for the tasks themselves (2026-11-03). The overview is linked
+       * from the Tasks page header.
+       */
+      { title: "tasks", href: "/tasks", icon: ListTodo },
     ],
   },
   { kind: "link", title: "plannedArticles", segment: "content", icon: FileText },

@@ -26,6 +26,8 @@ describe("dashboard next steps", () => {
     expect(actions[1].href).toBe(`/websites/${a.id}/articles/${failed.id}`);
     expect(await getNextActions(a.id, b.orgId, true)).toEqual([]);
     expect((await getNextActions(a.id, a.orgId, false)).map(x => x.kind)).toEqual(["failed"]);
+    // The Tasks page lists these itself, so it leaves them out here.
+    expect((await getNextActions(a.id, a.orgId, true, { exclude: ["failed", "publishing", "google"] }))).toEqual([]);
   });
   it("recognizes the plugin and a selected Search Console property", async () => {
     const a = await fixture();
