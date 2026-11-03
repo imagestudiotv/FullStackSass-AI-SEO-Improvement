@@ -280,22 +280,38 @@ export async function postSocialSuggestion(
   return result;
 }
 
-/** Skips a suggestion: it is not shown again, and nothing is charged. */
-export async function skipSocialSuggestion(websiteId: string, id: string): Promise<SocialResult> {
+/**
+ * Skips a suggestion: it is not shown again, and nothing is charged.
+ *
+ * A SCHEDULED own post is different (client, 2026-11-03: "moves it to
+ * Drafts", as his design has it): skipping cancels RepGet's publishing and
+ * keeps the post, text and all, under Drafts - where it can be edited and
+ * posted later, or skipped for good. The job waiting for its time finds it
+ * no longer scheduled and does nothing (publish.ts).
+ */
+export async function skipSocialSuggestion(websiteId: string, id: string): Promise<SocialResult<{ drafted: boolean }>> {
   const editor = await requireEditor(websiteId);
   if (!editor.ok) return fail("view_only");
-  await db
+  const now = new Date();
+  const drafted = await db
     .update(socialSuggestions)
-    .set({ status: "dismissed", updatedAt: new Date() })
-    .where(
-      and(
-        eq(socialSuggestions.id, id),
-        eq(socialSuggestions.websiteId, websiteId),
-        inArray(socialSuggestions.status, ["new", "draft", "scheduled", "failed"]),
-      ),
-    );
+    .set({ status: "draft", scheduledFor: null, updatedAt: now })
+    .where(and(eq(socialSuggestions.id, id), eq(socialSuggestions.websiteId, websiteId), eq(socialSuggestions.status, "scheduled")))
+    .returning({ id: socialSuggestions.id });
+  if (drafted.length === 0) {
+    await db
+      .update(socialSuggestions)
+      .set({ status: "dismissed", updatedAt: now })
+      .where(
+        and(
+          eq(socialSuggestions.id, id),
+          eq(socialSuggestions.websiteId, websiteId),
+          inArray(socialSuggestions.status, ["new", "draft", "failed"]),
+        ),
+      );
+  }
   revalidatePath(pagePath(websiteId));
-  return { ok: true, data: null };
+  return { ok: true, data: { drafted: drafted.length > 0 } };
 }
 
 /**

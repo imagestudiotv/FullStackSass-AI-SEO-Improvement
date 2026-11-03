@@ -2972,6 +2972,8 @@ export type Messages = {
       copyText: string;
       saveDraft: string;
       draftSaved: string;
+      /** After Skip on a scheduled own post (client, 2026-11-03: it moves to Drafts). */
+      movedToDrafts: string;
       saveFirst: string;
       buyCredits: string;
       errors: {
@@ -6251,6 +6253,7 @@ const en: Messages = {
       copyText: "Copy text",
       saveDraft: "Save draft",
       draftSaved: "Draft saved. You will find it under Drafts.",
+      movedToDrafts: "Moved to Drafts. RepGet will not publish it.",
       saveFirst: "Save your changes first, then publish.",
       buyCredits: "Buy credits",
       errors: {
@@ -9521,6 +9524,7 @@ const es: Messages = {
       copyText: "Copiar texto",
       saveDraft: "Guardar borrador",
       draftSaved: "Borrador guardado. Lo encontrará en Borradores.",
+      movedToDrafts: "Movido a Borradores. RepGet no lo publicará.",
       saveFirst: "Guarde primero sus cambios y luego publique.",
       buyCredits: "Comprar créditos",
       errors: {
@@ -12792,6 +12796,7 @@ const fr: Messages = {
       copyText: "Copier le texte",
       saveDraft: "Enregistrer le brouillon",
       draftSaved: "Brouillon enregistré. Vous le retrouverez dans Brouillons.",
+      movedToDrafts: "Déplacé dans Brouillons. RepGet ne le publiera pas.",
       saveFirst: "Enregistrez d’abord vos modifications, puis publiez.",
       buyCredits: "Acheter des crédits",
       errors: {
@@ -16062,6 +16067,7 @@ const it: Messages = {
       copyText: "Copia il testo",
       saveDraft: "Salva bozza",
       draftSaved: "Bozza salvata. La trova in Bozze.",
+      movedToDrafts: "Spostato in Bozze. RepGet non lo pubblicherà.",
       saveFirst: "Salvi prima le modifiche, poi pubblichi.",
       buyCredits: "Acquista crediti",
       errors: {
@@ -19329,6 +19335,7 @@ const de: Messages = {
       copyText: "Text kopieren",
       saveDraft: "Entwurf speichern",
       draftSaved: "Entwurf gespeichert. Sie finden ihn unter Entwürfe.",
+      movedToDrafts: "In Entwürfe verschoben. RepGet veröffentlicht ihn nicht.",
       saveFirst: "Speichern Sie zuerst Ihre Änderungen und veröffentlichen Sie dann.",
       buyCredits: "Credits kaufen",
       errors: {

@@ -3,7 +3,8 @@ import "server-only";
 import { and, eq, gte, ne, or, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
-import { socialAccounts, socialTeams, videoIdeas } from "@/lib/db/schema";
+import { articles, socialAccounts, socialTeams, videoIdeas, websites } from "@/lib/db/schema";
+import { inWarmup } from "@/lib/social/accounts";
 import { BundleError, createMultiPost, getPost, isBundleConfigured, tiktokPostSettings, uploadFromUrl, type BundlePost } from "@/lib/social/bundle";
 
 import { isVideoPlatform, MAX_POSTS_PER_DAY, VIDEO_PLATFORM_SPECS, type VideoPlatform, type VideoScript } from "./formats";
@@ -36,7 +37,12 @@ const short = (text: string) => text.replace(/\s+/g, " ").trim().slice(0, 300);
 /** A video's error when Pinterest was chosen without a board (the code VideoError and the page share). */
 export const NO_BOARD = "no_board";
 
-export type PublishTarget = { platform: VideoPlatform; board: string | null };
+export type PublishTarget = {
+  platform: VideoPlatform;
+  board: string | null;
+  /** The account is in its first days: no links yet (the same warm-up as the social posts). */
+  warmup: boolean;
+};
 
 /**
  * The platforms a video can go to now - chosen, connected through
@@ -47,6 +53,7 @@ export async function publishTargets(
   websiteId: string,
   wanted: string[],
   carousel: boolean,
+  now: Date = new Date(),
 ): Promise<{ targets: PublishTarget[]; noBoard: VideoPlatform[] }> {
   const accounts = await db.select().from(socialAccounts).where(eq(socialAccounts.websiteId, websiteId));
   const targets: PublishTarget[] = [];
@@ -57,7 +64,7 @@ export async function publishTargets(
     if (!account?.bundleAccountId || account.pausedAt || (carousel && !spec.carousel)) continue;
     const board = account.target?.trim() || null;
     if (spec.board && !board) noBoard.push(platform);
-    else targets.push({ platform, board });
+    else targets.push({ platform, board, warmup: inWarmup(account, now) });
   }
   return { targets, noBoard };
 }
@@ -81,7 +88,17 @@ async function postedToday(websiteId: string, platform: VideoPlatform, now: Date
 /** Each platform's settings for the post (bundle.social's data). */
 async function platformData(
   platform: VideoPlatform,
-  input: { teamId: string; uploadIds: string[]; caption: string; title: string; carousel: boolean; language: string; board: string | null },
+  input: {
+    teamId: string;
+    uploadIds: string[];
+    caption: string;
+    title: string;
+    carousel: boolean;
+    language: string;
+    board: string | null;
+    /** Where a Pin leads (Pinterest only); null during the account's warm-up. */
+    link: string | null;
+  },
 ): Promise<Record<string, unknown>> {
   const { uploadIds, caption, carousel } = input;
   switch (platform) {
@@ -92,6 +109,7 @@ async function platformData(
         text: input.title.slice(0, VIDEO_PLATFORM_SPECS.pinterest.titleMax ?? 100),
         description: caption.slice(0, VIDEO_PLATFORM_SPECS.pinterest.captionMax),
         uploadIds,
+        ...(input.link ? { link: input.link } : {}),
       };
     case "instagram":
       return carousel ? { type: "POST", text: caption, uploadIds } : { type: "REEL", text: caption, uploadIds, shareToFeed: true };
@@ -127,6 +145,24 @@ async function platformData(
   }
 }
 
+/**
+ * Where a video Pin leads (client, 2026-11-03: "yes" to linking video Pins,
+ * after the warm-up like the social Pins): the published article the idea
+ * came from, else the website itself. A Pin without a link is a dead end on
+ * Pinterest, where people tap through to the source.
+ */
+async function pinTarget(row: { websiteId: string; articleId: string | null }): Promise<string | null> {
+  if (row.articleId) {
+    const [article] = await db
+      .select({ url: articles.publishedUrl })
+      .from(articles)
+      .where(and(eq(articles.id, row.articleId), eq(articles.websiteId, row.websiteId)));
+    if (article?.url) return article.url;
+  }
+  const [site] = await db.select({ url: websites.url }).from(websites).where(eq(websites.id, row.websiteId));
+  return site?.url ?? null;
+}
+
 async function pause(websiteId: string, platform: string, reason: string, now: Date) {
   await db
     .update(socialAccounts)
@@ -155,7 +191,7 @@ export async function publishVideo(id: string, now: Date = new Date()): Promise<
   const { row, teamId } = claimed;
   const carousel = row.format === "carousel";
 
-  const { targets, noBoard } = await publishTargets(row.websiteId, row.platforms ?? [], carousel);
+  const { targets, noBoard } = await publishTargets(row.websiteId, row.platforms ?? [], carousel, now);
   const open: PublishTarget[] = [];
   for (const target of targets) if ((await postedToday(row.websiteId, target.platform, now, id)) < MAX_POSTS_PER_DAY) open.push(target);
   // Left out for want of a board: said on the video, never dropped in silence.
@@ -177,8 +213,9 @@ export async function publishVideo(id: string, now: Date = new Date()): Promise<
     const uploadIds: string[] = [];
     for (const file of files) uploadIds.push(await uploadFromUrl(teamId, file));
     const script = row.script as VideoScript;
+    const pinLink = open.some((target) => target.platform === "pinterest" && !target.warmup) ? await pinTarget(row) : null;
     const data: Record<string, Record<string, unknown>> = {};
-    for (const { platform, board } of open) {
+    for (const { platform, board, warmup } of open) {
       data[VIDEO_PLATFORM_SPECS[platform].bundleType] = await platformData(platform, {
         teamId,
         uploadIds,
@@ -187,6 +224,7 @@ export async function publishVideo(id: string, now: Date = new Date()): Promise<
         carousel,
         language: row.language,
         board,
+        link: platform === "pinterest" && !warmup ? pinLink : null,
       });
     }
     const platforms = open.map((target) => target.platform);
