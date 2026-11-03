@@ -14,6 +14,8 @@ export type VideosCopy = {
   dayComplete: string;
   dayCompleteBody: string;
   newIdeas: string;
+  /** On the disabled New ideas button: the day already has its ideas. */
+  dayFull: string;
   ideasQueued: string;
   writingIdeas: string;
   writingIdeasBody: string;
@@ -187,6 +189,7 @@ export type VideosCopy = {
     bad_file: string;
     too_big: string;
     bad_time: string;
+    day_full: string;
     generic: string;
   };
 };
@@ -199,6 +202,7 @@ const en: VideosCopy = {
   dayComplete: "Today is complete",
   dayCompleteBody: "You have made today's {goal} videos. You can make more from the ideas left; each one uses a credit.",
   newIdeas: "New ideas",
+  dayFull: "Today's ideas are all written. New ones arrive tomorrow morning.",
   ideasQueued: "Writing today's ideas. They appear here in a minute.",
   writingIdeas: "Writing today's ideas…",
   writingIdeasBody: "RepGet is reading your website and writing 20 video ideas. This takes about a minute.",
@@ -385,6 +389,7 @@ const en: VideosCopy = {
     bad_file: "Use a PNG, JPG or WebP picture, or an MP4, MOV or WebM clip.",
     too_big: "This file is too big.",
     bad_time: "Choose a time in the next 60 days.",
+    day_full: "You have had today's ideas. New ones arrive tomorrow morning.",
     generic: "Something went wrong. Please try again.",
   },
 };
@@ -397,6 +402,7 @@ const es: VideosCopy = {
   dayComplete: "El día de hoy está completo",
   dayCompleteBody: "Ya ha creado los {goal} vídeos de hoy. Puede crear más con las ideas restantes; cada uno usa un crédito.",
   newIdeas: "Nuevas ideas",
+  dayFull: "Las ideas de hoy ya están escritas. Mañana por la mañana llegan nuevas.",
   ideasQueued: "Escribiendo las ideas de hoy. Aparecerán aquí en un minuto.",
   writingIdeas: "Escribiendo las ideas de hoy…",
   writingIdeasBody: "RepGet está leyendo su sitio web y escribiendo 20 ideas de vídeo. Tarda alrededor de un minuto.",
@@ -583,6 +589,7 @@ const es: VideosCopy = {
     bad_file: "Use una imagen PNG, JPG o WebP, o un clip MP4, MOV o WebM.",
     too_big: "Este archivo es demasiado grande.",
     bad_time: "Elija una hora dentro de los próximos 60 días.",
+    day_full: "Ya ha recibido las ideas de hoy. Mañana por la mañana llegan nuevas.",
     generic: "Algo salió mal. Inténtelo de nuevo.",
   },
 };
@@ -595,6 +602,7 @@ const fr: VideosCopy = {
   dayComplete: "La journée est terminée",
   dayCompleteBody: "Vous avez créé les {goal} vidéos du jour. Vous pouvez en créer d’autres avec les idées restantes ; chacune utilise un crédit.",
   newIdeas: "Nouvelles idées",
+  dayFull: "Les idées du jour sont toutes écrites. De nouvelles arrivent demain matin.",
   ideasQueued: "Rédaction des idées du jour. Elles apparaîtront ici d’ici une minute.",
   writingIdeas: "Rédaction des idées du jour…",
   writingIdeasBody: "RepGet lit votre site et rédige 20 idées de vidéos. Cela prend environ une minute.",
@@ -781,6 +789,7 @@ const fr: VideosCopy = {
     bad_file: "Utilisez une image PNG, JPG ou WebP, ou un clip MP4, MOV ou WebM.",
     too_big: "Ce fichier est trop volumineux.",
     bad_time: "Choisissez une heure dans les 60 prochains jours.",
+    day_full: "Vous avez déjà reçu les idées du jour. De nouvelles arrivent demain matin.",
     generic: "Une erreur s’est produite. Veuillez réessayer.",
   },
 };
@@ -793,6 +802,7 @@ const it: VideosCopy = {
   dayComplete: "La giornata è completa",
   dayCompleteBody: "Ha creato i {goal} video di oggi. Può crearne altri con le idee rimaste; ognuno usa un credito.",
   newIdeas: "Nuove idee",
+  dayFull: "Le idee di oggi sono tutte scritte. Le nuove arrivano domani mattina.",
   ideasQueued: "Sto scrivendo le idee di oggi. Appariranno qui fra un minuto.",
   writingIdeas: "Scrittura delle idee di oggi…",
   writingIdeasBody: "RepGet sta leggendo il suo sito e scrivendo 20 idee per video. Ci vuole circa un minuto.",
@@ -979,6 +989,7 @@ const it: VideosCopy = {
     bad_file: "Usi un’immagine PNG, JPG o WebP, o una clip MP4, MOV o WebM.",
     too_big: "Questo file è troppo grande.",
     bad_time: "Scelga un orario entro i prossimi 60 giorni.",
+    day_full: "Ha già ricevuto le idee di oggi. Le nuove arrivano domani mattina.",
     generic: "Qualcosa è andato storto. Riprovi.",
   },
 };
@@ -991,6 +1002,7 @@ const de: VideosCopy = {
   dayComplete: "Für heute erledigt",
   dayCompleteBody: "Sie haben die {goal} Videos von heute erstellt. Mit den übrigen Ideen können Sie weitere erstellen; jedes kostet einen Credit.",
   newIdeas: "Neue Ideen",
+  dayFull: "Die Ideen von heute sind alle geschrieben. Neue kommen morgen früh.",
   ideasQueued: "Die Ideen von heute werden geschrieben. Sie erscheinen hier in einer Minute.",
   writingIdeas: "Ideen von heute werden geschrieben…",
   writingIdeasBody: "RepGet liest Ihre Website und schreibt 20 Videoideen. Das dauert etwa eine Minute.",
@@ -1177,6 +1189,7 @@ const de: VideosCopy = {
     bad_file: "Verwenden Sie ein PNG-, JPG- oder WebP-Bild oder einen MP4-, MOV- oder WebM-Clip.",
     too_big: "Diese Datei ist zu groß.",
     bad_time: "Wählen Sie eine Uhrzeit in den nächsten 60 Tagen.",
+    day_full: "Sie haben die Ideen von heute bereits erhalten. Neue kommen morgen früh.",
     generic: "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
   },
 };

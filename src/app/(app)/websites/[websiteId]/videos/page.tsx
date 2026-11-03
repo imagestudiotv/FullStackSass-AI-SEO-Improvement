@@ -166,6 +166,7 @@ export default async function WebsiteVideosPage({ params, searchParams }: PagePr
       approvedToday={Number(approvedToday[0]?.n ?? 0)}
       goal={COMPLETE_AFTER}
       perDay={IDEAS_PER_DAY}
+      writtenToday={Number(todayCount)}
       priceLabel={price > 0 ? plural(t.app.credits.creditsCount, price) : t.app.social.free}
       credits={wallet ? { available: wallet.available, label: plural(t.app.credits.creditsCount, wallet.available) } : null}
       settings={settings}
