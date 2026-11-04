@@ -17,6 +17,7 @@ import {
 import { ArrowUpRightIcon, BarsIcon, ChevronIcon, CloseIcon, MoonIcon, SunIcon } from "@/components/site-icons";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { localePath, splitLocale } from "@/lib/i18n/config";
+import type { siteMenuCopy } from "@/lib/i18n/home/site-menu";
 import type { SiteChrome } from "@/lib/i18n/site-chrome";
 
 import footer from "./site-footer.module.css";
@@ -115,6 +116,24 @@ export function MarketingNav({ chrome }: { chrome: SiteChrome }) {
   const [feature, setFeature] = useState(0);
   const [channel, setChannel] = useState<Channel["key"] | null>(null);
   const inDrawer = useDrawerLayout();
+  /*
+    A visitor is about to open a menu: draw its icons and load the words of its
+    drawings (marketing-mega-menu.tsx). A failed download only leaves the
+    drawings out; the links and the words of the menu are already there.
+  */
+  const [awake, setAwake] = useState(false);
+  const [drawingWords, setDrawingWords] = useState<{ of: typeof siteMenuCopy } | null>(null);
+  const woken = useRef(false);
+  const wake = () => {
+    if (woken.current) return;
+    woken.current = true;
+    setAwake(true);
+    import("@/lib/i18n/home/site-menu").then(
+      (words) => setDrawingWords({ of: words.siteMenuCopy }),
+      () => {},
+    );
+  };
+  const drawings = drawingWords?.of(locale) ?? null;
 
   const zone = useRef<HTMLDivElement>(null);
   const triggers = useRef<Record<MenuId, HTMLButtonElement | null>>({ features: null, integrations: null });
@@ -141,6 +160,7 @@ export function MarketingNav({ chrome }: { chrome: SiteChrome }) {
   }
 
   const show = (menu: MenuId | null) => {
+    if (menu) wake();
     window.clearTimeout(timer.current);
     setOpen(menu);
   };
@@ -211,6 +231,8 @@ export function MarketingNav({ chrome }: { chrome: SiteChrome }) {
       site={t.site}
       href={href}
       active={feature}
+      awake={awake}
+      drawings={drawings}
       onSelect={setFeature}
       onNavigate={closeAll}
     />
@@ -221,6 +243,8 @@ export function MarketingNav({ chrome }: { chrome: SiteChrome }) {
       site={t.site}
       href={href}
       selected={channel}
+      awake={awake}
+      drawings={drawings}
       onSelect={setChannel}
       onNavigate={closeAll}
     />
@@ -240,7 +264,8 @@ export function MarketingNav({ chrome }: { chrome: SiteChrome }) {
 
   return (
     <header className={c(`header${scrolled ? " scrolled" : ""}`)}>
-      <div ref={zone} className={c("header-shell")}>
+      {/* Reaching the header is the first sign of a menu about to open: the drawings are ready by then. */}
+      <div ref={zone} className={c("header-shell")} onPointerEnter={wake}>
         <div className={c("bar")}>
           <BrandHomeLink className={c("brand")} labels={homeLabels}>
             {/* The page's primary logo, so it is not lazy-loaded. */}
@@ -332,6 +357,7 @@ export function MarketingNav({ chrome }: { chrome: SiteChrome }) {
               aria-label={drawer ? t.site.closeMenu : t.a11y.openMenu}
               className={c("mob-button")}
               onClick={() => {
+                wake();
                 show(null);
                 setDrawer((value) => !value);
               }}

@@ -536,6 +536,12 @@ const de: SiteMenuCopy = {
   backToTopLabel: "Zum Seitenanfang",
 };
 
+/** The part every page needs; the rest is loaded when a menu is about to open. */
+export type SiteFrameCopy = Pick<
+  SiteMenuCopy,
+  "primaryNav" | "closeMenu" | "illustrations" | "workflowSteps" | "modes" | "backToTop" | "backToTopLabel"
+>;
+
 const COPY: Record<Locale, SiteMenuCopy> = { en, es, fr, it, de };
 
 export function siteMenuCopy(locale: Locale): SiteMenuCopy {

@@ -5,6 +5,7 @@ import { useId, useRef, type KeyboardEvent as ReactKeyboardEvent } from "react";
 
 import { ChannelIcon, FeatureIcon, type ChannelIconName, type FeatureIconName } from "@/components/site-icons";
 import type { Locale } from "@/lib/i18n/config";
+import type { SiteMenuCopy } from "@/lib/i18n/home/site-menu";
 import type { SiteChrome } from "@/lib/i18n/site-chrome";
 
 import styles from "./site-header.module.css";
@@ -18,6 +19,12 @@ import styles from "./site-header.module.css";
  * menu or, at 1190px and below, in the phone drawer's accordion - as the
  * design moves it - so ids are never duplicated and the selected tab
  * survives the move (the state lives in marketing-nav.tsx).
+ *
+ * BEFORE A MENU IS ABOUT TO OPEN, ONLY ITS LINKS AND WORDS ARE DRAWN. Crawlers
+ * read those exactly as before. The icons (`awake`) and the drawings (`drawings`,
+ * whose words load separately) are about 250 of the header's 650 elements, and
+ * every visitor's browser built them for menus most never open; on a phone it
+ * built them twice, as the menus moved into the drawer.
  *
  * The words come from the server with the rest of the header's
  * (lib/i18n/site-chrome.ts: `menu` and `site`); destinations and marks live
@@ -60,7 +67,7 @@ export function featureTool(index: number) {
   return FEATURE_TOOLS[index] ?? { key: "content" as const, href: "/" };
 }
 
-type ChannelKey = keyof SiteCopy["channels"];
+type ChannelKey = keyof SiteMenuCopy["channels"];
 export type Channel = {
   key: ChannelKey;
   name: string;
@@ -131,6 +138,8 @@ export function FeaturesShowcase({
   site,
   href,
   active,
+  awake,
+  drawings,
   onSelect,
   onNavigate,
 }: {
@@ -138,6 +147,10 @@ export function FeaturesShowcase({
   site: SiteCopy;
   href: (path: string) => string;
   active: number;
+  /** A menu is about to open: draw the icons. */
+  awake: boolean;
+  /** The drawings' words, once loaded. */
+  drawings: SiteMenuCopy | null;
   onSelect: (index: number) => void;
   onNavigate: () => void;
 }) {
@@ -206,11 +219,9 @@ export function FeaturesShowcase({
                     <strong>{tool.title}</strong>
                     <span>{tool.sub}</span>
                   </div>
-                  <span className={c("rgf-iconbox")}>
-                    <FeatureIcon name={key} className={c("rgf-svg")} />
-                  </span>
+                  <span className={c("rgf-iconbox")}>{awake ? <FeatureIcon name={key} className={c("rgf-svg")} /> : null}</span>
                 </div>
-                <MiniCard tool={key} site={site} />
+                {drawings ? <MiniCard tool={key} site={drawings} /> : null}
               </button>
             );
           })}
@@ -242,11 +253,11 @@ export function FeaturesShowcase({
                     ))}
                   </ul>
                   <button type="button" className={c("rgf-next")} onClick={() => select((index + 1) % count)}>
-                    {menu.next} <FeatureIcon name="arrow" className={c("rgf-svg")} />
+                    {menu.next} {awake ? <FeatureIcon name="arrow" className={c("rgf-svg")} /> : null}
                   </button>
                 </div>
                 <div className={c("rgf-detail-preview")}>
-                  <PreviewWindow tool={key} site={site} />
+                  {drawings ? <PreviewWindow tool={key} site={drawings} /> : null}
                 </div>
               </div>
             );
@@ -263,7 +274,7 @@ export function FeaturesShowcase({
 }
 
 /** The little drawing at the foot of each tool card. */
-function MiniCard({ tool, site }: { tool: Exclude<FeatureIconName, "arrow">; site: SiteCopy }) {
+function MiniCard({ tool, site }: { tool: Exclude<FeatureIconName, "arrow">; site: SiteMenuCopy }) {
   const m = site.mini;
   const kicker = (text: string) => (
     <div className={c("rgf-mini-kicker")}>
@@ -400,7 +411,7 @@ function MiniCard({ tool, site }: { tool: Exclude<FeatureIconName, "arrow">; sit
 }
 
 /** The "demo preview" product window beside each tool's description. */
-function PreviewWindow({ tool, site }: { tool: Exclude<FeatureIconName, "arrow">; site: SiteCopy }) {
+function PreviewWindow({ tool, site }: { tool: Exclude<FeatureIconName, "arrow">; site: SiteMenuCopy }) {
   const gradient = useId();
   const w = site.windows;
   const kicker = (text: string) => <div className={c("rgf-form-kicker")}>{text}</div>;
@@ -642,6 +653,8 @@ export function IntegrationsShowcase({
   site,
   href,
   selected,
+  awake,
+  drawings,
   onSelect,
   onNavigate,
 }: {
@@ -649,6 +662,10 @@ export function IntegrationsShowcase({
   site: SiteCopy;
   href: (path: string) => string;
   selected: ChannelKey | null;
+  /** A menu is about to open: draw the icons. */
+  awake: boolean;
+  /** Each channel's line, once loaded. */
+  drawings: SiteMenuCopy | null;
   onSelect: (key: ChannelKey) => void;
   onNavigate: () => void;
 }) {
@@ -658,11 +675,9 @@ export function IntegrationsShowcase({
   const entry = (channel: Channel) => {
     const inner = (
       <>
-        <span className={c(`icon-box ${channel.tile}`)}>
-          <ChannelIcon name={channel.icon} />
-        </span>
+        <span className={c(`icon-box ${channel.tile}`)}>{awake ? <ChannelIcon name={channel.icon} /> : null}</span>
         <span className={c("name")}>{channel.name}</span>
-        <ChannelIcon name="arrow" className={c("entry-arrow")} />
+        {awake ? <ChannelIcon name="arrow" className={c("entry-arrow")} /> : null}
       </>
     );
     const className = c(`entry${channel.key === selected ? " selected" : ""}`);
@@ -707,12 +722,10 @@ export function IntegrationsShowcase({
       </div>
       <div aria-live="polite" className={c("mega-footer")}>
         <div className={c("footer-left")}>
-          <span className={c("sparkle-box")}>
-            <ChannelIcon name="spark" />
-          </span>
+          <span className={c("sparkle-box")}>{awake ? <ChannelIcon name="spark" /> : null}</span>
           <div>
             <p className={c("footer-title")}>{current ? current.name : menu.footerTitle}</p>
-            <p className={c("footer-detail")}>{current ? site.channels[current.key] : menu.footerBody}</p>
+            <p className={c("footer-detail")}>{current ? (drawings?.channels[current.key] ?? menu.footerBody) : menu.footerBody}</p>
           </div>
         </div>
         <div aria-hidden="true" className={c("footer-mode")}>
@@ -723,7 +736,7 @@ export function IntegrationsShowcase({
           ))}
         </div>
         <Link prefetch={false} href={href(INTEGRATIONS_HREF)} onClick={onNavigate} className={c("footer-cta")}>
-          {menu.explore} <ChannelIcon name="arrow" />
+          {menu.explore} {awake ? <ChannelIcon name="arrow" /> : null}
         </Link>
       </div>
     </div>

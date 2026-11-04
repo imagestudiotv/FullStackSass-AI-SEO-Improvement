@@ -48,9 +48,10 @@ export function walkthroughEmbedUrl(
 /**
  * The poster, from YouTube's thumbnail host.
  *
- * Both sizes in the srcset are 16:9 (mqdefault 320x180, maxresdefault
- * 1280x720), so the frame never shows the black bars of the 4:3 sizes; both
- * were checked to exist for this video. A video without a maxres thumbnail
+ * mqdefault (320x180) and maxresdefault (1280x720) are 16:9. sddefault (640x480,
+ * about half maxres's bytes) has black bars above and below the same 16:9 picture,
+ * which object-cover crops away in the 16:9 frame. All three were checked to exist
+ * for this video. A video without a maxres thumbnail
  * would fail it, which is what `fallback` is for: hqdefault exists for every
  * public video, and its letterbox is cropped away by object-cover in the 16:9
  * frame.
@@ -61,7 +62,7 @@ export function walkthroughEmbedUrl(
 export function walkthroughPoster(id: string = WALKTHROUGH_VIDEO.id) {
   return {
     src: `https://i.ytimg.com/vi_webp/${id}/maxresdefault.webp`,
-    srcSet: `https://i.ytimg.com/vi_webp/${id}/mqdefault.webp 320w, https://i.ytimg.com/vi_webp/${id}/maxresdefault.webp 1280w`,
+    srcSet: `https://i.ytimg.com/vi_webp/${id}/mqdefault.webp 320w, https://i.ytimg.com/vi_webp/${id}/sddefault.webp 640w, https://i.ytimg.com/vi_webp/${id}/maxresdefault.webp 1280w`,
     fallback: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
   };
 }

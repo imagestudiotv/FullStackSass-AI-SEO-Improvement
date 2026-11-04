@@ -25,6 +25,7 @@ vi.mock("next/image", () => ({
 import { BrandHomeLink } from "./brand-home-link";
 import { BackToTop, MarketingFooterLinks, MarketingFrame, MarketingNav, MarketingTagline } from "./marketing-nav";
 
+const esc = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#x27;');
 const hrefs = (html: string) => [...html.matchAll(/href="([^"]+)"/g)].map((m) => m[1]);
 
 describe.each(PREFIXED_LOCALES)("on the %s pages", (locale) => {
@@ -218,7 +219,20 @@ describe("the header's mega-menus", () => {
     expect(html).toContain(">8 connections<");
     // Its footer starts with the general line; an entry replaces it when hovered or focused.
     expect(html).toContain(`>${chrome.en.menu.footerTitle}</p>`);
-    expect(html).toContain(`>${chrome.en.menu.explore} <svg`);
+    expect(html).toContain(`>${chrome.en.menu.explore} </a>`);
+  });
+
+  it("closed menus hold their links and words for search engines, but no icons or drawings", () => {
+    nav.pathname = "/";
+    const html = renderToStaticMarkup(createElement(MarketingNav, { chrome }));
+    for (const tool of chrome.en.menu.tools) {
+      for (const words of [tool.title, tool.sub, tool.heading, tool.body, ...tool.steps]) expect(html, words).toContain(esc(words));
+    }
+    const between = (from: string, to: string) => html.slice(html.indexOf(from), html.indexOf(to, html.indexOf(from)));
+    expect(between('data-menu="features"', 'data-menu-trigger="integrations"')).not.toContain("<svg");
+    expect(between('data-menu="integrations"', "</nav>")).not.toContain("<svg");
+    expect(html).not.toContain("rgf-window");
+    expect(html).not.toContain("rgf-card-mini");
   });
 
   it("only connections with a public setup guide are links; the rest are buttons that preview", () => {
