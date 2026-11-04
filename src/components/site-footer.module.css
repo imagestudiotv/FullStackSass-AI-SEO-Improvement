@@ -47,7 +47,7 @@
   display: none !important;
 }
 .rft-brand p {
-  color: #777c80;
+  color: #6e7377;
   font-size: 14px;
   font-weight: 440;
   line-height: 1.53;
@@ -153,7 +153,7 @@
   font: inherit;
   font-size: 14px;
   font-weight: 440;
-  color: #787d81;
+  color: #6e7376;
   text-decoration: none;
   line-height: 1.35;
   border: 0;
@@ -174,7 +174,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  color: #777c80;
+  color: #6e7377;
   font-size: 14px;
   line-height: 1.4;
 }

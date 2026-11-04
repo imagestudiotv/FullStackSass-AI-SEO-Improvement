@@ -67,7 +67,7 @@ export function ReviewCard({ item, labels }: { item: ReviewItem; labels: ReviewC
         <button type="button" className={c("rt-read")} aria-expanded={open} aria-controls={quoteId} onClick={() => setOpen((value) => !value)}>
           {open ? labels.readLess : labels.readMore} <span aria-hidden="true">+</span>
         </button>
-        <Link className={c("rt-original")} href={item.link.href}>
+        <Link prefetch={false} className={c("rt-original")} href={item.link.href}>
           {item.link.label} <span aria-hidden="true">&#8599;</span>
         </Link>
       </div>
@@ -120,7 +120,7 @@ export function MoreReviews({
             {opened ? labels.showLess : labels.showMore} <span aria-hidden="true">{opened ? "-" : "+"}</span>
           </button>
         ) : null}
-        <Link className={c("rt-all-reviews")} href={allHref}>
+        <Link prefetch={false} className={c("rt-all-reviews")} href={allHref}>
           {labels.allFeedback} &#8599;
         </Link>
       </div>

@@ -8,7 +8,7 @@
 .rpf-faq *{box-sizing:border-box}
 .rpf-faq-inner{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:minmax(250px,.72fr) minmax(0,1.28fr);gap:90px;align-items:start}
 .rpf-intro{padding-top:18px;position:sticky;top:115px}
-.rpf-eyebrow{font-size:11px;font-weight:830;letter-spacing:.14em;color:#e76c3e;text-transform:uppercase}
+.rpf-eyebrow{font-size:11px;font-weight:830;letter-spacing:.14em;color:#b95631;text-transform:uppercase}
 .rpf-intro h2{font-size:clamp(34px,3.9vw,49px);line-height:1.1;letter-spacing:-.05em;color:#202421;font-weight:800;margin:17px 0 17px;max-width:350px}
 .rpf-intro p{font-size:15px;line-height:1.7;color:#75776f;margin:0 0 26px;max-width:320px}
 .rpf-contact{font-size:13px;color:#6f716b}
@@ -26,7 +26,7 @@
 .rpf-answer{padding:0 42px 22px 2px;color:#71736d;font-size:14px;line-height:1.75;max-width:710px}
 .rpf-answer p{margin:0}
 .rpf-answer a{text-decoration:underline;color:#d36b42;text-underline-offset:3px}
-.rpf-section{display:flex;align-items:center;gap:10px;padding:24px 2px 9px;font-size:10px;letter-spacing:.15em;font-weight:850;color:#d3663f;text-transform:uppercase}
+.rpf-section{display:flex;align-items:center;gap:10px;padding:24px 2px 9px;font-size:10px;letter-spacing:.15em;font-weight:850;color:#b75836;text-transform:uppercase}
 .rpf-section:after{content:"";height:1px;background:#eee9e4;flex:1}
 .rpf-section:first-child{padding-top:14px}
 :global(.dark) .rpf-faq{background:#181b18;border-color:#333832;color:#f3f1ec}
@@ -43,3 +43,7 @@
 
 /* site: the design's page defaults (body font-size 14px, line-height normal) - the site's base is 16px / 1.5. */
 .rpf-faq{font-size:14px;line-height:normal}
+
+/* Dark mode: the text colours darkened for light mode above would not read here. */
+:global(.dark) .rpf-eyebrow { color: #e76c3e; }
+:global(.dark) .rpf-section { color: #d77451; }

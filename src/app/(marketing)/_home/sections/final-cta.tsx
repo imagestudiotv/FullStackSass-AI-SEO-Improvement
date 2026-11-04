@@ -42,10 +42,10 @@ export function FinalCta({ locale, href }: SectionProps) {
           <p className={c("rcta-desc")}>{t.desc}</p>
           <FinalCtaForm strings={t.form} signUpPath={href("/sign-up")} onboardingPath={href("/onboarding/website")} />
           <div className={c("rcta-quick-actions")} aria-label={t.quickLabel}>
-            <Link className={c("rcta-quick-btn rcta-quick-primary")} href={href("/audit")}>
+            <Link prefetch={false} className={c("rcta-quick-btn rcta-quick-primary")} href={href("/audit")}>
               {t.checkFree} <span aria-hidden="true">→</span>
             </Link>
-            <Link className={c("rcta-quick-btn rcta-quick-secondary")} href={href("/sign-up")}>
+            <Link prefetch={false} className={c("rcta-quick-btn rcta-quick-secondary")} href={href("/sign-up")}>
               {format(t.createFree, n)} <span aria-hidden="true">→</span>
             </Link>
           </div>

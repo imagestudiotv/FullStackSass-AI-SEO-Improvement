@@ -284,7 +284,7 @@
   color: white;
 }
 :global(.dark) .cta {
-  background: #e75f2f;
+  background: #be532d;
 }
 :global(.dark) .cta-arrow {
   background: #292823;

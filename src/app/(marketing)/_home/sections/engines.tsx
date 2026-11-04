@@ -177,7 +177,7 @@ export function Engines({ locale }: SectionProps) {
 
 function Card({ icon, title, body, foot, children }: { icon: ReactNode; title: string; body: string; foot: string; children: ReactNode }) {
   return (
-    <article className={c("rgx-growth-card")} role="listitem">
+    <div className={c("rgx-growth-card")} role="listitem">
       <div className={c("rgx-growth-card-head")}>
         <span className={c("rgx-growth-card-icon")}>{icon}</span>
         <h3>{title}</h3>
@@ -190,7 +190,7 @@ function Card({ icon, title, body, foot, children }: { icon: ReactNode; title: s
         <span className={c("status-dot")} />
         <span>{foot}</span>
       </div>
-    </article>
+    </div>
   );
 }
 

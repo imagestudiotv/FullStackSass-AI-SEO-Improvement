@@ -197,15 +197,15 @@
   transition: 0.25s ease;
 }
 .rgx-connect-btn {
-  background: #f26b38;
+  background: #be542b;
   color: #fff;
-  border: 1px solid #f26b38;
+  border: 1px solid #be542b;
   box-shadow: 0 8px 22px rgba(242, 107, 56, 0.18);
 }
 .rgx-connect-btn:hover {
   transform: translateY(-1px);
-  background: #df5b2c;
-  border-color: #df5b2c;
+  background: #a84a26;
+  border-color: #a84a26;
   box-shadow: 0 11px 25px rgba(242, 107, 56, 0.2);
 }
 .rgx-connect-ghost {

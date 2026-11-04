@@ -136,7 +136,7 @@ export function ConsentBanner({ copy, locale }: { copy: Partial<Record<Locale, C
     >
       <p className="text-foreground">
         {ASKS ? t.message : t.nothingToChoose}{" "}
-        <Link href="/privacy" className="font-medium underline underline-offset-4 hover:no-underline">
+        <Link prefetch={false} href="/privacy" className="font-medium underline underline-offset-4 hover:no-underline">
           {t.privacy}
         </Link>
       </p>

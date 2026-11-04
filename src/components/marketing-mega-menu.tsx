@@ -231,7 +231,7 @@ export function FeaturesShowcase({
                 <div className={c("rgf-detail-copy")}>
                   <div className={c("rgf-detail-kicker")}>{tool.kicker}</div>
                   <div className={c("rgf-heading")}>
-                    <Link href={href(target)} onClick={onNavigate}>
+                    <Link prefetch={false} href={href(target)} onClick={onNavigate}>
                       {tool.heading}
                     </Link>
                   </div>
@@ -668,7 +668,7 @@ export function IntegrationsShowcase({
     const className = c(`entry${channel.key === selected ? " selected" : ""}`);
     const preview = () => onSelect(channel.key);
     return channel.guide ? (
-      <Link
+      <Link prefetch={false}
         key={channel.key}
         href={href(channel.guide)}
         className={className}
@@ -722,7 +722,7 @@ export function IntegrationsShowcase({
             </span>
           ))}
         </div>
-        <Link href={href(INTEGRATIONS_HREF)} onClick={onNavigate} className={c("footer-cta")}>
+        <Link prefetch={false} href={href(INTEGRATIONS_HREF)} onClick={onNavigate} className={c("footer-cta")}>
           {menu.explore} <ChannelIcon name="arrow" />
         </Link>
       </div>

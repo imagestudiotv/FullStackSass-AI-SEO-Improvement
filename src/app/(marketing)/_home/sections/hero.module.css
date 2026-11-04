@@ -163,7 +163,7 @@ a.rgx-rating:hover {
 }
 .rgx-rating-copy {
   font-size: 10.5px;
-  color: #777970;
+  color: #72746b;
   flex: none;
 }
 .rgx-review-avatars {
@@ -488,7 +488,7 @@ a.rgx-rating:hover {
   align-items: center;
   justify-content: center;
   gap: 5px;
-  min-height: 0;
+  min-height: 24px;
   padding: 2px 0;
   border-radius: 3px;
   background: transparent;
