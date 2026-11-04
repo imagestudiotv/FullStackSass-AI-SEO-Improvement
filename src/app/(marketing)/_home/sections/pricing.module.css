@@ -1,0 +1,94 @@
+/*
+ * Pricing (client's design, 2026-11-03: <style id="rgp-complete-plan-design">),
+ * ported as written: the design's selectors without its .rgx wrapper and
+ * body.dark as the site's :global(.dark). Additions are marked "site:" at the end.
+ */
+.rgp-packages{position:relative;isolation:isolate;padding:104px 24px 108px;scroll-margin-top:100px;background:#fff;color:#242724;overflow:hidden}
+.rgp-packages *{box-sizing:border-box}
+.rgp-container{max-width:1220px;margin:0 auto}
+.rgp-heading{max-width:815px;margin:0 auto 54px;text-align:center}
+.rgp-eyebrow{font-size:10px;letter-spacing:.17em;font-weight:850;text-transform:uppercase;color:#bd673d;display:inline-flex;align-items:center;gap:10px}
+.rgp-eyebrow:before{content:"";width:7px;height:7px;border-radius:50%;background:#f16c3e;box-shadow:0 0 0 5px #fff0e9}
+.rgp-heading h2{font-size:clamp(41px,5.2vw,68px);letter-spacing:-.066em;line-height:1.04;font-weight:830;margin:20px 0 20px;color:#242724}
+.rgp-heading h2 em{font-family:inherit;font-style:italic;color:#ee693f;font-weight:680;letter-spacing:-.06em}
+.rgp-heading p{font-size:16px;line-height:1.74;color:#7f8078;max-width:645px;margin:0 auto}
+.rgp-unified-row{margin:28px auto 0;display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:9px}
+.rgp-unified-row span{font-size:11px;font-weight:720;padding:9px 14px;background:#faf7f4;border:1px solid #eee7e0;border-radius:99px;color:#62645d;white-space:nowrap;display:inline-flex;gap:7px;align-items:center}
+.rgp-unified-row span:before{content:"✓";color:#ee693f;font-size:13px;font-weight:850}
+.rgp-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:17px;align-items:stretch}
+.rgp-card{position:relative;min-width:0;display:flex;flex-direction:column;padding:32px 29px 30px;border:1px solid #e9e5df;border-radius:28px;background:#fff;box-shadow:0 18px 52px rgba(33,29,19,.055);color:#242724}
+.rgp-card.rgp-featured{background:#252a26;border-color:#252a26;box-shadow:0 22px 54px rgba(24,30,25,.14);color:#fff;transform:translateY(-10px)}
+.rgp-card-top{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:29px;margin-bottom:17px}
+.rgp-tier{font-size:10px;color:#a19b92;letter-spacing:.14em;font-weight:850;text-transform:uppercase}
+.rgp-featured .rgp-tier{color:#cdcfc7}
+.rgp-popular{display:inline-block;background:#f26d42;color:#fff;font-size:9px;font-weight:830;letter-spacing:.09em;padding:8px 11px;border-radius:99px}
+.rgp-card h3{font-size:29px;line-height:1.1;font-weight:790;letter-spacing:-.05em;margin:0 0 9px;color:inherit}
+.rgp-intro{font-size:13px;line-height:1.6;color:#84827a;min-height:43px;margin:0 0 22px}
+.rgp-featured .rgp-intro{color:#bfc2b8}
+.rgp-price{display:flex;align-items:baseline;gap:3px;margin:0 0 12px}
+.rgp-price strong{font-size:58px;font-weight:840;letter-spacing:-.085em;line-height:1.04;color:inherit}
+.rgp-price .rgp-euro{font-size:30px;font-weight:830;line-height:1;align-self:flex-start;margin-top:8px}
+.rgp-price .rgp-time{font-size:12px;font-weight:710;color:#9a978f;margin-left:6px}
+.rgp-featured .rgp-price .rgp-time{color:#c1c4bb}
+.rgp-capacity{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:21px 0 26px;padding:17px 0;border-top:1px solid #eae4dd;border-bottom:1px solid #eae4dd}
+.rgp-featured .rgp-capacity{border-color:#484d45}
+.rgp-capacity div{display:flex;flex-direction:column;gap:5px}
+.rgp-capacity strong{font-size:25px;letter-spacing:-.06em;line-height:1.08;font-weight:830;color:inherit}
+.rgp-capacity small{font-size:11px;font-weight:600;color:#98948d;line-height:1.4}
+.rgp-featured .rgp-capacity small{color:#bec1b6}
+.rgp-card ul{list-style:none;margin:0 0 30px;padding:0;display:grid;gap:14px;font-size:12.5px;line-height:1.55;color:#686962}
+.rgp-featured ul{color:#f0f1e9}
+.rgp-card li{display:flex;gap:10px;align-items:flex-start}
+.rgp-card li:before{content:"✓";font-weight:900;font-size:14px;line-height:1.45;color:#ee7145;flex:0 0 auto}
+.rgp-action{display:inline-flex;align-items:center;justify-content:center;gap:11px;margin-top:auto;min-height:50px;padding:0 16px;font-size:13px;font-weight:820;letter-spacing:-.01em;border-radius:999px;background:#252a26;color:white;border:1px solid #252a26;text-decoration:none;transition:background .2s ease,transform .2s ease}
+.rgp-action:hover{transform:translateY(-2px);background:#151916}
+.rgp-featured .rgp-action{background:#f36b3b;border-color:#f36b3b;color:#fff}
+.rgp-featured .rgp-action:hover{background:#dd5c2d}
+.rgp-plan-note{font-size:11px;line-height:1.55;color:#a09d96;text-align:center;margin-top:12px}
+.rgp-featured .rgp-plan-note{color:#b9bfb5}
+.rgp-bottom{display:flex;justify-content:space-between;align-items:center;gap:22px;margin:34px auto 0;padding:20px 26px;max-width:1170px;border:1px solid #eee9e2;border-radius:18px;background:#fbfaf8}
+.rgp-bottom-left{max-width:800px}
+.rgp-bottom strong{font-size:13px;letter-spacing:-.015em;color:#373a34}
+.rgp-bottom p{font-size:11.5px;line-height:1.6;margin:5px 0 0;color:#827e76}
+.rgp-bottom a{white-space:nowrap;color:#d76238;font-size:12px;font-weight:810;text-underline-offset:4px}
+.rgp-disclosure{text-align:center;max-width:880px;margin:22px auto 0;color:#a09a90;font-size:11px;line-height:1.65}
+:global(.dark) .rgp-packages{background:#181b18;color:#f4f2ec}
+:global(.dark) .rgp-heading h2{color:#f4f2ec}
+:global(.dark) .rgp-heading p{color:#b4b6ac}
+:global(.dark) .rgp-unified-row span{background:#232821;border-color:#363b32;color:#d2d6cc}
+:global(.dark) .rgp-card{background:#242823;border-color:#41463d;box-shadow:none;color:#f4f2ec}
+:global(.dark) .rgp-card.rgp-featured{background:#343a33;border-color:#4e5848;box-shadow:0 18px 55px #0003}
+:global(.dark) .rgp-card h3{color:#f4f2ec}
+:global(.dark) .rgp-intro{color:#b4b9ae}
+:global(.dark) .rgp-capacity{border-color:#454b42}
+:global(.dark) .rgp-capacity small{color:#b7b9af}
+:global(.dark) .rgp-card ul{color:#dce0d5}
+:global(.dark) .rgp-action{background:#f36b3b;border-color:#f36b3b}
+:global(.dark) .rgp-featured .rgp-action{background:#f36b3b;border-color:#f36b3b}
+:global(.dark) .rgp-bottom{background:#222621;border-color:#3c4137}
+:global(.dark) .rgp-bottom strong{color:#f5f1e9}
+:global(.dark) .rgp-bottom p{color:#b4b6ac}
+:global(.dark) .rgp-disclosure{color:#a7a99f}
+@media(max-width:980px){.rgp-grid{gap:12px}.rgp-card{padding:27px 19px 25px}.rgp-price strong{font-size:50px}}
+@media(max-width:720px){
+ .rgp-packages{padding:75px 17px 88px}
+ .rgp-heading{margin-bottom:39px}
+ .rgp-heading h2{font-size:clamp(37px,9.5vw,48px);margin:16px 0}
+ .rgp-heading p{font-size:14px}
+ .rgp-unified-row{margin-top:22px;gap:7px}
+ .rgp-unified-row span{padding:7px 10px;font-size:10px}
+ .rgp-grid{grid-template-columns:1fr;max-width:530px;gap:16px;margin:0 auto}
+ .rgp-card{padding:28px 25px}
+ .rgp-card.rgp-featured{transform:none;order:-1}
+ .rgp-intro{min-height:0}
+ .rgp-capacity{margin:14px 0 19px}
+ .rgp-card ul{gap:11px;margin-bottom:25px}
+ .rgp-bottom{flex-direction:column;align-items:flex-start;margin-top:28px;padding:20px}
+ .rgp-bottom a{white-space:normal}
+}
+@media(prefers-reduced-motion:reduce){.rgp-action{transition:none}}
+
+/* site: the design's page defaults (body font-size 14px, line-height normal) - the site's base is 16px / 1.5. */
+.rgp-packages{font-size:14px;line-height:normal}
+/* site: the design writes this badge in capitals; the translations are written normally and set in capitals here. */
+.rgp-popular{text-transform:uppercase}

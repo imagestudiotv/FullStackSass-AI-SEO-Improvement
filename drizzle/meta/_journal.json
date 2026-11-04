@@ -589,6 +589,13 @@
       "when": 1793661728692,
       "tag": "0083_lifecycle_emails",
       "breakpoints": true
+    },
+    {
+      "idx": 84,
+      "version": "7",
+      "when": 1793774804616,
+      "tag": "0084_plan_catalog",
+      "breakpoints": true
     }
   ]
 }

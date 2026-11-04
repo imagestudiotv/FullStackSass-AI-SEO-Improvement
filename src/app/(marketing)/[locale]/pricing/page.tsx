@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 
 import { Badge } from "@/components/ui/badge";
 import { TrialComparison } from "@/components/trial-comparison";
-import { FREE_ARTICLES, FREE_ARTICLES_DAYS, STARTER_TIER } from "@/lib/plans/features";
+import { FREE_ARTICLES, FREE_ARTICLES_DAYS, signUpForPlan, STARTER_TIER } from "@/lib/plans/features";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -77,7 +77,8 @@ export default async function LocalisedPricingPage({
           {t.pricing.unavailable}
         </p>
       ) : (
-        <div className="mx-auto mt-12 grid max-w-3xl gap-6 sm:grid-cols-2">
+        // The grid follows the line-up, as on the English page.
+        <div className={`mx-auto mt-12 grid gap-6 ${monthly.length > 2 ? "lg:grid-cols-3" : "max-w-3xl sm:grid-cols-2"}`}>
           {monthly.map((plan) => {
             const featured = plan.tier === "grow";
             const isStarter = plan.tier === STARTER_TIER;
@@ -128,12 +129,14 @@ export default async function LocalisedPricingPage({
                     </CardDescription>
                   </CardHeader>
 
-                  <CardContent>
+                  {/* Takes the spare height, so each card's button lines up however long its list. */}
+                  <CardContent className="flex-1">
                     <ul className="space-y-2.5 text-sm">
                       {[
                         plural(t.pricing.features.articles, plan.articleLimit, {
                           n: plan.articleLimit,
                         }),
+                        ...(plan.socialPostLimit > 0 ? [format(t.pricing.features.socialPosts, { n: plan.socialPostLimit })] : []),
                         format(t.pricing.features.keywords, {
                           n: plan.keywordLimit.toLocaleString(locale),
                         }),
@@ -167,7 +170,7 @@ export default async function LocalisedPricingPage({
                       className="w-full"
                       variant={featured ? "default" : "outline"}
                     >
-                      <Link href="/sign-up">{t.pricing.getStarted}</Link>
+                      <Link href={signUpForPlan(plan.tier)}>{t.pricing.getStarted}</Link>
                     </Button>
                   </CardFooter>
                 </Card>

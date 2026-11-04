@@ -59,6 +59,7 @@ import { WIZARD_STEPS, wizardStepIndex } from "@/lib/onboarding/wizard";
  * which is empty until there are real ones. See TestimonialRail.
  */
 export function PlanStep({
+  initialTier,
   monthlyPlans,
   annualPlans,
   paypalAvailable,
@@ -70,6 +71,8 @@ export function PlanStep({
   email = "",
   t = getMessages("en").app.onboarding,
 }: {
+  /** The tier whose button was pressed on the way here, if it is on sale. */
+  initialTier?: string;
   monthlyPlans: PickerPlan[];
   annualPlans: PickerPlan[];
   /** Whether PayPal can complete a checkout at all (lib/paypal/client.ts). */
@@ -102,10 +105,12 @@ export function PlanStep({
    * Which tier is on screen. The mid tier by default — the reference opens on
    * Grow and offers Scale through a link, which is the same judgement: most
    * customers want the middle one, and the cheapest is not the one to lead a
-   * paid product with.
+   * paid product with. Unless they pressed a plan's button to get here: then
+   * the plan they read about is the one on screen.
    */
   const [tier, setTier] = useState(
     () =>
+      monthlyPlans.find((plan) => plan.tier === initialTier)?.tier ??
       monthlyPlans.find((plan) => plan.tier === "grow")?.tier ??
       monthlyPlans[0]?.tier ??
       "",
@@ -320,7 +325,7 @@ export function PlanStep({
         <div
           role="radiogroup"
           aria-label="Plan"
-          className="mt-4 grid grid-cols-2 gap-1 rounded-2xl border bg-muted/50 p-1 sm:flex sm:rounded-full"
+          className={`mt-4 grid ${monthlyPlans.length === 3 ? "grid-cols-3" : "grid-cols-2"} gap-1 rounded-2xl border bg-muted/50 p-1 sm:flex sm:rounded-full`}
         >
           {monthlyPlans.map((option) => (
             <button

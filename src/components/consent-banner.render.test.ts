@@ -41,6 +41,20 @@ describe("ConsentBanner on the server", () => {
   });
 });
 
+describe("the panel with no Google tag configured", () => {
+  it("still renders nothing on the server, so no visitor is shown it unasked", async () => {
+    const { ConsentBanner } = await load(undefined);
+    expect(renderToStaticMarkup(createElement(ConsentBanner, { copy: { en: getMessages("en").consent } }))).toBe("");
+  });
+
+  it.each(LOCALES)("%s: says there is nothing to choose, and how to close it", (locale) => {
+    const t = getMessages(locale).consent;
+    expect(t.nothingToChoose).toMatch(/Google Analytics/);
+    expect(t.nothingToChoose).not.toBe(t.message);
+    expect(t.close).toBeTruthy();
+  });
+});
+
 describe("CookieSettingsButton", () => {
   it("is a real button when GA is configured", async () => {
     const { CookieSettingsButton } = await load("G-ABC123XYZ");
@@ -48,10 +62,10 @@ describe("CookieSettingsButton", () => {
     expect(html).toMatch(/^<button type="button"[^>]*>Cookie settings<\/button>$/);
   });
 
-  it("is absent when there is no choice to change", async () => {
+  it("is the same button with no Google tag configured: the panel says there is no choice", async () => {
     for (const id of [undefined, "UA-1234-5"]) {
       const { CookieSettingsButton } = await load(id);
-      expect(renderToStaticMarkup(createElement(CookieSettingsButton, { label: "Cookie settings" }))).toBe("");
+      expect(renderToStaticMarkup(createElement(CookieSettingsButton, { label: "Cookie settings" }))).toMatch(/^<button type="button"[^>]*>Cookie settings<\/button>$/);
     }
   });
 });
@@ -62,7 +76,7 @@ describe("banner words", () => {
     const english = chrome.en.consent;
     for (const locale of LOCALES) {
       const words = chrome[locale].consent;
-      expect(Object.keys(words).sort()).toEqual(["accept", "decline", "label", "message", "privacy", "settings"]);
+      expect(Object.keys(words).sort()).toEqual(["accept", "close", "decline", "label", "message", "nothingToChoose", "privacy", "settings"]);
       for (const value of Object.values(words)) expect(value.trim()).not.toBe("");
       if (locale !== "en") {
         expect(words.message).not.toBe(english.message);

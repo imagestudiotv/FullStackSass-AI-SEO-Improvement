@@ -224,6 +224,8 @@ export function planFeatures(plan: PlanRow, t: BillingCopy, locale: Locale): str
     plural(t.searchTermsTracked, plan.keywordLimit, { n: allowance(plan.keywordLimit, t, locale) }),
     t.oneWebsite,
     plural(t.creditsEachMonth, plan.monthlyCredits, { n: allowance(plan.monthlyCredits, t, locale) }),
+    // Last, and only for a plan that states them: the upgrade strip below reads the others by position.
+    ...(plan.socialPostLimit > 0 ? [plural(t.socialPostsEachMonth, plan.socialPostLimit, { n: allowance(plan.socialPostLimit, t, locale) })] : []),
   ];
 }
 

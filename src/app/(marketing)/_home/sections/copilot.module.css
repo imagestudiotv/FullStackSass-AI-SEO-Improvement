@@ -1,0 +1,463 @@
+/*
+ * Growth AI Chat Copilot, with the "Connect your website and favorite
+ * accounts" strip above it: the client's approved design (design.html,
+ * `repget-highlight-copilot-style`, then the brand palette of
+ * `rgx-centered-mascot-and-brand-copilot-fix`), ported value for value.
+ *
+ * The site's reset (Tailwind preflight) clears what the design took from
+ * the browser: headings' weight and the 14px / normal line-height body, so
+ * those are set here.
+ */
+
+.rgx-copilot-connect {
+  padding: 26px 0 24px;
+  background: #faf9f6;
+  color: #212521;
+  font-size: 14px;
+  line-height: normal;
+}
+.rgx-copilot-connect * {
+  box-sizing: border-box;
+}
+.rgx-copilot-connect svg {
+  display: block;
+}
+.rgx-copilot-connect a:focus-visible {
+  outline: 3px solid #f5a87c;
+  outline-offset: 3px;
+}
+.rgx-copilot-shell {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* The strip */
+.rgx-connect-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 22px;
+  background: #f2efe9;
+  border: 1px solid #e6dfd7;
+  border-radius: 24px;
+  padding: 22px 24px;
+  margin-bottom: 28px;
+  box-shadow: 0 18px 34px rgba(26, 26, 26, 0.04);
+}
+.rgx-connect-strip-title {
+  font-size: 20px;
+  line-height: 1.08;
+  font-weight: 700;
+  color: #161616;
+  max-width: 260px;
+  margin: 0;
+}
+.rgx-connect-icons {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.rgx-connect-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  box-shadow: 0 10px 26px rgba(23, 25, 28, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  color: #171717;
+  transform: translateY(0);
+  animation: rgxIconFloat 6s ease-in-out infinite;
+}
+.rgx-connect-icon svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+.rgx-connect-icon:nth-child(2n) {
+  animation-duration: 7.2s;
+  animation-delay: -1.3s;
+}
+.rgx-connect-icon:nth-child(3n) {
+  animation-duration: 6.4s;
+  animation-delay: -2.2s;
+}
+@keyframes rgxIconFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+/* The dark card */
+.rgx-connect-card {
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  gap: 38px;
+  align-items: center;
+  padding: 42px;
+  border-radius: 34px;
+  background: linear-gradient(135deg, #1b1d1d 0%, #252524 52%, #18191b 100%);
+  box-shadow: 0 30px 80px rgba(18, 22, 24, 0.12);
+}
+.rgx-connect-copy {
+  color: #fff;
+  max-width: 530px;
+}
+.rgx-connect-kicker {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 16px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #ffac82;
+}
+.rgx-connect-kicker i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #f26b38;
+  display: inline-block;
+  box-shadow: 0 0 0 5px rgba(242, 107, 56, 0.13);
+}
+.rgx-connect-copy h2 {
+  margin: 0 0 14px;
+  font-size: 56px;
+  font-weight: 700;
+  line-height: 0.98;
+  letter-spacing: -0.04em;
+  color: #fff;
+}
+.rgx-connect-copy p {
+  margin: 0 0 15px;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 22px;
+  line-height: 1.45;
+}
+.rgx-copilot-steps {
+  display: grid;
+  gap: 10px;
+  margin: 24px 0 30px;
+  padding: 0;
+  list-style: none;
+}
+/* As in the design, the rule reaches both levels: the bullet row and, inside it, the lead and its text. */
+.rgx-copilot-steps li,
+.rgx-copilot-steps span {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 17px;
+  line-height: 1.45;
+}
+.rgx-copilot-steps b {
+  color: #fff;
+  font-weight: 700;
+}
+.rgx-copilot-steps i {
+  margin-top: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #f26b38;
+  flex: 0 0 auto;
+}
+.rgx-connect-actions {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.rgx-connect-btn,
+.rgx-connect-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 54px;
+  padding: 0 22px;
+  border-radius: 16px;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 16px;
+  transition: 0.25s ease;
+}
+.rgx-connect-btn {
+  background: #f26b38;
+  color: #fff;
+  border: 1px solid #f26b38;
+  box-shadow: 0 8px 22px rgba(242, 107, 56, 0.18);
+}
+.rgx-connect-btn:hover {
+  transform: translateY(-1px);
+  background: #df5b2c;
+  border-color: #df5b2c;
+  box-shadow: 0 11px 25px rgba(242, 107, 56, 0.2);
+}
+.rgx-connect-ghost {
+  background: transparent;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.26);
+}
+.rgx-connect-ghost:hover {
+  border-color: #f2a17d;
+  color: #fff;
+  background: rgba(242, 107, 56, 0.08);
+}
+
+/* The conversation */
+.rgx-connect-visual {
+  position: relative;
+}
+.rgx-grid-backdrop {
+  position: absolute;
+  inset: 18px 0 18px 18px;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+  background-size: 48px 48px;
+  border-radius: 30px;
+  opacity: 0.42;
+}
+.rgx-chat-shell {
+  position: relative;
+  z-index: 1;
+  max-width: 470px;
+  margin-left: auto;
+  padding: 20px;
+  border-radius: 26px;
+  background: #0d0f11;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 26px 50px rgba(0, 0, 0, 0.25);
+}
+.rgx-chat-bubble {
+  border-radius: 18px;
+  padding: 16px 18px;
+  font-size: 17px;
+  line-height: 1.45;
+}
+.rgx-chat-bubble.user {
+  margin: 12px 18px 16px 54px;
+  background: linear-gradient(135deg, #312a25, #25221f);
+  color: #fff;
+}
+.rgx-chat-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 15px;
+  margin: 8px 0 14px 10px;
+}
+.rgx-chat-status i {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #f26b38;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 800;
+  flex: 0 0 auto;
+}
+.rgx-chat-lines {
+  margin: 0 0 0 10px;
+  padding: 0 0 0 17px;
+  list-style: none;
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+  display: grid;
+  gap: 14px;
+}
+.rgx-chat-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 15px;
+}
+.rgx-chat-line .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  background: #f26b38;
+  box-shadow: 0 0 0 6px rgba(242, 107, 56, 0.1);
+}
+.rgx-chat-line .dot.orange {
+  background: #ff986b;
+  box-shadow: 0 0 0 6px rgba(255, 152, 107, 0.1);
+}
+.rgx-chat-line .dot.blue {
+  background: #ffc19f;
+  box-shadow: 0 0 0 6px rgba(255, 193, 159, 0.1);
+}
+.rgx-chat-input {
+  display: flex;
+  align-items: center;
+  height: 52px;
+  padding: 0 18px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  margin-top: 18px;
+  color: rgba(255, 255, 255, 0.46);
+  font-size: 17px;
+  font-style: italic;
+}
+.rgx-connect-mini {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.18);
+  font-size: 14px;
+  font-weight: 700;
+}
+.rgx-connect-mini svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+.rgx-connect-mini.left {
+  top: -8px;
+  left: 0;
+}
+.rgx-connect-mini.right {
+  right: -8px;
+  bottom: 42px;
+}
+
+/* Dark mode: the page and the strip turn dark, the tiles stay light. The card is dark already. */
+:global(.dark) .rgx-copilot-connect {
+  background: #171917;
+  color: #f3f0ea;
+}
+:global(.dark) .rgx-connect-strip {
+  background: #272823;
+  border-color: #3e4139;
+}
+:global(.dark) .rgx-connect-strip-title {
+  color: #f4f1ec;
+}
+:global(.dark) .rgx-connect-icon {
+  background: #f6f3ec;
+  border-color: #e7e0d8;
+  color: #242522;
+}
+
+@media (max-width: 1100px) {
+  .rgx-connect-card {
+    grid-template-columns: 1fr;
+    padding: 34px;
+  }
+  .rgx-connect-copy h2 {
+    font-size: 46px;
+  }
+  .rgx-chat-shell {
+    margin: 0 auto;
+  }
+  .rgx-grid-backdrop {
+    inset: 18px;
+  }
+  .rgx-connect-strip {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .rgx-connect-strip-title {
+    max-width: none;
+  }
+}
+@media (max-width: 760px) {
+  .rgx-copilot-connect {
+    padding: 18px 0 10px;
+  }
+  .rgx-copilot-shell {
+    padding: 0 14px;
+  }
+  .rgx-connect-strip {
+    padding: 18px;
+    border-radius: 20px;
+    gap: 16px;
+  }
+  .rgx-connect-strip-title {
+    font-size: 18px;
+  }
+  .rgx-connect-icons {
+    gap: 10px;
+  }
+  .rgx-connect-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 11px;
+  }
+  .rgx-connect-card {
+    padding: 22px 20px;
+    border-radius: 26px;
+    gap: 24px;
+  }
+  .rgx-connect-copy h2 {
+    font-size: 34px;
+  }
+  .rgx-connect-copy p {
+    font-size: 18px;
+  }
+  .rgx-copilot-steps li,
+  .rgx-copilot-steps span {
+    font-size: 15px;
+  }
+  .rgx-chat-shell {
+    padding: 16px;
+    border-radius: 22px;
+  }
+  .rgx-chat-bubble {
+    font-size: 15px;
+  }
+  .rgx-chat-bubble.user {
+    margin: 10px 8px 14px 36px;
+  }
+  .rgx-chat-status,
+  .rgx-chat-line {
+    font-size: 13px;
+  }
+  .rgx-chat-input {
+    height: 46px;
+    font-size: 15px;
+  }
+  .rgx-connect-mini {
+    position: static;
+    display: inline-flex;
+    margin: 0 0 10px;
+  }
+  .rgx-grid-backdrop {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rgx-connect-icon {
+    animation: none !important;
+  }
+}

@@ -1,55 +1,48 @@
 import Image from "next/image";
 
-import { BRAND_NAMES, type BrandIconName } from "@/components/brand-icons";
+import { featuresCopy } from "@/lib/i18n/home/features";
 
-import { FeatureSelector, type SelectorItem } from "../feature-selector";
-import styles from "../home.module.css";
-import { plain } from "../text";
+import { TopFeaturesStage } from "../top-features-stage";
+import { TopFeaturesTabs } from "../top-features-tabs";
 import type { SectionProps } from "../types";
 
-import fx from "./features.module.css";
+import styles from "./top-features.module.css";
 
 const HEADING_ID = "home-features-heading";
 
 /**
- * Chips that name a platform get its mark; the rest ("SEO", "Planning", and
- * every translated word) get the generic spark. Matched on the brand's own
- * spelling, which no translation changes.
- */
-const BRAND_BY_NAME = new Map<string, BrandIconName>(
-  (Object.entries(BRAND_NAMES) as [BrandIconName, string][])
-    .filter(([, name]) => name !== "")
-    .map(([icon, name]) => [name.toLowerCase(), icon]),
-);
-
-/**
- * "Top features": the boxed selector with the mascot perched on top
- * (client's design, 2026-11-03).
+ * "Top features" (client's design, 2026-11-03, #repget-dashboard-showcase):
+ * the feature selector with the gecko-and-owl mascot centred on its top edge.
  *
- * The heading is drawn here; the interactive part (feature-selector.tsx) gets
- * only the strings it shows, so the dictionaries stay out of the browser
- * bundle. The selector is server-rendered too, with the first feature open.
+ * On desktop the section is pulled up under the ribbon so the mascot peeks at
+ * the bottom of the first screen ("perfect visible at the end to reveal
+ * curiosity"), and the board starts small and grows to full size as the
+ * visitor scrolls (top-features-stage.tsx).
+ *
+ * The id stays `features`: the header's links and the Social tool point at
+ * /#features.
  */
-export function Features({ c }: SectionProps) {
-  const f = c.features;
-  const items: SelectorItem[] = f.items.map((item) => ({
-    ...item,
-    chipIcons: item.chips.map((chip) => BRAND_BY_NAME.get(chip.toLowerCase()) ?? "spark"),
-  }));
+export function Features({ locale }: SectionProps) {
+  const f = featuresCopy(locale);
 
   return (
-    <section id="features" className={styles.features} aria-labelledby={HEADING_ID}>
-      <div className={`${styles.featuresWrap} ${styles.reveal}`} data-reveal>
-        <div className={styles.featuresLabel}>
-          <h2 id={HEADING_ID} className={`${styles.kicker} ${fx.heading}`}>
-            {plain(f.eyebrow)}
-          </h2>
-          <span>{f.hint}</span>
+    <section id="features" className={styles["rgx-dashboard-embed"]} aria-labelledby={HEADING_ID}>
+      <TopFeaturesStage className={styles["hp-reveal-stage"]}>
+        <div className={styles["hp-preview-wrap"]}>
+          <div className={styles["hp-preview-label"]}>
+            <h2 id={HEADING_ID}>
+              <span className={styles["hp-dot"]} aria-hidden="true" />
+              {f.label}
+            </h2>
+            <span>{f.hint}</span>
+          </div>
+          <TopFeaturesTabs items={f.items} labelledBy={HEADING_ID} note={f.note} noteDetail={f.noteDetail} next={f.next}>
+            <div className={styles["hp-center-mascot"]}>
+              <Image src="/images/home/mascot.webp" width={217} height={189} alt={f.mascotAlt} />
+            </div>
+          </TopFeaturesTabs>
         </div>
-        <FeatureSelector items={items} labelledBy={HEADING_ID} next={f.next} note={f.note} noteDetail={f.noteDetail}>
-          <Image className={styles.mascot} src="/images/home/mascot.webp" width={217} height={189} alt="" />
-        </FeatureSelector>
-      </div>
+      </TopFeaturesStage>
     </section>
   );
 }

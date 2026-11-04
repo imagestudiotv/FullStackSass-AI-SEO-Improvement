@@ -19,7 +19,7 @@ import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth-client";
 import { localAuthRedirect } from "@/lib/auth/local-origin";
-import { authSwitchHref, CALLBACK_URL, safeNext } from "@/lib/auth/next";
+import { authSwitchHref, googleErrorPath, safeNext } from "@/lib/auth/next";
 import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from "@/lib/auth/password-policy";
 import { Button } from "@/components/ui/button";
 import { GoogleMark } from "@/components/google-mark";
@@ -213,7 +213,7 @@ export function AuthForm({
       () => authClient.signIn.social({
         provider: "google",
         callbackURL: next,
-        errorCallbackURL: next === CALLBACK_URL ? "/sign-in" : `/sign-in?next=${encodeURIComponent(next)}`,
+        errorCallbackURL: googleErrorPath(next),
       }),
       () => {}, // Better Auth performs the OAuth redirect.
       "Google sign-in failed",

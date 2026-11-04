@@ -1,61 +1,69 @@
-import { Plus } from "lucide-react";
 import Link from "next/link";
+import { Fragment } from "react";
 
-import styles from "../home.module.css";
+import { faqCopy } from "@/lib/i18n/home/faq";
 import type { SectionProps } from "../types";
-import local from "./closing.module.css";
+import styles from "./faq.module.css";
+import { OneOpen } from "./faq-one-open";
+
+/** The design's class names, through the module. */
+const c = (names: string) =>
+  names
+    .split(" ")
+    .map((name) => styles[name] ?? name)
+    .join(" ");
 
 /**
- * Questions (client's design, 2026-11-03): the introduction on the left,
- * sticky beside the list on a computer, above it on a phone.
+ * Questions (client's design, 2026-11-03; <section class="rpf-faq"
+ * id="repget-faq">): the introduction on the left, sticky beside the list on
+ * a computer, above it on a phone.
  *
- * The questions are the FAQ page's own list (`m.faq.items`), in its order,
- * as the old homepage FAQ (home-faq.tsx) - so the two cannot disagree. The
- * design came with its own questions, some quoting social post allowances no
- * plan has; they are not used. The title is an h2: /faq's h1 would compete
- * with the hero's.
+ * The questions are the design's 14 in its three groups (client, 2026-11-04:
+ * "i updated the faq with more options"), from lib/i18n/home/faq.ts. The
+ * /faq page keeps its own list.
  *
  * Native <details>/<summary>: keyboard, screen readers and find-in-page work
- * without any JavaScript, and every answer is in the HTML.
+ * without any JavaScript, and every answer is in the HTML. With JavaScript,
+ * opening one closes the others, as in the design (OneOpen).
  *
- * NO FAQPage structured data here, as before: /faq publishes it for these
- * same questions, and the same FAQPage on two URLs is duplicate markup.
+ * NO FAQPage structured data here: /faq publishes it for its own questions.
  */
-export function Faq({ c, m, href }: SectionProps) {
-  const faq = m.faq;
-  if (faq.items.length === 0) return null;
+export function Faq({ locale, href }: SectionProps) {
+  const t = faqCopy(locale);
 
   return (
-    <section id="faq" className={styles.faq} aria-labelledby="faq-title">
-      <div className={styles.faqInner}>
-        <div className={`${styles.faqIntro} ${styles.reveal}`} data-reveal="">
-          <div className={styles.kicker}>{c.faq.eyebrow}</div>
-          <h2 id="faq-title" className={styles.sectionTitle}>
-            {faq.title}
-          </h2>
-          <p>{faq.subtitle}</p>
-          <div className={styles.faqContact}>
-            {c.faq.contactLead}{" "}
-            <Link href={href("/contact")} className={local.focusRing}>
-              {c.faq.contact}
-            </Link>
+    <section className={c("rpf-faq")} id="repget-faq" aria-labelledby="rpf-heading">
+      <div className={c("rpf-faq-inner")}>
+        <div className={c("rpf-intro")}>
+          <div className={c("rpf-eyebrow")}>{t.eyebrow}</div>
+          <h2 id="rpf-heading">{t.title}</h2>
+          <p>{t.intro}</p>
+          <div className={c("rpf-contact")}>
+            {t.contactLead} <Link href={href("/contact")}>{t.contact}</Link>
           </div>
         </div>
-
-        <div className={`${styles.faqList} ${styles.reveal}`} data-reveal="" data-delay="1">
-          {faq.items.map((item) => (
-            <details key={item.question} className={styles.faqItem}>
-              <summary className={local.focusRing}>
-                {item.question}
-                <span className={styles.plus} aria-hidden="true">
-                  <Plus />
-                </span>
-              </summary>
-              <p>{item.answer}</p>
-            </details>
+        <div className={c("rpf-list")}>
+          {t.groups.map((group) => (
+            <Fragment key={group.title}>
+              <div className={c("rpf-section")}>{group.title}</div>
+              {group.items.map((item) => (
+                <details key={item.question} className={c("rpf-item")}>
+                  <summary>
+                    <span>{item.question}</span>
+                    <span className={c("rpf-plus")} aria-hidden="true">
+                      +
+                    </span>
+                  </summary>
+                  <div className={c("rpf-answer")}>
+                    <p>{item.answer}</p>
+                  </div>
+                </details>
+              ))}
+            </Fragment>
           ))}
         </div>
       </div>
+      <OneOpen sectionId="repget-faq" />
     </section>
   );
 }

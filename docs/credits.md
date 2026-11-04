@@ -10,7 +10,7 @@ All of these are rows in `credit_ledger` (`lib/backlinks/credits.ts`). The balan
 
 | Source | Ledger type | Notes |
 |---|---|---|
-| The plan, every month | `plan_grant` | Grow 250, Scale 700 (`scripts/seed-plans.mjs`). Granted lazily on the first page that shows the balance. |
+| The plan, every month | `plan_grant` | Launch 250, Grow 250, Scale 700 (`scripts/plan-catalog.mjs`). Granted lazily on the first page that shows the balance. |
 | Daily credits | `daily_grant` | Admin → Credits, suggested 3. See below. |
 | Trial daily credits | `daily_grant` | Admin → Credits, 15 (client, 2026-10-27), on a trial's first 3 days only. See below. |
 | Credit packs | `purchase` | 100 / 250 / 500 credits for EUR 79 / 149 / 279, paid by card on Billing. |

@@ -1,35 +1,34 @@
 "use client";
 
-import { ArrowRight, Menu } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 
-import { BRAND_NAMES } from "@/components/brand-icons";
+import { BrandHomeLink } from "@/components/brand-home-link";
 import { CookieSettingsButton } from "@/components/consent-banner";
-import {
-  INTEGRATIONS_HREF,
-  MarketingMegaMenus,
-  SITE_CONNECTIONS,
-  SOCIAL_PLATFORMS,
-  countLabel,
-  featureTool,
-} from "@/components/marketing-mega-menu";
-import { Button } from "@/components/ui/button";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import {
+  FeaturesShowcase,
+  IntegrationsShowcase,
+  c,
+  type Channel,
+} from "@/components/marketing-mega-menu";
+import { ArrowUpRightIcon, BarsIcon, ChevronIcon, CloseIcon, MoonIcon, SunIcon } from "@/components/site-icons";
 import { ThemeToggle } from "@/components/theme-toggle";
-import type { MobileNavSheet } from "@/components/mobile-nav-sheet";
-import { localePath, splitLocale, type Locale } from "@/lib/i18n/config";
+import { localePath, splitLocale } from "@/lib/i18n/config";
 import type { SiteChrome } from "@/lib/i18n/site-chrome";
-import { cn } from "@/lib/utils";
+
+import footer from "./site-footer.module.css";
 
 /**
- * Marketing header nav and footer links.
+ * The public site's header and footer (client's homepage design,
+ * 2026-11-03), on every public page.
  *
- * A client component so it can read the current locale from the pathname. The
- * layout is a server component with no access to the URL, so the nav stayed in
- * English on /es — a Spanish page with an English menu reads as a half-finished
- * translation, which is worse than not offering one.
+ * Client components so they can read the current locale from the pathname.
+ * The layout is a server component with no access to the URL, so the nav
+ * stayed in English on /es — a Spanish page with an English menu reads as a
+ * half-finished translation, which is worse than not offering one.
  *
  * The words arrive as a prop (`chrome`, every language) from the server shell.
  * Never import messages.ts here: in a client component that ships the whole
@@ -60,224 +59,339 @@ export function MarketingFrame({ className, children }: { className?: string; ch
   );
 }
 
-/**
- * The same menu on a narrow screen.
- *
- * The marketing header had no mobile menu at all: below the breakpoint the
- * nav simply vanished and a phone was left with the logo and two buttons.
- * That was survivable while the nav broke at 640px, but the header's menus
- * push the row past what a tablet can fit, so the gap would have grown to
- * cover most laptops.
- *
- * A sheet rather than a second dropdown. Features and Integrations become
- * two collapsed sections in it: the desktop panels are too wide for a phone,
- * and listed flat the integrations alone would push the page links out of
- * sight.
- *
- * The sheet itself (components/mobile-nav-sheet.tsx) is fetched when the
- * menu is first wanted - the button is hovered, focused or touched, which
- * usually has it ready by the tap - rather than with the page: a phone
- * reading the home page should not download a dialog before its first paint.
- *
- * Loaded by hand rather than with next/dynamic: that suspends, so a failed
- * download (a phone going offline) would take the whole page down to the
- * error screen, and the first open waited out React's Suspense throttle.
- * Here a failure leaves the page as it was, and the next tap tries again.
- */
-let sheetModule: Promise<typeof import("@/components/mobile-nav-sheet")> | null =
-  null;
+type MenuId = "features" | "integrations";
 
-function loadSheet() {
-  sheetModule ??= import("@/components/mobile-nav-sheet").catch((error) => {
-    sheetModule = null;
-    throw error;
-  });
-  return sheetModule;
+/** The design's hover intent: leaving a trigger or a menu closes it after this long. */
+const CLOSE_DELAY = 260;
+/** The design's breakpoint for the phone drawer. */
+const DRAWER_QUERY = "(max-width:1190px)";
+/** The bar shrinks once the page has scrolled this far. */
+const SCROLLED_AT = 28;
+
+function subscribeDrawerQuery(onChange: () => void) {
+  const query = window.matchMedia(DRAWER_QUERY);
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
 }
 
-function MobileMarketingNav({
-  t,
-  locale,
-  href,
-}: {
-  t: SiteChrome[Locale];
-  /** The sheet is portaled to <body>, outside MarketingFrame, so it declares its own language. */
-  locale: Locale;
-  href: (path: string) => string;
-}) {
-  const [open, setOpen] = useState(false);
-  // Kept once loaded, so closing still animates and reopening is instant.
-  const [Sheet, setSheet] = useState<typeof MobileNavSheet | null>(null);
-  const button = useRef<HTMLButtonElement>(null);
-  const prefetch = () => void loadSheet().catch(() => {});
-
-  // The same destinations as the desktop panels (marketing-mega-menu.tsx).
-  const features = {
-    label: t.menu.features,
-    items: t.menu.tools.map((tool, index) => ({
-      title: tool.title,
-      sub: tool.sub,
-      href: href(featureTool(index).href),
-      icon: featureTool(index).icon,
-    })),
-  };
-  const integrations = {
-    label: t.menu.integrations,
-    socialHead: t.menu.socialHead,
-    socialCount: countLabel(t.menu.platforms, SOCIAL_PLATFORMS.length),
-    social: SOCIAL_PLATFORMS.map((icon) => ({ icon, name: BRAND_NAMES[icon] })),
-    siteHead: t.menu.siteHead,
-    siteCount: countLabel(t.menu.connections, SITE_CONNECTIONS.length),
-    sites: SITE_CONNECTIONS.map(({ name, guide }) => ({
-      icon: name,
-      name: BRAND_NAMES[name],
-      href: guide ? href(guide) : undefined,
-    })),
-    explore: { label: t.menu.explore, href: href(INTEGRATIONS_HREF) },
-  };
-  const links = [
-    { href: "/sign-in", label: t.nav.signIn },
-    { href: href("/#how-it-works"), label: t.nav.howItWorks },
-    { href: href("/success-stories"), label: t.nav.successStories },
-    { href: href("/pricing"), label: t.nav.pricing },
-    { href: href("/blog"), label: t.nav.blog },
-    { href: href("/contact"), label: t.nav.contact },
-  ];
-
-  return (
-    <>
-      <Button
-        ref={button}
-        variant="ghost"
-        size="icon"
-        className="size-11 shrink-0 lg:hidden"
-        aria-label={t.a11y.openMenu}
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        onPointerEnter={prefetch}
-        onTouchStart={prefetch}
-        onFocus={prefetch}
-        onClick={() => {
-          if (Sheet) {
-            setOpen(true);
-            return;
-          }
-          loadSheet()
-            .then((m) => {
-              setSheet(() => m.MobileNavSheet);
-              setOpen(true);
-            })
-            .catch(() => {
-              // Offline: nothing opens, and the next tap tries again.
-            });
-        }}
-      >
-        <Menu className="size-5" />
-      </Button>
-      {Sheet ? (
-        <Sheet
-          open={open}
-          onOpenChange={setOpen}
-          returnFocusTo={button}
-          themeLabel={t.a11y.darkMode}
-          menuLabel={t.a11y.openMenu}
-          lang={locale}
-          closeLabel={t.a11y.close}
-          features={features}
-          integrations={integrations}
-          links={links}
-        />
-      ) : null}
-    </>
+/** Whether the drawer replaces the bar's menus. False on the server, which renders the desktop placement. */
+function useDrawerLayout() {
+  return useSyncExternalStore(
+    subscribeDrawerQuery,
+    () => window.matchMedia(DRAWER_QUERY).matches,
+    () => false,
   );
 }
 
+const themeIcons = {
+  light: <MoonIcon fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.85" />,
+  dark: <SunIcon fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.85" />,
+};
+
+/**
+ * The floating bar: logo, the nav pill (Features and Integrations menus,
+ * then the pages), and night mode, Sign in and Get Started. At 1190px and
+ * below the pill gives way to a menu button and a drawer under the bar.
+ *
+ * Behaviour as in the design: a trigger opens its menu on hover, focus or
+ * click; leaving the trigger or the menu closes it after 260ms; hovering a
+ * plain link, a click outside, Escape and crossing the breakpoint close
+ * everything. Added for keyboards: each menu sits right after its trigger,
+ * so Tab walks into it; focus leaving the header closes it; Escape hands
+ * focus back to the trigger or the menu button.
+ */
 export function MarketingNav({ chrome }: { chrome: SiteChrome }) {
   const pathname = usePathname();
   const { locale } = splitLocale(pathname);
   const t = chrome[locale];
   const href = (path: string) => localePath(locale, path);
+  const homeLabels = Object.fromEntries(Object.entries(chrome).map(([key, words]) => [key, words.a11y.brandHome]));
+
+  const [open, setOpen] = useState<MenuId | null>(null);
+  const [drawer, setDrawer] = useState(false);
+  const [accordion, setAccordion] = useState<Record<MenuId, boolean>>({ features: false, integrations: false });
+  const [scrolled, setScrolled] = useState(false);
+  // The two showcases' state, kept here so it survives moving between the bar and the drawer.
+  const [feature, setFeature] = useState(0);
+  const [channel, setChannel] = useState<Channel["key"] | null>(null);
+  const inDrawer = useDrawerLayout();
+
+  const zone = useRef<HTMLDivElement>(null);
+  const triggers = useRef<Record<MenuId, HTMLButtonElement | null>>({ features: null, integrations: null });
+  const menuButton = useRef<HTMLButtonElement>(null);
+  const timer = useRef<number | undefined>(undefined);
+  // Focus handed back to a trigger by Escape must not reopen its menu.
+  const quietFocus = useRef(false);
+  const id = useId();
+
+  // A route change closes everything: links inside close on click, but
+  // back/forward and links elsewhere on the page do not pass through them.
+  const [seenPath, setSeenPath] = useState(pathname);
+  if (pathname !== seenPath) {
+    setSeenPath(pathname);
+    setOpen(null);
+    setDrawer(false);
+  }
+  // So does crossing the drawer breakpoint.
+  const [seenLayout, setSeenLayout] = useState(inDrawer);
+  if (inDrawer !== seenLayout) {
+    setSeenLayout(inDrawer);
+    setOpen(null);
+    setDrawer(false);
+  }
+
+  const show = (menu: MenuId | null) => {
+    window.clearTimeout(timer.current);
+    setOpen(menu);
+  };
+  const scheduleClose = () => {
+    window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => setOpen(null), CLOSE_DELAY);
+  };
+  const closeAll = () => {
+    show(null);
+    setDrawer(false);
+  };
+
+  useEffect(() => () => window.clearTimeout(timer.current), []);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > SCROLLED_AT);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    if (!open && !drawer) return;
+    const inside = (node: EventTarget | null) => node instanceof Node && Boolean(zone.current?.contains(node));
+    function onPointerDown(event: PointerEvent) {
+      if (!inside(event.target)) {
+        window.clearTimeout(timer.current);
+        setOpen(null);
+        setDrawer(false);
+      }
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      const hadFocus = inside(document.activeElement);
+      window.clearTimeout(timer.current);
+      if (open) {
+        setOpen(null);
+        if (hadFocus) {
+          quietFocus.current = true;
+          triggers.current[open]?.focus();
+          quietFocus.current = false;
+        }
+      }
+      if (drawer) {
+        setDrawer(false);
+        if (hadFocus) menuButton.current?.focus();
+      }
+    }
+    function onFocusIn(event: FocusEvent) {
+      if (!inside(event.target)) {
+        setOpen(null);
+        setDrawer(false);
+      }
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("focusin", onFocusIn);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("focusin", onFocusIn);
+    };
+  }, [open, drawer]);
+
+  const features = (
+    <FeaturesShowcase
+      menu={t.menu}
+      site={t.site}
+      href={href}
+      active={feature}
+      onSelect={setFeature}
+      onNavigate={closeAll}
+    />
+  );
+  const integrations = (
+    <IntegrationsShowcase
+      menu={t.menu}
+      site={t.site}
+      href={href}
+      selected={channel}
+      onSelect={setChannel}
+      onNavigate={closeAll}
+    />
+  );
+
+  const menus: { id: MenuId; label: string; panel: ReactNode; className: string }[] = [
+    { id: "features", label: t.menu.features, panel: features, className: "menu features-menu" },
+    { id: "integrations", label: t.menu.integrations, panel: integrations, className: "menu integrations-menu" },
+  ];
+  const links = [
+    { href: href("/success-stories"), label: t.nav.successStories },
+    { href: href("/pricing"), label: t.nav.pricing },
+    { href: href("/blog"), label: t.nav.blog },
+    { href: href("/contact"), label: t.nav.contact },
+  ];
+  const drawerId = `${id}-drawer`;
 
   return (
-    <>
-      {/*
-        Only pages that exist. Every link here resolves.
+    <header className={c(`header${scrolled ? " scrolled" : ""}`)}>
+      <div ref={zone} className={c("header-shell")}>
+        <div className={c("bar")}>
+          <BrandHomeLink className={c("brand")} labels={homeLabels}>
+            {/* The page's primary logo, so it is not lazy-loaded. */}
+            <Image
+              src="/images/repget-logo.png"
+              alt="RepGet"
+              width={167}
+              height={42}
+              priority
+              className={c("brand-logo brand-logo-light")}
+            />
+            {/* The dark theme's copy: lazy, so a light page never fetches it. */}
+            <Image
+              src="/images/repget-logo-light.png"
+              alt=""
+              aria-hidden="true"
+              width={167}
+              height={42}
+              className={c("brand-logo brand-logo-dark")}
+            />
+          </BrandHomeLink>
 
-        Free check and Tools moved to the footer rather than being deleted:
-        both are real pages that bring people in from search, and the footer
-        already lists them, so nothing became unreachable.
+          <nav aria-label={t.site.primaryNav} className={c("nav-pill")}>
+            {menus.map((menu) => {
+              const isOpen = open === menu.id;
+              const triggerId = `${id}-${menu.id}-trigger`;
+              const panelId = `${id}-${menu.id}-menu`;
+              return (
+                // Trigger and menu side by side, so Tab goes from the trigger
+                // into its open menu and then on to the next item.
+                <div key={menu.id} style={{ display: "contents" }}>
+                  <button
+                    ref={(node) => {
+                      triggers.current[menu.id] = node;
+                    }}
+                    id={triggerId}
+                    type="button"
+                    aria-expanded={isOpen}
+                    aria-controls={panelId}
+                    data-menu-trigger={menu.id}
+                    className={c(`nav-link${isOpen ? " active" : ""}`)}
+                    onMouseEnter={() => show(menu.id)}
+                    onMouseLeave={scheduleClose}
+                    onClick={() => show(menu.id)}
+                    onFocus={() => {
+                      if (!quietFocus.current) show(menu.id);
+                    }}
+                  >
+                    {menu.label}
+                    <ChevronIcon className={c("chev")} fill="none" stroke="currentColor" strokeWidth="2" />
+                  </button>
+                  <div
+                    id={panelId}
+                    role="region"
+                    aria-labelledby={triggerId}
+                    data-menu={menu.id}
+                    className={c(`${menu.className}${isOpen ? " open" : ""}`)}
+                    onMouseEnter={() => window.clearTimeout(timer.current)}
+                    onMouseLeave={scheduleClose}
+                  >
+                    {inDrawer ? null : menu.panel}
+                  </div>
+                </div>
+              );
+            })}
+            {links.map((link) => (
+              <Link key={link.href} href={link.href} className={c("nav-link")} onMouseEnter={() => show(null)}>
+                {link.label}
+              </Link>
+            ))}
+          </nav>
 
-        Success stories is a real page rather than a placeholder. There are no
-        named customers yet, so it shows what the product measures and invites
-        the reader to be the first — see that page for why it does not invent
-        any.
-      */}
-      {/*
-        Centred in the header rather than pushed against the buttons.
+          <div className={c("actions")}>
+            <ThemeToggle label={t.a11y.darkMode} className={c("theme")} icons={themeIcons} />
+            <Link href="/sign-in" className={c("signin")}>
+              {t.nav.signIn}
+            </Link>
+            <Link href="/sign-up" className={c("cta")}>
+              {t.nav.getStartedCta}{" "}
+              <span className={c("cta-arrow")}>
+                <ArrowUpRightIcon fill="none" stroke="white" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
+              </span>
+            </Link>
+            <button
+              ref={menuButton}
+              type="button"
+              aria-controls={drawerId}
+              aria-expanded={drawer}
+              aria-label={drawer ? t.site.closeMenu : t.a11y.openMenu}
+              className={c("mob-button")}
+              onClick={() => {
+                show(null);
+                setDrawer((value) => !value);
+              }}
+            >
+              {drawer ? (
+                <CloseIcon fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="2" />
+              ) : (
+                <BarsIcon fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="2" />
+              )}
+            </button>
+          </div>
+        </div>
 
-        Both this and the button group carried ml-auto, so the nav was shoved
-        as far right as the buttons allowed and read as one long right-hand
-        cluster. Centring needs the nav to be the only growing child: it takes
-        the free space on both sides with mx-auto, and the button group below
-        drops its ml-auto so it no longer competes for the same space.
-
-        Features and Integrations replace the Platform dropdown (client's
-        design, 2026-11-03): Features covers the same ground, tool by tool.
-        The nav must stay unpositioned - the menus' panels hang from the
-        sticky header (see MarketingMegaMenus).
-      */}
-      <nav className="mx-auto hidden items-center gap-0.5 lg:flex xl:gap-1">
-        <MarketingMegaMenus menu={t.menu} href={href} />
-        {[
-          /*
-            From xl only: with two menus in the row, French and German labels
-            overran the bar between 1024 and 1280px. The design drops it
-            altogether; it stays in the phone menu, and the homepage it points
-            at is one click away on the logo.
-          */
-          { href: href("/#how-it-works"), label: t.nav.howItWorks, className: "hidden xl:block" },
-          { href: href("/success-stories"), label: t.nav.successStories },
-          { href: href("/pricing"), label: t.nav.pricing },
-          { href: href("/blog"), label: t.nav.blog },
-          { href: href("/contact"), label: t.nav.contact },
-        ].map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={cn(
-              "rounded-md px-2.5 py-1.5 text-sm whitespace-nowrap text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground xl:px-3",
-              item.className,
-            )}
-          >
-            {item.label}
-          </Link>
-        ))}
-      </nav>
-
-      <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2 lg:ml-0">
-        <MobileMarketingNav t={t} locale={locale} href={href} />
-        <span className="hidden sm:contents"><ThemeToggle label={t.a11y.darkMode} /></span>
-        <Button variant="ghost" size="sm" className="hidden sm:inline-flex" asChild>
-          <Link href="/sign-in">{t.nav.signIn}</Link>
-        </Button>
-        <Button size="sm" className="min-h-11 sm:min-h-0" asChild>
-          <Link href="/sign-up">
-            {t.nav.getStartedCta}
-            <ArrowRight className="size-3.5" />
-          </Link>
-        </Button>
+        <nav id={drawerId} aria-label={t.site.primaryNav} className={c(`drawer${drawer ? " open" : ""}`)}>
+          {menus.map((menu) => {
+            const panelId = `${id}-${menu.id}-drawer`;
+            const expanded = accordion[menu.id];
+            return (
+              <div key={menu.id} className={c("drawer-row")}>
+                <button
+                  type="button"
+                  aria-expanded={expanded}
+                  aria-controls={panelId}
+                  className={c("drawer-toggle")}
+                  onClick={() => setAccordion((state) => ({ ...state, [menu.id]: !state[menu.id] }))}
+                >
+                  {menu.label}
+                  <ChevronIcon fill="none" stroke="currentColor" strokeWidth="2" />
+                </button>
+                <div
+                  id={panelId}
+                  className={c(`drawer-panel mobile-${menu.id}${expanded ? " open" : ""}`)}
+                >
+                  {inDrawer ? menu.panel : null}
+                </div>
+              </div>
+            );
+          })}
+          {links.map((link) => (
+            <Link key={link.href} href={link.href} className={c("drawer-link")} onClick={() => setDrawer(false)}>
+              {link.label}
+            </Link>
+          ))}
+          <div className={c("drawer-footer")}>
+            <Link href="/sign-in" onClick={() => setDrawer(false)}>
+              {t.nav.signIn}
+            </Link>
+            <Link href="/sign-up" onClick={() => setDrawer(false)}>
+              {t.nav.getStartedCta} ↗
+            </Link>
+          </div>
+        </nav>
       </div>
-    </>
+    </header>
   );
 }
 
 /**
- * Footer link groups, localised the same way: Product, Company and Legal.
- *
- * Columns of short lists rather than the inline rows they replaced: three
- * groups of three to six links sit side by side on a desktop, so the footer
- * stays compact (the client's 2026-10-01 note was about a 500px-tall single
- * column), and two columns plus Legal on a phone.
+ * Footer link groups, localised the same way: Product, Company and Legal,
+ * as the design's three columns beside the brand.
  */
 export function MarketingFooterLinks({ chrome }: { chrome: SiteChrome }) {
   const pathname = usePathname();
@@ -341,55 +455,112 @@ export function MarketingFooterLinks({ chrome }: { chrome: SiteChrome }) {
   ];
 
   return (
-    <div className="grid min-w-0 flex-1 grid-cols-2 gap-x-6 gap-y-8 text-sm sm:grid-cols-3">
+    <>
       {groups.map((group) => (
-        <nav key={group.title} aria-label={group.title}>
-          <p className="font-medium text-foreground">{group.title}</p>
-          <ul className="mt-3 space-y-2">
+        <nav key={group.title} aria-label={group.title} className={footer["rft-column"]}>
+          <p className={footer["rft-column-title"]}>{group.title}</p>
+          <ul>
             {group.items.map((item) => (
               <li key={item.href}>
-                <Link href={item.href} className="text-muted-foreground transition-colors hover:text-foreground">
-                  {item.label}
-                </Link>
+                <Link href={item.href}>{item.label}</Link>
               </li>
             ))}
-            {/* Reopens the analytics cookie banner; renders nothing when GA is not configured. */}
+            {/* Opens the cookie panel: the choice, or that there is none with no Google tag configured. */}
             {group.cookieSettings ? (
-              <li className="empty:hidden">
-                <CookieSettingsButton label={t.consent.settings} className="text-muted-foreground transition-colors hover:text-foreground" />
+              <li>
+                <CookieSettingsButton label={t.consent.settings} className={footer["rft-footer-link"]} />
               </li>
             ) : null}
           </ul>
         </nav>
       ))}
-    </div>
+    </>
   );
 }
 
 /**
- * Tagline under the footer logo, with the language switcher beneath it.
+ * Tagline under the footer logo, with the language switcher and night mode
+ * beneath it, drawn as the design's footer controls.
  *
- * The switcher used to sit in the header beside the sign-in buttons. It is a
- * preference someone sets once, not something they navigate with, and in the
- * header it competed for attention with the two things that page is for —
- * signing in and starting. The footer is where a reader looks for it, and it
- * is the convention on most of the sites this one is compared against.
- *
- * Still hidden on pages that exist only in English, which is the component's
- * own behaviour rather than anything decided here.
+ * The switcher is still hidden on pages that exist only in English, which is
+ * the component's own behaviour rather than anything decided here.
  */
 export function MarketingTagline({ chrome }: { chrome: SiteChrome }) {
   const pathname = usePathname();
   const { locale } = splitLocale(pathname);
+  const t = chrome[locale];
+  const icon = { fill: "none", stroke: "currentColor", strokeWidth: "1.8", strokeLinecap: "round", strokeLinejoin: "round" } as const;
   return (
     <>
-      <p className="mt-2 max-w-xs text-sm text-muted-foreground">
-        {chrome[locale].footer.tagline}
-      </p>
-      <div className="mt-4 flex items-center gap-2">
-        <LanguageSwitcher label={chrome[locale].a11y.changeLanguage} />
-        <ThemeToggle label={chrome[locale].a11y.darkMode} />
+      <p>{t.footer.tagline}</p>
+      <div className={footer["rft-controls"]}>
+        <LanguageSwitcher
+          label={t.a11y.changeLanguage}
+          appearance={{
+            summary: footer["rft-language"],
+            name: footer["rft-language-name"],
+            icon: (
+              <svg viewBox="0 0 24 24" aria-hidden="true" {...icon}>
+                <circle cx="12" cy="12" r="9" />
+                <path d="M3 12h18M12 3c-5 5.4-5 12.6 0 18M12 3c5 5.4 5 12.6 0 18" />
+              </svg>
+            ),
+            chevron: <span className={footer["rft-language-chevron"]} aria-hidden="true" />,
+          }}
+        />
+        <ThemeToggle
+          label={t.a11y.darkMode}
+          className={footer["rft-theme-toggle"]}
+          icons={{
+            light: (
+              <svg viewBox="0 0 24 24" aria-hidden="true" {...icon}>
+                <path d="M20.6 14.4A8.6 8.6 0 0 1 9.6 3.4 8.6 8.6 0 1 0 20.6 14.4Z" />
+              </svg>
+            ),
+            dark: (
+              <svg viewBox="0 0 24 24" aria-hidden="true" {...icon}>
+                <circle cx="12" cy="12" r="4" />
+                <path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42" />
+              </svg>
+            ),
+          }}
+        />
       </div>
     </>
+  );
+}
+
+/**
+ * The footer's "Back to top": a smooth scroll to the top of the page, or an
+ * instant one for someone who asked for reduced motion. A link to "#top"
+ * underneath, which every browser scrolls to the top even without script.
+ */
+export function BackToTop({ chrome }: { chrome: SiteChrome }) {
+  const { locale } = splitLocale(usePathname());
+  const t = chrome[locale].site;
+  return (
+    <a
+      href="#top"
+      aria-label={t.backToTopLabel}
+      className={footer["rft-back-to-top"]}
+      onClick={(event) => {
+        event.preventDefault();
+        const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
+      }}
+    >
+      {t.backToTop}{" "}
+      <svg
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M12 19V5m-6 6 6-6 6 6" />
+      </svg>
+    </a>
   );
 }

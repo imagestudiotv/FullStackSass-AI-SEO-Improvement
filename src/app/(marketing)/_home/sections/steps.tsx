@@ -1,144 +1,142 @@
-import { ArrowUpRight, Globe, Link2, Mail } from "lucide-react";
-import Link from "next/link";
-import type { ReactNode } from "react";
+import { storyCopy } from "@/lib/i18n/home/story";
 
-import styles from "../home.module.css";
 import type { SectionProps } from "../types";
-import own from "./story.module.css";
+
+import styles from "./steps.module.css";
+
+/** Maps the design's class names to this module's, so the markup reads like the design. */
+const c = (names: string) =>
+  names
+    .split(" ")
+    .map((n) => styles[n] ?? n)
+    .join(" ");
 
 /**
- * From sign-up to setup: the three steps, each with a small drawing of what
- * the visitor will see.
+ * "Be ready before your next coffee." - the three steps to start, ported from
+ * the client's approved design (design.html, section `rgx-start`, 2026-11-04).
  *
- * The section carries `data-reveal`, so when it scrolls in the track fills
- * and the step numbers light up one after the other (home.module.css,
- * `.steps[data-shown]`). The drawings are illustrations, hidden from screen
- * readers: each step's heading and text already say what they show.
+ * The section carries `data-reveal`: the page's RevealRoot (one
+ * IntersectionObserver for the page) marks it `data-shown` once it scrolls
+ * in, which is the design's `is-visible` - the progress line grows and the
+ * number tiles change colour as the design's cascade gives (steps.module.css).
  *
- * No form here: the call goes to sign-up, where the website-or-email choice
- * the steps describe is made.
+ * The id is the one the header's "How it works" links to (/#how-it-works);
+ * the design's own id, `rgx-how`, is on the inner wrapper. "Start free trial"
+ * goes back up to the hero's form, as the design's `#top` does: `#top` is
+ * the top of the page even with no element of that id.
  */
-export function Steps({ c, href }: SectionProps) {
-  const t = c.steps;
-  const drawings = [<WebsiteDrawing key="site" c={c} />, <PlanDrawing key="plan" c={c} />, <ConnectDrawing key="connect" c={c} />];
+export function Steps({ locale }: SectionProps) {
+  const t = storyCopy(locale).steps;
+  const drawings = [<Website key="site" t={t} />, <Plan key="plan" t={t} />, <Connect key="connect" t={t} />];
 
   return (
-    <section id="how-it-works" className={styles.steps} data-reveal aria-labelledby="repget-steps-title">
-      <div className={styles.stepsInner}>
-        <header className={`${styles.stepsHead} ${styles.reveal}`} data-reveal>
-          <span className={styles.kicker}>{t.kicker}</span>
-          <h2 id="repget-steps-title" className={styles.sectionTitle}>
+    <section id="how-it-works" className={c("rgx-start")} aria-labelledby="rgx-start-title" data-reveal>
+      <div className={c("rgx-start-inner")} id="rgx-how">
+        <header className={c("rgx-start-heading")}>
+          <span className={c("rgx-start-kicker")}>{t.kicker}</span>
+          <h2 id="rgx-start-title">
             {t.title} <span>{t.titleAccent}</span>
           </h2>
-          <p className={styles.sectionSub}>{t.sub}</p>
+          <p>{t.sub}</p>
         </header>
-
-        <ol className={styles.track}>
+        <div className={c("rgx-start-track")}>
+          {/* First, as in the design: the steps' colours are set by position (:nth-child). */}
+          <span className={c("rgx-start-progress")} aria-hidden="true" />
           {t.items.map((step, i) => (
-            <li key={step.title} className={styles.step}>
-              {/* The list already numbers the steps for a screen reader. */}
-              <span className={styles.stepIndex} aria-hidden="true">
+            <article key={step.title} className={c("rgx-start-step")}>
+              <span className={c("rgx-start-index")} aria-hidden="true">
                 {i + 1}
               </span>
-              <div className={styles.stepGraphic} aria-hidden="true">
-                {drawings[i] ?? null}
+              <div className={c("rgx-start-graphic")} aria-hidden="true">
+                {drawings[i]}
               </div>
-              <h3>{step.title}</h3>
+              <h3>
+                <span className={c("sr-only")}>
+                  {t.step} {i + 1}:{" "}
+                </span>
+                {step.title}
+              </h3>
               <p>{step.body}</p>
-            </li>
+            </article>
           ))}
-          {/*
-            Last, not first: the stylesheet lights the steps up by position
-            (:first-child, :nth-child), so nothing may come before them.
-          */}
-          <li className={styles.trackFill} aria-hidden="true" />
-        </ol>
-
-        <div className={styles.stepsBottom}>
-          <Link href={href("/sign-up")} className={`${styles.darkButton} ${own.focusRing}`}>
-            {t.cta}
-            <span aria-hidden="true">
-              <ArrowUpRight size={15} />
-            </span>
-          </Link>
-          <span className={styles.footnote}>{t.footnote}</span>
+        </div>
+        <div className={c("rgx-start-bottom")}>
+          <a className={c("rgx-start-cta")} href="#top">
+            {t.cta} <span aria-hidden="true">↗</span>
+          </a>
+          <span className={c("rgx-start-footnote")}>{t.footnote}</span>
         </div>
       </div>
     </section>
   );
 }
 
-function MockCard({ tilt, children }: { tilt?: "l" | "r"; children: ReactNode }) {
-  const tiltClass = tilt === "l" ? styles.tiltL : tilt === "r" ? styles.tiltR : "";
-  return <div className={`${styles.mockCard} ${tiltClass}`}>{children}</div>;
-}
+type Copy = ReturnType<typeof storyCopy>["steps"];
 
-/** Step 1: a browser with a website being typed, and the email way in. */
-function WebsiteDrawing({ c }: Pick<SectionProps, "c">) {
+function Website({ t }: { t: Copy }) {
   return (
-    <MockCard tilt="l">
-      <div className={styles.browserDots}>
+    <div className={c("rgx-start-browser")}>
+      <div className={c("rgx-start-browser-top")}>
         <i />
         <i />
         <i />
       </div>
-      <div className={styles.url}>
-        <Globe strokeWidth={1.8} />
-        <span>{c.hero.websitePlaceholder}</span>
-        <b className={styles.caret} />
+      <div className={c("rgx-start-url")}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M3 12h18M12 3c-5.5 4.5-5.5 13.5 0 18M12 3c5.5 4.5 5.5 13.5 0 18" />
+        </svg>
+        <span>{t.url}</span>
+        <b />
       </div>
-      <div className={styles.mockNote}>
-        <Mail size={13} strokeWidth={1.8} />
-        {c.steps.emailInstead}
+      <div className={c("rgx-start-email")}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+          <rect x="3" y="5" width="18" height="14" rx="3" />
+          <path d="m4 7 8 6 8-6" />
+        </svg>
+        {t.emailInstead}
       </div>
-    </MockCard>
+    </div>
   );
 }
 
-/**
- * Step 2: three plan rows, the middle one chosen. Bars rather than plan
- * names: the real names and what they include belong to pricing, and a
- * drawing that names plans would have to be kept in step with it.
- */
-function PlanDrawing({ c }: Pick<SectionProps, "c">) {
+function Plan({ t }: { t: Copy }) {
   return (
-    <MockCard>
-      <p className={styles.mockLabel}>{c.steps.planLabel}</p>
-      <div className={styles.planRow}>
-        <i />
-        <span className={own.planBar} />
-      </div>
-      <div className={`${styles.planRow} ${styles.planRowActive}`}>
-        <i>✓</i>
-        <span className={`${own.planBar} ${own.planBarActive}`} />
-        <small>{c.steps.recommended}</small>
-      </div>
-      <div className={styles.planRow}>
-        <i />
-        <span className={own.planBar} />
-      </div>
-    </MockCard>
+    <div className={c("rgx-start-plan")}>
+      <div className={c("rgx-start-plan-label")}>{t.planLabel}</div>
+      {t.plans.map((plan, i) => (
+        <div key={plan.name} className={c(i === 1 ? "rgx-start-plan-item active" : "rgx-start-plan-item")}>
+          <i>{i === 1 ? "✓" : null}</i>
+          {plan.name}
+          <small>{plan.tag}</small>
+        </div>
+      ))}
+    </div>
   );
 }
 
-/** Step 3: the website setup card, ready, with a "connected" bubble. */
-function ConnectDrawing({ c }: Pick<SectionProps, "c">) {
+function Connect({ t }: { t: Copy }) {
   return (
-    <>
-      <MockCard tilt="r">
-        <p className={styles.mockLabel}>{c.steps.setupLabel}</p>
-        <div className={styles.connectMain}>
-          <span className={styles.connectMark}>
-            <Link2 strokeWidth={1.8} />
+    <div className={c("rgx-start-connect")}>
+      <div className={c("rgx-start-connect-window")}>
+        <div className={c("rgx-start-connect-top")}>{t.setupLabel}</div>
+        <div className={c("rgx-start-connect-main")}>
+          <span className={c("rgx-start-connect-mark")}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round">
+              <path d="M10 14 14 10M8 16H6a4 4 0 0 1 0-8h4m4 0h4a4 4 0 0 1 0 8h-4" />
+            </svg>
           </span>
           <div>
-            <strong>{c.steps.yourWebsite}</strong>
-            <small>{c.steps.connectReview}</small>
+            <strong>{t.yourWebsite}</strong>
+            <small>{t.connectReview}</small>
           </div>
         </div>
-        <div className={styles.ready}>{c.steps.ready}</div>
-      </MockCard>
-      <span className={styles.bubble}>✓ {c.steps.connected}</span>
-    </>
+        <div className={c("rgx-start-ready")}>
+          <i />
+          {t.ready}
+        </div>
+      </div>
+      <div className={c("rgx-start-connect-bubble")}>✓ {t.connected}</div>
+    </div>
   );
 }

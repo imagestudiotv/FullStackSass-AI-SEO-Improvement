@@ -22,24 +22,8 @@ vi.mock("next/link", () => ({
 vi.mock("next/image", () => ({
   default: ({ src, alt }: { src: string; alt: string }) => createElement("img", { src, alt }),
 }));
-/*
-  Radix portals the sheet and draws nothing on the server, so the phone menu's
-  sheet is a plain element here: what it is given is what this checks.
-*/
-vi.mock("@/components/ui/sheet", () => {
-  const plain = ({ children }: { children?: ReactNode }) => createElement("div", null, children);
-  return {
-    Sheet: plain,
-    SheetHeader: plain,
-    SheetTitle: plain,
-    SheetContent: ({ children, lang, closeLabel }: { children?: ReactNode; lang?: string; closeLabel?: string }) =>
-      createElement("div", { "data-slot": "sheet-content", lang }, children, createElement("span", { className: "sr-only" }, closeLabel)),
-  };
-});
-
 import { BrandHomeLink } from "./brand-home-link";
-import { MarketingFooterLinks, MarketingFrame, MarketingNav, MarketingTagline } from "./marketing-nav";
-import { MobileNavSheet } from "./mobile-nav-sheet";
+import { BackToTop, MarketingFooterLinks, MarketingFrame, MarketingNav, MarketingTagline } from "./marketing-nav";
 
 const hrefs = (html: string) => [...html.matchAll(/href="([^"]+)"/g)].map((m) => m[1]);
 
@@ -184,33 +168,14 @@ describe("the header's screen-reader labels", () => {
     expect(renderToStaticMarkup(createElement(BrandHomeLink, null, "RepGet"))).toContain('aria-label="RepGet home"');
   });
 
-  it("the phone menu's sheet, portaled outside the frame, declares its language and closes in it", () => {
-    const html = renderToStaticMarkup(
-      createElement(MobileNavSheet, {
-        open: true,
-        onOpenChange: () => {},
-        returnFocusTo: { current: null },
-        themeLabel: chrome.it.a11y.darkMode,
-        menuLabel: chrome.it.a11y.openMenu,
-        lang: "it",
-        closeLabel: chrome.it.a11y.close,
-        features: { label: chrome.it.menu.features, items: [] },
-        integrations: {
-          label: chrome.it.menu.integrations,
-          socialHead: chrome.it.menu.socialHead,
-          socialCount: "",
-          social: [],
-          siteHead: chrome.it.menu.siteHead,
-          siteCount: "",
-          sites: [],
-          explore: { label: chrome.it.menu.explore, href: "/it/docs/integrations" },
-        },
-        links: [{ href: "/it/pricing", label: chrome.it.nav.pricing }],
-      }),
-    );
-    expect(html).toContain('<div data-slot="sheet-content" lang="it">');
-    expect(html).toContain(`<span class="sr-only">${getMessages("it").app.common.close}</span>`);
-    expect(getMessages("it").app.common.close).toBe("Chiudi");
+  it.each([
+    ["/", "Back to top of page", "Back to top"],
+    ["/es/pricing", "Volver al principio de la página", "Volver arriba"],
+    ["/de", "Zum Seitenanfang", "Nach oben"],
+  ] as const)("the footer's back-to-top link on %s is in the page's language", (pathname, label, text) => {
+    nav.pathname = pathname;
+    const html = renderToStaticMarkup(createElement(BackToTop, { chrome }));
+    expect(html).toMatch(new RegExp(`^<a href="#top" aria-label="${label}"[^>]*>${text} <svg`));
   });
 });
 
@@ -220,11 +185,11 @@ describe("the header's screen-reader labels", () => {
  */
 describe("the header's mega-menus", () => {
   const chrome = siteChrome();
-  const supported = ["Reddit", "Quora", "X", "Threads", "Pinterest", "Bluesky", "Instagram", "TikTok", "YouTube", "Facebook"];
-  const connections = ["WordPress", "Shopify", "Webflow", "Wix", "Ghost", "Webhooks", "Search Console", "Google Analytics"];
+  const social = ["Instagram", "Facebook", "TikTok", "LinkedIn", "X (Twitter)", "YouTube", "Threads", "Pinterest", "Google Business Profile", "Bluesky", "Reddit", "Quora"];
+  const connections = ["WordPress", "Shopify", "Webflow", "Wix", "Ghost", "Webhooks", "Search Console", "Analytics"];
 
   it.each(LOCALES.map((locale) => [locale === "en" ? "/" : `/${locale}`, locale] as const))(
-    "on %s both triggers are closed disclosure buttons, in the page's language, controlling a panel that exists",
+    "on %s both triggers are closed disclosure buttons, in the page's language, controlling a menu that exists",
     (pathname, locale) => {
       nav.pathname = pathname;
       const html = renderToStaticMarkup(createElement(MarketingNav, { chrome }));
@@ -232,38 +197,67 @@ describe("the header's mega-menus", () => {
         const trigger = new RegExp(`<button id="([^"]+)" type="button" aria-expanded="false" aria-controls="([^"]+)"[^>]*>${label}<`).exec(html);
         expect(trigger, label).not.toBeNull();
         const [, triggerId, panelId] = trigger!;
-        expect(html).toContain(`id="${panelId}" aria-labelledby="${triggerId}"`);
+        expect(html).toContain(`id="${panelId}" role="region" aria-labelledby="${triggerId}"`);
       }
     },
   );
 
-  it("the Integrations panel lists the channels RepGet publishes to, and not LinkedIn or Google Business Profile", () => {
+  it("the desktop bar lists the design's pages and no How it works", () => {
     nav.pathname = "/";
     const html = renderToStaticMarkup(createElement(MarketingNav, { chrome }));
-    for (const name of [...supported, ...connections]) expect(html, name).toContain(`>${name}</span>`);
-    expect(html).not.toMatch(/linkedin/i);
-    expect(html).not.toMatch(/business profile/i);
-    expect(html).toContain(">10 platforms<");
-    expect(html).toContain(">8 connections<");
+    for (const label of ["Success Stories", "Pricing", "Blog", "Contact", "Sign in", "Get Started"]) expect(html, label).toContain(`>${label}`);
+    expect(html).not.toContain(chrome.en.nav.howItWorks);
+    expect(hrefs(html)).toEqual(expect.arrayContaining(["/sign-in", "/sign-up", "/success-stories", "/pricing", "/blog", "/contact"]));
   });
 
-  it("every tool, guide and the explore link goes to a real page, in the page's language", () => {
-    nav.pathname = "/de";
+  it("the Integrations menu lists the design's twelve channels and eight connections, with their counts", () => {
+    nav.pathname = "/";
+    const html = renderToStaticMarkup(createElement(MarketingNav, { chrome }));
+    for (const name of [...social, ...connections]) expect(html, name).toContain(`>${name}</span>`);
+    expect(html).toContain(">12 platforms<");
+    expect(html).toContain(">8 connections<");
+    // Its footer starts with the general line; an entry replaces it when hovered or focused.
+    expect(html).toContain(`>${chrome.en.menu.footerTitle}</p>`);
+    expect(html).toContain(`>${chrome.en.menu.explore} <svg`);
+  });
+
+  it("only connections with a public setup guide are links; the rest are buttons that preview", () => {
+    nav.pathname = "/";
     const html = renderToStaticMarkup(createElement(MarketingNav, { chrome }));
     const links = hrefs(html);
+    for (const guide of ["wordpress-plugin", "shopify", "webflow", "wix", "ghost", "webhook"]) {
+      expect(links).toContain(`/docs/integrations/${guide}`);
+    }
+    for (const name of [...social, "Search Console", "Analytics"]) {
+      expect(html, name).toMatch(new RegExp(`<button type="button" class="[^"]*"><span class="[^"]*">.*?</span><span class="[^"]*">${name.replace(/[()]/g, "\\$&")}</span>`));
+    }
+  });
+
+  it("every tool's heading, guide and the explore link goes to a real page, in the page's language", () => {
+    nav.pathname = "/de";
+    const html = renderToStaticMarkup(createElement(MarketingNav, { chrome }));
+    const links = [...html.matchAll(/<a\s[^>]*href="([^"]+)"/g)].map((m) => m[1]);
     for (const path of [
       "/de/success-stories/image-studio",
+      "/de/audit",
+      "/de/backlinks",
+      "/de/rank-on-chatgpt",
+      "/de/success-stories",
       "/de/docs/integrations",
       "/de/docs/integrations/wordpress-plugin",
       "/de/docs/integrations/webhook",
     ]) {
       expect(links).toContain(path);
     }
-    // The first tool is selected, so its "Learn more" is the one rendered.
-    expect(html).toContain(`>${chrome.de.menu.open}<`);
-    for (const tool of chrome.de.menu.tools) expect(html).toContain(`>${tool.title}</span>`);
+    for (const tool of chrome.de.menu.tools) {
+      expect(html).toContain(`>${tool.title}</strong>`);
+      expect(html).toContain(`>${tool.heading}</a>`);
+    }
     expect(html).toContain('role="tab" aria-selected="true"');
     expect(html.match(/role="tab"/g)).toHaveLength(6);
+    expect(html.match(/role="tabpanel"/g)).toHaveLength(6);
+    // Only the first tool's panel shows; the others are in the markup, hidden.
+    expect(html.match(/role="tabpanel"[^>]*hidden=""/g)).toHaveLength(5);
     for (const link of links) {
       const path = link.replace(/^\/de(?=[/?#]|$)/, "").split(/[?#]/)[0] || "/";
       if (path === "/sign-in" || path === "/sign-up") continue;
@@ -271,42 +265,19 @@ describe("the header's mega-menus", () => {
     }
   });
 
-  it("the phone menu has both menus as collapsed sections that list the same things", () => {
-    nav.pathname = "/";
-    const html = renderToStaticMarkup(
-      createElement(MobileNavSheet, {
-        open: true,
-        onOpenChange: () => {},
-        returnFocusTo: { current: null },
-        themeLabel: chrome.en.a11y.darkMode,
-        menuLabel: chrome.en.a11y.openMenu,
-        lang: "en",
-        closeLabel: chrome.en.a11y.close,
-        features: {
-          label: chrome.en.menu.features,
-          items: chrome.en.menu.tools.map((tool) => ({ title: tool.title, sub: tool.sub, href: "/audit", icon: () => null })),
-        },
-        integrations: {
-          label: chrome.en.menu.integrations,
-          socialHead: chrome.en.menu.socialHead,
-          socialCount: "10 platforms",
-          social: [{ icon: "reddit", name: "Reddit" }],
-          siteHead: chrome.en.menu.siteHead,
-          siteCount: "8 connections",
-          sites: [
-            { icon: "wordpress", name: "WordPress", href: "/docs/integrations/wordpress-plugin" },
-            { icon: "searchconsole", name: "Search Console" },
-          ],
-          explore: { label: chrome.en.menu.explore, href: "/docs/integrations" },
-        },
-        links: [],
-      } as unknown as ComponentProps<typeof MobileNavSheet>),
-    );
-    for (const label of [chrome.en.menu.features, chrome.en.menu.integrations]) {
-      expect(html).toMatch(new RegExp(`<button type="button" aria-expanded="false" aria-controls="([^"]+)"[^>]*>${label}<`));
+  it("the phone drawer is a closed disclosure with both menus as collapsed sections, the pages and the two buttons", () => {
+    nav.pathname = "/it";
+    const html = renderToStaticMarkup(createElement(MarketingNav, { chrome }));
+    const button = /<button type="button" aria-controls="([^"]+)" aria-expanded="false" aria-label="([^"]+)"/.exec(html);
+    expect(button).not.toBeNull();
+    const [, drawerId, label] = button!;
+    expect(label).toBe(chrome.it.a11y.openMenu);
+    const start = html.indexOf(`<nav id="${drawerId}"`);
+    expect(start).toBeGreaterThan(0);
+    const drawer = html.slice(start);
+    for (const name of [chrome.it.menu.features, chrome.it.menu.integrations]) {
+      expect(drawer).toMatch(new RegExp(`<button type="button" aria-expanded="false" aria-controls="[^"]+"[^>]*>${name}<`));
     }
-    expect(html.match(/hidden=""/g)).toHaveLength(2);
-    expect(hrefs(html)).toEqual(expect.arrayContaining(["/docs/integrations/wordpress-plugin", "/docs/integrations"]));
-    expect(html).toContain(">Search Console</span>");
+    expect(hrefs(drawer)).toEqual(["/it/success-stories", "/it/pricing", "/it/blog", "/it/contact", "/sign-in", "/sign-up"]);
   });
 });

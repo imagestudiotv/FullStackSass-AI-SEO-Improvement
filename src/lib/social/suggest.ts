@@ -380,7 +380,8 @@ async function findDiscussions(
     const k = searches.get(platform) ?? 0;
     searches.set(platform, k + 1);
     const term = topics[(dayIndex * MAX_SEARCHES_PER_PLATFORM + index + k) % topics.length];
-    let items: { url: string; title: string; description: string }[];
+    const maxAgeMonths = PLATFORMS[platform].maxAgeMonths;
+    let items: { url: string; title: string; description: string; postedAt?: Date | null }[];
     try {
       ({ items } = await search(`${PLATFORMS[platform].search} ${term}`, market.location, market.language, (costUsd) =>
         track(site.organizationId, {
@@ -390,6 +391,7 @@ async function findDiscussions(
           costUsd,
           metadata: { purpose: "social_discovery", platform, costBasis: costUsd === undefined ? "unknown" : "provider_reported" },
         }),
+      maxAgeMonths ? { maxAgeMonths } : {},
       ));
     } catch (error) {
       // One search failing costs that search's discussions, not the day's suggestions.
@@ -399,6 +401,8 @@ async function findDiscussions(
 
     const found: Candidate[] = [];
     for (const item of items) {
+      // Google's date filter goes by the page's date; a dated result older than the limit is dropped too.
+      if (maxAgeMonths && item.postedAt && now.getTime() - item.postedAt.getTime() > maxAgeMonths * 30 * DAY_MS) continue;
       for (const account of replying) {
         const thread = threadFromUrl(account.platform as SocialPlatform, item.url);
         // A Quora question in another language than the website's is not one to answer.

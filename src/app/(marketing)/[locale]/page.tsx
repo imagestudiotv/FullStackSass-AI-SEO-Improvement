@@ -1,8 +1,8 @@
 import { notFound } from "next/navigation";
 
-import { listPlansForPrebuiltPage } from "@/lib/billing";
 import { countContentCreated } from "@/lib/marketing/content-count";
 import { listPublishedTestimonials } from "@/lib/marketing/testimonials-db";
+import { listPlansForPrebuiltPage } from "@/lib/billing";
 import { isLocale, localePath } from "@/lib/i18n/config";
 import { getMessages } from "@/lib/i18n/messages";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
@@ -23,11 +23,10 @@ import { HomePageSections } from "../home-page";
 
 /**
  * Built ahead and refreshed in the background at most hourly, instead of on
- * every visit (client's launch review, 2026-10-03: mobile PageSpeed). Plan
- * prices are the only data here and change rarely; serving a ready-made page
- * from Vercel's edge cuts the server response time PageSpeed weighs heavily.
- * See listPlansForPrebuiltPage for how a build without a database, and a
- * database that fails, are each handled.
+ * every visit (client's launch review, 2026-10-03: mobile PageSpeed). The
+ * reviews, the content count and the plans are the only data here and change rarely;
+ * serving a ready-made page from Vercel's edge cuts the server response time
+ * PageSpeed weighs heavily.
  */
 export const revalidate = 3600;
 
@@ -58,5 +57,5 @@ export default async function LocalisedHomePage({
   // Keeps every in-page link inside the reader's language.
   const href = (path: string) => localePath(locale, path);
 
-  return <HomePageSections locale={locale} href={href} plans={plans} testimonials={testimonials} contentCount={contentCount} />;
+  return <HomePageSections locale={locale} href={href} testimonials={testimonials} contentCount={contentCount} plans={plans} />;
 }

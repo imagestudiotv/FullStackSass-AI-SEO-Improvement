@@ -36,7 +36,10 @@ export function RenderAllOnJump() {
     const onClick = (event: MouseEvent) => {
       if (
         event.target instanceof Element &&
-        event.target.closest("a[href*='#']")
+        // Not "#top": the top of the page stays put whatever the heights below,
+        // and laying everything out here stopped the smooth scroll that the
+        // footer's "Back to top" had just started.
+        event.target.closest("a[href*='#']:not([href$='#top'])")
       ) {
         renderAll();
       }

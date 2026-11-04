@@ -15,7 +15,7 @@ import {
 import { formatPrice, listPlans } from "@/lib/billing";
 import { readCreditSettings, TRIAL_CREDIT_DAYS } from "@/lib/credits/prices";
 import { getMessages } from "@/lib/i18n/messages";
-import { FREE_ARTICLES, FREE_ARTICLES_DAYS, planFeatures, planTagline, STARTER_TIER } from "@/lib/plans/features";
+import { FREE_ARTICLES, FREE_ARTICLES_DAYS, planFeatures, planTagline, signUpForPlan, STARTER_TIER } from "@/lib/plans/features";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
 
 export const metadata = {
@@ -58,11 +58,10 @@ export default async function PricingPage() {
           Pricing is not available right now. Please check back shortly.
         </p>
       ) : (
-        // Two tiers now that Starter and Launch are withdrawn, so the grid
-        // follows the count rather than assuming four. Capped in width and
-        // centred: two cards stretched across a 1280px row read as a page
-        // with something missing from it.
-        <div className="mx-auto mt-12 grid max-w-3xl gap-6 sm:grid-cols-2">
+        // The grid follows the line-up: two cards are capped and centred, because
+        // two stretched across a 1280px row read as a page with something missing;
+        // three take the whole row, side by side only where they fit.
+        <div className={`mx-auto mt-12 grid gap-6 ${monthly.length > 2 ? "lg:grid-cols-3" : "max-w-3xl sm:grid-cols-2"}`}>
           {monthly.map((plan) => {
             /**
              * Named rather than positional. This was `index === 1`, which
@@ -122,7 +121,8 @@ export default async function PricingPage() {
                     </CardDescription>
                   </CardHeader>
 
-                  <CardContent>
+                  {/* Takes the spare height, so each card's button lines up however long its list. */}
+                  <CardContent className="flex-1">
                     <ul className="space-y-2.5 text-sm">
                       {/*
                         The SHARED list, not a second copy.
@@ -154,7 +154,7 @@ export default async function PricingPage() {
                       className="w-full"
                       variant={featured ? "default" : "outline"}
                     >
-                      <Link href="/sign-up">Get started</Link>
+                      <Link href={signUpForPlan(plan.tier)}>Get started</Link>
                     </Button>
                   </CardFooter>
                 </Card>

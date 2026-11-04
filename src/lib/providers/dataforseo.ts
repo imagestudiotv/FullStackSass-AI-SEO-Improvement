@@ -185,16 +185,25 @@ export async function articleSearch(
  * (lib/social/discover.ts). Like articleSearch, but keeps Google's
  * "Discussions and forums" block as well as the organic results, since that
  * is where these threads are shown, and is cached for a day only: the point
- * is fresh conversations.
+ * is fresh conversations. With maxAgeMonths Google itself keeps to the last N
+ * months (its "Past ... months" filter, `tbs=qdr:mN`), and each result keeps
+ * the date Google shows for it, when it shows one.
  */
 export async function discussionSearch(
   query: string,
   locationName: string,
   languageName: string,
   onCost: (cost: number | undefined) => Promise<void>,
+  options: { maxAgeMonths?: number } = {},
 ) {
-  const params = { keyword: query.slice(0, 300), location_name: locationName, language_name: languageName, depth: 20 };
-  type Item = { type?: string; url?: string; title?: string; description?: string; items?: Item[] };
+  const params = {
+    keyword: query.slice(0, 300),
+    location_name: locationName,
+    language_name: languageName,
+    depth: 20,
+    ...(options.maxAgeMonths ? { search_param: `&tbs=qdr:m${options.maxAgeMonths}` } : {}),
+  };
+  type Item = { type?: string; url?: string; title?: string; description?: string; timestamp?: string | null; items?: Item[] };
   let recorded = false;
   const result = await withCache(
     "dataforseo", "/serp/google/organic/live/advanced", params,
@@ -217,9 +226,16 @@ export async function discussionSearch(
     cached: result.cached,
     items: items
       .filter((item): item is Item & { url: string } => typeof item.url === "string")
-      .map(item => ({ url: item.url, title: item.title ?? "", description: item.description ?? "" }))
+      .map(item => ({ url: item.url, title: item.title ?? "", description: item.description ?? "", postedAt: dateOf(item.timestamp) }))
       .slice(0, 30),
   };
+}
+
+/** DataForSEO's "2024-03-12 08:15:00 +00:00"; null when missing or unreadable. */
+function dateOf(timestamp: string | null | undefined): Date | null {
+  if (!timestamp) return null;
+  const date = new Date(timestamp.replace(" ", "T").replace(" ", ""));
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 export type KeywordMetrics = {

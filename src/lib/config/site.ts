@@ -15,6 +15,13 @@
  */
 
 /** Support address shown on legal and contact pages. */
+/**
+ * /contact?about=... when someone asks for a website to be built ("We'll build
+ * one for you" in the homepage's hero). There is no builder yet: the request
+ * goes to the team, from a page that says what it is about.
+ */
+export const WEBSITE_BUILD_TOPIC = "website_build";
+
 export const SUPPORT_EMAIL =
   process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "support@repget.com";
 

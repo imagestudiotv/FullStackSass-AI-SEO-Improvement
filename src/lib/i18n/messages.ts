@@ -103,6 +103,10 @@ export type Messages = {
     privacy: string;
     accept: string;
     decline: string;
+    /** What that link's panel says when no Google tag is configured. */
+    nothingToChoose: string;
+    /** Closes that panel. */
+    close: string;
     /** Footer link that reopens the choice. */
     settings: string;
   };
@@ -399,6 +403,8 @@ export type Messages = {
       backlinks: string;
       audit: string;
       healthChecks: string;
+      /** "{n}" is plans.social_post_limit; left out for a plan that states none. */
+      socialPosts: string;
       publishing: string;
     };
   };
@@ -505,6 +511,8 @@ export type Messages = {
     subtitle: string;
     emailLabel: string;
     accountNote: string;
+    /** /contact?about=website_build: the homepage's "We'll build one for you". */
+    websiteBuild: { title: string; subtitle: string; subject: string };
   };
   /** The public site's "page not found" (components/not-found-panel.tsx). */
   notFound: {
@@ -1020,6 +1028,7 @@ export type Messages = {
       searchTermsTracked: string;
       oneWebsite: string;
       creditsEachMonth: string;
+      socialPostsEachMonth: string;
       paymentReceived: string;
       checkoutCancelled: string;
       purchaseReceived: string;
@@ -3433,6 +3442,8 @@ const en: Messages = {
     privacy: "Privacy policy",
     accept: "Accept",
     decline: "Decline",
+    nothingToChoose: "RepGet is not using Google Analytics or Google Ads cookies at the moment, so there is nothing to choose here.",
+    close: "Close",
     settings: "Cookie settings",
   },
   home: {
@@ -3743,6 +3754,7 @@ const en: Messages = {
       backlinks: "Backlinks from our partner network",
       audit: "Site audit, so your pages are AI- and Google-ready",
       healthChecks: "Website health checks",
+      socialPosts: "{n} social posts a month",
       publishing: "Publish to WordPress, Ghost or Shopify",
     },
   },
@@ -4003,6 +4015,11 @@ const en: Messages = {
     subtitle:
       "Questions about the product, your account, or billing - we read every message and reply within two working days.",
     emailLabel: "Email",
+    websiteBuild: {
+      title: "We'll build your website",
+      subtitle: "Tell us about your business and what you need from your website, and we will reply with how we can help and what it costs.",
+      subject: "Build a website for me",
+    },
     accountNote:
       "If you are writing about your account, please send it from the address you signed up with.",
   },
@@ -4495,6 +4512,7 @@ const en: Messages = {
       searchTermsTracked: "{n} search term tracked|{n} search terms tracked",
       oneWebsite: "One website per subscription",
       creditsEachMonth: "{n} credit each month|{n} credits each month",
+      socialPostsEachMonth: "{n} social post each month|{n} social posts each month",
       paymentReceived: "Payment received - confirming your subscription…",
       checkoutCancelled: "Checkout cancelled.",
       purchaseReceived: "Payment received - your purchase will appear shortly.",
@@ -6687,6 +6705,8 @@ const es: Messages = {
     privacy: "Política de privacidad",
     accept: "Aceptar",
     decline: "Rechazar",
+    nothingToChoose: "RepGet no utiliza cookies de Google Analytics ni de Google Ads en este momento, así que no hay nada que elegir.",
+    close: "Cerrar",
     settings: "Configuración de cookies",
   },
   home: {
@@ -7012,6 +7032,7 @@ const es: Messages = {
       audit:
         "Auditoría del sitio, para que sus páginas estén listas para la IA y Google",
       healthChecks: "Análisis de salud de la web",
+      socialPosts: "{n} publicaciones en redes al mes",
       publishing: "Publique en WordPress, Ghost o Shopify",
     },
   },
@@ -7273,6 +7294,11 @@ const es: Messages = {
     subtitle:
       "Preguntas sobre el producto, su cuenta o la facturación: leemos todos los mensajes y respondemos en un plazo de dos días laborables.",
     emailLabel: "Correo electrónico",
+    websiteBuild: {
+      title: "Creamos su sitio web",
+      subtitle: "Cuéntenos a qué se dedica y qué necesita de su sitio web, y le responderemos con cómo podemos ayudarle y cuánto cuesta.",
+      subject: "Quiero que creen mi sitio web",
+    },
     accountNote:
       "Si escribe sobre su cuenta, hágalo desde la dirección con la que se registró.",
   },
@@ -7765,6 +7791,7 @@ const es: Messages = {
       searchTermsTracked: "{n} término de búsqueda monitorizado|{n} términos de búsqueda monitorizados",
       oneWebsite: "Un sitio web por suscripción",
       creditsEachMonth: "{n} crédito al mes|{n} créditos al mes",
+      socialPostsEachMonth: "{n} publicación en redes al mes|{n} publicaciones en redes al mes",
       paymentReceived: "Pago recibido - confirmando su suscripción…",
       checkoutCancelled: "Pago cancelado.",
       purchaseReceived: "Pago recibido - su compra aparecerá en breve.",
@@ -9959,6 +9986,8 @@ const fr: Messages = {
     privacy: "Politique de confidentialité",
     accept: "Accepter",
     decline: "Refuser",
+    nothingToChoose: "RepGet n'utilise pas de cookies Google Analytics ni Google Ads pour le moment : vous n'avez donc rien à choisir.",
+    close: "Fermer",
     settings: "Paramètres des cookies",
   },
   home: {
@@ -10283,6 +10312,7 @@ const fr: Messages = {
       backlinks: "Backlinks issus de notre réseau de partenaires",
       audit: "Audit du site, pour des pages prêtes pour l'IA et Google",
       healthChecks: "Analyses de santé du site",
+      socialPosts: "{n} publications sociales par mois",
       publishing: "Publiez sur WordPress, Ghost ou Shopify",
     },
   },
@@ -10546,6 +10576,11 @@ const fr: Messages = {
     subtitle:
       "Des questions sur le produit, votre compte ou la facturation : nous lisons chaque message et répondons sous deux jours ouvrés.",
     emailLabel: "E-mail",
+    websiteBuild: {
+      title: "Nous créons votre site web",
+      subtitle: "Parlez-nous de votre activité et de ce que vous attendez de votre site : nous vous répondrons en précisant comment nous pouvons vous aider et à quel prix.",
+      subject: "Créer mon site web",
+    },
     accountNote:
       "Si votre message concerne votre compte, envoyez-le depuis l'adresse utilisée lors de l'inscription.",
   },
@@ -11038,6 +11073,7 @@ const fr: Messages = {
       searchTermsTracked: "{n} terme de recherche suivi|{n} termes de recherche suivis",
       oneWebsite: "Un site par abonnement",
       creditsEachMonth: "{n} crédit par mois|{n} crédits par mois",
+      socialPostsEachMonth: "{n} publication sociale par mois|{n} publications sociales par mois",
       paymentReceived: "Paiement reçu - confirmation de votre abonnement…",
       checkoutCancelled: "Paiement annulé.",
       purchaseReceived: "Paiement reçu - votre achat apparaîtra sous peu.",
@@ -13231,6 +13267,8 @@ const it: Messages = {
     privacy: "Informativa sulla privacy",
     accept: "Accetta",
     decline: "Rifiuta",
+    nothingToChoose: "Al momento RepGet non usa cookie di Google Analytics o Google Ads, quindi non c'è nulla da scegliere.",
+    close: "Chiudi",
     settings: "Impostazioni cookie",
   },
   home: {
@@ -13556,6 +13594,7 @@ const it: Messages = {
       backlinks: "Backlink dalla nostra rete di partner",
       audit: "Audit del sito, per pagine pronte per l'IA e Google",
       healthChecks: "Controlli sullo stato del sito",
+      socialPosts: "{n} post social al mese",
       publishing: "Pubblichi su WordPress, Ghost o Shopify",
     },
   },
@@ -13816,6 +13855,11 @@ const it: Messages = {
     subtitle:
       "Domande sul prodotto, sul suo account o sulla fatturazione: leggiamo ogni messaggio e rispondiamo entro due giorni lavorativi.",
     emailLabel: "E-mail",
+    websiteBuild: {
+      title: "Creiamo noi il Suo sito web",
+      subtitle: "Ci parli della Sua attività e di ciò che Le serve dal sito: Le risponderemo spiegando come possiamo aiutarLa e quanto costa.",
+      subject: "Creare il mio sito web",
+    },
     accountNote:
       "Se scrive riguardo al suo account, lo faccia dall'indirizzo con cui si è registrato.",
   },
@@ -14308,6 +14352,7 @@ const it: Messages = {
       searchTermsTracked: "{n} termine di ricerca monitorato|{n} termini di ricerca monitorati",
       oneWebsite: "Un sito web per abbonamento",
       creditsEachMonth: "{n} credito al mese|{n} crediti al mese",
+      socialPostsEachMonth: "{n} post social al mese|{n} post social al mese",
       paymentReceived: "Pagamento ricevuto - stiamo confermando il suo abbonamento…",
       checkoutCancelled: "Pagamento annullato.",
       purchaseReceived: "Pagamento ricevuto - il suo acquisto comparirà a breve.",
@@ -16503,6 +16548,8 @@ const de: Messages = {
     privacy: "Datenschutzerklärung",
     accept: "Akzeptieren",
     decline: "Ablehnen",
+    nothingToChoose: "RepGet verwendet derzeit keine Cookies von Google Analytics oder Google Ads, daher gibt es hier nichts auszuwählen.",
+    close: "Schließen",
     settings: "Cookie-Einstellungen",
   },
   home: {
@@ -16822,6 +16869,7 @@ const de: Messages = {
       backlinks: "Backlinks aus unserem Partnernetzwerk",
       audit: "Website-Audit, damit Ihre Seiten KI- und Google-bereit sind",
       healthChecks: "Website-Gesundheitschecks",
+      socialPosts: "{n} Social-Posts pro Monat",
       publishing: "Veröffentlichen auf WordPress, Ghost oder Shopify",
     },
   },
@@ -17084,6 +17132,11 @@ const de: Messages = {
     subtitle:
       "Fragen zum Produkt, zu Ihrem Konto oder zur Abrechnung - wir lesen jede Nachricht und antworten innerhalb von zwei Werktagen.",
     emailLabel: "E-Mail",
+    websiteBuild: {
+      title: "Wir erstellen Ihre Website",
+      subtitle: "Erzählen Sie uns von Ihrem Unternehmen und davon, was Ihre Website leisten soll. Wir antworten Ihnen, wie wir helfen können und was es kostet.",
+      subject: "Website für mich erstellen",
+    },
     accountNote:
       "Wenn es um Ihr Konto geht, schreiben Sie bitte von der Adresse, mit der Sie sich registriert haben.",
   },
@@ -17577,6 +17630,7 @@ const de: Messages = {
       searchTermsTracked: "{n} Suchbegriff überwacht|{n} Suchbegriffe überwacht",
       oneWebsite: "Eine Website pro Abonnement",
       creditsEachMonth: "{n} Credit pro Monat|{n} Credits pro Monat",
+      socialPostsEachMonth: "{n} Social-Post pro Monat|{n} Social-Posts pro Monat",
       paymentReceived: "Zahlung erhalten - Ihr Abonnement wird bestätigt…",
       checkoutCancelled: "Bezahlvorgang abgebrochen.",
       purchaseReceived: "Zahlung erhalten - Ihr Kauf erscheint in Kürze.",

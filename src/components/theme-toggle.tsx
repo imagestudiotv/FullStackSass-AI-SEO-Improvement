@@ -1,7 +1,7 @@
 "use client";
 
 import { Moon, Sun } from "lucide-react";
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import { THEME_KEY, type Theme } from "@/lib/theme";
@@ -52,7 +52,20 @@ export function useDarkTheme(): boolean {
   return useSyncExternalStore(subscribe, isDark, () => false);
 }
 
-export function ThemeToggle({ label, className }: { label: string; className?: string }) {
+/**
+ * `icons` draws the button the public site's design way (the header and
+ * footer, components/marketing-nav.tsx): a plain button with the design's
+ * moon and sun, styled entirely by `className`. The behaviour is the same.
+ */
+export function ThemeToggle({
+  label,
+  className,
+  icons,
+}: {
+  label: string;
+  className?: string;
+  icons?: { light: ReactNode; dark: ReactNode };
+}) {
   const dark = useDarkTheme();
   /*
     A page drawn in the browser rather than sent as HTML - the "page not
@@ -68,6 +81,14 @@ export function ThemeToggle({ label, className }: { label: string; className?: s
       // Storage refused: the page stays light.
     }
   }, []);
+  const toggle = () => setTheme(dark ? "light" : "dark");
+  if (icons) {
+    return (
+      <button type="button" aria-label={label} aria-pressed={dark} title={label} className={className} onClick={toggle}>
+        {dark ? icons.dark : icons.light}
+      </button>
+    );
+  }
   return (
     <Button
       type="button"
@@ -77,7 +98,7 @@ export function ThemeToggle({ label, className }: { label: string; className?: s
       aria-pressed={dark}
       title={label}
       className={cn("shrink-0", className)}
-      onClick={() => setTheme(dark ? "light" : "dark")}
+      onClick={toggle}
     >
       {dark ? <Sun className="size-5" aria-hidden="true" /> : <Moon className="size-5" aria-hidden="true" />}
     </Button>

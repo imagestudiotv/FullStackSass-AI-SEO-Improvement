@@ -82,18 +82,31 @@ export const plans = pgTable(
     paypalTrialPlanId: text("paypal_trial_plan_id"),
     priceCents: integer("price_cents").notNull(),
     articleLimit: integer("article_limit").notNull(),
+    /**
+     * Social posts a month the plan advertises (scripts/plan-catalog.mjs). Not
+     * a meter: each post costs credits, and monthlyCredits covers this many.
+     * 0 on a plan that never stated a number, which then states none.
+     */
+    socialPostLimit: integer("social_post_limit").default(0).notNull(),
     keywordLimit: integer("keyword_limit").notNull(),
     siteLimit: integer("site_limit").notNull(),
     monthlyCredits: integer("monthly_credits").notNull(),
     /** Ordering on the pricing page; lowest first. */
     sortOrder: integer("sort_order").default(0).notNull(),
     isActive: boolean("is_active").default(true).notNull(),
+    /**
+     * Which line-up this row belongs to (scripts/plan-catalog.mjs). A row is
+     * never repriced: a new line-up gets new rows, so a subscriber's plan keeps
+     * the price and limits they bought. Only one version is on sale at a time.
+     */
+    catalogVersion: integer("catalog_version").default(1).notNull(),
     ...timestamps,
   },
   (table) => [
-    // One row per tier+interval. Makes the seed script an idempotent upsert
-    // keyed on meaning rather than on the display name, which may change.
-    uniqueIndex("plans_tier_interval_uidx").on(table.tier, table.interval),
+    // One row per tier+interval in each catalog. Makes the seed script an
+    // idempotent upsert keyed on meaning rather than on the display name,
+    // which may change.
+    uniqueIndex("plans_tier_interval_version_uidx").on(table.tier, table.interval, table.catalogVersion),
   ],
 );
 

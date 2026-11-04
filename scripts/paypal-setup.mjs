@@ -6,7 +6,8 @@
  * already gets only the missing free-articles plans: no --switch-mode.
  *
  * RUN THIS AFTER `npm run db:seed`, once PAYPAL_CLIENT_ID and
- * PAYPAL_CLIENT_SECRET are set. Mirrors scripts/stripe-setup.mjs.
+ * PAYPAL_CLIENT_SECRET are set. Mirrors scripts/stripe-setup.mjs: it covers the
+ * current catalog (scripts/plan-catalog.mjs), before that catalog goes on sale.
  *
  * Idempotent and safe to re-run:
  *  - Products are matched by name, so a re-run reuses them.
@@ -35,6 +36,7 @@
 import nextEnv from "@next/env";
 import postgres from "postgres";
 
+import { CATALOG_VERSION } from "./plan-catalog.mjs";
 import { planBody } from "./paypal-plans.mjs";
 
 nextEnv.loadEnvConfig(process.cwd());
@@ -133,7 +135,7 @@ const sql = postgres(DIRECT_URL, { connect_timeout: 30 });
 
 const rows = await sql`
   select id, name, tier, interval, currency, price_cents, paypal_plan_id, paypal_trial_plan_id
-  from plans where is_active = true order by sort_order, price_cents
+  from plans where catalog_version = ${CATALOG_VERSION} order by sort_order, price_cents
 `;
 
 /*
@@ -146,7 +148,7 @@ const KINDS = [
 ];
 
 if (rows.length === 0) {
-  console.error("No active plans. Run `npm run db:seed` first.");
+  console.error("This catalog has no plans. Run `npm run db:seed` first.");
   await sql.end();
   process.exit(1);
 }
@@ -256,7 +258,7 @@ for (const plan of rows) {
 
 const final = await sql`
   select name, interval, currency, price_cents, paypal_plan_id, paypal_trial_plan_id
-  from plans where is_active = true order by sort_order, price_cents
+  from plans where catalog_version = ${CATALOG_VERSION} order by sort_order, price_cents
 `;
 console.table(final.map((r) => ({ ...r })));
 

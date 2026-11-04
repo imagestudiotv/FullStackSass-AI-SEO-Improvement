@@ -74,10 +74,21 @@ export type PickerPlan = {
   currency: string;
   interval: string;
   articleLimit: number;
+  /** Social posts a month the plan states (plans.social_post_limit). */
+  socialPostLimit?: number;
   keywordLimit: number;
   siteLimit: number;
   monthlyCredits: number;
 };
+
+/**
+ * Sign-up for someone who pressed a plan's button: through the website step to
+ * the plan step with that plan chosen, so the plan they read is the one they
+ * are shown. The plan step is where the price comes from and checkout starts.
+ */
+export function signUpForPlan(tier: string): string {
+  return `/sign-up?next=${encodeURIComponent(`/onboarding/website?plan=${encodeURIComponent(tier)}`)}`;
+}
 
 /**
  * ONE website per subscription, on every plan.
@@ -146,6 +157,8 @@ function cadence(articlesPerMonth: number): string {
  * than quantity, which is what the client asked for.
  */
 export function planFeatures(plan: PickerPlan): string[] {
+  const socialPosts = plan.socialPostLimit ? [`${plan.socialPostLimit} social posts a month`] : [];
+
   /**
    * Capabilities every plan has. These are the same on purpose: the product
    * does not withhold features by tier, it withholds VOLUME.
@@ -176,6 +189,7 @@ export function planFeatures(plan: PickerPlan): string[] {
    */
   const scale = [
     `${count(plan.articleLimit, "branded article")} a month${cadence(plan.articleLimit)}, with images`,
+    ...socialPosts,
     `${plan.keywordLimit.toLocaleString()} search terms researched and clustered`,
     ONE_WEBSITE,
     "Priority processing - your articles are written first",
@@ -184,6 +198,7 @@ export function planFeatures(plan: PickerPlan): string[] {
 
   const grow = [
     `${count(plan.articleLimit, "branded article")} a month${cadence(plan.articleLimit)}, with images`,
+    ...socialPosts,
     `${plan.keywordLimit.toLocaleString()} search terms researched and clustered`,
     ONE_WEBSITE,
   ];

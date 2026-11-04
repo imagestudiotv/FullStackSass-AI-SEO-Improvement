@@ -50,6 +50,8 @@ export default async function OnboardingPlanPage({
   const params = await searchParams;
   const siteParam = typeof params.site === "string" ? params.site : undefined;
   const paypalResult = typeof params.paypal === "string" ? params.paypal : undefined;
+  /** The plan whose button was pressed (lib/plans/features.ts signUpForPlan). Only a choice on screen: nothing is bought from the address. */
+  const chosenTier = typeof params.plan === "string" ? params.plan : undefined;
 
   const [state, paypalAvailable, allPlans, credits] = await Promise.all([
     getOnboardingState(orgId, siteParam),
@@ -171,6 +173,7 @@ export default async function OnboardingPlanPage({
         <div className="grid items-stretch gap-10 lg:grid-cols-2 lg:gap-12">
           <div>
             <PlanStep
+            initialTier={chosenTier}
               t={t.app.onboarding}
               monthlyPlans={monthlyPlans}
               annualPlans={annualPlans}

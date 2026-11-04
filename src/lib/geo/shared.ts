@@ -48,6 +48,8 @@ export type GeoOverview = {
  * selected for scale plan."
  */
 export const PROMPTS_BY_TIER: Record<string, number> = {
+  // Launch is what Grow was at this price (scripts/plan-catalog.mjs).
+  launch: 20,
   grow: 20,
   scale: 50,
 };
