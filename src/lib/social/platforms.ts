@@ -46,10 +46,17 @@ export type PlatformSpec = {
   titleMax?: number;
   /** The Google query prefix that finds its public discussions. */
   search?: string;
+  /**
+   * Only discussions from the last N months. Reddit archives a thread after
+   * six months: no more comments or votes (client, 2026-11-04: every Reddit
+   * opportunity he opened was an archived thread). One month short of that
+   * leaves time to reply.
+   */
+  maxAgeMonths?: number;
 };
 
 export const PLATFORMS: Record<SocialPlatform, PlatformSpec> = {
-  reddit: { name: "Reddit", bundleType: "REDDIT", replies: true, ownPosts: true, maxLength: 4000, titleMax: 300, search: "site:reddit.com" },
+  reddit: { name: "Reddit", bundleType: "REDDIT", replies: true, ownPosts: true, maxLength: 4000, titleMax: 300, search: "site:reddit.com", maxAgeMonths: 5 },
   quora: { name: "Quora", bundleType: null, replies: true, ownPosts: false, maxLength: 4000, search: "site:quora.com" },
   x: { name: "X", bundleType: "TWITTER", replies: true, ownPosts: true, maxLength: 280, search: "site:x.com" },
   threads: { name: "Threads", bundleType: "THREADS", replies: true, ownPosts: true, maxLength: 500, search: "site:threads.com OR site:threads.net" },

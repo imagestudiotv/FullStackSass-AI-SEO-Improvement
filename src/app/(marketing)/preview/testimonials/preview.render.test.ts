@@ -2,6 +2,8 @@ import { createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { photoOf } from "../../_home/review-people";
+
 /**
  * The testimonials design preview: administrators see the homepage with
  * every card from Admin -> Testimonials, drafts included; everyone else gets
@@ -57,7 +59,8 @@ describe("the testimonials design preview", () => {
     expect(html).toContain('href="/admin/testimonials"');
     for (const card of CARDS) {
       expect(html).toContain(card.name);
-      expect(html).toContain(`src="${card.avatar}"`);
+      // The design sets the drawn-letter files (_home/review-people.ts) in its own letters.
+      if (photoOf(card.avatar)) expect(html).toContain(`src="${card.avatar}"`);
     }
     expect(html).toContain('id="repget-reviews"');
     // Every card is in the first paint; "Show more" folds the rest once the page has loaded.

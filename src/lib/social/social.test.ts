@@ -112,7 +112,7 @@ const RESULTS: Record<string, string[]> = {
 };
 const search: SuggestDeps["search"] = vi.fn(async (query: string) => {
   const prefix = Object.keys(RESULTS).find((key) => query.startsWith(key)) ?? "";
-  return { cached: false, items: (RESULTS[prefix] ?? []).map((url) => ({ url, title: `About ${url}`, description: "A question." })) };
+  return { cached: false, items: (RESULTS[prefix] ?? []).map((url) => ({ url, title: `About ${url}`, description: "A question.", postedAt: null })) };
 });
 const writer = (drafts: Drafts): SuggestDeps["write"] =>
   vi.fn(async () => ({ drafts, usage: { inputTokens: 100, outputTokens: 50, model: "claude-sonnet-5" } }));
@@ -258,13 +258,37 @@ describe("the day's suggestions", () => {
             "https://it.quora.com/Come-scegliere-un-fotografo-di-matrimonio",
           ]
         : ["https://www.facebook.com/groups/123/posts/456/"]
-      ).map((url) => ({ url, title: url, description: "" })),
+      ).map((url) => ({ url, title: url, description: "", postedAt: null })),
     }));
     const write = writer({ posts: [], replies: [] });
     await suggestForWebsite(websiteId, { now: NOW, search: crossed, write });
     const [, threads] = vi.mocked(write).mock.calls[0];
     expect(threads.map((thread) => thread.platform).sort()).toEqual(["quora", "reddit"]);
     expect(threads.find((thread) => thread.platform === "quora")!.title).toBe("https://www.quora.com/How-do-I-choose-a-wedding-photographer");
+  });
+
+  it("ask Google for recent Reddit threads only and drop a dated one Reddit has archived", async () => {
+    const { websiteId } = await site();
+    await account(websiteId, "reddit");
+    await account(websiteId, "quora");
+    const dated: SuggestDeps["search"] = vi.fn(async (query: string) => ({
+      cached: false,
+      items: query.startsWith("site:reddit.com")
+        ? [
+            { url: "https://www.reddit.com/r/marketing/comments/old111/video/", title: "Old", description: "", postedAt: new Date(NOW.getTime() - 400 * DAY) },
+            { url: "https://www.reddit.com/r/marketing/comments/new222/video/", title: "New", description: "", postedAt: new Date(NOW.getTime() - 20 * DAY) },
+            { url: "https://www.reddit.com/r/marketing/comments/und333/video/", title: "Undated", description: "", postedAt: null },
+          ]
+        : [{ url: "https://www.quora.com/How-old-can-a-question-be", title: "Quora", description: "", postedAt: new Date(NOW.getTime() - 900 * DAY) }],
+    }));
+    const write = writer({ posts: [], replies: [] });
+    await suggestForWebsite(websiteId, { now: NOW, search: dated, write });
+    const options = vi.mocked(dated).mock.calls.map(([query, , , , opts]) => [query.split(" ")[0], opts]);
+    expect(options.filter(([prefix]) => prefix === "site:reddit.com").every(([, opts]) => (opts as { maxAgeMonths?: number }).maxAgeMonths === 5)).toBe(true);
+    expect(options.filter(([prefix]) => prefix === "site:quora.com").every(([, opts]) => !(opts as { maxAgeMonths?: number }).maxAgeMonths)).toBe(true);
+    const [, threads] = vi.mocked(write).mock.calls[0];
+    // Quora questions take answers at any age; Reddit's old thread is gone.
+    expect(threads.map((thread) => thread.title).sort()).toEqual(["New", "Quora", "Undated"]);
   });
 
   it("spend the day's searches where too little was found, never more of them", async () => {
@@ -282,7 +306,7 @@ describe("the day's suggestions", () => {
         : query.startsWith("site:reddit.com")
           ? ["https://www.reddit.com/r/photography/comments/abc123/tips/"]
           : ["https://www.facebook.com/groups/123/posts/456/"]
-      ).map((url) => ({ url, title: url, description: "" })),
+      ).map((url) => ({ url, title: url, description: "", postedAt: null })),
     }));
     await suggestForWebsite(websiteId, { now: NOW, search: counted, write: writer({ posts: [], replies: [] }) });
     const queries = vi.mocked(counted).mock.calls.map(([query]) => query);

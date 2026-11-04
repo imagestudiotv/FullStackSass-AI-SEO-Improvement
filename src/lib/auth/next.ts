@@ -55,6 +55,11 @@ export function safeNext(value: string | null): string {
   return value;
 }
 
+/** Where a failed Google sign-in lands: the sign-in page, still going to `next`. */
+export function googleErrorPath(next: string): string {
+  return next === CALLBACK_URL ? "/sign-in" : `/sign-in?next=${encodeURIComponent(next)}`;
+}
+
 /**
  * The link from sign-in to sign-up (or back) that keeps where the person was
  * going and the address they were invited at.

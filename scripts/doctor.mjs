@@ -368,7 +368,7 @@ if (has("DIRECT_URL")) {
     if (plans.length === 0) {
       bad(
         "No active plans in the database",
-        "Run `npm run db:seed`. Nothing can be purchased.",
+        "Follow docs/plan-catalog.md (db:seed, then plans:activate). Nothing can be purchased.",
       );
     } else {
       ok(`${plans.length} active plan(s)`);

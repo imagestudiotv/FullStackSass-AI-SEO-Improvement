@@ -1,4 +1,4 @@
-import { SUPPORT_EMAIL } from "@/lib/config/site";
+import { SUPPORT_EMAIL, WEBSITE_BUILD_TOPIC } from "@/lib/config/site";
 import { getMessages } from "@/lib/i18n/messages";
 import { ContactContent } from "../static-pages";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
@@ -27,6 +27,20 @@ export default async function ContactPage({
    */
   const params = await searchParams;
   const quote = params.about === "audit_fix";
+
+  // The homepage's "We'll build one for you".
+  if (params.about === WEBSITE_BUILD_TOPIC) {
+    return (
+      <ContactContent
+        t={t}
+        locale="en"
+        supportEmail={SUPPORT_EMAIL}
+        subject={t.contact.websiteBuild.subject}
+        title={t.contact.websiteBuild.title}
+        subtitle={t.contact.websiteBuild.subtitle}
+      />
+    );
+  }
 
   return (
     <ContactContent

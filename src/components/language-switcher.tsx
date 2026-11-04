@@ -3,7 +3,7 @@
 import { Globe } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
 import { buttonVariants } from "@/components/ui/button";
 import { LOCALE_NAMES, localePath, LOCALES, splitLocale, TRANSLATED_PATHS } from "@/lib/i18n/config";
@@ -32,7 +32,19 @@ import { cn } from "@/lib/utils";
  * written in that language, so its link says so with lang.
  */
 
-export function LanguageSwitcher({ label }: { label: string }) {
+/**
+ * `appearance` restyles it for the public footer's design (globe, the
+ * language's name and a small chevron, components/marketing-nav.tsx): the
+ * classes replace the button look, and `icon`/`chevron` the globe and add
+ * the chevron. The behaviour is unchanged.
+ */
+export function LanguageSwitcher({
+  label,
+  appearance,
+}: {
+  label: string;
+  appearance?: { details?: string; summary: string; name?: string; icon: ReactNode; chevron?: ReactNode };
+}) {
   const pathname = usePathname();
   const { locale, path } = splitLocale(pathname);
   const menu = useRef<HTMLDetailsElement>(null);
@@ -68,17 +80,22 @@ export function LanguageSwitcher({ label }: { label: string }) {
   if (!TRANSLATED_PATHS.has(path)) return null;
 
   return (
-    <details ref={menu} className="group relative">
+    <details ref={menu} className={cn("group relative", appearance?.details)}>
       {/* group-open: the highlight the button had while its menu was open. */}
       <summary
         aria-label={label}
-        className={cn(
-          buttonVariants({ variant: "ghost", size: "sm" }),
-          "cursor-pointer list-none gap-1.5 group-open:bg-muted group-open:text-foreground [&::-webkit-details-marker]:hidden",
-        )}
+        className={
+          appearance
+            ? cn("cursor-pointer list-none [&::-webkit-details-marker]:hidden", appearance.summary)
+            : cn(
+                buttonVariants({ variant: "ghost", size: "sm" }),
+                "cursor-pointer list-none gap-1.5 group-open:bg-muted group-open:text-foreground [&::-webkit-details-marker]:hidden",
+              )
+        }
       >
-        <Globe className="size-4" aria-hidden="true" />
-        <span className="hidden sm:inline">{LOCALE_NAMES[locale]}</span>
+        {appearance ? appearance.icon : <Globe className="size-4" aria-hidden="true" />}
+        <span className={appearance ? appearance.name : "hidden sm:inline"}>{LOCALE_NAMES[locale]}</span>
+        {appearance?.chevron}
       </summary>
 
       {/* Opens upwards: it sits at the very bottom of the page. */}

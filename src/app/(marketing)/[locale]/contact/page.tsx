@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { SUPPORT_EMAIL } from "@/lib/config/site";
+import { SUPPORT_EMAIL, WEBSITE_BUILD_TOPIC } from "@/lib/config/site";
 import { isLocale, LOCALES } from "@/lib/i18n/config";
 import { getMessages } from "@/lib/i18n/messages";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
@@ -29,9 +29,14 @@ export async function generateMetadata({
 
 export default async function LocalisedContactPage({
   params,
+  searchParams,
 }: PageProps<"/[locale]/contact">) {
   const { locale } = await params;
   if (!isLocale(locale) || locale === "en") notFound();
 
-  return <ContactContent t={getMessages(locale)} locale={locale} supportEmail={SUPPORT_EMAIL} />;
+  const t = getMessages(locale);
+  // The homepage's "We'll build one for you".
+  const build = (await searchParams).about === WEBSITE_BUILD_TOPIC ? t.contact.websiteBuild : null;
+
+  return <ContactContent t={t} locale={locale} supportEmail={SUPPORT_EMAIL} subject={build?.subject} title={build?.title} subtitle={build?.subtitle} />;
 }

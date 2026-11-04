@@ -1,0 +1,45 @@
+/*
+ * Questions (client's design, 2026-11-03: <style id="repget-homepage-faq-style">),
+ * ported as written: the design's selectors without its .rgx wrapper and
+ * body.dark as the site's :global(.dark). Additions are marked "site:" at the end.
+ */
+/* Native <details> accordions remain keyboard-accessible without JavaScript. */
+.rpf-faq{background:#fff;color:#232724;padding:82px 24px 106px;scroll-margin-top:100px;border-top:1px solid #f0ede7;font-family:inherit}
+.rpf-faq *{box-sizing:border-box}
+.rpf-faq-inner{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:minmax(250px,.72fr) minmax(0,1.28fr);gap:90px;align-items:start}
+.rpf-intro{padding-top:18px;position:sticky;top:115px}
+.rpf-eyebrow{font-size:11px;font-weight:830;letter-spacing:.14em;color:#e76c3e;text-transform:uppercase}
+.rpf-intro h2{font-size:clamp(34px,3.9vw,49px);line-height:1.1;letter-spacing:-.05em;color:#202421;font-weight:800;margin:17px 0 17px;max-width:350px}
+.rpf-intro p{font-size:15px;line-height:1.7;color:#75776f;margin:0 0 26px;max-width:320px}
+.rpf-contact{font-size:13px;color:#6f716b}
+.rpf-contact a{color:#1f2420;font-weight:770;text-decoration:underline;text-underline-offset:4px}
+.rpf-contact a:hover{color:#e56a39}
+.rpf-list{padding:9px 24px;background:#fff;border:1px solid #e6e5df;border-radius:24px;box-shadow:0 8px 30px rgba(30,27,22,.028)}
+.rpf-item{margin:0;border-bottom:1px solid #e9e8e3}
+.rpf-item:last-child{border-bottom:0}
+.rpf-item summary{list-style:none;cursor:pointer;display:flex;gap:20px;justify-content:space-between;align-items:center;min-height:69px;padding:16px 2px;font-size:15px;line-height:1.45;color:#202421;font-weight:650;transition:color .2s ease}
+.rpf-item summary::-webkit-details-marker{display:none}
+.rpf-item summary:focus-visible{outline:2px solid #f39063;outline-offset:2px;border-radius:8px}
+.rpf-item summary:hover{color:#dc6538}
+.rpf-plus{width:28px;height:28px;min-width:28px;display:grid;place-items:center;border:1px solid #e2e1dc;border-radius:50%;font:400 20px/1 Inter,system-ui,sans-serif;color:#9a9d96;transition:transform .22s ease,background .22s ease,color .22s ease;user-select:none}
+.rpf-item[open] .rpf-plus{transform:rotate(45deg);background:#fff2ea;color:#dd663d;border-color:#f1d6c6}
+.rpf-answer{padding:0 42px 22px 2px;color:#71736d;font-size:14px;line-height:1.75;max-width:710px}
+.rpf-answer p{margin:0}
+.rpf-answer a{text-decoration:underline;color:#d36b42;text-underline-offset:3px}
+.rpf-section{display:flex;align-items:center;gap:10px;padding:24px 2px 9px;font-size:10px;letter-spacing:.15em;font-weight:850;color:#d3663f;text-transform:uppercase}
+.rpf-section:after{content:"";height:1px;background:#eee9e4;flex:1}
+.rpf-section:first-child{padding-top:14px}
+:global(.dark) .rpf-faq{background:#181b18;border-color:#333832;color:#f3f1ec}
+:global(.dark) .rpf-intro h2,:global(.dark) .rpf-item summary,:global(.dark) .rpf-contact a{color:#f3f1ec}
+:global(.dark) .rpf-intro p,:global(.dark) .rpf-contact,:global(.dark) .rpf-answer{color:#b5b9af}
+:global(.dark) .rpf-list{background:#222621;border-color:#41463e;box-shadow:none}
+:global(.dark) .rpf-item{border-color:#3b4039}
+:global(.dark) .rpf-plus{border-color:#55594f;color:#b7beb0}
+:global(.dark) .rpf-item[open] .rpf-plus{background:#493226;border-color:#6f4731;color:#f5b18b}
+:global(.dark) .rpf-section:after{background:#40443c}
+@media(max-width:960px){.rpf-faq-inner{gap:40px;grid-template-columns:minmax(215px,.68fr) minmax(0,1.32fr)}}
+@media(max-width:760px){.rpf-faq{padding:62px 17px 74px}.rpf-faq-inner{grid-template-columns:1fr;gap:30px}.rpf-intro{position:static;padding-top:0}.rpf-intro h2{font-size:36px;margin:11px 0 10px}.rpf-intro p{font-size:14px;margin-bottom:12px}.rpf-list{border-radius:18px;padding:5px 16px}.rpf-item summary{font-size:14px;min-height:61px;padding:12px 0}.rpf-answer{padding:0 5px 18px 0;font-size:13px}}
+@media(prefers-reduced-motion:reduce){.rpf-plus,.rpf-item summary{transition:none}}
+
+/* site: the design's page defaults (body font-size 14px, line-height normal) - the site's base is 16px / 1.5. */
+.rpf-faq{font-size:14px;line-height:normal}

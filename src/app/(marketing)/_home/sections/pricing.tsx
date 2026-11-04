@@ -1,125 +1,106 @@
-import { ArrowRight, ArrowUpRight, Check } from "lucide-react";
 import Link from "next/link";
 
 import { formatPrice, type PlanRow } from "@/lib/billing-shared";
-import { STARTER_TIER } from "@/lib/plans/features";
-import styles from "../home.module.css";
-import { rich } from "../text";
+import { pricingCopy, type HomePackageId } from "@/lib/i18n/home/pricing";
+import { signUpForPlan } from "@/lib/plans/features";
 import type { SectionProps } from "../types";
-import local from "./closing.module.css";
+import styles from "./pricing.module.css";
+
+/** The design's class names, through the module: c("rgp-card rgp-featured"). */
+const c = (names: string) =>
+  names
+    .split(" ")
+    .map((name) => styles[name] ?? name)
+    .join(" ");
 
 /**
- * Pricing (client's design, 2026-11-03: "One platform. Everything to grow.").
+ * Pricing (client's design, 2026-11-03: "One platform. Everything to grow.";
+ * <section class="rgp-packages" id="pricing">), ported as drawn.
  *
- * The plans are the same rows /pricing and checkout read, chosen and marked
- * the same way as the old preview (pricing-preview.tsx): the monthly plans,
- * Grow as the featured one and Starter as "try it first" - by tier, never by
- * position - so the homepage cannot advertise a price the checkout will not
- * honour. Plan names stay in English: they are product names.
+ * The figures are the plans on sale, the rows /pricing and checkout read, so
+ * the price on this page is the price charged; the design's words for each
+ * tier come from lib/i18n/home/pricing.ts. Launch EUR 99, Grow EUR 149 (most
+ * popular, raised) and Scale EUR 349 are scripts/plan-catalog.mjs. With no
+ * plans to read (a build without a database) the cards are left out rather
+ * than showing prices checkout would not honour.
  *
- * The design's figures are not its own: each card's two numbers are the
- * plan row's article and keyword limits, as /pricing lists them. Its social
- * post counts are left out (no plan row has one), and so are credit and
- * website counts, which the client asked not to advertise.
- *
- * The capabilities are the same on every plan - the product withholds
- * volume, not features (lib/plans/features.ts) - so the first card lists
- * them and each card after it says it has everything before it with more
- * capacity. Scale's one real extra, priority processing, is named on Scale.
+ * Every "Get Started" goes through sign-up to that plan, "Talk to our team" to
+ * the contact page.
  */
-export function Pricing({ c, m, locale, href, plans }: SectionProps & { plans: PlanRow[] }) {
-  const t = c.pricing;
-  const monthly = plans.filter((plan) => plan.interval === "month");
+export function Pricing({ locale, href, plans }: SectionProps & { plans: PlanRow[] }) {
+  const t = pricingCopy(locale);
+  const packages = plans.filter((plan) => plan.interval === "month" && plan.tier in t.packages);
 
   return (
-    <section id="pricing" className={styles.pricing} aria-labelledby="pricing-title">
-      <div className={styles.pricingInner}>
-        <header className={`${styles.pricingHead} ${styles.reveal}`} data-reveal="">
-          <p className={styles.kicker}>{t.eyebrow}</p>
-          <h2 id="pricing-title" className={styles.sectionTitle}>
-            {rich(t.title)}
+    <section className={c("rgp-packages")} id="pricing" aria-labelledby="rgp-title">
+      <div className={c("rgp-container")}>
+        <header className={c("rgp-heading")}>
+          <div className={c("rgp-eyebrow")}>{t.eyebrow}</div>
+          <h2 id="rgp-title">
+            {t.titleLead} <em>{t.titleAccent}</em>
           </h2>
-          <p className={styles.sectionSub}>{t.sub}</p>
-          <ul className={styles.included}>
+          <p>{t.sub}</p>
+          <div className={c("rgp-unified-row")} aria-label={t.includedLabel}>
             {t.included.map((item) => (
-              <li key={item}>
-                <Check aria-hidden="true" />
-                {item}
-              </li>
+              <span key={item}>{item}</span>
             ))}
-          </ul>
+          </div>
         </header>
-
-        {monthly.length === 0 ? (
-          // A real state rather than placeholder prices checkout would not honour.
-          <p className={`${styles.sectionSub} ${styles.center}`}>{m.home.unavailable}</p>
-        ) : (
-          <ul className={`${styles.planGrid} ${styles.reveal}`} data-reveal="" data-delay="1">
-            {monthly.map((plan, index) => {
+        {packages.length > 0 ? (
+          <div className={c("rgp-grid")} aria-label={t.gridLabel}>
+            {packages.map((plan, index) => {
+              const words = t.packages[plan.tier as HomePackageId];
               const featured = plan.tier === "grow";
-              const isStarter = plan.tier === STARTER_TIER;
-              const badge = featured ? m.home.mostPopular : isStarter ? m.home.tryItFirst : null;
-              const features = [
-                ...(index === 0 ? t.features : [t.everything]),
-                ...(plan.tier === "scale" ? t.scaleExtra : []),
-              ];
+              // "€99" as the design sets it: the symbol small, the amount large.
+              const price = formatPrice(plan.priceCents, plan.currency);
+              const amount = price.replace(/^\D+/, "");
               return (
-                <li key={plan.id} className={featured ? `${styles.plan} ${styles.planFeatured}` : styles.plan}>
-                  <div className={styles.planTop}>
-                    <span>
+                <article key={plan.id} className={c(featured ? "rgp-card rgp-featured" : "rgp-card")} aria-label={words.label}>
+                  <div className={c("rgp-card-top")}>
+                    <span className={c("rgp-tier")}>
                       {String(index + 1).padStart(2, "0")} / {t.allInOne}
                     </span>
-                    {badge ? <span className={styles.badge}>{badge}</span> : null}
+                    {featured ? <span className={c("rgp-popular")}>{t.popular}</span> : null}
                   </div>
                   <h3>{plan.name}</h3>
-                  {isStarter ? <p className={styles.planIntro}>{m.pricing.starterTagline}</p> : null}
-                  <p className={styles.price}>
-                    <strong>{formatPrice(plan.priceCents, plan.currency)}</strong>
-                    <span>{m.home.perMonth.trim()}</span>
-                  </p>
-                  <div className={styles.capacity}>
+                  <p className={c("rgp-intro")}>{words.intro}</p>
+                  <div className={c("rgp-price")}>
+                    <span className={c("rgp-euro")}>{price.slice(0, price.length - amount.length)}</span>
+                    <strong>{amount}</strong>
+                    <span className={c("rgp-time")}>{t.perMonth}</span>
+                  </div>
+                  <div className={c("rgp-capacity")}>
                     <div>
-                      <strong>{plan.articleLimit.toLocaleString(locale)}</strong>
+                      <strong>{plan.articleLimit}</strong>
                       <small>{t.articles}</small>
                     </div>
-                    <div>
-                      <strong>{plan.keywordLimit.toLocaleString(locale)}</strong>
-                      <small>{t.keywords}</small>
-                    </div>
-                  </div>
-                  <ul className={styles.planList}>
-                    {features.map((feature) => (
-                      <li key={feature}>
-                        <Check aria-hidden="true" />
-                        {feature}
-                      </li>
-                    ))}
-                  </ul>
-                  <Link href={href("/sign-up")} className={`${styles.planButton} ${local.focusRing}`}>
-                    {m.home.getStartedPlan}
-                    <ArrowUpRight className={local.readIcon} aria-hidden="true" />
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-
-        <div className={styles.pricingMore}>
-          <div>
+                    {plan.socialPostLimit > 0 ? (
+                      <div>
+                        <strong>{plan.socialPostLimit}</strong>
+                        <small>{t.posts}</small>
+                      </div>
+                  ) : null}
+                </div>
+                <ul>
+                  {words.bullets.map((bullet) => (
+                    <li key={bullet}>{bullet}</li>
+                  ))}
+                </ul>
+                <Link className={c("rgp-action")} href={signUpForPlan(plan.tier)}>
+                  {t.getStarted} <span aria-hidden="true">↗</span>
+                </Link>
+              </article>
+            );
+          })}
+        </div>
+        ) : null}
+        <div className={c("rgp-bottom")}>
+          <div className={c("rgp-bottom-left")}>
             <strong>{t.moreTitle}</strong>
             <p>{t.moreBody}</p>
           </div>
-          <Link href={href("/contact")} className={`${local.withIcon} ${local.focusRing}`}>
-            {t.talk} <ArrowUpRight className={local.readIcon} aria-hidden="true" />
-          </Link>
+          <Link href={href("/contact")}>{t.talk} ↗</Link>
         </div>
-
-        <p className={styles.seeAll}>
-          <Link href={href("/pricing")} className={`${local.withIcon} ${local.focusRing}`}>
-            {m.home.seeAllPlans} <ArrowRight className={local.readIcon} aria-hidden="true" />
-          </Link>
-        </p>
       </div>
     </section>
   );

@@ -1,0 +1,313 @@
+/*
+ * "Built by": the founder, from the client's approved design (design.html,
+ * `rp2-founder-reviews-2026` with `repget-neutral-founder-portrait-20261103`
+ * on top), ported value for value.
+ */
+
+.rp2-founder {
+  font-family: inherit;
+  position: relative;
+  isolation: isolate;
+  box-sizing: border-box;
+  background: #fff;
+  color: #202322;
+  padding: 108px 30px 114px;
+  font-size: 14px;
+  line-height: normal;
+}
+.rp2-founder * {
+  box-sizing: border-box;
+}
+.rp2-founder svg {
+  display: block;
+}
+.rp2-founder-inner {
+  width: 100%;
+  max-width: 1210px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1.14fr) minmax(0, 0.86fr);
+  gap: clamp(35px, 6vw, 92px);
+  align-items: center;
+}
+.rp2-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  background: #fff7f2;
+  border: 1px solid #f2e5da;
+  border-radius: 999px;
+  padding: 9px 15px;
+  font-size: 11px;
+  letter-spacing: 0.13em;
+  font-weight: 780;
+  color: #ce6a37;
+  line-height: 1;
+  text-transform: uppercase;
+}
+.rp2-founder h2 {
+  font-size: clamp(44px, 4.9vw, 67px);
+  line-height: 1.05;
+  letter-spacing: -0.052em;
+  color: #1b1d1d;
+  margin: 24px 0 7px;
+  font-weight: 800;
+}
+.rp2-founder-role {
+  font-size: clamp(19px, 2vw, 23px);
+  color: #64645e;
+  line-height: 1.35;
+  margin: 0 0 30px;
+}
+.rp2-founder-copy {
+  font-size: 17px;
+  line-height: 1.76;
+  max-width: 620px;
+  color: #565954;
+  margin: 0 0 15px;
+}
+.rp2-founder-copy strong {
+  color: #252725;
+  font-weight: 760;
+}
+.rp2-founder-copy-last {
+  margin-bottom: 28px;
+}
+.rp2-social-links {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.rp2-social-links a {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 43px;
+  padding: 0 17px;
+  border: 1px solid #323532;
+  border-radius: 999px;
+  background: transparent;
+  color: #202423;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 680;
+  transition:
+    background 0.2s,
+    border-color 0.2s,
+    transform 0.2s;
+}
+.rp2-social-links a svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+}
+.rp2-social-links a:hover {
+  background: #f8f7f4;
+  transform: translateY(-2px);
+}
+.rp2-social-links a:focus-visible {
+  outline: 3px solid #f5a87c;
+  outline-offset: 3px;
+}
+.rp2-founder-portrait-column {
+  width: 100%;
+  max-width: 440px;
+  aspect-ratio: 1;
+  position: relative;
+  margin: 10px auto;
+}
+.rp2-founder-circle {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  overflow: hidden;
+  aspect-ratio: 1 / 1;
+  box-shadow: 0 14px 45px rgba(25, 24, 20, 0.08);
+  border: 1px solid #e8e5e0;
+  background: #ebe7e2;
+}
+.rp2-founder-circle img {
+  display: block;
+  position: static;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  min-height: 0;
+  object-fit: cover;
+  object-position: center center;
+  aspect-ratio: 1 / 1;
+  border: 0;
+  border-radius: 0;
+  transform: none;
+  filter: none;
+  box-shadow: none;
+}
+.rp2-founder-pill {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  gap: 11px;
+  align-items: center;
+  padding: 13px 17px;
+  border-radius: 999px;
+  border: 1px solid #eae6e0;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 12px 34px rgba(34, 27, 19, 0.09);
+  white-space: nowrap;
+}
+.rp2-founder-pill strong {
+  font-size: 19px;
+  line-height: 1.08;
+  color: #252625;
+  font-weight: 770;
+  display: block;
+  letter-spacing: -0.025em;
+}
+.rp2-founder-pill span:not(.rp2-pill-icon) {
+  font-size: 11px;
+  color: #8b8b84;
+  display: block;
+  margin-top: 2px;
+}
+.rp2-pill-icon {
+  color: #e96d32;
+  display: grid;
+  place-items: center;
+  width: 33px;
+  height: 33px;
+  background: #fff6ee;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+.rp2-pill-icon svg {
+  width: 21px;
+  height: 21px;
+}
+.rp2-founder-pill-top {
+  left: -13%;
+  top: -9%;
+}
+.rp2-founder-pill-bottom {
+  right: -9%;
+  bottom: -8%;
+}
+
+:global(.dark) .rp2-founder {
+  background: #1b1d1a;
+  color: #f4f2ec;
+}
+:global(.dark) .rp2-founder h2,
+:global(.dark) .rp2-founder-copy strong {
+  color: #f3f2eb;
+}
+:global(.dark) .rp2-founder-role,
+:global(.dark) .rp2-founder-copy {
+  color: #bfc3bc;
+}
+:global(.dark) .rp2-social-links a {
+  color: #f4f2ec;
+  border-color: #7b8179;
+}
+:global(.dark) .rp2-social-links a:hover {
+  background: #2a2d28;
+}
+:global(.dark) .rp2-founder-pill {
+  background: #2b302a;
+  border-color: #41483f;
+}
+:global(.dark) .rp2-founder-pill strong {
+  color: #f3f2eb;
+}
+:global(.dark) .rp2-founder-pill span:not(.rp2-pill-icon) {
+  color: #a8afa5;
+}
+:global(.dark) .rp2-eyebrow {
+  background: #292e27;
+  border-color: #444b41;
+  color: #ef9966;
+}
+
+@media (max-width: 1020px) {
+  .rp2-founder-inner {
+    gap: 28px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.85fr);
+  }
+  .rp2-founder-portrait-column {
+    max-width: 350px;
+  }
+  .rp2-founder-pill {
+    padding: 10px 12px;
+  }
+  .rp2-founder-pill strong {
+    font-size: 15px;
+  }
+}
+@media (max-width: 720px) {
+  .rp2-founder {
+    padding: 72px 22px 84px;
+  }
+  .rp2-founder-inner {
+    display: flex;
+    flex-direction: column;
+    gap: 54px;
+    align-items: stretch;
+  }
+  .rp2-founder-text {
+    order: 0;
+  }
+  .rp2-founder-portrait-column {
+    order: 1;
+    width: min(82vw, 360px);
+    max-width: 360px;
+    margin: 4px auto 14px;
+  }
+  .rp2-founder h2 {
+    font-size: 43px;
+  }
+  .rp2-founder-role {
+    font-size: 19px;
+    margin-bottom: 18px;
+  }
+  .rp2-founder-copy {
+    font-size: 15px;
+  }
+  .rp2-founder-pill-top {
+    left: -5%;
+    top: -7%;
+  }
+  .rp2-founder-pill-bottom {
+    right: -4%;
+    bottom: -7%;
+  }
+}
+@media (max-width: 420px) {
+  .rp2-founder-portrait-column {
+    width: min(79vw, 315px);
+  }
+  .rp2-founder h2 {
+    font-size: 37px;
+  }
+  .rp2-founder-pill {
+    padding: 9px 10px;
+    gap: 6px;
+  }
+  .rp2-founder-pill strong {
+    font-size: 13px;
+  }
+  .rp2-founder-pill span:not(.rp2-pill-icon) {
+    font-size: 9px;
+  }
+  .rp2-pill-icon {
+    width: 26px;
+    height: 26px;
+  }
+  .rp2-pill-icon svg {
+    width: 17px;
+    height: 17px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rp2-social-links a {
+    transition: none !important;
+  }
+}

@@ -1,73 +1,83 @@
-import { ArrowRight, Check } from "lucide-react";
 import Link from "next/link";
 
 import { format } from "@/lib/i18n/format";
+import { finalCtaCopy } from "@/lib/i18n/home/final-cta";
 import { FREE_ARTICLES } from "@/lib/plans/features";
-import styles from "../home.module.css";
-import { rich } from "../text";
 import type { SectionProps } from "../types";
-import local from "./closing.module.css";
+import { FinalCtaForm } from "./final-cta-form";
+import styles from "./final-cta.module.css";
+
+/** The design's class names, through the module. */
+const c = (names: string) =>
+  names
+    .split(" ")
+    .map((name) => styles[name] ?? name)
+    .join(" ");
 
 /**
- * The closing call (client's design, 2026-11-03): the dark box with the two
- * ways to start on the left and what starting free includes on the right.
+ * The closing banner (client's design, 2026-11-03: "the call to action
+ * banner at the end is different"; <section class="rcta-wrap"
+ * id="repget-final-cta">), ported as drawn: the dark box with the sign-up
+ * field and the two ways to start on the left, what RepGet covers on the
+ * right.
  *
- * The same two doors as the old closing call (home-sections.tsx ClosingCta):
- * the free website check (/audit, no account needed) first, then the free
- * articles at sign-up. {n} is FREE_ARTICLES, the number the checkout applies,
- * so the offer cannot promise more articles than the account gets.
+ * The field submits as the hero's does (FinalCtaForm). "Check my website for
+ * free" is the free check (/audit, no account needed); "Create {n} Articles
+ * for Free" is sign-up, where {n} is FREE_ARTICLES - the number the account
+ * really gets.
  */
-export function FinalCta({ c, href }: SectionProps) {
-  const t = c.cta;
+export function FinalCta({ locale, href }: SectionProps) {
+  const t = finalCtaCopy(locale);
   const n = { n: FREE_ARTICLES };
 
   return (
-    <section className={styles.final} aria-labelledby="final-cta-title">
-      <div className={`${styles.finalBox} ${styles.reveal}`} data-reveal="">
-        <div className={styles.finalDots} aria-hidden="true" />
-
-        <div className={styles.finalCopy}>
-          <div className={styles.kicker}>{t.overline}</div>
-          <h2 id="final-cta-title">{rich(format(t.title, n))}</h2>
-          <p>{rich(format(t.body, n))}</p>
-          <div className={styles.finalActions}>
-            <Link href={href("/audit")} className={`${styles.finalPrimary} ${local.focusRing}`}>
-              {format(t.primary, n)}
-              <ArrowRight className={local.arrow} aria-hidden="true" />
+    <section className={c("rcta-wrap")} id="repget-final-cta" aria-labelledby="rcta-heading">
+      <div className={c("rcta-box")}>
+        <div className={c("rcta-pattern")} aria-hidden="true" />
+        <div className={c("rcta-inner")}>
+          <div className={c("rcta-kicker")}>{t.kicker}</div>
+          <h2 id="rcta-heading">
+            {t.titleLead} <em>{t.titleAccent}</em>
+          </h2>
+          <p className={c("rcta-desc")}>{t.desc}</p>
+          <FinalCtaForm strings={t.form} signUpPath={href("/sign-up")} onboardingPath={href("/onboarding/website")} />
+          <div className={c("rcta-quick-actions")} aria-label={t.quickLabel}>
+            <Link className={c("rcta-quick-btn rcta-quick-primary")} href={href("/audit")}>
+              {t.checkFree} <span aria-hidden="true">→</span>
             </Link>
-            <Link href={href("/sign-up")} className={`${styles.finalSecondary} ${local.focusRing}`}>
-              {format(t.secondary, n)}
-              <ArrowRight className={local.arrow} aria-hidden="true" />
+            <Link className={c("rcta-quick-btn rcta-quick-secondary")} href={href("/sign-up")}>
+              {format(t.createFree, n)} <span aria-hidden="true">→</span>
             </Link>
           </div>
-          <ul className={styles.finalPoints}>
+          <div className={c("rcta-bottom")}>
             {t.points.map((point) => (
-              <li key={point}>
-                <Check aria-hidden="true" />
-                {point}
-              </li>
+              <span key={point}>{point}</span>
             ))}
-          </ul>
+          </div>
         </div>
-
-        <div className={styles.finalSide}>
-          <ul className={styles.finalPills}>
+        <div className={c("rcta-side")}>
+          <div className={c("rcta-pills")}>
             {t.pills.map((pill) => (
-              <li key={pill}>{pill}</li>
+              <span key={pill}>{pill}</span>
             ))}
-          </ul>
-          <div className={styles.finalPanel}>
-            <strong>{t.panelTitle}</strong>
-            <small>{t.panelBody}</small>
-            <ul className={styles.finalList}>
+          </div>
+          <div className={c("rcta-panel")}>
+            <div className={c("rcta-panel-head")}>
+              <strong>{t.panelTitle}</strong>
+              <small>{t.panelBody}</small>
+            </div>
+            <ul className={c("rcta-mini-list")}>
               {t.items.map((item) => (
                 <li key={item.title}>
-                  <strong>{format(item.title, n)}</strong>
-                  <span>{format(item.body, n)}</span>
+                  <div>
+                    <strong>{item.title}</strong>
+                    <span>{item.body}</span>
+                  </div>
                 </li>
               ))}
             </ul>
           </div>
+          <div className={c("rcta-side-note")}>{t.sideNote}</div>
         </div>
       </div>
     </section>

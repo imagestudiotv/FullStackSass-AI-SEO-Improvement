@@ -6,9 +6,8 @@ import { useEffect } from "react";
  * Scroll reveal for the homepage, one observer for the whole page.
  *
  * Any element with a `data-reveal` attribute gets `data-shown` once a fifth
- * of it is on screen, and keeps it. The stylesheet does the rest: `.reveal`
- * elements fade up, and some sections (`.engines`, `.steps`, `.copilot`)
- * start their drawings when they carry `data-shown`.
+ * of it is on screen, and keeps it. The sections that carry it (engines,
+ * steps) start their drawings when they get `data-shown`.
  *
  * NOTHING IS HIDDEN WITHOUT JAVASCRIPT. The hiding rule only applies under
  * `html.hp-reveal`, which this adds - so a visitor with scripts off, a

@@ -36,6 +36,8 @@ export default async function OnboardingWebsitePage({
    * Trimmed and capped; it only pre-fills the field, the step validates it.
    */
   const initialUrl = typeof params.domain === "string" ? params.domain.trim().slice(0, 253) : "";
+  /** The plan whose button was pressed (lib/plans/features.ts signUpForPlan), for the plan step. */
+  const plan = typeof params.plan === "string" ? params.plan : undefined;
 
   const state = await getOnboardingState(orgId);
 
@@ -64,7 +66,7 @@ export default async function OnboardingWebsitePage({
    * bounced to the profile of a site they set up weeks ago.
    */
   if (state.websiteId && !addingAnother) {
-    redirect("/onboarding/plan");
+    redirect(plan ? `/onboarding/plan?plan=${encodeURIComponent(plan)}` : "/onboarding/plan");
   }
 
   /**
@@ -95,7 +97,7 @@ export default async function OnboardingWebsitePage({
       shows. Two progress indicators on one screen is one too many.
     */
     <div className="mx-auto max-w-6xl px-4 py-10 sm:py-14">
-      <WebsiteStep t={t.app.onboarding} initialUrl={initialUrl} />
+      <WebsiteStep t={t.app.onboarding} initialUrl={initialUrl} plan={plan} />
     </div>
   );
 }

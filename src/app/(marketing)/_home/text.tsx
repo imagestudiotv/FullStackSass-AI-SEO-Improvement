@@ -3,7 +3,7 @@ import { Fragment, type ReactNode } from "react";
 import styles from "./home.module.css";
 
 /**
- * The homepage copy's two marks (lib/i18n/home-redesign.ts):
+ * The homepage copy's two marks (lib/i18n/home/):
  *  - `**words**` -> <strong>
  *  - `*word*`    -> the accent colour
  *

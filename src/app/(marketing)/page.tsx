@@ -63,7 +63,7 @@ export default async function HomePage() {
   return (
     <>
       <OrganizationSchema siteUrl={siteUrl} plans={plans} />
-      <HomePageSections locale="en" href={href} plans={plans} testimonials={testimonials} contentCount={contentCount} />
+      <HomePageSections locale="en" href={href} testimonials={testimonials} contentCount={contentCount} plans={plans} />
     </>
   );
 }

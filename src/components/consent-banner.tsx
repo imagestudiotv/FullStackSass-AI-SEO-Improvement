@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils";
 
 const TAGS = googleTags();
 const GA_ID = TAGS.ga;
-/** Whether there is anything to ask about: GA, a Tag Manager container, or both. */
+/** Whether there is anything to ask about: GA, a Tag Manager container, or both. Without either, "Cookie settings" says so. */
 const ASKS = Boolean(TAGS.ga || TAGS.gtm);
 const MODE = consentMode();
 
@@ -43,12 +43,15 @@ const serverSnapshot = () => UNKNOWN;
  * (whose page titles name customers' articles) and the admin area are never
  * sent to Google, even by a visitor who accepted.
  *
- * Renders nothing, and loads nothing, without NEXT_PUBLIC_GA4_MEASUREMENT_ID
- * or NEXT_PUBLIC_GTM_ID, or before the browser has read the stored answer,
- * so the server's HTML and the first paint never include it. Accept and
- * Decline carry equal weight; either one closes the banner, and "Cookie
- * settings" (footer, privacy page) opens it again. In advanced consent mode
- * the tags also run, cookieless, while the banner waits for an answer.
+ * Asks nothing, and loads nothing, without NEXT_PUBLIC_GA4_MEASUREMENT_ID or
+ * NEXT_PUBLIC_GTM_ID; "Cookie settings" then opens the same panel, saying there
+ * is nothing to choose, and no answer is stored that could later be read as
+ * consent to tags nobody was asked about. It renders nothing before the browser
+ * has read the stored answer, so the server's HTML and the first paint never
+ * include it. Accept and Decline carry equal weight; either one closes the
+ * banner, and "Cookie settings" (footer, privacy page) opens it again. In
+ * advanced consent mode the tags also run, cookieless, while the banner waits
+ * for an answer.
  *
  * The words come from the server as props (`copy`) - never import
  * messages.ts here (lib/i18n/site-chrome.ts explains why). The public pages
@@ -60,7 +63,7 @@ export function ConsentBanner({ copy, locale }: { copy: Partial<Record<Locale, C
   const t = copy[locale ?? splitLocale(pathname).locale] ?? copy.en;
   const consent = useSyncExternalStore(onConsentChange, readConsent, serverSnapshot);
   const [reopened, setReopened] = useState(false);
-  const visible = Boolean(ASKS && t) && (consent === null || reopened);
+  const visible = Boolean(t) && (reopened || (ASKS && consent === null));
 
   const panel = useRef<HTMLElement>(null);
   /** Where focus was when "Cookie settings" was pressed, to return it there. */
@@ -110,6 +113,12 @@ export function ConsentBanner({ copy, locale }: { copy: Partial<Record<Locale, C
 
   if (!visible || !t) return null;
 
+  const close = () => {
+    setReopened(false);
+    opener.current?.focus();
+    opener.current = null;
+  };
+
   const choose = (value: Consent) => {
     if (value === "granted") justAccepted.current = true;
     else forgetGoogleAnalytics(GA_ID);
@@ -126,27 +135,32 @@ export function ConsentBanner({ copy, locale }: { copy: Partial<Record<Locale, C
       className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-50 rounded-xl border bg-background p-4 text-sm shadow-lg sm:inset-x-auto sm:bottom-4 sm:left-4 sm:w-[22rem]"
     >
       <p className="text-foreground">
-        {t.message}{" "}
+        {ASKS ? t.message : t.nothingToChoose}{" "}
         <Link href="/privacy" className="font-medium underline underline-offset-4 hover:no-underline">
           {t.privacy}
         </Link>
       </p>
-      {/* Same size and style, so neither answer is the easier one to give. Thumb-sized on phones. */}
-      <div className="mt-3 grid grid-cols-2 gap-2">
-        <Button type="button" variant="outline" size="lg" className="max-sm:h-10" onClick={() => choose("denied")}>
-          {t.decline}
+      {ASKS ? (
+        /* Same size and style, so neither answer is the easier one to give. Thumb-sized on phones. */
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <Button type="button" variant="outline" size="lg" className="max-sm:h-10" onClick={() => choose("denied")}>
+            {t.decline}
+          </Button>
+          <Button type="button" variant="outline" size="lg" className="max-sm:h-10" onClick={() => choose("granted")}>
+            {t.accept}
+          </Button>
+        </div>
+      ) : (
+        <Button type="button" variant="outline" size="lg" className="mt-3 w-full max-sm:h-10" onClick={close}>
+          {t.close}
         </Button>
-        <Button type="button" variant="outline" size="lg" className="max-sm:h-10" onClick={() => choose("granted")}>
-          {t.accept}
-        </Button>
-      </div>
+      )}
     </section>
   );
 }
 
-/** Opens the banner again. Renders nothing when no Google tag is configured: there is no choice to change. */
+/** Opens the banner again, or, with no Google tag configured, the panel saying there is nothing to choose. */
 export function CookieSettingsButton({ label, className }: { label: string; className?: string }) {
-  if (!ASKS) return null;
   return (
     <button
       type="button"

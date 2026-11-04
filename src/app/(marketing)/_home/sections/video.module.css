@@ -1,0 +1,82 @@
+/*
+ * The walkthrough video - ported as literally as possible from the client's
+ * approved design (design.html, <style id="repget-demo-video-design"> and
+ * <style id="rgx-video-link-fix">). The design's `.rgx ` prefix is dropped
+ * and `body.dark .rgx` became `:global(.dark)`. Values are the design's.
+ */
+
+/* The design's page context: 14px text, normal line height, its ink. */
+.rgx-video-section {
+  font-size: 14px;
+  line-height: normal;
+  color: #212521;
+}
+:global(.dark) .rgx-video-section {
+  color: #f3f0ea;
+}
+
+.rgx-video-section{
+ position:relative;isolation:isolate;overflow:hidden;
+ padding:104px 24px 120px;
+ background:linear-gradient(180deg,#fcfbf8 0%,#fffaf6 52%,#fcfbf8 100%);
+}
+.rgx-video-section:before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
+ background:radial-gradient(ellipse 610px 280px at 50% 59%,rgba(240,112,56,.075),transparent 78%);
+}
+.rgx-video-inner{max-width:1110px;margin:0 auto}
+.rgx-video-heading{text-align:center;max-width:820px;margin:0 auto 34px}
+.rgx-video-eyebrow{display:inline-flex;align-items:center;gap:9px;color:#bb613d;
+ font-size:10px;font-weight:830;letter-spacing:.135em;text-transform:uppercase}
+.rgx-video-eyebrow i{width:7px;height:7px;border-radius:50%;background:#ed723c;box-shadow:0 0 0 4px #ffecdf}
+.rgx-video-heading h2{font-size:clamp(33px,4.4vw,55px);line-height:1.09;
+ letter-spacing:-.064em;font-weight:820;margin:17px 0 13px;color:#252922}
+.rgx-video-heading p{font-size:16px;line-height:1.68;color:#85847d;max-width:640px;margin:0 auto}
+.rgx-video-frame{position:relative;padding:9px;border-radius:28px;
+ background:#fff;border:1px solid #ebe6e0;
+ box-shadow:0 35px 85px rgba(64,43,24,.10),0 4px 14px rgba(64,43,24,.035)}
+.rgx-video-slot{position:relative;aspect-ratio:16/9;min-height:0;overflow:hidden;
+ background:linear-gradient(135deg,#fff8f2,#f5e8dc);border-radius:20px}
+.rgx-video-cover{position:absolute;inset:0;width:100%;height:100%;
+ border:0;padding:0;background:linear-gradient(135deg,#fff8f2,#f5e8dc);
+ display:flex;justify-content:center;align-items:center;overflow:hidden;cursor:pointer}
+.rgx-video-cover img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center;
+ transition:transform .45s ease,filter .45s ease}
+.rgx-video-cover:hover img{transform:scale(1.023);filter:brightness(.97)}
+.rgx-video-cover:after{content:"";position:absolute;inset:0;
+ background:radial-gradient(circle at center,rgba(34,31,25,.08),transparent 40%);pointer-events:none}
+.rgx-video-play{position:relative;z-index:2;display:grid;place-items:center;
+ width:84px;height:84px;border-radius:50%;color:#ee692f;background:rgba(255,255,255,.96);
+ border:1px solid rgba(255,255,255,.9);box-shadow:0 15px 36px rgba(24,20,16,.22);
+ transition:transform .24s ease,box-shadow .24s ease}
+.rgx-video-play svg{display:block;width:26px;height:26px;margin-left:4px;fill:currentColor}
+.rgx-video-cover:hover .rgx-video-play{transform:scale(1.09);box-shadow:0 20px 44px rgba(24,20,16,.23)}
+.rgx-video-cover:focus-visible{outline:4px solid #ef793d;outline-offset:-5px}
+.rgx-video-caption{display:flex;justify-content:space-between;align-items:center;
+ gap:16px;padding:19px 8px 0;color:#8b8b83;font-size:12px}
+.rgx-video-caption strong{color:#3d423c;font-weight:760;letter-spacing:-.01em}
+.rgx-video-caption a{white-space:nowrap;color:#e06635;font-weight:740;text-decoration:none}
+.rgx-video-caption a:hover{text-decoration:underline;text-underline-offset:3px}
+.rgx-video-caption a:focus-visible{outline:3px solid #f5a87c;outline-offset:3px}
+.rgx-video-iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:#171917}
+:global(.dark) .rgx-video-section{background:linear-gradient(180deg,#171917,#1c211c 50%,#171917)}
+:global(.dark) .rgx-video-heading h2,:global(.dark) .rgx-video-caption strong{color:#f4f1e9}
+:global(.dark) .rgx-video-heading p,:global(.dark) .rgx-video-caption{color:#a3a69c}
+:global(.dark) .rgx-video-frame{background:#282c27;border-color:#41463e}
+@media(max-width:700px){
+ .rgx-video-section{padding:67px 14px 81px}
+ .rgx-video-heading{margin-bottom:24px}
+ .rgx-video-heading h2{font-size:clamp(29px,7.6vw,40px);margin:13px 0 9px}
+ .rgx-video-heading p{font-size:13px;line-height:1.65}
+ .rgx-video-frame{padding:5px;border-radius:18px}
+ .rgx-video-slot{border-radius:13px}
+ .rgx-video-play{width:60px;height:60px}
+ .rgx-video-play svg{width:22px;height:22px}
+ .rgx-video-caption{padding:14px 3px 0;font-size:11px;flex-wrap:wrap;gap:9px}
+}
+@media(prefers-reduced-motion:reduce){.rgx-video-cover img,.rgx-video-play{transition:none!important}}
+
+/* <style id="rgx-video-link-fix"> */
+.rgx-video-section{scroll-margin-top:24px}
+
+/* Read by screen readers only. */
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}

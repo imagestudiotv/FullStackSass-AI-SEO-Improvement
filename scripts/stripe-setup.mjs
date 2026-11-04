@@ -2,7 +2,10 @@
  * Creates Stripe products and prices from the seeded plans, then writes each
  * price id back to plans.stripe_price_id.
  *
- * RUN THIS AFTER `npm run db:seed`, once STRIPE_SECRET_KEY is set.
+ * RUN THIS AFTER `npm run db:seed`, once STRIPE_SECRET_KEY is set. It prices
+ * the current catalog (scripts/plan-catalog.mjs), before that catalog goes on
+ * sale. Rows of an earlier catalog are left alone: current subscribers are
+ * billed on their prices.
  *
  * Idempotent, and safe to re-run:
  *  - Products are looked up by metadata.tier, so re-running reuses them.
@@ -18,6 +21,8 @@
 import nextEnv from "@next/env";
 import postgres from "postgres";
 import Stripe from "stripe";
+
+import { CATALOG_VERSION } from "./plan-catalog.mjs";
 
 nextEnv.loadEnvConfig(process.cwd());
 
@@ -53,11 +58,11 @@ const sql = postgres(DIRECT_URL, { connect_timeout: 30 });
 
 const plans = await sql`
   select id, name, tier, interval, currency, price_cents, stripe_price_id
-  from plans where is_active = true order by sort_order, price_cents
+  from plans where catalog_version = ${CATALOG_VERSION} order by sort_order, price_cents
 `;
 
 if (plans.length === 0) {
-  console.error("No active plans. Run `npm run db:seed` first.");
+  console.error("This catalog has no plans. Run `npm run db:seed` first.");
   await sql.end();
   process.exit(1);
 }
@@ -139,7 +144,7 @@ for (const plan of plans) {
 
 const final = await sql`
   select name, tier, interval, currency, price_cents, stripe_price_id
-  from plans where is_active = true order by sort_order, price_cents
+  from plans where catalog_version = ${CATALOG_VERSION} order by sort_order, price_cents
 `;
 console.table(final.map((r) => ({ ...r })));
 

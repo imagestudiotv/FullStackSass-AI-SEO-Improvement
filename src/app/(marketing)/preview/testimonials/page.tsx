@@ -3,7 +3,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { isAdmin } from "@/lib/admin/guard";
-import { listPlansForPrebuiltPage } from "@/lib/billing";
 import { isLocale, LOCALES, localePath, type Locale } from "@/lib/i18n/config";
 import { listTestimonialsForPreview } from "@/lib/marketing/testimonials-db";
 
@@ -35,7 +34,7 @@ export default async function TestimonialsPreviewPage({
 
   const lang = (await searchParams).lang;
   const locale: Locale = typeof lang === "string" && isLocale(lang) ? lang : "en";
-  const [plans, cards] = await Promise.all([listPlansForPrebuiltPage(), listTestimonialsForPreview()]);
+  const cards = await listTestimonialsForPreview();
   const drafts = cards.filter((card) => !card.published).length;
 
   return (
@@ -69,9 +68,9 @@ export default async function TestimonialsPreviewPage({
         </div>
       </div>
       <HomePageSections
+        plans={[]}
         locale={locale}
         href={(path) => localePath(locale, path)}
-        plans={plans}
         testimonials={cards}
         contentCount={null}
       />

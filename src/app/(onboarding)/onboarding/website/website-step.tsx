@@ -53,6 +53,7 @@ import { previewWebsite, type WebsitePreview } from "@/lib/websites/preview";
 export function WebsiteStep({
   t = getMessages("en").app.onboarding,
   initialUrl = "",
+  plan,
 }: {
   /** This step's copy, defaulting to English. */
   t?: Messages["app"]["onboarding"];
@@ -62,6 +63,8 @@ export function WebsiteStep({
    * field: nothing is looked up or added until they press the button.
    */
   initialUrl?: string;
+  /** The plan whose button was pressed, passed on to the plan step. */
+  plan?: string;
 } = {}) {
   const router = useRouter();
   const [value, setValue] = useState(initialUrl);
@@ -122,7 +125,7 @@ export function WebsiteStep({
       screen would offer to add another one from inside the first one's
       setup. A finished step is not somewhere to return to.
     */
-    router.replace(`/onboarding/plan?site=${result.data.id}`);
+    router.replace(`/onboarding/plan?site=${result.data.id}${plan ? `&plan=${encodeURIComponent(plan)}` : ""}`);
   }
 
   const hasLooked = preview !== null;

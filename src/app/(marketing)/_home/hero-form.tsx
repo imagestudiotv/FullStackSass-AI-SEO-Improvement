@@ -1,76 +1,85 @@
 "use client";
 
-import { ArrowRight, ArrowUpRight, Globe, Mail } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useId, useMemo, useRef, useState, useTransition, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, useTransition, type FormEvent, type ReactNode } from "react";
 
-import type { HomeRedesignCopy } from "@/lib/i18n/home-redesign";
-import styles from "./home.module.css";
+import { CALLBACK_URL } from "@/lib/auth/next";
+import type { FinalCtaCopy } from "@/lib/i18n/home/final-cta";
+import type { HeroCopy } from "@/lib/i18n/home/hero";
+import { JoinWithGoogle } from "./join-with-google";
+import styles from "./sections/hero.module.css";
+import { cleanEmail, cleanWebsite, signUpWithEmail, signUpWithWebsite, websiteStep } from "./start-field";
 
-/** Every word the field shows, handed down by the hero (a server component). */
+/** Every word the field and the row under it show, handed down by the hero (a server component). */
 export type HeroFormStrings = Pick<
-  HomeRedesignCopy["hero"],
-  "websiteLabel" | "emailLabel" | "emailPlaceholder" | "startTrial" | "useEmail" | "useWebsite" | "invalidWebsite" | "invalidEmail"
->;
+  HeroCopy["hero"],
+  | "websiteLabel"
+  | "emailLabel"
+  | "websitePlaceholder"
+  | "emailPlaceholder"
+  | "startTrial"
+  | "useEmail"
+  | "useWebsite"
+  | "invalidWebsite"
+  | "invalidEmail"
+  | "moreWays"
+  | "noWebsite"
+  | "buildOne"
+> &
+  Pick<FinalCtaCopy["form"], "emptyWebsite" | "emptyEmail">;
 
 type Mode = "website" | "email";
 
-/**
- * Accepts what people actually type - "acme.com", "www.acme.com",
- * "https://acme.com/shop" - and returns it trimmed, or null.
- *
- * Deliberately loose: this only decides whether the address is worth
- * carrying through sign-up. The website step re-validates it (and owns the
- * reachability checks), so a second strict copy of those rules here would
- * only drift from them. URL() also punycodes an international domain, hence
- * the xn-- top-level domains.
- */
-function cleanWebsite(raw: string): string | null {
-  const value = raw.trim();
-  if (!value || /\s/.test(value)) return null;
-  try {
-    const url = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(value) ? value : `https://${value}`);
-    if (url.protocol !== "https:" && url.protocol !== "http:") return null;
-    const host = /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:[a-z]{2,63}|xn--[a-z0-9-]{2,59})$/i;
-    return host.test(url.hostname) ? value : null;
-  } catch {
-    return null;
-  }
-}
-
-function cleanEmail(raw: string): string | null {
-  const value = raw.trim();
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) ? value : null;
-}
+/** The design's timings (`rgx-balanced-interactions`): first start, after a switch, after the field is emptied. */
+const START_DELAY = 450;
+const SWITCH_DELAY = 170;
+const CLEARED_DELAY = 580;
 
 /**
- * The hero's one field: a website by default, an email on request (client's
- * design, 2026-11-03: "Use your email instead").
+ * The hero's field (client's design, 2026-11-03): a website by default, an
+ * email on request ("Use your email instead"), and under it the way to ask
+ * for a website when there is none.
  *
  * It only navigates. A website goes through sign-up to the website step with
  * the address pre-filled (`?next=` -> /onboarding/website?domain=); an email
  * goes to sign-up with the address pre-filled (`?email=`, read by the sign-up
  * page). Nothing is created or crawled from here, so there is one sign-up and
- * one website check, not a second copy of either.
+ * one website check, not a second copy of either. "Join with Google" lives here
+ * too because it carries whatever has been typed so far: a valid website to
+ * the website step, a valid email as the account Google offers first.
+ *
+ * The benefits and "See how it works" sit between and beside those controls in
+ * the design, so the hero hands them in rather than wrapping them in here.
  *
  * The placeholder types itself out, as drawn. It is only ever the
  * placeholder - never the field's value, so nothing a visitor did not type
  * can be submitted - and it stops while the field holds text, while the tab
- * is hidden, and entirely under reduced motion.
+ * is hidden, and entirely under reduced motion (the whole example shows).
  */
 export function HeroForm({
   strings,
-  websiteExamples,
   signUpPath,
   onboardingPath,
+  buildPath,
+  googleLabel,
+  googleIcon,
+  benefits,
+  watch,
 }: {
   strings: HeroFormStrings;
-  /** Example addresses the placeholder types in turn, in the reader's language. */
-  websiteExamples: string[];
   /** Locale-aware /sign-up. */
   signUpPath: string;
   /** Locale-aware /onboarding/website, where a typed website is carried to. */
   onboardingPath: string;
+  /** Locale-aware page to ask for a website to be built (the contact page). */
+  buildPath: string;
+  googleLabel: string;
+  googleIcon: ReactNode;
+  /** The row of benefits under the field. */
+  benefits: ReactNode;
+  /** The link beside "Join with Google". */
+  watch: ReactNode;
 }) {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("website");
@@ -79,21 +88,20 @@ export function HeroForm({
   const [typed, setTyped] = useState<{ mode: Mode; text: string } | null>(null);
   const [pending, startTransition] = useTransition();
   const input = useRef<HTMLInputElement>(null);
+  const nextDelay = useRef(START_DELAY);
   const inputId = useId();
   const errorId = useId();
 
-  const emailExample = strings.emailPlaceholder;
-  // Memoised: a new array each render would restart the typing at every letter it types.
-  const examples = useMemo(() => (mode === "website" ? websiteExamples : [emailExample]), [mode, websiteExamples, emailExample]);
+  const isWebsite = mode === "website";
+  const example = isWebsite ? strings.websitePlaceholder : strings.emailPlaceholder;
   const hasValue = value !== "";
 
   useEffect(() => {
-    if (hasValue || examples.length === 0) return;
+    if (hasValue || !example) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
-    // The design's timings: type, hold, erase, a breath, the next example.
+    // Type, hold, erase, a breath, again - the design's rhythm.
     let timer: ReturnType<typeof setTimeout>;
-    let index = 0;
     let letters = 0;
     let erasing = false;
     const step = () => {
@@ -101,9 +109,8 @@ export function HeroForm({
         timer = setTimeout(step, 600);
         return;
       }
-      const text = examples[index % examples.length]!;
-      setTyped({ mode, text: text.slice(0, letters) });
-      if (!erasing && letters < text.length) {
+      setTyped({ mode, text: example.slice(0, letters) });
+      if (!erasing && letters < example.length) {
         letters++;
         timer = setTimeout(step, 86);
       } else if (!erasing) {
@@ -114,19 +121,24 @@ export function HeroForm({
         timer = setTimeout(step, 47);
       } else {
         erasing = false;
-        index++;
         timer = setTimeout(step, 560);
       }
     };
-    timer = setTimeout(step, 450);
+    const delay = nextDelay.current;
+    // The design empties the placeholder first, then starts typing.
+    timer = setTimeout(() => {
+      setTyped({ mode, text: "" });
+      timer = setTimeout(step, delay);
+    }, 0);
     return () => clearTimeout(timer);
-  }, [examples, mode, hasValue]);
+  }, [example, mode, hasValue]);
 
   // The full example until the typing starts: what the server renders, and
   // what reduced motion keeps.
-  const placeholder = typed && typed.mode === mode ? typed.text : (examples[0] ?? "");
+  const placeholder = typed && typed.mode === mode ? typed.text : example;
 
   function switchMode() {
+    nextDelay.current = SWITCH_DELAY;
     setMode((current) => (current === "website" ? "email" : "website"));
     setValue("");
     setError(null);
@@ -137,7 +149,12 @@ export function HeroForm({
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (mode === "website") {
+    if (!value.trim()) {
+      setError(isWebsite ? strings.emptyWebsite : strings.emptyEmail);
+      input.current?.focus();
+      return;
+    }
+    if (isWebsite) {
       const domain = cleanWebsite(value);
       if (!domain) {
         setError(strings.invalidWebsite);
@@ -145,8 +162,7 @@ export function HeroForm({
         return;
       }
       setError(null);
-      const next = `${onboardingPath}?domain=${encodeURIComponent(domain)}`;
-      startTransition(() => router.push(`${signUpPath}?next=${encodeURIComponent(next)}`));
+      startTransition(() => router.push(signUpWithWebsite(signUpPath, onboardingPath, domain)));
       return;
     }
     const email = cleanEmail(value);
@@ -156,58 +172,98 @@ export function HeroForm({
       return;
     }
     setError(null);
-    startTransition(() => router.push(`${signUpPath}?email=${encodeURIComponent(email)}`));
+    startTransition(() => router.push(signUpWithEmail(signUpPath, email)));
   }
 
-  const isWebsite = mode === "website";
-  const Icon = isWebsite ? Globe : Mail;
+  // What "Join with Google" carries. Anything not yet valid is left behind: it never blocks Google.
+  const typedDomain = isWebsite ? cleanWebsite(value) : null;
+  const typedEmail = isWebsite ? null : cleanEmail(value);
+  const googleSignUp = typedDomain
+    ? signUpWithWebsite(signUpPath, onboardingPath, typedDomain)
+    : typedEmail
+      ? signUpWithEmail(signUpPath, typedEmail)
+      : signUpPath;
 
   return (
     <>
-      {/* noValidate: our own message, in the page's language, rather than the browser's. */}
-      <form className={styles.form} onSubmit={handleSubmit} noValidate>
-        <Icon className={styles.formIcon} aria-hidden="true" />
-        <label htmlFor={inputId} className={styles.srOnly}>
-          {isWebsite ? strings.websiteLabel : strings.emailLabel}
-        </label>
-        <input
-          ref={input}
-          id={inputId}
-          name={isWebsite ? "website" : "email"}
-          type={isWebsite ? "text" : "email"}
-          inputMode={isWebsite ? "url" : "email"}
-          autoComplete={isWebsite ? "url" : "email"}
-          autoCapitalize="none"
-          spellCheck={false}
-          required
-          placeholder={placeholder}
-          value={value}
-          onChange={(event) => {
-            setValue(event.target.value);
-            if (error) setError(null);
-          }}
-          aria-invalid={error ? true : undefined}
-          aria-describedby={error ? errorId : undefined}
-        />
-        <button type="submit" className={styles.primary} disabled={pending}>
-          <span>{strings.startTrial}</span>
-          <span className={styles.primaryArrow} aria-hidden="true">
-            <ArrowRight />
-          </span>
-        </button>
-      </form>
+      <div className={styles["rgx-start-spotlight"]}>
+        <div className={styles["rgx-form-highlight"]}>
+          {/* noValidate: our own message, in the page's language, rather than the browser's. */}
+          <form className={styles["rgx-form"]} onSubmit={handleSubmit} noValidate>
+            <span className={styles["rgx-input-icon"]} aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M3 12h18M12 3c2.5 2.5 4 5.5 4 9s-1.5 6.5-4 9c-2.5-2.5-4-5.5-4-9s1.5-6.5 4-9Z" />
+              </svg>
+            </span>
+            <label htmlFor={inputId} className={styles["rgx-sr-only"]}>
+              {isWebsite ? strings.websiteLabel : strings.emailLabel}
+            </label>
+            <input
+              ref={input}
+              id={inputId}
+              name={isWebsite ? "website" : "email"}
+              type={isWebsite ? "text" : "email"}
+              inputMode={isWebsite ? "url" : "email"}
+              autoComplete={isWebsite ? "url" : "email"}
+              autoCapitalize="none"
+              spellCheck={false}
+              required
+              placeholder={placeholder}
+              value={value}
+              onChange={(event) => {
+                const next = event.target.value;
+                // Emptied by hand: the design waits a little longer before typing again.
+                if (next === "") nextDelay.current = CLEARED_DELAY;
+                setValue(next);
+                if (error) setError(null);
+              }}
+              aria-invalid={error ? true : undefined}
+              aria-describedby={error ? errorId : undefined}
+            />
+            <button type="submit" className={styles["rgx-primary"]} disabled={pending}>
+              <span>{strings.startTrial}</span>
+              <span className={styles["rgx-primary-arr"]} aria-hidden="true">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8">
+                  <path d="M5 10h10m-4-4 4 4-4 4" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </span>
+            </button>
+          </form>
+        </div>
+      </div>
       {/* Always in the page, so a screen reader hears the message when it appears. */}
       <div aria-live="polite">
         {error ? (
-          <p id={errorId} className={styles.formError}>
+          <p id={errorId} className={styles["rgx-form-error"]}>
             {error}
           </p>
         ) : null}
       </div>
-      <button type="button" className={styles.modeSwitch} onClick={switchMode}>
-        {isWebsite ? strings.useEmail : strings.useWebsite}
-        <ArrowUpRight className="size-3.5" aria-hidden="true" />
-      </button>
+      <div className={styles["rgx-no-website-options"]} role="group" aria-label={strings.moreWays}>
+        <button type="button" className={styles["rgx-mode-switch"]} onClick={switchMode}>
+          {isWebsite ? strings.useEmail : strings.useWebsite} <b aria-hidden="true">↗</b>
+        </button>
+        <div className={styles["rgx-build-prompt"]}>
+          <span>{strings.noWebsite}</span>
+          <Link className={styles["rgx-website-creation-link"]} href={buildPath}>
+            {strings.buildOne} <b aria-hidden="true">↗</b>
+          </Link>
+        </div>
+      </div>
+      {benefits}
+      <div className={styles["rgx-hero-actions"]}>
+        <JoinWithGoogle
+          className={styles["rgx-google"]}
+          signUpHref={googleSignUp}
+          next={typedDomain ? websiteStep(onboardingPath, typedDomain) : CALLBACK_URL}
+          loginHint={typedEmail ?? undefined}
+        >
+          {googleIcon}
+          <span>{googleLabel}</span>
+        </JoinWithGoogle>
+        {watch}
+      </div>
     </>
   );
 }

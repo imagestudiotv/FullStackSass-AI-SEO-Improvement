@@ -198,6 +198,15 @@ describe("statuses, prices and allowances", () => {
   it("reads a negative limit as unlimited, never as -1", () => {
     const unlimited = plan({ articleLimit: -1 });
     expect(planFeatures(unlimited, en.billing, "en")[0]).toBe("Unlimited articles written each month");
+  });
+
+  it("adds a plan's social posts after the lines the upgrade strip reads, and none for a plan that states none", () => {
+    const stating = { articleLimit: 60, keywordLimit: 300, monthlyCredits: 250, socialPostLimit: 90 } as PlanRow;
+    const lines = planFeatures(stating, en.billing, "en");
+    expect(lines).toHaveLength(5);
+    expect(lines[3]).toBe("250 credits each month");
+    expect(lines[4]).toBe("90 social posts each month");
+    expect(planFeatures({ ...stating, socialPostLimit: 0 }, en.billing, "en")).toHaveLength(4);
     const sentence = upgradeSentence(plan({ name: "Scale", articleLimit: -1, keywordLimit: 1500 }), en.billing, "en");
     expect(sentence).not.toContain("-1");
     expect(sentence).toContain("1,500 search terms tracked");

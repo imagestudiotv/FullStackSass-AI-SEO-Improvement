@@ -4,15 +4,19 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { PlanRow } from "@/lib/billing-shared";
 import { LOCALES, localePath, type Locale } from "@/lib/i18n/config";
-import { homeRedesignCopy } from "@/lib/i18n/home-redesign";
+import { heroCopy } from "@/lib/i18n/home/hero";
+import { copilotFounderReviewsCopy } from "@/lib/i18n/home/copilot-founder-reviews";
+import { faqCopy } from "@/lib/i18n/home/faq";
+import { pricingCopy } from "@/lib/i18n/home/pricing";
 import { getMessages } from "@/lib/i18n/messages";
 import type { Testimonial } from "@/lib/marketing/testimonials";
+import { TIERS } from "../../../scripts/plan-catalog.mjs";
 
 /**
- * The redesigned homepage (client's design, 2026-11-03) as each language
- * first renders it: the design's section order, one h1, nothing from YouTube
- * on the first paint, and the honest states - no reviews while none is
- * published, no counter without a real count, no invented figures.
+ * The homepage (client's approved design, 2026-11-04) as each language first
+ * renders it: the design's section order, one h1, nothing from YouTube on the
+ * first paint, no reviews while none is published, and no counter without a
+ * real count.
  */
 
 vi.mock("next/link", () => ({
@@ -32,8 +36,6 @@ import { Testimonials } from "./testimonials-section";
 
 /** Static markup escapes quotes and apostrophes; compare against the escaped form. */
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/'/g, "&#x27;").replace(/</g, "&lt;");
-/** The copy's `*accent*` / `**bold**` marks removed: what a reader sees. */
-const plain = (s: string) => s.replace(/\*\*([^*]+)\*\*|\*([^*]+)\*/g, (_m, b?: string, a?: string) => b ?? a ?? "");
 
 function plan(over: Partial<PlanRow>): PlanRow {
   return {
@@ -56,15 +58,20 @@ function plan(over: Partial<PlanRow>): PlanRow {
 }
 
 const PLANS = [plan({ tier: "grow", name: "Grow" }), plan({ tier: "scale", name: "Scale", priceCents: 29900, articleLimit: 100 })];
+/** The catalog on sale (scripts/plan-catalog.mjs), as the plans table gives it. */
+const ON_SALE = TIERS.flatMap((tier) => [
+  plan({ tier: tier.tier, name: tier.name, priceCents: tier.monthlyCents, articleLimit: tier.articleLimit, socialPostLimit: tier.socialPostLimit, sortOrder: tier.sortOrder }),
+  plan({ id: `${tier.tier}-year`, tier: tier.tier, name: `${tier.name} (Annual)`, interval: "year", priceCents: tier.monthlyCents * 10, articleLimit: tier.articleLimit, socialPostLimit: tier.socialPostLimit, sortOrder: tier.sortOrder }),
+]);
 // A fixture, never shipped: the homepage passes the cards published in Admin -> Testimonials.
 const REVIEW: Testimonial = { name: "Fixture Studio", role: "Fixture role", quote: "Fixture quote.", avatar: null };
 
 function renderHome(
   locale: Locale,
-  { plans = PLANS, testimonials = [], contentCount = null }: { plans?: PlanRow[]; testimonials?: Testimonial[]; contentCount?: number | null } = {},
+  { testimonials = [], contentCount = null, plans = ON_SALE }: { testimonials?: Testimonial[]; contentCount?: number | null; plans?: PlanRow[] } = {},
 ) {
   const href = (path: string) => (locale === "en" ? path : localePath(locale, path));
-  return renderToStaticMarkup(createElement(HomePageSections, { locale, href, plans, testimonials, contentCount }));
+  return renderToStaticMarkup(createElement(HomePageSections, { locale, href, testimonials, contentCount, plans }));
 }
 
 /** Where each marker first appears, so the order can be compared. */
@@ -80,21 +87,20 @@ const sectionIds = (html: string) => [...html.matchAll(/<section[^>]*?id="([^"]+
 
 describe("homepage sections", () => {
   it.each(LOCALES)("%s: follows the design's order", (locale) => {
-    const c = homeRedesignCopy(locale);
     const html = renderHome(locale, { testimonials: [REVIEW], contentCount: 1234 });
     const order = positions(html, [
       "<h1",
-      esc(c.ribbon.counterLabel),
+      esc(heroCopy(locale).ribbon.counterLabel),
       'id="features"',
       'id="growth-engines"',
       'id="repget-demo-video"',
       'id="how-it-works"',
-      'id="repget-copilot"',
+      'id="repget-copilot-connect"',
       'id="repget-founder"',
       'id="repget-reviews"',
       'id="pricing"',
-      'id="faq"',
-      esc(plain(c.cta.overline)),
+      'id="repget-faq"',
+      'id="repget-final-cta"',
     ]);
     expect(order).toEqual([...order].sort((a, b) => a - b));
   });
@@ -105,7 +111,7 @@ describe("homepage sections", () => {
 
   it("gives every language the same sections", () => {
     const english = sectionIds(renderHome("en"));
-    expect(english).toEqual(["features", "growth-engines", "repget-demo-video", "how-it-works", "repget-copilot", "repget-founder", "pricing", "faq"]);
+    expect(english).toEqual(["features", "growth-engines", "repget-demo-video", "how-it-works", "repget-copilot-connect", "repget-founder", "pricing", "repget-faq", "repget-final-cta"]);
     for (const locale of LOCALES) expect(sectionIds(renderHome(locale))).toEqual(english);
   });
 
@@ -126,27 +132,25 @@ describe("homepage sections", () => {
 
   it.each(LOCALES)("%s: shows the reassurances under the hero", (locale) => {
     const html = renderHome(locale);
-    for (const item of getMessages(locale).home.heroAssurances) expect(html).toContain(esc(item));
+    for (const item of heroCopy(locale).hero.benefits) expect(html).toContain(esc(item));
   });
 
   it("shows the content counter only with a real count", () => {
-    const c = homeRedesignCopy("en");
-    expect(renderHome("en", { contentCount: null })).not.toContain(esc(c.ribbon.counterLabel));
+    const label = esc(heroCopy("en").ribbon.counterLabel);
+    expect(renderHome("en", { contentCount: null })).not.toContain(label);
     const html = renderHome("en", { contentCount: 1234 });
-    expect(html).toContain(esc(c.ribbon.counterLabel));
+    expect(html).toContain(label);
     // The true figure is in the first paint; the count-up is motion on top.
     expect(html).toContain("1,234");
   });
 
-  it("invents no figures from the design", () => {
-    // The visible words only: icon drawings are full of coordinates like 4.9.
+  it("shows the real content count, not the design's ticking 12,840", () => {
+    // The hero now carries the design's own texts (owner, 2026-11-04: 4.9/5,
+    // +200%, 90+ ...); the counter alone stays real (lib/marketing/content-count.ts).
+    // The visible words only: icon drawings are full of coordinates.
     const text = renderHome("en", { testimonials: [REVIEW], contentCount: 1234 }).replace(/<[^>]*>/g, " ");
-    for (const made of ["4.9", "12,840", "+200%", "90+"]) expect(text).not.toContain(made);
-  });
-
-  it.each(LOCALES)("%s: names no platform RepGet does not connect to in its copy", (locale) => {
-    const c = homeRedesignCopy(locale);
-    expect(JSON.stringify({ ...c, founder: undefined })).not.toMatch(/linkedin|business profile/i);
+    expect(text).not.toContain("12,840");
+    for (const shown of ["4.9/5", "+200% organic clicks", "90+ posts a month"]) expect(text).toContain(shown);
   });
 
   it("leaves out the reviews and the reviewer pill while none is published", () => {
@@ -162,17 +166,121 @@ describe("homepage sections", () => {
     expect(renderHome("it", { testimonials: [REVIEW] })).toMatch(/lang="en"[^>]*>(?:<[^>]+>)*Fixture quote\./);
   });
 
-  it("uses the real plan prices, and says so when there is no monthly plan", () => {
+  it("always has the platform video between the reviews, with or without many", () => {
+    for (const count of [1, 2, 8]) {
+      const html = renderHome("en", { testimonials: Array.from({ length: count }, (_, i) => ({ ...REVIEW, name: `Fixture ${i}` })) });
+      expect(html).toContain(esc(copilotFounderReviewsCopy("en").reviews.videoTitle));
+    }
+  });
+
+  it.each(LOCALES)("%s: shows the design's tag for a reviewer it names, none for anyone else", (locale) => {
+    const tags = copilotFounderReviewsCopy(locale).reviews.tags;
+    expect(renderHome(locale, { testimonials: [{ ...REVIEW, name: "Stefan Coetzer" }] })).toContain(esc(tags["stefan coetzer"]));
+    for (const tag of Object.values(tags)) expect(renderHome(locale, { testimonials: [REVIEW] })).not.toContain(`>${esc(tag)}<`);
+  });
+
+  it("has both buttons under the stories once there is more than six, and only the second without", () => {
+    const { showMore, allFeedback } = copilotFounderReviewsCopy("en").reviews;
+    const cards = (count: number) => Array.from({ length: count }, (_, i) => ({ ...REVIEW, name: `Fixture ${i}` }));
+    const many = renderHome("en", { testimonials: cards(7) });
+    expect(many).toContain(showMore);
+    expect(many).toContain(allFeedback);
+    const six = renderHome("en", { testimonials: cards(6) });
+    expect(six).not.toContain(showMore);
+    expect(six).toContain(allFeedback);
+  });
+
+  it("sets a card without a photograph in the design's letters, over Admin's drawn-letter file", () => {
+    const html = renderHome("en", {
+      testimonials: [
+        { ...REVIEW, name: "Oxford Magic Tours", avatar: "/preview/testimonials/sample-05.webp" },
+        { ...REVIEW, name: "Muhammad Imran", avatar: "/preview/testimonials/sample-04.webp" },
+      ],
+    });
+    expect(html).toContain("<span>OM</span>");
+    expect(html).not.toContain("sample-05.webp");
+    expect(html).toContain("sample-04.webp");
+  });
+
+  it.each(LOCALES)("%s: the copilot shows a placeholder site, not a customer's", (locale) => {
+    const html = renderHome(locale);
+    expect(html).not.toContain("imagestudio.com");
+    expect(html).toContain(esc(copilotFounderReviewsCopy(locale).copilot.site));
+  });
+
+  it("shows the founder's chosen photograph", () => {
+    expect(renderHome("en")).toContain("/images/home/founder-dumitru-culiuc.webp");
+  });
+
+  /** One package's card, as text. */
+  const card = (html: string, label: string) => {
+    const at = html.indexOf(`aria-label="${esc(label)}"`);
+    return html.slice(at, html.indexOf("</article>", at)).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ");
+  };
+
+  it.each(LOCALES)("%s: shows the catalog's three packages, from the plans on sale", (locale) => {
+    const html = renderHome(locale);
+    const { packages } = pricingCopy(locale);
+    expect(card(html, packages.launch.label)).toMatch(/Launch .*€ 99 .* 30 .* 60 /);
+    expect(card(html, packages.grow.label)).toMatch(/Grow .*€ 149 .* 60 .* 90 /);
+    expect(card(html, packages.scale.label)).toMatch(/Scale .*€ 349 .* 100 .* 240 /);
+  });
+
+  it("shows what the plans table charges, not a figure of its own", () => {
+    const html = renderHome("en", { plans: [plan({ tier: "launch", name: "Launch", priceCents: 12300, articleLimit: 41, socialPostLimit: 77 })] });
+    const text = card(html, pricingCopy("en").packages.launch.label);
+    expect(text).toMatch(/€ 123 .* 41 .* 77 /);
+    expect(html).not.toContain(pricingCopy("en").packages.grow.label);
+  });
+
+  it("leaves out the social posts of a plan that states none, and the cards when no plan can be read", () => {
+    const old = renderHome("en", { plans: PLANS });
+    expect(old).not.toContain(pricingCopy("en").posts);
+    expect(old).toContain("€");
+    const none = renderHome("en", { plans: [] });
+    expect(none).toContain('id="pricing"');
+    expect(none).not.toContain(pricingCopy("en").getStarted);
+    expect(none).toContain(pricingCopy("en").talk);
+  });
+
+  it("takes each Get Started to its own plan", () => {
     const html = renderHome("en");
-    expect(html).toContain("€99");
-    expect(html).toContain("€299");
-    expect(renderHome("en", { plans: [plan({ interval: "year" })] })).toContain(esc(getMessages("en").home.unavailable));
+    for (const tier of ["launch", "grow", "scale"]) {
+      expect(html).toContain(`href="/sign-up?next=%2Fonboarding%2Fwebsite%3Fplan%3D${tier}"`);
+    }
+  });
+
+  it("makes Join with Google a working link to sign-up before any script runs", () => {
+    const html = renderHome("en");
+    expect(html).toMatch(new RegExp(`<a[^>]*href="/sign-up"[^>]*>(?:(?!</a>).)*${esc(heroCopy("en").hero.joinGoogle)}`));
+  });
+
+  it.each(LOCALES)("%s: asks for a website to be built on a page that says so", (locale) => {
+    const contact = locale === "en" ? "/contact" : `/${locale}/contact`;
+    expect(renderHome(locale)).toContain(`href="${contact}?about=website_build"`);
+    const { title, subtitle, subject } = getMessages(locale).contact.websiteBuild;
+    expect([title, subtitle, subject].every(Boolean)).toBe(true);
+    expect(title).not.toBe(getMessages(locale).contact.title);
+  });
+
+  it.each(LOCALES)("%s: the FAQ's social post figures are the catalog's", (locale) => {
+    const answers = faqCopy(locale).groups.flatMap((group) => group.items.map((item) => item.answer));
+    const answer = answers.find((text) => text.includes("Launch") && text.includes("Scale"));
+    const figures = answer?.match(/\d+/g)?.map(Number);
+    // Launch, Grow and Scale, then the 1 credit a post costs (Admin -> Credits).
+    expect(figures).toEqual([...TIERS.map((tier) => tier.socialPostLimit), 1]);
   });
 
   it("publishes no FAQ markup of its own - /faq carries it", () => {
     const html = renderHome("en");
-    expect(html).toContain(esc(getMessages("en").faq.items[0].question));
+    expect(html).toContain(esc(faqCopy("en").groups[0].items[0].question));
     expect(html).not.toContain("FAQPage");
+  });
+
+  it.each(LOCALES)("%s: asks the design's 14 questions in three groups", (locale) => {
+    const { groups } = faqCopy(locale);
+    expect(groups.map((g) => g.items.length)).toEqual([7, 5, 2]);
+    expect(renderHome(locale).match(/<summary/g)).toHaveLength(14);
   });
 
   it("keeps the contact link in the reader's language", () => {

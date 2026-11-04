@@ -2,6 +2,7 @@ import "server-only";
 
 import { LOCALES, type Locale } from "@/lib/i18n/config";
 import { homeMenuCopy, type HomeRedesignCopy } from "@/lib/i18n/home-redesign";
+import { siteMenuCopy, type SiteMenuCopy } from "@/lib/i18n/home/site-menu";
 import { getMessages, type Messages } from "@/lib/i18n/messages";
 
 /**
@@ -31,12 +32,16 @@ import { getMessages, type Messages } from "@/lib/i18n/messages";
  * (lib/i18n/home-redesign.ts); they are picked out here for the same reason,
  * so the header never imports that file either - only the menu's slice of it
  * reaches the browser.
+ *
+ * `site` is what the design added around those menus: the drawings inside
+ * the Features menu, each channel's line in the Integrations menu and the
+ * footer's "Back to top" (lib/i18n/home/site-menu.ts).
  */
 export type SiteChromeA11y = Pick<Messages["app"]["common"], "openMenu" | "changeLanguage" | "brandHome" | "close" | "darkMode">;
 
 export type SiteChrome = Record<
   Locale,
-  Pick<Messages, "nav" | "footer" | "consent"> & { a11y: SiteChromeA11y; menu: HomeRedesignCopy["menu"] }
+  Pick<Messages, "nav" | "footer" | "consent"> & { a11y: SiteChromeA11y; menu: HomeRedesignCopy["menu"]; site: SiteMenuCopy }
 >;
 
 /** The same, plus the "page not found" copy, for the 404 page. */
@@ -58,6 +63,7 @@ export function siteChrome(): SiteChrome {
           consent: t.consent,
           a11y: { openMenu, changeLanguage, brandHome, close, darkMode },
           menu: homeMenuCopy(locale),
+          site: siteMenuCopy(locale),
         },
       ];
     }),
