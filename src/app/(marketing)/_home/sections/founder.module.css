@@ -40,7 +40,7 @@
   font-size: 11px;
   letter-spacing: 0.13em;
   font-weight: 780;
-  color: #ce6a37;
+  color: #ab592d;
   line-height: 1;
   text-transform: uppercase;
 }
@@ -165,7 +165,7 @@
 }
 .rp2-founder-pill span:not(.rp2-pill-icon) {
   font-size: 11px;
-  color: #8b8b84;
+  color: #73736e;
   display: block;
   margin-top: 2px;
 }

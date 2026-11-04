@@ -16,7 +16,11 @@ type Fake = {
   pushes: Record<string, unknown>[];
   scripts: { src: string; async: boolean; dataset: Record<string, string> }[];
   cookieWrites: string[];
+  /** What is waiting for a browser event. */
   idle: (() => void)[];
+  /** The delays asked for, and what each would run. */
+  timers: number[];
+  timeouts: (() => void)[];
   storage: Map<string, string>;
   window: Record<string, unknown>;
 };
@@ -29,12 +33,18 @@ function browser(href: string, readyState: DocumentReadyState = "complete", cook
   const scripts: Fake["scripts"] = [];
   const cookieWrites: string[] = [];
   const idle: (() => void)[] = [];
+  const timers: number[] = [];
+  const timeouts: (() => void)[] = [];
   const storage = new Map<string, string>();
   const win: Record<string, unknown> = {
     location: { href, origin: url.origin, hostname: url.hostname, protocol: url.protocol },
-    requestIdleCallback: (fn: () => void) => idle.push(fn),
     addEventListener: (_type: string, fn: () => void) => idle.push(fn),
-    setTimeout: () => 1,
+    removeEventListener: () => {},
+    setTimeout: (fn: () => void, ms: number) => {
+      timeouts.push(fn);
+      timers.push(ms);
+      return 1;
+    },
     clearTimeout: () => {},
     localStorage: {
       getItem: (key: string) => storage.get(key) ?? null,
@@ -68,6 +78,8 @@ function browser(href: string, readyState: DocumentReadyState = "complete", cook
     scripts,
     cookieWrites,
     idle,
+    timers,
+    timeouts,
     storage,
     window: win,
   };
@@ -166,15 +178,25 @@ describe("startGoogleTags", () => {
     expect(fake.dataLayer.filter((entry) => entry[0] === "consent")).toEqual([["consent", "default", DENIED]]);
   });
 
-  it("downloads gtag.js only when the browser is idle, or at once right after Accept, and only once", () => {
-    fake = browser("https://www.repget.com/", "loading");
+  it("downloads gtag.js at the visitor's first scroll, tap or key press, and only once", () => {
+    fake = browser("https://www.repget.com/");
     ga.startGoogleTags(GA_ONLY, { granted: true });
     expect(fake.scripts).toHaveLength(0);
-    fake.idle.shift()!(); // load
-    fake.idle.shift()!(); // idle
+    expect(fake.idle).toHaveLength(4);
+    fake.idle[0]();
+    fake.idle[1]();
     expect(fake.scripts).toEqual([{ src: "https://www.googletagmanager.com/gtag/js?id=G-ABC123XYZ", async: true, dataset: { ga: ID } }]);
 
     ga.startGoogleTags(GA_ONLY, { granted: true, soon: true });
+    expect(fake.scripts).toHaveLength(1);
+  });
+
+  it("downloads gtag.js after the wait for a visitor who does nothing", () => {
+    fake = browser("https://www.repget.com/");
+    ga.startGoogleTags(GA_ONLY, { granted: false });
+    expect(fake.scripts).toHaveLength(0);
+    expect(fake.timers).toEqual([ga.TAGS_WAIT_MS]);
+    fake.timeouts[0]();
     expect(fake.scripts).toHaveLength(1);
   });
 

@@ -307,7 +307,7 @@ export function MarketingNav({ chrome }: { chrome: SiteChrome }) {
               );
             })}
             {links.map((link) => (
-              <Link key={link.href} href={link.href} className={c("nav-link")} onMouseEnter={() => show(null)}>
+              <Link prefetch={false} key={link.href} href={link.href} className={c("nav-link")} onMouseEnter={() => show(null)}>
                 {link.label}
               </Link>
             ))}
@@ -315,10 +315,10 @@ export function MarketingNav({ chrome }: { chrome: SiteChrome }) {
 
           <div className={c("actions")}>
             <ThemeToggle label={t.a11y.darkMode} className={c("theme")} icons={themeIcons} />
-            <Link href="/sign-in" className={c("signin")}>
+            <Link prefetch={false} href="/sign-in" className={c("signin")}>
               {t.nav.signIn}
             </Link>
-            <Link href="/sign-up" className={c("cta")}>
+            <Link prefetch={false} href="/sign-up" className={c("cta")}>
               {t.nav.getStartedCta}{" "}
               <span className={c("cta-arrow")}>
                 <ArrowUpRightIcon fill="none" stroke="white" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
@@ -371,15 +371,15 @@ export function MarketingNav({ chrome }: { chrome: SiteChrome }) {
             );
           })}
           {links.map((link) => (
-            <Link key={link.href} href={link.href} className={c("drawer-link")} onClick={() => setDrawer(false)}>
+            <Link prefetch={false} key={link.href} href={link.href} className={c("drawer-link")} onClick={() => setDrawer(false)}>
               {link.label}
             </Link>
           ))}
           <div className={c("drawer-footer")}>
-            <Link href="/sign-in" onClick={() => setDrawer(false)}>
+            <Link prefetch={false} href="/sign-in" onClick={() => setDrawer(false)}>
               {t.nav.signIn}
             </Link>
-            <Link href="/sign-up" onClick={() => setDrawer(false)}>
+            <Link prefetch={false} href="/sign-up" onClick={() => setDrawer(false)}>
               {t.nav.getStartedCta} ↗
             </Link>
           </div>
@@ -462,7 +462,7 @@ export function MarketingFooterLinks({ chrome }: { chrome: SiteChrome }) {
           <ul>
             {group.items.map((item) => (
               <li key={item.href}>
-                <Link href={item.href}>{item.label}</Link>
+                <Link prefetch={false} href={item.href}>{item.label}</Link>
               </li>
             ))}
             {/* Opens the cookie panel: the choice, or that there is none with no Google tag configured. */}

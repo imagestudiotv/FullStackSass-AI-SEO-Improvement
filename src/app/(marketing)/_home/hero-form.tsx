@@ -246,7 +246,7 @@ export function HeroForm({
         </button>
         <div className={styles["rgx-build-prompt"]}>
           <span>{strings.noWebsite}</span>
-          <Link className={styles["rgx-website-creation-link"]} href={buildPath}>
+          <Link prefetch={false} className={styles["rgx-website-creation-link"]} href={buildPath}>
             {strings.buildOne} <b aria-hidden="true">↗</b>
           </Link>
         </div>

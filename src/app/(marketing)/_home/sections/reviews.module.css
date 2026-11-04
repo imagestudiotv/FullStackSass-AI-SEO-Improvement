@@ -43,7 +43,7 @@
   letter-spacing: 0.16em;
   font-weight: 800;
   text-transform: uppercase;
-  color: #cf6538;
+  color: #af5530;
   background: #fff5ef;
   border: 1px solid #f4ded2;
   border-radius: 99px;
@@ -276,7 +276,7 @@
 }
 .rt-reviewer small {
   font-size: 11px;
-  color: #8d8d87;
+  color: #73736e;
 }
 .rt-quote-symbol {
   font-family: Georgia, serif;
@@ -286,7 +286,7 @@
   margin-top: -9px;
 }
 .rt-review-tag {
-  color: #be6c49;
+  color: #a95f41;
   font-size: 10px;
   letter-spacing: 0.12em;
   font-weight: 800;
@@ -338,7 +338,7 @@
   font: inherit;
   font-size: 12px;
   font-weight: 730;
-  color: #e06a38;
+  color: #b8572d;
 }
 .rt-read span {
   font-size: 18px;
@@ -351,7 +351,7 @@
 .rt-original {
   font-size: 11px;
   font-weight: 660;
-  color: #8a8b83;
+  color: #73736d;
   text-decoration: none;
 }
 .rt-original:hover {
@@ -584,7 +584,7 @@
   font-size: 10px;
   letter-spacing: 0.13em;
   text-transform: uppercase;
-  color: #cc744d;
+  color: #a95f40;
   font-weight: 810;
 }
 .rt-video-footer h3 {
@@ -598,13 +598,13 @@
 .rt-video-footer p {
   font-size: 13px;
   line-height: 1.62;
-  color: #7a7f7b;
+  color: #707571;
   margin: 0 0 14px;
 }
 .rt-video-footer a {
   font-size: 12px;
   font-weight: 760;
-  color: #dd6937;
+  color: #b8572d;
   text-decoration: none;
 }
 .rt-video-footer a:hover {
@@ -845,9 +845,17 @@
 
 /* The small line above a quote (the design's own). */
 .rt-review-tag {
-  color: #be6c49;
+  color: #a95f41;
   font-size: 10px;
   letter-spacing: 0.12em;
   font-weight: 800;
   margin: 24px 0 9px;
 }
+
+/* Dark mode: the text colours darkened for light mode above would not read here. */
+:global(.dark) .rt-section-kicker { color: #d67d57; }
+:global(.dark) .rt-pill { color: #93938d; }
+:global(.dark) .rt-review-tag { color: #c88264; }
+:global(.dark) .rt-read { color: #e27344; }
+:global(.dark) .rt-video-caption-small { color: #d07e5a; }
+:global(.dark) .rt-video-footer > a { color: #e07446; }

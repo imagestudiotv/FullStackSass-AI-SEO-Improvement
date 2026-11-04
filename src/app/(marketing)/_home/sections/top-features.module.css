@@ -359,7 +359,7 @@
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.16em;
-  color: #9e9388;
+  color: #7a716a;
 }
 .rfs-kicker::before {
   content: "";
@@ -527,7 +527,7 @@
   display: block;
   margin-top: 3px;
   font-size: 11px;
-  color: #7e786f;
+  color: #79736b;
 }
 .rfs-tags {
   display: flex;
@@ -560,7 +560,7 @@
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: #9b9288;
+  color: #7a736b;
 }
 .rfs-stat strong {
   display: block;
@@ -613,7 +613,7 @@
 }
 .rfs-road-step span {
   font-size: 11px;
-  color: #7f796f;
+  color: #79736a;
 }
 .rfs-detail-copy p {
   max-width: 640px;
@@ -683,7 +683,7 @@
 }
 .hp-product-bottom > span {
   font-size: 10px;
-  color: #a39b91;
+  color: #756f68;
 }
 .hp-product-bottom button {
   margin-left: auto;
@@ -694,7 +694,7 @@
   font-size: 10px;
   font-weight: 760;
   white-space: nowrap;
-  color: #ca5b2e;
+  color: #bb552b;
 }
 
 /* ---------------------------------------------------------------- */
@@ -781,3 +781,8 @@
     font-size: 9px;
   }
 }
+
+/* Dark mode: the text colours darkened for light mode above would not read here. */
+:global(.dark) .rfs-stat small { color: #9d958b; }
+:global(.dark) .rfs-kicker { color: #a0958a; }
+:global(.dark) .hp-product-bottom > span { color: #a39b91; }

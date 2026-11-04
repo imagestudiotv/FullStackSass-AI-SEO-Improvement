@@ -163,7 +163,7 @@ export function Copilot({ locale, href }: SectionProps) {
               ))}
             </ul>
             <div className={c("rgx-connect-actions")}>
-              <Link href={href("/sign-up")} className={c("rgx-connect-btn")}>
+              <Link prefetch={false} href={href("/sign-up")} className={c("rgx-connect-btn")}>
                 {t.connect}
               </Link>
               <a href="#repget-demo-video" className={c("rgx-connect-ghost")}>

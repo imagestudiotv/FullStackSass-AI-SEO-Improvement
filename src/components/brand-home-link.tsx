@@ -46,6 +46,8 @@ export function BrandHomeLink({
   return (
     <Link
       href={home}
+      // Already home: this page's own data would be downloaded for a link that only scrolls.
+      prefetch={atHome ? false : undefined}
       aria-label={labels?.[language] ?? "RepGet home"}
       className={className}
       onClick={(event) => {

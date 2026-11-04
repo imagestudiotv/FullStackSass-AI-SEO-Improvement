@@ -86,7 +86,7 @@ export function Pricing({ locale, href, plans }: SectionProps & { plans: PlanRow
                     <li key={bullet}>{bullet}</li>
                   ))}
                 </ul>
-                <Link className={c("rgp-action")} href={signUpForPlan(plan.tier)}>
+                <Link prefetch={false} className={c("rgp-action")} href={signUpForPlan(plan.tier)}>
                   {t.getStarted} <span aria-hidden="true">↗</span>
                 </Link>
               </article>
@@ -99,7 +99,7 @@ export function Pricing({ locale, href, plans }: SectionProps & { plans: PlanRow
             <strong>{t.moreTitle}</strong>
             <p>{t.moreBody}</p>
           </div>
-          <Link href={href("/contact")}>{t.talk} ↗</Link>
+          <Link prefetch={false} href={href("/contact")}>{t.talk} ↗</Link>
         </div>
       </div>
     </section>

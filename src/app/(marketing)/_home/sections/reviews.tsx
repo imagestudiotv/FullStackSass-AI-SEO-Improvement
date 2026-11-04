@@ -138,7 +138,7 @@ export function Reviews({ locale, href, testimonials }: SectionProps & { testimo
             <strong>{t.proofStrong}</strong> {t.proofRest}
           </span>
           <span className={c("rt-social-line")} aria-hidden="true" />
-          <Link href={stories}>
+          <Link prefetch={false} href={stories}>
             {t.viewOriginals} <span aria-hidden="true">&#8599;</span>
           </Link>
         </div>

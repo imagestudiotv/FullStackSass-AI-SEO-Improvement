@@ -189,12 +189,20 @@ function gtag(...args: unknown[]): void {
   window.gtag?.(...args);
 }
 
+/** A visitor who neither scrolls nor taps is still counted after this long. */
+export const TAGS_WAIT_MS = 20_000;
+
+/** What shows the visitor is there: any of these starts the download. */
+const VISITOR_EVENTS = ["pointerdown", "keydown", "scroll", "touchstart"] as const;
+
 /**
  * Queues the tags' setup and downloads their scripts. Idempotent. Consent
  * comes first, denied, before anything that could reach Google, then the
  * visitor's answer when it is Accept. `soon` is for the moment the visitor
- * accepts (and for a conversion); otherwise the download waits until the
- * page has loaded and the browser is idle, so it never competes with it.
+ * accepts (and for a conversion); otherwise the download waits for the
+ * visitor's first scroll, tap or key press, or TAGS_WAIT_MS: Google's scripts
+ * are most of the page's JavaScript, and everything queued here is sent once
+ * they arrive, so waiting costs only the visits of someone who does nothing.
  */
 export function startGoogleTags(tags: GoogleTags, options: { granted: boolean; soon?: boolean }): void {
   if (!tags.ga && !tags.gtm) return;
@@ -230,11 +238,13 @@ export function startGoogleTags(tags: GoogleTags, options: { granted: boolean; s
     load();
     return;
   }
-  // Older Safari has no requestIdleCallback.
-  const idle = () =>
-    typeof window.requestIdleCallback === "function" ? window.requestIdleCallback(load, { timeout: 4000 }) : window.setTimeout(load, 1500);
-  if (document.readyState === "complete") idle();
-  else window.addEventListener("load", idle, { once: true });
+  const start = () => {
+    window.clearTimeout(timer);
+    for (const type of VISITOR_EVENTS) window.removeEventListener(type, start);
+    load();
+  };
+  const timer = window.setTimeout(start, TAGS_WAIT_MS);
+  for (const type of VISITOR_EVENTS) window.addEventListener(type, start, { once: true, passive: true });
 }
 
 function addScript(src: string, id: string): void {

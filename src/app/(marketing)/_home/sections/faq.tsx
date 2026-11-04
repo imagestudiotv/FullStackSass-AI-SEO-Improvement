@@ -39,7 +39,7 @@ export function Faq({ locale, href }: SectionProps) {
           <h2 id="rpf-heading">{t.title}</h2>
           <p>{t.intro}</p>
           <div className={c("rpf-contact")}>
-            {t.contactLead} <Link href={href("/contact")}>{t.contact}</Link>
+            {t.contactLead} <Link prefetch={false} href={href("/contact")}>{t.contact}</Link>
           </div>
         </div>
         <div className={c("rpf-list")}>
