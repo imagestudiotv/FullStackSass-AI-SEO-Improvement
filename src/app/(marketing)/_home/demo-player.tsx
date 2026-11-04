@@ -42,6 +42,9 @@ export function DemoPlayer({ playLabel, frameTitle, lang }: { playLabel: string;
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={poster === "best" ? sources.src : sources.fallback}
+              srcSet={poster === "best" ? sources.srcSet : undefined}
+              // A phone's frame is about 90% of the screen; the 640 picture is sharp enough for it.
+              sizes="(max-width: 480px) 84vw, (max-width: 1000px) 90vw, 1000px"
               alt=""
               loading="lazy"
               decoding="async"

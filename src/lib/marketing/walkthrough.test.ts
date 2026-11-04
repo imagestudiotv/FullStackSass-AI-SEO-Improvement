@@ -36,6 +36,7 @@ describe("walkthrough video", () => {
   it("uses 16:9 poster sizes, with a fallback that exists for every video", () => {
     const poster = walkthroughPoster();
     expect(poster.srcSet).toContain("mqdefault.webp 320w");
+    expect(poster.srcSet).toContain("sddefault.webp 640w");
     expect(poster.srcSet).toContain("maxresdefault.webp 1280w");
     expect(poster.fallback).toBe("https://i.ytimg.com/vi/PqNu8DzBlTQ/hqdefault.jpg");
   });
