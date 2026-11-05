@@ -3,7 +3,8 @@
  * page (repget.com/pricing?ref=dami). next.config.ts sends such a request
  * through /go/<name>?to=<page> (src/app/go/[code]/route.ts), which records
  * the click, sets the partner cookie and redirects back to the page, without
- * ?ref= and keeping any utm_ parameters.
+ * ?ref= and keeping any utm_ parameters and what the page itself reads
+ * (landingParams in tracking-cookie.ts).
  *
  * A redirect in next.config runs before any page or cache, so this works on
  * prerendered pages too (a layout cannot read the query in Next). Excluded:
