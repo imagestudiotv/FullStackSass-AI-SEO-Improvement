@@ -115,7 +115,7 @@ export const AUDIT_COPY: Record<Locale, AuditCopy> = {
       assets: [
         { label: "AI SEO Audit", lines: ["Opening {domain} and mapping the site…", "Crawling pages & detecting the platform behind {domain}"] },
         { label: "Personalized Growth Plan", lines: ["Scoring titles, headings, images and links", "Ordering what to fix by what it is worth"] },
-        { label: "Business Profile + AI Access", lines: ["Checking which AI crawlers are allowed in", "Reading your site name, language and outbound links"] },
+        { label: "AI Crawler Access", lines: ["Checking which AI crawlers are allowed in", "Noting the sites {domain} links out to"] },
       ],
       working: "Working on it",
       building: "Building your 3 free assets…",
@@ -126,7 +126,7 @@ export const AUDIT_COPY: Record<Locale, AuditCopy> = {
       yourAssets: "Your 3 free assets",
       done: "Done. Here is what each one found.",
       openAny: "Open any of them to see the detail.",
-      assetLabels: ["AI SEO Audit", "Personalized Growth Plan", "Business Profile + AI Access"],
+      assetLabels: ["AI SEO Audit", "Personalized Growth Plan", "AI Crawler Access"],
       pagesRead: ["{count} page read", "{count} pages read"],
       termPages: "Pages read",
       noteFive: "Free checks read up to five.",
@@ -150,7 +150,7 @@ export const AUDIT_COPY: Record<Locale, AuditCopy> = {
       robotsAllAllowed: "Your robots.txt lets every major AI crawler through, so you can be cited in their answers.",
       robotsBlocks: "Your robots.txt blocks {count} of them. They cannot cite a site they are not allowed to read.",
       profileNote:
-        "Your business profile is set up when you join. Backlinks start with your plan: host an article for a business in a related field and earn a link back to your site.",
+        "When you add your website to an account, we read it to fill in your business profile. Backlinks start with your plan: host an article for a business in a related field and earn a link back to your site.",
       linkOutAlready: "Sites you already link out to",
     },
     result: {
@@ -200,8 +200,8 @@ export const AUDIT_COPY: Record<Locale, AuditCopy> = {
         { label: "Auditoría SEO con IA", lines: ["Abriendo {domain} y trazando el mapa de la web…", "Rastreando páginas y detectando la plataforma de {domain}"] },
         { label: "Plan de crecimiento personalizado", lines: ["Puntuando títulos, encabezados, imágenes y enlaces", "Ordenando qué arreglar según lo que vale"] },
         {
-          label: "Perfil de empresa + acceso de IA",
-          lines: ["Comprobando qué rastreadores de IA tienen acceso", "Leyendo el nombre, el idioma y los enlaces salientes de su web"],
+          label: "Acceso de rastreadores de IA",
+          lines: ["Comprobando qué rastreadores de IA tienen acceso", "Anotando los sitios a los que enlaza {domain}"],
         },
       ],
       working: "Manos a la obra",
@@ -213,7 +213,7 @@ export const AUDIT_COPY: Record<Locale, AuditCopy> = {
       yourAssets: "Sus 3 recursos gratuitos",
       done: "Listo. Esto es lo que ha encontrado cada uno.",
       openAny: "Abra cualquiera para ver el detalle.",
-      assetLabels: ["Auditoría SEO con IA", "Plan de crecimiento personalizado", "Perfil de empresa + acceso de IA"],
+      assetLabels: ["Auditoría SEO con IA", "Plan de crecimiento personalizado", "Acceso de rastreadores de IA"],
       pagesRead: ["{count} página leída", "{count} páginas leídas"],
       termPages: "Páginas leídas",
       noteFive: "Las revisiones gratuitas leen hasta cinco.",
@@ -237,7 +237,7 @@ export const AUDIT_COPY: Record<Locale, AuditCopy> = {
       robotsAllAllowed: "Su robots.txt deja pasar a todos los grandes rastreadores de IA, así que pueden citarle en sus respuestas.",
       robotsBlocks: "Su robots.txt bloquea a {count} de ellos. No pueden citar una web que no se les permite leer.",
       profileNote:
-        "Su perfil de empresa se prepara cuando se une. Los backlinks empiezan con su plan: aloje un artículo de un negocio de un sector relacionado y gane un enlace hacia su web.",
+        "Cuando añade su web a una cuenta, la leemos para rellenar su perfil de empresa. Los backlinks empiezan con su plan: aloje un artículo de un negocio de un sector relacionado y gane un enlace hacia su web.",
       linkOutAlready: "Webs a las que ya enlaza",
     },
     result: {
@@ -290,8 +290,8 @@ export const AUDIT_COPY: Record<Locale, AuditCopy> = {
           lines: ["Notation des titres, intertitres, images et liens", "Classement de ce qu’il faut corriger selon ce que cela rapporte"],
         },
         {
-          label: "Profil d’entreprise + accès IA",
-          lines: ["Vérification des robots d’IA autorisés", "Lecture du nom, de la langue et des liens sortants de votre site"],
+          label: "Accès des robots d’IA",
+          lines: ["Vérification des robots d’IA autorisés", "Relevé des sites vers lesquels {domain} fait des liens"],
         },
       ],
       working: "C’est parti",
@@ -303,7 +303,7 @@ export const AUDIT_COPY: Record<Locale, AuditCopy> = {
       yourAssets: "Vos 3 ressources gratuites",
       done: "Terminé. Voici ce que chacune a trouvé.",
       openAny: "Ouvrez-en une pour voir le détail.",
-      assetLabels: ["Audit SEO par IA", "Plan de croissance personnalisé", "Profil d’entreprise + accès IA"],
+      assetLabels: ["Audit SEO par IA", "Plan de croissance personnalisé", "Accès des robots d’IA"],
       pagesRead: ["{count} page lue", "{count} pages lues"],
       termPages: "Pages lues",
       noteFive: "Les vérifications gratuites en lisent jusqu’à cinq.",
@@ -327,7 +327,7 @@ export const AUDIT_COPY: Record<Locale, AuditCopy> = {
       robotsAllAllowed: "Votre robots.txt laisse passer tous les grands robots d’IA : vous pouvez être cité dans leurs réponses.",
       robotsBlocks: "Votre robots.txt en bloque {count}. Ils ne peuvent pas citer un site qu’ils n’ont pas le droit de lire.",
       profileNote:
-        "Votre profil d’entreprise est mis en place à l’inscription. Les backlinks commencent avec votre formule : hébergez un article pour une entreprise d’un secteur proche et gagnez un lien vers votre site.",
+        "Quand vous ajoutez votre site à un compte, nous le lisons pour remplir votre profil d’entreprise. Les backlinks commencent avec votre formule : hébergez un article pour une entreprise d’un secteur proche et gagnez un lien vers votre site.",
       linkOutAlready: "Sites vers lesquels vous faites déjà des liens",
     },
     result: {
@@ -376,7 +376,7 @@ export const AUDIT_COPY: Record<Locale, AuditCopy> = {
       assets: [
         { label: "Audit SEO con AI", lines: ["Apertura di {domain} e mappatura del sito…", "Scansione delle pagine e rilevamento della piattaforma di {domain}"] },
         { label: "Piano di crescita personalizzato", lines: ["Valutazione di titoli, intestazioni, immagini e link", "Ordinamento di cosa correggere in base a quanto vale"] },
-        { label: "Profilo aziendale + accesso AI", lines: ["Verifica dei crawler AI ammessi", "Lettura di nome, lingua e link in uscita del suo sito"] },
+        { label: "Accesso dei crawler AI", lines: ["Verifica dei crawler AI ammessi", "Annotazione dei siti a cui rimanda {domain}"] },
       ],
       working: "Al lavoro",
       building: "Stiamo preparando le sue 3 risorse gratuite…",
@@ -387,7 +387,7 @@ export const AUDIT_COPY: Record<Locale, AuditCopy> = {
       yourAssets: "Le sue 3 risorse gratuite",
       done: "Fatto. Ecco cosa ha trovato ciascuna.",
       openAny: "Ne apra una per vedere i dettagli.",
-      assetLabels: ["Audit SEO con AI", "Piano di crescita personalizzato", "Profilo aziendale + accesso AI"],
+      assetLabels: ["Audit SEO con AI", "Piano di crescita personalizzato", "Accesso dei crawler AI"],
       pagesRead: ["{count} pagina letta", "{count} pagine lette"],
       termPages: "Pagine lette",
       noteFive: "I controlli gratuiti ne leggono fino a cinque.",
@@ -411,7 +411,7 @@ export const AUDIT_COPY: Record<Locale, AuditCopy> = {
       robotsAllAllowed: "Il suo robots.txt lascia passare tutti i principali crawler AI, così può essere citato nelle loro risposte.",
       robotsBlocks: "Il suo robots.txt ne blocca {count}. Non possono citare un sito che non hanno il permesso di leggere.",
       profileNote:
-        "Il suo profilo aziendale viene impostato quando si iscrive. I backlink iniziano con il piano: ospiti un articolo per un’azienda di un settore affine e guadagni un link verso il suo sito.",
+        "Quando aggiunge il suo sito a un account, lo leggiamo per compilare il profilo aziendale. I backlink iniziano con il piano: ospiti un articolo per un’azienda di un settore affine e guadagni un link verso il suo sito.",
       linkOutAlready: "Siti a cui già rimanda con un link",
     },
     result: {
@@ -461,8 +461,8 @@ export const AUDIT_COPY: Record<Locale, AuditCopy> = {
         { label: "KI-SEO-Audit", lines: ["{domain} wird geöffnet und erfasst…", "Seiten werden gecrawlt und die Plattform hinter {domain} erkannt"] },
         { label: "Persönlicher Wachstumsplan", lines: ["Titel, Überschriften, Bilder und Links werden bewertet", "Was zu beheben ist, wird nach seinem Wert sortiert"] },
         {
-          label: "Unternehmensprofil + KI-Zugriff",
-          lines: ["Es wird geprüft, welche KI-Crawler zugelassen sind", "Name, Sprache und ausgehende Links Ihrer Website werden gelesen"],
+          label: "Zugriff von KI-Crawlern",
+          lines: ["Es wird geprüft, welche KI-Crawler zugelassen sind", "Websites werden notiert, auf die {domain} verlinkt"],
         },
       ],
       working: "In Arbeit",
@@ -474,7 +474,7 @@ export const AUDIT_COPY: Record<Locale, AuditCopy> = {
       yourAssets: "Ihre 3 kostenlosen Ergebnisse",
       done: "Fertig. Das hat jedes davon gefunden.",
       openAny: "Öffnen Sie eines, um die Details zu sehen.",
-      assetLabels: ["KI-SEO-Audit", "Persönlicher Wachstumsplan", "Unternehmensprofil + KI-Zugriff"],
+      assetLabels: ["KI-SEO-Audit", "Persönlicher Wachstumsplan", "Zugriff von KI-Crawlern"],
       pagesRead: ["{count} Seite gelesen", "{count} Seiten gelesen"],
       termPages: "Gelesene Seiten",
       noteFive: "Kostenlose Prüfungen lesen bis zu fünf.",
@@ -498,7 +498,7 @@ export const AUDIT_COPY: Record<Locale, AuditCopy> = {
       robotsAllAllowed: "Ihre robots.txt lässt alle großen KI-Crawler durch, sodass Sie in ihren Antworten zitiert werden können.",
       robotsBlocks: "Ihre robots.txt sperrt {count} davon. Sie können keine Website zitieren, die sie nicht lesen dürfen.",
       profileNote:
-        "Ihr Unternehmensprofil wird eingerichtet, wenn Sie beitreten. Backlinks beginnen mit Ihrem Tarif: Hosten Sie einen Artikel für ein Unternehmen aus einer verwandten Branche und verdienen Sie einen Link zu Ihrer Website.",
+        "Wenn Sie Ihre Website zu einem Konto hinzufügen, lesen wir sie, um Ihr Unternehmensprofil auszufüllen. Backlinks beginnen mit Ihrem Tarif: Hosten Sie einen Artikel für ein Unternehmen aus einer verwandten Branche und verdienen Sie einen Link zu Ihrer Website.",
       linkOutAlready: "Websites, auf die Sie bereits verlinken",
     },
     result: {

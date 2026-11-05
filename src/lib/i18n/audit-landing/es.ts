@@ -11,7 +11,7 @@ export const es: AuditLandingCopy = {
     invalidError: "Introduzca una dirección web válida, como suweb.com.",
   },
   hero: {
-    eyebrow: "Auditoría web gratuita · SEO + acceso de IA",
+    eyebrow: "Auditoría web gratuita · SEO + rastreadores de IA",
     titleLead: "Ya está en internet.",
     titleBefore: "Pero ¿le están",
     titleAccent: "encontrando?",

@@ -11,7 +11,7 @@ export const it: AuditLandingCopy = {
     invalidError: "Inserisca un indirizzo valido, ad esempio ilsuosito.com.",
   },
   hero: {
-    eyebrow: "Audit gratuito del sito · SEO + accesso AI",
+    eyebrow: "Audit gratuito del sito · SEO + crawler AI",
     titleLead: "È online.",
     titleBefore: "Ma riescono a",
     titleAccent: "trovarla?",
