@@ -225,7 +225,7 @@ export function ShareKit({
                   <Sparkles className="size-3.5 shrink-0 text-primary" aria-hidden="true" />
                   {t.includesLink}
                 </span>
-                <Button type="button" size="sm" onClick={copyPost} disabled={empty} className="max-sm:w-full">
+                <Button type="button" size="sm" onClick={copyPost} disabled={empty} className="bg-foreground text-background hover:bg-foreground/85 max-sm:w-full">
                   <Copy aria-hidden="true" />
                   {t.copyPost}
                 </Button>
@@ -257,7 +257,7 @@ export function ShareKit({
                   {format(t.copyOpen, { platform })}
                 </Button>
               ) : (
-                <Button asChild variant="outline">
+                <Button asChild variant="outline" className="text-primary hover:text-primary">
                   {/* A real link: the browser opens it, so no pop-up blocker stands between the click and the platform. Mail stays in this tab. */}
                   <a href={href} target={active === "email" ? undefined : "_blank"} rel="noopener noreferrer" onClick={() => void copyAndOpen()}>
                     <ArrowUpRight aria-hidden="true" />
@@ -265,7 +265,7 @@ export function ShareKit({
                   </a>
                 </Button>
               )}
-              <Button type="button" variant="ghost" onClick={reset}>
+              <Button type="button" variant="outline" onClick={reset}>
                 <RotateCcw aria-hidden="true" />
                 {t.reset}
               </Button>

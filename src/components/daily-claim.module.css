@@ -22,6 +22,67 @@
     linear-gradient(105deg, #2c1b12 0%, #47291a 48%, #2c1b12 100%);
 }
 
+.banner {
+  background: linear-gradient(104deg, #fff0df 0%, #ffe6d1 56%, #fff8ef 100%);
+  border-color: #f7e3d5;
+}
+
+:global(.dark) .banner {
+  background: linear-gradient(104deg, #2c1b12 0%, #3d2416 56%, #2c1b12 100%);
+  border-color: #4a2d1c;
+}
+
+/* The design's two rings, behind the banner's words. */
+.bannerRing {
+  position: absolute;
+  top: -91px;
+  right: 89px;
+  width: 340px;
+  height: 340px;
+  border: 1px solid rgb(255 180 130 / 0.6);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.bannerRingInner {
+  top: -64px;
+  right: 117px;
+  width: 270px;
+  height: 270px;
+}
+
+.bannerCoin {
+  width: 66px;
+  height: 66px;
+  flex: none;
+  transform: rotate(15deg);
+  font-size: 25px;
+}
+
+.spark {
+  position: absolute;
+  color: #f5ae5e;
+  font-size: 21px;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.sparkA {
+  top: 42px;
+  left: 201px;
+}
+
+.sparkB {
+  top: 117px;
+  right: 165px;
+}
+
+.sparkC {
+  top: 30px;
+  right: 130px;
+  font-size: 13px;
+}
+
 .doodle {
   position: absolute;
   border: 1px solid rgb(240 139 75 / 0.29);
@@ -188,6 +249,9 @@
 }
 
 @media (max-width: 800px) {
+  .spark {
+    display: none;
+  }
   .hero {
     padding: 39px 36px 45px;
   }

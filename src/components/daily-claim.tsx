@@ -35,6 +35,9 @@ import styles from "./daily-claim.module.css";
 
 type Variant = "row" | "chip" | "button" | "banner";
 
+/** The design's dark claim button, which follows the theme so it stays dark on light and light on dark. */
+const DESIGN_BUTTON = "bg-foreground text-background hover:bg-foreground/85";
+
 /** Pieces thrown from the middle, at fixed angles so a render is repeatable. */
 const CONFETTI = Array.from({ length: 28 }, (_, index) => {
   const angle = (2 * Math.PI * index) / 28;
@@ -62,7 +65,13 @@ export function DailyClaim({
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [pending, start] = useTransition();
+  const [, start] = useTransition();
+  /*
+    Only while the claim itself is on its way. Not the transition's pending,
+    which also lasts through the refresh that follows: the modal would refuse to
+    close for as long as the page took to render, after saying it was done.
+  */
+  const [claiming, setClaiming] = useState(false);
   /*
     What the server answered, until the refresh it triggers brings new props:
     newer props always win, so this can never go stale.
@@ -82,7 +91,7 @@ export function DailyClaim({
   const amount = creditWord(status.perDay);
 
   function changeOpen(next: boolean) {
-    if (pending) return;
+    if (claiming) return;
     setOpen(next);
     if (next) {
       setMessage(null);
@@ -94,9 +103,11 @@ export function DailyClaim({
 
   function claim() {
     setMessage(null);
+    setClaiming(true);
     start(async () => {
       try {
         const result = await claimDailyCreditsAction();
+        setClaiming(false);
         setAnswer({ for: served, status: result.status });
         if (result.outcome === "claimed") {
           const text = format(copy.success, { credits: creditWord(result.amount) });
@@ -111,6 +122,8 @@ export function DailyClaim({
         router.refresh();
       } catch {
         setMessage({ text: copy.failed, tone: "alert" });
+      } finally {
+        setClaiming(false);
       }
     });
   }
@@ -184,9 +197,9 @@ export function DailyClaim({
                 </span>
               </p>
               {status.claimable ? (
-                <Button type="button" size="lg" onClick={claim} disabled={pending} className="min-h-12 shrink-0 sm:min-w-72">
-                  {pending ? copy.collecting : format(copy.collect, { credits: amount })}
-                  {pending ? null : <ArrowRight aria-hidden="true" />}
+                <Button type="button" size="lg" onClick={claim} disabled={claiming} className={cn("min-h-12 shrink-0 sm:min-w-72", DESIGN_BUTTON)}>
+                  {claiming ? copy.collecting : format(copy.collect, { credits: amount })}
+                  {claiming ? null : <ArrowRight aria-hidden="true" />}
                 </Button>
               ) : (
                 <Button type="button" size="lg" variant="secondary" disabled className="min-h-12 shrink-0 whitespace-normal sm:min-w-72">
@@ -282,11 +295,14 @@ function Launcher({
       <section
         aria-label={copy.eyebrow}
         className={cn(
-          "relative flex flex-col gap-4 overflow-hidden rounded-2xl border border-primary/20 bg-primary/5 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6",
+          "relative flex flex-col gap-4 overflow-hidden rounded-2xl border p-5 sm:flex-row sm:items-center sm:justify-between sm:p-7",
+          styles.banner,
           className,
         )}
       >
-        <div className="min-w-0">
+        <span className={styles.bannerRing} aria-hidden="true" />
+        <span className={cn(styles.bannerRing, styles.bannerRingInner)} aria-hidden="true" />
+        <div className="relative min-w-0">
           <p className="flex items-center gap-2 text-xs font-bold tracking-[0.13em] text-primary uppercase">
             <span className="size-1.5 rounded-full bg-primary" aria-hidden="true" />
             {copy.eyebrow}
@@ -302,24 +318,33 @@ function Launcher({
                   : copy.trialLastSub}
           </p>
         </div>
-        {/*
-          The same button in both states, so the focus can return to it when the
-          modal closes. Claimed, it is marked disabled and does nothing, rather
-          than natively disabled, which would throw the keyboard's place away.
-        */}
-        <DialogTrigger asChild>
-          <Button
-            type="button"
-            variant={status.claimable ? "default" : "secondary"}
-            aria-disabled={status.claimable ? undefined : true}
-            onClick={status.claimable ? undefined : (event) => event.preventDefault()}
-            className={cn("shrink-0", !status.claimable && "cursor-default text-muted-foreground hover:bg-secondary")}
-          >
-            {status.claimable ? null : <Check aria-hidden="true" />}
-            {status.claimable ? label : copy.claimedToday}
-            {status.claimable ? <ArrowUpRight aria-hidden="true" /> : null}
-          </Button>
-        </DialogTrigger>
+        <div className="relative flex shrink-0 items-center gap-4">
+          <span className={cn(styles.coin, styles.bannerCoin, "hidden lg:grid")} aria-hidden="true">
+            R
+          </span>
+          {/*
+            The same button in both states, so the focus can return to it when the
+            modal closes. Claimed, it is marked disabled and does nothing, rather
+            than natively disabled, which would throw the keyboard's place away.
+          */}
+          <DialogTrigger asChild>
+            <Button
+              type="button"
+              size="lg"
+              variant={status.claimable ? "default" : "secondary"}
+              aria-disabled={status.claimable ? undefined : true}
+              onClick={status.claimable ? undefined : (event) => event.preventDefault()}
+              className={cn(
+                "max-sm:w-full",
+                status.claimable ? DESIGN_BUTTON : "cursor-default border-foreground/10 bg-background/70 text-muted-foreground hover:bg-background/70",
+              )}
+            >
+              {status.claimable ? null : <Check aria-hidden="true" />}
+              {status.claimable ? label : copy.claimedToday}
+              {status.claimable ? <ArrowUpRight aria-hidden="true" /> : null}
+            </Button>
+          </DialogTrigger>
+        </div>
       </section>
     );
   }
@@ -377,6 +402,15 @@ function Hero({
           R
         </span>
       ))}
+      <span className={cn(styles.spark, styles.sparkA)} aria-hidden="true">
+        ✳
+      </span>
+      <span className={cn(styles.spark, styles.sparkB)} aria-hidden="true">
+        ✦
+      </span>
+      <span className={cn(styles.spark, styles.sparkC)} aria-hidden="true">
+        ✳
+      </span>
       <p className="relative inline-flex items-center gap-2 text-[0.625rem] font-extrabold tracking-[0.15em] text-[#a3551f] uppercase dark:text-[#f0b48a]">
         <Gift className="size-3.5" aria-hidden="true" />
         {copy.eyebrow}
