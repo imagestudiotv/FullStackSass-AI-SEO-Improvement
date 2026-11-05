@@ -29,6 +29,8 @@ vi.mock("@/lib/i18n/app-locale", async () => {
   return { getAppMessages: async () => ({ locale: state.locale, t: getMessages(state.locale) }) };
 });
 vi.mock("@/lib/websites/accessible", () => ({ hasOnlySharedWork: async () => state.guest }));
+vi.mock("@/lib/credits/daily-actions", () => ({ claimDailyCreditsAction: vi.fn() }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 vi.mock("@/lib/credits/addons", () => ({
   creditAddons: async () => [{ id: "a1", name: "Top 250 live USA Local Citations", kind: "service", creditPrice: 250 }],
 }));
@@ -52,7 +54,7 @@ const OVERVIEW = {
   balance: 140,
   reserved: 20,
   available: 120,
-  daily: { eligible: true, perDay: 3, today: 3, trialEndsAt: null },
+  daily: { plan: "paid", eligible: true, perDay: 3, paidPerDay: 3, today: 3, claimable: false, nextAt: new Date("2026-11-04T00:00:00Z"), streak: 1, progress: [], trialEndsAt: null },
   settings: {
     dailyFree: 3,
     trialDailyFree: 15,

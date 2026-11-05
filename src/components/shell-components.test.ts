@@ -36,10 +36,13 @@ vi.mock("@/app/(app)/dashboard/invitation-actions", () => ({
 vi.mock("sonner", () => ({ toast: { error: () => {} } }));
 
 // The sidebar's credit figure: the balance, and today's daily credits (lib/credits/overview.ts).
-const overview = vi.hoisted(() => ({ daily: { eligible: true, perDay: 0, today: 0 } }));
+const overview = vi.hoisted(() => ({
+  daily: { plan: "paid", eligible: true, perDay: 0, paidPerDay: 0, today: 0, claimable: false, nextAt: null, streak: 0, progress: [], trialEndsAt: null } as Record<string, unknown>,
+}));
 vi.mock("@/lib/credits/overview", () => ({
   creditOverview: vi.fn(async () => ({ balance: 7, reserved: 0, available: 7, daily: overview.daily })),
 }));
+vi.mock("@/lib/credits/daily-actions", () => ({ claimDailyCreditsAction: vi.fn() }));
 vi.mock("@/lib/usage", () => ({
   checkLimit: vi.fn(async () => ({
     allowed: true,
@@ -155,13 +158,14 @@ describe("SidebarUsage", () => {
       await SidebarUsage({
         organizationId: "org_own",
         showCredits,
+        locale: "en",
         t: en.app.nav,
         tc: en.app.credits,
       }),
     );
 
   it("shows the reader's credits beside their own site, linking to the Credits page", async () => {
-    overview.daily = { eligible: true, perDay: 0, today: 0 };
+    overview.daily = { ...overview.daily, perDay: 0, today: 0, claimable: false };
     const html = await render();
     expect(creditOverview).toHaveBeenCalledWith("org_own");
     expect(html).toContain("7 credits");
@@ -172,8 +176,22 @@ describe("SidebarUsage", () => {
   });
 
   it("shows the daily credits given today", async () => {
-    overview.daily = { eligible: true, perDay: 3, today: 3 };
+    overview.daily = { ...overview.daily, perDay: 3, today: 3, claimable: false };
     expect(await render()).toContain("+3 today");
+  });
+
+  it("offers the check-in with the real amount while it is open, and adds no figure for today", async () => {
+    overview.daily = { ...overview.daily, perDay: 7, today: 0, claimable: true };
+    const html = await render();
+    expect(html).toContain("Claim 7 credits");
+    expect(html).not.toContain("today");
+  });
+
+  it("offers no check-in on a plan without daily credits", async () => {
+    overview.daily = { ...overview.daily, plan: "none", eligible: false, perDay: 3, today: 0, claimable: false };
+    const html = await render();
+    expect(html).not.toContain("Claim");
+    expect(html).not.toContain("daily rewards");
   });
 
   it("on a shared site: no credit figure and no grant, Earn Credits kept", async () => {
@@ -187,9 +205,9 @@ describe("SidebarUsage", () => {
 
   it("speaks the reader's language", async () => {
     const it_ = getMessages("it");
-    overview.daily = { eligible: true, perDay: 3, today: 3 };
+    overview.daily = { ...overview.daily, perDay: 3, today: 3, claimable: false };
     const html = renderToStaticMarkup(
-      await SidebarUsage({ organizationId: "org_own", t: it_.app.nav, tc: it_.app.credits }),
+      await SidebarUsage({ organizationId: "org_own", locale: "it", t: it_.app.nav, tc: it_.app.credits }),
     );
     expect(html).toContain("7 crediti");
     expect(html).toContain("Guadagni crediti");

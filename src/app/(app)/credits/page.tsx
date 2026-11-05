@@ -20,6 +20,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { cache, type ReactNode } from "react";
 
+import { DailyClaim } from "@/components/daily-claim";
 import { Button } from "@/components/ui/button";
 import { PageHeader, PageShell } from "@/components/ui/page-header";
 import { Notice } from "@/components/workspace/notice";
@@ -38,6 +39,7 @@ import {
 import { CREDIT_ACTIONS, isCreditAction, TRIAL_CREDIT_DAYS, type CreditAction } from "@/lib/credits/prices";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import type { Locale } from "@/lib/i18n/config";
+import { DAILY_CLAIM_COPY } from "@/lib/i18n/daily-claim";
 import { EARN_COPY } from "@/lib/i18n/earn";
 import { format, formatDate, formatNumber, plural } from "@/lib/i18n/format";
 import type { Messages } from "@/lib/i18n/messages";
@@ -101,7 +103,7 @@ export default async function CreditsPage({ searchParams }: PageProps<"/credits"
   const params = await searchParams;
   const requested = Number.parseInt(typeof params.page === "string" ? params.page : "1", 10);
   const kind = creditKindOf(params.kind);
-  // In turn, not together: the overview grants this month's plan credits and today's daily credits, and the history and today's figures must include them.
+  // In turn, not together: the overview grants this month's plan credits, and the history and today's figures must include them.
   const overview = await creditOverview(orgId);
   const [history, today, services] = await Promise.all([
     creditHistory(orgId, { page: Number.isFinite(requested) ? requested : 1, pageSize: 25, kind }),
@@ -252,11 +254,13 @@ export default async function CreditsPage({ searchParams }: PageProps<"/credits"
                 title={c.daily}
                 help={dailyHelp}
                 end={
-                  daily.eligible ? (
+                  daily.today > 0 ? (
                     <span className="text-sm font-semibold whitespace-nowrap text-emerald-700 tabular-nums dark:text-emerald-400">
                       {format(c.dailyValue, { count: daily.today })}
                     </span>
-                  ) : null
+                  ) : (
+                    <DailyClaim status={daily} copy={DAILY_CLAIM_COPY[locale]} locale={locale} variant="button" />
+                  )
                 }
               />
             ) : null}

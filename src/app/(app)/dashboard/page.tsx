@@ -15,6 +15,7 @@ import { PendingInvitations } from "@/components/dashboard/pending-invitations";
 import { RememberWebsite } from "@/components/dashboard/remember-website";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { DailyClaimBanner } from "@/components/dashboard/daily-claim-banner";
 import { PageHeader, PageShell } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/states";
 import { requireSession } from "@/lib/auth-guard";
@@ -299,6 +300,8 @@ export default async function DashboardPage({
       />
 
       <PendingInvitations invitations={inviteCards} t={inviteText} />
+
+      {ctx.access === "owner" ? <DailyClaimBanner locale={locale} /> : null}
 
       {/* The AI chat moved to its own page, Growth Copilot (client, 2026-11-02). */}
       <Suspense fallback={<div className="h-28 animate-pulse rounded-xl border bg-card" aria-hidden="true" />}>

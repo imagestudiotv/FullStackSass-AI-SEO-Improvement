@@ -118,8 +118,8 @@ export function CreditsForm({
               Daily credits
             </label>
             <p id={`${id}-daily-help`} className="text-xs text-muted-foreground">
-              Given to a workspace with a paid plan on each day it opens RepGet. They never expire and can be spent on anything,
-              backlinks included. 0 turns them off.
+              A workspace with a paid plan can claim these once a day with its check-in; a day not claimed is not given later. They
+              never expire and can be spent on anything, backlinks included. 0 turns them off.
             </p>
           </div>
           <Input
@@ -141,7 +141,7 @@ export function CreditsForm({
               Trial daily credits
             </label>
             <p id={`${id}-trial-daily-help`} className="text-xs text-muted-foreground">
-              Given to a workspace on its free articles on each of its first {trialDays} days it opens RepGet - nothing from
+              A workspace on its free articles can claim these on each of its first {trialDays} days - nothing from
               day {trialDays + 1} until its plan starts. They never expire. 0 turns them off.
             </p>
           </div>

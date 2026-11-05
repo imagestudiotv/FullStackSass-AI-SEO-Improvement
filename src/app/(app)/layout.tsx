@@ -10,7 +10,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { BrandLogo, BrandMark } from "@/components/brand-logo";
 import { LiveChat } from "@/components/live-chat";
 import { SidebarNav } from "@/components/sidebar-nav";
-import { SidebarCredits, SidebarUsage } from "@/components/sidebar-usage";
+import { PhoneDailyClaim, SidebarCredits, SidebarUsage } from "@/components/sidebar-usage";
 import { UserMenu } from "@/components/user-menu";
 import { WebsiteSwitcher } from "@/components/dashboard/website-switcher";
 import { isAdmin } from "@/lib/admin/guard";
@@ -289,7 +289,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             is this person's own workspace, so the number would be THEIR
             balance beside credits they cannot spend there.
           */
-          <SidebarUsage organizationId={orgId} showCredits={showCredits} t={t.app.nav} tc={creditWords} />
+          <SidebarUsage organizationId={orgId} showCredits={showCredits} locale={locale} t={t.app.nav} tc={creditWords} />
         }
       >
         <SidebarNav
@@ -317,7 +317,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             addons={sidebarAddons}
             hideAddons={hideAddons}
             hideCredits={sharedWorkOnly}
-            footer={<SidebarUsage organizationId={orgId} showCredits={showCredits} t={t.app.nav} tc={creditWords} />}
+            footer={<SidebarUsage organizationId={orgId} showCredits={showCredits} locale={locale} t={t.app.nav} tc={creditWords} />}
           />
           <HeaderBrand>
             <Link href="/dashboard" aria-label="RepGet" className="flex items-center">
@@ -331,8 +331,9 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           </HeaderBrand>
           {/* On a phone the credits sit in this bar, where the sidebar's are out of sight. */}
           {showCredits ? (
-            <div className="md:hidden">
+            <div className="flex items-center gap-1 md:hidden">
               <SidebarCredits organizationId={orgId} t={t.app.nav} tc={creditWords} />
+              <PhoneDailyClaim organizationId={orgId} locale={locale} />
             </div>
           ) : null}
 

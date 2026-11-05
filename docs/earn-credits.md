@@ -7,7 +7,7 @@ Client design 2026-11-02. A page of its own, `/earn-credits`, opened from **Earn
 | Part | Where it comes from |
 |---|---|
 | Referral code, link, Copy and Share (email, WhatsApp, LinkedIn) | `lib/referrals` (unchanged rules) |
-| Daily credits card | `lib/credits/daily.ts` (automatic, nothing to claim) |
+| Daily credits card and check-in | `lib/credits/daily.ts`, claimed by the customer: see docs/credits.md |
 | Four more ways to earn | `lib/earn` (reviewed by the team) |
 | Referral activity and list | `getReferralSummary` |
 | "Were you recommended by someone?" | `enterReferralCode`, shown only to a workspace that is not referred and never paid |

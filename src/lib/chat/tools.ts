@@ -236,7 +236,7 @@ export const READ_TOOLS: ReadTool[] = [
   },
   {
     name: "get_credits",
-    description: "The workspace's credits: balance, reserved, available, the daily free credits and what each action costs.",
+    description: "The workspace's credits: balance, reserved, available, the daily free credits the customer can claim with a check-in and what each action costs.",
     input_schema: noInput,
     page: "credits",
     run: async (ctx) => {
