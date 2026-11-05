@@ -154,6 +154,22 @@ describe("starting a translation", () => {
     expect((await row(second.ok ? second.data.id : "")).slug).toBe("farsi-citare-da-chatgpt-it");
   });
 
+  it("keeps the links to other websites a person put in the post, and removes one the translator added (client, 2026-11-05)", async () => {
+    const source = await create("draft", {
+      bodyHtml: '<h2>Start here</h2><p>Read <a href="https://sponsor.example/page">our sponsor</a>.</p><img src="https://store.test/a.webp" alt="A diagram">',
+    });
+    ai.translate.mockResolvedValue({
+      ...ITALIAN,
+      bodyHtml: '<h2>Da dove iniziare</h2><p>Leggi <a href="https://sponsor.example/page">lo sponsor</a> e <a href="https://invented.example/x">una guida</a>.</p><img src="https://store.test/a.webp" alt="Un diagramma">',
+    });
+    const result = await createBlogTranslation({ sourceId: source.id, locale: "it", mode: "ai" });
+    const draft = await row(result.ok ? result.data.id : "");
+    expect(draft.bodyHtml).toContain('href="https://sponsor.example/page"');
+    expect(draft.bodyHtml).toContain('src="https://store.test/a.webp"');
+    expect(draft.bodyHtml).not.toContain("invented.example");
+    expect(draft.bodyHtml).toContain("una guida");
+  });
+
   it("points its links at that language's pages, and drops a link to a post it does not have (client, 2026-10-20)", async () => {
     const local = await create("published", { slug: "local-seo-guide" });
     const spanish = await createBlogTranslation({ sourceId: local.id, locale: "es", mode: "copy" });

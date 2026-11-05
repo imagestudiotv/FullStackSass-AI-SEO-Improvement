@@ -424,6 +424,45 @@ describe("the blog autopilot's job", () => {
     expect(text).toMatch(/AI cost: \$\d+\.\d\d\./);
   });
 
+  it("saves no generated link to another website, in English or in a translation, keeping the words, RepGet's links and the pictures (client, 2026-11-05)", async () => {
+    await languages("it");
+    const claim = await queuedRun();
+    const [plan, ...parts] = WHOLE_ARTICLE();
+    const first = JSON.parse(parts[0].content[1].text!) as { bodyHtml: string };
+    first.bodyHtml = `<p>See <a href="https://developers.google.com/search/docs">Google's guide</a>, <a href="//competitor.example/x">a rival</a> and <a href="//www.repget.com/audit#score">the audit</a>.</p>${first.bodyHtml}`;
+    modelWrites(plan, message(first), ...parts.slice(1));
+    // A translator that adds a link where nothing refuses it: an FAQ answer.
+    ai.stream.mockImplementation((params: Params) => ({
+      finalMessage: async () => {
+        const reply = translating(params);
+        const value = JSON.parse(reply.content[1].text!) as { faqs?: { question: string; answer: string }[] };
+        if (!value.faqs) return reply;
+        value.faqs[0].answer = `<p>Vedi <a href="https://added-by-translator.example/page">questa guida</a> e <a href="https://www.repget.com/it/audit">l'audit</a>.</p>`;
+        return message(value);
+      },
+    }));
+    const result = (await invoke(claim.runId, memoisedStep())) as { postId: string };
+
+    const rows = await test.db.select().from(blogPosts);
+    const english = rows.find((row) => row.id === result.postId)!;
+    const italian = rows.find((row) => row.translationOf === result.postId)!;
+    expect(italian).toMatchObject({ locale: "it", status: "draft", needsReview: true });
+    for (const post of [english, italian]) {
+      const html = post.bodyHtml + post.faqs.map((faq) => faq.answer).join("");
+      for (const gone of ["developers.google.com", "competitor.example", "added-by-translator.example"]) expect(html).not.toContain(gone);
+      expect(html).toMatch(/storage\.example\/article-images\/blog\/posts\/\w+\/\d+\.webp/);
+    }
+    expect(english.bodyHtml).toContain("Google's guide");
+    expect(english.bodyHtml).toContain('<a href="https://www.repget.com/audit#score">the audit</a>');
+    expect(italian.faqs[0].answer).toContain("questa guida");
+    expect(italian.faqs[0].answer).toContain('<a href="https://www.repget.com/it/audit">');
+
+    // The addresses stay with the run, for administrators.
+    const [run] = await test.db.select().from(blogAutopilotRuns).where(eq(blogAutopilotRuns.id, claim.runId));
+    const removed = (run.detail as { links: { removed: { href: string }[] } }).links.removed.map((link) => link.href);
+    expect(removed).toEqual(expect.arrayContaining(["https://developers.google.com/search/docs", "//competitor.example/x"]));
+  });
+
   it("lists a language that still fails on its last try, and saves the others", async () => {
     await languages("fr", "it");
     failing.add("fr");

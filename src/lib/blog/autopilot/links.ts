@@ -2,42 +2,37 @@ import "server-only";
 
 import * as cheerio from "cheerio";
 
-import { safeFetch } from "@/lib/net/safe-fetch";
-
 /**
  * The links in an article the autopilot wrote, checked before it is saved.
- * A link the writer made up must never reach a reader, so anything not
- * proven is unwrapped - its words stay, the link goes:
  *
- *  - A link to RepGet's own site stays only when it is one of the pages the
+ * No automatic outbound links (client, 2026-11-05): RepGet's own blog does not
+ * get clickable links to other websites from the writer or the translator -
+ * official documentation included, which until then stayed when its page
+ * loaded. The instructions say so (write.ts, translate.ts), and this is the
+ * check behind them, because instructions alone are not enough. Anything not
+ * allowed is unwrapped: its words stay, the link goes.
+ *
+ *  - A link to RepGet's own site, in any spelling (with or without www,
+ *    relative, protocol-relative), stays only when it is one of the pages the
  *    writer was given (published English posts, the free audit, the free
  *    tools, pricing), and is written as the full https://www.repget.com
- *    address, like the blog's hand-written posts.
- *  - A link to another site stays only when it is official documentation
- *    (SOURCE_HOSTS: Google's, Bing's, the web standards'...) and the page
- *    actually answers. Never another blog or a competitor.
- *  - Anything else (mailto:, a #fragment, a broken address) is unwrapped.
+ *    address, like the blog's hand-written posts. Its #fragment stays.
+ *  - A link to a place in the article itself (#fragment) stays.
+ *  - Anything else - another site, mailto:, an empty or broken address - goes.
+ *
+ * Pictures are not links: an <img> address is never touched, and an <img>
+ * inside a removed link stays.
+ *
+ * ONLY WHERE AN ARTICLE IS GENERATED: the writer's check (finishDraft) and the
+ * translations (the autopilot's, and the editor's "Draft with AI"). Saving a
+ * post (lib/admin/blog.ts, lib/blog/post-fields.ts) does not come through here,
+ * so a link an administrator adds by hand - a source, a sponsored placement -
+ * stays, and what is already published is not rewritten. Customer articles and
+ * Partner Network placements have their own pipelines and do not use this file.
+ *
+ * The addresses removed are kept with the run (DraftReport.links.removed), for
+ * administrators only: the page never shows them.
  */
-
-/** Official documentation the writer may cite. Matched exactly, host by host. */
-export const SOURCE_HOSTS = new Set([
-  "developers.google.com",
-  "support.google.com",
-  "search.google.com",
-  "blog.google",
-  "www.bing.com",
-  "schema.org",
-  "developer.mozilla.org",
-  "web.dev",
-  "www.w3.org",
-  "llmstxt.org",
-  "platform.openai.com",
-  "help.openai.com",
-]);
-
-/** External links checked per article; one past this is unwrapped unchecked. */
-const MAX_EXTERNAL_CHECKS = 15;
-const CHECK_TIMEOUT_MS = 10_000;
 
 export type LinkRules = {
   /** "https://www.repget.com" - internal links are rewritten onto it. */
@@ -46,8 +41,6 @@ export type LinkRules = {
   siteHosts: ReadonlySet<string>;
   /** The paths the writer was given: "/blog/local-seo-small-business", "/audit"... */
   internalPaths: ReadonlySet<string>;
-  /** True when the page answers; replaced in tests. */
-  pageAnswers?: (url: string) => Promise<boolean>;
 };
 
 export type RemovedLink = { href: string; text: string; reason: string };
@@ -55,27 +48,9 @@ export type RemovedLink = { href: string; text: string; reason: string };
 export type LinkCheck = {
   /** The same pieces of HTML, in the same order, with the links checked. */
   html: string[];
-  kept: { internal: number; external: number };
+  kept: { internal: number; fragments: number };
   removed: RemovedLink[];
 };
-
-/** A GET that ends in a 2xx, redirects followed, through the SSRF-safe layer. */
-export async function pageAnswers(url: string): Promise<boolean> {
-  try {
-    const response = await safeFetch(url, {
-      redirect: "follow",
-      maxBytes: 256 * 1024,
-      overflow: "truncate",
-      timeoutMs: CHECK_TIMEOUT_MS,
-      headers: { "user-agent": "Mozilla/5.0 (compatible; RepGetLinkCheck/1.0; +https://repget.com)", accept: "text/html" },
-    });
-    // Read to the end (bounded above): cancelling a safeFetch body part way can throw outside any handler.
-    await response.arrayBuffer().catch(() => undefined);
-    return response.ok;
-  } catch {
-    return false;
-  }
-}
 
 /** "/blog/x/" and "/blog/x" are one page; "/" stays "/". */
 export function pagePath(pathname: string): string {
@@ -83,11 +58,24 @@ export function pagePath(pathname: string): string {
   return trimmed || "/";
 }
 
-/** Checks every link in `pieces` (the body, then each FAQ answer), sharing one budget of network checks. */
-export async function checkLinks(pieces: string[], rules: LinkRules): Promise<LinkCheck> {
-  const answers = rules.pageAnswers ?? pageAnswers;
-  const verdicts = new Map<string, Promise<boolean>>();
-  const kept = { internal: 0, external: 0 };
+const OTHER_SITE = "a link to another website";
+
+/** The address as a web address, or null when it is not one (mailto:, tel:, javascript:, broken). */
+function webAddress(href: string, origin: string): URL | null {
+  try {
+    const url = new URL(href, origin);
+    return url.protocol === "https:" || url.protocol === "http:" ? url : null;
+  } catch {
+    return null;
+  }
+}
+
+/** A link to a place in this article: "#how-it-works", not a bare "#". */
+const isFragment = (href: string) => href.length > 1 && href.startsWith("#");
+
+/** Checks every link in `pieces` (the body, then each FAQ answer) against what the writer was given. */
+export function checkLinks(pieces: string[], rules: LinkRules): LinkCheck {
+  const kept = { internal: 0, fragments: 0 };
   const removed: RemovedLink[] = [];
   const out: string[] = [];
 
@@ -101,53 +89,74 @@ export async function checkLinks(pieces: string[], rules: LinkRules): Promise<Li
         $(el).replaceWith($(el).contents());
       };
 
-      if (!href || href.startsWith("#")) {
+      if (isFragment(href)) {
+        kept.fragments += 1;
+        continue;
+      }
+      if (!href || href === "#") {
         unwrap("not a link to a page");
         continue;
       }
-      let url: URL;
-      try {
-        url = new URL(href, rules.siteOrigin);
-      } catch {
+      const url = webAddress(href, rules.siteOrigin);
+      if (!url) {
         unwrap("not a web address");
         continue;
       }
-      if (url.protocol !== "https:" && url.protocol !== "http:") {
-        unwrap("not a web address");
+      if (!rules.siteHosts.has(url.hostname.toLowerCase())) {
+        unwrap(OTHER_SITE);
         continue;
       }
-
-      if (rules.siteHosts.has(url.hostname.toLowerCase())) {
-        const path = pagePath(url.pathname);
-        if (!rules.internalPaths.has(path)) {
-          unwrap("not one of RepGet's pages");
-          continue;
-        }
-        $(el).attr("href", `${rules.siteOrigin}${path === "/" ? "" : path}`);
-        kept.internal += 1;
+      const path = pagePath(url.pathname);
+      if (!rules.internalPaths.has(path)) {
+        unwrap("not one of RepGet's pages");
         continue;
       }
-
-      if (url.protocol !== "https:" || !SOURCE_HOSTS.has(url.hostname.toLowerCase())) {
-        unwrap("not official documentation");
-        continue;
-      }
-      url.hash = "";
-      const key = url.toString();
-      if (!verdicts.has(key)) {
-        if (verdicts.size >= MAX_EXTERNAL_CHECKS) {
-          unwrap("too many links to check");
-          continue;
-        }
-        verdicts.set(key, answers(key));
-      }
-      if (await verdicts.get(key)) {
-        kept.external += 1;
-      } else {
-        unwrap("the page did not answer");
-      }
+      $(el).attr("href", `${rules.siteOrigin}${path === "/" ? "" : path}${url.hash}`);
+      kept.internal += 1;
     }
     out.push($.html());
   }
   return { html: out, kept, removed };
+}
+
+type SiteRules = Pick<LinkRules, "siteOrigin" | "siteHosts">;
+
+/**
+ * The same HTML without links to other websites, for what the writer's check
+ * does not see: a translation's links lead to its language's pages, which are
+ * not on the writer's list, so RepGet's own are all kept here. `allowed`
+ * (full addresses) keeps those too. HTML with nothing to remove comes back as
+ * it was.
+ */
+export function removeExternalLinks(html: string, rules: SiteRules, allowed: ReadonlySet<string> = new Set()): { html: string; removed: RemovedLink[] } {
+  if (!/<a[\s>]/i.test(html)) return { html, removed: [] };
+  const $ = cheerio.load(html, null, false);
+  const removed: RemovedLink[] = [];
+  for (const el of $("a").toArray()) {
+    const href = ($(el).attr("href") ?? "").trim();
+    if (isFragment(href)) continue;
+    const url = href && href !== "#" ? webAddress(href, rules.siteOrigin) : null;
+    if (url && rules.siteHosts.has(url.hostname.toLowerCase())) continue;
+    if (url && allowed.has(url.href)) continue;
+    removed.push({ href, text: $(el).text().replace(/\s+/g, " ").trim(), reason: url ? OTHER_SITE : "not a web address" });
+    $(el).replaceWith($(el).contents());
+  }
+  return removed.length > 0 ? { html: $.html(), removed } : { html, removed };
+}
+
+/**
+ * A translation of a post someone may have added links to by hand (the
+ * editor's "Draft with AI"): the links to other websites the original already
+ * has stay, and any the translator added go.
+ */
+export function removeAddedLinks(translated: string, originals: string[], rules: SiteRules): { html: string; removed: RemovedLink[] } {
+  const allowed = new Set<string>();
+  for (const original of originals) {
+    const $ = cheerio.load(original, null, false);
+    for (const el of $("a[href]").toArray()) {
+      const url = webAddress(($(el).attr("href") ?? "").trim(), rules.siteOrigin);
+      if (url) allowed.add(url.href);
+    }
+  }
+  return removeExternalLinks(translated, rules, allowed);
 }

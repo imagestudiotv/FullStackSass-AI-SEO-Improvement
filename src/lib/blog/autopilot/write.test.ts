@@ -24,7 +24,6 @@ vi.mock("@/lib/ai/client", () => ({
 import { cleanBlogPost } from "@/lib/blog/post-fields";
 import { TEAM_AUTHOR } from "@/lib/blog/shared";
 
-import { SOURCE_HOSTS } from "./links";
 import { addUsage, SpentError } from "./model";
 import {
   bodyParts,
@@ -340,7 +339,7 @@ describe("the body", () => {
 describe("the draft", () => {
   const plan = () => readPlan(planReply(), context()).plan;
 
-  it("keeps only links to RepGet's own pages and to official documentation that loads", async () => {
+  it("keeps only links to RepGet's own pages and places in the article: never another website, official documentation included", async () => {
     const parts = partReplies(bodyParts(10));
     const links = [
       '<a href="https://www.repget.com/audit">audit</a>',
@@ -351,39 +350,39 @@ describe("the draft", () => {
       '<a href="https://developers.google.com/search/docs/fundamentals/seo-starter-guide">starter guide</a>',
       '<a href="https://support.google.com/business/answer/gone">gone</a>',
       '<a href="mailto:someone@example.com">email</a>',
+      '<a href="#worked-example">the example below</a>',
+      '<a href="//www.repget.com/audit#score">the score</a>',
     ].join(" ");
     const written = parts.map((part, index) => ({
       html: index === 0 ? `<p>${links}</p>${String(part.bodyHtml)}` : String(part.bodyHtml),
       faqs: index === parts.length - 1 ? [{ question: "Q?", answer: '<p>See <a href="https://example.com/x">this</a>.</p>' }] : [],
     }));
-    const checkedUrls: string[] = [];
-    const { draft, report } = await finishDraft(context(), plan(), written, [], async (url) => {
-      checkedUrls.push(url);
-      return url.startsWith("https://developers.google.com/");
-    });
+    const { draft, report } = await finishDraft(context(), plan(), written);
 
     expect(draft.bodyHtml).toContain('<a href="https://www.repget.com/audit">audit</a>');
     expect(draft.bodyHtml).toContain('<a href="https://www.repget.com/tools/robots-checker">robots checker</a>');
     expect(draft.bodyHtml).toContain('<a href="https://www.repget.com/blog/local-seo-small-business">local SEO</a>');
-    expect(draft.bodyHtml).toContain('<a href="https://developers.google.com/search/docs/fundamentals/seo-starter-guide">starter guide</a>');
-    for (const gone of ["secret-page", "ahrefs.com", "answer/gone", "mailto:", "example.com/x"]) expect(draft.bodyHtml + draft.faqs[0].answer).not.toContain(gone);
+    expect(draft.bodyHtml).toContain('<a href="#worked-example">the example below</a>');
+    expect(draft.bodyHtml).toContain('<a href="https://www.repget.com/audit#score">the score</a>');
+    expect(draft.bodyHtml).toContain(" starter guide ");
+    for (const gone of ["secret-page", "ahrefs.com", "developers.google.com", "answer/gone", "mailto:", "example.com/x"]) expect(draft.bodyHtml + draft.faqs[0].answer).not.toContain(gone);
     expect(draft.bodyHtml).toContain(" secret ");
     expect(draft.faqs[0].answer).toBe("<p>See this.</p>");
-    // Only official documentation is ever fetched.
-    expect(checkedUrls).toEqual(["https://developers.google.com/search/docs/fundamentals/seo-starter-guide", "https://support.google.com/business/answer/gone"]);
-    expect(SOURCE_HOSTS.has("ahrefs.com")).toBe(false);
     expect(report.warnings).toContain(
-      `Links removed, their words kept: "secret" (not one of RepGet's pages), "a competitor" (not official documentation), "gone" (the page did not answer) and 2 more.`,
+      `Links removed, their words kept: "secret" (not one of RepGet's pages), "a competitor" (a link to another website), "starter guide" (a link to another website) and 3 more.`,
     );
-    expect(report.links.internal).toBe(4);
-    expect(report.links.external).toBe(1);
+    expect(report.links.internal).toBe(5);
+    expect(report.links.fragments).toBe(1);
     expect(report.links.removed.map((link) => link.reason)).toEqual([
       "not one of RepGet's pages",
-      "not official documentation",
-      "the page did not answer",
+      "a link to another website",
+      "a link to another website",
+      "a link to another website",
       "not a web address",
-      "not official documentation",
+      "a link to another website",
     ]);
+    // The addresses stay with the run's report, for administrators; never in the article.
+    expect(report.links.removed.map((link) => link.href)).toContain("https://developers.google.com/search/docs/fundamentals/seo-starter-guide");
   });
 
   it("fills in every field the editor has, and passes the rules a published post must", async () => {
@@ -403,7 +402,7 @@ describe("the draft", () => {
     });
     expect(draft.shortAnswer.length).toBeGreaterThan(300);
     expect(draft.faqs).toHaveLength(6);
-    expect(report).toMatchObject({ sections: 10, subheadings: 11, tables: 4, links: { internal: 1, external: 0, removed: [] } });
+    expect(report).toMatchObject({ sections: 10, subheadings: 11, tables: 4, links: { internal: 1, fragments: 0, removed: [] } });
     expect(report.words).toBeGreaterThan(3_200);
     expect(report.warnings).toEqual(["From the plan."]);
     expect(report.pictures).toHaveLength(2);

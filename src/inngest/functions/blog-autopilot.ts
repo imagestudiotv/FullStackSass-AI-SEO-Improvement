@@ -4,6 +4,7 @@ import { inngest } from "@/inngest/client";
 import { isAiConfigured, MODELS } from "@/lib/ai/client";
 import { addUsage, SpentError } from "@/lib/blog/autopilot/model";
 import { emailDraftsReady } from "@/lib/blog/autopilot/notify";
+import { removeExternalLinks } from "@/lib/blog/autopilot/links";
 import { canMakePictures, makePicture, placePictures } from "@/lib/blog/autopilot/pictures";
 import {
   failAutopilotRun,
@@ -27,8 +28,9 @@ import { queuedTopicCount, suggestTopics } from "@/lib/blog/autopilot/suggest";
 import { bodySlices, swapPictures, translateBodyPart, translateFields, type TranslationSource } from "@/lib/blog/autopilot/translate";
 import { bodyParts, finishDraft, loadWriterContext, planArticle, writePart, type WrittenPart } from "@/lib/blog/autopilot/write";
 import { LANGUAGE_NAMES_EN } from "@/lib/blog/locale";
-import { BlogPostError } from "@/lib/blog/post-fields";
+import { blogSiteHosts, BlogPostError } from "@/lib/blog/post-fields";
 import { blogLinkTargets, localizeLinks } from "@/lib/blog/translation-links";
+import { siteUrl } from "@/lib/site-url";
 
 /**
  * The blog autopilot writes one article (lib/blog/autopilot): the run and
@@ -275,8 +277,10 @@ export const blogAutopilotRun = inngest.createFunction(
       const savedTranslation = await step.run(`save-${locale}`, async () => {
         try {
           const { title, slug, seoTitle, description, shortAnswer, breadcrumbLabel, primaryKeyword, secondaryKeywords } = fields.value;
-          const faqs = fields.value.faqs.map((faq) => ({ ...faq, answer: localizeLinks(faq.answer, locale, links) }));
-          const bodyHtml = swapPictures(body.join(""), swaps);
+          // The last check before it is saved (lib/blog/autopilot/links.ts): no links to other websites, whatever came back.
+          const rules = { siteOrigin: new URL(siteUrl()).origin, siteHosts: blogSiteHosts() };
+          const faqs = fields.value.faqs.map((faq) => ({ ...faq, answer: removeExternalLinks(localizeLinks(faq.answer, locale, links), rules).html }));
+          const bodyHtml = removeExternalLinks(swapPictures(body.join(""), swaps), rules).html;
           const post = { title, slug, seoTitle, description, shortAnswer, breadcrumbLabel, primaryKeyword, secondaryKeywords, faqs, bodyHtml };
           return { value: await saveAutopilotTranslation(saved.postId, locale, post) };
         } catch (error) {

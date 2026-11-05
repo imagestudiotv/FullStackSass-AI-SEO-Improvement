@@ -13,7 +13,7 @@ import type { Executor } from "@/lib/db/types";
 import { siteUrl } from "@/lib/site-url";
 import { TOOLS } from "@/lib/tools/registry";
 
-import { checkLinks, pagePath, type LinkRules, type RemovedLink } from "./links";
+import { checkLinks, pagePath, removeExternalLinks, type RemovedLink } from "./links";
 import { askClaude, SpentError, type CallUsage } from "./model";
 import type { AutopilotClaim } from "./run";
 
@@ -146,10 +146,19 @@ export async function loadWriterContext(asOf: Date, executor: Executor = db): Pr
     categories,
     pages,
     posts: published.map((post) => ({ url: `${origin}${blogPath("en", post.slug)}`, title: post.title, keyword: post.primaryKeyword })),
+    // Without their links to other websites, so the writer does not copy a habit it must not have.
     examples: published
       .filter((post) => countWords(post.bodyHtml) >= EXAMPLE_MIN_WORDS)
       .slice(0, 2)
-      .map((post) => ({ title: post.title, shortAnswer: post.shortAnswer ?? "", bodyHtml: post.bodyHtml, faqs: post.faqs })),
+      .map((post) => {
+        const rules = { siteOrigin: origin, siteHosts: blogSiteHosts() };
+        return {
+          title: post.title,
+          shortAnswer: post.shortAnswer ?? "",
+          bodyHtml: removeExternalLinks(post.bodyHtml, rules).html,
+          faqs: post.faqs.map((faq) => ({ ...faq, answer: removeExternalLinks(faq.answer, rules).html })),
+        };
+      }),
   };
 }
 
@@ -196,14 +205,15 @@ export function writerInstructions(context: WriterContext): string {
     "",
     "<accuracy>",
     "- Describe how Google, Bing and AI assistants work only as they document it themselves. Do not guess at what they have not said; when something changed recently, say what is documented and leave out the rest.",
-    "- No statistics, percentages, studies, quotes, case studies or customer stories unless they come from the official documentation you link to. Examples are illustrative and say so.",
+    "- No statistics, percentages, studies, quotes, case studies or customer stories unless they come from official documentation you name. Examples are illustrative and say so.",
     "- No promises about rankings, traffic, AI-assistant mentions or results, from RepGet or anyone.",
     "</accuracy>",
     "",
     "<links>",
     "- Link to 3 to 6 of the pages in <repget_pages> and <blog_posts> where they genuinely help the reader, with the full address exactly as listed.",
-    "- Link to official documentation (Google Search Central, Search Console Help, Google Business Profile Help, Bing Webmaster Guidelines, schema.org, MDN, web.dev, W3C, llmstxt.org, OpenAI's crawler documentation) where a claim rests on it: 1 to 4 links, only at addresses you are certain exist.",
-    "- Every other link is removed before the article is saved, and so is any link whose page does not load. Never link to other blogs, SEO tools, agencies or competitors, and never name a competitor.",
+    "- Never link to another website: no links to official documentation, other blogs, SEO tools, agencies or competitors, and no web address of another site written out as text. Links to RepGet's own pages are the only links in the article.",
+    "- Where a claim rests on official documentation (Google Search Central, Search Console Help, Google Business Profile Help, Bing Webmaster Guidelines, schema.org, MDN, web.dev, W3C, llmstxt.org, OpenAI's crawler documentation), name it in words, without a link: \"Google's Search Central documentation says...\".",
+    "- Every other link is removed before the article is saved, and its words stay. Also, never name a competitor.",
     "</links>",
     "",
     "<repget_facts>",
@@ -321,7 +331,7 @@ const PLAN_REQUEST = [
   "- shortAnswer: plain text (no HTML), 330 to 430 characters: the direct answer to the article's main question in two to four sentences, as in the examples.",
   "- reader: in a sentence, who this is for and what they can do after reading.",
   "- opening: in a sentence or two, the concrete situation the article opens with.",
-  '- sections: 10 to 13, in reading order. For each: heading (its H2), covers (what it says, specifically, in a sentence or two), subheadings (its H3s, 0 to 4), table (what its table compares and its columns, or empty), links (the full addresses it links to, from <repget_pages>, <blog_posts> or official documentation; may be empty). Include a worked example and a practical plan or checklist. The second-to-last is "Where RepGet fits" and the last is "The bottom line".',
+  '- sections: 10 to 13, in reading order. For each: heading (its H2), covers (what it says, specifically, in a sentence or two), subheadings (its H3s, 0 to 4), table (what its table compares and its columns, or empty), links (the full addresses it links to, only from <repget_pages> or <blog_posts>; may be empty). Include a worked example and a practical plan or checklist. The second-to-last is "Where RepGet fits" and the last is "The bottom line".',
   "- pictures: exactly 2 diagrams that make a point of the article easier to grasp at a glance (a flow, a decision tree, a checklist, a simple comparison). For each: afterSection (the number, from 1, of the section it illustrates, not one of the last two), title (its headline, under 50 characters), idea (what it shows and how it is laid out, for an illustrator: the boxes, arrows or columns and what goes in each), labels (every other text in it, 3 to 10 short texts of a few words each, spelled exactly as they should appear), alt (alt text under 125 characters).",
   "- faqQuestions: 6 to 8 questions people search about this topic that the article answers, worded as they would type them, not repeating the section headings.",
   "",
@@ -603,7 +613,8 @@ export type DraftReport = {
   sections: number;
   subheadings: number;
   tables: number;
-  links: { internal: number; external: number; removed: RemovedLink[] };
+  /** What the check kept, and what it removed: with their addresses, for administrators only. */
+  links: { internal: number; fragments: number; removed: RemovedLink[] };
   /** Where the primary keyword is missing (the editor's keyword check). */
   keywordMissing: string[];
   warnings: string[];
@@ -620,14 +631,12 @@ export async function finishDraft(
   plan: ArticlePlan,
   parts: Pick<WrittenPart, "html" | "faqs">[],
   planWarnings: string[] = [],
-  pageAnswers?: LinkRules["pageAnswers"],
 ): Promise<{ draft: BlogPostInput; report: DraftReport }> {
   const faqs = parts.at(-1)?.faqs ?? [];
-  const checked = await checkLinks([parts.map((part) => part.html).join("\n"), ...faqs.map((faq) => faq.answer)], {
+  const checked = checkLinks([parts.map((part) => part.html).join("\n"), ...faqs.map((faq) => faq.answer)], {
     siteOrigin: context.origin,
     siteHosts: blogSiteHosts(),
     internalPaths: internalPaths(context),
-    pageAnswers,
   });
   const [bodyHtml, ...answers] = checked.html;
   const checkedFaqs = faqs.map((faq, index) => ({ question: faq.question, answer: answers[index] }));
