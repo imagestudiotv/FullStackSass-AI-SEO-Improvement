@@ -9,7 +9,7 @@ import { creditOverview } from "./overview";
  *
  * The shell shows the balance three times - the pill beside the logo, the
  * phone header's pill and the line under "Earn Credits" - and each would
- * otherwise run creditOverview (and its grant check) again for the same
+ * otherwise run creditOverview (and its monthly grant check) again for the same
  * workspace on the same render.
  */
 export const creditOverviewForRequest = cache((organizationId: string) => creditOverview(organizationId));

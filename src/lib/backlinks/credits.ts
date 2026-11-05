@@ -59,7 +59,7 @@ export type CreditType =
   | "reward"
   /** Manual adjustment by an admin. */
   | "adjustment"
-  /** Given for using RepGet that day (lib/credits/daily.ts). */
+  /** Claimed with the customer's daily check-in (lib/credits/daily.ts). */
   | "daily_grant"
   /** Spent on an action (lib/credits/spend.ts); reference_id is the credit_spends row. */
   | "spend"

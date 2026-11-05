@@ -2,14 +2,18 @@ import { Coins, Gift } from "lucide-react";
 import Link from "next/link";
 
 import { CreditsMenu } from "@/components/credits-menu";
+import { DailyClaim } from "@/components/daily-claim";
 import { creditOverviewForRequest } from "@/lib/credits/overview-request";
+import type { Locale } from "@/lib/i18n/config";
+import { DAILY_CLAIM_COPY } from "@/lib/i18n/daily-claim";
 import { format, plural } from "@/lib/i18n/format";
 import type { Messages } from "@/lib/i18n/messages";
 
 /**
  * The bottom of the sidebar (client design, 2026-11-02): "Earn Credits" (it
- * replaces "Referral program" and opens its own page, /earn-credits), then
- * the balance and today's daily credits, to the Credits page.
+ * replaces "Referral program" and opens its own page, /earn-credits), the
+ * daily check-in when there is one to do or to look back on, then the balance
+ * and today's daily credits, to the Credits page.
  *
  * Server component: it reads the workspace's ledger, which does not belong
  * in a client bundle.
@@ -17,6 +21,7 @@ import type { Messages } from "@/lib/i18n/messages";
 export async function SidebarUsage({
   organizationId,
   showCredits = true,
+  locale,
   t,
   tc,
 }: {
@@ -29,6 +34,7 @@ export async function SidebarUsage({
    * skips the monthly grant check, pointless on a render that shows nothing.
    */
   showCredits?: boolean;
+  locale: Locale;
   /** Passed in: the language belongs to the person, not the workspace. */
   t: Messages["app"]["nav"];
   /** The two credit phrases, from the Credits page's words. */
@@ -36,7 +42,7 @@ export async function SidebarUsage({
 }) {
   const credits = showCredits ? await creditOverviewForRequest(organizationId).catch(() => null) : null;
   const creditLabel = credits ? plural(tc.creditsCount, credits.available) : null;
-  // Today's daily credits (lib/credits/daily.ts), given by the first page of the day.
+  // Today's daily credits (lib/credits/daily.ts), once the customer has checked in.
   const dailyToday = credits && credits.daily.today > 0 ? format(tc.sidebarDaily, { count: credits.daily.today }) : null;
 
   return (
@@ -48,6 +54,7 @@ export async function SidebarUsage({
         <Gift className="size-4 shrink-0 text-primary" aria-hidden="true" />
         {t.earnCredits}
       </Link>
+      {credits ? <DailyClaim status={credits.daily} copy={DAILY_CLAIM_COPY[locale]} locale={locale} variant="row" /> : null}
       {creditLabel ? (
         <Link
           href="/credits"
@@ -62,6 +69,16 @@ export async function SidebarUsage({
       ) : null}
     </div>
   );
+}
+
+/**
+ * The check-in on a phone, beside the balance in the top bar, where the
+ * sidebar's is inside the closed menu. Only while one is open.
+ */
+export async function PhoneDailyClaim({ organizationId, locale }: { organizationId: string; locale: Locale }) {
+  const credits = await creditOverviewForRequest(organizationId).catch(() => null);
+  if (!credits) return null;
+  return <DailyClaim status={credits.daily} copy={DAILY_CLAIM_COPY[locale]} locale={locale} variant="chip" />;
 }
 
 /**

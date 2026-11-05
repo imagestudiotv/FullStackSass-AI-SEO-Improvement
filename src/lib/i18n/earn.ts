@@ -24,18 +24,11 @@ export type EarnCopy = {
   ready: string;
   copyCode: string;
   copyLink: string;
-  share: string;
   codeCopied: string;
   linkCopied: string;
   copyFailed: string;
   metaPerReferral: string;
   metaAfterPayment: string;
-  shareTitle: string;
-  shareBody: string;
-  shareEmail: string;
-  shareSubject: string;
-  /** "… {code}: {link}" */
-  shareMessage: string;
 
   dailyTitle: string;
   dailyBody: string;
@@ -113,20 +106,14 @@ const en: EarnCopy = {
   ready: "Ready to share",
   copyCode: "Copy code",
   copyLink: "Copy link",
-  share: "Share",
   codeCopied: "Code copied",
   linkCopied: "Link copied",
   copyFailed: "Copying failed. Select the text and copy it by hand.",
   metaPerReferral: "{credits} credits per qualifying referral",
   metaAfterPayment: "Reward after their first paid month",
-  shareTitle: "Share your referral",
-  shareBody: "Invite another business with your link or code. You earn {credits} credits after their first paid month.",
-  shareEmail: "Email",
-  shareSubject: "RepGet, a tool you might find useful",
-  shareMessage: "I think RepGet could help your business grow. Sign up with my referral code {code}: {link}",
 
   dailyTitle: "A little boost, every day.",
-  dailyBody: "Your daily credits, added automatically when your plan includes them.",
+  dailyBody: "Check in once a day to collect your daily credits. They never expire.",
   perDay: "credits / day",
   todayLabel: "Today's credits",
   todayAdded: "+{count} added",
@@ -218,7 +205,7 @@ const en: EarnCopy = {
   faqTitle: "Good to know",
   faq: [
     ["When do I receive my referral credits?", "When the business you referred pays for its first month: {credits} credits. Sign-ups that have not paid yet show as awaiting their first payment. If that payment is refunded in full, the reward is taken back."],
-    ["Do I need to claim my daily credits?", "No. When your plan includes daily credits, they are added automatically every day."],
+    ["Do I need to claim my daily credits?", "Yes. When your plan includes daily credits, check in once a day to collect them. A day you do not check in cannot be claimed later. Credits you have collected never expire."],
     ["What can I use credits for?", "Everything in RepGet that has a credit price, such as social content, extra articles and Partner Network links. Every action shows its price before you confirm, and credits never expire."],
     ["How are the other ways to earn reviewed?", "The RepGet team checks each submission, usually within a few working days. Only original, genuine submissions are rewarded, each way once per account. Public posts and tutorials must say you may receive RepGet credits for them, and we never ask for a positive review."],
     ["Can I withdraw credits as money?", "No. Credits are account credit, not cash, and cannot be withdrawn or transferred."],
@@ -246,20 +233,14 @@ const es: EarnCopy = {
   ready: "Listo para compartir",
   copyCode: "Copiar código",
   copyLink: "Copiar enlace",
-  share: "Compartir",
   codeCopied: "Código copiado",
   linkCopied: "Enlace copiado",
   copyFailed: "No se pudo copiar. Seleccione el texto y cópielo a mano.",
   metaPerReferral: "{credits} créditos por cada referido válido",
   metaAfterPayment: "Recompensa tras su primer mes pagado",
-  shareTitle: "Comparta su referido",
-  shareBody: "Invite a otra empresa con su enlace o código. Gana {credits} créditos tras su primer mes pagado.",
-  shareEmail: "Correo",
-  shareSubject: "RepGet, una herramienta que le puede ser útil",
-  shareMessage: "Creo que RepGet puede ayudar a crecer a su negocio. Regístrese con mi código de referido {code}: {link}",
 
   dailyTitle: "Un pequeño impulso, cada día.",
-  dailyBody: "Sus créditos diarios, añadidos automáticamente cuando su plan los incluye.",
+  dailyBody: "Registre su visita una vez al día para recoger sus créditos diarios. No caducan nunca.",
   perDay: "créditos / día",
   todayLabel: "Créditos de hoy",
   todayAdded: "+{count} añadidos",
@@ -351,7 +332,7 @@ const es: EarnCopy = {
   faqTitle: "Conviene saber",
   faq: [
     ["¿Cuándo recibo mis créditos por referidos?", "Cuando la empresa que refirió paga su primer mes: {credits} créditos. Los registros que aún no han pagado aparecen como pendientes del primer pago. Si ese pago se reembolsa por completo, la recompensa se retira."],
-    ["¿Tengo que reclamar mis créditos diarios?", "No. Cuando su plan incluye créditos diarios, se añaden automáticamente cada día."],
+    ["¿Tengo que reclamar mis créditos diarios?", "Sí. Cuando su plan incluye créditos diarios, registre su visita una vez al día para recogerlos. Un día sin registrar no se puede reclamar después. Los créditos recogidos no caducan nunca."],
     ["¿Para qué puedo usar los créditos?", "Para todo lo que en RepGet tiene un precio en créditos, como contenido social, artículos extra y enlaces de la Partner Network. Cada acción muestra su precio antes de confirmar, y los créditos no caducan."],
     ["¿Cómo se revisan las otras formas de ganar?", "El equipo de RepGet revisa cada envío, normalmente en pocos días laborables. Solo se recompensan envíos originales y auténticos, cada forma una vez por cuenta. Las publicaciones y tutoriales públicos deben indicar que puede recibir créditos de RepGet, y nunca pedimos una opinión positiva."],
     ["¿Puedo retirar los créditos como dinero?", "No. Los créditos son saldo de la cuenta, no dinero, y no se pueden retirar ni transferir."],
@@ -379,20 +360,14 @@ const fr: EarnCopy = {
   ready: "Prêt à partager",
   copyCode: "Copier le code",
   copyLink: "Copier le lien",
-  share: "Partager",
   codeCopied: "Code copié",
   linkCopied: "Lien copié",
   copyFailed: "La copie a échoué. Sélectionnez le texte et copiez-le à la main.",
   metaPerReferral: "{credits} crédits par parrainage valide",
   metaAfterPayment: "Récompense après son premier mois payé",
-  shareTitle: "Partagez votre parrainage",
-  shareBody: "Invitez une autre entreprise avec votre lien ou votre code. Vous gagnez {credits} crédits après son premier mois payé.",
-  shareEmail: "E-mail",
-  shareSubject: "RepGet, un outil qui pourrait vous être utile",
-  shareMessage: "Je pense que RepGet peut aider votre entreprise à se développer. Inscrivez-vous avec mon code de parrainage {code} : {link}",
 
   dailyTitle: "Un petit coup de pouce, chaque jour.",
-  dailyBody: "Vos crédits quotidiens, ajoutés automatiquement lorsque votre formule les inclut.",
+  dailyBody: "Faites votre check-in une fois par jour pour récupérer vos crédits quotidiens. Ils n’expirent jamais.",
   perDay: "crédits / jour",
   todayLabel: "Crédits du jour",
   todayAdded: "+{count} ajoutés",
@@ -484,7 +459,7 @@ const fr: EarnCopy = {
   faqTitle: "Bon à savoir",
   faq: [
     ["Quand vais-je recevoir mes crédits de parrainage ?", "Lorsque l’entreprise que vous avez parrainée paie son premier mois : {credits} crédits. Les inscriptions qui n’ont pas encore payé apparaissent en attente du premier paiement. Si ce paiement est entièrement remboursé, la récompense est reprise."],
-    ["Dois-je réclamer mes crédits quotidiens ?", "Non. Lorsque votre formule inclut des crédits quotidiens, ils sont ajoutés automatiquement chaque jour."],
+    ["Dois-je réclamer mes crédits quotidiens ?", "Oui. Lorsque votre formule inclut des crédits quotidiens, pointez une fois par jour pour les récupérer. Un jour sans pointage ne peut pas être réclamé plus tard. Les crédits récupérés n’expirent jamais."],
     ["À quoi servent les crédits ?", "À tout ce qui a un prix en crédits dans RepGet, comme le contenu social, des articles supplémentaires et les liens de la Partner Network. Chaque action affiche son prix avant confirmation, et les crédits n’expirent jamais."],
     ["Comment les autres façons de gagner sont-elles examinées ?", "L’équipe RepGet vérifie chaque envoi, généralement sous quelques jours ouvrés. Seuls les envois originaux et authentiques sont récompensés, chaque façon une fois par compte. Les publications et tutoriels publics doivent indiquer que vous pouvez recevoir des crédits RepGet, et nous ne demandons jamais d’avis positif."],
     ["Puis-je retirer des crédits en argent ?", "Non. Les crédits sont un avoir sur votre compte, pas de l’argent, et ne peuvent être ni retirés ni transférés."],
@@ -512,20 +487,14 @@ const it: EarnCopy = {
   ready: "Pronto da condividere",
   copyCode: "Copia codice",
   copyLink: "Copia link",
-  share: "Condividi",
   codeCopied: "Codice copiato",
   linkCopied: "Link copiato",
   copyFailed: "Copia non riuscita. Selezioni il testo e lo copi a mano.",
   metaPerReferral: "{credits} crediti per ogni referral valido",
   metaAfterPayment: "Premio dopo il suo primo mese pagato",
-  shareTitle: "Condivida il Suo referral",
-  shareBody: "Inviti un’altra azienda con il Suo link o codice. Guadagna {credits} crediti dopo il suo primo mese pagato.",
-  shareEmail: "Email",
-  shareSubject: "RepGet, uno strumento che potrebbe esserLe utile",
-  shareMessage: "Credo che RepGet possa aiutare la Sua attività a crescere. Si iscriva con il mio codice referral {code}: {link}",
 
   dailyTitle: "Una piccola spinta, ogni giorno.",
-  dailyBody: "I Suoi crediti giornalieri, aggiunti automaticamente quando il Suo piano li include.",
+  dailyBody: "Faccia il check-in una volta al giorno per ricevere i Suoi crediti giornalieri. Non scadono mai.",
   perDay: "crediti / giorno",
   todayLabel: "Crediti di oggi",
   todayAdded: "+{count} aggiunti",
@@ -617,7 +586,7 @@ const it: EarnCopy = {
   faqTitle: "Da sapere",
   faq: [
     ["Quando ricevo i crediti referral?", "Quando l’azienda che ha invitato paga il primo mese: {credits} crediti. Le iscrizioni che non hanno ancora pagato risultano in attesa del primo pagamento. Se quel pagamento viene rimborsato per intero, il premio viene ritirato."],
-    ["Devo richiedere i crediti giornalieri?", "No. Quando il Suo piano include crediti giornalieri, vengono aggiunti automaticamente ogni giorno."],
+    ["Devo richiedere i crediti giornalieri?", "Sì. Quando il Suo piano include crediti giornalieri, faccia il check-in una volta al giorno per riceverli. Un giorno senza check-in non si può richiedere in seguito. I crediti ricevuti non scadono mai."],
     ["Per cosa posso usare i crediti?", "Per tutto ciò che in RepGet ha un prezzo in crediti, come contenuti social, articoli extra e link della Partner Network. Ogni azione mostra il prezzo prima della conferma, e i crediti non scadono mai."],
     ["Come vengono verificati gli altri modi per guadagnare?", "Il team RepGet controlla ogni invio, di solito entro pochi giorni lavorativi. Vengono premiati solo invii originali e autentici, ogni modo una volta per account. Post e tutorial pubblici devono dire che potrebbe ricevere crediti RepGet, e non chiediamo mai una recensione positiva."],
     ["Posso prelevare i crediti come denaro?", "No. I crediti sono un credito sull’account, non denaro, e non possono essere prelevati né trasferiti."],
@@ -645,20 +614,14 @@ const de: EarnCopy = {
   ready: "Bereit zum Teilen",
   copyCode: "Code kopieren",
   copyLink: "Link kopieren",
-  share: "Teilen",
   codeCopied: "Code kopiert",
   linkCopied: "Link kopiert",
   copyFailed: "Kopieren fehlgeschlagen. Markieren Sie den Text und kopieren Sie ihn von Hand.",
   metaPerReferral: "{credits} Credits pro gültiger Empfehlung",
   metaAfterPayment: "Prämie nach dem ersten bezahlten Monat",
-  shareTitle: "Empfehlung teilen",
-  shareBody: "Laden Sie ein anderes Unternehmen mit Ihrem Link oder Code ein. Sie erhalten {credits} Credits nach dessen erstem bezahlten Monat.",
-  shareEmail: "E-Mail",
-  shareSubject: "RepGet, ein Tool, das Ihnen nützen könnte",
-  shareMessage: "Ich glaube, RepGet kann Ihrem Unternehmen beim Wachsen helfen. Melden Sie sich mit meinem Empfehlungscode {code} an: {link}",
 
   dailyTitle: "Ein kleiner Schub, jeden Tag.",
-  dailyBody: "Ihre täglichen Credits, automatisch gutgeschrieben, wenn Ihr Tarif sie enthält.",
+  dailyBody: "Checken Sie einmal täglich ein, um Ihre täglichen Credits abzuholen. Sie verfallen nie.",
   perDay: "Credits / Tag",
   todayLabel: "Heutige Credits",
   todayAdded: "+{count} gutgeschrieben",
@@ -750,7 +713,7 @@ const de: EarnCopy = {
   faqTitle: "Gut zu wissen",
   faq: [
     ["Wann erhalte ich meine Empfehlungs-Credits?", "Wenn das empfohlene Unternehmen seinen ersten Monat bezahlt: {credits} Credits. Anmeldungen ohne Zahlung erscheinen als „Warten auf erste Zahlung“. Wird diese Zahlung vollständig erstattet, wird die Prämie zurückgebucht."],
-    ["Muss ich meine täglichen Credits anfordern?", "Nein. Wenn Ihr Tarif tägliche Credits enthält, werden sie jeden Tag automatisch gutgeschrieben."],
+    ["Muss ich meine täglichen Credits anfordern?", "Ja. Wenn Ihr Tarif tägliche Credits enthält, checken Sie einmal täglich ein, um sie abzuholen. Ein Tag ohne Check-in kann später nicht nachgeholt werden. Abgeholte Credits verfallen nie."],
     ["Wofür kann ich Credits nutzen?", "Für alles in RepGet mit einem Credit-Preis, etwa Social-Content, zusätzliche Artikel und Partner-Network-Links. Jede Aktion zeigt ihren Preis vor der Bestätigung, und Credits verfallen nie."],
     ["Wie werden die anderen Wege geprüft?", "Das RepGet-Team prüft jede Einsendung, meist innerhalb weniger Werktage. Belohnt werden nur eigene, echte Einsendungen, jeder Weg einmal pro Konto. Öffentliche Beiträge und Tutorials müssen angeben, dass Sie dafür RepGet-Credits erhalten können, und wir verlangen nie eine positive Bewertung."],
     ["Kann ich Credits als Geld auszahlen lassen?", "Nein. Credits sind Guthaben auf Ihrem Konto, kein Geld, und können weder ausgezahlt noch übertragen werden."],

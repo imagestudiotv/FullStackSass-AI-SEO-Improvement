@@ -82,9 +82,9 @@ export const TRIAL_CREDIT_DAYS = 3;
 export const priceKey = (action: CreditAction) => `price:${action}`;
 
 export type CreditSettings = {
-  /** Credits a paying workspace is given on each UTC day it uses RepGet (lib/credits/daily.ts). 0 = off. */
+  /** Credits a paying workspace can claim on each UTC day (lib/credits/daily.ts). 0 = off. */
   dailyFree: number;
-  /** Credits a trial is given on each of its first TRIAL_CREDIT_DAYS days it uses RepGet. 0 = off. */
+  /** Credits a trial can claim on each of its first TRIAL_CREDIT_DAYS days. 0 = off. */
   trialDailyFree: number;
   prices: Record<CreditAction, number>;
   /** The latest change, for the admin page. */
