@@ -220,64 +220,12 @@ export function ArticlePublishing({
     </Button>
   );
 
-  return (
-    <WorkspaceSection
-      id="article-publishing"
-      icon={Send}
-      title={t.publishingTitle}
-      description={t.publishingHelp}
-      className={className}
-      bodyClassName="space-y-4"
-    >
-      {/* Announced as it changes: queued, delivering, the result. */}
-      <div role="status" aria-live="polite" className="space-y-2">
-        {now ? <StateLine line={now} id={statusId} /> : null}
-        <StateLine line={outcome} />
-      </div>
-
-      {now && awaiting && pressExpired ? (
-        <Button type="button" variant="outline" size="sm" disabled={checking} onClick={onCheckAgain}>
-          {checking ? <Loader2 className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> : null}
-          {t.checkAgain}
-        </Button>
-      ) : null}
-
-      <dl className="grid gap-3 text-sm sm:grid-cols-3 xl:grid-cols-1">
-        <div className="min-w-0">
-          <dt className="text-xs text-muted-foreground">{t.destinationLabel}</dt>
-          <dd className="mt-0.5 font-medium wrap-anywhere">
-            {destination.kind === "direct"
-              ? destination.site
-                ? `${destination.name} · ${destination.site}`
-                : destination.name
-              : destination.kind === "plugin"
-                ? t.destinationPlugin
-                : t.destinationNone}
-          </dd>
-          <dd className="mt-0.5">
-            <Link
-              href={`/websites/${websiteId}/integrations`}
-              className="rounded-sm text-xs font-medium text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
-            >
-              {t.manageConnection}
-            </Link>
-          </dd>
-        </div>
-        <div className="min-w-0">
-          <dt className="text-xs text-muted-foreground">{t.plannedLabel}</dt>
-          <dd className="mt-0.5 font-medium">{facts.planned ?? t.plannedNone}</dd>
-        </div>
-        <div className="min-w-0">
-          <dt className="text-xs text-muted-foreground">{t.autoLabel}</dt>
-          <dd className="mt-0.5 font-medium">
-            {facts.autoPublish === "live" ? t.autoOnLive : facts.autoPublish === "draft" ? t.autoOnDraft : t.autoOff}
-          </dd>
-        </div>
-      </dl>
-
-      {plan.mode === "pluginPublished" ? <Notice tone="info">{t.statePluginPublished}</Notice> : null}
-
-      {canEdit && plan.mode === "connect" ? (
+  /*
+    What the customer can do. Under the two-step flow it comes first, above the
+    facts: it is the one thing they are here for, and on a small laptop it would
+    otherwise start below the fold.
+  */
+  const connectBlock = canEdit && plan.mode === "connect" ? (
         <div className="space-y-2">
           <p className="text-sm text-muted-foreground">{facts.twoStep ? delivery.readyConnect : t.connectHelp}</p>
           {/* Wraps: "Website verbinden, um zu veröffentlichen" is wider than this panel on a phone or beside the article. */}
@@ -288,9 +236,9 @@ export function ArticlePublishing({
             </Link>
           </Button>
         </div>
-      ) : null}
+      ) : null;
 
-      {actions ? (
+  const actionsBlock = actions ? (
         <div className="space-y-2">
           <div className="flex flex-wrap gap-2">
             {/* The two-step flow's one Publish action: no second button. */}
@@ -344,7 +292,70 @@ export function ArticlePublishing({
             <p className="text-xs leading-5 text-muted-foreground">{t.uncertainPublishNote}</p>
           ) : null}
         </div>
+      ) : null;
+
+  return (
+    <WorkspaceSection
+      id="article-publishing"
+      icon={Send}
+      title={t.publishingTitle}
+      description={t.publishingHelp}
+      className={className}
+      bodyClassName="space-y-4"
+    >
+      {/* Announced as it changes: queued, delivering, the result. */}
+      <div role="status" aria-live="polite" className="space-y-2">
+        {now ? <StateLine line={now} id={statusId} /> : null}
+        <StateLine line={outcome} />
+      </div>
+
+      {now && awaiting && pressExpired ? (
+        <Button type="button" variant="outline" size="sm" disabled={checking} onClick={onCheckAgain}>
+          {checking ? <Loader2 className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> : null}
+          {t.checkAgain}
+        </Button>
       ) : null}
+
+      {facts.twoStep ? connectBlock : null}
+      {facts.twoStep ? actionsBlock : null}
+
+      <dl className="grid gap-3 text-sm sm:grid-cols-3 xl:grid-cols-1">
+        <div className="min-w-0">
+          <dt className="text-xs text-muted-foreground">{t.destinationLabel}</dt>
+          <dd className="mt-0.5 font-medium wrap-anywhere">
+            {destination.kind === "direct"
+              ? destination.site
+                ? `${destination.name} · ${destination.site}`
+                : destination.name
+              : destination.kind === "plugin"
+                ? t.destinationPlugin
+                : t.destinationNone}
+          </dd>
+          <dd className="mt-0.5">
+            <Link
+              href={`/websites/${websiteId}/integrations`}
+              className="rounded-sm text-xs font-medium text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
+            >
+              {t.manageConnection}
+            </Link>
+          </dd>
+        </div>
+        <div className="min-w-0">
+          <dt className="text-xs text-muted-foreground">{t.plannedLabel}</dt>
+          <dd className="mt-0.5 font-medium">{facts.planned ?? t.plannedNone}</dd>
+        </div>
+        <div className="min-w-0">
+          <dt className="text-xs text-muted-foreground">{t.autoLabel}</dt>
+          <dd className="mt-0.5 font-medium">
+            {facts.autoPublish === "live" ? t.autoOnLive : facts.autoPublish === "draft" ? t.autoOnDraft : t.autoOff}
+          </dd>
+        </div>
+      </dl>
+
+      {plan.mode === "pluginPublished" ? <Notice tone="info">{t.statePluginPublished}</Notice> : null}
+
+      {facts.twoStep ? null : connectBlock}
+      {facts.twoStep ? null : actionsBlock}
 
       {pressError ? (
         <Notice tone="danger" role="alert">
