@@ -31,9 +31,11 @@ vi.mock("@/lib/backlinks/credits", async (actual) => {
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/tenant", () => ({ requireOrg: async () => ({ orgId: state.sessionOrg, userId: "user_1", role: "owner" }) }));
 
+import { getBalance, recordCredit } from "@/lib/backlinks/credits";
 import { claimDailyCredits, dailyGrantKey, readDailyStatus, trialGrantKey } from "@/lib/credits/daily";
 import { claimDailyCreditsAction } from "@/lib/credits/daily-actions";
-import { creditOverview } from "@/lib/credits/overview";
+import { creditHistory, creditOverview, creditToday } from "@/lib/credits/overview";
+import { walletOf } from "@/lib/credits/spend";
 import { creditLedger, creditSettings, organization, plans, subscriptions, websites } from "@/lib/db/schema";
 
 const available = Boolean(testPostgresUrl());
@@ -127,6 +129,11 @@ describe.skipIf(!available)("the daily check-in on real Postgres", () => {
     for (const orgId of [await workspace(), await workspace("trialing", new Date(NOON.getTime() - HOUR)), await workspace(null)]) {
       await readDailyStatus(orgId, NOON);
       await Promise.all([creditOverview(orgId, NOON), creditOverview(orgId, NOON)]);
+      // Every way the balance is read.
+      await getBalance(orgId);
+      await walletOf(dbs[0], orgId);
+      await creditToday(orgId, NOON);
+      await creditHistory(orgId, { page: 1, pageSize: 25 });
       expect(await grantsOf(orgId)).toHaveLength(0);
       expect((await creditOverview(orgId, NOON)).balance).toBe(0);
     }
@@ -201,6 +208,130 @@ describe.skipIf(!available)("the daily check-in on real Postgres", () => {
     // The balance did not reset, and the streak carries on.
     expect((await creditOverview(orgId, day(7))).balance).toBe(21);
     expect(eighth.streak).toBe(7);
+  });
+
+  describe("when the next claim opens", () => {
+    it("paid: the UTC day. The next availability shown is the first moment a claim works", async () => {
+      const orgId = await workspace();
+      const late = new Date("2026-11-05T23:59:59.999Z");
+      const { status } = await claimDailyCredits(orgId, late);
+      expect(status.nextAt).toEqual(new Date("2026-11-06T00:00:00.000Z"));
+      // The same moment read at any time that UTC day.
+      expect((await readDailyStatus(orgId, new Date("2026-11-05T00:00:00.000Z"))).nextAt).toEqual(status.nextAt);
+      const next = status.nextAt as Date;
+      expect(await claimDailyCredits(orgId, new Date(next.getTime() - 1))).toMatchObject({ outcome: "already_claimed" });
+      expect(await readDailyStatus(orgId, next)).toMatchObject({ claimable: true, today: 0, nextAt: null });
+      const again = await claimDailyCredits(orgId, next);
+      expect(again).toMatchObject({ outcome: "claimed" });
+      expect(again.status.nextAt).toEqual(new Date("2026-11-07T00:00:00.000Z"));
+    });
+
+    it("paid: across a month's end, with no time zone in it", async () => {
+      const orgId = await workspace();
+      const { status } = await claimDailyCredits(orgId, new Date("2026-11-30T23:30:00Z"));
+      expect(status.nextAt).toEqual(new Date("2026-12-01T00:00:00Z"));
+    });
+
+    const START = new Date("2026-11-02T23:00:00Z");
+    const at = (hours: number) => new Date(START.getTime() + hours * HOUR);
+
+    it("trial: 24 hours from its start, not midnight. The next availability shown is the first moment a claim works", async () => {
+      const orgId = await workspace("trialing", START);
+      const first = await claimDailyCredits(orgId, at(1));
+      // Past UTC midnight is still the first trial day.
+      expect(first.status.nextAt).toEqual(at(24));
+      expect(await claimDailyCredits(orgId, new Date("2026-11-03T00:00:00Z"))).toMatchObject({ outcome: "already_claimed" });
+      expect(await claimDailyCredits(orgId, new Date(at(24).getTime() - 1))).toMatchObject({ outcome: "already_claimed" });
+      expect(await readDailyStatus(orgId, at(24))).toMatchObject({ claimable: true, today: 0, nextAt: null });
+      const second = await claimDailyCredits(orgId, at(24));
+      expect(second).toMatchObject({ outcome: "claimed", amount: 15 });
+      expect(second.status.nextAt).toEqual(at(48));
+    });
+
+    it("trial: after the last day nothing is promised, and the end is exact", async () => {
+      const orgId = await workspace("trialing", START);
+      const last = await claimDailyCredits(orgId, at(71));
+      expect(last.status).toMatchObject({ nextAt: null, trialEndsAt: at(72) });
+      expect(await claimDailyCredits(orgId, new Date(at(72).getTime() - 1))).toMatchObject({ outcome: "already_claimed" });
+      expect(await claimDailyCredits(orgId, at(72))).toMatchObject({ outcome: "not_eligible" });
+    });
+  });
+
+  describe("the day claims go live", () => {
+    /** A row exactly as the old automatic path wrote it (ensureDailyCredits): no reference. */
+    async function automatic(orgId: string, key: string, amount: number, note: string) {
+      await dbs[0].insert(creditLedger).values({ organizationId: orgId, type: "daily_grant", amount, note, idempotencyKey: key });
+    }
+
+    it("paid: the automatic grant and a manual claim cannot both award, even racing", async () => {
+      const orgId = await workspace();
+      await automatic(orgId, dailyGrantKey(orgId, NOON), 3, "Daily credits");
+      const claims = await Promise.all([claimDailyCredits(orgId, NOON), claimDailyCredits(orgId, NOON)]);
+      expect(claims.map((claim) => claim.outcome)).toEqual(["already_claimed", "already_claimed"]);
+      expect(await grantsOf(orgId)).toHaveLength(1);
+      expect((await creditOverview(orgId, NOON)).balance).toBe(3);
+      // The next UTC day is a new period, and claims normally.
+      expect(await claimDailyCredits(orgId, new Date(NOON.getTime() + DAY))).toMatchObject({ outcome: "claimed", amount: 3 });
+    });
+
+    it("trial: the automatic row's trial-day key stops a manual claim for that whole trial day", async () => {
+      const START = new Date("2026-11-02T23:00:00Z");
+      const at = (hours: number) => new Date(START.getTime() + hours * HOUR);
+      const orgId = await workspace("trialing", START);
+      await automatic(orgId, trialGrantKey(orgId, 0), 15, "Trial credits, day 1 of 3");
+      expect(await readDailyStatus(orgId, at(2))).toMatchObject({ today: 15, claimable: false, nextAt: at(24) });
+      const claims = await Promise.all([claimDailyCredits(orgId, at(2)), claimDailyCredits(orgId, at(23))]);
+      expect(claims.map((claim) => claim.outcome)).toEqual(["already_claimed", "already_claimed"]);
+      expect(await grantsOf(orgId)).toHaveLength(1);
+      expect((await creditOverview(orgId, at(2))).balance).toBe(15);
+      // The next trial day is a new period.
+      expect(await claimDailyCredits(orgId, at(24))).toMatchObject({ outcome: "claimed", amount: 15 });
+      expect((await grantsOf(orgId)).map((row) => row.idempotencyKey).sort()).toEqual([trialGrantKey(orgId, 0), trialGrantKey(orgId, 1)]);
+    });
+  });
+
+  it("the other sources of credits: untouched by a claim, and still granted as before", async () => {
+    const orgId = await workspace(null);
+    const [site] = await dbs[0].select({ id: websites.id }).from(websites).where(eq(websites.organizationId, orgId));
+    const [plan] = await dbs[0]
+      .insert(plans)
+      .values({ name: "With credits", tier: `tier_${randomUUID().slice(0, 8)}`, priceCents: 1000, articleLimit: 10, keywordLimit: 100, siteLimit: 1, monthlyCredits: 250 })
+      .returning({ id: plans.id });
+    const now = new Date();
+    await dbs[0].insert(subscriptions).values({ organizationId: orgId, websiteId: site.id, planId: plan.id, status: "active", currentPeriodStart: new Date(now.getTime() - DAY), currentPeriodEnd: new Date(now.getTime() + 29 * DAY) });
+    await recordCredit(orgId, { type: "purchase", amount: 100, idempotencyKey: `purchase:${orgId}` });
+    await recordCredit(orgId, { type: "referral", amount: 100, idempotencyKey: `referral:${orgId}` });
+    await recordCredit(orgId, { type: "reward", amount: 20, idempotencyKey: `earn:${orgId}` });
+
+    const sorted = async () =>
+      (await dbs[0].select().from(creditLedger).where(eq(creditLedger.organizationId, orgId)))
+        .filter((row) => row.amount !== 0)
+        .map((row) => ({ id: row.id, type: row.type, amount: row.amount, key: row.idempotencyKey }))
+        .sort((a, b) => a.type.localeCompare(b.type));
+
+    // Reading still grants the month's plan credits, once however often, and no daily ones.
+    await creditOverview(orgId, now);
+    await creditOverview(orgId, now);
+    const before = await sorted();
+    expect(before.map((row) => [row.type, row.amount])).toEqual([
+      ["plan_grant", 250],
+      ["purchase", 100],
+      ["referral", 100],
+      ["reward", 20],
+    ]);
+
+    const claim = await claimDailyCredits(orgId, now);
+    expect(claim).toMatchObject({ outcome: "claimed", amount: 3 });
+    const after = await sorted();
+    // One row more, of its own type, and every other row exactly as it was.
+    expect(after.filter((row) => row.type !== "daily_grant")).toEqual(before);
+    expect(after.filter((row) => row.type === "daily_grant").map((row) => row.amount)).toEqual([3]);
+    expect(await getBalance(orgId)).toBe(473);
+
+    // A repeated purchase and another read change nothing either: their own keys still guard them.
+    expect(await recordCredit(orgId, { type: "purchase", amount: 100, idempotencyKey: `purchase:${orgId}` })).toBe(false);
+    await creditOverview(orgId, now);
+    expect(await getBalance(orgId)).toBe(473);
   });
 
   it("not eligible: no plan, a failed payment, or an amount of 0", async () => {
