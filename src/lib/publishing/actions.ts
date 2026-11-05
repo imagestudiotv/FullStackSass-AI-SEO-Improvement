@@ -13,7 +13,7 @@ import {
   publicationDispatches,
   publishLogs,
 } from "@/lib/db/schema";
-import { checkReleasable, HELD_MESSAGE, PREPARING_MESSAGE, reviewHashSql, sendToTeam, twoStepArticles } from "@/lib/articles/review";
+import { checkReleasable, HELD_MESSAGE, PREPARING_MESSAGE, sendableRevision, sendToTeam, twoStepArticles } from "@/lib/articles/review";
 import {
   ProviderError,
   type Credentials,
@@ -29,7 +29,7 @@ import {
 } from "@/lib/publishing/policy";
 import type { IntegrationView, ProviderInfo } from "@/lib/publishing/shared";
 import { triggerPluginSync } from "@/lib/plugin/sync";
-import { HOLD_MESSAGES, IN_FLIGHT_TIMEOUT_MS, latestUncertain, reconcileUncertain } from "@/lib/publishing/dispatch";
+import { carriesWithdrawnLink, HOLD_MESSAGES, IN_FLIGHT_TIMEOUT_MS, latestUncertain, reconcileUncertain } from "@/lib/publishing/dispatch";
 import { isPublishingConnection } from "@/lib/publishing/kinds";
 import { requireWebsite } from "@/lib/tenant";
 import { requireEditor } from "@/lib/websites/require-editor";
@@ -371,13 +371,7 @@ export async function publishArticle(
   const { site, ownerOrgId } = guard.context;
 
   const [article] = await db
-    .select({
-      id: articles.id,
-      bodyHtml: articles.bodyHtml,
-      translationOf: articles.translationOf,
-      reviewStatus: articles.reviewStatus,
-      revision: reviewHashSql,
-    })
+    .select()
     .from(articles)
     .where(and(eq(articles.id, articleId), eq(articles.websiteId, site.id)))
     .limit(1);
@@ -399,16 +393,23 @@ export async function publishArticle(
   const gate = await checkReleasable(article.id);
   if (!gate.ok) {
     if (!twoStep) return { ok: false, error: HELD_MESSAGE };
-    // Older, and held for a source check the customer can no longer give: it is the team's now.
+    // Older, and never approved: it is the team's now.
     if (article.reviewStatus === null) await sendToTeam(article.id);
     return { ok: false, error: PREPARING_MESSAGE };
   }
   /*
-    The same version pressed twice says so, rather than looking like a second
-    delivery. The claim refuses a duplicate either way (already_sent, in_flight):
-    this is what the customer is told.
+    Under the two-step flow a press sends the revision the customer is reading:
+    the approved one, even while the team works on a newer copy (the claim
+    enforces it). What it would send is checked here for what they are told:
+    a stored revision carrying a link the team withdrew waits for the team; the
+    same version pressed twice says so, rather than looking like a second
+    delivery. The claim refuses a duplicate either way.
   */
-  if (twoStep) {
+  const sendable = twoStep ? sendableRevision(article) : null;
+  if (sendable?.ok) {
+    if (sendable.from === "stored" && (await carriesWithdrawnLink(db, article.id, sendable.revision.bodyHtml))) {
+      return { ok: false, error: PREPARING_MESSAGE };
+    }
     const [latest] = await db
       .select({
         status: publicationDispatches.status,
@@ -423,7 +424,7 @@ export async function publishArticle(
     if (latest?.status === "in_flight" && latest.claimedAt.getTime() > Date.now() - IN_FLIGHT_TIMEOUT_MS) {
       return { ok: false, error: HOLD_MESSAGES.in_flight };
     }
-    if (latest?.status === "sent" && latest.revisionHash === article.revision && latest.requestedStatus === "publish") {
+    if (latest?.status === "sent" && latest.revisionHash === sendable.hash && latest.requestedStatus === "publish") {
       return { ok: false, error: HOLD_MESSAGES.already_sent };
     }
   }

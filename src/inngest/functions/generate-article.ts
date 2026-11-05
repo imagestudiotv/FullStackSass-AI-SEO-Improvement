@@ -1064,6 +1064,12 @@ export const generateArticle = inngest.createFunction(
      * been changed while the article was being written.
      */
     const autoPublished = await step.run("auto-publish", async () => {
+      /*
+        The two-step flow: what was just written goes to the team. Nothing is
+        released from here; the approval or the daily release does that.
+      */
+      if (await twoStepArticles()) return false;
+
       const [site] = await db
         .select({
           autoPublish: websites.autoPublish,

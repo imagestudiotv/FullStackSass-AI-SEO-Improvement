@@ -1,8 +1,8 @@
 import { eq, sql, type SQL } from "drizzle-orm";
 
-import { reviewHashSql } from "@/lib/articles/review";
+import { revisionToStore, reviewHashSql } from "@/lib/articles/review";
 import { db } from "@/lib/db";
-import { articles, networkSites, platformControls, websites } from "@/lib/db/schema";
+import { articles, networkSites, platformControls } from "@/lib/db/schema";
 import type { Executor } from "@/lib/db/types";
 
 /**
@@ -33,7 +33,7 @@ import type { Executor } from "@/lib/db/types";
  *        approve (heldFromCustomer in lib/articles/review.ts);
  *     2. their ONE approval makes that exact revision ready. The customer
  *        has one Publish action and approves nothing, and a later change to
- *        the revision goes back to the team (afterCustomerEdit).
+ *        the revision goes back to the team (afterArticleEdit).
  *        The first-article exception does not apply while it is on
  *        (isFirstArticle in lib/publishing/policy.ts). Automatic publishing
  *        the customer chose still runs, for approved articles only, on their
@@ -136,19 +136,18 @@ export async function switchControl(
  * Switching the two-step flow on: what was written under the old rules is
  * sorted so that nothing goes out without the team, and nobody waits for an
  * approval the new flow no longer asks of them. Only never-delivered drafts
- * move, none in the middle of a delivery, and nothing is approved or sent.
+ * move to the queue, none in the middle of a delivery, and nothing is approved
+ * or sent.
  *
- *  - Held for a CUSTOMER's source approval: to the team, whose approval now
- *    covers the sources.
- *  - On a website with automatic publishing, with no Publish press waiting:
- *    to the team, or the next release would send them unreviewed.
+ *  - Never approved by the team: to the team. Every path now checks approval.
  *  - Approved by the team earlier, but no longer standing - changed since, or
  *    waiting for the customer's source approval: back to the team.
  *
- * Staying as they are: drafts on manual publishing the customer already reads
- * (only their own press sends those), articles the team approved as they
- * stand (they keep their date), and everything delivered or live. The same
- * sorting is counted, read-only, by scripts/two-step-transition-dry-run.mjs.
+ * Staying as they are: articles the team approved as they stand (they keep their
+ * date), and everything delivered or live. Those two get their stored revision
+ * here, from the row as it stands, so a later working copy stays private (see
+ * StoredRevision). The same sorting is counted, read-only, by
+ * scripts/two-step-transition-dry-run.mjs.
  */
 export async function activateTwoStep(tx: Executor): Promise<number> {
   const notDelivering = sql`not exists (select 1 from publication_dispatches pd where pd.article_id = ${articles.id} and pd.status = 'in_flight')`;
@@ -159,12 +158,7 @@ export async function activateTwoStep(tx: Executor): Promise<number> {
       sql`${articles.reviewStatus} is null
         and ${articles.status} = 'draft'
         and ${articles.publishedUrl} is null
-        and ${notDelivering}
-        and (
-          (${articles.researchReviewRequired} and ${articles.researchApprovedHash} is distinct from ${reviewHashSql})
-          or (${articles.publishRequested} is null
-            and exists (select 1 from ${websites} w where w.id = ${articles.websiteId} and w.auto_publish))
-        )`,
+        and ${notDelivering}`,
     )
     .returning({ id: articles.id });
   const stale = await tx
@@ -187,6 +181,20 @@ export async function activateTwoStep(tx: Executor): Promise<number> {
         )`,
     )
     .returning({ id: articles.id });
+
+  const standing = await tx
+    .select()
+    .from(articles)
+    .where(
+      sql`(${articles.reviewStatus} = 'approved' and ${articles.reviewApprovedHash} = ${reviewHashSql})
+        or (${articles.reviewStatus} is null and (${articles.status} = 'published' or ${articles.publishedUrl} is not null))`,
+    );
+  for (const row of standing) {
+    await tx
+      .update(articles)
+      .set({ approvedRevision: revisionToStore(row, row.reviewStatus === "approved" ? "approved" : "published") })
+      .where(eq(articles.id, row.id));
+  }
   return waiting.length + stale.length;
 }
 

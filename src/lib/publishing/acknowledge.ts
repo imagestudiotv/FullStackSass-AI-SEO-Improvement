@@ -149,7 +149,7 @@ export async function acknowledgePluginDispatch(input: {
       return { result: "late", dispatchId: dispatch.id, article, report, live } as const;
     }
 
-    const snapshot = (dispatch.requestSnapshot ?? {}) as { publishRequested?: string | null };
+    const snapshot = (dispatch.requestSnapshot ?? {}) as { publishRequested?: string | null; title?: string };
     // A Publish press made AFTER this hand-over was claimed is not answered by it.
     const pressAnswered =
       snapshot.publishRequested === undefined || (article.publishRequested ?? null) === (snapshot.publishRequested ?? null);
@@ -168,7 +168,8 @@ export async function acknowledgePluginDispatch(input: {
     } else {
       await tx.update(articles).set({ error: report.error.slice(0, 500), updatedAt: now }).where(eq(articles.id, article.id));
     }
-    return { result: "applied", dispatchId: dispatch.id, article, report, live } as const;
+    // What went out, for what the customer is told: the row's own title may be a working copy by now.
+    return { result: "applied", dispatchId: dispatch.id, article: { ...article, title: snapshot.title ?? article.title }, report, live } as const;
   });
 }
 

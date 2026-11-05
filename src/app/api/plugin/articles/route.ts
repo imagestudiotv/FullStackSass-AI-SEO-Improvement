@@ -14,7 +14,7 @@ import { dueArticlesForPlugin, pluginPostsForWebsite } from "@/lib/plugin/due";
 import { recordPluginLanguages } from "@/lib/plugin/languages";
 import { recordSyncUrl } from "@/lib/plugin/sync";
 import { recordInstall, recordPluginVersion, resolveIntegrationKey } from "@/lib/plugin/keys";
-import { claimDispatch } from "@/lib/publishing/dispatch";
+import { claimDispatch, recordLinkFindings } from "@/lib/publishing/dispatch";
 import { pointAtCopies } from "@/lib/publishing/picture-copies";
 import { pluginProtocol, pluginTranslates } from "@/lib/plugin/protocol";
 import { libraryMediaIds, ownCopies, pictureAddresses } from "@/lib/sites/library-media";
@@ -119,8 +119,9 @@ export async function GET(request: NextRequest) {
   for (const row of due) {
     // An article with no body is mid-generation, not ready to publish.
     if (!row.bodyHtml) continue;
+    let checked: Awaited<ReturnType<typeof prepareStoredArticle>> = null;
     try {
-      await prepareStoredArticle(row.id, resolved.websiteId, {
+      checked = await prepareStoredArticle(row.id, resolved.websiteId, {
         budgetMs: Math.max(0, deadline - Date.now()),
       });
     } catch (error) {
@@ -149,6 +150,8 @@ export async function GET(request: NextRequest) {
       owner: `plugin:${resolved.keyId}`,
     });
     if (!claim.ok) continue;
+    // Under the two-step flow a dead link goes out as approved, on record with the send (lib/articles/internal-links.ts).
+    if (checked && !checked.changed) await recordLinkFindings(claim.dispatchId, checked.findings).catch(() => undefined);
     rows.push({
       ...row,
       status: claim.status,

@@ -10,13 +10,13 @@ import {
 import { prepareStoredArticle, summarize } from "@/lib/articles/internal-links";
 import { prepareForDelivery } from "@/lib/articles/delivery";
 import { siteScope } from "@/lib/articles/link-guard";
-import { checkReleasable, releaseCheckFor, reviewHash, twoStepArticles } from "@/lib/articles/review";
+import { checkReleasable, releaseCheckFor, reviewHash, sendableRevision, twoStepArticles, type ReviewFields } from "@/lib/articles/review";
 import {
   claimDispatch,
   HOLD_MESSAGES,
   latestUncertain,
+  recordLinkFindings,
   recordSentPictures,
-  revisionWithDeliveredPicture,
   sentPictures,
   settleDispatch,
   type DispatchTrigger,
@@ -152,7 +152,10 @@ export const publishArticleJob = inngest.createFunction(
         Publish press or a retry. An article held for the RepGet team, or
         changed since they approved it, is not sent. See lib/articles/review.ts.
       */
-      const before = releaseCheckFor(article);
+      const twoStep = await twoStepArticles();
+      // Under the two-step flow, the approved revision to send, which need not be the working copy.
+      const gate = (row: typeof article) => (twoStep ? sendableRevision(row, { automatic: trigger !== "manual" }) : releaseCheckFor(row));
+      const before = gate(article);
       if (!before.ok) {
         logger.info(
           { step: "load-article", articleId, websiteId, reason: before.reason },
@@ -171,10 +174,12 @@ export const publishArticleJob = inngest.createFunction(
         A failure here never blocks publishing. See lib/articles/internal-links.ts.
       */
       let contentHtml = article.bodyHtml;
+      let linkFindings: { outcome: string; href: string; reason: string }[] = [];
       try {
         const checked = await prepareStoredArticle(articleId, websiteId, { budgetMs: 20_000 });
         if (checked) {
           contentHtml = checked.html;
+          linkFindings = twoStep ? checked.findings.map(({ outcome, href, reason }) => ({ outcome, href, reason })) : [];
           if (checked.changed) {
             logger.info(
               { step: "load-article", articleId, websiteId, ...summarize(checked.findings) },
@@ -205,7 +210,7 @@ export const publishArticleJob = inngest.createFunction(
         .where(and(eq(articles.id, articleId), eq(articles.websiteId, websiteId)))
         .limit(1);
       if (!current?.bodyHtml) throw new Error("Article has no content to publish");
-      const after = releaseCheckFor(current);
+      const after = gate(current);
       if (!after.ok) {
         logger.info(
           { step: "load-article", articleId, websiteId, reason: after.reason },
@@ -213,6 +218,9 @@ export const publishArticleJob = inngest.createFunction(
         );
         return { held: after.reason };
       }
+      // Exactly what passed the gate: under the two-step flow, never a working copy waiting for the team.
+      const revision: ReviewFields = "revision" in after ? after.revision : current;
+      if (!revision.bodyHtml) throw new Error("Article has no content to publish");
 
       // Industry lives on the website, and steers the header image prompt.
       const [site] = await db
@@ -231,7 +239,7 @@ export const publishArticleJob = inngest.createFunction(
         (the "Powered by RepGet" line per the website's setting, responsive
         images, section-link repair). See lib/articles/delivery.ts.
       */
-      contentHtml = prepareForDelivery(current.bodyHtml, {
+      contentHtml = prepareForDelivery(revision.bodyHtml, {
         poweredBy: site?.poweredByLink ?? false,
         siteHosts: site ? siteScope(site).hosts : undefined,
         followUrls: await placementUrlsForArticle(articleId),
@@ -281,8 +289,8 @@ export const publishArticleJob = inngest.createFunction(
           providerId: integration.providerId,
           isUpdate: Boolean(previous?.remoteId),
           htmlBytes: contentHtml.length,
-          hasSlug: Boolean(current.slug),
-          hasExcerpt: Boolean(current.metaDescription),
+          hasSlug: Boolean(revision.slug),
+          hasExcerpt: Boolean(revision.metaDescription),
         },
         "Article and integration loaded",
       );
@@ -294,7 +302,8 @@ export const publishArticleJob = inngest.createFunction(
           only if the article is STILL this revision (lib/publishing/dispatch.ts),
           so nothing prepared from an older revision can go out.
         */
-        revisionHash: reviewHash(current),
+        revisionHash: reviewHash(revision),
+        linkFindings,
         integrationId: integration.integrationId,
         providerId: integration.providerId,
         // No `credentials` key, deliberately: see above.
@@ -302,14 +311,14 @@ export const publishArticleJob = inngest.createFunction(
         // Used to steer the header image toward the customer's sector.
         industry: site?.industry ?? null,
         // The image saved with the article, published as-is when present.
-        image: current.imageUrl
-          ? { url: current.imageUrl, alt: current.imageAlt ?? current.title }
+        image: revision.imageUrl
+          ? { url: revision.imageUrl, alt: revision.imageAlt ?? revision.title }
           : null,
         post: {
-          title: current.title,
+          title: revision.title,
           contentHtml,
-          slug: current.slug,
-          excerpt: current.metaDescription,
+          slug: revision.slug,
+          excerpt: revision.metaDescription,
           status,
         },
       };
@@ -705,12 +714,7 @@ export const publishArticleJob = inngest.createFunction(
           revision: nothing to send. Its delivery was logged when it was
           found; the article is brought up to date below, once.
         */
-        const [current] = await db
-          .select({ title: articles.title })
-          .from(articles)
-          .where(eq(articles.id, articleId))
-          .limit(1);
-        return { held: null, sent: reconciled, title: current?.title ?? "", dispatchId: null as string | null };
+        return { held: null, sent: reconciled, title: prepared.post.title, dispatchId: null as string | null };
       }
       if (!claim.ok) {
         logger.info(
@@ -736,6 +740,9 @@ export const publishArticleJob = inngest.createFunction(
         }
         return { held: claim.reason, sent: null, title: null };
       }
+
+      // A dead link in approved text goes out as approved (lib/articles/internal-links.ts), on record with this send.
+      await recordLinkFindings(claim.dispatchId, prepared.linkFindings).catch(() => undefined);
 
       // 3. Send exactly the claimed revision.
       const [site] = await db
@@ -891,21 +898,20 @@ export const publishArticleJob = inngest.createFunction(
       }
 
       const live = result.status === "publish";
-      const keptApproval = featuredMedia
-        ? await revisionWithDeliveredPicture(articleId, sendOutcome.dispatchId ?? null, featuredMedia.url)
-        : {};
+      const twoStep = await twoStepArticles();
       await db
         .update(articles)
         .set({
-          ...keptApproval,
           // A WordPress draft is not live, so the article is not "published".
           status: live ? "published" : "draft",
           publishedUrl: result.remoteUrl,
           // When it FIRST went live; a republish or a later edit keeps it.
           ...(live ? { firstLiveAt: sql`coalesce(${articles.firstLiveAt}, timezone('utc', now()))` } : {}),
           // The CMS's own URL, which does not expire the way the provider's
-          // does. Left untouched when no image was uploaded this run.
-          ...(featuredMedia ? { imageUrl: featuredMedia.url } : {}),
+          // does. Left untouched when no image was uploaded this run. Not under
+          // the two-step flow: the picture is part of the approved revision, and
+          // nothing a send does may change what was approved.
+          ...(featuredMedia && !twoStep ? { imageUrl: featuredMedia.url } : {}),
           error: null,
           updatedAt: new Date(),
         })
