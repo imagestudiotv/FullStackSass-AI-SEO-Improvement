@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { BlogArticle } from "@/components/blog-article";
+import { PublishPostVersions } from "@/components/post-languages";
 import { BLOG_CHROME, blogPath, categoryPath, homePath, LANGUAGE_NAMES } from "@/lib/blog/locale";
 import type { PostVersion } from "@/lib/blog/posts";
 import { isTeamAuthor, TEAM_AUTHOR_PATH, jsonLdScript, plainText, type BlogPost } from "@/lib/blog/shared";
@@ -161,6 +162,8 @@ export function BlogPostView({
 
   return (
     <div>
+      {/* The footer's language switcher sends a reader to this same article in the languages it is published in. */}
+      <PublishPostVersions path={blogPath(locale, post.slug)} versions={versions} />
       <script
         type="application/ld+json"
         // Escaped for a script block: titles and answers are typed by people.
