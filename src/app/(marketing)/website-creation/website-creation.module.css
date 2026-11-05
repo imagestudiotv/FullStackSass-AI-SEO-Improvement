@@ -1474,8 +1474,8 @@
     min-height: 0;
     padding: 8px;
     display: grid;
-    grid-template-columns: 20px minmax(0, 1fr);
-    gap: 7px 11px;
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 7px 8px;
     border-radius: 18px;
   }
   .heroForm svg {
@@ -1659,9 +1659,9 @@
   }
   .closingForm {
     display: grid;
-    grid-template-columns: 19px minmax(0, 1fr);
+    grid-template-columns: 30px minmax(0, 1fr);
     padding: 8px;
-    gap: 7px 10px;
+    gap: 7px 8px;
   }
   .closingForm svg {
     margin-left: 8px;

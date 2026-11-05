@@ -96,7 +96,7 @@ describe.skipIf(!available)("website projects on real Postgres", () => {
 
   afterAll(async () => {
     await dispose?.();
-  });
+  }, 300_000);
 
   async function workspace(balance: number) {
     const orgId = `org_${randomUUID().slice(0, 8)}`;
@@ -413,7 +413,9 @@ describe.skipIf(!available)("website projects on real Postgres", () => {
 
       // Starting checkout needs no website, and grants nothing: not the session, not the success address.
       state.orgId = orgId;
+      vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://app.test");
       expect(await buyAddon(pack.id)).toEqual({ url: "https://checkout.stripe.test/session" });
+      vi.unstubAllEnvs();
       expect(await balance(orgId)).toBe(0);
       expect(checkout.create).toHaveBeenCalledWith(expect.objectContaining({ mode: "payment", metadata: { organizationId: orgId, addonId: pack.id } }));
 
