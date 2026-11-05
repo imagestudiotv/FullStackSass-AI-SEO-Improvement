@@ -7,6 +7,7 @@ import { StatusBadge, type StatusTone } from "@/components/ui/status-badge";
 import type { DashboardOverview, TodaysArticle, Win } from "@/lib/dashboard/overview";
 import { format, formatDate, formatNumber, plural } from "@/lib/i18n/format";
 import type { Locale } from "@/lib/i18n/config";
+import { ARTICLE_DELIVERY } from "@/lib/i18n/article-delivery";
 import { CONTENT_COPY } from "@/lib/i18n/content-improvements";
 import type { Messages } from "@/lib/i18n/messages";
 import { cn } from "@/lib/utils";
@@ -124,6 +125,9 @@ const ARTICLE_STATE: Record<TodaysArticle["state"], { status: string; tone: Stat
   awaiting_research_review: { status: "pending", tone: "warning", key: "stAwaitingReview" },
   awaiting_review: { status: "pending", tone: "warning", key: "stAwaitingReview" },
   approved: { status: "completed", tone: "positive", key: "stApproved" },
+  // The two-step flow; "ready" reads from ARTICLE_DELIVERY below.
+  preparing: { status: "pending", tone: "active", key: "stAwaitingReview" },
+  ready: { status: "completed", tone: "positive", key: "stApproved" },
   scheduled: { status: "scheduled", tone: "neutral", key: "stScheduled" },
   draft: { status: "draft", tone: "neutral", key: "stDraft" },
   writing: { status: "generating", tone: "active", key: "stWriting" },
@@ -156,6 +160,8 @@ export function TodaysArticleCard({ overview, t, locale }: { overview: Dashboard
   const stateHelp =
     article.state === "awaiting_research_review" ? CONTENT_COPY[locale].reviewHelp
     : article.state === "awaiting_review" ? t.stAwaitingReviewHelp
+    : article.state === "preparing" ? ARTICLE_DELIVERY[locale].dashboardPreparingHelp
+    : article.state === "ready" ? ARTICLE_DELIVERY[locale].dashboardReadyHelp
     : article.state === "approved" ? (planned ? format(t.stApprovedHelp, { date: planned }) : t.stApprovedNoDate)
     : article.state === "scheduled" && planned ? format(t.stScheduledHelp, { date: planned })
     : article.state === "draft" ? t.stDraftHelp
@@ -171,7 +177,7 @@ export function TodaysArticleCard({ overview, t, locale }: { overview: Dashboard
             </Link>
           </h2>
           <div className="flex flex-wrap items-center gap-2">
-            <StatusBadge status={state.status} tone={state.tone} label={article.state === "awaiting_research_review" ? CONTENT_COPY[locale].held : t[state.key] as string} />
+            <StatusBadge status={state.status} tone={state.tone} label={article.state === "awaiting_research_review" ? CONTENT_COPY[locale].held : article.state === "ready" ? ARTICLE_DELIVERY[locale].dashboardReady : t[state.key] as string} />
             {article.publishedUrl ? (
               <a href={article.publishedUrl} target="_blank" rel="noopener noreferrer" className="inline-flex max-w-full items-center gap-1 truncate text-xs text-muted-foreground hover:underline">
                 <span className="truncate">{article.publishedUrl}</span>

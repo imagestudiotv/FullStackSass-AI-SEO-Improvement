@@ -17,6 +17,7 @@ import { latestUncertain } from "@/lib/publishing/dispatch";
 import { requireWebsitePage, WebsiteNotFoundError } from "@/lib/tenant";
 
 import { ArticleEditor } from "./article-editor";
+import { ArticlePreparing } from "./article-preparing";
 import { ArticleIndexingStatus } from "@/components/articles/indexing-status";
 import { ResearchPanel } from "@/components/articles/research-panel";
 import { formatWhen, HISTORY_LIMIT, loadPublishing, pickDestination } from "./article-data";
@@ -77,6 +78,37 @@ export default async function ArticlePage({
     throw error;
   }
   if (!article) notFound();
+
+  /*
+    The two-step flow: the team has it, or it is still being written. Nothing
+    below is read for it - the links in its text, its publishing panel - and
+    getArticle has already emptied it.
+  */
+  if (article.preparing) {
+    const [integrations, connectedPlugin, { locale, t }] = await Promise.all([
+      listIntegrations(websiteId),
+      db
+        .select({ id: integrationKeys.id })
+        .from(integrationKeys)
+        .where(and(eq(integrationKeys.websiteId, gate.site.id), isNull(integrationKeys.revokedAt), isNotNull(integrationKeys.lastUsedAt)))
+        .limit(1),
+      getAppMessages(gate.userId),
+    ]);
+    return (
+      <ArticlePreparing
+        websiteId={websiteId}
+        title={article.title}
+        stage={article.preparing}
+        destination={pickDestination(integrations, connectedPlugin.length > 0)}
+        autoPublish={gate.site.autoPublish ? (gate.site.publishAs === "draft" ? "draft" : "live") : "off"}
+        canEdit={gate.access !== "viewer"}
+        locale={locale}
+        plannedArticlesLabel={t.app.nav.plannedArticles}
+        breadcrumbLabel={t.app.editor.breadcrumbLabel}
+        tStatus={t.app.status}
+      />
+    );
+  }
 
   const [partnerLinks, cmsIntegrations, uncertain, plugin, { locale, t }] = await Promise.all([
     // Partner Network links in this article, highlighted in its preview and editor.

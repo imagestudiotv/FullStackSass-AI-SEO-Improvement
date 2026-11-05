@@ -5,9 +5,9 @@ import { db } from "@/lib/db";
 import { nextActionPreferences, websites } from "@/lib/db/schema";
 import { findTrafficChanges } from "@/lib/articles/decay";
 import { PUBLISHING_KINDS } from "@/lib/publishing/kinds";
-import { reviewHashSql, releasableSql } from "@/lib/articles/review";
+import { reviewHashSql, releasableSql, twoStepOffSql } from "@/lib/articles/review";
 
-export type NextActionKind = "publishing" | "publishFailed" | "failed" | "draft" | "audit" | "google" | "traffic" | "searchData" | "snippet" | "research";
+export type NextActionKind = "publishing" | "publishFailed" | "failed" | "draft" | "ready" | "audit" | "google" | "traffic" | "searchData" | "snippet" | "research";
 export type NextAction = {
   id: string; kind: NextActionKind; href: string; detail?: string;
   priority: "high" | "medium" | "opportunity";
@@ -41,10 +41,13 @@ export async function getNextActions(
       where a.website_id = ${websiteId} and p.status = 'failed'
         and p.id = (select last.id from publish_logs last where last.article_id = a.id order by last.created_at desc, last.id desc limit 1)
       order by p.created_at desc, p.id desc limit 1)`,
+    // The two-step flow asks no approval of the customer: this task does not exist under it.
     research: sql<ArticleTask>`(select json_build_object('id', articles.id, 'title', articles.title)
       from articles where articles.website_id = ${websiteId} and articles.status in ('draft', 'published')
       and articles.research_review_required and articles.research_approved_hash is distinct from ${reviewHashSql}
+      and ${twoStepOffSql}
       order by articles.updated_at desc, articles.id limit 1)`,
+    twoStep: sql<boolean>`not ${twoStepOffSql}`,
     draft: sql<ArticleTask>`(select json_build_object('id', articles.id, 'title', articles.title) from articles
       where articles.website_id = ${websiteId} and articles.status = 'draft' and ${releasableSql}
       and not websites.auto_publish order by articles.updated_at desc, articles.id limit 1)`,
@@ -91,7 +94,7 @@ export async function getNextActions(
         { clicks: candidate.clicks, impressions: candidate.impressions, end: traffic.windowEnd! });
     } else if (row.google && canManage) add("searchData", websiteId, "medium", `${base}/google`);
   } else if (row.google && canManage) add("searchData", websiteId, "medium", `${base}/google`);
-  if (row.draft) add("draft", row.draft.id, "medium", `${base}/articles/${row.draft.id}`, row.draft.title);
+  if (row.draft) add(row.twoStep ? "ready" : "draft", row.draft.id, "medium", `${base}/articles/${row.draft.id}`, row.draft.title);
   if (canManage && !row.google) add("google", websiteId, "medium", `${base}/google`);
   const order = { high: 0, medium: 1, opportunity: 2 };
   actions.sort((a, b) => order[a.priority] - order[b.priority]);

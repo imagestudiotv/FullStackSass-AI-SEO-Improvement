@@ -18,6 +18,7 @@ import { useId } from "react";
 import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/workspace/notice";
 import { WorkspaceSection } from "@/components/workspace/section";
+import type { ArticleDeliveryCopy } from "@/lib/i18n/article-delivery";
 import { format } from "@/lib/i18n/format";
 import type { Messages } from "@/lib/i18n/messages";
 import { cn } from "@/lib/utils";
@@ -53,10 +54,15 @@ function currentLine(input: {
   pressExpired: boolean;
   pressTime: string | null;
   t: Messages["app"]["editor"];
+  delivery: ArticleDeliveryCopy;
 }): Line | null {
-  const { facts, plan, t } = input;
+  const { facts, plan, t, delivery } = input;
   if (input.working) return { icon: Loader2, tone: "progress", text: t.stateWriting };
   if (facts.frozen) return { icon: AlertTriangle, tone: "warning", text: t.stateFrozen };
+  // The two-step flow: what is held here is the customer's own change to a live post; it is the team's to check.
+  if (facts.twoStep && (facts.review === "pending" || facts.review === "changed")) {
+    return { icon: Info, tone: "info", text: delivery.liveChangeWithTeam };
+  }
   if (facts.review === "pending") return { icon: AlertTriangle, tone: "warning", text: facts.reviewSource === "research" ? t.stateResearchPending : t.stateReviewPending };
   if (facts.review === "changed") return { icon: AlertTriangle, tone: "warning", text: facts.reviewSource === "research" ? t.stateResearchChanged : t.stateReviewChanged };
   if (facts.delivering) return { icon: Loader2, tone: "progress", text: t.stateDelivering };
@@ -72,6 +78,20 @@ function currentLine(input: {
     };
   }
   if (facts.uncertain) return { icon: AlertTriangle, tone: "warning", text: t.stateUncertain };
+  // Finished and not on the site yet: step 2 of the two-step flow, said plainly.
+  if (facts.twoStep && facts.review === "approved" && !facts.liveOnSite && facts.lastOutcome.kind === "none" && plan.mode !== "connect") {
+    const auto = facts.plannedInFuture && facts.planned ? facts.autoPublish : "off";
+    return {
+      icon: CheckCircle2,
+      tone: "success",
+      text:
+        auto === "live"
+          ? format(delivery.readyAutoLive, { date: facts.planned ?? "" })
+          : auto === "draft"
+            ? format(delivery.readyAutoDraft, { date: facts.planned ?? "" })
+            : delivery.ready,
+    };
+  }
   return null;
 }
 
@@ -145,6 +165,7 @@ export function ArticlePublishing({
   className,
   t,
   tCommon,
+  delivery,
 }: {
   websiteId: string;
   plan: PublishPlan;
@@ -166,12 +187,13 @@ export function ArticlePublishing({
   className?: string;
   t: Messages["app"]["editor"];
   tCommon: Messages["app"]["common"];
+  delivery: ArticleDeliveryCopy;
 }) {
   const statusId = useId();
   const unsavedId = useId();
   const liveSentId = useId();
   const draftSentId = useId();
-  const now = currentLine({ facts, plan, working, awaiting, pressExpired, pressTime, t });
+  const now = currentLine({ facts, plan, working, awaiting, pressExpired, pressTime, t, delivery });
   const outcome = outcomeLine(facts, t);
   const destination = facts.destination;
 
@@ -257,7 +279,7 @@ export function ArticlePublishing({
 
       {canEdit && plan.mode === "connect" ? (
         <div className="space-y-2">
-          <p className="text-sm text-muted-foreground">{t.connectHelp}</p>
+          <p className="text-sm text-muted-foreground">{facts.twoStep ? delivery.readyConnect : t.connectHelp}</p>
           {/* Wraps: "Website verbinden, um zu veröffentlichen" is wider than this panel on a phone or beside the article. */}
           <Button asChild className="h-auto min-h-8 whitespace-normal text-left">
             <Link href={`/websites/${websiteId}/integrations`}>
@@ -271,7 +293,8 @@ export function ArticlePublishing({
       {actions ? (
         <div className="space-y-2">
           <div className="flex flex-wrap gap-2">
-            {actions.confirmDraft ? (
+            {/* The two-step flow's one Publish action: no second button. */}
+            {facts.twoStep ? null : actions.confirmDraft ? (
               <ConfirmDialog
                 trigger={draftButton(true, busy || blocked !== null || actions.draftAlreadySent)}
                 disabled={busy || blocked !== null || actions.draftAlreadySent}
@@ -309,7 +332,7 @@ export function ArticlePublishing({
               {t.alreadySentLive}
             </p>
           ) : null}
-          {draftSent ? (
+          {draftSent && !facts.twoStep ? (
             <p id={draftSentId} className="text-xs leading-5 text-muted-foreground">
               {t.alreadySentDraft}
             </p>

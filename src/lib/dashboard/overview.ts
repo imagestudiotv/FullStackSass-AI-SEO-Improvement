@@ -2,7 +2,7 @@ import "server-only";
 
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 
-import { reviewHashSql } from "@/lib/articles/review";
+import { heldFromCustomerSql, PREPARING_TITLE, reviewHashSql, twoStepOffSql } from "@/lib/articles/review";
 import { readOneAuthority, type AuthorityReading } from "@/lib/authority/metric";
 import { db } from "@/lib/db";
 import { articles, audits, calendarItems, keywords, websites } from "@/lib/db/schema";
@@ -132,7 +132,7 @@ export type TodaysArticle = {
    * waiting for its day or the customer) | scheduled (goes out on its day) |
    * draft (waits for the customer) | writing.
    */
-  state: "published" | "awaiting_research_review" | "awaiting_review" | "approved" | "scheduled" | "draft" | "writing" | "failed";
+  state: "published" | "awaiting_research_review" | "awaiting_review" | "approved" | "preparing" | "ready" | "scheduled" | "draft" | "writing" | "failed";
 };
 
 export type Win =
@@ -304,6 +304,9 @@ async function loadTodaysArticle(websiteId: string): Promise<TodaysArticle | nul
       researchHeld: sql<boolean>`${articles.researchReviewRequired} and ${articles.researchApprovedHash} is distinct from ${reviewHashSql}`,
       plannedFor: calendarItems.scheduledFor,
       autoPublish: websites.autoPublish,
+      plannedTitle: calendarItems.title,
+      twoStep: sql<boolean>`not ${twoStepOffSql}`,
+      held: heldFromCustomerSql,
     })
     .from(articles)
     .innerJoin(websites, eq(websites.id, articles.websiteId))
@@ -336,15 +339,18 @@ async function loadTodaysArticle(websiteId: string): Promise<TodaysArticle | nul
     article.status === "published" ? "published"
     : article.status === "generating" || article.status === "queued" ? "writing"
     : article.status === "failed" ? "failed"
-    : article.researchHeld ? "awaiting_research_review"
+    // Under the two-step flow: with the team, or ready. Nothing here asks the customer to review.
+    : article.held ? "preparing"
+    : article.twoStep && article.reviewStatus === "approved" && !article.publishedUrl ? "ready"
+    : article.researchHeld && !article.twoStep ? "awaiting_research_review"
     : article.reviewStatus === "pending" ? "awaiting_review"
     : article.reviewStatus === "approved" ? "approved"
     : article.autoPublish ? "scheduled"
     : "draft";
   return {
     id: article.id,
-    title: article.title,
-    imageUrl: article.imageUrl,
+    title: article.held ? (article.plannedTitle ?? PREPARING_TITLE) : article.title,
+    imageUrl: article.held ? null : article.imageUrl,
     publishedUrl: article.publishedUrl,
     targetKeyword: article.targetKeyword,
     volume,

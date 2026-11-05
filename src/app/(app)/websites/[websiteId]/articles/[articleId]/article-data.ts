@@ -105,7 +105,7 @@ export async function loadPublishing(input: {
   const { siteId, article, locale } = input;
   const now = input.now ?? new Date();
 
-  const [[extra], [latest], [lastSent], logs, frozen] = await Promise.all([
+  const [[extra], [latest], [lastSent], logs, frozen, twoStep] = await Promise.all([
     db
       .select({
         reviewStatus: articles.reviewStatus,
@@ -163,6 +163,7 @@ export async function loadPublishing(input: {
       .orderBy(desc(publishLogs.createdAt))
       .limit(HISTORY_LIMIT),
     isControlEnabled("publication_freeze"),
+    isControlEnabled("two_step_articles"),
   ]);
 
   const fields = {
@@ -192,7 +193,9 @@ export async function loadPublishing(input: {
   const facts: PublishFacts = {
     destination: input.destination,
     review,
-    reviewSource: extra?.researchReviewRequired && (extra.researchApprovedHash !== revision || extra.reviewStatus === null) ? "research" : "team",
+    // Under the two-step flow every review is the team's: the customer approves nothing.
+    reviewSource: !twoStep && extra?.researchReviewRequired && (extra.researchApprovedHash !== revision || extra.reviewStatus === null) ? "research" : "team",
+    twoStep,
     frozen,
     uncertain: input.uncertain,
     delivering: Boolean(
