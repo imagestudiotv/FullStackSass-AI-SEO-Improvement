@@ -2,7 +2,7 @@ import "server-only";
 
 import { and, eq, gte, inArray, sql } from "drizzle-orm";
 
-import { heldFromCustomerSql } from "@/lib/articles/review";
+import { nothingToShowSql } from "@/lib/articles/review";
 import { db } from "@/lib/db";
 import { articles, socialAccounts, socialSuggestions, videoIdeas, websites } from "@/lib/db/schema";
 import { getLaunchState, type LaunchStepId } from "@/lib/onboarding/launch";
@@ -95,8 +95,8 @@ export async function getTasks(
       : db.select(counted).from(articles).where(and(
           eq(articles.websiteId, websiteId),
           eq(articles.status, "draft"),
-          // Under the two-step flow, an article the team still has is not a task of the customer's.
-          sql`not ${heldFromCustomerSql}`,
+          // Under the two-step flow, an article with nothing for the customer to publish is not their task.
+          sql`not ${nothingToShowSql}`,
         )),
     db
       .select(counted)

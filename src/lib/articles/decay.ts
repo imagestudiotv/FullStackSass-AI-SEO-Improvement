@@ -1,6 +1,6 @@
 import { and, eq, gte, lte, sql as raw } from "drizzle-orm";
 
-import { heldFromCustomerSql } from "@/lib/articles/review";
+import { customerTitleSql, nothingToShowSql } from "@/lib/articles/review";
 import { db } from "@/lib/db";
 import { articles, gscPageMetrics, siteDailyMetrics, searchImportCoverage } from "@/lib/db/schema";
 
@@ -176,12 +176,12 @@ export async function findTrafficChanges(
     db
       .select({
         id: articles.id,
-        title: articles.title,
+        title: customerTitleSql,
         publishedUrl: articles.publishedUrl,
       })
       .from(articles)
-      // A rewrite of a live page the team still has (the two-step flow) names no title: the report shows its address.
-      .where(and(eq(articles.websiteId, websiteId), raw`not ${heldFromCustomerSql}`)),
+      // Under the two-step flow: the stored revision's title, or just the page's address when nothing is stored.
+      .where(and(eq(articles.websiteId, websiteId), raw`not ${nothingToShowSql}`)),
   ]);
 
   const articleByUrl = new Map(

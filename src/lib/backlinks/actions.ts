@@ -3,7 +3,7 @@
 import { and, desc, eq, ne, sql as raw } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
-import { heldFromCustomerSql } from "@/lib/articles/review";
+import { customerTitleSql, heldFromCustomerSql } from "@/lib/articles/review";
 import { db } from "@/lib/db";
 import {
   articles,
@@ -300,7 +300,7 @@ export async function listGiven(websiteId: string): Promise<GivenRow[]> {
       credits: placements.credits,
       createdAt: placements.createdAt,
       articleId: placements.articleId,
-      articleTitle: articles.title,
+      articleTitle: customerTitleSql,
       /**
        * The destination as a domain.
        *
@@ -314,8 +314,8 @@ export async function listGiven(websiteId: string): Promise<GivenRow[]> {
     .innerJoin(backlinkRequests, eq(placements.requestId, backlinkRequests.id))
     .leftJoin(articles, eq(articles.id, placements.articleId))
     .leftJoin(websites, eq(websites.id, backlinkRequests.websiteId))
-    // The team's links in an article they still have (the two-step flow) are part of it: not listed yet.
-    .where(and(eq(placements.hostWebsiteId, site.id), raw`not ${heldFromCustomerSql}`))
+    // The team's links not yet on the page, in an article they still have (the two-step flow), are part of it: not listed yet.
+    .where(and(eq(placements.hostWebsiteId, site.id), raw`not (${heldFromCustomerSql} and ${placements.status} in ('pending', 'drafted'))`))
     .orderBy(desc(placements.createdAt));
 }
 

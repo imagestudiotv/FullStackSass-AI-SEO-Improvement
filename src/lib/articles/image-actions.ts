@@ -28,7 +28,7 @@ import {
   releaseUnspent,
   reserveAll,
 } from "@/lib/billing/spend-quota";
-import { afterCustomerEdit, heldFromCustomerSql, PREPARING_MESSAGE } from "@/lib/articles/review";
+import { afterArticleEdit, heldFromCustomerSql, PREPARING_MESSAGE } from "@/lib/articles/review";
 import { ArticleInFlightError, editArticle, isInFlight } from "@/lib/publishing/dispatch";
 
 /**
@@ -427,7 +427,7 @@ async function writeImage(articleId: string, patch: Parameters<ReturnType<typeof
     await editArticle(articleId, async (tx) => {
       await tx.update(articles).set(patch).where(eq(articles.id, articleId));
       // An image change after approval: back to the review queue.
-      await afterCustomerEdit(articleId, tx);
+      await afterArticleEdit(articleId, tx);
     });
     return null;
   } catch (error) {

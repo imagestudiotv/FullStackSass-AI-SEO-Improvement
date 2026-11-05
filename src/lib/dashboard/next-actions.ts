@@ -49,7 +49,7 @@ export async function getNextActions(
       and ${twoStepOffSql}
       order by articles.updated_at desc, articles.id limit 1)`,
     twoStep: sql<boolean>`not ${twoStepOffSql}`,
-    draft: sql<ArticleTask>`(select json_build_object('id', articles.id, 'title', articles.title) from articles
+    draft: sql<ArticleTask>`(select json_build_object('id', articles.id, 'title', ${customerTitleSql}) from articles
       where articles.website_id = ${websiteId} and articles.status = 'draft' and ${releasableSql}
       and not websites.auto_publish order by articles.updated_at desc, articles.id limit 1)`,
     audit: sql<string | null>`(select a.id::text from audits a where a.website_id = ${websiteId}

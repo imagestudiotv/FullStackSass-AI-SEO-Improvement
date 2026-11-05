@@ -16,10 +16,12 @@ import { siteScope } from "@/lib/articles/link-guard";
 import { PREPARING_TITLE } from "@/lib/i18n/article-delivery";
 import type { ActionResult } from "@/lib/websites/actions";
 import {
-  afterCustomerEdit,
+  afterArticleEdit,
   heldFromCustomer,
   heldFromCustomerSql,
   PREPARING_MESSAGE,
+  servedStatus,
+  storedRevision,
   twoStepArticles,
   twoStepOffSql,
 } from "@/lib/articles/review";
@@ -74,6 +76,9 @@ export async function listArticles(websiteId: string): Promise<ArticleRow[]> {
       updatedAt: articles.updatedAt,
       reviewStatus: articles.reviewStatus,
       publishedUrl: articles.publishedUrl,
+      firstLiveAt: articles.firstLiveAt,
+      // What the customer gets of a held article; not its stored title, nor the body here.
+      stored: sql<Record<string, unknown> | null>`${articles.approvedRevision} - 'bodyHtml'`,
       plannedTitle: calendarItems.title,
       twoStep: sql<boolean>`not ${twoStepOffSql}`,
       held: heldFromCustomerSql,
@@ -84,10 +89,22 @@ export async function listArticles(websiteId: string): Promise<ArticleRow[]> {
     .orderBy(desc(articles.updatedAt));
 
   // Built field by field below: what the two-step flow's reads leave out never reaches the page.
-  return rows.map(({ reviewStatus, publishedUrl, plannedTitle, twoStep, held, ...row }) => {
+  return rows.map(({ reviewStatus, publishedUrl, firstLiveAt, stored, plannedTitle, twoStep, held, ...row }) => {
+    if (held && stored) {
+      const live = servedStatus({ publishedUrl, firstLiveAt, status: row.status }) === "published";
+      return {
+        ...row,
+        title: stored.title as string,
+        slug: (stored.slug as string | null) ?? null,
+        wordCount: (stored.wordCount as number | null) ?? null,
+        error: null,
+        status: live ? "published" : "ready",
+      };
+    }
     if (held) {
       return {
         ...row,
+        // Never the stored title: it is generation's and the team's. This one is the customer's own plan row.
         title: plannedTitle ?? PREPARING_TITLE,
         slug: null,
         wordCount: null,
@@ -127,6 +144,11 @@ export type ArticleDetail = ArticleRow & {
    * the RepGet team has it. Null otherwise, and always with the flow off.
    */
   preparing: "writing" | "team" | null;
+  /**
+   * The two-step flow: the team is working on a newer copy, and this is the last
+   * approved revision. Publish sends exactly this; the text cannot be changed.
+   */
+  withTeam: boolean;
 };
 
 export async function getArticle(
@@ -149,6 +171,30 @@ export async function getArticle(
     A failed one stays failed, so the customer can still try again.
   */
   if (twoStep && heldFromCustomer(row)) {
+    const stored = storedRevision(row.approvedRevision);
+    if (stored) {
+      return {
+        id: row.id,
+        calendarItemId: row.calendarItemId,
+        title: stored.title,
+        slug: stored.slug,
+        targetKeyword: row.targetKeyword,
+        wordCount: stored.wordCount,
+        status: servedStatus(row),
+        generationStep: null,
+        error: null,
+        updatedAt: new Date(stored.at),
+        bodyHtml: stored.bodyHtml,
+        metaDescription: stored.metaDescription,
+        imageUrl: stored.imageUrl,
+        imageAlt: stored.imageAlt,
+        imageAttempts: row.imageAttempts,
+        publishedUrl: row.publishedUrl,
+        publishRequested: row.publishRequested,
+        preparing: null,
+        withTeam: true,
+      };
+    }
     const [planned] = row.calendarItemId
       ? await db.select({ title: calendarItems.title }).from(calendarItems).where(eq(calendarItems.id, row.calendarItemId)).limit(1)
       : [];
@@ -171,6 +217,7 @@ export async function getArticle(
       publishedUrl: null,
       publishRequested: null,
       preparing: row.status === "failed" ? null : working ? "writing" : "team",
+      withTeam: false,
     };
   }
 
@@ -194,6 +241,7 @@ export async function getArticle(
     publishRequested: row.publishRequested,
     // Nothing written yet: the same waiting page, not an empty editor.
     preparing: twoStep && working && !row.bodyHtml ? "writing" : null,
+    withTeam: false,
   };
 }
 
@@ -311,7 +359,7 @@ export async function updateArticle(
       }
       await tx.update(articles).set(patch).where(eq(articles.id, articleId));
       // Changed after the RepGet team approved it: back to their queue.
-      await afterCustomerEdit(articleId, tx);
+      await afterArticleEdit(articleId, tx);
     });
   } catch (error) {
     if (error instanceof ArticleInFlightError || error instanceof HeldFromCustomerError) return { ok: false, error: error.message };

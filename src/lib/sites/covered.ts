@@ -2,6 +2,9 @@ import "server-only";
 
 import { and, desc, eq, isNull, ne, or } from "drizzle-orm";
 
+import { customerTitleSql } from "@/lib/articles/review";
+import { PREPARING_TITLE } from "@/lib/i18n/article-delivery";
+
 import { db } from "@/lib/db";
 import { articles, sitePosts, websites } from "@/lib/db/schema";
 
@@ -28,14 +31,14 @@ export async function coveredTopics(websiteId: string): Promise<CoveredTopics> {
     .orderBy(desc(sitePosts.publishedAt))
     .limit(2000);
   const written = await db
-    .select({ title: articles.title, keyword: articles.targetKeyword })
+    .select({ title: customerTitleSql, keyword: articles.targetKeyword })
     .from(articles)
     .where(and(eq(articles.websiteId, websiteId), ne(articles.status, "failed")))
     .orderBy(desc(articles.createdAt))
     .limit(2000);
   return {
     siteTitles: posts.map((post) => post.title),
-    writtenTitles: written.map((article) => article.title),
+    writtenTitles: written.map((article) => article.title).filter((title) => title !== PREPARING_TITLE),
     writtenKeywords: written.map((article) => article.keyword).filter((keyword): keyword is string => Boolean(keyword)),
   };
 }
