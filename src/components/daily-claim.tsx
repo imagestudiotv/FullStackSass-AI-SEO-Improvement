@@ -140,7 +140,7 @@ export function DailyClaim({
           event.preventDefault();
           contentRef.current?.focus();
         }}
-        className="max-w-[calc(100%-1.25rem)] gap-0 overflow-x-hidden rounded-2xl p-0 shadow-2xl motion-reduce:animate-none sm:max-w-[58rem]"
+        className="max-w-[calc(100%-1.25rem)] gap-0 overflow-x-hidden rounded-2xl p-0 shadow-2xl motion-reduce:animate-none sm:max-w-[min(58rem,calc(100%-2rem))]"
       >
         <Hero status={status} copy={copy} locale={locale} amount={amount} creditWord={creditWord} />
         <div className="px-3.5 pt-4 pb-5 [@media(max-height:760px)]:pb-3 [@media(max-height:760px)]:pt-2 sm:px-8 sm:pt-6 sm:pb-6">

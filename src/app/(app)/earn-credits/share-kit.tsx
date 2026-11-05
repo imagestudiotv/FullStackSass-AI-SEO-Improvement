@@ -218,7 +218,7 @@ export function ShareKit({
                   setDrafts((current) => ({ ...current, [active]: value }));
                   setFeedback(null);
                 }}
-                className="block max-h-96 min-h-36 w-full resize-y bg-transparent px-4 py-3 text-sm leading-relaxed text-foreground outline-none"
+                className="block max-h-96 min-h-36 w-full resize-y bg-transparent px-4 py-3 text-sm leading-relaxed text-foreground outline-none [field-sizing:content]"
               />
               <div className="flex flex-wrap items-center justify-between gap-2 border-t px-3.5 py-2.5">
                 <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
