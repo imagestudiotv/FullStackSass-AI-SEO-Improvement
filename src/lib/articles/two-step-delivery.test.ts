@@ -10,6 +10,7 @@ import {
   backlinkRequests,
   calendarItems,
   gscPageMetrics,
+  linkChecks,
   searchImportCoverage,
   spendReservations,
   integrationKeys,
@@ -92,6 +93,22 @@ vi.mock("@/lib/images/storage", async (importOriginal) => ({
   storeArticleImage: vi.fn(async () => "https://storage.test/new.jpg"),
   deleteArticleImage: vi.fn(),
 }));
+const emails = vi.hoisted(() => ({ built: [] as unknown[] }));
+vi.mock("@/lib/email/lifecycle", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/email/lifecycle")>()),
+  sendLifecycleEmail: vi.fn(async (request: { build: () => Promise<unknown> }) => {
+    emails.built.push(await request.build());
+    return { status: "sent" };
+  }),
+}));
+const translator = vi.hoisted(() => ({ inputs: [] as { title: string; bodyHtml: string }[] }));
+vi.mock("@/lib/articles/translate-article", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/articles/translate-article")>()),
+  translateArticle: vi.fn(async (input: { title: string; bodyHtml: string }) => {
+    translator.inputs.push(input);
+    return { title: "T", slug: "t", metaDescription: null, imageAlt: null, bodyHtml: "<p>T</p>", usage: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0, costUsd: 0, calls: 0 } };
+  }),
+}));
 const library = vi.hoisted(() => ({ images: [] as { url: string; name: string }[] }));
 const cms = vi.hoisted(() => ({
   integrationId: "",
@@ -126,6 +143,12 @@ vi.mock("@/lib/plugin/keys", async (importOriginal) => ({
 
 import { GET as pluginArticles } from "@/app/api/plugin/articles/route";
 import { updateAnyArticle } from "@/lib/admin/actions";
+import { actionErrorText } from "@/app/(app)/websites/[websiteId]/articles/[articleId]/failure-copy";
+import { translateLiveArticle } from "@/lib/articles/translations";
+import { alertIfNewlyUnfollowed } from "@/lib/backlinks/nofollow";
+import { getMessages } from "@/lib/i18n/messages";
+import { NEXT_ACTIONS_COPY } from "@/lib/i18n/next-actions";
+import { coveredTopics } from "@/lib/sites/covered";
 import { creditsFor } from "@/lib/backlinks/managed";
 import { ARTICLE_DELIVERY, articleTitleText, PREPARING_TITLE } from "@/lib/i18n/article-delivery";
 import { queueArticleForCalendarItem } from "@/inngest/functions/generate-article";
@@ -139,7 +162,7 @@ import { listReusableImages, removeArticleImage, updateArticleImageAlt } from "@
 import { prepareStoredArticle } from "@/lib/articles/internal-links";
 import { notifyReady, releaseAfterApproval } from "@/lib/articles/release";
 import { approveArticleResearch } from "@/lib/articles/research-actions";
-import { checkReleasable, PREPARING_MESSAGE, reviewHash } from "@/lib/articles/review";
+import { checkReleasable, customerTitleSql, PREPARING_MESSAGE, publicFieldSql, revisionToStore, reviewHash, sendableRevision, storedRevision, type StoredRevision } from "@/lib/articles/review";
 import { listGiven } from "@/lib/backlinks/actions";
 import { approveArticle, editReviewedArticle, removeManagedPlacement, reopenArticle } from "@/lib/backlinks/managed";
 import { setParticipation } from "@/lib/backlinks/network-settings";
@@ -174,6 +197,8 @@ beforeEach(async () => {
   cms.error = null;
   jobs.queued.length = 0;
   bell.sent.length = 0;
+  emails.built.length = 0;
+  translator.inputs.length = 0;
   inngestMock.send.mockClear();
   library.images = [];
   await twoStep(true);
@@ -445,6 +470,17 @@ describe("before the team's approval: nothing reaches the customer", () => {
     expect(off.losingClicks.find((change) => change.pageUrl === url)).toMatchObject({ articleId: s.post.id, articleTitle: STAFF_TITLE });
   });
 
+  it("the traffic report, with a stored revision: the approved title, never the working copy's", async () => {
+    const url = `https://site.test/stored-${randomUUID().slice(0, 6)}`;
+    const s = await scene({ fields: { publishedUrl: url, status: "published", title: "The approved title" } });
+    await approve(s.post.id);
+    await test.db.update(articles).set({ title: STAFF_TITLE, reviewStatus: "pending", reviewApprovedHash: null }).where(eq(articles.id, s.post.id));
+    await seedDecline(s.websiteId, [url]);
+    const report = await findTrafficChanges(s.websiteId);
+    expect(report.losingClicks.find((change) => change.pageUrl === url)).toMatchObject({ articleId: s.post.id, articleTitle: "The approved title" });
+    expect(leakIn(report)).toEqual([]);
+  });
+
   it("the sources panel renders nothing", async () => {
     const s = await scene();
     await expect(ResearchPanel({ websiteId: s.websiteId, articleId: s.post.id, locale: "en" })).resolves.toBeNull();
@@ -574,17 +610,20 @@ describe("after the team's approval: the exact revision, one notification, one P
     expect(cms.posts).toHaveLength(1);
   });
 
-  it("the CMS's copy of the header picture does not lapse the approval or count as a new revision", async () => {
+  it("a send changes nothing in the approved revision: the article keeps its picture, its hash and its approval", async () => {
     const s = await scene();
     await approveAndRelease(s.post.id);
+    const approved = await row(s.post.id);
     await runJob(s);
     const after = await row(s.post.id);
-    expect(after.imageUrl).toBe("https://site.test/m1.jpg");
+    expect(after.imageUrl).toBe(approved.imageUrl);
     expect(after.reviewApprovedHash).toBe(reviewHash(after));
-    expect(after.researchApprovedHash).toBe(reviewHash(after));
+    expect(reviewHash(after)).toBe(reviewHash(approved));
     const [sent] = await test.db.select().from(publicationDispatches).where(eq(publicationDispatches.articleId, s.post.id));
-    expect(sent.revisionHash).toBe(reviewHash(after));
+    expect(sent.revisionHash).toBe(reviewHash(approved));
+    expect(storedRevision(after.approvedRevision)?.hash).toBe(sent.revisionHash);
   });
+
 
   it("a press is always Publish: a crafted draft press still sends one live post", async () => {
     const s = await scene();
@@ -734,22 +773,25 @@ describe("publishing the customer chose: automatic and scheduled", () => {
 /* ------------------------------------------------------------------------ */
 
 describe("a later change, and stale work", () => {
-  it("the customer's edit goes back to the team: held again, nothing asked, ready again after their approval", async () => {
+  it("the customer's edit goes back to the team: they keep the approved version and Publish, are asked nothing, and get one message when it is ready again", async () => {
     const s = await scene();
     await approveAndRelease(s.post.id);
+    const approved = await row(s.post.id);
     expect((await updateArticle(s.websiteId, s.post.id, { bodyHtml: "<p>My own sentence.</p>" })).ok).toBe(true);
 
     const held = await row(s.post.id);
     expect(held).toMatchObject({ reviewStatus: "pending", reviewApprovedHash: null, bodyHtml: "<p>My own sentence.</p>" });
-    expect((await checkReleasable(s.post.id)).ok).toBe(false);
-    expect(await getArticle(s.websiteId, s.post.id)).toMatchObject({ preparing: "team", bodyHtml: null });
-    expect(await publishArticle(s.websiteId, s.post.id)).toEqual({ ok: false, error: PREPARING_MESSAGE });
+    expect(await getArticle(s.websiteId, s.post.id)).toMatchObject({ preparing: null, withTeam: true, bodyHtml: approved.bodyHtml, title: approved.title });
+    expect((await listArticles(s.websiteId))[0]).toMatchObject({ status: "ready", title: approved.title });
+    // Refused while the team has the working copy: it would overwrite their work.
+    expect(await updateArticle(s.websiteId, s.post.id, { bodyHtml: "<p>Again</p>" })).toEqual({ ok: false, error: PREPARING_MESSAGE });
     expect(bell.sent).toHaveLength(1);
 
     await approveAndRelease(s.post.id);
     expect(bell.sent).toHaveLength(2);
-    expect(await getArticle(s.websiteId, s.post.id)).toMatchObject({ preparing: null, bodyHtml: "<p>My own sentence.</p>" });
+    expect(await getArticle(s.websiteId, s.post.id)).toMatchObject({ preparing: null, withTeam: false, bodyHtml: "<p>My own sentence.</p>" });
   });
+
 
   it("a save that changed nothing keeps the approval", async () => {
     const s = await scene();
@@ -768,43 +810,56 @@ describe("a later change, and stale work", () => {
     await expect(approve(s.post.id)).rejects.toThrow(/placed link is missing/);
   });
 
-  it("the team's later edit or reopening holds it from the customer too", async () => {
+  it("the team reopening an approved article: the customer keeps the approved version, and the team's edit stays private", async () => {
     const s = await scene();
     await approve(s.post.id);
     const approved = await row(s.post.id);
     await reopenArticle({ articleId: s.post.id, expectedVersion: approved.reviewVersion, actorEmail: ADMIN });
-    expect(await getArticle(s.websiteId, s.post.id)).toMatchObject({ preparing: "team", bodyHtml: null });
+    const reopened = await row(s.post.id);
+    await editReviewedArticle({
+      articleId: s.post.id, expectedVersion: reopened.reviewVersion, expectedHash: reviewHash(reopened),
+      title: "WORKINGTITLE", slug: "working", metaDescription: "WORKINGEXCERPT", bodyHtml: `<p>WORKINGBODY <a href="https://${LINK}/page">secret anchor</a></p>`, actorEmail: ADMIN,
+    });
+    const article = await getArticle(s.websiteId, s.post.id);
+    expect(article).toMatchObject({ preparing: null, withTeam: true, title: approved.title, bodyHtml: approved.bodyHtml, metaDescription: approved.metaDescription });
+    expect(JSON.stringify([article, await listArticles(s.websiteId), await getNextActions(s.websiteId, s.orgId, false)])).not.toMatch(/WORKING/);
   });
 
-  it("an approval that no longer matches (stale): held, and not delivered by any path", async () => {
+
+  it("an approval that no longer matches (stale): the working copy reaches nothing, and what can go out is the approved revision, by its hash", async () => {
     const s = await scene({ autoPublish: true, plannedInDays: -1 });
     await approve(s.post.id);
+    const approved = await row(s.post.id);
     await test.db.update(articles).set({ bodyHtml: "<p>Changed behind the gate SECRET</p>" }).where(eq(articles.id, s.post.id));
-    expect(await getArticle(s.websiteId, s.post.id)).toMatchObject({ preparing: "team", bodyHtml: null });
-    expect(leakIn(await listArticles(s.websiteId))).toEqual([]);
-    expect(await checkReleasable(s.post.id)).toEqual({ ok: false, reason: "changed_since_approval" });
-    expect(await dailyReleaseSends(s.post.id)).toEqual([]);
-    expect(await runJob(s, "automatic")).toEqual({ held: "changed_since_approval" });
-    expect(cms.posts).toEqual([]);
+    expect(await getArticle(s.websiteId, s.post.id)).toMatchObject({ withTeam: true, bodyHtml: approved.bodyHtml });
+    expect(JSON.stringify(await listArticles(s.websiteId))).not.toContain("Changed behind");
+    await expect(runJob(s, "automatic")).resolves.toMatchObject({ status: "publish" });
+    expect(cms.posts).toHaveLength(1);
+    expect(cms.posts[0].contentHtml).toContain(BODY);
+    expect(cms.posts[0].contentHtml).not.toContain("Changed behind the gate");
+    const [sent] = await test.db.select().from(publicationDispatches).where(eq(publicationDispatches.articleId, s.post.id));
+    expect(sent.revisionHash).toBe(reviewHash(approved));
   });
 
-  it("a retry after an edit is held; the prepared revision never goes out", async () => {
+
+  it("a retry after an edit sends the approved revision it was prepared from, never the edit", async () => {
     const s = await scene();
     await approve(s.post.id);
     const using = steps();
     await using.run("load-article", async () => {
       const first = await row(s.post.id);
       return {
-        held: null, revisionHash: reviewHash(first), integrationId: cms.integrationId, providerId: "wordpress", remoteId: null, industry: null, image: null,
+        held: null, revisionHash: reviewHash(first), linkFindings: [], integrationId: cms.integrationId, providerId: "wordpress", remoteId: null, industry: null, image: null,
         post: { title: first.title, contentHtml: first.bodyHtml, slug: first.slug, excerpt: first.metaDescription, status: "publish" },
       };
     });
     await updateArticle(s.websiteId, s.post.id, { bodyHtml: "<p>Newer text</p>" });
-    // Its sources' approval was for the earlier text too, and that is checked first.
-    expect(await runJob(s, "manual", using)).toEqual({ held: "changed_since_approval" });
-    expect((await row(s.post.id)).reviewStatus).toBe("pending");
-    expect(cms.posts).toEqual([]);
+    await expect(runJob(s, "manual", using)).resolves.toMatchObject({ status: "publish" });
+    expect(cms.posts).toHaveLength(1);
+    expect(cms.posts[0].contentHtml).toContain(BODY);
+    expect(cms.posts[0].contentHtml).not.toContain("Newer text");
   });
+
 
   it("a press made for an older revision does not carry the new one out: the customer presses again", async () => {
     const s = await scene();
@@ -813,7 +868,7 @@ describe("a later change, and stale work", () => {
     await using.run("load-article", async () => {
       const first = await row(s.post.id);
       return {
-        held: null, revisionHash: reviewHash(first), integrationId: cms.integrationId, providerId: "wordpress", remoteId: null, industry: null, image: null,
+        held: null, revisionHash: reviewHash(first), linkFindings: [], integrationId: cms.integrationId, providerId: "wordpress", remoteId: null, industry: null, image: null,
         post: { title: first.title, contentHtml: first.bodyHtml, slug: first.slug, excerpt: first.metaDescription, status: "publish" },
       };
     });
@@ -837,30 +892,47 @@ describe("a later change, and stale work", () => {
     expect((await (await pluginPull()).json()).articles).toEqual([]);
   });
 
-  it("a dead link repaired at sending keeps the approval of the sources, or the press would stick", async () => {
+  it("a dead link at sending: nothing is repaired under the approval; it goes out as approved and is on record with the send", async () => {
     const s = await scene({ fields: { bodyHtml: '<p>Text with <a href="#">a dead link</a>.</p>' } });
+    await approve(s.post.id);
+    const approved = await row(s.post.id);
+    const checked = await prepareStoredArticle(s.post.id, s.websiteId, { budgetMs: 0 });
+    expect(checked).toMatchObject({ changed: false, html: approved.bodyHtml });
+    expect(checked?.findings.some((finding) => finding.outcome !== "kept" && finding.outcome !== "unverified")).toBe(true);
+
+    await expect(runJob(s)).resolves.toMatchObject({ status: "publish" });
+    const after = await row(s.post.id);
+    expect(after).toMatchObject({ bodyHtml: approved.bodyHtml, reviewStatus: "approved", reviewApprovedHash: reviewHash(approved) });
+    const [sent] = await test.db.select().from(publicationDispatches).where(eq(publicationDispatches.articleId, s.post.id));
+    expect(sent.revisionHash).toBe(reviewHash(approved));
+    expect((sent.requestSnapshot as { linkDefects?: unknown[] }).linkDefects?.length).toBeGreaterThan(0);
+    expect(cms.posts[0].contentHtml).toContain("a dead link");
+  });
+
+  it("with the switch off, the repair is as it was", async () => {
+    const s = await scene({ fields: { bodyHtml: '<p>Text with <a href="#">a dead link</a>.</p>', researchReviewRequired: false } });
+    await twoStep(false);
     await approve(s.post.id);
     const checked = await prepareStoredArticle(s.post.id, s.websiteId, { budgetMs: 0 });
     expect(checked?.changed).toBe(true);
-    const after = await row(s.post.id);
-    expect(after.bodyHtml).not.toContain('href="#"');
-    expect(after.reviewStatus).toBe("approved");
-    expect(after.researchApprovedHash).toBe(reviewHash(after));
-    expect(await checkReleasable(s.post.id)).toEqual({ ok: true });
+    expect((await row(s.post.id)).bodyHtml).not.toContain('href="#"');
   });
 
-  it("a change to a post already live: its text stays readable, Update waits for the team, and approval republishes nothing", async () => {
-    const s = await scene({ autoPublish: true, fields: { status: "published", publishedUrl: "https://site.test/?p=9", reviewStatus: "approved", researchReviewRequired: false } });
+
+  it("a change to a post already live: the customer keeps what is live, and approval republishes nothing", async () => {
+    const s = await scene({ autoPublish: true, fields: { status: "published", publishedUrl: "https://site.test/?p=9", reviewStatus: "pending", researchReviewRequired: false } });
+    await approve(s.post.id);
     const published = await row(s.post.id);
-    await test.db.update(articles).set({ reviewApprovedHash: reviewHash(published) }).where(eq(articles.id, s.post.id));
+    bell.sent.length = 0;
     expect((await updateArticle(s.websiteId, s.post.id, { bodyHtml: "<p>A later change</p>" })).ok).toBe(true);
-    expect(await getArticle(s.websiteId, s.post.id)).toMatchObject({ preparing: null, bodyHtml: "<p>A later change</p>" });
-    expect(await publishArticle(s.websiteId, s.post.id)).toEqual({ ok: false, error: PREPARING_MESSAGE });
+    expect(await getArticle(s.websiteId, s.post.id)).toMatchObject({ withTeam: true, status: "published", bodyHtml: published.bodyHtml });
 
     expect(await approveAndRelease(s.post.id)).toBe("customer_publishes");
     expect(jobs.queued).toEqual([]);
     expect(bell.sent[0].title).toMatch(/update is ready/);
+    expect(await getArticle(s.websiteId, s.post.id)).toMatchObject({ withTeam: false, bodyHtml: "<p>A later change</p>" });
   });
+
 
   it("an older live post with held sources goes to the team at the customer's press, not to the customer", async () => {
     const s = await scene({ fields: { status: "published", publishedUrl: "https://site.test/?p=9", reviewStatus: null } });
@@ -871,27 +943,430 @@ describe("a later change, and stale work", () => {
 
 /* ------------------------------------------------------------------------ */
 
-describe("KNOWN GAP, pinned so a fix has to change this test (docs/two-step-articles.md)", () => {
-  it("a staff edit in the general admin editor on a live article is what the customer reads, and no earlier revision is stored to serve instead", async () => {
-    vi.stubEnv("ADMIN_EMAILS", ADMIN);
-    const s = await scene({ fields: { status: "published", publishedUrl: "https://site.test/?p=7", reviewStatus: "approved", researchReviewRequired: false, bodyHtml: "<p>As published</p>" } });
-    const published = await row(s.post.id);
-    await test.db.update(articles).set({ reviewApprovedHash: reviewHash(published) }).where(eq(articles.id, s.post.id));
-    const customerSession = state.session;
+describe("the stored article title never reaches a customer output", () => {
+  const GENERATED = "GENMARKERTITLE";
+  const EDITED = "STAFFMARKERTITLE";
+  const noMarker = (value: unknown) => {
+    const text = JSON.stringify(value);
+    expect(text).not.toContain(GENERATED);
+    expect(text).not.toContain(EDITED);
+  };
 
+  /** Every customer-facing read of this article's title that takes no AI or provider. */
+  async function allOutputs(s: { orgId: string; websiteId: string; post: { id: string } }) {
+    const ctx = { websiteId: s.websiteId, ownerOrgId: s.orgId, userId: "u", access: "owner", domain: "d.test", brandName: null, locale: "en", level: "paid" };
+    const query = { tab: "all", type: "all", q: "", from: null, to: null, issue: null, sort: "date", dir: "desc", page: 1, pageSize: 25 } as never;
+    const overview = await getDashboardOverview({ websiteId: s.websiteId, ownerOrgId: s.orgId, showCredits: false });
+    return {
+      article: await getArticle(s.websiteId, s.post.id),
+      list: await listArticles(s.websiteId),
+      todays: overview?.todaysArticle,
+      wins: overview?.wins,
+      best: overview?.bestArticles,
+      actions: await getNextActions(s.websiteId, s.orgId, false),
+      tasks: await getTasks(s.websiteId, s.orgId, false),
+      chatArticles: await READ_TOOLS.find((tool) => tool.name === "get_articles")!.run(ctx as never, {} as never),
+      chatOverview: await READ_TOOLS.find((tool) => tool.name === "get_overview")!.run(ctx as never, {} as never),
+      given: await listGiven(s.websiteId),
+      links: await listLinks("given", { websiteId: s.websiteId, orgId: s.orgId }, query),
+      traffic: await findTrafficChanges(s.websiteId),
+      covered: await coveredTopics(s.websiteId),
+      bell: bell.sent,
+    };
+  }
+
+  async function staffEditTitle(id: string) {
+    const current = await row(id);
+    await editReviewedArticle({
+      articleId: id, expectedVersion: current.reviewVersion, expectedHash: reviewHash(current),
+      title: EDITED, slug: "edited", metaDescription: "Edited", bodyHtml: current.bodyHtml ?? "<p>Text</p>", actorEmail: ADMIN,
+    });
+  }
+
+  it("while awaiting approval: only the customer's own plan topic, whether generation or staff set the title", async () => {
+    const s = await scene({ plannedInDays: 0, fields: { title: GENERATED } });
+    await placeLink(s);
+    let outputs = await allOutputs(s);
+    noMarker(outputs);
+    expect(outputs.article?.title).toBe(PLANNED);
+
+    await staffEditTitle(s.post.id);
+    expect((await row(s.post.id)).title).toBe(EDITED);
+    outputs = await allOutputs(s);
+    noMarker(outputs);
+    expect(outputs.article?.title).toBe(PLANNED);
+    expect(outputs.list[0].title).toBe(PLANNED);
+    // The plan row is untouched by the edit.
+    const [plan] = await test.db.select().from(calendarItems).where(eq(calendarItems.id, s.post.calendarItemId!));
+    expect(plan.title).toBe(PLANNED);
+
+    await test.db.update(articles).set({ status: "failed" }).where(eq(articles.id, s.post.id));
+    outputs = await allOutputs(s);
+    noMarker(outputs);
+    expect(outputs.actions.find((action) => action.kind === "failed")?.detail).toBe(PLANNED);
+  });
+
+  it("no plan row (a translation, a removed topic): only the translated fallback", async () => {
+    const s = await scene({ fields: { title: GENERATED, status: "failed" } });
+    await test.db.update(articles).set({ calendarItemId: null }).where(eq(articles.id, s.post.id));
+    const outputs = await allOutputs(s);
+    noMarker(outputs);
+    expect(outputs.article?.title).toBe(PREPARING_TITLE);
+    expect(outputs.list[0].title).toBe(PREPARING_TITLE);
+    expect(JSON.stringify(outputs.chatArticles)).toContain("Article in preparation");
+    expect(outputs.covered.writtenTitles).toEqual([]);
+  });
+
+  it("a live article being re-edited: the approved title on every output, and in the bell, email, nofollow notice and translation", async () => {
+    const url = `https://site.test/live-${randomUUID().slice(0, 6)}`;
+    const s = await scene({ plannedInDays: 0, fields: { title: "The approved title", status: "published", publishedUrl: url, firstLiveAt: new Date() } });
+    const target = await placeLink(s);
+    await approve(s.post.id);
+    await seedDecline(s.websiteId, [url]);
+    await test.db.update(placements).set({ status: "live", liveUrl: url }).where(eq(placements.articleId, s.post.id));
+    await test.db.update(articles).set({ title: EDITED, bodyHtml: `<p>WORKINGBODY <a href="${target}">secret anchor</a></p>`, metaDescription: "WORKINGEXCERPT", imageUrl: "https://storage.test/WORKING.jpg", reviewStatus: "pending", reviewApprovedHash: null }).where(eq(articles.id, s.post.id));
+
+    const outputs = await allOutputs(s);
+    noMarker(outputs);
+    expect(JSON.stringify(outputs)).not.toContain("WORKING");
+    expect(outputs.article).toMatchObject({ title: "The approved title", status: "published", withTeam: true });
+    expect(outputs.traffic.losingClicks[0].articleTitle).toBe("The approved title");
+    expect(outputs.given[0].articleTitle).toBe("The approved title");
+
+    // What the public outputs (social, video) read: the same two expressions.
+    const [publicRead] = await test.db.select({ title: customerTitleSql, summary: publicFieldSql(articles.metaDescription, "metaDescription"), image: publicFieldSql(articles.imageUrl, "imageUrl") }).from(articles).where(eq(articles.id, s.post.id));
+    expect(publicRead.title).toBe("The approved title");
+    expect(JSON.stringify(publicRead)).not.toContain("WORKING");
+
+    // The failure email, built by the real trigger.
+    const real = await vi.importActual<typeof import("@/lib/email/lifecycle-triggers")>("@/lib/email/lifecycle-triggers");
+    await real.emailArticleFailed({ organizationId: s.orgId, websiteId: s.websiteId, articleId: s.post.id, error: "x" });
+    expect(JSON.stringify(emails.built)).toContain("The approved title");
+    noMarker(emails.built);
+
+    // The nofollow notice, in the bell.
+    const [placement] = await test.db.select().from(placements).where(eq(placements.articleId, s.post.id));
+    await test.db.insert(linkChecks).values({ placementId: placement.id, alive: true, outcome: "alive", rel: "nofollow" });
+    expect(await alertIfNewlyUnfollowed(placement.id)).toBe(true);
+    expect(JSON.stringify(bell.sent)).toContain("The approved title");
+    noMarker(bell.sent);
+
+    // A translation is made from what is live.
+    await translateLiveArticle({ articleId: s.post.id, websiteId: s.websiteId, organizationId: s.orgId, language: "it" });
+    expect(translator.inputs[0]).toMatchObject({ title: "The approved title" });
+    expect(translator.inputs[0].bodyHtml).not.toContain("WORKING");
+  });
+
+  it("the plugin's report and the published notice name the revision sent, not the row's title by then", async () => {
+    const s = await scene({ fields: { title: "The approved title" } });
+    await approve(s.post.id);
+    await test.db.update(articles).set({ title: EDITED, reviewStatus: "pending", reviewApprovedHash: null }).where(eq(articles.id, s.post.id));
+    await expect(runJob(s)).resolves.toMatchObject({ status: "publish" });
+    expect(cms.posts[0].title).toBe("The approved title");
+    expect(bell.sent.map((message) => message.title)).toEqual(['"The approved title" is live']);
+    noMarker(bell.sent);
+  });
+
+  it("with the switch off, reads are as they were", async () => {
+    const s = await scene({ fields: { title: GENERATED } });
+    await twoStep(false);
+    expect((await getArticle(s.websiteId, s.post.id))?.title).toBe(GENERATED);
+    expect((await listArticles(s.websiteId))[0].title).toBe(GENERATED);
+  });
+});
+
+describe("every string added for the flow, in every language", () => {
+  const locales = ["en", "es", "fr", "it", "de"] as const;
+
+  it("the delivery copy: every key in all five, and translated", () => {
+    const keys = Object.keys(ARTICLE_DELIVERY.en) as (keyof typeof ARTICLE_DELIVERY.en)[];
+    expect(keys.length).toBeGreaterThan(20);
+    for (const locale of locales) {
+      expect(Object.keys(ARTICLE_DELIVERY[locale]).sort()).toEqual([...keys].sort());
+      for (const key of keys) {
+        expect(ARTICLE_DELIVERY[locale][key].trim().length).toBeGreaterThan(0);
+        if (locale !== "en") expect(ARTICLE_DELIVERY[locale][key], `${locale}.${key}`).not.toBe(ARTICLE_DELIVERY.en[key]);
+      }
+    }
+  });
+
+  it("the status word and the next action", () => {
+    const words = locales.map((locale) => getMessages(locale).app.status.preparing);
+    expect(new Set(words).size).toBe(5);
+    expect(new Set(locales.map((locale) => NEXT_ACTIONS_COPY[locale].ready)).size).toBe(5);
+    expect(new Set(locales.map((locale) => NEXT_ACTIONS_COPY[locale].readyHelp)).size).toBe(5);
+  });
+
+  it("the server's refusals, as the page says them", () => {
+    for (const locale of locales) {
+      const t = getMessages(locale).app;
+      const copy = { t: t.editor, tWorkspace: t.workspace, tImage: t.image, delivery: ARTICLE_DELIVERY[locale] };
+      expect(actionErrorText(PREPARING_MESSAGE, copy)).toBe(ARTICLE_DELIVERY[locale].errPreparing);
+      expect(actionErrorText("This exact version is already on the website.", copy)).toBe(ARTICLE_DELIVERY[locale].errAlreadyOnSite);
+      expect(actionErrorText("Already being delivered.", copy)).toBe(ARTICLE_DELIVERY[locale].errAlreadyDelivering);
+    }
+  });
+
+  it("the ready notification, in the workspace owner's language", async () => {
+    for (const locale of locales) {
+      const s = await scene();
+      const members = await test.db.select().from(member).where(eq(member.organizationId, s.orgId));
+      await test.db.update(user).set({ locale }).where(eq(user.id, members[0].userId));
+      bell.sent.length = 0;
+      await approveAndRelease(s.post.id);
+      expect(bell.sent[0].title).toBe(ARTICLE_DELIVERY[locale].notifyReady);
+    }
+  });
+});
+
+describe("staff edits stay private, and every path checks the exact revision it sends", () => {
+  /** Approved, then reopened and edited by the team. */
+  async function reEdited(options: SceneOptions = {}) {
+    const s = await scene(options);
+    await approve(s.post.id);
+    const approved = await row(s.post.id);
+    await reopenArticle({ articleId: s.post.id, expectedVersion: approved.reviewVersion, actorEmail: ADMIN });
+    const reopened = await row(s.post.id);
+    await test.db.update(articles).set({ title: "WORKINGTITLE", bodyHtml: "<p>WORKINGBODY</p>", metaDescription: "WORKINGEXCERPT" }).where(eq(articles.id, reopened.id));
+    return { ...s, approved };
+  }
+  const sentHash = async (id: string) => (await test.db.select().from(publicationDispatches).where(eq(publicationDispatches.articleId, id)))[0]?.revisionHash;
+
+  it("Publish during re-editing is on, and sends the last approved revision: direct job", async () => {
+    const s = await reEdited();
+    expect(await publishArticle(s.websiteId, s.post.id)).toEqual({ ok: true, data: { publishedUrl: null, queued: false } });
+    await expect(runJob(s)).resolves.toMatchObject({ status: "publish" });
+    expect(cms.posts[0].title).toBe(s.approved.title);
+    expect(cms.posts[0].contentHtml).toContain(BODY);
+    expect(cms.posts[0].contentHtml).not.toContain("WORKING");
+    expect(await sentHash(s.post.id)).toBe(reviewHash(s.approved));
+    // The working copy is still the team's, unapproved, and sending it did not change that.
+    expect(await row(s.post.id)).toMatchObject({ title: "WORKINGTITLE", reviewStatus: "pending", status: "published" });
+    expect(await getArticle(s.websiteId, s.post.id)).toMatchObject({ withTeam: true, status: "published", title: s.approved.title });
+  });
+
+  it("plugin pull and a recorded press send the last approved revision", async () => {
+    const s = await reEdited({ plugin: true });
+    expect((await publishArticle(s.websiteId, s.post.id)).ok).toBe(true);
+    const pulled = (await (await pluginPull()).json()).articles;
+    expect(pulled).toHaveLength(1);
+    expect(pulled[0]).toMatchObject({ title: s.approved.title, status: "publish" });
+    expect(pulled[0].html).toContain(BODY);
+    expect(JSON.stringify(pulled)).not.toContain("WORKING");
+    expect(pulled[0].dispatch.revision).toBe(reviewHash(s.approved));
+  });
+
+  it("the daily release and automatic modes send it on its day, and not before", async () => {
+    const due = await reEdited({ autoPublish: true, plannedInDays: -1 });
+    expect(await dailyReleaseSends(due.post.id)).toHaveLength(1);
+    await expect(runJob(due, "automatic")).resolves.toMatchObject({ status: "publish" });
+    expect(cms.posts.at(-1)?.contentHtml).not.toContain("WORKING");
+    expect(await sentHash(due.post.id)).toBe(reviewHash(due.approved));
+
+    const early = await reEdited({ autoPublish: true, plannedInDays: 3 });
+    expect(await dailyReleaseSends(early.post.id)).toEqual([]);
+    expect(await runJob(early, "automatic")).toEqual({ held: "not_due" });
+  });
+
+  it("the general admin editor on a live article: private, on what is live, for the customer, Publish and a translation", async () => {
+    vi.stubEnv("ADMIN_EMAILS", ADMIN);
+    const s = await scene({ fields: { status: "published", publishedUrl: "https://site.test/?p=7", bodyHtml: "<p>As published</p>", researchReviewRequired: false } });
+    await approve(s.post.id);
+    const published = await row(s.post.id);
+    const customerSession = state.session;
     state.session = { user: { id: "u_admin", email: ADMIN, emailVerified: true }, session: { id: "s_admin", activeOrganizationId: s.orgId } };
-    expect((await updateAnyArticle(s.post.id, { title: "Staff retitled it", bodyHtml: "<p>Staff working text</p>" })).ok).toBe(true);
+    expect((await updateAnyArticle(s.post.id, { title: "WORKINGTITLE", bodyHtml: "<p>WORKINGBODY</p>" })).ok).toBe(true);
     state.session = customerSession;
     vi.unstubAllEnvs();
 
-    expect((await row(s.post.id)).reviewStatus).toBe("pending");
+    expect(await row(s.post.id)).toMatchObject({ reviewStatus: "pending", title: "WORKINGTITLE" });
     const article = await getArticle(s.websiteId, s.post.id);
-    expect(article).toMatchObject({ title: "Staff retitled it", preparing: null });
-    expect(article?.bodyHtml).toContain("Staff working text");
-    // The general editor keeps no version, so the published body is stored nowhere.
-    expect(await test.db.select().from(articleVersions).where(eq(articleVersions.articleId, s.post.id))).toEqual([]);
-    // The post itself is untouched, and nothing can send the edit before an approval.
+    expect(article).toMatchObject({ withTeam: true, status: "published", title: published.title });
+    expect(article?.bodyHtml).toBe("<p>As published</p>");
+    expect(JSON.stringify(await listArticles(s.websiteId))).not.toContain("WORKING");
+
+    await expect(runJob(s)).resolves.toMatchObject({ status: "publish" });
+    expect(cms.posts[0].contentHtml).toContain("As published");
+    expect(cms.posts[0].contentHtml).not.toContain("WORKING");
+  });
+
+  it("the general admin editor on an article from before the flow goes to the team too", async () => {
+    vi.stubEnv("ADMIN_EMAILS", ADMIN);
+    const s = await scene({ fields: { status: "published", publishedUrl: "https://site.test/?p=8", reviewStatus: null, bodyHtml: "<p>As published</p>", researchReviewRequired: false } });
+    const baseline = await row(s.post.id);
+    await test.db.update(articles).set({ approvedRevision: revisionToStore(baseline, "published") }).where(eq(articles.id, s.post.id));
+    const customerSession = state.session;
+    state.session = { user: { id: "u_admin", email: ADMIN, emailVerified: true }, session: { id: "s_admin", activeOrganizationId: s.orgId } };
+    await updateAnyArticle(s.post.id, { bodyHtml: "<p>WORKINGBODY</p>" });
+    state.session = customerSession;
+    vi.unstubAllEnvs();
+    expect((await row(s.post.id)).reviewStatus).toBe("pending");
+    expect((await getArticle(s.websiteId, s.post.id))?.bodyHtml).toBe("<p>As published</p>");
+  });
+
+  it("a stored revision whose hash no longer matches is not a revision: nothing shown as approved, nothing sent", async () => {
+    const s = await reEdited();
+    const stored = (await row(s.post.id)).approvedRevision as StoredRevision;
+    await test.db.update(articles).set({ approvedRevision: { ...stored, bodyHtml: "<p>Tampered</p>" } }).where(eq(articles.id, s.post.id));
+    expect(await getArticle(s.websiteId, s.post.id)).toMatchObject({ preparing: "team", bodyHtml: null, title: PLANNED });
+    expect(await checkReleasable(s.post.id)).toEqual({ ok: false, reason: "pending_review" });
+    expect(await claimDispatch({ articleId: s.post.id, websiteId: s.websiteId, channel: "direct", trigger: "manual" })).toEqual({ ok: false, reason: "pending_review" });
+    expect(await runJob(s)).toEqual({ held: "pending_review" });
     expect(await publishArticle(s.websiteId, s.post.id)).toEqual({ ok: false, error: PREPARING_MESSAGE });
+    expect(cms.posts).toEqual([]);
+  });
+
+  it("a claim for a revision other than the one prepared is refused, on the hash", async () => {
+    const s = await scene();
+    await approve(s.post.id);
+    expect(await claimDispatch({ articleId: s.post.id, websiteId: s.websiteId, channel: "direct", trigger: "manual", expectedRevision: "0".repeat(64) })).toEqual({ ok: false, reason: "revision_changed" });
+  });
+
+  it("a link the team withdrew stops the stored revision going out; their next approval sends without it", async () => {
+    const s = await scene();
+    await placeLink(s);
+    await approve(s.post.id);
+    const approved = await row(s.post.id);
+    await reopenArticle({ articleId: s.post.id, expectedVersion: approved.reviewVersion, actorEmail: ADMIN });
+    const reopened = await row(s.post.id);
+    const [placement] = await test.db.select().from(placements).where(eq(placements.articleId, s.post.id));
+    await removeManagedPlacement({ placementId: placement.id, expectedVersion: reopened.reviewVersion, actorEmail: ADMIN });
+
+    expect(await getArticle(s.websiteId, s.post.id)).toMatchObject({ withTeam: true });
+    expect(await publishArticle(s.websiteId, s.post.id)).toEqual({ ok: false, error: PREPARING_MESSAGE });
+    expect(await runJob(s)).toEqual({ held: "pending_review" });
+
+    await approve(s.post.id);
+    await expect(runJob(s)).resolves.toMatchObject({ status: "publish" });
+    expect(cms.posts[0].contentHtml).not.toContain(LINK);
+  });
+
+  it("a link placed only in the working copy is not promoted by sending the stored revision", async () => {
+    const s = await scene({ fields: { bodyHtml: "<p>No links here.</p>" } });
+    await approve(s.post.id);
+    const partner = await seedWebsite(test);
+    const [request] = await test.db.insert(backlinkRequests).values({ websiteId: partner.websiteId, targetUrl: `https://${LINK}/new`, status: "matched", creditsReserved: 10 }).returning();
+    const [placement] = await test.db.insert(placements).values({ requestId: request.id, hostWebsiteId: s.websiteId, articleId: s.post.id, anchor: "a", status: "drafted", managed: true, credits: 10 }).returning();
+    await test.db.update(articles).set({ bodyHtml: `<p>With <a href="https://${LINK}/new">a</a>.</p>`, reviewStatus: "pending", reviewApprovedHash: null }).where(eq(articles.id, s.post.id));
+    await expect(runJob(s)).resolves.toMatchObject({ status: "publish" });
+    const [after] = await test.db.select().from(placements).where(eq(placements.id, placement.id));
+    expect(after.status).toBe("drafted");
+    expect(after.liveUrl).toBeNull();
+  });
+
+  it("with the switch off, a send still sends the row, and a reopened article reads as before", async () => {
+    const s = await scene({ fields: { researchReviewRequired: false, imageUrl: null, imageAlt: null } });
+    await twoStep(false);
+    await approve(s.post.id);
+    expect((await row(s.post.id)).approvedRevision).toBeNull();
+    const approved = await row(s.post.id);
+    await reopenArticle({ articleId: s.post.id, expectedVersion: approved.reviewVersion, actorEmail: ADMIN });
+    expect(await getArticle(s.websiteId, s.post.id)).toMatchObject({ withTeam: false, preparing: null, title: approved.title });
+    expect(await claimDispatch({ articleId: s.post.id, websiteId: s.websiteId, channel: "direct", trigger: "manual" })).toEqual({ ok: false, reason: "pending_review" });
+  });
+});
+
+describe("the whole flow, on each mode: team, then finished article, then one action, no customer approval", () => {
+  const FINISHED = "<p>The team's finished text.</p>";
+
+  /** Written and held; the team edits and approves; the customer sees nothing before that and approves nothing. */
+  async function prepared(options: SceneOptions) {
+    const s = await scene(options);
+    expect(await getArticle(s.websiteId, s.post.id)).toMatchObject({ preparing: "team", bodyHtml: null });
+    expect(await publishArticle(s.websiteId, s.post.id)).toEqual({ ok: false, error: PREPARING_MESSAGE });
+    expect(await dailyReleaseSends(s.post.id)).toEqual([]);
+    const current = await row(s.post.id);
+    await editReviewedArticle({
+      articleId: s.post.id, expectedVersion: current.reviewVersion, expectedHash: reviewHash(current),
+      title: "Finished title", slug: "finished", metaDescription: "Finished", bodyHtml: FINISHED, actorEmail: ADMIN,
+    });
+    return s;
+  }
+  async function finishedIsReady(s: { websiteId: string; post: { id: string } }) {
+    expect(await getArticle(s.websiteId, s.post.id)).toMatchObject({ preparing: null, withTeam: false, title: "Finished title", bodyHtml: FINISHED });
+    // The team's approval covered the sources; nobody else approved anything.
+    expect(await row(s.post.id)).toMatchObject({ researchApprovedBy: ADMIN, reviewApprovedBy: ADMIN });
+  }
+  const sentExactly = (status: string) => {
+    expect(cms.posts).toHaveLength(1);
+    expect(cms.posts[0]).toMatchObject({ title: "Finished title", status });
+    expect(cms.posts[0].contentHtml).toContain("finished text");
+  };
+
+  it("manual: one notification, one press, the exact text, then a second press is refused", async () => {
+    const s = await prepared({});
+    expect(await approveAndRelease(s.post.id)).toBe("customer_publishes");
+    await finishedIsReady(s);
+    expect(bell.sent.map((message) => message.type)).toEqual(["article.ready"]);
+    expect(jobs.queued).toEqual([]);
+    expect((await publishArticle(s.websiteId, s.post.id)).ok).toBe(true);
+    await runJob(s);
+    sentExactly("publish");
+    expect((await publishArticle(s.websiteId, s.post.id)).ok).toBe(false);
+  });
+
+  it("first article, manual: the same, with no release of its own", async () => {
+    const s = await prepared({ firstArticlePending: true });
+    expect(await approveAndRelease(s.post.id)).toBe("customer_publishes");
+    await finishedIsReady(s);
+    expect(jobs.queued).toEqual([]);
+    expect(await dailyReleaseSends(s.post.id)).toEqual([]);
+    await runJob(s);
+    sentExactly("publish");
+  });
+
+  it("automatic live, due: goes at approval, told when live", async () => {
+    const s = await prepared({ autoPublish: true, plannedInDays: 0 });
+    expect(await approveAndRelease(s.post.id)).toBe("queued");
+    await finishedIsReady(s);
+    await runJob(s, "approval");
+    sentExactly("publish");
+    expect(bell.sent.map((message) => message.type)).toEqual(["article.published"]);
+  });
+
+  it("automatic live, planned ahead: ready now, goes on its day by the daily release", async () => {
+    const s = await prepared({ autoPublish: true, plannedInDays: 3 });
+    expect(await approveAndRelease(s.post.id)).toBe("waiting_for_day");
+    await finishedIsReady(s);
+    expect(await dailyReleaseSends(s.post.id)).toEqual([]);
+    await test.db.update(calendarItems).set({ scheduledFor: new Date(Date.now() - 86_400_000) }).where(eq(calendarItems.id, s.post.calendarItemId!));
+    expect(await dailyReleaseSends(s.post.id)).toHaveLength(1);
+    await runJob(s, "automatic");
+    sentExactly("publish");
+  });
+
+  it("automatic drafts: a CMS draft by itself; the one press makes it live", async () => {
+    const s = await prepared({ autoPublish: true, publishAs: "draft", plannedInDays: 0 });
+    expect(await approveAndRelease(s.post.id)).toBe("queued");
+    await runJob(s, "approval");
+    sentExactly("draft");
+    await finishedIsReady(s);
+    expect((await publishArticle(s.websiteId, s.post.id)).ok).toBe(true);
+    await runJob(s);
+    expect(cms.posts.at(-1)).toMatchObject({ status: "publish", title: "Finished title" });
+  });
+
+  it("WordPress plugin: not in the feed until pressed, then the exact text, once", async () => {
+    const s = await prepared({ plugin: true });
+    await approveAndRelease(s.post.id);
+    await finishedIsReady(s);
+    expect((await (await pluginPull()).json()).articles).toEqual([]);
+    await publishArticle(s.websiteId, s.post.id);
+    const pulled = (await (await pluginPull()).json()).articles;
+    expect(pulled).toHaveLength(1);
+    expect(pulled[0]).toMatchObject({ title: "Finished title", status: "publish" });
+    expect(pulled[0].html).toContain("finished text");
+    expect((await (await pluginPull()).json()).articles).toEqual([]);
+  });
+
+  it("CMS connected afterwards: connecting sends nothing; the press does", async () => {
+    const s = await prepared({ connected: false, firstArticlePending: true });
+    await approveAndRelease(s.post.id);
+    await finishedIsReady(s);
+    expect((await connectProvider(s.websiteId, "wordpress", {})).ok).toBe(true);
+    expect(jobs.queued).toEqual([]);
+    expect((await publishArticle(s.websiteId, s.post.id)).ok).toBe(true);
+    expect(jobs.queued).toHaveLength(1);
   });
 });
 
@@ -966,10 +1441,10 @@ describe("switching it on", () => {
 
     const rows = await counted();
     const moved = moving(rows) - moving(before);
-    expect(moved).toBe(4);
+    expect(moved).toBe(6);
 
     const result = await on();
-    expect(result.heldForReview - moving(before)).toBe(4);
+    expect(result.heldForReview - moving(before)).toBe(6);
     expect((await counted()).filter((row: { class: string }) => row.class.startsWith("moves_"))).toEqual([]);
 
     const statusOf = async (id: string) => (await row(id)).reviewStatus;
@@ -979,13 +1454,21 @@ describe("switching it on", () => {
     expect((await row(approvedStale.id)).reviewApprovedHash).toBeNull();
     expect(await statusOf(approvedWaiting.id)).toBe("pending");
 
-    expect(await statusOf(manual.id)).toBeNull();
-    expect(await statusOf(pressed.id)).toBeNull();
+    // Never approved: every path now checks approval, so these go to the team too.
+    expect(await statusOf(manual.id)).toBe("pending");
+    expect(await statusOf(pressed.id)).toBe("pending");
     expect(await statusOf(live.id)).toBeNull();
     expect(await statusOf(cmsDraft.id)).toBeNull();
     expect(await statusOf(queue.id)).toBe("pending");
     expect(await statusOf(approvedOk.id)).toBe("approved");
     expect(await statusOf(inFlight.id)).toBeNull();
+
+    // What stands is stored, so a later working copy stays private; nothing never approved is.
+    expect(storedRevision((await row(live.id)).approvedRevision)).toMatchObject({ source: "published" });
+    expect(storedRevision((await row(cmsDraft.id)).approvedRevision)).toMatchObject({ source: "published" });
+    expect(storedRevision((await row(approvedOk.id)).approvedRevision)).toMatchObject({ source: "approved" });
+    expect((await row(manual.id)).approvedRevision).toBeNull();
+    expect((await row(approvedStale.id)).approvedRevision).toBeNull();
 
     // Nothing was approved, sent or announced by switching.
     expect((await row(waitingForSources.id)).reviewApprovedHash).toBeNull();
@@ -995,12 +1478,30 @@ describe("switching it on", () => {
     expect(bell.sent).toEqual([]);
   });
 
-  it("an older draft the switch left alone cannot go out automatically, only by the customer's press", async () => {
+  it("an unapproved article the switch did not reach goes out by no path, a press included; a press hands it to the team", async () => {
     const s = await scene({ autoPublish: true, fields: { reviewStatus: null, researchReviewRequired: false } });
-    expect(await claimDispatch({ articleId: s.post.id, websiteId: s.websiteId, channel: "direct", trigger: "automatic" })).toEqual({ ok: false, reason: "pending_review" });
-    expect(await claimDispatch({ articleId: s.post.id, websiteId: s.websiteId, channel: "plugin", trigger: "plugin" })).toEqual({ ok: false, reason: "pending_review" });
-    await expect(claimDispatch({ articleId: s.post.id, websiteId: s.websiteId, channel: "direct", trigger: "manual", requestedStatus: "publish" })).resolves.toMatchObject({ ok: true });
+    for (const trigger of ["automatic", "manual", "plugin"] as const) {
+      expect(await claimDispatch({ articleId: s.post.id, websiteId: s.websiteId, channel: trigger === "plugin" ? "plugin" : "direct", trigger })).toEqual({ ok: false, reason: "pending_review" });
+    }
+    expect(await publishArticle(s.websiteId, s.post.id)).toEqual({ ok: false, error: PREPARING_MESSAGE });
+    expect((await row(s.post.id)).reviewStatus).toBe("pending");
   });
+
+  it("what stood on the website at switch-on: a press may send it as it stands, automatic paths may not, and an edit makes it a working copy", async () => {
+    const s = await scene({ fields: { status: "published", publishedUrl: "https://site.test/?p=5", reviewStatus: null, researchReviewRequired: false } });
+    await twoStep(false);
+    await on();
+    const baseline = await row(s.post.id);
+    expect(storedRevision(baseline.approvedRevision)).toMatchObject({ source: "published", hash: reviewHash(baseline) });
+    expect(sendableRevision(baseline, { automatic: true })).toEqual({ ok: false, reason: "pending_review" });
+    expect(sendableRevision(baseline)).toMatchObject({ ok: true, from: "stored", hash: reviewHash(baseline) });
+    expect(await claimDispatch({ articleId: s.post.id, websiteId: s.websiteId, channel: "direct", trigger: "automatic" })).toEqual({ ok: false, reason: "pending_review" });
+
+    await updateArticle(s.websiteId, s.post.id, { bodyHtml: "<p>Customer change</p>" });
+    expect((await row(s.post.id)).reviewStatus).toBe("pending");
+    expect(await getArticle(s.websiteId, s.post.id)).toMatchObject({ withTeam: true, status: "published", bodyHtml: baseline.bodyHtml });
+  });
+
 
   it("switched off again: what is in the queue stays there, and its customer reads it again", async () => {
     const s = await scene();
@@ -1067,7 +1568,7 @@ describe("with the switch off, nothing changes", () => {
     await using.run("load-article", async () => {
       const first = await row(s.post.id);
       return {
-        held: null, revisionHash: reviewHash(first), integrationId: cms.integrationId, providerId: "wordpress", remoteId: null, industry: null, image: null,
+        held: null, revisionHash: reviewHash(first), linkFindings: [], integrationId: cms.integrationId, providerId: "wordpress", remoteId: null, industry: null, image: null,
         post: { title: first.title, contentHtml: first.bodyHtml, slug: first.slug, excerpt: first.metaDescription, status: "publish" },
       };
     });

@@ -18,7 +18,7 @@ const state = vi.hoisted(() => ({ db: null as unknown }));
 vi.mock("@/lib/db", () => ({ db: new Proxy({}, { get: (_t, p) => Reflect.get(state.db as object, p) }) }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
-import { checkReleasable, afterCustomerEdit, reviewHash, reviewStatusForNewDraft } from "./review";
+import { checkReleasable, afterArticleEdit, reviewHash, reviewStatusForNewDraft, sendableRevision } from "./review";
 import { approveArticle } from "@/lib/backlinks/managed";
 import { switchControl } from "@/lib/publishing/controls";
 
@@ -56,7 +56,7 @@ async function approve(articleId: string) {
 async function edit(articleId: string, bodyHtml: string) {
   await test.db.transaction(async (tx) => {
     await tx.update(articles).set({ bodyHtml }).where(eq(articles.id, articleId));
-    await afterCustomerEdit(articleId, tx);
+    await afterArticleEdit(articleId, tx);
   });
   const [row] = await test.db.select().from(articles).where(eq(articles.id, articleId));
   return row;
@@ -83,7 +83,8 @@ describe("step 1: new drafts go to the team", () => {
     await twoStep(true);
     const status = async (id: string) => (await test.db.select({ s: articles.reviewStatus }).from(articles).where(eq(articles.id, id)))[0].s;
     expect(await status(waiting.article.id)).toBe("pending");
-    expect(await status(approvedByCustomer.article.id)).toBeNull();
+    // Never approved by the team: every path now checks that.
+    expect(await status(approvedByCustomer.article.id)).toBe("pending");
     expect(await status(published.article.id)).toBeNull();
   });
 });
@@ -112,7 +113,10 @@ describe("step 2: the customer's own edits", () => {
     const after = await edit(article.id, "<p>Saved article, with the customer's own sentence.</p>");
     expect(after.reviewStatus).toBe("pending");
     expect(after.reviewApprovedHash).toBeNull();
-    expect((await checkReleasable(article.id)).ok).toBe(false);
+    // What may go out is the approved revision, stored, never the edit.
+    const held = sendableRevision(after);
+    expect(held).toMatchObject({ ok: true, from: "stored" });
+    expect(held.ok && held.revision.bodyHtml).toBe("<p>Saved article</p>");
     await approve(article.id);
     expect(await checkReleasable(article.id)).toEqual({ ok: true });
   });
@@ -131,7 +135,6 @@ describe("step 2: the customer's own edits", () => {
     await approve(article.id);
     const removed = await edit(article.id, "<p>Reworded without the link.</p>");
     expect(removed.reviewStatus).toBe("pending");
-    expect((await checkReleasable(article.id)).ok).toBe(false);
     await expect(approve(article.id)).rejects.toThrow(/placed link is missing/);
   });
 

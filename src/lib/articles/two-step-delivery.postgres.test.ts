@@ -24,7 +24,7 @@ vi.mock("@/lib/db", async () => {
 vi.mock("@/inngest/client", () => ({ inngest: { send: vi.fn() } }));
 
 import { articles, organization, platformControls, websites } from "@/lib/db/schema";
-import { checkReleasable, reviewHash, reviewStatusForNewDraft, afterCustomerEdit } from "@/lib/articles/review";
+import { checkReleasable, reviewHash, reviewStatusForNewDraft, afterArticleEdit } from "@/lib/articles/review";
 import { approveArticle } from "@/lib/backlinks/managed";
 import { switchControl, writeControl } from "@/lib/publishing/controls";
 import { claimDispatch, lockForEdit, settleDispatch } from "@/lib/publishing/dispatch";
@@ -113,7 +113,7 @@ describe.skipIf(!available)("the two-step flow on real Postgres", () => {
     await on(2, () => dbs[2].transaction(async (tx) => {
       await lockForEdit(tx, article.id);
       await tx.update(articles).set({ bodyHtml: "<p>Later</p>" }).where(eq(articles.id, article.id));
-      await afterCustomerEdit(article.id, tx);
+      await afterArticleEdit(article.id, tx);
     }));
     expect((await read(article.id)).reviewStatus).toBe("pending");
   });

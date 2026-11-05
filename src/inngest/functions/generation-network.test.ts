@@ -167,6 +167,9 @@ describe("the two-step flow (docs/two-step-articles.md)", () => {
     expect(row.status).toBe("draft");
     expect(publishes()).toEqual([]);
     expect(bell).not.toHaveBeenCalled();
+    // Generation leaves the customer's plan row alone: its topic is theirs, and separable.
+    const [item] = await test.db.select().from(calendarItems).where(eq(calendarItems.id, row.calendarItemId!));
+    expect(item.title).toBe("Planning a wedding");
   });
 
   it("with the switch off, the customer is told as before", async () => {
