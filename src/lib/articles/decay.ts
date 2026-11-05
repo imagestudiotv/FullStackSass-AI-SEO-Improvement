@@ -1,5 +1,6 @@
 import { and, eq, gte, lte, sql as raw } from "drizzle-orm";
 
+import { heldFromCustomerSql } from "@/lib/articles/review";
 import { db } from "@/lib/db";
 import { articles, gscPageMetrics, siteDailyMetrics, searchImportCoverage } from "@/lib/db/schema";
 
@@ -179,7 +180,8 @@ export async function findTrafficChanges(
         publishedUrl: articles.publishedUrl,
       })
       .from(articles)
-      .where(eq(articles.websiteId, websiteId)),
+      // A rewrite of a live page the team still has (the two-step flow) names no title: the report shows its address.
+      .where(and(eq(articles.websiteId, websiteId), raw`not ${heldFromCustomerSql}`)),
   ]);
 
   const articleByUrl = new Map(

@@ -124,6 +124,7 @@ import { GET as pluginArticles } from "@/app/api/plugin/articles/route";
 import { publishArticleJob } from "@/inngest/functions/publish-article";
 import { publishDueDrafts } from "@/inngest/functions/scheduled-articles";
 import { ResearchPanel } from "@/components/articles/research-panel";
+import { findTrafficChanges } from "@/lib/articles/decay";
 import { getArticle, listArticles, regenerateArticle, updateArticle } from "@/lib/articles/actions";
 import { listReusableImages, removeArticleImage, updateArticleImageAlt } from "@/lib/articles/image-actions";
 import { prepareStoredArticle } from "@/lib/articles/internal-links";
@@ -359,6 +360,11 @@ describe("before the team's approval: nothing reaches the customer", () => {
     expect(leakIn(page)).toEqual([]);
     expect(page.rows).toEqual([]);
     expect(page.total).toBe(0);
+  });
+
+  it("the traffic report's read runs with a held article and names no title for it", async () => {
+    const s = await scene({ fields: { publishedUrl: "https://site.test/live" } });
+    expect(leakIn(await findTrafficChanges(s.websiteId))).toEqual([]);
   });
 
   it("the sources panel renders nothing", async () => {

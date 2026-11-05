@@ -22,7 +22,6 @@ const REVISION = `encode(sha256(convert_to(
   coalesce(a.image_url, '') || chr(31) || coalesce(a.image_alt, ''),
   'UTF8')), 'hex')`;
 
-const UNDELIVERED = `a.status = 'draft' and a.published_url is null`;
 const NOT_DELIVERING = `not exists (select 1 from publication_dispatches pd where pd.article_id = a.id and pd.status = 'in_flight')`;
 const RESEARCH_HELD = `(a.research_review_required and a.research_approved_hash is distinct from ${REVISION})`;
 

@@ -66,12 +66,13 @@ A press covers the revision it was made on. A new approval clears a press record
 | Sources panel | Renders nothing. After approval, one line: "Checked by the RepGet team" |
 | Backlinks: hosted list and report | The team's link in the draft is not listed |
 | Picture library | Its pictures are not offered |
+| Traffic report | A rewrite of a live page is listed by address, without its new title |
 | `updateArticle`, picture actions, rewrite, source approval, Publish | Refused |
 | Plugin feed, publish job, daily release, connecting, approval | Refused by `releasableSql`, `releaseCheckFor` and `claimDispatch` at every attempt |
 | Leaving the Partner Network | Does not release it |
 | Emails, notifications | The "ready" message waits for the approval. Failure and live messages only follow a send |
 
-Also not customer-facing, or only reading live posts: social suggestions, video ideas, indexing, traffic decline, link inventory, partner exports. The topics planner reads titles to avoid repeats and shows them to no one.
+Also only reading live posts: social suggestions, video ideas, indexing, link inventory, translations. Article versions have no customer read. The topics planner reads titles to avoid repeats and shows them to no one.
 
 ## With the switch off
 
