@@ -26,6 +26,8 @@ import { ReferralClaim } from "@/components/referral-claim";
 import { ResearchWatcher } from "@/components/research-watcher";
 import { readReferralCookie } from "@/lib/referrals/cookie";
 import { getLaunchState } from "@/lib/onboarding/launch";
+import { WEBSITE_PROJECT_COPY } from "@/lib/i18n/website-projects";
+import { websiteProjectKindOf, websiteProjectsHref } from "@/lib/website-projects/shared";
 import { SetupTracker } from "@/components/setup-tracker";
 import { getSubscription } from "@/lib/billing";
 import { requireOrg } from "@/lib/tenant";
@@ -224,7 +226,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
    * sidebar needs only the name.
    */
   const addonRows = await db
-    .select({ id: addons.id, name: addons.name, kind: addons.kind })
+    .select({ id: addons.id, slug: addons.slug, name: addons.name, kind: addons.kind })
     .from(addons)
     .where(eq(addons.isActive, true))
     .orderBy(asc(addons.sortOrder));
@@ -243,7 +245,13 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     ...(creditPack ? [{ id: creditPack.id, name: t.app.nav.creditPacks }] : []),
     ...addonRows
       .filter((row) => row.kind !== "credits")
-      .map((row) => ({ id: row.id, name: row.name })),
+      .map((row) => {
+        // "New website" and "Website redesign" have their own screen, and their names in the reader's language.
+        const kind = websiteProjectKindOf(row.slug);
+        return kind
+          ? { id: row.id, name: WEBSITE_PROJECT_COPY[locale].addons[kind].name, href: websiteProjectsHref(kind) }
+          : { id: row.id, name: row.name };
+      }),
   ];
 
   /**

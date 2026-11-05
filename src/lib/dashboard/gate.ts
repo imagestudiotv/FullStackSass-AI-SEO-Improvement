@@ -19,6 +19,8 @@ import {
   type PendingInvitation,
 } from "@/lib/websites/pending-invitations";
 import { readSelectedWebsite } from "@/lib/websites/selected";
+import { hasWebsiteProject } from "@/lib/website-projects/queries";
+import { WEBSITE_PROJECTS_PATH } from "@/lib/website-projects/shared";
 
 /**
  * What /dashboard shows, or where it sends the caller instead.
@@ -151,6 +153,16 @@ export async function resolveDashboard(
     */
     if (!target && invitations.length > 0) {
       return { kind: "invitations", invitations };
+    }
+
+    /*
+      No website of any kind, but they asked us to build one: their project is
+      the page, not "add your website", which they may have no answer to. Only
+      with nothing accessible at all, so it cannot get anyone past the paywall
+      below: a workspace with a website takes it, project or no project.
+    */
+    if (!target && (await hasWebsiteProject(orgId))) {
+      redirect(WEBSITE_PROJECTS_PATH);
     }
 
     // Paywall. See lib/billing/require-plan.ts.

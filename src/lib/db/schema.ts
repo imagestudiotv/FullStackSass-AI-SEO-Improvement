@@ -2441,6 +2441,75 @@ export const addonPurchasesRelations = relations(addonPurchases, ({ one }) => ({
     references: [addons.id],
   }),
 }));
+
+/**
+ * A request for a website to be built or redesigned (lib/website-projects).
+ *
+ * WHY NOT A ROW IN addon_purchases: there is no tariff (client, 2026-11-05), so
+ * the request exists long before there is anything to pay, and everything that
+ * reads addon_purchases takes a row there to mean "paid for". The purchase is
+ * recorded only when the agreed credits are paid, in the same transaction, with
+ * THE SAME ID as this row: a project can be paid once, the primary key refuses a
+ * second order, and the spend key "addon:<id>" refuses a second debit.
+ *
+ * quote_requested -> quoted -> paid -> fulfilled, or declined before payment.
+ */
+export const websiteProjects = pgTable(
+  "website_projects",
+  {
+    id: pk(),
+    organizationId: organizationId(),
+    /** Who asked. */
+    userId: userId(),
+    /** "new" | "redesign". */
+    kind: text("kind").notNull(),
+    status: text("status").default("quote_requested").notNull(),
+    /** One per form opened, so a double click or a retried request makes one project. */
+    requestKey: text("request_key").notNull(),
+    brief: text("brief").notNull(),
+    /** The site to redesign, when the customer named one. */
+    existingUrl: text("existing_url"),
+    requirements: text("requirements"),
+    contactName: text("contact_name").notNull(),
+    contactEmail: text("contact_email").notNull(),
+    contactPhone: text("contact_phone"),
+    /** The agreed scope, set by an administrator; the customer sees it with the price. */
+    scope: text("scope"),
+    /** The price in credits. Null until an administrator sets it; nothing can be paid before. */
+    creditCost: integer("credit_cost"),
+    quotedAt: timestamp("quoted_at"),
+    /** The administrator's email, here and below. */
+    quotedBy: text("quoted_by"),
+    creditsPaid: integer("credits_paid"),
+    paidAt: timestamp("paid_at"),
+    /** What was delivered, shown to the customer. */
+    deliveryNote: text("delivery_note"),
+    fulfilledAt: timestamp("fulfilled_at"),
+    fulfilledBy: text("fulfilled_by"),
+    /** Why it was declined, shown to the customer. */
+    declineReason: text("decline_reason"),
+    declinedAt: timestamp("declined_at"),
+    declinedBy: text("declined_by"),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("website_projects_request_key").on(table.organizationId, table.requestKey),
+    index("website_projects_org_idx").on(table.organizationId, table.createdAt),
+    index("website_projects_status_idx").on(table.status, table.createdAt),
+    check("website_projects_kind_check", sql`${table.kind} in ('new', 'redesign')`),
+    check("website_projects_status_check", sql`${table.status} in ('quote_requested', 'quoted', 'paid', 'fulfilled', 'declined')`),
+    // The rules a bug must not be able to break: no price, no quote; no credits, not paid.
+    check("website_projects_cost_check", sql`${table.creditCost} is null or ${table.creditCost} > 0`),
+    check(
+      "website_projects_priced_check",
+      sql`${table.status} not in ('quoted', 'paid', 'fulfilled') or (${table.creditCost} is not null and ${table.scope} is not null)`,
+    ),
+    check(
+      "website_projects_paid_check",
+      sql`${table.status} not in ('paid', 'fulfilled') or (${table.creditsPaid} > 0 and ${table.paidAt} is not null)`,
+    ),
+  ],
+);
 /* Agency workspaces                                                          */
 /* ------------------------------------------------------------------------- */
 

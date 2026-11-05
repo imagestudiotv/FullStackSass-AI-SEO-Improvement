@@ -22,6 +22,8 @@ import { db } from "@/lib/db";
 import { billingCustomers, websites } from "@/lib/db/schema";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import { PAYPAL_PENDING_COPY } from "@/lib/i18n/paypal-pending";
+import { WEBSITE_PROJECT_COPY } from "@/lib/i18n/website-projects";
+import { websiteProjectKindOf } from "@/lib/website-projects/shared";
 import { isPayPalAvailable } from "@/lib/paypal/actions";
 import { requireOrg } from "@/lib/tenant";
 import { hasOnlySharedWork, listAccessibleWebsites } from "@/lib/websites/accessible";
@@ -226,7 +228,11 @@ export default async function BillingPage({ searchParams }: PageProps<"/billing"
         id="addons", the target of the sidebar's Add-ons links.
       */}
       <AddonsPanel
-        addons={addons}
+        addons={addons.map((addon) => {
+          // These two are named in the reader's language.
+          const kind = websiteProjectKindOf(addon.slug);
+          return kind ? { ...addon, ...WEBSITE_PROJECT_COPY[locale].addons[kind] } : addon;
+        })}
         purchases={purchases}
         canBuy
         locale={locale}

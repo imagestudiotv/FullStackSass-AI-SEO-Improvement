@@ -3,6 +3,7 @@ import {
   Coins,
   FileText,
   Gauge,
+  Globe,
   Handshake,
   MessageSquare,
   Network,
@@ -43,6 +44,9 @@ export const ACTION_META: Record<AdminAction, ActionMeta> = {
   "credits.settings_saved": { label: "Credit prices changed", icon: Coins },
   "earn.approved": { label: "Earn Credits claim approved", icon: Coins },
   "earn.declined": { label: "Earn Credits claim declined", icon: Coins },
+  "website_project.quoted": { label: "Website project quoted", icon: Globe },
+  "website_project.declined": { label: "Website project declined", icon: Globe },
+  "website_project.fulfilled": { label: "Website project delivered", icon: Globe },
 
   "organization.limits_changed": { label: "Workspace limits changed", icon: Building2 },
   "organization.deactivated": { label: "Workspace deactivated", icon: Building2 },
