@@ -8,9 +8,12 @@ import { signupShowcaseCopy } from "@/lib/i18n/signup-showcase";
 import styles from "./signup-showcase.module.css";
 
 /**
- * The channels under the panel. The design also lists LinkedIn, which the
- * product does not connect to (lib/social/platforms.ts, lib/video/formats.ts),
- * so TikTok, which it does, takes that place.
+ * The channels under the panel. Beside "Social content & distribution" this
+ * reads as where RepGet gets a customer seen, so it lists where the product
+ * really reaches: the design's LinkedIn has no publishing connector
+ * (lib/social/platforms.ts, lib/video/formats.ts), and TikTok, which has one,
+ * takes its place. PENDING the client's review: the homepage's channel graphics
+ * do show LinkedIn, and sharing a referral link there is a different matter.
  */
 const CHANNELS: BrandIconName[] = ["google", "chatgpt", "gemini", "instagram", "tiktok", "youtube", "pinterest", "x"];
 

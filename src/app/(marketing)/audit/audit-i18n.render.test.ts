@@ -103,10 +103,18 @@ describe("how the report ends (client's design, 2026-11-05)", () => {
     expect(links).toContain(localePath(locale, "/pricing"));
   });
 
-  it.each(LOCALES)("in %s has one closing offer: the old gate and join block are gone", (locale) => {
+  it.each(LOCALES)("in %s has both of the design's sections, each once, and the old gate and join block are gone", (locale) => {
     const html = render(locale);
+    const words = text(html);
+    const t = auditEndingCopy(locale);
+    const once = (phrase: string) => expect(words.split(phrase), phrase).toHaveLength(2);
+    // The upgrade explanation.
+    for (const phrase of [t.overline, t.title, t.unlockTitle, t.unlockTag, t.deeperAudit.title, t.withPlan.title, t.cta]) once(phrase);
+    // The growth banner.
+    for (const phrase of [t.finalEyebrow, t.finalTitle[0], t.finalTitle[1], t.finalBody, t.finalCta[1].replace("{count}", "3"), AUDIT_COPY[locale].result.seePricing]) once(phrase);
+    // Both inside the one landmark, as the design wraps them.
     expect(html.match(/<section/g)).toHaveLength(1);
-    expect(text(html).split(auditEndingCopy(locale).title)).toHaveLength(2);
+    expect(html.indexOf(t.title.replaceAll("'", "&#x27;"))).toBeLessThan(html.indexOf(t.finalTitle[0]));
   });
 
   it.each(LOCALES)("in %s states the real offer, with the numbers read from where they are enforced", (locale) => {
@@ -141,6 +149,14 @@ describe("how the report ends (client's design, 2026-11-05)", () => {
     for (const label of [...copy.steps.assetLabels, ...copy.progress.assets.map((asset) => asset.label)]) {
       expect(label.toLowerCase()).not.toContain("backlink");
     }
+  });
+
+  it.each(LOCALES)("in %s names the third step for what it shows, and the two progress lists agree", (locale) => {
+    const copy = AUDIT_COPY[locale];
+    expect(copy.steps.assetLabels).toEqual(copy.progress.assets.map((asset) => asset.label));
+    // The free check makes no business profile (PublicAuditResult has none).
+    expect(copy.steps.assetLabels[2]).not.toMatch(/prof[ii]l/i);
+    expect(copy.progress.assets[2].lines[1]).toContain("{domain}");
   });
 });
 
