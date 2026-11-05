@@ -1,0 +1,193 @@
+/* =========================================================
+   IMAGE STUDIO - SEE-THROUGH HEADER OVER PHOTOS IN LIGHT MODE   v1.0
+   (2026-11-05)
+
+   Night Mode (the isx-night-mode plugin) paints every header
+   bar solid white in light mode, also over the homepage's
+   video. The client wants the see-through bar back there, as
+   in dark mode. Pages whose top turns white in light mode keep
+   the solid white bar: a see-through bar has nothing to show
+   there, and white on white could not be read.
+
+   At the top of these pages: the bar is see-through, with the
+   white logo and white words, as in dark mode. After scrolling,
+   while the pointer or keyboard focus is in the bar, and with a
+   menu open: solid white with dark words, exactly as today.
+
+   To add a page: give its first (photo) container the CSS class
+   isx-hero-top in Elementor. To keep one out: isx-solid-top.
+   The list, repeated in each rule below:
+     31 home              597 /commercial/      8151 /social-media/
+     2166 /music-video/   847 /film-production/ 2171 /ai-production/
+     5050 /wedding-photographer/                7947 /podcast/  7851 /drone/  8077 /reel/  8254 /wedding-videographer/
+   Not on: checkout, cart, account, other white pages, the Italian
+   site (its own header stays solid in dark mode too). Nothing here
+   is about the checkout's "Secure Checkout" header.
+
+   Switch this snippet off to undo. Nothing else was edited.
+
+   WHY NO "html.isx-light" AND WHY THE VARIABLES
+   - WP Rocket's "remove unused CSS" runs on these pages and may
+     drop rules for a class only a script adds. Without
+     html.isx-light these rules also apply in dark mode, where they
+     say what dark mode already shows.
+   - Night Mode copies each colour rule with the colour turned to
+     its light version and more weight, so "color: #fff" would come
+     back as black. It cannot read a variable that is not set on
+     <body>, and copies var(--isx-lh-ink) as it is. So the variables
+     are set on the bars, and their names avoid the words it looks
+     for in a variable's name.
+   ========================================================= */
+
+
+/* ---------- 1. COMPUTERS (1025px and wider) ---------- */
+
+@media (min-width: 1025px) {
+
+  html body:is(.page-id-31, .page-id-597, .page-id-8151, .page-id-2166, .page-id-847, .page-id-2171, .page-id-5050, .page-id-7947, .page-id-7851, .page-id-8077, .page-id-8254, :has(.isx-hero-top)):not(.woocommerce-checkout, .woocommerce-cart, .woocommerce-account, :has(.isx-solid-top)) .isx-desktop-header:not(.is-scrolled):not(:hover):not(:focus-within) {
+    --isx-lh-ink: #fff;
+    --isx-lh-soft: rgba(255, 255, 255, 0.38);
+    --isx-lh-hair: rgba(255, 255, 255, 0);
+    --isx-lh-veil: rgba(0, 0, 0, var(--isx-hc-tint, 0.23));
+    background-color: var(--isx-lh-veil) !important;
+    border-bottom-color: var(--isx-lh-hair) !important;
+  }
+
+  html body:is(.page-id-31, .page-id-597, .page-id-8151, .page-id-2166, .page-id-847, .page-id-2171, .page-id-5050, .page-id-7947, .page-id-7851, .page-id-8077, .page-id-8254, :has(.isx-hero-top)):not(.woocommerce-checkout, .woocommerce-cart, .woocommerce-account, :has(.isx-solid-top)) .isx-desktop-header:not(.is-scrolled):not(:hover):not(:focus-within) :is(a, span, button) {
+    color: var(--isx-lh-ink) !important;
+  }
+
+  html body:is(.page-id-31, .page-id-597, .page-id-8151, .page-id-2166, .page-id-847, .page-id-2171, .page-id-5050, .page-id-7947, .page-id-7851, .page-id-8077, .page-id-8254, :has(.isx-hero-top)):not(.woocommerce-checkout, .woocommerce-cart, .woocommerce-account, :has(.isx-solid-top)) .isx-desktop-header:not(.is-scrolled):not(:hover):not(:focus-within) .isx-chevron svg path {
+    stroke: var(--isx-lh-ink) !important;
+  }
+
+  html body:is(.page-id-31, .page-id-597, .page-id-8151, .page-id-2166, .page-id-847, .page-id-2171, .page-id-5050, .page-id-7947, .page-id-7851, .page-id-8077, .page-id-8254, :has(.isx-hero-top)):not(.woocommerce-checkout, .woocommerce-cart, .woocommerce-account, :has(.isx-solid-top)) .isx-desktop-header:not(.is-scrolled):not(:hover):not(:focus-within) .isx-logo-line {
+    background-color: var(--isx-lh-ink) !important;
+  }
+
+  /* The class only light mode sets: dark mode keeps its own border here. */
+  html body:is(.page-id-31, .page-id-597, .page-id-8151, .page-id-2166, .page-id-847, .page-id-2171, .page-id-5050, .page-id-7947, .page-id-7851, .page-id-8077, .page-id-8254, :has(.isx-hero-top)):not(.woocommerce-checkout, .woocommerce-cart, .woocommerce-account, :has(.isx-solid-top)) .isx-desktop-header:not(.is-scrolled):not(:hover):not(:focus-within).isxn-flip .isx-contact {
+    --isx-lh-rim: rgba(255, 255, 255, 0.68);
+    border-color: var(--isx-lh-rim) !important;
+    background-color: transparent !important;
+  }
+
+  /* Night Mode paints the header template behind the bar white: a 20px strip over the photo. */
+  html body:is(.page-id-31, .page-id-597, .page-id-8151, .page-id-2166, .page-id-847, .page-id-2171, .page-id-5050, .page-id-7947, .page-id-7851, .page-id-8077, .page-id-8254, :has(.isx-hero-top)):not(.woocommerce-checkout, .woocommerce-cart, .woocommerce-account, :has(.isx-solid-top)) #masthead#masthead > .elementor[data-elementor-type] {
+    background-color: transparent !important;
+  }
+
+  html body:is(.page-id-31, .page-id-597, .page-id-8151, .page-id-2166, .page-id-847, .page-id-2171, .page-id-5050, .page-id-7947, .page-id-7851, .page-id-8077, .page-id-8254, :has(.isx-hero-top)):not(.woocommerce-checkout, .woocommerce-cart, .woocommerce-account, :has(.isx-solid-top)) .isx-desktop-header:not(.is-scrolled):not(:hover):not(:focus-within) .isx-right-nav > button {
+    border-color: var(--isx-lh-soft) !important;
+    background-color: transparent !important;
+  }
+
+  /* As in dark mode: the homepage's logo as it is, a soft shadow on the others. */
+  html body.page-id-31 .isx-desktop-header:not(.is-scrolled):not(:hover):not(:focus-within) img {
+    filter: none !important;
+  }
+
+  html body:is(.page-id-597, .page-id-8151, .page-id-2166, .page-id-847, .page-id-2171, .page-id-5050, .page-id-7947, .page-id-7851, .page-id-8077, .page-id-8254, :has(.isx-hero-top)):not(.woocommerce-checkout, .woocommerce-cart, .woocommerce-account, :has(.isx-solid-top)) .isx-desktop-header:not(.is-scrolled):not(:hover):not(:focus-within) img {
+    filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.45)) !important;
+  }
+
+}
+
+
+/* ---------- 2. PHONES (767px and narrower), EVERY PAGE BUT HOME ----------
+   The bar of isx-header-consistency, at the top of the page with
+   the menu closed. Its script sets isx-hc-at-top; without the
+   script the bar simply stays solid. */
+
+@media (max-width: 767px) {
+
+  html body.isx-hc-at-top:is(.page-id-31, .page-id-597, .page-id-8151, .page-id-2166, .page-id-847, .page-id-2171, .page-id-5050, .page-id-7947, .page-id-7851, .page-id-8077, .page-id-8254, :has(.isx-hero-top)):not(.page-id-31, .woocommerce-checkout, .woocommerce-cart, .woocommerce-account, :has(.isx-solid-top)) #masthead#masthead:has(.isx-mobile-toggle):not(:has(.isx-fullscreen-menu.active)) {
+    --isx-lh-ink: #fff;
+    --isx-lh-soft: rgba(255, 255, 255, 0.42);
+    --isx-lh-hair: rgba(255, 255, 255, 0.62);
+    --isx-lh-veil: rgba(0, 0, 0, var(--isx-hc-tint-phone, 0.3));
+  }
+
+  html body.isx-hc-at-top:is(.page-id-31, .page-id-597, .page-id-8151, .page-id-2166, .page-id-847, .page-id-2171, .page-id-5050, .page-id-7947, .page-id-7851, .page-id-8077, .page-id-8254, :has(.isx-hero-top)):not(.page-id-31, .woocommerce-checkout, .woocommerce-cart, .woocommerce-account, :has(.isx-solid-top)) #masthead#masthead:has(.isx-mobile-toggle):not(:has(.isx-fullscreen-menu.active)) > .elementor {
+    background-color: var(--isx-lh-veil) !important;
+  }
+
+  html body.isx-hc-at-top:is(.page-id-31, .page-id-597, .page-id-8151, .page-id-2166, .page-id-847, .page-id-2171, .page-id-5050, .page-id-7947, .page-id-7851, .page-id-8077, .page-id-8254, :has(.isx-hero-top)):not(.page-id-31, .woocommerce-checkout, .woocommerce-cart, .woocommerce-account, :has(.isx-solid-top)) #masthead#masthead:has(.isx-mobile-toggle):not(:has(.isx-fullscreen-menu.active)) .isx-mobile-toggle,
+  html body.isx-hc-at-top:is(.page-id-31, .page-id-597, .page-id-8151, .page-id-2166, .page-id-847, .page-id-2171, .page-id-5050, .page-id-7947, .page-id-7851, .page-id-8077, .page-id-8254, :has(.isx-hero-top)):not(.page-id-31, .woocommerce-checkout, .woocommerce-cart, .woocommerce-account, :has(.isx-solid-top)) #masthead#masthead:has(.isx-mobile-toggle):not(:has(.isx-fullscreen-menu.active)) .isx-mobile-toggle span,
+  html body.isx-hc-at-top:is(.page-id-31, .page-id-597, .page-id-8151, .page-id-2166, .page-id-847, .page-id-2171, .page-id-5050, .page-id-7947, .page-id-7851, .page-id-8077, .page-id-8254, :has(.isx-hero-top)):not(.page-id-31, .woocommerce-checkout, .woocommerce-cart, .woocommerce-account, :has(.isx-solid-top)) #masthead#masthead:has(.isx-mobile-toggle):not(:has(.isx-fullscreen-menu.active)) .isx-hc-contact {
+    color: var(--isx-lh-ink) !important;
+    -webkit-text-fill-color: var(--isx-lh-ink) !important;
+  }
+
+  html body.isx-hc-at-top:is(.page-id-31, .page-id-597, .page-id-8151, .page-id-2166, .page-id-847, .page-id-2171, .page-id-5050, .page-id-7947, .page-id-7851, .page-id-8077, .page-id-8254, :has(.isx-hero-top)):not(.page-id-31, .woocommerce-checkout, .woocommerce-cart, .woocommerce-account, :has(.isx-solid-top)) #masthead#masthead:has(.isx-mobile-toggle):not(:has(.isx-fullscreen-menu.active)) .isx-mobile-toggle::after {
+    background: radial-gradient(circle at 1.5px 1.5px, var(--isx-lh-ink) 1.5px, transparent 1.6px) 0 0 / 6px 6px !important;
+  }
+
+  html body.isx-hc-at-top:is(.page-id-31, .page-id-597, .page-id-8151, .page-id-2166, .page-id-847, .page-id-2171, .page-id-5050, .page-id-7947, .page-id-7851, .page-id-8077, .page-id-8254, :has(.isx-hero-top)):not(.page-id-31, .woocommerce-checkout, .woocommerce-cart, .woocommerce-account, :has(.isx-solid-top)) #masthead#masthead:has(.isx-mobile-toggle):not(:has(.isx-fullscreen-menu.active)) .isx-hc-contact::after {
+    background: var(--isx-lh-soft) !important;
+  }
+
+  html body.isx-hc-at-top:is(.page-id-31, .page-id-597, .page-id-8151, .page-id-2166, .page-id-847, .page-id-2171, .page-id-5050, .page-id-7947, .page-id-7851, .page-id-8077, .page-id-8254, :has(.isx-hero-top)):not(.page-id-31, .woocommerce-checkout, .woocommerce-cart, .woocommerce-account, :has(.isx-solid-top)) #masthead#masthead:has(.isx-mobile-toggle):not(:has(.isx-fullscreen-menu.active)) .elementor-widget-image img {
+    filter: none !important;
+  }
+
+  html body.isx-hc-at-top:is(.page-id-31, .page-id-597, .page-id-8151, .page-id-2166, .page-id-847, .page-id-2171, .page-id-5050, .page-id-7947, .page-id-7851, .page-id-8077, .page-id-8254, :has(.isx-hero-top)):not(.page-id-31, .woocommerce-checkout, .woocommerce-cart, .woocommerce-account, :has(.isx-solid-top)) #masthead#masthead:has(.isx-mobile-toggle):not(:has(.isx-fullscreen-menu.active)) .elementor-widget-image a::after {
+    background:
+      linear-gradient(var(--isx-lh-hair), var(--isx-lh-hair)) left center / 18px 1px no-repeat,
+      linear-gradient(var(--isx-lh-hair), var(--isx-lh-hair)) right center / 18px 1px no-repeat !important;
+    color: var(--isx-lh-ink) !important;
+    -webkit-text-fill-color: var(--isx-lh-ink) !important;
+  }
+
+}
+
+
+/* ---------- 3. PHONES, THE HOMEPAGE ----------
+   Its own phone header (set up by the script in its hero widget).
+   Its script sets isx-home-at-top and isx-home-menu-open. */
+
+@media (max-width: 767px) {
+
+  html body.page-id-31.isx-home-at-top:not(.isx-home-menu-open) #masthead.isx-home-header-root {
+    --isx-lh-veil: rgba(0, 0, 0, 0.3);
+    background-color: var(--isx-lh-veil) !important;
+  }
+
+  html body.page-id-31.isx-home-at-top:not(.isx-home-menu-open) #masthead#masthead > .elementor[data-elementor-type] {
+    background-color: transparent !important;
+  }
+
+  html body.page-id-31.isx-home-at-top:not(.isx-home-menu-open) :is(.isx-home-menu-visual, .isx-home-contact, .isx-home-logo) {
+    --isx-lh-ink: #fff;
+    --isx-lh-soft: rgba(255, 255, 255, 0.42);
+    --isx-lh-hair: rgba(255, 255, 255, 0.62);
+    color: var(--isx-lh-ink) !important;
+    -webkit-text-fill-color: var(--isx-lh-ink) !important;
+  }
+
+  html body.page-id-31.isx-home-at-top:not(.isx-home-menu-open) .isx-home-menu-visual * {
+    color: var(--isx-lh-ink) !important;
+    -webkit-text-fill-color: var(--isx-lh-ink) !important;
+  }
+
+  html body.page-id-31.isx-home-at-top:not(.isx-home-menu-open) .isx-home-menu-dots > * {
+    background-color: var(--isx-lh-ink) !important;
+  }
+
+  html body.page-id-31.isx-home-at-top:not(.isx-home-menu-open) .isx-home-contact::after {
+    background: var(--isx-lh-soft) !important;
+  }
+
+  html body.page-id-31.isx-home-at-top:not(.isx-home-menu-open) .isx-home-logo img {
+    filter: none !important;
+  }
+
+  html body.page-id-31.isx-home-at-top:not(.isx-home-menu-open) #masthead .isx-home-logo::after {
+    background:
+      linear-gradient(var(--isx-lh-hair), var(--isx-lh-hair)) left center / 18px 1px no-repeat,
+      linear-gradient(var(--isx-lh-hair), var(--isx-lh-hair)) right center / 18px 1px no-repeat !important;
+    color: var(--isx-lh-ink) !important;
+    -webkit-text-fill-color: var(--isx-lh-ink) !important;
+  }
+
+}
