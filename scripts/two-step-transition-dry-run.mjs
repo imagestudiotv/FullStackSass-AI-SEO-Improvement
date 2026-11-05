@@ -42,10 +42,7 @@ export const TRANSITION_QUERY = `
       when a.review_status = 'approved' then
         case when a.review_approved_hash is distinct from ${REVISION} or ${RESEARCH_HELD}
           then 'moves_approval_no_longer_stands' else 'stays_approved_ready' end
-      when ${RESEARCH_HELD} then 'moves_waiting_for_customer_sources'
-      when a.publish_requested is not null then 'stays_customer_press_waiting'
-      when w.auto_publish then 'moves_automatic_publishing'
-      else 'stays_manual_draft_customer_reads'
+      else 'moves_never_approved'
     end as class
     from articles a
     join websites w on w.id = a.website_id

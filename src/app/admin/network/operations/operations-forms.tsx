@@ -112,11 +112,11 @@ const SWITCH_COPY: Record<
       body: (
         <>
           Every new article, on every website and the free articles of new customers too, comes to the review queue first, and the
-          customer reads none of it until you approve. Your approval makes that exact version ready: they press Publish and approve
-          nothing, and a later change by them comes back to this queue. A first article no longer goes live by itself. Automatic
-          publishing a customer chose still runs, for approved articles only. Drafts on automatic publishing, and drafts waiting for a
-          customer&apos;s source approval, move to the queue now; nothing is approved or republished. Count them first with
-          scripts/two-step-transition-dry-run.mjs. Turn on only after a deploy has finished.
+          customer reads none of it until you approve. Your approval stores that exact version as ready: they press Publish and
+          approve nothing. A later change by them or by you stays private until approved, while they keep the approved version. A first
+          article no longer goes live by itself. Automatic publishing a customer chose still runs, for approved articles only. Every
+          draft you have not approved moves to the queue now; nothing is approved or republished. Count them first with
+          scripts/two-step-transition-dry-run.mjs. Migration 0086 must be applied. Turn on only after a deploy has finished.
         </>
       ),
       confirm: "Turn on two-step",
