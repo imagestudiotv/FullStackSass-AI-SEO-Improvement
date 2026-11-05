@@ -24,18 +24,11 @@ export type EarnCopy = {
   ready: string;
   copyCode: string;
   copyLink: string;
-  share: string;
   codeCopied: string;
   linkCopied: string;
   copyFailed: string;
   metaPerReferral: string;
   metaAfterPayment: string;
-  shareTitle: string;
-  shareBody: string;
-  shareEmail: string;
-  shareSubject: string;
-  /** "… {code}: {link}" */
-  shareMessage: string;
 
   dailyTitle: string;
   dailyBody: string;
@@ -113,17 +106,11 @@ const en: EarnCopy = {
   ready: "Ready to share",
   copyCode: "Copy code",
   copyLink: "Copy link",
-  share: "Share",
   codeCopied: "Code copied",
   linkCopied: "Link copied",
   copyFailed: "Copying failed. Select the text and copy it by hand.",
   metaPerReferral: "{credits} credits per qualifying referral",
   metaAfterPayment: "Reward after their first paid month",
-  shareTitle: "Share your referral",
-  shareBody: "Invite another business with your link or code. You earn {credits} credits after their first paid month.",
-  shareEmail: "Email",
-  shareSubject: "RepGet, a tool you might find useful",
-  shareMessage: "I think RepGet could help your business grow. Sign up with my referral code {code}: {link}",
 
   dailyTitle: "A little boost, every day.",
   dailyBody: "Check in once a day to collect your daily credits. They never expire.",
@@ -246,17 +233,11 @@ const es: EarnCopy = {
   ready: "Listo para compartir",
   copyCode: "Copiar código",
   copyLink: "Copiar enlace",
-  share: "Compartir",
   codeCopied: "Código copiado",
   linkCopied: "Enlace copiado",
   copyFailed: "No se pudo copiar. Seleccione el texto y cópielo a mano.",
   metaPerReferral: "{credits} créditos por cada referido válido",
   metaAfterPayment: "Recompensa tras su primer mes pagado",
-  shareTitle: "Comparta su referido",
-  shareBody: "Invite a otra empresa con su enlace o código. Gana {credits} créditos tras su primer mes pagado.",
-  shareEmail: "Correo",
-  shareSubject: "RepGet, una herramienta que le puede ser útil",
-  shareMessage: "Creo que RepGet puede ayudar a crecer a su negocio. Regístrese con mi código de referido {code}: {link}",
 
   dailyTitle: "Un pequeño impulso, cada día.",
   dailyBody: "Registre su visita una vez al día para recoger sus créditos diarios. No caducan nunca.",
@@ -379,17 +360,11 @@ const fr: EarnCopy = {
   ready: "Prêt à partager",
   copyCode: "Copier le code",
   copyLink: "Copier le lien",
-  share: "Partager",
   codeCopied: "Code copié",
   linkCopied: "Lien copié",
   copyFailed: "La copie a échoué. Sélectionnez le texte et copiez-le à la main.",
   metaPerReferral: "{credits} crédits par parrainage valide",
   metaAfterPayment: "Récompense après son premier mois payé",
-  shareTitle: "Partagez votre parrainage",
-  shareBody: "Invitez une autre entreprise avec votre lien ou votre code. Vous gagnez {credits} crédits après son premier mois payé.",
-  shareEmail: "E-mail",
-  shareSubject: "RepGet, un outil qui pourrait vous être utile",
-  shareMessage: "Je pense que RepGet peut aider votre entreprise à se développer. Inscrivez-vous avec mon code de parrainage {code} : {link}",
 
   dailyTitle: "Un petit coup de pouce, chaque jour.",
   dailyBody: "Faites votre check-in une fois par jour pour récupérer vos crédits quotidiens. Ils n’expirent jamais.",
@@ -512,17 +487,11 @@ const it: EarnCopy = {
   ready: "Pronto da condividere",
   copyCode: "Copia codice",
   copyLink: "Copia link",
-  share: "Condividi",
   codeCopied: "Codice copiato",
   linkCopied: "Link copiato",
   copyFailed: "Copia non riuscita. Selezioni il testo e lo copi a mano.",
   metaPerReferral: "{credits} crediti per ogni referral valido",
   metaAfterPayment: "Premio dopo il suo primo mese pagato",
-  shareTitle: "Condivida il Suo referral",
-  shareBody: "Inviti un’altra azienda con il Suo link o codice. Guadagna {credits} crediti dopo il suo primo mese pagato.",
-  shareEmail: "Email",
-  shareSubject: "RepGet, uno strumento che potrebbe esserLe utile",
-  shareMessage: "Credo che RepGet possa aiutare la Sua attività a crescere. Si iscriva con il mio codice referral {code}: {link}",
 
   dailyTitle: "Una piccola spinta, ogni giorno.",
   dailyBody: "Faccia il check-in una volta al giorno per ricevere i Suoi crediti giornalieri. Non scadono mai.",
@@ -645,17 +614,11 @@ const de: EarnCopy = {
   ready: "Bereit zum Teilen",
   copyCode: "Code kopieren",
   copyLink: "Link kopieren",
-  share: "Teilen",
   codeCopied: "Code kopiert",
   linkCopied: "Link kopiert",
   copyFailed: "Kopieren fehlgeschlagen. Markieren Sie den Text und kopieren Sie ihn von Hand.",
   metaPerReferral: "{credits} Credits pro gültiger Empfehlung",
   metaAfterPayment: "Prämie nach dem ersten bezahlten Monat",
-  shareTitle: "Empfehlung teilen",
-  shareBody: "Laden Sie ein anderes Unternehmen mit Ihrem Link oder Code ein. Sie erhalten {credits} Credits nach dessen erstem bezahlten Monat.",
-  shareEmail: "E-Mail",
-  shareSubject: "RepGet, ein Tool, das Ihnen nützen könnte",
-  shareMessage: "Ich glaube, RepGet kann Ihrem Unternehmen beim Wachsen helfen. Melden Sie sich mit meinem Empfehlungscode {code} an: {link}",
 
   dailyTitle: "Ein kleiner Schub, jeden Tag.",
   dailyBody: "Checken Sie einmal täglich ein, um Ihre täglichen Credits abzuholen. Sie verfallen nie.",

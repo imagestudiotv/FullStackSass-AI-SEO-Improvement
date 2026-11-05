@@ -1,5 +1,6 @@
-import { CheckCircle2, ChevronDown, Info, Lightbulb, Sun, UsersRound, Wallet } from "lucide-react";
+import { ArrowUpRight, CheckCircle2, ChevronDown, Info, Lightbulb, Plus, Sun, UsersRound, Wallet } from "lucide-react";
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { cache } from "react";
 
@@ -12,9 +13,11 @@ import { requireSession } from "@/lib/auth-guard";
 import { creditOverviewForRequest } from "@/lib/credits/overview-request";
 import { TRIAL_CREDIT_DAYS } from "@/lib/credits/prices";
 import { canEnterReferralCode, listEarnClaims } from "@/lib/earn/actions";
+import { EARN_WAYS } from "@/lib/earn/ways";
 import { getAppMessages } from "@/lib/i18n/app-locale";
 import { DAILY_CLAIM_COPY, dailyWhen } from "@/lib/i18n/daily-claim";
 import { EARN_COPY } from "@/lib/i18n/earn";
+import { EARN_SHARE_COPY } from "@/lib/i18n/earn-share";
 import { format, formatDate, formatNumber, plural } from "@/lib/i18n/format";
 import { getReferralSummary } from "@/lib/referrals/actions";
 import { referralLine, REFERRALS_LISTED } from "@/lib/referrals/display";
@@ -24,6 +27,13 @@ import { requireOrg } from "@/lib/tenant";
 import { hasOnlySharedWork } from "@/lib/websites/accessible";
 
 import { EarnWays, EnterReferralCode, ReferralShare } from "./earn-client";
+import { ShareKit } from "./share-kit";
+
+/**
+ * The reward drawn into the referral artwork. The picture is only shown while
+ * it matches REFERRAL_REWARD_CREDITS, so a changed reward cannot be contradicted by it.
+ */
+const ART_REWARD_CREDITS = 100;
 
 const messagesFor = cache((userId: string) => getAppMessages(userId));
 
@@ -38,8 +48,8 @@ export const dynamic = "force-dynamic";
 
 /**
  * Earn Credits (client design, 2026-11-02), its own page rather than a card
- * on Settings: the referral program (code, link, sharing, who signed up),
- * the daily check-in, the four other ways to earn (each reviewed by the
+ * on Settings: the referral program (code, link, the share kit, who signed
+ * up), the daily check-in, the four other ways to earn (each reviewed by the
  * RepGet team, lib/earn), entering someone else's code, and the FAQ.
  *
  * Everything is the reader's own workspace (requireOrg). Someone who owns no
@@ -81,6 +91,7 @@ export default async function EarnCreditsPage() {
   const link = referrals ? `${canonicalSiteUrl()}/r/${referrals.code}` : null;
   const day = (at: Date) => formatDate(at, locale, { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
   const credits = REFERRAL_REWARD_CREDITS;
+  const k = EARN_SHARE_COPY[locale];
   const dc = DAILY_CLAIM_COPY[locale];
   const daily = overview?.daily ?? null;
   const dailyOffered = Boolean(daily?.eligible && daily.perDay > 0);
@@ -121,15 +132,39 @@ export default async function EarnCreditsPage() {
               {e.program}
             </span>
           </div>
-          <h2 id="invite" className="relative mt-4 text-3xl leading-tight font-bold tracking-tight sm:text-4xl">
-            {e.heroTitle}
-            <br />
-            <span className="text-primary">{format(e.heroEm, { credits })}</span>
-          </h2>
-          <p className="relative mt-3 max-w-xl text-sm text-muted-foreground">{format(e.heroBody, { credits })}</p>
-          <div className="relative mt-5 max-w-2xl">
+          <div className="relative mt-4 grid items-center gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
+            <div className="min-w-0">
+              <h2 id="invite" className="text-3xl leading-tight font-bold tracking-tight sm:text-4xl">
+                {e.heroTitle}
+                <br />
+                <span className="text-primary">{format(e.heroEm, { credits })}</span>
+              </h2>
+              <p className="mt-3 max-w-xl text-sm text-muted-foreground">{format(e.heroBody, { credits })}</p>
+              {referrals && link ? (
+                <a
+                  href="#share-kit"
+                  className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-primary/25 bg-primary/5 px-2.5 py-2 text-xs font-semibold text-primary transition-colors hover:bg-primary/10"
+                >
+                  <Plus className="size-3.5 shrink-0" aria-hidden="true" />
+                  {k.jump}
+                  <ArrowUpRight className="size-3.5 shrink-0" aria-hidden="true" />
+                </a>
+              ) : null}
+            </div>
+            {credits === ART_REWARD_CREDITS ? (
+              <Image
+                src="/images/earn/referral-invite.webp"
+                width={860}
+                height={645}
+                sizes="(min-width: 1024px) 22rem, (min-width: 640px) 40vw, 90vw"
+                alt={format(k.artAlt, { credits })}
+                className="mx-auto w-full max-w-84 rounded-xl mix-blend-multiply sm:max-w-none dark:mix-blend-normal"
+              />
+            ) : null}
+          </div>
+          <div className="relative mt-4 max-w-2xl">
             {referrals && link ? (
-              <ReferralShare code={referrals.code} link={link} credits={credits} t={e} />
+              <ReferralShare code={referrals.code} link={link} t={e} />
             ) : (
               <Notice tone="danger" role="alert">
                 {e.unavailable}
@@ -214,7 +249,11 @@ export default async function EarnCreditsPage() {
         </section>
       </div>
 
-      <section aria-labelledby="ways" className="space-y-3">
+      {referrals && link ? (
+        <ShareKit code={referrals.code} link={link} postCredits={EARN_WAYS.post.credits} referralCredits={credits} locale={locale} t={k} />
+      ) : null}
+
+      <section id="more-ways" aria-labelledby="ways" className="scroll-mt-20 space-y-3">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h2 id="ways" className="text-lg font-semibold tracking-tight">
